@@ -28,6 +28,7 @@ public:
 
 	Button *toggleOn(rpl::producer<bool> &&toggled);
 	rpl::producer<bool> toggledValue() const;
+	bool toggled() const;
 
 	void setColorOverride(base::optional<QColor> textColorOverride);
 

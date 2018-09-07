@@ -68,10 +68,10 @@ void SetupUploadPhotoButton(
 			filter,
 			crl::guard(container, callback));
 	};
-	container->add(object_ptr<Button>(
+	AddButton(
 		container,
-		Lang::Viewer(lng_settings_upload),
-		st::settingsSectionButton)
+		lng_settings_upload,
+		st::settingsSectionButton
 	)->addClickHandler(App::LambdaDelayed(
 		st::settingsSectionButton.ripple.hideDuration,
 		container,
@@ -81,26 +81,15 @@ void SetupUploadPhotoButton(
 }
 
 void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
-	const auto button = container->add(object_ptr<Button>(
+	const auto button = AddButtonWithLabel(
 		container,
-		Lang::Viewer(lng_settings_language),
-		st::settingsSectionButton));
+		lng_settings_language,
+		Lang::Viewer(lng_language_name),
+		st::settingsSectionButton);
 	const auto guard = Ui::AttachAsChild(button, base::binary_guard());
 	button->addClickHandler([=] {
 		*guard = LanguageBox::Show();
 	});
-	const auto name = Ui::CreateChild<Ui::FlatLabel>(
-		button,
-		Lang::Viewer(lng_language_name),
-		st::settingsButtonRight);
-	rpl::combine(
-		name->widthValue(),
-		button->widthValue()
-	) | rpl::start_with_next([=] {
-		name->moveToRight(
-			st::settingsButtonRightPosition.x(),
-			st::settingsButtonRightPosition.y());
-	}, name->lifetime());
 }
 
 void SetupSections(
@@ -110,10 +99,10 @@ void SetupSections(
 	AddSkip(container);
 
 	const auto addSection = [&](LangKey label, Type type) {
-		container->add(object_ptr<Button>(
+		AddButton(
 			container,
-			Lang::Viewer(label),
-			st::settingsSectionButton)
+			label,
+			st::settingsSectionButton
 		)->addClickHandler([=] { showOther(type); });
 	};
 	addSection(lng_settings_section_info, Type::Information);
@@ -140,10 +129,10 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 
 	const auto switched = (cConfigScale() == dbisAuto)
 		|| (cConfigScale() == cScreenScale());
-	const auto button = container->add(object_ptr<Button>(
+	const auto button = AddButton(
 		container,
-		Lang::Viewer(lng_settings_default_scale),
-		st::settingsSectionButton)
+		lng_settings_default_scale,
+		st::settingsSectionButton
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
 	const auto slider = container->add(
@@ -243,19 +232,19 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	container->add(object_ptr<Button>(
+	AddButton(
 		container,
-		Lang::Viewer(lng_settings_faq),
-		st::settingsSectionButton)
+		lng_settings_faq,
+		st::settingsSectionButton
 	)->addClickHandler([] {
 		QDesktopServices::openUrl(telegramFaqLink());
 	});
 
 	if (AuthSession::Exists()) {
-		const auto button = container->add(object_ptr<Button>(
+		const auto button = AddButton(
 			container,
-			Lang::Viewer(lng_settings_ask_question),
-			st::settingsSectionButton));
+			lng_settings_ask_question,
+			st::settingsSectionButton);
 		button->addClickHandler([=] {
 			const auto ready = crl::guard(button, [](const MTPUser &data) {
 				const auto users = MTP_vector<MTPUser>(1, data);

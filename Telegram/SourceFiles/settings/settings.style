@@ -8,18 +8,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "basic.style";
 using "ui/widgets/widgets.style";
 using "info/info.style";
+using "boxes/boxes.style";
 
-settingsSectionButton: infoProfileButton;
+settingsSectionButton: InfoProfileButton(infoProfileButton) {
+	font: boxTextFont;
+}
+settingsButton: InfoProfileButton(settingsSectionButton) {
+	padding: margins(28px, 10px, 8px, 8px);
+}
 settingsSectionSkip: infoProfileSkip;
 settingsButtonRightPosition: point(28px, 10px);
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
+	style: boxTextStyle;
 }
 settingsScalePadding: margins(79px, 10px, 28px, 8px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	labelFg: windowSubTextFg;
 	labelFgActive: windowActiveTextFg;
 }
+settingsUpdateToggle: InfoProfileButton(settingsButton) {
+	height: 38px;
+}
+settingsUpdateState: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
+}
+settingsUpdateStatePosition: point(28px, 30px);
 
 settingsNotificationsCheckbox: defaultBoxCheckbox;
 settingsNotificationsCheckboxPadding: margins(22px, 10px, 10px, 10px);

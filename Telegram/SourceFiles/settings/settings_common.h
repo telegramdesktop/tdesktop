@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+enum LangKey : int;
+
 namespace Ui {
 class VerticalLayout;
 } // namespace Ui
@@ -22,6 +24,10 @@ namespace Profile {
 class Button;
 } // namespace Profile
 } // namespace Info
+
+namespace style {
+struct InfoProfileButton;
+} // namespace style
 
 namespace Settings {
 
@@ -54,6 +60,15 @@ object_ptr<Section> CreateSection(
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);
 void AddDivider(not_null<Ui::VerticalLayout*> container);
+not_null<Button*> AddButton(
+	not_null<Ui::VerticalLayout*> container,
+	LangKey text,
+	const style::InfoProfileButton &st);
+not_null<Button*> AddButtonWithLabel(
+	not_null<Ui::VerticalLayout*> container,
+	LangKey text,
+	rpl::producer<QString> label,
+	const style::InfoProfileButton &st);
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,

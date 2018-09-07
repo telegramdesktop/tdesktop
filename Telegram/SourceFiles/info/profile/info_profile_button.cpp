@@ -58,6 +58,10 @@ rpl::producer<bool> Button::toggledValue() const {
 	return rpl::never<bool>();
 }
 
+bool Button::toggled() const {
+	return _toggle ? _toggle->checked() : false;
+}
+
 void Button::setColorOverride(base::optional<QColor> textColorOverride) {
 	_textColorOverride = textColorOverride;
 	update();
@@ -94,6 +98,7 @@ void Button::paintEvent(QPaintEvent *e) {
 
 QRect Button::toggleRect() const {
 	Expects(_toggle != nullptr);
+
 	auto size = _toggle->getSize();
 	auto left = width() - _st.toggleSkip - size.width();
 	auto top = (height() - size.height()) / 2;
