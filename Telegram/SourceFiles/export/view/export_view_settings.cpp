@@ -93,9 +93,10 @@ void SettingsWidget::setupContent() {
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
 		this,
 		st::boxLayerScroll);
-	const auto wrap = scroll->setOwnedWidget(object_ptr<Ui::IgnoreMargins>(
-		scroll,
-		object_ptr<Ui::VerticalLayout>(scroll)));
+	const auto wrap = scroll->setOwnedWidget(
+		object_ptr<Ui::OverrideMargins>(
+			scroll,
+			object_ptr<Ui::VerticalLayout>(scroll)));
 	const auto content = static_cast<Ui::VerticalLayout*>(wrap->entity());
 
 	const auto buttons = setupButtons(scroll, wrap);

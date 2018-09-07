@@ -59,6 +59,7 @@ object_ptr<Section> CreateSection(
 	UserData *self = nullptr);
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);
+void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);
 void AddDivider(not_null<Ui::VerticalLayout*> container);
 not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,

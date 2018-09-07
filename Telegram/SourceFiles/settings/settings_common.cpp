@@ -47,9 +47,13 @@ object_ptr<Section> CreateSection(
 }
 
 void AddSkip(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container, st::settingsSectionSkip);
+}
+
+void AddSkip(not_null<Ui::VerticalLayout*> container, int skip) {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
-		st::settingsSectionSkip));
+		skip));
 }
 
 void AddDivider(not_null<Ui::VerticalLayout*> container) {

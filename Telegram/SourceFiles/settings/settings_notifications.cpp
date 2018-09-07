@@ -30,19 +30,19 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 			container,
 			lang(label),
 			checked,
-			st::settingsNotificationsCheckbox);
+			st::settingsCheckbox);
 	};
 	const auto addCheckbox = [&](LangKey label, bool checked) {
 		return container->add(
 			checkbox(label, checked),
-			st::settingsNotificationsCheckboxPadding);
+			st::settingsCheckboxPadding);
 	};
 	const auto addSlidingCheckbox = [&](LangKey label, bool checked) {
 		return container->add(
 			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 				container,
 				checkbox(label, checked),
-				st::settingsNotificationsCheckboxPadding));
+				st::settingsCheckboxPadding));
 	};
 	const auto desktop = addCheckbox(
 		lng_settings_desktop_notify,
@@ -96,8 +96,6 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		advanced->hide(anim::type::instant);
 	}
 
-	const auto lifetime = Ui::AttachAsChild(container, rpl::lifetime());
-
 	using Change = Window::Notifications::ChangeType;
 	const auto changed = [](Change change) {
 		Local::writeUserSettings();
@@ -110,7 +108,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](bool checked) {
 		Global::SetDesktopNotify(checked);
 		changed(Change::DesktopEnabled);
-	}, *lifetime);
+	}, desktop->lifetime());
 
 	base::ObservableViewer(
 		name->entity()->checkedChanged
@@ -126,7 +124,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](DBINotifyView value) {
 		Global::SetNotifyView(value);
 		changed(Change::ViewParams);
-	}, *lifetime);
+	}, name->lifetime());
 
 	base::ObservableViewer(
 		preview->entity()->checkedChanged
@@ -142,7 +140,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](DBINotifyView value) {
 		Global::SetNotifyView(value);
 		changed(Change::ViewParams);
-	}, *lifetime);
+	}, preview->lifetime());
 
 	base::ObservableViewer(
 		sound->checkedChanged
@@ -151,7 +149,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](bool checked) {
 		Global::SetSoundNotify(checked);
 		changed(Change::SoundEnabled);
-	}, *lifetime);
+	}, sound->lifetime());
 
 	base::ObservableViewer(
 		muted->checkedChanged
@@ -160,7 +158,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](bool checked) {
 		Global::SetIncludeMuted(checked);
 		changed(Change::IncludeMuted);
-	}, *lifetime);
+	}, muted->lifetime());
 
 	base::ObservableViewer(
 		Auth().notifications().settingsChanged()
@@ -176,7 +174,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		} else if (change == Change::SoundEnabled) {
 			sound->setChecked(Global::SoundNotify());
 		}
-	}, *lifetime);
+	}, desktop->lifetime());
 
 	if (native) {
 		base::ObservableViewer(
@@ -194,7 +192,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 					!Global::NativeNotifications(),
 					anim::type::normal);
 			}
-		}, *lifetime);
+		}, native->lifetime());
 	}
 	if (advanced) {
 		advanced->entity()->addClickHandler([=] {
@@ -210,7 +208,7 @@ void SetupNotifications(not_null<Ui::VerticalLayout*> container) {
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	SetupNotificationsContent(wrap.data());
 
-	container->add(object_ptr<Ui::IgnoreMargins>(
+	container->add(object_ptr<Ui::OverrideMargins>(
 		container,
 		std::move(wrap)));
 

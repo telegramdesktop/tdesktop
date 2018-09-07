@@ -45,7 +45,7 @@ void LinkButton::paintEvent(QPaintEvent *e) {
 	p.setPen(pen);
 	const auto left = _st.padding.left();
 	const auto top = _st.padding.top() + font->ascent;
-	if (width() > naturalWidth()) {
+	if (width() < naturalWidth()) {
 		const auto available = width() - left - _st.padding.right();
 		p.drawText(left, top, font->elided(_text, available));
 	} else {

@@ -82,7 +82,6 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	const auto lifetime = Ui::AttachAsChild(container, rpl::lifetime());
 	const auto texts = Ui::AttachAsChild(
 		container,
 		rpl::event_stream<QString>());
@@ -115,7 +114,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	check->entity()->widthValue() | rpl::start_with_next([=](int width) {
 		update->resizeToWidth(width);
 		update->moveToLeft(0, 0);
-	}, *lifetime);
+	}, update->lifetime());
 
 	AddSkip(container);
 
@@ -167,7 +166,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			checker.stop();
 		}
 		setDefaultStatus(checker);
-	}, *lifetime);
+	}, toggle->lifetime());
 
 	Core::UpdateChecker checker;
 	check->toggleOn(rpl::combine(
@@ -182,26 +181,26 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		check->setAttribute(Qt::WA_TransparentForMouseEvents);
 		texts->fire(lang(lng_settings_update_checking));
 		downloading->fire(false);
-	}, *lifetime);
+	}, check->lifetime());
 	checker.isLatest() | rpl::start_with_next([=] {
 		check->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(lang(lng_settings_latest_installed));
 		downloading->fire(false);
-	}, *lifetime);
+	}, check->lifetime());
 	checker.progress(
 	) | rpl::start_with_next([=](Core::UpdateChecker::Progress progress) {
 		showDownloadProgress(progress.already, progress.size);
-	}, *lifetime);
+	}, check->lifetime());
 	checker.failed() | rpl::start_with_next([=] {
 		check->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(lang(lng_settings_update_fail));
 		downloading->fire(false);
-	}, *lifetime);
+	}, check->lifetime());
 	checker.ready() | rpl::start_with_next([=] {
 		texts->fire(lang(lng_settings_update_ready));
 		update->show();
 		downloading->fire(false);
-	}, *lifetime);
+	}, check->lifetime());
 
 	setDefaultStatus(checker);
 
@@ -227,7 +226,6 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	const auto lifetime = Ui::AttachAsChild(container, rpl::lifetime());
 	const auto trayEnabler = Ui::AttachAsChild(
 		container,
 		rpl::event_stream<bool>());
@@ -281,7 +279,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 		} else {
 			updateWorkmode();
 		}
-	}, *lifetime);
+	}, tray->lifetime());
 
 	if (taskbar) {
 		taskbar->toggledValue(
@@ -293,7 +291,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 			} else {
 				updateWorkmode();
 			}
-		}, *lifetime);
+		}, taskbar->lifetime());
 	}
 
 #ifndef OS_WIN_STORE
@@ -336,7 +334,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 			} else {
 				Local::writeSettings();
 			}
-		}, *lifetime);
+		}, autostart->lifetime());
 
 		minimized->entity()->toggleOn(
 			minimizedToggler->events_starting_with(minimizedToggled()));
@@ -353,13 +351,13 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 				cSetStartMinimized(checked);
 				Local::writeSettings();
 			}
-		}, *lifetime);
+		}, minimized->lifetime());
 
 		base::ObservableViewer(
 			Global::RefLocalPasscodeChanged()
 		) | rpl::start_with_next([=] {
 			minimizedToggler->fire(minimizedToggled());
-		}, *lifetime);
+		}, minimized->lifetime());
 
 		sendto->toggledValue(
 		) | rpl::filter([](bool checked) {
@@ -368,7 +366,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 			cSetSendToMenu(checked);
 			psSendToMenu(checked);
 			Local::writeSettings();
-		}, *lifetime);
+		}, sendto->lifetime());
 	}
 #endif // OS_WIN_STORE
 

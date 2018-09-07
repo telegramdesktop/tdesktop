@@ -62,7 +62,7 @@ int VerticalLayout::resizeGetHeight(int newWidth) {
 			+ row.widget->heightNoMargins()
 			+ row.margin.bottom();
 	}
-	return result - margins.bottom();
+	return result;
 }
 
 void VerticalLayout::visibleTopBottomUpdated(

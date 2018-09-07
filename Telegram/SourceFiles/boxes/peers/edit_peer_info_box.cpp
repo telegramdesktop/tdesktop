@@ -1440,7 +1440,7 @@ void EditPeerInfoBox::prepare() {
 	) | rpl::start_with_next([this](int height) {
 		setDimensions(st::boxWideWidth, height);
 	}, content->lifetime());
-	setInnerWidget(object_ptr<Ui::IgnoreMargins>(
+	setInnerWidget(object_ptr<Ui::OverrideMargins>(
 		this,
 		std::move(content)));
 	Ui::AttachAsChild(this, std::move(controller));

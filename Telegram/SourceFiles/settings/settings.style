@@ -16,6 +16,9 @@ settingsSectionButton: InfoProfileButton(infoProfileButton) {
 settingsButton: InfoProfileButton(settingsSectionButton) {
 	padding: margins(28px, 10px, 8px, 8px);
 }
+settingsChatButton: InfoProfileButton(settingsSectionButton) {
+	padding: margins(22px, 10px, 8px, 8px);
+}
 settingsSectionSkip: infoProfileSkip;
 settingsButtonRightPosition: point(28px, 10px);
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
@@ -37,7 +40,30 @@ settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
 }
 settingsUpdateStatePosition: point(28px, 30px);
 
-settingsNotificationsCheckbox: defaultBoxCheckbox;
-settingsNotificationsCheckboxPadding: margins(22px, 10px, 10px, 10px);
+settingsSendType: defaultBoxCheckbox;
+settingsSendTypePadding: margins(22px, 5px, 10px, 5px);
+settingsSendTypeSkip: 5px;
+
+settingsCheckbox: defaultBoxCheckbox;
+settingsCheckboxPadding: margins(22px, 10px, 10px, 10px);
 settingsLink: boxLinkButton;
 settingsAdvancedNotificationsPadding: margins(22px, 20px, 10px, 10px);
+settingsLinkLabel: defaultFlatLabel;
+
+settingsAskPathPadding: margins(22px, 10px, 10px, 0px);
+settingsDownloadPathPadding: margins(22px, 1px, 10px, 0px);
+
+settingsBackgroundThumb: 76px;
+settingsThumbSkip: 16px;
+settingsBackgroundTitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+		linkFont: font(boxFontSize semibold);
+		linkFontOver: font(boxFontSize semibold underline);
+	}
+	textFg: windowActiveTextFg;
+}
+settingsBackgroundTitlePadding: margins(22px, 7px, 10px, 9px);
+settingsBackgroundPadding: margins(22px, 8px, 10px, 8px);
+settingsFromGalleryTop: 2px;
+settingsFromFileTop: 14px;
