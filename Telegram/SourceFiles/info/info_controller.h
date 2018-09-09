@@ -188,6 +188,9 @@ public:
 		return base::take(_searchStartsFocused);
 	}
 
+	void setCanSaveChanges(rpl::producer<bool> can);
+	rpl::producer<bool> canSaveChanges() const;
+
 	void saveSearchState(not_null<ContentMemento*> memento);
 
 	void showSection(
@@ -218,6 +221,7 @@ private:
 	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
 	std::unique_ptr<Api::DelayedSearchController> _searchController;
 	rpl::variable<bool> _seachEnabledByContent = false;
+	rpl::variable<bool> _canSaveChanges = false;
 	bool _searchStartsFocused = false;
 
 	rpl::lifetime _lifetime;

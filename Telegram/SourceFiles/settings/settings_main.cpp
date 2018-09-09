@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "settings/settings_codes.h"
-#include "boxes/abstract_box.h"
 #include "boxes/language_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"

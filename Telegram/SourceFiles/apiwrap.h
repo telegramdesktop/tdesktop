@@ -336,6 +336,8 @@ public:
 	rpl::producer<Core::CloudPasswordState> passwordState() const;
 	base::optional<Core::CloudPasswordState> passwordStateCurrent() const;
 
+	void saveSelfBio(const QString &text, FnMut<void()> done);
+
 	~ApiWrap();
 
 private:
@@ -671,5 +673,9 @@ private:
 	mtpRequestId _passwordRequestId = 0;
 	std::unique_ptr<Core::CloudPasswordState> _passwordState;
 	rpl::event_stream<Core::CloudPasswordState> _passwordStateChanges;
+
+	mtpRequestId _saveBioRequestId = 0;
+	FnMut<void()> _saveBioDone;
+	QString _saveBioText;
 
 };

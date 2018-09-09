@@ -222,6 +222,14 @@ rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
 }
 
+rpl::producer<bool> ContentWidget::canSaveChanges() const {
+	return rpl::single(false);
+}
+
+void ContentWidget::saveChanges(FnMut<void()> done) {
+	done();
+}
+
 void ContentWidget::refreshSearchField(bool shown) {
 	auto search = _controller->searchFieldController();
 	if (search && shown) {

@@ -76,7 +76,6 @@ public:
 private:
 	void setupChildGeometry();
 	void initViewers();
-	void refreshNameText();
 	void refreshStatusText();
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);

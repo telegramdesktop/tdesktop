@@ -49,6 +49,12 @@ public:
 	virtual rpl::producer<Type> sectionShowOther() {
 		return rpl::never<Type>();
 	}
+	virtual rpl::producer<bool> sectionCanSaveChanges() {
+		return rpl::single(false);
+	}
+	virtual void sectionSaveChanges(FnMut<void()> done) {
+		done();
+	}
 
 };
 

@@ -387,6 +387,9 @@ void WrapWidget::createTopBar() {
 	} else if (section.type() == Section::Type::Settings
 		&& section.settingsType() == Section::SettingsType::Main) {
 		addTopBarMenuButton();
+	} else if (section.type() == Section::Type::Settings
+		&& section.settingsType() == Section::SettingsType::Information) {
+		addContentSaveButton();
 	}
 
 	_topBar->lower();
@@ -406,6 +409,23 @@ void WrapWidget::addTopBarMenuButton() {
 				: st::infoTopBarMenu))));
 	_topBarMenuToggle->addClickHandler([this] {
 		showTopBarMenu();
+	});
+}
+
+void WrapWidget::addContentSaveButton() {
+	Expects(_topBar != nullptr);
+
+	_topBar->addButtonWithVisibility(
+		base::make_unique_q<Ui::IconButton>(
+			_topBar,
+			(wrap() == Wrap::Layer
+				? st::infoLayerTopBarSave
+				: st::infoTopBarSave)),
+		_controller->canSaveChanges()
+	)->addClickHandler([=] {
+		_content->saveChanges(crl::guard(_content.data(), [=] {
+			_controller->showBackFromStack();
+		}));
 	});
 }
 

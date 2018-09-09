@@ -15,10 +15,15 @@ class Information : public Section {
 public:
 	Information(QWidget *parent, not_null<UserData*> self);
 
+	rpl::producer<bool> sectionCanSaveChanges() override;
+	void sectionSaveChanges(FnMut<void()> done) override;
+
 private:
 	void setupContent();
 
 	not_null<UserData*> _self;
+	rpl::variable<bool> _canSaveChanges;
+	Fn<void(FnMut<void()> done)> _save;
 
 };
 

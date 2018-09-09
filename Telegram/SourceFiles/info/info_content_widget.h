@@ -73,6 +73,9 @@ public:
 	virtual void cancelSelection() {
 	}
 
+	virtual rpl::producer<bool> canSaveChanges() const;
+	virtual void saveChanges(FnMut<void()> done);
+
 protected:
 	template <typename Widget>
 	Widget *setInnerWidget(object_ptr<Widget> inner) {

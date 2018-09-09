@@ -4946,6 +4946,37 @@ auto ApiWrap::passwordStateCurrent() const
 		: base::none;
 }
 
+void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
+	if (_saveBioRequestId) {
+		if (text != _saveBioText) {
+			request(_saveBioRequestId).cancel();
+		} else {
+			if (done) {
+				_saveBioDone = std::move(done);
+			}
+			return;
+		}
+	}
+	_saveBioText = text;
+	_saveBioDone = std::move(done);
+	_saveBioRequestId = request(MTPaccount_UpdateProfile(
+		MTP_flags(MTPaccount_UpdateProfile::Flag::f_about),
+		MTPstring(),
+		MTPstring(),
+		MTP_string(text)
+	)).done([=](const MTPUser &result) {
+		_saveBioRequestId = 0;
+
+		App::feedUsers(MTP_vector<MTPUser>(1, result));
+		App::self()->setAbout(_saveBioText);
+		if (_saveBioDone) {
+			_saveBioDone();
+		}
+	}).fail([=](const RPCError &error) {
+		_saveBioRequestId = 0;
+	}).send();
+}
+
 void ApiWrap::readServerHistory(not_null<History*> history) {
 	if (history->unreadCount()) {
 		readServerHistoryForce(history);

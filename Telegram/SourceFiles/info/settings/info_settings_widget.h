@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
 
+namespace Settings {
+class Section;
+} // namespace Settings
+
 namespace Info {
 namespace Settings {
 
@@ -59,6 +63,9 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
+	rpl::producer<bool> canSaveChanges() const override;
+	void saveChanges(FnMut<void()> done) override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -67,6 +74,8 @@ private:
 
 	not_null<UserData*> _self;
 	Type _type = Type();
+
+	not_null<::Settings::Section*> _inner;
 
 };
 

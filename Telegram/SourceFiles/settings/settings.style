@@ -76,3 +76,27 @@ settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 }
 settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
+
+settingsInfoRowHeight: 62px;
+settingsInfoIconPosition: point(24px, 16px);
+settingsInfoValue: FlatLabel(defaultFlatLabel) {
+	textFg: windowFg;
+	style: boxTextStyle;
+	maxHeight: 20px;
+}
+settingsInfoValuePosition: point(78px, 14px);
+settingsInfoAbout: FlatLabel(settingsInfoValue) {
+	textFg: windowSubTextFg;
+	style: defaultTextStyle;
+}
+settingsInfoAboutPosition: point(78px, 33px);
+settingsInfoRightSkip: 60px;
+settingsInfoEditPosition: point(12px, 12px);
+settingsInfoEdit: IconButton(defaultIconButton) {
+}
+
+settingsBioMargins: margins(20px, 2px, 20px, 2px);
+settingsBioCountdown: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+	textFg: windowSubTextFg;
+}

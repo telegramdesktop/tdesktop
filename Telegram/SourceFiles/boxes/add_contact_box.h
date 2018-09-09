@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ConfirmBox;
 class PeerListBox;
 
+constexpr auto kMaxBioLength = 70;
+
+style::InputField CreateBioFieldStyle();
+
 namespace Ui {
 class FlatLabel;
 class InputField;

@@ -344,6 +344,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable passcode";
 "lng_settings_password_disable" = "Disable cloud password";
+"lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
+"lng_settings_name_label" = "Name";
+"lng_settings_username_label" = "Username";
+"lng_settings_phone_label" = "Phone number";
+"lng_settings_username_add" = "Add username";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

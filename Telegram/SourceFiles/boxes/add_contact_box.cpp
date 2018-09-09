@@ -34,16 +34,17 @@ namespace {
 
 constexpr auto kMaxGroupChannelTitle = 255; // See also edit_peer_info_box.
 constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
-constexpr auto kMaxBioLength = 70;
 constexpr auto kMinUsernameLength = 5;
+
+} // namespace
 
 style::InputField CreateBioFieldStyle() {
 	auto result = st::newGroupDescription;
-	result.textMargins.setRight(st::boxTextFont->spacew + st::boxTextFont->width(QString::number(kMaxBioLength)));
+	result.textMargins.setRight(
+		st::boxTextFont->spacew
+		+ st::boxTextFont->width(QString::number(kMaxBioLength)));
 	return result;
 }
-
-} // namespace
 
 QString PeerFloodErrorText(PeerFloodType type) {
 	auto link = textcmdLink(

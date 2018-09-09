@@ -114,6 +114,7 @@ public:
 			| start_with_next([this](auto &&data) {
 				assign(std::forward<decltype(data)>(data));
 			}, _lifetime);
+		return *this;
 	}
 
 	Type current() const {

@@ -56,6 +56,17 @@ public:
 		return result;
 	}
 
+	template <typename ButtonWidget>
+	ButtonWidget *addButtonWithVisibility(
+			base::unique_qptr<ButtonWidget> button,
+			rpl::producer<bool> shown) {
+		auto result = button.get();
+		forceButtonVisibility(
+			pushButton(std::move(button)),
+			std::move(shown));
+		return result;
+	}
+
 	void createSearchView(
 		not_null<Ui::SearchFieldController*> controller,
 		rpl::producer<bool> &&shown,
@@ -79,7 +90,11 @@ private:
 	void updateControlsGeometry(int newWidth);
 	void updateDefaultControlsGeometry(int newWidth);
 	void updateSelectionControlsGeometry(int newWidth);
-	Ui::FadeWrap<Ui::RpWidget> *pushButton(base::unique_qptr<Ui::RpWidget> button);
+	Ui::FadeWrap<Ui::RpWidget> *pushButton(
+		base::unique_qptr<Ui::RpWidget> button);
+	void forceButtonVisibility(
+		Ui::FadeWrap<Ui::RpWidget> *button,
+		rpl::producer<bool> shown);
 	void removeButton(not_null<Ui::RpWidget*> button);
 	void startHighlightAnimation();
 	void updateControlsVisibility(anim::type animated);

@@ -152,6 +152,13 @@ Ui::FadeWrap<Ui::RpWidget> *TopBar::pushButton(
 	return weak;
 }
 
+void TopBar::forceButtonVisibility(
+		Ui::FadeWrap<Ui::RpWidget> *button,
+		rpl::producer<bool> shown) {
+	_updateControlCallbacks.erase(button);
+	button->toggleOn(std::move(shown));
+}
+
 void TopBar::setSearchField(
 		base::unique_qptr<Ui::InputField> field,
 		rpl::producer<bool> &&shown,

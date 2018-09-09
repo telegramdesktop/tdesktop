@@ -274,12 +274,13 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 
 void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
-	Notify::PeerUpdateValue(
-		_peer,
-		Flag::NameChanged
-	) | rpl::start_with_next(
-		[this] { refreshNameText(); },
-		lifetime());
+	NameValue(
+		_peer
+	) | rpl::start_with_next([=](const TextWithEntities &name) {
+		_name->setText(name.text);
+		refreshNameGeometry(width());
+	}, lifetime());
+
 	Notify::PeerUpdateValue(
 		_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged
@@ -328,11 +329,6 @@ void Cover::setVerified(bool verified) {
 	} else {
 		_verifiedCheck.destroy();
 	}
-	refreshNameGeometry(width());
-}
-
-void Cover::refreshNameText() {
-	_name->setText(App::peerName(_peer));
 	refreshNameGeometry(width());
 }
 

@@ -23,6 +23,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 namespace Profile {
 
+rpl::producer<TextWithEntities> NameValue(
+		not_null<PeerData*> peer) {
+	return Notify::PeerUpdateValue(
+		peer,
+		Notify::PeerUpdate::Flag::NameChanged
+	) | rpl::map([=] {
+		return App::peerName(peer);
+	}) | WithEmptyEntities();
+}
+
 rpl::producer<TextWithEntities> PhoneValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(

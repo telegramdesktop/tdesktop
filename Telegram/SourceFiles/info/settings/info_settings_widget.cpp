@@ -41,16 +41,18 @@ Widget::Widget(
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
-, _type(controller->section().settingsType()) {
-	const auto inner = setInnerWidget(::Settings::CreateSection(
+, _type(controller->section().settingsType())
+, _inner(setInnerWidget(::Settings::CreateSection(
 		_type,
 		this,
 		controller->parentController(),
-		_self));
-	inner->sectionShowOther(
+		_self))) {
+	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
 		this->controller()->showSettings(type);
-	}, inner->lifetime());
+	}, _inner->lifetime());
+
+	controller->setCanSaveChanges(_inner->sectionCanSaveChanges());
 }
 
 not_null<UserData*> Widget::self() const {
@@ -74,6 +76,14 @@ void Widget::setInternalState(
 	setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
+}
+
+rpl::producer<bool> Widget::canSaveChanges() const {
+	return _inner->sectionCanSaveChanges();
+}
+
+void Widget::saveChanges(FnMut<void()> done) {
+	_inner->sectionSaveChanges(std::move(done));
 }
 
 std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
