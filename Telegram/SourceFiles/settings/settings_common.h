@@ -61,6 +61,9 @@ object_ptr<Section> CreateSection(
 void AddSkip(not_null<Ui::VerticalLayout*> container);
 void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);
 void AddDivider(not_null<Ui::VerticalLayout*> container);
+void AddDividerText(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> text);
 not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,
 	LangKey text,
@@ -70,6 +73,12 @@ not_null<Button*> AddButtonWithLabel(
 	LangKey text,
 	rpl::producer<QString> label,
 	const style::InfoProfileButton &st);
+void CreateRightLabel(
+	not_null<Button*> button,
+	rpl::producer<QString> label);
+void AddSubsectionTitle(
+	not_null<Ui::VerticalLayout*> conatiner,
+	LangKey text);
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,

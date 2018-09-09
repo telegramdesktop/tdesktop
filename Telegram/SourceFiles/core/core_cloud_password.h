@@ -120,4 +120,18 @@ bytes::vector ComputeSecureSecretHash(
 	const SecureSecretAlgo &algo,
 	bytes::const_span password);
 
+struct CloudPasswordState {
+	CloudPasswordCheckRequest request;
+	bool unknownAlgorithm = false;
+	bool hasRecovery = false;
+	bool notEmptyPassport = false;
+	QString hint;
+	CloudPasswordAlgo newPassword;
+	SecureSecretAlgo newSecureSecret;
+	QString unconfirmedPattern;
+};
+
+CloudPasswordState ParseCloudPasswordState(
+	const MTPDaccount_password &data);
+
 } // namespace Core

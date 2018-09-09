@@ -51,7 +51,7 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 		) | rpl::then(base::ObservableViewer(
 			Global::RefConnectionTypeChanged()
 		)) | rpl::map(connectionType),
-		st::settingsButton);
+		st::settingsGeneralButton);
 	button->addClickHandler([] {
 		Ui::show(ProxiesBoxController::CreateOwningBox());
 	});
@@ -65,7 +65,7 @@ void SetupStorageAndConnection(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_local_storage,
-		st::settingsButton
+		st::settingsGeneralButton
 	)->addClickHandler([] {
 		LocalStorageBox::Show(&Auth().data().cache());
 	});
@@ -105,7 +105,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		object_ptr<Button>(
 			container,
 			Lang::Viewer(lng_settings_check_now),
-			st::settingsButton)));
+			st::settingsGeneralButton)));
 	const auto update = Ui::CreateChild<Button>(
 		check->entity(),
 		Lang::Viewer(lng_update_telegram) | Info::Profile::ToUpperValue(),
@@ -237,7 +237,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 	const auto tray = AddButton(
 		container,
 		lng_settings_workmode_tray,
-		st::settingsButton
+		st::settingsGeneralButton
 	)->toggleOn(trayEnabler->events_starting_with(trayEnabled()));
 
 	const auto taskbarEnabled = [] {
@@ -252,7 +252,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 		? AddButton(
 			container,
 			lng_settings_workmode_window,
-			st::settingsButton
+			st::settingsGeneralButton
 		)->toggleOn(taskbarEnabler->events_starting_with(taskbarEnabled()))
 		: nullptr;
 
@@ -299,7 +299,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 		const auto autostart = AddButton(
 			container,
 			lng_settings_auto_start,
-			st::settingsButton
+			st::settingsGeneralButton
 		)->toggleOn(rpl::single(cAutoStart()));
 		const auto minimized = container->add(
 			object_ptr<Ui::SlideWrap<Button>>(
@@ -307,11 +307,11 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 				object_ptr<Button>(
 					container,
 					Lang::Viewer(lng_settings_start_min),
-					st::settingsButton)));
+					st::settingsGeneralButton)));
 		const auto sendto = AddButton(
 			container,
 			lng_settings_add_sendto,
-			st::settingsButton
+			st::settingsGeneralButton
 		)->toggleOn(rpl::single(cSendToMenu()));
 
 		const auto minimizedToggler = Ui::AttachAsChild(

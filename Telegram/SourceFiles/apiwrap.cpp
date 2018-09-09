@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "dialogs/dialogs_key.h"
 #include "core/tl_help.h"
+#include "core/core_cloud_password.h"
+#include "base/openssl_help.h"
 #include "base/overload.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
@@ -4887,6 +4889,61 @@ void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
 			self->bareId(),
 			photo->id));
 	}
+}
+
+void ApiWrap::reloadPasswordState() {
+	if (_passwordRequestId) {
+		return;
+	}
+	_passwordRequestId = request(MTPaccount_GetPassword(
+	)).done([=](const MTPaccount_Password &result) {
+		_passwordRequestId = 0;
+		result.match([&](const MTPDaccount_password &data) {
+			openssl::AddRandomSeed(bytes::make_span(data.vsecure_random.v));
+			if (_passwordState) {
+				*_passwordState = Core::ParseCloudPasswordState(data);
+			} else {
+				_passwordState = std::make_unique<Core::CloudPasswordState>(
+					Core::ParseCloudPasswordState(data));
+			}
+			_passwordStateChanges.fire_copy(*_passwordState);
+		});
+	}).fail([=](const RPCError &error) {
+		_passwordRequestId = 0;
+	}).send();
+}
+
+void ApiWrap::clearUnconfirmedPassword() {
+	_passwordRequestId = request(MTPaccount_UpdatePasswordSettings(
+		MTP_inputCheckPasswordEmpty(),
+		MTP_account_passwordInputSettings(
+			MTP_flags(
+				MTPDaccount_passwordInputSettings::Flag::f_email),
+			MTP_passwordKdfAlgoUnknown(), // new_algo
+			MTP_bytes(QByteArray()), // new_password_hash
+			MTP_string(QString()), // hint
+			MTP_string(QString()), // email
+			MTPSecureSecretSettings())
+	)).done([=](const MTPBool &result) {
+		_passwordRequestId = 0;
+		reloadPasswordState();
+	}).fail([=](const RPCError &error) {
+		_passwordRequestId = 0;
+		reloadPasswordState();
+	}).send();
+}
+
+rpl::producer<Core::CloudPasswordState> ApiWrap::passwordState() const {
+	return _passwordState
+		? _passwordStateChanges.events_starting_with_copy(*_passwordState)
+		: _passwordStateChanges.events();
+}
+
+auto ApiWrap::passwordStateCurrent() const
+->base::optional<Core::CloudPasswordState> {
+	return _passwordState
+		? base::make_optional(*_passwordState)
+		: base::none;
 }
 
 void ApiWrap::readServerHistory(not_null<History*> history) {

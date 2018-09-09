@@ -13,13 +13,14 @@ using "boxes/boxes.style";
 settingsSectionButton: InfoProfileButton(infoProfileButton) {
 	font: boxTextFont;
 }
-settingsButton: InfoProfileButton(settingsSectionButton) {
-	padding: margins(28px, 10px, 8px, 8px);
+settingsGeneralButton: InfoProfileButton(settingsSectionButton) {
+	padding: margins(28px, 10px, 22px, 8px);
 }
-settingsChatButton: InfoProfileButton(settingsSectionButton) {
-	padding: margins(22px, 10px, 8px, 8px);
+settingsButton: InfoProfileButton(settingsSectionButton) {
+	padding: margins(22px, 10px, 22px, 8px);
 }
 settingsSectionSkip: infoProfileSkip;
+settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
 settingsButtonRightPosition: point(28px, 10px);
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
@@ -39,6 +40,7 @@ settingsUpdateState: FlatLabel(defaultFlatLabel) {
 settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
 }
 settingsUpdateStatePosition: point(28px, 30px);
+settingsDividerLabelPadding: margins(22px, 7px, 22px, 14px);
 
 settingsSendType: defaultBoxCheckbox;
 settingsSendTypePadding: margins(22px, 5px, 10px, 5px);
@@ -55,7 +57,7 @@ settingsDownloadPathPadding: margins(22px, 1px, 10px, 0px);
 
 settingsBackgroundThumb: 76px;
 settingsThumbSkip: 16px;
-settingsBackgroundTitle: FlatLabel(defaultFlatLabel) {
+settingsSubsectionTitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {
 		font: font(boxFontSize semibold);
 		linkFont: font(boxFontSize semibold);
@@ -63,7 +65,14 @@ settingsBackgroundTitle: FlatLabel(defaultFlatLabel) {
 	}
 	textFg: windowActiveTextFg;
 }
-settingsBackgroundTitlePadding: margins(22px, 7px, 10px, 9px);
+settingsSubsectionTitlePadding: margins(22px, 7px, 10px, 9px);
 settingsBackgroundPadding: margins(22px, 8px, 10px, 8px);
 settingsFromGalleryTop: 2px;
 settingsFromFileTop: 14px;
+
+settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: boxTextStyle;
+	maxHeight: 20px;
+}
+settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);

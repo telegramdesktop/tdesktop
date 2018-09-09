@@ -535,7 +535,7 @@ void SetupMediaOptions(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_media_auto_settings,
-		st::settingsChatButton
+		st::settingsButton
 	)->addClickHandler([] {
 		Ui::show(Box<AutoDownloadBox>());
 	});
@@ -543,7 +543,7 @@ void SetupMediaOptions(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_stickers_you_have,
-		st::settingsChatButton
+		st::settingsButton
 	)->addClickHandler([] {
 		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
 	});
@@ -555,12 +555,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			Lang::Viewer(lng_settings_section_background),
-			st::settingsBackgroundTitle),
-		st::settingsBackgroundTitlePadding);
+	AddSubsectionTitle(container, lng_settings_section_background);
 
 	container->add(
 		object_ptr<BackgroundRow>(container),
@@ -637,7 +632,7 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_use_night_mode,
-		st::settingsChatButton
+		st::settingsButton
 	)->toggleOn(
 		rpl::single(Window::Theme::IsNightMode())
 	)->toggledValue(
@@ -657,9 +652,9 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_bg_edit_theme,
-		st::settingsChatButton
+		st::settingsButton
 	)->addClickHandler(App::LambdaDelayed(
-		st::settingsChatButton.ripple.hideDuration,
+		st::settingsButton.ripple.hideDuration,
 		container,
 		[] { Window::Theme::Editor::Start(); }));
 
@@ -670,7 +665,7 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 			object_ptr<Button>(
 				container,
 				Lang::Viewer(lng_settings_bg_use_default),
-				st::settingsChatButton))
+				st::settingsButton))
 	)->toggleOn(rpl::single(
 		Window::Theme::SuggestThemeReset()
 	) | rpl::then(base::ObservableViewer(

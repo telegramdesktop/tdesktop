@@ -37,6 +37,10 @@ namespace Dialogs {
 class Key;
 } // namespace Dialogs
 
+namespace Core {
+struct CloudPasswordState;
+} // namespace Core
+
 namespace Api {
 
 inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
@@ -326,6 +330,11 @@ public:
 
 	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
 	void clearPeerPhoto(not_null<PhotoData*> photo);
+
+	void reloadPasswordState();
+	void clearUnconfirmedPassword();
+	rpl::producer<Core::CloudPasswordState> passwordState() const;
+	base::optional<Core::CloudPasswordState> passwordStateCurrent() const;
 
 	~ApiWrap();
 
@@ -658,5 +667,9 @@ private:
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
 
 	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
+
+	mtpRequestId _passwordRequestId = 0;
+	std::unique_ptr<Core::CloudPasswordState> _passwordState;
+	rpl::event_stream<Core::CloudPasswordState> _passwordStateChanges;
 
 };

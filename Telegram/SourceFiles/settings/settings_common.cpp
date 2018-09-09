@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
+#include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -60,6 +61,18 @@ void AddDivider(not_null<Ui::VerticalLayout*> container) {
 	container->add(object_ptr<BoxContentDivider>(container));
 }
 
+void AddDividerText(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text) {
+	container->add(object_ptr<Ui::DividerLabel>(
+		container,
+		object_ptr<Ui::FlatLabel>(
+			container,
+			std::move(text),
+			st::boxDividerLabel),
+		st::settingsDividerLabelPadding));
+}
+
 not_null<Button*> AddButton(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey text,
@@ -70,12 +83,9 @@ not_null<Button*> AddButton(
 		st));
 }
 
-not_null<Button*> AddButtonWithLabel(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey text,
-		rpl::producer<QString> label,
-		const style::InfoProfileButton &st) {
-	const auto button = AddButton(container, text, st);
+void CreateRightLabel(
+		not_null<Button*> button,
+		rpl::producer<QString> label) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
 		std::move(label),
@@ -89,7 +99,27 @@ not_null<Button*> AddButtonWithLabel(
 			st::settingsButtonRightPosition.y());
 	}, name->lifetime());
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+
+not_null<Button*> AddButtonWithLabel(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey text,
+		rpl::producer<QString> label,
+		const style::InfoProfileButton &st) {
+	const auto button = AddButton(container, text, st);
+	CreateRightLabel(button, std::move(label));
 	return button;
+}
+
+void AddSubsectionTitle(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey text) {
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			Lang::Viewer(text),
+			st::settingsSubsectionTitle),
+		st::settingsSubsectionTitlePadding);
 }
 
 void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {

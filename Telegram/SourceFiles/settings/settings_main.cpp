@@ -292,6 +292,9 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 	SetupHelp(content);
 
 	Ui::ResizeFitChild(this, content);
+
+	// If we load this in advance it won't jump when we open its' section.
+	Auth().api().reloadPasswordState();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

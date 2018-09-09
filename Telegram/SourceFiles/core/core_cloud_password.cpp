@@ -303,4 +303,22 @@ bytes::vector ComputeSecureSecretHash(
 	});
 }
 
+CloudPasswordState ParseCloudPasswordState(
+		const MTPDaccount_password &data) {
+	auto result = CloudPasswordState();
+	result.request = ParseCloudPasswordCheckRequest(data);
+	result.unknownAlgorithm = data.has_current_algo() && !result.request;
+	result.hasRecovery = data.is_has_recovery();
+	result.notEmptyPassport = data.is_has_secure_values();
+	result.hint = data.has_hint() ? qs(data.vhint) : QString();
+	result.newPassword = ValidateNewCloudPasswordAlgo(
+		ParseCloudPasswordAlgo(data.vnew_algo));
+	result.newSecureSecret = ValidateNewSecureSecretAlgo(
+		ParseSecureSecretAlgo(data.vnew_secure_algo));
+	result.unconfirmedPattern = data.has_email_unconfirmed_pattern()
+		? qs(data.vemail_unconfirmed_pattern)
+		: QString();
+	return result;
+}
+
 } // namespace Core
