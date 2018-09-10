@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
-#include "styles/style_old_settings.h"
 
 namespace Settings {
 namespace {
@@ -110,18 +109,18 @@ void SetupRows(
 		Lang::Viewer(lng_settings_name_label),
 		Info::Profile::NameValue(self),
 		lang(lng_profile_copy_fullname),
-		st::settingsEditButton,
+		st::settingsInfoEdit,
 		[=] { Ui::show(Box<EditNameBox>(self)); },
-		st::settingsEditButton.icon);
+		st::settingsInfoName);
 
 	AddRow(
 		container,
 		Lang::Viewer(lng_settings_phone_label),
 		Info::Profile::PhoneValue(self),
 		lang(lng_profile_copy_phone),
-		st::settingsEditButton,
+		st::settingsInfoEdit,
 		[] { Ui::show(Box<ChangePhoneBox>()); },
-		st::settingsEditButton.icon);
+		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
 	auto empty = base::duplicate(
@@ -155,11 +154,11 @@ void SetupRows(
 		std::move(label),
 		std::move(value),
 		lang(lng_context_copy_mention),
-		st::settingsEditButton,
+		st::settingsInfoEdit,
 		[=] { Ui::show(Box<UsernameBox>()); },
-		st::settingsEditButton.icon);
+		st::settingsInfoUsername);
 
-	AddSkip(container);
+	AddSkip(container, st::settingsInfoAfterSkip);
 }
 
 struct BioManager {
@@ -174,7 +173,10 @@ BioManager SetupBio(
 	AddSkip(container);
 
 	const auto bioStyle = [] {
-		auto result = CreateBioFieldStyle();
+		auto result = st::settingsBio;
+		result.textMargins.setRight(
+			st::boxTextFont->spacew
+			+ st::boxTextFont->width(QString::number(kMaxBioLength)));
 		return result;
 	};
 	const auto style = Ui::AttachAsChild(container, bioStyle());
@@ -273,6 +275,7 @@ void Information::sectionSaveChanges(FnMut<void()> done) {
 void Information::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupRows(content, _self);
 	auto manager = SetupBio(content, _self);
 	_canSaveChanges = std::move(manager.canSave);

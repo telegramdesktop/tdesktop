@@ -372,7 +372,7 @@ void DownloadPathRow::setupControls() {
 
 void SetupChatOptions(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	AddSkip(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	const auto inner = wrap.data();
@@ -468,13 +468,13 @@ void SetupChatOptions(not_null<Ui::VerticalLayout*> container) {
 
 	}, inner->lifetime());
 
-	AddSkip(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupSendKey(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	const auto skip = st::settingsSendTypeSkip;
-	const auto full = st::settingsSectionSkip + skip;
+	const auto full = st::settingsCheckboxesSkip + skip;
 	AddSkip(container, full);
 
 	enum class SendByType {
@@ -553,7 +553,7 @@ void SetupMediaOptions(not_null<Ui::VerticalLayout*> container) {
 
 void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	AddSkip(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
 
 	AddSubsectionTitle(container, lng_settings_section_background);
 
@@ -571,7 +571,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 			std::move(wrap),
 			QMargins(0, skipTop, 0, skipBottom)));
 
-	AddSkip(container);
+	AddSkip(container, st::settingsTileSkip);
 
 	const auto tile = inner->add(
 		object_ptr<Ui::Checkbox>(
@@ -693,6 +693,7 @@ Chat::Chat(QWidget *parent, not_null<UserData*> self)
 void Chat::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupChatOptions(content);
 	SetupSendKey(content);
 	SetupMediaOptions(content);

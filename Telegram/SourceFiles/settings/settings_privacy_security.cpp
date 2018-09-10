@@ -90,7 +90,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			std::make_unique<OldSettings::GroupsInvitePrivacyController>()));
 	});
 
-	AddSkip(container);
+	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(
 		container,
 		Lang::Viewer(lng_settings_group_privacy_about));
@@ -378,7 +378,7 @@ void SetupSecurity(not_null<Ui::VerticalLayout*> container) {
 	SetupSelfDestruction(container);
 	SetupSessionsList(container);
 
-	AddSkip(container);
+	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(
 		container,
 		Lang::Viewer(lng_settings_sessions_about));
@@ -413,6 +413,7 @@ PrivacySecurity::PrivacySecurity(QWidget *parent, not_null<UserData*> self)
 void PrivacySecurity::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupPrivacy(content);
 	SetupSecurity(content);
 	SetupExport(content);

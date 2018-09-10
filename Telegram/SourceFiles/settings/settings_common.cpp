@@ -76,11 +76,35 @@ void AddDividerText(
 not_null<Button*> AddButton(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey text,
-		const style::InfoProfileButton &st) {
-	return container->add(object_ptr<Button>(
+		const style::InfoProfileButton &st,
+		const style::icon *leftIcon) {
+	const auto result = container->add(object_ptr<Button>(
 		container,
 		Lang::Viewer(text),
 		st));
+	if (leftIcon) {
+		const auto icon = Ui::CreateChild<Ui::RpWidget>(result);
+		icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+		icon->resize(leftIcon->size());
+		result->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			icon->moveToLeft(
+				st::settingsSectionIconPosition.x(),
+				st::settingsSectionIconPosition.y(),
+				width);
+		}, icon->lifetime());
+		icon->paintRequest(
+		) | rpl::start_with_next([=] {
+			Painter p(icon);
+			const auto width = icon->width();
+			if (result->isOver()) {
+				leftIcon->paint(p, QPoint(), width, st::menuIconFgOver->c);
+			} else {
+				leftIcon->paint(p, QPoint(), width);
+			}
+		}, icon->lifetime());
+	}
+	return result;
 }
 
 void CreateRightLabel(
@@ -105,8 +129,9 @@ not_null<Button*> AddButtonWithLabel(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey text,
 		rpl::producer<QString> label,
-		const style::InfoProfileButton &st) {
-	const auto button = AddButton(container, text, st);
+		const style::InfoProfileButton &st,
+		const style::icon *leftIcon) {
+	const auto button = AddButton(container, text, st, leftIcon);
 	CreateRightLabel(button, std::move(label));
 	return button;
 }

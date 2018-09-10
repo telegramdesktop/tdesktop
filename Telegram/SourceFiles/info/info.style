@@ -156,8 +156,13 @@ infoTopBarCall: IconButton(infoTopBarNotifications) {
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 }
 infoTopBarSave: IconButton(infoTopBarNotifications) {
+	width: 48px;
 	icon: icon {{ "passport_ready", windowActiveTextFg }};
-	iconOver: icon {{ "passport_ready", windowActiveTextFg}};
+	iconOver: icon {{ "passport_ready", windowActiveTextFg }};
+	iconPosition: point(11px, 17px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
@@ -229,6 +234,10 @@ infoLayerTopBarCall: IconButton(infoLayerTopBarNotifications) {
 infoLayerTopBarSave: IconButton(infoLayerTopBarNotifications) {
 	icon: icon {{ "passport_ready", windowActiveTextFg }};
 	iconOver: icon {{ "passport_ready", windowActiveTextFg }};
+	iconPosition: point(13px, 18px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;

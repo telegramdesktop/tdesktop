@@ -32,7 +32,7 @@ void SetupUploadPhotoButton(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
 	AddDivider(container);
-	AddSkip(container);
+	AddSkip(container, st::settingsSetPhotoSkip);
 
 	const auto upload = [=] {
 		const auto imageExtensions = cImgExtensions();
@@ -70,13 +70,14 @@ void SetupUploadPhotoButton(
 	AddButton(
 		container,
 		lng_settings_upload,
-		st::settingsSectionButton
+		st::settingsSectionButton,
+		&st::settingsIconSetPhoto
 	)->addClickHandler(App::LambdaDelayed(
 		st::settingsSectionButton.ripple.hideDuration,
 		container,
 		upload));
 
-	AddSkip(container);
+	AddSkip(container, st::settingsSetPhotoSkip);
 }
 
 void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
@@ -84,7 +85,8 @@ void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
 		container,
 		lng_settings_language,
 		Lang::Viewer(lng_language_name),
-		st::settingsSectionButton);
+		st::settingsSectionButton,
+		&st::settingsIconLanguage);
 	const auto guard = Ui::AttachAsChild(button, base::binary_guard());
 	button->addClickHandler([=] {
 		*guard = LanguageBox::Show();
@@ -97,18 +99,37 @@ void SetupSections(
 	AddDivider(container);
 	AddSkip(container);
 
-	const auto addSection = [&](LangKey label, Type type) {
+	const auto addSection = [&](
+			LangKey label,
+			Type type,
+			const style::icon *icon) {
 		AddButton(
 			container,
 			label,
-			st::settingsSectionButton
+			st::settingsSectionButton,
+			icon
 		)->addClickHandler([=] { showOther(type); });
 	};
-	addSection(lng_settings_section_info, Type::Information);
-	addSection(lng_settings_section_notify, Type::Notifications);
-	addSection(lng_settings_section_privacy, Type::PrivacySecurity);
-	addSection(lng_settings_section_general, Type::General);
-	addSection(lng_settings_section_chat_settings, Type::Chat);
+	addSection(
+		lng_settings_section_info,
+		Type::Information,
+		&st::settingsIconInformation);
+	addSection(
+		lng_settings_section_notify,
+		Type::Notifications,
+		&st::settingsIconNotifications);
+	addSection(
+		lng_settings_section_privacy,
+		Type::PrivacySecurity,
+		&st::settingsIconPrivacySecurity);
+	addSection(
+		lng_settings_section_general,
+		Type::General,
+		&st::settingsIconGeneral);
+	addSection(
+		lng_settings_section_chat_settings,
+		Type::Chat,
+		&st::settingsIconChat);
 
 	SetupLanguageButton(container);
 
@@ -131,7 +152,8 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 	const auto button = AddButton(
 		container,
 		lng_settings_default_scale,
-		st::settingsSectionButton
+		st::settingsSectionButton,
+		&st::settingsIconInterfaceScale
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
 	const auto slider = container->add(
@@ -234,7 +256,8 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_faq,
-		st::settingsSectionButton
+		st::settingsSectionButton,
+		&st::settingsIconFaq
 	)->addClickHandler([] {
 		QDesktopServices::openUrl(telegramFaqLink());
 	});

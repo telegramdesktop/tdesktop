@@ -203,7 +203,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 
 void SetupNotifications(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	AddSkip(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	SetupNotificationsContent(wrap.data());
@@ -212,7 +212,7 @@ void SetupNotifications(not_null<Ui::VerticalLayout*> container) {
 		container,
 		std::move(wrap)));
 
-	AddSkip(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 } // namespace
@@ -226,6 +226,7 @@ Notifications::Notifications(QWidget *parent, not_null<UserData*> self)
 void Notifications::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupNotifications(content);
 
 	Ui::ResizeFitChild(this, content);

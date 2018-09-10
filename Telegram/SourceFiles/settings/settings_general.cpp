@@ -384,6 +384,7 @@ General::General(QWidget *parent, UserData *self)
 void General::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupUpdate(content);
 	SetupTray(content);
 	SetupStorageAndConnection(content);
