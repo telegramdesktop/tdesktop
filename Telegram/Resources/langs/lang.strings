@@ -349,6 +349,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_username_label" = "Username";
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
+"lng_settings_close_sure" = "Are you sure you want to close this page? You didn't save your changes.";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

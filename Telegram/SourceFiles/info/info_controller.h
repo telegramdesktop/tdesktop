@@ -190,6 +190,7 @@ public:
 
 	void setCanSaveChanges(rpl::producer<bool> can);
 	rpl::producer<bool> canSaveChanges() const;
+	bool canSaveChangesNow() const;
 
 	void saveSearchState(not_null<ContentMemento*> memento);
 

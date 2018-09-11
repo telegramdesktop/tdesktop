@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/confirm_box.h"
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "mainwidget.h"
@@ -350,8 +351,8 @@ void WrapWidget::createTopBar() {
 	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
 		_topBar->enableBackButton();
 		_topBar->backRequest(
-		) | rpl::start_with_next([this] {
-			_controller->showBackFromStack();
+		) | rpl::start_with_next([=] {
+			checkBeforeClose([=] { _controller->showBackFromStack(); });
 		}, _topBar->lifetime());
 	} else if (wrapValue == Wrap::Side) {
 		auto close = _topBar->addButton(
@@ -368,7 +369,9 @@ void WrapWidget::createTopBar() {
 				_topBar,
 				st::infoLayerTopBarClose));
 		close->addClickHandler([this] {
-			_controller->parentController()->hideSpecialLayer();
+			checkBeforeClose([=] {
+				_controller->parentController()->hideSpecialLayer();
+			});
 		});
 	} else if (requireTopBarSearch()) {
 		auto search = _controller->searchFieldController();
@@ -396,6 +399,22 @@ void WrapWidget::createTopBar() {
 	_topBar->resizeToWidth(width());
 	_topBar->finishAnimating();
 	_topBar->show();
+}
+
+void WrapWidget::checkBeforeClose(Fn<void()> close) {
+	const auto confirmed = [=] {
+		const auto copy = close;
+		Ui::hideLayer();
+		copy();
+	};
+	if (_controller->canSaveChangesNow()) {
+		Ui::show(Box<ConfirmBox>(
+			lang(lng_settings_close_sure),
+			lang(lng_close),
+			confirmed));
+	} else {
+		confirmed();
+	}
 }
 
 void WrapWidget::addTopBarMenuButton() {
@@ -950,7 +969,7 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		if (hasStackHistory() || wrap() != Wrap::Layer) {
-			_controller->showBackFromStack();
+			checkBeforeClose([=] { _controller->showBackFromStack(); });
 			return;
 		}
 	}

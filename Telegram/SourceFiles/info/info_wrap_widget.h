@@ -150,6 +150,7 @@ private:
 	void injectActiveFeedProfile(not_null<Data::Feed*> feed);
 	void injectActiveProfileMemento(
 		std::unique_ptr<ContentMemento> memento);
+	void checkBeforeClose(Fn<void()> close);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);
 	bool hasStackHistory() const {
