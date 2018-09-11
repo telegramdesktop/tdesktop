@@ -19,19 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "old_settings/settings_background_widget.h"
 #include "old_settings/settings_privacy_widget.h"
 #include "old_settings/settings_advanced_widget.h"
+#include "auth_session.h"
 
 namespace OldSettings {
 
 InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
 , _blocks(this)
-, _self(App::self()) {
+, _self(AuthSession::Exists() ? Auth().user().get() : nullptr) {
 	refreshBlocks();
-	subscribe(Global::RefSelfChanged(), [this] { fullRebuild(); });
 	subscribe(Lang::Current().updated(), [this] { fullRebuild(); });
 }
 
 void InnerWidget::fullRebuild() {
-	_self = App::self();
+	_self = AuthSession::Exists() ? Auth().user().get() : nullptr;
 	refreshBlocks();
 }
 

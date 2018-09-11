@@ -463,7 +463,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category0 + info.section)));
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category1 + info.section - 1)));
 		}
 		if (r.top() + r.height() > info.rowsTop) {
 			ensureLoaded(info.section);

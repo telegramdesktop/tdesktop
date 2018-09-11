@@ -478,17 +478,18 @@ void Navigation::showPeerInfo(
 void Navigation::showSettings(
 		Settings::Type type,
 		const SectionShow &params) {
-	const auto self = App::self();
-	if (!self) {
+	if (AuthSession::Exists()) {
+		showSection(
+			Info::Memento(
+				Info::Settings::Tag{ Auth().user() },
+				Info::Section(type)),
+			params);
+	} else {
 		// #TODO settings
 		App::wnd()->showSpecialLayer(
 			Box<OldSettings::Widget>(),
 			params.animated);
-		return;
 	}
-	showSection(
-		Info::Memento(Info::Settings::Tag{ self }, Info::Section(type)),
-		params);
 }
 
 void Navigation::showSettings(const SectionShow &params) {

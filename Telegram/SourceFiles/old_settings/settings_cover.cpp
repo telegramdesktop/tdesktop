@@ -30,7 +30,7 @@ namespace OldSettings {
 
 CoverWidget::CoverWidget(QWidget *parent, UserData *self)
 : BlockWidget(parent, self, QString())
-, _self(App::self())
+, _self(self)
 , _userpicButton(
 	this,
 	App::wnd()->controller(),

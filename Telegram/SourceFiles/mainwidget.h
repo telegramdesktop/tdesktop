@@ -95,7 +95,7 @@ public:
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	void start(const MTPUser *self = nullptr);
+	void start();
 
 	void openPeerByName(
 		const QString &name,
@@ -442,8 +442,6 @@ private:
 	Window::SectionSlideParams prepareMainSectionAnimation(Window::SectionWidget *section);
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareDialogsAnimation();
-
-	void startWithSelf(const MTPUserFull &user);
 
 	void saveSectionInStack();
 

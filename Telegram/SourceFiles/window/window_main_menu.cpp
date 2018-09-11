@@ -38,10 +38,20 @@ MainMenu::MainMenu(
 , _version(this, st::mainMenuVersionLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	subscribe(Global::RefSelfChanged(), [this] {
-		checkSelf();
-	});
-	checkSelf();
+	auto showSelfChat = [] {
+		App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
+	};
+	_userpicButton.create(
+		this,
+		_controller,
+		Auth().user(),
+		Ui::UserpicButton::Role::Custom,
+		st::mainMenuUserpic);
+	_userpicButton->setClickedCallback(showSelfChat);
+	_userpicButton->show();
+	_cloudButton.create(this, st::mainMenuCloudButton);
+	_cloudButton->setClickedCallback(showSelfChat);
+	_cloudButton->show();
 
 	_nightThemeSwitch.setCallback([this] {
 		if (const auto action = *_nightThemeAction) {
@@ -120,32 +130,6 @@ void MainMenu::refreshMenu() {
 	updatePhone();
 }
 
-void MainMenu::checkSelf() {
-	if (auto self = App::self()) {
-		auto showSelfChat = [] {
-			if (auto self = App::self()) {
-				App::main()->choosePeer(self->id, ShowAtUnreadMsgId);
-			}
-		};
-		_userpicButton.create(
-			this,
-			_controller,
-			self,
-			Ui::UserpicButton::Role::Custom,
-			st::mainMenuUserpic);
-		_userpicButton->setClickedCallback(showSelfChat);
-		_userpicButton->show();
-		_cloudButton.create(this, st::mainMenuCloudButton);
-		_cloudButton->setClickedCallback(showSelfChat);
-		_cloudButton->show();
-		update();
-		updateControlsGeometry();
-	} else {
-		_userpicButton.destroy();
-		_cloudButton.destroy();
-	}
-}
-
 void MainMenu::resizeEvent(QResizeEvent *e) {
 	_menu->setForceWidth(width());
 	updateControlsGeometry();
@@ -164,11 +148,7 @@ void MainMenu::updateControlsGeometry() {
 }
 
 void MainMenu::updatePhone() {
-	if (auto self = App::self()) {
-		_phoneText = App::formatPhone(self->phone());
-	} else {
-		_phoneText = QString();
-	}
+	_phoneText = App::formatPhone(Auth().user()->phone());
 	update();
 }
 
@@ -180,11 +160,14 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		p.fillRect(cover, st::mainMenuCoverBg);
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
-		if (auto self = App::self()) {
-			self->nameText.drawLeftElided(p, st::mainMenuCoverTextLeft, st::mainMenuCoverNameTop, width() - 2 * st::mainMenuCoverTextLeft, width());
-			p.setFont(st::normalFont);
-			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
-		}
+		Auth().user()->nameText.drawLeftElided(
+			p,
+			st::mainMenuCoverTextLeft,
+			st::mainMenuCoverNameTop,
+			width() - 2 * st::mainMenuCoverTextLeft,
+			width());
+		p.setFont(st::normalFont);
+		p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
 		if (_cloudButton) {
 			Ui::EmptyUserpic::PaintSavedMessages(
 				p,

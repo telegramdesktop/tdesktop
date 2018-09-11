@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "styles/style_boxes.h"
 #include "messenger.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -24,14 +25,21 @@ constexpr auto kMinUsernameLength = 5;
 } // namespace
 
 UsernameBox::UsernameBox(QWidget*)
-: _username(this, st::defaultInputField, [] { return qsl("@username"); }, App::self()->username, false)
+: _username(
+	this,
+	st::defaultInputField,
+	[] { return qsl("@username"); },
+	Auth().user()->username,
+	false)
 , _link(this, QString(), st::boxLinkButton)
 , _about(st::boxWidth - st::usernamePadding.left())
 , _checkTimer(this) {
 }
 
 void UsernameBox::prepare() {
-	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
+	_goodText = Auth().user()->username.isEmpty()
+		? QString()
+		: lang(lng_username_available);
 
 	setTitle(langFactory(lng_username_title));
 
@@ -170,9 +178,14 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
-	QString err(error.type());
-	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
-		App::self()->setName(TextUtilities::SingleLine(App::self()->firstName), TextUtilities::SingleLine(App::self()->lastName), TextUtilities::SingleLine(App::self()->nameOrPhone), TextUtilities::SingleLine(_sentUsername));
+	const auto self = Auth().user();
+	const auto err = error.type();
+	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == self->username) {
+		self->setName(
+			TextUtilities::SingleLine(self->firstName),
+			TextUtilities::SingleLine(self->lastName),
+			TextUtilities::SingleLine(self->nameOrPhone),
+			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
@@ -194,8 +207,13 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 
 void UsernameBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
-	QString newError = (mtpIsTrue(result) || _checkUsername == App::self()->username) ? QString() : lang(lng_username_occupied);
-	QString newGood = newError.isEmpty() ? lang(lng_username_available) : QString();
+	const auto newError = (mtpIsTrue(result)
+		|| _checkUsername == Auth().user()->username)
+		? QString()
+		: lang(lng_username_occupied);
+	const auto newGood = newError.isEmpty()
+		? lang(lng_username_available)
+		: QString();
 	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;
 		_goodText = newGood;
@@ -212,7 +230,7 @@ bool UsernameBox::onCheckFail(const RPCError &error) {
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
-	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != App::self()->username) {
+	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != Auth().user()->username) {
 		_errorText = lang(lng_username_occupied);
 		update();
 		return true;

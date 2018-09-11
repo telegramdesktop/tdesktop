@@ -144,7 +144,7 @@ public:
 	Lang::CloudManager *langCloudManager() {
 		return _langCloudManager.get();
 	}
-	void authSessionCreate(UserId userId);
+	void authSessionCreate(const MTPUser &user);
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
 	}

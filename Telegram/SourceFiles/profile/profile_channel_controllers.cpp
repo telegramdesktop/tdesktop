@@ -801,7 +801,7 @@ void ParticipantsBoxController::editAdminDone(
 		}
 	} else {
 		// It won't be replaced if the entry already exists.
-		_additional.adminPromotedBy.emplace(user, App::self());
+		_additional.adminPromotedBy.emplace(user, Auth().user());
 		_additional.adminCanEdit.emplace(user);
 		_additional.adminRights[user] = rights;
 		_additional.kicked.erase(user);
@@ -859,7 +859,7 @@ void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, con
 		_additional.adminRights.erase(user);
 		_additional.adminCanEdit.erase(user);
 		_additional.adminPromotedBy.erase(user);
-		_additional.restrictedBy.emplace(user, App::self());
+		_additional.restrictedBy.emplace(user, Auth().user());
 		if (fullBanned) {
 			_additional.kicked.emplace(user);
 			_additional.restrictedRights.erase(user);
@@ -1472,7 +1472,7 @@ void AddParticipantBoxController::editAdminDone(
 		_additional.adminCanEdit.emplace(user);
 		auto it = _additional.adminPromotedBy.find(user);
 		if (it == _additional.adminPromotedBy.end()) {
-			_additional.adminPromotedBy.emplace(user, App::self());
+			_additional.adminPromotedBy.emplace(user, Auth().user());
 		}
 	}
 	if (_adminDoneCallback) {
@@ -1557,7 +1557,7 @@ void AddParticipantBoxController::editRestrictedDone(
 		} else {
 			_additional.kicked.erase(user);
 		}
-		_additional.restrictedBy.emplace(user, App::self());
+		_additional.restrictedBy.emplace(user, Auth().user());
 	}
 	if (_bannedDoneCallback) {
 		_bannedDoneCallback(user, rights);

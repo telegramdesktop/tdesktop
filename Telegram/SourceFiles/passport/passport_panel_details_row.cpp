@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/countryinput.h"
+#include "auth_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
@@ -377,7 +378,8 @@ void CountryRow::errorAnimationCallback() {
 void CountryRow::chooseCountry() {
 	const auto top = _value.current();
 	const auto name = CountrySelectBox::NameByISO(top);
-	const auto isoByPhone = CountrySelectBox::ISOByPhone(App::self()->phone());
+	const auto isoByPhone = CountrySelectBox::ISOByPhone(
+		Auth().user()->phone());
 	const auto box = _controller->show(Box<CountrySelectBox>(!name.isEmpty()
 		? top
 		: !isoByPhone.isEmpty()

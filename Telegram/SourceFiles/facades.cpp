@@ -119,7 +119,7 @@ void activateBotCommand(
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 			auto options = ApiWrap::SendOptions(history);
 			options.replyTo = msgId;
-			Auth().api().shareContact(App::self(), options);
+			Auth().api().shareContact(Auth().user(), options);
 		}));
 	} break;
 
@@ -551,8 +551,6 @@ struct Data {
 
 	CircleMasksMap CircleMasks;
 
-	base::Observable<void> SelfChanged;
-
 	bool AskDownloadPath = false;
 	QString DownloadPath;
 	QByteArray DownloadPathBookmark;
@@ -680,8 +678,6 @@ DefineVar(Global, TimeMs, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 
 DefineRefVar(Global, CircleMasksMap, CircleMasks);
-
-DefineRefVar(Global, base::Observable<void>, SelfChanged);
 
 DefineVar(Global, bool, AskDownloadPath);
 DefineVar(Global, QString, DownloadPath);

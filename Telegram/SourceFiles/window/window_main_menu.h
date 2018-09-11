@@ -33,7 +33,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void checkSelf();
 	void updateControlsGeometry();
 	void updatePhone();
 	void refreshMenu();

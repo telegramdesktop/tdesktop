@@ -294,10 +294,9 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	const auto dialogs = App::main()->dialogsList();
-	if (const auto self = App::self()) {
-		if (_filterCallback(App::self())) {
-			_chatsIndexed->addToEnd(App::history(self));
-		}
+	const auto self = Auth().user();
+	if (_filterCallback(self)) {
+		_chatsIndexed->addToEnd(App::history(self));
 	}
 	for (const auto row : dialogs->all()) {
 		if (const auto history = row->history()) {

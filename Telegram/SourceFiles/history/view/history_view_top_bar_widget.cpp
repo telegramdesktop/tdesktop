@@ -760,12 +760,13 @@ void TopBarWidget::updateOnlineDisplay() {
 				text = lng_chat_status_members(lt_count, chat->count);
 			}
 		} else {
+			const auto self = Auth().user();
 			auto online = 0;
 			auto onlyMe = true;
 			for (auto [user, v] : chat->participants) {
 				if (user->onlineTill > now) {
 					++online;
-					if (onlyMe && user != App::self()) onlyMe = false;
+					if (onlyMe && user != self) onlyMe = false;
 				}
 			}
 			if (online > 0 && !onlyMe) {
@@ -783,12 +784,13 @@ void TopBarWidget::updateOnlineDisplay() {
 			if (channel->mgInfo->lastParticipants.empty() || channel->lastParticipantsCountOutdated()) {
 				Auth().api().requestLastParticipants(channel);
 			}
+			const auto self = Auth().user();
 			auto online = 0;
-			bool onlyMe = true;
+			auto onlyMe = true;
 			for (auto &participant : std::as_const(channel->mgInfo->lastParticipants)) {
 				if (participant->onlineTill > now) {
 					++online;
-					if (onlyMe && participant != App::self()) {
+					if (onlyMe && participant != self) {
 						onlyMe = false;
 					}
 				}

@@ -54,11 +54,6 @@ Instance::Instance()
 	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
 	});
-	subscribe(Global::RefSelfChanged(), [this] {
-		if (!App::self()) {
-			handleLogout();
-		}
-	});
 
 	// While we have one Media::Player::Instance for all authsessions we have to do this.
 	auto handleAuthSessionChange = [this] {
@@ -69,9 +64,11 @@ Instance::Instance()
 					pause(AudioMsgId::Type::Song);
 				}
 			});
+		} else {
+			handleLogout();
 		}
 	};
-	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
+	subscribe(Messenger::Instance().authSessionChanged(), [=] {
 		handleAuthSessionChange();
 	});
 	handleAuthSessionChange();

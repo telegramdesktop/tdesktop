@@ -343,7 +343,7 @@ void GroupMembersWidget::refreshLimitReached() {
 void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
 	if (chat->participants.empty()) return;
 
-	auto self = App::self();
+	const auto self = Auth().user();
 	if (chat->amAdmin() && !chat->admins.contains(self)) {
 		chat->admins.insert(self);
 	} else if (!chat->amAdmin() && chat->admins.contains(self)) {
@@ -404,7 +404,7 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 	_sortByOnline = true;
 
 	reserveItemsForSize(chat->participants.size());
-	addUser(chat, App::self())->onlineForSort
+	addUser(chat, Auth().user())->onlineForSort
 		= std::numeric_limits<TimeId>::max();
 	for (auto [user, v] : chat->participants) {
 		if (!user->isSelf()) {
@@ -454,7 +454,7 @@ void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 		clearItems();
 		reserveItemsForSize(membersList.size());
 		if (megagroup->amIn()) {
-			addUser(megagroup, App::self())->onlineForSort
+			addUser(megagroup, Auth().user())->onlineForSort
 				= std::numeric_limits<TimeId>::max();
 		}
 	} else if (membersList.size() >= itemsCount()) {

@@ -115,8 +115,8 @@ void InfoWidget::refreshBio() {
 		TextWithEntities(),
 		QString());
 	if (auto text = _bio->entity()->textLabel()) {
-		text->setClickHandlerFilter([](auto&&...) {
-			Ui::show(Box<EditBioBox>(App::self()));
+		text->setClickHandlerFilter([=](auto&&...) {
+			Ui::show(Box<EditBioBox>(self()));
 			return false;
 		});
 	}

@@ -437,8 +437,6 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 void UserData::setPhone(const QString &newPhone) {
 	if (_phone != newPhone) {
 		_phone = newPhone;
-		if (bareId() == Auth().userId()) {
-		}
 	}
 }
 
@@ -1042,15 +1040,16 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 	}
 	_adminRights.set(rights.c_channelAdminRights().vflags.v);
 	if (isMegagroup()) {
+		const auto self = Auth().user();
 		if (hasAdminRights()) {
 			if (!amCreator()) {
 				auto me = MegagroupInfo::Admin { rights };
 				me.canEdit = false;
-				mgInfo->lastAdmins.emplace(App::self(), me);
+				mgInfo->lastAdmins.emplace(self, me);
 			}
-			mgInfo->lastRestricted.remove(App::self());
+			mgInfo->lastRestricted.remove(self);
 		} else {
-			mgInfo->lastAdmins.remove(App::self());
+			mgInfo->lastAdmins.remove(self);
 		}
 
 		auto amAdmin = hasAdminRights() || amCreator();
@@ -1067,15 +1066,16 @@ void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
 	_restrictedUntill = rights.c_channelBannedRights().vuntil_date.v;
 	_restrictions.set(rights.c_channelBannedRights().vflags.v);
 	if (isMegagroup()) {
+		const auto self = Auth().user();
 		if (hasRestrictions()) {
 			if (!amCreator()) {
 				auto me = MegagroupInfo::Restricted { rights };
-				mgInfo->lastRestricted.emplace(App::self(), me);
+				mgInfo->lastRestricted.emplace(self, me);
 			}
-			mgInfo->lastAdmins.remove(App::self());
+			mgInfo->lastAdmins.remove(self);
 			Data::ChannelAdminChanges(this).feed(Auth().userId(), false);
 		} else {
-			mgInfo->lastRestricted.remove(App::self());
+			mgInfo->lastRestricted.remove(self);
 		}
 	}
 	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);

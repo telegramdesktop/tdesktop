@@ -594,7 +594,9 @@ QString Widget::Step::nextButtonText() const {
 }
 
 void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
-	if (user.type() != mtpc_user || !user.c_user().is_self()) {
+	if (user.type() != mtpc_user
+		|| !user.c_user().is_self()
+		|| !user.c_user().vid.v) {
 		// No idea what to do here.
 		// We could've reset intro and MTP, but this really should not happen.
 		Ui::show(Box<InformBox>("Internal error: bad user.is_self() after sign in."));
@@ -610,16 +612,13 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 		Local::writeLangPack();
 	}
 
-	Messenger::Instance().authSessionCreate(user.c_user().vid.v);
+	Messenger::Instance().authSessionCreate(user);
 	Local::writeMtpData();
-	App::wnd()->setupMain(&user);
+	App::wnd()->setupMain();
 
 	// "this" is already deleted here by creating the main widget.
-	if (const auto user = App::self()) {
-		Auth().api().requestFullPeer(user);
-		if (!photo.isNull()) {
-			Auth().api().uploadPeerPhoto(user, std::move(photo));
-		}
+	if (AuthSession::Exists() && !photo.isNull()) {
+		Auth().api().uploadPeerPhoto(Auth().user(), std::move(photo));
 	}
 }
 

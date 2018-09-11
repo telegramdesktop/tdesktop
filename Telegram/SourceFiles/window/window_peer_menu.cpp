@@ -352,7 +352,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 	_addAction(
 		lang(lng_profile_clear_history),
 		ClearHistoryHandler(user));
-	if (!user->isInaccessible() && user != App::self()) {
+	if (!user->isInaccessible() && user != Auth().user()) {
 		addBlockUser(user);
 	}
 }

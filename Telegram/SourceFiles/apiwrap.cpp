@@ -557,8 +557,8 @@ void ApiWrap::requestContacts() {
 			if (contact.type() != mtpc_contact) continue;
 
 			const auto userId = contact.c_contact().vuser_id.v;
-			if (userId == _session->userId() && App::self()) {
-				App::self()->setContactStatus(
+			if (userId == _session->userId()) {
+				Auth().user()->setContactStatus(
 					UserData::ContactStatus::Contact);
 			}
 		}
@@ -763,7 +763,9 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 			_fullPeerRequests.remove(peer);
 		};
 		if (auto user = peer->asUser()) {
-			return request(MTPusers_GetFullUser(user->inputUser)).done([this, user](const MTPUserFull &result, mtpRequestId requestId) {
+			return request(MTPusers_GetFullUser(
+				user->inputUser
+			)).done([this, user](const MTPUserFull &result, mtpRequestId requestId) {
 				gotUserFull(user, result, requestId);
 			}).fail(failHandler).send();
 		} else if (auto chat = peer->asChat()) {
@@ -946,6 +948,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req) {
 	auto &d = result.c_userFull();
 
+	if (user == _session->user() && !_session->validateSelf(d.vuser)) {
+		constexpr auto kRequestUserAgainTimeout = TimeMs(10000);
+		App::CallDelayed(kRequestUserAgainTimeout, _session, [=] {
+			requestFullPeer(user);
+		});
+		return;
+	}
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		_session->data().photo(d.vprofile_photo);
@@ -1394,7 +1403,7 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 			channel->inviter = _session->userId();
 			channel->inviteDate = channel->date;
 			if (channel->mgInfo) {
-				channel->mgInfo->creator = App::self();
+				channel->mgInfo->creator = Auth().user();
 			}
 		} break;
 		case mtpc_channelParticipantAdmin: {
@@ -2006,14 +2015,15 @@ void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
 	if (_contactsStatusesRequestId) {
 		request(_contactsStatusesRequestId).cancel();
 	}
-	_contactsStatusesRequestId = request(MTPcontacts_GetStatuses()).done([this](const MTPVector<MTPContactStatus> &result) {
+	_contactsStatusesRequestId = request(MTPcontacts_GetStatuses(
+	)).done([=](const MTPVector<MTPContactStatus> &result) {
 		_contactsStatusesRequestId = 0;
 		for_const (auto &item, result.v) {
 			Assert(item.type() == mtpc_contactStatus);
 			auto &data = item.c_contactStatus();
 			if (auto user = App::userLoaded(data.vuser_id.v)) {
 				auto oldOnlineTill = user->onlineTill;
-				auto newOnlineTill = onlineTillFromStatus(data.vstatus, oldOnlineTill);
+				auto newOnlineTill = OnlineTillFromStatus(data.vstatus, oldOnlineTill);
 				if (oldOnlineTill != newOnlineTill) {
 					user->onlineTill = newOnlineTill;
 					Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
@@ -2025,10 +2035,14 @@ void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
 	}).send();
 }
 
-int ApiWrap::onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill) {
+int ApiWrap::OnlineTillFromStatus(
+		const MTPUserStatus &status,
+		int currentOnlineTill) {
 	switch (status.type()) {
 	case mtpc_userStatusEmpty: return 0;
-	case mtpc_userStatusRecently: return (currentOnlineTill > -10) ? -2 : currentOnlineTill; // don't modify pseudo-online
+	case mtpc_userStatusRecently:
+		// Don't modify pseudo-online.
+		return (currentOnlineTill > -10) ? -2 : currentOnlineTill;
 	case mtpc_userStatusLastWeek: return -3;
 	case mtpc_userStatusLastMonth: return -4;
 	case mtpc_userStatusOffline: return status.c_userStatusOffline().vwas_online.v;
@@ -4892,11 +4906,7 @@ void ApiWrap::photoUploadReady(
 }
 
 void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
-	const auto self = App::self();
-	if (!self) {
-		return;
-	}
-
+	const auto self = Auth().user();
 	if (self->userpicPhotoId() == photo->id) {
 		request(MTPphotos_UpdateProfilePhoto(
 			MTP_inputPhotoEmpty()
@@ -5005,7 +5015,7 @@ void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
 		_saveBioRequestId = 0;
 
 		App::feedUsers(MTP_vector<MTPUser>(1, result));
-		App::self()->setAbout(_saveBioText);
+		Auth().user()->setAbout(_saveBioText);
 		if (_saveBioDone) {
 			_saveBioDone();
 		}

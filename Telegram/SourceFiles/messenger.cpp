@@ -66,6 +66,7 @@ Messenger *Messenger::InstancePointer() {
 
 struct Messenger::Private {
 	UserId authSessionUserId = 0;
+	QByteArray authSessionUserSerialized;
 	std::unique_ptr<AuthSessionSettings> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
@@ -454,7 +455,21 @@ void Messenger::startMtp() {
 	}
 
 	if (_private->authSessionUserId) {
-		authSessionCreate(base::take(_private->authSessionUserId));
+		authSessionCreate(MTP_user(
+			MTP_flags(MTPDuser::Flag::f_self),
+			MTP_int(base::take(_private->authSessionUserId)),
+			MTPlong(), // access_hash
+			MTPstring(), // first_name
+			MTPstring(), // last_name
+			MTPstring(), // username
+			MTPstring(), // phone
+			MTPUserProfilePhoto(),
+			MTPUserStatus(),
+			MTPint(), // bot_info_version
+			MTPstring(), // restriction_reason
+			MTPstring(), // bot_inline_placeholder
+			MTPstring())); // lang_code
+		//Local::readUser(base::take(_private->authSessionUserSerialized));
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
@@ -538,15 +553,8 @@ void Messenger::startLocalStorage() {
 	});
 	subscribe(authSessionChanged(), [this] {
 		InvokeQueued(this, [this] {
-			if (_mtproto) {
-				_mtproto->requestConfig();
-			}
-		});
-	});
-	subscribe(Global::RefSelfChanged(), [=] {
-		InvokeQueued(this, [=] {
-			const auto phone = App::self()
-				? App::self()->phone()
+			const auto phone = AuthSession::Exists()
+				? Auth().user()->phone()
 				: QString();
 			if (cLoggedPhoneNumber() != phone) {
 				cSetLoggedPhoneNumber(phone);
@@ -554,6 +562,9 @@ void Messenger::startLocalStorage() {
 					_mtproto->setUserPhone(phone);
 				}
 				Local::writeSettings();
+			}
+			if (_mtproto) {
+				_mtproto->requestConfig();
 			}
 		});
 	});
@@ -689,10 +700,10 @@ void Messenger::onSwitchTestMode() {
 	App::restart();
 }
 
-void Messenger::authSessionCreate(UserId userId) {
+void Messenger::authSessionCreate(const MTPUser &user) {
 	Expects(_mtproto != nullptr);
 
-	_authSession = std::make_unique<AuthSession>(userId);
+	_authSession = std::make_unique<AuthSession>(user);
 	authSessionChanged().notify(true);
 }
 
@@ -702,6 +713,7 @@ void Messenger::authSessionDestroy() {
 	_authSession.reset();
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
+	_private->authSessionUserSerialized = {};
 	authSessionChanged().notify(true);
 }
 

@@ -416,7 +416,7 @@ void EditCaptionBox::save() {
 	};
 	const auto prepareFlags = Ui::ItemTextOptions(
 		item->history(),
-		App::self()).flags;
+		Auth().user()).flags;
 	TextUtilities::PrepareForSending(sending, prepareFlags);
 	TextUtilities::Trim(sending);
 

@@ -52,7 +52,7 @@ public:
 	void setupPasscodeLock();
 	void clearPasscodeLock();
 	void setupIntro();
-	void setupMain(const MTPUser *user = nullptr);
+	void setupMain();
 	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();

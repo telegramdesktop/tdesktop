@@ -1579,10 +1579,7 @@ QString FormController::defaultEmail() const {
 }
 
 QString FormController::defaultPhoneNumber() const {
-	if (const auto self = App::self()) {
-		return self->phone();
-	}
-	return QString();
+	return Auth().user()->phone();
 }
 
 auto FormController::scanUpdated() const

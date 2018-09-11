@@ -182,7 +182,9 @@ public:
 
 	void savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules);
 	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
-	int onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill);
+	static int OnlineTillFromStatus(
+		const MTPUserStatus &status,
+		int currentOnlineTill);
 
 	void clearHistory(not_null<PeerData*> peer);
 

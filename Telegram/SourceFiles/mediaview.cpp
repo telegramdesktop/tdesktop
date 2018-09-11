@@ -442,7 +442,7 @@ void MediaView::updateActions() {
 	auto canDelete = [&] {
 		if (_canDeleteItem) {
 			return true;
-		} else if (!_msgid && _photo && App::self() && _user == App::self()) {
+		} else if (!_msgid && _photo && _user && _user == Auth().user()) {
 			return _userPhotosData && _fullIndex && _fullCount;
 		} else if (_photo && _photo->peer && _photo->peer->userpicPhotoId() == _photo->id) {
 			if (auto chat = _photo->peer->asChat()) {

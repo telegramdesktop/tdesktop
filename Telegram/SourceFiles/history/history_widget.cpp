@@ -2916,7 +2916,9 @@ void HistoryWidget::saveEditMsg() {
 			: WebPageId(0));
 
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
-	const auto prepareFlags = Ui::ItemTextOptions(_history, App::self()).flags;
+	const auto prepareFlags = Ui::ItemTextOptions(
+		_history, 
+		Auth().user()).flags;
 	auto sending = TextWithEntities();
 	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
@@ -4448,7 +4450,7 @@ void HistoryWidget::sendFileConfirmed(
 	};
 	const auto prepareFlags = Ui::ItemTextOptions(
 		history,
-		App::self()).flags;
+		Auth().user()).flags;
 	TextUtilities::PrepareForSending(caption, prepareFlags);
 	TextUtilities::Trim(caption);
 	auto localEntities = TextUtilities::EntitiesToMTP(caption.entities);

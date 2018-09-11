@@ -186,7 +186,7 @@ class AuthSession final
 	: public base::has_weak_ptr
 	, private base::Subscriber {
 public:
-	AuthSession(UserId userId);
+	AuthSession(const MTPUser &user);
 
 	AuthSession(const AuthSession &other) = delete;
 	AuthSession &operator=(const AuthSession &other) = delete;
@@ -194,12 +194,14 @@ public:
 	static bool Exists();
 
 	UserId userId() const {
-		return _userId;
+		return _user->bareId();
 	}
 	PeerId userPeerId() const {
-		return peerFromUser(userId());
+		return _user->id;
 	}
-	UserData *user() const;
+	not_null<UserData*> user() const {
+		return _user;
+	}
 	bool validateSelf(const MTPUser &user);
 
 	Storage::Downloader &downloader() {
@@ -249,7 +251,7 @@ public:
 private:
 	static constexpr auto kDefaultSaveDelay = TimeMs(1000);
 
-	const UserId _userId = 0;
+	const not_null<UserData*> _user;
 	AuthSessionSettings _settings;
 	base::Timer _saveDataTimer;
 

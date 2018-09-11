@@ -265,8 +265,8 @@ AuthSession &Auth() {
 	return *result;
 }
 
-AuthSession::AuthSession(UserId userId)
-: _userId(userId)
+AuthSession::AuthSession(const MTPUser &user)
+: _user(App::user(user.match([](const auto &data) { return data.vid.v; })))
 , _autoLockTimer([this] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
@@ -276,7 +276,7 @@ AuthSession::AuthSession(UserId userId)
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _changelogs(Core::Changelogs::Create(this)) {
-	Expects(_userId != 0);
+	App::feedUser(user);
 
 	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
@@ -294,19 +294,16 @@ AuthSession::AuthSession(UserId userId)
 	});
 	_api->refreshProxyPromotion();
 	_api->requestTermsUpdate();
+	_api->requestFullPeer(_user);
 
 	Window::Theme::Background()->start();
 }
 
 bool AuthSession::Exists() {
-	if (auto messenger = Messenger::InstancePointer()) {
+	if (const auto messenger = Messenger::InstancePointer()) {
 		return (messenger->authSession() != nullptr);
 	}
 	return false;
-}
-
-UserData *AuthSession::user() const {
-	return App::user(userId());
 }
 
 base::Observable<void> &AuthSession::downloaderTaskFinished() {

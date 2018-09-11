@@ -411,7 +411,7 @@ void InnerWidget::requestAdmins() {
 			}
 		});
 		if (_admins.empty()) {
-			_admins.push_back(App::self());
+			_admins.push_back(Auth().user());
 		}
 		if (_showFilterCallback) {
 			showFilter(std::move(_showFilterCallback));

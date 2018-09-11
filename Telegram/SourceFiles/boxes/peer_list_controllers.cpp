@@ -263,10 +263,8 @@ void ChatsListBoxController::rebuildRows() {
 	};
 	auto added = 0;
 	if (respectSavedMessagesChat()) {
-		if (auto self = App::self()) {
-			if (appendRow(App::history(self))) {
-				++added;
-			}
+		if (appendRow(App::history(Auth().user()))) {
+			++added;
 		}
 	}
 	added += appendList(App::main()->dialogsList());

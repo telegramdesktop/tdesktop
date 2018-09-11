@@ -208,14 +208,18 @@ BioManager SetupBio(
 			geometry.y() + style->textMargins.top());
 	}, countdown->lifetime());
 
+	const auto assign = [=](QString text) {
+		auto position = bio->textCursor().position();
+		bio->setText(text.replace('\n', ' '));
+		auto cursor = bio->textCursor();
+		cursor.setPosition(position);
+		bio->setTextCursor(cursor);
+	};
 	const auto updated = [=] {
 		auto text = bio->getLastText();
 		if (text.indexOf('\n') >= 0) {
-			auto position = bio->textCursor().position();
-			bio->setText(text.replace('\n', ' '));
-			auto cursor = bio->textCursor();
-			cursor.setPosition(position);
-			bio->setTextCursor(cursor);
+			assign(text);
+			text = bio->getLastText();
 		}
 		changed->fire(*current != text);
 		const auto countLeft = qMax(kMaxBioLength - text.size(), 0);
@@ -230,8 +234,14 @@ BioManager SetupBio(
 	Info::Profile::BioValue(
 		self
 	) | rpl::start_with_next([=](const TextWithEntities &text) {
+		const auto wasChanged = (*current != bio->getLastText());
 		*current = text.text;
-		changed->fire(*current != bio->getLastText());
+		if (wasChanged) {
+			changed->fire(*current != bio->getLastText());
+		} else {
+			assign(text.text);
+			*current = bio->getLastText();
+		}
 	}, bio->lifetime());
 
 	bio->setMaxLength(kMaxBioLength);
