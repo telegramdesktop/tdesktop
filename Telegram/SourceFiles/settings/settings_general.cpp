@@ -381,8 +381,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 }
 
 General::General(QWidget *parent, UserData *self)
-: Section(parent)
-, _self(self) {
+: Section(parent) {
 	setupContent();
 }
 

@@ -193,7 +193,7 @@ rpl::producer<bool> SetupLocalPasscode(
 
 	wrap->toggleOn(base::duplicate(has));
 
-	return std::move(has);
+	return has;
 }
 
 bool CheckEditCloudPassword() {
@@ -365,7 +365,7 @@ rpl::producer<bool> SetupCloudPassword(
 		reloadOnActivation);
 
 	Auth().api().reloadPasswordState();
-	return std::move(has);
+	return has;
 }
 
 void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {

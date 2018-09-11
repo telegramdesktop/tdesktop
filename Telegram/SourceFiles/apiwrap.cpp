@@ -4983,7 +4983,7 @@ void ApiWrap::clearUnconfirmedPassword() {
 rpl::producer<Core::CloudPasswordState> ApiWrap::passwordState() const {
 	return _passwordState
 		? _passwordStateChanges.events_starting_with_copy(*_passwordState)
-		: _passwordStateChanges.events();
+		: (_passwordStateChanges.events() | rpl::type_erased());
 }
 
 auto ApiWrap::passwordStateCurrent() const

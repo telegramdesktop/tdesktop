@@ -196,9 +196,9 @@ private:
 
 IntroWidget::IntroWidget(QWidget *parent)
 : RpWidget(parent)
-, _topShadow(this)
 , _wrap(this)
-, _scroll(Ui::CreateChild<Ui::ScrollArea>(_wrap.data(), st::infoScroll)) {
+, _scroll(Ui::CreateChild<Ui::ScrollArea>(_wrap.data(), st::infoScroll))
+, _topShadow(this) {
 	_wrap->setAttribute(Qt::WA_OpaquePaintEvent);
 	_wrap->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {

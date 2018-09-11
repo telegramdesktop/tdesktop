@@ -25,8 +25,6 @@ public:
 private:
 	void setupContent();
 
-	UserData *_self = nullptr;
-
 };
 
 } // namespace Settings
