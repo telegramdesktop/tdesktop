@@ -16,7 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/session.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
-#include "old_settings/settings_widget.h"
+#include "info/info_memento.h"
+#include "info/settings/info_settings_widget.h"
+#include "window/window_controller.h"
+#include "settings/settings_intro.h"
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -2124,18 +2127,22 @@ void UpdateApplication() {
 		}();
 		UrlClickHandler::Open(url);
 	} else {
-		cSetLastUpdateCheck(0);
-		Core::UpdateChecker().start();
 		if (const auto window = App::wnd()) {
-			// #TODO settings
-			auto settings = Box<OldSettings::Widget>();
-			const auto weak = make_weak(settings.data());
-			window->showSpecialLayer(std::move(settings), anim::type::normal);
-			if (weak) {
-				weak->scrollToUpdateRow();
+			if (const auto controller = window->controller()) {
+				controller->showSection(
+					Info::Memento(
+						Info::Settings::Tag{ Auth().user() },
+						Info::Section::SettingsType::General),
+					Window::SectionShow());
+			} else {
+				window->showSpecialLayer(
+					Box<Settings::LayerWidget>(),
+					anim::type::normal);
 			}
 			window->showFromTray();
 		}
+		cSetLastUpdateCheck(0);
+		Core::UpdateChecker().start();
 	}
 }
 
