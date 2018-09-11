@@ -156,6 +156,9 @@ void readSavedPeers();
 
 void writeReportSpamStatuses();
 
+void writeSelf();
+void readSelf(const QByteArray &serialized, int32 streamVersion);
+
 void makeBotTrusted(UserData *bot);
 bool isBotTrusted(UserData *bot);
 

@@ -115,7 +115,6 @@ void PeerData::updateNameDelayed(
 			return;
 		}
 	}
-
 	++nameVersion;
 	name = newName;
 	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());

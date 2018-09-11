@@ -115,7 +115,9 @@ public:
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
 	void setAuthSessionUserId(UserId userId);
 	void setAuthSessionFromStorage(
-		std::unique_ptr<AuthSessionSettings> data);
+		std::unique_ptr<AuthSessionSettings> data,
+		QByteArray &&selfSerialized,
+		int32 selfStreamVersion);
 	AuthSessionSettings *getAuthSessionSettings();
 
 	// Serialization.

@@ -323,7 +323,8 @@ namespace App {
 			if (data->loadedStatus == PeerData::NotLoaded) {
 				data->loadedStatus = PeerData::MinimalLoaded;
 			}
-		} else if (data->loadedStatus != PeerData::FullLoaded) {
+		} else if (data->loadedStatus != PeerData::FullLoaded
+			&& (!data->isSelf() || !data->phone().isEmpty())) {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
 

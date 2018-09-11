@@ -67,6 +67,7 @@ Messenger *Messenger::InstancePointer() {
 struct Messenger::Private {
 	UserId authSessionUserId = 0;
 	QByteArray authSessionUserSerialized;
+	int32 authSessionUserStreamVersion = 0;
 	std::unique_ptr<AuthSessionSettings> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
@@ -372,12 +373,19 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 
 void Messenger::setAuthSessionUserId(UserId userId) {
 	Expects(!authSession());
+
 	_private->authSessionUserId = userId;
 }
 
-void Messenger::setAuthSessionFromStorage(std::unique_ptr<AuthSessionSettings> data) {
+void Messenger::setAuthSessionFromStorage(
+		std::unique_ptr<AuthSessionSettings> data,
+		QByteArray &&selfSerialized,
+		int32 selfStreamVersion) {
 	Expects(!authSession());
+
 	_private->storedAuthSession = std::move(data);
+	_private->authSessionUserSerialized = std::move(selfSerialized);
+	_private->authSessionUserStreamVersion = selfStreamVersion;
 }
 
 AuthSessionSettings *Messenger::getAuthSessionSettings() {
@@ -469,7 +477,9 @@ void Messenger::startMtp() {
 			MTPstring(), // restriction_reason
 			MTPstring(), // bot_inline_placeholder
 			MTPstring())); // lang_code
-		//Local::readUser(base::take(_private->authSessionUserSerialized));
+		Local::readSelf(
+			base::take(_private->authSessionUserSerialized),
+			base::take(_private->authSessionUserStreamVersion));
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
@@ -484,6 +494,11 @@ void Messenger::startMtp() {
 		mtp());
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker().setMtproto(mtp());
+	}
+
+	if (_authSession) {
+		// Skip all pending self updates so that we won't Local::writeSelf.
+		Notify::peerUpdatedSendDelayed();
 	}
 }
 

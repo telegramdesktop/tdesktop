@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/send_files_box.h"
+#include "observer_peer.h"
 
 namespace {
 
@@ -295,6 +296,24 @@ AuthSession::AuthSession(const MTPUser &user)
 	_api->refreshProxyPromotion();
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
+
+	crl::on_main(this, [=] {
+		using Flag = Notify::PeerUpdate::Flag;
+		const auto events = Flag::NameChanged
+			| Flag::UsernameChanged
+			| Flag::PhotoChanged
+			| Flag::AboutChanged
+			| Flag::UserPhoneChanged;
+		subscribe(
+			Notify::PeerUpdated(),
+			Notify::PeerUpdatedHandler(
+				events,
+				[=](const Notify::PeerUpdate &update) {
+					if (update.peer == _user) {
+						Local::writeSelf();
+					}
+				}));
+	});
 
 	Window::Theme::Background()->start();
 }
