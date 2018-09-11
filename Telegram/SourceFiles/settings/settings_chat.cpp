@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Settings {
-namespace {
 
 class BackgroundRow : public Ui::RpWidget {
 public:
@@ -624,10 +623,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	}, adaptive->lifetime());
 }
 
-void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
-
+void SetupNightMode(not_null<Ui::VerticalLayout*> container) {
 	const auto calling = Ui::AttachAsChild(container, 0);
 	AddButton(
 		container,
@@ -648,16 +644,9 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 			container,
 			change);
 	}, container->lifetime());
+}
 
-	AddButton(
-		container,
-		lng_settings_bg_edit_theme,
-		st::settingsButton
-	)->addClickHandler(App::LambdaDelayed(
-		st::settingsButton.ripple.hideDuration,
-		container,
-		[] { Window::Theme::Editor::Start(); }));
-
+void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container) {
 	using Update = const Window::Theme::BackgroundUpdate;
 	container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
@@ -678,11 +667,27 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	})))->entity()->addClickHandler([] {
 		Window::Theme::ApplyDefault();
 	});
+}
+
+void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+
+	SetupNightMode(container);
+
+	AddButton(
+		container,
+		lng_settings_bg_edit_theme,
+		st::settingsButton
+	)->addClickHandler(App::LambdaDelayed(
+		st::settingsButton.ripple.hideDuration,
+		container,
+		[] { Window::Theme::Editor::Start(); }));
+
+	SetupUseDefaultTheme(container);
 
 	AddSkip(container);
 }
-
-} // namespace
 
 Chat::Chat(QWidget *parent, not_null<UserData*> self)
 : Section(parent)

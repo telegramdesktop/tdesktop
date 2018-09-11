@@ -19,6 +19,14 @@ class VerticalLayout;
 
 namespace Settings {
 
+bool HasInterfaceScale();
+void SetupInterfaceScale(
+	not_null<Ui::VerticalLayout*> container,
+	bool icon = true);
+void SetupFaq(
+	not_null<Ui::VerticalLayout*> container,
+	bool icon = true);
+
 class Main : public Section {
 public:
 	Main(

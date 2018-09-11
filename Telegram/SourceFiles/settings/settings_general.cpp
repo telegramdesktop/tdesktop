@@ -27,9 +27,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Settings {
-namespace {
+
+bool HasConnectionType() {
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+	return true;
+#endif // TDESKTOP_DISABLE_NETWORK_PROXY
+	return false;
+}
 
 void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
+	if (!HasConnectionType()) {
+		return;
+	}
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [] {
 		const auto transport = MTP::dctransport();
@@ -74,13 +83,14 @@ void SetupStorageAndConnection(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
+bool HasUpdate() {
+	return !Core::UpdaterDisabled();
+}
+
 void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
-	if (Core::UpdaterDisabled()) {
+	if (!HasUpdate()) {
 		return;
 	}
-
-	AddDivider(container);
-	AddSkip(container);
 
 	const auto texts = Ui::AttachAsChild(
 		container,
@@ -115,8 +125,6 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		update->resizeToWidth(width);
 		update->moveToLeft(0, 0);
 	}, update->lifetime());
-
-	AddSkip(container);
 
 	rpl::combine(
 		toggle->widthValue(),
@@ -218,13 +226,14 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	});
 }
 
+bool HasTray() {
+	return cSupportTray() || (cPlatform() == dbipWindows);
+}
+
 void SetupTray(not_null<Ui::VerticalLayout*> container) {
-	if (!cSupportTray() && cPlatform() != dbipWindows) {
+	if (!HasTray()) {
 		return;
 	}
-
-	AddDivider(container);
-	AddSkip(container);
 
 	const auto trayEnabler = Ui::AttachAsChild(
 		container,
@@ -369,11 +378,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 		}, sendto->lifetime());
 	}
 #endif // OS_WIN_STORE
-
-	AddSkip(container);
 }
-
-} // namespace
 
 General::General(QWidget *parent, UserData *self)
 : Section(parent)
@@ -385,8 +390,19 @@ void General::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	AddSkip(content, st::settingsFirstDividerSkip);
-	SetupUpdate(content);
-	SetupTray(content);
+
+	if (!Core::UpdaterDisabled()) {
+		AddDivider(content);
+		AddSkip(content);
+		SetupUpdate(content);
+		AddSkip(content);
+	}
+	if (HasTray()) {
+		AddDivider(content);
+		AddSkip(content);
+		SetupTray(content);
+		AddSkip(content);
+	}
 	SetupStorageAndConnection(content);
 
 	Ui::ResizeFitChild(this, content);

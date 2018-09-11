@@ -11,6 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
+bool HasConnectionType();
+void SetupConnectionType(not_null<Ui::VerticalLayout*> container);
+bool HasUpdate();
+void SetupUpdate(not_null<Ui::VerticalLayout*> container);
+bool HasTray();
+void SetupTray(not_null<Ui::VerticalLayout*> container);
+
 class General : public Section {
 public:
 	explicit General(QWidget *parent, UserData *self = nullptr);

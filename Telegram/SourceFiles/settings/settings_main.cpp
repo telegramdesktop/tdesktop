@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Settings {
-namespace {
 
 void SetupUploadPhotoButton(
 		not_null<Ui::VerticalLayout*> container,
@@ -136,12 +135,16 @@ void SetupSections(
 	AddSkip(container);
 }
 
-void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
-	if (cRetina()) {
+bool HasInterfaceScale() {
+	return !cRetina();
+}
+
+void SetupInterfaceScale(
+		not_null<Ui::VerticalLayout*> container,
+		bool icon) {
+	if (!HasInterfaceScale()) {
 		return;
 	}
-	AddDivider(container);
-	AddSkip(container);
 
 	const auto toggled = Ui::AttachAsChild(
 		container,
@@ -152,13 +155,13 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 	const auto button = AddButton(
 		container,
 		lng_settings_default_scale,
-		st::settingsSectionButton,
-		&st::settingsIconInterfaceScale
+		icon ? st::settingsSectionButton : st::settingsGeneralButton,
+		icon ? &st::settingsIconInterfaceScale : nullptr
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
 	const auto slider = container->add(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
-		st::settingsScalePadding);
+		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
 
 	const auto inSetScale = Ui::AttachAsChild(container, false);
 	const auto setScale = std::make_shared<Fn<void(DBIScale)>>();
@@ -245,22 +248,24 @@ void SetupInterfaceScale(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::start_with_next([=](int section) {
 		(*setScale)(scaleByIndex(section));
 	}, slider->lifetime());
+}
 
-	AddSkip(container);
+void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
+	AddButton(
+		container,
+		lng_settings_faq,
+		icon ? st::settingsSectionButton : st::settingsGeneralButton,
+		icon ? &st::settingsIconFaq : nullptr
+	)->addClickHandler([] {
+		QDesktopServices::openUrl(telegramFaqLink());
+	});
 }
 
 void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddButton(
-		container,
-		lng_settings_faq,
-		st::settingsSectionButton,
-		&st::settingsIconFaq
-	)->addClickHandler([] {
-		QDesktopServices::openUrl(telegramFaqLink());
-	});
+	SetupFaq(container);
 
 	if (AuthSession::Exists()) {
 		const auto button = AddButton(
@@ -280,8 +285,6 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 
 	AddSkip(container);
 }
-
-} // namespace
 
 Main::Main(
 	QWidget *parent,
@@ -310,7 +313,12 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 	SetupSections(content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
-	SetupInterfaceScale(content);
+	if (HasInterfaceScale()) {
+		AddDivider(content);
+		AddSkip(content);
+		SetupInterfaceScale(content);
+		AddSkip(content);
+	}
 	SetupHelp(content);
 
 	Ui::ResizeFitChild(this, content);

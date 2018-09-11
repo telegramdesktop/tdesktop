@@ -30,6 +30,7 @@ settingsButtonRight: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 settingsScalePadding: margins(79px, 10px, 28px, 8px);
+settingsBigScalePadding: margins(24px, 10px, 24px, 8px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	barFg: windowBgOver;
 	labelFg: windowSubTextFg;

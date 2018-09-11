@@ -574,6 +574,8 @@
 <(src_loc)/settings/settings_general.h
 <(src_loc)/settings/settings_information.cpp
 <(src_loc)/settings/settings_information.h
+<(src_loc)/settings/settings_intro.cpp
+<(src_loc)/settings/settings_intro.h
 <(src_loc)/settings/settings_main.cpp
 <(src_loc)/settings/settings_main.h
 <(src_loc)/settings/settings_notifications.cpp

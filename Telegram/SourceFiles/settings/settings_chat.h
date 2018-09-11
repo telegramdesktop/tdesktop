@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
+void SetupNightMode(not_null<Ui::VerticalLayout*> container);
+void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container);
+
 class Chat : public Section {
 public:
 	Chat(QWidget *parent, not_null<UserData*> self);

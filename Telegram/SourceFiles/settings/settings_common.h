@@ -61,7 +61,7 @@ public:
 object_ptr<Section> CreateSection(
 	Type type,
 	not_null<QWidget*> parent,
-	not_null<Window::Controller*> controller,
+	Window::Controller *controller = nullptr,
 	UserData *self = nullptr);
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);

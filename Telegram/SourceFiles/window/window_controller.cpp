@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 
 #include "window/main_window.h"
-#include "old_settings/settings_widget.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "history/history.h"
@@ -478,18 +477,11 @@ void Navigation::showPeerInfo(
 void Navigation::showSettings(
 		Settings::Type type,
 		const SectionShow &params) {
-	if (AuthSession::Exists()) {
-		showSection(
-			Info::Memento(
-				Info::Settings::Tag{ Auth().user() },
-				Info::Section(type)),
-			params);
-	} else {
-		// #TODO settings
-		App::wnd()->showSpecialLayer(
-			Box<OldSettings::Widget>(),
-			params.animated);
-	}
+	showSection(
+		Info::Memento(
+			Info::Settings::Tag{ Auth().user() },
+			Info::Section(type)),
+		params);
 }
 
 void Navigation::showSettings(const SectionShow &params) {
