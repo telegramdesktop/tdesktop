@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 
 #include "settings/settings_common.h"
-#include "old_settings/settings_privacy_controllers.h"
+#include "settings/settings_privacy_controllers.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/passcode_box.h"
@@ -57,11 +57,11 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 				box->closeBox();
 			});
 			box->addLeftButton(langFactory(lng_blocked_list_add), [] {
-				OldSettings::BlockedBoxController::BlockNewUser();
+				BlockedBoxController::BlockNewUser();
 			});
 		};
 		Ui::show(Box<PeerListBox>(
-			std::make_unique<OldSettings::BlockedBoxController>(),
+			std::make_unique<BlockedBoxController>(),
 			initBox));
 	});
 
@@ -94,7 +94,6 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			}
 		});
 	};
-	using namespace OldSettings;
 	const auto add = [&](LangKey label, Privacy::Key key, auto controller) {
 		AddButtonWithLabel(
 			container,

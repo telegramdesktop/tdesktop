@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_window.h"
-#include "styles/style_old_settings.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/scroll_area.h"
@@ -391,10 +390,10 @@ void Editor::Inner::selectSkipPage(int delta, int direction) {
 void Editor::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.setFont(st::settingsFixedBarFont);
+	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
 	if (!_newRows->isHidden()) {
-		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::settingsFixedBarTextPosition.y(), width(), lang(lng_theme_editor_new_keys));
+		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::boxLayerTitlePosition.y(), width(), lang(lng_theme_editor_new_keys));
 	}
 }
 
@@ -404,7 +403,7 @@ int Editor::Inner::resizeGetHeight(int newWidth) {
 	_newRows->resizeToWidth(rowsWidth);
 
 	_existingRows->moveToLeft(0, 0);
-	_newRows->moveToLeft(0, _existingRows->height() + st::settingsFixedBarHeight);
+	_newRows->moveToLeft(0, _existingRows->height() + st::boxLayerTitleHeight);
 
 	auto lowest = (_newRows->isHidden() ? _existingRows : _newRows).data();
 
@@ -573,7 +572,7 @@ void ThemeExportBox::prepare() {
 	addButton(langFactory(lng_theme_editor_export), [this] { exportTheme(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	auto height = st::settingsSmallSkip + st::settingsBackgroundSize + st::settingsSmallSkip + _tileBackground->height();
+	auto height = st::themesSmallSkip + st::themesBackgroundSize + st::themesSmallSkip + _tileBackground->height();
 
 	setDimensions(st::boxWideWidth, height);
 
@@ -585,23 +584,23 @@ void ThemeExportBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	auto linkLeft = st::boxPadding.left() + st::settingsBackgroundSize + st::settingsSmallSkip;
+	auto linkLeft = st::boxPadding.left() + st::themesBackgroundSize + st::themesSmallSkip;
 
 	p.setPen(st::boxTextFg);
 	p.setFont(st::boxTextFont);
-	p.drawTextLeft(linkLeft, st::settingsSmallSkip, width(), _imageText);
+	p.drawTextLeft(linkLeft, st::themesSmallSkip, width(), _imageText);
 
-	p.drawPixmapLeft(st::boxPadding.left(), st::settingsSmallSkip, width(), _thumbnail);
+	p.drawPixmapLeft(st::boxPadding.left(), st::themesSmallSkip, width(), _thumbnail);
 }
 
 void ThemeExportBox::resizeEvent(QResizeEvent *e) {
-	auto linkLeft = st::boxPadding.left() + st::settingsBackgroundSize + st::settingsSmallSkip;
-	_chooseFromFile->moveToLeft(linkLeft, st::settingsSmallSkip + st::boxTextFont->height + st::settingsSmallSkip);
-	_tileBackground->moveToLeft(st::boxPadding.left(), st::settingsSmallSkip + st::settingsBackgroundSize + 2 * st::settingsSmallSkip);
+	auto linkLeft = st::boxPadding.left() + st::themesBackgroundSize + st::themesSmallSkip;
+	_chooseFromFile->moveToLeft(linkLeft, st::themesSmallSkip + st::boxTextFont->height + st::themesSmallSkip);
+	_tileBackground->moveToLeft(st::boxPadding.left(), st::themesSmallSkip + st::themesBackgroundSize + 2 * st::themesSmallSkip);
 }
 
 void ThemeExportBox::updateThumbnail() {
-	int32 size = st::settingsBackgroundSize * cIntRetinaFactor();
+	int32 size = st::themesBackgroundSize * cIntRetinaFactor();
 	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
@@ -612,7 +611,7 @@ void ThemeExportBox::updateThumbnail() {
 		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
-		p.drawImage(QRect(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize), pix, QRect(sx, sy, s, s));
+		p.drawImage(QRect(0, 0, st::themesBackgroundSize, st::themesBackgroundSize), pix, QRect(sx, sy, s, s));
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
 	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
@@ -690,7 +689,7 @@ void ThemeExportBox::exportTheme() {
 }
 
 Editor::Editor(QWidget*, const QString &path)
-: _scroll(this, st::settingsScroll)
+: _scroll(this, st::themesScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
 , _select(this, st::contactsMultiSelect, langFactory(lng_country_ph))
 , _leftShadow(this)
@@ -779,7 +778,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), st::dialogsBg);
 
-	p.setFont(st::settingsFixedBarFont);
+	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
 	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), lang(lng_theme_editor_title));
 }

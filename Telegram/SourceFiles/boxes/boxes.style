@@ -819,3 +819,10 @@ termsContent: FlatLabel(defaultFlatLabel) {
 }
 termsPadding: margins(23px, 4px, 16px, 16px);
 termsAgePadding: margins(23px, 16px, 16px, 0px);
+
+themesSmallSkip: 10px;
+themesBackgroundSize: 120px;
+themesScroll: ScrollArea(defaultScrollArea) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
