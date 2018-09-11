@@ -220,7 +220,11 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) con
 	return std::move(row);
 }
 
-MTPInputPrivacyKey LastSeenPrivacyController::key() {
+ApiWrap::Privacy::Key LastSeenPrivacyController::key() {
+	return Key::LastSeen;
+}
+
+MTPInputPrivacyKey LastSeenPrivacyController::apiKey() {
 	return MTP_inputPrivacyKeyStatusTimestamp();
 }
 
@@ -274,7 +278,11 @@ void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, FnMut<void()
 	}
 }
 
-MTPInputPrivacyKey GroupsInvitePrivacyController::key() {
+ApiWrap::Privacy::Key GroupsInvitePrivacyController::key() {
+	return Key::Invites;
+}
+
+MTPInputPrivacyKey GroupsInvitePrivacyController::apiKey() {
 	return MTP_inputPrivacyKeyChatInvite();
 }
 
@@ -310,7 +318,11 @@ QString GroupsInvitePrivacyController::exceptionsDescription() {
 	return lang(lng_edit_privacy_groups_exceptions);
 }
 
-MTPInputPrivacyKey CallsPrivacyController::key() {
+ApiWrap::Privacy::Key CallsPrivacyController::key() {
+	return Key::Calls;
+}
+
+MTPInputPrivacyKey CallsPrivacyController::apiKey() {
 	return MTP_inputPrivacyKeyPhoneCall();
 }
 

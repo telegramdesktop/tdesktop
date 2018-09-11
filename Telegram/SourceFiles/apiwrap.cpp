@@ -147,6 +147,16 @@ ApiWrap::MessageToSend::MessageToSend(not_null<History*> history)
 : history(history) {
 }
 
+MTPInputPrivacyKey ApiWrap::Privacy::Input(Key key) {
+	switch (key) {
+	case Privacy::Key::Calls: return MTP_inputPrivacyKeyPhoneCall();
+	case Privacy::Key::Invites: return MTP_inputPrivacyKeyChatInvite();
+	case Privacy::Key::LastSeen:
+		return MTP_inputPrivacyKeyStatusTimestamp();
+	}
+	Unexpected("Key in ApiWrap::Privacy::Input.");
+}
+
 ApiWrap::ApiWrap(not_null<AuthSession*> session)
 : _session(session)
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
@@ -1880,112 +1890,139 @@ void ApiWrap::saveDraftToCloudDelayed(not_null<History*> history) {
 }
 
 void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules) {
-	auto keyTypeId = key.type();
-	auto it = _privacySaveRequests.find(keyTypeId);
+	const auto keyTypeId = key.type();
+	const auto it = _privacySaveRequests.find(keyTypeId);
 	if (it != _privacySaveRequests.cend()) {
 		request(it->second).cancel();
 		_privacySaveRequests.erase(it);
 	}
 
-	auto requestId = request(MTPaccount_SetPrivacy(key, MTP_vector<MTPInputPrivacyRule>(std::move(rules)))).done([this, keyTypeId](const MTPaccount_PrivacyRules &result) {
+	const auto requestId = request(MTPaccount_SetPrivacy(
+		key,
+		MTP_vector<MTPInputPrivacyRule>(std::move(rules))
+	)).done([=](const MTPaccount_PrivacyRules &result) {
 		Expects(result.type() == mtpc_account_privacyRules);
 
 		auto &rules = result.c_account_privacyRules();
 		App::feedUsers(rules.vusers);
 		_privacySaveRequests.remove(keyTypeId);
 		handlePrivacyChange(keyTypeId, rules.vrules);
-	}).fail([this, keyTypeId](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		_privacySaveRequests.remove(keyTypeId);
 	}).send();
 
 	_privacySaveRequests.emplace(keyTypeId, requestId);
 }
 
-void ApiWrap::handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules) {
-	if (keyTypeId == mtpc_privacyKeyStatusTimestamp) {
-		enum class Rule {
-			Unknown,
-			Allow,
-			Disallow,
-		};
-		auto userRules = QMap<UserId, Rule>();
-		auto contactsRule = Rule::Unknown;
-		auto everyoneRule = Rule::Unknown;
-		for (auto &rule : rules.v) {
-			auto type = rule.type();
-			if (type != mtpc_privacyValueAllowAll && type != mtpc_privacyValueDisallowAll && contactsRule != Rule::Unknown) {
-				// This is simplified: we ignore per-user rules that come after a contacts rule.
-				// But none of the official apps provide such complicated rule sets, so its fine.
-				continue;
-			}
-
-			switch (type) {
-			case mtpc_privacyValueAllowAll: everyoneRule = Rule::Allow; break;
-			case mtpc_privacyValueDisallowAll: everyoneRule = Rule::Disallow; break;
-			case mtpc_privacyValueAllowContacts: contactsRule = Rule::Allow; break;
-			case mtpc_privacyValueDisallowContacts: contactsRule = Rule::Disallow; break;
-			case mtpc_privacyValueAllowUsers: {
-				for_const (auto &userId, rule.c_privacyValueAllowUsers().vusers.v) {
-					if (!userRules.contains(userId.v)) {
-						userRules.insert(userId.v, Rule::Allow);
-					}
-				}
-			} break;
-			case mtpc_privacyValueDisallowUsers: {
-				for_const (auto &userId, rule.c_privacyValueDisallowUsers().vusers.v) {
-					if (!userRules.contains(userId.v)) {
-						userRules.insert(userId.v, Rule::Disallow);
-					}
-				}
-			} break;
-			}
-			if (everyoneRule != Rule::Unknown) {
-				break;
-			}
+void ApiWrap::handlePrivacyChange(
+		mtpTypeId keyTypeId,
+		const MTPVector<MTPPrivacyRule> &rules) {
+	using Key = Privacy::Key;
+	const auto key = [&]() -> base::optional<Key> {
+		switch (keyTypeId) {
+		case mtpc_privacyKeyStatusTimestamp:
+		case mtpc_inputPrivacyKeyStatusTimestamp: return Key::LastSeen;
+		case mtpc_privacyKeyChatInvite:
+		case mtpc_inputPrivacyKeyChatInvite: return Key::Invites;
+		case mtpc_privacyKeyPhoneCall:
+		case mtpc_inputPrivacyKeyPhoneCall: return Key::Calls;
 		}
-
-		auto now = unixtime();
-		App::enumerateUsers([&](UserData *user) {
-			if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
-				return;
-			}
-			if (user->onlineTill <= 0) {
-				return;
-			}
-
-			if (user->onlineTill + 3 * 86400 >= now) {
-				user->onlineTill = -2; // recently
-			} else if (user->onlineTill + 7 * 86400 >= now) {
-				user->onlineTill = -3; // last week
-			} else if (user->onlineTill + 30 * 86400 >= now) {
-				user->onlineTill = -4; // last month
-			} else {
-				user->onlineTill = 0;
-			}
-			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
-		});
-
-		if (_contactsStatusesRequestId) {
-			request(_contactsStatusesRequestId).cancel();
-		}
-		_contactsStatusesRequestId = request(MTPcontacts_GetStatuses()).done([this](const MTPVector<MTPContactStatus> &result) {
-			_contactsStatusesRequestId = 0;
-			for_const (auto &item, result.v) {
-				Assert(item.type() == mtpc_contactStatus);
-				auto &data = item.c_contactStatus();
-				if (auto user = App::userLoaded(data.vuser_id.v)) {
-					auto oldOnlineTill = user->onlineTill;
-					auto newOnlineTill = onlineTillFromStatus(data.vstatus, oldOnlineTill);
-					if (oldOnlineTill != newOnlineTill) {
-						user->onlineTill = newOnlineTill;
-						Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
-					}
-				}
-			}
-		}).fail([this](const RPCError &error) {
-			_contactsStatusesRequestId = 0;
-		}).send();
+		return base::none;
+	}();
+	if (!key) {
+		return;
 	}
+	pushPrivacy(*key, rules.v);
+	if (*key == Key::LastSeen) {
+		updatePrivacyLastSeens(rules.v);
+	}
+}
+
+void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
+	enum class Rule {
+		Unknown,
+		Allow,
+		Disallow,
+	};
+	auto userRules = QMap<UserId, Rule>();
+	auto contactsRule = Rule::Unknown;
+	auto everyoneRule = Rule::Unknown;
+	for (auto &rule : rules) {
+		auto type = rule.type();
+		if (type != mtpc_privacyValueAllowAll
+			&& type != mtpc_privacyValueDisallowAll
+			&& contactsRule != Rule::Unknown) {
+			// This is simplified: we ignore per-user rules that come after a contacts rule.
+			// But none of the official apps provide such complicated rule sets, so its fine.
+			continue;
+		}
+
+		switch (type) {
+		case mtpc_privacyValueAllowAll: everyoneRule = Rule::Allow; break;
+		case mtpc_privacyValueDisallowAll: everyoneRule = Rule::Disallow; break;
+		case mtpc_privacyValueAllowContacts: contactsRule = Rule::Allow; break;
+		case mtpc_privacyValueDisallowContacts: contactsRule = Rule::Disallow; break;
+		case mtpc_privacyValueAllowUsers: {
+			for_const (auto &userId, rule.c_privacyValueAllowUsers().vusers.v) {
+				if (!userRules.contains(userId.v)) {
+					userRules.insert(userId.v, Rule::Allow);
+				}
+			}
+		} break;
+		case mtpc_privacyValueDisallowUsers: {
+			for_const (auto &userId, rule.c_privacyValueDisallowUsers().vusers.v) {
+				if (!userRules.contains(userId.v)) {
+					userRules.insert(userId.v, Rule::Disallow);
+				}
+			}
+		} break;
+		}
+		if (everyoneRule != Rule::Unknown) {
+			break;
+		}
+	}
+
+	auto now = unixtime();
+	App::enumerateUsers([&](UserData *user) {
+		if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
+			return;
+		}
+		if (user->onlineTill <= 0) {
+			return;
+		}
+
+		if (user->onlineTill + 3 * 86400 >= now) {
+			user->onlineTill = -2; // recently
+		} else if (user->onlineTill + 7 * 86400 >= now) {
+			user->onlineTill = -3; // last week
+		} else if (user->onlineTill + 30 * 86400 >= now) {
+			user->onlineTill = -4; // last month
+		} else {
+			user->onlineTill = 0;
+		}
+		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
+	});
+
+	if (_contactsStatusesRequestId) {
+		request(_contactsStatusesRequestId).cancel();
+	}
+	_contactsStatusesRequestId = request(MTPcontacts_GetStatuses()).done([this](const MTPVector<MTPContactStatus> &result) {
+		_contactsStatusesRequestId = 0;
+		for_const (auto &item, result.v) {
+			Assert(item.type() == mtpc_contactStatus);
+			auto &data = item.c_contactStatus();
+			if (auto user = App::userLoaded(data.vuser_id.v)) {
+				auto oldOnlineTill = user->onlineTill;
+				auto newOnlineTill = onlineTillFromStatus(data.vstatus, oldOnlineTill);
+				if (oldOnlineTill != newOnlineTill) {
+					user->onlineTill = newOnlineTill;
+					Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
+				}
+			}
+		}
+	}).fail([this](const RPCError &error) {
+		_contactsStatusesRequestId = 0;
+	}).send();
 }
 
 int ApiWrap::onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill) {
@@ -4975,6 +5012,95 @@ void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
 	}).fail([=](const RPCError &error) {
 		_saveBioRequestId = 0;
 	}).send();
+}
+
+void ApiWrap::reloadPrivacy(Privacy::Key key) {
+	if (_privacyRequestIds.contains(key)) {
+		return;
+	}
+	const auto requestId = request(MTPaccount_GetPrivacy(
+		Privacy::Input(key)
+	)).done([=](const MTPaccount_PrivacyRules &result) {
+		_privacyRequestIds.erase(key);
+		result.match([&](const MTPDaccount_privacyRules &data) {
+			App::feedUsers(data.vusers);
+			pushPrivacy(key, data.vrules.v);
+		});
+	}).fail([=](const RPCError &error) {
+		_privacyRequestIds.erase(key);
+	}).send();
+}
+
+auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
+-> Privacy {
+	using Option = Privacy::Option;
+
+	// This is simplified version of privacy rules interpretation.
+	// But it should be fine for all the apps
+	// that use the same subset of features.
+	auto result = Privacy();
+	auto optionSet = false;
+	const auto SetOption = [&](Option option) {
+		if (optionSet) return;
+		optionSet = true;
+		result.option = option;
+	};
+	auto &always = result.always;
+	auto &never = result.never;
+	const auto Feed = [&](const MTPPrivacyRule &rule) {
+		rule.match([&](const MTPDprivacyValueAllowAll &) {
+			SetOption(Option::Everyone);
+		}, [&](const MTPDprivacyValueAllowContacts &) {
+			SetOption(Option::Contacts);
+		}, [&](const MTPDprivacyValueAllowUsers &data) {
+			const auto &users = data.vusers.v;
+			always.reserve(always.size() + users.size());
+			for (const auto userId : users) {
+				const auto user = App::user(UserId(userId.v));
+				if (!base::contains(never, user)
+					&& !base::contains(always, user)) {
+					always.push_back(user);
+				}
+			}
+		}, [&](const MTPDprivacyValueDisallowContacts &) {
+			// not supported
+		}, [&](const MTPDprivacyValueDisallowAll &) {
+			SetOption(Option::Nobody);
+		}, [&](const MTPDprivacyValueDisallowUsers &data) {
+			const auto &users = data.vusers.v;
+			never.reserve(never.size() + users.size());
+			for (const auto userId : users) {
+				const auto user = App::user(UserId(userId.v));
+				if (!base::contains(always, user)
+					&& !base::contains(never, user)) {
+					never.push_back(user);
+				}
+			}
+		});
+	};
+	for (const auto &rule : rules) {
+		Feed(rule);
+	}
+	Feed(MTP_privacyValueDisallowAll()); // disallow by default.
+	return result;
+}
+
+void ApiWrap::pushPrivacy(
+		Privacy::Key key,
+		const QVector<MTPPrivacyRule> &rules) {
+	const auto &saved = (_privacyValues[key] = parsePrivacy(rules));
+	const auto i = _privacyChanges.find(key);
+	if (i != end(_privacyChanges)) {
+		i->second.fire_copy(saved);
+	}
+}
+
+auto ApiWrap::privacyValue(Privacy::Key key) -> rpl::producer<Privacy> {
+	if (const auto i = _privacyValues.find(key); i != end(_privacyValues)) {
+		return _privacyChanges[key].events_starting_with_copy(i->second);
+	} else {
+		return _privacyChanges[key].events();
+	}
 }
 
 void ApiWrap::readServerHistory(not_null<History*> history) {

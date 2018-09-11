@@ -41,7 +41,8 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	MTPInputPrivacyKey key() override;
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
 	QString description() override;
@@ -59,7 +60,8 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	MTPInputPrivacyKey key() override;
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
 	bool hasOption(Option option) override;
@@ -75,7 +77,8 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	MTPInputPrivacyKey key() override;
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
 	QString description() override;

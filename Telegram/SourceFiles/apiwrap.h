@@ -338,6 +338,26 @@ public:
 
 	void saveSelfBio(const QString &text, FnMut<void()> done);
 
+	struct Privacy {
+		enum class Key {
+			LastSeen,
+			Calls,
+			Invites,
+		};
+		enum class Option {
+			Everyone,
+			Contacts,
+			Nobody,
+		};
+		Option option = Option::Everyone;
+		std::vector<not_null<UserData*>> always;
+		std::vector<not_null<UserData*>> never;
+
+		static MTPInputPrivacyKey Input(Key key);
+	};
+	void reloadPrivacy(Privacy::Key key);
+	rpl::producer<Privacy> privacyValue(Privacy::Key key);
+
 	~ApiWrap();
 
 private:
@@ -521,6 +541,12 @@ private:
 
 	void photoUploadReady(const FullMsgId &msgId, const MTPInputFile &file);
 
+	Privacy parsePrivacy(const QVector<MTPPrivacyRule> &rules);
+	void pushPrivacy(
+		Privacy::Key key,
+		const QVector<MTPPrivacyRule> &rules);
+	void updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules);
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -677,5 +703,9 @@ private:
 	mtpRequestId _saveBioRequestId = 0;
 	FnMut<void()> _saveBioDone;
 	QString _saveBioText;
+
+	base::flat_map<Privacy::Key, mtpRequestId> _privacyRequestIds;
+	base::flat_map<Privacy::Key, Privacy> _privacyValues;
+	std::map<Privacy::Key, rpl::event_stream<Privacy>> _privacyChanges;
 
 };

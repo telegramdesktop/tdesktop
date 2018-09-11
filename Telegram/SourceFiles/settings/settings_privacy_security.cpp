@@ -65,30 +65,60 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			initBox));
 	});
 
-	AddButton(
-		container,
+	using Privacy = ApiWrap::Privacy;
+	const auto PrivacyString = [](Privacy::Key key) {
+		Auth().api().reloadPrivacy(key);
+		return Auth().api().privacyValue(
+			key
+		) | rpl::map([](const Privacy &value) {
+			const auto base = [&] {
+				using Option = Privacy::Option;
+				switch (value.option) {
+				case Option::Everyone: return lng_edit_privacy_everyone;
+				case Option::Contacts: return lng_edit_privacy_contacts;
+				case Option::Nobody: return lng_edit_privacy_nobody;
+				}
+				Unexpected("Value in Privacy::Option.");
+			}();
+			auto add = QStringList();
+			if (const auto never = value.never.size()) {
+				add.push_back("-" + QString::number(never));
+			}
+			if (const auto always = value.always.size()) {
+				add.push_back("+" + QString::number(always));
+			}
+			if (!add.isEmpty()) {
+				return lang(base) + " (" + add.join(", ") + ")";
+			} else {
+				return lang(base);
+			}
+		});
+	};
+	using namespace OldSettings;
+	const auto add = [&](LangKey label, Privacy::Key key, auto controller) {
+		AddButtonWithLabel(
+			container,
+			label,
+			PrivacyString(key),
+			st::settingsButton
+		)->addClickHandler([=] {
+			Ui::show(Box<EditPrivacyBox>(
+				controller(),
+				Auth().api().privacyValue(key)));
+		});
+	};
+	add(
 		lng_settings_last_seen,
-		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(Box<EditPrivacyBox>(
-			std::make_unique<OldSettings::LastSeenPrivacyController>()));
-	});
-	AddButton(
-		container,
+		Privacy::Key::LastSeen,
+		[] { return std::make_unique<LastSeenPrivacyController>(); });
+	add(
 		lng_settings_calls,
-		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(Box<EditPrivacyBox>(
-			std::make_unique<OldSettings::CallsPrivacyController>()));
-	});
-	AddButton(
-		container,
+		Privacy::Key::Calls,
+		[] { return std::make_unique<CallsPrivacyController>(); });
+	add(
 		lng_settings_groups_invite,
-		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(Box<EditPrivacyBox>(
-			std::make_unique<OldSettings::GroupsInvitePrivacyController>()));
-	});
+		Privacy::Key::Invites,
+		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(

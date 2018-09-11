@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
+#include "apiwrap.h"
 
 namespace Ui {
 class FlatLabel;
@@ -23,11 +24,8 @@ class SlideWrap;
 
 class EditPrivacyBox : public BoxContent, private MTP::Sender {
 public:
-	enum class Option {
-		Everyone,
-		Contacts,
-		Nobody,
-	};
+	using Value = ApiWrap::Privacy;
+	using Option = Value::Option;
 	enum class Exception {
 		Always,
 		Never,
@@ -35,7 +33,10 @@ public:
 
 	class Controller {
 	public:
-		virtual MTPInputPrivacyKey key() = 0;
+		using Key = ApiWrap::Privacy::Key;
+
+		virtual Key key() = 0;
+		virtual MTPInputPrivacyKey apiKey() = 0;
 
 		virtual QString title() = 0;
 		virtual bool hasOption(Option option) {
@@ -71,7 +72,10 @@ public:
 
 	};
 
-	EditPrivacyBox(QWidget*, std::unique_ptr<Controller> controller);
+	EditPrivacyBox(
+		QWidget*,
+		std::unique_ptr<Controller> controller,
+		rpl::producer<Value> preloaded);
 
 protected:
 	void prepare() override;
@@ -84,16 +88,18 @@ private:
 	bool showExceptionLink(Exception exception) const;
 	void createWidgets();
 	QVector<MTPInputPrivacyRule> collectResult();
-	void loadData();
+	void dataReady(Value &&value);
 	int countDefaultHeight(int newWidth);
 
 	void editExceptionUsers(Exception exception);
 	QString exceptionLinkText(Exception exception);
 	std::vector<not_null<UserData*>> &exceptionUsers(Exception exception);
-	object_ptr<Ui::SlideWrap<Ui::LinkButton>> &exceptionLink(Exception exception);
+	object_ptr<Ui::SlideWrap<Ui::LinkButton>> &exceptionLink(
+		Exception exception);
 
 	std::unique_ptr<Controller> _controller;
-	Option _option = Option::Everyone;
+	Value _value;
+	bool _prepared = false;
 
 	std::shared_ptr<Ui::RadioenumGroup<Option>> _optionGroup;
 	object_ptr<Ui::FlatLabel> _loading;
@@ -106,8 +112,5 @@ private:
 	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
 	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsDescription = { nullptr };
-
-	std::vector<not_null<UserData*>> _alwaysUsers;
-	std::vector<not_null<UserData*>> _neverUsers;
 
 };

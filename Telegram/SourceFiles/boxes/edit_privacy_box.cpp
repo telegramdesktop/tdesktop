@@ -14,9 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
+#include "base/binary_guard.h"
+#include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "auth_session.h"
-#include "lang/lang_keys.h"
 
 namespace {
 
@@ -77,9 +78,19 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
-EditPrivacyBox::EditPrivacyBox(QWidget*, std::unique_ptr<Controller> controller) : BoxContent()
-, _controller(std::move(controller))
+EditPrivacyBox::EditPrivacyBox(
+	QWidget*,
+	std::unique_ptr<Controller> controller,
+	rpl::producer<Value> preloaded)
+: _controller(std::move(controller))
 , _loading(this, lang(lng_contacts_loading), Ui::FlatLabel::InitType::Simple, st::membersAbout) {
+	std::move(
+		preloaded
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](Value &&data) {
+		dataReady(std::move(data));
+	}, lifetime());
 }
 
 void EditPrivacyBox::prepare() {
@@ -88,7 +99,11 @@ void EditPrivacyBox::prepare() {
 	setTitle([this] { return _controller->title(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	loadData();
+	if (_loading) {
+		_prepared = true;
+	} else {
+		createWidgets();
+	}
 
 	setDimensions(st::boxWideWidth, countDefaultHeight(st::boxWideWidth));
 }
@@ -215,13 +230,13 @@ QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
 	constexpr auto kMaxRules = 3; // allow users, disallow users, option
 	auto result = QVector<MTPInputPrivacyRule>();
 	result.reserve(kMaxRules);
-	if (showExceptionLink(Exception::Always) && !_alwaysUsers.empty()) {
-		result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_alwaysUsers))));
+	if (showExceptionLink(Exception::Always) && !_value.always.empty()) {
+		result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_value.always))));
 	}
-	if (showExceptionLink(Exception::Never) && !_neverUsers.empty()) {
-		result.push_back(MTP_inputPrivacyValueDisallowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_neverUsers))));
+	if (showExceptionLink(Exception::Never) && !_value.never.empty()) {
+		result.push_back(MTP_inputPrivacyValueDisallowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_value.never))));
 	}
-	switch (_option) {
+	switch (_value.option) {
 	case Option::Everyone: result.push_back(MTP_inputPrivacyValueAllowAll()); break;
 	case Option::Contacts: result.push_back(MTP_inputPrivacyValueAllowContacts()); break;
 	case Option::Nobody: result.push_back(MTP_inputPrivacyValueDisallowAll()); break;
@@ -236,8 +251,8 @@ style::margins EditPrivacyBox::exceptionLinkMargins() const {
 
 std::vector<not_null<UserData*>> &EditPrivacyBox::exceptionUsers(Exception exception) {
 	switch (exception) {
-	case Exception::Always: return _alwaysUsers;
-	case Exception::Never: return _neverUsers;
+	case Exception::Always: return _value.always;
+	case Exception::Never: return _value.never;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -252,18 +267,18 @@ object_ptr<Ui::SlideWrap<Ui::LinkButton>> &EditPrivacyBox::exceptionLink(Excepti
 
 bool EditPrivacyBox::showExceptionLink(Exception exception) const {
 	switch (exception) {
-	case Exception::Always: return (_option == Option::Contacts) || (_option == Option::Nobody);
-	case Exception::Never: return (_option == Option::Everyone) || (_option == Option::Contacts);
+	case Exception::Always: return (_value.option == Option::Contacts) || (_value.option == Option::Nobody);
+	case Exception::Never: return (_value.option == Option::Everyone) || (_value.option == Option::Contacts);
 	}
 	Unexpected("Invalid exception value.");
 }
 
 void EditPrivacyBox::createWidgets() {
 	_loading.destroy();
-	_optionGroup = std::make_shared<Ui::RadioenumGroup<Option>>(_option);
+	_optionGroup = std::make_shared<Ui::RadioenumGroup<Option>>(_value.option);
 
 	auto createOption = [this](object_ptr<Ui::Radioenum<Option>> &widget, Option option, const QString &label) {
-		if (_controller->hasOption(option) || (_option == option)) {
+		if (_controller->hasOption(option) || (_value.option == option)) {
 			widget.create(this, _optionGroup, option, label, st::defaultBoxCheckbox);
 		}
 	};
@@ -294,16 +309,18 @@ void EditPrivacyBox::createWidgets() {
 
 	clearButtons();
 	addButton(langFactory(lng_settings_save), [this] {
-		auto someAreDisallowed = (_option != Option::Everyone) || !_neverUsers.empty();
+		auto someAreDisallowed = (_value.option != Option::Everyone) || !_value.never.empty();
 		_controller->confirmSave(someAreDisallowed, crl::guard(this, [this] {
-			Auth().api().savePrivacy(_controller->key(), collectResult());
+			Auth().api().savePrivacy(
+				_controller->apiKey(),
+				collectResult());
 			closeBox();
 		}));
 	});
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	_optionGroup->setChangedCallback([this](Option value) {
-		_option = value;
+		_value.option = value;
 		_alwaysLink->toggle(
 			showExceptionLink(Exception::Always),
 			anim::type::normal);
@@ -323,54 +340,10 @@ void EditPrivacyBox::createWidgets() {
 	setDimensions(st::boxWideWidth, resizeGetHeight(st::boxWideWidth));
 }
 
-void EditPrivacyBox::loadData() {
-        request(MTPaccount_GetPrivacy(_controller->key())).done([this](const MTPaccount_PrivacyRules &result) {
-		Expects(result.type() == mtpc_account_privacyRules);
-		auto &rules = result.c_account_privacyRules();
-		App::feedUsers(rules.vusers);
-
-		// This is simplified version of privacy rules interpretation.
-		// But it should be fine for all the apps that use the same subset of features.
-		auto optionSet = false;
-		auto setOption = [this, &optionSet](Option option) {
-			if (optionSet) return;
-			optionSet = true;
-			_option = option;
-		};
-		auto feedRule = [this, &setOption](const MTPPrivacyRule &rule) {
-			switch (rule.type()) {
-			case mtpc_privacyValueAllowAll: setOption(Option::Everyone); break;
-			case mtpc_privacyValueAllowContacts: setOption(Option::Contacts); break;
-			case mtpc_privacyValueAllowUsers: {
-				auto &users = rule.c_privacyValueAllowUsers().vusers.v;
-				_alwaysUsers.reserve(_alwaysUsers.size() + users.size());
-				for (auto &userId : users) {
-					auto user = App::user(UserId(userId.v));
-					if (!base::contains(_neverUsers, user) && !base::contains(_alwaysUsers, user)) {
-						_alwaysUsers.push_back(user);
-					}
-				}
-			} break;
-			case mtpc_privacyValueDisallowContacts: // not supported, fall through
-			case mtpc_privacyValueDisallowAll: setOption(Option::Nobody); break;
-			case mtpc_privacyValueDisallowUsers: {
-				auto &users = rule.c_privacyValueDisallowUsers().vusers.v;
-				_neverUsers.reserve(_neverUsers.size() + users.size());
-				for (auto &userId : users) {
-					auto user = App::user(UserId(userId.v));
-					if (!base::contains(_alwaysUsers, user) && !base::contains(_neverUsers, user)) {
-						_neverUsers.push_back(user);
-					}
-				}
-			} break;
-			}
-		};
-		for (auto &rule : rules.vrules.v) {
-			feedRule(rule);
-		}
-		feedRule(MTP_privacyValueDisallowAll()); // disallow by default.
-
+void EditPrivacyBox::dataReady(Value &&value) {
+	_value = std::move(value);
+	_loading.destroy();
+	if (_prepared) {
 		createWidgets();
-        }).send();
+	}
 }
-

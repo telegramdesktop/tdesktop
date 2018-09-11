@@ -286,15 +286,12 @@ void PrivacyWidget::onBlockedUsers() {
 }
 
 void PrivacyWidget::onLastSeenPrivacy() {
-	Ui::show(Box<EditPrivacyBox>(std::make_unique<LastSeenPrivacyController>()));
 }
 
 void PrivacyWidget::onCallsPrivacy() {
-	Ui::show(Box<EditPrivacyBox>(std::make_unique<CallsPrivacyController>()));
 }
 
 void PrivacyWidget::onGroupsInvitePrivacy() {
-	Ui::show(Box<EditPrivacyBox>(std::make_unique<GroupsInvitePrivacyController>()));
 }
 
 void PrivacyWidget::onAutoLock() {
