@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/utils.h"
 
-#define BETA_VERSION_MACRO (0ULL)
+#define BETA_VERSION_MACRO (1003016001ULL)
 
 constexpr int AppVersion = 1003016;
 constexpr str_const AppVersionStr = "1.3.16";
-constexpr bool AppAlphaVersion = true;
+constexpr bool AppAlphaVersion = false;
 constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
