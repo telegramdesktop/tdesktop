@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/details/superset_type.h>
 #include <rpl/details/callable.h>
 
-#if defined _DEBUG
+#if defined _DEBUG || defined COMPILER_MSVC
 #define RPL_PRODUCER_TYPE_ERASED_ALWAYS
 #endif // _DEBUG
 
@@ -443,9 +443,9 @@ template <
 inline auto make_producer(Generator &&generator)
 #ifdef RPL_PRODUCER_TYPE_ERASED_ALWAYS
 -> producer<Value, Error> {
-#else // RPL_CONSUMER_TYPE_ERASED_ALWAYS
+#else // RPL_PRODUCER_TYPE_ERASED_ALWAYS
 -> producer<Value, Error, std::decay_t<Generator>> {
-#endif // !RPL_CONSUMER_TYPE_ERASED_ALWAYS
+#endif // !RPL_PRODUCER_TYPE_ERASED_ALWAYS
 	return std::forward<Generator>(generator);
 }
 
