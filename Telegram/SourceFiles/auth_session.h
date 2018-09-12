@@ -19,6 +19,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Calls {
+enum class PeerToPeer;
+} // namespace Calls
+
 namespace Storage {
 class Downloader;
 class Uploader;
@@ -144,6 +148,16 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
+	rpl::producer<Calls::PeerToPeer> callsPeerToPeerValue() const {
+		return _variables.callsPeerToPeer.value();
+	}
+	Calls::PeerToPeer callsPeerToPeer() const {
+		return _variables.callsPeerToPeer.current();
+	}
+	void setCallsPeerToPeer(Calls::PeerToPeer value) {
+		_variables.callsPeerToPeer = value;
+	}
+
 private:
 	struct Variables {
 		Variables();
@@ -167,6 +181,8 @@ private:
 			= kDefaultDialogsWidthRatio; // per-window
 		rpl::variable<int> thirdColumnWidth
 			= kDefaultThirdColumnWidth; // per-window
+		rpl::variable<Calls::PeerToPeer> callsPeerToPeer
+			= Calls::PeerToPeer();
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "apiwrap.h"
 
+namespace Calls {
+enum class PeerToPeer;
+} // namespace Calls
+
 namespace Ui {
 class FlatLabel;
 class LinkButton;
@@ -112,5 +116,22 @@ private:
 	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
 	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsDescription = { nullptr };
+
+};
+
+class EditCallsPeerToPeer : public BoxContent {
+public:
+	EditCallsPeerToPeer(QWidget*) {
+	}
+
+protected:
+	void prepare() override;
+
+private:
+	using PeerToPeer = Calls::PeerToPeer;
+
+	void chosen(PeerToPeer value);
+
+	std::vector<object_ptr<Ui::Radioenum<PeerToPeer>>> _options;
 
 };

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "history/history.h"
 #include "boxes/peer_list_controllers.h"
+#include "calls/calls_instance.h"
 #include "base/binary_guard.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -346,4 +347,65 @@ void EditPrivacyBox::dataReady(Value &&value) {
 	if (_prepared) {
 		createWidgets();
 	}
+}
+
+void EditCallsPeerToPeer::prepare() {
+	setTitle(langFactory(lng_settings_peer_to_peer));
+
+	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+
+	const auto options = {
+		PeerToPeer::Everyone,
+		PeerToPeer::Contacts,
+		PeerToPeer::Nobody
+	};
+
+	const auto value = Auth().settings().callsPeerToPeer();
+	const auto adjusted = [&] {
+		if (value == PeerToPeer::DefaultContacts) {
+			return PeerToPeer::Contacts;
+		} else if (value == PeerToPeer::DefaultEveryone) {
+			return PeerToPeer::Everyone;
+		}
+		return value;
+	}();
+	const auto label = [](PeerToPeer value) {
+		switch (value) {
+		case PeerToPeer::Everyone: return lang(lng_edit_privacy_everyone);
+		case PeerToPeer::Contacts: return lang(lng_edit_privacy_contacts);
+		case PeerToPeer::Nobody: return lang(lng_edit_privacy_nobody);
+		}
+		Unexpected("Adjusted Calls::PeerToPeer value.");
+	};
+	auto group = std::make_shared<Ui::RadioenumGroup<PeerToPeer>>(adjusted);
+	auto y = st::boxOptionListPadding.top() + st::langsButton.margin.top();
+	auto count = int(options.size());
+	_options.reserve(count);
+	for (const auto option : options) {
+		_options.emplace_back(
+			this,
+			group,
+			option,
+			label(option),
+			st::langsButton);
+		_options.back()->moveToLeft(
+			st::boxPadding.left() + st::boxOptionListPadding.left(),
+			y);
+		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
+	}
+	group->setChangedCallback([=](PeerToPeer value) { chosen(value); });
+
+	setDimensions(
+		st::langsWidth,
+		(st::boxOptionListPadding.top()
+			+ count * _options.back()->heightNoMargins()
+			+ (count - 1) * st::boxOptionListSkip
+			+ st::boxOptionListPadding.bottom()
+			+ st::boxPadding.bottom()));
+}
+
+void EditCallsPeerToPeer::chosen(PeerToPeer value) {
+	Auth().settings().setCallsPeerToPeer(value);
+	Auth().saveSettingsDelayed();
+	closeBox();
 }

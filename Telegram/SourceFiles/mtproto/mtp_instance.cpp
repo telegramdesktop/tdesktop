@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "mtproto/rsa_public_key.h"
 #include "storage/localstorage.h"
+#include "calls/calls_instance.h"
 #include "auth_session.h"
 #include "application.h"
 #include "apiwrap.h"
@@ -781,6 +782,18 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	_configExpiresAt = getms(true)
 		+ (data.vexpires.v - unixtime()) * TimeMs(1000);
 	requestConfigIfExpired();
+
+	if (AuthSession::Exists()) {
+		using PeerToPeer = Calls::PeerToPeer;
+		const auto current = Auth().settings().callsPeerToPeer();
+		if (current == PeerToPeer::DefaultContacts
+			|| current == PeerToPeer::DefaultEveryone) {
+			Auth().settings().setCallsPeerToPeer(
+				(data.is_default_p2p_contacts()
+					? PeerToPeer::DefaultContacts
+					: PeerToPeer::DefaultEveryone));
+		}
+	}
 
 	emit _instance->configLoaded();
 }

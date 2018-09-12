@@ -73,6 +73,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.thirdColumnWidth.current());
 		stream << qint32(_variables.thirdSectionExtendedBy);
 		stream << qint32(_variables.sendFilesWay);
+		stream << qint32(_variables.callsPeerToPeer.current());
 	}
 	return result;
 }
@@ -98,6 +99,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	int thirdColumnWidth = _variables.thirdColumnWidth.current();
 	int thirdSectionExtendedBy = _variables.thirdSectionExtendedBy;
 	qint32 sendFilesWay = static_cast<qint32>(_variables.sendFilesWay);
+	qint32 callsPeerToPeer = qint32(_variables.callsPeerToPeer.current());
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
@@ -146,6 +148,12 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 		stream >> value;
 		thirdSectionExtendedBy = value;
 	}
+	if (!stream.atEnd()) {
+		stream >> sendFilesWay;
+	}
+	if (!stream.atEnd()) {
+		stream >> callsPeerToPeer;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -188,7 +196,15 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	switch (uncheckedSendFilesWay) {
 	case SendFilesWay::Album:
 	case SendFilesWay::Photos:
-	case SendFilesWay::Files: _variables.sendFilesWay = uncheckedSendFilesWay;
+	case SendFilesWay::Files: _variables.sendFilesWay = uncheckedSendFilesWay; break;
+	}
+	auto uncheckedCallsPeerToPeer = static_cast<Calls::PeerToPeer>(callsPeerToPeer);
+	switch (uncheckedCallsPeerToPeer) {
+	case Calls::PeerToPeer::DefaultContacts:
+	case Calls::PeerToPeer::DefaultEveryone:
+	case Calls::PeerToPeer::Everyone:
+	case Calls::PeerToPeer::Contacts:
+	case Calls::PeerToPeer::Nobody: _variables.callsPeerToPeer = uncheckedCallsPeerToPeer; break;
 	}
 }
 

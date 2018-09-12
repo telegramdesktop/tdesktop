@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
+#include "calls/calls_instance.h"
 #include "core/core_cloud_password.h"
 #include "core/update_checker.h"
 #include "info/profile/info_profile_button.h"
@@ -40,6 +41,19 @@ rpl::producer<> PasscodeChanges() {
 	) | rpl::then(base::ObservableViewer(
 		Global::RefLocalPasscodeChanged()
 	));
+}
+
+QString PrivacyBase(ApiWrap::Privacy::Option option) {
+	const auto key = [&] {
+		using Option = ApiWrap::Privacy::Option;
+		switch (option) {
+		case Option::Everyone: return lng_edit_privacy_everyone;
+		case Option::Contacts: return lng_edit_privacy_contacts;
+		case Option::Nobody: return lng_edit_privacy_nobody;
+		}
+		Unexpected("Value in Privacy::Option.");
+	}();
+	return lang(key);
 }
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
@@ -71,15 +85,6 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		return Auth().api().privacyValue(
 			key
 		) | rpl::map([](const Privacy &value) {
-			const auto base = [&] {
-				using Option = Privacy::Option;
-				switch (value.option) {
-				case Option::Everyone: return lng_edit_privacy_everyone;
-				case Option::Contacts: return lng_edit_privacy_contacts;
-				case Option::Nobody: return lng_edit_privacy_nobody;
-				}
-				Unexpected("Value in Privacy::Option.");
-			}();
 			auto add = QStringList();
 			if (const auto never = value.never.size()) {
 				add.push_back("-" + QString::number(never));
@@ -88,9 +93,9 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 				add.push_back("+" + QString::number(always));
 			}
 			if (!add.isEmpty()) {
-				return lang(base) + " (" + add.join(", ") + ")";
+				return PrivacyBase(value.option) + " (" + add.join(", ") + ")";
 			} else {
-				return lang(base);
+				return PrivacyBase(value.option);
 			}
 		});
 	};
@@ -413,6 +418,41 @@ void SetupSecurity(not_null<Ui::VerticalLayout*> container) {
 		Lang::Viewer(lng_settings_sessions_about));
 }
 
+void SetupCalls(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container);
+
+	AddSubsectionTitle(container, lng_settings_calls_title);
+
+	using Privacy = ApiWrap::Privacy;
+	using PeerToPeer = Calls::PeerToPeer;
+	auto text = Auth().settings().callsPeerToPeerValue(
+	) | rpl::map([](PeerToPeer value) {
+		switch (value) {
+		case PeerToPeer::DefaultContacts: return Privacy::Option::Contacts;
+		case PeerToPeer::DefaultEveryone: return Privacy::Option::Everyone;
+		case PeerToPeer::Everyone: return Privacy::Option::Everyone;
+		case PeerToPeer::Contacts: return Privacy::Option::Contacts;
+		case PeerToPeer::Nobody: return Privacy::Option::Nobody;
+		}
+		Unexpected("Calls::PeerToPeer value.");
+	}) | rpl::map([](Privacy::Option option) {
+		return PrivacyBase(option);
+	});
+	AddButtonWithLabel(
+		container,
+		lng_settings_peer_to_peer,
+		std::move(text),
+		st::settingsButton
+	)->addClickHandler([=] {
+		Ui::show(Box<EditCallsPeerToPeer>());
+	});
+
+	AddSkip(container, st::settingsPrivacySecurityPadding);
+	AddDividerText(
+		container,
+		Lang::Viewer(lng_settings_peer_to_peer_about));
+}
+
 void SetupExport(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 
@@ -445,6 +485,7 @@ void PrivacySecurity::setupContent() {
 	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupPrivacy(content);
 	SetupSecurity(content);
+	SetupCalls(content);
 	SetupExport(content);
 
 	Ui::ResizeFitChild(this, content);

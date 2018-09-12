@@ -14,8 +14,6 @@ class Radiobutton;
 } // namespace Ui
 
 class AutoLockBox : public BoxContent {
-	Q_OBJECT
-
 public:
 	AutoLockBox(QWidget*) {
 	}
