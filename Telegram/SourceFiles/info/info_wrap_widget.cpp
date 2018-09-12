@@ -448,6 +448,10 @@ void WrapWidget::addContentSaveButton() {
 	});
 }
 
+bool WrapWidget::closeByOutsideClick() const {
+	return !_controller->canSaveChangesNow();
+}
+
 void WrapWidget::addProfileCallsButton() {
 	Expects(_topBar != nullptr);
 

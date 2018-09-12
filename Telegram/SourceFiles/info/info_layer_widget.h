@@ -37,6 +37,8 @@ public:
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
 
+	bool closeByOutsideClick() const override;
+
 	static int MinimalSupportedWidth();
 
 protected:

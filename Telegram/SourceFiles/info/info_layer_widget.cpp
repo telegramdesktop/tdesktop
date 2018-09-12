@@ -131,6 +131,10 @@ bool LayerWidget::showSectionInternal(
 	return false;
 }
 
+bool LayerWidget::closeByOutsideClick() const {
+	return _content->closeByOutsideClick();
+}
+
 int LayerWidget::MinimalSupportedWidth() {
 	auto minimalMargins = 2 * st::infoMinimalLayerMargin;
 	return st::infoMinimalWidth + minimalMargins;

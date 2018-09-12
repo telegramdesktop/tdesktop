@@ -377,6 +377,10 @@ void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
 			if (!layer->closeByOutsideClick()) {
 				return;
 			}
+		} else if (const auto special = _specialLayer.data()) {
+			if (!special->closeByOutsideClick()) {
+				return;
+			}
 		}
 		hideCurrent(anim::type::normal);
 	}

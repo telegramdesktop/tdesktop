@@ -118,6 +118,8 @@ public:
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 
+	bool closeByOutsideClick() const;
+
 	void updateGeometry(QRect newGeometry, int additionalScroll);
 	int scrollTillBottom(int forHeight) const;
 	rpl::producer<int>  scrollTillBottomChanges() const;
