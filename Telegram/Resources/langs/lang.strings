@@ -267,7 +267,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bio_placeholder" = "Bio";
 "lng_bio_about" = "You can add a few lines about yourself. Anyone who opens your profile will see this text.";
 
-"lng_settings_section_info" = "Info";
+"lng_settings_section_info" = "My info";
 "lng_settings_username" = "Username:";
 "lng_settings_choose_username" = "Choose username";
 "lng_settings_empty_bio" = "None";
@@ -353,6 +353,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_calls_title" = "Calls";
 "lng_settings_peer_to_peer" = "Peer-to-Peer";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
+"lng_settings_advanced" = "Advanced";
+"lng_settings_stickers_emoji" = "Stickers and emoji";
+"lng_settings_themes" = "Themes";
+"lng_settings_chat_other" = "Other";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

@@ -369,9 +369,10 @@ void DownloadPathRow::setupControls() {
 
 #endif // OS_WIN_STORE
 
-void SetupChatOptions(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
+void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container, st::settingsStickersEmojiPadding);
+
+	AddSubsectionTitle(container, lng_settings_stickers_emoji);
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	const auto inner = wrap.data();
@@ -422,65 +423,31 @@ void SetupChatOptions(not_null<Ui::VerticalLayout*> container) {
 			Local::writeUserSettings();
 		});
 
-	const auto dontask = inner->add(
-		checkbox(
-			lng_download_path_dont_ask,
-			!Global::AskDownloadPath()),
-#ifndef OS_WIN_STORE
-		st::settingsAskPathPadding);
-#else // OS_WIN_STORE
-		st::settingsCheckboxPadding);
-#endif // OS_WIN_STORE
-
-#ifndef OS_WIN_STORE
-	const auto showpath = Ui::AttachAsChild(
-		dontask,
-		rpl::event_stream<bool>());
-	const auto padding = st::settingsDownloadPathPadding;
-	const auto path = container->add(
-		object_ptr<Ui::SlideWrap<DownloadPathRow>>(
-			container,
-			object_ptr<DownloadPathRow>(container),
-			QMargins(
-				(padding.left()
-					+ st::settingsCheckbox.checkPosition.x()
-					+ st::defaultCheck.diameter
-					+ st::settingsCheckbox.textPosition.x()
-					- st::settingsCheckbox.margin.left()),
-				padding.top(),
-				padding.right(),
-				padding.bottom())));
-	AddSkip(container, st::settingsCheckboxPadding.bottom());
-	path->toggleOn(
-		showpath->events_starting_with(!Global::AskDownloadPath()));
-#endif // OS_WIN_STORE
-
-	base::ObservableViewer(
-		dontask->checkedChanged
-	) | rpl::start_with_next([=](bool checked) {
-		Global::SetAskDownloadPath(!checked);
-		Local::writeUserSettings();
-
-#ifndef OS_WIN_STORE
-		showpath->fire_copy(checked);
-#endif // OS_WIN_STORE
-
-	}, inner->lifetime());
+	AddButton(
+		container,
+		lng_stickers_you_have,
+		st::settingsButton
+	)->addClickHandler([] {
+		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
+	});
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
-void SetupSendKey(not_null<Ui::VerticalLayout*> container) {
+void SetupChatOther(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	const auto skip = st::settingsSendTypeSkip;
-	const auto full = st::settingsCheckboxesSkip + skip;
-	AddSkip(container, full);
+	AddSkip(container, st::settingsSectionSkip);
+
+	AddSubsectionTitle(container, lng_settings_chat_other);
+
+	AddSkip(container, st::settingsSendTypeSkip);
 
 	enum class SendByType {
 		Enter,
 		CtrlEnter,
 	};
 
+	const auto skip = st::settingsSendTypeSkip;
 	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
 		cCtrlEnter() ? SendByType::CtrlEnter : SendByType::Enter);
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
@@ -490,8 +457,6 @@ void SetupSendKey(not_null<Ui::VerticalLayout*> container) {
 			container,
 			std::move(wrap),
 			QMargins(0, skip, 0, skip)));
-
-	AddSkip(container, full);
 
 	const auto add = [&](
 			SendByType value,
@@ -525,11 +490,55 @@ void SetupSendKey(not_null<Ui::VerticalLayout*> container) {
 		}
 		Local::writeUserSettings();
 	});
-}
 
-void SetupMediaOptions(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	const auto dontask = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			lang(lng_download_path_dont_ask),
+			!Global::AskDownloadPath(),
+			st::settingsCheckbox),
+#ifndef OS_WIN_STORE
+		st::settingsAskPathPadding);
+#else // OS_WIN_STORE
+		st::settingsCheckboxPadding);
+#endif // OS_WIN_STORE
+
+#ifndef OS_WIN_STORE
+	const auto showpath = Ui::AttachAsChild(
+		dontask,
+		rpl::event_stream<bool>());
+	const auto padding = st::settingsDownloadPathPadding;
+	const auto path = container->add(
+		object_ptr<Ui::SlideWrap<DownloadPathRow>>(
+			container,
+			object_ptr<DownloadPathRow>(container),
+			QMargins(
+			(padding.left()
+				+ st::settingsCheckbox.checkPosition.x()
+				+ st::defaultCheck.diameter
+				+ st::settingsCheckbox.textPosition.x()
+				- st::settingsCheckbox.margin.left()),
+				padding.top(),
+				padding.right(),
+				padding.bottom())));
+	AddSkip(container, st::settingsCheckboxPadding.bottom());
+	path->toggleOn(
+		showpath->events_starting_with(!Global::AskDownloadPath()));
+#endif // OS_WIN_STORE
+
+	base::ObservableViewer(
+		dontask->checkedChanged
+	) | rpl::start_with_next([=](bool checked) {
+		Global::SetAskDownloadPath(!checked);
+		Local::writeUserSettings();
+
+#ifndef OS_WIN_STORE
+		showpath->fire_copy(checked);
+#endif // OS_WIN_STORE
+
+	}, inner->lifetime());
 
 	AddButton(
 		container,
@@ -539,20 +548,12 @@ void SetupMediaOptions(not_null<Ui::VerticalLayout*> container) {
 		Ui::show(Box<AutoDownloadBox>());
 	});
 
-	AddButton(
-		container,
-		lng_stickers_you_have,
-		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
-	});
-
-	AddSkip(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
 void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
+	AddSkip(container, st::settingsSectionSkip);
 
 	AddSubsectionTitle(container, lng_settings_section_background);
 
@@ -673,6 +674,8 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
+	AddSubsectionTitle(container, lng_settings_themes);
+
 	SetupNightMode(container);
 
 	AddButton(
@@ -698,12 +701,10 @@ Chat::Chat(QWidget *parent, not_null<UserData*> self)
 void Chat::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(content, st::settingsFirstDividerSkip);
-	SetupChatOptions(content);
-	SetupSendKey(content);
-	SetupMediaOptions(content);
+	SetupStickersEmoji(content);
 	SetupChatBackground(content);
 	SetupThemeOptions(content);
+	SetupChatOther(content);
 
 	Ui::ResizeFitChild(this, content);
 }

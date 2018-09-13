@@ -66,6 +66,8 @@ public:
 	rpl::producer<bool> canSaveChanges() const override;
 	void saveChanges(FnMut<void()> done) override;
 
+	rpl::producer<bool> desiredShadowVisibility() const override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);

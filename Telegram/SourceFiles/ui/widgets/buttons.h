@@ -120,6 +120,7 @@ public:
 	int contentWidth() const;
 
 	void setFullWidth(int newFullWidth);
+	void setFullRadius(bool enabled);
 
 	enum class TextTransform {
 		NoTransform,
@@ -153,6 +154,7 @@ private:
 	const style::RoundButton &_st;
 
 	TextTransform _transform = TextTransform::ToUpper;
+	bool _fullRadius = false;
 
 };
 

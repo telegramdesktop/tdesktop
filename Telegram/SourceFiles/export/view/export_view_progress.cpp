@@ -266,7 +266,7 @@ ProgressWidget::ProgressWidget(
 
 rpl::producer<> ProgressWidget::cancelClicks() const {
 	return _cancel
-		? _cancel->clicks()
+		? (_cancel->clicks() | rpl::map([] { return rpl::empty_value(); }))
 		: (rpl::never<>() | rpl::type_erased());
 }
 
@@ -322,7 +322,10 @@ void ProgressWidget::showDone() {
 	if (_done->width() < desired) {
 		_done->setFullWidth(desired);
 	}
-	_done->clicks() | rpl::start_to_stream(_doneClicks, _done->lifetime());
+	_done->clicks(
+	) | rpl::map([] {
+		return rpl::empty_value();
+	}) | rpl::start_to_stream(_doneClicks, _done->lifetime());
 	setupBottomButton(_done.get());
 }
 

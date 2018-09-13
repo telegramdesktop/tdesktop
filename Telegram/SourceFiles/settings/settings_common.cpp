@@ -32,17 +32,17 @@ object_ptr<Section> CreateSection(
 		UserData *self) {
 	switch (type) {
 	case Type::Main:
-		return object_ptr<::Settings::Main>(parent, controller, self);
+		return object_ptr<Main>(parent, controller, self);
 	case Type::Information:
-		return object_ptr<::Settings::Information>(parent, self);
+		return object_ptr<Information>(parent, controller, self);
 	case Type::Notifications:
-		return object_ptr<::Settings::Notifications>(parent, self);
+		return object_ptr<Notifications>(parent, self);
 	case Type::PrivacySecurity:
-		return object_ptr<::Settings::PrivacySecurity>(parent, self);
+		return object_ptr<PrivacySecurity>(parent, self);
 	case Type::General:
-		return object_ptr<::Settings::General>(parent, self);
+		return object_ptr<General>(parent, self);
 	case Type::Chat:
-		return object_ptr<::Settings::Chat>(parent, self);
+		return object_ptr<Chat>(parent, self);
 	}
 	Unexpected("Settings section type in Widget::createInnerWidget.");
 }
@@ -78,26 +78,36 @@ not_null<Button*> AddButton(
 		LangKey text,
 		const style::InfoProfileButton &st,
 		const style::icon *leftIcon) {
+	return AddButton(container, Lang::Viewer(text), st, leftIcon);
+}
+
+not_null<Button*> AddButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		const style::InfoProfileButton &st,
+		const style::icon *leftIcon) {
 	const auto result = container->add(object_ptr<Button>(
 		container,
-		Lang::Viewer(text),
+		std::move(text),
 		st));
 	if (leftIcon) {
 		const auto icon = Ui::CreateChild<Ui::RpWidget>(result);
 		icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 		icon->resize(leftIcon->size());
-		result->widthValue(
-		) | rpl::start_with_next([=](int width) {
+		result->sizeValue(
+		) | rpl::start_with_next([=](QSize size) {
 			icon->moveToLeft(
-				st::settingsSectionIconPosition.x(),
-				st::settingsSectionIconPosition.y(),
-				width);
+				st::settingsSectionIconLeft,
+				(size.height() - icon->height()) / 2,
+				size.width());
 		}, icon->lifetime());
 		icon->paintRequest(
 		) | rpl::start_with_next([=] {
 			Painter p(icon);
 			const auto width = icon->width();
-			if (result->isOver()) {
+			const auto paintOver = (result->isOver() || result->isDown())
+				&& !result->isDisabled();
+			if (paintOver) {
 				leftIcon->paint(p, QPoint(), width, st::menuIconFgOver->c);
 			} else {
 				leftIcon->paint(p, QPoint(), width);

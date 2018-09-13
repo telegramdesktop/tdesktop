@@ -25,7 +25,7 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(QWidget *parent, Content &&content);
 
-	rpl::producer<> clicks() const;
+	rpl::producer<Qt::MouseButton> clicks() const;
 
 	void updateData(Content &&content);
 

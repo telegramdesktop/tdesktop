@@ -294,6 +294,8 @@ void Cover::initViewers() {
 		) | rpl::start_with_next(
 			[this] { refreshUploadPhotoOverlay(); },
 			lifetime());
+	} else if (_peer->isSelf()) {
+		refreshUploadPhotoOverlay();
 	}
 	VerifiedValue(
 		_peer
@@ -304,12 +306,12 @@ void Cover::initViewers() {
 
 void Cover::refreshUploadPhotoOverlay() {
 	_userpic->switchChangePhotoOverlay([&] {
-		if (auto chat = _peer->asChat()) {
+		if (const auto chat = _peer->asChat()) {
 			return chat->canEdit();
-		} else if (auto channel = _peer->asChannel()) {
+		} else if (const auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
 		}
-		return false;
+		return _peer->isSelf();
 	}());
 }
 

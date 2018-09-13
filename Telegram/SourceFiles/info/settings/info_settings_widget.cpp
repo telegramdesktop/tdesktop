@@ -86,6 +86,12 @@ void Widget::saveChanges(FnMut<void()> done) {
 	_inner->sectionSaveChanges(std::move(done));
 }
 
+rpl::producer<bool> Widget::desiredShadowVisibility() const {
+	return (_type == Type::Main || _type == Type::Information)
+		? ContentWidget::desiredShadowVisibility()
+		: rpl::single(true);
+}
+
 std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(self(), _type);
 	saveState(result.get());

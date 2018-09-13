@@ -30,7 +30,7 @@ TopBar::TopBar(QWidget *parent, Content &&content)
 	updateData(std::move(content));
 }
 
-rpl::producer<> TopBar::clicks() const {
+rpl::producer<Qt::MouseButton> TopBar::clicks() const {
 	return _button->clicks();
 }
 

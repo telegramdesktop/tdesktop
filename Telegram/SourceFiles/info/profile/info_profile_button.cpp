@@ -71,7 +71,7 @@ void Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto paintOver = (isOver() || isDown());
+	auto paintOver = (isOver() || isDown()) && !isDisabled();
 	p.fillRect(e->rect(), paintOver ? _st.textBgOver : _st.textBg);
 
 	paintRipple(p, 0, 0, ms);
@@ -113,10 +113,13 @@ int Button::resizeGetHeight(int newWidth) {
 void Button::onStateChanged(
 		State was,
 		StateChangeSource source) {
-	RippleButton::onStateChanged(was, source);
+	if (!isDisabled() || !isDown()) {
+		RippleButton::onStateChanged(was, source);
+	}
 	if (_toggle) {
 		_toggle->setStyle(isOver() ? _st.toggleOver : _st.toggle);
 	}
+	setPointerCursor(!isDisabled());
 }
 
 void Button::setText(QString &&text) {

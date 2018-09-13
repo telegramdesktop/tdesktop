@@ -43,7 +43,7 @@ public:
 		_clickedCallback = std::move(callback);
 	}
 
-	rpl::producer<> clicks() const {
+	rpl::producer<Qt::MouseButton> clicks() const {
 		return _clicks.events();
 	}
 	template <typename Handler>
@@ -100,7 +100,7 @@ private:
 
 	Fn<void()> _clickedCallback;
 
-	rpl::event_stream<> _clicks;
+	rpl::event_stream<Qt::MouseButton> _clicks;
 
 };
 

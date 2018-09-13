@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
+#include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 #include "boxes/notifications_box.h"
@@ -74,15 +75,26 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	const auto native = nativeNotificationsKey
 		? addCheckbox(nativeNotificationsKey, Global::NativeNotifications())
 		: nullptr;
-	const auto advanced = (cPlatform() != dbipMac)
+
+	const auto advancedSlide = (cPlatform() != dbipMac)
 		? container->add(
-			object_ptr<Ui::SlideWrap<Ui::LinkButton>>(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,
-				object_ptr<Ui::LinkButton>(
-					container,
-					lang(lng_settings_advanced_notifications),
-					st::settingsLink),
-				st::settingsAdvancedNotificationsPadding))
+				object_ptr<Ui::VerticalLayout>(container)))
+		: nullptr;
+	const auto advancedWrap = advancedSlide
+		? advancedSlide->entity()
+		: nullptr;
+	if (advancedWrap) {
+		AddSkip(advancedWrap, st::settingsCheckboxesSkip);
+		AddDivider(advancedWrap);
+		AddSkip(advancedWrap, st::settingsCheckboxesSkip);
+	}
+	const auto advanced = advancedWrap
+		? AddButton(
+			advancedWrap,
+			lng_settings_advanced_notifications,
+			st::settingsButton).get()
 		: nullptr;
 
 	if (!name->entity()->checked()) {
@@ -92,8 +104,8 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		name->hide(anim::type::instant);
 		preview->hide(anim::type::instant);
 	}
-	if (native && advanced && Global::NativeNotifications()) {
-		advanced->hide(anim::type::instant);
+	if (native && advancedSlide && Global::NativeNotifications()) {
+		advancedSlide->hide(anim::type::instant);
 	}
 
 	using Change = Window::Notifications::ChangeType;
@@ -187,22 +199,21 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 
 			Auth().notifications().createManager();
 
-			if (advanced) {
-				advanced->toggle(
+			if (advancedSlide) {
+				advancedSlide->toggle(
 					!Global::NativeNotifications(),
 					anim::type::normal);
 			}
 		}, native->lifetime());
 	}
 	if (advanced) {
-		advanced->entity()->addClickHandler([=] {
+		advanced->addClickHandler([=] {
 			Ui::show(Box<NotificationsBox>());
 		});
 	}
 }
 
 void SetupNotifications(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
@@ -226,7 +237,6 @@ Notifications::Notifications(QWidget *parent, not_null<UserData*> self)
 void Notifications::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupNotifications(content);
 
 	Ui::ResizeFitChild(this, content);

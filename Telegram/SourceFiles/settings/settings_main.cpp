@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/language_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
-#include "boxes/photo_crop_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -26,58 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Settings {
-
-void SetupUploadPhotoButton(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<UserData*> self) {
-	AddDivider(container);
-	AddSkip(container, st::settingsSetPhotoSkip);
-
-	const auto upload = [=] {
-		const auto imageExtensions = cImgExtensions();
-		const auto filter = qsl("Image files (*")
-			+ imageExtensions.join(qsl(" *"))
-			+ qsl(");;")
-			+ FileDialog::AllFilesFilter();
-		const auto callback = [=](const FileDialog::OpenResult &result) {
-			if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-				return;
-			}
-
-			const auto image = result.remoteContent.isEmpty()
-				? App::readImage(result.paths.front())
-				: App::readImage(result.remoteContent);
-			if (image.isNull()
-				|| image.width() > 10 * image.height()
-				|| image.height() > 10 * image.width()) {
-				Ui::show(Box<InformBox>(lang(lng_bad_photo)));
-				return;
-			}
-
-			auto box = Ui::show(Box<PhotoCropBox>(image, self));
-			box->ready(
-			) | rpl::start_with_next([=](QImage &&image) {
-				Auth().api().uploadPeerPhoto(self, std::move(image));
-			}, box->lifetime());
-		};
-		FileDialog::GetOpenPath(
-			container.get(),
-			lang(lng_choose_image),
-			filter,
-			crl::guard(container, callback));
-	};
-	AddButton(
-		container,
-		lng_settings_upload,
-		st::settingsSectionButton,
-		&st::settingsIconSetPhoto
-	)->addClickHandler(App::LambdaDelayed(
-		st::settingsSectionButton.ripple.hideDuration,
-		container,
-		upload));
-
-	AddSkip(container, st::settingsSetPhotoSkip);
-}
 
 void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
 	const auto button = AddButtonWithLabel(
@@ -122,13 +69,13 @@ void SetupSections(
 		Type::PrivacySecurity,
 		&st::settingsIconPrivacySecurity);
 	addSection(
-		lng_settings_section_general,
-		Type::General,
-		&st::settingsIconGeneral);
-	addSection(
 		lng_settings_section_chat_settings,
 		Type::Chat,
 		&st::settingsIconChat);
+	addSection(
+		lng_settings_advanced,
+		Type::General,
+		&st::settingsIconGeneral);
 
 	SetupLanguageButton(container);
 
@@ -309,7 +256,6 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 		controller));
 	cover->setOnlineCount(rpl::single(0));
 
-	SetupUploadPhotoButton(content, _self);
 	SetupSections(content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});

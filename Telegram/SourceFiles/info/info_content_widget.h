@@ -50,7 +50,7 @@ public:
 
 	rpl::producer<int> scrollHeightValue() const;
 	rpl::producer<int> desiredHeightValue() const override;
-	rpl::producer<bool> desiredShadowVisibility() const;
+	virtual rpl::producer<bool> desiredShadowVisibility() const;
 	bool hasTopBarShadow() const;
 
 	virtual void setInnerFocus();

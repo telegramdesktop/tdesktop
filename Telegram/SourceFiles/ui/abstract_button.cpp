@@ -78,7 +78,7 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 				emit clicked();
 			}
 			if (weak) {
-				_clicks.fire({});
+				_clicks.fire(e->button());
 			}
 		} else {
 			setOver(false, StateChangeSource::ByHover);

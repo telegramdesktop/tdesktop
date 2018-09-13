@@ -75,6 +75,11 @@ not_null<Button*> AddButton(
 	LangKey text,
 	const style::InfoProfileButton &st,
 	const style::icon *leftIcon = nullptr);
+not_null<Button*> AddButton(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> text,
+	const style::InfoProfileButton &st,
+	const style::icon *leftIcon = nullptr);
 not_null<Button*> AddButtonWithLabel(
 	not_null<Ui::VerticalLayout*> container,
 	LangKey text,

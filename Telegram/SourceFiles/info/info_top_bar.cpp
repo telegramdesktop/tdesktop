@@ -99,8 +99,10 @@ void TopBar::enableBackButton() {
 		st::infoTopBarScale);
 	_back->setDuration(st::infoTopBarDuration);
 	_back->toggle(!selectionMode(), anim::type::instant);
-	_back->entity()->clicks()
-		| rpl::start_to_stream(_backClicks, _back->lifetime());
+	_back->entity()->clicks(
+	) | rpl::map([] {
+		return rpl::empty_value();
+	}) | rpl::start_to_stream(_backClicks, _back->lifetime());
 	registerToggleControlCallback(_back.data(), [=] {
 		return !selectionMode();
 	});
@@ -434,7 +436,9 @@ void TopBar::createSelectionControls() {
 		st::infoTopBarScale));
 	_cancelSelection->setDuration(st::infoTopBarDuration);
 	_cancelSelection->entity()->clicks(
-	) | rpl::start_to_stream(
+	) | rpl::map([] {
+		return rpl::empty_value();
+	}) | rpl::start_to_stream(
 		_cancelSelectionClicks,
 		_cancelSelection->lifetime());
 	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::LabelWithNumbers>>(
@@ -605,7 +609,7 @@ rpl::producer<QString> TitleValue(
 			case Section::SettingsType::PrivacySecurity:
 				return lng_settings_section_privacy;
 			case Section::SettingsType::General:
-				return lng_settings_section_general;
+				return lng_settings_advanced;
 			case Section::SettingsType::Chat:
 				return lng_settings_section_chat_settings;
 			}

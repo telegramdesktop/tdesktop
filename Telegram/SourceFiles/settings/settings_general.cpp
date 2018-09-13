@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/checkbox.h"
 #include "boxes/local_storage_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
@@ -68,7 +69,6 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupStorageAndConnection(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container);
 
 	AddButton(
@@ -230,44 +230,50 @@ bool HasTray() {
 	return cSupportTray() || (cPlatform() == dbipWindows);
 }
 
-void SetupTray(not_null<Ui::VerticalLayout*> container) {
-	if (!HasTray()) {
-		return;
-	}
+void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
+	const auto checkbox = [&](LangKey label, bool checked) {
+		return object_ptr<Ui::Checkbox>(
+			container,
+			lang(label),
+			checked,
+			st::settingsCheckbox);
+	};
+	const auto addCheckbox = [&](LangKey label, bool checked) {
+		return container->add(
+			checkbox(label, checked),
+			st::settingsCheckboxPadding);
+	};
+	const auto addSlidingCheckbox = [&](LangKey label, bool checked) {
+		return container->add(
+			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+				container,
+				checkbox(label, checked),
+				st::settingsCheckboxPadding));
+	};
 
-	const auto trayEnabler = Ui::AttachAsChild(
-		container,
-		rpl::event_stream<bool>());
 	const auto trayEnabled = [] {
 		const auto workMode = Global::WorkMode().value();
 		return (workMode == dbiwmTrayOnly)
 			|| (workMode == dbiwmWindowAndTray);
 	};
-	const auto tray = AddButton(
-		container,
+	const auto tray = addCheckbox(
 		lng_settings_workmode_tray,
-		st::settingsGeneralButton
-	)->toggleOn(trayEnabler->events_starting_with(trayEnabled()));
+		trayEnabled());
 
 	const auto taskbarEnabled = [] {
 		const auto workMode = Global::WorkMode().value();
 		return (workMode == dbiwmWindowOnly)
 			|| (workMode == dbiwmWindowAndTray);
 	};
-	const auto taskbarEnabler = Ui::AttachAsChild(
-		container,
-		rpl::event_stream<bool>());
 	const auto taskbar = (cPlatform() == dbipWindows)
-		? AddButton(
-			container,
+		? addCheckbox(
 			lng_settings_workmode_window,
-			st::settingsGeneralButton
-		)->toggleOn(taskbarEnabler->events_starting_with(taskbarEnabled()))
+			taskbarEnabled())
 		: nullptr;
 
 	const auto updateWorkmode = [=] {
-		const auto newMode = tray->toggled()
-			? ((!taskbar || taskbar->toggled())
+		const auto newMode = tray->checked()
+			? ((!taskbar || taskbar->checked())
 				? dbiwmWindowAndTray
 				: dbiwmTrayOnly)
 			: dbiwmWindowOnly;
@@ -279,24 +285,26 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 		Local::writeSettings();
 	};
 
-	tray->toggledValue(
+	base::ObservableViewer(
+		tray->checkedChanged
 	) | rpl::filter([=](bool checked) {
 		return (checked != trayEnabled());
 	}) | rpl::start_with_next([=](bool checked) {
-		if (!checked && taskbar && !taskbar->toggled()) {
-			taskbarEnabler->fire(true);
+		if (!checked && taskbar && !taskbar->checked()) {
+			taskbar->setChecked(true);
 		} else {
 			updateWorkmode();
 		}
 	}, tray->lifetime());
 
 	if (taskbar) {
-		taskbar->toggledValue(
+		base::ObservableViewer(
+			taskbar->checkedChanged
 		) | rpl::filter([=](bool checked) {
 			return (checked != taskbarEnabled());
 		}) | rpl::start_with_next([=](bool checked) {
-			if (!checked && !tray->toggled()) {
-				trayEnabler->fire(true);
+			if (!checked && !tray->checked()) {
+				tray->setChecked(true);
 			} else {
 				updateWorkmode();
 			}
@@ -305,32 +313,22 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 
 #ifndef OS_WIN_STORE
 	if (cPlatform() == dbipWindows) {
-		const auto autostart = AddButton(
-			container,
-			lng_settings_auto_start,
-			st::settingsGeneralButton
-		)->toggleOn(rpl::single(cAutoStart()));
-		const auto minimized = container->add(
-			object_ptr<Ui::SlideWrap<Button>>(
-				container,
-				object_ptr<Button>(
-					container,
-					Lang::Viewer(lng_settings_start_min),
-					st::settingsGeneralButton)));
-		const auto sendto = AddButton(
-			container,
-			lng_settings_add_sendto,
-			st::settingsGeneralButton
-		)->toggleOn(rpl::single(cSendToMenu()));
-
-		const auto minimizedToggler = Ui::AttachAsChild(
-			minimized,
-			rpl::event_stream<bool>());
 		const auto minimizedToggled = [] {
 			return cStartMinimized() && !Global::LocalPasscode();
 		};
 
-		autostart->toggledValue(
+		const auto autostart = addCheckbox(
+			lng_settings_auto_start,
+			cAutoStart());
+		const auto minimized = addSlidingCheckbox(
+			lng_settings_start_min,
+			minimizedToggled());
+		const auto sendto = addCheckbox(
+			lng_settings_add_sendto,
+			cSendToMenu());
+
+		base::ObservableViewer(
+			autostart->checkedChanged
 		) | rpl::filter([](bool checked) {
 			return (checked != cAutoStart());
 		}) | rpl::start_with_next([=](bool checked) {
@@ -338,22 +336,25 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 			psAutoStart(checked);
 			if (checked) {
 				Local::writeSettings();
-			} else if (minimized->entity()->toggled()) {
-				minimizedToggler->fire(false);
+			} else if (minimized->entity()->checked()) {
+				minimized->entity()->setChecked(false);
 			} else {
 				Local::writeSettings();
 			}
 		}, autostart->lifetime());
 
-		minimized->entity()->toggleOn(
-			minimizedToggler->events_starting_with(minimizedToggled()));
-		minimized->toggleOn(autostart->toggledValue());
-		minimized->entity()->toggledValue(
+		minimized->toggleOn(rpl::single(
+			autostart->checked()
+		) | rpl::then(base::ObservableViewer(
+			autostart->checkedChanged
+		)));
+		base::ObservableViewer(
+			minimized->entity()->checkedChanged
 		) | rpl::filter([=](bool checked) {
 			return (checked != minimizedToggled());
 		}) | rpl::start_with_next([=](bool checked) {
 			if (Global::LocalPasscode()) {
-				minimizedToggler->fire(false);
+				minimized->entity()->setChecked(false);
 				Ui::show(Box<InformBox>(
 					lang(lng_error_start_minimized_passcoded)));
 			} else {
@@ -365,10 +366,11 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 		base::ObservableViewer(
 			Global::RefLocalPasscodeChanged()
 		) | rpl::start_with_next([=] {
-			minimizedToggler->fire(minimizedToggled());
+			minimized->entity()->setChecked(minimizedToggled());
 		}, minimized->lifetime());
 
-		sendto->toggledValue(
+		base::ObservableViewer(
+			sendto->checkedChanged
 		) | rpl::filter([](bool checked) {
 			return (checked != cSendToMenu());
 		}) | rpl::start_with_next([](bool checked) {
@@ -380,6 +382,21 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 #endif // OS_WIN_STORE
 }
 
+void SetupTray(not_null<Ui::VerticalLayout*> container) {
+	if (!HasTray()) {
+		return;
+	}
+
+	auto wrap = object_ptr<Ui::VerticalLayout>(container);
+	SetupTrayContent(wrap.data());
+
+	container->add(object_ptr<Ui::OverrideMargins>(
+		container,
+		std::move(wrap)));
+
+	AddSkip(container, st::settingsCheckboxesSkip);
+}
+
 General::General(QWidget *parent, UserData *self)
 : Section(parent) {
 	setupContent();
@@ -388,21 +405,21 @@ General::General(QWidget *parent, UserData *self)
 void General::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(content, st::settingsFirstDividerSkip);
-
 	if (!Core::UpdaterDisabled()) {
-		AddDivider(content);
 		AddSkip(content);
 		SetupUpdate(content);
 		AddSkip(content);
 	}
+	if (!Core::UpdaterDisabled()) {
+		AddDivider(content);
+	}
+	SetupStorageAndConnection(content);
 	if (HasTray()) {
 		AddDivider(content);
 		AddSkip(content);
 		SetupTray(content);
 		AddSkip(content);
 	}
-	SetupStorageAndConnection(content);
 
 	Ui::ResizeFitChild(this, content);
 }

@@ -293,11 +293,15 @@ void TermsBox::prepare() {
 			return false;
 		}
 		return true;
+	}) | rpl::map([] {
+		return rpl::empty_value();
 	}) | rpl::start_to_stream(_agreeClicks, lifetime());
 
 	if (_cancel) {
 		addButton(_cancel, [=] {})->clicks(
-		) | rpl::start_to_stream(_cancelClicks, lifetime());
+		) | rpl::map([] {
+			return rpl::empty_value();
+		}) | rpl::start_to_stream(_cancelClicks, lifetime());
 	}
 
 	if (age) {

@@ -192,7 +192,7 @@ void LocalStorageBox::Row::step_radial(TimeMs ms, bool timer) {
 }
 
 rpl::producer<> LocalStorageBox::Row::clearRequests() const {
-	return _clear->clicks();
+	return _clear->clicks() | rpl::map([] { return rpl::empty_value(); });
 }
 
 int LocalStorageBox::Row::resizeGetHeight(int newWidth) {

@@ -10,7 +10,6 @@ using "ui/widgets/widgets.style";
 using "info/info.style";
 using "boxes/boxes.style";
 
-settingsFirstDividerSkip: 3px;
 settingsSectionButton: InfoProfileButton(infoProfileButton) {
 	font: boxTextFont;
 	padding: margins(79px, 13px, 22px, 11px);
@@ -22,7 +21,7 @@ settingsButton: InfoProfileButton(settingsSectionButton) {
 	padding: margins(22px, 13px, 22px, 11px);
 }
 settingsSectionSkip: 9px;
-settingsSectionIconPosition: point(22px, 9px);
+settingsSectionIconLeft: 22px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
 settingsButtonRightPosition: point(28px, 13px);
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
@@ -48,7 +47,6 @@ settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
 settingsUpdateStatePosition: point(24px, 29px);
 settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 
-settingsIconSetPhoto: icon {{ "settings_set_photo", menuIconFg }};
 settingsIconInformation: icon {{ "settings_information", menuIconFg }};
 settingsIconNotifications: icon {{ "settings_notifications", menuIconFg }};
 settingsIconChat: icon {{ "settings_chat", menuIconFg }};
@@ -68,6 +66,7 @@ settingsLink: boxLinkButton;
 settingsAdvancedNotificationsPadding: margins(22px, 20px, 10px, 10px);
 settingsLinkLabel: defaultFlatLabel;
 settingsCheckboxesSkip: 12px;
+settingsStickersEmojiPadding: 17px;
 
 settingsSendType: settingsCheckbox;
 settingsSendTypePadding: margins(22px, 5px, 10px, 5px);
@@ -100,7 +99,20 @@ settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
 }
 settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
 
-settingsInfoRowHeight: 62px;
+settingsInfoPhotoHeight: 175px;
+settingsInfoPhotoSize: 84px;
+settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
+	size: size(settingsInfoPhotoSize, settingsInfoPhotoSize);
+	photoSize: settingsInfoPhotoSize;
+}
+settingsInfoPhotoTop: 17px;
+settingsInfoPhotoSkip: 16px;
+settingsInfoPhotoSet: defaultActiveButton;
+
+settingsInfoRow: InfoProfileButton(settingsButton) {
+	height: 62px;
+	padding: margins(0px, 0px, 0px, 0px);
+}
 settingsInfoIconPosition: point(22px, 18px);
 settingsInfoValue: FlatLabel(defaultFlatLabel) {
 	textFg: windowFg;
@@ -114,24 +126,11 @@ settingsInfoAbout: FlatLabel(settingsInfoValue) {
 }
 settingsInfoAboutPosition: point(78px, 34px);
 settingsInfoRightSkip: 60px;
-settingsInfoEditPosition: point(0px, 6px);
-settingsInfoEdit: IconButton(defaultIconButton) {
-	width: 56px;
-	height: 56px;
-
-	icon: icon {{ "settings_edit", menuIconFg }};
-	iconOver: icon {{ "settings_edit", menuIconFgOver }};
-	iconPosition: point(14px, 14px);
-
-	rippleAreaPosition: point(8px, 8px);
-	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
+settingsInfoEditRight: 14px;
+settingsInfoEditIconOver: icon {{ "settings_edit", menuIconFgOver }};
 settingsBio: InputField(defaultInputField) {
 	textBg: transparent;
-	textMargins: margins(2px, 7px, 2px, 0px);
+	textMargins: margins(0px, 7px, 0px, 13px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
@@ -139,9 +138,6 @@ settingsBio: InputField(defaultInputField) {
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
-
-	border: 0px;
-	borderActive: 0px;
 
 	heightMin: 32px;
 
@@ -157,3 +153,4 @@ settingsBioCountdown: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 	textFg: windowSubTextFg;
 }
+settingsBioLabelPadding: margins(22px, 11px, 22px, 0px);

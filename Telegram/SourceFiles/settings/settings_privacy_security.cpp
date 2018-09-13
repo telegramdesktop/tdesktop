@@ -57,7 +57,6 @@ QString PrivacyBase(ApiWrap::Privacy::Option option) {
 }
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_privacy_title);
@@ -482,7 +481,6 @@ PrivacySecurity::PrivacySecurity(QWidget *parent, not_null<UserData*> self)
 void PrivacySecurity::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(content, st::settingsFirstDividerSkip);
 	SetupPrivacy(content);
 	SetupSecurity(content);
 	SetupCalls(content);
