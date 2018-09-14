@@ -199,9 +199,9 @@ editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
-contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
-contactPhoneIcon: icon {{ "add_contact_phone", menuIconFg }};
-contactIconTop: 28px;
+contactUserIcon: icon {{ "settings_name", menuIconFg }};
+contactPhoneIcon: icon {{ "settings_phone_number", menuIconFg }};
+contactIconPosition: point(-5px, 23px);
 
 contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
 contactsAdd: TwoIconButton {

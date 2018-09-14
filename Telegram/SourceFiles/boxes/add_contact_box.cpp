@@ -149,8 +149,16 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 		auto textHeight = height() - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom();
 		p.drawText(QRect(st::boxPadding.left(), st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), textHeight), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 	} else {
-		st::contactUserIcon.paint(p, st::boxPadding.left(), _first->y() + st::contactIconTop, width());
-		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone->y() + st::contactIconTop, width());
+		st::contactUserIcon.paint(
+			p,
+			st::boxPadding.left() + st::contactIconPosition.x(),
+			_first->y() + st::contactIconPosition.y(),
+			width());
+		st::contactPhoneIcon.paint(
+			p,
+			st::boxPadding.left() + st::contactIconPosition.x(),
+			_phone->y() + st::contactIconPosition.y(),
+			width());
 	}
 }
 
