@@ -20,10 +20,13 @@ settingsGeneralButton: InfoProfileButton(settingsSectionButton) {
 settingsButton: InfoProfileButton(settingsSectionButton) {
 	padding: margins(22px, 13px, 22px, 11px);
 }
+settingsPrivacyButton: InfoProfileButton(settingsButton) {
+	padding: margins(22px, 10px, 22px, 8px);
+}
 settingsSectionSkip: 9px;
 settingsSectionIconLeft: 22px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
-settingsButtonRightPosition: point(28px, 13px);
+settingsButtonRightSkip: 28px;
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
 	style: boxTextStyle;
@@ -85,12 +88,13 @@ settingsSubsectionTitle: FlatLabel(defaultFlatLabel) {
 	}
 	textFg: windowActiveTextFg;
 }
-settingsSubsectionTitlePadding: margins(22px, 7px, 10px, 6px);
+settingsSubsectionTitlePadding: margins(22px, 7px, 10px, 9px);
 settingsBackgroundPadding: margins(22px, 11px, 10px, 12px);
 settingsTileSkip: 15px;
 settingsFromGalleryTop: 2px;
 settingsFromFileTop: 14px;
 settingsPrivacySecurityPadding: 12px;
+settingsPrivacySkip: 14px;
 
 settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

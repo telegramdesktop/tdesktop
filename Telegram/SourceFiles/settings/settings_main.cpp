@@ -57,7 +57,7 @@ void SetupSections(
 		)->addClickHandler([=] { showOther(type); });
 	};
 	addSection(
-		lng_settings_section_info,
+		lng_settings_information,
 		Type::Information,
 		&st::settingsIconInformation);
 	addSection(

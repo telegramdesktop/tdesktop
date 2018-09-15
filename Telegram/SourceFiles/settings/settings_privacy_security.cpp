@@ -57,13 +57,13 @@ QString PrivacyBase(ApiWrap::Privacy::Option option) {
 }
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
-
+	AddSkip(container, st::settingsPrivacySkip);
 	AddSubsectionTitle(container, lng_settings_privacy_title);
+
 	AddButton(
 		container,
 		lng_settings_blocked_users,
-		st::settingsButton
+		st::settingsPrivacyButton
 	)->addClickHandler([] {
 		const auto initBox = [](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_close), [=] {
@@ -103,7 +103,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			container,
 			label,
 			PrivacyString(key),
-			st::settingsButton
+			st::settingsPrivacyButton
 		)->addClickHandler([=] {
 			Ui::show(Box<EditPrivacyBox>(
 				controller(),
@@ -138,8 +138,10 @@ not_null<Ui::SlideWrap<Ui::PlainShadow>*> AddSeparator(
 			st::settingsSeparatorPadding));
 }
 
-rpl::producer<bool> SetupLocalPasscode(
-		not_null<Ui::VerticalLayout*> container) {
+void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container);
+	AddSubsectionTitle(container, lng_settings_passcode_title);
+
 	auto has = PasscodeChanges(
 	) | rpl::map([] {
 		return Global::LocalPasscode();
@@ -155,7 +157,7 @@ rpl::producer<bool> SetupLocalPasscode(
 		object_ptr<Button>(
 			container,
 			std::move(text),
-			st::settingsButton)
+			st::settingsPrivacyButton)
 	)->addClickHandler([] {
 		Ui::show(Box<PasscodeBox>(false));
 	});
@@ -169,7 +171,7 @@ rpl::producer<bool> SetupLocalPasscode(
 		object_ptr<Button>(
 			inner,
 			Lang::Viewer(lng_settings_passcode_disable),
-			st::settingsButton)
+			st::settingsPrivacyButton)
 	)->addClickHandler([] {
 		Ui::show(Box<PasscodeBox>(true));
 	});
@@ -189,15 +191,15 @@ rpl::producer<bool> SetupLocalPasscode(
 		object_ptr<Button>(
 			inner,
 			Lang::Viewer(label),
-			st::settingsButton));
-	CreateRightLabel(autolock, std::move(value));
+			st::settingsPrivacyButton));
+	CreateRightLabel(autolock, std::move(value), st::settingsPrivacyButton);
 	autolock->addClickHandler([] {
 		Ui::show(Box<AutoLockBox>());
 	});
 
 	wrap->toggleOn(base::duplicate(has));
 
-	return has;
+	AddSkip(container);
 }
 
 bool CheckEditCloudPassword() {
@@ -264,8 +266,11 @@ void RemoveCloudPassword() {
 	}, box->lifetime());
 }
 
-rpl::producer<bool> SetupCloudPassword(
-		not_null<Ui::VerticalLayout*> container) {
+void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+	AddSubsectionTitle(container, lng_settings_password_title);
+
 	using State = Core::CloudPasswordState;
 
 	auto has = rpl::single(
@@ -304,12 +309,12 @@ rpl::producer<bool> SetupCloudPassword(
 				base::duplicate(confirmation),
 				st::settingsCloudPasswordLabel),
 			QMargins(
-				st::settingsButton.padding.left(),
-				st::settingsButton.padding.top(),
-				st::settingsButton.padding.right(),
-				(st::settingsButton.height
+				st::settingsPrivacyButton.padding.left(),
+				st::settingsPrivacyButton.padding.top(),
+				st::settingsPrivacyButton.padding.right(),
+				(st::settingsPrivacyButton.height
 					- st::settingsCloudPasswordLabel.style.font->height
-					+ st::settingsButton.padding.bottom()))));
+					+ st::settingsPrivacyButton.padding.bottom()))));
 	label->toggleOn(base::duplicate(unconfirmed))->setDuration(0);
 
 	std::move(
@@ -331,7 +336,7 @@ rpl::producer<bool> SetupCloudPassword(
 			object_ptr<Button>(
 				container,
 				std::move(text),
-				st::settingsButton)));
+				st::settingsPrivacyButton)));
 	change->toggleOn(std::move(
 		unconfirmed
 	) | rpl::map([](bool unconfirmed) {
@@ -349,7 +354,7 @@ rpl::producer<bool> SetupCloudPassword(
 			object_ptr<Button>(
 				container,
 				Lang::Viewer(lng_settings_password_disable),
-				st::settingsButton)));
+				st::settingsPrivacyButton)));
 	disable->toggleOn(base::duplicate(has));
 	disable->entity()->addClickHandler([] {
 		if (CheckEditCloudPassword()) {
@@ -369,48 +374,37 @@ rpl::producer<bool> SetupCloudPassword(
 		reloadOnActivation);
 
 	Auth().api().reloadPasswordState();
-	return has;
+
+	AddSkip(container);
 }
 
 void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container);
+	AddSubsectionTitle(container, lng_settings_destroy_title);
+
 	AddButton(
 		container,
 		lng_settings_self_destruct,
-		st::settingsButton
+		st::settingsPrivacyButton
 	)->addClickHandler([] {
 		Ui::show(Box<SelfDestructionBox>());
 	});
+
+	AddSkip(container);
 }
 
 void SetupSessionsList(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+	AddSubsectionTitle(container, lng_settings_sessions_title);
+
 	AddButton(
 		container,
 		lng_settings_show_sessions,
-		st::settingsButton
+		st::settingsPrivacyButton
 	)->addClickHandler([] {
 		Ui::show(Box<SessionsBox>());
 	});
-}
-
-void SetupSecurity(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
-
-	AddSubsectionTitle(container, lng_settings_security_title);
-
-	auto passcodeWide = SetupLocalPasscode(container);
-	auto separator1 = AddSeparator(container);
-	auto passwordWide = SetupCloudPassword(container);
-	auto separator2 = AddSeparator(container);
-	separator1->toggleOn(rpl::combine(
-		std::move(passcodeWide),
-		base::duplicate(passwordWide)
-	) | rpl::map([](bool one, bool second) {
-		return one || second;
-	}));
-	separator2->toggleOn(std::move(passwordWide));
-	SetupSelfDestruction(container);
-	SetupSessionsList(container);
-
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(
 		container,
@@ -418,8 +412,8 @@ void SetupSecurity(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupCalls(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
 	AddSkip(container);
-
 	AddSubsectionTitle(container, lng_settings_calls_title);
 
 	using Privacy = ApiWrap::Privacy;
@@ -441,7 +435,7 @@ void SetupCalls(not_null<Ui::VerticalLayout*> container) {
 		container,
 		lng_settings_peer_to_peer,
 		std::move(text),
-		st::settingsButton
+		st::settingsPrivacyButton
 	)->addClickHandler([=] {
 		Ui::show(Box<EditCallsPeerToPeer>());
 	});
@@ -458,7 +452,7 @@ void SetupExport(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_export_data,
-		st::settingsButton
+		st::settingsPrivacyButton
 	)->addClickHandler([] {
 		Ui::hideSettingsAndLayer();
 		App::CallDelayed(
@@ -482,7 +476,10 @@ void PrivacySecurity::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupPrivacy(content);
-	SetupSecurity(content);
+	SetupLocalPasscode(content);
+	SetupCloudPassword(content);
+	SetupSessionsList(content);
+	SetupSelfDestruction(content);
 	SetupCalls(content);
 	SetupExport(content);
 

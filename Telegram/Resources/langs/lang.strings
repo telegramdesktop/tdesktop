@@ -340,7 +340,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_calls" = "Calls";
 "lng_settings_groups_invite" = "Groups";
 "lng_settings_group_privacy_about" = "Change who can add you to groups and channel.";
-"lng_settings_security_title" = "Security";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable passcode";
 "lng_settings_password_disable" = "Disable cloud password";
@@ -357,6 +356,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_stickers_emoji" = "Stickers and emoji";
 "lng_settings_themes" = "Themes";
 "lng_settings_chat_other" = "Other";
+"lng_settings_information" = "Edit profile";
+"lng_settings_passcode_title" = "Local passcode";
+"lng_settings_password_title" = "Two-step verification";
+"lng_settings_sessions_title" = "Active sessions";
+"lng_settings_destroy_title" = "Delete my account";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

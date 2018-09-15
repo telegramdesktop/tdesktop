@@ -119,7 +119,8 @@ not_null<Button*> AddButton(
 
 void CreateRightLabel(
 		not_null<Button*> button,
-		rpl::producer<QString> label) {
+		rpl::producer<QString> label,
+		const style::InfoProfileButton &st) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
 		std::move(label),
@@ -128,9 +129,7 @@ void CreateRightLabel(
 		name->widthValue(),
 		button->widthValue()
 	) | rpl::start_with_next([=] {
-		name->moveToRight(
-			st::settingsButtonRightPosition.x(),
-			st::settingsButtonRightPosition.y());
+		name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
 	}, name->lifetime());
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
@@ -142,7 +141,7 @@ not_null<Button*> AddButtonWithLabel(
 		const style::InfoProfileButton &st,
 		const style::icon *leftIcon) {
 	const auto button = AddButton(container, text, st, leftIcon);
-	CreateRightLabel(button, std::move(label));
+	CreateRightLabel(button, std::move(label), st);
 	return button;
 }
 
