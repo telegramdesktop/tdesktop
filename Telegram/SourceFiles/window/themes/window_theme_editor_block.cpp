@@ -310,7 +310,9 @@ void EditorBlock::activateRow(const Row &row) {
 bool EditorBlock::selectSkip(int direction) {
 	_mouseSelection = false;
 
-	auto maxSelected = (isSearch() ? _searchResults.size() : _data.size()) - 1;
+	auto maxSelected = size_type(isSearch()
+		? _searchResults.size()
+		: _data.size()) - 1;
 	auto newSelected = _selected + direction;
 	if (newSelected < -1 || newSelected > maxSelected) {
 		newSelected = maxSelected;
