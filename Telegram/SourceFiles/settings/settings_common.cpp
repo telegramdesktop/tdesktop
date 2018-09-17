@@ -120,15 +120,26 @@ not_null<Button*> AddButton(
 void CreateRightLabel(
 		not_null<Button*> button,
 		rpl::producer<QString> label,
-		const style::InfoProfileButton &st) {
+		const style::InfoProfileButton &st,
+		LangKey buttonText) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
-		std::move(label),
 		st::settingsButtonRight);
 	rpl::combine(
-		name->widthValue(),
-		button->widthValue()
-	) | rpl::start_with_next([=] {
+		button->widthValue(),
+		Lang::Viewer(buttonText),
+		std::move(label)
+	) | rpl::start_with_next([=, &st](
+			int width,
+			const QString &button,
+			const QString &text) {
+		const auto available = width
+			- st.padding.left()
+			- st.padding.right()
+			- st.font->width(button)
+			- st::settingsButtonRightSkip;
+		name->setText(text);
+		name->resizeToNaturalWidth(available);
 		name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
 	}, name->lifetime());
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -141,7 +152,7 @@ not_null<Button*> AddButtonWithLabel(
 		const style::InfoProfileButton &st,
 		const style::icon *leftIcon) {
 	const auto button = AddButton(container, text, st, leftIcon);
-	CreateRightLabel(button, std::move(label), st);
+	CreateRightLabel(button, std::move(label), st, text);
 	return button;
 }
 

@@ -14,13 +14,7 @@ settingsSectionButton: InfoProfileButton(infoProfileButton) {
 	font: boxTextFont;
 	padding: margins(79px, 13px, 22px, 11px);
 }
-settingsGeneralButton: InfoProfileButton(settingsSectionButton) {
-	padding: margins(24px, 13px, 22px, 11px);
-}
 settingsButton: InfoProfileButton(settingsSectionButton) {
-	padding: margins(22px, 13px, 22px, 11px);
-}
-settingsPrivacyButton: InfoProfileButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
 settingsSectionSkip: 9px;
@@ -30,24 +24,25 @@ settingsButtonRightSkip: 28px;
 settingsButtonRight: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
 	style: boxTextStyle;
+	maxHeight: 20px;
 }
 settingsScalePadding: margins(79px, 10px, 28px, 8px);
-settingsBigScalePadding: margins(24px, 10px, 24px, 8px);
+settingsBigScalePadding: margins(22px, 10px, 22px, 8px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	barFg: windowBgOver;
 	labelFg: windowSubTextFg;
 	labelFgActive: windowActiveTextFg;
 }
-settingsUpdateToggle: InfoProfileButton(settingsGeneralButton) {
+settingsUpdateToggle: InfoProfileButton(settingsButton) {
 	height: 40px;
-	padding: margins(24px, 8px, 22px, 8px);
+	padding: margins(22px, 8px, 22px, 8px);
 }
 settingsUpdateState: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
 }
-settingsUpdateStatePosition: point(24px, 29px);
+settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 
 settingsIconInformation: icon {{ "settings_information", menuIconFg }};
@@ -74,9 +69,6 @@ settingsStickersEmojiPadding: 17px;
 settingsSendType: settingsCheckbox;
 settingsSendTypePadding: margins(22px, 5px, 10px, 5px);
 settingsSendTypeSkip: 5px;
-
-settingsAskPathPadding: margins(22px, 10px, 10px, 0px);
-settingsDownloadPathPadding: margins(22px, 1px, 10px, 0px);
 
 settingsBackgroundThumb: 76px;
 settingsThumbSkip: 16px;

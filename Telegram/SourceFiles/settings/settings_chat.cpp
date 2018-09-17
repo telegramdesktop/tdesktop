@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/stickers_box.h"
 #include "boxes/background_box.h"
 #include "boxes/download_path_box.h"
+#include "boxes/local_storage_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
@@ -23,8 +24,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 #include "mainwidget.h"
 #include "styles/style_settings.h"
+#include "styles/style_boxes.h"
 
 namespace Settings {
 
@@ -54,17 +58,6 @@ private:
 	Ui::RadialAnimation _radial;
 
 };
-
-#ifndef OS_WIN_STORE
-class DownloadPathRow : public Ui::RpWidget {
-public:
-	DownloadPathRow(QWidget *parent);
-
-private:
-	void setupControls();
-
-};
-#endif // OS_WIN_STORE
 
 void ChooseFromFile(not_null<QWidget*> parent);
 
@@ -315,8 +308,6 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 
 }
 
-#ifndef OS_WIN_STORE
-
 QString DownloadPathText() {
 	if (Global::DownloadPath().isEmpty()) {
 		return lang(lng_download_path_default);
@@ -325,49 +316,6 @@ QString DownloadPathText() {
 	}
 	return QDir::toNativeSeparators(Global::DownloadPath());
 }
-
-DownloadPathRow::DownloadPathRow(QWidget *parent) : RpWidget(parent) {
-	setupControls();
-}
-
-void DownloadPathRow::setupControls() {
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		this,
-		Lang::Viewer(lng_download_path_label),
-		st::settingsLinkLabel);
-	const auto link = Ui::CreateChild<Ui::LinkButton>(
-		this,
-		DownloadPathText(),
-		st::settingsLink);
-
-	base::ObservableViewer(
-		Global::RefDownloadPathChanged()
-	) | rpl::map([] {
-		return DownloadPathText();
-	}) | rpl::start_with_next([=](const QString &text) {
-		link->setText(text);
-	}, link->lifetime());
-
-	link->addClickHandler([] {
-		Ui::show(Box<DownloadPathBox>());
-	});
-
-	rpl::combine(
-		widthValue(),
-		label->sizeValue(),
-		link->widthValue()
-	) | rpl::start_with_next([=](int width, QSize labelSize, int possible) {
-		const auto space = st::settingsLinkLabel.style.font->spacew;
-		link->resizeToNaturalWidth(width - labelSize.width() - space);
-		if (link->width() == possible) {
-			label->moveToLeft(0, 0);
-			link->moveToLeft(labelSize.width() + space, 0);
-			resize(width, labelSize.height());
-		}
-	}, link->lifetime());
-}
-
-#endif // OS_WIN_STORE
 
 void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsStickersEmojiPadding);
@@ -434,11 +382,11 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
-void SetupChatOther(not_null<Ui::VerticalLayout*> container) {
+void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container, st::settingsSectionSkip);
 
-	AddSubsectionTitle(container, lng_settings_chat_other);
+	AddSubsectionTitle(container, lng_settings_messages);
 
 	AddSkip(container, st::settingsSendTypeSkip);
 
@@ -459,9 +407,9 @@ void SetupChatOther(not_null<Ui::VerticalLayout*> container) {
 			QMargins(0, skip, 0, skip)));
 
 	const auto add = [&](
-			SendByType value,
-			LangKey key,
-			style::margins padding) {
+		SendByType value,
+		LangKey key,
+		style::margins padding) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
@@ -492,50 +440,91 @@ void SetupChatOther(not_null<Ui::VerticalLayout*> container) {
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
+}
 
-	const auto dontask = inner->add(
+void SetupExport(not_null<Ui::VerticalLayout*> container) {
+	AddButton(
+		container,
+		lng_settings_export_data,
+		st::settingsButton
+	)->addClickHandler([] {
+		Ui::hideSettingsAndLayer();
+		App::CallDelayed(
+			st::boxDuration,
+			&Auth(),
+			[] { Auth().data().startExport(); });
+	});
+}
+
+void SetupLocalStorage(not_null<Ui::VerticalLayout*> container) {
+	AddButton(
+		container,
+		lng_settings_local_storage,
+		st::settingsButton
+	)->addClickHandler([] {
+		LocalStorageBox::Show(&Auth().data().cache());
+	});
+}
+
+void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container, st::settingsSectionSkip);
+
+	AddSubsectionTitle(container, lng_settings_data_storage);
+
+	auto wrap = object_ptr<Ui::VerticalLayout>(container);
+	const auto inner = wrap.data();
+	container->add(object_ptr<Ui::OverrideMargins>(
+		container,
+		std::move(wrap),
+		QMargins(0, 0, 0, st::settingsCheckbox.margin.bottom())));
+
+	const auto ask = inner->add(
 		object_ptr<Ui::Checkbox>(
 			inner,
-			lang(lng_download_path_dont_ask),
-			!Global::AskDownloadPath(),
+			lang(lng_download_path_ask),
+			Global::AskDownloadPath(),
 			st::settingsCheckbox),
-#ifndef OS_WIN_STORE
-		st::settingsAskPathPadding);
-#else // OS_WIN_STORE
 		st::settingsCheckboxPadding);
-#endif // OS_WIN_STORE
 
 #ifndef OS_WIN_STORE
 	const auto showpath = Ui::AttachAsChild(
-		dontask,
+		ask,
 		rpl::event_stream<bool>());
-	const auto padding = st::settingsDownloadPathPadding;
 	const auto path = container->add(
-		object_ptr<Ui::SlideWrap<DownloadPathRow>>(
+		object_ptr<Ui::SlideWrap<Button>>(
 			container,
-			object_ptr<DownloadPathRow>(container),
-			QMargins(
-			(padding.left()
-				+ st::settingsCheckbox.checkPosition.x()
-				+ st::defaultCheck.diameter
-				+ st::settingsCheckbox.textPosition.x()
-				- st::settingsCheckbox.margin.left()),
-				padding.top(),
-				padding.right(),
-				padding.bottom())));
-	AddSkip(container, st::settingsCheckboxPadding.bottom());
+			object_ptr<Button>(
+				container,
+				Lang::Viewer(lng_download_path),
+				st::settingsButton)));
+	auto pathtext = rpl::single(
+		rpl::empty_value()
+	) | rpl::then(base::ObservableViewer(
+		Global::RefDownloadPathChanged()
+	)) | rpl::map([] {
+		return DownloadPathText();
+	});
+	CreateRightLabel(
+		path->entity(),
+		std::move(pathtext),
+		st::settingsButton,
+		lng_download_path);
+	path->entity()->addClickHandler([] {
+		Ui::show(Box<DownloadPathBox>());
+	});
 	path->toggleOn(
-		showpath->events_starting_with(!Global::AskDownloadPath()));
+		showpath->events_starting_with_copy(!Global::AskDownloadPath()));
 #endif // OS_WIN_STORE
 
 	base::ObservableViewer(
-		dontask->checkedChanged
+		ask->checkedChanged
 	) | rpl::start_with_next([=](bool checked) {
-		Global::SetAskDownloadPath(!checked);
+		Global::SetAskDownloadPath(checked);
 		Local::writeUserSettings();
 
 #ifndef OS_WIN_STORE
-		showpath->fire_copy(checked);
+		showpath->fire_copy(!checked);
 #endif // OS_WIN_STORE
 
 	}, inner->lifetime());
@@ -547,6 +536,9 @@ void SetupChatOther(not_null<Ui::VerticalLayout*> container) {
 	)->addClickHandler([] {
 		Ui::show(Box<AutoDownloadBox>());
 	});
+
+	SetupExport(container);
+	SetupLocalStorage(container);
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -702,9 +694,10 @@ void Chat::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupStickersEmoji(content);
+	SetupMessages(content);
 	SetupChatBackground(content);
 	SetupThemeOptions(content);
-	SetupChatOther(content);
+	SetupDataStorage(content);
 
 	Ui::ResizeFitChild(this, content);
 }

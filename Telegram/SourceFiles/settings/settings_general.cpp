@@ -12,18 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
-#include "boxes/local_storage_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
-#include "data/data_session.h"
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "storage/localstorage.h"
-#include "auth_session.h"
 #include "layout.h"
 #include "styles/style_settings.h"
 
@@ -61,26 +58,11 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 		) | rpl::then(base::ObservableViewer(
 			Global::RefConnectionTypeChanged()
 		)) | rpl::map(connectionType),
-		st::settingsGeneralButton);
+		st::settingsButton);
 	button->addClickHandler([] {
 		Ui::show(ProxiesBoxController::CreateOwningBox());
 	});
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
-}
-
-void SetupStorageAndConnection(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
-
-	AddButton(
-		container,
-		lng_settings_local_storage,
-		st::settingsGeneralButton
-	)->addClickHandler([] {
-		LocalStorageBox::Show(&Auth().data().cache());
-	});
-	SetupConnectionType(container);
-
-	AddSkip(container);
 }
 
 bool HasUpdate() {
@@ -115,7 +97,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		object_ptr<Button>(
 			container,
 			Lang::Viewer(lng_settings_check_now),
-			st::settingsGeneralButton)));
+			st::settingsButton)));
 	const auto update = Ui::CreateChild<Button>(
 		check->entity(),
 		Lang::Viewer(lng_update_telegram) | Info::Profile::ToUpperValue(),
@@ -405,17 +387,28 @@ General::General(QWidget *parent, UserData *self)
 void General::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	if (!Core::UpdaterDisabled()) {
+	auto empty = true;
+	const auto addDivider = [&] {
+		if (empty) {
+			empty = false;
+		} else {
+			AddDivider(content);
+		}
+	};
+	if (HasConnectionType()) {
+		addDivider();
+		AddSkip(content);
+		SetupConnectionType(content);
+		AddSkip(content);
+	}
+	if (HasUpdate()) {
+		addDivider();
 		AddSkip(content);
 		SetupUpdate(content);
 		AddSkip(content);
 	}
-	if (!Core::UpdaterDisabled()) {
-		AddDivider(content);
-	}
-	SetupStorageAndConnection(content);
 	if (HasTray()) {
-		AddDivider(content);
+		addDivider();
 		AddSkip(content);
 		SetupTray(content);
 		AddSkip(content);

@@ -354,8 +354,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
 "lng_settings_stickers_emoji" = "Stickers and emoji";
+"lng_settings_messages" = "Messages";
 "lng_settings_themes" = "Themes";
-"lng_settings_chat_other" = "Other";
+"lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_password_title" = "Two-step verification";
@@ -369,10 +370,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
 
-"lng_download_path_dont_ask" = "Don't ask download path for each file";
-"lng_download_path_label" = "Download path:";
-"lng_download_path_temp" = "temp folder";
-"lng_download_path_default" = "default folder";
+"lng_download_path_ask" = "Ask download path for each file";
+"lng_download_path" = "Download path";
+"lng_download_path_temp" = "Temp folder";
+"lng_download_path_default" = "Default folder";
 "lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
 "lng_download_path_default_radio" = "Telegram folder in system «Downloads»";

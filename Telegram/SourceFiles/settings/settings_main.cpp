@@ -26,13 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-void SetupLanguageButton(not_null<Ui::VerticalLayout*> container) {
+void SetupLanguageButton(
+		not_null<Ui::VerticalLayout*> container,
+		bool icon) {
 	const auto button = AddButtonWithLabel(
 		container,
 		lng_settings_language,
 		Lang::Viewer(lng_language_name),
-		st::settingsSectionButton,
-		&st::settingsIconLanguage);
+		icon ? st::settingsSectionButton : st::settingsButton,
+		icon ? &st::settingsIconLanguage : nullptr);
 	const auto guard = Ui::AttachAsChild(button, base::binary_guard());
 	button->addClickHandler([=] {
 		*guard = LanguageBox::Show();
@@ -102,7 +104,7 @@ void SetupInterfaceScale(
 	const auto button = AddButton(
 		container,
 		lng_settings_default_scale,
-		icon ? st::settingsSectionButton : st::settingsGeneralButton,
+		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconInterfaceScale : nullptr
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
@@ -201,7 +203,7 @@ void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 	AddButton(
 		container,
 		lng_settings_faq,
-		icon ? st::settingsSectionButton : st::settingsGeneralButton,
+		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconFaq : nullptr
 	)->addClickHandler([] {
 		QDesktopServices::openUrl(telegramFaqLink());

@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
-#include "styles/style_boxes.h"
 
 namespace Settings {
 namespace {
@@ -63,7 +62,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_blocked_users,
-		st::settingsPrivacyButton
+		st::settingsButton
 	)->addClickHandler([] {
 		const auto initBox = [](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_close), [=] {
@@ -103,7 +102,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			container,
 			label,
 			PrivacyString(key),
-			st::settingsPrivacyButton
+			st::settingsButton
 		)->addClickHandler([=] {
 			Ui::show(Box<EditPrivacyBox>(
 				controller(),
@@ -157,7 +156,7 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 		object_ptr<Button>(
 			container,
 			std::move(text),
-			st::settingsPrivacyButton)
+			st::settingsButton)
 	)->addClickHandler([] {
 		Ui::show(Box<PasscodeBox>(false));
 	});
@@ -171,7 +170,7 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 		object_ptr<Button>(
 			inner,
 			Lang::Viewer(lng_settings_passcode_disable),
-			st::settingsPrivacyButton)
+			st::settingsButton)
 	)->addClickHandler([] {
 		Ui::show(Box<PasscodeBox>(true));
 	});
@@ -187,13 +186,12 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 			: lng_passcode_autolock_hours(lt_count, autolock / 3600);
 	});
 
-	const auto autolock = inner->add(
-		object_ptr<Button>(
-			inner,
-			Lang::Viewer(label),
-			st::settingsPrivacyButton));
-	CreateRightLabel(autolock, std::move(value), st::settingsPrivacyButton);
-	autolock->addClickHandler([] {
+	AddButtonWithLabel(
+		inner,
+		label,
+		std::move(value),
+		st::settingsButton
+	)->addClickHandler([] {
 		Ui::show(Box<AutoLockBox>());
 	});
 
@@ -309,12 +307,12 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 				base::duplicate(confirmation),
 				st::settingsCloudPasswordLabel),
 			QMargins(
-				st::settingsPrivacyButton.padding.left(),
-				st::settingsPrivacyButton.padding.top(),
-				st::settingsPrivacyButton.padding.right(),
-				(st::settingsPrivacyButton.height
+				st::settingsButton.padding.left(),
+				st::settingsButton.padding.top(),
+				st::settingsButton.padding.right(),
+				(st::settingsButton.height
 					- st::settingsCloudPasswordLabel.style.font->height
-					+ st::settingsPrivacyButton.padding.bottom()))));
+					+ st::settingsButton.padding.bottom()))));
 	label->toggleOn(base::duplicate(unconfirmed))->setDuration(0);
 
 	std::move(
@@ -336,7 +334,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 			object_ptr<Button>(
 				container,
 				std::move(text),
-				st::settingsPrivacyButton)));
+				st::settingsButton)));
 	change->toggleOn(std::move(
 		unconfirmed
 	) | rpl::map([](bool unconfirmed) {
@@ -354,7 +352,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 			object_ptr<Button>(
 				container,
 				Lang::Viewer(lng_settings_password_disable),
-				st::settingsPrivacyButton)));
+				st::settingsButton)));
 	disable->toggleOn(base::duplicate(has));
 	disable->entity()->addClickHandler([] {
 		if (CheckEditCloudPassword()) {
@@ -385,7 +383,7 @@ void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_self_destruct,
-		st::settingsPrivacyButton
+		st::settingsButton
 	)->addClickHandler([] {
 		Ui::show(Box<SelfDestructionBox>());
 	});
@@ -401,7 +399,7 @@ void SetupSessionsList(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_settings_show_sessions,
-		st::settingsPrivacyButton
+		st::settingsButton
 	)->addClickHandler([] {
 		Ui::show(Box<SessionsBox>());
 	});
@@ -435,7 +433,7 @@ void SetupCalls(not_null<Ui::VerticalLayout*> container) {
 		container,
 		lng_settings_peer_to_peer,
 		std::move(text),
-		st::settingsPrivacyButton
+		st::settingsButton
 	)->addClickHandler([=] {
 		Ui::show(Box<EditCallsPeerToPeer>());
 	});
@@ -444,24 +442,6 @@ void SetupCalls(not_null<Ui::VerticalLayout*> container) {
 	AddDividerText(
 		container,
 		Lang::Viewer(lng_settings_peer_to_peer_about));
-}
-
-void SetupExport(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
-
-	AddButton(
-		container,
-		lng_settings_export_data,
-		st::settingsPrivacyButton
-	)->addClickHandler([] {
-		Ui::hideSettingsAndLayer();
-		App::CallDelayed(
-			st::boxDuration,
-			&Auth(),
-			[] { Auth().data().startExport(); });
-	});
-
-	AddSkip(container);
 }
 
 } // namespace
@@ -481,7 +461,6 @@ void PrivacySecurity::setupContent() {
 	SetupSessionsList(content);
 	SetupSelfDestruction(content);
 	SetupCalls(content);
-	SetupExport(content);
 
 	Ui::ResizeFitChild(this, content);
 }

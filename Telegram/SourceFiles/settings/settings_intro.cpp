@@ -57,12 +57,13 @@ private:
 object_ptr<Ui::RpWidget> CreateIntroSettings(QWidget *parent) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
+	AddDivider(result);
+	AddSkip(result);
+	SetupLanguageButton(result, false);
 	if (HasConnectionType()) {
-		AddDivider(result);
-		AddSkip(result);
 		SetupConnectionType(result);
-		AddSkip(result);
 	}
+	AddSkip(result);
 	if (HasUpdate()) {
 		AddDivider(result);
 		AddSkip(result);

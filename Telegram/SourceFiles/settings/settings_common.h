@@ -89,7 +89,8 @@ not_null<Button*> AddButtonWithLabel(
 void CreateRightLabel(
 	not_null<Button*> button,
 	rpl::producer<QString> label,
-	const style::InfoProfileButton &st);
+	const style::InfoProfileButton &st,
+	LangKey buttonText);
 void AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> conatiner,
 	LangKey text);
