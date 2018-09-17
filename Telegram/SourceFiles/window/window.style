@@ -113,7 +113,7 @@ mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
 	itemFont: semiboldFont;
-	itemIconPosition: point(28px, 10px);
+	itemIconPosition: point(26px, 8px);
 	itemPadding: margins(76px, 13px, 28px, 13px);
 	itemToggle: Toggle(defaultMenuToggle) {
 		toggledFg: mainMenuCoverBg;
@@ -127,10 +127,10 @@ mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
 mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
 mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
 mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
-mainMenuContacts: icon {{ "menu_contacts", menuIconFg }};
-mainMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
-mainMenuCalls: icon {{ "menu_calls", menuIconFg }};
-mainMenuCallsOver: icon {{ "menu_calls", menuIconFgOver }};
+mainMenuContacts: icon {{ "settings_name", menuIconFg }};
+mainMenuContactsOver: icon {{ "settings_name", menuIconFgOver }};
+mainMenuCalls: icon {{ "settings_phone_number", menuIconFg }};
+mainMenuCallsOver: icon {{ "settings_phone_number", menuIconFgOver }};
 mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
 mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
 mainMenuNightMode: icon {{ "menu_night_mode", menuIconFg }};
