@@ -10,59 +10,109 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "apiwrap.h"
+#include "auth_session.h"
 #include "styles/style_boxes.h"
+
+SelfDestructionBox::SelfDestructionBox(
+	QWidget*,
+	rpl::producer<int> preloaded)
+: _ttlValues{ 30, 90, 180, 365 }
+, _loading(
+		this,
+		lang(lng_contacts_loading),
+		Ui::FlatLabel::InitType::Simple,
+		st::membersAbout) {
+	std::move(
+		preloaded
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](int days) {
+		gotCurrent(days);
+	}, lifetime());
+}
+
+void SelfDestructionBox::gotCurrent(int days) {
+	Expects(!_ttlValues.empty());
+
+	_loading.destroy();
+
+	auto daysAdjusted = _ttlValues[0];
+	for (const auto value : _ttlValues) {
+		if (qAbs(days - value) < qAbs(days - daysAdjusted)) {
+			daysAdjusted = value;
+		}
+	}
+	_ttlGroup = std::make_shared<Ui::RadiobuttonGroup>(daysAdjusted);
+
+	if (_prepared) {
+		showContent();
+	}
+}
+
+void SelfDestructionBox::showContent() {
+	auto y = st::boxOptionListPadding.top();
+	_description.create(
+		this,
+		lang(lng_self_destruct_description),
+		Ui::FlatLabel::InitType::Simple,
+		st::boxLabel);
+	_description->moveToLeft(st::boxPadding.left(), y);
+	y += _description->height() + st::boxMediumSkip;
+
+	const auto count = int(_ttlValues.size());
+	for (const auto value : _ttlValues) {
+		const auto button = Ui::CreateChild<Ui::Radiobutton>(
+			this,
+			_ttlGroup,
+			value,
+			DaysLabel(value),
+			st::langsButton);
+		button->moveToLeft(st::boxPadding.left(), y);
+		y += button->heightNoMargins() + st::boxOptionListSkip;
+	}
+	showChildren();
+
+	clearButtons();
+	addButton(langFactory(lng_settings_save), [=] {
+		Auth().api().saveSelfDestruct(_ttlGroup->value());
+		closeBox();
+	});
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+}
+
+QString SelfDestructionBox::DaysLabel(int days) {
+	return (days > 364)
+		? lng_self_destruct_years(lt_count, days / 365)
+		: lng_self_destruct_months(lt_count, qMax(days / 30, 1));
+}
 
 void SelfDestructionBox::prepare() {
 	setTitle(langFactory(lng_self_destruct_title));
 
-	_ttlValues = { 30, 90, 180, 365 };
-
-	auto fake = object_ptr<Ui::FlatLabel>(this, lang(lng_self_destruct_description), Ui::FlatLabel::InitType::Simple, st::boxLabel);
-	auto boxHeight = st::boxOptionListPadding.top()
+	auto fake = object_ptr<Ui::FlatLabel>(
+		this,
+		lang(lng_self_destruct_description),
+		Ui::FlatLabel::InitType::Simple,
+		st::boxLabel);
+	const auto boxHeight = st::boxOptionListPadding.top()
 		+ fake->height() + st::boxMediumSkip
-		+ _ttlValues.size() * (st::defaultRadio.diameter + st::boxOptionListSkip) - st::boxOptionListSkip
+		+ (_ttlValues.size()
+			* (st::defaultRadio.diameter + st::boxOptionListSkip))
+		- st::boxOptionListSkip
 		+ st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
 	fake.destroy();
 
 	setDimensions(st::boxWidth, boxHeight);
 
-	auto loading = object_ptr<Ui::FlatLabel>(this, lang(lng_contacts_loading), Ui::FlatLabel::InitType::Simple, st::membersAbout);
-	loading->moveToLeft((st::boxWidth - loading->width()) / 2, boxHeight / 3);
-
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	request(MTPaccount_GetAccountTTL()).done([this, loading = std::move(loading)](const MTPAccountDaysTTL &result) mutable {
-		Expects(result.type() == mtpc_accountDaysTTL);
-		Expects(!_ttlValues.empty());
-
-		loading.destroy();
-		auto y = st::boxOptionListPadding.top();
-		_description.create(this, lang(lng_self_destruct_description), Ui::FlatLabel::InitType::Simple, st::boxLabel);
-		_description->moveToLeft(st::boxPadding.left(), y);
-		y += _description->height() + st::boxMediumSkip;
-
-		auto current = result.c_accountDaysTTL().vdays.v;
-		auto currentAdjusted = _ttlValues[0];
-		for (auto days : _ttlValues) {
-			if (qAbs(current - days) < qAbs(current - currentAdjusted)) {
-				currentAdjusted = days;
-			}
-		}
-		auto group = std::make_shared<Ui::RadiobuttonGroup>(currentAdjusted);
-		auto count = int(_ttlValues.size());
-		_options.reserve(count);
-		for (auto days : _ttlValues) {
-			_options.emplace_back(this, group, days, (days > 364) ? lng_self_destruct_years(lt_count, days / 365) : lng_self_destruct_months(lt_count, qMax(days / 30, 1)), st::langsButton);
-			_options.back()->moveToLeft(st::boxPadding.left(), y);
-			y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
-		}
-		showChildren();
-
-		clearButtons();
-		addButton(langFactory(lng_settings_save), [this, group] {
-			MTP::send(MTPaccount_SetAccountTTL(MTP_accountDaysTTL(MTP_int(group->value()))));
-			closeBox();
-		});
-		addButton(langFactory(lng_cancel), [this] { closeBox(); });
-	}).send();
+	if (_loading) {
+		_loading->moveToLeft(
+			(st::boxWidth - _loading->width()) / 2,
+			boxHeight / 3);
+		_prepared = true;
+	} else {
+		showContent();
+	}
 }

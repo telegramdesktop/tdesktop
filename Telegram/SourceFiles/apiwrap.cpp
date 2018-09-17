@@ -5039,6 +5039,7 @@ void ApiWrap::reloadPrivacy(Privacy::Key key) {
 	}).fail([=](const RPCError &error) {
 		_privacyRequestIds.erase(key);
 	}).send();
+	_privacyRequestIds.emplace(key, requestId);
 }
 
 auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
@@ -5111,6 +5112,44 @@ auto ApiWrap::privacyValue(Privacy::Key key) -> rpl::producer<Privacy> {
 	} else {
 		return _privacyChanges[key].events();
 	}
+}
+
+void ApiWrap::reloadSelfDestruct() {
+	if (_selfDestructRequestId) {
+		return;
+	}
+	_selfDestructRequestId = request(MTPaccount_GetAccountTTL(
+	)).done([=](const MTPAccountDaysTTL &result) {
+		_selfDestructRequestId = 0;
+		result.match([&](const MTPDaccountDaysTTL &data) {
+			setSelfDestructDays(data.vdays.v);
+		});
+	}).fail([=](const RPCError &error) {
+		_selfDestructRequestId = 0;
+	}).send();
+}
+
+rpl::producer<int> ApiWrap::selfDestructValue() const {
+	return _selfDestructDays
+		? _selfDestructChanges.events_starting_with_copy(*_selfDestructDays)
+		: (_selfDestructChanges.events() | rpl::type_erased());
+}
+
+void ApiWrap::saveSelfDestruct(int days) {
+	request(_selfDestructRequestId).cancel();
+	_selfDestructRequestId = request(MTPaccount_SetAccountTTL(
+		MTP_accountDaysTTL(MTP_int(days))
+	)).done([=](const MTPBool &result) {
+		_selfDestructRequestId = 0;
+	}).fail([=](const RPCError &result) {
+		_selfDestructRequestId = 0;
+	}).send();
+	setSelfDestructDays(days);
+}
+
+void ApiWrap::setSelfDestructDays(int days) {
+	_selfDestructDays = days;
+	_selfDestructChanges.fire_copy(days);
 }
 
 void ApiWrap::readServerHistory(not_null<History*> history) {

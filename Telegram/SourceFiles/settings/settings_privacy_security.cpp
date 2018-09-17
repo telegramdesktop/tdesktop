@@ -380,12 +380,21 @@ void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 	AddSubsectionTitle(container, lng_settings_destroy_title);
 
-	AddButton(
+	Auth().api().reloadSelfDestruct();
+	const auto label = [] {
+		return Auth().api().selfDestructValue(
+		) | rpl::map(
+			SelfDestructionBox::DaysLabel
+		);
+	};
+
+	AddButtonWithLabel(
 		container,
-		lng_settings_self_destruct,
+		lng_settings_destroy_if,
+		label(),
 		st::settingsButton
 	)->addClickHandler([] {
-		Ui::show(Box<SelfDestructionBox>());
+		Ui::show(Box<SelfDestructionBox>(Auth().api().selfDestructValue()));
 	});
 
 	AddSkip(container);

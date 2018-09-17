@@ -360,6 +360,10 @@ public:
 	void reloadPrivacy(Privacy::Key key);
 	rpl::producer<Privacy> privacyValue(Privacy::Key key);
 
+	void reloadSelfDestruct();
+	rpl::producer<int> selfDestructValue() const;
+	void saveSelfDestruct(int days);
+
 	~ApiWrap();
 
 private:
@@ -549,6 +553,8 @@ private:
 		const QVector<MTPPrivacyRule> &rules);
 	void updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules);
 
+	void setSelfDestructDays(int days);
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -709,5 +715,9 @@ private:
 	base::flat_map<Privacy::Key, mtpRequestId> _privacyRequestIds;
 	base::flat_map<Privacy::Key, Privacy> _privacyValues;
 	std::map<Privacy::Key, rpl::event_stream<Privacy>> _privacyChanges;
+
+	mtpRequestId _selfDestructRequestId = 0;
+	base::optional<int> _selfDestructDays;
+	rpl::event_stream<int> _selfDestructChanges;
 
 };
