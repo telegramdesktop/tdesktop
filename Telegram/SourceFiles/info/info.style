@@ -395,8 +395,6 @@ infoBlockHeaderLabel: FlatLabel(infoProfileStatusLabel) {
 infoBlockHeaderPosition: point(79px, 22px);
 
 infoProfileToggle: Toggle(defaultToggle) {
-	diameter: 16px;
-	width: 14px;
 	untoggledFg: menuIconFg;
 }
 infoProfileToggleOver: Toggle(infoProfileToggle) {

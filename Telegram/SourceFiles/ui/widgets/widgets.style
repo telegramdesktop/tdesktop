@@ -754,8 +754,8 @@ defaultToggle: Toggle {
 	duration: 120;
 	border: 2px;
 	shift: 1px;
-	diameter: 20px;
-	width: 16px;
+	diameter: 16px;
+	width: 14px;
 	xsize: 0px;
 	vsize: 0px;
 	vshift: 0px;

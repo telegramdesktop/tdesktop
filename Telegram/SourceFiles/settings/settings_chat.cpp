@@ -467,25 +467,18 @@ void SetupLocalStorage(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
 	AddDivider(container);
 	AddSkip(container, st::settingsSectionSkip);
 
 	AddSubsectionTitle(container, lng_settings_data_storage);
 
-	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	const auto inner = wrap.data();
-	container->add(object_ptr<Ui::OverrideMargins>(
+	const auto ask = AddButton(
 		container,
-		std::move(wrap),
-		QMargins(0, 0, 0, st::settingsCheckbox.margin.bottom())));
-
-	const auto ask = inner->add(
-		object_ptr<Ui::Checkbox>(
-			inner,
-			lang(lng_download_path_ask),
-			Global::AskDownloadPath(),
-			st::settingsCheckbox),
-		st::settingsCheckboxPadding);
+		lng_download_path_ask,
+		st::settingsButton
+	)->toggleOn(rpl::single(Global::AskDownloadPath()));
 
 #ifndef OS_WIN_STORE
 	const auto showpath = Ui::AttachAsChild(
@@ -513,13 +506,13 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 	path->entity()->addClickHandler([] {
 		Ui::show(Box<DownloadPathBox>());
 	});
-	path->toggleOn(
-		showpath->events_starting_with_copy(!Global::AskDownloadPath()));
+	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
 
-	base::ObservableViewer(
-		ask->checkedChanged
-	) | rpl::start_with_next([=](bool checked) {
+	ask->toggledValue(
+	) | rpl::filter([](bool checked) {
+		return (checked != Global::AskDownloadPath());
+	}) | rpl::start_with_next([=](bool checked) {
 		Global::SetAskDownloadPath(checked);
 		Local::writeUserSettings();
 
@@ -527,7 +520,7 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 		showpath->fire_copy(!checked);
 #endif // OS_WIN_STORE
 
-	}, inner->lifetime());
+	}, ask->lifetime());
 
 	AddButton(
 		container,
@@ -696,8 +689,8 @@ void Chat::setupContent() {
 	SetupStickersEmoji(content);
 	SetupMessages(content);
 	SetupChatBackground(content);
-	SetupThemeOptions(content);
 	SetupDataStorage(content);
+	SetupThemeOptions(content);
 
 	Ui::ResizeFitChild(this, content);
 }

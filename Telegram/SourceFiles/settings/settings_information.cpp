@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+constexpr auto kSaveBioTimeout = 1000;
+
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::Controller*> controller,
@@ -348,6 +350,30 @@ BioManager SetupBio(
 		}
 	}, bio->lifetime());
 
+	const auto generation = Ui::AttachAsChild(bio, 0);
+	changed->events(
+	) | rpl::start_with_next([=](bool changed) {
+		if (changed) {
+			const auto saved = *generation = std::abs(*generation) + 1;
+			App::CallDelayed(kSaveBioTimeout, bio, [=] {
+				if (*generation == saved) {
+					save(nullptr);
+					*generation = 0;
+				}
+			});
+		} else if (*generation > 0) {
+			*generation = -*generation;
+		}
+	}, bio->lifetime());
+
+	// We need 'bio' to still exist here as InputField, so we add this
+	// to 'container' lifetime, not to the 'bio' lifetime.
+	container->lifetime().add([=] {
+		if (*generation > 0) {
+			save(nullptr);
+		}
+	});
+
 	bio->setMaxLength(kMaxBioLength);
 	bio->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	auto cursor = bio->textCursor();
@@ -387,22 +413,23 @@ Information::Information(
 	setupContent(controller);
 }
 
-rpl::producer<bool> Information::sectionCanSaveChanges() {
-	return _canSaveChanges.value();
-}
-
-void Information::sectionSaveChanges(FnMut<void()> done) {
-	_save(std::move(done));
-}
+//rpl::producer<bool> Information::sectionCanSaveChanges() {
+//	return _canSaveChanges.value();
+//}
+//
+//void Information::sectionSaveChanges(FnMut<void()> done) {
+//	_save(std::move(done));
+//}
 
 void Information::setupContent(not_null<Window::Controller*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupPhoto(content, controller, _self);
 	SetupRows(content, _self);
-	auto manager = SetupBio(content, _self);
-	_canSaveChanges = std::move(manager.canSave);
-	_save = std::move(manager.save);
+	SetupBio(content, _self);
+	//auto manager = SetupBio(content, _self);
+	//_canSaveChanges = std::move(manager.canSave);
+	//_save = std::move(manager.save);
 
 	Ui::ResizeFitChild(this, content);
 }
