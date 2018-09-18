@@ -40,6 +40,7 @@
     'xcode_settings': {
       'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
+        '-isysroot', '/',
         '-lbase',
         '-lcrashpad_client',
         '-lcrashpad_util',

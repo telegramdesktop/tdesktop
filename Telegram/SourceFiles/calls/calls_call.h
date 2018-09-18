@@ -47,6 +47,8 @@ public:
 		};
 		virtual void playSound(Sound sound) = 0;
 
+		virtual ~Delegate();
+
 	};
 
 	static constexpr auto kSoundSampleMs = 100;

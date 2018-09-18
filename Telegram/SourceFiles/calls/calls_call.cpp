@@ -119,6 +119,8 @@ Call::ControllerPointer::~ControllerPointer() {
 	reset();
 }
 
+Call::Delegate::~Delegate() = default;
+
 Call::Call(
 	not_null<Delegate*> delegate,
 	not_null<UserData*> user,
