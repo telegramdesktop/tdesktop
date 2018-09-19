@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_privacy_controllers.h"
 
+#include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
@@ -14,8 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "storage/localstorage.h"
 #include "history/history.h"
+#include "calls/calls_instance.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/wrap/vertical_layout.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
+#include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
 namespace {
@@ -232,18 +238,21 @@ QString LastSeenPrivacyController::title() {
 	return lang(lng_edit_privacy_lastseen_title);
 }
 
-QString LastSeenPrivacyController::description() {
-	return lang(lng_edit_privacy_lastseen_description);
+LangKey LastSeenPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_lastseen_header;
 }
 
-QString LastSeenPrivacyController::warning() {
-	return lang(lng_edit_privacy_lastseen_warning);
+rpl::producer<QString> LastSeenPrivacyController::warning() {
+	return Lang::Viewer(lng_edit_privacy_lastseen_warning);
 }
 
-QString LastSeenPrivacyController::exceptionLinkText(Exception exception, int count) {
+LangKey LastSeenPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
 	switch (exception) {
-	case Exception::Always: return (count > 0) ? lng_edit_privacy_lastseen_always(lt_count, count) : lang(lng_edit_privacy_lastseen_always_empty);
-	case Exception::Never: return (count > 0) ? lng_edit_privacy_lastseen_never(lt_count, count) : lang(lng_edit_privacy_lastseen_never_empty);
+	case Exception::Always:
+		return lng_edit_privacy_lastseen_always_empty;
+	case Exception::Never:
+		return lng_edit_privacy_lastseen_never_empty;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -256,8 +265,8 @@ QString LastSeenPrivacyController::exceptionBoxTitle(Exception exception) {
 	Unexpected("Invalid exception value.");
 }
 
-QString LastSeenPrivacyController::exceptionsDescription() {
-	return lang(lng_edit_privacy_lastseen_exceptions);
+rpl::producer<QString> LastSeenPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_lastseen_exceptions);
 }
 
 void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) {
@@ -294,14 +303,15 @@ bool GroupsInvitePrivacyController::hasOption(Option option) {
 	return (option != Option::Nobody);
 }
 
-QString GroupsInvitePrivacyController::description() {
-	return lang(lng_edit_privacy_groups_description);
+LangKey GroupsInvitePrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_groups_header;
 }
 
-QString GroupsInvitePrivacyController::exceptionLinkText(Exception exception, int count) {
+LangKey GroupsInvitePrivacyController::exceptionButtonTextKey(
+		Exception exception) {
 	switch (exception) {
-	case Exception::Always: return (count > 0) ? lng_edit_privacy_groups_always(lt_count, count) : lang(lng_edit_privacy_groups_always_empty);
-	case Exception::Never: return (count > 0) ? lng_edit_privacy_groups_never(lt_count, count) : lang(lng_edit_privacy_groups_never_empty);
+	case Exception::Always: return lng_edit_privacy_groups_always_empty;
+	case Exception::Never: return lng_edit_privacy_groups_never_empty;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -314,8 +324,9 @@ QString GroupsInvitePrivacyController::exceptionBoxTitle(Exception exception) {
 	Unexpected("Invalid exception value.");
 }
 
-QString GroupsInvitePrivacyController::exceptionsDescription() {
-	return lang(lng_edit_privacy_groups_exceptions);
+auto GroupsInvitePrivacyController::exceptionsDescription()
+-> rpl::producer<QString> {
+	return Lang::Viewer(lng_edit_privacy_groups_exceptions);
 }
 
 ApiWrap::Privacy::Key CallsPrivacyController::key() {
@@ -330,14 +341,15 @@ QString CallsPrivacyController::title() {
 	return lang(lng_edit_privacy_calls_title);
 }
 
-QString CallsPrivacyController::description() {
-	return lang(lng_edit_privacy_calls_description);
+LangKey CallsPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_calls_header;
 }
 
-QString CallsPrivacyController::exceptionLinkText(Exception exception, int count) {
+LangKey CallsPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
 	switch (exception) {
-	case Exception::Always: return (count > 0) ? lng_edit_privacy_calls_always(lt_count, count) : lang(lng_edit_privacy_calls_always_empty);
-	case Exception::Never: return (count > 0) ? lng_edit_privacy_calls_never(lt_count, count) : lang(lng_edit_privacy_calls_never_empty);
+	case Exception::Always: return lng_edit_privacy_calls_always_empty;
+	case Exception::Never: return lng_edit_privacy_calls_never_empty;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -350,8 +362,54 @@ QString CallsPrivacyController::exceptionBoxTitle(Exception exception) {
 	Unexpected("Invalid exception value.");
 }
 
-QString CallsPrivacyController::exceptionsDescription() {
-	return lang(lng_edit_privacy_calls_exceptions);
+rpl::producer<QString> CallsPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_calls_exceptions);
+}
+
+Fn<void()> CallsPrivacyController::setupAdditional(
+		not_null<Ui::VerticalLayout*> container) {
+	using PeerToPeer = Calls::PeerToPeer;
+	const auto convert = [](PeerToPeer value) {
+		switch (value) {
+		case PeerToPeer::DefaultContacts: return Option::Contacts;
+		case PeerToPeer::DefaultEveryone: return Option::Everyone;
+		case PeerToPeer::Everyone: return Option::Everyone;
+		case PeerToPeer::Contacts: return Option::Contacts;
+		case PeerToPeer::Nobody: return Option::Nobody;
+		}
+		Unexpected("Calls::PeerToPeer value.");
+	};
+	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>(
+		convert(Auth().settings().callsPeerToPeer()));
+	const auto changed = Ui::AttachAsChild(container, false);
+	group->setChangedCallback([=](Option) {
+		*changed = true;
+	});
+
+	AddDivider(container);
+	AddSkip(container);
+	AddSubsectionTitle(container, lng_settings_peer_to_peer);
+	EditPrivacyBox::AddOption(container, group, Option::Everyone);
+	EditPrivacyBox::AddOption(container, group, Option::Contacts);
+	EditPrivacyBox::AddOption(container, group, Option::Nobody);
+	EditPrivacyBox::AddLabel(
+		container,
+		Lang::Viewer(lng_settings_peer_to_peer_about));
+	AddSkip(container);
+
+	return [=] {
+		if (*changed) {
+			Auth().settings().setCallsPeerToPeer([&] {
+				switch (group->value()) {
+				case Option::Everyone: return PeerToPeer::Everyone;
+				case Option::Contacts: return PeerToPeer::Contacts;
+				case Option::Nobody: return PeerToPeer::Nobody;
+				}
+				Unexpected("PeerToPeer edit value.");
+			}());
+			Auth().saveSettingsDelayed();
+		}
+	};
 }
 
 } // namespace Settings

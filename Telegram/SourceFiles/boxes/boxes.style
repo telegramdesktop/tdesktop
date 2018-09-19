@@ -619,27 +619,6 @@ colorValueInput: InputField(defaultInputField) {
 colorResultInput: InputField(colorValueInput) {
 }
 
-editPrivacyOptionMargin: margins(23px, 14px, 21px, 0px);
-editPrivacyPadding: margins(23px, 0px, 21px, 0px);
-editPrivacyWarningPadding: margins(23px, 14px, 21px, 0px);
-editPrivacyTitle: FlatLabel(defaultFlatLabel) {
-	minWidth: 320px;
-	textFg: boxTitleFg;
-	maxHeight: 56px;
-	style: TextStyle(defaultTextStyle) {
-		font: boxTitleFont;
-		linkFont: boxTitleFont;
-		linkFontOver: boxTitleFont;
-	}
-}
-editPrivacyTitlePadding: margins(23px, 20px, 21px, 13px);
-editPrivacyLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 320px;
-	textFg: membersAboutLimitFg;
-	style: defaultTextStyle;
-}
-editPrivacyLinkMargin: margins(0px, 0px, 0px, 8px);
-
 changePhoneIcon: icon {
 	{ "phone_simcard_from", changePhoneSimcardFrom },
 	{ "phone_simcard_migrate", changePhoneSimcardTo, point(30px, 11px) },

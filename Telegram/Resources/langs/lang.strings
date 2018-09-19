@@ -425,8 +425,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_remove" = "Remove local passcode";
 "lng_passcode_turn_off" = "Turn off";
 "lng_passcode_autolock" = "Auto-Lock";
-"lng_passcode_autolock_away" = "Auto-Lock if away for:";
-"lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
+"lng_passcode_autolock_away" = "Auto-Lock if away for...";
+"lng_passcode_autolock_inactive" = "Auto-Lock if inactive for...";
 "lng_passcode_autolock_minutes#one" = "{count} minute";
 "lng_passcode_autolock_minutes#other" = "{count} minutes";
 "lng_passcode_autolock_hours#one" = "{count} hour";
@@ -558,38 +558,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_exceptions" = "Add exceptions";
 
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
-"lng_edit_privacy_lastseen_description" = "You can choose who can see your last seen time:";
+"lng_edit_privacy_lastseen_header" = "Who can see your last seen time";
 "lng_edit_privacy_lastseen_warning" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
 "lng_edit_privacy_lastseen_always_empty" = "Always share with";
-"lng_edit_privacy_lastseen_always#one" = "Always share with {count} user";
-"lng_edit_privacy_lastseen_always#other" = "Always share with {count} users";
 "lng_edit_privacy_lastseen_never_empty" = "Never share with";
-"lng_edit_privacy_lastseen_never#one" = "Never share with {count} user";
-"lng_edit_privacy_lastseen_never#other" = "Never share with {count} users";
+"lng_edit_privacy_exceptions_count#one" = "{count} user";
+"lng_edit_privacy_exceptions_count#other" = "{count} users";
+"lng_edit_privacy_exceptions_add" = "Add users";
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
 
 "lng_edit_privacy_groups_title" = "Group invite settings";
-"lng_edit_privacy_groups_description" = "You can choose who can add you to groups and channels with granular precision:";
+"lng_edit_privacy_groups_header" = "Who can invite you to groups and channels";
 "lng_edit_privacy_groups_always_empty" = "Always allow";
-"lng_edit_privacy_groups_always#one" = "Always allow {count} user";
-"lng_edit_privacy_groups_always#other" = "Always allow {count} users";
 "lng_edit_privacy_groups_never_empty" = "Never allow";
-"lng_edit_privacy_groups_never#one" = "Never allow {count} user";
-"lng_edit_privacy_groups_never#other" = "Never allow {count} users";
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
 
 "lng_edit_privacy_calls_title" = "Telegram call privacy";
-"lng_edit_privacy_calls_description" = "You can restrict who can call you:";
+"lng_edit_privacy_calls_header" = "Who can call you";
 "lng_edit_privacy_calls_always_empty" = "Always allow";
-"lng_edit_privacy_calls_always#one" = "Always allow {count} user";
-"lng_edit_privacy_calls_always#other" = "Always allow {count} users";
 "lng_edit_privacy_calls_never_empty" = "Never allow";
-"lng_edit_privacy_calls_never#one" = "Never allow {count} user";
-"lng_edit_privacy_calls_never#other" = "Never allow {count} users";
 "lng_edit_privacy_calls_exceptions" = "These users will or will not be able to call you regardless of the settings above.";
 "lng_edit_privacy_calls_always_title" = "Always allow";
 "lng_edit_privacy_calls_never_title" = "Never allow";

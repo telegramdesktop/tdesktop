@@ -11,11 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "apiwrap.h"
 
+enum LangKey : int;
+
 namespace Calls {
 enum class PeerToPeer;
 } // namespace Calls
 
 namespace Ui {
+class VerticalLayout;
 class FlatLabel;
 class LinkButton;
 template <typename Enum>
@@ -46,16 +49,22 @@ public:
 		virtual bool hasOption(Option option) {
 			return true;
 		}
-		virtual QString description() = 0;
-		virtual QString warning() {
-			return QString();
+		virtual LangKey optionsTitleKey() = 0;
+		virtual rpl::producer<QString> warning() {
+			return rpl::never<QString>();
 		}
-		virtual QString exceptionLinkText(Exception exception, int count) = 0;
+		virtual LangKey exceptionButtonTextKey(Exception exception) = 0;
 		virtual QString exceptionBoxTitle(Exception exception) = 0;
-		virtual QString exceptionsDescription() = 0;
+		virtual rpl::producer<QString> exceptionsDescription() = 0;
 
-		virtual void confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) {
+		virtual void confirmSave(
+				bool someAreDisallowed,
+				FnMut<void()> saveCallback) {
 			saveCallback();
+		}
+		virtual Fn<void()> setupAdditional(
+				not_null<Ui::VerticalLayout*> container) {
+			return nullptr;
 		}
 
 		virtual ~Controller() = default;
@@ -79,59 +88,28 @@ public:
 	EditPrivacyBox(
 		QWidget*,
 		std::unique_ptr<Controller> controller,
-		rpl::producer<Value> preloaded);
+		const Value &value);
+
+	static Ui::Radioenum<Option> *AddOption(
+		not_null<Ui::VerticalLayout*> container,
+		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
+		Option option);
+	static Ui::FlatLabel *AddLabel(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text);
 
 protected:
 	void prepare() override;
-	int resizeGetHeight(int newWidth) override;
-
-	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	style::margins exceptionLinkMargins() const;
 	bool showExceptionLink(Exception exception) const;
-	void createWidgets();
+	void setupContent();
 	QVector<MTPInputPrivacyRule> collectResult();
-	void dataReady(Value &&value);
-	int countDefaultHeight(int newWidth);
 
-	void editExceptionUsers(Exception exception);
-	QString exceptionLinkText(Exception exception);
+	void editExceptionUsers(Exception exception, Fn<void()> done);
 	std::vector<not_null<UserData*>> &exceptionUsers(Exception exception);
-	object_ptr<Ui::SlideWrap<Ui::LinkButton>> &exceptionLink(
-		Exception exception);
 
 	std::unique_ptr<Controller> _controller;
 	Value _value;
-	bool _prepared = false;
-
-	std::shared_ptr<Ui::RadioenumGroup<Option>> _optionGroup;
-	object_ptr<Ui::FlatLabel> _loading;
-	object_ptr<Ui::FlatLabel> _description = { nullptr };
-	object_ptr<Ui::Radioenum<Option>> _everyone = { nullptr };
-	object_ptr<Ui::Radioenum<Option>> _contacts = { nullptr };
-	object_ptr<Ui::Radioenum<Option>> _nobody = { nullptr };
-	object_ptr<Ui::FlatLabel> _warning = { nullptr };
-	object_ptr<Ui::FlatLabel> _exceptionsTitle = { nullptr };
-	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
-	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
-	object_ptr<Ui::FlatLabel> _exceptionsDescription = { nullptr };
-
-};
-
-class EditCallsPeerToPeer : public BoxContent {
-public:
-	EditCallsPeerToPeer(QWidget*) {
-	}
-
-protected:
-	void prepare() override;
-
-private:
-	using PeerToPeer = Calls::PeerToPeer;
-
-	void chosen(PeerToPeer value);
-
-	std::vector<object_ptr<Ui::Radioenum<PeerToPeer>>> _options;
 
 };

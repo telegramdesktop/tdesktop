@@ -530,8 +530,8 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 		Ui::show(Box<AutoDownloadBox>());
 	});
 
-	SetupExport(container);
 	SetupLocalStorage(container);
+	SetupExport(container);
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -688,8 +688,8 @@ void Chat::setupContent() {
 
 	SetupStickersEmoji(content);
 	SetupMessages(content);
-	SetupChatBackground(content);
 	SetupDataStorage(content);
+	SetupChatBackground(content);
 	SetupThemeOptions(content);
 
 	Ui::ResizeFitChild(this, content);

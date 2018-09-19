@@ -98,15 +98,22 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		});
 	};
 	const auto add = [&](LangKey label, Privacy::Key key, auto controller) {
+		const auto shower = Ui::AttachAsChild(container, rpl::lifetime());
 		AddButtonWithLabel(
 			container,
 			label,
 			PrivacyString(key),
 			st::settingsButton
 		)->addClickHandler([=] {
-			Ui::show(Box<EditPrivacyBox>(
-				controller(),
-				Auth().api().privacyValue(key)));
+			*shower = Auth().api().privacyValue(
+				key
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=](const Privacy &value) {
+				Ui::show(Box<EditPrivacyBox>(
+					controller(),
+					value));
+			});
 		});
 	};
 	add(
@@ -418,41 +425,6 @@ void SetupSessionsList(not_null<Ui::VerticalLayout*> container) {
 		Lang::Viewer(lng_settings_sessions_about));
 }
 
-void SetupCalls(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_calls_title);
-
-	using Privacy = ApiWrap::Privacy;
-	using PeerToPeer = Calls::PeerToPeer;
-	auto text = Auth().settings().callsPeerToPeerValue(
-	) | rpl::map([](PeerToPeer value) {
-		switch (value) {
-		case PeerToPeer::DefaultContacts: return Privacy::Option::Contacts;
-		case PeerToPeer::DefaultEveryone: return Privacy::Option::Everyone;
-		case PeerToPeer::Everyone: return Privacy::Option::Everyone;
-		case PeerToPeer::Contacts: return Privacy::Option::Contacts;
-		case PeerToPeer::Nobody: return Privacy::Option::Nobody;
-		}
-		Unexpected("Calls::PeerToPeer value.");
-	}) | rpl::map([](Privacy::Option option) {
-		return PrivacyBase(option);
-	});
-	AddButtonWithLabel(
-		container,
-		lng_settings_peer_to_peer,
-		std::move(text),
-		st::settingsButton
-	)->addClickHandler([=] {
-		Ui::show(Box<EditCallsPeerToPeer>());
-	});
-
-	AddSkip(container, st::settingsPrivacySecurityPadding);
-	AddDividerText(
-		container,
-		Lang::Viewer(lng_settings_peer_to_peer_about));
-}
-
 } // namespace
 
 PrivacySecurity::PrivacySecurity(QWidget *parent, not_null<UserData*> self)
@@ -469,7 +441,6 @@ void PrivacySecurity::setupContent() {
 	SetupCloudPassword(content);
 	SetupSessionsList(content);
 	SetupSelfDestruction(content);
-	SetupCalls(content);
 
 	Ui::ResizeFitChild(this, content);
 }

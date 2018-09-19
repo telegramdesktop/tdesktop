@@ -150,3 +150,5 @@ settingsBioCountdown: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 settingsBioLabelPadding: margins(22px, 11px, 22px, 0px);
+
+settingsPrivacyEditLabelPadding: margins(22px, 11px, 22px, 11px);
