@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_general.h"
 
 #include "settings/settings_common.h"
+#include "settings/settings_chat.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
@@ -395,23 +396,35 @@ void General::setupContent() {
 			AddDivider(content);
 		}
 	};
+	const auto addUpdate = [&] {
+		if (HasUpdate()) {
+			addDivider();
+			AddSkip(content);
+			AddSubsectionTitle(content, lng_settings_version_info);
+			SetupUpdate(content);
+			AddSkip(content);
+		}
+	};
+	if (!cAutoUpdate()) {
+		addUpdate();
+	}
 	if (HasConnectionType()) {
 		addDivider();
 		AddSkip(content);
+		AddSubsectionTitle(content, lng_settings_network_proxy);
 		SetupConnectionType(content);
 		AddSkip(content);
 	}
-	if (HasUpdate()) {
-		addDivider();
-		AddSkip(content);
-		SetupUpdate(content);
-		AddSkip(content);
-	}
+	SetupDataStorage(content);
 	if (HasTray()) {
 		addDivider();
 		AddSkip(content);
+		AddSubsectionTitle(content, lng_settings_system_integration);
 		SetupTray(content);
 		AddSkip(content);
+	}
+	if (cAutoUpdate()) {
+		addUpdate();
 	}
 
 	Ui::ResizeFitChild(this, content);

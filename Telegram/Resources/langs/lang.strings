@@ -331,7 +331,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_language" = "Language";
 "lng_settings_default_scale" = "Default interface scale";
 "lng_settings_edit_info" = "Edit information";
-"lng_settings_local_storage" = "Local storage";
 "lng_settings_connection_type" = "Connection type";
 "lng_settings_downloading_update" = "Downloading update {progress}...";
 "lng_settings_use_night_mode" = "Use night mode";
@@ -362,6 +361,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_password_title" = "Two-step verification";
 "lng_settings_sessions_title" = "Active sessions";
 "lng_settings_destroy_title" = "Delete my account";
+"lng_settings_network_proxy" = "Network and proxy";
+"lng_settings_version_info" = "Version and updates";
+"lng_settings_system_integration" = "System integration";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";
@@ -472,7 +474,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_is_same" = "Password was not changed";
 "lng_cloud_password_passport_losing" = "Warning! All data saved in your Telegram Passport will be lost!";
 
-"lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting...)";
 "lng_connection_auto" = "Default ({transport} used)";
 "lng_connection_proxy_connecting" = "Connecting through proxy...";
@@ -968,7 +969,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_video" = "Video";
 "lng_media_audio" = "Voice message";
 
-"lng_media_auto_settings" = "Automatic media download settings";
+"lng_media_auto_settings" = "Automatic media download";
 "lng_media_auto_photo" = "Automatic photo download";
 "lng_media_auto_audio" = "Automatic voice message download";
 "lng_media_auto_gif" = "Automatic GIF download";

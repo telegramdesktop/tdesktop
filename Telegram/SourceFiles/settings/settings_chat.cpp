@@ -384,7 +384,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 
 void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	AddSkip(container, st::settingsSectionSkip);
+	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_messages);
 
@@ -459,7 +459,7 @@ void SetupExport(not_null<Ui::VerticalLayout*> container) {
 void SetupLocalStorage(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		lng_settings_local_storage,
+		lng_settings_manage_local_storage,
 		st::settingsButton
 	)->addClickHandler([] {
 		LocalStorageBox::Show(&Auth().data().cache());
@@ -470,7 +470,7 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 	using namespace rpl::mappers;
 
 	AddDivider(container);
-	AddSkip(container, st::settingsSectionSkip);
+	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_data_storage);
 
@@ -538,7 +538,7 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 
 void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
-	AddSkip(container, st::settingsSectionSkip);
+	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_section_background);
 
@@ -688,7 +688,6 @@ void Chat::setupContent() {
 
 	SetupStickersEmoji(content);
 	SetupMessages(content);
-	SetupDataStorage(content);
 	SetupChatBackground(content);
 	SetupThemeOptions(content);
 
