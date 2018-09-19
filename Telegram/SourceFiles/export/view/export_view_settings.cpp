@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_settings.h"
 
 #include "export/output/export_output_abstract.h"
+#include "export/view/export_view_panel_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -76,6 +77,7 @@ SettingsWidget::SettingsWidget(QWidget *parent, Settings data)
 : RpWidget(parent)
 , _singlePeerId(ReadPeerId(data.singlePeer))
 , _internal_data(std::move(data)) {
+	ResolveSettings(_internal_data);
 	setupContent();
 }
 
@@ -240,13 +242,7 @@ void SettingsWidget::addLocationLabel(
 		return data.path;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](const QString &path) {
-		const auto check = [](const QString &value) {
-			const auto result = value.endsWith('/')
-				? value.mid(0, value.size() - 1)
-				: value;
-			return (cPlatform() == dbipWindows) ? result.toLower() : result;
-		};
-		const auto text = (check(path) == check(psDownloadPath()))
+		const auto text = IsDefaultPath(path)
 			? QString("Downloads/Telegram Desktop")
 			: path;
 		auto pathLink = TextWithEntities{
@@ -562,6 +558,7 @@ void SettingsWidget::chooseFolder() {
 	const auto callback = [=](QString &&result) {
 		changeData([&](Settings &data) {
 			data.path = std::move(result);
+			data.forceSubPath = IsDefaultPath(data.path);
 		});
 	};
 	FileDialog::GetFolder(

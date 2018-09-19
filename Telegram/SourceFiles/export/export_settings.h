@@ -70,6 +70,7 @@ struct Settings {
 	friend inline constexpr auto is_flag_type(Type) { return true; };
 
 	QString path;
+	bool forceSubPath = false;
 	Output::Format format = Output::Format();
 
 	Types types = DefaultTypes();

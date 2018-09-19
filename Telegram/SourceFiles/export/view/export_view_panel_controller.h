@@ -27,6 +27,8 @@ namespace View {
 Environment PrepareEnvironment();
 QPointer<BoxContent> SuggestStart();
 void ClearSuggestStart();
+bool IsDefaultPath(const QString &path);
+void ResolveSettings(Settings &settings);
 
 class Panel;
 

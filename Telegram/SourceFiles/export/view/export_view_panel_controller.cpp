@@ -102,13 +102,30 @@ void ClearSuggestStart() {
 	}
 }
 
+bool IsDefaultPath(const QString &path) {
+	const auto check = [](const QString &value) {
+		const auto result = value.endsWith('/')
+			? value.mid(0, value.size() - 1)
+			: value;
+		return (cPlatform() == dbipWindows) ? result.toLower() : result;
+	};
+	return (check(path) == check(psDownloadPath()));
+}
+
+void ResolveSettings(Settings &settings) {
+	if (settings.path.isEmpty()) {
+		settings.path = psDownloadPath();
+		settings.forceSubPath = true;
+	} else {
+		settings.forceSubPath = IsDefaultPath(settings.path);
+	}
+}
+
 PanelController::PanelController(not_null<ControllerWrap*> process)
 : _process(process)
 , _settings(std::make_unique<Settings>(Local::ReadExportSettings()))
 , _saveSettingsTimer([=] { saveSettings(); }) {
-	if (_settings->path.isEmpty()) {
-		_settings->path = psDownloadPath();
-	}
+	ResolveSettings(*_settings);
 
 	_process->state(
 	) | rpl::start_with_next([=](State &&state) {

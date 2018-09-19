@@ -23,12 +23,12 @@ QString NormalizePath(const Settings &settings) {
 	QDir folder(settings.path);
 	const auto path = folder.absolutePath();
 	auto result = path.endsWith('/') ? path : (path + '/');
-	if (!folder.exists()) {
+	if (!folder.exists() && !settings.forceSubPath) {
 		return result;
 	}
 	const auto mode = QDir::AllEntries | QDir::NoDotAndDotDot;
 	const auto list = folder.entryInfoList(mode);
-	if (list.isEmpty()) {
+	if (list.isEmpty() && !settings.forceSubPath) {
 		return result;
 	}
 	const auto date = QDate::currentDate();
