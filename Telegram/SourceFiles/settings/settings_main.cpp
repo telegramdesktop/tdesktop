@@ -76,7 +76,7 @@ void SetupSections(
 		&st::settingsIconChat);
 	addSection(
 		lng_settings_advanced,
-		Type::General,
+		Type::Advanced,
 		&st::settingsIconGeneral);
 
 	SetupLanguageButton(container);

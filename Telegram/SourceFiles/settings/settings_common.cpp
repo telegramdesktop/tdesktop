@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 
 #include "settings/settings_chat.h"
-#include "settings/settings_general.h"
+#include "settings/settings_advanced.h"
 #include "settings/settings_information.h"
 #include "settings/settings_main.h"
 #include "settings/settings_notifications.h"
@@ -39,8 +39,8 @@ object_ptr<Section> CreateSection(
 		return object_ptr<Notifications>(parent, self);
 	case Type::PrivacySecurity:
 		return object_ptr<PrivacySecurity>(parent, self);
-	case Type::General:
-		return object_ptr<General>(parent, self);
+	case Type::Advanced:
+		return object_ptr<Advanced>(parent, self);
 	case Type::Chat:
 		return object_ptr<Chat>(parent, self);
 	}

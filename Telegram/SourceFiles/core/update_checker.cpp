@@ -2132,7 +2132,7 @@ void UpdateApplication() {
 				controller->showSection(
 					Info::Memento(
 						Info::Settings::Tag{ Auth().user() },
-						Info::Section::SettingsType::General),
+						Info::Section::SettingsType::Advanced),
 					Window::SectionShow());
 			} else {
 				window->showSpecialLayer(

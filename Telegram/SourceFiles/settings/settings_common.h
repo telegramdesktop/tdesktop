@@ -36,7 +36,7 @@ enum class Type {
 	Information,
 	Notifications,
 	PrivacySecurity,
-	General,
+	Advanced,
 	Chat,
 };
 

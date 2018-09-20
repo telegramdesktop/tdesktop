@@ -534,14 +534,14 @@
 <(src_loc)/profile/profile_channel_controllers.h
 <(src_loc)/profile/profile_cover_drop_area.cpp
 <(src_loc)/profile/profile_cover_drop_area.h
+<(src_loc)/settings/settings_advanced.cpp
+<(src_loc)/settings/settings_advanced.h
 <(src_loc)/settings/settings_chat.cpp
 <(src_loc)/settings/settings_chat.h
 <(src_loc)/settings/settings_codes.cpp
 <(src_loc)/settings/settings_codes.h
 <(src_loc)/settings/settings_common.cpp
 <(src_loc)/settings/settings_common.h
-<(src_loc)/settings/settings_general.cpp
-<(src_loc)/settings/settings_general.h
 <(src_loc)/settings/settings_information.cpp
 <(src_loc)/settings/settings_information.h
 <(src_loc)/settings/settings_intro.cpp

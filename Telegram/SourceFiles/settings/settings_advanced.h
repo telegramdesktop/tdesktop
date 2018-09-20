@@ -18,9 +18,9 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container);
 bool HasTray();
 void SetupTray(not_null<Ui::VerticalLayout*> container);
 
-class General : public Section {
+class Advanced : public Section {
 public:
-	explicit General(QWidget *parent, UserData *self = nullptr);
+	explicit Advanced(QWidget *parent, UserData *self = nullptr);
 
 private:
 	void setupContent();
