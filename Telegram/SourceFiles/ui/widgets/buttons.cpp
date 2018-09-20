@@ -538,8 +538,8 @@ CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : Ripple
 void CrossButton::step_loading(TimeMs ms, bool timer) {
 	if (stopLoadingAnimation(ms)) {
 		_a_loading.stop();
-	}
-	if (timer) {
+		update();
+	} else if (timer && !anim::Disabled()) {
 		update();
 	}
 }
@@ -584,11 +584,30 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 	if (_a_loading.animating()) {
 		if (stopLoadingAnimation(ms)) {
 			_a_loading.stop();
+		} else if (anim::Disabled()) {
+			CrossAnimation::paintStaticLoading(
+				p,
+				_st.cross,
+				over ? _st.crossFgOver : _st.crossFg,
+				_st.crossPosition.x(),
+				_st.crossPosition.y(),
+				width(),
+				shown);
+			return;
 		} else {
-			loading = ((ms - _loadingStartMs) % _st.loadingPeriod) / float64(_st.loadingPeriod);
+			loading = ((ms - _loadingStartMs) % _st.loadingPeriod)
+				/ float64(_st.loadingPeriod);
 		}
 	}
-	CrossAnimation::paint(p, _st.cross, over ? _st.crossFgOver : _st.crossFg, _st.crossPosition.x(), _st.crossPosition.y(), width(), shown, loading);
+	CrossAnimation::paint(
+		p,
+		_st.cross,
+		over ? _st.crossFgOver : _st.crossFg,
+		_st.crossPosition.x(),
+		_st.crossPosition.y(),
+		width(),
+		shown,
+		loading);
 }
 
 bool CrossButton::stopLoadingAnimation(TimeMs ms) {
@@ -616,6 +635,9 @@ void CrossButton::setLoadingAnimation(bool enabled) {
 		if (!((_loadingStopMs - _loadingStartMs) % _st.loadingPeriod)) {
 			_a_loading.stop();
 		}
+	}
+	if (anim::Disabled()) {
+		update();
 	}
 }
 

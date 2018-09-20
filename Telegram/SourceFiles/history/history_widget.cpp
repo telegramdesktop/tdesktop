@@ -2917,7 +2917,7 @@ void HistoryWidget::saveEditMsg() {
 
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
 	const auto prepareFlags = Ui::ItemTextOptions(
-		_history, 
+		_history,
 		Auth().user()).flags;
 	auto sending = TextWithEntities();
 	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
@@ -3232,14 +3232,16 @@ void HistoryWidget::unreadMentionsAnimationFinish() {
 }
 
 void HistoryWidget::step_recording(float64 ms, bool timer) {
-	float64 dt = ms / AudioVoiceMsgUpdateView;
+	const auto dt = anim::Disabled() ? 1. : (ms / AudioVoiceMsgUpdateView);
 	if (dt >= 1) {
 		_a_recording.stop();
 		a_recordingLevel.finish();
 	} else {
 		a_recordingLevel.update(dt, anim::linear);
 	}
-	if (timer) update(_attachToggle->geometry());
+	if (timer && !anim::Disabled()) {
+		update(_attachToggle->geometry());
+	}
 }
 
 void HistoryWidget::chooseAttach() {

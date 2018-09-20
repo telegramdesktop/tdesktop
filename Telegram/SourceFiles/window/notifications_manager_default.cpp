@@ -393,6 +393,9 @@ void Widget::opacityAnimationCallback() {
 }
 
 void Widget::step_shift(float64 ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::notifyFastAnim;
+	}
 	float64 dt = ms / float64(st::notifyFastAnim);
 	if (dt >= 1) {
 		a_shift.finish();

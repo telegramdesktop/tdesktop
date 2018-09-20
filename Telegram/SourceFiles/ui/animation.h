@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
+#include "base/binary_guard.h"
+#include "base/flat_set.h"
 
 namespace Media {
 namespace Clip {
@@ -161,7 +163,7 @@ private:
 
 void startManager();
 void stopManager();
-void registerClipManager(Media::Clip::Manager *manager);
+void registerClipManager(not_null<Media::Clip::Manager*> manager);
 
 TG_FORCE_INLINE int interpolate(int a, int b, float64 b_ratio) {
 	return qRound(a + float64(b - a) * b_ratio);
@@ -416,6 +418,13 @@ QPainterPath path(QPointF (&from)[N]) {
 bool Disabled();
 void SetDisabled(bool disabled);
 
+void DrawStaticLoading(
+	QPainter &p,
+	QRectF rect,
+	int stroke,
+	QPen pen,
+	QBrush brush = Qt::NoBrush);
+
 };
 
 class BasicAnimation;
@@ -662,12 +671,14 @@ private:
 	struct Data {
 		template <typename Lambda>
 		Data(float64 from, Lambda updateCallback)
-			: value(from, from)
-			, a_animation(animation(this, &Data::step))
-			, updateCallback(std::move(updateCallback)) {
+		: value(from, from)
+		, a_animation(animation(this, &Data::step))
+		, updateCallback(std::move(updateCallback)) {
 		}
 		void step(float64 ms, bool timer) {
-			auto dt = (ms >= duration || anim::Disabled()) ? 1. : (ms / duration);
+			const auto dt = (ms >= duration || anim::Disabled())
+				? 1.
+				: (ms / duration);
 			if (dt >= 1) {
 				value.finish();
 				a_animation.stop();
@@ -690,23 +701,23 @@ private:
 };
 
 class AnimationManager : public QObject {
-	Q_OBJECT
-
 public:
 	AnimationManager();
 
 	void start(BasicAnimation *obj);
 	void stop(BasicAnimation *obj);
 
-public slots:
-	void timeout();
-
-	void clipCallback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification);
+	void registerClip(not_null<Media::Clip::Manager*> clip);
+	void step();
 
 private:
-	using AnimatingObjects = OrderedSet<BasicAnimation*>;
-	AnimatingObjects _objects, _starting, _stopping;
+	void clipCallback(
+		Media::Clip::Reader *reader,
+		qint32 threadIndex,
+		qint32 notification);
+
+	base::flat_set<BasicAnimation*> _objects, _starting, _stopping;
 	QTimer _timer;
-	bool _iterating;
+	bool _iterating = false;
 
 };

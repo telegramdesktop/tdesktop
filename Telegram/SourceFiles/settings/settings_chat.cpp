@@ -203,11 +203,11 @@ TimeMs BackgroundRow::radialTimeShift() const {
 }
 
 void BackgroundRow::step_radial(TimeMs ms, bool timer) {
-	_radial.update(
+	const auto updated = _radial.update(
 		radialProgress(),
 		!radialLoading(),
 		ms + radialTimeShift());
-	if (timer && _radial.animating()) {
+	if (timer && _radial.animating() && (!anim::Disabled() || updated)) {
 		rtlupdate(radialRect());
 	}
 }

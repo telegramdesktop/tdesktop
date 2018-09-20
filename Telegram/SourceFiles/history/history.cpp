@@ -632,7 +632,7 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 		}
 	}
 	auto result = (!_typing.isEmpty() || !_sendActions.isEmpty());
-	if (changed || result) {
+	if (changed || (result && !anim::Disabled())) {
 		App::histories().sendActionAnimationUpdated().notify({
 			this,
 			_sendActionAnimation.width(),

@@ -480,8 +480,11 @@ auto MediaView::computeOverviewType() const
 }
 
 void MediaView::step_state(TimeMs ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::mediaviewShowDuration + st::mediaviewHideDuration;
+	}
 	bool result = false;
-	for (Showing::iterator i = _animations.begin(); i != _animations.end();) {
+	for (auto i = _animations.begin(); i != _animations.end();) {
 		TimeMs start = i.value();
 		switch (i.key()) {
 		case OverLeftNav: update(_leftNav); break;
@@ -584,8 +587,11 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		return;
 	}
 	const auto wasAnimating = _radial.animating();
-	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
-	if (timer && (wasAnimating || _radial.animating())) {
+	const auto updated = _radial.update(
+		radialProgress(), 
+		!radialLoading(), 
+		ms + radialTimeShift());
+	if (timer && (wasAnimating || _radial.animating()) && (!anim::Disabled() || updated)) {
 		update(radialRect());
 	}
 	const auto ready = _doc && _doc->loaded();

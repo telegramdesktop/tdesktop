@@ -1204,6 +1204,9 @@ void StickersBox::Inner::leaveToChildEvent(QEvent *e, QWidget *child) {
 }
 
 void StickersBox::Inner::step_shifting(TimeMs ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::stickersRowDuration;
+	}
 	auto animating = false;
 	auto updateMin = -1;
 	auto updateMax = 0;

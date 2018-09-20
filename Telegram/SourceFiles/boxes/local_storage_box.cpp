@@ -186,7 +186,7 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 }
 
 void LocalStorageBox::Row::step_radial(TimeMs ms, bool timer) {
-	if (timer) {
+	if (timer && !anim::Disabled()) {
 		RpWidget::update();
 	}
 }

@@ -227,10 +227,15 @@ void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&sav
 }
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
+	const auto updateRadial = [&] {
+		return _radial->update(dataProgress(), dataFinished(), ms);
+	};
 	if (timer) {
-		Auth().data().requestItemRepaint(parent());
+		if (!anim::Disabled() || updateRadial()) {
+			Auth().data().requestItemRepaint(parent());
+		}
 	} else {
-		_radial->update(dataProgress(), dataFinished(), ms);
+		updateRadial();
 		if (!_radial->animating()) {
 			checkRadialFinished();
 		}

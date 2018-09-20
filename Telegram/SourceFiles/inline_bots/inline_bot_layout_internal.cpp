@@ -326,11 +326,19 @@ bool Gif::isRadialAnimation(TimeMs ms) const {
 }
 
 void Gif::step_radial(TimeMs ms, bool timer) {
+	const auto document = getShownDocument();
+	const auto updateRadial = [&] {
+		return _animation->radial.update(
+			document->progress(),
+			!document->loading() || document->loaded(),
+			ms);
+	};
 	if (timer) {
-		update();
+		if (!anim::Disabled() || updateRadial()) {
+			update();
+		}
 	} else {
-		DocumentData *document = getShownDocument();
-		_animation->radial.update(document->progress(), !document->loading() || document->loaded(), ms);
+		updateRadial();
 		if (!_animation->radial.animating() && document->loaded()) {
 			_animation.reset();
 		}
@@ -819,13 +827,18 @@ void File::thumbAnimationCallback() {
 }
 
 void File::step_radial(TimeMs ms, bool timer) {
-	if (timer) {
-		update();
-	} else {
-		_animation->radial.update(
+	const auto updateRadial = [&] {
+		return _animation->radial.update(
 			_document->progress(),
 			!_document->loading() || _document->loaded(),
 			ms);
+	};
+	if (timer) {
+		if (!anim::Disabled() || updateRadial()) {
+			update();
+		}
+	} else {
+		updateRadial();
 		if (!_animation->radial.animating()) {
 			checkAnimationFinished();
 		}
@@ -1333,11 +1346,19 @@ bool Game::isRadialAnimation(TimeMs ms) const {
 }
 
 void Game::step_radial(TimeMs ms, bool timer) {
+	const auto document = getResultDocument();
+	const auto updateRadial = [&] {
+		return _radial->update(
+			document->progress(),
+			!document->loading() || document->loaded(),
+			ms);
+	};
 	if (timer) {
-		update();
+		if (!anim::Disabled() || updateRadial()) {
+			update();
+		}
 	} else {
-		auto document = getResultDocument();
-		_radial->update(document->progress(), !document->loading() || document->loaded(), ms);
+		updateRadial();
 		if (!_radial->animating() && document->loaded()) {
 			_radial.reset();
 		}

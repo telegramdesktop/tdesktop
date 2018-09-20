@@ -616,6 +616,9 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 }
 
 void ReplyKeyboard::step_selected(TimeMs ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::botKbDuration;
+	}
 	for (auto i = _animations.begin(); i != _animations.end();) {
 		const auto index = std::abs(i->first) - 1;
 		const auto row = (index / MatrixRowShift);

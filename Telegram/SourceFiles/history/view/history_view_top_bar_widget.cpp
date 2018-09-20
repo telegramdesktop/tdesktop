@@ -152,7 +152,7 @@ void TopBarWidget::updateConnectingState() {
 }
 
 void TopBarWidget::step_connecting(TimeMs ms, bool timer) {
-	if (timer) {
+	if (timer && !anim::Disabled()) {
 		update();
 	}
 }

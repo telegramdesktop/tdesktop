@@ -653,6 +653,9 @@ void StickersListWidget::Footer::paintSetIcon(
 }
 
 void StickersListWidget::Footer::step_icons(TimeMs ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::stickerIconMove;
+	}
 	if (_iconsStartAnim) {
 		auto dt = (ms - _iconsStartAnim) / float64(st::stickerIconMove);
 		if (dt >= 1) {

@@ -190,6 +190,23 @@ bool SendActionAnimation::Impl::supports(Type type) const {
 	return Implementations->value(type, &TypingAnimation::kMeta) == metaData();
 }
 
+void SendActionAnimation::Impl::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		TimeMs ms) {
+	paintFrame(
+		p,
+		color,
+		x,
+		y,
+		outerWidth,
+		anim::Disabled() ? 0 : (qMax(ms - _started, 0LL) % _period));
+}
+
+
 void SendActionAnimation::start(Type type) {
 	if (!_impl || !_impl->supports(type)) {
 		_impl = createByType(type);

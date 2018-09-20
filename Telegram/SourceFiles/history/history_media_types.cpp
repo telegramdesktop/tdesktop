@@ -205,10 +205,18 @@ void HistoryFileMedia::setStatusSize(int newSize, int fullSize, int duration, qi
 }
 
 void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
+	const auto updateRadial = [&] {
+		return _animation->radial.update(
+			dataProgress(),
+			dataFinished(),
+			ms);
+	};
 	if (timer) {
-		Auth().data().requestViewRepaint(_parent);
+		if (!anim::Disabled() || updateRadial()) {
+			Auth().data().requestViewRepaint(_parent);
+		}
 	} else {
-		_animation->radial.update(dataProgress(), dataFinished(), ms);
+		updateRadial();
 		if (!_animation->radial.animating()) {
 			checkAnimationFinished();
 		}
@@ -1848,6 +1856,9 @@ QMargins HistoryDocument::bubbleMargins() const {
 }
 
 void HistoryDocument::step_voiceProgress(float64 ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += (2 * AudioVoiceMsgUpdateView);
+	}
 	if (auto voice = Get<HistoryDocumentVoice>()) {
 		if (voice->_playback) {
 			float64 dt = ms / (2 * AudioVoiceMsgUpdateView);

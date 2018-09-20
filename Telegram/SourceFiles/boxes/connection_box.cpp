@@ -253,7 +253,7 @@ void ProxyRow::updateFields(View &&view) {
 }
 
 void ProxyRow::step_radial(TimeMs ms, bool timer) {
-	if (timer) {
+	if (timer && !anim::Disabled()) {
 		update();
 	}
 }
@@ -375,13 +375,20 @@ void ProxyRow::paintCheck(Painter &p, TimeMs ms) {
 	p.setPen(pen);
 	p.setBrush(_st->bg);
 	const auto rect = rtlrect(QRectF(left, top, _st->diameter, _st->diameter).marginsRemoved(QMarginsF(_st->thickness / 2., _st->thickness / 2., _st->thickness / 2., _st->thickness / 2.)), outerWidth);
-	if (loading.arcLength < FullArcLength) {
+	if (_progress && loading.shown > 0 && anim::Disabled()) {
+		anim::DrawStaticLoading(
+			p,
+			rect,
+			_st->thickness,
+			pen.color(),
+			_st->bg);
+	} else if (loading.arcLength < FullArcLength) {
 		p.drawArc(rect, loading.arcFrom, loading.arcLength);
 	} else {
 		p.drawEllipse(rect);
 	}
 
-	if (toggled > 0) {
+	if (toggled > 0 && (!_progress || !anim::Disabled())) {
 		p.setPen(Qt::NoPen);
 		p.setBrush(anim::brush(_st->untoggledFg, _st->toggledFg, toggled * set));
 

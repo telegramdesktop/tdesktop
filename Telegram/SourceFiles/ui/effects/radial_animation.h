@@ -25,7 +25,7 @@ public:
 	}
 
 	void start(float64 prg);
-	void update(float64 prg, bool finished, TimeMs ms);
+	bool update(float64 prg, bool finished, TimeMs ms);
 	void stop();
 
 	void step(TimeMs ms);

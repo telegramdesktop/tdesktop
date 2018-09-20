@@ -23,9 +23,10 @@ void RadialAnimation::start(float64 prg) {
 	_animation.start();
 }
 
-void RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
-	auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
-	if (iprg != qRound(a_arcEnd.to())) {
+bool RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
+	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
+	const auto result = (iprg != qRound(a_arcEnd.to()));
+	if (result) {
 		a_arcEnd.start(iprg);
 		_lastStart = _lastTime;
 	}
@@ -34,7 +35,12 @@ void RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
 	auto dt = float64(ms - _lastStart);
 	auto fulldt = float64(ms - _firstStart);
 	_opacity = qMin(fulldt / st::radialDuration, 1.);
-	if (!finished) {
+	if (anim::Disabled()) {
+		a_arcEnd.update(1., anim::linear);
+		if (finished) {
+			stop();
+		}
+	} else if (!finished) {
 		a_arcEnd.update(1. - (st::radialDuration / (st::radialDuration + dt)), anim::linear);
 	} else if (dt >= st::radialDuration) {
 		a_arcEnd.update(1., anim::linear);
@@ -46,6 +52,7 @@ void RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
 	}
 	auto fromstart = fulldt / st::radialPeriod;
 	a_arcStart.update(fromstart - std::floor(fromstart), anim::linear);
+	return result;
 }
 
 void RadialAnimation::stop() {
@@ -69,7 +76,9 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, styl
 	p.setPen(pen);
 
 	auto len = MinArcLength + qRound(a_arcEnd.current());
-	auto from = QuarterArcLength - qRound(a_arcStart.current()) - len;
+	auto from = QuarterArcLength
+		- len
+		- (anim::Disabled() ? 0 : qRound(a_arcStart.current()));
 	if (rtl()) {
 		from = QuarterArcLength - (from - QuarterArcLength) - len;
 		if (from < 0) from += FullArcLength;
@@ -104,6 +113,9 @@ void InfiniteRadialAnimation::start() {
 
 void InfiniteRadialAnimation::stop() {
 	const auto now = getms();
+	if (anim::Disabled()) {
+		_workFinished = now;
+	}
 	if (!_workFinished) {
 		const auto zero = _workStarted - _st.sineDuration;
 		const auto index = (now - zero + _st.sinePeriod - _st.sineShift)
@@ -138,26 +150,32 @@ void InfiniteRadialAnimation::draw(
 	auto o = p.opacity();
 	p.setOpacity(o * state.shown);
 
-	auto pen = _st.color->p;
-	auto was = p.pen();
-	pen.setWidth(_st.thickness);
-	pen.setCapStyle(Qt::RoundCap);
-	p.setPen(pen);
+	const auto rect = rtlrect(
+		position.x(),
+		position.y(),
+		size.width(),
+		size.height(),
+		outerWidth);
+	const auto was = p.pen();
+	const auto brush = p.brush();
+	if (anim::Disabled()) {
+		anim::DrawStaticLoading(p, rect, _st.thickness, _st.color);
+	} else {
+		auto pen = _st.color->p;
+		pen.setWidth(_st.thickness);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
 
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawArc(
-			rtlrect(
-				position.x(),
-				position.y(),
-				size.width(),
-				size.height(),
-				outerWidth),
-			state.arcFrom,
-			state.arcLength);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawArc(
+				rect,
+				state.arcFrom,
+				state.arcLength);
+		}
 	}
-
 	p.setPen(was);
+	p.setBrush(brush);
 	p.setOpacity(o);
 }
 
@@ -172,6 +190,10 @@ auto InfiniteRadialAnimation::computeState() -> State {
 			shown,
 			linear,
 			FullArcLength };
+	}
+	if (anim::Disabled()) {
+		const auto shown = 1.;
+		return { 1., 0, FullArcLength };
 	}
 	const auto min = int(std::round(FullArcLength * _st.arcMin));
 	const auto max = int(std::round(FullArcLength * _st.arcMax));

@@ -179,7 +179,7 @@ private:
 
 class PainterHighQualityEnabler {
 public:
-	PainterHighQualityEnabler(Painter &p) : _painter(p) {
+	PainterHighQualityEnabler(QPainter &p) : _painter(p) {
 		static constexpr QPainter::RenderHint Hints[] = {
 			QPainter::Antialiasing,
 			QPainter::SmoothPixmapTransform,
@@ -187,8 +187,8 @@ public:
 			QPainter::HighQualityAntialiasing
 		};
 
-		auto hints = _painter.renderHints();
-		for_const (auto hint, Hints) {
+		const auto hints = _painter.renderHints();
+		for (const auto hint : Hints) {
 			if (!(hints & hint)) {
 				_hints |= hint;
 			}
@@ -197,8 +197,12 @@ public:
 			_painter.setRenderHints(_hints);
 		}
 	}
-	PainterHighQualityEnabler(const PainterHighQualityEnabler &other) = delete;
-	PainterHighQualityEnabler &operator=(const PainterHighQualityEnabler &other) = delete;
+
+	PainterHighQualityEnabler(
+		const PainterHighQualityEnabler &other) = delete;
+	PainterHighQualityEnabler &operator=(
+		const PainterHighQualityEnabler &other) = delete;
+
 	~PainterHighQualityEnabler() {
 		if (_hints) {
 			_painter.setRenderHints(_hints, false);
@@ -206,7 +210,7 @@ public:
 	}
 
 private:
-	Painter &_painter;
+	QPainter &_painter;
 	QPainter::RenderHints _hints = 0;
 
 };

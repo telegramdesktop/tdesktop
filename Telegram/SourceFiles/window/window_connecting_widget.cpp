@@ -59,7 +59,7 @@ void Progress::paintEvent(QPaintEvent *e) {
 }
 
 void Progress::step(TimeMs ms, bool timer) {
-	if (timer) {
+	if (timer && !anim::Disabled()) {
 		update();
 	}
 }
