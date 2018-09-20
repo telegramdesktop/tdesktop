@@ -48,6 +48,20 @@ apps:
       - removable-media
       - unity7
 
+plugs:
+  gtk-3-themes:
+    interface: content
+    target: $SNAP/usr/share/themes
+    default-provider: gtk-common-themes
+  icon-themes:
+    interface: content
+    target: $SNAP/usr/share/icons
+    default-provider: gtk-common-themes
+  sound-themes:
+    interface: content
+    target: $SNAP/usr/share/sounds
+    default-provider: gtk-common-themes
+
 parts:
   telegram:
     plugin: gyp-cmake
@@ -122,10 +136,18 @@ parts:
       - libpulse0
       - libunity9
     after: [desktop-gtk3]
-    stage: [-./usr/share/fonts/**]
+    stage:
+      - -./usr/share/fonts/**
+      - -./usr/share/themes/**
+      - -./usr/share/icons/**
+      - -./usr/share/sounds/**
 
   desktop-gtk3:
-    stage: [-./usr/share/fonts/**]
+    stage:
+      - -./usr/share/fonts/**
+      - -./usr/share/themes/**
+      - -./usr/share/icons/**
+      - -./usr/share/sounds/**
     override-build: |
       set -xe
       snapcraftctl build
