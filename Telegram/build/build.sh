@@ -188,6 +188,10 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   strip -s "$ReleasePath/$BinaryName"
   echo "Done!"
 
+  echo "Removing RPATH.."
+  chrpath -d "$ReleasePath/$BinaryName"
+  echo "Done!"
+
   echo "Preparing version $AppVersionStrFull, executing Packer.."
   cd "$ReleasePath"
   "./Packer" -path "$BinaryName" -path Updater -version $VersionForPacker $AlphaBetaParam
