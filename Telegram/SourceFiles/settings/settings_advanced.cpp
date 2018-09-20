@@ -190,6 +190,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		downloading->fire(false);
 	}, check->lifetime());
 	checker.ready() | rpl::start_with_next([=] {
+		check->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(lang(lng_settings_update_ready));
 		update->show();
 		downloading->fire(false);
