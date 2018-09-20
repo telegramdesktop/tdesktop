@@ -2135,7 +2135,11 @@ void History::getReadyFor(MsgId msgId) {
 	}
 	if (!isReadyFor(msgId)) {
 		unloadBlocks();
-
+		if (const auto migratePeer = peer->migrateFrom()) {
+			if (const auto migrated = App::historyLoaded(migratePeer)) {
+				migrated->unloadBlocks();
+			}
+		}
 		if (msgId == ShowAtTheEndMsgId) {
 			_loadedAtBottom = true;
 		}

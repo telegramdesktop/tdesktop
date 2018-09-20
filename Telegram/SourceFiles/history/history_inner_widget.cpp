@@ -1945,7 +1945,7 @@ void HistoryInner::recountHistoryGeometry() {
 			if (_migrated->blocks.back()->messages.back()->dateTime().date() == _history->blocks.front()->messages.front()->dateTime().date()) {
 				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
 					_historySkipHeight += _history->blocks.front()->messages.front()->height();
-				} else {
+				} else if (_migrated->height() > _history->blocks.front()->messages.front()->displayedDateHeight()) {
 					_historySkipHeight += _history->blocks.front()->messages.front()->displayedDateHeight();
 				}
 			}
