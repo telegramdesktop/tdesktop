@@ -94,8 +94,6 @@ EditPrivacyBox::EditPrivacyBox(
 void EditPrivacyBox::prepare() {
 	_controller->setView(this);
 
-	setTitle([=] { return _controller->title(); });
-
 	setupContent();
 }
 
@@ -228,6 +226,8 @@ Ui::FlatLabel *EditPrivacyBox::AddLabel(
 
 void EditPrivacyBox::setupContent() {
 	using namespace Settings;
+
+	setTitle([=] { return _controller->title(); });
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(this);
 	const auto content = wrap.data();

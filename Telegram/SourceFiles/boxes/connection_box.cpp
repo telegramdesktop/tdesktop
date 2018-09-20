@@ -32,10 +32,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/text_options.h"
 #include "history/history_location_manager.h"
+#include "settings/settings_common.h"
 #include "application.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -917,101 +919,108 @@ void ProxyBox::addLabel(
 
 } // namespace
 
-AutoDownloadBox::AutoDownloadBox(QWidget *parent)
-: _photoPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadPhoto() & dbiadNoPrivate), st::defaultBoxCheckbox)
-, _photoGroups(this,  lang(lng_media_auto_groups), !(cAutoDownloadPhoto() & dbiadNoGroups), st::defaultBoxCheckbox)
-, _audioPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadAudio() & dbiadNoPrivate), st::defaultBoxCheckbox)
-, _audioGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadAudio() & dbiadNoGroups), st::defaultBoxCheckbox)
-, _gifPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadGif() & dbiadNoPrivate), st::defaultBoxCheckbox)
-, _gifGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadGif() & dbiadNoGroups), st::defaultBoxCheckbox)
-, _sectionHeight(st::boxTitleHeight + 2 * (st::defaultCheck.diameter + st::setLittleSkip)) {
+AutoDownloadBox::AutoDownloadBox(QWidget *parent) {
 }
 
 void AutoDownloadBox::prepare() {
-	addButton(langFactory(lng_connection_save), [=] { save(); });
+	setupContent();
+}
+
+void AutoDownloadBox::setupContent() {
+	using namespace Settings;
+
+	setTitle(langFactory(lng_media_auto_title));
+
+	auto wrap = object_ptr<Ui::VerticalLayout>(this);
+	const auto content = wrap.data();
+	setInnerWidget(object_ptr<Ui::OverrideMargins>(
+		this,
+		std::move(wrap)));
+
+	using pair = std::pair<Ui::Checkbox*, Ui::Checkbox*>;
+	const auto pairValue = [](pair checkboxes) {
+		return (checkboxes.first->checked() ? 0 : dbiadNoPrivate)
+			| (checkboxes.second->checked() ? 0 : dbiadNoGroups);
+	};
+	const auto enabledSomething = [](int32 oldValue, int32 newValue) {
+		return (uint32(oldValue) & ~uint32(newValue)) != 0;
+	};
+	const auto addCheckbox = [&](int32 value, DBIAutoDownloadFlags flag) {
+		const auto label = (flag == dbiadNoPrivate)
+			? lng_media_auto_private_chats
+			: lng_media_auto_groups;
+		return content->add(
+			object_ptr<Ui::Checkbox>(
+				content,
+				lang(label),
+				!(value & flag),
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	};
+	const auto addPair = [&](int32 value) {
+		const auto first = addCheckbox(value, dbiadNoPrivate);
+		const auto second = addCheckbox(value, dbiadNoGroups);
+		return pair(first, second);
+	};
+
+	AddSubsectionTitle(content, lng_media_photo_title);
+	const auto photo = addPair(cAutoDownloadPhoto());
+	AddSkip(content);
+
+	AddSkip(content);
+	AddSubsectionTitle(content, lng_media_audio_title);
+	const auto audio = addPair(cAutoDownloadAudio());
+	AddSkip(content);
+
+	AddSkip(content);
+	AddSubsectionTitle(content, lng_media_gif_title);
+	const auto gif = addPair(cAutoDownloadGif());
+	AddSkip(content);
+
+	addButton(langFactory(lng_connection_save), [=] {
+		const auto photoValue = pairValue(photo);
+		const auto audioValue = pairValue(audio);
+		const auto gifValue = pairValue(gif);
+		const auto photosEnabled = enabledSomething(
+			cAutoDownloadPhoto(),
+			photoValue);
+		const auto audioEnabled = enabledSomething(
+			cAutoDownloadAudio(),
+			audioValue);
+		const auto gifEnabled = enabledSomething(
+			cAutoDownloadGif(),
+			gifValue);
+		const auto photosChanged = (cAutoDownloadPhoto() != photoValue);
+		const auto documentsChanged = (cAutoDownloadAudio() != audioValue)
+			|| (cAutoDownloadGif() != gifValue);
+		cSetAutoDownloadAudio(audioValue);
+		cSetAutoDownloadGif(gifValue);
+		cSetAutoDownloadPhoto(photoValue);
+		if (photosChanged || documentsChanged) {
+			Local::writeUserSettings();
+		}
+		if (photosEnabled) {
+			Auth().data().photoLoadSettingsChanged();
+		}
+		if (audioEnabled) {
+			Auth().data().voiceLoadSettingsChanged();
+		}
+		if (gifEnabled) {
+			Auth().data().animationLoadSettingsChanged();
+		}
+		closeBox();
+	});
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	setDimensions(st::boxWidth, 3 * _sectionHeight - st::autoDownloadTopDelta + st::setLittleSkip);
-}
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		content->resizeToWidth(width);
+	}, content->lifetime());
 
-void AutoDownloadBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
-
-	Painter p(this);
-
-	p.setPen(st::boxTitleFg);
-	p.setFont(st::autoDownloadTitleFont);
-	p.drawTextLeft(st::autoDownloadTitlePosition.x(), st::autoDownloadTitlePosition.y(), width(), lang(lng_media_auto_photo));
-	p.drawTextLeft(st::autoDownloadTitlePosition.x(), _sectionHeight + st::autoDownloadTitlePosition.y(), width(), lang(lng_media_auto_audio));
-	p.drawTextLeft(st::autoDownloadTitlePosition.x(), 2 * _sectionHeight + st::autoDownloadTitlePosition.y(), width(), lang(lng_media_auto_gif));
-}
-
-void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
-
-	auto top = st::boxTitleHeight - st::autoDownloadTopDelta;
-	_photoPrivate->moveToLeft(st::boxTitlePosition.x(), top + st::setLittleSkip);
-	_photoGroups->moveToLeft(st::boxTitlePosition.x(), _photoPrivate->bottomNoMargins() + st::setLittleSkip);
-
-	_audioPrivate->moveToLeft(st::boxTitlePosition.x(), _sectionHeight + top + st::setLittleSkip);
-	_audioGroups->moveToLeft(st::boxTitlePosition.x(), _audioPrivate->bottomNoMargins() + st::setLittleSkip);
-
-	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + top + st::setLittleSkip);
-	_gifGroups->moveToLeft(st::boxTitlePosition.x(), _gifPrivate->bottomNoMargins() + st::setLittleSkip);
-}
-
-void AutoDownloadBox::save() {
-	auto photosChanged = false;
-	auto documentsChanged = false;
-	auto photosEnabled = false;
-	auto voiceEnabled = false;
-	auto animationsEnabled = false;
-	auto autoDownloadPhoto = (_photoPrivate->checked() ? 0 : dbiadNoPrivate)
-		| (_photoGroups->checked() ? 0 : dbiadNoGroups);
-	if (cAutoDownloadPhoto() != autoDownloadPhoto) {
-		const auto enabledPrivate = (cAutoDownloadPhoto() & dbiadNoPrivate)
-			&& !(autoDownloadPhoto & dbiadNoPrivate);
-		const auto enabledGroups = (cAutoDownloadPhoto() & dbiadNoGroups)
-			&& !(autoDownloadPhoto & dbiadNoGroups);
-		photosEnabled = enabledPrivate || enabledGroups;
-		photosChanged = true;
-		cSetAutoDownloadPhoto(autoDownloadPhoto);
-	}
-	auto autoDownloadAudio = (_audioPrivate->checked() ? 0 : dbiadNoPrivate)
-		| (_audioGroups->checked() ? 0 : dbiadNoGroups);
-	if (cAutoDownloadAudio() != autoDownloadAudio) {
-		const auto enabledPrivate = (cAutoDownloadAudio() & dbiadNoPrivate)
-			&& !(autoDownloadAudio & dbiadNoPrivate);
-		const auto enabledGroups = (cAutoDownloadAudio() & dbiadNoGroups)
-			&& !(autoDownloadAudio & dbiadNoGroups);
-		voiceEnabled = enabledPrivate || enabledGroups;
-		documentsChanged = true;
-		cSetAutoDownloadAudio(autoDownloadAudio);
-	}
-	auto autoDownloadGif = (_gifPrivate->checked() ? 0 : dbiadNoPrivate)
-		| (_gifGroups->checked() ? 0 : dbiadNoGroups);
-	if (cAutoDownloadGif() != autoDownloadGif) {
-		const auto enabledPrivate = (cAutoDownloadGif() & dbiadNoPrivate)
-			&& !(autoDownloadGif & dbiadNoPrivate);
-		const auto enabledGroups = (cAutoDownloadGif() & dbiadNoGroups)
-			&& !(autoDownloadGif & dbiadNoGroups);
-		animationsEnabled = enabledPrivate || enabledGroups;
-		documentsChanged = true;
-		cSetAutoDownloadGif(autoDownloadGif);
-	}
-	if (photosChanged || documentsChanged) {
-		Local::writeUserSettings();
-	}
-	if (photosEnabled) {
-		Auth().data().photoLoadSettingsChanged();
-	}
-	if (voiceEnabled) {
-		Auth().data().voiceLoadSettingsChanged();
-	}
-	if (animationsEnabled) {
-		Auth().data().animationLoadSettingsChanged();
-	}
-	closeBox();
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::boxWideWidth, height);
+	}, content->lifetime());
 }
 
 ProxiesBoxController::ProxiesBoxController()
