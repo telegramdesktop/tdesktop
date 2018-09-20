@@ -214,15 +214,17 @@ bool BlockedBoxController::prependRow(UserData *user) {
 std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
 	row->setActionLink(lang(lng_blocked_list_unblock));
-	auto status = [user]() -> QString {
-		if (user->botInfo) {
+	const auto status = [&] {
+		if (!user->phone().isEmpty()) {
+			return App::formatPhone(user->phone());
+		} else if (!user->username.isEmpty()) {
+			return '@' + user->username;
+		} else if (user->botInfo) {
 			return lang(lng_status_bot);
-		} else if (user->phone().isEmpty()) {
-			return lang(lng_blocked_list_unknown_phone);
 		}
-		return App::formatPhone(user->phone());
-	};
-	row->setCustomStatus(status());
+		return lang(lng_blocked_list_unknown_phone);
+	}();
+	row->setCustomStatus(status);
 	return std::move(row);
 }
 

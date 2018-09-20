@@ -594,6 +594,7 @@ enum {
 	dbiThemeKey = 0x54,
 	dbiTileBackground = 0x55,
 	dbiCacheSettings = 0x56,
+	dbiAnimationsDisabled = 0x57,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1028,6 +1029,16 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		_cacheTotalSizeLimit = size;
 		_cacheTotalTimeLimit = time;
+	} break;
+
+	case dbiAnimationsDisabled: {
+		qint32 disabled;
+		stream >> disabled;
+		if (!_checkStreamStatus(stream)) {
+			return false;
+		}
+
+		anim::SetDisabled(disabled == 1);
 	} break;
 
 	case dbiSoundNotify: {
@@ -2541,6 +2552,7 @@ void writeSettings() {
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
+	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());

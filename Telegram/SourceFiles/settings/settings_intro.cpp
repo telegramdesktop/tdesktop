@@ -83,6 +83,13 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(QWidget *parent) {
 	SetupUseDefaultTheme(result);
 	AddSkip(result);
 
+	if (anim::Disabled()) {
+		AddDivider(result);
+		AddSkip(result);
+		SetupAnimations(result);
+		AddSkip(result);
+	}
+
 	AddDivider(result);
 	AddSkip(result);
 	SetupFaq(result, false);

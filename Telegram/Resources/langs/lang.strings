@@ -336,7 +336,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_use_night_mode" = "Use night mode";
 "lng_settings_privacy_title" = "Privacy";
 "lng_settings_last_seen" = "Last seen";
-"lng_settings_calls" = "Calls";
+"lng_settings_calls" = "Voice calls";
 "lng_settings_groups_invite" = "Groups";
 "lng_settings_group_privacy_about" = "Change who can add you to groups and channel.";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
@@ -348,7 +348,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
 "lng_settings_close_sure" = "Are you sure you want to close this page? You didn't save your changes.";
-"lng_settings_calls_title" = "Calls";
 "lng_settings_peer_to_peer" = "Peer-to-Peer";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
@@ -364,6 +363,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_network_proxy" = "Network and proxy";
 "lng_settings_version_info" = "Version and updates";
 "lng_settings_system_integration" = "System integration";
+"lng_settings_performance" = "Performance";
+"lng_settings_enable_animations" = "Enable animations";
+"lng_settings_autoplay_gifs" = "Autoplay GIFs";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";
@@ -515,9 +517,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 
 "lng_settings_blocked_users" = "Blocked users";
-"lng_settings_last_seen_privacy" = "Last seen privacy";
-"lng_settings_calls_privacy" = "Phone calls privacy";
-"lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_export_data" = "Export Telegram data";
 "lng_settings_destroy_if" = "If away for...";
@@ -578,7 +577,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
 
-"lng_edit_privacy_calls_title" = "Telegram call privacy";
+"lng_edit_privacy_calls_title" = "Voice calls privacy";
 "lng_edit_privacy_calls_header" = "Who can call you";
 "lng_edit_privacy_calls_always_empty" = "Always allow";
 "lng_edit_privacy_calls_never_empty" = "Never allow";
@@ -1015,7 +1014,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
-"lng_stickers_you_have" = "Manage and reorder sticker packs";
+"lng_stickers_you_have" = "Manage sticker packs";
 "lng_stickers_return" = "Undo";
 "lng_stickers_count#one" = "{count} sticker";
 "lng_stickers_count#other" = "{count} stickers";

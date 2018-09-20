@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "storage/localstorage.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 #include "layout.h"
 #include "styles/style_settings.h"
 
@@ -380,12 +382,49 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
-General::General(QWidget *parent, UserData *self)
+void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
+	AddButton(
+		container,
+		lng_settings_enable_animations,
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(!anim::Disabled())
+	)->toggledValue(
+	) | rpl::filter([](bool enabled) {
+		return (enabled == anim::Disabled());
+	}) | rpl::start_with_next([](bool enabled) {
+		anim::SetDisabled(!enabled);
+		Local::writeSettings();
+	}, container->lifetime());
+}
+
+void SetupPerformance(not_null<Ui::VerticalLayout*> container) {
+	SetupAnimations(container);
+
+	AddButton(
+		container,
+		lng_settings_autoplay_gifs,
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(cAutoPlayGif())
+	)->toggledValue(
+	) | rpl::filter([](bool enabled) {
+		return (enabled != cAutoPlayGif());
+	}) | rpl::start_with_next([](bool enabled) {
+		cSetAutoPlayGif(enabled);
+		if (!cAutoPlayGif()) {
+			Auth().data().stopAutoplayAnimations();
+		}
+		Local::writeUserSettings();
+	}, container->lifetime());
+}
+
+Advanced::Advanced(QWidget *parent, UserData *self)
 : Section(parent) {
 	setupContent();
 }
 
-void General::setupContent() {
+void Advanced::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	auto empty = true;
@@ -423,6 +462,11 @@ void General::setupContent() {
 		SetupTray(content);
 		AddSkip(content);
 	}
+	addDivider();
+	AddSkip(content);
+	AddSubsectionTitle(content, lng_settings_performance);
+	SetupPerformance(content);
+	AddSkip(content);
 	if (cAutoUpdate()) {
 		addUpdate();
 	}

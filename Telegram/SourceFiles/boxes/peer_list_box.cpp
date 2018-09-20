@@ -982,6 +982,9 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 			row->addRipple(_st.item, size, point, std::move(updateCallback));
 		}
 	}
+	if (anim::Disabled()) {
+		mousePressReleased(e->button());
+	}
 }
 
 void PeerListContent::mouseReleaseEvent(QMouseEvent *e) {

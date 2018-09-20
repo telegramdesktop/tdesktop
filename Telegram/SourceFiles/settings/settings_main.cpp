@@ -199,15 +199,17 @@ void SetupInterfaceScale(
 	}, slider->lifetime());
 }
 
+void OpenFaq() {
+	QDesktopServices::openUrl(telegramFaqLink());
+}
+
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 	AddButton(
 		container,
 		lng_settings_faq,
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconFaq : nullptr
-	)->addClickHandler([] {
-		QDesktopServices::openUrl(telegramFaqLink());
-	});
+	)->addClickHandler(OpenFaq);
 }
 
 void SetupHelp(not_null<Ui::VerticalLayout*> container) {
@@ -228,7 +230,17 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 					Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 				}
 			});
-			Auth().api().requestSupportContact(ready);
+			const auto sure = crl::guard(button, [=] {
+				Auth().api().requestSupportContact(ready);
+			});
+			auto box = Box<ConfirmBox>(
+				lang(lng_settings_ask_sure),
+				lang(lng_settings_ask_ok),
+				lang(lng_settings_faq_button),
+				sure,
+				OpenFaq);
+			box->setStrictCancel(true);
+			Ui::show(std::move(box));
 		});
 	}
 

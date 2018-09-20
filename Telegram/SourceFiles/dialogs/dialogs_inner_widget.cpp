@@ -834,6 +834,10 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 			rtlupdate(0, searchedOffset() + index * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
 		});
 	}
+	if (anim::Disabled()
+		&& (!_pressed || !_pressed->entry()->isPinnedDialog())) {
+		mousePressReleased(e->button());
+	}
 }
 
 void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
@@ -1002,6 +1006,7 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 void DialogsInner::step_pinnedShifting(TimeMs ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::stickersRowDuration;
+		update();
 	}
 
 	auto animating = false;

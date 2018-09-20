@@ -2127,6 +2127,7 @@ void UpdateApplication() {
 		}();
 		UrlClickHandler::Open(url);
 	} else {
+		cSetAutoUpdate(true);
 		if (const auto window = App::wnd()) {
 			if (const auto controller = window->controller()) {
 				controller->showSection(

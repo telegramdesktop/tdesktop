@@ -924,15 +924,14 @@ AutoDownloadBox::AutoDownloadBox(QWidget *parent)
 , _audioGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadAudio() & dbiadNoGroups), st::defaultBoxCheckbox)
 , _gifPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadGif() & dbiadNoPrivate), st::defaultBoxCheckbox)
 , _gifGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadGif() & dbiadNoGroups), st::defaultBoxCheckbox)
-, _gifPlay(this, lang(lng_media_auto_play), cAutoPlayGif(), st::defaultBoxCheckbox)
 , _sectionHeight(st::boxTitleHeight + 2 * (st::defaultCheck.diameter + st::setLittleSkip)) {
 }
 
 void AutoDownloadBox::prepare() {
-	addButton(langFactory(lng_connection_save), [this] { onSave(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_connection_save), [=] { save(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	setDimensions(st::boxWidth, 3 * _sectionHeight - st::autoDownloadTopDelta + st::setLittleSkip + _gifPlay->heightNoMargins() + st::setLittleSkip);
+	setDimensions(st::boxWidth, 3 * _sectionHeight - st::autoDownloadTopDelta + st::setLittleSkip);
 }
 
 void AutoDownloadBox::paintEvent(QPaintEvent *e) {
@@ -959,13 +958,11 @@ void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
 
 	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + top + st::setLittleSkip);
 	_gifGroups->moveToLeft(st::boxTitlePosition.x(), _gifPrivate->bottomNoMargins() + st::setLittleSkip);
-	_gifPlay->moveToLeft(st::boxTitlePosition.x(), _gifGroups->bottomNoMargins() + st::setLittleSkip);
 }
 
-void AutoDownloadBox::onSave() {
+void AutoDownloadBox::save() {
 	auto photosChanged = false;
 	auto documentsChanged = false;
-	auto autoplayChanged = false;
 	auto photosEnabled = false;
 	auto voiceEnabled = false;
 	auto animationsEnabled = false;
@@ -1002,14 +999,7 @@ void AutoDownloadBox::onSave() {
 		documentsChanged = true;
 		cSetAutoDownloadGif(autoDownloadGif);
 	}
-	if (cAutoPlayGif() != _gifPlay->checked()) {
-		cSetAutoPlayGif(_gifPlay->checked());
-		if (!cAutoPlayGif()) {
-			Auth().data().stopAutoplayAnimations();
-		}
-		autoplayChanged = true;
-	}
-	if (photosChanged || documentsChanged || autoplayChanged) {
+	if (photosChanged || documentsChanged) {
 		Local::writeUserSettings();
 	}
 	if (photosEnabled) {
