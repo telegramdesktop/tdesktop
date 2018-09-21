@@ -145,6 +145,7 @@ private:
 
 	bool _hiding = false;
 	bool _deleted = false;
+	base::binary_guard _hidingDelayed;
 	Animation _a_opacity;
 
 	QPoint _startPosition;

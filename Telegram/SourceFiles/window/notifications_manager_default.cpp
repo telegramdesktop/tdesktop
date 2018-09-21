@@ -406,7 +406,18 @@ void Widget::step_shift(float64 ms, bool timer) {
 }
 
 void Widget::hideSlow() {
-	hideAnimated(st::notifySlowHide, anim::easeInCirc);
+	if (anim::Disabled()) {
+		_hiding = true;
+		auto [left, right] = base::make_binary_guard();
+		_hidingDelayed = std::move(left);
+		App::CallDelayed(st::notifySlowHide, this, [=, guard = std::move(right)] {
+			if (guard.alive() && _hiding) {
+				hideFast();
+			}
+		});
+	} else {
+		hideAnimated(st::notifySlowHide, anim::easeInCirc);
+	}
 }
 
 void Widget::hideFast() {
@@ -416,6 +427,7 @@ void Widget::hideFast() {
 void Widget::hideStop() {
 	if (_hiding) {
 		_hiding = false;
+		_hidingDelayed = {};
 		_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::notifyFastAnim);
 	}
 }
