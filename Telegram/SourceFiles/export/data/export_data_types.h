@@ -318,7 +318,8 @@ struct ParseMediaContext {
 Media ParseMedia(
 	ParseMediaContext &context,
 	const MTPMessageMedia &data,
-	const QString &folder);
+	const QString &folder,
+	TimeId date);
 
 struct ActionChatCreate {
 	Utf8String title;
