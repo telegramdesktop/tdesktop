@@ -659,7 +659,9 @@ void StickersBox::Inner::setInnerFocus() {
 void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	_a_shifting.step();
+	if (_a_shifting.animating()) {
+		_a_shifting.step();
+	}
 
 	auto clip = e->rect();
 	auto ms = getms();
