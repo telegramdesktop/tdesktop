@@ -297,7 +297,7 @@ not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
 	}));
 
 	value() | rpl::map([](const Settings &data) {
-		return data.types != Types(0);
+		return (data.types != Types(0)) || data.onlySinglePeer();
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool canStart) {
 		refreshButtons(buttons, canStart);
