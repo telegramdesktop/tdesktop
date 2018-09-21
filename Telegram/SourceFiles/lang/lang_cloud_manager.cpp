@@ -220,26 +220,28 @@ void CloudManager::switchToLanguage(QString id) {
 		QVector<MTPstring> keys;
 		keys.reserve(3);
 		keys.push_back(MTP_string("lng_sure_save_language"));
-		keys.push_back(MTP_string("lng_box_ok"));
-		keys.push_back(MTP_string("lng_cancel"));
 		_switchingToLanguageRequest = request(MTPlangpack_GetStrings(
 			MTP_string(Lang::CloudLangPackName()),
 			MTP_string(id),
 			MTP_vector<MTPstring>(std::move(keys))
 		)).done([=](const MTPVector<MTPLangPackString> &result) {
-			auto values = Instance::ParseStrings(result);
-			auto getValue = [&values](LangKey key) {
+			const auto values = Instance::ParseStrings(result);
+			const auto getValue = [&](LangKey key) {
 				auto it = values.find(key);
 				return (it == values.cend())
 					? GetOriginalValue(key)
 					: it->second;
 			};
-			auto text = getValue(lng_sure_save_language);
-			auto save = getValue(lng_box_ok);
-			auto cancel = getValue(lng_cancel);
-			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, id] {
-				performSwitchAndRestart(id);
-			}), LayerOption::KeepOther);
+			const auto text = lang(lng_sure_save_language)
+				+ "\n\n"
+				+ getValue(lng_sure_save_language);
+			Ui::show(
+				Box<ConfirmBox>(
+					text,
+					lang(lng_box_ok),
+					lang(lng_cancel),
+					[=] { performSwitchAndRestart(id); }),
+				LayerOption::KeepOther);
 		}).send();
 	}
 }
@@ -253,24 +255,33 @@ void CloudManager::performSwitchToCustom() {
 		}
 
 		auto filePath = result.paths.front();
-		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_box_ok, lng_cancel });
+		Lang::FileParser loader(filePath, { lng_sure_save_language });
 		if (loader.errors().isEmpty()) {
 			weak->request(weak->_switchingToLanguageRequest).cancel();
 			if (weak->canApplyWithoutRestart(qsl("custom"))) {
 				weak->_langpack.switchToCustomFile(filePath);
 			} else {
-				auto values = loader.found();
-				auto getValue = [&values](LangKey key) {
-					auto it = values.find(key);
-					return (it == values.cend()) ? GetOriginalValue(key) : it.value();
+				const auto values = loader.found();
+				const auto getValue = [&](LangKey key) {
+					const auto it = values.find(key);
+					return (it == values.cend())
+						? GetOriginalValue(key)
+						: it.value();
 				};
-				auto text = getValue(lng_sure_save_language);
-				auto save = getValue(lng_box_ok);
-				auto cancel = getValue(lng_cancel);
-				Ui::show(Box<ConfirmBox>(text, save, cancel, [weak, filePath] {
+				const auto text = lang(lng_sure_save_language)
+					+ "\n\n"
+					 + getValue(lng_sure_save_language);
+				const auto change = [=] {
 					weak->_langpack.switchToCustomFile(filePath);
 					App::restart();
-				}), LayerOption::KeepOther);
+				};
+				Ui::show(
+					Box<ConfirmBox>(
+						text,
+						lang(lng_box_ok),
+						lang(lng_cancel),
+						change),
+					LayerOption::KeepOther);
 			}
 		} else {
 			Ui::show(
