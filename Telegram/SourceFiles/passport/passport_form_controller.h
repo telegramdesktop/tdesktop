@@ -205,10 +205,10 @@ struct Value {
 	const QString &fileMissingError(FileType type) const;
 	std::vector<EditFile> &filesInEdit(FileType type);
 	const std::vector<EditFile> &filesInEdit(FileType type) const;
-	EditFile &fileInEdit(FileType type, base::optional<int> fileIndex);
+	EditFile &fileInEdit(FileType type, std::optional<int> fileIndex);
 	const EditFile &fileInEdit(
 		FileType type,
-		base::optional<int> fileIndex) const;
+		std::optional<int> fileIndex) const;
 
 	std::vector<EditFile> takeAllFilesInEdit();
 
@@ -345,11 +345,11 @@ public:
 	void deleteScan(
 		not_null<const Value*> value,
 		FileType type,
-		base::optional<int> fileIndex);
+		std::optional<int> fileIndex);
 	void restoreScan(
 		not_null<const Value*> value,
 		FileType type,
-		base::optional<int> fileIndex);
+		std::optional<int> fileIndex);
 
 	rpl::producer<> secretReadyEvents() const;
 
@@ -407,7 +407,7 @@ private:
 	std::vector<File> parseFiles(
 		const QVector<MTPSecureFile> &data,
 		const std::vector<EditFile> &editData) const;
-	base::optional<File> parseFile(
+	std::optional<File> parseFile(
 		const MTPSecureFile &data,
 		const std::vector<EditFile> &editData) const;
 	void fillDownloadedFile(
@@ -474,7 +474,7 @@ private:
 	void scanDeleteRestore(
 		not_null<const Value*> value,
 		FileType type,
-		base::optional<int> fileIndex,
+		std::optional<int> fileIndex,
 		bool deleted);
 
 	QString getPhoneFromValue(not_null<const Value*> value) const;

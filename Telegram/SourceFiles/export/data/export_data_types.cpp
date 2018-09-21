@@ -529,8 +529,8 @@ std::pair<QString, QSize> WriteImageThumb(
 		const QString &basePath,
 		const QString &largePath,
 		Fn<QSize(QSize)> convertSize,
-		base::optional<QByteArray> format,
-		base::optional<int> quality,
+		std::optional<QByteArray> format,
+		std::optional<int> quality,
 		const QString &postfix) {
 	if (largePath.isEmpty()) {
 		return {};
@@ -582,8 +582,8 @@ QString WriteImageThumb(
 		basePath,
 		largePath,
 		[=](QSize size) { return QSize(width, height); },
-		base::none,
-		base::none,
+		std::nullopt,
+		std::nullopt,
 		postfix).first;
 }
 

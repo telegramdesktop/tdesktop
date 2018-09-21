@@ -4584,7 +4584,7 @@ void HistoryWidget::documentUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	Auth().api().sendUploadedDocument(newId, file, base::none, silent);
+	Auth().api().sendUploadedDocument(newId, file, std::nullopt, silent);
 }
 
 void HistoryWidget::thumbDocumentUploaded(
@@ -5071,7 +5071,7 @@ bool HistoryWidget::hasPendingResizedItems() const {
 		|| (_migrated && _migrated->hasPendingResizedItems());
 }
 
-base::optional<int> HistoryWidget::unreadBarTop() const {
+std::optional<int> HistoryWidget::unreadBarTop() const {
 	auto getUnreadBar = [this]() -> HistoryView::Element* {
 		if (const auto bar = _migrated ? _migrated->unreadBar() : nullptr) {
 			return bar;
@@ -5088,7 +5088,7 @@ base::optional<int> HistoryWidget::unreadBarTop() const {
 		}
 		return result;
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 HistoryView::Element *HistoryWidget::firstUnreadMessage() const {

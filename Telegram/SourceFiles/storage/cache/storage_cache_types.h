@@ -111,7 +111,7 @@ using Version = int32;
 
 QString ComputeBasePath(const QString &original);
 QString VersionFilePath(const QString &base);
-base::optional<Version> ReadVersionValue(const QString &base);
+std::optional<Version> ReadVersionValue(const QString &base);
 bool WriteVersionValue(const QString &base, Version value);
 
 template <typename Record>

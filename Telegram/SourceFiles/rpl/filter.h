@@ -95,13 +95,13 @@ private:
 
 template <typename Value>
 inline const Value &deref_optional_helper(
-		const base::optional<Value> &value) {
+		const std::optional<Value> &value) {
 	return *value;
 }
 
 template <typename Value>
 inline Value &&deref_optional_helper(
-		base::optional<Value> &&value) {
+		std::optional<Value> &&value) {
 	return std::move(*value);
 }
 
@@ -109,7 +109,7 @@ class filter_optional_helper {
 public:
 	template <typename Value, typename Error, typename Generator>
 	auto operator()(producer<
-			base::optional<Value>,
+			std::optional<Value>,
 			Error,
 			Generator> &&initial) const {
 		return make_producer<Value, Error>([

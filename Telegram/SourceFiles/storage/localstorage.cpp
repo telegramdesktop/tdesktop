@@ -4232,7 +4232,7 @@ void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 	}
 }
 
-base::optional<RecentHashtagPack> saveRecentHashtags(
+std::optional<RecentHashtagPack> saveRecentHashtags(
 		Fn<RecentHashtagPack()> getPack,
 		const QString &text) {
 	auto found = false;
@@ -4262,7 +4262,7 @@ base::optional<RecentHashtagPack> saveRecentHashtags(
 		found = true;
 		incrementRecentHashtag(recent, tag);
 	}
-	return found ? base::make_optional(recent) : base::none;
+	return found ? base::make_optional(recent) : std::nullopt;
 }
 
 void saveRecentSentHashtags(const QString &text) {

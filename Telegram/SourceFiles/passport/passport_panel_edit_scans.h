@@ -51,16 +51,16 @@ public:
 		const QString &header,
 		const QString &error,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations);
+		std::optional<ScanListData> &&translations);
 	EditScans(
 		QWidget *parent,
 		not_null<PanelController*> controller,
 		const QString &header,
 		const QString &error,
 		std::map<FileType, ScanInfo> &&specialFiles,
-		base::optional<ScanListData> &&translations);
+		std::optional<ScanListData> &&translations);
 
-	base::optional<int> validateGetErrorTop();
+	std::optional<int> validateGetErrorTop();
 
 	void scanFieldsChanged(bool changed);
 
@@ -78,7 +78,7 @@ private:
 		List(not_null<PanelController*> controller, ScanListData &&data);
 		List(
 			not_null<PanelController*> controller,
-			base::optional<ScanListData> &&data = base::none);
+			std::optional<ScanListData> &&data = std::nullopt);
 
 		bool uploadedSomeMore() const;
 		bool uploadMoreRequired() const;
@@ -92,7 +92,7 @@ private:
 
 		not_null<PanelController*> controller;
 		std::vector<ScanInfo> files;
-		base::optional<int> initialCount;
+		std::optional<int> initialCount;
 		QString errorMissing;
 		QPointer<Ui::SlideWrap<BoxContentDivider>> divider;
 		QPointer<Ui::SlideWrap<Ui::FlatLabel>> header;

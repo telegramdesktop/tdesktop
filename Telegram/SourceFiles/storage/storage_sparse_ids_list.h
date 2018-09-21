@@ -26,16 +26,16 @@ struct SparseIdsListQuery {
 };
 
 struct SparseIdsListResult {
-	base::optional<int> count;
-	base::optional<int> skippedBefore;
-	base::optional<int> skippedAfter;
+	std::optional<int> count;
+	std::optional<int> skippedBefore;
+	std::optional<int> skippedAfter;
 	base::flat_set<MsgId> messageIds;
 };
 
 struct SparseIdsSliceUpdate {
 	const base::flat_set<MsgId> *messages = nullptr;
 	MsgRange range;
-	base::optional<int> count;
+	std::optional<int> count;
 };
 
 class SparseIdsList {
@@ -45,7 +45,7 @@ public:
 	void addSlice(
 		std::vector<MsgId> &&messageIds,
 		MsgRange noSkipRange,
-		base::optional<int> count);
+		std::optional<int> count);
 	void removeOne(MsgId messageId);
 	void removeAll();
 	void invalidateBottom();
@@ -84,14 +84,14 @@ private:
 	void addRange(
 		const Range &messages,
 		MsgRange noSkipRange,
-		base::optional<int> count,
+		std::optional<int> count,
 		bool incrementCount = false);
 
 	SparseIdsListResult queryFromSlice(
 		const SparseIdsListQuery &query,
 		const Slice &slice) const;
 
-	base::optional<int> _count;
+	std::optional<int> _count;
 	base::flat_set<Slice> _slices;
 
 	rpl::event_stream<SparseIdsSliceUpdate> _sliceUpdated;

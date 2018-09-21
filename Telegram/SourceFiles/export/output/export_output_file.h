@@ -46,7 +46,7 @@ private:
 
 	QString _path;
 	int _offset = 0;
-	base::optional<QFile> _file;
+	std::optional<QFile> _file;
 
 	Stats *_stats = nullptr;
 	bool _inStats = false;

@@ -458,7 +458,7 @@ QByteArray SerializeMessage(
 			}()));
 		}
 		pushBare("values", SerializeArray(context, list));
-	}, [](const base::none_type &) {});
+	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {
 		pushFrom();
@@ -572,7 +572,7 @@ QByteArray SerializeMessage(
 		}));
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](const base::none_type &) {});
+	}, [](std::nullopt_t) {});
 
 	pushBare("text", SerializeText(context, message.text));
 

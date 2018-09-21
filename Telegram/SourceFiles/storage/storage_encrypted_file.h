@@ -66,7 +66,7 @@ private:
 	int64 _encryptionOffset = 0;
 	int64 _dataSize = 0;
 
-	base::optional<CtrState> _state;
+	std::optional<CtrState> _state;
 
 };
 

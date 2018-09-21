@@ -1110,7 +1110,7 @@ void mtpFileLoader::changeCDNParams(
 	makeRequest(offset);
 }
 
-base::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
+std::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
 	if (_urlLocation) {
 		return Data::WebDocumentCacheKey(*_urlLocation);
 	} else if (_location) {
@@ -1118,7 +1118,7 @@ base::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
 	} else if (_toCache == LoadToCacheAsWell) {
 		return Data::DocumentCacheKey(_dcId, _id);
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 mtpFileLoader::~mtpFileLoader() {
@@ -1219,7 +1219,7 @@ void webFileLoader::onError() {
 	cancel(true);
 }
 
-base::optional<Storage::Cache::Key> webFileLoader::cacheKey() const {
+std::optional<Storage::Cache::Key> webFileLoader::cacheKey() const {
 	return Data::UrlCacheKey(_url);
 }
 

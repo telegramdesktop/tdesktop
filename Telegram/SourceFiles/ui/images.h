@@ -378,7 +378,7 @@ public:
 	virtual const StorageImageLocation &location() const {
 		return StorageImageLocation::Null;
 	}
-	virtual base::optional<Storage::Cache::Key> cacheKey() const;
+	virtual std::optional<Storage::Cache::Key> cacheKey() const;
 
 	bool isNull() const;
 
@@ -516,7 +516,7 @@ public:
 	const StorageImageLocation &location() const override {
 		return _location;
 	}
-	base::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<Storage::Cache::Key> cacheKey() const override;
 	void refreshFileReference(const QByteArray &data) {
 		_location.refreshFileReference(data);
 	}
@@ -545,7 +545,7 @@ public:
 		int height,
 		int size = 0);
 
-	base::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<Storage::Cache::Key> cacheKey() const override;
 
 protected:
 	void setInformation(int size, int width, int height) override;
@@ -619,7 +619,7 @@ public:
 
 	void setSize(int width, int height);
 
-	base::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<Storage::Cache::Key> cacheKey() const override;
 
 protected:
 	QSize shrinkBox() const override {

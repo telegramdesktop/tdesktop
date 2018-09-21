@@ -7,6 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <optional>
+
+inline bool operator<(std::nullopt_t, std::nullopt_t) {
+	return false;
+}
+inline bool operator>(std::nullopt_t, std::nullopt_t) {
+	return false;
+}
+inline bool operator<=(std::nullopt_t, std::nullopt_t) {
+	return true;
+}
+inline bool operator>=(std::nullopt_t, std::nullopt_t) {
+	return true;
+}
+inline bool operator==(std::nullopt_t, std::nullopt_t) {
+	return true;
+}
+inline bool operator!=(std::nullopt_t, std::nullopt_t) {
+	return false;
+}
+
 #include <mapbox/variant.hpp>
 #include <rpl/details/type_list.h>
 #include "base/match_method.h"

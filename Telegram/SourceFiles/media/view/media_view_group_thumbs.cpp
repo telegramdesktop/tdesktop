@@ -53,7 +53,7 @@ Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
 		if (const auto peer = (*photo)->peer) {
 			return peer->id;
 		}
-		return base::none;
+		return std::nullopt;
 	} else if (const auto msgId = base::get_if<FullMsgId>(&value)) {
 		if (const auto item = App::histItemById(*msgId)) {
 			if (!item->toHistoryMessage()) {
@@ -62,7 +62,7 @@ Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
 				return groupId;
 			}
 		}
-		return base::none;
+		return std::nullopt;
 	}
 	Unexpected("Variant in ComputeContext(SharedMediaWithLastSlice::Value)");
 }

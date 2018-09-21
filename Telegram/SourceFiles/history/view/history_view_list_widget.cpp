@@ -328,24 +328,24 @@ void ListWidget::refreshRows() {
 	_delegate->listContentRefreshed();
 }
 
-base::optional<int> ListWidget::scrollTopForPosition(
+std::optional<int> ListWidget::scrollTopForPosition(
 		Data::MessagePosition position) const {
 	if (position == Data::MaxMessagePosition) {
 		if (loadedAtBottom()) {
 			return height();
 		}
-		return base::none;
+		return std::nullopt;
 	} else if (_items.empty()
 		|| isBelowPosition(position)
 		|| isAbovePosition(position)) {
-		return base::none;
+		return std::nullopt;
 	}
 	const auto index = findNearestItem(position);
 	const auto view = _items[index];
 	return scrollTopForView(_items[index]);
 }
 
-base::optional<int> ListWidget::scrollTopForView(
+std::optional<int> ListWidget::scrollTopForView(
 		not_null<Element*> view) const {
 	if (view->isHiddenByGroup()) {
 		if (const auto group = Auth().data().groups().find(view->data())) {

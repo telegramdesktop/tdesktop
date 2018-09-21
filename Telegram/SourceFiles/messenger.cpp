@@ -969,8 +969,8 @@ void Messenger::unlockTerms() {
 	}
 }
 
-base::optional<Window::TermsLock> Messenger::termsLocked() const {
-	return _termsLock ? base::make_optional(*_termsLock) : base::none;
+std::optional<Window::TermsLock> Messenger::termsLocked() const {
+	return _termsLock ? base::make_optional(*_termsLock) : std::nullopt;
 }
 
 rpl::producer<bool> Messenger::termsLockChanges() const {

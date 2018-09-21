@@ -93,9 +93,9 @@ constexpr auto UnreadMessagePosition = MessagePosition(
 
 struct MessagesSlice {
 	std::vector<FullMsgId> ids;
-	base::optional<int> skippedBefore;
-	base::optional<int> skippedAfter;
-	base::optional<int> fullCount;
+	std::optional<int> skippedBefore;
+	std::optional<int> skippedAfter;
+	std::optional<int> fullCount;
 
 };
 
@@ -116,16 +116,16 @@ struct MessagesQuery {
 };
 
 struct MessagesResult {
-	base::optional<int> count;
-	base::optional<int> skippedBefore;
-	base::optional<int> skippedAfter;
+	std::optional<int> count;
+	std::optional<int> skippedBefore;
+	std::optional<int> skippedAfter;
 	base::flat_set<MessagePosition> messageIds;
 };
 
 struct MessagesSliceUpdate {
 	const base::flat_set<MessagePosition> *messages = nullptr;
 	MessagesRange range;
-	base::optional<int> count;
+	std::optional<int> count;
 };
 
 class MessagesList {
@@ -134,7 +134,7 @@ public:
 	void addSlice(
 		std::vector<MessagePosition> &&messageIds,
 		MessagesRange noSkipRange,
-		base::optional<int> count);
+		std::optional<int> count);
 	void removeOne(MessagePosition messageId);
 	void removeAll(ChannelId channelId);
 	void invalidate();
@@ -178,14 +178,14 @@ private:
 	void addRange(
 		const Range &messages,
 		MessagesRange noSkipRange,
-		base::optional<int> count,
+		std::optional<int> count,
 		bool incrementCount = false);
 
 	MessagesResult queryFromSlice(
 		const MessagesQuery &query,
 		const Slice &slice) const;
 
-	base::optional<int> _count;
+	std::optional<int> _count;
 	base::flat_set<Slice> _slices;
 
 	rpl::event_stream<MessagesSliceUpdate> _sliceUpdated;
@@ -234,17 +234,17 @@ private:
 	void sliceToLimits();
 
 	void mergeSliceData(
-		base::optional<int> count,
+		std::optional<int> count,
 		const base::flat_set<MessagePosition> &messageIds,
-		base::optional<int> skippedBefore = base::none,
-		base::optional<int> skippedAfter = base::none);
+		std::optional<int> skippedBefore = std::nullopt,
+		std::optional<int> skippedAfter = std::nullopt);
 
 	MessagePosition _key;
 	base::flat_set<MessagePosition> _ids;
 	MessagesRange _range;
-	base::optional<int> _fullCount;
-	base::optional<int> _skippedBefore;
-	base::optional<int> _skippedAfter;
+	std::optional<int> _fullCount;
+	std::optional<int> _skippedBefore;
+	std::optional<int> _skippedAfter;
 	int _limitBefore = 0;
 	int _limitAfter = 0;
 

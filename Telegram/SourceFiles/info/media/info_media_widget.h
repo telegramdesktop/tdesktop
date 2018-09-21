@@ -17,7 +17,7 @@ namespace Media {
 
 using Type = Storage::SharedMediaType;
 
-base::optional<int> TypeToTabIndex(Type type);
+std::optional<int> TypeToTabIndex(Type type);
 Type TabIndexToType(int index);
 
 class InnerWidget;

@@ -68,21 +68,21 @@ public:
 	bool isVerified() const;
 	bool isMegagroup() const;
 
-	base::optional<TimeId> notifyMuteUntil() const {
+	std::optional<TimeId> notifyMuteUntil() const {
 		return _notify.muteUntil();
 	}
 	bool notifyChange(const MTPPeerNotifySettings &settings) {
 		return _notify.change(settings);
 	}
 	bool notifyChange(
-			base::optional<int> muteForSeconds,
-			base::optional<bool> silentPosts) {
+			std::optional<int> muteForSeconds,
+			std::optional<bool> silentPosts) {
 		return _notify.change(muteForSeconds, silentPosts);
 	}
 	bool notifySettingsUnknown() const {
 		return _notify.settingsUnknown();
 	}
-	base::optional<bool> notifySilentPosts() const {
+	std::optional<bool> notifySilentPosts() const {
 		return _notify.silentPosts();
 	}
 	MTPinputPeerNotifySettings notifySerialize() const {

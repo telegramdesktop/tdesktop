@@ -376,7 +376,7 @@ QString ComputeScopeRowReadyString(const Scope &scope) {
 		}
 		const auto scheme = GetDocumentScheme(
 			scope.type,
-			document ? base::make_optional(document->type) : base::none,
+			document ? base::make_optional(document->type) : std::nullopt,
 			scope.details ? scope.details->nativeNames : false);
 		using ValueClass = EditDocumentScheme::ValueClass;
 		const auto skipAdditional = [&] {

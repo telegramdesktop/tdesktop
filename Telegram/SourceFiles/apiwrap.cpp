@@ -1927,7 +1927,7 @@ void ApiWrap::handlePrivacyChange(
 		mtpTypeId keyTypeId,
 		const MTPVector<MTPPrivacyRule> &rules) {
 	using Key = Privacy::Key;
-	const auto key = [&]() -> base::optional<Key> {
+	const auto key = [&]() -> std::optional<Key> {
 		switch (keyTypeId) {
 		case mtpc_privacyKeyStatusTimestamp:
 		case mtpc_inputPrivacyKeyStatusTimestamp: return Key::LastSeen;
@@ -1936,7 +1936,7 @@ void ApiWrap::handlePrivacyChange(
 		case mtpc_privacyKeyPhoneCall:
 		case mtpc_inputPrivacyKeyPhoneCall: return Key::Calls;
 		}
-		return base::none;
+		return std::nullopt;
 	}();
 	if (!key) {
 		return;
@@ -2582,7 +2582,7 @@ void ApiWrap::refreshFileReference(
 		request(
 			MTPmessages_GetSavedGifs(MTP_int(0)),
 			[] { crl::on_main([] { Local::writeSavedGifs(); }); });
-	}, [&](base::none_type) {
+	}, [&](std::nullopt_t) {
 		fail();
 	});
 }
@@ -4236,7 +4236,7 @@ void ApiWrap::sendUploadedPhoto(
 void ApiWrap::sendUploadedDocument(
 		FullMsgId localId,
 		const MTPInputFile &file,
-		const base::optional<MTPInputFile> &thumb,
+		const std::optional<MTPInputFile> &thumb,
 		bool silent) {
 	if (const auto item = App::histItemById(localId)) {
 		auto media = item->media();
@@ -4987,10 +4987,10 @@ rpl::producer<Core::CloudPasswordState> ApiWrap::passwordState() const {
 }
 
 auto ApiWrap::passwordStateCurrent() const
-->base::optional<Core::CloudPasswordState> {
+->std::optional<Core::CloudPasswordState> {
 	return _passwordState
 		? base::make_optional(*_passwordState)
-		: base::none;
+		: std::nullopt;
 }
 
 void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {

@@ -50,7 +50,7 @@ struct EditDocumentScheme {
 		Shown,
 	};
 	struct Row {
-		using Validator = Fn<base::optional<QString>(const QString &value)>;
+		using Validator = Fn<std::optional<QString>(const QString &value)>;
 		using Formatter = Fn<QString(const QString &value)>;
 		ValueClass valueClass = ValueClass::Fields;
 		PanelDetailsType inputType = PanelDetailsType();
@@ -87,7 +87,7 @@ public:
 		const QString &scansError,
 		const ValueMap &scansData,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations,
+		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles);
 	PanelEditDocument(
 		QWidget *parent,
@@ -96,7 +96,7 @@ public:
 		const QString &scansError,
 		const ValueMap &scansData,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations,
+		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles);
 	PanelEditDocument(
 		QWidget *parent,
@@ -119,7 +119,7 @@ private:
 		const QString *scansError,
 		const ValueMap *scansData,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations,
+		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles);
 	not_null<Ui::RpWidget*> setupContent(
 		const QString *error,
@@ -127,7 +127,7 @@ private:
 		const QString *scansError,
 		const ValueMap *scansData,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations,
+		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles);
 	void updateControlsGeometry();
 	void updateCommonError();

@@ -332,7 +332,7 @@ QByteArray SerializeMessage(
 		} else if (!list.empty()) {
 			push("Values", JoinList(", ", list));
 		}
-	}, [](const base::none_type &) {});
+	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {
 		pushFrom();
@@ -435,7 +435,7 @@ QByteArray SerializeMessage(
 		}));
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](const base::none_type &) {});
+	}, [](std::nullopt_t) {});
 
 	auto value = JoinList(QByteArray(), ranges::view::all(
 		message.text

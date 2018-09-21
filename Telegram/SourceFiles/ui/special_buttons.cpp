@@ -1004,7 +1004,7 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	Ui::Tooltip::Show(0, this);
 	Auth().data().updateNotifySettings(
 		_channel,
-		base::none,
+		std::nullopt,
 		_checked);
 }
 

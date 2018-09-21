@@ -1058,7 +1058,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return "You have sent the following documents: "
 			+ SerializeList(list);
-	}, [](const base::none_type &) { return QByteArray(); });
+	}, [](std::nullopt_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
 		const auto &content = message.action.content;
@@ -1658,7 +1658,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
-	}, [](const base::none_type &) {});
+	}, [](std::nullopt_t) {});
 	return result;
 }
 
@@ -2276,7 +2276,7 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 		? ((_messagesCount - 1) / kMessagesInFile)
 		: 0;
 	auto previous = _lastMessageInfo.get();
-	auto saved = base::optional<MessageInfo>();
+	auto saved = std::optional<MessageInfo>();
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
 		const auto newIndex = (_messagesCount / kMessagesInFile);
@@ -2291,7 +2291,7 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 				block = QByteArray();
 				_lastMessageInfo = nullptr;
 				previous = nullptr;
-				saved = base::none;
+				saved = std::nullopt;
 				oldIndex = newIndex;
 			} else {
 				return next;

@@ -304,7 +304,7 @@ public:
 	void sendUploadedDocument(
 		FullMsgId localId,
 		const MTPInputFile &file,
-		const base::optional<MTPInputFile> &thumb,
+		const std::optional<MTPInputFile> &thumb,
 		bool silent);
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
@@ -336,7 +336,7 @@ public:
 	void reloadPasswordState();
 	void clearUnconfirmedPassword();
 	rpl::producer<Core::CloudPasswordState> passwordState() const;
-	base::optional<Core::CloudPasswordState> passwordStateCurrent() const;
+	std::optional<Core::CloudPasswordState> passwordStateCurrent() const;
 
 	void saveSelfBio(const QString &text, FnMut<void()> done);
 
@@ -717,7 +717,7 @@ private:
 	std::map<Privacy::Key, rpl::event_stream<Privacy>> _privacyChanges;
 
 	mtpRequestId _selfDestructRequestId = 0;
-	base::optional<int> _selfDestructDays;
+	std::optional<int> _selfDestructDays;
 	rpl::event_stream<int> _selfDestructChanges;
 
 };

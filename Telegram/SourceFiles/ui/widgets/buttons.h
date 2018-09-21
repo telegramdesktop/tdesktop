@@ -24,7 +24,7 @@ public:
 	int naturalWidth() const override;
 
 	void setText(const QString &text);
-	void setColorOverride(base::optional<QColor> textFg);
+	void setColorOverride(std::optional<QColor> textFg);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -35,7 +35,7 @@ private:
 	const style::LinkButton &_st;
 	QString _text;
 	int _textWidth = 0;
-	base::optional<QColor> _textFgOverride;
+	std::optional<QColor> _textFgOverride;
 
 };
 

@@ -295,7 +295,7 @@ void File::close() {
 	_data.close();
 	_data.setFileName(QString());
 	_dataSize = _encryptionOffset = 0;
-	_state = base::none;
+	_state = std::nullopt;
 }
 
 bool File::isOpen() const {

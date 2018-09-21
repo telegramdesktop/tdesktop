@@ -103,10 +103,10 @@ private:
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
-	base::optional<HistoryItem*> _lastMessage;
+	std::optional<HistoryItem*> _lastMessage;
 
 	rpl::variable<MessagePosition> _unreadPosition;
-	base::optional<int> _unreadCount;
+	std::optional<int> _unreadCount;
 	rpl::event_stream<int> _unreadCountChanges;
 	int _unreadMutedCount = 0;
 

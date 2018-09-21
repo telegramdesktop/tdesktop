@@ -2852,7 +2852,7 @@ void InputField::commitInstantReplacement(
 		int from,
 		int till,
 		const QString &with,
-		base::optional<QString> checkOriginal) {
+		std::optional<QString> checkOriginal) {
 	const auto original = getTextWithTagsPart(from, till).text;
 	if (checkOriginal
 		&& checkOriginal->compare(original, Qt::CaseInsensitive) != 0) {

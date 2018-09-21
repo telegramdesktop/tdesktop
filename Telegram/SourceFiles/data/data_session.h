@@ -396,8 +396,8 @@ public:
 		const MTPPeerNotifySettings &settings);
 	void updateNotifySettings(
 		not_null<PeerData*> peer,
-		base::optional<int> muteForSeconds,
-		base::optional<bool> silentPosts = base::none);
+		std::optional<int> muteForSeconds,
+		std::optional<bool> silentPosts = std::nullopt);
 	bool notifyIsMuted(
 		not_null<const PeerData*> peer,
 		TimeMs *changesIn = nullptr) const;

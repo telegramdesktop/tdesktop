@@ -73,7 +73,7 @@ struct SharedMediaAddSlice {
 		SharedMediaType type,
 		std::vector<MsgId> &&messageIds,
 		MsgRange noSkipRange,
-		base::optional<int> count = base::none)
+		std::optional<int> count = std::nullopt)
 		: peerId(peerId)
 		, messageIds(std::move(messageIds))
 		, noSkipRange(noSkipRange)
@@ -85,7 +85,7 @@ struct SharedMediaAddSlice {
 	std::vector<MsgId> messageIds;
 	MsgRange noSkipRange;
 	SharedMediaType type = SharedMediaType::kCount;
-	base::optional<int> count;
+	std::optional<int> count;
 
 };
 

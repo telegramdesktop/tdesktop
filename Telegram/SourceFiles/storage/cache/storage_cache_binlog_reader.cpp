@@ -30,7 +30,7 @@ bool BinlogWrapper::failed() const {
 	return _failed;
 }
 
-base::optional<BasicHeader> BinlogWrapper::ReadHeader(
+std::optional<BasicHeader> BinlogWrapper::ReadHeader(
 		File &binlog,
 		const Settings &settings) {
 	auto result = BasicHeader();

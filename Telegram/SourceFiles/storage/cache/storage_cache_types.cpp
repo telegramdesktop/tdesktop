@@ -59,14 +59,14 @@ QString VersionFilePath(const QString &base) {
 	return base + QStringLiteral("version");
 }
 
-base::optional<Version> ReadVersionValue(const QString &base) {
+std::optional<Version> ReadVersionValue(const QString &base) {
 	QFile file(VersionFilePath(base));
 	if (!file.open(QIODevice::ReadOnly)) {
-		return base::none;
+		return std::nullopt;
 	}
 	const auto bytes = file.read(sizeof(Version));
 	if (bytes.size() != sizeof(Version)) {
-		return base::none;
+		return std::nullopt;
 	}
 	return *reinterpret_cast<const Version*>(bytes.data());
 }

@@ -44,7 +44,7 @@ private:
 	bool reportFail(const RPCError &error);
 
 	not_null<PeerData*> _peer;
-	base::optional<MessageIdsList> _ids;
+	std::optional<MessageIdsList> _ids;
 
 	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;
 	object_ptr<Ui::Radioenum<Reason>> _reasonSpam = { nullptr };

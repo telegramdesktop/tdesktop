@@ -32,7 +32,7 @@ bool File::empty() const {
 Result File::writeBlock(const QByteArray &block) {
 	const auto result = writeBlockAttempt(block);
 	if (!result) {
-		_file.clear();
+		_file.reset();
 	}
 	return result;
 }

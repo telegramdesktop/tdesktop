@@ -464,7 +464,7 @@ void MediaView::updateActions() {
 }
 
 auto MediaView::computeOverviewType() const
--> base::optional<SharedMediaType> {
+-> std::optional<SharedMediaType> {
 	if (const auto mediaType = sharedMediaType()) {
 		if (const auto overviewType = SharedMediaOverviewType(*mediaType)) {
 			return overviewType;
@@ -476,7 +476,7 @@ auto MediaView::computeOverviewType() const
 			}
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 void MediaView::step_state(TimeMs ms, bool timer) {
@@ -697,7 +697,7 @@ void MediaView::clearData() {
 	stopGif();
 	delete _menu;
 	_menu = nullptr;
-	setContext(base::none);
+	setContext(std::nullopt);
 	_from = nullptr;
 	_photo = nullptr;
 	_doc = nullptr;
@@ -1082,7 +1082,7 @@ void MediaView::onCopy() {
 	}
 }
 
-base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
+std::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 	using Type = SharedMediaType;
 	if (auto item = App::histItemById(_msgid)) {
 		if (_photo) {
@@ -1099,10 +1099,10 @@ base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 			return Type::File;
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
-base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
+std::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 	if (!_msgid && _peer && !_user && _photo && _peer->userpicPhotoId() == _photo->id) {
 		return SharedMediaKey {
 			_history->peer->id,
@@ -1112,7 +1112,7 @@ base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 		};
 	}
 	if (!IsServerMsgId(_msgid.msg)) {
-		return base::none;
+		return std::nullopt;
 	}
 	auto keyForType = [this](SharedMediaType type) -> SharedMediaKey {
 		return {
@@ -1152,7 +1152,7 @@ bool MediaView::validSharedMedia() const {
 			return [&](const SharedMediaWithLastSlice &data) {
 				return inSameDomain(a, b)
 					? data.distance(a, b)
-					: base::optional<int>();
+					: std::optional<int>();
 			};
 		};
 
@@ -1188,15 +1188,15 @@ void MediaView::validateSharedMedia() {
 		}, _sharedMedia->lifetime);
 	} else {
 		_sharedMedia = nullptr;
-		_sharedMediaData = base::none;
-		_sharedMediaDataKey = base::none;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
 	}
 }
 
 void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	if ((!_photo && !_doc) || !_sharedMedia) {
-		_sharedMediaData = base::none;
-		_sharedMediaDataKey = base::none;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
 	} else {
 		_sharedMediaData = std::move(update);
 		_sharedMediaDataKey = _sharedMedia->key;
@@ -1206,14 +1206,14 @@ void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	preloadData(0);
 }
 
-base::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
+std::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
 	if (!_msgid && _user && _photo) {
 		return UserPhotosKey {
 			_user->bareId(),
 			_photo->id
 		};
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 bool MediaView::validUserPhotos() const {
@@ -1251,13 +1251,13 @@ void MediaView::validateUserPhotos() {
 		}, _userPhotos->lifetime);
 	} else {
 		_userPhotos = nullptr;
-		_userPhotosData = base::none;
+		_userPhotosData = std::nullopt;
 	}
 }
 
 void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 	if (!_photo || !_userPhotos) {
-		_userPhotosData = base::none;
+		_userPhotosData = std::nullopt;
 	} else {
 		_userPhotosData = std::move(update);
 	}
@@ -1358,7 +1358,7 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	if (context) {
 		setContext(context);
 	} else {
-		setContext(base::none);
+		setContext(std::nullopt);
 	}
 
 	_firstOpenedPeerPhoto = false;
@@ -1410,7 +1410,7 @@ void MediaView::showDocument(not_null<DocumentData*> document, HistoryItem *cont
 	if (context) {
 		setContext(context);
 	} else {
-		setContext(base::none);
+		setContext(std::nullopt);
 	}
 
 	_photo = nullptr;
@@ -2467,19 +2467,19 @@ MediaView::Entity MediaView::entityForUserPhotos(int index) const {
 	Expects(!!_userPhotosData);
 
 	if (index < 0 || index >= _userPhotosData->size()) {
-		return { base::none, nullptr };
+		return { std::nullopt, nullptr };
 	}
 	if (auto photo = Auth().data().photo((*_userPhotosData)[index])) {
 		return { photo, nullptr };
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 	Expects(!!_sharedMediaData);
 
 	if (index < 0 || index >= _sharedMediaData->size()) {
-		return { base::none, nullptr };
+		return { std::nullopt, nullptr };
 	}
 	auto value = (*_sharedMediaData)[index];
 	if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
@@ -2488,7 +2488,7 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 	} else if (const auto itemId = base::get_if<FullMsgId>(&value)) {
 		return entityForItemId(*itemId);
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
@@ -2500,9 +2500,9 @@ MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
 				return { document, item };
 			}
 		}
-		return { base::none, item };
+		return { std::nullopt, item };
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 MediaView::Entity MediaView::entityByIndex(int index) const {
@@ -2511,7 +2511,7 @@ MediaView::Entity MediaView::entityByIndex(int index) const {
 	} else if (_userPhotosData) {
 		return entityForUserPhotos(index);
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 void MediaView::setContext(base::optional_variant<
@@ -2563,7 +2563,7 @@ bool MediaView::moveToEntity(const Entity &entity, int preloadDelta) {
 	} else if (_peer) {
 		setContext(_peer);
 	} else {
-		setContext(base::none);
+		setContext(std::nullopt);
 	}
 	stopGif();
 	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
@@ -3004,10 +3004,10 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 void MediaView::setVisible(bool visible) {
 	if (!visible) {
 		_sharedMedia = nullptr;
-		_sharedMediaData = base::none;
-		_sharedMediaDataKey = base::none;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
 		_userPhotos = nullptr;
-		_userPhotosData = base::none;
+		_userPhotosData = std::nullopt;
 		if (_menu) _menu->hideMenu(true);
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;
@@ -3064,19 +3064,19 @@ void MediaView::findCurrent() {
 	if (_sharedMediaData) {
 		_index = _msgid
 			? _sharedMediaData->indexOf(_msgid)
-			: _photo ? _sharedMediaData->indexOf(_photo) : base::none;
+			: _photo ? _sharedMediaData->indexOf(_photo) : std::nullopt;
 		_fullIndex = _sharedMediaData->skippedBefore()
 			? (_index | func::add(*_sharedMediaData->skippedBefore()))
-			: base::none;
+			: std::nullopt;
 		_fullCount = _sharedMediaData->fullCount();
 	} else if (_userPhotosData) {
-		_index = _photo ? _userPhotosData->indexOf(_photo->id) : base::none;
+		_index = _photo ? _userPhotosData->indexOf(_photo->id) : std::nullopt;
 		_fullIndex = _userPhotosData->skippedBefore()
 			? (_index | func::add(*_userPhotosData->skippedBefore()))
-			: base::none;
+			: std::nullopt;
 		_fullCount = _userPhotosData->fullCount();
 	} else {
-		_index = _fullIndex = _fullCount = base::none;
+		_index = _fullIndex = _fullCount = std::nullopt;
 	}
 }
 
@@ -3105,7 +3105,7 @@ void MediaView::updateHeader() {
 			_headerText = lang(lng_mediaview_single_photo);
 		}
 	}
-	_headerHasLink = computeOverviewType() != base::none;
+	_headerHasLink = computeOverviewType() != std::nullopt;
 	auto hwidth = st::mediaviewThickFont->width(_headerText);
 	if (hwidth > width() / 3) {
 		hwidth = width() / 3;

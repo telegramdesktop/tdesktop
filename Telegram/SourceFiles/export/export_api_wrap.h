@@ -191,7 +191,7 @@ private:
 	void ioError(const Output::Result &result);
 
 	MTP::ConcurrentSender _mtp;
-	base::optional<uint64> _takeoutId;
+	std::optional<uint64> _takeoutId;
 	Output::Stats *_stats = nullptr;
 
 	std::unique_ptr<Settings> _settings;

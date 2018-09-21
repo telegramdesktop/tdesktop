@@ -62,7 +62,7 @@ bool Button::toggled() const {
 	return _toggle ? _toggle->checked() : false;
 }
 
-void Button::setColorOverride(base::optional<QColor> textColorOverride) {
+void Button::setColorOverride(std::optional<QColor> textColorOverride) {
 	_textColorOverride = textColorOverride;
 	update();
 }

@@ -16,7 +16,7 @@ public:
 	Launcher(int argc, char *argv[]);
 
 private:
-	base::optional<QStringList> readArgumentsHook(
+	std::optional<QStringList> readArgumentsHook(
 		int argc,
 		char *argv[]) const override;
 

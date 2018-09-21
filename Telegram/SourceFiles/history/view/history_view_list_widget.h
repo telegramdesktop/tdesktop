@@ -62,7 +62,7 @@ public:
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
 	virtual void listVisibleItemsChanged(HistoryItemsList &&items) = 0;
-	virtual base::optional<int> listUnreadBarView(
+	virtual std::optional<int> listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
 	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
@@ -136,9 +136,9 @@ public:
 
 	void saveState(not_null<ListMemento*> memento);
 	void restoreState(not_null<ListMemento*> memento);
-	base::optional<int> scrollTopForPosition(
+	std::optional<int> scrollTopForPosition(
 		Data::MessagePosition position) const;
-	base::optional<int> scrollTopForView(not_null<Element*> view) const;
+	std::optional<int> scrollTopForView(not_null<Element*> view) const;
 	enum class AnimatedScroll {
 		Full,
 		Part,

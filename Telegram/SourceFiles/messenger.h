@@ -177,7 +177,7 @@ public:
 
 	void lockByTerms(const Window::TermsLock &data);
 	void unlockTerms();
-	[[nodiscard]] base::optional<Window::TermsLock> termsLocked() const;
+	[[nodiscard]] std::optional<Window::TermsLock> termsLocked() const;
 	rpl::producer<bool> termsLockChanges() const;
 	rpl::producer<bool> termsLockValue() const;
 	void termsDeleteNow();

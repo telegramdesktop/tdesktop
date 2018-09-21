@@ -64,7 +64,7 @@ public:
 	struct SavedState {
 		Query query;
 		IdsList peerList;
-		base::optional<IdsList> migratedList;
+		std::optional<IdsList> migratedList;
 	};
 
 	void setQuery(const Query &query);
@@ -100,7 +100,7 @@ private:
 		CacheEntry(const Query &query);
 
 		Data peerData;
-		base::optional<Data> migratedData;
+		std::optional<Data> migratedData;
 	};
 
 	struct CacheLess {

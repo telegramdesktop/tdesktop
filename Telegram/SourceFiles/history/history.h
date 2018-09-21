@@ -491,12 +491,12 @@ private:
 	bool _loadedAtTop = false;
 	bool _loadedAtBottom = true;
 
-	base::optional<MsgId> _inboxReadBefore;
-	base::optional<MsgId> _outboxReadBefore;
-	base::optional<int> _unreadCount;
-	base::optional<int> _unreadMentionsCount;
+	std::optional<MsgId> _inboxReadBefore;
+	std::optional<MsgId> _outboxReadBefore;
+	std::optional<int> _unreadCount;
+	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
-	base::optional<HistoryItem*> _lastMessage;
+	std::optional<HistoryItem*> _lastMessage;
 	bool _unreadMark = false;
 
 	// A pointer to the block that is currently being built.
@@ -510,7 +510,7 @@ private:
 
 	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std::unique_ptr<Data::Draft> _editDraft;
-	base::optional<QString> _lastSentDraftText;
+	std::optional<QString> _lastSentDraftText;
 	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
 

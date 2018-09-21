@@ -180,7 +180,7 @@ SearchController::CacheEntry::CacheEntry(const Query &query)
 : peerData(App::peer(query.peerId))
 , migratedData(query.migratedPeerId
 	? base::make_optional(Data(App::peer(query.migratedPeerId)))
-	: base::none) {
+	: std::nullopt) {
 }
 
 bool SearchController::hasInCache(const Query &query) const {

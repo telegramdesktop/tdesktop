@@ -30,7 +30,7 @@ public:
 	rpl::producer<bool> toggledValue() const;
 	bool toggled() const;
 
-	void setColorOverride(base::optional<QColor> textColorOverride);
+	void setColorOverride(std::optional<QColor> textColorOverride);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -51,7 +51,7 @@ private:
 	int _originalWidth = 0;
 	int _textWidth = 0;
 	std::unique_ptr<Ui::ToggleView> _toggle;
-	base::optional<QColor> _textColorOverride;
+	std::optional<QColor> _textColorOverride;
 
 };
 

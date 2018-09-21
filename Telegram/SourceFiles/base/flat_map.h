@@ -722,10 +722,10 @@ public:
 		return where->second;
 	}
 
-	optional<Type> take(const Key &key) {
+	std::optional<Type> take(const Key &key) {
 		auto it = find(key);
 		if (it == this->end()) {
-			return base::none;
+			return std::nullopt;
 		}
 		auto result = std::move(it->second);
 		this->erase(it);

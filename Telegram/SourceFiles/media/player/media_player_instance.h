@@ -139,10 +139,10 @@ private:
 		Storage::SharedMediaType overview;
 		AudioMsgId current;
 		AudioMsgId seeking;
-		base::optional<SparseIdsMergedSlice> playlistSlice;
-		base::optional<SliceKey> playlistSliceKey;
-		base::optional<SliceKey> playlistRequestedKey;
-		base::optional<int> playlistIndex;
+		std::optional<SparseIdsMergedSlice> playlistSlice;
+		std::optional<SliceKey> playlistSliceKey;
+		std::optional<SliceKey> playlistRequestedKey;
+		std::optional<int> playlistIndex;
 		rpl::lifetime playlistLifetime;
 		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
@@ -156,7 +156,7 @@ private:
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
-	base::optional<SliceKey> playlistKey(not_null<Data*> data) const;
+	std::optional<SliceKey> playlistKey(not_null<Data*> data) const;
 	bool validPlaylist(not_null<Data*> data);
 	void validatePlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);

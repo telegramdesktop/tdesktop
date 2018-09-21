@@ -250,7 +250,7 @@ void Feed::changeChannelsList(
 	// After that we restore it.
 	const auto oldLastMessage = base::take(_lastMessage);
 	for (const auto channel : add) {
-		_lastMessage = base::none;
+		_lastMessage = std::nullopt;
 		channel->setFeed(this);
 	}
 	_lastMessage = oldLastMessage;
@@ -282,7 +282,7 @@ void Feed::historyCleared(not_null<History*> history) {
 }
 
 void Feed::recountLastMessage() {
-	_lastMessage = base::none;
+	_lastMessage = std::nullopt;
 	for (const auto history : _channels) {
 		if (!history->lastMessageKnown()) {
 			_parent->session().api().requestDialogEntry(this);

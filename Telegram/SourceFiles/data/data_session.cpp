@@ -1842,8 +1842,8 @@ void Session::applyNotifySetting(
 
 void Session::updateNotifySettings(
 		not_null<PeerData*> peer,
-		base::optional<int> muteForSeconds,
-		base::optional<bool> silentPosts) {
+		std::optional<int> muteForSeconds,
+		std::optional<bool> silentPosts) {
 	if (peer->notifyChange(muteForSeconds, silentPosts)) {
 		updateNotifySettingsLocal(peer);
 		_session->api().updateNotifySettingsDelayed(peer);

@@ -34,7 +34,7 @@ class Button;
 class Memento;
 struct MembersState {
 	std::unique_ptr<PeerListState> list;
-	base::optional<QString> search;
+	std::optional<QString> search;
 };
 
 class Members

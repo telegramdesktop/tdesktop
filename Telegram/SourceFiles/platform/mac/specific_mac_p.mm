@@ -29,7 +29,7 @@ namespace {
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
 
-base::optional<bool> ApplicationIsActive;
+std::optional<bool> ApplicationIsActive;
 
 } // namespace
 

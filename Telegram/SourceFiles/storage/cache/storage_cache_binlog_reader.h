@@ -26,7 +26,7 @@ public:
 	bool finished() const;
 	bool failed() const;
 
-	static base::optional<BasicHeader> ReadHeader(
+	static std::optional<BasicHeader> ReadHeader(
 		File &binlog,
 		const Settings &settings);
 

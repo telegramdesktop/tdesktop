@@ -814,7 +814,7 @@ void DatabaseObject::put(
 }
 
 template <typename StoreRecord>
-base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
+std::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 		StoreRecord &&record,
 		const Key &key,
 		const TaggedValue &value,
@@ -856,7 +856,7 @@ base::optional<QString> DatabaseObject::writeKeyPlaceGeneric(
 	return result;
 }
 
-base::optional<QString> DatabaseObject::writeKeyPlace(
+std::optional<QString> DatabaseObject::writeKeyPlace(
 		const Key &key,
 		const TaggedValue &data,
 		uint32 checksum) {

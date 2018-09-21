@@ -151,9 +151,9 @@ private:
 	void configLoadDone(const MTPConfig &result);
 	bool configLoadFail(const RPCError &error);
 
-	base::optional<ShiftedDcId> queryRequestByDc(
+	std::optional<ShiftedDcId> queryRequestByDc(
 		mtpRequestId requestId) const;
-	base::optional<ShiftedDcId> changeRequestByDc(
+	std::optional<ShiftedDcId> changeRequestByDc(
 		mtpRequestId requestId, DcId newdc);
 
 	// RPCError::NoError means do not toggle onError callback.
@@ -806,17 +806,17 @@ bool Instance::Private::configLoadFail(const RPCError &error) {
 	return false;
 }
 
-base::optional<ShiftedDcId> Instance::Private::queryRequestByDc(
+std::optional<ShiftedDcId> Instance::Private::queryRequestByDc(
 		mtpRequestId requestId) const {
 	QMutexLocker locker(&_requestByDcLock);
 	auto it = _requestsByDc.find(requestId);
 	if (it != _requestsByDc.cend()) {
 		return it->second;
 	}
-	return base::none;
+	return std::nullopt;
 }
 
-base::optional<ShiftedDcId> Instance::Private::changeRequestByDc(
+std::optional<ShiftedDcId> Instance::Private::changeRequestByDc(
 		mtpRequestId requestId,
 		DcId newdc) {
 	QMutexLocker locker(&_requestByDcLock);
@@ -829,7 +829,7 @@ base::optional<ShiftedDcId> Instance::Private::changeRequestByDc(
 		}
 		return it->second;
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 void Instance::Private::checkDelayedRequests() {

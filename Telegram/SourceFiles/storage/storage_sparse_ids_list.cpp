@@ -93,7 +93,7 @@ template <typename Range>
 void SparseIdsList::addRange(
 		const Range &messages,
 		MsgRange noSkipRange,
-		base::optional<int> count,
+		std::optional<int> count,
 		bool incrementCount) {
 	Expects(!count || !incrementCount);
 
@@ -119,20 +119,20 @@ void SparseIdsList::addRange(
 
 void SparseIdsList::addNew(MsgId messageId) {
 	auto range = { messageId };
-	addRange(range, { messageId, ServerMaxMsgId }, base::none, true);
+	addRange(range, { messageId, ServerMaxMsgId }, std::nullopt, true);
 }
 
 void SparseIdsList::addExisting(
 		MsgId messageId,
 		MsgRange noSkipRange) {
 	auto range = { messageId };
-	addRange(range, noSkipRange, base::none);
+	addRange(range, noSkipRange, std::nullopt);
 }
 
 void SparseIdsList::addSlice(
 		std::vector<MsgId> &&messageIds,
 		MsgRange noSkipRange,
-		base::optional<int> count) {
+		std::optional<int> count) {
 	addRange(messageIds, noSkipRange, count);
 }
 
@@ -169,7 +169,7 @@ void SparseIdsList::invalidateBottom() {
 			});
 		}
 	}
-	_count = base::none;
+	_count = std::nullopt;
 }
 
 rpl::producer<SparseIdsListResult> SparseIdsList::query(

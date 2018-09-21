@@ -153,7 +153,7 @@ protected:
 
 	bool tryLoadLocal();
 	void loadLocal(const Storage::Cache::Key &key);
-	virtual base::optional<Storage::Cache::Key> cacheKey() const = 0;
+	virtual std::optional<Storage::Cache::Key> cacheKey() const = 0;
 	virtual void cancelRequests() = 0;
 
 	void startLoading(bool loadFirst, bool prior);
@@ -257,7 +257,7 @@ private:
 		int limit = 0;
 		QByteArray hash;
 	};
-	base::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<Storage::Cache::Key> cacheKey() const override;
 	void cancelRequests() override;
 
 	int partSize() const;
@@ -346,7 +346,7 @@ public:
 
 protected:
 	void cancelRequests() override;
-	base::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<Storage::Cache::Key> cacheKey() const override;
 	bool loadPart() override;
 
 	QString _url;

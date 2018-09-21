@@ -41,10 +41,10 @@ private:
 	void processArguments();
 
 	QStringList readArguments(int argc, char *argv[]) const;
-	virtual base::optional<QStringList> readArgumentsHook(
+	virtual std::optional<QStringList> readArgumentsHook(
 			int argc,
 			char *argv[]) const {
-		return base::none;
+		return std::nullopt;
 	}
 
 	void init();

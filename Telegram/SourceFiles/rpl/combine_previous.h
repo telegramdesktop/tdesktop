@@ -22,7 +22,7 @@ public:
 			initial = std::move(initial)
 		](const auto &consumer) mutable {
 			auto previous = consumer.template make_state<
-				base::optional<Value>
+				std::optional<Value>
 			>();
 			return std::move(initial).start(
 				[consumer, previous](auto &&value) {

@@ -71,13 +71,13 @@ public:
 	bool checkRippleStartPosition(QPoint position) const override;
 
 	void setUntoggledOverride(
-		base::optional<QColor> untoggledOverride);
+		std::optional<QColor> untoggledOverride);
 
 private:
 	QSize rippleSize() const;
 
 	not_null<const style::Check*> _st;
-	base::optional<QColor> _untoggledOverride;
+	std::optional<QColor> _untoggledOverride;
 
 };
 
@@ -90,7 +90,7 @@ public:
 
 	void setStyle(const style::Radio &st);
 
-	void setUntoggledOverride(base::optional<QColor> untoggledOverride);
+	void setUntoggledOverride(std::optional<QColor> untoggledOverride);
 
 	QSize getSize() const override;
 	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
@@ -101,7 +101,7 @@ private:
 	QSize rippleSize() const;
 
 	not_null<const style::Radio*> _st;
-	base::optional<QColor> _untoggledOverride;
+	std::optional<QColor> _untoggledOverride;
 
 };
 

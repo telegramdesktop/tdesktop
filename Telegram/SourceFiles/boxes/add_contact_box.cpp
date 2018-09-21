@@ -414,7 +414,7 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 		App::main()->sentUpdatesReceived(result);
 
 		auto success = base::make_optional(&result)
-			| [](auto updates) -> base::optional<const QVector<MTPChat>*> {
+			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
 					return &updates->c_updates().vchats.v;
@@ -422,12 +422,12 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 					return &updates->c_updatesCombined().vchats.v;
 				}
 				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates->type()));
-				return base::none;
+				return std::nullopt;
 			}
 			| [](auto chats) {
 				return (!chats->empty() && chats->front().type() == mtpc_chat)
 					? base::make_optional(chats)
-					: base::none;
+					: std::nullopt;
 			}
 			| [](auto chats) {
 				return App::chat(chats->front().c_chat().vid.v);
@@ -517,7 +517,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 		App::main()->sentUpdatesReceived(result);
 
 		auto success = base::make_optional(&result)
-			| [](auto updates) -> base::optional<const QVector<MTPChat>*> {
+			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
 					return &updates->c_updates().vchats.v;
@@ -525,12 +525,12 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 					return &updates->c_updatesCombined().vchats.v;
 				}
 				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::createChannel)").arg(updates->type()));
-				return base::none;
+				return std::nullopt;
 			}
 			| [](auto chats) {
 				return (!chats->empty() && chats->front().type() == mtpc_channel)
 					? base::make_optional(chats)
-					: base::none;
+					: std::nullopt;
 			}
 			| [](auto chats) {
 				return App::channel(chats->front().c_channel().vid.v);

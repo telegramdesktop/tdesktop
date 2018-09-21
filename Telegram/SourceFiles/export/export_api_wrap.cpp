@@ -97,7 +97,7 @@ public:
 	LoadedFileCache(int limit);
 
 	void save(const Location &location, const QString &relativePath);
-	base::optional<QString> find(const Location &location) const;
+	std::optional<QString> find(const Location &location) const;
 
 private:
 	int _limit = 0;
@@ -135,7 +135,7 @@ struct ApiWrap::UserpicsProcess {
 	FnMut<void()> finish;
 
 	int processed = 0;
-	base::optional<Data::UserpicsSlice> slice;
+	std::optional<Data::UserpicsSlice> slice;
 	uint64 maxId = 0;
 	bool lastSlice = false;
 	int fileIndex = 0;
@@ -207,7 +207,7 @@ struct ApiWrap::ChatProcess {
 	int32 largestIdPlusOne = 1;
 
 	Data::ParseMediaContext context;
-	base::optional<Data::MessagesSlice> slice;
+	std::optional<Data::MessagesSlice> slice;
 	bool lastSlice = false;
 	int fileIndex = 0;
 };
@@ -309,16 +309,16 @@ void ApiWrap::LoadedFileCache::save(
 	}
 }
 
-base::optional<QString> ApiWrap::LoadedFileCache::find(
+std::optional<QString> ApiWrap::LoadedFileCache::find(
 		const Location &location) const {
 	if (!location) {
-		return base::none;
+		return std::nullopt;
 	}
 	const auto key = ComputeLocationKey(location);
 	if (const auto i = _map.find(key); i != end(_map)) {
 		return i->second;
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 ApiWrap::FileProcess::FileProcess(const QString &path, Output::Stats *stats)
@@ -954,7 +954,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 }
 
 void ApiWrap::finishExport(FnMut<void()> done) {
-	const auto guard = gsl::finally([&] { _takeoutId = base::none; });
+	const auto guard = gsl::finally([&] { _takeoutId = std::nullopt; });
 
 	mainRequest(MTPaccount_FinishTakeoutSession(
 		MTP_flags(MTPaccount_FinishTakeoutSession::Flag::f_success)

@@ -221,7 +221,7 @@ public:
 		int from,
 		int till,
 		const QString &with,
-		base::optional<QString> checkOriginal = base::none);
+		std::optional<QString> checkOriginal = std::nullopt);
 	bool commitMarkdownReplacement(
 		int from,
 		int till,

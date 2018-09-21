@@ -981,7 +981,7 @@ auto ListWidget::findItemByPoint(QPoint point) const -> FoundItem {
 }
 
 auto ListWidget::findItemById(
-		UniversalMsgId universalId) -> base::optional<FoundItem> {
+		UniversalMsgId universalId) -> std::optional<FoundItem> {
 	auto sectionIt = findSectionByItem(universalId);
 	if (sectionIt != _sections.end()) {
 		auto item = sectionIt->findItemNearId(universalId);
@@ -989,14 +989,14 @@ auto ListWidget::findItemById(
 			return foundItemInSection(item, *sectionIt);
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 auto ListWidget::findItemDetails(
-		BaseLayout *item) -> base::optional<FoundItem> {
+		BaseLayout *item) -> std::optional<FoundItem> {
 	return item
 		? findItemById(GetUniversalId(item))
-		: base::none;
+		: std::nullopt;
 }
 
 auto ListWidget::foundItemInSection(
@@ -1058,7 +1058,7 @@ void ListWidget::checkMoveToOtherViewer() {
 			auto delta = _slice.distance(
 				sliceKey(_universalAroundId),
 				sliceKey(universalId));
-			Assert(delta != base::none);
+			Assert(delta != std::nullopt);
 			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {

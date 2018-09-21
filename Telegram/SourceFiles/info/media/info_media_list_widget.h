@@ -230,8 +230,8 @@ private:
 		std::vector<Section>::const_iterator from,
 		int bottom) const;
 	FoundItem findItemByPoint(QPoint point) const;
-	base::optional<FoundItem> findItemById(UniversalMsgId universalId);
-	base::optional<FoundItem> findItemDetails(BaseLayout *item);
+	std::optional<FoundItem> findItemById(UniversalMsgId universalId);
+	std::optional<FoundItem> findItemDetails(BaseLayout *item);
 	FoundItem foundItemInSection(
 		const FoundItem &item,
 		const Section &section) const;

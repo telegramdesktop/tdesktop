@@ -86,7 +86,7 @@ public:
 	void listSelectionChanged(
 		HistoryView::SelectedItems &&items) override;
 	void listVisibleItemsChanged(HistoryItemsList &&items) override;
-	base::optional<int> listUnreadBarView(
+	std::optional<int> listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
 	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
@@ -135,7 +135,7 @@ private:
 
 	FullMsgId _currentMessageId;
 	FullMsgId _highlightMessageId;
-	base::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
+	std::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
 	int _nextAnimatedScrollDelta = 0;
 
 	Animation _scrollDownShown;

@@ -21,17 +21,17 @@ namespace details {
 
 template <typename ...Values>
 struct combine_state {
-	combine_state() : accumulated(std::tuple<base::optional<Values>...>()) {
+	combine_state() : accumulated(std::tuple<std::optional<Values>...>()) {
 	}
-	base::optional<std::tuple<base::optional<Values>...>> accumulated;
-	base::optional<std::tuple<Values...>> latest;
+	std::optional<std::tuple<std::optional<Values>...>> accumulated;
+	std::optional<std::tuple<Values...>> latest;
 	int invalid = sizeof...(Values);
 	int working = sizeof...(Values);
 };
 
 template <typename ...Values, std::size_t ...I>
 inline std::tuple<Values...> combine_make_first(
-		std::tuple<base::optional<Values>...> &&accumulated,
+		std::tuple<std::optional<Values>...> &&accumulated,
 		std::index_sequence<I...>) {
 	return std::make_tuple(std::move(*std::get<I>(accumulated))...);
 }
@@ -65,7 +65,7 @@ public:
 						state->latest = combine_make_first(
 							std::move(*state->accumulated),
 							std::make_index_sequence<kArity>());
-						state->accumulated = base::none;
+						state->accumulated = std::nullopt;
 						consumer.put_next_copy(*state->latest);
 					}
 				}
@@ -276,7 +276,7 @@ namespace details {
 
 template <typename Value>
 struct combine_vector_state {
-	std::vector<base::optional<Value>> accumulated;
+	std::vector<std::optional<Value>> accumulated;
 	std::vector<Value> latest;
 	int invalid = 0;
 	int working = 0;

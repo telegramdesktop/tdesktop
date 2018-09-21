@@ -18,28 +18,28 @@ public:
 	UserPhotosSlice(
 		Key key,
 		std::deque<PhotoId> &&ids,
-		base::optional<int> fullCount,
-		base::optional<int> skippedBefore,
-		base::optional<int> skippedAfter);
+		std::optional<int> fullCount,
+		std::optional<int> skippedBefore,
+		std::optional<int> skippedAfter);
 
 	void reverse();
 
 	const Key &key() const { return _key; }
 
-	base::optional<int> fullCount() const { return _fullCount; }
-	base::optional<int> skippedBefore() const { return _skippedBefore; }
-	base::optional<int> skippedAfter() const { return _skippedAfter; }
-	base::optional<int> indexOf(PhotoId msgId) const;
+	std::optional<int> fullCount() const { return _fullCount; }
+	std::optional<int> skippedBefore() const { return _skippedBefore; }
+	std::optional<int> skippedAfter() const { return _skippedAfter; }
+	std::optional<int> indexOf(PhotoId msgId) const;
 	int size() const { return _ids.size(); }
 	PhotoId operator[](int index) const;
-	base::optional<int> distance(const Key &a, const Key &b) const;
+	std::optional<int> distance(const Key &a, const Key &b) const;
 
 private:
 	Key _key;
 	std::deque<PhotoId> _ids;
-	base::optional<int> _fullCount;
-	base::optional<int> _skippedBefore;
-	base::optional<int> _skippedAfter;
+	std::optional<int> _fullCount;
+	std::optional<int> _skippedBefore;
+	std::optional<int> _skippedAfter;
 
 	friend class UserPhotosSliceBuilder;
 

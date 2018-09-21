@@ -30,7 +30,7 @@ using Type = Storage::SharedMediaType;
 
 } // namespace
 
-base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
+std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 		Storage::SharedMediaType type) {
 	switch (type) {
 	case Type::Photo:
@@ -40,7 +40,7 @@ base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	case Type::VoiceFile:
 	case Type::Link: return type;
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 void SharedMediaShowOverview(
@@ -177,7 +177,7 @@ SharedMediaWithLastSlice::SharedMediaWithLastSlice(Key key)
 SharedMediaWithLastSlice::SharedMediaWithLastSlice(
 	Key key,
 	SparseIdsMergedSlice slice,
-	base::optional<SparseIdsMergedSlice> ending)
+	std::optional<SparseIdsMergedSlice> ending)
 : _key(key)
 , _slice(std::move(slice))
 , _ending(std::move(ending))
@@ -187,21 +187,21 @@ SharedMediaWithLastSlice::SharedMediaWithLastSlice(
 	: false) {
 }
 
-base::optional<int> SharedMediaWithLastSlice::fullCount() const {
+std::optional<int> SharedMediaWithLastSlice::fullCount() const {
 	return Add(
 		_slice.fullCount(),
 		_isolatedLastPhoto | [](bool isolated) { return isolated ? 1 : 0; });
 }
 
-base::optional<int> SharedMediaWithLastSlice::skippedBeforeImpl() const {
+std::optional<int> SharedMediaWithLastSlice::skippedBeforeImpl() const {
 	return _slice.skippedBefore();
 }
 
-base::optional<int> SharedMediaWithLastSlice::skippedBefore() const {
+std::optional<int> SharedMediaWithLastSlice::skippedBefore() const {
 	return _reversed ? skippedAfterImpl() : skippedBeforeImpl();
 }
 
-base::optional<int> SharedMediaWithLastSlice::skippedAfterImpl() const {
+std::optional<int> SharedMediaWithLastSlice::skippedAfterImpl() const {
 	return isolatedInSlice()
 		? Add(
 			_slice.skippedAfter(),
@@ -209,21 +209,21 @@ base::optional<int> SharedMediaWithLastSlice::skippedAfterImpl() const {
 		: (lastPhotoSkip() | [](int) { return 0; });
 }
 
-base::optional<int> SharedMediaWithLastSlice::skippedAfter() const {
+std::optional<int> SharedMediaWithLastSlice::skippedAfter() const {
 	return _reversed ? skippedBeforeImpl() : skippedAfterImpl();
 }
 
-base::optional<int> SharedMediaWithLastSlice::indexOfImpl(Value value) const {
+std::optional<int> SharedMediaWithLastSlice::indexOfImpl(Value value) const {
 	return base::get_if<FullMsgId>(&value)
 		? _slice.indexOf(*base::get_if<FullMsgId>(&value))
 		: (isolatedInSlice()
 			|| !_lastPhotoId
 			|| (*base::get_if<not_null<PhotoData*>>(&value))->id != *_lastPhotoId)
-			? base::none
+			? std::nullopt
 			: Add(_slice.size() - 1, lastPhotoSkip());
 }
 
-base::optional<int> SharedMediaWithLastSlice::indexOf(Value value) const {
+std::optional<int> SharedMediaWithLastSlice::indexOf(Value value) const {
 	const auto result = indexOfImpl(value);
 	if (result && (*result < 0 || *result >= size())) {
 		// Should not happen.
@@ -296,7 +296,7 @@ SharedMediaWithLastSlice::Value SharedMediaWithLastSlice::operator[](int index) 
 		: Value(Auth().data().photo(*_lastPhotoId));
 }
 
-base::optional<int> SharedMediaWithLastSlice::distance(
+std::optional<int> SharedMediaWithLastSlice::distance(
 		const Key &a,
 		const Key &b) const {
 	if (auto i = indexOf(ComputeId(a))) {
@@ -304,29 +304,29 @@ base::optional<int> SharedMediaWithLastSlice::distance(
 			return *j - *i;
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 void SharedMediaWithLastSlice::reverse() {
 	_reversed = !_reversed;
 }
 
-base::optional<PhotoId> SharedMediaWithLastSlice::LastPeerPhotoId(
+std::optional<PhotoId> SharedMediaWithLastSlice::LastPeerPhotoId(
 		PeerId peerId) {
 	if (auto peer = App::peerLoaded(peerId)) {
 		return peer->userpicPhotoUnknown()
-			? base::none
+			? std::nullopt
 			: base::make_optional(peer->userpicPhotoId());
 	}
-	return base::none;
+	return std::nullopt;
 }
 
-base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
+std::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 		const SparseIdsMergedSlice &slice,
-		const base::optional<SparseIdsMergedSlice> &ending,
-		base::optional<PhotoId> lastPeerPhotoId) {
+		const std::optional<SparseIdsMergedSlice> &ending,
+		std::optional<PhotoId> lastPeerPhotoId) {
 	if (!lastPeerPhotoId) {
-		return base::none;
+		return std::nullopt;
 	} else if (!*lastPeerPhotoId) {
 		return false;
 	}
@@ -338,12 +338,12 @@ base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 		| [&](PhotoId photoId) { return *lastPeerPhotoId != photoId; };
 }
 
-base::optional<FullMsgId> SharedMediaWithLastSlice::LastFullMsgId(
+std::optional<FullMsgId> SharedMediaWithLastSlice::LastFullMsgId(
 		const SparseIdsMergedSlice &slice) {
 	if (slice.fullCount() == 0) {
 		return FullMsgId();
 	} else if (slice.size() == 0 || slice.skippedAfter() != 0) {
-		return base::none;
+		return std::nullopt;
 	}
 	return slice[slice.size() - 1];
 }
@@ -364,7 +364,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 				consumer.put_next(SharedMediaWithLastSlice(
 					key,
 					std::move(update),
-					base::none));
+					std::nullopt));
 			});
 		}
 		return rpl::combine(

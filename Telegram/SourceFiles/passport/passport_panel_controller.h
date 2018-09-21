@@ -22,7 +22,7 @@ enum class ReadScanError;
 
 EditDocumentScheme GetDocumentScheme(
 	Scope::Type type,
-	base::optional<Value::Type> scansType,
+	std::optional<Value::Type> scansType,
 	bool nativeNames);
 EditContactScheme GetContactScheme(Scope::Type type);
 
@@ -98,13 +98,13 @@ public:
 
 	bool canAddScan(FileType type) const;
 	void uploadScan(FileType type, QByteArray &&content);
-	void deleteScan(FileType type, base::optional<int> fileIndex);
-	void restoreScan(FileType type, base::optional<int> fileIndex);
+	void deleteScan(FileType type, std::optional<int> fileIndex);
+	void restoreScan(FileType type, std::optional<int> fileIndex);
 	rpl::producer<ScanInfo> scanUpdated() const;
 	rpl::producer<ScopeError> saveErrors() const;
 	void readScanError(ReadScanError error);
 
-	base::optional<rpl::producer<QString>> deleteValueLabel() const;
+	std::optional<rpl::producer<QString>> deleteValueLabel() const;
 	void deleteValue();
 
 	QString defaultEmail() const;
@@ -149,13 +149,13 @@ public:
 private:
 	void ensurePanelCreated();
 
-	void editScope(int index, base::optional<int> documentIndex);
+	void editScope(int index, std::optional<int> documentIndex);
 	void editWithUpload(int index, int documentIndex);
 	bool editRequiresScanUpload(
 		int index,
-		base::optional<int> documentIndex) const;
-	void startScopeEdit(int index, base::optional<int> documentIndex);
-	base::optional<int> findBestDocumentIndex(const Scope &scope) const;
+		std::optional<int> documentIndex) const;
+	void startScopeEdit(int index, std::optional<int> documentIndex);
+	std::optional<int> findBestDocumentIndex(const Scope &scope) const;
 	void requestScopeFilesType(int index);
 	void cancelValueEdit();
 	void processValueSaveFinished(not_null<const Value*> value);

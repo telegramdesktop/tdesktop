@@ -89,7 +89,7 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
 std::vector<not_null<DocumentData*>> GetListByEmoji(
 	not_null<EmojiPtr> emoji,
 	uint64 seed);
-base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
+std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 	not_null<DocumentData*> document);
 
 Set *FeedSet(const MTPDstickerSet &data);

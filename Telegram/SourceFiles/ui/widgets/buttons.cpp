@@ -60,7 +60,7 @@ void LinkButton::setText(const QString &text) {
 	update();
 }
 
-void LinkButton::setColorOverride(base::optional<QColor> textFg) {
+void LinkButton::setColorOverride(std::optional<QColor> textFg) {
 	_textFgOverride = textFg;
 	update();
 }

@@ -187,12 +187,12 @@ private:
 	bool isFreePlace(PlaceId place) const;
 
 	template <typename StoreRecord>
-	base::optional<QString> writeKeyPlaceGeneric(
+	std::optional<QString> writeKeyPlaceGeneric(
 		StoreRecord &&record,
 		const Key &key,
 		const TaggedValue &value,
 		uint32 checksum);
-	base::optional<QString> writeKeyPlace(
+	std::optional<QString> writeKeyPlace(
 		const Key &key,
 		const TaggedValue &value,
 		uint32 checksum);

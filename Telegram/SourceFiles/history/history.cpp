@@ -294,7 +294,7 @@ void History::setHasPendingResizedItems() {
 void History::itemRemoved(not_null<HistoryItem*> item) {
 	item->removeMainView();
 	if (lastMessage() == item) {
-		_lastMessage = base::none;
+		_lastMessage = std::nullopt;
 		if (loadedAtBottom()) {
 			if (const auto last = lastAvailableMessage()) {
 				setLastMessage(last);
@@ -423,7 +423,7 @@ void History::setSentDraftText(const QString &text) {
 
 void History::clearSentDraftText(const QString &text) {
 	if (_lastSentDraftText && *_lastSentDraftText == text) {
-		_lastSentDraftText = base::none;
+		_lastSentDraftText = std::nullopt;
 	}
 	accumulate_max(_lastSentDraftTime, unixtime());
 }

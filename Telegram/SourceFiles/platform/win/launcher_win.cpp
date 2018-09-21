@@ -40,7 +40,7 @@ Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv, DeviceModel(), SystemVersion()) {
 }
 
-base::optional<QStringList> Launcher::readArgumentsHook(
+std::optional<QStringList> Launcher::readArgumentsHook(
 		int argc,
 		char *argv[]) const {
 	auto count = 0;
@@ -55,7 +55,7 @@ base::optional<QStringList> Launcher::readArgumentsHook(
 			return result;
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {

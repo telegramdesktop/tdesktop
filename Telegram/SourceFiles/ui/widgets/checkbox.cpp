@@ -258,7 +258,7 @@ bool CheckView::checkRippleStartPosition(QPoint position) const {
 }
 
 void CheckView::setUntoggledOverride(
-		base::optional<QColor> untoggledOverride) {
+		std::optional<QColor> untoggledOverride) {
 	_untoggledOverride = untoggledOverride;
 	update();
 }
@@ -328,7 +328,7 @@ bool RadioView::checkRippleStartPosition(QPoint position) const {
 }
 
 void RadioView::setUntoggledOverride(
-		base::optional<QColor> untoggledOverride) {
+		std::optional<QColor> untoggledOverride) {
 	_untoggledOverride = untoggledOverride;
 	update();
 }

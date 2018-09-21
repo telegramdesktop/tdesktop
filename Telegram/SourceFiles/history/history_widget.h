@@ -684,7 +684,7 @@ private:
 
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.
-	base::optional<int> unreadBarTop() const;
+	std::optional<int> unreadBarTop() const;
 	int itemTopForHighlight(not_null<HistoryView::Element*> view) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 	HistoryView::Element *firstUnreadMessage() const;

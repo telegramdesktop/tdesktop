@@ -54,7 +54,7 @@ public:
 	virtual bool setFocusFast();
 	virtual rpl::producer<QString> value() const = 0;
 	virtual QString valueCurrent() const = 0;
-	void showError(base::optional<QString> error = base::none);
+	void showError(std::optional<QString> error = std::nullopt);
 	bool errorShown() const;
 	void hideError();
 	void finishAnimating();

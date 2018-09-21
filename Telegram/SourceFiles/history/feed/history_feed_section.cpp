@@ -199,7 +199,7 @@ void Widget::updateScrollDownVisibility() {
 		return;
 	}
 
-	const auto scrollDownIsVisible = [&]() -> base::optional<bool> {
+	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
 		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
 		if (top < _scroll->scrollTopMax()) {
 			return true;
@@ -207,7 +207,7 @@ void Widget::updateScrollDownVisibility() {
 		if (_inner->loadedAtBottomKnown()) {
 			return !_inner->loadedAtBottom();
 		}
-		return base::none;
+		return std::nullopt;
 	};
 	const auto scrollDownIsShown = scrollDownIsVisible();
 	if (!scrollDownIsShown) {
@@ -368,11 +368,11 @@ void Widget::listVisibleItemsChanged(HistoryItemsList &&items) {
 	}
 }
 
-base::optional<int> Widget::listUnreadBarView(
+std::optional<int> Widget::listUnreadBarView(
 		const std::vector<not_null<Element*>> &elements) {
 	const auto position = _feed->unreadPosition();
 	if (!position || elements.empty() || !_feed->unreadCount()) {
-		return base::none;
+		return std::nullopt;
 	}
 	const auto minimal = ranges::upper_bound(
 		elements,
@@ -380,14 +380,14 @@ base::optional<int> Widget::listUnreadBarView(
 		std::less<>(),
 		[](auto view) { return view->data()->position(); });
 	if (minimal == end(elements)) {
-		return base::none;
+		return std::nullopt;
 	}
 	const auto view = *minimal;
 	const auto unreadMessagesHeight = elements.back()->y()
 		+ elements.back()->height()
 		- view->y();
 	if (unreadMessagesHeight < _scroll->height()) {
-		return base::none;
+		return std::nullopt;
 	}
 	return base::make_optional(int(minimal - begin(elements)));
 }
@@ -482,7 +482,7 @@ void Widget::updateControlsGeometry() {
 	const auto contentWidth = width();
 
 	const auto newScrollTop = _scroll->isHidden()
-		? base::none
+		? std::nullopt
 		: base::make_optional(_scroll->scrollTop() + topDelta());
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_sparse_ids.h"
 
-base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
+std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	Storage::SharedMediaType type);
 void SharedMediaShowOverview(
 	Storage::SharedMediaType type,
@@ -93,15 +93,15 @@ public:
 	SharedMediaWithLastSlice(
 		Key key,
 		SparseIdsMergedSlice slice,
-		base::optional<SparseIdsMergedSlice> ending);
+		std::optional<SparseIdsMergedSlice> ending);
 
-	base::optional<int> fullCount() const;
-	base::optional<int> skippedBefore() const;
-	base::optional<int> skippedAfter() const;
-	base::optional<int> indexOf(Value fullId) const;
+	std::optional<int> fullCount() const;
+	std::optional<int> skippedBefore() const;
+	std::optional<int> skippedAfter() const;
+	std::optional<int> indexOf(Value fullId) const;
 	int size() const;
 	Value operator[](int index) const;
-	base::optional<int> distance(const Key &a, const Key &b) const;
+	std::optional<int> distance(const Key &a, const Key &b) const;
 
 	void reverse();
 
@@ -123,23 +123,23 @@ public:
 	}
 
 private:
-	static base::optional<SparseIdsMergedSlice> EndingSlice(const Key &key) {
+	static std::optional<SparseIdsMergedSlice> EndingSlice(const Key &key) {
 		return base::get_if<MessageId>(&key.universalId)
 			? base::make_optional(SparseIdsMergedSlice(EndingKey(key)))
-			: base::none;
+			: std::nullopt;
 	}
 
-	static base::optional<PhotoId> LastPeerPhotoId(PeerId peerId);
-	static base::optional<bool> IsLastIsolated(
+	static std::optional<PhotoId> LastPeerPhotoId(PeerId peerId);
+	static std::optional<bool> IsLastIsolated(
 		const SparseIdsMergedSlice &slice,
-		const base::optional<SparseIdsMergedSlice> &ending,
-		base::optional<PhotoId> lastPeerPhotoId);
-	static base::optional<FullMsgId> LastFullMsgId(
+		const std::optional<SparseIdsMergedSlice> &ending,
+		std::optional<PhotoId> lastPeerPhotoId);
+	static std::optional<FullMsgId> LastFullMsgId(
 		const SparseIdsMergedSlice &slice);
-	static base::optional<int> Add(
-			const base::optional<int> &a,
-			const base::optional<int> &b) {
-		return (a && b) ? base::make_optional(*a + *b) : base::none;
+	static std::optional<int> Add(
+			const std::optional<int> &a,
+			const std::optional<int> &b) {
+		return (a && b) ? base::make_optional(*a + *b) : std::nullopt;
 	}
 	static Value ComputeId(PeerId peerId, MsgId msgId) {
 		return FullMsgId(
@@ -158,20 +158,20 @@ private:
 	bool isolatedInSlice() const {
 		return (_slice.skippedAfter() != 0);
 	}
-	base::optional<int> lastPhotoSkip() const {
+	std::optional<int> lastPhotoSkip() const {
 		return _isolatedLastPhoto
 			| [](bool isolated) { return isolated ? 1 : 0; };
 	}
 
-	base::optional<int> skippedBeforeImpl() const;
-	base::optional<int> skippedAfterImpl() const;
-	base::optional<int> indexOfImpl(Value fullId) const;
+	std::optional<int> skippedBeforeImpl() const;
+	std::optional<int> skippedAfterImpl() const;
+	std::optional<int> indexOfImpl(Value fullId) const;
 
 	Key _key;
 	SparseIdsMergedSlice _slice;
-	base::optional<SparseIdsMergedSlice> _ending;
-	base::optional<PhotoId> _lastPhotoId;
-	base::optional<bool> _isolatedLastPhoto;
+	std::optional<SparseIdsMergedSlice> _ending;
+	std::optional<PhotoId> _lastPhotoId;
+	std::optional<bool> _isolatedLastPhoto;
 	bool _reversed = false;
 
 };

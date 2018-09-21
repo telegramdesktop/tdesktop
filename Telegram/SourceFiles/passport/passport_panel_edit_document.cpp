@@ -215,7 +215,7 @@ PanelEditDocument::PanelEditDocument(
 	const QString &scansError,
 	const ValueMap &scansData,
 	ScanListData &&scans,
-	base::optional<ScanListData> &&translations,
+	std::optional<ScanListData> &&translations,
 	std::map<FileType, ScanInfo> &&specialFiles)
 : _controller(controller)
 , _scheme(std::move(scheme))
@@ -243,7 +243,7 @@ PanelEditDocument::PanelEditDocument(
 	const QString &scansError,
 	const ValueMap &scansData,
 	ScanListData &&scans,
-	base::optional<ScanListData> &&translations,
+	std::optional<ScanListData> &&translations,
 	std::map<FileType, ScanInfo> &&specialFiles)
 : _controller(controller)
 , _scheme(std::move(scheme))
@@ -288,7 +288,7 @@ void PanelEditDocument::setupControls(
 		const QString *scansError,
 		const ValueMap *scansData,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations,
+		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles) {
 	const auto inner = setupContent(
 		error,
@@ -316,7 +316,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		const QString *scansError,
 		const ValueMap *scansData,
 		ScanListData &&scans,
-		base::optional<ScanListData> &&translations,
+		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles) {
 	const auto inner = _scroll->setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(this));
@@ -629,7 +629,7 @@ void PanelEditDocument::fillAdditionalFromFallbacks(Result &result) const {
 bool PanelEditDocument::validate() {
 	auto error = _editScans
 		? _editScans->validateGetErrorTop()
-		: base::none;
+		: std::nullopt;
 	if (error) {
 		const auto errortop = _editScans->mapToGlobal(QPoint(0, *error));
 		const auto scrolltop = _scroll->mapToGlobal(QPoint(0, 0));

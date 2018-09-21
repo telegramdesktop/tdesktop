@@ -106,7 +106,7 @@ std::map<FileType, ScanInfo> PrepareSpecialFiles(const Value &value) {
 
 EditDocumentScheme GetDocumentScheme(
 		Scope::Type type,
-		base::optional<Value::Type> scansType,
+		std::optional<Value::Type> scansType,
 		bool nativeNames) {
 	using Scheme = EditDocumentScheme;
 	using ValueClass = Scheme::ValueClass;
@@ -127,7 +127,7 @@ EditDocumentScheme GetDocumentScheme(
 	const auto FromBoolean = [](auto validation) {
 		return [=](const QString &value) {
 			return validation(value)
-				? base::none
+				? std::nullopt
 				: base::make_optional(QString());
 		};
 	};
@@ -136,7 +136,7 @@ EditDocumentScheme GetDocumentScheme(
 			return (value.size() >= min) && (value.size() <= max);
 		});
 	};
-	using Result = base::optional<QString>;
+	using Result = std::optional<QString>;
 	const auto NameValidate = [](const QString &value) -> Result {
 		if (value.isEmpty() || value.size() > kMaxNameSize) {
 			return QString();
@@ -145,7 +145,7 @@ EditDocumentScheme GetDocumentScheme(
 		).match(value).hasMatch()) {
 			return lang(lng_passport_bad_name);
 		}
-		return base::none;
+		return std::nullopt;
 	};
 	const auto NativeNameValidate = LimitedValidate(kMaxNameSize);
 	const auto NativeNameOrEmptyValidate = LimitedValidate(kMaxNameSize, 0);
@@ -174,7 +174,7 @@ EditDocumentScheme GetDocumentScheme(
 	});
 	const auto NameOrEmptyValidate = [=](const QString &value) -> Result {
 		if (value.isEmpty()) {
-			return base::none;
+			return std::nullopt;
 		}
 		return NameValidate(value);
 	};
@@ -765,7 +765,7 @@ void PanelController::uploadScan(FileType type, QByteArray &&content) {
 
 void PanelController::deleteScan(
 		FileType type,
-		base::optional<int> fileIndex) {
+		std::optional<int> fileIndex) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
 	Expects(_editDocument->requiresScan(type));
@@ -775,7 +775,7 @@ void PanelController::deleteScan(
 
 void PanelController::restoreScan(
 		FileType type,
-		base::optional<int> fileIndex) {
+		std::optional<int> fileIndex) {
 	Expects(_editScope != nullptr);
 	Expects(_editDocument != nullptr);
 	Expects(_editDocument->requiresScan(type));
@@ -808,13 +808,13 @@ std::vector<ScopeError> PanelController::collectSaveErrors(
 }
 
 auto PanelController::deleteValueLabel() const
--> base::optional<rpl::producer<QString>> {
+-> std::optional<rpl::producer<QString>> {
 	Expects(_editScope != nullptr);
 
 	if (hasValueDocument()) {
 		return Lang::Viewer(lng_passport_delete_document);
 	} else if (!hasValueFields()) {
-		return base::none;
+		return std::nullopt;
 	}
 	switch (_editScope->type) {
 	case Scope::Type::PersonalDetails:
@@ -969,7 +969,7 @@ void PanelController::ensurePanelCreated() {
 	}
 }
 
-base::optional<int> PanelController::findBestDocumentIndex(
+std::optional<int> PanelController::findBestDocumentIndex(
 		const Scope &scope) const {
 	Expects(!scope.documents.empty());
 
@@ -981,7 +981,7 @@ base::optional<int> PanelController::findBestDocumentIndex(
 			return document->whatNotFilled();
 		});
 	return ((*i)->whatNotFilled() == Value::kNothingFilled)
-		? base::none
+		? std::nullopt
 		: base::make_optional(int(i - begin(documents)));
 	return -1;
 }
@@ -992,7 +992,7 @@ void PanelController::editScope(int index) {
 
 	const auto &scope = _scopes[index];
 	if (scope.documents.empty()) {
-		editScope(index, base::none);
+		editScope(index, std::nullopt);
 	} else {
 		const auto documentIndex = findBestDocumentIndex(scope);
 		if (documentIndex || scope.documents.size() == 1) {
@@ -1106,7 +1106,7 @@ void PanelController::readScanError(ReadScanError error) {
 
 bool PanelController::editRequiresScanUpload(
 		int index,
-		base::optional<int> documentIndex) const {
+		std::optional<int> documentIndex) const {
 	Expects(index >= 0 && index < _scopes.size());
 	Expects(!documentIndex
 		|| (*documentIndex >= 0
@@ -1125,7 +1125,7 @@ bool PanelController::editRequiresScanUpload(
 
 void PanelController::editScope(
 		int index,
-		base::optional<int> documentIndex) {
+		std::optional<int> documentIndex) {
 	if (editRequiresScanUpload(index, documentIndex)) {
 		editWithUpload(index, *documentIndex);
 	} else {
@@ -1135,7 +1135,7 @@ void PanelController::editScope(
 
 void PanelController::startScopeEdit(
 		int index,
-		base::optional<int> documentIndex) {
+		std::optional<int> documentIndex) {
 	Expects(_panel != nullptr);
 	Expects(index >= 0 && index < _scopes.size());
 	Expects(_scopes[index].details != 0 || documentIndex.has_value());
@@ -1168,7 +1168,7 @@ void PanelController::startScopeEdit(
 				? base::make_optional(PrepareScanListData(
 					*_editDocument,
 					FileType::Translation))
-				: base::none;
+				: std::nullopt;
 			auto result = _editValue
 				? object_ptr<PanelEditDocument>(
 					_panel->widget(),
@@ -1210,7 +1210,7 @@ void PanelController::startScopeEdit(
 				this,
 				GetDocumentScheme(
 					_editScope->type,
-					base::none,
+					std::nullopt,
 					_editValue->nativeNames),
 				_editValue->error,
 				_editValue->data.parsedInEdit);

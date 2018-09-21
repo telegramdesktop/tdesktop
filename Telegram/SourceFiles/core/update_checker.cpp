@@ -158,9 +158,9 @@ private:
 	void gotFailure(QNetworkReply::NetworkError e);
 	void clearSentRequest();
 	bool handleResponse(const QByteArray &response);
-	base::optional<QString> parseOldResponse(
+	std::optional<QString> parseOldResponse(
 		const QByteArray &response) const;
-	base::optional<QString> parseResponse(const QByteArray &response) const;
+	std::optional<QString> parseResponse(const QByteArray &response) const;
 	QString validateLatestUrl(
 		uint64 availableVersion,
 		bool isAvailableBeta,
@@ -262,14 +262,14 @@ private:
 		const QString &username,
 		Fn<void(const MTPInputChannel &channel)> callback);
 	void gotMessage(const MTPmessages_Messages &result);
-	base::optional<FileLocation> parseMessage(
+	std::optional<FileLocation> parseMessage(
 		const MTPmessages_Messages &result) const;
-	base::optional<FileLocation> parseText(const QByteArray &text) const;
+	std::optional<FileLocation> parseText(const QByteArray &text) const;
 	FileLocation validateLatestLocation(
 		uint64 availableVersion,
 		const FileLocation &location) const;
 	void gotFile(const MTPmessages_Messages &result);
-	base::optional<ParsedFile> parseFile(
+	std::optional<ParsedFile> parseFile(
 		const MTPmessages_Messages &result) const;
 
 	MtpWeak _mtp;
@@ -597,7 +597,7 @@ bool UnpackUpdate(const QString &filepath) {
 	return true;
 }
 
-base::optional<MTPInputChannel> ExtractChannel(
+std::optional<MTPInputChannel> ExtractChannel(
 		const MTPcontacts_ResolvedPeer &result) {
 	const auto &data = result.c_contacts_resolvedPeer();
 	if (const auto peer = peerFromMTP(data.vpeer)) {
@@ -612,7 +612,7 @@ base::optional<MTPInputChannel> ExtractChannel(
 			}
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 template <typename Callback>
@@ -717,11 +717,11 @@ bool ParseCommonMap(
 	return true;
 }
 
-base::optional<MTPMessage> GetMessagesElement(
+std::optional<MTPMessage> GetMessagesElement(
 		const MTPmessages_Messages &list) {
-	const auto get = [](auto &&data) -> base::optional<MTPMessage> {
+	const auto get = [](auto &&data) -> std::optional<MTPMessage> {
 		return data.vmessages.v.isEmpty()
-			? base::none
+			? std::nullopt
 			: base::make_optional(data.vmessages.v[0]);
 	};
 	switch (list.type()) {
@@ -732,7 +732,7 @@ base::optional<MTPMessage> GetMessagesElement(
 	case mtpc_messages_channelMessages:
 		return get(list.c_messages_channelMessages());
 	case mtpc_messages_messagesNotModified:
-		return base::none;
+		return std::nullopt;
 	default: Unexpected("Type of messages.Messages (GetMessagesElement)");
 	}
 }
@@ -961,14 +961,14 @@ void HttpChecker::gotFailure(QNetworkReply::NetworkError e) {
 	fail();
 }
 
-base::optional<QString> HttpChecker::parseOldResponse(
+std::optional<QString> HttpChecker::parseOldResponse(
 		const QByteArray &response) const {
 	const auto string = QString::fromLatin1(response);
 	const auto old = QRegularExpression(
 		qsl("^\\s*(\\d+)\\s*:\\s*([\\x21-\\x7f]+)\\s*$")
 	).match(string);
 	if (!old.hasMatch()) {
-		return base::none;
+		return std::nullopt;
 	}
 	const auto availableVersion = old.captured(1).toULongLong();
 	const auto url = old.captured(2);
@@ -979,7 +979,7 @@ base::optional<QString> HttpChecker::parseOldResponse(
 		isAvailableBeta ? url.mid(5) + "_{signature}" : url);
 }
 
-base::optional<QString> HttpChecker::parseResponse(
+std::optional<QString> HttpChecker::parseResponse(
 		const QByteArray &response) const {
 	auto bestAvailableVersion = 0ULL;
 	auto bestIsAvailableBeta = false;
@@ -1005,7 +1005,7 @@ base::optional<QString> HttpChecker::parseResponse(
 	};
 	const auto result = ParseCommonMap(response, testing(), accumulate);
 	if (!result) {
-		return base::none;
+		return std::nullopt;
 	}
 	return validateLatestUrl(
 		bestAvailableVersion,
@@ -1350,17 +1350,17 @@ void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
 }
 
 auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
--> base::optional<FileLocation> {
+-> std::optional<FileLocation> {
 	const auto message = GetMessagesElement(result);
 	if (!message || message->type() != mtpc_message) {
 		LOG(("Update Error: MTP feed message not found."));
-		return base::none;
+		return std::nullopt;
 	}
 	return parseText(message->c_message().vmessage.v);
 }
 
 auto MtpChecker::parseText(const QByteArray &text) const
--> base::optional<FileLocation> {
+-> std::optional<FileLocation> {
 	auto bestAvailableVersion = 0ULL;
 	auto bestLocation = FileLocation();
 	const auto accumulate = [&](
@@ -1404,7 +1404,7 @@ auto MtpChecker::parseText(const QByteArray &text) const
 	};
 	const auto result = ParseCommonMap(text, testing(), accumulate);
 	if (!result) {
-		return base::none;
+		return std::nullopt;
 	}
 	return validateLatestLocation(bestAvailableVersion, bestLocation);
 }
@@ -1430,23 +1430,23 @@ void MtpChecker::gotFile(const MTPmessages_Messages &result) {
 }
 
 auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
--> base::optional<ParsedFile> {
+-> std::optional<ParsedFile> {
 	const auto message = GetMessagesElement(result);
 	if (!message || message->type() != mtpc_message) {
 		LOG(("Update Error: MTP file message not found."));
-		return base::none;
+		return std::nullopt;
 	}
 	const auto &data = message->c_message();
 	if (!data.has_media()
 		|| data.vmedia.type() != mtpc_messageMediaDocument) {
 		LOG(("Update Error: MTP file media not found."));
-		return base::none;
+		return std::nullopt;
 	}
 	const auto &document = data.vmedia.c_messageMediaDocument();
 	if (!document.has_document()
 		|| document.vdocument.type() != mtpc_document) {
 		LOG(("Update Error: MTP file not found."));
-		return base::none;
+		return std::nullopt;
 	}
 	const auto &fields = document.vdocument.c_document();
 	const auto name = [&] {
@@ -1460,12 +1460,12 @@ auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
 	}();
 	if (name.isEmpty()) {
 		LOG(("Update Error: MTP file name not found."));
-		return base::none;
+		return std::nullopt;
 	}
 	const auto size = fields.vsize.v;
 	if (size <= 0) {
 		LOG(("Update Error: MTP file size is invalid."));
-		return base::none;
+		return std::nullopt;
 	}
 	const auto location = MTP_inputDocumentFileLocation(
 		fields.vid,

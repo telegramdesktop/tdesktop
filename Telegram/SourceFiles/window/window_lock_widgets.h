@@ -66,7 +66,7 @@ private:
 struct TermsLock {
 	bytes::vector id;
 	TextWithEntities text;
-	base::optional<int> minAge;
+	std::optional<int> minAge;
 	bool popup = false;
 
 	inline bool operator==(const TermsLock &other) const {

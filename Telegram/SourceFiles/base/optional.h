@@ -7,39 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <optional>
 #include <gsl/gsl_assert>
 #include "base/variant.h"
 
 namespace base {
 
-struct none_type {
-	bool operator==(none_type other) const {
-		return true;
-	}
-	bool operator!=(none_type other) const {
-		return false;
-	}
-	bool operator<(none_type other) const {
-		return false;
-	}
-	bool operator<=(none_type other) const {
-		return true;
-	}
-	bool operator>(none_type other) const {
-		return false;
-	}
-	bool operator>=(none_type other) const {
-		return true;
-	}
-
-};
-
-constexpr none_type none = {};
-
 template <typename... Types>
 class optional_variant {
 public:
-	optional_variant() : _impl(none) {
+	optional_variant() : _impl(std::nullopt) {
 	}
 	optional_variant(const optional_variant &other) : _impl(other._impl) {
 	}
@@ -63,7 +40,7 @@ public:
 	}
 
 	bool has_value() const {
-		return !is<none_type>();
+		return !is<std::nullopt_t>();
 	}
 	explicit operator bool() const {
 		return has_value();
@@ -93,7 +70,7 @@ public:
 		return get_unchecked<T>();
 	}
 	void clear() {
-		_impl.template set<none_type>();
+		_impl.template set<std::nullopt_t>();
 	}
 
 	template <typename T>
@@ -119,7 +96,7 @@ public:
 	}
 
 private:
-	variant<none_type, Types...> _impl;
+	variant<std::nullopt_t, Types...> _impl;
 
 };
 
@@ -148,16 +125,13 @@ inline decltype(auto) match(
 }
 
 template <typename Type>
-class optional;
-
-template <typename Type>
 struct optional_wrap_once {
-	using type = optional<Type>;
+	using type = std::optional<Type>;
 };
 
 template <typename Type>
-struct optional_wrap_once<optional<Type>> {
-	using type = optional<Type>;
+struct optional_wrap_once<std::optional<Type>> {
+	using type = std::optional<Type>;
 };
 
 template <typename Type>
@@ -177,57 +151,21 @@ template <typename Type>
 using optional_chain_result_t = typename optional_chain_result<Type>::type;
 
 template <typename Type>
-class optional : public optional_variant<Type> {
-	using parent = optional_variant<Type>;
-
-public:
-	using parent::parent;
-
-	Type &operator*() & {
-		Expects(parent::template is<Type>());
-
-		return parent::template get_unchecked<Type>();
-	}
-	Type &&operator*() && {
-		Expects(parent::template is<Type>());
-
-		return std::move(parent::template get_unchecked<Type>());
-	}
-	const Type &operator*() const & {
-		Expects(parent::template is<Type>());
-
-		return parent::template get_unchecked<Type>();
-	}
-	Type *operator->() {
-		Expects(parent::template is<Type>());
-
-		return std::addressof(parent::template get_unchecked<Type>());
-	}
-	const Type *operator->() const {
-		Expects(parent::template is<Type>());
-
-		return std::addressof(parent::template get_unchecked<Type>());
-	}
-	template <typename ...Args>
-	Type &emplace(Args &&...args) {
-		return parent::template set<Type>(std::forward<Args>(args)...);
-	}
-
-};
-
-template <typename Type>
 optional_wrap_once_t<Type> make_optional(Type &&value) {
 	return optional_wrap_once_t<Type> { std::forward<Type>(value) };
 }
 
+} // namespace base
+
 template <typename Type, typename Method>
-inline auto operator|(const optional<Type> &value, Method method)
--> optional_chain_result_t<decltype(method(*value))> {
+inline auto operator|(const std::optional<Type> &value, Method method)
+-> base::optional_chain_result_t<decltype(method(*value))> {
 	if constexpr (std::is_same_v<decltype(method(*value)), void>) {
 		return value ? (method(*value), true) : false;
 	} else {
-		return value ? make_optional(method(*value)) : none;
+		return value
+			? base::optional_chain_result_t<decltype(method(*value))>(
+				method(*value))
+			: std::nullopt;
 	}
 }
-
-} // namespace base
