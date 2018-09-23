@@ -4309,7 +4309,7 @@ void ApiWrap::sendFiles(
 		return list.files.front().mime == qstr("image/webp");
 	};
 	if ((list.files.size() > 1 || isSticker())
-		&& !caption.text.isEmpty()) {
+		&& !caption.text.isEmpty() && !album) {
 		auto message = MessageToSend(options.history);
 		message.textWithTags = std::move(caption);
 		message.replyTo = options.replyTo;
@@ -4344,6 +4344,7 @@ void ApiWrap::sendFiles(
 			to,
 			caption,
 			album));
+		caption = TextWithTags();
 	}
 	if (album) {
 		_sendingAlbums.emplace(album->groupId, album);
