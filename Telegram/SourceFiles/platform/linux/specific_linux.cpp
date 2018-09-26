@@ -382,6 +382,7 @@ void RegisterCustomScheme() {
 			s << "Type=Application\n";
 			s << "Categories=Network;InstantMessaging;Qt;\n";
 			s << "MimeType=x-scheme-handler/tg;\n";
+			s << "Keywords=tg;chat;im;messaging;messenger;sms;tdesktop;\n";
 			f.close();
 
 			if (_psRunCommand("desktop-file-install --dir=" + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + EscapeShell(QFile::encodeName(file)))) {

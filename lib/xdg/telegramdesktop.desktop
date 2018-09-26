@@ -9,3 +9,4 @@ StartupWMClass=TelegramDesktop
 Type=Application
 Categories=Network;InstantMessaging;Qt;
 MimeType=x-scheme-handler/tg;
+Keywords=tg;chat;im;messaging;messenger;sms;tdesktop;
