@@ -253,7 +253,7 @@ index 41834b21ae..8cdf4ab145 100644
                              setError(QAbstractSocket::NetworkError, AddressNotAvailableErrorString);
                              socketState = QAbstractSocket::UnconnectedState;
 diff --git a/src/platformsupport/dbustray/qdbustrayicon.cpp b/src/platformsupport/dbustray/qdbustrayicon.cpp
-index 4d6e707..9bdb0be 100644
+index 4d6e70720d..9bdb0beb67 100644
 --- a/src/platformsupport/dbustray/qdbustrayicon.cpp
 +++ b/src/platformsupport/dbustray/qdbustrayicon.cpp
 @@ -58,9 +58,18 @@ QT_BEGIN_NAMESPACE
@@ -667,7 +667,7 @@ index c2d206fb45..9b9739862d 100644
      }
      return ret;
 diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-index 8152c57ffd..5ddd7b353d 100644
+index 8152c57ffd..87ba2f3f72 100644
 --- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 +++ b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 @@ -94,6 +94,8 @@ QT_USE_NAMESPACE
@@ -783,7 +783,19 @@ index 8152c57ffd..5ddd7b353d 100644
          systray = sys;
          imageCell = [[QNSImageView alloc] initWithParent:self];
          [item setView: imageCell];
-@@ -482,6 +513,10 @@ QT_END_NAMESPACE
+@@ -448,6 +479,11 @@ QT_END_NAMESPACE
+ -(void)dealloc {
+     [[NSStatusBar systemStatusBar] removeStatusItem:item];
+     [[NSNotificationCenter defaultCenter] removeObserver:imageCell];
++
++    // Patch: Fix crash in macOS 10.14.
++    // Somehow item and imageCell are retained and attempt to be drawn if left in view.
++    [item setView: nil];
++
+     [imageCell release];
+     [item release];
+     [super dealloc];
+@@ -482,6 +518,10 @@ QT_END_NAMESPACE
           selector:@selector(menuTrackingDone:)
               name:NSMenuDidEndTrackingNotification
                   object:m];

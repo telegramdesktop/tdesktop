@@ -121,7 +121,12 @@ ApplicationDelegate *_sharedDelegate = nil;
 	});
 #ifndef OS_MAC_STORE
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-		_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+		if (QSysInfo::macVersion() < Q_MV_OSX(10, 14)) {
+			_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+		} else {
+			// In macOS Mojave it requires accessibility features.
+			LOG(("Media key monitoring disabled in Mojave."));
+		}
 	} else {
 		LOG(("Media key monitoring disabled"));
 	}
