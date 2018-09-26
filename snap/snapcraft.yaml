@@ -106,10 +106,11 @@ parts:
     override-build: |
       set -xe
       snapcraftctl build
+      part_src=$SNAPCRAFT_PART_INSTALL/../src
       snap_gui=$SNAPCRAFT_STAGE/../snap/gui
       mkdir -vp $snap_gui
-      cp -v lib/xdg/telegramdesktop.desktop $snap_gui
-      cp -v Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
+      cp -v $part_src/lib/xdg/telegramdesktop.desktop $snap_gui
+      cp -v $part_src/Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
       sed -i "s|^Icon=.*|Icon=\${SNAP}/meta/gui/icon.png|g" $snap_gui/telegramdesktop.desktop
       echo "Keywords=tg;chat;im;messaging;messenger;" >> $snap_gui/telegramdesktop.desktop
     after:
