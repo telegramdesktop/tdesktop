@@ -112,7 +112,6 @@ parts:
       cp -v $part_src/lib/xdg/telegramdesktop.desktop $snap_gui
       cp -v $part_src/Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
       sed -i "s|^Icon=.*|Icon=\${SNAP}/meta/gui/icon.png|g" $snap_gui/telegramdesktop.desktop
-      echo "Keywords=tg;chat;im;messaging;messenger;" >> $snap_gui/telegramdesktop.desktop
     after:
       - breakpad
       - ffmpeg
