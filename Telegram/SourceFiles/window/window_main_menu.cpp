@@ -58,6 +58,7 @@ MainMenu::MainMenu(
 			const auto nightMode = Window::Theme::IsNightMode();
 			if (action->isChecked() != nightMode) {
 				Window::Theme::ToggleNightMode();
+				Window::Theme::KeepApplied();
 			}
 		}
 	});

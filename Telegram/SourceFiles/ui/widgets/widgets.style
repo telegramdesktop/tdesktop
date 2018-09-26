@@ -142,6 +142,7 @@ Radio {
 
 Checkbox {
 	textFg: color;
+	textFgActive: color;
 
 	width: pixels;
 	margin: margins;

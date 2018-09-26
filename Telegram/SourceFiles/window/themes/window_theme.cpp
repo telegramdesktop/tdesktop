@@ -33,6 +33,7 @@ struct Data {
 		QByteArray content;
 		QByteArray paletteForRevert;
 		Cached cached;
+		Fn<void()> overrideKeep;
 	};
 
 	ChatBackground background;
@@ -334,24 +335,6 @@ void adjustColor(style::color color, float64 hue, float64 saturation) {
 	auto original = color->c;
 	original.setHslF(hue, saturation, original.lightnessF(), original.alphaF());
 	color.set(original.red(), original.green(), original.blue(), original.alpha());
-}
-
-void ApplyDefaultWithNightMode(bool nightMode) {
-	if (nightMode) {
-		if (auto preview = PreviewFromFile(NightThemePath())) {
-			Apply(std::move(preview));
-		}
-	} else {
-		instance.createIfNull();
-		instance->applying.pathRelative = QString();
-		instance->applying.pathAbsolute = QString();
-		instance->applying.content = QByteArray();
-		instance->applying.cached = Cached();
-		if (instance->applying.paletteForRevert.isEmpty()) {
-			instance->applying.paletteForRevert = style::main_palette::save();
-		}
-		Background()->setTestingDefaultTheme();
-	}
 }
 
 void WriteAppliedTheme() {
@@ -723,6 +706,13 @@ bool ChatBackground::isNonDefaultThemeOrBackground() {
 			|| _id != kDefaultBackground);
 }
 
+bool ChatBackground::isNonDefaultBackground() {
+	start();
+	return _themeAbsolutePath.isEmpty()
+		? (_id != kDefaultBackground)
+		: (_id != kThemeBackground);
+}
+
 void ChatBackground::writeNewBackgroundSettings() {
 	if (tile() != _tileForRevert) {
 		Local::writeUserSettings();
@@ -755,11 +745,12 @@ bool ChatBackground::nightMode() const {
 	return _nightMode;
 }
 
-void ChatBackground::toggleNightMode() {
+void ChatBackground::toggleNightMode(std::optional<QString> themePath) {
+	const auto settingDefault = themePath.has_value();
 	const auto oldNightMode = _nightMode;
 	const auto newNightMode = !_nightMode;
 	_nightMode = newNightMode;
-	auto read = Local::readThemeAfterSwitch();
+	auto read = settingDefault ? Saved() : Local::readThemeAfterSwitch();
 	auto path = read.pathAbsolute;
 
 	_nightMode = oldNightMode;
@@ -784,30 +775,34 @@ void ChatBackground::toggleNightMode() {
 		return true;
 	}();
 	if (!alreadyOnDisk) {
-		path = newNightMode ? NightThemePath() : QString();
-		ApplyDefaultWithNightMode(newNightMode);
+		path = themePath
+			? *themePath
+			: (newNightMode ? NightThemePath() : QString());
+		ApplyDefaultWithPath(path);
 	}
 
 	// Theme editor could have already reverted the testing of this toggle.
 	if (AreTestingTheme()) {
-		_nightMode = newNightMode;
+		instance->applying.overrideKeep = [=] {
+			_nightMode = newNightMode;
 
-		// Restore the value, it was set inside theme testing.
-		(oldNightMode ? _tileNightValue : _tileDayValue) = oldTileValue;
+			// Restore the value, it was set inside theme testing.
+			(oldNightMode ? _tileNightValue : _tileDayValue) = oldTileValue;
 
-		if (!alreadyOnDisk) {
-			// First-time switch to default night mode should write it.
-			WriteAppliedTheme();
-		}
-		ClearApplying();
-		keepApplied(path, false);
-		if (tile() != _tileForRevert) {
-			Local::writeUserSettings();
-		}
-		Local::writeSettings();
-		if (!Local::readBackground()) {
-			setImage(kThemeBackground);
-		}
+			if (!alreadyOnDisk) {
+				// First-time switch to default night mode should write it.
+				WriteAppliedTheme();
+			}
+			ClearApplying();
+			keepApplied(path, settingDefault);
+			if (tile() != _tileForRevert) {
+				Local::writeUserSettings();
+			}
+			Local::writeSettings();
+			if (!settingDefault && !Local::readBackground()) {
+				setImage(kThemeBackground);
+			}
+		};
 	}
 }
 
@@ -863,7 +858,25 @@ bool Apply(std::unique_ptr<Preview> preview) {
 }
 
 void ApplyDefault() {
-	ApplyDefaultWithNightMode(IsNightMode());
+	ApplyDefaultWithPath(IsNightMode() ? NightThemePath() : QString());
+}
+
+void ApplyDefaultWithPath(const QString &themePath) {
+	if (!themePath.isEmpty()) {
+		if (auto preview = PreviewFromFile(themePath)) {
+			Apply(std::move(preview));
+		}
+	} else {
+		instance.createIfNull();
+		instance->applying.pathRelative = QString();
+		instance->applying.pathAbsolute = QString();
+		instance->applying.content = QByteArray();
+		instance->applying.cached = Cached();
+		if (instance->applying.paletteForRevert.isEmpty()) {
+			instance->applying.paletteForRevert = style::main_palette::save();
+		}
+		Background()->setTestingDefaultTheme();
+	}
 }
 
 bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
@@ -895,6 +908,9 @@ bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 void KeepApplied() {
 	if (!AreTestingTheme()) {
 		return;
+	} else if (instance->applying.overrideKeep) {
+		instance->applying.overrideKeep();
+		return;
 	}
 	const auto path = instance->applying.pathAbsolute;
 	WriteAppliedTheme();
@@ -921,6 +937,10 @@ bool IsNonDefaultThemeOrBackground() {
 	return Background()->isNonDefaultThemeOrBackground();
 }
 
+bool IsNonDefaultBackground() {
+	return Background()->isNonDefaultBackground();
+}
+
 bool IsNightMode() {
 	return instance ? Background()->nightMode() : false;
 }
@@ -932,7 +952,11 @@ void SetNightModeValue(bool nightMode) {
 }
 
 void ToggleNightMode() {
-	Background()->toggleNightMode();
+	Background()->toggleNightMode(std::nullopt);
+}
+
+void ToggleNightMode(const QString &path) {
+	Background()->toggleNightMode(path);
 }
 
 bool SuggestThemeReset() {

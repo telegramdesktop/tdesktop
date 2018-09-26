@@ -59,6 +59,44 @@ private:
 
 };
 
+class DefaultTheme final : public Ui::AbstractCheckView {
+public:
+	enum class Type {
+		DayBlue,
+		Default,
+		Night,
+		NightGreen,
+	};
+	struct Scheme {
+		Type type = Type();
+		QColor background;
+		QColor sent;
+		QColor received;
+		QColor radiobuttonInactive;
+		QColor radiobuttonActive;
+		QString name;
+		QString path;
+	};
+	DefaultTheme(Scheme scheme, bool checked);
+
+	QSize getSize() const override;
+	void paint(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		TimeMs ms) override;
+	QImage prepareRippleMask() const override;
+	bool checkRippleStartPosition(QPoint position) const override;
+
+private:
+	void checkedChangedHook(anim::type animated) override;
+
+	Scheme _scheme;
+	Ui::RadioView _radio;
+
+};
+
 void ChooseFromFile(not_null<QWidget*> parent);
 
 BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
@@ -250,6 +288,66 @@ void BackgroundRow::updateImage() {
 	if (radialLoading()) {
 		radialStart();
 	}
+}
+
+DefaultTheme::DefaultTheme(Scheme scheme, bool checked)
+: AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
+, _scheme(scheme)
+, _radio(st::defaultRadio, checked, [=] { update(); }) {
+	_radio.setToggledOverride(_scheme.radiobuttonActive);
+	_radio.setUntoggledOverride(_scheme.radiobuttonInactive);
+}
+
+QSize DefaultTheme::getSize() const {
+	return st::settingsThemePreviewSize;
+}
+
+void DefaultTheme::paint(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		TimeMs ms) {
+	const auto received = QRect(
+		st::settingsThemeBubblePosition,
+		st::settingsThemeBubbleSize);
+	const auto sent = QRect(
+		outerWidth - received.width() - st::settingsThemeBubblePosition.x(),
+		received.y() + received.height() + st::settingsThemeBubbleSkip,
+		received.width(),
+		received.height());
+	const auto radius = st::settingsThemeBubbleRadius;
+
+	p.fillRect(
+		QRect(QPoint(), st::settingsThemePreviewSize),
+		_scheme.background);
+
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(_scheme.received);
+	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
+	p.setBrush(_scheme.sent);
+	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
+
+	const auto radio = _radio.getSize();
+	_radio.paint(
+		p,
+		(outerWidth - radio.width()) / 2,
+		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
+		outerWidth,
+		getms());
+}
+
+QImage DefaultTheme::prepareRippleMask() const {
+	return QImage();
+}
+
+bool DefaultTheme::checkRippleStartPosition(QPoint position) const {
+	return false;
+}
+
+void DefaultTheme::checkedChangedHook(anim::type animated) {
+	_radio.setChecked(checked(), animated);
 }
 
 void ChooseFromFile(not_null<QWidget*> parent) {
@@ -623,6 +721,7 @@ void SetupNightMode(not_null<Ui::VerticalLayout*> container) {
 		const auto change = [=] {
 			if (!--*calling && toggled != Window::Theme::IsNightMode()) {
 				Window::Theme::ToggleNightMode();
+				Window::Theme::KeepApplied();
 			}
 		};
 		App::CallDelayed(
@@ -655,13 +754,193 @@ void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container) {
 	});
 }
 
+void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
+	using Type = DefaultTheme::Type;
+	using Scheme = DefaultTheme::Scheme;
+	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
+		container));
+	const auto scheme = DefaultTheme::Scheme();
+	const auto color = [](str_const hex) {
+		Expects(hex.size() == 6);
+
+		const auto component = [](char a, char b) {
+			const auto convert = [](char ch) {
+				Expects((ch >= '0' && ch <= '9')
+					|| (ch >= 'A' && ch <= 'F')
+					|| (ch >= 'a' && ch <= 'f'));
+
+				return (ch >= '0' && ch <= '9')
+					? int(ch - '0')
+					: int(ch - ((ch >= 'A' && ch <= 'F') ? 'A' : 'a') + 10);
+			};
+			return convert(a) * 16 + convert(b);
+		};
+
+		return QColor(
+			component(hex[0], hex[1]),
+			component(hex[2], hex[3]),
+			component(hex[4], hex[5]));
+	};
+	static const auto schemes = {
+		Scheme{
+			Type::DayBlue,
+			color("7ec4ea"),
+			color("d7f0ff"),
+			color("ffffff"),
+			color("d7f0ff"),
+			color("ffffff"),
+			"Blue",
+			":/gui/day-blue.tdesktop-theme"
+		},
+		Scheme{
+			Type::Default,
+			color("90ce89"),
+			color("eaffdc"),
+			color("ffffff"),
+			color("eaffdc"),
+			color("ffffff"),
+			"Classic",
+			QString()
+		},
+		Scheme{
+			Type::Night,
+			color("485761"),
+			color("5ca7d4"),
+			color("6b808d"),
+			color("6b808d"),
+			color("5ca7d4"),
+			"Night #1",
+			":/gui/night.tdesktop-theme"
+		},
+		Scheme{
+			Type::NightGreen,
+			color("485761"),
+			color("74bf93"),
+			color("6b808d"),
+			color("6b808d"),
+			color("74bf93"),
+			"Night #2",
+			":/gui/night-green.tdesktop-theme"
+		},
+	};
+	const auto chosen = [&] {
+		if (Window::Theme::IsNonDefaultBackground()) {
+			return Type(-1);
+		}
+		const auto path = Window::Theme::Background()->themeAbsolutePath();
+		for (const auto scheme : schemes) {
+			if (path == scheme.path) {
+				return scheme.type;
+			}
+		}
+		return Type(-1);
+	};
+	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(chosen());
+	auto buttons = ranges::view::all(
+		schemes
+	) | ranges::view::transform([&](const Scheme &scheme) {
+		auto check = std::make_unique<DefaultTheme>(scheme, false);
+		const auto weak = check.get();
+		const auto result = Ui::CreateChild<Ui::Radioenum<Type>>(
+			block,
+			group,
+			scheme.type,
+			scheme.name,
+			st::settingsTheme,
+			std::move(check));
+		weak->setUpdateCallback([=] { result->update(); });
+		return result;
+	}) | ranges::to_vector;
+
+	using Update = const Window::Theme::BackgroundUpdate;
+	const auto apply = [=](const Scheme &scheme) {
+		const auto isNight = [](const Scheme &scheme) {
+			const auto type = scheme.type;
+			return (type != Type::DayBlue) && (type != Type::Default);
+		};
+		const auto currentlyIsCustom = (chosen() == Type(-1));
+		if (Window::Theme::IsNightMode() == isNight(scheme)) {
+			Window::Theme::ApplyDefaultWithPath(scheme.path);
+		} else {
+			Window::Theme::ToggleNightMode(scheme.path);
+		}
+		if (!currentlyIsCustom) {
+			Window::Theme::KeepApplied();
+		}
+	};
+	group->setChangedCallback([=](Type type) {
+		const auto i = ranges::find_if(schemes, [&](const Scheme &scheme) {
+			return (type == scheme.type && type != chosen());
+		});
+		if (i != end(schemes)) {
+			apply(*i);
+		}
+	});
+	base::ObservableViewer(
+		*Window::Theme::Background()
+	) | rpl::filter([](const Update &update) {
+		return (update.type == Update::Type::ApplyingTheme
+			|| update.type == Update::Type::New);
+	}) | rpl::map([=] {
+		return chosen();
+	}) | rpl::start_with_next([=](Type type) {
+		group->setValue(type);
+	}, container->lifetime());
+
+	for (const auto button : buttons) {
+		button->setCheckAlignment(style::al_top);
+		button->resizeToWidth(button->width());
+	}
+	block->resize(block->width(), buttons[0]->height());
+	block->widthValue(
+	) | rpl::start_with_next([buttons = std::move(buttons)](int width) {
+		Expects(!buttons.empty());
+
+		//     |------|      |---------|        |-------|      |-------|
+		// pad | blue | skip | classic | 3*skip | night | skip | night | pad
+		//     |------|      |---------|        |-------|      |-------|
+		const auto padding = st::settingsButton.padding;
+		width -= padding.left() + padding.right();
+		const auto desired = st::settingsThemePreviewSize.width();
+		const auto count = int(buttons.size());
+		const auto smallSkips = (count / 2);
+		const auto bigSkips = ((count - 1) / 2);
+		const auto skipRatio = 3;
+		const auto skipSegments = smallSkips + bigSkips * skipRatio;
+		const auto minSkip = st::settingsThemeMinSkip;
+		const auto single = [&] {
+			if (width >= skipSegments * minSkip + count * desired) {
+				return desired;
+			}
+			return (width - skipSegments * minSkip) / count;
+		}();
+		if (single <= 0) {
+			return;
+		}
+		const auto fullSkips = width - count * single;
+		const auto segment = fullSkips / float64(skipSegments);
+		const auto smallSkip = segment;
+		const auto bigSkip = segment * skipRatio;
+		auto left = padding.left() + 0.;
+		auto index = 0;
+		for (const auto button : buttons) {
+			button->resizeToWidth(single);
+			button->moveToLeft(int(std::round(left)), 0);
+			left += button->width() + ((index++ % 2) ? bigSkip : smallSkip);
+		}
+	}, block->lifetime());
+
+	AddSkip(container);
+}
+
 void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_themes);
 
-	SetupNightMode(container);
+	SetupDefaultThemes(container);
+	//SetupNightMode(container);
 
 	AddButton(
 		container,
@@ -672,7 +951,7 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 		container,
 		[] { Window::Theme::Editor::Start(); }));
 
-	SetupUseDefaultTheme(container);
+	//SetupUseDefaultTheme(container);
 
 	AddSkip(container);
 }

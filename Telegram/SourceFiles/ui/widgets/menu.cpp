@@ -132,7 +132,7 @@ int Menu::processAction(QAction *action, int index, int width) {
 			auto updateCallback = [this, index] { updateItem(index); };
 			if (data.toggle) {
 				data.toggle->setUpdateCallback(updateCallback);
-				data.toggle->setCheckedAnimated(action->isChecked());
+				data.toggle->setChecked(action->isChecked(), anim::type::normal);
 			} else {
 				data.toggle = std::make_unique<ToggleView>(_st.itemToggle, action->isChecked(), updateCallback);
 			}

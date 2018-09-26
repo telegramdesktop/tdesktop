@@ -75,7 +75,7 @@ UserCheckbox::UserCheckbox(QWidget *parent, not_null<UserData*> user, bool check
 
 void UserCheckbox::setChecked(bool checked, NotifyAboutChange notify) {
 	if (_check->checked() != checked) {
-		_check->setCheckedAnimated(checked);
+		_check->setChecked(checked, anim::type::normal);
 		if (notify == NotifyAboutChange::Notify) {
 			checkedChanged.notify(checked, true);
 		}

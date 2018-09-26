@@ -79,8 +79,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(QWidget *parent) {
 	AddDivider(result);
 	AddSkip(result);
 	SetupInterfaceScale(result, false);
-	SetupNightMode(result);
-	SetupUseDefaultTheme(result);
+	SetupDefaultThemes(result);
 	AddSkip(result);
 
 	if (anim::Disabled()) {

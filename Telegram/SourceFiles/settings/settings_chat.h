@@ -14,6 +14,7 @@ namespace Settings {
 void SetupDataStorage(not_null<Ui::VerticalLayout*> container);
 void SetupNightMode(not_null<Ui::VerticalLayout*> container);
 void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container);
+void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container);
 
 class Chat : public Section {
 public:

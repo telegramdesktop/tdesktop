@@ -92,7 +92,7 @@ public:
 
 class FixedHeightWidget : public RpWidget {
 public:
-	FixedHeightWidget(QWidget *parent, int height)
+	explicit FixedHeightWidget(QWidget *parent, int height = 0)
 	: RpWidget(parent) {
 		resize(width(), height);
 	}

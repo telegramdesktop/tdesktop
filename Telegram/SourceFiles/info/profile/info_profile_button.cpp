@@ -40,12 +40,12 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 		false,
 		[this] { rtlupdate(toggleRect()); });
 	addClickHandler([this] {
-		_toggle->setCheckedAnimated(!_toggle->checked());
+		_toggle->setChecked(!_toggle->checked(), anim::type::normal);
 	});
 	std::move(
 		toggled
 	) | rpl::start_with_next([this](bool toggled) {
-		_toggle->setCheckedAnimated(toggled);
+		_toggle->setChecked(toggled, anim::type::normal);
 	}, lifetime());
 	_toggle->finishAnimating();
 	return this;
