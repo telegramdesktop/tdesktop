@@ -397,14 +397,24 @@ void start(not_null<Core::Launcher*> launcher) {
 		LogsData = 0;
 	}
 
-	LOG(("Launched version: %1, beta: %2, alpha: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cBetaVersion())).arg(cAlphaVersion()).arg(Logs::b(DebugEnabled())).arg(Logs::b(cTestMode())));
+	LOG(("Launched version: %1, "
+		"install beta: %2, "
+		"alpha: %3, "
+		"debug mode: %4, "
+		"test dc: %5"
+		).arg(AppVersion
+		).arg(Logs::b(cInstallBetaVersion())
+		).arg(cAlphaVersion()
+		).arg(Logs::b(DebugEnabled())
+		).arg(Logs::b(cTestMode())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
 	LOG(("Command line: %1").arg(launcher->argumentsString()));
 
 	if (!LogsData) {
-		LOG(("FATAL: Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
+		LOG(("FATAL: Could not open '%1' for writing log!"
+			).arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
 		return;
 	}
 

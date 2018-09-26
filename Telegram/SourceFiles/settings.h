@@ -28,7 +28,7 @@ inline bool rtl() {
 	return cRtl();
 }
 
-DeclareSetting(bool, BetaVersion);
+DeclareSetting(bool, InstallBetaVersion);
 DeclareSetting(uint64, AlphaVersion);
 DeclareSetting(uint64, RealAlphaVersion);
 DeclareSetting(QByteArray, AlphaPrivateKey);

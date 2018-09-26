@@ -228,7 +228,7 @@ LastCrashedWindow::LastCrashedWindow()
 	: std::make_unique<UpdaterData>(this)) {
 	excludeReportUsername();
 
-	if (!cBetaVersion() && !cAlphaVersion()) { // currently accept crash reports only from testers
+	if (!cInstallBetaVersion() && !cAlphaVersion()) { // currently accept crash reports only from testers
 		_sendingState = SendingNoReport;
 	}
 	if (_sendingState != SendingNoReport) {

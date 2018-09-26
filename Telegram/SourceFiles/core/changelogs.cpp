@@ -118,7 +118,7 @@ void Changelogs::requestCloudLogs() {
 }
 
 void Changelogs::addLocalLogs() {
-	if (cBetaVersion() || cAlphaVersion()) {
+	if (AppBetaVersion || cAlphaVersion()) {
 		addBetaLogs();
 	}
 	if (!_addedSomeLocal) {

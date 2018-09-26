@@ -398,7 +398,7 @@ bool UnpackUpdate(const QString &filepath) {
 	}
 	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
 		RSA_free(pbKey);
-		if (cBetaVersion() || cAlphaVersion()) { // try other public key, if we are in beta or alpha version
+		if (cInstallBetaVersion() || cAlphaVersion()) { // try other public key, if we are in beta or alpha version
 			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppBetaVersion ? UpdatesPublicKey : UpdatesPublicBetaKey), -1), 0, 0, 0);
 			if (!pbKey) {
 				LOG(("Update Error: cant read public rsa key!"));
@@ -655,7 +655,7 @@ bool ParseCommonMap(
 	const auto list = [&]() -> std::vector<QString> {
 		if (cAlphaVersion()) {
 			return { "alpha", "beta", "stable" };
-		} else if (cBetaVersion()) {
+		} else if (cInstallBetaVersion()) {
 			return { "beta", "stable" };
 		}
 		return { "stable" };

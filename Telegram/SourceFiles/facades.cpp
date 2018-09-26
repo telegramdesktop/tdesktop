@@ -447,14 +447,18 @@ void WorkingDirReady() {
 		&& QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
 		Logs::SetDebugEnabled(true);
 	}
+	const auto installBetaPath = cWorkingDir() + qsl("tdata/devversion");
 	if (cAlphaVersion()) {
-		cSetBetaVersion(false);
-	} else if (!cBetaVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
-		cSetBetaVersion(true);
+		cSetInstallBetaVersion(false);
+	} else if (QFile(installBetaPath).exists()) {
+		QFile f(installBetaPath);
+		if (f.open(QIODevice::ReadOnly)) {
+			cSetInstallBetaVersion(f.read(1) != "0");
+		}
 	} else if (AppBetaVersion) {
-		QFile f(cWorkingDir() + qsl("tdata/devversion"));
-		if (!f.exists() && f.open(QIODevice::WriteOnly)) {
-			f.write("1");
+		QFile f(installBetaPath);
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write(cInstallBetaVersion() ? "1" : "0");
 		}
 	}
 
