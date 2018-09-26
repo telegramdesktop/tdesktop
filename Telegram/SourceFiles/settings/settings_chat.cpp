@@ -809,7 +809,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("6b808d"),
 			color("6b808d"),
 			color("5ca7d4"),
-			"Night #1",
+			"Midnight",
 			":/gui/night.tdesktop-theme"
 		},
 		Scheme{
@@ -819,7 +819,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("6b808d"),
 			color("6b808d"),
 			color("74bf93"),
-			"Night #2",
+			"Matrix",
 			":/gui/night-green.tdesktop-theme"
 		},
 	};
