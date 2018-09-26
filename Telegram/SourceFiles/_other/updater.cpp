@@ -144,7 +144,7 @@ bool update() {
 		if (!ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD)) {
 			versionNum = 0;
 		} else {
-			if (versionNum == 0x7FFFFFFF) { // beta version
+			if (versionNum == 0x7FFFFFFF) { // alpha version
 
 			} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
 				versionNum = 0;

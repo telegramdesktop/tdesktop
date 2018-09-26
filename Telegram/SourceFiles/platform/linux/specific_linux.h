@@ -44,7 +44,6 @@ inline void psCheckLocalSocket(const QString &serverName) {
 }
 
 void psWriteDump();
-QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 

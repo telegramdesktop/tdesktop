@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
+: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cBetaVersion() ? " beta" : "") + (cAlphaVersion() ? qsl(" alpha %1").arg(cAlphaVersion()) : QString())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text3(this, st::aboutLabel) {
@@ -59,7 +59,7 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 }
 
 void AboutBox::showVersionHistory() {
-	if (cRealBetaVersion()) {
+	if (cRealAlphaVersion()) {
 		auto url = qsl("https://tdesktop.com/");
 		switch (cPlatform()) {
 		case dbipWindows: url += qsl("win/%1.zip"); break;
@@ -68,11 +68,11 @@ void AboutBox::showVersionHistory() {
 		case dbipLinux32: url += qsl("linux32/%1.tar.xz"); break;
 		case dbipLinux64: url += qsl("linux/%1.tar.xz"); break;
 		}
-		url = url.arg(qsl("tbeta%1_%2").arg(cRealBetaVersion()).arg(Core::countBetaVersionSignature(cRealBetaVersion())));
+		url = url.arg(qsl("talpha%1_%2").arg(cRealAlphaVersion()).arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
 
 		Application::clipboard()->setText(url);
 
-		Ui::show(Box<InformBox>("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
+		Ui::show(Box<InformBox>("The link to the current private alpha version of Telegram Desktop was copied to the clipboard."));
 	} else {
 		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/changelog"));
 	}
@@ -99,11 +99,11 @@ QString telegramFaqLink() {
 
 QString currentVersionText() {
 	auto result = QString::fromLatin1(AppVersionStr.c_str());
-	if (cAlphaVersion()) {
-		result += " alpha";
-	}
 	if (cBetaVersion()) {
-		result += qsl(" beta %1").arg(cBetaVersion() % 1000);
+		result += " beta";
+	}
+	if (cAlphaVersion()) {
+		result += qsl(" alpha %1").arg(cAlphaVersion() % 1000);
 	}
 	return result;
 }

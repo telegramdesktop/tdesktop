@@ -23,15 +23,15 @@ if "%BuildTarget%" equ "uwp" (
 FOR /F "tokens=1,2* delims= " %%i in (%FullScriptPath%version) do set "%%i=%%j"
 
 set "VersionForPacker=%AppVersion%"
-if %BetaVersion% neq 0 (
-  set "AppVersion=%BetaVersion%"
-  set "AppVersionStrFull=%AppVersionStr%_%BetaVersion%"
-  set "AlphaBetaParam=-beta %BetaVersion%"
-  set "BetaKeyFile=tbeta_%BetaVersion%_key"
+if %AlphaVersion% neq 0 (
+  set "AppVersion=%AlphaVersion%"
+  set "AppVersionStrFull=%AppVersionStr%_%AlphaVersion%"
+  set "AlphaBetaParam=-alpha %AlphaVersion%"
+  set "AlphaKeyFile=talpha_%AlphaVersion%_key"
 ) else (
-  if %AlphaChannel% neq 0 (
-    set "AlphaBetaParam=-alpha"
-    set "AppVersionStrFull=%AppVersionStr%.alpha"
+  if %BetaChannel% neq 0 (
+    set "AlphaBetaParam=-beta"
+    set "AppVersionStrFull=%AppVersionStr%.beta"
   ) else (
     set "AlphaBetaParam="
     set "AppVersionStrFull=%AppVersionStr%"
@@ -76,13 +76,13 @@ if %BuildUWP% neq 0 (
     exit /b 1
   )
 )
-if %BetaVersion% neq 0 (
+if %AlphaVersion% neq 0 (
   if exist %DeployPath%\ (
     echo Deploy folder for version %AppVersionStr% already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\%BetaKeyFile% (
-    echo Beta version key file for version %AppVersion% already exists!
+  if exist %ReleasePath%\%AlphaKeyFile% (
+    echo Alpha version key file for version %AppVersion% already exists!
     exit /b 1
   )
 ) else (
@@ -90,8 +90,8 @@ if %BetaVersion% neq 0 (
     echo Deploy folder for version %AppVersionStr%.alpha already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ (
-    echo Deploy folder for version %AppVersionStr%.dev already exists!
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.beta\ (
+    echo Deploy folder for version %AppVersionStr%.beta already exists!
     exit /b 1
   )
   if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
@@ -138,7 +138,7 @@ if %BuildUWP% equ 0 (
   call "%SignPath%" "Updater.exe"
   if %errorlevel% neq 0 goto error
 
-  if %BetaVersion% equ 0 (
+  if %AlphaVersion% equ 0 (
     iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
     if %errorlevel% neq 0 goto error
     if not exist "tsetup.%AppVersionStrFull%.exe" goto error
@@ -150,19 +150,19 @@ if %BuildUWP% equ 0 (
   call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe %AlphaBetaParam%
   if %errorlevel% neq 0 goto error
 
-  if %BetaVersion% neq 0 (
-    if not exist "%ReleasePath%\%BetaKeyFile%" (
-      echo Beta version key file not found!
+  if %AlphaVersion% neq 0 (
+    if not exist "%ReleasePath%\%AlphaKeyFile%" (
+      echo Alpha version key file not found!
       exit /b 1
     )
 
-    FOR /F "tokens=1* delims= " %%i in (%ReleasePath%\%BetaKeyFile%) do set "BetaSignature=%%i"
+    FOR /F "tokens=1* delims= " %%i in (%ReleasePath%\%AlphaKeyFile%) do set "AlphaSignature=%%i"
   )
   if %errorlevel% neq 0 goto error
 
-  if %BetaVersion% neq 0 (
-    set "UpdateFile=!UpdateFile!_!BetaSignature!"
-    set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.zip"
+  if %AlphaVersion% neq 0 (
+    set "UpdateFile=!UpdateFile!_!AlphaSignature!"
+    set "PortableFile=talpha!AlphaVersion!_!AlphaSignature!.zip"
   )
 )
 
@@ -239,10 +239,10 @@ if %BuildUWP% neq 0 (
   xcopy "%ReleasePath%\Updater.pdb" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
   move "%ReleasePath%\Updater.exe.pdb" "%DeployPath%\"
-  if %BetaVersion% equ 0 (
+  if %AlphaVersion% equ 0 (
     move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
   ) else (
-    move "%ReleasePath%\%BetaKeyFile%" "%DeployPath%\"
+    move "%ReleasePath%\%AlphaKeyFile%" "%DeployPath%\"
   )
   move "%ReleasePath%\%UpdateFile%" "%DeployPath%\"
   if %errorlevel% neq 0 goto error
@@ -265,7 +265,7 @@ if %BuildUWP% equ 0 (
 
   if not exist "%DeployPath%\%UpdateFile%" goto error
   if not exist "%DeployPath%\%PortableFile%" goto error
-  if %BetaVersion% equ 0 (
+  if %AlphaVersion% equ 0 (
     if not exist "%DeployPath%\%SetupFile%" goto error
   )
   if not exist "%DeployPath%\%BinaryName%.pdb" goto error
@@ -277,10 +277,10 @@ if %BuildUWP% equ 0 (
 
   xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\" /Y
   xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\" /Y
-  if %BetaVersion% equ 0 (
+  if %AlphaVersion% equ 0 (
     xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\" /Y
   ) else (
-    xcopy "%DeployPath%\%BetaKeyFile%" "%FinalDeployPath%\" /Y
+    xcopy "%DeployPath%\%AlphaKeyFile%" "%FinalDeployPath%\" /Y
   )
 )
 

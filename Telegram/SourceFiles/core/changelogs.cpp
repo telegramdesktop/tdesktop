@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
-std::map<int, const char*> AlphaLogs() {
+std::map<int, const char*> BetaLogs() {
 	return {
 	{
 		1002024,
@@ -118,8 +118,8 @@ void Changelogs::requestCloudLogs() {
 }
 
 void Changelogs::addLocalLogs() {
-	if (cAlphaVersion() || cBetaVersion()) {
-		addAlphaLogs();
+	if (cBetaVersion() || cAlphaVersion()) {
+		addBetaLogs();
 	}
 	if (!_addedSomeLocal) {
 		const auto text = lng_new_version_wrap(
@@ -143,13 +143,13 @@ void Changelogs::addLocalLog(const QString &text) {
 	_addedSomeLocal = true;
 };
 
-void Changelogs::addAlphaLogs() {
-	for (const auto[version, changes] : AlphaLogs()) {
-		addAlphaLog(version, changes);
+void Changelogs::addBetaLogs() {
+	for (const auto[version, changes] : BetaLogs()) {
+		addBetaLog(version, changes);
 	}
 }
 
-void Changelogs::addAlphaLog(int changeVersion, const char *changes) {
+void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 	if (_oldVersion >= changeVersion) {
 		return;
 	}

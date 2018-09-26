@@ -59,8 +59,7 @@ url = 'https://api.github.com/'
 version_parts = version.split('.')
 
 stable = 1
-alpha = 0
-dev = 0
+beta = 0
 
 if len(version_parts) < 2:
   print('Error: expected at least major version ' + version)
@@ -76,14 +75,10 @@ else:
   version = version_major + '.' + version_parts[2]
   version_full = version
   if len(version_parts) == 4:
-    if version_parts[3] == 'dev':
-      dev = 1
+    if version_parts[3] == 'beta':
+      beta = 1
       stable = 0
-      version_full = version + '.dev'
-    elif version_parts[3] == 'alpha':
-      alpha = 1
-      stable = 0
-      version_full = version + '.alpha'
+      version_full = version + '.beta'
     else:
       print('Error: unexpected version part ' + version_parts[3])
       sys.exit(1)
@@ -102,16 +97,11 @@ print('Version: ' + version_full);
 local_folder = expanduser("~") + '/Telegram/backup/' + version_major + '/' + version_full
 
 if stable == 1:
-  if os.path.isdir(local_folder + '.dev'):
-    dev = 1
+  if os.path.isdir(local_folder + '.beta'):
+    beta = 1
     stable = 0
-    version_full = version + '.dev'
-    local_folder = local_folder + '.dev'
-  elif os.path.isdir(local_folder + '.alpha'):
-    alpha = 1
-    stable = 0
-    version_full = version + '.alpha'
-    local_folder = local_folder + '.alpha'
+    version_full = version + '.beta'
+    local_folder = local_folder + '.beta'
 
 if not os.path.isdir(local_folder):
   print('Storage path not found: ' + local_folder)
@@ -200,7 +190,7 @@ if r.status_code == 404:
     'target_commitish': commit,
     'name': 'v ' + version,
     'body': changelog,
-    'prerelease': (dev == 1 or alpha == 1),
+    'prerelease': (beta == 1),
   }))
   checkResponseCode(r, 201)
 

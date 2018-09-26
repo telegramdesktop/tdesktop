@@ -55,6 +55,6 @@ private:
 
 bool checkReadyUpdate();
 void UpdateApplication();
-QString countBetaVersionSignature(uint64 version);
+QString countAlphaVersionSignature(uint64 version);
 
 } // namespace Core

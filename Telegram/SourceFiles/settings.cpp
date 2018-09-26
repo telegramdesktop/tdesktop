@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 bool gRtl = false;
 Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 
-bool gAlphaVersion = AppAlphaVersion;
-uint64 gBetaVersion = AppBetaVersion;
-uint64 gRealBetaVersion = AppBetaVersion;
-QByteArray gBetaPrivateKey;
+bool gBetaVersion = AppBetaVersion;
+uint64 gAlphaVersion = AppAlphaVersion;
+uint64 gRealAlphaVersion = AppAlphaVersion;
+QByteArray gAlphaPrivateKey;
 
 bool gTestMode = false;
 bool gManyInstance = false;

@@ -185,7 +185,7 @@ inline bool IsTopCorner(ScreenCorner corner) {
 
 namespace Sandbox {
 
-bool CheckBetaVersionDir();
+bool CheckAlphaVersionDir();
 void WorkingDirReady();
 
 void MainThreadTaskAdded();

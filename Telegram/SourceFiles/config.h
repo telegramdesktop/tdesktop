@@ -186,7 +186,7 @@ BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-static const char *UpdatesPublicAlphaKey = "\
+static const char *UpdatesPublicBetaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
 0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
@@ -205,14 +205,14 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 #error "Only little endian is supported!"
 #endif // Q_BYTE_ORDER == Q_BIG_ENDIAN
 
-#ifndef BETA_VERSION_MACRO
-#error "Beta version macro is not defined."
+#ifndef ALPHA_VERSION_MACRO
+#error "Alpha version macro is not defined."
 #endif
 
-#if (defined CUSTOM_API_ID) && (BETA_VERSION_MACRO > 0ULL)
-#include "../../../TelegramPrivate/beta_private.h" // private key for downloading closed betas
+#if (defined CUSTOM_API_ID) && (ALPHA_VERSION_MACRO > 0ULL)
+#include "../../../TelegramPrivate/alpha_private.h" // private key for downloading closed alphas
 #else
-static const char *BetaPrivateKey = "";
+static const char *AlphaPrivateKey = "";
 #endif
 
 extern QString gKeyFile;

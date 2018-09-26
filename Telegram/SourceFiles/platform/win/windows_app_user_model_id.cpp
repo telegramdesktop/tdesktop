@@ -30,7 +30,7 @@ const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop.Store";
 #else // OS_WIN_STORE
 const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop";
 #endif // OS_WIN_STORE
-const WCHAR AppUserModelIdBeta[] = L"Telegram.TelegramDesktop.Beta";
+const WCHAR AppUserModelIdAlpha[] = L"Telegram.TelegramDesktop.Alpha";
 
 } // namespace
 
@@ -252,8 +252,8 @@ bool validateShortcut() {
 	QString path = systemShortcutPath();
 	if (path.isEmpty() || cExeName().isEmpty()) return false;
 
-	if (cBetaVersion()) {
-		path += qsl("TelegramBeta.lnk");
+	if (cAlphaVersion()) {
+		path += qsl("TelegramAlpha.lnk");
 		if (validateShortcutAt(path)) return true;
 	} else {
 		if (validateShortcutAt(path + qsl("Telegram Desktop/Telegram.lnk"))) return true;
@@ -310,7 +310,7 @@ bool validateShortcut() {
 }
 
 const WCHAR *getId() {
-	return cBetaVersion() ? AppUserModelIdBeta : AppUserModelIdRelease;
+	return cAlphaVersion() ? AppUserModelIdAlpha : AppUserModelIdRelease;
 }
 
 const PROPERTYKEY &getKey() {
