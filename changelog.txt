@@ -1,3 +1,10 @@
+1.3.17 beta (26.09.18)
+
+- Fully redisigned Settings section.
+- New theme selector in Chat Settings.
+- New settings: Peer-to-Peer settings for calls, disable animations for low performance computers.
+- Various other improvements.
+
 1.3.16 alpha (04.09.18)
 
 - Update libtgvoip, fix crash in calls.

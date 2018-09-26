@@ -48,7 +48,17 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\x94 Control how much disk space is used by the cache "
 		"and for how long the cached files are stored."
-	}
+	},
+	{
+		1003017,
+		"\xE2\x80\x94 Fully redisigned Settings section.\n"
+
+		"\xE2\x80\x94 New theme selector in Chat Settings.\n"
+		"\xE2\x80\x94 New settings: Peer-to-Peer settings for calls, "
+		"disable animations for low performance computers.\n"
+
+		"\xE2\x80\x94 Various other improvements."
+	},
 	};
 }
 
