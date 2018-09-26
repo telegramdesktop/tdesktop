@@ -294,6 +294,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_languages" = "Languages";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
+"lng_settings_install_beta" = "Install beta versions";
 "lng_settings_current_version_label" = "Version {version}:";
 "lng_settings_current_version" = "Version {version}";
 "lng_settings_check_now" = "Check for updates";

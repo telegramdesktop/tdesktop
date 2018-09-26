@@ -95,18 +95,26 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		texts->events(),
 		st::settingsUpdateState);
 
-	const auto check = container->add(object_ptr<Ui::SlideWrap<Button>>(
-		container,
-		object_ptr<Button>(
+	const auto options = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
-			Lang::Viewer(lng_settings_check_now),
-			st::settingsButton)));
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = options->entity();
+	const auto install = cAlphaVersion() ? nullptr : AddButton(
+		inner,
+		lng_settings_install_beta,
+		st::settingsButton).get();
+
+	const auto check = AddButton(
+		inner,
+		lng_settings_check_now,
+		st::settingsButton);
 	const auto update = Ui::CreateChild<Button>(
-		check->entity(),
+		check.get(),
 		Lang::Viewer(lng_update_telegram) | Info::Profile::ToUpperValue(),
 		st::settingsUpdate);
 	update->hide();
-	check->entity()->widthValue() | rpl::start_with_next([=](int width) {
+	check->widthValue() | rpl::start_with_next([=](int width) {
 		update->resizeToWidth(width);
 		update->moveToLeft(0, 0);
 	}, update->lifetime());
@@ -161,8 +169,27 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		setDefaultStatus(checker);
 	}, toggle->lifetime());
 
+	if (install) {
+		install->toggleOn(rpl::single(cInstallBetaVersion()));
+		install->toggledValue(
+		) | rpl::filter([](bool toggled) {
+			return (toggled != cInstallBetaVersion());
+		}) | rpl::start_with_next([=](bool toggled) {
+			cSetInstallBetaVersion(toggled);
+			Sandbox::WriteInstallBetaVersionsSetting();
+
+			Core::UpdateChecker checker;
+			checker.stop();
+			if (toggled) {
+				cSetLastUpdateCheck(0);
+			}
+			checker.start();
+			setDefaultStatus(checker);
+		}, toggle->lifetime());
+	}
+
 	Core::UpdateChecker checker;
-	check->toggleOn(rpl::combine(
+	options->toggleOn(rpl::combine(
 		toggle->toggledValue(),
 		downloading->events_starting_with(
 			checker.state() == Core::UpdateChecker::State::Download)
@@ -171,34 +198,34 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	}));
 
 	checker.checking() | rpl::start_with_next([=] {
-		check->setAttribute(Qt::WA_TransparentForMouseEvents);
+		options->setAttribute(Qt::WA_TransparentForMouseEvents);
 		texts->fire(lang(lng_settings_update_checking));
 		downloading->fire(false);
-	}, check->lifetime());
+	}, options->lifetime());
 	checker.isLatest() | rpl::start_with_next([=] {
-		check->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(lang(lng_settings_latest_installed));
 		downloading->fire(false);
-	}, check->lifetime());
+	}, options->lifetime());
 	checker.progress(
 	) | rpl::start_with_next([=](Core::UpdateChecker::Progress progress) {
 		showDownloadProgress(progress.already, progress.size);
-	}, check->lifetime());
+	}, options->lifetime());
 	checker.failed() | rpl::start_with_next([=] {
-		check->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(lang(lng_settings_update_fail));
 		downloading->fire(false);
-	}, check->lifetime());
+	}, options->lifetime());
 	checker.ready() | rpl::start_with_next([=] {
-		check->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 		texts->fire(lang(lng_settings_update_ready));
 		update->show();
 		downloading->fire(false);
-	}, check->lifetime());
+	}, options->lifetime());
 
 	setDefaultStatus(checker);
 
-	check->entity()->addClickHandler([] {
+	check->addClickHandler([] {
 		Core::UpdateChecker checker;
 
 		cSetLastUpdateCheck(0);
