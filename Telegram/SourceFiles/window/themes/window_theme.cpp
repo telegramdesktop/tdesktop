@@ -909,7 +909,11 @@ void KeepApplied() {
 	if (!AreTestingTheme()) {
 		return;
 	} else if (instance->applying.overrideKeep) {
-		instance->applying.overrideKeep();
+		// This callback will be destroyed while running.
+		// And it won't be able to safely access captures after that.
+		// So we save it on stack for the time while it is running.
+		const auto saved = base::take(instance->applying.overrideKeep);
+		saved();
 		return;
 	}
 	const auto path = instance->applying.pathAbsolute;
