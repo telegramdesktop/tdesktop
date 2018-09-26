@@ -3210,7 +3210,7 @@ template <typename CheckSet>
 void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::Order &order) {
 	if (!_working()) return;
 
-	auto &sets = Auth().data().stickerSets();
+	const auto &sets = Auth().data().stickerSets();
 	if (sets.isEmpty()) {
 		if (stickersKey) {
 			clearKey(stickersKey);
@@ -3223,7 +3223,7 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 	int32 setsCount = 0;
 	QByteArray hashToWrite;
 	quint32 size = sizeof(quint32) + Serialize::bytearraySize(hashToWrite);
-	for_const (auto &set, sets) {
+	for (const auto &set : sets) {
 		auto result = checkSet(set);
 		if (result == StickerSetCheckResult::Abort) {
 			return;
@@ -3233,7 +3233,8 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 
 		// id + access + title + shortName + stickersCount + hash + flags + installDate
 		size += sizeof(quint64) * 2 + Serialize::stringSize(set.title) + Serialize::stringSize(set.shortName) + sizeof(quint32) + sizeof(qint32) * 3;
-		for_const (auto &sticker, set.stickers) {
+		for (const auto sticker : std::as_const(set.stickers)) {
+			sticker->refreshStickerThumbFileReference();
 			size += Serialize::Document::sizeInStream(sticker);
 		}
 		size += sizeof(qint32); // dates count

@@ -166,6 +166,7 @@ public:
 	MTPInputDocument mtpInput() const;
 	QByteArray fileReference() const;
 	void refreshFileReference(const QByteArray &value);
+	void refreshStickerThumbFileReference();
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)

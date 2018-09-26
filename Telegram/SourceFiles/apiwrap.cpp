@@ -2505,9 +2505,11 @@ void ApiWrap::refreshFileReference(
 		if (additional) {
 			const auto i = _fileReferenceHandlers.find(origin);
 			Assert(i != end(_fileReferenceHandlers));
-			i->second.push_back([=](auto&&) {
-				additional();
-			});
+			if (i->second.size() == 1) {
+				i->second.push_back([=](auto&&) {
+					additional();
+				});
+			}
 		}
 	};
 	const auto fail = [&] {

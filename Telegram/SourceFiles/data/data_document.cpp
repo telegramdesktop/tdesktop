@@ -1071,6 +1071,15 @@ void DocumentData::refreshFileReference(const QByteArray &value) {
 	_fileReference = value;
 }
 
+void DocumentData::refreshStickerThumbFileReference() {
+	if (const auto data = sticker()) {
+		if (thumb->loading()) {
+			data->loc.refreshFileReference(
+				thumb->location().fileReference());
+		}
+	}
+}
+
 QString DocumentData::filename() const {
 	return _filename;
 }
