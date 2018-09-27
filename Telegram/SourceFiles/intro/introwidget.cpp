@@ -573,11 +573,13 @@ void Widget::updateControlsGeometry() {
 void Widget::keyPressEvent(QKeyEvent *e) {
 	if (_a_show.animating() || getStep()->animating()) return;
 
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		if (getStep()->hasBack()) {
 			historyMove(Direction::Back);
 		}
-	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+	} else if (e->key() == Qt::Key_Enter
+		|| e->key() == Qt::Key_Return
+		|| e->key() == Qt::Key_Space) {
 		getStep()->submit();
 	}
 }

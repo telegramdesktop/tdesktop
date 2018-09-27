@@ -971,7 +971,7 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		if (hasStackHistory() || wrap() != Wrap::Layer) {
 			checkBeforeClose([=] { _controller->showBackFromStack(); });
 			return;
