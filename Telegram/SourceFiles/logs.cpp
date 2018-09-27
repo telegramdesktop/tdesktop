@@ -331,7 +331,6 @@ void start(not_null<Core::Launcher*> launcher) {
 	auto workingDirChosen = false;
 
 	if (cAlphaVersion()) {
-		SetDebugEnabled(true);
 		workingDirChosen = true;
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 	} else {

@@ -450,14 +450,35 @@ void WriteInstallBetaVersionsSetting() {
 	}
 }
 
-void WorkingDirReady() {
+QString DebugModeSettingPath() {
+	return cWorkingDir() + qsl("tdata/withdebug");
+}
+
+void WriteDebugModeSetting() {
+	QFile f(DebugModeSettingPath());
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(Logs::DebugEnabled() ? "1" : "0");
+	}
+}
+
+void ComputeTestMode() {
 	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
 		cSetTestMode(true);
 	}
-	if (!Logs::DebugEnabled()
-		&& QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
-		Logs::SetDebugEnabled(true);
+}
+
+void ComputeDebugMode() {
+	Logs::SetDebugEnabled(cAlphaVersion() != 0);
+	const auto debugModeSettingPath = DebugModeSettingPath();
+	if (QFile(debugModeSettingPath).exists()) {
+		QFile f(debugModeSettingPath);
+		if (f.open(QIODevice::ReadOnly)) {
+			Logs::SetDebugEnabled(f.read(1) != "0");
+		}
 	}
+}
+
+void ComputeInstallBetaVersions() {
 	const auto installBetaSettingPath = InstallBetaVersionsSettingPath();
 	if (cAlphaVersion()) {
 		cSetInstallBetaVersion(false);
@@ -469,9 +490,9 @@ void WorkingDirReady() {
 	} else if (AppBetaVersion) {
 		WriteInstallBetaVersionsSetting();
 	}
+}
 
-	srand((int32)time(NULL));
-
+void ComputeUserTag() {
 	SandboxUserTag = 0;
 	QFile usertag(cWorkingDir() + qsl("tdata/usertag"));
 	if (usertag.open(QIODevice::ReadOnly)) {
@@ -490,6 +511,15 @@ void WorkingDirReady() {
 			usertag.close();
 		}
 	}
+}
+
+void WorkingDirReady() {
+	srand((int32)time(NULL));
+
+	ComputeTestMode();
+	ComputeDebugMode();
+	ComputeInstallBetaVersions();
+	ComputeUserTag();
 }
 
 void start() {

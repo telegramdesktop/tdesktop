@@ -188,6 +188,7 @@ namespace Sandbox {
 bool CheckAlphaVersionDir();
 void WorkingDirReady();
 void WriteInstallBetaVersionsSetting();
+void WriteDebugModeSetting();
 
 void MainThreadTaskAdded();
 

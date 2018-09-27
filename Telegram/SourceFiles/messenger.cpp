@@ -678,17 +678,13 @@ void Messenger::killDownloadSessions() {
 
 void Messenger::onSwitchDebugMode() {
 	if (Logs::DebugEnabled()) {
-		QFile(cWorkingDir() + qsl("tdata/withdebug")).remove();
 		Logs::SetDebugEnabled(false);
+		Sandbox::WriteDebugModeSetting();
 		App::restart();
 	} else {
 		Logs::SetDebugEnabled(true);
+		Sandbox::WriteDebugModeSetting();
 		DEBUG_LOG(("Debug logs started."));
-		QFile f(cWorkingDir() + qsl("tdata/withdebug"));
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-		}
 		Ui::hideLayer();
 	}
 }
