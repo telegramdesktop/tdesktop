@@ -84,7 +84,9 @@ public:
 	void requestContacts();
 	void requestDialogEntry(not_null<Data::Feed*> feed);
 	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed);
-	void requestDialogEntry(not_null<History*> history);
+	void requestDialogEntry(
+		not_null<History*> history,
+		Fn<void()> callback = nullptr);
 	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,
@@ -622,7 +624,9 @@ private:
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
 	base::flat_set<not_null<Data::Feed*>> _dialogFeedRequests;
-	base::flat_set<not_null<History*>> _dialogRequests;
+	base::flat_map<
+		not_null<History*>,
+		std::vector<Fn<void()>>> _dialogRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 

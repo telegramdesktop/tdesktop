@@ -707,30 +707,6 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	}, adaptive->lifetime());
 }
 
-void SetupNightMode(not_null<Ui::VerticalLayout*> container) {
-	const auto calling = Ui::AttachAsChild(container, 0);
-	AddButton(
-		container,
-		lng_settings_use_night_mode,
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(Window::Theme::IsNightMode())
-	)->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
-		++*calling;
-		const auto change = [=] {
-			if (!--*calling && toggled != Window::Theme::IsNightMode()) {
-				Window::Theme::ToggleNightMode();
-				Window::Theme::KeepApplied();
-			}
-		};
-		App::CallDelayed(
-			st::settingsButton.toggle.duration,
-			container,
-			change);
-	}, container->lifetime());
-}
-
 void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container) {
 	using Update = const Window::Theme::BackgroundUpdate;
 	container->add(
@@ -940,7 +916,6 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddSubsectionTitle(container, lng_settings_themes);
 
 	SetupDefaultThemes(container);
-	//SetupNightMode(container);
 
 	AddButton(
 		container,

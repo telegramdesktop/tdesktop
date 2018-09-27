@@ -410,6 +410,10 @@ public:
 	rpl::producer<> defaultNotifyUpdates(
 		not_null<const PeerData*> peer) const;
 
+	void serviceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media);
+
 	void forgetMedia();
 
 	void setMimeForwardIds(MessageIdsList &&list);
@@ -520,6 +524,11 @@ private:
 	void enumerateItemViews(
 		not_null<const HistoryItem*> item,
 		Method method);
+
+	void insertCheckedServiceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media,
+		TimeId date);
 
 	not_null<AuthSession*> _session;
 

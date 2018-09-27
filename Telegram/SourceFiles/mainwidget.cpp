@@ -1690,71 +1690,6 @@ void MainWidget::dialogsCancelled() {
 	_history->activate();
 }
 
-void MainWidget::insertCheckedServiceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date) {
-	auto flags = MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id | MTPDmessage_ClientFlag::f_clientside_unread;
-	auto sending = TextWithEntities(), left = message;
-	HistoryItem *item = nullptr;
-	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		auto localEntities = TextUtilities::EntitiesToMTP(sending.entities);
-		item = App::histories().addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				MTP_int(clientMsgId()),
-				MTP_int(ServiceUserId),
-				MTP_peerUser(MTP_int(Auth().userId())),
-				MTPnullFwdHeader,
-				MTPint(),
-				MTPint(),
-				MTP_int(date),
-				MTP_string(sending.text),
-				media,
-				MTPnullMarkup,
-				localEntities,
-				MTPint(),
-				MTPint(),
-				MTPstring(),
-				MTPlong()),
-			NewMessageUnread);
-	}
-	Auth().data().sendHistoryChangeNotifications();
-}
-
-void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
-	auto handleResult = [&](auto &&result) {
-		App::feedUsers(result.vusers);
-		App::feedChats(result.vchats);
-		App::feedMsgs(result.vmessages, NewMessageLast);
-	};
-
-	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		handleResult(msgs.c_messages_messages());
-		break;
-
-	case mtpc_messages_messagesSlice:
-		handleResult(msgs.c_messages_messagesSlice());
-		break;
-
-	case mtpc_messages_channelMessages:
-		LOG(("API Error: received messages.channelMessages! (MainWidget::serviceHistoryDone)"));
-		handleResult(msgs.c_messages_channelMessages());
-		break;
-
-	case mtpc_messages_messagesNotModified:
-		LOG(("API Error: received messages.messagesNotModified! (MainWidget::serviceHistoryDone)"));
-		break;
-	}
-
-	App::wnd()->showDelayedServiceMsgs();
-}
-
-bool MainWidget::serviceHistoryFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	App::wnd()->showDelayedServiceMsgs();
-	return false;
-}
-
 bool MainWidget::isIdle() const {
 	return _isIdle;
 }
@@ -3664,7 +3599,6 @@ void MainWidget::start() {
 	update();
 
 	_started = true;
-	App::wnd()->sendServiceHistoryRequest();
 	Local::readInstalledStickers();
 	Local::readFeaturedStickers();
 	Local::readRecentStickers();
@@ -4905,7 +4839,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		} else if (d.is_popup()) {
 			Ui::show(Box<InformBox>(text));
 		} else {
-			App::wnd()->serviceNotification(text, d.vmedia);
+			Auth().data().serviceNotification(text, d.vmedia);
 			emit App::wnd()->checkNewAuthorization();
 		}
 	} break;

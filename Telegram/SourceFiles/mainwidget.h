@@ -239,10 +239,6 @@ public:
 
 	void checkLastUpdate(bool afterSleep);
 
-	void insertCheckedServiceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date);
-	void serviceHistoryDone(const MTPmessages_Messages &msgs);
-	bool serviceHistoryFail(const RPCError &error);
-
 	bool isIdle() const;
 
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);

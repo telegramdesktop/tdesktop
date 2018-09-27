@@ -2176,8 +2176,13 @@ void History::markFullyLoaded() {
 
 void History::setLastMessage(HistoryItem *item) {
 	if (item) {
-		if (_lastMessage && !*_lastMessage) {
-			Local::removeSavedPeer(peer);
+		if (_lastMessage) {
+			if (!*_lastMessage) {
+				Local::removeSavedPeer(peer);
+			} else if (!IsServerMsgId((*_lastMessage)->id)
+				&& (*_lastMessage)->date() > item->date()) {
+				return;
+			}
 		}
 		_lastMessage = item;
 		if (const auto feed = peer->feed()) {
@@ -2280,12 +2285,25 @@ void History::applyDialog(const MTPDdialog &data) {
 	}
 }
 
+bool History::skipUnreadUpdateForClientSideUnread() const {
+	if (peer->id != peerFromUser(ServiceUserId)) {
+		return false;
+	} else if (!_unreadCount || !*_unreadCount) {
+		return false;
+	} else if (!_lastMessage || IsServerMsgId((*_lastMessage)->id)) {
+		return false;
+	}
+	return true;
+}
+
 void History::applyDialogFields(
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead) {
-	setUnreadCount(unreadCount);
-	setInboxReadTill(maxInboxRead);
+	if (!skipUnreadUpdateForClientSideUnread()) {
+		setUnreadCount(unreadCount);
+		setInboxReadTill(maxInboxRead);
+	}
 	setOutboxReadTill(maxOutboxRead);
 }
 

@@ -146,10 +146,9 @@ void Changelogs::addLocalLogs() {
 void Changelogs::addLocalLog(const QString &text) {
 	auto textWithEntities = TextWithEntities{ text };
 	TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
-	App::wnd()->serviceNotification(
+	_session->data().serviceNotification(
 		textWithEntities,
-		MTP_messageMediaEmpty(),
-		unixtime());
+		MTP_messageMediaEmpty());
 	_addedSomeLocal = true;
 };
 

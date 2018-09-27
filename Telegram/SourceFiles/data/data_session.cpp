@@ -329,7 +329,7 @@ void Session::notifyItemIdChange(IdChange event) {
 		view->refreshDataId();
 	};
 	enumerateItemViews(event.item, refreshViewDataId);
-	if (const auto group = Auth().data().groups().find(event.item)) {
+	if (const auto group = groups().find(event.item)) {
 		const auto leader = group->items.back();
 		if (leader != event.item) {
 			enumerateItemViews(leader, refreshViewDataId);
@@ -1920,6 +1920,77 @@ rpl::producer<> Session::defaultNotifyUpdates(
 	return peer->isUser()
 		? defaultUserNotifyUpdates()
 		: defaultChatNotifyUpdates();
+}
+
+void Session::serviceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media) {
+	const auto date = unixtime();
+	if (!App::userLoaded(ServiceUserId)) {
+		App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(
+			MTP_flags(
+				MTPDuser::Flag::f_first_name
+				| MTPDuser::Flag::f_phone
+				| MTPDuser::Flag::f_status
+				| MTPDuser::Flag::f_verified),
+			MTP_int(ServiceUserId),
+			MTPlong(),
+			MTP_string("Telegram"),
+			MTPstring(),
+			MTPstring(),
+			MTP_string("42777"),
+			MTP_userProfilePhotoEmpty(),
+			MTP_userStatusRecently(),
+			MTPint(),
+			MTPstring(),
+			MTPstring(),
+			MTPstring())));
+	}
+	const auto history = App::history(peerFromUser(ServiceUserId));
+	if (!history->lastMessageKnown()) {
+		_session->api().requestDialogEntry(history, [=] {
+			insertCheckedServiceNotification(message, media, date);
+		});
+	} else {
+		insertCheckedServiceNotification(message, media, date);
+	}
+}
+
+void Session::insertCheckedServiceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media,
+		TimeId date) {
+	const auto history = App::history(peerFromUser(ServiceUserId));
+	if (!history->isReadyFor(ShowAtUnreadMsgId)) {
+		history->setUnreadCount(0);
+		history->getReadyFor(ShowAtTheEndMsgId);
+	}
+	const auto flags = MTPDmessage::Flag::f_entities
+		| MTPDmessage::Flag::f_from_id
+		| MTPDmessage_ClientFlag::f_clientside_unread;
+	auto sending = TextWithEntities(), left = message;
+	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		App::histories().addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				MTP_int(clientMsgId()),
+				MTP_int(ServiceUserId),
+				MTP_peerUser(MTP_int(_session->userId())),
+				MTPnullFwdHeader,
+				MTPint(),
+				MTPint(),
+				MTP_int(date),
+				MTP_string(sending.text),
+				media,
+				MTPnullMarkup,
+				TextUtilities::EntitiesToMTP(sending.entities),
+				MTPint(),
+				MTPint(),
+				MTPstring(),
+				MTPlong()),
+			NewMessageUnread);
+	}
+	sendHistoryChangeNotifications();
 }
 
 void Session::forgetMedia() {

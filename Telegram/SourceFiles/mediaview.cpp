@@ -336,12 +336,12 @@ void MediaView::updateControls() {
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
-		if (_photo) {
+		if (const auto item = App::histItemById(_msgid)) {
+			return ItemDateTime(item);
+		} else if (_photo) {
 			return ParseDateTime(_photo->date);
 		} else if (_doc) {
 			return ParseDateTime(_doc->date);
-		} else if (const auto item = App::histItemById(_msgid)) {
-			return ItemDateTime(item);
 		}
 		return dNow;
 	}();
@@ -588,8 +588,8 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 	}
 	const auto wasAnimating = _radial.animating();
 	const auto updated = _radial.update(
-		radialProgress(), 
-		!radialLoading(), 
+		radialProgress(),
+		!radialLoading(),
 		ms + radialTimeShift());
 	if (timer && (wasAnimating || _radial.animating()) && (!anim::Disabled() || updated)) {
 		update(radialRect());

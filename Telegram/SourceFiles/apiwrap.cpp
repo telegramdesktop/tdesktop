@@ -610,11 +610,23 @@ void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
 //	}).send();
 //}
 
-void ApiWrap::requestDialogEntry(not_null<History*> history) {
-	if (_dialogRequests.contains(history)) {
+void ApiWrap::requestDialogEntry(
+		not_null<History*> history,
+		Fn<void()> callback) {
+	const auto[i, ok] = _dialogRequests.try_emplace(history);
+	if (callback) {
+		i->second.push_back(std::move(callback));
+	}
+	if (!ok) {
 		return;
 	}
-	_dialogRequests.emplace(history);
+	const auto finalize = [=] {
+		if (const auto callbacks = _dialogRequests.take(history)) {
+			for (const auto callback : *callbacks) {
+				callback();
+			}
+		}
+	};
 	auto peers = QVector<MTPInputDialogPeer>(
 		1,
 		MTP_inputDialogPeer(history->peer->input));
@@ -623,9 +635,9 @@ void ApiWrap::requestDialogEntry(not_null<History*> history) {
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		historyDialogEntryApplied(history);
-		_dialogRequests.remove(history);
+		finalize();
 	}).fail([=](const RPCError &error) {
-		_dialogRequests.remove(history);
+		finalize();
 	}).send();
 }
 
