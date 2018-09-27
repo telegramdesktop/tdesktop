@@ -38,8 +38,6 @@
 <(src_loc)/boxes/local_storage_box.h
 <(src_loc)/boxes/mute_settings_box.cpp
 <(src_loc)/boxes/mute_settings_box.h
-<(src_loc)/boxes/notifications_box.cpp
-<(src_loc)/boxes/notifications_box.h
 <(src_loc)/boxes/peer_list_box.cpp
 <(src_loc)/boxes/peer_list_box.h
 <(src_loc)/boxes/peer_list_controllers.cpp

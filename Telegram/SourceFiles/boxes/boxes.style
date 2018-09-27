@@ -403,13 +403,9 @@ shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
 
-notificationsBoxHeight: 420px;
-notificationsBoxMonitorTop: 63px;
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
 notificationsBoxScreenSize: size(280px, 160px);
-notificationsBoxCountLabelTop: 80px;
-notificationsBoxCountTop: 30px;
 
 notificationsSampleSkip: 5px;
 notificationsSampleTopSkip: 5px;
