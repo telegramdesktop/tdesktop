@@ -391,4 +391,9 @@ void AuthSession::checkAutoLockIn(TimeMs time) {
 	_autoLockTimer.callOnce(time);
 }
 
+bool AuthSession::supportMode() const {
+//	return true; AssertIsDebug();
+	return false;
+}
+
 AuthSession::~AuthSession() = default;

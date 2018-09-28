@@ -4002,7 +4002,10 @@ bool MainWidget::isActive() const {
 }
 
 bool MainWidget::doWeReadServerHistory() const {
-	return isActive() && !_mainSection && _history->doWeReadServerHistory();
+	return isActive()
+		&& !Auth().supportMode()
+		&& !_mainSection
+		&& _history->doWeReadServerHistory();
 }
 
 bool MainWidget::doWeReadMentions() const {

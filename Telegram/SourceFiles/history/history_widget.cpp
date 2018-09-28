@@ -2898,7 +2898,9 @@ void HistoryWidget::historyDownClicked() {
 	} else if (_replyReturn && _replyReturn->history() == _migrated) {
 		showHistory(_peer->id, -_replyReturn->id);
 	} else if (_peer) {
-		showHistory(_peer->id, ShowAtUnreadMsgId);
+		showHistory(
+			_peer->id,
+			Auth().supportMode() ? ShowAtTheEndMsgId : ShowAtUnreadMsgId);
 	}
 }
 
