@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 
+#ifdef __APPLE__
+#define SUPPORT_IMAGE_GENERATION
+#endif // __APPLE__
+
 namespace codegen {
 namespace emoji {
 
