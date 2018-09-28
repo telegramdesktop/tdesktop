@@ -398,18 +398,15 @@ bool UnpackUpdate(const QString &filepath) {
 	}
 	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
 		RSA_free(pbKey);
-		if (cInstallBetaVersion() || cAlphaVersion()) { // try other public key, if we are in beta or alpha version
-			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppBetaVersion ? UpdatesPublicKey : UpdatesPublicBetaKey), -1), 0, 0, 0);
-			if (!pbKey) {
-				LOG(("Update Error: cant read public rsa key!"));
-				return false;
-			}
-			if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
-				RSA_free(pbKey);
-				LOG(("Update Error: bad RSA signature of update file!"));
-				return false;
-			}
-		} else {
+
+		// try other public key, if we update from beta to stable or vice versa
+		pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppBetaVersion ? UpdatesPublicKey : UpdatesPublicBetaKey), -1), 0, 0, 0);
+		if (!pbKey) {
+			LOG(("Update Error: cant read public rsa key!"));
+			return false;
+		}
+		if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
+			RSA_free(pbKey);
 			LOG(("Update Error: bad RSA signature of update file!"));
 			return false;
 		}
