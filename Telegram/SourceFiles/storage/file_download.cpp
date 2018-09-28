@@ -783,7 +783,7 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 	state.ivec[12] = static_cast<uchar>((counterOffset >> 24) & 0xFF);
 
 	auto decryptInPlace = result.c_upload_cdnFile().vbytes.v;
-	auto buffer = bytes::make_span(decryptInPlace);
+	auto buffer = bytes::make_detached_span(decryptInPlace);
 	MTP::aesCtrEncrypt(buffer, key.data(), &state);
 
 	switch (checkCdnFileHash(offset, buffer)) {
@@ -910,17 +910,7 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				return false;
 			}
 		} else {
-			if (offset > 100 * 1024 * 1024) {
-				// Debugging weird out of memory crashes.
-				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(buffer.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_filename).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
-				info += QString(", locationtype: %1, inqueue: %2, localstatus: %3").arg(int(_locationType)).arg(Logs::b(_inQueue)).arg(int(_localStatus));
-				CrashReports::SetAnnotation("DebugInfo", info);
-			}
 			_data.reserve(offset + buffer.size());
-			if (offset > 100 * 1024 * 1024) {
-				CrashReports::ClearAnnotation("DebugInfo");
-			}
-
 			if (offset > _data.size()) {
 				_skippedBytes += offset - _data.size();
 				_data.resize(offset);
@@ -932,7 +922,9 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				if (int64(offset + buffer.size()) > _data.size()) {
 					_data.resize(offset + buffer.size());
 				}
-				auto dst = bytes::make_span(_data).subspan(offset, buffer.size());
+				const auto dst = bytes::make_detached_span(_data).subspan(
+					offset,
+					buffer.size());
 				bytes::copy(dst, buffer);
 			}
 		}

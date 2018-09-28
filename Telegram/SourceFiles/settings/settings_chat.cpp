@@ -416,7 +416,8 @@ QString DownloadPathText() {
 }
 
 void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsStickersEmojiPadding);
+	AddDivider(container);
+	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_stickers_emoji);
 
@@ -472,7 +473,9 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_stickers_you_have,
-		st::settingsButton
+		st::settingsChatButton,
+		&st::settingsIconStickers,
+		st::settingsChatIconLeft
 	)->addClickHandler([] {
 		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
 	});
@@ -910,19 +913,22 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	AddSkip(container, st::settingsPrivacySkip);
 
 	AddSubsectionTitle(container, lng_settings_themes);
 
+	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
+	AddSkip(container, st::settingsThemesBottomSkip);
 
 	AddButton(
 		container,
 		lng_settings_bg_edit_theme,
-		st::settingsButton
+		st::settingsChatButton,
+		&st::settingsIconThemes,
+		st::settingsChatIconLeft
 	)->addClickHandler(App::LambdaDelayed(
-		st::settingsButton.ripple.hideDuration,
+		st::settingsChatButton.ripple.hideDuration,
 		container,
 		[] { Window::Theme::Editor::Start(); }));
 
@@ -940,10 +946,10 @@ Chat::Chat(QWidget *parent, not_null<UserData*> self)
 void Chat::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	SetupThemeOptions(content);
+	SetupChatBackground(content);
 	SetupStickersEmoji(content);
 	SetupMessages(content);
-	SetupChatBackground(content);
-	SetupThemeOptions(content);
 
 	Ui::ResizeFitChild(this, content);
 }

@@ -77,15 +77,17 @@ not_null<Button*> AddButton(
 		not_null<Ui::VerticalLayout*> container,
 		LangKey text,
 		const style::InfoProfileButton &st,
-		const style::icon *leftIcon) {
-	return AddButton(container, Lang::Viewer(text), st, leftIcon);
+		const style::icon *leftIcon,
+		int iconLeft) {
+	return AddButton(container, Lang::Viewer(text), st, leftIcon, iconLeft);
 }
 
 not_null<Button*> AddButton(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text,
 		const style::InfoProfileButton &st,
-		const style::icon *leftIcon) {
+		const style::icon *leftIcon,
+		int iconLeft) {
 	const auto result = container->add(object_ptr<Button>(
 		container,
 		std::move(text),
@@ -97,7 +99,7 @@ not_null<Button*> AddButton(
 		result->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
 			icon->moveToLeft(
-				st::settingsSectionIconLeft,
+				iconLeft ? iconLeft : st::settingsSectionIconLeft,
 				(size.height() - icon->height()) / 2,
 				size.width());
 		}, icon->lifetime());
@@ -150,8 +152,9 @@ not_null<Button*> AddButtonWithLabel(
 		LangKey text,
 		rpl::producer<QString> label,
 		const style::InfoProfileButton &st,
-		const style::icon *leftIcon) {
-	const auto button = AddButton(container, text, st, leftIcon);
+		const style::icon *leftIcon,
+		int iconLeft) {
+	const auto button = AddButton(container, text, st, leftIcon, iconLeft);
 	CreateRightLabel(button, std::move(label), st, text);
 	return button;
 }
