@@ -121,7 +121,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 	});
 #ifndef OS_MAC_STORE
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
+#ifndef OS_MAC_OLD
 		if (QSysInfo::macVersion() < Q_MV_OSX(10, 14)) {
+#else // OS_MAC_OLD
+		if (true) {
+#endif // OS_MAC_OLD
 			_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
 		} else {
 			// In macOS Mojave it requires accessibility features.

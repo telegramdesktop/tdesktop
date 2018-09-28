@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
 #include <gsl/gsl>
 #include <gsl/gsl_byte>
 
