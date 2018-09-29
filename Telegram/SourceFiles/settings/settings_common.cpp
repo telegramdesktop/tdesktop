@@ -161,13 +161,19 @@ not_null<Button*> AddButtonWithLabel(
 
 void AddSubsectionTitle(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey text) {
+		rpl::producer<QString> text) {
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(text),
+			std::move(text),
 			st::settingsSubsectionTitle),
 		st::settingsSubsectionTitlePadding);
+}
+
+void AddSubsectionTitle(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey text) {
+	AddSubsectionTitle(container, Lang::Viewer(text));
 }
 
 void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {

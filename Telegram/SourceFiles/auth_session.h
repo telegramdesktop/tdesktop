@@ -15,6 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 enum class SendFilesWay;
 
+namespace Ui {
+enum class InputSubmitSettings;
+} // namespace Ui
+
+namespace Support {
+enum class SwitchSettings;
+} // namespace Support
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -68,6 +76,26 @@ public:
 	SendFilesWay sendFilesWay() const {
 		return _variables.sendFilesWay;
 	}
+	void setSendSubmitWay(Ui::InputSubmitSettings value) {
+		_variables.sendSubmitWay = value;
+	}
+	Ui::InputSubmitSettings sendSubmitWay() const {
+		return _variables.sendSubmitWay;
+	}
+
+	void setSupportSwitch(Support::SwitchSettings value) {
+		_variables.supportSwitch = value;
+	}
+	Support::SwitchSettings supportSwitch() const {
+		return _variables.supportSwitch;
+	}
+	void setSupportFixChatsOrder(bool fix) {
+		_variables.supportFixChatsOrder = fix;
+	}
+	bool supportFixChatsOrder() const {
+		return _variables.supportFixChatsOrder;
+	}
+
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
 	}
@@ -183,6 +211,10 @@ private:
 			= kDefaultThirdColumnWidth; // per-window
 		rpl::variable<Calls::PeerToPeer> callsPeerToPeer
 			= Calls::PeerToPeer();
+		Ui::InputSubmitSettings sendSubmitWay;
+
+		Support::SwitchSettings supportSwitch;
+		bool supportFixChatsOrder = true;
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;

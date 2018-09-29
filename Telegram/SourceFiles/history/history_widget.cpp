@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_results_widget.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
+#include "support/support_common.h"
 #include "dialogs/dialogs_key.h"
 #include "styles/style_history.h"
 #include "styles/style_dialogs.h"
@@ -753,6 +754,7 @@ HistoryWidget::HistoryWidget(
 		if (cancelReply(lastKeyboardUsed) && !options.clearDraft) {
 			onCloudDraftSave();
 		}
+		handleSupportSwitch(options.history);
 	}, lifetime());
 
 	orderWidgets();
@@ -1958,12 +1960,9 @@ void HistoryWidget::clearAllLoadRequests() {
 }
 
 void HistoryWidget::updateFieldSubmitSettings() {
-	auto settings = Ui::InputField::SubmitSettings::Enter;
-	if (_isInlineBot) {
-		settings = Ui::InputField::SubmitSettings::None;
-	} else if (cCtrlEnter()) {
-		settings = Ui::InputField::SubmitSettings::CtrlEnter;
-	}
+	const auto settings = _isInlineBot
+		? Ui::InputField::SubmitSettings::None
+		: Auth().settings().sendSubmitWay();
 	_field->setSubmitSettings(settings);
 }
 
@@ -3680,6 +3679,15 @@ bool HistoryWidget::hasSilentToggle() const {
 		&& !_peer->isMegagroup()
 		&& _peer->canWrite()
 		&& !Auth().data().notifySilentPostsUnknown(_peer);
+}
+
+void HistoryWidget::handleSupportSwitch(not_null<History*> updated) {
+	if (_history != updated || !Auth().supportMode()) {
+		return;
+	}
+	crl::on_main(this, [to = Auth().settings().supportSwitch()] {
+		Support::PerformSwitch(to);
+	});
 }
 
 void HistoryWidget::inlineBotResolveDone(

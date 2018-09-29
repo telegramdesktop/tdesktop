@@ -344,11 +344,6 @@ protected:
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
-enum DBISendKey {
-	dbiskEnter = 0,
-	dbiskCtrlEnter = 1,
-};
-
 enum DBINotifyView {
 	dbinvShowPreview = 0,
 	dbinvShowName = 1,

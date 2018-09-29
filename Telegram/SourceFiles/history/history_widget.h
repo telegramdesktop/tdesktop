@@ -738,6 +738,8 @@ private:
 	bool readyToForward() const;
 	bool hasSilentToggle() const;
 
+	void handleSupportSwitch(not_null<History*> updated);
+
 	PeerData *_peer = nullptr;
 
 	ChannelId _channel = NoChannel;

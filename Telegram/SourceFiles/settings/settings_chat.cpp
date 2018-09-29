@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/local_storage_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/radial_animation.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "data/data_session.h"
+#include "support/support_common.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "styles/style_settings.h"
@@ -491,14 +493,9 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 
 	AddSkip(container, st::settingsSendTypeSkip);
 
-	enum class SendByType {
-		Enter,
-		CtrlEnter,
-	};
+	using SendByType = Ui::InputSubmitSettings;
 
 	const auto skip = st::settingsSendTypeSkip;
-	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
-		cCtrlEnter() ? SendByType::CtrlEnter : SendByType::Enter);
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	const auto inner = wrap.data();
 	container->add(
@@ -507,10 +504,9 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 			std::move(wrap),
 			QMargins(0, skip, 0, skip)));
 
-	const auto add = [&](
-		SendByType value,
-		LangKey key,
-		style::margins padding) {
+	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
+		Auth().settings().sendSubmitWay());
+	const auto add = [&](SendByType value, LangKey key) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
@@ -522,18 +518,15 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 	};
 	const auto small = st::settingsSendTypePadding;
 	const auto top = skip;
-	add(
-		SendByType::Enter,
-		lng_settings_send_enter,
-		{ small.left(), small.top() + top, small.right(), small.bottom() });
+	add(SendByType::Enter, lng_settings_send_enter);
 	add(
 		SendByType::CtrlEnter,
 		((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
 			? lng_settings_send_cmdenter
-			: lng_settings_send_ctrlenter),
-		{ small.left(), small.top(), small.right(), small.bottom() + top });
+			: lng_settings_send_ctrlenter));
+
 	group->setChangedCallback([](SendByType value) {
-		cSetCtrlEnter(value == SendByType::CtrlEnter);
+		Auth().settings().setSendSubmitWay(value);
 		if (App::main()) {
 			App::main()->ctrlEnterSubmitUpdated();
 		}
@@ -912,6 +905,65 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
+void SetupSupport(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+
+	AddSubsectionTitle(container, rpl::single(qsl("Support settings")));
+
+	AddSkip(container, st::settingsSendTypeSkip);
+
+	using SwitchType = Support::SwitchSettings;
+
+	const auto skip = st::settingsSendTypeSkip;
+	auto wrap = object_ptr<Ui::VerticalLayout>(container);
+	const auto inner = wrap.data();
+	container->add(
+		object_ptr<Ui::OverrideMargins>(
+			container,
+			std::move(wrap),
+			QMargins(0, skip, 0, skip)));
+
+	const auto group = std::make_shared<Ui::RadioenumGroup<SwitchType>>(
+		Auth().settings().supportSwitch());
+	const auto add = [&](SwitchType value, const QString &label) {
+		inner->add(
+			object_ptr<Ui::Radioenum<SwitchType>>(
+				inner,
+				group,
+				value,
+				label,
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	};
+	add(SwitchType::None, "Just send the reply");
+	add(SwitchType::Next, "Send and switch to next");
+	add(SwitchType::Previous, "Send and switch to previous");
+	group->setChangedCallback([](SwitchType value) {
+		Auth().settings().setSupportSwitch(value);
+		Local::writeUserSettings();
+	});
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	base::ObservableViewer(
+		inner->add(
+			object_ptr<Ui::Checkbox>(
+				inner,
+				"Fix chats order",
+				Auth().settings().supportFixChatsOrder(),
+				st::settingsSendType),
+			st::settingsSendTypePadding
+		)->checkedChanged
+	) | rpl::start_with_next([](bool fix) {
+		Auth().settings().setSupportFixChatsOrder(fix);
+		Local::writeUserSettings();
+	}, inner->lifetime());
+
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+}
+
 Chat::Chat(QWidget *parent, not_null<UserData*> self)
 : Section(parent)
 , _self(self) {
@@ -925,6 +977,9 @@ void Chat::setupContent() {
 	SetupChatBackground(content);
 	SetupStickersEmoji(content);
 	SetupMessages(content);
+	if (Auth().supportMode()) {
+		SetupSupport(content);
+	}
 
 	Ui::ResizeFitChild(this, content);
 }

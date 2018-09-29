@@ -40,8 +40,6 @@ int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
 
-bool gCtrlEnter = false;
-
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
 

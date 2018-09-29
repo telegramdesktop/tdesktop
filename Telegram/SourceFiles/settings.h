@@ -64,7 +64,6 @@ DeclareSetting(QString, DialogHelperPath);
 inline const QString &cDialogHelperPathFinal() {
 	return cDialogHelperPath().isEmpty() ? cExeDir() : cDialogHelperPath();
 }
-DeclareSetting(bool, CtrlEnter);
 
 DeclareSetting(bool, AutoUpdate);
 
