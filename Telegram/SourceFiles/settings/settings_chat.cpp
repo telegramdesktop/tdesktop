@@ -710,29 +710,6 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	}, adaptive->lifetime());
 }
 
-void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container) {
-	using Update = const Window::Theme::BackgroundUpdate;
-	container->add(
-		object_ptr<Ui::SlideWrap<Button>>(
-			container,
-			object_ptr<Button>(
-				container,
-				Lang::Viewer(lng_settings_bg_use_default),
-				st::settingsButton))
-	)->toggleOn(rpl::single(
-		Window::Theme::SuggestThemeReset()
-	) | rpl::then(base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme
-			|| update.type == Update::Type::New);
-	}) | rpl::map([] {
-		return Window::Theme::SuggestThemeReset();
-	})))->entity()->addClickHandler([] {
-		Window::Theme::ApplyDefault();
-	});
-}
-
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	using Type = DefaultTheme::Type;
 	using Scheme = DefaultTheme::Scheme;
@@ -931,8 +908,6 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 		st::settingsChatButton.ripple.hideDuration,
 		container,
 		[] { Window::Theme::Editor::Start(); }));
-
-	//SetupUseDefaultTheme(container);
 
 	AddSkip(container);
 }

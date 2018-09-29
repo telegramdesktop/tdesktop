@@ -451,7 +451,7 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 
 		if (testingPalette()) {
 			return false;
-		} else if (IsNonDefaultThemeOrBackground() || nightMode()) {
+		} else if (isNonDefaultThemeOrBackground() || nightMode()) {
 			return !usingThemeBackground();
 		}
 		return !usingDefaultBackground();
@@ -857,10 +857,6 @@ bool Apply(std::unique_ptr<Preview> preview) {
 	return true;
 }
 
-void ApplyDefault() {
-	ApplyDefaultWithPath(IsNightMode() ? NightThemePath() : QString());
-}
-
 void ApplyDefaultWithPath(const QString &themePath) {
 	if (!themePath.isEmpty()) {
 		if (auto preview = PreviewFromFile(themePath)) {
@@ -937,10 +933,6 @@ QString NightThemePath() {
 	return str_const_toString(kNightThemeFile);
 }
 
-bool IsNonDefaultThemeOrBackground() {
-	return Background()->isNonDefaultThemeOrBackground();
-}
-
 bool IsNonDefaultBackground() {
 	return Background()->isNonDefaultBackground();
 }
@@ -961,10 +953,6 @@ void ToggleNightMode() {
 
 void ToggleNightMode(const QString &path) {
 	Background()->toggleNightMode(path);
-}
-
-bool SuggestThemeReset() {
-	return IsNonDefaultThemeOrBackground();
 }
 
 bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {
