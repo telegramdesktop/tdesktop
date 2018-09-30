@@ -626,6 +626,37 @@ void RegisterCustomScheme() {
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
+PermissionStatus GetPermissionStatus(PermissionType type) {
+	if(type==PermissionType::Microphone) {
+		PermissionStatus result=PermissionStatus::Granted;
+		HKEY hKey;
+		LSTATUS res=RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone", 0, KEY_QUERY_VALUE, &hKey);
+		if(res==ERROR_SUCCESS) {
+			wchar_t buf[20];
+			DWORD length=sizeof(buf);
+			res=RegQueryValueEx(hKey, L"Value", NULL, NULL, (LPBYTE)buf, &length);
+			if(res==ERROR_SUCCESS) {
+				if(wcscmp(buf, L"Deny")==0) {
+					result=PermissionStatus::Denied;
+				}
+			}
+			RegCloseKey(hKey);
+		}
+		return result;
+	}
+	return PermissionStatus::Granted;
+}
+
+void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
+
+}
+
+void OpenSystemSettingsForPermission(PermissionType type) {
+	if(type==PermissionType::Microphone) {
+		ShellExecute(NULL, L"open", L"ms-settings:privacy-microphone", NULL, NULL, SW_SHOWDEFAULT);
+	}
+}
+
 } // namespace Platform
 
 void psNewVersion() {

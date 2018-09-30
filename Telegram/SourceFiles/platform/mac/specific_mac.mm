@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
 #include <mach-o/dyld.h>
+#include <AVFoundation/AVFoundation.h>
 
 namespace {
 
@@ -281,6 +282,51 @@ void RegisterCustomScheme() {
 	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
 	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+}
+
+// I do check for availability, just not in the exact way clang is content with
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+PermissionStatus GetPermissionStatus(PermissionType type) {
+	switch(type) {
+		case PermissionType::Microphone:
+			if([AVCaptureDevice respondsToSelector: @selector(authorizationStatusForMediaType:)]) { // Available starting with 10.14
+				switch([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
+					case AVAuthorizationStatusNotDetermined:
+						return PermissionStatus::CanRequest;
+					case AVAuthorizationStatusAuthorized:
+						return PermissionStatus::Granted;
+					case AVAuthorizationStatusDenied:
+					case AVAuthorizationStatusRestricted:
+						return PermissionStatus::Denied;
+				}
+			}
+			return PermissionStatus::Granted;
+	}
+	return PermissionStatus::Granted;
+}
+
+void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
+	switch(type) {
+		case PermissionType::Microphone:
+			if([AVCaptureDevice respondsToSelector: @selector(requestAccessForMediaType:completionHandler:)]) { // Available starting with 10.14
+    			[AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+    				resultCallback(granted ? PermissionStatus::Granted : PermissionStatus::Denied);
+    			}];
+			}else{
+				resultCallback(PermissionStatus::Granted);
+			}
+			break;
+	}
+}
+#pragma clang diagnostic pop // -Wunguarded-availability
+	
+void OpenSystemSettingsForPermission(PermissionType type) {
+	switch(type) {
+		case PermissionType::Microphone:
+			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
+			break;
+	}
 }
 
 } // namespace Platform
