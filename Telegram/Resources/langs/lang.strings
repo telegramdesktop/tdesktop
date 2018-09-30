@@ -1403,6 +1403,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";
 
+"lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
+
 "lng_player_message_today" = "Today at {time}";
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";

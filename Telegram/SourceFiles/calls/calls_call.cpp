@@ -241,6 +241,10 @@ void Call::startIncoming() {
 }
 
 void Call::answer() {
+	_delegate->requestMicrophonePermissionOrFail([this](){ actuallyAnswer(); });
+}
+	
+void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
 
 	if (_state != State::Starting && _state != State::WaitingIncoming) {

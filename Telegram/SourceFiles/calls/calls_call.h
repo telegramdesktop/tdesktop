@@ -46,6 +46,7 @@ public:
 			Ended,
 		};
 		virtual void playSound(Sound sound) = 0;
+		virtual void requestMicrophonePermissionOrFail(Fn<void()> result) = 0;
 
 		virtual ~Delegate();
 
@@ -167,6 +168,7 @@ private:
 	bool checkCallFields(const MTPDphoneCall &call);
 	bool checkCallFields(const MTPDphoneCallAccepted &call);
 
+	void actuallyAnswer();
 	void confirmAcceptedCall(const MTPDphoneCallAccepted &call);
 	void startConfirmedCall(const MTPDphoneCall &call);
 	void setState(State state);
