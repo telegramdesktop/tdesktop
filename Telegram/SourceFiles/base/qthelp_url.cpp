@@ -6,6 +6,10 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "base/qthelp_url.h"
+#include "base/assertion.h"
+#include "base/algorithm.h"
+#include <QtCore/QString>
+#include <QtCore/QLatin1String>
 
 namespace qthelp {
 namespace {

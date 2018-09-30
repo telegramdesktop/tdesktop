@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <utility>
+#include <cstddef>
+#include <QLatin1String>
+
 namespace base {
 
 template <typename Type>

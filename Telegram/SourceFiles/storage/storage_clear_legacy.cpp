@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_clear_legacy.h"
 
 #include <crl/crl_async.h>
+#include <QtCore/QString>
+#include <QtCore/QFile>
 
 namespace Storage {
 namespace {

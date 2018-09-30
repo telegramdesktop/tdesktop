@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/assertion.h"
+#include <QtCore/QByteArray>
+#include <QtCore/QLatin1String>
+
 namespace base {
 namespace parse {
 

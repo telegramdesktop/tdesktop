@@ -7,6 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <cstddef>
+#include <QtCore/QAtomicInt>
+#include "base/assertion.h"
+#include "base/algorithm.h"
+#include "base/basic_types.h"
+
 template <typename Base>
 class RuntimeComposer;
 

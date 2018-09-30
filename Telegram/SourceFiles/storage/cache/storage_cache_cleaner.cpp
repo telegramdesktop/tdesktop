@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/cache/storage_cache_cleaner.h"
 
+#include "base/basic_types.h"
+#include <range/v3/all.hpp>
 #include <crl/crl.h>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtCore/QString>
 #include <unordered_map>
 #include <set>
 

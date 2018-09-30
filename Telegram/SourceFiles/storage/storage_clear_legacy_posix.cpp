@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
+#include <QtCore/QFile>
 
 namespace Storage {
 namespace details {

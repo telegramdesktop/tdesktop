@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_encrypted_file.h"
 #include "base/flat_map.h"
 #include "base/algorithm.h"
+#include "base/openssl_help.h"
 #include <crl/crl.h>
 #include <xxhash.h>
+#include <range/v3/all.hpp>
 #include <QtCore/QDir>
 #include <unordered_map>
 #include <set>

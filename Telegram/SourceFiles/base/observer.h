@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 #include <deque>
 #include <rpl/producer.h>
+#include "base/assertion.h"
+#include "base/algorithm.h"
+#include "base/basic_types.h"
 #include "base/type_traits.h"
 
 namespace base {

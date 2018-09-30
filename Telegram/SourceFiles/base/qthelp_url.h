@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QRegularExpression>
+#include <QtCore/QString>
+#include <QtCore/QMap>
+#include <QtCore/QUrl>
+
 namespace qthelp {
 
 const QRegularExpression &RegExpDomain();

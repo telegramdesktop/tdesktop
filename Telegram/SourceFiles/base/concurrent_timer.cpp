@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QThread>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QMutex>
+#include <QtCore/QMutexLocker>
 
 using namespace base::details;
 
