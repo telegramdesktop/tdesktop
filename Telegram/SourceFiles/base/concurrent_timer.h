@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/binary_guard.h"
+#include "base/basic_types.h"
 #include <crl/crl_time.h>
 #include <crl/crl_object_on_queue.h>
 #include <QtCore/QThread>

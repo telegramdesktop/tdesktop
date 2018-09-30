@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_types.h"
 
 #include <QtCore/QDir>
+#include <range/v3/all.hpp>
 
 namespace Storage {
 namespace Cache {

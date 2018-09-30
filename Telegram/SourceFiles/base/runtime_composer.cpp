@@ -6,6 +6,10 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "base/runtime_composer.h"
+#include <map>
+#include <cstdint>
+#include <QtCore/QMutex>
+#include <QtCore/QMutexLocker>
 
 struct RuntimeComposerMetadatasMap {
 	std::map<uint64, std::unique_ptr<RuntimeComposerMetadata>> data;

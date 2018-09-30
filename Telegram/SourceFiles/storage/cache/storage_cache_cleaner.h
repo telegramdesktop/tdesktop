@@ -8,7 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/cache/storage_cache_types.h"
+#include "base/assertion.h"
 #include "base/binary_guard.h"
+#include "base/basic_types.h"
+#include <crl/crl_object_on_queue.h>
+#include <QtCore/QString>
 
 namespace Storage {
 namespace Cache {

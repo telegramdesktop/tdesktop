@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QString>
+#include <vector>
+#include "base/basic_types.h"
+#include "base/flat_set.h"
+
 namespace Storage {
 
 using CollectGoodFiles = Fn<void(FnMut<void(base::flat_set<QString>&&)>)>;

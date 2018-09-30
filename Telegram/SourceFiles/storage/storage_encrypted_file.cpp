@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_encrypted_file.h"
 
 #include "base/openssl_help.h"
+#include <QtCore/QFileInfo>
+#include <QtCore/QDir>
 
 namespace Storage {
 namespace {

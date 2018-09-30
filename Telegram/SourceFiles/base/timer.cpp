@@ -6,7 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "base/timer.h"
-
+#include <crl/crl_time.h>
 #include <QtCore/QTimerEvent>
 
 namespace base {
