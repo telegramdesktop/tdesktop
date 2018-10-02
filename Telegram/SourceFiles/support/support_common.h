@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Support {
 
+bool ValidateAccount(const MTPUser &self);
+
 enum class SwitchSettings {
 	None,
 	Next,

@@ -36,6 +36,10 @@ namespace Data {
 struct Draft;
 } // namespace Data
 
+namespace Support {
+class Autocomplete;
+} // namespace Support
+
 namespace Ui {
 class AbstractButton;
 class InnerDropdown;
@@ -781,6 +785,7 @@ private:
 	object_ptr<Ui::HistoryDownButton> _unreadMentions;
 
 	object_ptr<FieldAutocomplete> _fieldAutocomplete;
+	object_ptr<Support::Autocomplete> _supportAutocomplete;
 	std::unique_ptr<MessageLinksParser> _fieldLinksParser;
 
 	UserData *_inlineBot = nullptr;

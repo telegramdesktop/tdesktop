@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
 #include "support/support_common.h"
+#include "support/support_templates.h"
 #include "observer_peer.h"
 
 namespace {
@@ -322,7 +323,11 @@ AuthSession::AuthSession(const MTPUser &user)
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
-, _changelogs(Core::Changelogs::Create(this)) {
+, _changelogs(Core::Changelogs::Create(this))
+, _supportTemplates(
+	(Support::ValidateAccount(user)
+		? std::make_unique<Support::Templates>(this)
+		: nullptr)) {
 	App::feedUser(user);
 
 	_saveDataTimer.setCallback([=] {
@@ -422,8 +427,13 @@ void AuthSession::checkAutoLockIn(TimeMs time) {
 }
 
 bool AuthSession::supportMode() const {
-	return true; AssertIsDebug();
-	return _user->phone().startsWith(qstr("424"));
+	return (_supportTemplates != nullptr);
+}
+
+not_null<Support::Templates*> AuthSession::supportTemplates() const {
+	Expects(supportMode());
+
+	return _supportTemplates.get();
 }
 
 AuthSession::~AuthSession() = default;

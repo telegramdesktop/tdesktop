@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
 #include "support/support_common.h"
+#include "support/support_autocomplete.h"
 #include "dialogs/dialogs_key.h"
 #include "styles/style_history.h"
 #include "styles/style_dialogs.h"
@@ -421,6 +422,9 @@ HistoryWidget::HistoryWidget(
 , _historyDown(_scroll, st::historyToDown)
 , _unreadMentions(_scroll, st::historyUnreadMentions)
 , _fieldAutocomplete(this)
+, _supportAutocomplete(Auth().supportMode()
+	? object_ptr<Support::Autocomplete>(this, &Auth())
+	: nullptr)
 , _send(this)
 , _unblock(this, lang(lng_unblock_button).toUpper(), st::historyUnblock)
 , _botStart(this, lang(lng_bot_start).toUpper(), st::historyComposeButton)
@@ -523,6 +527,14 @@ HistoryWidget::HistoryWidget(
 	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(stickerChosen(not_null<DocumentData*>,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerOrGifSend(not_null<DocumentData*>)));
 	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
+	if (_supportAutocomplete) {
+		_supportAutocomplete->hide();
+		_supportAutocomplete->insertRequests(
+		) | rpl::start_with_next([=](const QString &text) {
+			_field->setFocus();
+			_field->textCursor().insertText(text);
+		}, lifetime());
+	}
 	_fieldLinksParser = std::make_unique<MessageLinksParser>(_field);
 	_fieldLinksParser->list().changes(
 	) | rpl::start_with_next([=](QStringList &&parsed) {
@@ -2178,6 +2190,9 @@ void HistoryWidget::updateControlsVisibility() {
 		}
 		_kbShown = false;
 		_fieldAutocomplete->hide();
+		if (_supportAutocomplete) {
+			_supportAutocomplete->hide();
+		}
 		_send->hide();
 		if (_silent) {
 			_silent->hide();
@@ -2270,6 +2285,9 @@ void HistoryWidget::updateControlsVisibility() {
 		}
 	} else {
 		_fieldAutocomplete->hide();
+		if (_supportAutocomplete) {
+			_supportAutocomplete->hide();
+		}
 		_send->hide();
 		_unblock->hide();
 		_botStart->hide();
@@ -3006,6 +3024,9 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 
 void HistoryWidget::hideSelectorControlsAnimated() {
 	_fieldAutocomplete->hideAnimated();
+	if (_supportAutocomplete) {
+		_supportAutocomplete->hide();
+	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideAnimated();
 	}
@@ -4818,6 +4839,9 @@ void HistoryWidget::updateControlsGeometry() {
 	if (_scroll->y() != scrollAreaTop) {
 		_scroll->moveToLeft(0, scrollAreaTop);
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
+		if (_supportAutocomplete) {
+			_supportAutocomplete->setBoundings(_scroll->geometry());
+		}
 	}
 	if (_reportSpamPanel) {
 		_reportSpamPanel->setGeometryToLeft(0, _scroll->y(), width(), _reportSpamPanel->height());
@@ -4998,6 +5022,9 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 		}
 
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
+		if (_supportAutocomplete) {
+			_supportAutocomplete->setBoundings(_scroll->geometry());
+		}
 		if (!_historyDownShown.animating()) {
 			// _historyDown is a child widget of _scroll, not me.
 			_historyDown->moveToRight(st::historyToDownPosition.x(), _scroll->height() - _historyDown->height() - st::historyToDownPosition.y());
@@ -5412,7 +5439,9 @@ void HistoryWidget::replyToNextMessage() {
 }
 
 void HistoryWidget::onFieldTabbed() {
-	if (!_fieldAutocomplete->isHidden()) {
+	if (_supportAutocomplete) {
+		_supportAutocomplete->activate();
+	} else if (!_fieldAutocomplete->isHidden()) {
 		_fieldAutocomplete->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
 	}
 }

@@ -256,3 +256,9 @@ mentionFg: windowSubTextFg;
 mentionFgOver: windowSubTextFgOver;
 mentionFgActive: windowActiveTextFg;
 mentionFgOverActive: windowActiveTextFg;
+
+autocompleteSearchPadding: margins(16px, 5px, 16px, 5px);
+autocompleteRowPadding: margins(16px, 5px, 16px, 5px);
+autocompleteRowTitle: semiboldTextStyle;
+autocompleteRowKeys: defaultTextStyle;
+autocompleteRowAnswer: defaultTextStyle;
