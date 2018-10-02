@@ -399,25 +399,26 @@ bool CheckAlphaVersionDir() {
 	if (!MoveLegacyAlphaFolder()) {
 		return false;
 	}
-	QFile alpha(cExeDir() + qsl("TelegramAlpha_data/tdata/alpha"));
+	QFile key(cExeDir() + qsl("TelegramAlpha_data/tdata/alpha"));
 	if (cAlphaVersion()) {
 		cForceWorkingDir(cExeDir() + qsl("TelegramAlpha_data/"));
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 		if (*AlphaPrivateKey) {
 			cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
 		}
-		if (alpha.open(QIODevice::WriteOnly)) {
-			QDataStream dataStream(&alpha);
+		if (key.open(QIODevice::WriteOnly)) {
+			QDataStream dataStream(&key);
 			dataStream.setVersion(QDataStream::Qt_5_3);
 			dataStream << quint64(cRealAlphaVersion()) << cAlphaPrivateKey();
 		} else {
-			LOG(("FATAL: Could not open '%1' for writing private key!").arg(alpha.fileName()));
+			LOG(("FATAL: Could not open '%1' for writing private key!"
+				).arg(key.fileName()));
 			return false;
 		}
-	} else if (alpha.exists()) {
+	} else if (key.exists()) {
 		cForceWorkingDir(cExeDir() + qsl("TelegramAlpha_data/"));
-		if (alpha.open(QIODevice::ReadOnly)) {
-			QDataStream dataStream(&alpha);
+		if (key.open(QIODevice::ReadOnly)) {
+			QDataStream dataStream(&key);
 			dataStream.setVersion(QDataStream::Qt_5_3);
 
 			quint64 v;
@@ -428,15 +429,25 @@ bool CheckAlphaVersionDir() {
 				cSetAlphaPrivateKey(k);
 				cSetRealAlphaVersion(v);
 			} else {
-				LOG(("FATAL: '%1' is corrupted, reinstall private alpha!").arg(alpha.fileName()));
+				LOG(("FATAL: '%1' is corrupted, reinstall private alpha!").arg(key.fileName()));
 				return false;
 			}
 		} else {
-			LOG(("FATAL: could not open '%1' for reading private key!").arg(alpha.fileName()));
+			LOG(("FATAL: could not open '%1' for reading private key!").arg(key.fileName()));
 			return false;
 		}
 	}
 	return true;
+}
+
+bool CheckPortableVersionDir() {
+	if (CheckAlphaVersionDir()) {
+		return true;
+	} else if (QDir(cExeDir() + qsl("TelegramForcePortable")).exists()) {
+		cForceWorkingDir(cExeDir() + qsl("TelegramForcePortable/"));
+		return true;
+	}
+	return false;
 }
 
 QString InstallBetaVersionsSettingPath() {

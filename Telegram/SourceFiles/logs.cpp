@@ -322,7 +322,7 @@ bool DebugEnabled() {
 void start(not_null<Core::Launcher*> launcher) {
 	Assert(LogsData == 0);
 
-	if (!Sandbox::CheckAlphaVersionDir()) {
+	if (!Sandbox::CheckPortableVersionDir()) {
 		return;
 	}
 
