@@ -331,6 +331,15 @@ void ReplaceFileIndex(
 	}
 }
 
+void MoveKeys(TemplatesFile &to, const TemplatesFile &from) {
+	const auto &existing = from.questions;
+	for (auto &[normalized, question] : to.questions) {
+		if (const auto i = existing.find(normalized); i != end(existing)) {
+			question.keys = i->second.keys;
+		}
+	}
+}
+
 Delta ComputeDelta(const TemplatesFile &was, const TemplatesFile &now) {
 	auto result = Delta();
 	for (const auto &[normalized, question] : now.questions) {
@@ -522,12 +531,13 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 			errors = std::move(result.errors),
 			index = std::move(index)
 		]() mutable {
+			auto &existing = _data.files.at(path);
+			auto &parsed = one.files.at(path);
+			details::MoveKeys(parsed, existing);
 			details::ReplaceFileIndex(_index, details::ComputeIndex(one), path);
 			if (!errors.isEmpty()) {
 				_errors.fire(std::move(errors));
 			}
-			auto &existing = _data.files.at(path);
-			auto &parsed = one.files.at(path);
 			if (const auto delta = details::ComputeDelta(existing, parsed)) {
 				const auto text = details::FormatUpdateNotification(
 					path,
