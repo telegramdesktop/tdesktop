@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Support {
 
 bool ValidateAccount(const MTPUser &self) {
-	return true; AssertIsDebug();
+	//return true; AssertIsDebug();
 	return self.match([](const MTPDuser &data) {
 		return data.has_phone() && qs(data.vphone).startsWith(qstr("424"));
 	}, [](const MTPDuserEmpty &data) {
