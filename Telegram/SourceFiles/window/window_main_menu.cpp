@@ -93,24 +93,30 @@ MainMenu::MainMenu(
 
 void MainMenu::refreshMenu() {
 	_menu->clearActions();
-	_menu->addAction(lang(lng_create_group_title), [] {
-		App::wnd()->onShowNewGroup();
-	}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
-	_menu->addAction(lang(lng_create_channel_title), [] {
-		App::wnd()->onShowNewChannel();
-	}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
-	_menu->addAction(lang(lng_menu_contacts), [] {
-		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
-			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
-		}));
-	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
-	if (Global::PhoneCallsEnabled()) {
-		_menu->addAction(lang(lng_menu_calls), [] {
-			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](not_null<PeerListBox*> box) {
+	if (!Auth().supportMode()) {
+		_menu->addAction(lang(lng_create_group_title), [] {
+			App::wnd()->onShowNewGroup();
+		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
+		_menu->addAction(lang(lng_create_channel_title), [] {
+			App::wnd()->onShowNewChannel();
+		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
+		_menu->addAction(lang(lng_menu_contacts), [] {
+			Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
 				box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+				box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
 			}));
-		}, &st::mainMenuCalls, &st::mainMenuCallsOver);
+		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
+		if (Global::PhoneCallsEnabled()) {
+			_menu->addAction(lang(lng_menu_calls), [] {
+				Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](not_null<PeerListBox*> box) {
+					box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+				}));
+			}, &st::mainMenuCalls, &st::mainMenuCallsOver);
+		}
+	} else {
+		_menu->addAction(lang(lng_profile_add_contact), [] {
+			App::wnd()->onShowAddContact();
+		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 	}
 	_menu->addAction(lang(lng_menu_settings), [] {
 		App::wnd()->showSettings();
