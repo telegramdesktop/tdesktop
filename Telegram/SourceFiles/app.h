@@ -197,8 +197,6 @@ namespace App {
 
 	void checkImageCacheSize();
 
-	bool isValidPhone(QString phone);
-
 	enum LaunchState {
 		Launched = 0,
 		QuitRequested = 1,

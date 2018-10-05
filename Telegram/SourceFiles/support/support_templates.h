@@ -52,8 +52,15 @@ public:
 		return _errors.events();
 	}
 
+	~Templates();
+
 private:
+	struct Updates;
+
 	void update();
+	void ensureUpdatesCreated();
+	void updateRequestFinished(QNetworkReply *reply);
+	void checkUpdateFinished();
 
 	not_null<AuthSession*> _session;
 
@@ -62,6 +69,8 @@ private:
 	rpl::event_stream<QStringList> _errors;
 	base::binary_guard _reading;
 	bool _reloadAfterRead = false;
+
+	std::unique_ptr<Updates> _updates;
 
 };
 

@@ -49,6 +49,13 @@ Locale: ") + Platform::SystemLanguage();
 	UrlClickHandler::Open(url);
 }
 
+bool AllowPhoneAttempt(const QString &phone) {
+	const auto digits = ranges::count_if(
+		phone,
+		[](QChar ch) { return ch.isNumber(); });
+	return (digits > 1);
+}
+
 } // namespace
 
 PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
@@ -138,7 +145,8 @@ void PhoneWidget::onInputChange() {
 void PhoneWidget::submit() {
 	if (_sentRequest || isHidden()) return;
 
-	if (!App::isValidPhone(fullNumber())) {
+	const auto phone = fullNumber();
+	if (!AllowPhoneAttempt(phone)) {
 		showPhoneError(langFactory(lng_bad_phone));
 		_phone->setFocus();
 		return;
@@ -148,7 +156,7 @@ void PhoneWidget::submit() {
 
 	_checkRequest->start(1000);
 
-	_sentPhone = fullNumber();
+	_sentPhone = phone;
 	Messenger::Instance().mtp()->setUserPhone(_sentPhone);
 	//_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	_sentRequest = MTP::send(

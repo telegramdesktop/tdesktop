@@ -412,7 +412,7 @@ public:
 
 	void serviceNotification(
 		const TextWithEntities &message,
-		const MTPMessageMedia &media);
+		const MTPMessageMedia &media = MTP_messageMediaEmpty());
 
 	void forgetMedia();
 

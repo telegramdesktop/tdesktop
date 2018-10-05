@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "data/data_session.h"
 #include "support/support_common.h"
+#include "support/support_templates.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "styles/style_settings.h"
@@ -960,8 +961,16 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 		Local::writeUserSettings();
 	}, inner->lifetime());
 
-
 	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	AddButton(
+		inner,
+		rpl::single(qsl("Reload templates")),
+		st::settingsButton
+	)->addClickHandler([=] {
+		Auth().supportTemplates()->reload();
+	});
+	AddSkip(inner);
 }
 
 Chat::Chat(QWidget *parent, not_null<UserData*> self)
