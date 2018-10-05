@@ -602,25 +602,21 @@ void MainWindow::createGlobalMenu() {
 	psSelectAll = edit->addAction(lang(lng_mac_menu_select_all), this, SLOT(psMacSelectAll()), QKeySequence::SelectAll);
 
 	QMenu *window = psMainMenu.addMenu(lang(lng_mac_menu_window));
-	if (!Auth().supportMode()) {
-		psContacts = window->addAction(lang(lng_mac_menu_contacts));
-		connect(psContacts, &QAction::triggered, psContacts, [] {
-			if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+	psContacts = window->addAction(lang(lng_mac_menu_contacts));
+	connect(psContacts, &QAction::triggered, psContacts, [] {
+		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
-			if (!AuthSession::Exists()) return;
-			Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
-				box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
-				box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
-			}));
-		});
-	}
+		if (!AuthSession::Exists()) return;
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+		}));
+	});
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
-	if (!Auth().supportMode()) {
-		psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));
-		psNewChannel = window->addAction(lang(lng_mac_menu_new_channel), App::wnd(), SLOT(onShowNewChannel()));
-		window->addSeparator();
-	}
+	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));
+	psNewChannel = window->addAction(lang(lng_mac_menu_new_channel), App::wnd(), SLOT(onShowNewChannel()));
+	window->addSeparator();
 	psShowTelegram = window->addAction(lang(lng_mac_menu_show), App::wnd(), SLOT(showFromTray()));
 
 	updateGlobalMenu();
@@ -703,6 +699,7 @@ void MainWindow::updateGlobalMenuHook() {
 	const auto logged = AuthSession::Exists();
 	const auto locked = !Messenger::Instance().locked();
 	const auto inactive = !logged || locked;
+	const auto support = logged && Auth().supportMode();
 	_forceDisabled(psLogout, !logged && !locked);
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);
@@ -711,10 +708,10 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psPaste, !canPaste);
 	_forceDisabled(psDelete, !canDelete);
 	_forceDisabled(psSelectAll, !canSelectAll);
-	_forceDisabled(psContacts, inactive);
+	_forceDisabled(psContacts, inactive || support);
 	_forceDisabled(psAddContact, inactive);
-	_forceDisabled(psNewGroup, inactive);
-	_forceDisabled(psNewChannel, inactive);
+	_forceDisabled(psNewGroup, inactive || support);
+	_forceDisabled(psNewChannel, inactive || support);
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
 }
 
