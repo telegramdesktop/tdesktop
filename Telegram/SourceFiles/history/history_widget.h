@@ -38,6 +38,7 @@ struct Draft;
 
 namespace Support {
 class Autocomplete;
+struct Contact;
 } // namespace Support
 
 namespace Ui {
@@ -454,6 +455,10 @@ private:
 	void refreshAboutProxyPromotion();
 	void unreadCountUpdated();
 
+	void supportInitAutocomplete();
+	void supportInsertText(const QString &text);
+	void supportShareContact(Support::Contact contact);
+
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();
 	void checkNextHighlight();
@@ -565,6 +570,7 @@ private:
 	bool editingMessage() const {
 		return _editMsgId != 0;
 	}
+	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
 
 	MsgId _replyToId = 0;
 	Text _replyToName;

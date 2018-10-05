@@ -11,9 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/padding_wrap.h"
 #include "support/support_templates.h"
+#include "history/view/history_view_message.h"
+#include "history/view/history_view_service_message.h"
+#include "history/history_message.h"
+#include "lang/lang_keys.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
+#include "styles/style_boxes.h"
 
 namespace Support {
 namespace {
@@ -241,6 +247,66 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
+AdminLog::OwnedItem GenerateCommentItem(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		not_null<History*> history,
+		const Contact &data) {
+	if (data.comment.isEmpty()) {
+		return nullptr;
+	}
+	using Flag = MTPDmessage::Flag;
+	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
+	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
+	const auto replyTo = 0;
+	const auto viaBotId = 0;
+	const auto item = new HistoryMessage(
+		history,
+		id,
+		flags,
+		replyTo,
+		viaBotId,
+		unixtime(),
+		Auth().userId(),
+		QString(),
+		TextWithEntities{ TextUtilities::Clean(data.comment) });
+	return AdminLog::OwnedItem(delegate, item);
+}
+
+AdminLog::OwnedItem GenerateContactItem(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		not_null<History*> history,
+		const Contact &data) {
+	using Flag = MTPDmessage::Flag;
+	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2) + 1;
+	const auto flags = Flag::f_from_id | Flag::f_media | Flag::f_out;
+	const auto replyTo = 0;
+	const auto viaBotId = 0;
+	const auto message = MTP_message(
+		MTP_flags(flags),
+		MTP_int(id),
+		MTP_int(Auth().userId()),
+		peerToMTP(history->peer->id),
+		MTPMessageFwdHeader(),
+		MTP_int(viaBotId),
+		MTP_int(replyTo),
+		MTP_int(unixtime()),
+		MTP_string(QString()),
+		MTP_messageMediaContact(
+			MTP_string(data.phone),
+			MTP_string(data.firstName),
+			MTP_string(data.lastName),
+			MTP_string(QString()),
+			MTP_int(0)),
+		MTPReplyMarkup(),
+		MTPVector<MTPMessageEntity>(),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_string(QString()),
+		MTP_long(0));
+	const auto item = new HistoryMessage(history, message.c_message());
+	return AdminLog::OwnedItem(delegate, item);
+}
+
 } // namespace
 
 Autocomplete::Autocomplete(QWidget *parent, not_null<AuthSession*> session)
@@ -267,8 +333,12 @@ void Autocomplete::setBoundings(QRect rect) {
 		height);
 }
 
-rpl::producer<QString> Autocomplete::insertRequests() {
+rpl::producer<QString> Autocomplete::insertRequests() const {
 	return _insertRequests.events();
+}
+
+rpl::producer<Contact> Autocomplete::shareContactRequests() const {
+	return _shareContactRequests.events();
 }
 
 void Autocomplete::keyPressEvent(QKeyEvent *e) {
@@ -296,7 +366,7 @@ void Autocomplete::setupContent() {
 
 	const auto submit = [=] {
 		if (const auto question = inner->selected()) {
-			_insertRequests.fire_copy(question->value);
+			submitValue(question->value);
 		}
 	};
 
@@ -356,6 +426,123 @@ void Autocomplete::setupContent() {
 			size.height() - inputWrap->height() - st::lineWidth);
 		inner->resizeToWidth(size.width());
 	}, lifetime());
+}
+
+void Autocomplete::submitValue(const QString &value) {
+	const auto prefix = qstr("contact:");
+	if (value.startsWith(prefix)) {
+		const auto line = value.indexOf('\n');
+		const auto text = (line > 0) ? value.mid(line + 1) : QString();
+		const auto commented = !text.isEmpty();
+		const auto contact = value.mid(
+			prefix.size(),
+			(line > 0) ? (line - prefix.size()) : -1);
+		const auto parts = contact.split(' ', QString::SkipEmptyParts);
+		if (parts.size() > 1) {
+			const auto phone = parts[0];
+			const auto firstName = parts[1];
+			const auto lastName = (parts.size() > 2)
+				? QStringList(parts.mid(2)).join(' ')
+				: QString();
+			_shareContactRequests.fire(Contact{
+				text,
+				phone,
+				firstName,
+				lastName });
+		}
+	} else {
+		_insertRequests.fire_copy(value);
+	}
+}
+
+ConfirmContactBox::ConfirmContactBox(
+	QWidget*,
+	not_null<History*> history,
+	const Contact &data,
+	Fn<void()> submit)
+: _comment(GenerateCommentItem(this, history, data))
+, _contact(GenerateContactItem(this, history, data))
+, _submit(submit) {
+}
+
+void ConfirmContactBox::prepare() {
+	setTitle([] { return "Confirmation"; });
+
+	auto maxWidth = 0;
+	if (_comment) {
+		_comment->setAttachToNext(true);
+		_contact->setAttachToPrevious(true);
+		_comment->initDimensions();
+		accumulate_max(maxWidth, _comment->maxWidth());
+	}
+	_contact->initDimensions();
+	accumulate_max(maxWidth, _contact->maxWidth());
+	maxWidth += st::boxPadding.left() + st::boxPadding.right();
+	const auto width = snap(maxWidth, st::boxWidth, st::boxWideWidth);
+	const auto available = width
+		- st::boxPadding.left()
+		- st::boxPadding.right();
+	auto height = 0;
+	if (_comment) {
+		height += _comment->resizeGetHeight(available);
+	}
+	height += _contact->resizeGetHeight(available);
+	setDimensions(width, height);
+	_contact->initDimensions();
+
+	addButton(langFactory(lng_send_button), [=] {
+		const auto weak = make_weak(this);
+		_submit();
+		if (weak) {
+			closeBox();
+		}
+	});
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+}
+
+void ConfirmContactBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(e->rect(), st::boxBg);
+
+	const auto ms = getms();
+	p.translate(st::boxPadding.left(), 0);
+	if (_comment) {
+		_comment->draw(p, rect(), TextSelection(), ms);
+		p.translate(0, _comment->height());
+	}
+	_contact->draw(p, rect(), TextSelection(), ms);
+}
+
+HistoryView::Context ConfirmContactBox::elementContext() {
+	return HistoryView::Context::ContactPreview;
+}
+
+std::unique_ptr<HistoryView::Element> ConfirmContactBox::elementCreate(
+		not_null<HistoryMessage*> message) {
+	return std::make_unique<HistoryView::Message>(this, message);
+}
+
+std::unique_ptr<HistoryView::Element> ConfirmContactBox::elementCreate(
+		not_null<HistoryService*> message) {
+	return std::make_unique<HistoryView::Service>(this, message);
+}
+
+bool ConfirmContactBox::elementUnderCursor(not_null<const Element*> view) {
+	return false;
+}
+
+void ConfirmContactBox::elementAnimationAutoplayAsync(
+	not_null<const Element*> element) {
+}
+
+TimeMs ConfirmContactBox::elementHighlightTime(
+		not_null<const Element*> element) {
+	return TimeMs();
+}
+
+bool ConfirmContactBox::elementInSelectionMode() {
+	return false;
 }
 
 } // namespace Support

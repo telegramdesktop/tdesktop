@@ -308,6 +308,9 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 
 } // namespace
 
+OwnedItem::OwnedItem(std::nullptr_t) {
+}
+
 OwnedItem::OwnedItem(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<HistoryItem*> data)

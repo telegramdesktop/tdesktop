@@ -528,12 +528,7 @@ HistoryWidget::HistoryWidget(
 	connect(_fieldAutocomplete, SIGNAL(stickerChosen(not_null<DocumentData*>,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerOrGifSend(not_null<DocumentData*>)));
 	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	if (_supportAutocomplete) {
-		_supportAutocomplete->hide();
-		_supportAutocomplete->insertRequests(
-		) | rpl::start_with_next([=](const QString &text) {
-			_field->setFocus();
-			_field->textCursor().insertText(text);
-		}, lifetime());
+		supportInitAutocomplete();
 	}
 	_fieldLinksParser = std::make_unique<MessageLinksParser>(_field);
 	_fieldLinksParser->list().changes(
@@ -770,6 +765,56 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	orderWidgets();
+}
+
+void HistoryWidget::supportInitAutocomplete() {
+	_supportAutocomplete->hide();
+
+	_supportAutocomplete->insertRequests(
+	) | rpl::start_with_next([=](const QString &text) {
+		supportInsertText(text);
+	}, _supportAutocomplete->lifetime());
+
+	_supportAutocomplete->shareContactRequests(
+	) | rpl::start_with_next([=](const Support::Contact &contact) {
+		supportShareContact(contact);
+	}, _supportAutocomplete->lifetime());
+}
+
+void HistoryWidget::supportInsertText(const QString &text) {
+	_field->setFocus();
+	_field->textCursor().insertText(text);
+}
+
+void HistoryWidget::supportShareContact(Support::Contact contact) {
+	if (!_history) {
+		return;
+	}
+	const auto commented = !contact.comment.isEmpty();
+	if (commented) {
+		supportInsertText(contact.comment);
+	}
+	contact.comment = _field->getLastText();
+
+	const auto submit = [=] {
+		if (!_history) {
+			return;
+		}
+		send();
+		Auth().api().shareContact(
+			contact.phone,
+			contact.firstName,
+			contact.lastName,
+			ApiWrap::SendOptions(_history));
+	};
+	const auto box = Ui::show(Box<Support::ConfirmContactBox>(
+		_history,
+		contact,
+		crl::guard(this, submit)));
+	box->boxClosing(
+	) | rpl::start_with_next([=] {
+		_field->document()->undo();
+	}, lifetime());
 }
 
 void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId) {
@@ -1538,33 +1583,50 @@ bool HistoryWidget::cmd_next_chat() {
 		Dialogs::RowDescriptor(
 			_history,
 			FullMsgId(_history->channelId(), std::max(_showAtMsgId, 0))));
-	if (const auto history = next.key.history()) {
-		Ui::showPeerHistory(history, next.fullId.msg);
-		return true;
-	} else if (const auto feed = next.key.feed()) {
-		if (const auto item = App::histItemById(next.fullId)) {
-			controller()->showSection(HistoryFeed::Memento(feed, item->position()));
-		} else {
-			controller()->showSection(HistoryFeed::Memento(feed));
+	const auto to = [&] {
+		auto result = next;
+		if (Auth().supportMode()) {
+			while (result.key
+				&& !result.key.entry()->chatListUnreadCount()
+				&& !result.key.entry()->chatListUnreadMark()) {
+				result = App::main()->chatListEntryAfter(result);
+			}
 		}
-	}
-	return false;
+		return result;
+	}();
+	return jumpToDialogRow(to);
 }
 
 bool HistoryWidget::cmd_previous_chat() {
 	if (!_history) {
 		return false;
 	}
-	const auto next = App::main()->chatListEntryBefore(
+	const auto previous = App::main()->chatListEntryBefore(
 		Dialogs::RowDescriptor(
 			_history,
 			FullMsgId(_history->channelId(), std::max(_showAtMsgId, 0))));
-	if (const auto history = next.key.history()) {
-		Ui::showPeerHistory(history, next.fullId.msg);
+	const auto to = [&] {
+		auto result = previous;
+		if (Auth().supportMode()) {
+			while (result.key
+				&& !result.key.entry()->chatListUnreadCount()
+				&& !result.key.entry()->chatListUnreadMark()) {
+				result = App::main()->chatListEntryBefore(result);
+			}
+		}
+		return result;
+	}();
+	return jumpToDialogRow(to);
+}
+
+bool HistoryWidget::jumpToDialogRow(const Dialogs::RowDescriptor &to) {
+	if (const auto history = to.key.history()) {
+		Ui::showPeerHistory(history, to.fullId.msg);
 		return true;
-	} else if (const auto feed = next.key.feed()) {
-		if (const auto item = App::histItemById(next.fullId)) {
-			controller()->showSection(HistoryFeed::Memento(feed, item->position()));
+	} else if (const auto feed = to.key.feed()) {
+		if (const auto item = App::histItemById(to.fullId)) {
+			controller()->showSection(
+				HistoryFeed::Memento(feed, item->position()));
 		} else {
 			controller()->showSection(HistoryFeed::Memento(feed));
 		}
