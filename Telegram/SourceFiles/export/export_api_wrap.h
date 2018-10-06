@@ -141,6 +141,8 @@ private:
 		int splitIndex);
 
 	void requestMessagesCount(int localSplitIndex);
+	void checkFirstMessageDate(int localSplitIndex, int count);
+	void messagesCountLoaded(int localSplitIndex, int count);
 	void requestMessagesSlice();
 	void requestChatMessages(
 		int splitIndex,

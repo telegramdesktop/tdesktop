@@ -119,6 +119,9 @@ void ResolveSettings(Settings &settings) {
 	} else {
 		settings.forceSubPath = IsDefaultPath(settings.path);
 	}
+	if (!settings.onlySinglePeer()) {
+		settings.singlePeerFrom = settings.singlePeerTill = 0;
+	}
 }
 
 PanelController::PanelController(not_null<ControllerWrap*> process)
