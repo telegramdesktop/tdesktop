@@ -1744,11 +1744,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_location" = "Download path: {path}";
 "lng_export_option_html" = "Human-readable HTML";
 "lng_export_option_json" = "Machine-readable JSON";
-"lng_export_limits" = "From: {from}, Till: {till}";
-"lng_export_beginning" = "Beginning";
-"lng_export_end" = "End";
-"lng_export_from_beginning" = "From Beginning";
-"lng_export_till_end" = "Till End";
+"lng_export_limits" = "From: {from}, to: {till}";
+"lng_export_beginning" = "the oldest message";
+"lng_export_end" = "present";
+"lng_export_from_beginning" = "Reset";
+"lng_export_till_end" = "Reset";
 "lng_export_start" = "Export";
 "lng_export_state_initializing" = "Initializing...";
 "lng_export_state_userpics" = "Profile pictures";

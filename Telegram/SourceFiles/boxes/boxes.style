@@ -573,14 +573,24 @@ calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
 calendarNext: IconButton(calendarPrevious) {
 	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
 }
+CalendarSizes {
+	width: pixels;
+	daysHeight: pixels;
+	cellSize: size;
+	cellInner: pixels;
+	padding: margins;
+}
 calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
 calendarTitleFont: boxTitleFont;
+defaultCalendarSizes: CalendarSizes {
+	width: boxWideWidth;
+	daysHeight: 32px;
+	cellSize: size(48px, 40px);
+	cellInner: 34px;
+	padding: margins(14px, 15px, 14px, 10px);
+}
 calendarDaysFont: normalFont;
 calendarDaysFg: boxTitleAdditionalFg;
-calendarDaysHeight: 32px;
-calendarCellSize: size(48px, 40px);
-calendarCellInner: 34px;
-calendarPadding: margins(14px, 15px, 14px, 10px);
 calendarScroll: backgroundScroll;
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {

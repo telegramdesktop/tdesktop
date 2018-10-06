@@ -388,7 +388,8 @@ void SettingsWidget::editDateLimit(
 		month,
 		highlighted,
 		callback,
-		finalize);
+		finalize,
+		st::exportCalendarSizes);
 	*shared = make_weak(box.data());
 	_showBoxCallback(std::move(box));
 }

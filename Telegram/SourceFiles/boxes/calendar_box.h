@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "abstract_box.h"
 
+namespace style {
+struct CalendarSizes;
+} // namespace style
+
 namespace Ui {
 class IconButton;
 } // namespace Ui
@@ -21,6 +25,14 @@ public:
 		QDate highlighted,
 		Fn<void(QDate date)> callback,
 		FnMut<void(not_null<CalendarBox*>)> finalize = nullptr);
+	CalendarBox(
+		QWidget*,
+		QDate month,
+		QDate highlighted,
+		Fn<void(QDate date)> callback,
+		FnMut<void(not_null<CalendarBox*>)> finalize,
+		const style::CalendarSizes &st);
+
 
 	void setMinDate(QDate date);
 	void setMaxDate(QDate date);
@@ -37,6 +49,8 @@ private:
 
 	bool isPreviousEnabled() const;
 	bool isNextEnabled() const;
+
+	const style::CalendarSizes &_st;
 
 	class Context;
 	std::unique_ptr<Context> _context;
