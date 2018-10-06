@@ -78,6 +78,8 @@ struct Settings {
 	MediaSettings media;
 
 	MTPInputPeer singlePeer = MTP_inputPeerEmpty();
+	TimeId singlePeerFrom = 0;
+	TimeId singlePeerTill = 0;
 
 	TimeId availableAt = 0;
 

@@ -4345,6 +4345,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 		}, [&](const MTPDinputPeerEmpty &) {
 			data.stream << kSinglePeerTypeEmpty;
 		});
+		data.stream << qint32(settings.singlePeerFrom);
+		data.stream << qint32(settings.singlePeerTill);
 
 		FileWriteDescriptor file(_exportSettingsKey);
 		file.writeEncrypted(data);
@@ -4366,6 +4368,7 @@ Export::Settings ReadExportSettings() {
 	QString path;
 	qint32 singlePeerType = 0, singlePeerBareId = 0;
 	quint64 singlePeerAccessHash = 0;
+	qint32 singlePeerFrom = 0, singlePeerTill = 0;
 	file.stream
 		>> types
 		>> fullChats
@@ -4386,6 +4389,9 @@ Export::Settings ReadExportSettings() {
 		case kSinglePeerTypeEmpty: break;
 		default: return Export::Settings();
 		}
+	}
+	if (!file.stream.atEnd()) {
+		file.stream >> singlePeerFrom >> singlePeerTill;
 	}
 	auto result = Export::Settings();
 	result.types = Export::Settings::Types::from_raw(types);
@@ -4414,6 +4420,8 @@ Export::Settings ReadExportSettings() {
 		}
 		Unexpected("Type in export data single peer.");
 	}();
+	result.singlePeerFrom = singlePeerFrom;
+	result.singlePeerTill = singlePeerTill;
 	return (file.stream.status() == QDataStream::Ok && result.validate())
 		? result
 		: Export::Settings();

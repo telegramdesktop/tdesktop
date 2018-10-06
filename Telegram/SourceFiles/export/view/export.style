@@ -34,6 +34,7 @@ exportLocationLabel: FlatLabel(boxLabel) {
 	maxHeight: 21px;
 }
 exportLocationPadding: margins(22px, 8px, 22px, 8px);
+exportLimitsPadding: margins(22px, 0px, 22px, 0px);
 
 exportAboutOptionLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

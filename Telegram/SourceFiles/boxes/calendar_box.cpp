@@ -440,13 +440,19 @@ void CalendarBox::Title::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft((width() - _textWidth) / 2, (height() - st::calendarTitleFont->height) / 2, width(), _text, _textWidth);
 }
 
-CalendarBox::CalendarBox(QWidget*, QDate month, QDate highlighted, Fn<void(QDate date)> callback)
+CalendarBox::CalendarBox(
+	QWidget*,
+	QDate month,
+	QDate highlighted,
+	Fn<void(QDate date)> callback,
+	FnMut<void(not_null<CalendarBox*>)> finalize)
 : _context(std::make_unique<Context>(month, highlighted))
 , _inner(this, _context.get())
 , _title(this, _context.get())
 , _previous(this, st::calendarPrevious)
 , _next(this, st::calendarNext)
-, _callback(std::move(callback)) {
+, _callback(std::move(callback))
+, _finalize(std::move(finalize)) {
 }
 
 void CalendarBox::setMinDate(QDate date) {
@@ -477,6 +483,10 @@ void CalendarBox::prepare() {
 	subscribe(_context->month(), [this](QDate month) { monthChanged(month); });
 
 	_context->start();
+
+	if (_finalize) {
+		_finalize(this);
+	}
 }
 
 bool CalendarBox::isPreviousEnabled() const {

@@ -15,7 +15,12 @@ class IconButton;
 
 class CalendarBox : public BoxContent {
 public:
-	CalendarBox(QWidget*, QDate month, QDate highlighted, Fn<void(QDate date)> callback);
+	CalendarBox(
+		QWidget*,
+		QDate month,
+		QDate highlighted,
+		Fn<void(QDate date)> callback,
+		FnMut<void(not_null<CalendarBox*>)> finalize = nullptr);
 
 	void setMinDate(QDate date);
 	void setMaxDate(QDate date);
@@ -45,5 +50,6 @@ private:
 	object_ptr<Ui::IconButton> _next;
 
 	Fn<void(QDate date)> _callback;
+	FnMut<void(not_null<CalendarBox*>)> _finalize;
 
 };
