@@ -24,6 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
+#ifdef small
+#undef small
+#endif // small
+
 namespace Window {
 
 constexpr auto kInactivePressTimeout = TimeMs(200);
@@ -37,12 +41,70 @@ QImage LoadLogoNoMargin() {
 	return QImage(qsl(":/gui/art/logo_256_no_margin.png"));
 }
 
+void ConvertIconToBlack(QImage &image) {
+	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	//const auto gray = red * 0.299 + green * 0.587 + blue * 0.114;
+	//const auto result = (gray - 100 < 0) ? 0 : (gray - 100) * 255 / 155;
+	constexpr auto scale = 255 / 155.;
+	constexpr auto red = 0.299;
+	constexpr auto green = 0.587;
+	constexpr auto blue = 0.114;
+	static constexpr auto shift = (1 << 24);
+	auto shifter = [](double value) {
+		return uint32(value * shift);
+	};
+	constexpr auto iscale = shifter(scale);
+	constexpr auto ired = shifter(red);
+	constexpr auto igreen = shifter(green);
+	constexpr auto iblue = shifter(blue);
+	constexpr auto threshold = 100;
+	constexpr auto ithreshold = shifter(threshold);
+
+	const auto width = image.width();
+	const auto height = image.height();
+	const auto data = reinterpret_cast<uint32*>(image.bits());
+	const auto intsPerLine = image.bytesPerLine() / 4;
+	const auto intsPerLineAdded = intsPerLine - width;
+
+	auto pixel = data;
+	for (auto j = 0; j != height; ++j) {
+		for (auto i = 0; i != width; ++i) {
+			const auto value = *pixel;
+			const auto gray = (((value >> 16) & 0xFF) * ired
+				+ ((value >> 8) & 0xFF) * igreen
+				+ (value & 0xFF) * iblue) >> 24;
+			const auto small = gray - threshold;
+			const auto test = ~small;
+			const auto result = (test >> 31) * small * iscale;
+			const auto component = (result >> 24) & 0xFF;
+			*pixel++ = (value & 0xFF000000U)
+				| (component << 16)
+				| (component << 8)
+				| component;
+		}
+		pixel += intsPerLineAdded;
+	}
+}
+
 QIcon CreateOfficialIcon() {
 	auto useNoMarginLogo = (cPlatform() == dbipMac);
-	if (auto messenger = Messenger::InstancePointer()) {
-		return QIcon(App::pixmapFromImageInPlace(useNoMarginLogo ? messenger->logoNoMargin() : messenger->logo()));
+	auto image = [&] {
+		if (const auto messenger = Messenger::InstancePointer()) {
+			return useNoMarginLogo
+				? messenger->logoNoMargin()
+				: messenger->logo();
+		}
+		return useNoMarginLogo
+			? LoadLogoNoMargin()
+			: LoadLogo();
+	}();
+	if (AuthSession::Exists() && Auth().supportMode()) {
+		ConvertIconToBlack(image);
 	}
-	return QIcon(App::pixmapFromImageInPlace(useNoMarginLogo ? LoadLogoNoMargin() : LoadLogo()));
+	return QIcon(App::pixmapFromImageInPlace(std::move(image)));
 }
 
 QIcon CreateIcon() {
@@ -58,14 +120,22 @@ MainWindow::MainWindow()
 , _body(this)
 , _icon(CreateIcon())
 , _titleText(qsl("Telegram")) {
-	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
+	subscribe(Theme::Background(), [=](
+			const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			updatePalette();
 		}
 	});
-	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
-	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) { workmodeUpdated(mode); });
-	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
+	subscribe(Global::RefUnreadCounterUpdate(), [=] {
+		updateUnreadCounter();
+	});
+	subscribe(Global::RefWorkMode(), [=](DBIWorkMode mode) {
+		workmodeUpdated(mode);
+	});
+	subscribe(Messenger::Instance().authSessionChanged(), [=] {
+		checkAuthSession();
+		updateWindowIcon();
+	});
 	checkAuthSession();
 
 	Messenger::Instance().termsLockValue(
@@ -194,6 +264,11 @@ bool MainWindow::computeIsActive() const {
 }
 
 void MainWindow::updateWindowIcon() {
+	const auto supportIcon = AuthSession::Exists() && Auth().supportMode();
+	if (supportIcon != _usingSupportIcon) {
+		_icon = CreateIcon();
+		_usingSupportIcon = supportIcon;
+	}
 	setWindowIcon(_icon);
 }
 

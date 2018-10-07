@@ -19,8 +19,7 @@ PreLaunchWindow *PreLaunchWindowInstance = nullptr;
 PreLaunchWindow::PreLaunchWindow(QString title) {
 	Fonts::Start();
 
-	auto icon = Window::CreateIcon();
-	setWindowIcon(icon);
+	setWindowIcon(Window::CreateIcon());
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 
 	setWindowTitle(title.isEmpty() ? qsl("Telegram") : title);

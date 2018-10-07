@@ -573,8 +573,8 @@ void Messenger::startLocalStorage() {
 			}
 		}
 	});
-	subscribe(authSessionChanged(), [this] {
-		InvokeQueued(this, [this] {
+	subscribe(authSessionChanged(), [=] {
+		InvokeQueued(this, [=] {
 			const auto phone = AuthSession::Exists()
 				? Auth().user()->phone()
 				: QString();
@@ -588,6 +588,7 @@ void Messenger::startLocalStorage() {
 			if (_mtproto) {
 				_mtproto->requestConfig();
 			}
+			qApp->setWindowIcon(Window::CreateIcon());
 		});
 	});
 }
