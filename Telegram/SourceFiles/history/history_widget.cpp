@@ -5033,6 +5033,9 @@ int HistoryWidget::countAutomaticScrollTop() {
 				setMsgId(ShowAtUnreadMsgId);
 				result = countInitialScrollTop();
 				App::wnd()->checkHistoryActivation();
+				if (Auth().supportMode()) {
+					history->unsetFirstUnreadMessage();
+				}
 				return result;
 			}
 		}
