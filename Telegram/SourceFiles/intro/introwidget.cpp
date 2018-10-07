@@ -42,6 +42,14 @@ namespace {
 
 constexpr str_const kDefaultCountry = "US";
 
+void DisableAnimationsOnLogin() {
+	anim::SetDisabled(true);
+	Local::writeSettings();
+
+	cSetAutoPlayGif(false);
+	Local::writeUserSettings();
+}
+
 } // namespace
 
 Widget::Widget(QWidget *parent) : RpWidget(parent)
@@ -619,8 +627,13 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 	App::wnd()->setupMain();
 
 	// "this" is already deleted here by creating the main widget.
-	if (AuthSession::Exists() && !photo.isNull()) {
-		Auth().api().uploadPeerPhoto(Auth().user(), std::move(photo));
+	if (AuthSession::Exists()) {
+		if (!photo.isNull()) {
+			Auth().api().uploadPeerPhoto(Auth().user(), std::move(photo));
+		}
+		if (Auth().supportMode()) {
+			DisableAnimationsOnLogin();
+		}
 	}
 }
 
