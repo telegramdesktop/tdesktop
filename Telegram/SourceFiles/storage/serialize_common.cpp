@@ -260,4 +260,19 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 	return result;
 }
 
+QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
+	quint64 peerId = 0, photoId = 0;
+	stream >> peerId >> photoId;
+	if (!peerId || !peerIsUser(peerId)) {
+		return QString();
+	}
+
+	const auto photoLoc = readStorageImageLocation(
+		streamAppVersion,
+		stream);
+	QString first, last, phone;
+	stream >> first >> last >> phone;
+	return phone;
+}
+
 } // namespace Serialize

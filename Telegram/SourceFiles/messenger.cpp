@@ -463,14 +463,21 @@ void Messenger::startMtp() {
 	}
 
 	if (_private->authSessionUserId) {
+		QDataStream peekStream(_private->authSessionUserSerialized);
+		const auto phone = Serialize::peekUserPhone(
+			_private->authSessionUserStreamVersion,
+			peekStream);
+		const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
+			? MTPDuser::Flag()
+			: MTPDuser::Flag::f_phone);
 		authSessionCreate(MTP_user(
-			MTP_flags(MTPDuser::Flag::f_self),
+			MTP_flags(flags),
 			MTP_int(base::take(_private->authSessionUserId)),
 			MTPlong(), // access_hash
 			MTPstring(), // first_name
 			MTPstring(), // last_name
 			MTPstring(), // username
-			MTPstring(), // phone
+			MTP_string(phone),
 			MTPUserProfilePhoto(),
 			MTPUserStatus(),
 			MTPint(), // bot_info_version
