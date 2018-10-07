@@ -187,6 +187,10 @@ public:
 		return true;
 	}
 
+	const style::TextStyle *style() const {
+		return _st;
+	}
+
 	void clear();
 	~Text();
 

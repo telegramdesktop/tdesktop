@@ -70,6 +70,14 @@ private:
 
 };
 
+int TextHeight(const Text &text, int available, int lines) {
+	Expects(text.style() != nullptr);
+
+	const auto st = text.style();
+	const auto line = st->lineHeight ? st->lineHeight : st->font->height;
+	return std::min(text.countHeight(available), lines * line);
+};
+
 Inner::Inner(QWidget *parent) : RpWidget(parent) {
 	setMouseTracking(true);
 }
@@ -120,9 +128,9 @@ int Inner::resizeRowGetHeight(Row &row, int newWidth) {
 		- st::autocompleteRowPadding.left()
 		- st::autocompleteRowPadding.right();
 	return row.height = st::autocompleteRowPadding.top()
-		+ row.question.countHeight(available)
-		+ row.keys.countHeight(available)
-		+ row.answer.countHeight(available)
+		+ TextHeight(row.question, available, 1)
+		+ TextHeight(row.keys, available, 1)
+		+ TextHeight(row.answer, available, 2)
 		+ st::autocompleteRowPadding.bottom()
 		+ st::lineWidth;
 }
@@ -167,14 +175,15 @@ void Inner::paintEvent(QPaintEvent *e) {
 	const auto padding = st::autocompleteRowPadding;
 	const auto available = width() - padding.left() - padding.right();
 	auto top = padding.top();
-	const auto drawText = [&](const Text &text) {
-		text.drawLeft(
+	const auto drawText = [&](const Text &text, int lines) {
+		text.drawLeftElided(
 			p,
 			padding.left(),
 			top,
 			available,
-			width());
-		top += text.countHeight(available);
+			width(),
+			lines);
+		top += TextHeight(text, available, lines);
 	};
 	for (auto i = from; i != till; ++i) {
 		const auto over = (i - begin(_rows) == _selected);
@@ -182,11 +191,11 @@ void Inner::paintEvent(QPaintEvent *e) {
 			p.fillRect(0, 0, width(), i->height, st::windowBgOver);
 		}
 		p.setPen(st::mentionNameFg);
-		drawText(i->question);
+		drawText(i->question, 1);
 		p.setPen(over ? st::mentionFgOver : st::mentionFg);
-		drawText(i->keys);
+		drawText(i->keys, 1);
 		p.setPen(st::windowFg);
-		drawText(i->answer);
+		drawText(i->answer, 2);
 
 		p.translate(0, i->height);
 		top = padding.top();
