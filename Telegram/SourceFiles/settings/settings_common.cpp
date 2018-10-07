@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
@@ -177,9 +178,11 @@ void AddSubsectionTitle(
 }
 
 void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {
-	addAction(
-		lang(lng_settings_information),
-		[=] { showOther(Type::Information); });
+	if (!Auth().supportMode()) {
+		addAction(
+			lang(lng_settings_information),
+			[=] { showOther(Type::Information); });
+	}
 	addAction(
 		lang(lng_settings_logout),
 		[=] { App::wnd()->onLogout(); });

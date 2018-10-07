@@ -907,7 +907,6 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupSupport(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container);
 
 	AddSubsectionTitle(container, rpl::single(qsl("Support settings")));
@@ -986,9 +985,6 @@ void Chat::setupContent() {
 	SetupChatBackground(content);
 	SetupStickersEmoji(content);
 	SetupMessages(content);
-	if (Auth().supportMode()) {
-		SetupSupport(content);
-	}
 
 	Ui::ResizeFitChild(this, content);
 }

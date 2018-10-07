@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "settings/settings_codes.h"
+#include "settings/settings_chat.h"
 #include "boxes/language_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
@@ -63,10 +64,17 @@ void SetupSections(
 			icon
 		)->addClickHandler([=] { showOther(type); });
 	};
-	addSection(
-		lng_settings_information,
-		Type::Information,
-		&st::settingsIconInformation);
+	if (Auth().supportMode()) {
+		SetupSupport(container);
+
+		AddDivider(container);
+		AddSkip(container);
+	} else {
+		addSection(
+			lng_settings_information,
+			Type::Information,
+			&st::settingsIconInformation);
+	}
 	addSection(
 		lng_settings_section_notify,
 		Type::Notifications,
