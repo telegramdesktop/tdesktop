@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
@@ -962,11 +963,18 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
 
+	const auto subscription = Ui::AttachAsChild(inner, rpl::lifetime());
 	AddButton(
 		inner,
 		rpl::single(qsl("Reload templates")),
 		st::settingsButton
 	)->addClickHandler([=] {
+		*subscription = Auth().supportTemplates()->errors(
+		) | rpl::start_with_next([=](QStringList errors) {
+			Ui::Toast::Show(errors.isEmpty()
+				? "Templates reloaded!"
+				: ("Errors:\n\n" + errors.join("\n\n")));
+		});
 		Auth().supportTemplates()->reload();
 	});
 	AddSkip(inner);
