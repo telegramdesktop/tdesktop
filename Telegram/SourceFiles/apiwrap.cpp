@@ -4298,6 +4298,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	options.replyTo = message.replyTo;
 	options.generateLocal = true;
 	options.webPageId = message.webPageId;
+	options.handleSupportSwitch = message.handleSupportSwitch;
 	sendAction(options);
 
 	if (!peer->canWrite()) {

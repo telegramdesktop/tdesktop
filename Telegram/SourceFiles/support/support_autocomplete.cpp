@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
 #include "support/support_templates.h"
+#include "support/support_common.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_message.h"
@@ -66,7 +68,7 @@ private:
 	int _selected = -1;
 	int _pressed = -1;
 	bool _selectByKeys = false;
-	rpl::event_stream<> _activated;
+	rpl::event_stream<Qt::KeyboardModifiers> _activated;
 
 };
 
@@ -252,7 +254,7 @@ void Inner::mousePressEvent(QMouseEvent *e) {
 void Inner::mouseReleaseEvent(QMouseEvent *e) {
 	const auto pressed = base::take(_pressed);
 	if (pressed == _selected && pressed >= 0) {
-		_activated.fire({});
+		_activated.fire(e->modifiers());
 	}
 }
 
@@ -373,9 +375,9 @@ void Autocomplete::setupContent() {
 
 	const auto inner = scroll->setOwnedWidget(object_ptr<Inner>(scroll));
 
-	const auto submit = [=] {
+	const auto submit = [=](Qt::KeyboardModifiers modifiers) {
 		if (const auto question = inner->selected()) {
-			submitValue(question->value);
+			submitValue(question->value, modifiers);
 		}
 	};
 
@@ -437,7 +439,9 @@ void Autocomplete::setupContent() {
 	}, lifetime());
 }
 
-void Autocomplete::submitValue(const QString &value) {
+void Autocomplete::submitValue(
+		const QString &value,
+		Qt::KeyboardModifiers modifiers) {
 	const auto prefix = qstr("contact:");
 	if (value.startsWith(prefix)) {
 		const auto line = value.indexOf('\n');
@@ -457,7 +461,8 @@ void Autocomplete::submitValue(const QString &value) {
 				text,
 				phone,
 				firstName,
-				lastName });
+				lastName,
+				HandleSwitch(modifiers) });
 		}
 	} else {
 		_insertRequests.fire_copy(value);
@@ -468,7 +473,7 @@ ConfirmContactBox::ConfirmContactBox(
 	QWidget*,
 	not_null<History*> history,
 	const Contact &data,
-	Fn<void()> submit)
+	Fn<void(Qt::KeyboardModifiers)> submit)
 : _comment(GenerateCommentItem(this, history, data))
 , _contact(GenerateContactItem(this, history, data))
 , _submit(submit) {
@@ -499,14 +504,32 @@ void ConfirmContactBox::prepare() {
 	setDimensions(width, height);
 	_contact->initDimensions();
 
-	addButton(langFactory(lng_send_button), [=] {
+	_submit = [=, original = std::move(_submit)](Qt::KeyboardModifiers m) {
 		const auto weak = make_weak(this);
-		_submit();
+		original(m);
 		if (weak) {
 			closeBox();
 		}
-	});
+	};
+
+	const auto button = addButton(langFactory(lng_send_button), [] {});
+	button->clicks(
+	) | rpl::start_with_next([=](Qt::MouseButton which) {
+		_submit((which == Qt::RightButton)
+			? SkipSwitchModifiers()
+			: button->clickModifiers());
+	}, button->lifetime());
+	button->setAcceptBoth(true);
+
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+}
+
+void ConfirmContactBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		_submit(e->modifiers());
+	} else {
+		BoxContent::keyPressEvent(e);
+	}
 }
 
 void ConfirmContactBox::paintEvent(QPaintEvent *e) {

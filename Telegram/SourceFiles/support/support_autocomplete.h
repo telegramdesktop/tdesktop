@@ -26,6 +26,7 @@ struct Contact {
 	QString phone;
 	QString firstName;
 	QString lastName;
+	bool handleSwitch = false;
 };
 
 class Autocomplete : public Ui::RpWidget {
@@ -44,7 +45,7 @@ protected:
 
 private:
 	void setupContent();
-	void submitValue(const QString &value);
+	void submitValue(const QString &value, Qt::KeyboardModifiers modifiers);
 
 	not_null<AuthSession*> _session;
 	Fn<void()> _activate;
@@ -64,7 +65,7 @@ public:
 		QWidget*,
 		not_null<History*> history,
 		const Contact &data,
-		Fn<void()> submit);
+		Fn<void(Qt::KeyboardModifiers)> submit);
 
 	using Element = HistoryView::Element;
 	HistoryView::Context elementContext() override;
@@ -82,11 +83,12 @@ public:
 protected:
 	void prepare() override;
 	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	AdminLog::OwnedItem _comment;
 	AdminLog::OwnedItem _contact;
-	Fn<void()> _submit;
+	Fn<void(Qt::KeyboardModifiers)> _submit;
 
 };
 

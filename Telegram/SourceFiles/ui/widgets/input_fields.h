@@ -267,6 +267,9 @@ public:
 
 	using SubmitSettings = InputSubmitSettings;
 	void setSubmitSettings(SubmitSettings settings);
+	static bool ShouldSubmit(
+		SubmitSettings settings,
+		Qt::KeyboardModifiers modifiers);
 	void customUpDown(bool isCustom);
 	void customTab(bool isCustom);
 	int borderAnimationStart() const;

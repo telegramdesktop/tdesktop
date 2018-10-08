@@ -20,6 +20,16 @@ bool ValidateAccount(const MTPUser &self) {
 	});
 }
 
+bool HandleSwitch(Qt::KeyboardModifiers modifiers) {
+	return !(modifiers & Qt::ShiftModifier)
+		|| (!(modifiers & Qt::ControlModifier)
+			&& !(modifiers & Qt::MetaModifier));
+}
+
+Qt::KeyboardModifiers SkipSwitchModifiers() {
+	return Qt::ControlModifier | Qt::ShiftModifier;
+}
+
 void PerformSwitch(SwitchSettings value) {
 	switch (value) {
 	case SwitchSettings::Next:

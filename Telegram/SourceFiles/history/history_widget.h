@@ -294,7 +294,6 @@ public:
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
-	void onListEnterPressed();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
@@ -439,7 +438,7 @@ private:
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
 
-	void send();
+	void send(Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
@@ -450,7 +449,6 @@ private:
 	void showNextUnreadMention();
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
-	void forwardItems(MessageIdsList &&items);
 	void handleHistoryChange(not_null<const History*> history);
 	void refreshAboutProxyPromotion();
 	void unreadCountUpdated();

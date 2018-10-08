@@ -462,7 +462,10 @@ HistoryWidget::HistoryWidget(
 	connect(_botStart, SIGNAL(clicked()), this, SLOT(onBotStart()));
 	connect(_joinChannel, SIGNAL(clicked()), this, SLOT(onJoinChannel()));
 	connect(_muteUnmute, SIGNAL(clicked()), this, SLOT(onMuteUnmute()));
-	connect(_field, &Ui::InputField::submitted, [=] { send(); });
+	connect(
+		_field,
+		&Ui::InputField::submitted,
+		[=](Qt::KeyboardModifiers modifiers) { send(modifiers); });
 	connect(_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
@@ -761,7 +764,9 @@ HistoryWidget::HistoryWidget(
 		if (cancelReply(lastKeyboardUsed) && !options.clearDraft) {
 			onCloudDraftSave();
 		}
-		handleSupportSwitch(options.history);
+		if (options.handleSupportSwitch) {
+			handleSupportSwitch(options.history);
+		}
 	}, lifetime());
 
 	orderWidgets();
@@ -796,16 +801,19 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 	}
 	contact.comment = _field->getLastText();
 
-	const auto submit = [=] {
-		if (!_history) {
+	const auto submit = [=](Qt::KeyboardModifiers modifiers) {
+		const auto history = _history;
+		if (!history) {
 			return;
 		}
-		send();
+		send(Support::SkipSwitchModifiers());
+		auto options = ApiWrap::SendOptions(history);
+		options.handleSupportSwitch = Support::HandleSwitch(modifiers);
 		Auth().api().shareContact(
 			contact.phone,
 			contact.firstName,
 			contact.lastName,
-			ApiWrap::SendOptions(_history));
+			options);
 	};
 	const auto box = Ui::show(Box<Support::ConfirmContactBox>(
 		_history,
@@ -3097,7 +3105,7 @@ void HistoryWidget::hideSelectorControlsAnimated() {
 	}
 }
 
-void HistoryWidget::send() {
+void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 	if (!_history) return;
 
 	if (_editMsgId) {
@@ -3105,16 +3113,17 @@ void HistoryWidget::send() {
 		return;
 	}
 
-	WebPageId webPageId = _previewCancelled
+	const auto webPageId = _previewCancelled
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
 			? _previewData->id
-			: 0);
+			: WebPageId(0));
 
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
 	message.replyTo = replyToId();
 	message.webPageId = webPageId;
+	message.handleSupportSwitch = Support::HandleSwitch(modifiers);
 	Auth().api().sendMessage(std::move(message));
 
 	clearFieldText();
@@ -5456,7 +5465,15 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			replyToPreviousMessage();
 		}
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		onListEnterPressed();
+		if (!_botStart->isHidden()) {
+			onBotStart();
+		}
+		if (!_canSendMessages) {
+			const auto submitting = Ui::InputField::ShouldSubmit(
+				Auth().settings().sendSubmitWay(),
+				e->modifiers());
+			send(e->modifiers());
+		}
 	} else if (e->key() == Qt::Key_O && e->modifiers() == Qt::ControlModifier) {
 		chooseAttach();
 	} else {
@@ -6435,12 +6452,6 @@ void HistoryWidget::onListEscapePressed() {
 		clearSelected();
 	} else {
 		onCancel();
-	}
-}
-
-void HistoryWidget::onListEnterPressed() {
-	if (!_botStart->isHidden()) {
-		onBotStart();
 	}
 }
 

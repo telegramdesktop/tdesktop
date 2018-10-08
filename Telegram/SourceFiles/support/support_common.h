@@ -17,6 +17,8 @@ enum class SwitchSettings {
 	Previous,
 };
 
+Qt::KeyboardModifiers SkipSwitchModifiers();
+bool HandleSwitch(Qt::KeyboardModifiers modifiers);
 void PerformSwitch(SwitchSettings value);
 
 } // namespace Support
