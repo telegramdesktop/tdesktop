@@ -131,9 +131,9 @@ ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 		if (thumb->toDelayedStorageImage()
 			&& !full->isNull()
 			&& !full->toDelayedStorageImage()) {
-			return previewFromImage(full);
+			replyPreview = previewFromImage(full);
 		} else {
-			return previewFromImage(thumb);
+			replyPreview = previewFromImage(thumb);
 		}
 	}
 	return replyPreview;
