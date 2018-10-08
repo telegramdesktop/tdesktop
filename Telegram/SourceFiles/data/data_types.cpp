@@ -23,6 +23,8 @@ constexpr auto kWebDocumentCacheTag = 0x0000020000000000ULL;
 constexpr auto kWebDocumentCacheMask = 0x000000FFFFFFFFFFULL;
 constexpr auto kUrlCacheTag = 0x0000030000000000ULL;
 constexpr auto kUrlCacheMask = 0x000000FFFFFFFFFFULL;
+constexpr auto kGeoPointCacheTag = 0x0000040000000000ULL;
+constexpr auto kGeoPointCacheMask = 0x000000FFFFFFFFFFULL;
 
 } // namespace
 
@@ -71,6 +73,18 @@ Storage::Cache::Key UrlCacheKey(const QString &location) {
 	return Storage::Cache::Key{
 		Data::kUrlCacheTag | (uint64(part3) << 32) | part1,
 		part2
+	};
+}
+
+Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location) {
+	const auto zoomscale = ((uint32(location.zoom) & 0x0FU) << 8)
+		| (uint32(location.scale) & 0x0FU);
+	const auto widthheight = ((uint32(location.width) & 0xFFFFU) << 16)
+		| (uint32(location.height) & 0xFFFFU);
+	return Storage::Cache::Key{
+		Data::kGeoPointCacheTag | (uint64(zoomscale) << 32) | widthheight,
+		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
+		| uint64(std::round(std::abs(location.lon + 360.) * 1000000))
 	};
 }
 

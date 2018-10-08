@@ -559,6 +559,30 @@ mtpFileLoader::mtpFileLoader(
 	_queue = &i.value();
 }
 
+mtpFileLoader::mtpFileLoader(
+	const GeoPointLocation *location,
+	int32 size,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
+: FileLoader(
+	QString(),
+	size,
+	UnknownFileLocation,
+	LoadToCacheAsWell,
+	fromCloud,
+	autoLoading,
+	cacheTag)
+, _dcId(Global::WebFileDcId())
+, _geoLocation(location) {
+	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
+	auto i = queues.find(shiftedDcId);
+	if (i == queues.cend()) {
+		i = queues.insert(shiftedDcId, FileLoaderQueue(kMaxFileQueries));
+	}
+	_queue = &i.value();
+}
+
 int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
 	return (_fileIsOpen ? _file.size() : _data.size()) - (includeSkipped ? 0 : _skippedBytes);
 }
@@ -657,6 +681,25 @@ void mtpFileLoader::makeRequest(int offset) {
 					MTP_inputWebFileLocation(
 						MTP_bytes(_urlLocation->url()),
 						MTP_long(_urlLocation->accessHash())),
+					MTP_int(offset),
+					MTP_int(limit)),
+				rpcDone(&mtpFileLoader::webPartLoaded),
+				rpcFail(&mtpFileLoader::partFailed),
+				shiftedDcId,
+				50);
+		} else if (_geoLocation) {
+			Assert(requestData.dcId == _dcId);
+			return MTP::send(
+				MTPupload_GetWebFile(
+					MTP_inputWebFileGeoPointLocation(
+						MTP_inputGeoPoint(
+							MTP_double(_geoLocation->lat),
+							MTP_double(_geoLocation->lon)),
+						MTP_long(_geoLocation->access),
+						MTP_int(_geoLocation->width),
+						MTP_int(_geoLocation->height),
+						MTP_int(_geoLocation->zoom),
+						MTP_int(_geoLocation->scale)),
 					MTP_int(offset),
 					MTP_int(limit)),
 				rpcDone(&mtpFileLoader::webPartLoaded),
@@ -1105,9 +1148,11 @@ void mtpFileLoader::changeCDNParams(
 std::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
 	if (_urlLocation) {
 		return Data::WebDocumentCacheKey(*_urlLocation);
+	} else if (_geoLocation) {
+		return Data::GeoPointCacheKey(*_geoLocation);
 	} else if (_location) {
 		return Data::StorageCacheKey(*_location);
-	} else if (_toCache == LoadToCacheAsWell) {
+	} else if (_toCache == LoadToCacheAsWell && _id != 0) {
 		return Data::DocumentCacheKey(_dcId, _id);
 	}
 	return std::nullopt;

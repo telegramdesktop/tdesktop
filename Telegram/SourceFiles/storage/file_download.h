@@ -227,6 +227,12 @@ public:
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
+	mtpFileLoader(
+		const GeoPointLocation *location,
+		int32 size,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
 	Data::FileOrigin fileOrigin() const override;
@@ -306,6 +312,7 @@ private:
 	QByteArray _fileReference;
 
 	const WebFileLocation *_urlLocation = nullptr; // for webdocument locations
+	const GeoPointLocation *_geoLocation = nullptr; // for webdocument locations
 
 	Data::FileOrigin _origin;
 

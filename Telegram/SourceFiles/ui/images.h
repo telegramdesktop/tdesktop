@@ -251,6 +251,34 @@ inline bool operator!=(const WebFileLocation &a, const WebFileLocation &b) {
 	return !(a == b);
 }
 
+struct GeoPointLocation {
+	float64 lat = 0.;
+	float64 lon = 0.;
+	uint64 access = 0;
+	int32 width = 0;
+	int32 height = 0;
+	int32 zoom = 0;
+	int32 scale = 0;
+};
+
+inline bool operator==(
+		const GeoPointLocation &a,
+		const GeoPointLocation &b) {
+	return (a.lat == b.lat)
+		&& (a.lon == b.lon)
+		&& (a.access == b.access)
+		&& (a.width == b.width)
+		&& (a.height == b.height)
+		&& (a.zoom == b.zoom)
+		&& (a.scale == b.scale);
+}
+
+inline bool operator!=(
+		const GeoPointLocation &a,
+		const GeoPointLocation &b) {
+	return !(a == b);
+}
+
 class DelayedStorageImage;
 
 class HistoryItem;
@@ -450,6 +478,12 @@ inline StorageKey storageKey(const WebFileLocation &location) {
 		*reinterpret_cast<const uint64*>(sha.data()),
 		*reinterpret_cast<const int32*>(sha.data() + sizeof(uint64)));
 }
+inline StorageKey storageKey(const GeoPointLocation &location) {
+	return StorageKey(
+		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
+		| uint64(std::round(std::abs(location.lon + 360.) * 1000000)),
+		(uint64(location.width) << 32) | uint64(location.height));
+}
 
 class RemoteImage : public Image {
 public:
@@ -569,6 +603,27 @@ protected:
 
 };
 
+class GeoPointImage : public RemoteImage {
+public:
+	GeoPointImage(const GeoPointLocation &location);
+
+	std::optional<Storage::Cache::Key> cacheKey() const override;
+
+protected:
+	void setInformation(int size, int width, int height) override;
+	FileLoader *createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) override;
+
+	int countWidth() const override;
+	int countHeight() const override;
+
+	GeoPointLocation _location;
+	int _size = 0;
+
+};
+
 class DelayedStorageImage : public StorageImage {
 public:
 	DelayedStorageImage();
@@ -668,6 +723,8 @@ WebFileImage *getImage(
 	const WebFileLocation &location,
 	QSize box,
 	int size = 0);
+GeoPointImage *getImage(
+	const GeoPointLocation &location);
 
 } // namespace internal
 
@@ -699,6 +756,9 @@ public:
 	}
 	ImagePtr(const WebFileLocation &location, QSize box, int size = 0)
 		: Parent(internal::getImage(location, box, size)) {
+	}
+	ImagePtr(const GeoPointLocation &location)
+		: Parent(internal::getImage(location)) {
 	}
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
 	ImagePtr(int32 width, int32 height) : Parent(internal::getImage(width, height)) {

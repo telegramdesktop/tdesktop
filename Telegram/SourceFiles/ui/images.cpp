@@ -392,6 +392,9 @@ StorageImages storageImages;
 using WebFileImages = QMap<StorageKey, WebFileImage*>;
 WebFileImages webFileImages;
 
+using GeoPointImages = QMap<StorageKey, GeoPointImage*>;
+GeoPointImages geoPointImages;
+
 int64 globalAcquiredSize = 0;
 
 uint64 PixKey(int width, int height, Images::Options options) {
@@ -947,6 +950,9 @@ void clearStorageImages() {
 	for (auto image : base::take(webFileImages)) {
 		delete image;
 	}
+	for (auto image : base::take(geoPointImages)) {
+		delete image;
+	}
 }
 
 void clearAllImages() {
@@ -1222,6 +1228,40 @@ FileLoader *WebFileImage::createLoader(
 	return _location.isNull()
 		? nullptr
 		: new mtpFileLoader(
+			&_location,
+			_size,
+			fromCloud,
+			autoLoading,
+			Data::kImageCacheTag);
+}
+
+GeoPointImage::GeoPointImage(const GeoPointLocation &location)
+: _location(location) {
+}
+
+std::optional<Storage::Cache::Key> GeoPointImage::cacheKey() const {
+	return Data::GeoPointCacheKey(_location);
+}
+
+int GeoPointImage::countWidth() const {
+	return _location.width;
+}
+
+int GeoPointImage::countHeight() const {
+	return _location.height;
+}
+
+void GeoPointImage::setInformation(int size, int width, int height) {
+	_size = size;
+	_location.width = width;
+	_location.height = height;
+}
+
+FileLoader *GeoPointImage::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	return new mtpFileLoader(
 			&_location,
 			_size,
 			fromCloud,
@@ -1567,6 +1607,17 @@ WebFileImage *getImage(
 		i = webFileImages.insert(
 			key,
 			new WebFileImage(location, width, height, size));
+	}
+	return i.value();
+}
+
+GeoPointImage *getImage(const GeoPointLocation &location) {
+	auto key = storageKey(location);
+	auto i = geoPointImages.constFind(key);
+	if (i == geoPointImages.cend()) {
+		i = geoPointImages.insert(
+			key,
+			new GeoPointImage(location));
 	}
 	return i.value();
 }

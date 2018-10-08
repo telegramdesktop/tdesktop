@@ -147,7 +147,6 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	Shortcuts::start();
 
-	initLocationManager();
 	App::initMedia();
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
@@ -1030,7 +1029,6 @@ Messenger::~Messenger() {
 
 	stopWebLoadManager();
 	App::deinitMedia();
-	deinitLocationManager();
 
 	Window::Theme::Unload();
 

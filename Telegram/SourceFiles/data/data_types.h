@@ -25,6 +25,7 @@ class InputField;
 
 class StorageImageLocation;
 class WebFileLocation;
+struct GeoPointLocation;
 
 namespace Data {
 
@@ -40,6 +41,7 @@ Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id);
 Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location);
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location);
 Storage::Cache::Key UrlCacheKey(const QString &location);
+Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location);
 
 constexpr auto kImageCacheTag = uint8(0x01);
 constexpr auto kStickerCacheTag = uint8(0x02);

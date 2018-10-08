@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-void initLocationManager();
-void deinitLocationManager();
-
 class LocationCoords {
 public:
 	LocationCoords() = default;
@@ -32,9 +29,19 @@ public:
 			MTP_long(_access));
 	}
 
+	float64 lat() const {
+		return _lat;
+	}
+	float64 lon() const {
+		return _lon;
+	}
+	uint64 accessHash() const {
+		return _access;
+	}
+
 private:
 	static QString asString(float64 value) {
-		static constexpr auto kPrecision = 6;
+		constexpr auto kPrecision = 6;
 		return QString::number(value, 'f', kPrecision);
 	}
 
@@ -63,14 +70,13 @@ private:
 };
 
 struct LocationData {
-	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
-	}
+	LocationData(const LocationCoords &coords);
 
 	LocationCoords coords;
 	ImagePtr thumb;
-	bool loading;
 
 	void load(Data::FileOrigin origin);
+
 };
 
 class LocationClickHandler : public ClickHandler {
@@ -97,33 +103,5 @@ private:
 	void setup();
 	LocationCoords _coords;
 	QString _text;
-
-};
-
-class LocationManager : public QObject {
-	Q_OBJECT
-
-public:
-	void init();
-	void reinit();
-	void deinit();
-
-	void getData(LocationData *data);
-
-	~LocationManager() {
-		deinit();
-	}
-
-public slots:
-	void onFinished(QNetworkReply *reply);
-	void onFailed(QNetworkReply *reply);
-
-private:
-	void failed(LocationData *data);
-
-	QNetworkAccessManager *manager = nullptr;
-	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
-	QMap<LocationData*, int32> serverRedirects;
-	ImagePtr *notLoadedPlaceholder = nullptr;
 
 };
