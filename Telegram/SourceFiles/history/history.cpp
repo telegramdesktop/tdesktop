@@ -1714,6 +1714,9 @@ void History::setUnreadCount(int newUnreadCount) {
 }
 
 void History::setUnreadMark(bool unread) {
+	if (clearUnreadOnClientSide()) {
+		unread = false;
+	}
 	if (_unreadMark != unread) {
 		_unreadMark = unread;
 		if (!_unreadCount || !*_unreadCount) {
@@ -2285,6 +2288,18 @@ void History::applyDialog(const MTPDdialog &data) {
 	}
 }
 
+bool History::clearUnreadOnClientSide() const {
+	if (!Auth().supportMode()) {
+		return false;
+	}
+	if (const auto user = peer->asUser()) {
+		if (user->flags() & MTPDuser::Flag::f_deleted) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool History::skipUnreadUpdateForClientSideUnread() const {
 	if (peer->id != peerFromUser(ServiceUserId)) {
 		return false;
@@ -2296,11 +2311,16 @@ bool History::skipUnreadUpdateForClientSideUnread() const {
 	return true;
 }
 
+bool History::skipUnreadUpdate() const {
+	return skipUnreadUpdateForClientSideUnread()
+		|| clearUnreadOnClientSide();
+}
+
 void History::applyDialogFields(
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead) {
-	if (!skipUnreadUpdateForClientSideUnread()) {
+	if (!skipUnreadUpdate()) {
 		setUnreadCount(unreadCount);
 		setInboxReadTill(maxInboxRead);
 	}
@@ -2319,6 +2339,12 @@ void History::applyDialogTopMessage(MsgId topMessageId) {
 		}
 	} else {
 		setLastMessage(nullptr);
+	}
+	if (clearUnreadOnClientSide()) {
+		setUnreadCount(0);
+		if (const auto last = lastMessage()) {
+			setInboxReadTill(last->id);
+		}
 	}
 }
 
