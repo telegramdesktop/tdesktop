@@ -42,10 +42,12 @@ namespace {
 
 constexpr str_const kDefaultCountry = "US";
 
-void DisableAnimationsOnLogin() {
+void PrepareSupportMode() {
 	anim::SetDisabled(true);
 	Local::writeSettings();
 
+	Global::SetDesktopNotify(false);
+	Global::SetSoundNotify(false);
 	cSetAutoPlayGif(false);
 	Local::writeUserSettings();
 }
@@ -632,7 +634,7 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 			Auth().api().uploadPeerPhoto(Auth().user(), std::move(photo));
 		}
 		if (Auth().supportMode()) {
-			DisableAnimationsOnLogin();
+			PrepareSupportMode();
 		}
 	}
 }
