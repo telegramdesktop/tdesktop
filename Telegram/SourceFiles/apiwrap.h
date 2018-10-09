@@ -87,6 +87,7 @@ public:
 	void requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback = nullptr);
+	void requestDialogEntries(std::vector<not_null<History*>> histories);
 	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,

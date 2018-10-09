@@ -44,7 +44,8 @@ public:
 		bool active,
 		bool selected,
 		bool onlyBackground,
-		TimeMs ms);
+		TimeMs ms,
+		bool displayUnreadInfo);
 	static QRect sendActionAnimationRect(
 		int animationWidth,
 		int animationHeight,

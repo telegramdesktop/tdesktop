@@ -52,6 +52,102 @@ void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, b
 	paintRowTopRight(p, dt, rectForName, active, selected);
 }
 
+void PaintNarrowCounter(
+		Painter &p,
+		bool displayUnreadCounter,
+		bool displayUnreadMark,
+		bool displayMentionBadge,
+		int unreadCount,
+		bool active,
+		bool unreadMuted) {
+	auto skipBeforeMention = 0;
+	if (displayUnreadCounter || displayUnreadMark) {
+		auto counter = (unreadCount > 0)
+			? QString::number(unreadCount)
+			: QString();
+		const auto allowDigits = displayMentionBadge ? 1 : 3;
+		if (counter.size() > allowDigits + 1) {
+			counter = qsl("..") + counter.mid(counter.size() - allowDigits);
+		}
+		auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize;
+		auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
+		auto unreadWidth = 0;
+
+		UnreadBadgeStyle st;
+		st.active = active;
+		st.muted = unreadMuted;
+		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+		skipBeforeMention += unreadWidth + st.padding;
+	}
+	if (displayMentionBadge) {
+		auto counter = qsl("@");
+		auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize - skipBeforeMention;
+		auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
+		auto unreadWidth = 0;
+
+		UnreadBadgeStyle st;
+		st.active = active;
+		st.muted = false;
+		st.padding = 0;
+		st.textTop = 0;
+		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+	}
+}
+
+int PaintWideCounter(
+		Painter &p,
+		int texttop,
+		int availableWidth,
+		int fullWidth,
+		bool displayUnreadCounter,
+		bool displayUnreadMark,
+		bool displayMentionBadge,
+		bool displayPinnedIcon,
+		int unreadCount,
+		bool active,
+		bool selected,
+		bool unreadMuted) {
+	const auto initial = availableWidth;
+	auto hadOneBadge = false;
+	if (displayUnreadCounter || displayUnreadMark) {
+		auto counter = (unreadCount > 0)
+			? QString::number(unreadCount)
+			: QString();
+		auto unreadRight = fullWidth - st::dialogsPadding.x();
+		auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
+		auto unreadWidth = 0;
+
+		UnreadBadgeStyle st;
+		st.active = active;
+		st.muted = unreadMuted;
+		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+		availableWidth -= unreadWidth + st.padding;
+
+		hadOneBadge = true;
+	} else if (displayPinnedIcon) {
+		auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+		icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+		availableWidth -= icon.width() + st::dialogsUnreadPadding;
+
+		hadOneBadge = true;
+	}
+	if (displayMentionBadge) {
+		auto counter = qsl("@");
+		auto unreadRight = fullWidth - st::dialogsPadding.x() - (initial - availableWidth);
+		auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
+		auto unreadWidth = 0;
+
+		UnreadBadgeStyle st;
+		st.active = active;
+		st.muted = false;
+		st.padding = 0;
+		st.textTop = 0;
+		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+		availableWidth -= unreadWidth + st.padding + (hadOneBadge ? st::dialogsUnreadPadding : 0);
+	}
+	return availableWidth;
+}
+
 enum class Flag {
 	Active           = 0x01,
 	Selected         = 0x02,
@@ -370,7 +466,13 @@ UnreadBadgeStyle::UnreadBadgeStyle()
 , font(st::dialogsUnreadFont) {
 }
 
-void paintUnreadCount(Painter &p, const QString &text, int x, int y, const UnreadBadgeStyle &st, int *outUnreadWidth) {
+void paintUnreadCount(
+		Painter &p,
+		const QString &text,
+		int x,
+		int y,
+		const UnreadBadgeStyle &st,
+		int *outUnreadWidth) {
 	int unreadWidth = st.font->width(text);
 	int unreadRectWidth = unreadWidth + 2 * st.padding;
 	int unreadRectHeight = st.size;
@@ -464,45 +566,22 @@ void RowPainter::paint(
 		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
-		auto availableWidth = namewidth;
-		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
-		auto hadOneBadge = false;
-		if (displayUnreadCounter || displayUnreadMark) {
-			auto counter = (unreadCount > 0)
-				? QString::number(unreadCount)
-				: QString();
-			auto unreadRight = fullWidth - st::dialogsPadding.x();
-			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
-			auto unreadWidth = 0;
-
-			UnreadBadgeStyle st;
-			st.active = active;
-			st.muted = unreadMuted;
-			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
-			availableWidth -= unreadWidth + st.padding;
-
-			hadOneBadge = true;
-		} else if (displayPinnedIcon) {
-			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
-			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
-			availableWidth -= icon.width() + st::dialogsUnreadPadding;
-
-			hadOneBadge = true;
-		}
-		if (displayMentionBadge) {
-			auto counter = qsl("@");
-			auto unreadRight = fullWidth - st::dialogsPadding.x() - (namewidth - availableWidth);
-			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
-			auto unreadWidth = 0;
-
-			UnreadBadgeStyle st;
-			st.active = active;
-			st.muted = false;
-			st.padding = 0;
-			st.textTop = 0;
-			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
-			availableWidth -= unreadWidth + st.padding + (hadOneBadge ? st::dialogsUnreadPadding : 0);
-		}
+		const auto texttop = st::dialogsPadding.y()
+			+ st::msgNameFont->height
+			+ st::dialogsSkip;
+		const auto availableWidth = PaintWideCounter(
+			p,
+			texttop,
+			namewidth,
+			fullWidth,
+			displayUnreadCounter,
+			displayUnreadMark,
+			displayMentionBadge,
+			displayPinnedIcon,
+			unreadCount,
+			active,
+			selected,
+			unreadMuted);
 		const auto &color = active
 			? st::dialogsTextFgServiceActive
 			: (selected
@@ -517,7 +596,7 @@ void RowPainter::paint(
 			color,
 			ms) : false;
 		if (!actionWasPainted) {
-			auto itemRect = QRect(
+			const auto itemRect = QRect(
 				nameleft,
 				texttop,
 				availableWidth,
@@ -533,39 +612,14 @@ void RowPainter::paint(
 		}
 	};
 	const auto paintCounterCallback = [&] {
-		auto hadOneBadge = false;
-		auto skipBeforeMention = 0;
-		if (displayUnreadCounter || displayUnreadMark) {
-			auto counter = (unreadCount > 0)
-				? QString::number(unreadCount)
-				: QString();
-			const auto allowDigits = displayMentionBadge ? 1 : 3;
-			if (counter.size() > allowDigits + 1) {
-				counter = qsl("..") + counter.mid(counter.size() - allowDigits);
-			}
-			auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize;
-			auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
-			auto unreadWidth = 0;
-
-			UnreadBadgeStyle st;
-			st.active = active;
-			st.muted = unreadMuted;
-			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
-			skipBeforeMention += unreadWidth + st.padding;
-		}
-		if (displayMentionBadge) {
-			auto counter = qsl("@");
-			auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize - skipBeforeMention;
-			auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
-			auto unreadWidth = 0;
-
-			UnreadBadgeStyle st;
-			st.active = active;
-			st.muted = false;
-			st.padding = 0;
-			st.textTop = 0;
-			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
-		}
+		PaintNarrowCounter(
+			p,
+			displayUnreadCounter,
+			displayUnreadMark,
+			displayMentionBadge,
+			unreadCount,
+			active,
+			unreadMuted);
 	};
 	paintRow(
 		p,
@@ -590,7 +644,8 @@ void RowPainter::paint(
 		bool active,
 		bool selected,
 		bool onlyBackground,
-		TimeMs ms) {
+		TimeMs ms,
+		bool displayUnreadInfo) {
 	auto item = row->item();
 	auto history = item->history();
 	auto cloudDraft = nullptr;
@@ -618,19 +673,63 @@ void RowPainter::paint(
 		}
 		return HistoryItem::DrawInDialog::Normal;
 	}();
+
+	const auto unreadCount = displayUnreadInfo
+		? history->chatListUnreadCount()
+		: 0;
+	const auto unreadMark = displayUnreadInfo
+		&& history->chatListUnreadMark();
+	const auto unreadMuted = history->chatListMutedBadge();
+	const auto displayMentionBadge = displayUnreadInfo
+		&& history->hasUnreadMentions();
+	const auto displayUnreadCounter = (unreadCount > 0);
+	const auto displayUnreadMark = !displayUnreadCounter
+		&& !displayMentionBadge
+		&& unreadMark;
+	const auto displayPinnedIcon = false;
+
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
-		auto lastWidth = namewidth;
-		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
+		const auto texttop = st::dialogsPadding.y()
+			+ st::msgNameFont->height
+			+ st::dialogsSkip;
+		const auto availableWidth = PaintWideCounter(
+			p,
+			texttop,
+			namewidth,
+			fullWidth,
+			displayUnreadCounter,
+			displayUnreadMark,
+			displayMentionBadge,
+			displayPinnedIcon,
+			unreadCount,
+			active,
+			selected,
+			unreadMuted);
+
+		const auto itemRect = QRect(
+			nameleft,
+			texttop,
+			availableWidth,
+			st::dialogsTextFont->height);
 		item->drawInDialog(
 			p,
-			QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height),
+			itemRect,
 			active,
 			selected,
 			drawInDialogWay,
 			row->_cacheFor,
 			row->_cache);
 	};
-	const auto paintCounterCallback = [] {};
+	const auto paintCounterCallback = [&] {
+		PaintNarrowCounter(
+			p,
+			displayUnreadCounter,
+			displayUnreadMark,
+			displayMentionBadge,
+			unreadCount,
+			active,
+			unreadMuted);
+	};
 	const auto showSavedMessages = history->peer->isSelf()
 		&& !row->searchInChat();
 	const auto flags = (active ? Flag::Active : Flag(0))

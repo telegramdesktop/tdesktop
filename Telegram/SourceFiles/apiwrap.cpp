@@ -641,6 +641,43 @@ void ApiWrap::requestDialogEntry(
 	}).send();
 }
 
+void ApiWrap::requestDialogEntries(
+		std::vector<not_null<History*>> histories) {
+	const auto already = [&](not_null<History*> history) {
+		const auto [i, ok] = _dialogRequests.try_emplace(history);
+		return !ok;
+	};
+	histories.erase(ranges::remove_if(histories, already), end(histories));
+	if (histories.empty()) {
+		return;
+	}
+	auto peers = QVector<MTPInputDialogPeer>();
+	peers.reserve(histories.size());
+	for (const auto history : histories) {
+		peers.push_back(MTP_inputDialogPeer(history->peer->input));
+	}
+	const auto finalize = [=](std::vector<not_null<History*>> histories) {
+		for (const auto history : histories) {
+			if (const auto callbacks = _dialogRequests.take(history)) {
+				for (const auto callback : *callbacks) {
+					callback();
+				}
+			}
+		}
+	};
+	request(MTPmessages_GetPeerDialogs(
+		MTP_vector(std::move(peers))
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		applyPeerDialogs(result);
+		for (const auto history : histories) {
+			historyDialogEntryApplied(history);
+		}
+		finalize(histories);
+	}).fail([=](const RPCError &error) {
+		finalize(histories);
+	}).send();
+}
+
 void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	Expects(dialogs.type() == mtpc_messages_peerDialogs);
 
