@@ -468,3 +468,5 @@ historyAboutProxy: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 historyAboutProxyPadding: margins(20px, 10px, 20px, 10px);
+
+historyMapPoint: icon {{ "map_point", windowBgActive }};
