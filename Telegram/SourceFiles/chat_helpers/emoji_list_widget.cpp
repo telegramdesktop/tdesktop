@@ -675,17 +675,17 @@ QString EmojiListWidget::tooltipText() const {
 	const auto section = (_selected / MatrixRowShift);
 	const auto sel = _selected % MatrixRowShift;
 	if (_selected >= 0 && section < kEmojiSectionCount && sel < _emoji[section].size()) {
-		const auto emoji = _emoji[section][sel];
+		const auto emoji = _emoji[section][sel]->original();
 		const auto text = emoji->text();
 		// find the replacement belonging to the emoji
-		const auto it = ranges::find_if(replacements, [&text](auto &one) {
+		const auto it = ranges::find_if(replacements, [&](const auto &one) {
 			return text == Ui::Emoji::QStringFromUTF16(one.emoji);
 		});
 		if (it != replacements.end()) {
 			return Ui::Emoji::QStringFromUTF16(it->replacement);
 		}
 	}
-	return "";
+	return {};
 }
 
 QPoint EmojiListWidget::tooltipPos() const {
