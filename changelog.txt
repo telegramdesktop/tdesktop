@@ -1,3 +1,9 @@
+1.4.1 (09.10.18)
+
+- Reduce crashes due to the out of memory exceptions.
+- Load map previews through mtproto.
+- Bug fixes and other minor improvements.
+
 1.4 (28.09.18)
 
 - Fully redesigned Settings section.
