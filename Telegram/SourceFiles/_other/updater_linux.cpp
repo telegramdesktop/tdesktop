@@ -376,7 +376,7 @@ int main(int argc, char *argv[]) {
 	}
 	openLog();
 
-	writeLog("Updater started..");
+	writeLog("Updater started, new argments formatting..");
 	for (int i = 0; i < argc; ++i) {
 		writeLog("Argument: '%s'", argv[i]);
 	}
@@ -444,9 +444,10 @@ int main(int argc, char *argv[]) {
 	auto fullBinaryPath = exePath + exeName;
 	const auto path = fullBinaryPath.c_str();
 
-	auto args = vector<const char*>();
-	const auto push = [&](const char *arg) {
-		args.push_back(arg);
+	auto values = vector<string>();
+	const auto push = [&](string arg) {
+		// Force null-terminated .data() call result.
+		values.push_back(arg + char(0));
 	};
 	push(path);
 	push("-noupdate");
@@ -465,7 +466,12 @@ int main(int argc, char *argv[]) {
 		push(workdir);
 	}
 
-	push(nullptr);
+	auto args = vector<char*>();
+	for (auto &arg : values) {
+		args.push_back(arg.data());
+	}
+	args.push_back(nullptr);
+
 	pid_t pid = fork();
 	switch (pid) {
 	case -1:
