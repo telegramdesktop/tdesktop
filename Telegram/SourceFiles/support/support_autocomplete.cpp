@@ -93,8 +93,9 @@ void Inner::showRows(std::vector<Question> &&rows) {
 		prepareRow(added);
 	}
 	resizeToWidth(width());
-	update();
 	_selected = _pressed = -1;
+	moveSelection(1);
+	update();
 }
 
 std::pair<int, int> Inner::moveSelection(int delta) {

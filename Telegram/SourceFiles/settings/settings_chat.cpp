@@ -946,38 +946,6 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
-
-	base::ObservableViewer(
-		inner->add(
-			object_ptr<Ui::Checkbox>(
-				inner,
-				"Fix chats order",
-				Auth().settings().supportFixChatsOrder(),
-				st::settingsSendType),
-			st::settingsSendTypePadding
-		)->checkedChanged
-	) | rpl::start_with_next([](bool fix) {
-		Auth().settings().setSupportFixChatsOrder(fix);
-		Local::writeUserSettings();
-	}, inner->lifetime());
-
-	AddSkip(inner, st::settingsCheckboxesSkip);
-
-	const auto subscription = Ui::AttachAsChild(inner, rpl::lifetime());
-	AddButton(
-		inner,
-		rpl::single(qsl("Reload templates")),
-		st::settingsButton
-	)->addClickHandler([=] {
-		*subscription = Auth().supportTemplates()->errors(
-		) | rpl::start_with_next([=](QStringList errors) {
-			Ui::Toast::Show(errors.isEmpty()
-				? "Templates reloaded!"
-				: ("Errors:\n\n" + errors.join("\n\n")));
-		});
-		Auth().supportTemplates()->reload();
-	});
-	AddSkip(inner);
 }
 
 Chat::Chat(QWidget *parent, not_null<UserData*> self)

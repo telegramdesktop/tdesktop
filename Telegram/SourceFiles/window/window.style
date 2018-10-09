@@ -135,6 +135,10 @@ mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
 mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
 mainMenuNightMode: icon {{ "menu_night_mode", menuIconFg }};
 mainMenuNightModeOver: icon {{ "menu_night_mode", menuIconFgOver }};
+mainMenuReload: icon {{ "menu_reload", menuIconFg }};
+mainMenuReloadOver: icon {{ "menu_reload", menuIconFgOver }};
+mainMenuFixOrder: icon {{ "menu_fix_order", menuIconFg }};
+mainMenuFixOrderOver: icon {{ "menu_fix_order", menuIconFgOver }};
 mainMenuFooterLeft: 30px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
