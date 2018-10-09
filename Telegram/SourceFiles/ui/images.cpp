@@ -450,7 +450,7 @@ ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, I
 	Parent((location.type() == mtpc_fileLocation) ? (Image*)(internal::getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
 }
 
-Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
+Image::Image(const QString &file, QByteArray fmt) {
 	_data = App::pixmapFromImageInPlace(App::readImage(file, &fmt, false, 0, &_saved));
 	_format = fmt;
 	if (!_data.isNull()) {
@@ -458,7 +458,7 @@ Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
 	}
 }
 
-Image::Image(const QByteArray &filecontent, QByteArray fmt) : _forgot(false) {
+Image::Image(const QByteArray &filecontent, QByteArray fmt) {
 	_data = App::pixmapFromImageInPlace(App::readImage(filecontent, &fmt, false));
 	_format = fmt;
 	_saved = filecontent;
@@ -467,13 +467,13 @@ Image::Image(const QByteArray &filecontent, QByteArray fmt) : _forgot(false) {
 	}
 }
 
-Image::Image(const QPixmap &pixmap, QByteArray format) : _format(format), _forgot(false), _data(pixmap) {
+Image::Image(const QPixmap &pixmap, QByteArray format) : _format(format), _data(pixmap) {
 	if (!_data.isNull()) {
 		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
 	}
 }
 
-Image::Image(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) : _saved(filecontent), _format(fmt), _forgot(false), _data(pixmap) {
+Image::Image(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) : _saved(filecontent), _format(fmt), _data(pixmap) {
 	_data = pixmap;
 	_format = fmt;
 	_saved = filecontent;
@@ -884,6 +884,7 @@ QPixmap Image::pixBlurredColoredNoCache(
 void Image::forget() const {
 	if (_forgot) return;
 
+	checkload();
 	if (_data.isNull()) return;
 
 	invalidateSizeCache();

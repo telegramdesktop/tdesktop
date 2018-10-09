@@ -429,7 +429,7 @@ public:
 	virtual ~Image();
 
 protected:
-	Image(QByteArray format = "PNG") : _format(format), _forgot(false) {
+	Image(QByteArray format = "PNG") : _format(format) {
 	}
 
 	void restore() const;
@@ -448,7 +448,7 @@ protected:
 	}
 
 	mutable QByteArray _saved, _format;
-	mutable bool _forgot;
+	mutable bool _forgot = false;
 	mutable QPixmap _data;
 
 private:
