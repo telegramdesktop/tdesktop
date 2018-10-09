@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/functors.h"
 
 #include <QtGlobal>
+#include <QtCore/QByteArray>
 
 #include <string>
 #include <exception>
@@ -50,7 +51,7 @@ using TimeId = int32;
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
-#ifdef OS_MAC_OLD
+#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 namespace gsl {
 
 template <>

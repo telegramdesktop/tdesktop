@@ -17,10 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QReadWriteLock>
 #include <QtCore/QRegularExpression>
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
-#define OS_MAC_OLD
-#endif // QT_VERSION < 5.5.0
-
 #include <crl/crl.h>
 #include <rpl/rpl.h>
 
