@@ -11,14 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <memory>
 
 namespace base {
+
+class has_weak_ptr;
+
 namespace details {
 
 struct alive_tracker {
-	explicit alive_tracker(const void *value) : value(value) {
+	explicit alive_tracker(const has_weak_ptr *value) : value(value) {
 	}
 
 	std::atomic<int> counter = 1;
-	std::atomic<const void*> value;
+	std::atomic<const has_weak_ptr*> value;
 };
 
 inline alive_tracker *check_and_increment(alive_tracker *tracker) noexcept {
@@ -35,8 +38,6 @@ inline void decrement(alive_tracker *tracker) noexcept {
 }
 
 } // namespace details
-
-class has_weak_ptr;
 
 template <typename T>
 class weak_ptr;
@@ -69,8 +70,7 @@ private:
 	details::alive_tracker *incrementAliveTracker() const {
 		auto current = _alive.load();
 		if (!current) {
-			auto alive = std::make_unique<details::alive_tracker>(
-				static_cast<const void*>(this));
+			auto alive = std::make_unique<details::alive_tracker>(this);
 			if (_alive.compare_exchange_strong(current, alive.get())) {
 				return alive.release();
 			}
@@ -178,15 +178,11 @@ public:
 	}
 
 	T *get() const noexcept {
+		const auto strong = _alive ? _alive->value.load() : nullptr;
 		if constexpr (std::is_const_v<T>) {
-			return _alive
-				? static_cast<T*>(_alive->value.load())
-				: nullptr;
+			return static_cast<T*>(strong);
 		} else {
-			return _alive
-				? const_cast<T*>(
-					static_cast<const T*>(_alive->value.load()))
-				: nullptr;
+			return const_cast<T*>(static_cast<const T*>(strong));
 		}
 	}
 	explicit operator bool() const noexcept {
