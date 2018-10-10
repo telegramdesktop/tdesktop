@@ -1255,7 +1255,6 @@ namespace App {
 
 	void historyClearMsgs() {
 		::dependentItems.clear();
-
 		const auto oldData = base::take(msgsData);
 		const auto oldChannelData = base::take(channelMsgsData);
 		for (const auto item : oldData) {
@@ -1265,6 +1264,9 @@ namespace App {
 			for (const auto item : data) {
 				delete item;
 			}
+		}
+		for (const auto data : base::take(::locationsData)) {
+			delete data;
 		}
 
 		clearMousedItems();
