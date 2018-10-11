@@ -84,6 +84,7 @@ bool PrepareAlbumMediaIsWaiting(
 					std::min(previewWidth, convertScale(image->data.width()))
 						* cIntRetinaFactor(),
 					Qt::SmoothTransformation));
+				Assert(!file.preview.isNull());
 				file.preview.setDevicePixelRatio(cRetinaFactor());
 				file.type = PreparedFile::AlbumType::Photo;
 			}
@@ -95,6 +96,7 @@ bool PrepareAlbumMediaIsWaiting(
 				file.preview = std::move(blurred).scaledToWidth(
 					previewWidth * cIntRetinaFactor(),
 					Qt::SmoothTransformation);
+				Assert(!file.preview.isNull());
 				file.preview.setDevicePixelRatio(cRetinaFactor());
 				file.type = PreparedFile::AlbumType::Video;
 			}

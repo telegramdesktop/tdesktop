@@ -17,6 +17,7 @@ class AuthSession;
 
 namespace Ui {
 class ScrollArea;
+class InputField;
 } // namespace Ui
 
 namespace Support {
@@ -26,14 +27,13 @@ struct Contact {
 	QString phone;
 	QString firstName;
 	QString lastName;
-	bool handleSwitch = false;
 };
 
 class Autocomplete : public Ui::RpWidget {
 public:
 	Autocomplete(QWidget *parent, not_null<AuthSession*> session);
 
-	void activate();
+	void activate(not_null<Ui::InputField*> field);
 	void deactivate();
 	void setBoundings(QRect rect);
 
@@ -45,7 +45,7 @@ protected:
 
 private:
 	void setupContent();
-	void submitValue(const QString &value, Qt::KeyboardModifiers modifiers);
+	void submitValue(const QString &value);
 
 	not_null<AuthSession*> _session;
 	Fn<void()> _activate;

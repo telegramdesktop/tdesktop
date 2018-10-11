@@ -946,6 +946,23 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 	});
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	base::ObservableViewer(
+		inner->add(
+			object_ptr<Ui::Checkbox>(
+				inner,
+				"Enable templates autocomplete",
+				Auth().settings().supportTemplatesAutocomplete(),
+				st::settingsCheckbox),
+			st::settingsSendTypePadding
+		)->checkedChanged
+	) | rpl::start_with_next([=](bool checked) {
+		Auth().settings().setSupportTemplatesAutocomplete(checked);
+		Local::writeUserSettings();
+	}, inner->lifetime());
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+	AddSkip(inner);
 }
 
 Chat::Chat(QWidget *parent, not_null<UserData*> self)

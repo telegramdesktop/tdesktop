@@ -60,9 +60,9 @@ enum class ReadState {
 
 template <typename StateChange, typename LineCallback>
 void ReadByLine(
-		const QByteArray &blob,
-		StateChange &&stateChange,
-		LineCallback &&lineCallback) {
+	const QByteArray &blob,
+	StateChange &&stateChange,
+	LineCallback &&lineCallback) {
 	using State = ReadState;
 	auto state = State::None;
 	auto hadKeys = false;
@@ -266,9 +266,9 @@ TemplatesIndex ComputeIndex(const TemplatesData &data) {
 	auto uniqueFirst = std::map<QChar, base::flat_set<Id>>();
 	auto uniqueFull = std::map<Id, base::flat_set<Term>>();
 	const auto pushString = [&](
-			const Id &id,
-			const QString &string,
-			int weight) {
+		const Id &id,
+		const QString &string,
+		int weight) {
 		const auto list = TextUtilities::PrepareSearchWords(string);
 		for (const auto &word : list) {
 			uniqueFirst[word[0]].emplace(id);
@@ -390,10 +390,10 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 }
 
 QString UpdateFile(
-		const QString &path,
-		const QByteArray &content,
-		const QString &url,
-		const Delta &delta) {
+	const QString &path,
+	const QByteArray &content,
+	const QString &url,
+	const Delta &delta) {
 	auto result = QString();
 	const auto full = cWorkingDir() + "TEMPLATES/" + path;
 	const auto old = full + qstr(".old");
@@ -416,8 +416,26 @@ QString UpdateFile(
 	return result;
 }
 
+int CountMaxKeyLength(const TemplatesData &data) {
+	auto result = 0;
+	for (const auto &[path, file] : data.files) {
+		for (const auto &[normalized, question] : file.questions) {
+			for (const auto &key : question.keys) {
+				accumulate_max(result, key.size());
+			}
+		}
+	}
+	return result;
+}
+
+QString NormalizeKey(const QString &query) {
+	return TextUtilities::RemoveAccents(query.trimmed().toLower());
+}
+
 } // namespace
 } // namespace details
+
+using namespace details;
 
 struct Templates::Updates {
 	QNetworkAccessManager manager;
@@ -436,31 +454,36 @@ void Templates::reload() {
 		return;
 	}
 
-	auto [left, right] = base::make_binary_guard();
+	auto[left, right] = base::make_binary_guard();
 	_reading = std::move(left);
 	crl::async([=, guard = std::move(right)]() mutable {
-		auto result = details::ReadFiles(cWorkingDir() + "TEMPLATES");
-		result.index = details::ComputeIndex(result.result);
+		auto result = ReadFiles(cWorkingDir() + "TEMPLATES");
+		result.index = ComputeIndex(result.result);
 		crl::on_main([
 			=,
-			result = std::move(result),
-			guard = std::move(guard)
+				result = std::move(result),
+				guard = std::move(guard)
 		]() mutable {
-			if (!guard.alive()) {
-				return;
-			}
-			_data = std::move(result.result);
-			_index = std::move(result.index);
-			_errors.fire(std::move(result.errors));
-			crl::on_main(this, [=] {
-				if (base::take(_reloadAfterRead)) {
-					reload();
-				} else {
-					update();
+				if (!guard.alive()) {
+					return;
 				}
+				setData(std::move(result.result));
+				_index = std::move(result.index);
+				_errors.fire(std::move(result.errors));
+				crl::on_main(this, [=] {
+					if (base::take(_reloadAfterRead)) {
+						reload();
+					} else {
+						update();
+					}
+				});
 			});
-		});
 	});
+}
+
+void Templates::setData(TemplatesData &&data) {
+	_data = std::move(data);
+	_maxKeyLength = CountMaxKeyLength(_data);
 }
 
 void Templates::ensureUpdatesCreated() {
@@ -520,12 +543,12 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 	LOG(("Got template from url '%1'"
 		).arg(reply->url().toDisplayString()));
 	const auto content = reply->readAll();
-	crl::async([=, weak = base::make_weak(this)] {
-		auto result = details::ReadFromBlob(content);
-		auto one = details::TemplatesData();
+	crl::async([=, weak = base::make_weak(this)]{
+		auto result = ReadFromBlob(content);
+		auto one = TemplatesData();
 		one.files.emplace(path, std::move(result.result));
-		auto index = details::ComputeIndex(one);
-		crl::on_main(weak, [
+		auto index = ComputeIndex(one);
+		crl::on_main(weak,[
 			=,
 			one = std::move(one),
 			errors = std::move(result.errors),
@@ -533,16 +556,16 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 		]() mutable {
 			auto &existing = _data.files.at(path);
 			auto &parsed = one.files.at(path);
-			details::MoveKeys(parsed, existing);
-			details::ReplaceFileIndex(_index, details::ComputeIndex(one), path);
+			MoveKeys(parsed, existing);
+			ReplaceFileIndex(_index, ComputeIndex(one), path);
 			if (!errors.isEmpty()) {
 				_errors.fire(std::move(errors));
 			}
-			if (const auto delta = details::ComputeDelta(existing, parsed)) {
-				const auto text = details::FormatUpdateNotification(
+			if (const auto delta = ComputeDelta(existing, parsed)) {
+				const auto text = FormatUpdateNotification(
 					path,
 					delta);
-				const auto copy = details::UpdateFile(
+				const auto copy = UpdateFile(
 					path,
 					content,
 					existing.url,
@@ -555,7 +578,7 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 			_updates->requests.erase(path);
 			checkUpdateFinished();
 		});
-	});
+		});
 }
 
 void Templates::checkUpdateFinished() {
@@ -566,6 +589,54 @@ void Templates::checkUpdateFinished() {
 	if (base::take(_reloadAfterRead)) {
 		reload();
 	}
+}
+
+auto Templates::matchExact(QString query) const
+-> std::optional<QuestionByKey> {
+	if (query.isEmpty() || query.size() > _maxKeyLength) {
+		return {};
+	}
+
+	query = NormalizeKey(query);
+
+	for (const auto &[path, file] : _data.files) {
+		for (const auto &[normalized, question] : file.questions) {
+			for (const auto &key : question.keys) {
+				if (key == query) {
+					return QuestionByKey{ question, key };
+				}
+			}
+		}
+	}
+	return {};
+}
+
+auto Templates::matchFromEnd(QString query) const
+-> std::optional<QuestionByKey> {
+	if (query.size() > _maxKeyLength) {
+		query = query.mid(query.size() - _maxKeyLength);
+	}
+
+	const auto size = query.size();
+	auto queries = std::vector<QString>();
+	queries.reserve(size);
+	for (auto i = 0; i != size; ++i) {
+		queries.push_back(NormalizeKey(query.mid(size - i - 1)));
+	}
+
+	auto result = std::optional<QuestionByKey>();
+	for (const auto &[path, file] : _data.files) {
+		for (const auto &[normalized, question] : file.questions) {
+			for (const auto &key : question.keys) {
+				if (key.size() <= queries.size()
+					&& queries[key.size() - 1] == key
+					&& (!result || result->key.size() < key.size())) {
+					result = QuestionByKey{ question, key };
+				}
+			}
+		}
+	}
+	return result;
 }
 
 Templates::~Templates() = default;
@@ -584,8 +655,8 @@ auto Templates::query(const QString &text) const -> std::vector<Question> {
 	if (narrowed == end(_index.first)) {
 		return {};
 	}
-	using Id = details::TemplatesIndex::Id;
-	using Term = details::TemplatesIndex::Term;
+	using Id = TemplatesIndex::Id;
+	using Term = TemplatesIndex::Term;
 	const auto questionById = [&](const Id &id) {
 		return _data.files.at(id.first).questions.at(id.second);
 	};
@@ -632,7 +703,7 @@ auto Templates::query(const QString &text) const -> std::vector<Question> {
 	);
 	return good | ranges::view::transform([](const Pair &pair) {
 		return pair.first;
-	}) | ranges::view::take(details::kQueryLimit) | ranges::to_vector;
+	}) | ranges::view::take(kQueryLimit) | ranges::to_vector;
 }
 
 } // namespace Support

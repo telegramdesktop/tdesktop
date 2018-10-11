@@ -68,7 +68,7 @@ private:
 	int _selected = -1;
 	int _pressed = -1;
 	bool _selectByKeys = false;
-	rpl::event_stream<Qt::KeyboardModifiers> _activated;
+	rpl::event_stream<> _activated;
 
 };
 
@@ -255,7 +255,7 @@ void Inner::mousePressEvent(QMouseEvent *e) {
 void Inner::mouseReleaseEvent(QMouseEvent *e) {
 	const auto pressed = base::take(_pressed);
 	if (pressed == _selected && pressed >= 0) {
-		_activated.fire(e->modifiers());
+		_activated.fire({});
 	}
 }
 
@@ -327,8 +327,34 @@ Autocomplete::Autocomplete(QWidget *parent, not_null<AuthSession*> session)
 	setupContent();
 }
 
-void Autocomplete::activate() {
-	_activate();
+void Autocomplete::activate(not_null<Ui::InputField*> field) {
+	if (Auth().settings().supportTemplatesAutocomplete()) {
+		_activate();
+	} else {
+		const auto templates = Auth().supportTemplates();
+		const auto max = templates->maxKeyLength();
+		auto cursor = field->textCursor();
+		const auto position = cursor.position();
+		const auto anchor = cursor.anchor();
+		const auto text = (position != anchor)
+			? field->getTextWithTagsPart(
+				std::min(position, anchor),
+				std::max(position, anchor))
+			: field->getTextWithTagsPart(
+				std::max(position - max, 0),
+				position);
+		const auto result = (position != anchor)
+			? templates->matchExact(text.text)
+			: templates->matchFromEnd(text.text);
+		if (result) {
+			const auto till = std::max(position, anchor);
+			const auto from = till - result->key.size();
+			cursor.setPosition(from);
+			cursor.setPosition(till, QTextCursor::KeepAnchor);
+			field->setTextCursor(cursor);
+			submitValue(result->question.value);
+		}
+	}
 }
 
 void Autocomplete::deactivate() {
@@ -376,9 +402,9 @@ void Autocomplete::setupContent() {
 
 	const auto inner = scroll->setOwnedWidget(object_ptr<Inner>(scroll));
 
-	const auto submit = [=](Qt::KeyboardModifiers modifiers) {
+	const auto submit = [=] {
 		if (const auto question = inner->selected()) {
-			submitValue(question->value, modifiers);
+			submitValue(question->value);
 		}
 	};
 
@@ -440,9 +466,7 @@ void Autocomplete::setupContent() {
 	}, lifetime());
 }
 
-void Autocomplete::submitValue(
-		const QString &value,
-		Qt::KeyboardModifiers modifiers) {
+void Autocomplete::submitValue(const QString &value) {
 	const auto prefix = qstr("contact:");
 	if (value.startsWith(prefix)) {
 		const auto line = value.indexOf('\n');
@@ -462,8 +486,7 @@ void Autocomplete::submitValue(
 				text,
 				phone,
 				firstName,
-				lastName,
-				HandleSwitch(modifiers) });
+				lastName });
 		}
 	} else {
 		_insertRequests.fire_copy(value);

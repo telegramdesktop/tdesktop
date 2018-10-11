@@ -96,6 +96,12 @@ public:
 	bool supportFixChatsOrder() const {
 		return _variables.supportFixChatsOrder;
 	}
+	void setSupportTemplatesAutocomplete(bool enabled) {
+		_variables.supportTemplatesAutocomplete = enabled;
+	}
+	bool supportTemplatesAutocomplete() const {
+		return _variables.supportTemplatesAutocomplete;
+	}
 
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
@@ -216,6 +222,7 @@ private:
 
 		Support::SwitchSettings supportSwitch;
 		bool supportFixChatsOrder = true;
+		bool supportTemplatesAutocomplete = true;
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;

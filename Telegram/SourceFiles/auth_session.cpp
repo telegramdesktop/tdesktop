@@ -40,7 +40,7 @@ AuthSessionSettings::Variables::Variables()
 , floatPlayerColumn(Window::Column::Second)
 , floatPlayerCorner(RectPart::TopRight)
 , sendSubmitWay(Ui::InputSubmitSettings::Enter)
-, supportSwitch(Support::SwitchSettings::None) {
+, supportSwitch(Support::SwitchSettings::Next) {
 }
 
 QByteArray AuthSessionSettings::serialize() const {
@@ -82,6 +82,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.sendSubmitWay);
 		stream << qint32(_variables.supportSwitch);
 		stream << qint32(_variables.supportFixChatsOrder ? 1 : 0);
+		stream << qint32(_variables.supportTemplatesAutocomplete ? 1 : 0);
 	}
 	return result;
 }
@@ -111,6 +112,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 sendSubmitWay = static_cast<qint32>(_variables.sendSubmitWay);
 	qint32 supportSwitch = static_cast<qint32>(_variables.supportSwitch);
 	qint32 supportFixChatsOrder = _variables.supportFixChatsOrder ? 1 : 0;
+	qint32 supportTemplatesAutocomplete = _variables.supportTemplatesAutocomplete ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -170,6 +172,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 		stream >> sendSubmitWay;
 		stream >> supportSwitch;
 		stream >> supportFixChatsOrder;
+	}
+	if (!stream.atEnd()) {
+		stream >> supportTemplatesAutocomplete;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -236,7 +241,8 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	case Support::SwitchSettings::Next:
 	case Support::SwitchSettings::Previous: _variables.supportSwitch = uncheckedSupportSwitch; break;
 	}
-	_variables.supportFixChatsOrder = (supportFixChatsOrder ? 1 : 0);
+	_variables.supportFixChatsOrder = (supportFixChatsOrder == 1);
+	_variables.supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
 }
 
 void AuthSessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
