@@ -129,9 +129,9 @@ ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 					: image->pix(origin, st::msgReplyBarSize.height())),
 				"PNG");
 		};
-		if (thumb->toDelayedStorageImage()
+		if (thumb->isDelayedStorageImage()
 			&& !full->isNull()
-			&& !full->toDelayedStorageImage()) {
+			&& !full->isDelayedStorageImage()) {
 			replyPreview = previewFromImage(full);
 		} else {
 			replyPreview = previewFromImage(thumb);

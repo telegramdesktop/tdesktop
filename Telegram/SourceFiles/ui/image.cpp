@@ -898,7 +898,8 @@ FileLoader *GeoPointImage::createLoader(
 			Data::kImageCacheTag);
 }
 
-DelayedStorageImage::DelayedStorageImage() : StorageImage(StorageImageLocation())
+DelayedStorageImage::DelayedStorageImage()
+: StorageImage(StorageImageLocation())
 , _loadRequested(false)
 , _loadCancelled(false)
 , _loadFromCloud(false) {
@@ -918,7 +919,7 @@ DelayedStorageImage::DelayedStorageImage(int32 w, int32 h)
 //, _loadFromCloud(false) {
 //}
 
-void DelayedStorageImage::setStorageLocation(
+void DelayedStorageImage::setDelayedStorageLocation(
 		Data::FileOrigin origin,
 		const StorageImageLocation location) {
 	_location = location;

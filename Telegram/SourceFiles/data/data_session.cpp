@@ -57,10 +57,10 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 	}
 	if (old->isNull()) {
 		old = now;
-	} else if (const auto delayed = old->toDelayedStorageImage()) {
+	} else if (old->isDelayedStorageImage()) {
 		const auto location = now->location();
 		if (!location.isNull()) {
-			delayed->setStorageLocation(Data::FileOrigin(), location);
+			old->setDelayedStorageLocation(Data::FileOrigin(), location);
 		}
 	}
 }

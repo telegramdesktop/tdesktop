@@ -15,7 +15,6 @@ void CheckCacheSize();
 
 } // namespace Images
 
-class DelayedStorageImage;
 class HistoryItem;
 
 class Image {
@@ -157,11 +156,12 @@ public:
 		return _saved;
 	}
 
-	virtual DelayedStorageImage *toDelayedStorageImage() {
-		return 0;
-	}
-	virtual const DelayedStorageImage *toDelayedStorageImage() const {
-		return 0;
+	virtual void setDelayedStorageLocation(
+		Data::FileOrigin origin,
+		const StorageImageLocation location) {
+	};
+	virtual bool isDelayedStorageImage() const {
+		return false;
 	}
 
 	virtual ~Image();
@@ -340,15 +340,11 @@ public:
 	DelayedStorageImage(int32 w, int32 h);
 	//DelayedStorageImage(QByteArray &bytes);
 
-	void setStorageLocation(
+	void setDelayedStorageLocation(
 		Data::FileOrigin origin,
-		const StorageImageLocation location);
-
-	virtual DelayedStorageImage *toDelayedStorageImage() override {
-		return this;
-	}
-	virtual const DelayedStorageImage *toDelayedStorageImage() const override {
-		return this;
+		const StorageImageLocation location) override;
+	bool isDelayedStorageImage() const override {
+		return true;
 	}
 
 	void automaticLoad(

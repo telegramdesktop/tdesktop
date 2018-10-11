@@ -460,8 +460,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		p.setOpacity(radialOpacity);
 		auto icon = ([radial, this, selected]() -> const style::icon* {
 			if (radial || _data->loading()) {
-				auto delayed = _data->full->toDelayedStorageImage();
-				if (!delayed || !delayed->location().isNull()) {
+				if (!_data->full->location().isNull()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -529,8 +528,7 @@ TextState HistoryPhoto::textState(QPoint point, StateRequest request) const {
 		} else if (_data->loaded()) {
 			result.link = _openl;
 		} else if (_data->loading()) {
-			auto delayed = _data->full->toDelayedStorageImage();
-			if (!delayed || !delayed->location().isNull()) {
+			if (!_data->full->location().isNull()) {
 				result.link = _cancell;
 			}
 		} else {
@@ -631,8 +629,7 @@ void HistoryPhoto::drawGrouped(
 			if (_data->waitingForAlbum()) {
 				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
 			} else if (radial || _data->loading()) {
-				auto delayed = _data->full->toDelayedStorageImage();
-				if (!delayed || !delayed->location().isNull()) {
+				if (!_data->full->location().isNull()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -661,15 +658,14 @@ TextState HistoryPhoto::getStateGrouped(
 	if (!geometry.contains(point)) {
 		return {};
 	}
-	const auto delayed = _data->full->toDelayedStorageImage();
 	return TextState(_parent, _data->uploading()
 		? _cancell
 		: _data->loaded()
 		? _openl
 		: _data->loading()
-		? ((!delayed || !delayed->location().isNull())
-			? _cancell
-			: ClickHandlerPtr())
+		? (_data->full->location().isNull()
+			? ClickHandlerPtr()
+			: _cancell)
 		: _savel);
 }
 
