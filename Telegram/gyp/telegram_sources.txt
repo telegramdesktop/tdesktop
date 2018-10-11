@@ -672,6 +672,8 @@
 <(src_loc)/ui/focus_persister.h
 <(src_loc)/ui/grouped_layout.cpp
 <(src_loc)/ui/grouped_layout.h
+<(src_loc)/ui/image.cpp
+<(src_loc)/ui/image.h
 <(src_loc)/ui/images.cpp
 <(src_loc)/ui/images.h
 <(src_loc)/ui/resize_area.h

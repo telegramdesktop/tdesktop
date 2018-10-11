@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "ui/widgets/shadow.h"
 #include "ui/emoji_config.h"
+#include "ui/image.h"
 #include "window/window_main_menu.h"
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"

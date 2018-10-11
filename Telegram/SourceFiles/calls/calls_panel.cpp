@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
+#include "ui/image.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"

@@ -14,8 +14,6 @@ enum NewMessageType : char;
 class Messenger;
 class MainWindow;
 class MainWidget;
-class LocationCoords;
-struct LocationData;
 class HistoryItem;
 class History;
 class Histories;
@@ -138,9 +136,6 @@ namespace App {
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 
-	LocationData *location(const LocationCoords &coords);
-	void forgetMedia();
-
 	Histories &histories();
 	not_null<History*> history(const PeerId &peer);
 	History *historyLoaded(const PeerId &peer);
@@ -191,8 +186,6 @@ namespace App {
 
 	void initMedia();
 	void deinitMedia();
-
-	void checkImageCacheSize();
 
 	enum LaunchState {
 		Launched = 0,

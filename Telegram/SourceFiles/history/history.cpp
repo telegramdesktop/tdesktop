@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel_admins.h"
 #include "data/data_feed.h"
 #include "ui/text_options.h"
+#include "ui/image.h"
 #include "core/crash_reports.h"
 
 namespace {
@@ -1261,7 +1262,7 @@ void History::mainViewRemoved(
 }
 
 void History::newItemAdded(not_null<HistoryItem*> item) {
-	App::checkImageCacheSize();
+	Images::CheckCacheSize();
 	item->indexAsNewItem();
 	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
 		if (from == item->author()) {

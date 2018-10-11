@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/image.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -1123,7 +1124,7 @@ void Messenger::loggedOut() {
 	Local::reset();
 
 	cSetOtherOnline(0);
-	clearStorageImages();
+	Images::ClearRemote();
 }
 
 QPoint Messenger::getPointForCallPanelCenter() const {

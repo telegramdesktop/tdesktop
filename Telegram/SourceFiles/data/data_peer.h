@@ -165,17 +165,9 @@ public:
 		int x,
 		int y,
 		int size) const;
-	void loadUserpic(bool loadFirst = false, bool prior = true) {
-		_userpic->load(userpicPhotoOrigin(), loadFirst, prior);
-	}
-	bool userpicLoaded() const {
-		return _userpic->loaded();
-	}
-	bool useEmptyUserpic() const {
-		return _userpicLocation.isNull()
-			|| !_userpic
-			|| !_userpic->loaded();
-	}
+	void loadUserpic(bool loadFirst = false, bool prior = true);
+	bool userpicLoaded() const;
+	bool useEmptyUserpic() const;
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
 	void saveUserpicRounded(const QString &path, int size) const;

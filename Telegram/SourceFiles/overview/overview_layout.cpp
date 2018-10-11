@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/text_options.h"
+#include "ui/image.h"
 
 namespace Overview {
 namespace Layout {

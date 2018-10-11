@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_groups.h"
+#include "history/history_location_manager.h"
 #include "base/timer.h"
 
 class HistoryItem;
@@ -323,6 +324,8 @@ public:
 		not_null<GameData*> original,
 		const MTPGame &data);
 
+	not_null<LocationData*> location(const LocationCoords &coords);
+
 	void registerPhotoItem(
 		not_null<const PhotoData*> photo,
 		not_null<HistoryItem*> item);
@@ -593,6 +596,9 @@ private:
 	std::unordered_map<
 		WebPageId,
 		std::unique_ptr<WebPageData>> _webpages;
+	std::unordered_map<
+		LocationCoords,
+		std::unique_ptr<LocationData>> _locations;
 	std::map<
 		not_null<const WebPageData*>,
 		base::flat_set<not_null<HistoryItem*>>> _webpageItems;

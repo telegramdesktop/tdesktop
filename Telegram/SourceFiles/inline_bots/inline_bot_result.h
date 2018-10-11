@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class FileLoader;
+class LocationCoords;
 
 namespace InlineBots {
 

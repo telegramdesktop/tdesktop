@@ -39,6 +39,18 @@ public:
 		return _access;
 	}
 
+	inline size_t hash() const {
+#ifndef OS_MAC_OLD
+		return QtPrivate::QHashCombine().operator()(
+				std::hash<float64>()(_lat),
+				_lon);
+#else // OS_MAC_OLD
+		const auto h1 = std::hash<float64>()(_lat);
+		const auto h2 = std::hash<float64>()(_lon);
+		return ((h1 << 16) | (h1 >> 16)) ^ h2;
+#endif // OS_MAC_OLD
+	}
+
 private:
 	static QString asString(float64 value) {
 		constexpr auto kPrecision = 6;
@@ -53,21 +65,22 @@ private:
 		return (a._lat < b._lat) || ((a._lat == b._lat) && (a._lon < b._lon));
 	}
 
-	friend inline uint qHash(const LocationCoords &t, uint seed = 0) {
-#ifndef OS_MAC_OLD
-		return qHash(QtPrivate::QHashCombine().operator()(qHash(t._lat), t._lon), seed);
-#else // OS_MAC_OLD
-		uint h1 = qHash(t._lat, seed);
-		uint h2 = qHash(t._lon, seed);
-		return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
-#endif // OS_MAC_OLD
-	}
-
 	float64 _lat = 0;
 	float64 _lon = 0;
 	uint64 _access = 0;
 
 };
+
+namespace std {
+
+template <>
+struct hash<LocationCoords> {
+	size_t operator()(const LocationCoords &value) const {
+		return value.hash();
+	}
+};
+
+} // namespace std
 
 struct LocationData {
 	LocationData(const LocationCoords &coords);

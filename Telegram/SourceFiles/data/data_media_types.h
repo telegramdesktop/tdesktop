@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 class HistoryMedia;
+class LocationCoords;
+struct LocationData;
 
 namespace base {
 template <typename Enum>

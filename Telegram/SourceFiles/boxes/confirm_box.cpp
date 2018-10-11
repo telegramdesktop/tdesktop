@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "ui/empty_userpic.h"
+#include "ui/image.h"
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"

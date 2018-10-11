@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "messenger.h"
+#include "ui/image.h"
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
@@ -1478,6 +1479,16 @@ void Session::gameApplyFields(
 	notifyGameUpdateDelayed(game);
 }
 
+not_null<LocationData*> Session::location(const LocationCoords &coords) {
+	auto i = _locations.find(coords);
+	if (i == _locations.cend()) {
+		i = _locations.emplace(
+			coords,
+			std::make_unique<LocationData>(coords)).first;
+	}
+	return i->second.get();
+}
+
 void Session::registerPhotoItem(
 		not_null<const PhotoData*> photo,
 		not_null<HistoryItem*> item) {
@@ -1999,6 +2010,9 @@ void Session::forgetMedia() {
 	}
 	for (const auto &[id, document] : _documents) {
 		document->forget();
+	}
+	for (const auto &[coords, location] : _locations) {
+		location->thumb->forget();
 	}
 }
 

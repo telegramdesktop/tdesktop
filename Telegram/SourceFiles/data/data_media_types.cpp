@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/image.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
@@ -765,7 +766,7 @@ MediaLocation::MediaLocation(
 	const QString &title,
 	const QString &description)
 : Media(parent)
-, _location(App::location(coords))
+, _location(Auth().data().location(coords))
 , _title(title)
 , _description(description) {
 }

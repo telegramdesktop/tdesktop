@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "app.h"
 
-#ifdef OS_MAC_OLD
-#include <libexif/exif-data.h>
-#endif // OS_MAC_OLD
-
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_chat_helpers.h"
@@ -27,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
+#include "ui/image.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "messenger.h"
 #include "application.h"
@@ -46,13 +43,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
 
+#ifdef OS_MAC_OLD
+#include <libexif/exif-data.h>
+#endif // OS_MAC_OLD
+
 namespace {
 	App::LaunchState _launchState = App::Launched;
 
 	std::unordered_map<PeerId, std::unique_ptr<PeerData>> peersData;
-
-	using LocationsData = QHash<LocationCoords, LocationData*>;
-	LocationsData locationsData;
 
 	using DependentItemsSet = OrderedSet<HistoryItem*>;
 	using DependentItems = QMap<HistoryItem*, DependentItemsSet>;
@@ -1155,20 +1153,6 @@ namespace App {
 		return nullptr;
 	}
 
-	LocationData *location(const LocationCoords &coords) {
-		auto i = locationsData.constFind(coords);
-		if (i == locationsData.cend()) {
-			i = locationsData.insert(coords, new LocationData(coords));
-		}
-		return i.value();
-	}
-
-	void forgetMedia() {
-		for_const (auto location, ::locationsData) {
-			location->thumb->forget();
-		}
-	}
-
 	QString peerName(const PeerData *peer, bool forDialogs) {
 		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : lang(lng_deleted);
 	}
@@ -1259,9 +1243,6 @@ namespace App {
 			for (const auto item : data) {
 				delete item;
 			}
-		}
-		for (const auto data : base::take(::locationsData)) {
-			delete data;
 		}
 
 		clearMousedItems();
@@ -1470,10 +1451,8 @@ namespace App {
 
 		histories().clear();
 
-		clearStorageImages();
+		Images::ClearRemote();
 		cSetServerBackgrounds(WallPapers());
-
-		serviceImageCacheSize = imageCacheSize();
 	}
 
 	void deinitMedia() {
@@ -1481,7 +1460,7 @@ namespace App {
 
 		Data::clearGlobalStructures();
 
-		clearAllImages();
+		Images::ClearAll();
 	}
 
 	void hoveredItem(HistoryView::Element *item) {
@@ -1534,15 +1513,6 @@ namespace App {
 
 	const style::font &monofont() {
 		return ::monofont;
-	}
-
-	void checkImageCacheSize() {
-		int64 nowImageCacheSize = imageCacheSize();
-		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
-			App::forgetMedia();
-			Auth().data().forgetMedia();
-			serviceImageCacheSize = imageCacheSize();
-		}
 	}
 
 	void quit() {

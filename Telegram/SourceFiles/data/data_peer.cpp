@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
+#include "ui/image.h"
 
 namespace {
 
@@ -221,6 +222,20 @@ void PeerData::paintUserpicSquare(Painter &p, int x, int y, int size) const {
 	}
 }
 
+void PeerData::loadUserpic(bool loadFirst, bool prior) {
+	_userpic->load(userpicPhotoOrigin(), loadFirst, prior);
+}
+
+bool PeerData::userpicLoaded() const {
+	return _userpic->loaded();
+}
+
+bool PeerData::useEmptyUserpic() const {
+	return _userpicLocation.isNull()
+		|| !_userpic
+		|| !_userpic->loaded();
+}
+
 StorageKey PeerData::userpicUniqueKey() const {
 	if (useEmptyUserpic()) {
 		return _userpicEmpty->uniqueKey();
@@ -296,7 +311,7 @@ void PeerData::setUserpicChecked(
 		const StorageImageLocation &location,
 		ImagePtr userpic) {
 	if (_userpicPhotoId != photoId
-		|| _userpic.v() != userpic.v()
+		|| _userpic.get() != userpic.get()
 		|| _userpicLocation != location) {
 		setUserpic(photoId, location, userpic);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);

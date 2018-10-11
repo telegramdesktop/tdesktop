@@ -867,7 +867,6 @@ private:
 
 	TextUpdateEvents _textUpdateEvents = (TextUpdateEvents() | TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping);
 
-	int64 _serviceImageCacheSize = 0;
 	QString _confirmSource;
 
 	Animation _a_show;

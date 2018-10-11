@@ -318,29 +318,6 @@ inline T snap(const T &v, const T &_min, const T &_max) {
 	return (v < _min) ? _min : ((v > _max) ? _max : v);
 }
 
-template <typename T>
-class ManagedPtr {
-public:
-	ManagedPtr() = default;
-	ManagedPtr(T *p) : _data(p) {
-	}
-	T *operator->() const {
-		return _data;
-	}
-	T *v() const {
-		return _data;
-	}
-
-	explicit operator bool() const {
-		return _data != nullptr;
-	}
-
-protected:
-	using Parent = ManagedPtr<T>;
-	T *_data = nullptr;
-
-};
-
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 

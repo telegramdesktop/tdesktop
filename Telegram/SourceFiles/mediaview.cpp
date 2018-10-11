@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/text_options.h"
+#include "ui/image.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "media/view/media_view_group_thumbs.h"
