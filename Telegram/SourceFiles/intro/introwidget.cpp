@@ -48,6 +48,9 @@ void PrepareSupportMode() {
 
 	Global::SetDesktopNotify(false);
 	Global::SetSoundNotify(false);
+	cSetAutoDownloadAudio(dbiadNoPrivate | dbiadNoGroups);
+	cSetAutoDownloadGif(dbiadNoPrivate | dbiadNoGroups);
+	cSetAutoDownloadPhoto(dbiadNoPrivate | dbiadNoGroups);
 	cSetAutoPlayGif(false);
 	Local::writeUserSettings();
 }
