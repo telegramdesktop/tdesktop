@@ -287,8 +287,8 @@ public:
 	ImagePtr(const QString &url, QSize box);
 	ImagePtr(const QString &url, int width, int height);
 	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray());
-	ImagePtr(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap);
-	ImagePtr(const QPixmap &pixmap, QByteArray format);
+	ImagePtr(const QByteArray &filecontent, QByteArray format, QImage &&data);
+	ImagePtr(QImage &&data, QByteArray format);
 	ImagePtr(const StorageImageLocation &location, int32 size = 0);
 	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes);
 	ImagePtr(const MTPWebDocument &location);

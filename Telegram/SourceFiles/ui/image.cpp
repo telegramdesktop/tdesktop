@@ -16,20 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-using LocalImages = QMap<QString, Image*>;
-LocalImages localImages;
-
-using WebImages = QMap<QString, WebImage*>;
-WebImages webImages;
-
-using StorageImages = QMap<StorageKey, StorageImage*>;
-StorageImages storageImages;
-
-using WebFileImages = QMap<StorageKey, WebFileImage*>;
-WebFileImages webFileImages;
-
-using GeoPointImages = QMap<StorageKey, GeoPointImage*>;
-GeoPointImages geoPointImages;
+QMap<QString, Image*> LocalFileImages;
+QMap<QString, Image*> WebUrlImages;
+QMap<StorageKey, Image*> StorageImages;
+QMap<StorageKey, Image*> WebCachedImages;
+QMap<StorageKey, Image*> GeoPointImages;
 
 int64 GlobalAcquiredSize = 0;
 int64 LocalAcquiredSize = 0;
@@ -47,24 +38,23 @@ uint64 SinglePixKey(Images::Options options) {
 namespace Images {
 
 void ClearRemote() {
-	for (auto image : base::take(storageImages)) {
+	for (auto image : base::take(StorageImages)) {
 		delete image;
 	}
-	for (auto image : base::take(webImages)) {
+	for (auto image : base::take(WebUrlImages)) {
 		delete image;
 	}
-	for (auto image : base::take(webFileImages)) {
+	for (auto image : base::take(WebCachedImages)) {
 		delete image;
 	}
-	for (auto image : base::take(geoPointImages)) {
+	for (auto image : base::take(GeoPointImages)) {
 		delete image;
 	}
-
 	LocalAcquiredSize = GlobalAcquiredSize;
 }
 
 void ClearAll() {
-	for (auto image : base::take(localImages)) {
+	for (auto image : base::take(LocalFileImages)) {
 		delete image;
 	}
 	ClearRemote();
@@ -78,38 +68,714 @@ void CheckCacheSize() {
 	}
 }
 
+Source::~Source() = default;
+
+ImageSource::ImageSource(QImage &&data, const QByteArray &format)
+: _data(std::move(data))
+, _format(format) {
+}
+
+void ImageSource::load(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+}
+
+void ImageSource::loadEvenCancelled(
+	Data::FileOrigin origin,
+	bool loadFirst,
+	bool prior) {
+}
+
+QImage ImageSource::takeLoaded() {
+	return _data;
+}
+
+void ImageSource::forget() {
+}
+
+void ImageSource::automaticLoad(
+	Data::FileOrigin origin,
+	const HistoryItem *item) {
+}
+
+void ImageSource::automaticLoadSettingsChanged() {
+}
+
+bool ImageSource::loading() {
+	return false;
+}
+
+bool ImageSource::displayLoading() {
+	return false;
+}
+
+void ImageSource::cancel() {
+}
+
+float64 ImageSource::progress() {
+	return 1.;
+}
+
+int ImageSource::loadOffset() {
+	return 0;
+}
+
+const StorageImageLocation &ImageSource::location() {
+	return StorageImageLocation::Null;
+}
+
+void ImageSource::refreshFileReference(const QByteArray &data) {
+}
+
+std::optional<Storage::Cache::Key> ImageSource::cacheKey() {
+	return std::nullopt;
+}
+
+void ImageSource::setDelayedStorageLocation(
+		const StorageImageLocation &location) {
+}
+
+void ImageSource::performDelayedLoad(Data::FileOrigin origin) {
+}
+
+bool ImageSource::isDelayedStorageImage() const {
+	return false;
+}
+
+void ImageSource::setImageBytes(const QByteArray &bytes) {
+}
+
+int ImageSource::width() {
+	return _data.width();
+}
+
+int ImageSource::height() {
+	return _data.height();
+}
+
+void ImageSource::setInformation(int size, int width, int height) {
+}
+
+QByteArray ImageSource::bytesForCache() {
+	auto result = QByteArray();
+	{
+		QBuffer buffer(&result);
+		if (!_data.save(&buffer, _format)) {
+			if (_data.save(&buffer, "PNG")) {
+				_format = "PNG";
+			}
+		}
+	}
+	return result;
+}
+
+LocalFileSource::LocalFileSource(
+	const QString &path,
+	const QByteArray &content,
+	const QByteArray &format,
+	QImage &&data)
+: _path(path)
+, _bytes(content)
+, _format(format)
+, _data(std::move(data)) {
+}
+
+void LocalFileSource::load(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	if (!_data.isNull()) {
+		return;
+	}
+	if (_bytes.isEmpty()) {
+		QFile f(_path);
+		if (f.size() <= App::kImageSizeLimit && f.open(QIODevice::ReadOnly)) {
+			_bytes = f.readAll();
+		}
+		if (_bytes.isEmpty()) {
+			_bytes = "(bad)";
+		}
+	}
+	if (_bytes != "(bad)") {
+		_data = App::readImage(_bytes, &_format, false, nullptr);
+	}
+	_width = std::max(_data.width(), 1);
+	_height = std::max(_data.height(), 1);
+}
+
+void LocalFileSource::loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	load(origin, loadFirst, prior);
+}
+
+QImage LocalFileSource::takeLoaded() {
+	return std::move(_data);
+}
+
+void LocalFileSource::forget() {
+	_data = QImage();
+}
+
+void LocalFileSource::automaticLoad(
+	Data::FileOrigin origin,
+	const HistoryItem *item) {
+}
+
+void LocalFileSource::automaticLoadSettingsChanged() {
+}
+
+bool LocalFileSource::loading() {
+	return false;
+}
+
+bool LocalFileSource::displayLoading() {
+	return false;
+}
+
+void LocalFileSource::cancel() {
+}
+
+float64 LocalFileSource::progress() {
+	return 1.;
+}
+
+int LocalFileSource::loadOffset() {
+	return 0;
+}
+
+const StorageImageLocation &LocalFileSource::location() {
+	return StorageImageLocation::Null;
+}
+
+void LocalFileSource::refreshFileReference(const QByteArray &data) {
+}
+
+std::optional<Storage::Cache::Key> LocalFileSource::cacheKey() {
+	return std::nullopt;
+}
+
+void LocalFileSource::setDelayedStorageLocation(
+	const StorageImageLocation &location) {
+}
+
+void LocalFileSource::performDelayedLoad(Data::FileOrigin origin) {
+}
+
+bool LocalFileSource::isDelayedStorageImage() const {
+	return false;
+}
+
+void LocalFileSource::setImageBytes(const QByteArray &bytes) {
+	_bytes = bytes;
+	load({}, false, true);
+}
+
+int LocalFileSource::width() {
+	ensureDimensionsKnown();
+	return _width;
+}
+
+int LocalFileSource::height() {
+	ensureDimensionsKnown();
+	return _height;
+}
+
+void LocalFileSource::setInformation(int size, int width, int height) {
+	ensureDimensionsKnown(); // First load _bytes.
+	if (width && height) {
+		_width = width;
+		_height = height;
+	}
+}
+
+void LocalFileSource::ensureDimensionsKnown() {
+	if (!_width || !_height) {
+		load({}, false, false);
+	}
+}
+
+QByteArray LocalFileSource::bytesForCache() {
+	ensureDimensionsKnown();
+	return (_bytes == "(bad)") ? QByteArray() : _bytes;
+}
+
+QImage RemoteSource::takeLoaded() {
+	if (!loaderValid() || !_loader->finished()) {
+		return QImage();
+	}
+
+	auto data = _loader->imageData(shrinkBox());
+	if (data.isNull()) {
+		destroyLoaderDelayed(CancelledFileLoader);
+		return QImage();
+	}
+
+	setInformation(_loader->bytes().size(), data.width(), data.height());
+
+	destroyLoaderDelayed();
+
+	return data;
+}
+
+bool RemoteSource::loaderValid() const {
+	return _loader && _loader != CancelledFileLoader;
+}
+
+void RemoteSource::destroyLoaderDelayed(FileLoader *newValue) {
+	Expects(loaderValid());
+
+	_loader->stop();
+	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
+	Auth().downloader().delayedDestroyLoader(std::move(loader));
+}
+
+void RemoteSource::loadLocal() {
+	if (loaderValid()) {
+		return;
+	}
+
+	_loader = createLoader(std::nullopt, LoadFromLocalOnly, true);
+	if (_loader) _loader->start();
+}
+
+void RemoteSource::setImageBytes(const QByteArray &bytes) {
+	if (bytes.isEmpty()) {
+		return;
+	}
+	_loader = createLoader({}, LoadFromLocalOnly, true);
+	_loader->finishWithBytes(bytes);
+
+	const auto location = this->location();
+	if (!location.isNull()
+		&& !bytes.isEmpty()
+		&& bytes.size() <= Storage::kMaxFileInMemory) {
+		Auth().data().cache().putIfEmpty(
+			Data::StorageCacheKey(location),
+			Storage::Cache::Database::TaggedValue(
+				base::duplicate(bytes),
+				Data::kImageCacheTag));
+	}
+}
+
+bool RemoteSource::loading() {
+	return loaderValid();
+}
+
+void RemoteSource::automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
+	if (_loader != CancelledFileLoader && item) {
+		bool loadFromCloud = false;
+		if (item->history()->peer->isUser()) {
+			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
+		} else {
+			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
+		}
+
+		if (_loader) {
+			if (loadFromCloud) _loader->permitLoadFromCloud();
+		} else {
+			_loader = createLoader(
+				origin,
+				loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly,
+				true);
+			if (_loader) _loader->start();
+		}
+	}
+}
+
+void RemoteSource::automaticLoadSettingsChanged() {
+	if (_loader == CancelledFileLoader) {
+		_loader = nullptr;
+	}
+}
+
+void RemoteSource::load(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	if (!_loader) {
+		_loader = createLoader(origin, LoadFromCloudOrLocal, false);
+	}
+	if (loaderValid()) {
+		_loader->start(loadFirst, prior);
+	}
+}
+
+void RemoteSource::loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	if (_loader == CancelledFileLoader) {
+		_loader = nullptr;
+	}
+	return load(origin, loadFirst, prior);
+}
+
+RemoteSource::~RemoteSource() {
+	forget();
+}
+
+bool RemoteSource::displayLoading() {
+	return loaderValid()
+		&& (!_loader->loadingLocal() || !_loader->autoLoading());
+}
+
+void RemoteSource::cancel() {
+	if (!loaderValid()) return;
+
+	const auto loader = std::exchange(_loader, CancelledFileLoader);
+	loader->cancel();
+	loader->stop();
+	Auth().downloader().delayedDestroyLoader(
+		std::unique_ptr<FileLoader>(loader));
+}
+
+void RemoteSource::forget() {
+	if (loaderValid()) {
+		destroyLoaderDelayed();
+	}
+}
+
+float64 RemoteSource::progress() {
+	return loaderValid() ? _loader->currentProgress() : 0.;
+}
+
+int RemoteSource::loadOffset() {
+	return loaderValid() ? _loader->currentOffset() : 0;
+}
+
+const StorageImageLocation &RemoteSource::location() {
+	return StorageImageLocation::Null;
+}
+
+void RemoteSource::refreshFileReference(const QByteArray &data) {
+}
+
+void RemoteSource::setDelayedStorageLocation(
+	const StorageImageLocation &location) {
+}
+
+void RemoteSource::performDelayedLoad(Data::FileOrigin origin) {
+}
+
+bool RemoteSource::isDelayedStorageImage() const {
+	return false;
+}
+
+QByteArray RemoteSource::bytesForCache() {
+	return QByteArray();
+}
+
+StorageSource::StorageSource(const StorageImageLocation &location, int size)
+: _location(location)
+, _size(size) {
+}
+
+void StorageSource::refreshFileReference(const QByteArray &data) {
+	_location.refreshFileReference(data);
+}
+
+const StorageImageLocation &StorageSource::location() {
+	return _location;
+}
+
+std::optional<Storage::Cache::Key> StorageSource::cacheKey() {
+	return _location.isNull()
+		? std::nullopt
+		: base::make_optional(Data::StorageCacheKey(_location));
+}
+
+int StorageSource::width() {
+	return _location.width();
+}
+
+int StorageSource::height() {
+	return _location.height();
+}
+
+void StorageSource::setInformation(int size, int width, int height) {
+	if (size) {
+		_size = size;
+	}
+	if (width && height) {
+		_location.setSize(width, height);
+	}
+}
+
+QSize StorageSource::shrinkBox() const {
+	return QSize();
+}
+
+FileLoader *StorageSource::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	if (_location.isNull()) {
+		return nullptr;
+	}
+	return new mtpFileLoader(
+		&_location,
+		origin,
+		_size,
+		fromCloud,
+		autoLoading,
+		Data::kImageCacheTag);
+}
+
+WebCachedSource::WebCachedSource(
+	const WebFileLocation &location,
+	QSize box,
+	int size)
+: _location(location)
+, _box(box)
+, _size(size) {
+}
+
+WebCachedSource::WebCachedSource(
+	const WebFileLocation &location,
+	int width,
+	int height,
+	int size)
+: _location(location)
+, _width(width)
+, _height(height)
+, _size(size) {
+}
+
+std::optional<Storage::Cache::Key> WebCachedSource::cacheKey() {
+	return _location.isNull()
+		? std::nullopt
+		: base::make_optional(Data::WebDocumentCacheKey(_location));
+}
+
+int WebCachedSource::width() {
+	return _width;
+}
+
+int WebCachedSource::height() {
+	return _height;
+}
+
+void WebCachedSource::setInformation(int size, int width, int height) {
+	if (size) {
+		_size = size;
+	}
+	if (width && height) {
+		_width = width;
+		_height = height;
+	}
+}
+
+QSize WebCachedSource::shrinkBox() const {
+	return _box;
+}
+
+FileLoader *WebCachedSource::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	return _location.isNull()
+		? nullptr
+		: new mtpFileLoader(
+			&_location,
+			_size,
+			fromCloud,
+			autoLoading,
+			Data::kImageCacheTag);
+}
+
+GeoPointSource::GeoPointSource(const GeoPointLocation &location)
+: _location(location) {
+}
+
+std::optional<Storage::Cache::Key> GeoPointSource::cacheKey() {
+	return Data::GeoPointCacheKey(_location);
+}
+
+int GeoPointSource::width() {
+	return _location.width * _location.scale;
+}
+
+int GeoPointSource::height() {
+	return _location.height * _location.scale;
+}
+
+void GeoPointSource::setInformation(int size, int width, int height) {
+	Expects(_location.scale != 0);
+
+	if (size) {
+		_size = size;
+	}
+	if (width && height) {
+		_location.width = width / _location.scale;
+		_location.height = height / _location.scale;
+	}
+}
+
+QSize GeoPointSource::shrinkBox() const {
+	return QSize();
+}
+
+FileLoader *GeoPointSource::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	return new mtpFileLoader(
+			&_location,
+			_size,
+			fromCloud,
+			autoLoading,
+			Data::kImageCacheTag);
+}
+
+DelayedStorageSource::DelayedStorageSource()
+: StorageSource(StorageImageLocation(), 0) {
+}
+
+DelayedStorageSource::DelayedStorageSource(int w, int h)
+: StorageSource(StorageImageLocation(w, h, 0, 0, 0, 0, {}), 0) {
+}
+
+void DelayedStorageSource::setDelayedStorageLocation(
+		const StorageImageLocation &location) {
+	_location = location;
+}
+
+void DelayedStorageSource::performDelayedLoad(Data::FileOrigin origin) {
+	if (!_loadRequested) {
+		return;
+	}
+	_loadRequested = false;
+	if (_loadCancelled) {
+		return;
+	}
+	if (base::take(_loadFromCloud)) {
+		load(origin, false, true);
+	} else {
+		loadLocal();
+	}
+}
+
+void DelayedStorageSource::automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
+	if (_location.isNull()) {
+		if (!_loadCancelled && item) {
+			bool loadFromCloud = false;
+			if (item->history()->peer->isUser()) {
+				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
+			} else {
+				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
+			}
+
+			if (_loadRequested) {
+				if (loadFromCloud) _loadFromCloud = loadFromCloud;
+			} else {
+				_loadFromCloud = loadFromCloud;
+				_loadRequested = true;
+			}
+		}
+	} else {
+		StorageSource::automaticLoad(origin, item);
+	}
+}
+
+void DelayedStorageSource::automaticLoadSettingsChanged() {
+	if (_loadCancelled) _loadCancelled = false;
+	StorageSource::automaticLoadSettingsChanged();
+}
+
+void DelayedStorageSource::load(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	if (_location.isNull()) {
+		_loadRequested = _loadFromCloud = true;
+	} else {
+		StorageSource::load(origin, loadFirst, prior);
+	}
+}
+
+void DelayedStorageSource::loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	_loadCancelled = false;
+	StorageSource::loadEvenCancelled(origin, loadFirst, prior);
+}
+
+bool DelayedStorageSource::displayLoading() {
+	return _location.isNull() ? true : StorageSource::displayLoading();
+}
+
+void DelayedStorageSource::cancel() {
+	if (_loadRequested) {
+		_loadRequested = false;
+	}
+	StorageSource::cancel();
+}
+
+bool DelayedStorageSource::isDelayedStorageImage() const {
+	return true;
+}
+
+WebUrlSource::WebUrlSource(const QString &url, QSize box)
+: _url(url)
+, _box(box) {
+}
+
+WebUrlSource::WebUrlSource(const QString &url, int width, int height)
+: _url(url)
+, _width(width)
+, _height(height) {
+}
+
+std::optional<Storage::Cache::Key> WebUrlSource::cacheKey() {
+	return Data::UrlCacheKey(_url);
+}
+
+int WebUrlSource::width() {
+	return _width;
+}
+
+int WebUrlSource::height() {
+	return _height;
+}
+
+void WebUrlSource::setInformation(int size, int width, int height) {
+	if (size) {
+		_size = size;
+	}
+	if (width && height) {
+		_width = width;
+		_height = height;
+	}
+}
+
+QSize WebUrlSource::shrinkBox() const {
+	return _box;
+}
+
+FileLoader *WebUrlSource::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	return new webFileLoader(
+		_url,
+		QString(),
+		fromCloud,
+		autoLoading,
+		Data::kImageCacheTag);
+}
+
 } // namespace Images
 
-Image::Image(const QString &file, QByteArray fmt) {
-	_data = App::pixmapFromImageInPlace(App::readImage(file, &fmt, false, 0, &_saved));
-	_format = fmt;
-	if (!_data.isNull()) {
-		GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-Image::Image(const QByteArray &filecontent, QByteArray fmt) {
-	_data = App::pixmapFromImageInPlace(App::readImage(filecontent, &fmt, false));
-	_format = fmt;
-	_saved = filecontent;
-	if (!_data.isNull()) {
-		GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-Image::Image(const QPixmap &pixmap, QByteArray format) : _format(format), _data(pixmap) {
-	if (!_data.isNull()) {
-		GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-Image::Image(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) : _saved(filecontent), _format(fmt), _data(pixmap) {
-	_data = pixmap;
-	_format = fmt;
-	_saved = filecontent;
-	if (!_data.isNull()) {
-		GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
+Image::Image(std::unique_ptr<Images::Source> &&source)
+: _source(std::move(source)) {
 }
 
 Image *Image::Blank() {
@@ -122,7 +788,7 @@ Image *Image::Blank() {
 		data.fill(Qt::transparent);
 		data.setDevicePixelRatio(cRetinaFactor());
 		return Images::details::Create(
-			App::pixmapFromImageInPlace(std::move(data)),
+			std::move(data),
 			"GIF");
 	}();
 	return blankImage;
@@ -136,7 +802,7 @@ const QPixmap &Image::pix(
 		Data::FileOrigin origin,
 		int32 w,
 		int32 h) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
         w = width();
@@ -164,7 +830,7 @@ const QPixmap &Image::pixRounded(
 		int32 h,
 		ImageRoundRadius radius,
 		RectParts corners) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width();
@@ -203,7 +869,7 @@ const QPixmap &Image::pixCircled(
 		Data::FileOrigin origin,
 		int32 w,
 		int32 h) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width();
@@ -229,7 +895,7 @@ const QPixmap &Image::pixBlurredCircled(
 		Data::FileOrigin origin,
 		int32 w,
 		int32 h) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width();
@@ -255,7 +921,7 @@ const QPixmap &Image::pixBlurred(
 		Data::FileOrigin origin,
 		int32 w,
 		int32 h) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
@@ -282,7 +948,7 @@ const QPixmap &Image::pixColored(
 		style::color add,
 		int32 w,
 		int32 h) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
@@ -309,7 +975,7 @@ const QPixmap &Image::pixBlurredColored(
 		style::color add,
 		int32 w,
 		int32 h) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
@@ -340,7 +1006,7 @@ const QPixmap &Image::pixSingle(
 		ImageRoundRadius radius,
 		RectParts corners,
 		const style::color *colored) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
@@ -385,13 +1051,13 @@ const QPixmap &Image::pixSingle(
 
 const QPixmap &Image::pixBlurredSingle(
 		Data::FileOrigin origin,
-		int w,
-		int h,
+		int32 w,
+		int32 h,
 		int32 outerw,
 		int32 outerh,
 		ImageRoundRadius radius,
 		RectParts corners) const {
-	checkload();
+	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
@@ -439,8 +1105,10 @@ QPixmap Image::pixNoCache(
 		int outerw,
 		int outerh,
 		const style::color *colored) const {
-	if (!loading()) const_cast<Image*>(this)->load(origin);
-	restore();
+	if (!loading()) {
+		const_cast<Image*>(this)->load(origin);
+	}
+	checkSource();
 
 	if (_data.isNull()) {
 		if (h <= 0 && height() > 0) {
@@ -489,7 +1157,7 @@ QPixmap Image::pixNoCache(
 		return App::pixmapFromImageInPlace(std::move(result));
 	}
 
-	return Images::pixmap(_data.toImage(), w, h, options, outerw, outerh, colored);
+	return Images::pixmap(_data, w, h, options, outerw, outerh, colored);
 }
 
 QPixmap Image::pixColoredNoCache(
@@ -498,13 +1166,16 @@ QPixmap Image::pixColoredNoCache(
 		int32 w,
 		int32 h,
 		bool smooth) const {
-	const_cast<Image*>(this)->load(origin);
-	restore();
+	if (!loading()) {
+		const_cast<Image*>(this)->load(origin);
+	}
+	checkSource();
+
 	if (_data.isNull()) {
 		return Blank()->pix(origin);
 	}
 
-	auto img = _data.toImage();
+	auto img = _data;
 	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) {
 		return App::pixmapFromImageInPlace(Images::prepareColored(add, std::move(img)));
 	}
@@ -519,13 +1190,16 @@ QPixmap Image::pixBlurredColoredNoCache(
 		style::color add,
 		int32 w,
 		int32 h) const {
-	const_cast<Image*>(this)->load(origin);
-	restore();
+	if (!loading()) {
+		const_cast<Image*>(this)->load(origin);
+	}
+	checkSource();
+
 	if (_data.isNull()) {
 		return Blank()->pix(origin);
 	}
 
-	auto img = Images::prepareBlur(_data.toImage());
+	auto img = Images::prepareBlur(_data);
 	if (h <= 0) {
 		img = img.scaledToWidth(w, Qt::SmoothTransformation);
 	} else {
@@ -535,512 +1209,61 @@ QPixmap Image::pixBlurredColoredNoCache(
 	return App::pixmapFromImageInPlace(Images::prepareColored(add, img));
 }
 
-void Image::forget() const {
-	if (_forgot) return;
+std::optional<Storage::Cache::Key> Image::cacheKey() const {
+	return _source->cacheKey();
+}
 
-	checkload();
-	if (_data.isNull()) return;
+bool Image::loaded() const {
+	checkSource();
+	return !_data.isNull();
+}
 
-	invalidateSizeCache();
-	/*if (hasLocalCopy()) {
-		_saved.clear();
-	} else */if (_saved.isEmpty()) {
-		QBuffer buffer(&_saved);
-		if (!_data.save(&buffer, _format)) {
-			if (_data.save(&buffer, "PNG")) {
-				_format = "PNG";
-			} else {
-				return;
-			}
+void Image::checkSource() const {
+	auto data = _source->takeLoaded();
+	if (_data.isNull() && !data.isNull()) {
+		invalidateSizeCache();
+		_data = std::move(data);
+		if (!_data.isNull()) {
+			GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
 		}
 	}
-	GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
-	_data = QPixmap();
-	_forgot = true;
 }
 
-void Image::restore() const {
-	if (!_forgot) return;
-
-	QBuffer buffer(&_saved);
-	QImageReader reader(&buffer, _format);
-#ifndef OS_MAC_OLD
-	reader.setAutoTransform(true);
-#endif // OS_MAC_OLD
-	_data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
-
+void Image::forget() const {
+	_source->takeLoaded();
+	_source->forget();
+	invalidateSizeCache();
 	if (!_data.isNull()) {
-		GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
+		GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
+		_data = QImage();
 	}
-	_forgot = false;
 }
 
-std::optional<Storage::Cache::Key> Image::cacheKey() const {
-	return std::nullopt;
+void Image::setDelayedStorageLocation(
+		Data::FileOrigin origin,
+		const StorageImageLocation &location) {
+	_source->setDelayedStorageLocation(location);
+	if (!loaded()) {
+		_source->performDelayedLoad(origin);
+	}
+}
+
+void Image::setImageBytes(const QByteArray &bytes) {
+	_source->setImageBytes(bytes);
+	checkSource();
 }
 
 void Image::invalidateSizeCache() const {
-	for (auto &pix : _sizesCache) {
-		if (!pix.isNull()) {
-			GlobalAcquiredSize -= int64(pix.width()) * pix.height() * 4;
+	for (const auto &image : std::as_const(_sizesCache)) {
+		if (!image.isNull()) {
+			GlobalAcquiredSize -= int64(image.width()) * image.height() * 4;
 		}
 	}
 	_sizesCache.clear();
 }
 
 Image::~Image() {
-	invalidateSizeCache();
-	if (!_data.isNull()) {
-		GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-void RemoteImage::doCheckload() const {
-	if (!amLoading() || !_loader->finished()) return;
-
-	QPixmap data = _loader->imagePixmap(shrinkBox());
-	if (data.isNull()) {
-		destroyLoaderDelayed(CancelledFileLoader);
-		return;
-	}
-
-	if (!_data.isNull()) {
-		GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
-	}
-
-	_format = _loader->imageFormat(shrinkBox());
-	_data = data;
-	_saved = _loader->bytes();
-	const_cast<RemoteImage*>(this)->setInformation(_saved.size(), _data.width(), _data.height());
-	GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-
-	invalidateSizeCache();
-
-	destroyLoaderDelayed();
-
-	_forgot = false;
-}
-
-void RemoteImage::destroyLoaderDelayed(FileLoader *newValue) const {
-	_loader->stop();
-	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	Auth().downloader().delayedDestroyLoader(std::move(loader));
-}
-
-void RemoteImage::loadLocal() {
-	if (loaded() || amLoading()) return;
-
-	_loader = createLoader(std::nullopt, LoadFromLocalOnly, true);
-	if (_loader) _loader->start();
-}
-
-void RemoteImage::setImageBytes(
-		const QByteArray &bytes,
-		const QByteArray &bytesFormat) {
-	if (!_data.isNull()) {
-		GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
-	}
-	QByteArray fmt(bytesFormat);
-	_data = App::pixmapFromImageInPlace(App::readImage(bytes, &fmt, false));
-	if (!_data.isNull()) {
-		GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-		setInformation(bytes.size(), _data.width(), _data.height());
-	}
-
-	invalidateSizeCache();
-	if (amLoading()) {
-		destroyLoaderDelayed();
-	}
-	_saved = bytes;
-	_format = fmt;
-	_forgot = false;
-
-	const auto location = this->location();
-	if (!location.isNull()
-		&& !bytes.isEmpty()
-		&& bytes.size() <= Storage::kMaxFileInMemory) {
-		Auth().data().cache().putIfEmpty(
-			Data::StorageCacheKey(location),
-			Storage::Cache::Database::TaggedValue(
-				base::duplicate(bytes),
-				Data::kImageCacheTag));
-	}
-}
-
-bool RemoteImage::amLoading() const {
-	return _loader && _loader != CancelledFileLoader;
-}
-
-void RemoteImage::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	if (loaded()) return;
-
-	if (_loader != CancelledFileLoader && item) {
-		bool loadFromCloud = false;
-		if (item->history()->peer->isUser()) {
-			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
-		} else {
-			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
-		}
-
-		if (_loader) {
-			if (loadFromCloud) _loader->permitLoadFromCloud();
-		} else {
-			_loader = createLoader(
-				origin,
-				loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly,
-				true);
-			if (_loader) _loader->start();
-		}
-	}
-}
-
-void RemoteImage::automaticLoadSettingsChanged() {
-	if (loaded() || _loader != CancelledFileLoader) return;
-	_loader = 0;
-}
-
-void RemoteImage::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
-	if (loaded()) return;
-
-	if (!_loader) {
-		_loader = createLoader(origin, LoadFromCloudOrLocal, false);
-	}
-	if (amLoading()) {
-		_loader->start(loadFirst, prior);
-	}
-}
-
-void RemoteImage::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
-	if (_loader == CancelledFileLoader) {
-		_loader = nullptr;
-	}
-	return load(origin, loadFirst, prior);
-}
-
-RemoteImage::~RemoteImage() {
-	if (!_data.isNull()) {
-		GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
-	}
-	if (amLoading()) {
-		destroyLoaderDelayed();
-	}
-}
-
-bool RemoteImage::loaded() const {
-	doCheckload();
-	return (!_data.isNull() || !_saved.isNull());
-}
-
-bool RemoteImage::displayLoading() const {
-	return amLoading() && (!_loader->loadingLocal() || !_loader->autoLoading());
-}
-
-void RemoteImage::cancel() {
-	if (!amLoading()) return;
-
-	auto loader = std::exchange(_loader, CancelledFileLoader);
-	loader->cancel();
-	loader->stop();
-	Auth().downloader().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
-}
-
-float64 RemoteImage::progress() const {
-	return amLoading() ? _loader->currentProgress() : (loaded() ? 1 : 0);
-}
-
-int32 RemoteImage::loadOffset() const {
-	return amLoading() ? _loader->currentOffset() : 0;
-}
-
-StorageImage::StorageImage(const StorageImageLocation &location, int32 size)
-: _location(location)
-, _size(size) {
-}
-
-StorageImage::StorageImage(
-	const StorageImageLocation &location,
-	const QByteArray &bytes)
-: _location(location)
-, _size(bytes.size()) {
-	setImageBytes(bytes);
-}
-
-std::optional<Storage::Cache::Key> StorageImage::cacheKey() const {
-	return _location.isNull()
-		? std::nullopt
-		: base::make_optional(Data::StorageCacheKey(_location));
-}
-
-int32 StorageImage::countWidth() const {
-	return _location.width();
-}
-
-int32 StorageImage::countHeight() const {
-	return _location.height();
-}
-
-void StorageImage::setInformation(int32 size, int32 width, int32 height) {
-	_size = size;
-	_location.setSize(width, height);
-}
-
-FileLoader *StorageImage::createLoader(
-		Data::FileOrigin origin,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading) {
-	if (_location.isNull()) {
-		return nullptr;
-	}
-	return new mtpFileLoader(
-		&_location,
-		origin,
-		_size,
-		fromCloud,
-		autoLoading,
-		Data::kImageCacheTag);
-}
-
-WebFileImage::WebFileImage(
-	const WebFileLocation &location,
-	QSize box,
-	int size)
-: _location(location)
-, _box(box)
-, _width(0)
-, _height(0)
-, _size(size) {
-}
-
-WebFileImage::WebFileImage(
-	const WebFileLocation &location,
-	int width,
-	int height,
-	int size)
-: _location(location)
-, _width(width)
-, _height(height)
-, _size(size) {
-}
-
-std::optional<Storage::Cache::Key> WebFileImage::cacheKey() const {
-	return _location.isNull()
-		? std::nullopt
-		: base::make_optional(Data::WebDocumentCacheKey(_location));
-}
-
-int WebFileImage::countWidth() const {
-	return _width;
-}
-
-int WebFileImage::countHeight() const {
-	return _height;
-}
-
-void WebFileImage::setInformation(int size, int width, int height) {
-	_size = size;
-	_width = width;
-	_height = height;
-}
-
-FileLoader *WebFileImage::createLoader(
-		Data::FileOrigin origin,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading) {
-	return _location.isNull()
-		? nullptr
-		: new mtpFileLoader(
-			&_location,
-			_size,
-			fromCloud,
-			autoLoading,
-			Data::kImageCacheTag);
-}
-
-GeoPointImage::GeoPointImage(const GeoPointLocation &location)
-: _location(location) {
-}
-
-std::optional<Storage::Cache::Key> GeoPointImage::cacheKey() const {
-	return Data::GeoPointCacheKey(_location);
-}
-
-int GeoPointImage::countWidth() const {
-	return _location.width * _location.scale;
-}
-
-int GeoPointImage::countHeight() const {
-	return _location.height * _location.scale;
-}
-
-void GeoPointImage::setInformation(int size, int width, int height) {
-	_size = size;
-	_location.width = width;
-	_location.height = height;
-}
-
-FileLoader *GeoPointImage::createLoader(
-		Data::FileOrigin origin,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading) {
-	return new mtpFileLoader(
-			&_location,
-			_size,
-			fromCloud,
-			autoLoading,
-			Data::kImageCacheTag);
-}
-
-DelayedStorageImage::DelayedStorageImage()
-: StorageImage(StorageImageLocation())
-, _loadRequested(false)
-, _loadCancelled(false)
-, _loadFromCloud(false) {
-}
-
-DelayedStorageImage::DelayedStorageImage(int32 w, int32 h)
-: StorageImage(StorageImageLocation(w, h, 0, 0, 0, 0, {}))
-, _loadRequested(false)
-, _loadCancelled(false)
-, _loadFromCloud(false) {
-}
-//
-//DelayedStorageImage::DelayedStorageImage(QByteArray &bytes)
-//: StorageImage(StorageImageLocation(), bytes)
-//, _loadRequested(false)
-//, _loadCancelled(false)
-//, _loadFromCloud(false) {
-//}
-
-void DelayedStorageImage::setDelayedStorageLocation(
-		Data::FileOrigin origin,
-		const StorageImageLocation location) {
-	_location = location;
-	if (_loadRequested) {
-		if (!_loadCancelled) {
-			if (_loadFromCloud) {
-				load(origin);
-			} else {
-				loadLocal();
-			}
-		}
-		_loadRequested = false;
-	}
-}
-
-void DelayedStorageImage::automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) {
-	if (_location.isNull()) {
-		if (!_loadCancelled && item) {
-			bool loadFromCloud = false;
-			if (item->history()->peer->isUser()) {
-				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
-			} else {
-				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
-			}
-
-			if (_loadRequested) {
-				if (loadFromCloud) _loadFromCloud = loadFromCloud;
-			} else {
-				_loadFromCloud = loadFromCloud;
-				_loadRequested = true;
-			}
-		}
-	} else {
-		StorageImage::automaticLoad(origin, item);
-	}
-}
-
-void DelayedStorageImage::automaticLoadSettingsChanged() {
-	if (_loadCancelled) _loadCancelled = false;
-	StorageImage::automaticLoadSettingsChanged();
-}
-
-void DelayedStorageImage::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
-	if (_location.isNull()) {
-		_loadRequested = _loadFromCloud = true;
-	} else {
-		StorageImage::load(origin, loadFirst, prior);
-	}
-}
-
-void DelayedStorageImage::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
-	_loadCancelled = false;
-	StorageImage::loadEvenCancelled(origin, loadFirst, prior);
-}
-
-bool DelayedStorageImage::displayLoading() const {
-	return _location.isNull() ? true : StorageImage::displayLoading();
-}
-
-void DelayedStorageImage::cancel() {
-	if (_loadRequested) {
-		_loadRequested = false;
-	}
-	StorageImage::cancel();
-}
-
-WebImage::WebImage(const QString &url, QSize box)
-: _url(url)
-, _box(box)
-, _size(0)
-, _width(0)
-, _height(0) {
-}
-
-WebImage::WebImage(const QString &url, int width, int height)
-: _url(url)
-, _size(0)
-, _width(width)
-, _height(height) {
-}
-
-std::optional<Storage::Cache::Key> WebImage::cacheKey() const {
-	return Data::UrlCacheKey(_url);
-}
-
-void WebImage::setSize(int width, int height) {
-	_width = width;
-	_height = height;
-}
-
-int32 WebImage::countWidth() const {
-	return _width;
-}
-
-int32 WebImage::countHeight() const {
-	return _height;
-}
-
-void WebImage::setInformation(int32 size, int32 width, int32 height) {
-	_size = size;
-	setSize(width, height);
-}
-
-FileLoader *WebImage::createLoader(
-		Data::FileOrigin origin,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading) {
-	return new webFileLoader(
-		_url,
-		QString(),
-		fromCloud,
-		autoLoading,
-		Data::kImageCacheTag);
+	forget();
 }
 
 namespace Images {
@@ -1049,83 +1272,111 @@ namespace details {
 Image *Create(const QString &file, QByteArray format) {
 	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive)
 		|| file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-		QString key = file;
-		WebImages::const_iterator i = webImages.constFind(key);
-		if (i == webImages.cend()) {
-			i = webImages.insert(key, new WebImage(file));
+		const auto key = file;
+		auto i = WebUrlImages.constFind(key);
+		if (i == WebUrlImages.cend()) {
+			i = WebUrlImages.insert(
+				key,
+				new Image(std::make_unique<WebUrlSource>(file)));
 		}
 		return i.value();
 	} else {
 		QFileInfo f(file);
-		QString key = qsl("//:%1//:%2//:").arg(f.size()).arg(f.lastModified().toTime_t()) + file;
-		LocalImages::const_iterator i = localImages.constFind(key);
-		if (i == localImages.cend()) {
-			i = localImages.insert(key, new Image(file, format));
+		const auto key = qsl("//:%1//:%2//:"
+		).arg(f.size()
+		).arg(f.lastModified().toTime_t()
+		) + file;
+		auto i = LocalFileImages.constFind(key);
+		if (i == LocalFileImages.cend()) {
+			i = LocalFileImages.insert(
+				key,
+				new Image(std::make_unique<LocalFileSource>(
+					file,
+					QByteArray(),
+					format)));
 		}
 		return i.value();
 	}
 }
 
 Image *Create(const QString &url, QSize box) {
-	QString key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
-	auto i = webImages.constFind(key);
-	if (i == webImages.cend()) {
-		i = webImages.insert(key, new WebImage(url, box));
+	const auto key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
+	auto i = WebUrlImages.constFind(key);
+	if (i == WebUrlImages.cend()) {
+		i = WebUrlImages.insert(
+			key,
+			new Image(std::make_unique<WebUrlSource>(url, box)));
 	}
 	return i.value();
 }
 
 Image *Create(const QString &url, int width, int height) {
-	QString key = url;
-	auto i = webImages.constFind(key);
-	if (i == webImages.cend()) {
-		i = webImages.insert(key, new WebImage(url, width, height));
+	const auto key = url;
+	auto i = WebUrlImages.constFind(key);
+	if (i == WebUrlImages.cend()) {
+		i = WebUrlImages.insert(
+			key,
+			new Image(std::make_unique<WebUrlSource>(url, width, height)));
 	} else {
-		i.value()->setSize(width, height);
+		i.value()->setInformation(0, width, height);
 	}
 	return i.value();
 }
 
 Image *Create(const QByteArray &filecontent, QByteArray format) {
-	return new Image(filecontent, format);
+	auto image = App::readImage(filecontent, &format, false);
+	return Create(filecontent, format, std::move(image));
 }
 
-Image *Create(const QPixmap &pixmap, QByteArray format) {
-	return new Image(pixmap, format);
+Image *Create(QImage &&image, QByteArray format) {
+	return new Image(std::make_unique<ImageSource>(
+		std::move(image),
+		format));
 }
 
-Image *Create(const QByteArray &filecontent, QByteArray format, const QPixmap &pixmap) {
-	return new Image(filecontent, format, pixmap);
+Image *Create(
+		const QByteArray &filecontent,
+		QByteArray format,
+		QImage &&image) {
+	return new Image(std::make_unique<LocalFileSource>(
+		QString(),
+		filecontent,
+		format,
+		std::move(image)));
 }
 
-Image *Create(int32 width, int32 height) {
-	return new DelayedStorageImage(width, height);
+Image *Create(int width, int height) {
+	return new Image(std::make_unique<DelayedStorageSource>(width, height));
 }
 
-StorageImage *Create(const StorageImageLocation &location, int32 size) {
+Image *Create(const StorageImageLocation &location, int size) {
 	const auto key = storageKey(location);
-	auto i = storageImages.constFind(key);
-	if (i == storageImages.cend()) {
-		i = storageImages.insert(key, new StorageImage(location, size));
+	auto i = StorageImages.constFind(key);
+	if (i == StorageImages.cend()) {
+		i = StorageImages.insert(
+			key,
+			new Image(std::make_unique<StorageSource>(location, size)));
 	} else {
 		i.value()->refreshFileReference(location.fileReference());
 	}
 	return i.value();
 }
 
-StorageImage *Create(
+Image *Create(
 		const StorageImageLocation &location,
 		const QByteArray &bytes) {
 	const auto key = storageKey(location);
-	auto i = storageImages.constFind(key);
-	if (i == storageImages.cend()) {
-		i = storageImages.insert(key, new StorageImage(location, bytes));
+	auto i = StorageImages.constFind(key);
+	if (i == StorageImages.cend()) {
+		i = StorageImages.insert(
+			key,
+			new Image(std::make_unique<StorageSource>(
+				location,
+				bytes.size())));
 	} else {
 		i.value()->refreshFileReference(location.fileReference());
-		if (!i.value()->loaded()) {
-			i.value()->setImageBytes(bytes);
-		}
 	}
+	i.value()->setImageBytes(bytes);
 	return i.value();
 }
 
@@ -1214,42 +1465,49 @@ Image *Create(const MTPWebDocument &document, QSize box) {
 	Unexpected("Type in getImage(MTPWebDocument).");
 }
 
-WebFileImage *Create(
+Image *Create(
 		const WebFileLocation &location,
 		QSize box,
 		int size) {
-	auto key = storageKey(location);
-	auto i = webFileImages.constFind(key);
-	if (i == webFileImages.cend()) {
-		i = webFileImages.insert(
+	const auto key = storageKey(location);
+	auto i = WebCachedImages.constFind(key);
+	if (i == WebCachedImages.cend()) {
+		i = WebCachedImages.insert(
 			key,
-			new WebFileImage(location, box, size));
+			new Image(std::make_unique<WebCachedSource>(
+				location,
+				box,
+				size)));
 	}
 	return i.value();
 }
 
-WebFileImage *Create(
+Image *Create(
 		const WebFileLocation &location,
 		int width,
 		int height,
 		int size) {
-	auto key = storageKey(location);
-	auto i = webFileImages.constFind(key);
-	if (i == webFileImages.cend()) {
-		i = webFileImages.insert(
+	const auto key = storageKey(location);
+	auto i = WebCachedImages.constFind(key);
+	if (i == WebCachedImages.cend()) {
+		i = WebCachedImages.insert(
 			key,
-			new WebFileImage(location, width, height, size));
+			new Image(std::make_unique<WebCachedSource>(
+				location,
+				width,
+				height,
+				size)));
 	}
 	return i.value();
 }
 
-GeoPointImage *Create(const GeoPointLocation &location) {
-	auto key = storageKey(location);
-	auto i = geoPointImages.constFind(key);
-	if (i == geoPointImages.cend()) {
-		i = geoPointImages.insert(
+Image *Create(const GeoPointLocation &location) {
+	const auto key = storageKey(location);
+	auto i = GeoPointImages.constFind(key);
+	if (i == GeoPointImages.cend()) {
+		i = GeoPointImages.insert(
 			key,
-			new GeoPointImage(location));
+			new Image(std::make_unique<GeoPointSource>(location)));
 	}
 	return i.value();
 }

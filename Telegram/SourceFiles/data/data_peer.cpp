@@ -195,6 +195,9 @@ ImagePtr PeerData::currentUserpic() const {
 			return _userpic;
 		}
 	}
+	if (!_userpicEmpty) {
+		refreshEmptyUserpic();
+	}
 	return ImagePtr();
 }
 
@@ -296,10 +299,9 @@ void PeerData::clearUserpic() {
 			auto image = Messenger::Instance().logoNoMargin().scaledToWidth(
 				kUserpicSize,
 				Qt::SmoothTransformation);
-			auto pixmap = App::pixmapFromImageInPlace(std::move(image));
 			return _userpic
 				? _userpic
-				: ImagePtr(std::move(pixmap), "PNG");
+				: ImagePtr(std::move(image), "PNG");
 		}
 		return ImagePtr();
 	}();

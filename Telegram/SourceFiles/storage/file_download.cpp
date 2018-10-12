@@ -127,6 +127,31 @@ FileLoader::FileLoader(
 	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
 }
 
+void FileLoader::finishWithBytes(const QByteArray &data) {
+	_data = data;
+	_localStatus = LocalStatus::Loaded;
+	if (!_filename.isEmpty() && _toCache == LoadToCacheAsWell) {
+		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
+		if (!_fileIsOpen) {
+			cancel(true);
+			return;
+		}
+		if (_file.write(_data) != qint64(_data.size())) {
+			cancel(true);
+			return;
+		}
+	}
+
+	_finished = true;
+	if (_fileIsOpen) {
+		_file.close();
+		_fileIsOpen = false;
+		Platform::File::PostprocessDownloaded(
+			QFileInfo(_file).absoluteFilePath());
+	}
+	_downloader->taskFinished().notify();
+}
+
 QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
 	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
 		readImage(shrinkBox);
@@ -134,11 +159,11 @@ QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
 	return _imageFormat;
 }
 
-QPixmap FileLoader::imagePixmap(const QSize &shrinkBox) const {
-	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
+QImage FileLoader::imageData(const QSize &shrinkBox) const {
+	if (_imageData.isNull() && _locationType == UnknownFileLocation) {
 		readImage(shrinkBox);
 	}
-	return _imagePixmap;
+	return _imageData;
 }
 
 void FileLoader::readImage(const QSize &shrinkBox) const {
@@ -146,9 +171,9 @@ void FileLoader::readImage(const QSize &shrinkBox) const {
 	auto image = App::readImage(_data, &format, false);
 	if (!image.isNull()) {
 		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
-			_imagePixmap = App::pixmapFromImageInPlace(image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+			_imageData = image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 		} else {
-			_imagePixmap = App::pixmapFromImageInPlace(std::move(image));
+			_imageData = std::move(image);
 		}
 		_imageFormat = format;
 	}
@@ -222,39 +247,18 @@ FileLoader::~FileLoader() {
 void FileLoader::localLoaded(
 		const StorageImageSaved &result,
 		const QByteArray &imageFormat,
-		const QPixmap &imagePixmap) {
+		const QImage &imageData) {
 	_localLoading.kill();
 	if (result.data.isEmpty()) {
 		_localStatus = LocalStatus::NotFound;
 		start(true);
 		return;
 	}
-	_data = result.data;
-	if (!imagePixmap.isNull()) {
+	if (!imageData.isNull()) {
 		_imageFormat = imageFormat;
-		_imagePixmap = imagePixmap;
+		_imageData = imageData;
 	}
-	_localStatus = LocalStatus::Loaded;
-	if (!_filename.isEmpty() && _toCache == LoadToCacheAsWell) {
-		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
-		if (!_fileIsOpen) {
-			cancel(true);
-			return;
-		}
-		if (_file.write(_data) != qint64(_data.size())) {
-			cancel(true);
-			return;
-		}
-	}
-
-	_finished = true;
-	if (_fileIsOpen) {
-		_file.close();
-		_fileIsOpen = false;
-		Platform::File::PostprocessDownloaded(
-			QFileInfo(_file).absoluteFilePath());
-	}
-	_downloader->taskFinished().notify();
+	finishWithBytes(result.data);
 
 	emit progress(this);
 
@@ -389,7 +393,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 			localLoaded(
 				StorageImageSaved(std::move(value)),
 				format,
-				App::pixmapFromImageInPlace(std::move(image)));
+				std::move(image));
 		});
 	};
 	Auth().data().cache().get(key, [=, callback = std::move(done)](

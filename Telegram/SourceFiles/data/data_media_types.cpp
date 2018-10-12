@@ -354,15 +354,14 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		if (key.isNull() || image->isNull() || !image->loaded()) {
 			return;
 		}
-		if (image->savedData().isEmpty()) {
-			image->forget();
-		} else if (image->savedData().size() > Storage::kMaxFileInMemory) {
+		auto bytes = image->bytesForCache();
+		if (bytes.isEmpty() || bytes.size() > Storage::kMaxFileInMemory) {
 			return;
 		}
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(key),
 			Storage::Cache::Database::TaggedValue(
-				image->savedData(),
+				std::move(bytes),
 				Data::kImageCacheTag));
 	};
 	auto &sizes = photo.c_photo().vsizes.v;

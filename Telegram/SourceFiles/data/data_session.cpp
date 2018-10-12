@@ -777,9 +777,9 @@ not_null<PhotoData*> Session::photo(const MTPDphoto &data) {
 not_null<PhotoData*> Session::photo(
 		const MTPPhoto &data,
 		const PreparedPhotoThumbs &thumbs) {
-	auto thumb = (const QPixmap*)nullptr;
-	auto medium = (const QPixmap*)nullptr;
-	auto full = (const QPixmap*)nullptr;
+	auto thumb = (const QImage*)nullptr;
+	auto medium = (const QImage*)nullptr;
+	auto full = (const QImage*)nullptr;
 	auto thumbLevel = -1;
 	auto mediumLevel = -1;
 	auto fullLevel = -1;
@@ -813,9 +813,9 @@ not_null<PhotoData*> Session::photo(
 			data.c_photo().vaccess_hash.v,
 			data.c_photo().vfile_reference.v,
 			data.c_photo().vdate.v,
-			ImagePtr(*thumb, "JPG"),
-			ImagePtr(*medium, "JPG"),
-			ImagePtr(*full, "JPG"));
+			ImagePtr(base::duplicate(*thumb), "JPG"),
+			ImagePtr(base::duplicate(*medium), "JPG"),
+			ImagePtr(base::duplicate(*full), "JPG"));
 
 	case mtpc_photoEmpty:
 		return photo(data.c_photoEmpty().vid.v);
@@ -1013,7 +1013,7 @@ not_null<DocumentData*> Session::document(const MTPDdocument &data) {
 
 not_null<DocumentData*> Session::document(
 		const MTPdocument &data,
-		const QPixmap &thumb) {
+		QImage &&thumb) {
 	switch (data.type()) {
 	case mtpc_documentEmpty:
 		return document(data.c_documentEmpty().vid.v);
@@ -1027,7 +1027,7 @@ not_null<DocumentData*> Session::document(
 			fields.vdate.v,
 			fields.vattributes.v,
 			qs(fields.vmime_type),
-			ImagePtr(thumb, "JPG"),
+			ImagePtr(std::move(thumb), "JPG"),
 			fields.vdc_id.v,
 			fields.vsize.v,
 			StorageImageLocation());

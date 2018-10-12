@@ -389,12 +389,12 @@ ImagePtr::ImagePtr(const QByteArray &filecontent, QByteArray format)
 ImagePtr::ImagePtr(
 	const QByteArray &filecontent,
 	QByteArray format,
-	const QPixmap &pixmap)
-: _data(Images::details::Create(filecontent, format, pixmap)) {
+	QImage &&data)
+: _data(Images::details::Create(filecontent, format, std::move(data))) {
 }
 
-ImagePtr::ImagePtr(const QPixmap &pixmap, QByteArray format)
-: _data(Images::details::Create(pixmap, format)) {
+ImagePtr::ImagePtr(QImage &&data, QByteArray format)
+: _data(Images::details::Create(std::move(data), format)) {
 }
 
 ImagePtr::ImagePtr(const StorageImageLocation &location, int32 size)

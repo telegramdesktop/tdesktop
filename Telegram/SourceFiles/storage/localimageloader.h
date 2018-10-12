@@ -214,7 +214,7 @@ struct FileLoadResult {
 	QString thumbname;
 	UploadFileParts thumbparts;
 	QByteArray thumbmd5;
-	QPixmap thumb;
+	QImage thumb;
 
 	MTPPhoto photo;
 	MTPDocument document;

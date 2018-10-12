@@ -126,7 +126,8 @@ ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 						origin,
 						w * st::msgReplyBarSize.height() / h,
 						st::msgReplyBarSize.height())
-					: image->pix(origin, st::msgReplyBarSize.height())),
+					: image->pix(origin, st::msgReplyBarSize.height())
+				).toImage(),
 				"PNG");
 		};
 		if (thumb->isDelayedStorageImage()

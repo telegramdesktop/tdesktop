@@ -294,7 +294,7 @@ using WebPageId = uint64;
 using GameId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
-using PreparedPhotoThumbs = QMap<char, QPixmap>;
+using PreparedPhotoThumbs = QMap<char, QImage>;
 
 // [0] == -1 -- counting, [0] == -2 -- could not count
 using VoiceWaveform = QVector<signed char>;

@@ -269,7 +269,7 @@ public:
 	not_null<DocumentData*> document(const MTPDdocument &data);
 	not_null<DocumentData*> document(
 		const MTPdocument &data,
-		const QPixmap &thumb);
+		QImage &&thumb);
 	not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
