@@ -34,8 +34,8 @@ constexpr auto kErrorCantWritePath = 851;
 
 constexpr auto kOriginalBits = 12;
 constexpr auto kIdSizeBits = 6;
-constexpr auto kColumnBits = 6;
-constexpr auto kRowBits = 6;
+constexpr auto kColumnBits = 5;
+constexpr auto kRowBits = 7;
 
 common::ProjectInfo Project = {
 	"codegen_emoji",
@@ -198,30 +198,40 @@ int Generator::generate() {
 	return 0;
 }
 
-constexpr auto kVariantsCount = 5;
-constexpr auto kEmojiInRow = 40;
+constexpr auto kEmojiInRow = 32;
+constexpr auto kEmojiRowsInFile = 16;
+constexpr auto kEmojiQuality = 99;
+constexpr auto kEmojiSize = 72;
+constexpr auto kEmojiFontSize = 72;
+constexpr auto kEmojiDelta = 67;
+constexpr auto kScaleFromLarge = true;
 
 #ifdef SUPPORT_IMAGE_GENERATION
-QImage Generator::generateImage(int variantIndex) {
-	constexpr int kEmojiSizes[kVariantsCount + 1] = { 18, 22, 27, 36, 45, 180 };
-	constexpr bool kBadSizes[kVariantsCount] = { true, true, false, false, false };
-	constexpr int kEmojiFontSizes[kVariantsCount + 1] = { 14, 20, 27, 36, 45, 180 };
-	constexpr int kEmojiDeltas[kVariantsCount + 1] = { 15, 20, 25, 34, 42, 167 };
+QImage Generator::generateImage(int imageIndex) {
+	constexpr auto kLargeEmojiSize = 180;
+	constexpr auto kLargeEmojiFontSize = 180;
+	constexpr auto kLargeEmojiDelta = 167;
 
-	auto emojiCount = data_.list.size();
+	auto emojiCount = int(data_.list.size());
 	auto columnsCount = kEmojiInRow;
-	auto rowsCount = (emojiCount / columnsCount) + ((emojiCount % columnsCount) ? 1 : 0);
+	auto fullRowsCount = (emojiCount / columnsCount) + ((emojiCount % columnsCount) ? 1 : 0);
+	auto imagesCount = (fullRowsCount / kEmojiRowsInFile) + ((fullRowsCount % kEmojiRowsInFile) ? 1 : 0);
 
-	auto emojiSize = kEmojiSizes[variantIndex];
-	auto isBad = kBadSizes[variantIndex];
-	auto sourceSize = (isBad ? kEmojiSizes[kVariantsCount] : emojiSize);
+	auto sourceSize = kScaleFromLarge ? kLargeEmojiSize : kEmojiSize;
 
 	auto font = QGuiApplication::font();
 	font.setFamily(QStringLiteral("Apple Color Emoji"));
-	font.setPixelSize(kEmojiFontSizes[isBad ? kVariantsCount : variantIndex]);
+	font.setPixelSize(kScaleFromLarge ? kLargeEmojiFontSize : kEmojiFontSize);
 
 	auto singleSize = 4 + sourceSize;
-	auto emojiImage = QImage(columnsCount * emojiSize, rowsCount * emojiSize, QImage::Format_ARGB32);
+	const auto inFileShift = (imageIndex * kEmojiInRow * kEmojiRowsInFile);
+	if (inFileShift >= emojiCount) {
+		return QImage();
+	}
+	const auto maxInFile = emojiCount - inFileShift;
+	const auto inFileCount = std::min(maxInFile, kEmojiInRow * kEmojiRowsInFile);
+	auto rowsCount = (inFileCount / columnsCount) + ((inFileCount % columnsCount) ? 1 : 0);
+	auto emojiImage = QImage(columnsCount * kEmojiSize, rowsCount * kEmojiSize, QImage::Format_ARGB32);
 	emojiImage.fill(Qt::transparent);
 	auto singleImage = QImage(singleSize, singleSize, QImage::Format_ARGB32);
 	{
@@ -230,22 +240,24 @@ QImage Generator::generateImage(int variantIndex) {
 
 		auto column = 0;
 		auto row = 0;
-		for (auto &emoji : data_.list) {
+		for (auto i = 0; i != inFileCount; ++i) {
+			auto &emoji = data_.list[inFileShift + i];
 			{
 				singleImage.fill(Qt::transparent);
 
 				QPainter q(&singleImage);
 				q.setPen(QColor(0, 0, 0, 255));
 				q.setFont(font);
-				q.drawText(2, 2 + kEmojiDeltas[isBad ? kVariantsCount : variantIndex], emoji.id);
+				const auto delta = kScaleFromLarge ? kLargeEmojiDelta : kEmojiDelta;
+				q.drawText(2, 2 + delta, emoji.id);
 			}
 			auto sourceRect = computeSourceRect(singleImage);
 			if (sourceRect.isEmpty()) {
 				return QImage();
 			}
-			auto targetRect = QRect(column * emojiSize, row * emojiSize, emojiSize, emojiSize);
-			if (isBad) {
-				p.drawImage(targetRect, singleImage.copy(sourceRect).scaled(emojiSize, emojiSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			auto targetRect = QRect(column * kEmojiSize, row * kEmojiSize, kEmojiSize, kEmojiSize);
+			if (kScaleFromLarge) {
+				p.drawImage(targetRect, singleImage.copy(sourceRect).scaled(kEmojiSize, kEmojiSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 			} else {
 				p.drawImage(targetRect, singleImage, sourceRect);
 			}
@@ -260,16 +272,19 @@ QImage Generator::generateImage(int variantIndex) {
 }
 
 bool Generator::writeImages() {
-	constexpr const char *variantPostfix[] = { "", "_125x", "_150x", "_200x", "_250x" };
-	for (auto variantIndex = 0; variantIndex != kVariantsCount; variantIndex++) {
-		auto image = generateImage(variantIndex);
-		auto postfix = variantPostfix[variantIndex];
+	auto imageIndex = 0;
+	while (true) {
+		auto image = generateImage(imageIndex);
+		if (image.isNull()) {
+			break;
+		}
+		auto postfix = '_' + QString::number(imageIndex + 1);
 		auto filename = spritePath_ + postfix + ".webp";
 		auto bytes = QByteArray();
 		{
 			QBuffer buffer(&bytes);
-			if (!image.save(&buffer, "WEBP", (variantIndex < 3) ? 100 : 99)) {
-				logDataError() << "Could not save 'emoji" << postfix << ".webp'.";
+			if (!image.save(&buffer, "WEBP", kEmojiQuality)) {
+				logDataError() << "Could not save 'emoji" << postfix.toStdString() << ".webp'.";
 				return false;
 			}
 		}
@@ -288,15 +303,16 @@ bool Generator::writeImages() {
         if (needResave) {
 			QFile file(filename);
 			if (!file.open(QIODevice::WriteOnly)) {
-				logDataError() << "Could not open 'emoji" << postfix << ".png'.";
+				logDataError() << "Could not open 'emoji" << postfix.toStdString() << ".webp'.";
 				return false;
 			} else {
 				if (file.write(bytes) != bytes.size()) {
-					logDataError() << "Could not write 'emoji" << postfix << ".png'.";
+					logDataError() << "Could not write 'emoji" << postfix.toStdString() << ".webp'.";
 					return false;
 				}
 			}
 		}
+		++imageIndex;
 	}
 	return true;
 }

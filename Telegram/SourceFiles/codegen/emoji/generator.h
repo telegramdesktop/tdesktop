@@ -30,7 +30,7 @@ public:
 
 private:
 #ifdef SUPPORT_IMAGE_GENERATION
-	QImage generateImage(int variantIndex);
+	QImage generateImage(int imageIndex);
 	bool writeImages();
 #endif // SUPPORT_IMAGE_GENERATION
 
