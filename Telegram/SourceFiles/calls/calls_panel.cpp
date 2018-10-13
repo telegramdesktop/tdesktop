@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/empty_userpic.h"
+#include "ui/emoji_config.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
@@ -725,12 +726,12 @@ void Panel::paintEvent(QPaintEvent *e) {
 	if (!_fingerprint.empty()) {
 		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Small);
 
-		auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-		auto size = realSize / cIntRetinaFactor();
+		const auto realSize = Ui::Emoji::GetSizeLarge();
+		const auto size = realSize / cIntRetinaFactor();
 		auto left = _fingerprintArea.left() + st::callFingerprintPadding.left();
-		auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
-		for (auto emoji : _fingerprint) {
-			p.drawPixmap(QPoint(left, top), App::emojiLarge(), QRect(emoji->x() * realSize, emoji->y() * realSize, realSize, realSize));
+		const auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
+		for (const auto emoji : _fingerprint) {
+			Ui::Emoji::Draw(p, emoji, realSize, left, top);
 			left += st::callFingerprintSkip + size;
 		}
 	}
@@ -868,7 +869,7 @@ void Panel::fillFingerprint() {
 	Expects(_call != nullptr);
 	_fingerprint = ComputeEmojiFingerprint(_call);
 
-	auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
+	auto realSize = Ui::Emoji::GetSizeLarge();
 	auto size = realSize / cIntRetinaFactor();
 	auto count = _fingerprint.size();
 	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;

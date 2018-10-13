@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
 #include "ui/widgets/shadow.h"
+#include "ui/emoji_config.h"
 #include "window/window_main_menu.h"
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"
@@ -834,7 +835,7 @@ LayerStackWidget::~LayerStackWidget() {
 
 MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)
-, _emojiSize(Ui::Emoji::Size(Ui::Emoji::Index() + 1) / cIntRetinaFactor()) {
+, _emojiSize(Ui::Emoji::GetSizeLarge() / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 }
@@ -860,12 +861,17 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(r, st::stickerPreviewBg);
 	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
 	if (!_emojiList.empty()) {
-		auto emojiCount = _emojiList.size();
-		auto emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
+		const auto emojiCount = _emojiList.size();
+		const auto emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
 		auto emojiLeft = (width() - emojiWidth) / 2;
-		auto esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-		for (auto emoji : _emojiList) {
-			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - (_emojiSize * 2), width(), App::emojiLarge(), QRect(emoji->x() * esize, emoji->y() * esize, esize, esize));
+		const auto esize = Ui::Emoji::GetSizeLarge();
+		for (const auto emoji : _emojiList) {
+			Ui::Emoji::Draw(
+				p,
+				emoji,
+				esize,
+				emojiLeft,
+				(height() - h) / 2 - (_emojiSize * 2));
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
 	}

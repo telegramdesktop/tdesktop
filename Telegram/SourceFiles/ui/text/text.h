@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/click_handler.h"
 #include "ui/text/text_entity.h"
-#include "ui/emoji_config.h"
 #include "base/flags.h"
 
 static const QChar TextCommand(0x0010);
@@ -376,5 +375,3 @@ inline bool chIsParagraphSeparator(QChar ch) {
 	}
 	return false;
 }
-
-void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);

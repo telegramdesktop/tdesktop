@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"

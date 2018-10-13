@@ -186,9 +186,6 @@ namespace App {
 	void clearMousedItems();
 
 	const style::font &monofont();
-	const QPixmap &emoji();
-	const QPixmap &emojiLarge();
-	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
 
 	void clearHistories();
 

@@ -10,6 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/tooltip.h"
 
+namespace Ui {
+namespace Emoji {
+enum class Section;
+} // namespace Emoji
+} // namespace Ui
+
 namespace Window {
 class Controller;
 } // namespace Window

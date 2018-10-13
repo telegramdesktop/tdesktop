@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/popup_menu.h"
 #include "ui/countryinput.h"
+#include "ui/emoji_config.h"
 #include "emoji_suggestions_data.h"
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "window/themes/window_theme.h"
@@ -529,7 +530,8 @@ QString AccumulateText(Iterator begin, Iterator end) {
 
 QTextImageFormat PrepareEmojiFormat(EmojiPtr emoji, const QFont &font) {
 	const auto factor = cIntRetinaFactor();
-	const auto width = Ui::Emoji::Size() + st::emojiPadding * factor * 2;
+	const auto width = Ui::Emoji::GetSizeNormal()
+		+ st::emojiPadding * factor * 2;
 	const auto height = QFontMetrics(font).height() * factor;
 	auto result = QTextImageFormat();
 	result.setWidth(width / factor);
@@ -1236,7 +1238,7 @@ bool InputField::viewportEventInner(QEvent *e) {
 QVariant InputField::loadResource(int type, const QUrl &name) {
 	const auto imageName = name.toDisplayString();
 	if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
-		return QVariant(App::emojiSingle(emoji, _st.font->height));
+		return QVariant(Ui::Emoji::SinglePixmap(emoji, _st.font->height));
 	}
 	return _inner->QTextEdit::loadResource(type, name);
 }

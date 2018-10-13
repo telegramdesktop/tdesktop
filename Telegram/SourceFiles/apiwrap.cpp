@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"

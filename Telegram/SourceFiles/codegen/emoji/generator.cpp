@@ -321,7 +321,7 @@ bool Generator::writeImages() {
 bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(outputPath_ + ".cpp", project_);
 
-	source_->include("emoji_suggestions_data.h").newline();
+	source_->include("emoji_suggestions_data.h").include("ui/emoji_config.h").newline();
 	source_->pushNamespace("Ui").pushNamespace("Emoji").pushNamespace();
 	source_->stream() << "\
 \n\
@@ -341,6 +341,10 @@ std::vector<One> Items;\n\
 	}
 	source_->popNamespace().newline().pushNamespace("internal");
 	source_->stream() << "\
+\n\
+int FullCount() {\n\
+	return Items.size();\n\
+}\n\
 \n\
 EmojiPtr ByIndex(int index) {\n\
 	return (index >= 0 && index < Items.size()) ? &Items[index] : nullptr;\n\
@@ -370,7 +374,13 @@ void Init() {\n\
 \n\
 	Items.reserve(base::array_size(Data));\n\
 	for (auto &data : Data) {\n\
-		Items.emplace_back(takeString(data.idSize), uint16(data.column), uint16(data.row), bool(data.postfixed), bool(data.variated), data.original ? &Items[data.original - 1] : nullptr, One::CreationTag());\n\
+		Items.emplace_back(\n\
+			takeString(data.idSize),\n\
+			data.original ? &Items[data.original - 1] : nullptr,\n\
+			uint32(Items.size()),\n\
+			data.postfixed ? true : false,\n\
+			data.variated ? true : false,\n\
+			One::CreationTag());\n\
 	}\n\
 	InitReplacements();\n\
 }\n\
@@ -391,6 +401,7 @@ bool Generator::writeHeader() {
 \n\
 void Init();\n\
 \n\
+int FullCount();\n\
 EmojiPtr ByIndex(int index);\n\
 \n\
 EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr);\n\
@@ -414,6 +425,8 @@ EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr
 \n";
 	header->popNamespace().stream() << "\
 \n\
+constexpr auto kPostfix = static_cast<ushort>(0xFE0F);\n\
+\n\
 enum class Section {\n\
 	Recent,\n\
 	People,\n\
@@ -425,8 +438,6 @@ enum class Section {\n\
 	Symbols,\n\
 };\n\
 \n\
-int Index();\n\
-\n\
 int GetSectionCount(Section section);\n\
 EmojiPack GetSection(Section section);\n\
 \n";
@@ -435,13 +446,11 @@ EmojiPack GetSection(Section section);\n\
 
 template <typename Callback>
 bool Generator::enumerateWholeList(Callback callback) {
-	auto column = 0;
-	auto row = 0;
 	auto index = 0;
 	auto variated = -1;
 	auto coloredCount = 0;
 	for (auto &item : data_.list) {
-		if (!callback(item.id, column, row, item.postfixed, item.variated, item.colored, variated)) {
+		if (!callback(item.id, item.postfixed, item.variated, item.colored, variated)) {
 			return false;
 		}
 		if (coloredCount > 0 && (item.variated || !item.colored)) {
@@ -464,10 +473,6 @@ bool Generator::enumerateWholeList(Callback callback) {
 		} else if (variated >= 0) {
 			variated = -1;
 		}
-		if (++column == kEmojiInRow) {
-			column = 0;
-			++row;
-		}
 		++index;
 	}
 	return true;
@@ -476,17 +481,15 @@ bool Generator::enumerateWholeList(Callback callback) {
 bool Generator::writeInitCode() {
 	source_->stream() << "\
 struct DataStruct {\n\
-	ushort original : " << kOriginalBits << ";\n\
-	uchar idSize : " << kIdSizeBits << ";\n\
-	uchar column : " << kColumnBits << ";\n\
-	uchar row : " << kRowBits << ";\n\
-	bool postfixed : 1;\n\
-	bool variated : 1;\n\
+	uint32 original : " << kOriginalBits << ";\n\
+	uint32 idSize : " << kIdSizeBits << ";\n\
+	uint32 postfixed : 1;\n\
+	uint32 variated : 1;\n\
 };\n\
 \n\
 const ushort IdData[] = {";
 	startBinary();
-	if (!enumerateWholeList([this](Id id, int column, int row, bool isPostfixed, bool isVariated, bool isColored, int original) {
+	if (!enumerateWholeList([this](Id id, bool isPostfixed, bool isVariated, bool isColored, int original) {
 		return writeStringBinary(source_.get(), id);
 	})) {
 		return false;
@@ -498,7 +501,7 @@ const ushort IdData[] = {";
 	source_->stream() << " };\n\
 \n\
 const DataStruct Data[] = {\n";
-	if (!enumerateWholeList([this](Id id, int column, int row, bool isPostfixed, bool isVariated, bool isColored, int original) {
+	if (!enumerateWholeList([this](Id id, bool isPostfixed, bool isVariated, bool isColored, int original) {
 		if (original + 1 >= (1 << kOriginalBits)) {
 			logDataError() << "Too many entries.";
 			return false;
@@ -507,12 +510,8 @@ const DataStruct Data[] = {\n";
 			logDataError() << "Too large id.";
 			return false;
 		}
-		if (column >= (1 << kColumnBits) || row >= (1 << kRowBits)) {
-			logDataError() << "Bad row-column.";
-			return false;
-		}
 		source_->stream() << "\
-	{ ushort(" << (isColored ? (original + 1) : 0) << "), uchar(" << id.size() << "), uchar(" << column << "), uchar(" << row << "), " << (isPostfixed ? "true" : "false") << ", " << (isVariated ? "true" : "false") << " },\n";
+	{ uint32(" << (isColored ? (original + 1) : 0) << "), uint32(" << id.size() << "), uint32(" << (isPostfixed ? "1" : "0") << "), uint32(" << (isVariated ? "1" : "0") << ") },\n";
 		return true;
 	})) {
 		return false;

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
+#include "ui/emoji_config.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {

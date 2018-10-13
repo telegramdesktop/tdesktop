@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "ui/toast/toast.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"

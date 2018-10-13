@@ -77,7 +77,6 @@ namespace {
 		*pressedLinkItem = nullptr,
 		*mousedItem = nullptr;
 
-	QPixmap *emoji = nullptr, *emojiLarge = nullptr;
 	style::font monofont;
 
 	struct CornersPixmaps {
@@ -87,10 +86,6 @@ namespace {
 	using CornersMap = QMap<uint32, CornersPixmaps>;
 	CornersMap cornersMap;
 	QImage cornersMaskLarge[4], cornersMaskSmall[4];
-
-	using EmojiImagesMap = QMap<int, QPixmap>;
-	EmojiImagesMap MainEmojiMap;
-	QMap<int, EmojiImagesMap> OtherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -1440,15 +1435,6 @@ namespace App {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
-		Ui::Emoji::Init();
-		if (!::emoji) {
-			::emoji = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index()));
-            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
-		}
-		if (!::emojiLarge) {
-			::emojiLarge = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index() + 1));
-			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
-		}
 
 		createCorners();
 
@@ -1491,15 +1477,7 @@ namespace App {
 	}
 
 	void deinitMedia() {
-		delete ::emoji;
-		::emoji = nullptr;
-		delete ::emojiLarge;
-		::emojiLarge = nullptr;
-
 		clearCorners();
-
-		MainEmojiMap.clear();
-		OtherEmojiMap.clear();
 
 		Data::clearGlobalStructures();
 
@@ -1556,30 +1534,6 @@ namespace App {
 
 	const style::font &monofont() {
 		return ::monofont;
-	}
-
-	const QPixmap &emoji() {
-		return *::emoji;
-	}
-
-	const QPixmap &emojiLarge() {
-		return *::emojiLarge;
-	}
-
-	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		auto &map = (fontHeight == st::msgFont->height) ? MainEmojiMap : OtherEmojiMap[fontHeight];
-		auto i = map.constFind(emoji->index());
-		if (i == map.cend()) {
-			auto image = QImage(Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-            if (cRetina()) image.setDevicePixelRatio(cRetinaFactor());
-			image.fill(Qt::transparent);
-			{
-				QPainter p(&image);
-				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - Ui::Emoji::Size()) / 2);
-			}
-			i = map.insert(emoji->index(), App::pixmapFromImageInPlace(std::move(image)));
-		}
-		return i.value();
 	}
 
 	void checkImageCacheSize() {

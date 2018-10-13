@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "emoji_config.h"
 
 #include "chat_helpers/emoji_suggestions_helper.h"
+#include "base/bytes.h"
+#include "base/openssl_help.h"
 #include "auth_session.h"
 
 namespace Ui {
@@ -18,8 +20,210 @@ namespace Emoji {
 namespace {
 
 constexpr auto kSaveRecentEmojiTimeout = 3000;
+constexpr auto kUniversalSize = 72;
+constexpr auto kImagesPerRow = 32;
+constexpr auto kImageRowsPerSprite = 16;
 
-auto WorkingIndex = -1;
+constexpr auto kVersion = 1;
+
+class UniversalImages {
+public:
+	void ensureLoaded();
+	void clear();
+
+	void draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) const;
+
+	QImage generate(int size, int index) const;
+
+private:
+	std::vector<QImage> _sprites;
+
+};
+
+auto Scale = -1.;
+auto SizeNormal = -1;
+auto SizeLarge = -1;
+auto SpritesCount = -1;
+
+std::unique_ptr<Instance> InstanceNormal;
+std::unique_ptr<Instance> InstanceLarge;
+UniversalImages Universal;
+
+std::map<int, QPixmap> MainEmojiMap;
+std::map<int, std::map<int, QPixmap>> OtherEmojiMap;
+
+int RowsCount(int index) {
+	if (index + 1 < SpritesCount) {
+		return kImageRowsPerSprite;
+	}
+	const auto count = internal::FullCount()
+		- (index * kImagesPerRow * kImageRowsPerSprite);
+	return (count / kImagesPerRow)
+		+ ((count % kImagesPerRow) ? 1 : 0);
+}
+
+QString CacheFileFolder() {
+	return cWorkingDir() + "tdata/emoji";
+}
+
+QString CacheFilePath(int size, int index) {
+	return CacheFileFolder()
+		+ "/cache_"
+		+ QString::number(size)
+		+ '_'
+		+ QString::number(index);
+}
+
+void SaveToFile(const QImage &image, int size, int index) {
+	Expects(image.bytesPerLine() == image.width() * 4);
+
+	QFile f(CacheFilePath(size, index));
+	if (!f.open(QIODevice::WriteOnly)) {
+		if (!QDir::current().mkpath(CacheFileFolder())
+			|| !f.open(QIODevice::WriteOnly)) {
+			LOG(("App Error: Could not open emoji cache '%1' for size %2_%3"
+				).arg(f.fileName()
+				).arg(size
+				).arg(index));
+			return;
+		}
+	}
+	const auto write = [&](bytes::const_span data) {
+		return f.write(
+			reinterpret_cast<const char*>(data.data()),
+			data.size()
+		) == data.size();
+	};
+	const uint32 header[] = {
+		uint32(kVersion),
+		uint32(size),
+		uint32(image.width()),
+		uint32(image.height()),
+	};
+	const auto data = bytes::const_span(
+		reinterpret_cast<const bytes::type*>(image.bits()),
+		image.width() * image.height() * 4);
+	if (!write(bytes::make_span(header))
+		|| !write(data)
+		|| !write(openssl::Sha256(bytes::make_span(header), data))
+		|| false) {
+		LOG(("App Error: Could not write emoji cache '%1' for size %2"
+			).arg(f.fileName()
+			).arg(size));
+	}
+}
+
+QImage LoadFromFile(int size, int index) {
+	const auto rows = RowsCount(index);
+	const auto width = kImagesPerRow * size;
+	const auto height = rows * size;
+	const auto fileSize = 4 * sizeof(uint32)
+		+ (width * height * 4)
+		+ openssl::kSha256Size;
+	QFile f(CacheFilePath(size, index));
+	if (!f.exists()
+		|| f.size() != fileSize
+		|| !f.open(QIODevice::ReadOnly)) {
+		return QImage();
+	}
+	const auto read = [&](bytes::span data) {
+		return f.read(
+			reinterpret_cast<char*>(data.data()),
+			data.size()
+		) == data.size();
+	};
+	uint32 header[4] = { 0 };
+	if (!read(bytes::make_span(header))
+		|| header[0] != kVersion
+		|| header[1] != size
+		|| header[2] != width
+		|| header[3] != height) {
+		return QImage();
+	}
+	auto result = QImage(
+		width,
+		height,
+		QImage::Format_ARGB32_Premultiplied);
+	Assert(result.bytesPerLine() == width * 4);
+	auto data = bytes::make_span(
+		reinterpret_cast<bytes::type*>(result.bits()),
+		width * height * 4);
+	bytes::type signature[openssl::kSha256Size] = { bytes::type() };
+	if (!read(data)
+		|| !read(signature)
+		|| (bytes::compare(
+			signature,
+			openssl::Sha256(bytes::make_span(header), data)) != 0)
+		|| false) {
+		return QImage();
+	}
+	return result;
+}
+
+void UniversalImages::ensureLoaded() {
+	Expects(SpritesCount > 0);
+
+	if (!_sprites.empty()) {
+		return;
+	}
+	_sprites.reserve(SpritesCount);
+	const auto base = qsl(":/gui/emoji/emoji_");
+	for (auto i = 0; i != SpritesCount; ++i) {
+		auto image = QImage();
+		image.load(base + QString::number(i + 1) + ".webp", "WEBP");
+		_sprites.push_back(std::move(image));
+	}
+}
+
+void UniversalImages::clear() {
+	_sprites.clear();
+}
+
+void UniversalImages::draw(
+		QPainter &p,
+		EmojiPtr emoji,
+		int size,
+		int x,
+		int y) const {
+	Expects(emoji->sprite() < _sprites.size());
+
+	const auto factored = (size / p.device()->devicePixelRatio());
+	const auto large = kUniversalSize;
+
+	PainterHighQualityEnabler hq(p);
+	p.drawImage(
+		QRect(x, y, factored, factored),
+		_sprites[emoji->sprite()],
+		QRect(emoji->column() * large, emoji->row() * large, large, large));
+}
+
+QImage UniversalImages::generate(int size, int index) const {
+	Expects(size > 0);
+	Expects(index < _sprites.size());
+
+	const auto rows = RowsCount(index);
+	const auto large = kUniversalSize;
+	const auto &original = _sprites[index];
+	auto result = QImage(
+		size * kImagesPerRow,
+		size * rows,
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	{
+		QPainter p(&result);
+		PainterHighQualityEnabler hq(p);
+		for (auto y = 0; y != rows; ++y) {
+			for (auto x = 0; x != kImagesPerRow; ++x) {
+				p.drawImage(
+					QRect(x * size, y * size, size, size),
+					original,
+					QRect(x * large, y * large, large, large));
+			}
+		}
+	}
+	SaveToFile(result, size, index);
+	return result;
+}
 
 void AppendPartToResult(TextWithEntities &result, const QChar *start, const QChar *from, const QChar *to) {
 	if (to <= from) {
@@ -62,23 +266,65 @@ EmojiPtr FindReplacement(const QChar *start, const QChar *end, int *outLength) {
 	return internal::FindReplace(start, end, outLength);
 }
 
+void ClearUniversalChecked() {
+	Expects(InstanceNormal != nullptr && InstanceLarge != nullptr);
+
+	if (InstanceNormal->cached() && InstanceLarge->cached()) {
+		Universal.clear();
+	}
+}
+
 } // namespace
 
 void Init() {
-	auto scaleForEmoji = cRetina() ? dbisTwo : cScale();
-
-	switch (scaleForEmoji) {
-	case dbisOne: WorkingIndex = 0; break;
-	case dbisOneAndQuarter: WorkingIndex = 1; break;
-	case dbisOneAndHalf: WorkingIndex = 2; break;
-	case dbisTwo: WorkingIndex = 3; break;
-	};
-
 	internal::Init();
+
+	Scale = [] {
+		if (cRetina()) {
+			return 2.;
+		}
+		switch (cScale()) {
+		case dbisOne: return 1.;
+		case dbisOneAndQuarter: return 1.25;
+		case dbisOneAndHalf: return 1.5;
+		case dbisTwo: return 2.;
+		}
+		Unexpected("cScale() in Ui::Emoji::Init.");
+	}();
+	SizeNormal = int(std::round(Scale * 18));
+	SizeLarge = int(std::round(Scale * 18 * 4 / 3.));
+	const auto count = internal::FullCount();
+	const auto persprite = kImagesPerRow * kImageRowsPerSprite;
+	SpritesCount = (count / persprite) + ((count % persprite) ? 1 : 0);
+
+	InstanceNormal = std::make_unique<Instance>(SizeNormal);
+	InstanceLarge = std::make_unique<Instance>(SizeLarge);
 }
 
-int Index() {
-	return WorkingIndex;
+void Clear() {
+	MainEmojiMap.clear();
+	OtherEmojiMap.clear();
+
+	InstanceNormal = nullptr;
+	InstanceLarge = nullptr;
+}
+
+int GetSizeNormal() {
+	Expects(SizeNormal > 0);
+
+	return SizeNormal;
+}
+
+int GetSizeLarge() {
+	Expects(SizeLarge > 0);
+
+	return SizeLarge;
+}
+
+float64 GetScale() {
+	Expects(Scale > 0.);
+
+	return Scale;
 }
 
 int One::variantsCount() const {
@@ -91,10 +337,6 @@ int One::variantIndex(EmojiPtr variant) const {
 
 EmojiPtr One::variant(int index) const {
 	return (index >= 0 && index <= variantsCount()) ? (original() + index) : this;
-}
-
-int One::index() const {
-	return (this - internal::ByIndex(0));
 }
 
 QString IdFromOldKey(uint64 oldKey) {
@@ -304,6 +546,111 @@ void AddRecent(EmojiPtr emoji) {
 			}
 			qSwap(*i, *(i - 1));
 		}
+	}
+}
+
+const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
+	auto &map = (fontHeight == st::msgFont->height)
+		? MainEmojiMap
+		: OtherEmojiMap[fontHeight];
+	auto i = map.find(emoji->index());
+	if (i == end(map)) {
+		auto image = QImage(
+			SizeNormal + st::emojiPadding * cIntRetinaFactor() * 2,
+			fontHeight * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
+		if (cRetina()) {
+			image.setDevicePixelRatio(cRetinaFactor());
+		}
+		image.fill(Qt::transparent);
+		{
+			QPainter p(&image);
+			Draw(
+				p,
+				emoji,
+				SizeNormal,
+				st::emojiPadding * cIntRetinaFactor(),
+				(fontHeight * cIntRetinaFactor() - SizeNormal) / 2);
+		}
+		i = map.emplace(
+			emoji->index(),
+			App::pixmapFromImageInPlace(std::move(image))).first;
+	}
+	return i->second;
+}
+
+void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) {
+	if (size == SizeNormal) {
+		InstanceNormal->draw(p, emoji, x, y);
+	} else if (size == SizeLarge) {
+		InstanceLarge->draw(p, emoji, x, y);
+	} else {
+		Unexpected("Size in Ui::Emoji::Draw.");
+	}
+}
+
+Instance::Instance(int size) : _size(size) {
+	readCache();
+	if (!cached()) {
+		Universal.ensureLoaded();
+		generateCache();
+	}
+}
+
+bool Instance::cached() const {
+	return (_sprites.size() == SpritesCount);
+}
+
+void Instance::draw(QPainter &p, EmojiPtr emoji, int x, int y) {
+	const auto sprite = emoji->sprite();
+	if (sprite >= _sprites.size()) {
+		Universal.draw(p, emoji, _size, x, y);
+		return;
+	}
+	p.drawPixmap(
+		QPoint(x, y),
+		_sprites[sprite],
+		QRect(emoji->column() * _size, emoji->row() * _size, _size, _size));
+}
+
+void Instance::readCache() {
+	for (auto i = 0; i != SpritesCount; ++i) {
+		auto image = LoadFromFile(_size, i);
+		if (image.isNull()) {
+			return;
+		}
+		pushSprite(std::move(image));
+	}
+}
+
+void Instance::generateCache() {
+	const auto size = _size;
+	const auto index = _sprites.size();
+	auto [left, right] = base::make_binary_guard();
+	_generating = std::move(left);
+	crl::async([=, guard = std::move(right)]() mutable {
+		crl::on_main([
+			this,
+			image = Universal.generate(size, index),
+			guard = std::move(guard)
+		]() mutable {
+			if (!guard.alive()) {
+				return;
+			}
+			pushSprite(std::move(image));
+			if (cached()) {
+				ClearUniversalChecked();
+			} else {
+				generateCache();
+			}
+		});
+	});
+}
+
+void Instance::pushSprite(QImage &&data) {
+	_sprites.push_back(App::pixmapFromImageInPlace(std::move(data)));
+	if (cRetina()) {
+		_sprites.back().setDevicePixelRatio(cRetinaFactor());
 	}
 }
 

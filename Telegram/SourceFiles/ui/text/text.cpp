@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/crash_reports.h"
 #include "ui/text/text_block.h"
+#include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
 #include "boxes/confirm_box.h"
@@ -1441,7 +1442,12 @@ private:
 							}
 						}
 					}
-					emojiDraw(*_p, static_cast<EmojiBlock*>(currentBlock)->emoji, (glyphX + st::emojiPadding).toInt(), _y + _yDelta + emojiY);
+					Ui::Emoji::Draw(
+						*_p,
+						static_cast<EmojiBlock*>(currentBlock)->emoji,
+						Ui::Emoji::GetSizeNormal(),
+						(glyphX + st::emojiPadding).toInt(),
+						_y + _yDelta + emojiY);
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
 //					_p->fillRect(QRect(x.toInt(), _y, currentBlock->width(), static_cast<SkipBlock*>(currentBlock)->height()), QColor(0, 0, 0, 32));
 				}
@@ -3124,8 +3130,3 @@ void Text::clearFields() {
 }
 
 Text::~Text() = default;
-
-void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
-	auto size = Ui::Emoji::Size();
-	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x() * size, e->y() * size, size, size));
-}

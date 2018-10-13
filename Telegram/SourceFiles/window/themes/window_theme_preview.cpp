@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_preview.h"
 
 #include "window/themes/window_theme.h"
+#include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_window_title.h"
 #include "ui/text_options.h"

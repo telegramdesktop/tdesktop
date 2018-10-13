@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 

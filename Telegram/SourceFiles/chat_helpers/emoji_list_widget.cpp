@@ -8,12 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 
 #include "ui/widgets/buttons.h"
-#include "styles/style_chat_helpers.h"
 #include "ui/widgets/shadow.h"
+#include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
 #include "facades.h"
+#include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
 
@@ -319,18 +320,26 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 		if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
 		App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
 	}
-	auto esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-	p.drawPixmapLeft(w.x() + (_singleSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (_singleSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x() * esize, _variants[variant]->y() * esize, esize, esize));
+	const auto esize = Ui::Emoji::GetSizeLarge();
+	Ui::Emoji::Draw(
+		p,
+		_variants[variant],
+		esize,
+		w.x() + (_singleSize.width() - (esize / cIntRetinaFactor())) / 2,
+		w.y() + (_singleSize.height() - (esize / cIntRetinaFactor())) / 2);
 }
 
-EmojiListWidget::EmojiListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
+EmojiListWidget::EmojiListWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: Inner(parent, controller)
 , _picker(this) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_picker->hide();
 
-	_esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
+	_esize = Ui::Emoji::GetSizeLarge();
 
 	for (auto i = 0; i != kEmojiSectionCount; ++i) {
 		_counts[i] = Ui::Emoji::GetSectionCount(static_cast<Section>(i));
@@ -482,10 +491,12 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 						if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
 						App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
 					}
-					auto sourceRect = QRect(_emoji[info.section][index]->x() * _esize, _emoji[info.section][index]->y() * _esize, _esize, _esize);
-					auto imageLeft = w.x() + (_singleSize.width() - (_esize / cIntRetinaFactor())) / 2;
-					auto imageTop = w.y() + (_singleSize.height() - (_esize / cIntRetinaFactor())) / 2;
-					p.drawPixmapLeft(imageLeft, imageTop, width(), App::emojiLarge(), sourceRect);
+					Ui::Emoji::Draw(
+						p,
+						_emoji[info.section][index],
+						_esize,
+						w.x() + (_singleSize.width() - (_esize / cIntRetinaFactor())) / 2,
+						w.y() + (_singleSize.height() - (_esize / cIntRetinaFactor())) / 2);
 				}
 			}
 		}
