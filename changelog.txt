@@ -1,3 +1,7 @@
+1.4.3 (13.10.18)
+
+- Bug fixes and other minor improvements.
+
 1.4.2 (10.10.18)
 
 - Crash fix.
