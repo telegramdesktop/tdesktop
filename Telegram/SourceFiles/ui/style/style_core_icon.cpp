@@ -30,9 +30,7 @@ QImage createIconMask(const IconMask *mask, int scale) {
 	// images are layouted like this:
 	// 100x 200x
 	// 300x
-	if (cRetina()) {
-		scale *= 2;
-	}
+	scale *= cIntRetinaFactor();
 	const auto width = maskImage.width() / 3;
 	const auto height = maskImage.height() / 5;
 	const auto one = QRect(0, 0, width, height);

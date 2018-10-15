@@ -1121,8 +1121,6 @@ bool Generator::writePxValuesInit() {
 	}
 	source_->stream() << "\
 void initPxValues() {\n\
-	if (cRetina()) return;\n\
-\n\
 	const auto scale = cScale();\n";
 	for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
 		auto value = it.key();

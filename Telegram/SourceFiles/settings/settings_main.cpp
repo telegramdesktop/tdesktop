@@ -98,7 +98,7 @@ void SetupSections(
 }
 
 bool HasInterfaceScale() {
-	return !cRetina();
+	return true;
 }
 
 void SetupInterfaceScale(
@@ -125,7 +125,9 @@ void SetupInterfaceScale(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
 		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
 
-	static const auto ScaleValues = { 100, 125, 150, 200, 300 };
+	static const auto ScaleValues = (cIntRetinaFactor() > 1)
+		? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
+		: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
 	const auto sectionFromScale = [](int scale) {
 		auto result = 0;
 		for (const auto value : ScaleValues) {
@@ -182,10 +184,22 @@ void SetupInterfaceScale(
 			if (scale != cScale()) {
 				scale = cScale();
 			} else {
-				scale -= 25;
-				if (scale < 100) {
-					scale = 125;
+				auto selected = 0;
+				for (const auto possible : ScaleValues) {
+					if (possible == scale) {
+						if (selected) {
+							break;
+						} else {
+							selected = -1;
+						}
+					} else if (selected == -1) {
+						selected = possible;
+						break;
+					} else {
+						selected = possible;
+					}
 				}
+				scale = selected;
 			}
 		}
 		(*setScale)(scale);

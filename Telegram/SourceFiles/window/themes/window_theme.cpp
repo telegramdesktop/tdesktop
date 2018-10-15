@@ -409,10 +409,9 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 	} else {
 		if (_id == kInitialBackground) {
 			image.load(qsl(":/gui/art/bg_initial.jpg"));
-			if (cRetina()) {
-				image = image.scaledToWidth(image.width() * 2, Qt::SmoothTransformation);
-			} else if (cScale() != 100) {
-				image = image.scaledToWidth(ConvertScale(image.width()), Qt::SmoothTransformation);
+			const auto scale = cScale() * cIntRetinaFactor();
+			if (scale != 100) {
+				image = image.scaledToWidth(ConvertScale(image.width(), scale), Qt::SmoothTransformation);
 			}
 		} else if (_id == kDefaultBackground || image.isNull()) {
 			_id = kDefaultBackground;

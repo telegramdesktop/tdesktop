@@ -65,7 +65,6 @@ bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;
 TimeMs gPasscodeLastTry = 0;
 
-bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 

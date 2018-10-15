@@ -948,7 +948,7 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 		currentInt = *lastLineInts;
 		++maxSize;
 	}
-	if (cRetina() && (maxSize % cIntRetinaFactor())) {
+	if (maxSize % cIntRetinaFactor()) {
 		maxSize -= (maxSize % cIntRetinaFactor());
 	}
 	auto size = maxSize / cIntRetinaFactor();

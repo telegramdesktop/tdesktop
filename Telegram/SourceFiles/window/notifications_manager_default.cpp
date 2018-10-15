@@ -645,7 +645,7 @@ void Notification::updateNotifyDisplay() {
 
 	int32 w = width(), h = height();
 	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
+	img.setDevicePixelRatio(cRetinaFactor());
 	img.fill(st::notificationBg->c);
 
 	{

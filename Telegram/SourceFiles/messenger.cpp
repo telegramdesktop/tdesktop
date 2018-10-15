@@ -108,11 +108,6 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 		return;
 	}
 
-	if (cRetina()) {
-		cSetConfigScale(100);
-		cSetRealScale(100);
-	}
-
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 

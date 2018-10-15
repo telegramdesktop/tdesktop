@@ -1701,7 +1701,7 @@ void MediaView::initAnimation() {
 		auto w = _doc->dimensions.width();
 		auto h = _doc->dimensions.height();
 		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
@@ -1717,7 +1717,7 @@ void MediaView::createClipReader() {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
 		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
@@ -1985,17 +1985,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->full->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current.setDevicePixelRatio(cRetinaFactor());
 			_full = 1;
 		} else if (_full < 0 && _photo->medium->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->medium->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth | Images::Option::Blurred);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current.setDevicePixelRatio(cRetinaFactor());
 			_full = 0;
 		} else if (_current.isNull() && _photo->thumb->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->thumb->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth | Images::Option::Blurred);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current.setDevicePixelRatio(cRetinaFactor());
 		} else if (_current.isNull()) {
 			_current = _photo->thumb->pix(fileOrigin());
 		}

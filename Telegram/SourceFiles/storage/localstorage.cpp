@@ -1370,11 +1370,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		const auto s = [&] {
-			if (cRetina()) {
-				return 100;
-			}
-
+		SetScaleChecked([&] {
 			constexpr auto kAuto = 0;
 			constexpr auto kOne = 1;
 			constexpr auto kOneAndQuarter = 2;
@@ -1388,9 +1384,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			case kTwo: return 200;
 			}
 			return cRealScale();
-		}();
-		cSetConfigScale(s);
-		cSetRealScale(s);
+		}());
 	} break;
 
 	case dbiScalePercent: {
@@ -1398,10 +1392,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		if (!v || (v >= 100 && v <= (cRetina() ? 150 : 300) && !(v % 25))) {
-			cSetConfigScale(v);
-			cSetRealScale(v);
-		}
+		SetScaleChecked(v);
 	} break;
 
 	case dbiLangOld: {

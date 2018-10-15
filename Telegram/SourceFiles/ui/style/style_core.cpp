@@ -47,8 +47,10 @@ void unregisterModule(ModuleBase *module) {
 } // namespace internal
 
 void startManager() {
-	if (cRetina()) {
-		cSetRealScale(100);
+	if ((cIntRetinaFactor() * cConfigScale() > kInterfaceScaleMax)
+		|| (cIntRetinaFactor() * cRealScale() > kInterfaceScaleMax)) {
+		cSetConfigScale(kInterfaceScaleDefault);
+		cSetRealScale(kInterfaceScaleDefault);
 	}
 
 	internal::registerFontFamily(qsl("Open Sans"));

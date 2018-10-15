@@ -1849,8 +1849,7 @@ bool InputField::isRedoAvailable() const {
 
 void InputField::processFormatting(int insertPosition, int insertEnd) {
 	// Tilde formatting.
-	const auto tildeFormatting = !cRetina()
-		&& (_st.font->f.pixelSize() == 13)
+	const auto tildeFormatting = (_st.font->f.pixelSize() * cIntRetinaFactor() == 13)
 		&& (_st.font->f.family() == qstr("Open Sans"));
 	auto isTildeFragment = false;
 	const auto tildeFixedFont = AdjustFont(st::semiboldFont, _st.font);

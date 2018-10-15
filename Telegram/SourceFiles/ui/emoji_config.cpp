@@ -291,8 +291,8 @@ void ClearUniversalChecked() {
 void Init() {
 	internal::Init();
 
-	SizeNormal = ConvertScale(18) * cIntRetinaFactor();
-	SizeLarge = int(ConvertScale(18 * 4 / 3.)) * cIntRetinaFactor();
+	SizeNormal = ConvertScale(18, cScale() * cIntRetinaFactor());
+	SizeLarge = int(ConvertScale(18 * 4 / 3., cScale() * cIntRetinaFactor()));
 	const auto count = internal::FullCount();
 	const auto persprite = kImagesPerRow * kImageRowsPerSprite;
 	SpritesCount = (count / persprite) + ((count % persprite) ? 1 : 0);
@@ -553,9 +553,7 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 			SizeNormal + st::emojiPadding * cIntRetinaFactor() * 2,
 			fontHeight * cIntRetinaFactor(),
 			QImage::Format_ARGB32_Premultiplied);
-		if (cRetina()) {
-			image.setDevicePixelRatio(cRetinaFactor());
-		}
+		image.setDevicePixelRatio(cRetinaFactor());
 		image.fill(Qt::transparent);
 		{
 			QPainter p(&image);
@@ -643,9 +641,7 @@ void Instance::generateCache() {
 
 void Instance::pushSprite(QImage &&data) {
 	_sprites.push_back(App::pixmapFromImageInPlace(std::move(data)));
-	if (cRetina()) {
-		_sprites.back().setDevicePixelRatio(cRetinaFactor());
-	}
+	_sprites.back().setDevicePixelRatio(cRetinaFactor());
 }
 
 } // namespace Emoji
