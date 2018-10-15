@@ -42,7 +42,6 @@ namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kMaxOriginalEntryLines = 8192;
-const auto kMapPointFg = QColor(64, 167, 227);
 
 using TextState = HistoryView::TextState;
 
@@ -4845,13 +4844,15 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 	} else {
 		App::complexLocationRect(p, rthumb, roundRadius, roundCorners);
 	}
-	const auto &point = st::historyMapPoint;
-	point.paint(
-		p,
-		rthumb.x() + ((rthumb.width() - point.width()) / 2),
-		rthumb.y() + (rthumb.height() / 2) - point.height(),
-		width(),
-		kMapPointFg);
+	const auto paintMarker = [&](const style::icon &icon) {
+		icon.paint(
+			p,
+			rthumb.x() + ((rthumb.width() - icon.width()) / 2),
+			rthumb.y() + (rthumb.height() / 2) - icon.height(),
+			width());
+	};
+	paintMarker(st::historyMapPoint);
+	paintMarker(st::historyMapPointInner);
 	if (selected) {
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}

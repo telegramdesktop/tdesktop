@@ -35,27 +35,25 @@ QImage createIconMask(const IconMask *mask, DBIScale scale) {
 	Assert(!maskImage.isNull());
 
 	// images are layouted like this:
-	// 200x 100x
-	// 150x 125x
-	int width = maskImage.width() / 3;
-	int height = qRound((maskImage.height() * 2) / 7.);
-	auto r = QRect(0, 0, width * 2, height * 2);
-	if (!cRetina() && scale != dbisTwo) {
-		if (scale == dbisOne) {
-			r = QRect(width * 2, 0, width, height);
-		} else {
-			int width125 = pxAdjust(width, 5);
-			int height125 = pxAdjust(height, 5);
-			int width150 = pxAdjust(width, 6);
-			int height150 = pxAdjust(height, 6);
-			if (scale == dbisOneAndQuarter) {
-				r = QRect(width150, height * 2, width125, height125);
-			} else {
-				r = QRect(0, height * 2, width150, height150);
-			}
-		}
+	// 100x 200x
+	// 300x
+	const auto width = maskImage.width() / 3;
+	const auto height = maskImage.height() / 5;
+	const auto two = QRect(width, 0, width * 2, height * 2);
+	if (cRetina() || scale == dbisTwo) {
+		return maskImage.copy(two);
+	} else if (scale == dbisOne) {
+		return maskImage.copy(QRect(0, 0, width, height));
 	}
-	return maskImage.copy(r);
+	const auto width125 = pxAdjust(width, 5);
+	const auto height125 = pxAdjust(height, 5);
+	const auto width150 = pxAdjust(width, 6);
+	const auto height150 = pxAdjust(height, 6);
+	return maskImage.copy(two).scaled(
+		(scale == dbisOneAndQuarter) ? width125 : width150,
+		(scale == dbisOneAndQuarter) ? height125 : height150,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
 }
 
 QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {

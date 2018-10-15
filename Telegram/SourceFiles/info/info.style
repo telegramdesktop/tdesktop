@@ -349,7 +349,7 @@ infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
-infoIconFeed: icon {{ "info_feed", infoIconFg }};
+//infoIconFeed: icon {{ "info_feed", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
 infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};

@@ -444,6 +444,9 @@ historyComposeButtonBg: historyComposeAreaBg; // unblock / join channel / mute c
 historyComposeButtonBgOver: windowBgOver; // unblock / join channel / mute channel button background with mouse over
 historyComposeButtonBgRipple: windowBgRipple; // unblock / join channel / mute channel button ripple effect
 
+mapPointDrop: #fd4444; // geo location marker background
+mapPointDot: #ffffff; // geo location marker point
+
 // overview
 overviewCheckBg: #00000040; // shared media / files / links checkbox background for not selected rows when some rows are selected
 overviewCheckBgActive: windowBgActive; // shared media / files / links checkbox background for selected rows

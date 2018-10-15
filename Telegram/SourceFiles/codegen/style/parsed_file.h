@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace codegen {
 namespace style {
 
-using Modifier = std::function<void(QImage &png100x, QImage &png200x)>;
+using Modifier = std::function<void(QImage &image)>;
 Modifier GetModifier(const QString &name);
 
 // Parses an input file to the internal struct.
