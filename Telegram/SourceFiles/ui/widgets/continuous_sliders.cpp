@@ -231,18 +231,20 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	auto inactiveFg = disabled ? _st.inactiveFgDisabled : anim::brush(_st.inactiveFg, _st.inactiveFgOver, over);
 	if (mid > from) {
 		auto fromClipRect = horizontal ? QRect(0, 0, mid, height()) : QRect(0, 0, width(), mid);
+		const auto till = std::min(mid + radius, end);
 		auto fromRect = horizontal
-			? QRect(from, (height() - _st.width) / 2, mid + radius - from, _st.width)
-			: QRect((width() - _st.width) / 2, from, _st.width, mid + radius - from);
+			? QRect(from, (height() - _st.width) / 2, till - from, _st.width)
+			: QRect((width() - _st.width) / 2, from, _st.width, till - from);
 		p.setClipRect(fromClipRect);
 		p.setBrush(horizontal ? activeFg : inactiveFg);
 		p.drawRoundedRect(fromRect, radius, radius);
 	}
 	if (end > mid) {
 		auto endClipRect = horizontal ? QRect(mid, 0, width() - mid, height()) : QRect(0, mid, width(), height() - mid);
+		const auto begin = std::max(mid - radius, from);
 		auto endRect = horizontal
-			? QRect(mid - radius, (height() - _st.width) / 2, end - (mid - radius), _st.width)
-			: QRect((width() - _st.width) / 2, mid - radius, _st.width, end - (mid - radius));
+			? QRect(begin, (height() - _st.width) / 2, end - begin, _st.width)
+			: QRect((width() - _st.width) / 2, begin, _st.width, end - begin);
 		p.setClipRect(endClipRect);
 		p.setBrush(horizontal ? inactiveFg : activeFg);
 		p.drawRoundedRect(endRect, radius, radius);

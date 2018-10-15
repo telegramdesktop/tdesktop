@@ -370,8 +370,6 @@
 <(src_loc)/media/view/media_clip_controller.h
 <(src_loc)/media/view/media_clip_playback.cpp
 <(src_loc)/media/view/media_clip_playback.h
-<(src_loc)/media/view/media_clip_volume_controller.cpp
-<(src_loc)/media/view/media_clip_volume_controller.h
 <(src_loc)/media/view/media_view_group_thumbs.cpp
 <(src_loc)/media/view/media_view_group_thumbs.h
 <(src_loc)/media/media_audio.cpp

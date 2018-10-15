@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_clip_controller.h"
 
 #include "media/view/media_clip_playback.h"
-#include "media/view/media_clip_volume_controller.h"
 #include "styles/style_mediaview.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -24,7 +23,7 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
 , _playbackSlider(this, st::mediaviewPlayback)
 , _playback(std::make_unique<Playback>())
-, _volumeController(this)
+, _volumeController(this, st::mediaviewPlayback)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
@@ -33,11 +32,15 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 	_fadeAnimation->setFinishedCallback([this] { fadeFinished(); });
 	_fadeAnimation->setUpdatedCallback([this](float64 opacity) { fadeUpdated(opacity); });
 
-	_volumeController->setVolume(Global::VideoVolume());
+	_volumeController->setValue(Global::VideoVolume());
+	_volumeController->setChangeProgressCallback([=](float64 value) {
+		volumeChanged(value);
+	});
+	//_volumeController->setChangeFinishedCallback();
 
 	connect(_playPauseResume, SIGNAL(clicked()), this, SIGNAL(playPressed()));
 	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
-	connect(_volumeController, SIGNAL(volumeChanged(float64)), this, SIGNAL(volumeChanged(float64)));
+	//connect(_volumeController, SIGNAL(volumeChanged(float64)), this, SIGNAL(volumeChanged(float64)));
 
 	_playback->setInLoadingStateChangedCallback([this](bool loading) {
 		_playbackSlider->setDisabled(loading);
@@ -80,12 +83,15 @@ void Controller::startFading(Callback start) {
 	if (!_fadeAnimation->animating()) {
 		showChildren();
 		_playbackSlider->disablePaint(true);
+		_volumeController->disablePaint(true);
 		_childrenHidden = false;
 	}
 	start();
 	if (_fadeAnimation->animating()) {
 		for (const auto child : children()) {
-			if (child->isWidgetType() && child != _playbackSlider) {
+			if (child->isWidgetType()
+				&& child != _playbackSlider
+				&& child != _volumeController) {
 				static_cast<QWidget*>(child)->hide();
 			}
 		}
@@ -94,6 +100,7 @@ void Controller::startFading(Callback start) {
 		fadeFinished();
 	}
 	_playbackSlider->disablePaint(false);
+	_volumeController->disablePaint(false);
 }
 
 void Controller::showAnimated() {
@@ -114,6 +121,7 @@ void Controller::fadeFinished() {
 
 void Controller::fadeUpdated(float64 opacity) {
 	_playbackSlider->setFadeOpacity(opacity);
+	_volumeController->setFadeOpacity(opacity);
 }
 
 void Controller::updatePlayback(const Player::TrackState &state) {
@@ -197,7 +205,8 @@ void Controller::resizeEvent(QResizeEvent *e) {
 	int fullScreenTop = (height() - _fullScreenToggle->height()) / 2;
 	_fullScreenToggle->moveToRight(st::mediaviewFullScreenLeft, fullScreenTop);
 
-	_volumeController->moveToRight(st::mediaviewFullScreenLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, (height() - _volumeController->height()) / 2);
+	_volumeController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
+	_volumeController->moveToRight(st::mediaviewFullScreenLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, st::mediaviewPlaybackTop);
 
 	auto playbackWidth = width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft;
 	_playbackSlider->resize(playbackWidth, st::mediaviewPlayback.seekSize.height());
@@ -216,6 +225,7 @@ void Controller::paintEvent(QPaintEvent *e) {
 	if (_childrenHidden) {
 		showChildren();
 		_playbackSlider->setFadeOpacity(1.);
+		_volumeController->setFadeOpacity(1.);
 		_childrenHidden = false;
 	}
 	App::roundRect(p, rect(), st::mediaviewSaveMsgBg, MediaviewSaveCorners);
