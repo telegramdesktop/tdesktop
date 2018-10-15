@@ -145,18 +145,31 @@ QImage LoadFromFile(int size, int index) {
 		height,
 		QImage::Format_ARGB32_Premultiplied);
 	Assert(result.bytesPerLine() == width * 4);
-	auto data = bytes::make_span(
+	const auto data = bytes::make_span(
 		reinterpret_cast<bytes::type*>(result.bits()),
 		width * height * 4);
-	bytes::type signature[openssl::kSha256Size] = { bytes::type() };
+	auto signature = bytes::vector(openssl::kSha256Size);
 	if (!read(data)
 		|| !read(signature)
-		|| (bytes::compare(
-			signature,
-			openssl::Sha256(bytes::make_span(header), data)) != 0)
+		//|| (bytes::compare(
+		//	signature,
+		//	openssl::Sha256(bytes::make_span(header), data)) != 0)
 		|| false) {
 		return QImage();
 	}
+	crl::async([=, signature = std::move(signature)] {
+		// This should not happen (invalid signature),
+		// so we delay this check and fix only the next launch.
+		const auto data = bytes::make_span(
+			reinterpret_cast<const bytes::type*>(result.bits()),
+			width * height * 4);
+		const auto result = bytes::compare(
+			signature,
+			openssl::Sha256(bytes::make_span(header), data));
+		if (result != 0) {
+			QFile(CacheFilePath(size, index)).remove();
+		}
+	});
 	return result;
 }
 
