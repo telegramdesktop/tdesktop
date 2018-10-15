@@ -847,7 +847,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 
 void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 	if (_pressed != nullptr && !_dragging && _state == State::Default) {
-		if (qAbs(localPosition.y() - _dragStart.y()) >= convertScale(kStartReorderThreshold)) {
+		if (qAbs(localPosition.y() - _dragStart.y()) >= ConvertScale(kStartReorderThreshold)) {
 			_dragging = _pressed;
 			if (updateReorderIndexGetCount() < 2) {
 				_dragging = nullptr;

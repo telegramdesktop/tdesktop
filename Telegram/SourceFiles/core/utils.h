@@ -388,16 +388,6 @@ struct ProxyData {
 ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex = 0);
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
 
-enum DBIScale {
-	dbisAuto = 0,
-	dbisOne = 1,
-	dbisOneAndQuarter = 2,
-	dbisOneAndHalf = 3,
-	dbisTwo = 4,
-
-	dbisScaleCount = 5,
-};
-
 static const int MatrixRowShift = 40000;
 
 enum DBIPlatform {

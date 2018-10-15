@@ -838,7 +838,7 @@ Document::Document(
 
 	if (withThumb()) {
 		_data->thumb->load(parent->fullId());
-		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
+		int32 tw = ConvertScale(_data->thumb->width()), th = ConvertScale(_data->thumb->height());
 		if (tw > th) {
 			_thumbw = (tw * _st.fileThumbSize) / th;
 		} else {
@@ -1275,15 +1275,15 @@ Link::Link(
 			_page->photo->thumb->load(parent->fullId(), false, false);
 		}
 
-		tw = convertScale(_page->photo->thumb->width());
-		th = convertScale(_page->photo->thumb->height());
+		tw = ConvertScale(_page->photo->thumb->width());
+		th = ConvertScale(_page->photo->thumb->height());
 	} else if (_page && _page->document) {
 		if (!_page->document->thumb->loaded()) {
 			_page->document->thumb->load(parent->fullId(), false, false);
 		}
 
-		tw = convertScale(_page->document->thumb->width());
-		th = convertScale(_page->document->thumb->height());
+		tw = ConvertScale(_page->document->thumb->width());
+		th = ConvertScale(_page->document->thumb->height());
 	}
 	if (tw > st::linksPhotoSize) {
 		if (th > tw) {

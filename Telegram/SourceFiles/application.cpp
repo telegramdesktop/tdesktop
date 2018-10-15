@@ -459,15 +459,16 @@ void connect(const char *signal, QObject *object, const char *method) {
 void launch() {
 	Assert(application() != 0);
 
-	float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
+	const auto dpi = Application::primaryScreen()->logicalDotsPerInch();
+	LOG(("Primary screen DPI: %1").arg(dpi));
 	if (dpi <= 108) { // 0-96-108
-		cSetScreenScale(dbisOne);
+		cSetScreenScale(100);
 	} else if (dpi <= 132) { // 108-120-132
-		cSetScreenScale(dbisOneAndQuarter);
+		cSetScreenScale(125);
 	} else if (dpi <= 168) { // 132-144-168
-		cSetScreenScale(dbisOneAndHalf);
+		cSetScreenScale(150);
 	} else { // 168-192-inf
-		cSetScreenScale(dbisTwo);
+		cSetScreenScale(200);
 	}
 
 	auto devicePixelRatio = application()->devicePixelRatio();
@@ -482,8 +483,8 @@ void launch() {
 		cSetRetina(true);
 		cSetRetinaFactor(devicePixelRatio);
 		cSetIntRetinaFactor(int32(cRetinaFactor()));
-		cSetConfigScale(dbisOne);
-		cSetRealScale(dbisOne);
+		cSetConfigScale(100);
+		cSetRealScale(100);
 	}
 
 	application()->createMessenger();

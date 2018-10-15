@@ -379,8 +379,8 @@ MainWindow::MainWindow()
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 #endif // !OS_MAC_OLD
 
-	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
-	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
+	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), 100);
+	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), 100);
 
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 

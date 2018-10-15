@@ -40,7 +40,6 @@ private:
 
 };
 
-auto Scale = -1.;
 auto SizeNormal = -1;
 auto SizeLarge = -1;
 auto SpritesCount = -1;
@@ -292,20 +291,8 @@ void ClearUniversalChecked() {
 void Init() {
 	internal::Init();
 
-	Scale = [] {
-		if (cRetina()) {
-			return 2.;
-		}
-		switch (cScale()) {
-		case dbisOne: return 1.;
-		case dbisOneAndQuarter: return 1.25;
-		case dbisOneAndHalf: return 1.5;
-		case dbisTwo: return 2.;
-		}
-		Unexpected("cScale() in Ui::Emoji::Init.");
-	}();
-	SizeNormal = int(std::round(Scale * 18));
-	SizeLarge = int(std::round(Scale * 18 * 4 / 3.));
+	SizeNormal = ConvertScale(18) * cIntRetinaFactor();
+	SizeLarge = int(ConvertScale(18 * 4 / 3.)) * cIntRetinaFactor();
 	const auto count = internal::FullCount();
 	const auto persprite = kImagesPerRow * kImageRowsPerSprite;
 	SpritesCount = (count / persprite) + ((count % persprite) ? 1 : 0);
@@ -332,12 +319,6 @@ int GetSizeLarge() {
 	Expects(SizeLarge > 0);
 
 	return SizeLarge;
-}
-
-float64 GetScale() {
-	Expects(Scale > 0.);
-
-	return Scale;
 }
 
 int One::variantsCount() const {

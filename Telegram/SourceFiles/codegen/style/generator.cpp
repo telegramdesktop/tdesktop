@@ -1123,20 +1123,12 @@ bool Generator::writePxValuesInit() {
 void initPxValues() {\n\
 	if (cRetina()) return;\n\
 \n\
-	switch (cScale()) {\n";
-	for (int i = 1, scalesCount = _scales.size(); i < scalesCount; ++i) {
-		source_->stream() << "\tcase " << _scaleNames.at(i) << ":\n";
-		for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
-			auto value = it.key();
-			int adjusted = structure::data::pxAdjust(value, _scales.at(i));
-			if (adjusted != value) {
-				source_->stream() << "\t\t" << pxValueName(value) << " = " << adjusted << ";\n";
-			}
-		}
-		source_->stream() << "\tbreak;\n";
+	const auto scale = cScale();\n";
+	for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
+		auto value = it.key();
+		source_->stream() << "\t" << pxValueName(value) << " = ConvertScale(" << value << ", scale);\n";
 	}
 	source_->stream() << "\
-	}\n\
 }\n\n";
 	return true;
 }

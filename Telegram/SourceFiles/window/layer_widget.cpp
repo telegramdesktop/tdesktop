@@ -988,7 +988,7 @@ QSize MediaPreviewWidget::currentDimensions() const {
 			box = QSize(2 * st::maxStickerSize, 2 * st::maxStickerSize);
 		}
 	}
-	result = QSize(qMax(convertScale(result.width()), 1), qMax(convertScale(result.height()), 1));
+	result = QSize(qMax(ConvertScale(result.width()), 1), qMax(ConvertScale(result.height()), 1));
 	if (result.width() > box.width()) {
 		result.setHeight(qMax((box.width() * result.height()) / result.width(), 1));
 		result.setWidth(box.width());

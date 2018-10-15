@@ -52,7 +52,7 @@ int FileBase::content_width() const {
 		return document->dimensions.width();
 	}
 	if (!document->thumb->isNull()) {
-		return convertScale(document->thumb->width());
+		return ConvertScale(document->thumb->width());
 	}
 	return 0;
 }
@@ -63,7 +63,7 @@ int FileBase::content_height() const {
 		return document->dimensions.height();
 	}
 	if (!document->thumb->isNull()) {
-		return convertScale(document->thumb->height());
+		return ConvertScale(document->thumb->height());
 	}
 	return 0;
 }
@@ -665,7 +665,7 @@ void Video::prepareThumb(int32 width, int32 height) const {
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int32 w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -989,7 +989,7 @@ void Contact::prepareThumb(int width, int height) const {
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1137,7 +1137,7 @@ void Article::prepareThumb(int width, int height) const {
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1317,7 +1317,7 @@ void Game::prepareThumb(int width, int height) const {
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			auto resizeByHeight1 = (w * height > h * width) && (h >= height);
 			auto resizeByHeight2 = (h * width >= w * height) && (w < width);
 			if (resizeByHeight1 || resizeByHeight2) {

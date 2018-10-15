@@ -44,9 +44,9 @@ uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
 
 QByteArray gLocalSalt;
-DBIScale gRealScale = dbisAuto;
-DBIScale gScreenScale = dbisOne;
-DBIScale gConfigScale = dbisAuto;
+int gRealScale = kInterfaceScaleAuto;
+int gScreenScale = kInterfaceScaleAuto;
+int gConfigScale = kInterfaceScaleAuto;
 
 QString gTimeFormat = qsl("hh:mm");
 

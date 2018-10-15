@@ -109,8 +109,8 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 	}
 
 	if (cRetina()) {
-		cSetConfigScale(dbisOne);
-		cSetRealScale(dbisOne);
+		cSetConfigScale(100);
+		cSetRealScale(100);
 	}
 
 	_translator = std::make_unique<Lang::Translator>();

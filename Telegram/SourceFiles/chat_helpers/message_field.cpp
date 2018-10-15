@@ -312,7 +312,7 @@ void InitMessageField(
 	field->setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
 
 	field->document()->setDocumentMargin(4.);
-	field->setAdditionalMargin(convertScale(4) - 4);
+	field->setAdditionalMargin(ConvertScale(4) - 4);
 
 	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());

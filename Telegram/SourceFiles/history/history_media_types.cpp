@@ -310,8 +310,8 @@ QSize HistoryPhoto::countOptimalSize() {
 	auto maxWidth = 0;
 	auto minHeight = 0;
 
-	auto tw = convertScale(_data->full->width());
-	auto th = convertScale(_data->full->height());
+	auto tw = ConvertScale(_data->full->width());
+	auto th = ConvertScale(_data->full->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -342,7 +342,7 @@ QSize HistoryPhoto::countOptimalSize() {
 }
 
 QSize HistoryPhoto::countCurrentSize(int newWidth) {
-	int tw = convertScale(_data->full->width()), th = convertScale(_data->full->height());
+	int tw = ConvertScale(_data->full->width()), th = ConvertScale(_data->full->height());
 	if (tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
@@ -714,8 +714,8 @@ void HistoryPhoto::validateGroupedCache(
 		return;
 	}
 
-	const auto originalWidth = convertScale(_data->full->width());
-	const auto originalHeight = convertScale(_data->full->height());
+	const auto originalWidth = ConvertScale(_data->full->width());
+	const auto originalHeight = ConvertScale(_data->full->height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
@@ -778,8 +778,8 @@ QSize HistoryVideo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	auto tw = convertScale(_data->thumb->width());
-	auto th = convertScale(_data->thumb->height());
+	auto tw = ConvertScale(_data->thumb->width());
+	auto th = ConvertScale(_data->thumb->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -809,7 +809,7 @@ QSize HistoryVideo::countOptimalSize() {
 }
 
 QSize HistoryVideo::countCurrentSize(int newWidth) {
-	int tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
+	int tw = ConvertScale(_data->thumb->width()), th = ConvertScale(_data->thumb->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -1154,8 +1154,8 @@ void HistoryVideo::validateGroupedCache(
 		return;
 	}
 
-	const auto originalWidth = convertScale(_data->thumb->width());
-	const auto originalHeight = convertScale(_data->thumb->height());
+	const auto originalWidth = ConvertScale(_data->thumb->width());
+	const auto originalHeight = ConvertScale(_data->thumb->height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
@@ -1303,8 +1303,8 @@ QSize HistoryDocument::countOptimalSize() {
 	auto thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
 		_data->thumb->load(_realParent->fullId());
-		auto tw = convertScale(_data->thumb->width());
-		auto th = convertScale(_data->thumb->height());
+		auto tw = ConvertScale(_data->thumb->width());
+		auto th = ConvertScale(_data->thumb->height());
 		if (tw > th) {
 			thumbed->_thumbw = (tw * st::msgFileThumbSize) / th;
 		} else {
@@ -1978,13 +1978,13 @@ QSize HistoryGif::countOptimalSize() {
 
 	const auto reader = currentReader();
 	if (reader) {
-		tw = convertScale(reader->width());
-		th = convertScale(reader->height());
+		tw = ConvertScale(reader->width());
+		th = ConvertScale(reader->height());
 	} else {
-		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
+		tw = ConvertScale(_data->dimensions.width()), th = ConvertScale(_data->dimensions.height());
 		if (!tw || !th) {
-			tw = convertScale(_data->thumb->width());
-			th = convertScale(_data->thumb->height());
+			tw = ConvertScale(_data->thumb->width());
+			th = ConvertScale(_data->thumb->height());
 		}
 	}
 	if (tw > st::maxGifSize) {
@@ -2033,13 +2033,13 @@ QSize HistoryGif::countCurrentSize(int newWidth) {
 	int tw = 0, th = 0;
 	const auto reader = currentReader();
 	if (reader) {
-		tw = convertScale(reader->width());
-		th = convertScale(reader->height());
+		tw = ConvertScale(reader->width());
+		th = ConvertScale(reader->height());
 	} else {
-		tw = convertScale(_data->dimensions.width()), th = convertScale(_data->dimensions.height());
+		tw = ConvertScale(_data->dimensions.width()), th = ConvertScale(_data->dimensions.height());
 		if (!tw || !th) {
-			tw = convertScale(_data->thumb->width());
-			th = convertScale(_data->thumb->height());
+			tw = ConvertScale(_data->thumb->width());
+			th = ConvertScale(_data->thumb->height());
 		}
 	}
 	if (tw > st::maxGifSize) {
@@ -3635,7 +3635,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto pw = qMax(_pixw, lineHeight);
 		auto ph = _pixh;
 		auto pixw = _pixw, pixh = articleThumbHeight(_data->photo, _pixw);
-		auto maxw = convertScale(_data->photo->medium->width()), maxh = convertScale(_data->photo->medium->height());
+		auto maxw = ConvertScale(_data->photo->medium->width()), maxh = ConvertScale(_data->photo->medium->height());
 		if (pixw * ph != pixh * pw) {
 			float64 coef = (pixw * ph > pixh * pw) ? qMin(ph / float64(pixh), maxh / float64(pixh)) : qMin(pw / float64(pixw), maxw / float64(pixw));
 			pixh = qRound(pixh * coef);

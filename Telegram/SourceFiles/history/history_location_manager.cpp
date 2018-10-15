@@ -17,15 +17,10 @@ constexpr auto kCoordPrecision = 8;
 constexpr auto kMaxHttpRedirects = 5;
 
 GeoPointLocation ComputeLocation(const LocationCoords &coords) {
-	int32 w = st::locationSize.width(), h = st::locationSize.height();
-	int32 zoom = 15, scale = 1;
-	if (cScale() == dbisTwo || cRetina()) {
-		scale = 2;
-		zoom = 16;
-	} else {
-		w = convertScale(w);
-		h = convertScale(h);
-	}
+	const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
+	const auto zoom = 15 + (scale - 1);
+	const auto w = ConvertScale(st::locationSize.width()) / scale;
+	const auto h = ConvertScale(st::locationSize.height()) / scale;
 
 	auto result = GeoPointLocation();
 	result.lat = coords.lat();

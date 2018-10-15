@@ -20,7 +20,6 @@ void Clear();
 
 int GetSizeNormal();
 int GetSizeLarge();
-float64 GetScale();
 
 class One {
 	struct CreationTag {

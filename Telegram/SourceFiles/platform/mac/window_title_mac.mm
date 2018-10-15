@@ -76,7 +76,7 @@ object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 }
 
 // All the window decorations preview is done without taking cScale() into
-// account, with dbisOne scale and without "px" dimensions, because thats
+// account, with 100% scale and without "px" dimensions, because thats
 // how it will look in real launched macOS app.
 int PreviewTitleHeight() {
 	if (auto window = qobject_cast<Platform::MainWindow*>(App::wnd())) {
@@ -185,7 +185,7 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 	Images::prepareRound(rounded, corners);
 	preview.fill(st::themePreviewBg->c);
 
-	auto topLeft = st::macWindowShadowTopLeft.instance(QColor(0, 0, 0), dbisOne);
+	auto topLeft = st::macWindowShadowTopLeft.instance(QColor(0, 0, 0), 100);
 	auto topRight = topLeft.mirrored(true, false);
 	auto bottomLeft = topLeft.mirrored(false, true);
 	auto bottomRight = bottomLeft.mirrored(true, false);

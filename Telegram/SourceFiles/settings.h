@@ -90,30 +90,35 @@ DeclareSetting(bool, StartToSettings);
 DeclareReadSetting(bool, ManyInstance);
 
 DeclareSetting(QByteArray, LocalSalt);
-DeclareSetting(DBIScale, RealScale);
-DeclareSetting(DBIScale, ScreenScale);
-DeclareSetting(DBIScale, ConfigScale);
+DeclareSetting(int, RealScale);
+DeclareSetting(int, ScreenScale);
+DeclareSetting(int, ConfigScale);
 DeclareSetting(QString, TimeFormat);
 
-inline void cChangeTimeFormat(const QString &newFormat) {
-	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
+constexpr auto kInterfaceScaleAuto = 0;
+
+inline int cEvalScale(int scale) {
+	return (scale == kInterfaceScaleAuto) ? cScreenScale() : scale;
 }
 
-inline DBIScale cEvalScale(DBIScale scale) {
-	return (scale == dbisAuto) ? cScreenScale() : scale;
-}
-inline DBIScale cScale() {
+inline int cScale() {
 	return cEvalScale(cRealScale());
 }
 
 template <typename T>
-T convertScale(T v) {
-	switch (cScale()) {
-		case dbisOneAndQuarter: return qRound(float64(v) * 1.25 - 0.01);
-		case dbisOneAndHalf: return qRound(float64(v) * 1.5 - 0.01);
-		case dbisTwo: return v * 2;
-	}
-	return v;
+inline T ConvertScale(T value, int scale) {
+	return (value < 0.)
+		? (-ConvertScale(-value, scale))
+		: T(std::round((float64(value) * scale / 100.) - 0.01));
+}
+
+template <typename T>
+inline T ConvertScale(T value) {
+	return ConvertScale(value, cScale());
+}
+
+inline void cChangeTimeFormat(const QString &newFormat) {
+	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
 }
 
 namespace Ui {

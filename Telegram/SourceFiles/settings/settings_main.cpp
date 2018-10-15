@@ -112,7 +112,7 @@ void SetupInterfaceScale(
 		container,
 		rpl::event_stream<bool>());
 
-	const auto switched = (cConfigScale() == dbisAuto)
+	const auto switched = (cConfigScale() == kInterfaceScaleAuto)
 		|| (cConfigScale() == cScreenScale());
 	const auto button = AddButton(
 		container,
@@ -125,22 +125,33 @@ void SetupInterfaceScale(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
 		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
 
+	static const auto ScaleValues = { 100, 125, 150, 200, 300 };
+	const auto sectionFromScale = [](int scale) {
+		auto result = 0;
+		for (const auto value : ScaleValues) {
+			if (scale <= value) {
+				break;
+			}
+			++result;
+		}
+		return (result == ScaleValues.size()) ? (result - 1) : result;
+	};
 	const auto inSetScale = Ui::AttachAsChild(container, false);
-	const auto setScale = std::make_shared<Fn<void(DBIScale)>>();
-	*setScale = [=](DBIScale scale) {
+	const auto setScale = std::make_shared<Fn<void(int)>>();
+	*setScale = [=](int scale) {
 		if (*inSetScale) return;
 		*inSetScale = true;
 		const auto guard = gsl::finally([=] { *inSetScale = false; });
 
 		if (scale == cScreenScale()) {
-			scale = dbisAuto;
+			scale = kInterfaceScaleAuto;
 		}
-		toggled->fire(scale == dbisAuto);
+		toggled->fire(scale == kInterfaceScaleAuto);
 		const auto applying = scale;
-		if (scale == dbisAuto) {
+		if (scale == kInterfaceScaleAuto) {
 			scale = cScreenScale();
 		}
-		slider->setActiveSection(scale - 1);
+		slider->setActiveSection(sectionFromScale(scale));
 
 		if (cEvalScale(scale) != cEvalScale(cRealScale())) {
 			const auto confirmed = crl::guard(button, [=] {
@@ -166,46 +177,31 @@ void SetupInterfaceScale(
 	};
 	button->toggledValue(
 	) | rpl::start_with_next([=](bool checked) {
-		auto scale = checked ? dbisAuto : cEvalScale(cConfigScale());
+		auto scale = checked ? kInterfaceScaleAuto : cEvalScale(cConfigScale());
 		if (scale == cScreenScale()) {
 			if (scale != cScale()) {
 				scale = cScale();
 			} else {
-				switch (scale) {
-				case dbisOne: scale = dbisOneAndQuarter; break;
-				case dbisOneAndQuarter: scale = dbisOne; break;
-				case dbisOneAndHalf: scale = dbisOneAndQuarter; break;
-				case dbisTwo: scale = dbisOneAndHalf; break;
+				scale -= 25;
+				if (scale < 100) {
+					scale = 125;
 				}
 			}
 		}
 		(*setScale)(scale);
 	}, button->lifetime());
 
-	const auto label = [](DBIScale scale) {
-		switch (scale) {
-		case dbisOne: return qsl("100%");
-		case dbisOneAndQuarter: return qsl("125%");
-		case dbisOneAndHalf: return qsl("150%");
-		case dbisTwo: return qsl("200%");
-		}
-		Unexpected("Value in scale label.");
+	const auto label = [](int scale) {
+		return QString::number(scale) + '%';
 	};
 	const auto scaleByIndex = [](int index) {
-		switch (index) {
-		case 0: return dbisOne;
-		case 1: return dbisOneAndQuarter;
-		case 2: return dbisOneAndHalf;
-		case 3: return dbisTwo;
-		}
-		Unexpected("Index in scaleByIndex.");
+		return *(ScaleValues.begin() + index);
 	};
 
-	slider->addSection(label(dbisOne));
-	slider->addSection(label(dbisOneAndQuarter));
-	slider->addSection(label(dbisOneAndHalf));
-	slider->addSection(label(dbisTwo));
-	slider->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
+	for (const auto value : ScaleValues) {
+		slider->addSection(label(value));
+	}
+	slider->setActiveSectionFast(sectionFromScale(cConfigScale()));
 	slider->sectionActivated(
 	) | rpl::start_with_next([=](int section) {
 		(*setScale)(scaleByIndex(section));

@@ -221,18 +221,22 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		return nullptr;
 	}
 
-	LocationCoords location;
-	if (result->getLocationCoords(&location)) {
-		int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
-		int32 zoom = 13, scale = 1;
-		if (cScale() == dbisTwo || cRetina()) {
-			scale = 2;
-			w /= 2;
-			h /= 2;
-		}
-		auto coords = location.latAsString() + ',' + location.lonAsString();
-		QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
-		result->_locationThumb = ImagePtr(url);
+	LocationCoords coords;
+	if (result->getLocationCoords(&coords)) {
+		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
+		const auto zoom = 15 + (scale - 1);
+		const auto w = ConvertScale(st::inlineThumbSize) / scale;
+		const auto h = ConvertScale(st::inlineThumbSize) / scale;
+
+		auto location = GeoPointLocation();
+		location.lat = coords.lat();
+		location.lon = coords.lon();
+		location.access = coords.accessHash();
+		location.width = w;
+		location.height = h;
+		location.zoom = zoom;
+		location.scale = scale;
+		result->_locationThumb = ImagePtr(location);
 	}
 
 	return result;
