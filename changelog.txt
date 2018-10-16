@@ -1,3 +1,8 @@
+1.4.4 beta (16.10.18)
+
+- Interface scaling for large screens, up to 300% (up to 150% for macOS retina screens).
+- Updated emoji.
+
 1.4.3 (13.10.18)
 
 - Bug fixes and other minor improvements.

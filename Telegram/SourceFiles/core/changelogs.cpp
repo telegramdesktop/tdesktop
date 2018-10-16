@@ -20,44 +20,51 @@ std::map<int, const char*> BetaLogs() {
 	return {
 	{
 		1002024,
-		"\xE2\x80\x94 Add links with custom text from context menu "
+		"- Add links with custom text from context menu "
 		"or by Ctrl/Cmd + K keyboard shortcut."
 	},
 	{
 		1002025,
-		"\xE2\x80\x94 Apply markdown formatting (```, `, **, __) "
+		"- Apply markdown formatting (```, `, **, __) "
 		"only when sending the message.\n"
 
-		"\xE2\x80\x94 Display connection quality bars in calls.\n"
+		"- Display connection quality bars in calls.\n"
 
-		"\xE2\x80\x94 Telegram Desktop can update itself through MTProto.\n"
+		"- Telegram Desktop can update itself through MTProto.\n"
 
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
+		"- Bug fixes and other minor improvements."
 	},
 	{
 		1003011,
-		"\xE2\x80\x94 Added a new night theme.\n"
+		"- Added a new night theme.\n"
 
-		"\xE2\x80\x94 You can now assign custom themes "
+		"- You can now assign custom themes "
 		"as night and day themes to quickly switch between them."
 	},
 	{
 		1003015,
-		"\xE2\x80\x94 Improved local caching "
+		"- Improved local caching "
 		"for images and GIF animations.\n"
 
-		"\xE2\x80\x94 Control how much disk space is used by the cache "
+		"- Control how much disk space is used by the cache "
 		"and for how long the cached files are stored."
 	},
 	{
 		1003017,
-		"\xE2\x80\x94 Fully redisigned Settings section.\n"
+		"- Fully redisigned Settings section.\n"
 
-		"\xE2\x80\x94 New theme selector in Chat Settings.\n"
-		"\xE2\x80\x94 New settings: Peer-to-Peer settings for calls, "
+		"- New theme selector in Chat Settings.\n"
+		"- New settings: Peer-to-Peer settings for calls, "
 		"disable animations for low performance computers.\n"
 
-		"\xE2\x80\x94 Various other improvements."
+		"- Various other improvements."
+	},
+	{
+		1004004,
+		"- Interface scaling for large screens, up to 300% "
+		"(up to 150% for macOS retina screens).\n"
+
+		"- Updated emoji."
 	},
 	};
 }
