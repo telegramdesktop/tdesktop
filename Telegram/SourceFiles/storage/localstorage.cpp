@@ -4559,8 +4559,13 @@ void writeSelf() {
 
 void readSelf(const QByteArray &serialized, int32 streamVersion) {
 	QDataStream stream(serialized);
+	const auto user = Auth().user();
+	const auto wasLoadedStatus = std::exchange(
+		user->loadedStatus,
+		PeerData::NotLoaded);
 	const auto self = Serialize::readPeer(streamVersion, stream);
-	if (!self || !self->isSelf() || self != Auth().user()) {
+	if (!self || !self->isSelf() || self != user) {
+		user->loadedStatus = wasLoadedStatus;
 		return;
 	}
 
