@@ -18,9 +18,9 @@ constexpr auto kMaxHttpRedirects = 5;
 
 GeoPointLocation ComputeLocation(const LocationCoords &coords) {
 	const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
-	const auto zoom = 15 + (scale - 1);
-	const auto w = ConvertScale(st::locationSize.width()) / scale;
-	const auto h = ConvertScale(st::locationSize.height()) / scale;
+	const auto zoom = 13 + (scale - 1);
+	const auto w = st::locationSize.width() / scale;
+	const auto h = st::locationSize.height() / scale;
 
 	auto result = GeoPointLocation();
 	result.lat = coords.lat();

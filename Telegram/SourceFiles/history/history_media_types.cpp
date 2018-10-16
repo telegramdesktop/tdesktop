@@ -4829,17 +4829,7 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		| (isBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
 	auto rthumb = QRect(paintx, painty, paintw, painth);
 	if (_data && !_data->thumb->isNull()) {
-		auto w = _data->thumb->width(), h = _data->thumb->height();
-		QPixmap pix;
-		if (paintw * h == painth * w || (w == fullWidth() && h == fullHeight())) {
-			pix = _data->thumb->pixSingle(contextId, paintw, painth, paintw, painth, roundRadius, roundCorners);
-		} else if (paintw * h > painth * w) {
-			auto nw = painth * w / h;
-			pix = _data->thumb->pixSingle(contextId, nw, painth, paintw, painth, roundRadius, roundCorners);
-		} else {
-			auto nh = paintw * h / w;
-			pix = _data->thumb->pixSingle(contextId, paintw, nh, paintw, painth, roundRadius, roundCorners);
-		}
+		const auto &pix = _data->thumb->pixSingle(contextId, paintw, painth, paintw, painth, roundRadius, roundCorners);
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
 		App::complexLocationRect(p, rthumb, roundRadius, roundCorners);

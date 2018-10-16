@@ -1245,11 +1245,11 @@ std::optional<Storage::Cache::Key> GeoPointImage::cacheKey() const {
 }
 
 int GeoPointImage::countWidth() const {
-	return _location.width;
+	return _location.width * _location.scale;
 }
 
 int GeoPointImage::countHeight() const {
-	return _location.height;
+	return _location.height * _location.scale;
 }
 
 void GeoPointImage::setInformation(int size, int width, int height) {

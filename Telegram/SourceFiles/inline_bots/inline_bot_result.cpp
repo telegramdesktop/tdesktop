@@ -225,8 +225,8 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	if (result->getLocationCoords(&coords)) {
 		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
 		const auto zoom = 15 + (scale - 1);
-		const auto w = ConvertScale(st::inlineThumbSize) / scale;
-		const auto h = ConvertScale(st::inlineThumbSize) / scale;
+		const auto w = st::inlineThumbSize / scale;
+		const auto h = st::inlineThumbSize / scale;
 
 		auto location = GeoPointLocation();
 		location.lat = coords.lat();
