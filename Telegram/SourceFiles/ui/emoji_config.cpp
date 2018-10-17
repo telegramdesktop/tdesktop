@@ -24,7 +24,7 @@ constexpr auto kUniversalSize = 72;
 constexpr auto kImagesPerRow = 32;
 constexpr auto kImageRowsPerSprite = 16;
 
-constexpr auto kVersion = 1;
+constexpr auto kVersion = 2;
 
 class UniversalImages {
 public:
@@ -226,10 +226,21 @@ QImage UniversalImages::generate(int size, int index) const {
 		PainterHighQualityEnabler hq(p);
 		for (auto y = 0; y != rows; ++y) {
 			for (auto x = 0; x != kImagesPerRow; ++x) {
+				const auto single = QImage(
+					original.bits() + x * large * 4,
+					large,
+					large,
+					original.bytesPerLine(),
+					original.format()
+				).scaled(
+					size,
+					size,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
 				p.drawImage(
-					QRect(x * size, y * size, size, size),
-					original,
-					QRect(x * large, y * large, large, large));
+					x * size,
+					y * size,
+					single);
 			}
 		}
 	}
