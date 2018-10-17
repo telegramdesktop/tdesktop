@@ -2094,7 +2094,7 @@ bool CheckOldInCurrent() {
 		const auto category = *c;
 		for (auto i = begin(*category); i != end(*category); ++i) {
 			const auto find = [](
-					std::initializer_list<InputCategory*> list,
+					std::initializer_list<InputCategory* const> list,
 					const InputId &id) {
 				for (const auto current : list) {
 					if (std::find(begin(*current), end(*current), id) != end(*current)) {
