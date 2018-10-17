@@ -622,6 +622,7 @@ struct Data {
 		: qsl("apv2.stel.com");
 	bool PhoneCallsEnabled = true;
 	bool BlockedMode = false;
+	int32 CaptionLengthMax = 1024;
 	base::Observable<void> PhoneCallsEnabledChanged;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
@@ -750,6 +751,7 @@ DefineVar(Global, int32, WebFileDcId);
 DefineVar(Global, QString, TxtDomainString);
 DefineVar(Global, bool, PhoneCallsEnabled);
 DefineVar(Global, bool, BlockedMode);
+DefineVar(Global, int32, CaptionLengthMax);
 DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);

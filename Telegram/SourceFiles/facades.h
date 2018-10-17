@@ -286,6 +286,7 @@ DeclareVar(int32, WebFileDcId);
 DeclareVar(QString, TxtDomainString);
 DeclareVar(bool, PhoneCallsEnabled);
 DeclareVar(bool, BlockedMode);
+DeclareVar(int32, CaptionLengthMax);
 DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;

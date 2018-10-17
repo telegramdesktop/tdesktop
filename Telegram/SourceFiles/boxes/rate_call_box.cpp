@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxRating = 5;
+constexpr auto kRateCallCommentLengthMax = 200;
 
 } // namespace
 
@@ -78,7 +79,7 @@ void RateCallBox::ratingChanged(int value) {
 				langFactory(lng_call_rate_comment));
 			_comment->show();
 			_comment->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-			_comment->setMaxLength(MaxPhotoCaption);
+			_comment->setMaxLength(kRateCallCommentLengthMax);
 			_comment->resize(width() - (st::callRatingPadding.left() + st::callRatingPadding.right()), _comment->height());
 
 			updateMaxHeight();

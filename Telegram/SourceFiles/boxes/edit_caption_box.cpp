@@ -209,7 +209,7 @@ EditCaptionBox::EditCaptionBox(
 		Ui::InputField::Mode::MultiLine,
 		langFactory(lng_photo_caption),
 		editData);
-	_field->setMaxLength(MaxPhotoCaption);
+	_field->setMaxLength(Global::CaptionLengthMax());
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());

@@ -768,6 +768,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		Global::RefPhoneCallsEnabledChanged().notify();
 	}
 	Global::SetBlockedMode(data.is_blocked_mode());
+	Global::SetCaptionLengthMax(data.vcaption_length_max.v);
 
 	const auto lang = data.has_suggested_lang_code()
 		? qs(data.vsuggested_lang_code)

@@ -75,8 +75,6 @@ enum {
 	SearchPeopleLimit = 5,
 	UsernameCheckTimeout = 200,
 
-	MaxPhotoCaption = 200,
-
 	MaxMessageSize = 4096,
 
 	WriteMapTimeout = 1000,
