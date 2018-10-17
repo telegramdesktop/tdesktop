@@ -288,7 +288,8 @@ void RegisterCustomScheme() {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
 PermissionStatus GetPermissionStatus(PermissionType type) {
-	switch(type) {
+#ifndef OS_MAC_OLD
+	switch (type) {
 		case PermissionType::Microphone:
 			if([AVCaptureDevice respondsToSelector: @selector(authorizationStatusForMediaType:)]) { // Available starting with 10.14
 				switch([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
@@ -301,32 +302,38 @@ PermissionStatus GetPermissionStatus(PermissionType type) {
 						return PermissionStatus::Denied;
 				}
 			}
-			return PermissionStatus::Granted;
+			break;
 	}
+#endif // OS_MAC_OLD
 	return PermissionStatus::Granted;
 }
 
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
-	switch(type) {
+#ifndef OS_MAC_OLD
+	switch (type) {
 		case PermissionType::Microphone:
-			if([AVCaptureDevice respondsToSelector: @selector(requestAccessForMediaType:completionHandler:)]) { // Available starting with 10.14
-    			[AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
-    				resultCallback(granted ? PermissionStatus::Granted : PermissionStatus::Denied);
-    			}];
-			}else{
-				resultCallback(PermissionStatus::Granted);
+			if ([AVCaptureDevice respondsToSelector: @selector(requestAccessForMediaType:completionHandler:)]) { // Available starting with 10.14
+				[AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+					crl::on_main([=] {
+						resultCallback(granted ? PermissionStatus::Granted : PermissionStatus::Denied);
+					});
+				}];
 			}
 			break;
 	}
+#endif // OS_MAC_OLD
+	resultCallback(PermissionStatus::Granted);
 }
 #pragma clang diagnostic pop // -Wunguarded-availability
-	
+
 void OpenSystemSettingsForPermission(PermissionType type) {
-	switch(type) {
+#ifndef OS_MAC_OLD
+	switch (type) {
 		case PermissionType::Microphone:
 			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
 			break;
 	}
+#endif // OS_MAC_OLD
 }
 
 } // namespace Platform

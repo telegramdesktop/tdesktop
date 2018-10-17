@@ -11,12 +11,13 @@ namespace Platform {
 
 void start();
 void finish();
-	
+
 enum class PermissionStatus {
 	Granted,
 	CanRequest,
 	Denied,
 };
+
 enum class PermissionType {
 	Microphone,
 };

@@ -28,7 +28,7 @@ enum class PeerToPeer {
 
 class Panel;
 
-class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber {
+class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber, public base::has_weak_ptr {
 public:
 	Instance();
 

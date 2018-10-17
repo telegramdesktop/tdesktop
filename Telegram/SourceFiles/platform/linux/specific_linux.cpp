@@ -438,11 +438,10 @@ PermissionStatus GetPermissionStatus(PermissionType type){
 }
 
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback){
-
+	resultCallback(PermissionStatus::Granted);
 }
 
 void OpenSystemSettingsForPermission(PermissionType type){
-
 }
 
 namespace ThirdParty {

@@ -241,9 +241,11 @@ void Call::startIncoming() {
 }
 
 void Call::answer() {
-	_delegate->requestMicrophonePermissionOrFail([this](){ actuallyAnswer(); });
+	_delegate->requestMicrophonePermissionOrFail(crl::guard(this, [=] {
+		actuallyAnswer();
+	}));
 }
-	
+
 void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
 

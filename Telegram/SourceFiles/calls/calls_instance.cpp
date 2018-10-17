@@ -40,9 +40,9 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
 		return;
 	}
-	requestMicrophonePermissionOrFail([this, user](){
+	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
 		createCall(user, Call::Type::Outgoing);
-	});
+	}));
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -288,13 +288,13 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
 }
-	
+
 void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
 	Platform::PermissionStatus status=Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
 	if (status==Platform::PermissionStatus::Granted) {
 		onSuccess();
 	} else if(status==Platform::PermissionStatus::CanRequest) {
-		Platform::RequestPermission(Platform::PermissionType::Microphone, [this, onSuccess](Platform::PermissionStatus status){
+		Platform::RequestPermission(Platform::PermissionType::Microphone, crl::guard(this, [=](Platform::PermissionStatus status) {
 			if (status==Platform::PermissionStatus::Granted) {
 				crl::on_main(onSuccess);
 			} else {
@@ -302,15 +302,15 @@ void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
 					_currentCall->hangup();
 				}
 			}
-		});
+		}));
 	} else {
 		if (alreadyInCall()) {
 			_currentCall->hangup();
 		}
-		Ui::show(Box<ConfirmBox>(lang(lng_no_mic_permission), lang(lng_menu_settings), [](){
+		Ui::show(Box<ConfirmBox>(lang(lng_no_mic_permission), lang(lng_menu_settings), crl::guard(this, [] {
 			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
 			Ui::hideLayer();
-		}));
+		})));
 	}
 }
 

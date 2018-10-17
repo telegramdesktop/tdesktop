@@ -627,7 +627,7 @@ void RegisterCustomScheme() {
 }
 
 PermissionStatus GetPermissionStatus(PermissionType type) {
-	if(type==PermissionType::Microphone) {
+	if (type==PermissionType::Microphone) {
 		PermissionStatus result=PermissionStatus::Granted;
 		HKEY hKey;
 		LSTATUS res=RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone", 0, KEY_QUERY_VALUE, &hKey);
@@ -648,11 +648,11 @@ PermissionStatus GetPermissionStatus(PermissionType type) {
 }
 
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
-
+	resultCallback(PermissionStatus::Granted);
 }
 
 void OpenSystemSettingsForPermission(PermissionType type) {
-	if(type==PermissionType::Microphone) {
+	if (type==PermissionType::Microphone) {
 		ShellExecute(NULL, L"open", L"ms-settings:privacy-microphone", NULL, NULL, SW_SHOWDEFAULT);
 	}
 }
