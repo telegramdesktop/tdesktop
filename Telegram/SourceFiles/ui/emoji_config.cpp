@@ -24,7 +24,7 @@ constexpr auto kUniversalSize = 72;
 constexpr auto kImagesPerRow = 32;
 constexpr auto kImageRowsPerSprite = 16;
 
-constexpr auto kVersion = 2;
+constexpr auto kVersion = 3;
 
 class UniversalImages {
 public:
@@ -216,6 +216,9 @@ QImage UniversalImages::generate(int size, int index) const {
 	const auto rows = RowsCount(index);
 	const auto large = kUniversalSize;
 	const auto &original = _sprites[index];
+	const auto data = original.bits();
+	const auto stride = original.bytesPerLine();
+	const auto format = original.format();
 	auto result = QImage(
 		size * kImagesPerRow,
 		size * rows,
@@ -227,11 +230,11 @@ QImage UniversalImages::generate(int size, int index) const {
 		for (auto y = 0; y != rows; ++y) {
 			for (auto x = 0; x != kImagesPerRow; ++x) {
 				const auto single = QImage(
-					original.bits() + x * large * 4,
+					data + (y * kImagesPerRow * large + x) * large * 4,
 					large,
 					large,
-					original.bytesPerLine(),
-					original.format()
+					stride,
+					format
 				).scaled(
 					size,
 					size,
