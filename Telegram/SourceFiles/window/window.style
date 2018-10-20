@@ -105,6 +105,11 @@ mainMenuCloudButton: IconButton {
 	iconPosition: point(22px, 22px);
 }
 mainMenuCloudSize: 32px;
+mainMenuResetScaleFont: font(20px semibold);
+mainMenuResetScaleLeft: 36px;
+mainMenuResetScaleRight: 12px;
+mainMenuResetScaleTop: 2px;
+mainMenuResetScaleIconLeft: 5px;
 mainMenuCoverTextLeft: 30px;
 mainMenuCoverNameTop: 84px;
 mainMenuCoverStatusTop: 102px;

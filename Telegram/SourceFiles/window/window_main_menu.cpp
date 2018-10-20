@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_main_menu.h"
 
-#include "styles/style_window.h"
-#include "styles/style_dialogs.h"
 #include "window/themes/window_theme.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -27,13 +25,97 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "mainwidget.h"
+#include "styles/style_window.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_settings.h"
 
 namespace Window {
+namespace {
+
+template <typename Object, typename Other, typename Value>
+auto qtSignalProducer(
+		Object *object,
+		void(Other::*signal)(Value)) {
+	using Produced = std::remove_const_t<std::decay_t<Value>>;
+	const auto guarded = make_weak(object);
+	return rpl::make_producer<Produced>([=](auto consumer) {
+		if (!guarded) {
+			return rpl::lifetime();
+		}
+		auto listener = Ui::CreateChild<QObject>(guarded.data());
+		QObject::connect(guarded, signal, listener, [=](Value value) {
+			consumer.put_next_copy(value);
+		});
+		const auto weak = make_weak(listener);
+		return rpl::lifetime([=] {
+			if (weak) {
+				delete weak;
+			}
+		});
+	});
+}
+
+} // namespace
+
+class MainMenu::ResetScaleButton : public Ui::AbstractButton {
+public:
+	ResetScaleButton(QWidget *parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	static constexpr auto kText = "100%";
+
+};
+
+MainMenu::ResetScaleButton::ResetScaleButton(QWidget *parent)
+: AbstractButton(parent) {
+	const auto margin = st::mainMenuCloudButton.height
+		- st::mainMenuCloudSize;
+	const auto textWidth = st::mainMenuResetScaleFont->width(kText);
+	const auto innerWidth = st::mainMenuResetScaleLeft
+		+ textWidth
+		+ st::mainMenuResetScaleRight;
+	const auto width = margin + innerWidth;
+	resize(width, st::mainMenuCloudButton.height);
+}
+
+void MainMenu::ResetScaleButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	const auto innerHeight = st::mainMenuCloudSize;
+	const auto radius = innerHeight / 2;
+	const auto margin = st::mainMenuCloudButton.height
+		- st::mainMenuCloudSize;
+	const auto textWidth = st::mainMenuResetScaleFont->width(kText);
+	const auto innerWidth = st::mainMenuResetScaleLeft
+		+ textWidth
+		+ st::mainMenuResetScaleRight;
+	const auto left = margin / 2;
+	const auto top = margin / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::mainMenuCloudBg);
+	p.drawRoundedRect(left, top, innerWidth, innerHeight, radius, radius);
+
+	st::settingsIconInterfaceScale.paint(
+		p,
+		left + st::mainMenuResetScaleIconLeft,
+		top + ((innerHeight - st::settingsIconInterfaceScale.height()) / 2),
+		width(),
+		st::mainMenuCloudFg->c);
+
+	p.setFont(st::mainMenuResetScaleFont);
+	p.setPen(st::mainMenuCloudFg);
+	p.drawText(
+		left + st::mainMenuResetScaleLeft,
+		top + st::mainMenuResetScaleTop + st::mainMenuResetScaleFont->ascent,
+		kText);
+}
 
 MainMenu::MainMenu(
 	QWidget *parent,
 	not_null<Controller*> controller)
-: TWidget(parent)
+: RpWidget(parent)
 , _controller(controller)
 , _menu(this, st::mainMenu)
 , _telegram(this, st::mainMenuTelegramLabel)
@@ -91,6 +173,7 @@ MainMenu::MainMenu(
 		}
 	});
 	updatePhone();
+	initResetScaleButton();
 }
 
 void MainMenu::refreshMenu() {
@@ -171,6 +254,9 @@ void MainMenu::updateControlsGeometry() {
 	if (_cloudButton) {
 		_cloudButton->moveToRight(0, st::mainMenuCoverHeight - _cloudButton->height());
 	}
+	if (_resetScaleButton) {
+		_resetScaleButton->moveToRight(0, 0);
+	}
 	_menu->moveToLeft(0, st::mainMenuCoverHeight + st::mainMenuSkip);
 	_telegram->moveToLeft(st::mainMenuFooterLeft, height() - st::mainMenuTelegramBottom - _telegram->height());
 	_version->moveToLeft(st::mainMenuFooterLeft, height() - st::mainMenuVersionBottom - _version->height());
@@ -206,21 +292,48 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 				st::mainMenuCloudSize,
 				st::mainMenuCloudBg,
 				st::mainMenuCloudFg);
-			//PainterHighQualityEnabler hq(p);
-			//p.setPen(Qt::NoPen);
-			//p.setBrush(st::mainMenuCloudBg);
-			//auto cloudBg = QRect(
-			//	_cloudButton->x() + (_cloudButton->width() - st::mainMenuCloudSize) / 2,
-			//	_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
-			//	st::mainMenuCloudSize,
-			//	st::mainMenuCloudSize);
-			//p.drawEllipse(cloudBg);
 		}
 	}
 	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);
 	if (!other.isEmpty()) {
 		p.fillRect(other, st::mainMenuBg);
 	}
+}
+
+void MainMenu::initResetScaleButton() {
+	if (!window() || !window()->windowHandle()) {
+		return;
+	}
+	const auto handle = window()->windowHandle();
+	rpl::single(
+		handle->screen()
+	) | rpl::then(
+		qtSignalProducer(handle, &QWindow::screenChanged)
+	) | rpl::map([](QScreen *screen) {
+		return rpl::single(
+			screen->availableGeometry()
+		) | rpl::then(
+			qtSignalProducer(screen, &QScreen::availableGeometryChanged)
+		);
+	}) | rpl::flatten_latest(
+	) | rpl::map([](QRect available) {
+		return (available.width() >= st::windowMinWidth)
+			&& (available.height() >= st::windowMinHeight);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool good) {
+		if (good) {
+			_resetScaleButton.destroy();
+		} else {
+			_resetScaleButton.create(this);
+			_resetScaleButton->addClickHandler([] {
+				cSetConfigScale(kInterfaceScaleDefault);
+				Local::writeSettings();
+				App::restart();
+			});
+			_resetScaleButton->show();
+			updateControlsGeometry();
+		}
+	}, lifetime());
 }
 
 } // namespace Window

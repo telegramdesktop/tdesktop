@@ -340,7 +340,15 @@ void MainWindow::initSize() {
 
 	auto avail = QDesktopWidget().availableGeometry();
 	bool maximized = false;
-	auto geom = QRect(avail.x() + (avail.width() - st::windowDefaultWidth) / 2, avail.y() + (avail.height() - st::windowDefaultHeight) / 2, st::windowDefaultWidth, st::windowDefaultHeight);
+	auto geom = QRect(
+		avail.x() + std::max(
+			(avail.width() - st::windowDefaultWidth) / 2,
+			0),
+		avail.y() + std::max(
+			(avail.height() - st::windowDefaultHeight) / 2,
+			0),
+		st::windowDefaultWidth,
+		st::windowDefaultHeight);
 	if (position.w && position.h) {
 		for (auto screen : QGuiApplication::screens()) {
 			if (position.moncrc == screenNameChecksum(screen->name())) {
