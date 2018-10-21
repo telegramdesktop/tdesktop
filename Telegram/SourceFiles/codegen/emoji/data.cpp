@@ -951,7 +951,7 @@ InputCategory Category4 = {
  { 0xD83EDD4AU, },
  { 0xD83EDD4BU, },
  { 0xD83CDFBDU, },
- { 0xD83DDEF9U, 0x20U, },
+ { 0xD83DDEF9U, },
  { 0xD83DDEF7U, },
  { 0x26F8U, },
  { 0xD83EDD4CU, },
