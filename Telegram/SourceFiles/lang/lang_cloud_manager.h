@@ -17,6 +17,7 @@ class Instance;
 namespace Lang {
 
 class Instance;
+enum class Pack;
 
 class CloudManager : public base::has_weak_ptr, private MTP::Sender, private base::Subscriber {
 public:
@@ -36,11 +37,15 @@ public:
 	base::Observable<void> &languageListChanged() {
 		return _languagesChanged;
 	}
-	void requestLangPackDifference();
+	void requestLangPackDifference(const QString &langId);
 	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
 	void resetToDefault();
-	void switchToLanguage(QString id);
+	void switchWithWarning(const QString &id);
+	void switchToLanguage(
+		const QString &id,
+		const QString &pluralId = QString(),
+		const QString &baseId = QString());
 	void switchToTestLanguage();
 	void setSuggestedLanguage(const QString &langCode);
 	QString suggestedLanguage() const {
@@ -51,23 +56,40 @@ public:
 	}
 
 private:
+	mtpRequestId &packRequestId(Pack pack);
+	mtpRequestId packRequestId(Pack pack) const;
+	Pack packTypeFromId(const QString &id) const;
+	void requestLangPackDifference(Pack pack);
 	bool canApplyWithoutRestart(const QString &id) const;
 	void performSwitchToCustom();
-	void performSwitch(const QString &id);
-	void performSwitchAndRestart(const QString &id);
+	void performSwitch(
+		const QString &id,
+		const QString &pluralId = QString(),
+		const QString &baseId = QString());
+	void performSwitchAndRestart(
+		const QString &id,
+		const QString &pluralId = QString(),
+		const QString &baseId = QString());
+	void restartAfterSwitch();
 	void offerSwitchLangPack();
 	bool showOfferSwitchBox();
 	QString findOfferedLanguageName();
 
-	bool needToApplyLangPack(const QString &id);
-	void applyLangPackData(const MTPDlangPackDifference &data);
-	void switchLangPackId(const QString &id);
-	void changeIdAndReInitConnection(const QString &id);
+	void applyLangPackData(Pack pack, const MTPDlangPackDifference &data);
+	void switchLangPackId(
+		const QString &id,
+		const QString &pluralId,
+		const QString &baseId);
+	void changeIdAndReInitConnection(
+		const QString &id,
+		const QString &pluralId = QString(),
+		const QString &baseId = QString());
 
 	Instance &_langpack;
 	Languages _languages;
 	base::Observable<void> _languagesChanged;
 	mtpRequestId _langPackRequestId = 0;
+	mtpRequestId _langPackBaseRequestId = 0;
 	mtpRequestId _languagesRequestId = 0;
 
 	QString _offerSwitchToId;

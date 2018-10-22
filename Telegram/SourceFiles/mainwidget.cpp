@@ -4898,12 +4898,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	////// Cloud langpacks
 	case mtpc_updateLangPack: {
-		auto &langpack = update.c_updateLangPack();
-		Lang::CurrentCloudManager().applyLangPackDifference(langpack.vdifference);
+		const auto &data = update.c_updateLangPack();
+		Lang::CurrentCloudManager().applyLangPackDifference(data.vdifference);
 	} break;
 
 	case mtpc_updateLangPackTooLong: {
-		Lang::CurrentCloudManager().requestLangPackDifference();
+		const auto &data = update.c_updateLangPackTooLong();
+		const auto code = qs(data.vlang_code);
+		if (!code.isEmpty()) {
+			Lang::CurrentCloudManager().requestLangPackDifference(code);
+		}
 	} break;
 
 	}

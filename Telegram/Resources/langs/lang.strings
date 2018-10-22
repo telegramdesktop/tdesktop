@@ -1788,6 +1788,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_about_chats" = "This page lists all chats from this export and where to look for their data.";
 "lng_export_about_left_chats" = "Below are the supergroups and channels from this export that you've left or where you were banned.\n\nNote that when you leave a channel or supergroup you've created, you have the option to either delete it, or simply leave (in case you want to rejoin later, or keep the community alive despite not being a member).";
 
+"lng_language_switch_title" = "Change language?";
+"lng_language_switch_about" = "You are about to apply a custom language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
+"lng_language_switch_link" = "translation panel";
+"lng_language_switch_apply" = "Change";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

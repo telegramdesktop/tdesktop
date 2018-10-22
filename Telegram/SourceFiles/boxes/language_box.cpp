@@ -83,10 +83,10 @@ void LanguageBox::Inner::languageChanged(int languageIndex) {
 }
 
 void LanguageBox::Inner::activateCurrent() {
-	auto currentId = Lang::Current().id();
+	const auto currentId = Lang::LanguageIdOrDefault(Lang::Current().id());
 	for (auto i = 0, count = _languages->size(); i != count; ++i) {
-		auto languageId = (*_languages)[i].id;
-		auto isCurrent = (languageId == currentId) || (languageId == Lang::DefaultLanguageId() && currentId.isEmpty());
+		const auto languageId = (*_languages)[i].id;
+		const auto isCurrent = (languageId == currentId);
 		if (isCurrent) {
 			_group->setValue(i);
 			return;
@@ -128,11 +128,11 @@ void LanguageBox::refreshLanguages() {
 	_languages = Languages();
 	auto list = Lang::CurrentCloudManager().languageList();
 	_languages.reserve(list.size() + 1);
-	auto currentId = Lang::Current().id();
+	const auto currentId = Lang::LanguageIdOrDefault(Lang::Current().id());
 	auto currentIndex = -1;
 	_languages.push_back({ qsl("en"), qsl("English"), qsl("English") });
 	for (auto &language : list) {
-		auto isCurrent = (language.id == currentId) || (language.id == Lang::DefaultLanguageId() && currentId.isEmpty());
+		const auto isCurrent = (language.id == currentId);
 		if (language.id != qstr("en")) {
 			if (isCurrent) {
 				currentIndex = _languages.size();

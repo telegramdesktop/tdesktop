@@ -499,12 +499,16 @@ struct PluralsKey {
 	uint64 data = 0;
 };
 
+char ConvertKeyChar(char ch) {
+	return (ch == '_') ? '-' : QChar::toLower(ch);
+}
+
 PluralsKey::PluralsKey(uint64 key) : data(key) {
 }
 
 PluralsKey::PluralsKey(const char *value) {
 	for (auto ch = *value; ch; ch = *++value) {
-		data = (data << 8) | uint64(ch);
+		data = (data << 8) | uint64(ConvertKeyChar(ch));
 	}
 }
 
@@ -942,11 +946,21 @@ PluralResult Plural(ushort keyBase, float64 value) {
 
 void UpdatePluralRules(const QString &languageId) {
 	static auto kMap = GeneratePluralRulesMap();
+	auto parent = uint64(0);
 	auto key = uint64(0);
 	for (const auto ch : languageId) {
-		key = (key << 8) | ch.unicode();
+		const auto converted = ConvertKeyChar(ch.unicode());
+		if (converted == '-' && !parent) {
+			parent = key;
+		}
+		key = (key << 8) | uint64(converted);
 	}
-	const auto i = kMap.find(key);
+	const auto i = [&] {
+		const auto result = kMap.find(key);
+		return (result != end(kMap) || !parent)
+			? result
+			: kMap.find(parent);
+	}();
 	ChoosePlural = (i == end(kMap)) ? ChoosePlural1 : i->second;
 }
 

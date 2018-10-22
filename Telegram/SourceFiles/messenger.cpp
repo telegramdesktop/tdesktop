@@ -842,6 +842,9 @@ bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 			main->stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
 			return true;
 		}
+	} else if (auto languageMatch = regex_match(qsl("^setlanguage/?\\?lang=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
+		const auto langId = languageMatch->captured(1);
+		Lang::CurrentCloudManager().switchWithWarning(langId);
 	} else if (auto shareUrlMatch = regex_match(qsl("^msg_url/?\\?(.+)(#|$)"), command, matchOptions)) {
 		if (auto main = App::main()) {
 			auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);

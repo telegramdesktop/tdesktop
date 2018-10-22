@@ -1537,7 +1537,7 @@ QString Instance::systemLangCode() const {
 }
 
 QString Instance::cloudLangCode() const {
-	return Lang::Current().cloudLangCode();
+	return Lang::Current().cloudLangCode(Lang::Pack::Current);
 }
 
 QString Instance::langPackName() const {

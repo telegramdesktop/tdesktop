@@ -4099,7 +4099,7 @@ void readLangPack() {
 	auto data = QByteArray();
 	langpack.stream >> data;
 	if (langpack.stream.status() == QDataStream::Ok) {
-		Lang::Current().fillFromSerialized(data);
+		Lang::Current().fillFromSerialized(data, langpack.version);
 	}
 }
 
