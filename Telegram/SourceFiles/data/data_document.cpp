@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
+#include "core/media_active_cache.h"
 #include "core/mime_type.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
@@ -27,6 +28,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 
 namespace {
+
+constexpr auto kMemoryForCache = 32 * 1024 * 1024;
+
+Core::MediaActiveCache<DocumentData> &ActiveCache() {
+	static auto Instance = Core::MediaActiveCache<DocumentData>(
+		kMemoryForCache,
+		[](DocumentData *document) { document->forget(); });
+	return Instance;
+}
+
+int64 ComputeUsage(StickerData *sticker) {
+	return (sticker != nullptr && !sticker->img->isNull())
+		? sticker->img->width() * sticker->img->height() * 4
+		: 0;
+}
 
 QString JoinStringList(const QStringList &list, const QString &separator) {
 	const auto count = list.size();
@@ -521,9 +537,21 @@ bool DocumentData::saveToCache() const {
 }
 
 void DocumentData::forget() {
-	thumb->forget();
-	if (sticker()) sticker()->img->forget();
-	replyPreview->forget();
+	if (sticker()) {
+		if (!sticker()->img->isNull()) {
+			ActiveCache().decrement(ComputeUsage(sticker()));
+
+			// Should be std::unique_ptr<Image>.
+			delete sticker()->img.get();
+			sticker()->img = ImagePtr();
+		}
+	}
+	if (!replyPreview->isNull()) {
+		// Should be std::unique_ptr<Image>.
+		delete replyPreview.get();
+		replyPreview = ImagePtr();
+	}
+	ActiveCache().decrement(_data.size());
 	_data.clear();
 }
 
@@ -659,9 +687,21 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 		} else {
 			auto that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(_loader->fileName());
+			ActiveCache().decrement(that->_data.size());
 			that->_data = _loader->bytes();
-			if (that->sticker() && !_loader->imageData().isNull()) {
-				that->sticker()->img = Images::Create(_data, _loader->imageFormat(), _loader->imageData());
+			ActiveCache().increment(that->_data.size());
+			if (that->sticker()
+				&& that->sticker()->img->isNull()
+				&& !_loader->imageData().isNull()) {
+				that->sticker()->img = Images::Create(
+					_data,
+					_loader->imageFormat(),
+					_loader->imageData());
+				ActiveCache().increment(ComputeUsage(that->sticker()));
+			}
+			if (!that->_data.isEmpty()
+				|| (that->sticker() && !that->sticker()->img->isNull())) {
+				ActiveCache().up(that);
 			}
 			destroyLoaderDelayed();
 		}
@@ -874,6 +914,9 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 }
 
 QByteArray DocumentData::data() const {
+	if (!_data.isEmpty()) {
+		ActiveCache().up(const_cast<DocumentData*>(this));
+	}
 	return _data;
 }
 
@@ -982,6 +1025,10 @@ void DocumentData::checkSticker() {
 			}
 		} else {
 			data->img = Images::Create(_data, "WEBP");
+		}
+		if (const auto usage = ComputeUsage(data)) {
+			ActiveCache().increment(usage);
+			ActiveCache().up(this);
 		}
 	}
 }
@@ -1246,7 +1293,12 @@ void DocumentData::collectLocalData(DocumentData *local) {
 
 	_session->data().cache().copyIfEmpty(local->cacheKey(), cacheKey());
 	if (!local->_data.isEmpty()) {
+		ActiveCache().decrement(_data.size());
 		_data = local->_data;
+		ActiveCache().increment(_data.size());
+		if (!_data.isEmpty()) {
+			ActiveCache().up(this);
+		}
 	}
 	if (!local->_location.isEmpty()) {
 		_location = local->_location;

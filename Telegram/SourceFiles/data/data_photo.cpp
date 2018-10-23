@@ -105,7 +105,11 @@ bool PhotoData::uploading() const {
 
 void PhotoData::forget() {
 	thumb->forget();
-	replyPreview->forget();
+	if (!replyPreview->isNull()) {
+		// Should be std::unique_ptr<Image>.
+		delete replyPreview.get();
+		replyPreview = ImagePtr();
+	}
 	medium->forget();
 	full->forget();
 }
