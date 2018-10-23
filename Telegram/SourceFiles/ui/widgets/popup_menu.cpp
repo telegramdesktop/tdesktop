@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 
 #include "ui/widgets/shadow.h"
+#include "ui/image/image_prepare.h"
 #include "platform/platform_specific.h"
 #include "application.h"
 #include "mainwindow.h"

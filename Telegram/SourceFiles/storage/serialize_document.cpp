@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "chat_helpers/stickers.h"
 #include "data/data_session.h"
-#include "ui/image.h"
+#include "ui/image/image.h"
 #include "auth_session.h"
 
 namespace {

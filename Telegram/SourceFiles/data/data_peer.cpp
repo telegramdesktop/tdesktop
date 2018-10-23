@@ -26,9 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "storage/localstorage.h"
+#include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
-#include "ui/image.h"
 
 namespace {
 

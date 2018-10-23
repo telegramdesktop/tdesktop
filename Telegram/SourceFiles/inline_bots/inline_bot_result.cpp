@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
-#include "ui/image.h"
+#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 

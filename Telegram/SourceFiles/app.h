@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 
 enum NewMessageType : char;
+enum class ImageRoundRadius;
 class Messenger;
 class MainWindow;
 class MainWidget;

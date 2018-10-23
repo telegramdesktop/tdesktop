@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 
 #include "data/data_session.h"
-#include "ui/image.h"
+#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
 #include "auth_session.h"

@@ -88,7 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/animation.h"
 #include "ui/twidget.h"
-#include "ui/images.h"
+#include "ui/image/image_location.h"
 #include "ui/text/text.h"
 
 #include "data/data_types.h"

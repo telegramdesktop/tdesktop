@@ -15,8 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
-#include "ui/image.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "media/view/media_view_group_thumbs.h"
@@ -46,6 +46,13 @@ constexpr auto kIdsLimit = 48;
 
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
+
+Images::Options VideoThumbOptions(not_null<DocumentData*> document) {
+	const auto result = Images::Option::Smooth | Images::Option::Blurred;
+	return (document && document->isVideoMessage())
+		? (result | Images::Option::Circled)
+		: result;
+}
 
 } // namespace
 
@@ -1680,14 +1687,6 @@ void MediaView::displayFinished() {
 	}
 }
 
-Images::Options MediaView::videoThumbOptions() const {
-	auto options = Images::Option::Smooth | Images::Option::Blurred;
-	if (_doc && _doc->isVideoMessage()) {
-		options |= Images::Option::Circled;
-	}
-	return options;
-}
-
 void MediaView::initAnimation() {
 	Expects(_doc != nullptr);
 	Expects(_doc->isAnimation() || _doc->isVideoFile());
@@ -1701,10 +1700,10 @@ void MediaView::initAnimation() {
 	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		auto w = _doc->dimensions.width();
 		auto h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1717,10 +1716,10 @@ void MediaView::createClipReader() {
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideoFile() || _doc->isVideoMessage())
 		? Media::Clip::Reader::Mode::Video

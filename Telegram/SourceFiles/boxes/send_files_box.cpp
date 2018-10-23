@@ -766,13 +766,13 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 		| Images::Option::RoundedTopRight
 		| Images::Option::RoundedBottomLeft
 		| Images::Option::RoundedBottomRight;
-	_fileThumb = Images::pixmap(
+	_fileThumb = App::pixmapFromImageInPlace(Images::prepare(
 		preview,
 		thumbWidth * cIntRetinaFactor(),
 		0,
 		options,
 		st::msgFileThumbSize,
-		st::msgFileThumbSize);
+		st::msgFileThumbSize));
 }
 
 void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/localimageloader.h"
+#include "ui/image/image_prepare.h"
 
 class FileLocation;
 

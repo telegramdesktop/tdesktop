@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "storage/localimageloader.h"
 #include "core/mime_type.h"
+#include "ui/image/image_prepare.h"
 
 namespace Storage {
 namespace {

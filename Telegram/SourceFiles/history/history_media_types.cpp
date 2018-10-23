@@ -31,11 +31,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "styles/style_history.h"
 #include "calls/calls_instance.h"
+#include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
-#include "ui/image.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 

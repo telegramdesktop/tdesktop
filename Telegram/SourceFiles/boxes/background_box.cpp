@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/themes/window_theme.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/image/image.h"
+#include "auth_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
-#include "ui/effects/round_checkbox.h"
-#include "ui/image.h"
-#include "auth_session.h"
 
 class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 public:

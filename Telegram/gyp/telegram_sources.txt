@@ -598,6 +598,14 @@
 <(src_loc)/ui/effects/send_action_animations.h
 <(src_loc)/ui/effects/slide_animation.cpp
 <(src_loc)/ui/effects/slide_animation.h
+<(src_loc)/ui/image/image.cpp
+<(src_loc)/ui/image/image.h
+<(src_loc)/ui/image/image_location.cpp
+<(src_loc)/ui/image/image_location.h
+<(src_loc)/ui/image/image_prepare.cpp
+<(src_loc)/ui/image/image_prepare.h
+<(src_loc)/ui/image/image_source.cpp
+<(src_loc)/ui/image/image_source.h
 <(src_loc)/ui/style/style_core.cpp
 <(src_loc)/ui/style/style_core.h
 <(src_loc)/ui/style/style_core_color.cpp
@@ -672,10 +680,6 @@
 <(src_loc)/ui/focus_persister.h
 <(src_loc)/ui/grouped_layout.cpp
 <(src_loc)/ui/grouped_layout.h
-<(src_loc)/ui/image.cpp
-<(src_loc)/ui/image.h
-<(src_loc)/ui/images.cpp
-<(src_loc)/ui/images.h
 <(src_loc)/ui/resize_area.h
 <(src_loc)/ui/rp_widget.cpp
 <(src_loc)/ui/rp_widget.h

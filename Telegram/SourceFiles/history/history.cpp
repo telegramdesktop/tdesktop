@@ -32,8 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_feed_messages.h"
 #include "data/data_channel_admins.h"
 #include "data/data_feed.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
-#include "ui/image.h"
 #include "core/crash_reports.h"
 
 namespace {

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
+#include "data/data_file_origin.h"
 
 namespace Ui {
 class EmptyUserpic;
