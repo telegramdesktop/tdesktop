@@ -15,7 +15,6 @@ namespace Images {
 
 void ClearRemote();
 void ClearAll();
-void CheckCacheSize();
 
 ImagePtr Create(const QString &file, QByteArray format);
 ImagePtr Create(const QString &url, QSize box);

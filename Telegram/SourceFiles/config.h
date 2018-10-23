@@ -246,7 +246,6 @@ enum {
 	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
 	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
 
-	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
 	SendViewsTimeout = 1000, // send views each second

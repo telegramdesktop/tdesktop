@@ -8,12 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 
 #include "ui/image/image_source.h"
+#include "core/media_active_cache.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "auth_session.h"
 
+using namespace Images;
+
 namespace Images {
 namespace {
+
+// After 64MB of unpacked images we try to clear some memory.
+constexpr auto kMemoryForCache = 64 * 1024 * 1024;
 
 QMap<QString, Image*> LocalFileImages;
 QMap<QString, Image*> WebUrlImages;
@@ -21,14 +27,32 @@ QMap<StorageKey, Image*> StorageImages;
 QMap<StorageKey, Image*> WebCachedImages;
 QMap<StorageKey, Image*> GeoPointImages;
 
-int64 GlobalAcquiredSize = 0;
-int64 LocalAcquiredSize = 0;
-
-uint64 PixKey(int width, int height, Images::Options options) {
-	return static_cast<uint64>(width) | (static_cast<uint64>(height) << 24) | (static_cast<uint64>(options) << 48);
+int64 ComputeUsage(QSize size) {
+	return int64(size.width()) * size.height() * 4;
 }
 
-uint64 SinglePixKey(Images::Options options) {
+int64 ComputeUsage(const QPixmap &image) {
+	return ComputeUsage(image.size());
+}
+
+int64 ComputeUsage(const QImage &image) {
+	return ComputeUsage(image.size());
+}
+
+Core::MediaActiveCache<const Image> &ActiveCache() {
+	static auto Instance = Core::MediaActiveCache<const Image>(
+		kMemoryForCache,
+		[](const Image *image) { image->forget(); });
+	return Instance;
+}
+
+uint64 PixKey(int width, int height, Options options) {
+	return static_cast<uint64>(width)
+		| (static_cast<uint64>(height) << 24)
+		| (static_cast<uint64>(options) << 48);
+}
+
+uint64 SinglePixKey(Options options) {
 	return PixKey(0, 0, options);
 }
 
@@ -47,22 +71,14 @@ void ClearRemote() {
 	for (auto image : base::take(GeoPointImages)) {
 		delete image;
 	}
-	LocalAcquiredSize = GlobalAcquiredSize;
 }
 
 void ClearAll() {
+	ActiveCache().clear();
 	for (auto image : base::take(LocalFileImages)) {
 		delete image;
 	}
 	ClearRemote();
-}
-
-void CheckCacheSize() {
-	const auto now = GlobalAcquiredSize;
-	if (GlobalAcquiredSize > LocalAcquiredSize + MemoryForImageCache) {
-		Auth().data().forgetMedia();
-		LocalAcquiredSize = GlobalAcquiredSize;
-	}
 }
 
 ImagePtr Create(const QString &file, QByteArray format) {
@@ -312,11 +328,11 @@ ImagePtr Create(const GeoPointLocation &location) {
 
 } // namespace Images
 
-Image::Image(std::unique_ptr<Images::Source> &&source)
+Image::Image(std::unique_ptr<Source> &&source)
 : _source(std::move(source)) {
 }
 
-void Image::replaceSource(std::unique_ptr<Images::Source> &&source) {
+void Image::replaceSource(std::unique_ptr<Source> &&source) {
 	_source = std::move(source);
 }
 
@@ -329,7 +345,7 @@ ImagePtr Image::Blank() {
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::transparent);
 		data.setDevicePixelRatio(cRetinaFactor());
-		return Images::Create(
+		return Create(
 			std::move(data),
 			"GIF");
 	}();
@@ -352,16 +368,14 @@ const QPixmap &Image::pix(
         w *= cIntRetinaFactor();
         h *= cIntRetinaFactor();
     }
-	auto options = Images::Option::Smooth | Images::Option::None;
-	auto k = Images::PixKey(w, h, options);
+	auto options = Option::Smooth | Option::None;
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
         p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -380,29 +394,27 @@ const QPixmap &Image::pixRounded(
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	auto options = Images::Option::Smooth | Images::Option::None;
+	auto options = Option::Smooth | Option::None;
 	auto cornerOptions = [](RectParts corners) {
-		return (corners & RectPart::TopLeft ? Images::Option::RoundedTopLeft : Images::Option::None)
-			| (corners & RectPart::TopRight ? Images::Option::RoundedTopRight : Images::Option::None)
-			| (corners & RectPart::BottomLeft ? Images::Option::RoundedBottomLeft : Images::Option::None)
-			| (corners & RectPart::BottomRight ? Images::Option::RoundedBottomRight : Images::Option::None);
+		return (corners & RectPart::TopLeft ? Option::RoundedTopLeft : Option::None)
+			| (corners & RectPart::TopRight ? Option::RoundedTopRight : Option::None)
+			| (corners & RectPart::BottomLeft ? Option::RoundedBottomLeft : Option::None)
+			| (corners & RectPart::BottomRight ? Option::RoundedBottomRight : Option::None);
 	};
 	if (radius == ImageRoundRadius::Large) {
-		options |= Images::Option::RoundedLarge | cornerOptions(corners);
+		options |= Option::RoundedLarge | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Small) {
-		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+		options |= Option::RoundedSmall | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Ellipse) {
-		options |= Images::Option::Circled | cornerOptions(corners);
+		options |= Option::Circled | cornerOptions(corners);
 	}
-	auto k = Images::PixKey(w, h, options);
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -419,16 +431,14 @@ const QPixmap &Image::pixCircled(
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	auto options = Images::Option::Smooth | Images::Option::Circled;
-	auto k = Images::PixKey(w, h, options);
+	auto options = Option::Smooth | Option::Circled;
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -445,16 +455,14 @@ const QPixmap &Image::pixBlurredCircled(
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	auto options = Images::Option::Smooth | Images::Option::Circled | Images::Option::Blurred;
-	auto k = Images::PixKey(w, h, options);
+	auto options = Option::Smooth | Option::Circled | Option::Blurred;
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -471,16 +479,14 @@ const QPixmap &Image::pixBlurred(
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	auto options = Images::Option::Smooth | Images::Option::Blurred;
-	auto k = Images::PixKey(w, h, options);
+	auto options = Option::Smooth | Option::Blurred;
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -498,16 +504,14 @@ const QPixmap &Image::pixColored(
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	auto options = Images::Option::Smooth | Images::Option::Colored;
-	auto k = Images::PixKey(w, h, options);
+	auto options = Option::Smooth | Option::Colored;
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixColoredNoCache(origin, add, w, h, true);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -525,16 +529,14 @@ const QPixmap &Image::pixBlurredColored(
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	auto options = Images::Option::Blurred | Images::Option::Smooth | Images::Option::Colored;
-	auto k = Images::PixKey(w, h, options);
+	auto options = Option::Blurred | Option::Smooth | Option::Colored;
+	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixBlurredColoredNoCache(origin, add, w, h);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -557,36 +559,34 @@ const QPixmap &Image::pixSingle(
 		h *= cIntRetinaFactor();
 	}
 
-	auto options = Images::Option::Smooth | Images::Option::None;
+	auto options = Option::Smooth | Option::None;
 	auto cornerOptions = [](RectParts corners) {
-		return (corners & RectPart::TopLeft ? Images::Option::RoundedTopLeft : Images::Option::None)
-			| (corners & RectPart::TopRight ? Images::Option::RoundedTopRight : Images::Option::None)
-			| (corners & RectPart::BottomLeft ? Images::Option::RoundedBottomLeft : Images::Option::None)
-			| (corners & RectPart::BottomRight ? Images::Option::RoundedBottomRight : Images::Option::None);
+		return (corners & RectPart::TopLeft ? Option::RoundedTopLeft : Option::None)
+			| (corners & RectPart::TopRight ? Option::RoundedTopRight : Option::None)
+			| (corners & RectPart::BottomLeft ? Option::RoundedBottomLeft : Option::None)
+			| (corners & RectPart::BottomRight ? Option::RoundedBottomRight : Option::None);
 	};
 	if (radius == ImageRoundRadius::Large) {
-		options |= Images::Option::RoundedLarge | cornerOptions(corners);
+		options |= Option::RoundedLarge | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Small) {
-		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+		options |= Option::RoundedSmall | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Ellipse) {
-		options |= Images::Option::Circled | cornerOptions(corners);
+		options |= Option::Circled | cornerOptions(corners);
 	}
 	if (colored) {
-		options |= Images::Option::Colored;
+		options |= Option::Colored;
 	}
 
-	auto k = Images::SinglePixKey(options);
+	auto k = SinglePixKey(options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
 		if (i != _sizesCache.cend()) {
-			Images::GlobalAcquiredSize -= int64(i->width()) * i->height() * 4;
+			ActiveCache().decrement(ComputeUsage(*i));
 		}
 		auto p = pixNoCache(origin, w, h, options, outerw, outerh, colored);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -608,33 +608,31 @@ const QPixmap &Image::pixBlurredSingle(
 		h *= cIntRetinaFactor();
 	}
 
-	auto options = Images::Option::Smooth | Images::Option::Blurred;
+	auto options = Option::Smooth | Option::Blurred;
 	auto cornerOptions = [](RectParts corners) {
-		return (corners & RectPart::TopLeft ? Images::Option::RoundedTopLeft : Images::Option::None)
-			| (corners & RectPart::TopRight ? Images::Option::RoundedTopRight : Images::Option::None)
-			| (corners & RectPart::BottomLeft ? Images::Option::RoundedBottomLeft : Images::Option::None)
-			| (corners & RectPart::BottomRight ? Images::Option::RoundedBottomRight : Images::Option::None);
+		return (corners & RectPart::TopLeft ? Option::RoundedTopLeft : Option::None)
+			| (corners & RectPart::TopRight ? Option::RoundedTopRight : Option::None)
+			| (corners & RectPart::BottomLeft ? Option::RoundedBottomLeft : Option::None)
+			| (corners & RectPart::BottomRight ? Option::RoundedBottomRight : Option::None);
 	};
 	if (radius == ImageRoundRadius::Large) {
-		options |= Images::Option::RoundedLarge | cornerOptions(corners);
+		options |= Option::RoundedLarge | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Small) {
-		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+		options |= Option::RoundedSmall | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Ellipse) {
-		options |= Images::Option::Circled | cornerOptions(corners);
+		options |= Option::Circled | cornerOptions(corners);
 	}
 
-	auto k = Images::SinglePixKey(options);
+	auto k = SinglePixKey(options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
 		if (i != _sizesCache.cend()) {
-			Images::GlobalAcquiredSize -= int64(i->width()) * i->height() * 4;
+			ActiveCache().decrement(ComputeUsage(*i));
 		}
 		auto p = pixNoCache(origin, w, h, options, outerw, outerh);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(*i));
 	}
 	return i.value();
 }
@@ -643,7 +641,7 @@ QPixmap Image::pixNoCache(
 		Data::FileOrigin origin,
 		int w,
 		int h,
-		Images::Options options,
+		Options options,
 		int outerw,
 		int outerh,
 		const style::color *colored) const {
@@ -679,27 +677,27 @@ QPixmap Image::pixNoCache(
 			p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), st::imageBgTransparent);
 		}
 
-		auto corners = [](Images::Options options) {
-			return ((options & Images::Option::RoundedTopLeft) ? RectPart::TopLeft : RectPart::None)
-				| ((options & Images::Option::RoundedTopRight) ? RectPart::TopRight : RectPart::None)
-				| ((options & Images::Option::RoundedBottomLeft) ? RectPart::BottomLeft : RectPart::None)
-				| ((options & Images::Option::RoundedBottomRight) ? RectPart::BottomRight : RectPart::None);
+		auto corners = [](Options options) {
+			return ((options & Option::RoundedTopLeft) ? RectPart::TopLeft : RectPart::None)
+				| ((options & Option::RoundedTopRight) ? RectPart::TopRight : RectPart::None)
+				| ((options & Option::RoundedBottomLeft) ? RectPart::BottomLeft : RectPart::None)
+				| ((options & Option::RoundedBottomRight) ? RectPart::BottomRight : RectPart::None);
 		};
-		if (options & Images::Option::Circled) {
-			Images::prepareCircle(result);
-		} else if (options & Images::Option::RoundedLarge) {
-			Images::prepareRound(result, ImageRoundRadius::Large, corners(options));
-		} else if (options & Images::Option::RoundedSmall) {
-			Images::prepareRound(result, ImageRoundRadius::Small, corners(options));
+		if (options & Option::Circled) {
+			prepareCircle(result);
+		} else if (options & Option::RoundedLarge) {
+			prepareRound(result, ImageRoundRadius::Large, corners(options));
+		} else if (options & Option::RoundedSmall) {
+			prepareRound(result, ImageRoundRadius::Small, corners(options));
 		}
-		if (options & Images::Option::Colored) {
+		if (options & Option::Colored) {
 			Assert(colored != nullptr);
-			result = Images::prepareColored(*colored, std::move(result));
+			result = prepareColored(*colored, std::move(result));
 		}
 		return App::pixmapFromImageInPlace(std::move(result));
 	}
 
-	return App::pixmapFromImageInPlace(Images::prepare(_data, w, h, options, outerw, outerh, colored));
+	return App::pixmapFromImageInPlace(prepare(_data, w, h, options, outerw, outerh, colored));
 }
 
 QPixmap Image::pixColoredNoCache(
@@ -719,12 +717,12 @@ QPixmap Image::pixColoredNoCache(
 
 	auto img = _data;
 	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) {
-		return App::pixmapFromImageInPlace(Images::prepareColored(add, std::move(img)));
+		return App::pixmapFromImageInPlace(prepareColored(add, std::move(img)));
 	}
 	if (h <= 0) {
-		return App::pixmapFromImageInPlace(Images::prepareColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
+		return App::pixmapFromImageInPlace(prepareColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 	}
-	return App::pixmapFromImageInPlace(Images::prepareColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
+	return App::pixmapFromImageInPlace(prepareColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 }
 
 QPixmap Image::pixBlurredColoredNoCache(
@@ -741,14 +739,14 @@ QPixmap Image::pixBlurredColoredNoCache(
 		return Blank()->pix(origin);
 	}
 
-	auto img = Images::prepareBlur(_data);
+	auto img = prepareBlur(_data);
 	if (h <= 0) {
 		img = img.scaledToWidth(w, Qt::SmoothTransformation);
 	} else {
 		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	}
 
-	return App::pixmapFromImageInPlace(Images::prepareColored(add, img));
+	return App::pixmapFromImageInPlace(prepareColored(add, img));
 }
 
 std::optional<Storage::Cache::Key> Image::cacheKey() const {
@@ -765,20 +763,18 @@ void Image::checkSource() const {
 	if (_data.isNull() && !data.isNull()) {
 		invalidateSizeCache();
 		_data = std::move(data);
-		if (!_data.isNull()) {
-			Images::GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-		}
+		ActiveCache().increment(ComputeUsage(_data));
 	}
+
+	ActiveCache().up(this);
 }
 
 void Image::forget() const {
 	_source->takeLoaded();
 	_source->forget();
 	invalidateSizeCache();
-	if (!_data.isNull()) {
-		Images::GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
-		_data = QImage();
-	}
+	ActiveCache().decrement(ComputeUsage(_data));
+	_data = QImage();
 }
 
 void Image::setDelayedStorageLocation(
@@ -796,14 +792,14 @@ void Image::setImageBytes(const QByteArray &bytes) {
 }
 
 void Image::invalidateSizeCache() const {
+	auto &cache = ActiveCache();
 	for (const auto &image : std::as_const(_sizesCache)) {
-		if (!image.isNull()) {
-			Images::GlobalAcquiredSize -= int64(image.width()) * image.height() * 4;
-		}
+		cache.decrement(ComputeUsage(image));
 	}
 	_sizesCache.clear();
 }
 
 Image::~Image() {
 	forget();
+	ActiveCache().remove(this);
 }

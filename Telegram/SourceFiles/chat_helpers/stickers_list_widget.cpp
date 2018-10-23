@@ -691,9 +691,11 @@ StickersListWidget::StickersListWidget(QWidget *parent, not_null<Window::Control
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
 
-	subscribe(Auth().downloaderTaskFinished(), [this] {
-		update();
-		readVisibleSets();
+	subscribe(Auth().downloaderTaskFinished(), [=] {
+		if (isVisible()) {
+			update();
+			readVisibleSets();
+		}
 	});
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelStickersChanged, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _megagroupSet) {

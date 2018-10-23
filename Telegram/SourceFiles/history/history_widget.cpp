@@ -2856,7 +2856,6 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 }
 
 void HistoryWidget::onScroll() {
-	Images::CheckCacheSize();
 	preloadHistoryIfNeeded();
 	visibleAreaUpdated();
 	if (!_synteticScrollEvent) {
