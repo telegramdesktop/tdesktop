@@ -57,8 +57,7 @@ Invoice ComputeInvoiceData(const MTPDmessageMediaInvoice &data) {
 		result.receiptMsgId = data.vreceipt_msg_id.v;
 	}
 	if (data.has_photo()) {
-		const auto thumb = ImagePtr();
-		result.photo = Auth().data().photoFromWeb(data.vphoto, thumb);
+		result.photo = Auth().data().photoFromWeb(data.vphoto);
 	}
 	return result;
 }

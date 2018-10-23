@@ -120,7 +120,7 @@ ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 			int w = image->width(), h = image->height();
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
-			return ImagePtr(
+			return Images::Create(
 				(w > h
 					? image->pix(
 						origin,

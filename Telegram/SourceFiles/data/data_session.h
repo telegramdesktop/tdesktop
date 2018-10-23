@@ -262,7 +262,10 @@ public:
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
-	PhotoData *photoFromWeb(const MTPWebDocument &data, ImagePtr thumb);
+	PhotoData *photoFromWeb(
+		const MTPWebDocument &data,
+		ImagePtr thumb = ImagePtr(),
+		bool willBecomeNormal = false);
 
 	not_null<DocumentData*> document(DocumentId id);
 	not_null<DocumentData*> document(const MTPDocument &data);

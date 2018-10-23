@@ -813,9 +813,9 @@ not_null<PhotoData*> Session::photo(
 			data.c_photo().vaccess_hash.v,
 			data.c_photo().vfile_reference.v,
 			data.c_photo().vdate.v,
-			ImagePtr(base::duplicate(*thumb), "JPG"),
-			ImagePtr(base::duplicate(*medium), "JPG"),
-			ImagePtr(base::duplicate(*full), "JPG"));
+			Images::Create(base::duplicate(*thumb), "JPG"),
+			Images::Create(base::duplicate(*medium), "JPG"),
+			Images::Create(base::duplicate(*full), "JPG"));
 
 	case mtpc_photoEmpty:
 		return photo(data.c_photoEmpty().vid.v);
@@ -875,20 +875,24 @@ void Session::photoConvert(
 
 PhotoData *Session::photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb) {
-	const auto full = ImagePtr(data);
+		ImagePtr thumb,
+		bool willBecomeNormal) {
+	const auto full = Images::Create(data);
 	if (full->isNull()) {
 		return nullptr;
 	}
-	//const auto width = full->width();
-	//const auto height = full->height();
-	//if (thumb->isNull()) {
-	//	auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-	//	thumb = ImagePtr(thumbsize.width(), thumbsize.height());
-	//}
+	auto medium = ImagePtr();
+	if (willBecomeNormal) {
+		const auto width = full->width();
+		const auto height = full->height();
+		if (thumb->isNull()) {
+			auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
+			thumb = Images::Create(thumbsize.width(), thumbsize.height());
+		}
 
-	//auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-	//auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
+		auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
+		medium = Images::Create(mediumsize.width(), mediumsize.height());
+	}
 
 	return photo(
 		rand_value<PhotoId>(),
@@ -896,7 +900,7 @@ PhotoData *Session::photoFromWeb(
 		QByteArray(),
 		unixtime(),
 		thumb,
-		ImagePtr(),
+		medium,
 		full);
 }
 
@@ -911,7 +915,7 @@ void Session::photoApplyFields(
 void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPDphoto &data) {
-		auto thumb = (const MTPPhotoSize*)nullptr;
+	auto thumb = (const MTPPhotoSize*)nullptr;
 	auto medium = (const MTPPhotoSize*)nullptr;
 	auto full = (const MTPPhotoSize*)nullptr;
 	auto thumbLevel = -1;
@@ -1027,7 +1031,7 @@ not_null<DocumentData*> Session::document(
 			fields.vdate.v,
 			fields.vattributes.v,
 			qs(fields.vmime_type),
-			ImagePtr(std::move(thumb), "JPG"),
+			Images::Create(std::move(thumb), "JPG"),
 			fields.vdc_id.v,
 			fields.vsize.v,
 			StorageImageLocation());

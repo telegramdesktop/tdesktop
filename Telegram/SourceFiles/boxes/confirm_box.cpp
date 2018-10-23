@@ -679,7 +679,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 			size,
 			data.vphoto_small);
 		if (!location.isNull()) {
-			_photo = ImagePtr(location);
+			_photo = Images::Create(location);
 			if (!_photo->loaded()) {
 				subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 				_photo->load(Data::FileOrigin());

@@ -661,7 +661,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 			that->_location = FileLocation(_loader->fileName());
 			that->_data = _loader->bytes();
 			if (that->sticker() && !_loader->imageData().isNull()) {
-				that->sticker()->img = ImagePtr(_data, _loader->imageFormat(), _loader->imageData());
+				that->sticker()->img = Images::Create(_data, _loader->imageFormat(), _loader->imageData());
 			}
 			destroyLoaderDelayed();
 		}
@@ -954,7 +954,7 @@ ImagePtr DocumentData::makeReplyPreview(Data::FileOrigin origin) {
 			auto options = Images::Option::Smooth | (isVideoMessage() ? Images::Option::Circled : Images::Option::None) | Images::Option::TransparentBackground;
 			auto outerSize = st::msgReplyBarSize.height();
 			auto image = thumb->pixNoCache(origin, thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
-			replyPreview = ImagePtr(image.toImage(), "PNG");
+			replyPreview = Images::Create(image.toImage(), "PNG");
 		} else {
 			thumb->load(origin);
 		}
@@ -977,11 +977,11 @@ void DocumentData::checkSticker() {
 		if (_data.isEmpty()) {
 			const auto &loc = location(true);
 			if (loc.accessEnable()) {
-				data->img = ImagePtr(loc.name());
+				data->img = Images::Create(loc.name(), "WEBP");
 				loc.accessDisable();
 			}
 		} else {
-			data->img = ImagePtr(_data);
+			data->img = Images::Create(_data, "WEBP");
 		}
 	}
 }

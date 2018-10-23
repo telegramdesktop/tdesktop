@@ -950,7 +950,7 @@ namespace App {
 			auto &d = size.c_photoSize();
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				auto &l = d.vlocation.c_fileLocation();
-				return ImagePtr(
+				return Images::Create(
 					StorageImageLocation(
 						d.vw.v,
 						d.vh.v,
@@ -967,7 +967,7 @@ namespace App {
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				auto &l = d.vlocation.c_fileLocation();
 				auto bytes = qba(d.vbytes);
-				return ImagePtr(
+				return Images::Create(
 					StorageImageLocation(
 						d.vw.v,
 						d.vh.v,
@@ -979,7 +979,7 @@ namespace App {
 					bytes);
 			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
 				auto bytes = qba(d.vbytes);
-				return ImagePtr(
+				return Images::Create(
 					StorageImageLocation(
 						d.vw.v,
 						d.vh.v,

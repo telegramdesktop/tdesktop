@@ -79,14 +79,15 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		if (r.has_description()) result->_description = qs(r.vdescription);
 		if (r.has_url()) result->_url = qs(r.vurl);
 		if (r.has_thumb()) {
-			result->_thumb = ImagePtr(r.vthumb, result->thumbBox());
+			result->_thumb = Images::Create(r.vthumb, result->thumbBox());
 		}
 		if (r.has_content()) {
 			result->_content_url = GetContentUrl(r.vcontent);
 			if (result->_type == Type::Photo) {
 				result->_photo = Auth().data().photoFromWeb(
 					r.vcontent,
-					result->_thumb);
+					result->_thumb,
+					true);
 			} else {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(r.vcontent),
@@ -237,7 +238,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		location.height = h;
 		location.zoom = zoom;
 		location.scale = scale;
-		result->_locationThumb = ImagePtr(location);
+		result->_locationThumb = Images::Create(location);
 	}
 
 	return result;

@@ -137,7 +137,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		date,
 		attributes,
 		mime,
-		thumb.isNull() ? ImagePtr() : ImagePtr(thumb),
+		thumb.isNull() ? ImagePtr() : Images::Create(thumb),
 		dc,
 		size,
 		thumb);

@@ -13,6 +13,33 @@ void ClearRemote();
 void ClearAll();
 void CheckCacheSize();
 
+ImagePtr Create(const QString &file, QByteArray format);
+ImagePtr Create(const QString &url, QSize box);
+ImagePtr Create(const QString &url, int width, int height);
+ImagePtr Create(const QByteArray &filecontent, QByteArray format);
+ImagePtr Create(QImage &&data, QByteArray format);
+ImagePtr Create(
+	const QByteArray &filecontent,
+	QByteArray format,
+	QImage &&data);
+ImagePtr Create(int width, int height);
+ImagePtr Create(const StorageImageLocation &location, int size = 0);
+ImagePtr Create( // photoCachedSize
+	const StorageImageLocation &location,
+	const QByteArray &bytes);
+ImagePtr Create(const MTPWebDocument &location);
+ImagePtr Create(const MTPWebDocument &location, QSize box);
+ImagePtr Create(
+	const WebFileLocation &location,
+	int width,
+	int height,
+	int size = 0);
+ImagePtr Create(
+	const WebFileLocation &location,
+	QSize box,
+	int size = 0);
+ImagePtr Create(const GeoPointLocation &location);
+
 class Source {
 public:
 	virtual ~Source();
@@ -370,7 +397,7 @@ public:
 
 	void replaceSource(std::unique_ptr<Images::Source> &&source);
 
-	static Image *Blank();
+	static ImagePtr Blank();
 
 	const QPixmap &pix(
 		Data::FileOrigin origin,
@@ -522,37 +549,3 @@ private:
 	mutable QImage _data;
 
 };
-
-namespace Images {
-namespace details {
-
-Image *Create(const QString &file, QByteArray format);
-Image *Create(const QString &url, QSize box);
-Image *Create(const QString &url, int width, int height);
-Image *Create(const QByteArray &filecontent, QByteArray format);
-Image *Create(QImage &&data, QByteArray format);
-Image *Create(
-	const QByteArray &filecontent,
-	QByteArray format,
-	QImage &&data);
-Image *Create(int width, int height);
-Image *Create(const StorageImageLocation &location, int size = 0);
-Image *Create( // photoCachedSize
-	const StorageImageLocation &location,
-	const QByteArray &bytes);
-Image *Create(const MTPWebDocument &location);
-Image *Create(const MTPWebDocument &location, QSize box);
-Image *Create(
-	const WebFileLocation &location,
-	int width,
-	int height,
-	int size = 0);
-Image *Create(
-	const WebFileLocation &location,
-	QSize box,
-	int size = 0);
-Image *Create(
-	const GeoPointLocation &location);
-
-} // namespace details
-} // namespace Images

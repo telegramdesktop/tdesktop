@@ -57,7 +57,7 @@ void LocationClickHandler::setup() {
 
 LocationData::LocationData(const LocationCoords &coords)
 : coords(coords)
-, thumb(ComputeLocation(coords)) {
+, thumb(Images::Create(ComputeLocation(coords))) {
 }
 
 void LocationData::load(Data::FileOrigin origin) {

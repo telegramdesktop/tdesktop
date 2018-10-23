@@ -283,21 +283,7 @@ class Image;
 class ImagePtr {
 public:
 	ImagePtr();
-	ImagePtr(const QString &file, QByteArray format = QByteArray());
-	ImagePtr(const QString &url, QSize box);
-	ImagePtr(const QString &url, int width, int height);
-	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray());
-	ImagePtr(const QByteArray &filecontent, QByteArray format, QImage &&data);
-	ImagePtr(QImage &&data, QByteArray format);
-	ImagePtr(const StorageImageLocation &location, int32 size = 0);
-	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes);
-	ImagePtr(const MTPWebDocument &location);
-	ImagePtr(const MTPWebDocument &location, QSize box);
-	ImagePtr(const WebFileLocation &location, int width, int height, int size = 0);
-	ImagePtr(const WebFileLocation &location, QSize box, int size = 0);
-	ImagePtr(const GeoPointLocation &location);
-	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
-	ImagePtr(int32 width, int32 height);
+	explicit ImagePtr(not_null<Image*> data);
 
 	Image *operator->() const;
 	Image *get() const;

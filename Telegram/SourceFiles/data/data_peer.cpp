@@ -287,7 +287,7 @@ void PeerData::updateUserpic(
 		const MTPFileLocation &location) {
 	const auto size = kUserpicSize;
 	const auto loc = StorageImageLocation::FromMTP(size, size, location);
-	const auto photo = loc.isNull() ? ImagePtr() : ImagePtr(loc);
+	const auto photo = loc.isNull() ? ImagePtr() : Images::Create(loc);
 	setUserpicChecked(photoId, loc, photo);
 }
 
@@ -301,7 +301,7 @@ void PeerData::clearUserpic() {
 				Qt::SmoothTransformation);
 			return _userpic
 				? _userpic
-				: ImagePtr(std::move(image), "PNG");
+				: Images::Create(std::move(image), "PNG");
 		}
 		return ImagePtr();
 	}();

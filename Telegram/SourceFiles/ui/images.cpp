@@ -367,83 +367,10 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 
 } // namespace Images
 
-ImagePtr::ImagePtr() : _data(Image::Blank()) {
+ImagePtr::ImagePtr() : _data(Image::Blank().get()) {
 }
 
-ImagePtr::ImagePtr(const QString &file, QByteArray format)
-: _data(Images::details::Create(file, format)) {
-}
-
-ImagePtr::ImagePtr(const QString &url, QSize box)
-: _data(Images::details::Create(url, box)) {
-}
-
-ImagePtr::ImagePtr(const QString &url, int width, int height)
-: _data(Images::details::Create(url, width, height)) {
-}
-
-ImagePtr::ImagePtr(const QByteArray &filecontent, QByteArray format)
-: _data(Images::details::Create(filecontent, format)) {
-}
-
-ImagePtr::ImagePtr(
-	const QByteArray &filecontent,
-	QByteArray format,
-	QImage &&data)
-: _data(Images::details::Create(filecontent, format, std::move(data))) {
-}
-
-ImagePtr::ImagePtr(QImage &&data, QByteArray format)
-: _data(Images::details::Create(std::move(data), format)) {
-}
-
-ImagePtr::ImagePtr(const StorageImageLocation &location, int32 size)
-: _data(Images::details::Create(location, size)) {
-}
-
-ImagePtr::ImagePtr(
-	const StorageImageLocation &location,
-	const QByteArray &bytes)
-: _data(Images::details::Create(location, bytes)) {
-}
-
-ImagePtr::ImagePtr(const MTPWebDocument &location)
-: _data(Images::details::Create(location)) {
-}
-
-ImagePtr::ImagePtr(const MTPWebDocument &location, QSize box)
-: _data(Images::details::Create(location, box)) {
-}
-
-ImagePtr::ImagePtr(
-	const WebFileLocation &location,
-	int width,
-	int height,
-	int size)
-: _data(Images::details::Create(location, width, height, size)) {
-}
-
-ImagePtr::ImagePtr(const WebFileLocation &location, QSize box, int size)
-: _data(Images::details::Create(location, box, size)) {
-}
-
-ImagePtr::ImagePtr(const GeoPointLocation &location)
-: _data(Images::details::Create(location)) {
-}
-
-ImagePtr::ImagePtr(
-	int32 width,
-	int32 height,
-	const MTPFileLocation &location,
-	ImagePtr def)
-: _data((location.type() != mtpc_fileLocation)
-	? def.get()
-	: (Image*)(Images::details::Create(
-		StorageImageLocation(width, height, location.c_fileLocation())))) {
-}
-
-ImagePtr::ImagePtr(int32 width, int32 height)
-: _data(Images::details::Create(width, height)) {
+ImagePtr::ImagePtr(not_null<Image*> data) : _data(data) {
 }
 
 Image *ImagePtr::operator->() const {

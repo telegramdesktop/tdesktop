@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "auth_session.h"
 
+namespace Images {
 namespace {
 
 QMap<QString, Image*> LocalFileImages;
@@ -34,8 +35,6 @@ uint64 SinglePixKey(Images::Options options) {
 }
 
 } // namespace
-
-namespace Images {
 
 void ClearRemote() {
 	for (auto image : base::take(StorageImages)) {
@@ -66,6 +65,251 @@ void CheckCacheSize() {
 		Auth().data().forgetMedia();
 		LocalAcquiredSize = GlobalAcquiredSize;
 	}
+}
+
+ImagePtr Create(const QString &file, QByteArray format) {
+	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive)
+		|| file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+		const auto key = file;
+		auto i = WebUrlImages.constFind(key);
+		if (i == WebUrlImages.cend()) {
+			i = WebUrlImages.insert(
+				key,
+				new Image(std::make_unique<WebUrlSource>(file)));
+		}
+		return ImagePtr(i.value());
+	} else {
+		QFileInfo f(file);
+		const auto key = qsl("//:%1//:%2//:"
+		).arg(f.size()
+		).arg(f.lastModified().toTime_t()
+		) + file;
+		auto i = LocalFileImages.constFind(key);
+		if (i == LocalFileImages.cend()) {
+			i = LocalFileImages.insert(
+				key,
+				new Image(std::make_unique<LocalFileSource>(
+					file,
+					QByteArray(),
+					format)));
+		}
+		return ImagePtr(i.value());
+	}
+}
+
+ImagePtr Create(const QString &url, QSize box) {
+	const auto key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
+	auto i = WebUrlImages.constFind(key);
+	if (i == WebUrlImages.cend()) {
+		i = WebUrlImages.insert(
+			key,
+			new Image(std::make_unique<WebUrlSource>(url, box)));
+	}
+	return ImagePtr(i.value());
+}
+
+ImagePtr Create(const QString &url, int width, int height) {
+	const auto key = url;
+	auto i = WebUrlImages.constFind(key);
+	if (i == WebUrlImages.cend()) {
+		i = WebUrlImages.insert(
+			key,
+			new Image(std::make_unique<WebUrlSource>(url, width, height)));
+	} else {
+		i.value()->setInformation(0, width, height);
+	}
+	return ImagePtr(i.value());
+}
+
+ImagePtr Create(const QByteArray &filecontent, QByteArray format) {
+	auto image = App::readImage(filecontent, &format, false);
+	return Create(filecontent, format, std::move(image));
+}
+
+ImagePtr Create(QImage &&image, QByteArray format) {
+	return ImagePtr(new Image(std::make_unique<ImageSource>(
+		std::move(image),
+		format)));
+}
+
+ImagePtr Create(
+		const QByteArray &filecontent,
+		QByteArray format,
+		QImage &&image) {
+	return ImagePtr(new Image(std::make_unique<LocalFileSource>(
+		QString(),
+		filecontent,
+		format,
+		std::move(image))));
+}
+
+ImagePtr Create(int width, int height) {
+	return ImagePtr(new Image(std::make_unique<DelayedStorageSource>(
+		width,
+		height)));
+}
+
+ImagePtr Create(const StorageImageLocation &location, int size) {
+	const auto key = storageKey(location);
+	auto i = StorageImages.constFind(key);
+	if (i == StorageImages.cend()) {
+		i = StorageImages.insert(
+			key,
+			new Image(std::make_unique<StorageSource>(location, size)));
+	} else {
+		i.value()->refreshFileReference(location.fileReference());
+	}
+	return ImagePtr(i.value());
+}
+
+ImagePtr Create(
+		const StorageImageLocation &location,
+		const QByteArray &bytes) {
+	const auto key = storageKey(location);
+	auto i = StorageImages.constFind(key);
+	if (i == StorageImages.cend()) {
+		i = StorageImages.insert(
+			key,
+			new Image(std::make_unique<StorageSource>(
+				location,
+				bytes.size())));
+	} else {
+		i.value()->refreshFileReference(location.fileReference());
+	}
+	i.value()->setImageBytes(bytes);
+	return ImagePtr(i.value());
+}
+
+QSize getImageSize(const QVector<MTPDocumentAttribute> &attributes) {
+	for (const auto &attribute : attributes) {
+		if (attribute.type() == mtpc_documentAttributeImageSize) {
+			auto &size = attribute.c_documentAttributeImageSize();
+			return QSize(size.vw.v, size.vh.v);
+		}
+	}
+	return QSize();
+}
+
+ImagePtr Create(const MTPDwebDocument &document) {
+	const auto size = getImageSize(document.vattributes.v);
+	if (size.isEmpty()) {
+		return Image::Blank();
+	}
+
+	// We don't use size from WebDocument, because it is not reliable.
+	// It can be > 0 and different from the real size that we get in upload.WebFile result.
+	auto filesize = 0; // document.vsize.v;
+	return Create(
+		WebFileLocation(
+			Global::WebFileDcId(),
+			document.vurl.v,
+			document.vaccess_hash.v),
+		size.width(),
+		size.height(),
+		filesize);
+}
+
+ImagePtr Create(const MTPDwebDocumentNoProxy &document) {
+	const auto size = getImageSize(document.vattributes.v);
+	if (size.isEmpty()) {
+		return Image::Blank();
+	}
+
+	return Create(qs(document.vurl), size.width(), size.height());
+}
+
+ImagePtr Create(const MTPDwebDocument &document, QSize box) {
+	//const auto size = getImageSize(document.vattributes.v);
+	//if (size.isEmpty()) {
+	//	return Image::Blank();
+	//}
+
+	// We don't use size from WebDocument, because it is not reliable.
+	// It can be > 0 and different from the real size that we get in upload.WebFile result.
+	auto filesize = 0; // document.vsize.v;
+	return Create(
+		WebFileLocation(
+			Global::WebFileDcId(),
+			document.vurl.v,
+			document.vaccess_hash.v),
+		box,
+		filesize);
+}
+
+ImagePtr Create(const MTPDwebDocumentNoProxy &document, QSize box) {
+	//const auto size = getImageSize(document.vattributes.v);
+	//if (size.isEmpty()) {
+	//	return Image::Blank();
+	//}
+
+	return Create(qs(document.vurl), box);
+}
+
+ImagePtr Create(const MTPWebDocument &document) {
+	switch (document.type()) {
+	case mtpc_webDocument:
+		return Create(document.c_webDocument());
+	case mtpc_webDocumentNoProxy:
+		return Create(document.c_webDocumentNoProxy());
+	}
+	Unexpected("Type in getImage(MTPWebDocument).");
+}
+
+ImagePtr Create(const MTPWebDocument &document, QSize box) {
+	switch (document.type()) {
+	case mtpc_webDocument:
+		return Create(document.c_webDocument(), box);
+	case mtpc_webDocumentNoProxy:
+		return Create(document.c_webDocumentNoProxy(), box);
+	}
+	Unexpected("Type in getImage(MTPWebDocument).");
+}
+
+ImagePtr Create(
+		const WebFileLocation &location,
+		QSize box,
+		int size) {
+	const auto key = storageKey(location);
+	auto i = WebCachedImages.constFind(key);
+	if (i == WebCachedImages.cend()) {
+		i = WebCachedImages.insert(
+			key,
+			new Image(std::make_unique<WebCachedSource>(
+				location,
+				box,
+				size)));
+	}
+	return ImagePtr(i.value());
+}
+
+ImagePtr Create(
+		const WebFileLocation &location,
+		int width,
+		int height,
+		int size) {
+	const auto key = storageKey(location);
+	auto i = WebCachedImages.constFind(key);
+	if (i == WebCachedImages.cend()) {
+		i = WebCachedImages.insert(
+			key,
+			new Image(std::make_unique<WebCachedSource>(
+				location,
+				width,
+				height,
+				size)));
+	}
+	return ImagePtr(i.value());
+}
+
+ImagePtr Create(const GeoPointLocation &location) {
+	const auto key = storageKey(location);
+	auto i = GeoPointImages.constFind(key);
+	if (i == GeoPointImages.cend()) {
+		i = GeoPointImages.insert(
+			key,
+			new Image(std::make_unique<GeoPointSource>(location)));
+	}
+	return ImagePtr(i.value());
 }
 
 Source::~Source() = default;
@@ -782,7 +1026,7 @@ void Image::replaceSource(std::unique_ptr<Images::Source> &&source) {
 	_source = std::move(source);
 }
 
-Image *Image::Blank() {
+ImagePtr Image::Blank() {
 	static const auto blankImage = [] {
 		const auto factor = cIntRetinaFactor();
 		auto data = QImage(
@@ -791,7 +1035,7 @@ Image *Image::Blank() {
 			QImage::Format_ARGB32_Premultiplied);
 		data.fill(Qt::transparent);
 		data.setDevicePixelRatio(cRetinaFactor());
-		return Images::details::Create(
+		return Images::Create(
 			std::move(data),
 			"GIF");
 	}();
@@ -799,7 +1043,7 @@ Image *Image::Blank() {
 }
 
 bool Image::isNull() const {
-	return (this == Blank());
+	return (this == Blank().get());
 }
 
 const QPixmap &Image::pix(
@@ -815,14 +1059,14 @@ const QPixmap &Image::pix(
         h *= cIntRetinaFactor();
     }
 	auto options = Images::Option::Smooth | Images::Option::None;
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
         p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -856,14 +1100,14 @@ const QPixmap &Image::pixRounded(
 	} else if (radius == ImageRoundRadius::Ellipse) {
 		options |= Images::Option::Circled | cornerOptions(corners);
 	}
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -882,14 +1126,14 @@ const QPixmap &Image::pixCircled(
 		h *= cIntRetinaFactor();
 	}
 	auto options = Images::Option::Smooth | Images::Option::Circled;
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -908,14 +1152,14 @@ const QPixmap &Image::pixBlurredCircled(
 		h *= cIntRetinaFactor();
 	}
 	auto options = Images::Option::Smooth | Images::Option::Circled | Images::Option::Blurred;
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -934,14 +1178,14 @@ const QPixmap &Image::pixBlurred(
 		h *= cIntRetinaFactor();
 	}
 	auto options = Images::Option::Smooth | Images::Option::Blurred;
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -961,14 +1205,14 @@ const QPixmap &Image::pixColored(
 		h *= cIntRetinaFactor();
 	}
 	auto options = Images::Option::Smooth | Images::Option::Colored;
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixColoredNoCache(origin, add, w, h, true);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -988,14 +1232,14 @@ const QPixmap &Image::pixBlurredColored(
 		h *= cIntRetinaFactor();
 	}
 	auto options = Images::Option::Blurred | Images::Option::Smooth | Images::Option::Colored;
-	auto k = PixKey(w, h, options);
+	auto k = Images::PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixBlurredColoredNoCache(origin, add, w, h);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -1037,17 +1281,17 @@ const QPixmap &Image::pixSingle(
 		options |= Images::Option::Colored;
 	}
 
-	auto k = SinglePixKey(options);
+	auto k = Images::SinglePixKey(options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
 		if (i != _sizesCache.cend()) {
-			GlobalAcquiredSize -= int64(i->width()) * i->height() * 4;
+			Images::GlobalAcquiredSize -= int64(i->width()) * i->height() * 4;
 		}
 		auto p = pixNoCache(origin, w, h, options, outerw, outerh, colored);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -1085,17 +1329,17 @@ const QPixmap &Image::pixBlurredSingle(
 		options |= Images::Option::Circled | cornerOptions(corners);
 	}
 
-	auto k = SinglePixKey(options);
+	auto k = Images::SinglePixKey(options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
 		if (i != _sizesCache.cend()) {
-			GlobalAcquiredSize -= int64(i->width()) * i->height() * 4;
+			Images::GlobalAcquiredSize -= int64(i->width()) * i->height() * 4;
 		}
 		auto p = pixNoCache(origin, w, h, options, outerw, outerh);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
-			GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
+			Images::GlobalAcquiredSize += int64(p.width()) * p.height() * 4;
 		}
 	}
 	return i.value();
@@ -1228,7 +1472,7 @@ void Image::checkSource() const {
 		invalidateSizeCache();
 		_data = std::move(data);
 		if (!_data.isNull()) {
-			GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
+			Images::GlobalAcquiredSize += int64(_data.width()) * _data.height() * 4;
 		}
 	}
 }
@@ -1238,7 +1482,7 @@ void Image::forget() const {
 	_source->forget();
 	invalidateSizeCache();
 	if (!_data.isNull()) {
-		GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
+		Images::GlobalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
 		_data = QImage();
 	}
 }
@@ -1260,7 +1504,7 @@ void Image::setImageBytes(const QByteArray &bytes) {
 void Image::invalidateSizeCache() const {
 	for (const auto &image : std::as_const(_sizesCache)) {
 		if (!image.isNull()) {
-			GlobalAcquiredSize -= int64(image.width()) * image.height() * 4;
+			Images::GlobalAcquiredSize -= int64(image.width()) * image.height() * 4;
 		}
 	}
 	_sizesCache.clear();
@@ -1269,252 +1513,3 @@ void Image::invalidateSizeCache() const {
 Image::~Image() {
 	forget();
 }
-
-namespace Images {
-namespace details {
-
-Image *Create(const QString &file, QByteArray format) {
-	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive)
-		|| file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
-		const auto key = file;
-		auto i = WebUrlImages.constFind(key);
-		if (i == WebUrlImages.cend()) {
-			i = WebUrlImages.insert(
-				key,
-				new Image(std::make_unique<WebUrlSource>(file)));
-		}
-		return i.value();
-	} else {
-		QFileInfo f(file);
-		const auto key = qsl("//:%1//:%2//:"
-		).arg(f.size()
-		).arg(f.lastModified().toTime_t()
-		) + file;
-		auto i = LocalFileImages.constFind(key);
-		if (i == LocalFileImages.cend()) {
-			i = LocalFileImages.insert(
-				key,
-				new Image(std::make_unique<LocalFileSource>(
-					file,
-					QByteArray(),
-					format)));
-		}
-		return i.value();
-	}
-}
-
-Image *Create(const QString &url, QSize box) {
-	const auto key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
-	auto i = WebUrlImages.constFind(key);
-	if (i == WebUrlImages.cend()) {
-		i = WebUrlImages.insert(
-			key,
-			new Image(std::make_unique<WebUrlSource>(url, box)));
-	}
-	return i.value();
-}
-
-Image *Create(const QString &url, int width, int height) {
-	const auto key = url;
-	auto i = WebUrlImages.constFind(key);
-	if (i == WebUrlImages.cend()) {
-		i = WebUrlImages.insert(
-			key,
-			new Image(std::make_unique<WebUrlSource>(url, width, height)));
-	} else {
-		i.value()->setInformation(0, width, height);
-	}
-	return i.value();
-}
-
-Image *Create(const QByteArray &filecontent, QByteArray format) {
-	auto image = App::readImage(filecontent, &format, false);
-	return Create(filecontent, format, std::move(image));
-}
-
-Image *Create(QImage &&image, QByteArray format) {
-	return new Image(std::make_unique<ImageSource>(
-		std::move(image),
-		format));
-}
-
-Image *Create(
-		const QByteArray &filecontent,
-		QByteArray format,
-		QImage &&image) {
-	return new Image(std::make_unique<LocalFileSource>(
-		QString(),
-		filecontent,
-		format,
-		std::move(image)));
-}
-
-Image *Create(int width, int height) {
-	return new Image(std::make_unique<DelayedStorageSource>(width, height));
-}
-
-Image *Create(const StorageImageLocation &location, int size) {
-	const auto key = storageKey(location);
-	auto i = StorageImages.constFind(key);
-	if (i == StorageImages.cend()) {
-		i = StorageImages.insert(
-			key,
-			new Image(std::make_unique<StorageSource>(location, size)));
-	} else {
-		i.value()->refreshFileReference(location.fileReference());
-	}
-	return i.value();
-}
-
-Image *Create(
-		const StorageImageLocation &location,
-		const QByteArray &bytes) {
-	const auto key = storageKey(location);
-	auto i = StorageImages.constFind(key);
-	if (i == StorageImages.cend()) {
-		i = StorageImages.insert(
-			key,
-			new Image(std::make_unique<StorageSource>(
-				location,
-				bytes.size())));
-	} else {
-		i.value()->refreshFileReference(location.fileReference());
-	}
-	i.value()->setImageBytes(bytes);
-	return i.value();
-}
-
-QSize getImageSize(const QVector<MTPDocumentAttribute> &attributes) {
-	for (const auto &attribute : attributes) {
-		if (attribute.type() == mtpc_documentAttributeImageSize) {
-			auto &size = attribute.c_documentAttributeImageSize();
-			return QSize(size.vw.v, size.vh.v);
-		}
-	}
-	return QSize();
-}
-
-Image *Create(const MTPDwebDocument &document) {
-	const auto size = getImageSize(document.vattributes.v);
-	if (size.isEmpty()) {
-		return Image::Blank();
-	}
-
-	// We don't use size from WebDocument, because it is not reliable.
-	// It can be > 0 and different from the real size that we get in upload.WebFile result.
-	auto filesize = 0; // document.vsize.v;
-	return Create(
-		WebFileLocation(
-			Global::WebFileDcId(),
-			document.vurl.v,
-			document.vaccess_hash.v),
-		size.width(),
-		size.height(),
-		filesize);
-}
-
-Image *Create(const MTPDwebDocumentNoProxy &document) {
-	const auto size = getImageSize(document.vattributes.v);
-	if (size.isEmpty()) {
-		return Image::Blank();
-	}
-
-	return Create(qs(document.vurl), size.width(), size.height());
-}
-
-Image *Create(const MTPDwebDocument &document, QSize box) {
-	//const auto size = getImageSize(document.vattributes.v);
-	//if (size.isEmpty()) {
-	//	return Image::Blank();
-	//}
-
-	// We don't use size from WebDocument, because it is not reliable.
-	// It can be > 0 and different from the real size that we get in upload.WebFile result.
-	auto filesize = 0; // document.vsize.v;
-	return Create(
-		WebFileLocation(
-			Global::WebFileDcId(),
-			document.vurl.v,
-			document.vaccess_hash.v),
-		box,
-		filesize);
-}
-
-Image *Create(const MTPDwebDocumentNoProxy &document, QSize box) {
-	//const auto size = getImageSize(document.vattributes.v);
-	//if (size.isEmpty()) {
-	//	return Image::Blank();
-	//}
-
-	return Create(qs(document.vurl), box);
-}
-
-Image *Create(const MTPWebDocument &document) {
-	switch (document.type()) {
-	case mtpc_webDocument:
-		return Create(document.c_webDocument());
-	case mtpc_webDocumentNoProxy:
-		return Create(document.c_webDocumentNoProxy());
-	}
-	Unexpected("Type in getImage(MTPWebDocument).");
-}
-
-Image *Create(const MTPWebDocument &document, QSize box) {
-	switch (document.type()) {
-	case mtpc_webDocument:
-		return Create(document.c_webDocument(), box);
-	case mtpc_webDocumentNoProxy:
-		return Create(document.c_webDocumentNoProxy(), box);
-	}
-	Unexpected("Type in getImage(MTPWebDocument).");
-}
-
-Image *Create(
-		const WebFileLocation &location,
-		QSize box,
-		int size) {
-	const auto key = storageKey(location);
-	auto i = WebCachedImages.constFind(key);
-	if (i == WebCachedImages.cend()) {
-		i = WebCachedImages.insert(
-			key,
-			new Image(std::make_unique<WebCachedSource>(
-				location,
-				box,
-				size)));
-	}
-	return i.value();
-}
-
-Image *Create(
-		const WebFileLocation &location,
-		int width,
-		int height,
-		int size) {
-	const auto key = storageKey(location);
-	auto i = WebCachedImages.constFind(key);
-	if (i == WebCachedImages.cend()) {
-		i = WebCachedImages.insert(
-			key,
-			new Image(std::make_unique<WebCachedSource>(
-				location,
-				width,
-				height,
-				size)));
-	}
-	return i.value();
-}
-
-Image *Create(const GeoPointLocation &location) {
-	const auto key = storageKey(location);
-	auto i = GeoPointImages.constFind(key);
-	if (i == GeoPointImages.cend()) {
-		i = GeoPointImages.insert(
-			key,
-			new Image(std::make_unique<GeoPointSource>(location)));
-	}
-	return i.value();
-}
-
-} // namespace detals
-} // namespace Images
