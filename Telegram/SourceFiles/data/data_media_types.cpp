@@ -347,63 +347,84 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	if (photo.type() != mtpc_photo) {
 		return false;
 	}
+	struct SizeData {
+		char letter = 0;
+		int width = 0;
+		int height = 0;
+		const MTPFileLocation *location = nullptr;
+		QByteArray bytes;
+	};
 	const auto saveImageToCache = [](
-			const MTPDfileLocation &location,
-			const ImagePtr &image) {
-		const auto key = StorageImageLocation(0, 0, location);
+			const ImagePtr &image,
+			SizeData size) {
+		Expects(size.location != nullptr);
+
+		const auto key = StorageImageLocation(
+			size.width,
+			size.height,
+			size.location->c_fileLocation());
 		if (key.isNull() || image->isNull() || !image->loaded()) {
 			return;
 		}
-		auto bytes = image->bytesForCache();
-		if (bytes.isEmpty() || bytes.size() > Storage::kMaxFileInMemory) {
+		if (size.bytes.isEmpty()) {
+			size.bytes = image->bytesForCache();
+		}
+		const auto length = size.bytes.size();
+		if (!length || length > Storage::kMaxFileInMemory) {
+			LOG(("App Error: Bad photo data for saving to cache."));
 			return;
 		}
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(key),
 			Storage::Cache::Database::TaggedValue(
-				std::move(bytes),
+				std::move(size.bytes),
 				Data::kImageCacheTag));
+		image->replaceSource(
+			std::make_unique<Images::StorageSource>(key, length));
 	};
 	auto &sizes = photo.c_photo().vsizes.v;
 	auto max = 0;
-	const MTPDfileLocation *maxLocation = 0;
+	auto maxSize = SizeData();
 	for (const auto &data : sizes) {
-		char size = 0;
-		const MTPFileLocation *loc = 0;
-		switch (data.type()) {
-		case mtpc_photoSize: {
-			const auto &s = data.c_photoSize().vtype.v;
-			loc = &data.c_photoSize().vlocation;
-			if (s.size()) size = s[0];
-		} break;
-
-		case mtpc_photoCachedSize: {
-			const auto &s = data.c_photoCachedSize().vtype.v;
-			loc = &data.c_photoCachedSize().vlocation;
-			if (s.size()) size = s[0];
-		} break;
-		}
-		if (!loc || loc->type() != mtpc_fileLocation) {
+		const auto size = data.match([](const MTPDphotoSize &data) {
+			return SizeData{
+				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vw.v,
+				data.vh.v,
+				&data.vlocation,
+				QByteArray()
+			};
+		}, [](const MTPDphotoCachedSize &data) {
+			return SizeData{
+				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vw.v,
+				data.vh.v,
+				&data.vlocation,
+				qba(data.vbytes)
+			};
+		}, [](const MTPDphotoSizeEmpty &) {
+			return SizeData();
+		});
+		if (!size.location || size.location->type() != mtpc_fileLocation) {
 			continue;
 		}
-		const auto &location = loc->c_fileLocation();
-		if (size == 's') {
-			saveImageToCache(location, _photo->thumb);
-		} else if (size == 'm') {
-			saveImageToCache(location, _photo->medium);
-		} else if (size == 'x' && max < 1) {
+		if (size.letter == 's') {
+			saveImageToCache(_photo->thumb, size);
+		} else if (size.letter == 'm') {
+			saveImageToCache(_photo->medium, size);
+		} else if (size.letter == 'x' && max < 1) {
 			max = 1;
-			maxLocation = &location;
-		} else if (size == 'y' && max < 2) {
+			maxSize = size;
+		} else if (size.letter == 'y' && max < 2) {
 			max = 2;
-			maxLocation = &location;
-		//} else if (size == 'w' && max < 3) {
+			maxSize = size;
+		//} else if (size.letter == 'w' && max < 3) {
 		//	max = 3;
-		//	maxLocation = &loc->c_fileLocation();
+		//	maxSize = size;
 		}
 	}
-	if (maxLocation) {
-		saveImageToCache(*maxLocation, _photo->full);
+	if (maxSize.location) {
+		saveImageToCache(_photo->full, maxSize);
 	}
 	return true;
 }

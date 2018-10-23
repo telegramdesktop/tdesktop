@@ -368,6 +368,8 @@ class Image final {
 public:
 	explicit Image(std::unique_ptr<Images::Source> &&source);
 
+	void replaceSource(std::unique_ptr<Images::Source> &&source);
+
 	static Image *Blank();
 
 	const QPixmap &pix(

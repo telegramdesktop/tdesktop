@@ -880,15 +880,15 @@ PhotoData *Session::photoFromWeb(
 	if (full->isNull()) {
 		return nullptr;
 	}
-	const auto width = full->width();
-	const auto height = full->height();
-	if (thumb->isNull()) {
-		auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-		thumb = ImagePtr(thumbsize.width(), thumbsize.height());
-	}
+	//const auto width = full->width();
+	//const auto height = full->height();
+	//if (thumb->isNull()) {
+	//	auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
+	//	thumb = ImagePtr(thumbsize.width(), thumbsize.height());
+	//}
 
-	auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-	auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
+	//auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
+	//auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
 
 	return photo(
 		rand_value<PhotoId>(),
@@ -896,7 +896,7 @@ PhotoData *Session::photoFromWeb(
 		QByteArray(),
 		unixtime(),
 		thumb,
-		medium,
+		ImagePtr(),
 		full);
 }
 

@@ -778,6 +778,10 @@ Image::Image(std::unique_ptr<Images::Source> &&source)
 : _source(std::move(source)) {
 }
 
+void Image::replaceSource(std::unique_ptr<Images::Source> &&source) {
+	_source = std::move(source);
+}
+
 Image *Image::Blank() {
 	static const auto blankImage = [] {
 		const auto factor = cIntRetinaFactor();
