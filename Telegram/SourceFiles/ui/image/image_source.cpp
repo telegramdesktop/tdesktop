@@ -37,7 +37,7 @@ QImage ImageSource::takeLoaded() {
 	return _data;
 }
 
-void ImageSource::forget() {
+void ImageSource::unload() {
 }
 
 void ImageSource::automaticLoad(
@@ -161,7 +161,7 @@ QImage LocalFileSource::takeLoaded() {
 	return std::move(_data);
 }
 
-void LocalFileSource::forget() {
+void LocalFileSource::unload() {
 	_data = QImage();
 }
 
@@ -361,10 +361,6 @@ void RemoteSource::loadEvenCancelled(
 	return load(origin, loadFirst, prior);
 }
 
-RemoteSource::~RemoteSource() {
-	forget();
-}
-
 bool RemoteSource::displayLoading() {
 	return loaderValid()
 		&& (!_loader->loadingLocal() || !_loader->autoLoading());
@@ -380,7 +376,7 @@ void RemoteSource::cancel() {
 		std::unique_ptr<FileLoader>(loader));
 }
 
-void RemoteSource::forget() {
+void RemoteSource::unload() {
 	if (loaderValid()) {
 		destroyLoaderDelayed();
 	}
@@ -392,6 +388,10 @@ float64 RemoteSource::progress() {
 
 int RemoteSource::loadOffset() {
 	return loaderValid() ? _loader->currentOffset() : 0;
+}
+
+RemoteSource::~RemoteSource() {
+	unload();
 }
 
 const StorageImageLocation &RemoteSource::location() {

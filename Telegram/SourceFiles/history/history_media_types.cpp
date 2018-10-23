@@ -2758,7 +2758,7 @@ void HistoryGif::stopAnimation() {
 	if (_gif) {
 		clearClipReader();
 		Auth().data().requestViewResize(_parent);
-		_data->forget();
+		_data->unload();
 	}
 }
 

@@ -54,11 +54,6 @@ struct WebPageData {
 	, pendingTill(pendingTill) {
 	}
 
-	void forget() {
-		if (document) document->forget();
-		if (photo) photo->forget();
-	}
-
 	bool applyChanges(
 		const QString &newType,
 		const QString &newUrl,

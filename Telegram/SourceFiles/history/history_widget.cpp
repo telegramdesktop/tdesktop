@@ -1922,7 +1922,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_nonEmptySelection = false;
 
 	if (_peer) {
-		Auth().data().forgetMedia();
 		Auth().downloader().clearPriorities();
 
 		_history = App::history(_peer);

@@ -353,14 +353,14 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
-				getShownDocument()->forget();
+				getShownDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
 				auto height = st::inlineMediaHeight;
 				auto frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				_gif.reset();
-				getShownDocument()->forget();
+				getShownDocument()->unload();
 			}
 		}
 
@@ -1373,12 +1373,12 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
-				getResultDocument()->forget();
+				getResultDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
 				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				_gif.reset();
-				getResultDocument()->forget();
+				getResultDocument()->unload();
 			}
 		}
 

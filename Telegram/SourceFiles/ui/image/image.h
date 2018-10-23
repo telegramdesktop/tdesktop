@@ -54,7 +54,7 @@ public:
 		bool loadFirst,
 		bool prior) = 0;
 	virtual QImage takeLoaded() = 0;
-	virtual void forget() = 0;
+	virtual void unload() = 0;
 
 	virtual void automaticLoad(
 		Data::FileOrigin origin,
@@ -229,7 +229,7 @@ public:
 
 	bool loaded() const;
 	bool isNull() const;
-	void forget() const;
+	void unload() const;
 	void setDelayedStorageLocation(
 		Data::FileOrigin origin,
 		const StorageImageLocation &location);

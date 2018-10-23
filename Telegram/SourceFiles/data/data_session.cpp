@@ -2008,18 +2008,6 @@ void Session::insertCheckedServiceNotification(
 	sendHistoryChangeNotifications();
 }
 
-void Session::forgetMedia() {
-	for (const auto &[id, photo] : _photos) {
-		photo->forget();
-	}
-	for (const auto &[id, document] : _documents) {
-		document->forget();
-	}
-	for (const auto &[coords, location] : _locations) {
-		location->thumb->forget();
-	}
-}
-
 void Session::setMimeForwardIds(MessageIdsList &&list) {
 	_mimeForwardIds = std::move(list);
 }

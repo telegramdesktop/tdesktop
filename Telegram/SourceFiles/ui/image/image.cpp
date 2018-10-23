@@ -42,7 +42,7 @@ int64 ComputeUsage(const QImage &image) {
 Core::MediaActiveCache<const Image> &ActiveCache() {
 	static auto Instance = Core::MediaActiveCache<const Image>(
 		kMemoryForCache,
-		[](const Image *image) { image->forget(); });
+		[](const Image *image) { image->unload(); });
 	return Instance;
 }
 
@@ -769,9 +769,9 @@ void Image::checkSource() const {
 	ActiveCache().up(this);
 }
 
-void Image::forget() const {
+void Image::unload() const {
 	_source->takeLoaded();
-	_source->forget();
+	_source->unload();
 	invalidateSizeCache();
 	ActiveCache().decrement(ComputeUsage(_data));
 	_data = QImage();
@@ -800,6 +800,6 @@ void Image::invalidateSizeCache() const {
 }
 
 Image::~Image() {
-	forget();
+	unload();
 	ActiveCache().remove(this);
 }

@@ -342,7 +342,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
 			img.setDevicePixelRatio(cRetinaFactor());
-			_data->forget();
+			_data->unload();
 
 			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
@@ -426,7 +426,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
 			img.setDevicePixelRatio(cRetinaFactor());
-			_data->forget();
+			_data->unload();
 
 			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {

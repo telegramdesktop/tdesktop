@@ -121,7 +121,7 @@ public:
 
 	void performActionOnLoad();
 
-	void forget();
+	void unload();
 	ImagePtr makeReplyPreview(Data::FileOrigin origin);
 
 	StickerData *sticker() const;

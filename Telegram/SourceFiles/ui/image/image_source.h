@@ -24,7 +24,7 @@ public:
 		bool loadFirst,
 		bool prior) override;
 	QImage takeLoaded() override;
-	void forget() override;
+	void unload() override;
 
 	void automaticLoad(
 		Data::FileOrigin origin,
@@ -75,7 +75,7 @@ public:
 		bool loadFirst,
 		bool prior) override;
 	QImage takeLoaded() override;
-	void forget() override;
+	void unload() override;
 
 	void automaticLoad(
 		Data::FileOrigin origin,
@@ -126,7 +126,7 @@ public:
 		bool loadFirst,
 		bool prior) override;
 	QImage takeLoaded() override;
-	void forget() override;
+	void unload() override;
 
 	void automaticLoad(
 		Data::FileOrigin origin,

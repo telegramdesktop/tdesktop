@@ -38,7 +38,7 @@ public:
 	void setWaitingForAlbum();
 	bool waitingForAlbum() const;
 
-	void forget();
+	void unload();
 	ImagePtr makeReplyPreview(Data::FileOrigin origin);
 
 	MTPInputPhoto mtpInput() const;

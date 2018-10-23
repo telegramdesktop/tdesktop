@@ -279,13 +279,12 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 	return true;
 }
 
-void Result::forget() {
-	_thumb->forget();
+void Result::unload() {
 	if (_document) {
-		_document->forget();
+		_document->unload();
 	}
 	if (_photo) {
-		_photo->forget();
+		_photo->unload();
 	}
 }
 

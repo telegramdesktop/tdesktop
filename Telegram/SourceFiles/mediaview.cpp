@@ -2589,9 +2589,9 @@ void MediaView::preloadData(int delta) {
 		auto forgetIndex = *_index - delta * 2;
 		auto entity = entityByIndex(forgetIndex);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-			(*photo)->forget();
+			(*photo)->unload();
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			(*document)->forget();
+			(*document)->unload();
 		}
 	}
 

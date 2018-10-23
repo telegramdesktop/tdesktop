@@ -267,20 +267,20 @@ void Inner::clearSelection() {
 
 void Inner::hideFinish(bool completely) {
 	if (completely) {
-		auto itemForget = [](auto &item) {
-			if (auto document = item->getDocument()) {
-				document->forget();
+		const auto unload = [](const auto &item) {
+			if (const auto document = item->getDocument()) {
+				document->unload();
 			}
-			if (auto photo = item->getPhoto()) {
-				photo->forget();
+			if (const auto photo = item->getPhoto()) {
+				photo->unload();
 			}
-			if (auto result = item->getResult()) {
-				result->forget();
+			if (const auto result = item->getResult()) {
+				result->unload();
 			}
 		};
 		clearInlineRows(false);
-		for_const (auto &item, _inlineLayouts) {
-			itemForget(item.second);
+		for (const auto &[result, layout] : _inlineLayouts) {
+			unload(layout);
 		}
 	}
 }

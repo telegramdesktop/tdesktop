@@ -103,15 +103,16 @@ bool PhotoData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
-void PhotoData::forget() {
-	thumb->forget();
+void PhotoData::unload() {
+	// Forget thumb only when image cache limit exceeds.
+	//thumb->unload();
+	medium->unload();
+	full->unload();
 	if (!replyPreview->isNull()) {
 		// Should be std::unique_ptr<Image>.
 		delete replyPreview.get();
 		replyPreview = ImagePtr();
 	}
-	medium->forget();
-	full->forget();
 }
 
 ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {

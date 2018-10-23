@@ -34,7 +34,7 @@ constexpr auto kMemoryForCache = 32 * 1024 * 1024;
 Core::MediaActiveCache<DocumentData> &ActiveCache() {
 	static auto Instance = Core::MediaActiveCache<DocumentData>(
 		kMemoryForCache,
-		[](DocumentData *document) { document->forget(); });
+		[](DocumentData *document) { document->unload(); });
 	return Instance;
 }
 
@@ -536,7 +536,9 @@ bool DocumentData::saveToCache() const {
 		|| (isVoiceMessage() && size < Storage::kMaxVoiceInMemory);
 }
 
-void DocumentData::forget() {
+void DocumentData::unload() {
+	// Forget thumb only when image cache limit exceeds.
+	//thumb->unload();
 	if (sticker()) {
 		if (!sticker()->img->isNull()) {
 			ActiveCache().decrement(ComputeUsage(sticker()));
@@ -551,6 +553,7 @@ void DocumentData::forget() {
 		delete replyPreview.get();
 		replyPreview = ImagePtr();
 	}
+
 	ActiveCache().decrement(_data.size());
 	_data.clear();
 }
