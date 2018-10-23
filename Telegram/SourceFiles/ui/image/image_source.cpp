@@ -22,15 +22,19 @@ ImageSource::ImageSource(QImage &&data, const QByteArray &format)
 }
 
 void ImageSource::load(
-	Data::FileOrigin origin,
-	bool loadFirst,
-	bool prior) {
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	if (_data.isNull() && !_bytes.isEmpty()) {
+		_data = App::readImage(_bytes, &_format, false);
+	}
 }
 
 void ImageSource::loadEvenCancelled(
-	Data::FileOrigin origin,
-	bool loadFirst,
-	bool prior) {
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	load(origin, loadFirst, prior);
 }
 
 QImage ImageSource::takeLoaded() {
@@ -38,6 +42,15 @@ QImage ImageSource::takeLoaded() {
 }
 
 void ImageSource::unload() {
+	if (_bytes.isEmpty() && !_data.isNull()) {
+		if (_format.isEmpty()) {
+			_format = "PNG";
+		}
+
+		QBuffer buffer(&_bytes);
+		_data.save(&buffer, _format);
+	}
+	_data = QImage();
 }
 
 void ImageSource::automaticLoad(

@@ -55,6 +55,7 @@ public:
 private:
 	QImage _data;
 	QByteArray _format;
+	QByteArray _bytes;
 
 };
 
