@@ -17,6 +17,7 @@ using uint64 = quint64;
 
 using std::vector;
 using std::map;
+using std::set;
 using std::find;
 using std::make_pair;
 using std::move;
@@ -79,6 +80,12 @@ Replace Replaces[] = {
 	{ { 0xD83DDE32U }, "8o" },
 	{ { 0xD83DDE37U }, ":X" },
 	{ { 0xD83DDE08U }, "}:)" },
+};
+
+InputCategory PostfixRequired = {
+ { 0x2122U, 0xFE0FU, },
+ { 0xA9U, 0xFE0FU, },
+ { 0xAEU, 0xFE0FU, },
 };
 
 using ColorId = uint32;
@@ -1904,35 +1911,46 @@ Id BareIdFromInput(const InputId &id) {
 	return result;
 }
 
-using VariatedIds = map<Id, bool>;
-VariatedIds fillVariatedIds() {
-	auto result = VariatedIds();
-	for (auto &row : ColoredEmoji) {
+set<Id> fillVariatedIds() {
+	auto result = set<Id>();
+	for (const auto &row : ColoredEmoji) {
 		auto variatedId = Id();
 		if (row.size() < 2) {
 			logDataError() << "colored string should have at least two characters.";
-			return VariatedIds();
+			return {};
 		}
 		for (auto i = size_t(0), size = row.size(); i != size; ++i) {
 			auto code = row[i];
 			if (i == 1) {
 				if (code != ColorMask) {
 					logDataError() << "color code should appear at index 1.";
-					return VariatedIds();
+					return {};
 				}
 			} else if (code == ColorMask) {
 				logDataError() << "color code should appear only at index 1.";
-				return VariatedIds();
+				return {};
 			} else if (code != kPostfix) {
 				append(variatedId, code);
 			}
 		}
-		result.insert(make_pair(variatedId, true));
+		result.emplace(variatedId);
 	}
 	return result;
 }
 
-void appendCategory(Data &result, const InputCategory &category, const VariatedIds &variatedIds) {
+set<Id> fillPostfixRequiredIds() {
+	auto result = set<Id>();
+	for (const auto &row : PostfixRequired) {
+		result.emplace(BareIdFromInput(row));
+	}
+	return result;
+}
+
+void appendCategory(
+		Data &result,
+		const InputCategory &category,
+		const set<Id> &variatedIds,
+		const set<Id> &postfixRequiredIds) {
 	result.categories.push_back(vector<int>());
 	for (auto &id : category) {
 		auto emoji = Emoji();
@@ -1956,6 +1974,7 @@ void appendCategory(Data &result, const InputCategory &category, const VariatedI
 			result = Data();
 			return;
 		}
+
 		auto it = result.map.find(bareId);
 		if (it == result.map.cend()) {
 			const auto index = result.list.size();
@@ -1963,6 +1982,9 @@ void appendCategory(Data &result, const InputCategory &category, const VariatedI
 			result.list.push_back(move(emoji));
 			if (const auto a = Aliases.find(bareId); a != end(Aliases)) {
 				result.map.emplace(a->second, index);
+			}
+			if (postfixRequiredIds.find(bareId) != end(postfixRequiredIds)) {
+				result.postfixRequired.emplace(index);
 			}
 		} else if (result.list[it->second].postfixed != emoji.postfixed) {
 			logDataError() << "same emoji found with different postfixed property.";
@@ -1973,7 +1995,7 @@ void appendCategory(Data &result, const InputCategory &category, const VariatedI
 			result = Data();
 			return;
 		}
-		if (variatedIds.find(bareId) != variatedIds.cend()) {
+		if (variatedIds.find(bareId) != end(variatedIds)) {
 			result.list[it->second].variated = true;
 
 			auto baseId = Id();
@@ -2002,6 +2024,9 @@ void appendCategory(Data &result, const InputCategory &category, const VariatedI
 					result.list.push_back(move(colored));
 					if (const auto a = Aliases.find(bareColoredId); a != end(Aliases)) {
 						result.map.emplace(a->second, index);
+					}
+					if (postfixRequiredIds.find(bareColoredId) != end(postfixRequiredIds)) {
+						result.postfixRequired.emplace(index);
 					}
 				} else if (result.list[it->second].postfixed != colored.postfixed) {
 					logDataError() << "same emoji found with different postfixed property.";
@@ -2253,8 +2278,9 @@ common::LogStream logDataError() {
 Data PrepareData() {
 	Data result;
 
-	auto variatedIds = fillVariatedIds();
-	if (variatedIds.empty()) {
+	const auto variatedIds = fillVariatedIds();
+	const auto postfixRequiredIds = fillPostfixRequiredIds();
+	if (variatedIds.empty() || postfixRequiredIds.empty()) {
 		return Data();
 	}
 
@@ -2277,7 +2303,7 @@ Data PrepareData() {
 		&Category7,
 	};
 	for (const auto category : categories) {
-		appendCategory(result, *category, variatedIds);
+		appendCategory(result, *category, variatedIds, postfixRequiredIds);
 		if (result.list.empty()) {
 			return Data();
 		}

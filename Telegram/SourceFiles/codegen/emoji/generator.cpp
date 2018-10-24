@@ -640,7 +640,7 @@ int FindIndex(const QChar *start, const QChar *end, int *outLength) {\n\
 	auto ch = start;\n\
 \n";
 
-	if (!writeFindFromDictionary(data_.map, true)) {
+	if (!writeFindFromDictionary(data_.map, true, data_.postfixRequired)) {
 		return false;
 	}
 
@@ -651,7 +651,10 @@ int FindIndex(const QChar *start, const QChar *end, int *outLength) {\n\
 	return true;
 }
 
-bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes) {
+bool Generator::writeFindFromDictionary(
+		const std::map<QString, int, std::greater<QString>> &dictionary,
+		bool skipPostfixes,
+		const std::set<int> &postfixRequired) {
 	auto tabs = [](int size) {
 		return QString(size, '\t');
 	};
@@ -672,7 +675,7 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 	auto checkTypes = QVector<UsedCheckType>();
 	auto chars = QString();
 	auto tabsUsed = 1;
-	auto lengthsCounted = std::map<QString, bool>();
+	auto lengthsCounted = std::set<QString>();
 
 	auto writeSkipPostfix = [this, &tabs, skipPostfixes](int tabsCount) {
 		if (skipPostfixes) {
@@ -728,8 +731,8 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 			auto checking = chars.size();
 			auto partialKey = key.mid(0, checking);
 			if (dictionary.find(partialKey) != dictionary.cend()) {
-				if (lengthsCounted.find(partialKey) == lengthsCounted.cend()) {
-					lengthsCounted.insert(std::make_pair(partialKey, true));
+				if (lengthsCounted.find(partialKey) == end(lengthsCounted)) {
+					lengthsCounted.emplace(partialKey);
 					source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
 				}
 			}
@@ -752,8 +755,14 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 			writeSkipPostfix(++tabsUsed);
 			chars.push_back(keyChar);
 		}
-		if (lengthsCounted.find(key) == lengthsCounted.cend()) {
-			lengthsCounted.insert(std::make_pair(key, true));
+
+		if (postfixRequired.find(item.second) != end(postfixRequired)) {
+			source_->stream() << tabs(tabsUsed) << "if ((ch - 1)->unicode() != kPostfix) {\n";
+			source_->stream() << tabs(tabsUsed + 1) << "return 0;\n";
+			source_->stream() << tabs(tabsUsed) << "}\n";
+		}
+		if (lengthsCounted.find(key) == end(lengthsCounted)) {
+			lengthsCounted.emplace(key);
 			source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
 		}
 

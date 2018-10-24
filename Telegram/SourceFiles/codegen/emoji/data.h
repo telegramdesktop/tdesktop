@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "codegen/common/logging.h"
 #include <vector>
 #include <map>
+#include <set>
 #include <memory>
 #include <functional>
 #include <QtCore/QString>
@@ -30,6 +31,7 @@ struct Emoji {
 struct Data {
 	std::vector<Emoji> list;
 	std::map<Id, int, std::greater<Id>> map;
+	std::set<int> postfixRequired;
 	std::vector<std::vector<int>> categories;
 	std::map<QString, int, std::greater<QString>> replaces;
 };
