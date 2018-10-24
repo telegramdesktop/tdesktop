@@ -65,11 +65,14 @@ QString CacheFileFolder() {
 	return cWorkingDir() + "tdata/emoji";
 }
 
+QString CacheFileNameMask(int size) {
+	return "cache_" + QString::number(size) + '_';
+}
+
 QString CacheFilePath(int size, int index) {
 	return CacheFileFolder()
-		+ "/cache_"
-		+ QString::number(size)
-		+ '_'
+		+ '/'
+		+ CacheFileNameMask(size)
 		+ QString::number(index);
 }
 
@@ -321,6 +324,23 @@ void Clear() {
 
 	InstanceNormal = nullptr;
 	InstanceLarge = nullptr;
+}
+
+void ClearIrrelevantCache() {
+	Expects(SizeNormal > 0);
+	Expects(SizeLarge > 0);
+
+	crl::async([] {
+		const auto folder = CacheFileFolder();
+		const auto list = QDir(folder).entryList(QDir::Files);
+		const auto good1 = CacheFileNameMask(SizeNormal);
+		const auto good2 = CacheFileNameMask(SizeLarge);
+		for (const auto &name : list) {
+			if (!name.startsWith(good1) && !name.startsWith(good2)) {
+				QFile(folder + '/' + name).remove();
+			}
+		}
+	});
 }
 
 int GetSizeNormal() {

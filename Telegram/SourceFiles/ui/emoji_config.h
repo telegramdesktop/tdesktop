@@ -18,6 +18,8 @@ constexpr auto kRecentLimit = 42;
 void Init();
 void Clear();
 
+void ClearIrrelevantCache();
+
 int GetSizeNormal();
 int GetSizeLarge();
 

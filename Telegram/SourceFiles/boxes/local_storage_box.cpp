@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/emoji_config.h"
 #include "storage/localstorage.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
@@ -316,6 +317,7 @@ void LocalStorageBox::clearByTag(uint8 tag) {
 		_db->clearByTag(tag);
 	} else {
 		_db->clear();
+		Ui::Emoji::ClearIrrelevantCache();
 	}
 }
 
