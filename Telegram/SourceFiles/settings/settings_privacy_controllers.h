@@ -86,8 +86,22 @@ public:
 	QString exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
 
-	Fn<void()> setupAdditional(
-		not_null<Ui::VerticalLayout*> container) override;
+};
+
+class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	QString title() override;
+	LangKey optionsTitleKey() override;
+	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
 
 };
 

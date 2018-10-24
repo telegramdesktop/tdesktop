@@ -125,6 +125,10 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		Privacy::Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
 	add(
+		lng_settings_calls_peer_to_peer,
+		Privacy::Key::CallsPeer2Peer,
+		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
+	add(
 		lng_settings_groups_invite,
 		Privacy::Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });

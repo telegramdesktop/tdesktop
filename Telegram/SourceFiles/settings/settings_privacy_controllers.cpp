@@ -368,50 +368,45 @@ rpl::producer<QString> CallsPrivacyController::exceptionsDescription() {
 	return Lang::Viewer(lng_edit_privacy_calls_exceptions);
 }
 
-Fn<void()> CallsPrivacyController::setupAdditional(
-		not_null<Ui::VerticalLayout*> container) {
-	using PeerToPeer = Calls::PeerToPeer;
-	const auto convert = [](PeerToPeer value) {
-		switch (value) {
-		case PeerToPeer::DefaultContacts: return Option::Contacts;
-		case PeerToPeer::DefaultEveryone: return Option::Everyone;
-		case PeerToPeer::Everyone: return Option::Everyone;
-		case PeerToPeer::Contacts: return Option::Contacts;
-		case PeerToPeer::Nobody: return Option::Nobody;
-		}
-		Unexpected("Calls::PeerToPeer value.");
-	};
-	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>(
-		convert(Auth().settings().callsPeerToPeer()));
-	const auto changed = Ui::AttachAsChild(container, false);
-	group->setChangedCallback([=](Option) {
-		*changed = true;
-	});
+ApiWrap::Privacy::Key CallsPeer2PeerPrivacyController::key() {
+	return Key::CallsPeer2Peer;
+}
 
-	AddDivider(container);
-	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_peer_to_peer);
-	EditPrivacyBox::AddOption(container, group, Option::Everyone);
-	EditPrivacyBox::AddOption(container, group, Option::Contacts);
-	EditPrivacyBox::AddOption(container, group, Option::Nobody);
-	EditPrivacyBox::AddLabel(
-		container,
-		Lang::Viewer(lng_settings_peer_to_peer_about));
-	AddSkip(container);
+MTPInputPrivacyKey CallsPeer2PeerPrivacyController::apiKey() {
+	return MTP_inputPrivacyKeyPhoneP2P();
+}
 
-	return [=] {
-		if (*changed) {
-			Auth().settings().setCallsPeerToPeer([&] {
-				switch (group->value()) {
-				case Option::Everyone: return PeerToPeer::Everyone;
-				case Option::Contacts: return PeerToPeer::Contacts;
-				case Option::Nobody: return PeerToPeer::Nobody;
-				}
-				Unexpected("PeerToPeer edit value.");
-			}());
-			Auth().saveSettingsDelayed();
-		}
-	};
+QString CallsPeer2PeerPrivacyController::title() {
+	return lang(lng_edit_privacy_calls_p2p_title);
+}
+
+LangKey CallsPeer2PeerPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_calls_p2p_header;
+}
+
+rpl::producer<QString> CallsPeer2PeerPrivacyController::warning() {
+	return Lang::Viewer(lng_settings_peer_to_peer_about);
+}
+
+LangKey CallsPeer2PeerPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_calls_p2p_always_empty;
+	case Exception::Never: return lng_edit_privacy_calls_p2p_never_empty;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPeer2PeerPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_calls_p2p_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_calls_p2p_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_calls_p2p_exceptions);
 }
 
 } // namespace Settings

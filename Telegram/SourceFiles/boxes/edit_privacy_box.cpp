@@ -300,8 +300,6 @@ void EditPrivacyBox::setupContent() {
 	AddLabel(content, _controller->exceptionsDescription());
 	AddSkip(content);
 
-	const auto saveAdditional = _controller->setupAdditional(content);
-
 	addButton(langFactory(lng_settings_save), [=] {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)
 			|| !_value.never.empty();
@@ -309,9 +307,6 @@ void EditPrivacyBox::setupContent() {
 			Auth().api().savePrivacy(
 				_controller->apiKey(),
 				collectResult());
-			if (saveAdditional) {
-				saveAdditional();
-			}
 			closeBox();
 		}));
 	});

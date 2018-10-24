@@ -793,18 +793,6 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		+ (data.vexpires.v - unixtime()) * TimeMs(1000);
 	requestConfigIfExpired();
 
-	if (AuthSession::Exists()) {
-		using PeerToPeer = Calls::PeerToPeer;
-		const auto current = Auth().settings().callsPeerToPeer();
-		if (current == PeerToPeer::DefaultContacts
-			|| current == PeerToPeer::DefaultEveryone) {
-			Auth().settings().setCallsPeerToPeer(
-				(data.is_default_p2p_contacts()
-					? PeerToPeer::DefaultContacts
-					: PeerToPeer::DefaultEveryone));
-		}
-	}
-
 	emit _instance->configLoaded();
 }
 

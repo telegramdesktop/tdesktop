@@ -350,6 +350,7 @@ public:
 			LastSeen,
 			Calls,
 			Invites,
+			CallsPeer2Peer,
 		};
 		enum class Option {
 			Everyone,

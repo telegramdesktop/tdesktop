@@ -157,6 +157,8 @@ MTPInputPrivacyKey ApiWrap::Privacy::Input(Key key) {
 	case Privacy::Key::Invites: return MTP_inputPrivacyKeyChatInvite();
 	case Privacy::Key::LastSeen:
 		return MTP_inputPrivacyKeyStatusTimestamp();
+	case Privacy::Key::CallsPeer2Peer:
+		return MTP_inputPrivacyKeyPhoneP2P();
 	}
 	Unexpected("Key in ApiWrap::Privacy::Input.");
 }
@@ -2000,6 +2002,8 @@ void ApiWrap::handlePrivacyChange(
 		case mtpc_inputPrivacyKeyChatInvite: return Key::Invites;
 		case mtpc_privacyKeyPhoneCall:
 		case mtpc_inputPrivacyKeyPhoneCall: return Key::Calls;
+		case mtpc_privacyKeyPhoneP2P:
+		case mtpc_inputPrivacyKeyPhoneP2P: return Key::CallsPeer2Peer;
 		}
 		return std::nullopt;
 	}();

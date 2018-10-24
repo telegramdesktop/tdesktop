@@ -580,20 +580,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		_controller->SetMicMute(_mute);
 	}
 	_controller->implData = static_cast<void*>(this);
-	const auto p2p = [&] {
-		switch (Auth().settings().callsPeerToPeer()) {
-		case PeerToPeer::DefaultContacts:
-		case PeerToPeer::Contacts:
-			return _user->isContact();
-		case PeerToPeer::DefaultEveryone:
-		case PeerToPeer::Everyone:
-			return true;
-		case PeerToPeer::Nobody:
-			return false;
-		}
-		Unexpected("Calls::PeerToPeer value in Auth().settings().");
-	}();
-	_controller->SetRemoteEndpoints(endpoints, p2p, protocol.vmax_layer.v);
+	_controller->SetRemoteEndpoints(
+		endpoints,
+		call.is_p2p_allowed(),
+		protocol.vmax_layer.v);
 	_controller->SetConfig(config);
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
 	_controller->SetCallbacks(callbacks);

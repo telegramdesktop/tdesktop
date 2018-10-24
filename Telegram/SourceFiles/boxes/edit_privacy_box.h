@@ -13,10 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum LangKey : int;
 
-namespace Calls {
-enum class PeerToPeer;
-} // namespace Calls
-
 namespace Ui {
 class VerticalLayout;
 class FlatLabel;
@@ -61,10 +57,6 @@ public:
 				bool someAreDisallowed,
 				FnMut<void()> saveCallback) {
 			saveCallback();
-		}
-		virtual Fn<void()> setupAdditional(
-				not_null<Ui::VerticalLayout*> container) {
-			return nullptr;
 		}
 
 		virtual ~Controller() = default;

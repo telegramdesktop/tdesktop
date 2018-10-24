@@ -336,6 +336,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_privacy_title" = "Privacy";
 "lng_settings_last_seen" = "Last seen";
 "lng_settings_calls" = "Voice calls";
+"lng_settings_calls_peer_to_peer" = "Peer-to-peer in calls";
 "lng_settings_groups_invite" = "Groups";
 "lng_settings_group_privacy_about" = "Change who can add you to groups and channels.";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
@@ -347,7 +348,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
 "lng_settings_close_sure" = "Are you sure you want to close this page? You didn't save your changes.";
-"lng_settings_peer_to_peer" = "Peer-to-Peer";
+//"lng_settings_peer_to_peer" = "Peer-to-Peer";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
 "lng_settings_stickers_emoji" = "Stickers and emoji";
@@ -558,14 +559,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_exceptions" = "Add exceptions";
 
+"lng_edit_privacy_exceptions_count#one" = "{count} user";
+"lng_edit_privacy_exceptions_count#other" = "{count} users";
+"lng_edit_privacy_exceptions_add" = "Add users";
+
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_header" = "Who can see your last seen time";
 "lng_edit_privacy_lastseen_warning" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
 "lng_edit_privacy_lastseen_always_empty" = "Always share with";
 "lng_edit_privacy_lastseen_never_empty" = "Never share with";
-"lng_edit_privacy_exceptions_count#one" = "{count} user";
-"lng_edit_privacy_exceptions_count#other" = "{count} users";
-"lng_edit_privacy_exceptions_add" = "Add users";
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
@@ -585,6 +587,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_calls_exceptions" = "These users will or will not be able to call you regardless of the settings above.";
 "lng_edit_privacy_calls_always_title" = "Always allow";
 "lng_edit_privacy_calls_never_title" = "Never allow";
+
+"lng_edit_privacy_calls_p2p_title" = "Peer-to-peer in calls";
+"lng_edit_privacy_calls_p2p_header" = "With who peer-to-peer is enabled?";
+"lng_edit_privacy_calls_p2p_always_empty" = "Always allow";
+"lng_edit_privacy_calls_p2p_never_empty" = "Never allow";
+"lng_edit_privacy_calls_p2p_exceptions" = "Peer-to-peer in calls will or will not be used with these users regardless of the settings above.";
+"lng_edit_privacy_calls_p2p_always_title" = "Always allow";
+"lng_edit_privacy_calls_p2p_never_title" = "Never allow";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
