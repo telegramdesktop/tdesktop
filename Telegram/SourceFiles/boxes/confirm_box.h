@@ -220,6 +220,7 @@ private:
 	ImagePtr _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	QVector<UserData*> _participants;
+	bool _isChannel = false;
 
 	int _userWidth = 0;
 

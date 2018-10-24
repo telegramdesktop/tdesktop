@@ -658,7 +658,8 @@ ConfirmInviteBox::ConfirmInviteBox(
 	const QVector<UserData*> &participants)
 : _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
-, _participants(participants) {
+, _participants(participants)
+, _isChannel(isChannel) {
 	_title->setText(title);
 	QString status;
 	if (_participants.isEmpty() || _participants.size() >= count) {
@@ -694,7 +695,10 @@ ConfirmInviteBox::ConfirmInviteBox(
 }
 
 void ConfirmInviteBox::prepare() {
-	addButton(langFactory(lng_group_invite_join), [] {
+	const auto joinKey = _isChannel
+		? lng_profile_join_channel
+		: lng_profile_join_group;
+	addButton(langFactory(joinKey), [] {
 		if (auto main = App::main()) {
 			main->onInviteImport();
 		}
