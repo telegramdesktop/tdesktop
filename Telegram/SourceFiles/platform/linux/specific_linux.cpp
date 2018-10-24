@@ -52,6 +52,10 @@ bool IsApplicationActive() {
 	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
 }
 
+void SetApplicationIcon(const QIcon &icon) {
+	qApp->setWindowIcon(icon);
+}
+
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	constexpr auto kMaxPath = 1024;
 	char result[kMaxPath] = { 0 };

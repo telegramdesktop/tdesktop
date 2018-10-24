@@ -90,16 +90,11 @@ void ConvertIconToBlack(QImage &image) {
 }
 
 QIcon CreateOfficialIcon() {
-	auto useNoMarginLogo = (cPlatform() == dbipMac);
 	auto image = [&] {
 		if (const auto messenger = Messenger::InstancePointer()) {
-			return useNoMarginLogo
-				? messenger->logoNoMargin()
-				: messenger->logo();
+			return messenger->logo();
 		}
-		return useNoMarginLogo
-			? LoadLogoNoMargin()
-			: LoadLogo();
+		return LoadLogo();
 	}();
 	if (AuthSession::Exists() && Auth().supportMode()) {
 		ConvertIconToBlack(image);

@@ -585,7 +585,7 @@ void Messenger::startLocalStorage() {
 			if (_mtproto) {
 				_mtproto->requestConfig();
 			}
-			qApp->setWindowIcon(Window::CreateIcon());
+			Platform::SetApplicationIcon(Window::CreateIcon());
 		});
 	});
 }

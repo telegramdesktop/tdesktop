@@ -24,6 +24,7 @@ enum class PermissionType {
 
 void SetWatchingMediaKeys(bool watching);
 bool IsApplicationActive();
+void SetApplicationIcon(const QIcon &icon);
 bool TranslucentWindowsSupported(QPoint globalPosition);
 void StartTranslucentPaint(QPainter &p, QPaintEvent *e);
 void InitOnTopPanel(QWidget *panel);
