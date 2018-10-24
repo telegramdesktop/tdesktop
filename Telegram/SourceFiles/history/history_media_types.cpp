@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_location_manager.h"
 #include "history/history_message.h"
+#include "history/history_media_grouped.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "window/main_window.h"
@@ -71,8 +72,11 @@ int gifMaxStatusWidth(DocumentData *document) {
 std::unique_ptr<HistoryMedia> CreateAttach(
 		not_null<HistoryView::Element*> parent,
 		DocumentData *document,
-		PhotoData *photo) {
-	if (document) {
+		PhotoData *photo,
+		const std::vector<std::unique_ptr<Data::Media>> &collage = {}) {
+	if (!collage.empty()) {
+		return std::make_unique<HistoryGroupedMedia>(parent, collage);
+	} else if (document) {
 		if (document->sticker()) {
 			return std::make_unique<HistorySticker>(parent, document);
 		} else if (document->isAnimation()) {
@@ -95,6 +99,30 @@ std::unique_ptr<HistoryMedia> CreateAttach(
 			photo);
 	}
 	return nullptr;
+}
+
+std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
+		not_null<HistoryItem*> parent,
+		const WebPageCollage &data) {
+	auto result = std::vector<std::unique_ptr<Data::Media>>();
+	result.reserve(data.items.size());
+	for (const auto item : data.items) {
+		if (const auto document = base::get_if<DocumentData*>(&item)) {
+			result.push_back(std::make_unique<Data::MediaFile>(
+				parent,
+				*document));
+		} else if (const auto photo = base::get_if<PhotoData*>(&item)) {
+			result.push_back(std::make_unique<Data::MediaPhoto>(
+				parent,
+				*photo));
+		} else {
+			return {};
+		}
+		if (!result.back()->canBeGrouped()) {
+			return {};
+		}
+	}
+	return result;
 }
 
 } // namespace
@@ -3354,6 +3382,7 @@ QSize HistoryWebPage::countOptimalSize() {
 		_dataVersion = _data->version;
 		_openl = nullptr;
 		_attach = nullptr;
+		_collage = PrepareCollageMedia(_parent->data(), _data->collage);
 		_title = Text(st::msgMinWidth - st::webPageLeft);
 		_description = Text(st::msgMinWidth - st::webPageLeft);
 		_siteNameWidth = 0;
@@ -3366,7 +3395,9 @@ QSize HistoryWebPage::countOptimalSize() {
 
 	// init layout
 	auto title = TextUtilities::SingleLine(_data->title.isEmpty() ? _data->author : _data->title);
-	if (!_data->document && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
+	if (!_collage.empty()) {
+		_asArticle = false;
+	} else if (!_data->document && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
 		if (_data->type == WebPageProfile) {
 			_asArticle = true;
 		} else if (_data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
@@ -3383,7 +3414,11 @@ QSize HistoryWebPage::countOptimalSize() {
 
 	// init attach
 	if (!_attach && !_asArticle) {
-		_attach = CreateAttach(_parent, _data->document, _data->photo);
+		_attach = CreateAttach(
+			_parent,
+			_data->document,
+			_data->photo,
+			_collage);
 	}
 
 	auto textFloatsAroundInfo = !_asArticle && !_attach && isBubbleBottom();
@@ -3804,7 +3839,7 @@ TextState HistoryWebPage::textState(QPoint point, StateRequest request) const {
 			if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 
-			if (result.link && !_data->document && _data->photo && _attach->isReadyForOpen()) {
+			if (result.link && !_data->document && _data->photo && _collage.empty() && _attach->isReadyForOpen()) {
 				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
 					result.link = _openl;
 				} else if (_data->type == WebPagePhoto || _data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {

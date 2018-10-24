@@ -957,18 +957,18 @@ WebPageData *MediaWebPage::webpage() const {
 }
 
 bool MediaWebPage::hasReplyPreview() const {
-	if (const auto document = _page->document) {
+	if (const auto document = MediaWebPage::document()) {
 		return !document->thumb->isNull();
-	} else if (const auto photo = _page->photo) {
+	} else if (const auto photo = MediaWebPage::photo()) {
 		return !photo->thumb->isNull();
 	}
 	return false;
 }
 
 ImagePtr MediaWebPage::replyPreview() const {
-	if (const auto document = _page->document) {
+	if (const auto document = MediaWebPage::document()) {
 		return document->makeReplyPreview(parent()->fullId());
-	} else if (const auto photo = _page->photo) {
+	} else if (const auto photo = MediaWebPage::photo()) {
 		return photo->makeReplyPreview(parent()->fullId());
 	}
 	return ImagePtr();

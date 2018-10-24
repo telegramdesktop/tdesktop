@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "data/data_session.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
+#include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
 namespace {
@@ -29,7 +33,93 @@ QString SiteNameFromUrl(const QString &url) {
 	return QString();
 }
 
+WebPageCollage ExtractCollage(
+		const QVector<MTPPageBlock> &items,
+		const QVector<MTPPhoto> &photos,
+		const QVector<MTPDocument> &documents) {
+	const auto count = items.size();
+	if (count < 2) {
+		return {};
+	}
+	const auto bad = ranges::find_if(items, [](mtpTypeId type) {
+		return (type != mtpc_pageBlockPhoto && type != mtpc_pageBlockVideo);
+	}, [](const MTPPageBlock &item) {
+		return item.type();
+	});
+	if (bad != items.end()) {
+		return {};
+	}
+
+	auto &storage = Auth().data();
+	for (const auto &photo : photos) {
+		storage.photo(photo);
+	}
+	for (const auto &document : documents) {
+		storage.document(document);
+	}
+	auto result = WebPageCollage();
+	result.items.reserve(count);
+	for (const auto &item : items) {
+		const auto good = item.match([&](const MTPDpageBlockPhoto &data) {
+			const auto photo = storage.photo(data.vphoto_id.v);
+			if (photo->full->isNull()) {
+				return false;
+			}
+			result.items.push_back(photo);
+			return true;
+		}, [&](const MTPDpageBlockVideo &data) {
+			const auto document = storage.document(data.vvideo_id.v);
+			if (!document->isVideoFile()) {
+				return false;
+			}
+			result.items.push_back(document);
+			return true;
+		}, [](const auto &) -> bool {
+			Unexpected("Type of block in Collage.");
+		});
+		if (!good) {
+			return {};
+		}
+	}
+	return result;
+}
+
+WebPageCollage ExtractCollage(const MTPDwebPage &data) {
+	if (!data.has_cached_page()) {
+		return {};
+	}
+	return data.vcached_page.match([&](const auto &page) {
+		for (const auto &block : page.vblocks.v) {
+			switch (block.type()) {
+			case mtpc_pageBlockPhoto:
+			case mtpc_pageBlockVideo:
+			case mtpc_pageBlockCover:
+			case mtpc_pageBlockEmbed:
+			case mtpc_pageBlockEmbedPost:
+			case mtpc_pageBlockAudio:
+				return WebPageCollage();
+			case mtpc_pageBlockSlideshow:
+				return ExtractCollage(
+					block.c_pageBlockSlideshow().vitems.v,
+					page.vphotos.v,
+					page.vdocuments.v);
+			case mtpc_pageBlockCollage:
+				return ExtractCollage(
+					block.c_pageBlockCollage().vitems.v,
+					page.vphotos.v,
+					page.vdocuments.v);
+			default: break;
+			}
+		}
+		return WebPageCollage();
+	});
+}
+
 } // namespace
+
+WebPageCollage::WebPageCollage(const MTPDwebPage &data)
+: WebPageCollage(ExtractCollage(data)) {
+}
 
 bool WebPageData::applyChanges(
 		const QString &newType,
@@ -40,6 +130,7 @@ bool WebPageData::applyChanges(
 		const TextWithEntities &newDescription,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
+		WebPageCollage &&newCollage,
 		int newDuration,
 		const QString &newAuthor,
 		int newPendingTill) {
@@ -83,6 +174,7 @@ bool WebPageData::applyChanges(
 		&& description.text == newDescription.text
 		&& photo == newPhoto
 		&& document == newDocument
+		&& collage.items == newCollage.items
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& pendingTill == newPendingTill) {
@@ -99,6 +191,7 @@ bool WebPageData::applyChanges(
 	description = newDescription;
 	photo = newPhoto;
 	document = newDocument;
+	collage = std::move(newCollage);
 	duration = newDuration;
 	author = resultAuthor;
 	pendingTill = newPendingTill;

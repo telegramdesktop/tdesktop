@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 class BoxContent;
+struct WebPageCollage;
 
 namespace HistoryView {
 struct Group;
@@ -309,6 +310,7 @@ public:
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill);
@@ -490,6 +492,7 @@ private:
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill);

@@ -27,12 +27,29 @@ namespace {
 using TextState = HistoryView::TextState;
 using PointState = HistoryView::PointState;
 
-constexpr auto kMaxDisplayedGroupSize = 10;
-
 } // namespace
 
-HistoryGroupedMedia::Part::Part(not_null<HistoryItem*> item)
-: item(item) {
+HistoryGroupedMedia::Part::Part(
+	not_null<HistoryView::Element*> parent,
+	not_null<Data::Media*> media)
+: item(media->parent())
+, content(media->createView(parent, item)) {
+	Assert(media->canBeGrouped());
+}
+
+HistoryGroupedMedia::HistoryGroupedMedia(
+	not_null<Element*> parent,
+	const std::vector<std::unique_ptr<Data::Media>> &medias)
+: HistoryMedia(parent)
+, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
+	const auto truncated = ranges::view::all(
+		medias
+	) | ranges::view::transform([](const std::unique_ptr<Data::Media> &v) {
+		return not_null<Data::Media*>(v.get());
+	}) | ranges::view::take(kMaxSize);
+	const auto result = applyGroup(truncated);
+
+	Ensures(result);
 }
 
 HistoryGroupedMedia::HistoryGroupedMedia(
@@ -40,11 +57,12 @@ HistoryGroupedMedia::HistoryGroupedMedia(
 	const std::vector<not_null<HistoryItem*>> &items)
 : HistoryMedia(parent)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto result = (items.size() <= kMaxDisplayedGroupSize)
-		? applyGroup(items)
-		: applyGroup(std::vector<not_null<HistoryItem*>>(
-			begin(items),
-			begin(items) + kMaxDisplayedGroupSize));
+	const auto medias = ranges::view::all(
+		items
+	) | ranges::view::transform([](not_null<HistoryItem*> item) {
+		return item->media();
+	}) | ranges::view::take(kMaxSize);
+	const auto result = applyGroup(medias);
 
 	Ensures(result);
 }
@@ -312,38 +330,35 @@ void HistoryGroupedMedia::clickHandlerPressedChanged(
 	}
 }
 
-bool HistoryGroupedMedia::applyGroup(
-		const std::vector<not_null<HistoryItem*>> &items) {
-	Expects(items.size() <= kMaxDisplayedGroupSize);
-
-	if (items.empty()) {
-		return false;
-	}
-	if (validateGroupParts(items)) {
+template <typename DataMediaRange>
+bool HistoryGroupedMedia::applyGroup(const DataMediaRange &medias) {
+	if (validateGroupParts(medias)) {
 		return true;
 	}
 
-	for (const auto item : items) {
-		const auto media = item->media();
-		Assert(media != nullptr && media->canBeGrouped());
+	for (const auto media : medias) {
+		_parts.push_back(Part(_parent, media));
+	}
+	if (_parts.empty()) {
+		return false;
+	}
 
-		_parts.push_back(Part(item));
-		_parts.back().content = media->createView(_parent, item);
-	};
+	Ensures(_parts.size() <= kMaxSize);
 	return true;
 }
 
+template <typename DataMediaRange>
 bool HistoryGroupedMedia::validateGroupParts(
-		const std::vector<not_null<HistoryItem*>> &items) const {
-	if (_parts.size() != items.size()) {
-		return false;
-	}
-	for (auto i = 0, count = int(items.size()); i != count; ++i) {
-		if (_parts[i].item != items[i]) {
+		const DataMediaRange &medias) const {
+	auto i = 0;
+	const auto count = _parts.size();
+	for (const auto media : medias) {
+		if (i >= count || _parts[i].item != media->parent()) {
 			return false;
 		}
+		++i;
 	}
-	return true;
+	return (i == count);
 }
 
 not_null<HistoryMedia*> HistoryGroupedMedia::main() const {

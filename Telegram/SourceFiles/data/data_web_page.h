@@ -24,6 +24,16 @@ inline WebPageType toWebPageType(const QString &type) {
 	return WebPageArticle;
 }
 
+struct WebPageCollage {
+	using Item = base::variant<PhotoData*, DocumentData*>;
+
+	WebPageCollage() = default;
+	explicit WebPageCollage(const MTPDwebPage &data);
+
+	std::vector<Item> items;
+
+};
+
 struct WebPageData {
 	WebPageData(const WebPageId &id) : id(id) {
 	}
@@ -35,8 +45,9 @@ struct WebPageData {
 		const QString &siteName,
 		const QString &title,
 		const TextWithEntities &description,
-		DocumentData *document,
 		PhotoData *photo,
+		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		int pendingTill)
@@ -51,6 +62,7 @@ struct WebPageData {
 	, author(author)
 	, photo(photo)
 	, document(document)
+	, collage(std::move(collage))
 	, pendingTill(pendingTill) {
 	}
 
@@ -63,6 +75,7 @@ struct WebPageData {
 		const TextWithEntities &newDescription,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
+		WebPageCollage &&newCollage,
 		int newDuration,
 		const QString &newAuthor,
 		int newPendingTill);
@@ -78,6 +91,7 @@ struct WebPageData {
 	QString author;
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
+	WebPageCollage collage;
 	int pendingTill = 0;
 	int version = 0;
 

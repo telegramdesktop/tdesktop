@@ -1267,6 +1267,7 @@ not_null<WebPageData*> Session::webpage(const MTPDwebPagePending &data) {
 		TextWithEntities(),
 		nullptr,
 		nullptr,
+		WebPageCollage(),
 		0,
 		QString(),
 		data.vdate.v
@@ -1289,6 +1290,7 @@ not_null<WebPageData*> Session::webpage(
 		content,
 		nullptr,
 		nullptr,
+		WebPageCollage(),
 		0,
 		QString(),
 		TimeId(0));
@@ -1304,6 +1306,7 @@ not_null<WebPageData*> Session::webpage(
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill) {
@@ -1318,6 +1321,7 @@ not_null<WebPageData*> Session::webpage(
 		description,
 		photo,
 		document,
+		std::move(collage),
 		duration,
 		author,
 		pendingTill);
@@ -1351,6 +1355,7 @@ void Session::webpageApplyFields(
 		description,
 		data.has_photo() ? photo(data.vphoto).get() : nullptr,
 		data.has_document() ? document(data.vdocument).get() : nullptr,
+		WebPageCollage(data),
 		data.has_duration() ? data.vduration.v : 0,
 		data.has_author() ? qs(data.vauthor) : QString(),
 		pendingTill);
@@ -1366,6 +1371,7 @@ void Session::webpageApplyFields(
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill) {
@@ -1379,6 +1385,7 @@ void Session::webpageApplyFields(
 		description,
 		photo,
 		document,
+		std::move(collage),
 		duration,
 		author,
 		pendingTill);
