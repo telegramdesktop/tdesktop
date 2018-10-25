@@ -50,6 +50,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 	QByteArray bytesForCache() override;
@@ -61,13 +62,15 @@ private:
 	void ready(
 		base::binary_guard &&guard,
 		QImage &&image,
-		QByteArray &&bytes = {});
+		int bytesSize,
+		QByteArray &&bytesForCache = {});
 
 	not_null<DocumentData*> _document;
 	QImage _loaded;
 	base::binary_guard _loading;
 	int _width = 0;
 	int _height = 0;
+	int _bytesSize = 0;
 	bool _empty = false;
 
 };

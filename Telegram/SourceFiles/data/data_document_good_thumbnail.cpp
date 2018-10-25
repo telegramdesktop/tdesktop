@@ -52,9 +52,11 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 		if (!filepath.isEmpty()) {
 			location->accessDisable();
 		}
+		const auto bytesSize = bytes.size();
 		ready(
 			std::move(guard),
 			std::move(result.thumbnail),
+			bytesSize,
 			std::move(bytes));
 	});
 }
@@ -63,12 +65,13 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 void GoodThumbSource::ready(
 		base::binary_guard &&guard,
 		QImage &&image,
-		QByteArray &&bytes) {
+		int bytesSize,
+		QByteArray &&bytesForCache) {
 	crl::on_main([
 		=,
 		guard = std::move(guard),
 		image = std::move(image),
-		bytes = std::move(bytes)
+		bytes = std::move(bytesForCache)
 	]() mutable {
 		if (!guard.alive()) {
 			return;
@@ -80,6 +83,7 @@ void GoodThumbSource::ready(
 		_loaded = std::move(image);
 		_width = _loaded.width();
 		_height = _loaded.height();
+		_bytesSize = bytesSize;
 		if (!bytes.isEmpty()) {
 			Auth().data().cache().put(
 				_document->goodThumbnailCacheKey(),
@@ -114,7 +118,7 @@ void GoodThumbSource::load(
 			guard = std::move(guard),
 			value = std::move(value)
 		]() mutable {
-			ready(std::move(guard), App::readImage(value));
+			ready(std::move(guard), App::readImage(value), value.size());
 		});
 	};
 
@@ -194,6 +198,9 @@ void GoodThumbSource::setImageBytes(const QByteArray &bytes) {
 	if (!bytes.isEmpty()) {
 		cancel();
 		_loaded = App::readImage(bytes);
+		_width = _loaded.width();
+		_height = _loaded.height();
+		_bytesSize = bytes.size();
 	}
 }
 
@@ -205,9 +212,14 @@ int GoodThumbSource::height() {
 	return _height;
 }
 
+int GoodThumbSource::bytesSize() {
+	return _bytesSize;
+}
+
 void GoodThumbSource::setInformation(int size, int width, int height) {
 	_width = width;
 	_height = height;
+	_bytesSize = size;
 }
 
 QByteArray GoodThumbSource::bytesForCache() {

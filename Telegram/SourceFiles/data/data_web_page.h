@@ -95,4 +95,7 @@ struct WebPageData {
 	int pendingTill = 0;
 	int version = 0;
 
+private:
+	void replaceDocumentGoodThumbnail();
+
 };

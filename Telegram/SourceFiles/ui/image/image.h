@@ -78,6 +78,7 @@ public:
 
 	virtual int width() = 0;
 	virtual int height() = 0;
+	virtual int bytesSize() = 0;
 	virtual void setInformation(int size, int width, int height) = 0;
 
 	virtual QByteArray bytesForCache() = 0;
@@ -193,6 +194,9 @@ public:
 	}
 	int height() const {
 		return _source->height();
+	}
+	int bytesSize() const {
+		return _source->bytesSize();
 	}
 	void setInformation(int size, int width, int height) {
 		_source->setInformation(size, width, height);

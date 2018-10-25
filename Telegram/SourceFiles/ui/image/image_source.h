@@ -48,6 +48,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 	QByteArray bytesForCache() override;
@@ -100,6 +101,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 	QByteArray bytesForCache() override;
@@ -184,6 +186,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 protected:
@@ -211,6 +214,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 protected:
@@ -236,6 +240,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 protected:
@@ -298,6 +303,7 @@ public:
 
 	int width() override;
 	int height() override;
+	int bytesSize() override;
 	void setInformation(int size, int width, int height) override;
 
 protected:

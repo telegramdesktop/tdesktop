@@ -113,6 +113,10 @@ int ImageSource::height() {
 	return _data.height();
 }
 
+int ImageSource::bytesSize() {
+	return _bytes.size();
+}
+
 void ImageSource::setInformation(int size, int width, int height) {
 }
 
@@ -240,6 +244,11 @@ int LocalFileSource::width() {
 int LocalFileSource::height() {
 	ensureDimensionsKnown();
 	return _height;
+}
+
+int LocalFileSource::bytesSize() {
+	ensureDimensionsKnown();
+	return _bytes.size();
 }
 
 void LocalFileSource::setInformation(int size, int width, int height) {
@@ -456,6 +465,10 @@ int StorageSource::height() {
 	return _location.height();
 }
 
+int StorageSource::bytesSize() {
+	return _size;
+}
+
 void StorageSource::setInformation(int size, int width, int height) {
 	if (size) {
 		_size = size;
@@ -519,6 +532,10 @@ int WebCachedSource::height() {
 	return _height;
 }
 
+int WebCachedSource::bytesSize() {
+	return _size;
+}
+
 void WebCachedSource::setInformation(int size, int width, int height) {
 	if (size) {
 		_size = size;
@@ -561,6 +578,10 @@ int GeoPointSource::width() {
 
 int GeoPointSource::height() {
 	return _location.height * _location.scale;
+}
+
+int GeoPointSource::bytesSize() {
+	return _size;
 }
 
 void GeoPointSource::setInformation(int size, int width, int height) {
@@ -703,6 +724,10 @@ int WebUrlSource::width() {
 
 int WebUrlSource::height() {
 	return _height;
+}
+
+int WebUrlSource::bytesSize() {
+	return _size;
 }
 
 void WebUrlSource::setInformation(int size, int width, int height) {

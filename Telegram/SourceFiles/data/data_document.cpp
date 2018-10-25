@@ -552,9 +552,13 @@ void DocumentData::validateGoodThumbnail() {
 
 void DocumentData::refreshGoodThumbnail() {
 	if (_goodThumbnail && hasRemoteLocation()) {
-		_goodThumbnail->replaceSource(
-			std::make_unique<Data::GoodThumbSource>(this));
+		replaceGoodThumbnail(std::make_unique<Data::GoodThumbSource>(this));
 	}
+}
+
+void DocumentData::replaceGoodThumbnail(
+		std::unique_ptr<Images::Source> &&source) {
+	_goodThumbnail->replaceSource(std::move(source));
 }
 
 void DocumentData::setGoodThumbnail(QImage &&image, QByteArray &&bytes) {
