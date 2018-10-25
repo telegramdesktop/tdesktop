@@ -503,11 +503,13 @@ PopupMenu::~PopupMenu() {
 		delete submenu;
 	}
 	if (const auto parent = parentWidget()) {
-		crl::on_main(parent, [=] {
-			if (!parent->isHidden()) {
-				parent->activateWindow();
-			}
-		});
+		if (qApp->focusWidget() != nullptr) {
+			crl::on_main(parent, [=] {
+				if (!parent->isHidden()) {
+					parent->activateWindow();
+				}
+			});
+		}
 	}
 	if (_destroyedCallback) {
 		_destroyedCallback();
