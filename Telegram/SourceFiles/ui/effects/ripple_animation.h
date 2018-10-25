@@ -13,21 +13,20 @@ namespace Ui {
 
 class RippleAnimation {
 public:
-	using UpdateCallback = Fn<void()>;
-
 	// White upon transparent mask, like colorizeImage(black-white-mask, white).
-	RippleAnimation(const style::RippleAnimation &st, QImage mask, const UpdateCallback &update);
+	RippleAnimation(const style::RippleAnimation &st, QImage mask, Fn<void()> update);
 
 	void add(QPoint origin, int startRadius = 0);
 	void addFading();
 	void lastStop();
 	void lastUnstop();
 	void lastFinish();
+	void forceRepaint();
 
 	void paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride = nullptr);
 
 	bool empty() const {
-		return _ripples.isEmpty();
+		return _ripples.empty();
 	}
 
 	static QImage maskByDrawer(QSize size, bool filled, Fn<void(QPainter &p)> drawer);
@@ -35,9 +34,7 @@ public:
 	static QImage roundRectMask(QSize size, int radius);
 	static QImage ellipseMask(QSize size);
 
-	~RippleAnimation() {
-		clear();
-	}
+	~RippleAnimation();
 
 private:
 	void clear();
@@ -45,10 +42,10 @@ private:
 
 	const style::RippleAnimation &_st;
 	QPixmap _mask;
-	UpdateCallback _update;
+	Fn<void()> _update;
 
 	class Ripple;
-	QList<Ripple*> _ripples;
+	std::deque<std::unique_ptr<Ripple>> _ripples;
 
 };
 

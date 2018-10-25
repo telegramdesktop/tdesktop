@@ -11,21 +11,22 @@ namespace Ui {
 
 class RippleAnimation::Ripple {
 public:
-	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, const UpdateCallback &update);
-	Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update);
+	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, Fn<void()> update);
+	Ripple(const style::RippleAnimation &st, const QPixmap &mask, Fn<void()> update);
 
 	void paint(QPainter &p, const QPixmap &mask, TimeMs ms, const QColor *colorOverride);
 
 	void stop();
 	void unstop();
 	void finish();
+	void clearCache();
 	bool finished() const {
 		return _hiding && !_hide.animating();
 	}
 
 private:
 	const style::RippleAnimation &_st;
-	UpdateCallback _update;
+	Fn<void()> _update;
 
 	QPoint _origin;
 	int _radiusFrom = 0;
@@ -39,7 +40,7 @@ private:
 
 };
 
-RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, const UpdateCallback &update)
+RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, Fn<void()> update)
 : _st(st)
 , _update(update)
 , _origin(origin)
@@ -58,10 +59,10 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin,
 	}
 	_radiusTo = qRound(sqrt(_radiusTo));
 
-	_show.start(UpdateCallback(_update), 0., 1., _st.showDuration, anim::easeOutQuint);
+	_show.start(_update, 0., 1., _st.showDuration, anim::easeOutQuint);
 }
 
-RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update)
+RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, Fn<void()> update)
 : _st(st)
 , _update(update)
 , _origin(mask.width() / (2 * cIntRetinaFactor()), mask.height() / (2 * cIntRetinaFactor()))
@@ -69,7 +70,7 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap 
 , _frame(mask.size(), QImage::Format_ARGB32_Premultiplied) {
 	_frame.setDevicePixelRatio(mask.devicePixelRatio());
 	_radiusTo = _radiusFrom;
-	_hide.start(UpdateCallback(_update), 0., 1., _st.hideDuration);
+	_hide.start(_update, 0., 1., _st.hideDuration);
 }
 
 void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms, const QColor *colorOverride) {
@@ -112,13 +113,13 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms,
 
 void RippleAnimation::Ripple::stop() {
 	_hiding = true;
-	_hide.start(UpdateCallback(_update), 1., 0., _st.hideDuration);
+	_hide.start(_update, 1., 0., _st.hideDuration);
 }
 
 void RippleAnimation::Ripple::unstop() {
 	if (_hiding) {
 		if (_hide.animating()) {
-			_hide.start(UpdateCallback(_update), 0., 1., _st.hideDuration);
+			_hide.start(_update, 0., 1., _st.hideDuration);
 		}
 		_hiding = false;
 	}
@@ -132,7 +133,11 @@ void RippleAnimation::Ripple::finish() {
 	_hide.finish();
 }
 
-RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, const UpdateCallback &callback)
+void RippleAnimation::Ripple::clearCache() {
+	_cache = QPixmap();
+}
+
+RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, Fn<void()> callback)
 : _st(st)
 , _mask(App::pixmapFromImageInPlace(std::move(mask)))
 , _update(callback) {
@@ -141,40 +146,49 @@ RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, 
 
 void RippleAnimation::add(QPoint origin, int startRadius) {
 	lastStop();
-	_ripples.push_back(new Ripple(_st, origin, startRadius, _mask, _update));
+	_ripples.push_back(std::make_unique<Ripple>(_st, origin, startRadius, _mask, _update));
 }
 
 void RippleAnimation::addFading() {
 	lastStop();
-	_ripples.push_back(new Ripple(_st, _mask, _update));
+	_ripples.push_back(std::make_unique<Ripple>(_st, _mask, _update));
 }
 
 void RippleAnimation::lastStop() {
-	if (!_ripples.isEmpty()) {
+	if (!_ripples.empty()) {
 		_ripples.back()->stop();
 	}
 }
 
 void RippleAnimation::lastUnstop() {
-	if (!_ripples.isEmpty()) {
+	if (!_ripples.empty()) {
 		_ripples.back()->unstop();
 	}
 }
 
 void RippleAnimation::lastFinish() {
-	if (!_ripples.isEmpty()) {
+	if (!_ripples.empty()) {
 		_ripples.back()->finish();
 	}
 }
 
+void RippleAnimation::forceRepaint() {
+	for (const auto &ripple : _ripples) {
+		ripple->clearCache();
+	}
+	if (_update) {
+		_update();
+	}
+}
+
 void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride) {
-	if (_ripples.isEmpty()) {
+	if (_ripples.empty()) {
 		return;
 	}
 
 	if (rtl()) x = outerWidth - x - (_mask.width() / cIntRetinaFactor());
 	p.translate(x, y);
-	for (auto ripple : _ripples) {
+	for (const auto &ripple : _ripples) {
 		ripple->paint(p, _mask, ms, colorOverride);
 	}
 	p.translate(-x, -y);
@@ -213,16 +227,15 @@ QImage RippleAnimation::ellipseMask(QSize size) {
 }
 
 void RippleAnimation::clearFinished() {
-	while (!_ripples.isEmpty() && _ripples.front()->finished()) {
-		delete base::take(_ripples.front());
+	while (!_ripples.empty() && _ripples.front()->finished()) {
 		_ripples.pop_front();
 	}
 }
 
 void RippleAnimation::clear() {
-	for (auto ripple : base::take(_ripples)) {
-		delete ripple;
-	}
+	_ripples.clear();
 }
+
+RippleAnimation::~RippleAnimation() = default;
 
 } // namespace Ui
