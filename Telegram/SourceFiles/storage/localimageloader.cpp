@@ -20,6 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_media_prepare.h"
 
+namespace {
+
+constexpr auto kThumbnailQuality = 87;
+
+} // namespace
+
 using Storage::ValidateThumbDimensions;
 
 SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
@@ -531,7 +537,8 @@ void FileLoadTask::process() {
 
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
-	QImage thumb;
+	QImage thumb, goodThumbnail;
+	QByteArray goodThumbnailBytes;
 
 	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
 
@@ -577,19 +584,20 @@ void FileLoadTask::process() {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
 			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
 
-			auto cover = (coverWidth > 90 || coverHeight > 90)
-				? video->thumbnail.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)
-				: std::move(video->thumbnail);
+			goodThumbnail = video->thumbnail;
 			{
-				auto thumbFormat = QByteArray("JPG");
-				auto thumbQuality = 87;
-
-				QBuffer buffer(&thumbdata);
-				cover.save(&buffer, thumbFormat, thumbQuality);
+				QBuffer buffer(&goodThumbnailBytes);
+				goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
 			}
 
 			thumbId = rand_value<uint64>();
-			thumb = std::move(cover);
+			thumb = (coverWidth > 90 || coverHeight > 90)
+				? video->thumbnail.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+				: std::move(video->thumbnail);
+			{
+				QBuffer buffer(&thumbdata);
+				thumb.save(&buffer, "JPG", kThumbnailQuality);
+			}
 			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0));
 		}
 	}
@@ -700,6 +708,9 @@ void FileLoadTask::process() {
 	_result->thumbname = thumbname;
 	_result->setThumbData(thumbdata);
 	_result->thumb = std::move(thumb);
+
+	_result->goodThumbnail = std::move(goodThumbnail);
+	_result->goodThumbnailBytes = std::move(goodThumbnailBytes);
 
 	_result->photo = photo;
 	_result->document = document;

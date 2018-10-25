@@ -156,7 +156,7 @@ public:
 
 	Image *goodThumbnail() const;
 	Storage::Cache::Key goodThumbnailCacheKey() const;
-	void validateGoodThumbnail();
+	void setGoodThumbnail(QImage &&image, QByteArray &&bytes);
 	void refreshGoodThumbnail();
 
 	void setRemoteLocation(
@@ -211,6 +211,7 @@ private:
 	friend class Serialize::Document;
 
 	LocationType locationType() const;
+	void validateGoodThumbnail();
 
 	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
 

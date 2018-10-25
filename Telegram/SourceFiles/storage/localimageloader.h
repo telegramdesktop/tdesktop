@@ -216,6 +216,9 @@ struct FileLoadResult {
 	QByteArray thumbmd5;
 	QImage thumb;
 
+	QImage goodThumbnail;
+	QByteArray goodThumbnailBytes;
+
 	MTPPhoto photo;
 	MTPDocument document;
 

@@ -157,8 +157,11 @@ void Uploader::upload(
 			? Auth().data().document(file->document)
 			: Auth().data().document(
 				file->document,
-				base::duplicate(file->thumb));
+				std::move(file->thumb));
 		document->uploadingData = std::make_unique<Data::UploadState>(document->size);
+		document->setGoodThumbnail(
+			std::move(file->goodThumbnail),
+			std::move(file->goodThumbnailBytes));
 		if (!file->content.isEmpty()) {
 			document->setData(file->content);
 			if (document->saveToCache()

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "storage/cache/storage_cache_database.h"
 #include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "auth_session.h"
 #include "mainwindow.h"
 #include "messenger.h"
@@ -550,10 +551,21 @@ void DocumentData::validateGoodThumbnail() {
 }
 
 void DocumentData::refreshGoodThumbnail() {
-	if (_goodThumbnail && !_goodThumbnail->loaded()) {
+	if (_goodThumbnail && hasRemoteLocation()) {
 		_goodThumbnail->replaceSource(
 			std::make_unique<Data::GoodThumbSource>(this));
 	}
+}
+
+void DocumentData::setGoodThumbnail(QImage &&image, QByteArray &&bytes) {
+	Expects(uploadingData != nullptr);
+
+	if (image.isNull()) {
+		return;
+	}
+	_goodThumbnail = std::make_unique<Image>(
+		std::make_unique<Images::LocalFileSource>(
+			QString(), std::move(bytes), "JPG", std::move(image)));
 }
 
 bool DocumentData::saveToCache() const {
