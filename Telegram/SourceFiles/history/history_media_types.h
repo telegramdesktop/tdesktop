@@ -311,7 +311,8 @@ private:
 	void updateStatusText() const;
 
 	not_null<DocumentData*> _data;
-	int _thumbw;
+	int _thumbw = 1;
+	int _thumbh = 1;
 	Text _caption;
 
 };

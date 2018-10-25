@@ -17,6 +17,8 @@ namespace {
 
 constexpr auto kDocumentCacheTag = 0x0000000000000100ULL;
 constexpr auto kDocumentCacheMask = 0x00000000000000FFULL;
+constexpr auto kDocumentThumbCacheTag = 0x0000000000000200ULL;
+constexpr auto kDocumentThumbCacheMask = 0x00000000000000FFULL;
 constexpr auto kStorageCacheTag = 0x0000010000000000ULL;
 constexpr auto kStorageCacheMask = 0x000000FFFFFFFFFFULL;
 constexpr auto kWebDocumentCacheTag = 0x0000020000000000ULL;
@@ -31,6 +33,14 @@ constexpr auto kGeoPointCacheMask = 0x000000FFFFFFFFFFULL;
 Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id) {
 	return Storage::Cache::Key{
 		Data::kDocumentCacheTag | (uint64(dcId) & Data::kDocumentCacheMask),
+		id
+	};
+}
+
+Storage::Cache::Key DocumentThumbCacheKey(int32 dcId, uint64 id) {
+	const auto part = (uint64(dcId) & Data::kDocumentThumbCacheMask);
+	return Storage::Cache::Key{
+		Data::kDocumentThumbCacheTag | part,
 		id
 	};
 }

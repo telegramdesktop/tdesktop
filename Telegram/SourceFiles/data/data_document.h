@@ -154,6 +154,11 @@ public:
 
 	bool hasGoodStickerThumb() const;
 
+	Image *goodThumbnail() const;
+	Storage::Cache::Key goodThumbnailCacheKey() const;
+	void validateGoodThumbnail();
+	void refreshGoodThumbnail();
+
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,
@@ -217,6 +222,8 @@ private:
 	QString _filename;
 	QString _mimeString;
 	WebFileLocation _urlLocation;
+
+	std::unique_ptr<Image> _goodThumbnail;
 
 	not_null<AuthSession*> _session;
 

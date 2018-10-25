@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 
 #include "data/data_session.h"
+#include "data/data_document_good_thumbnail.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "mainwidget.h"
@@ -528,6 +529,31 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			_additional = nullptr;
 		}
 	}
+	validateGoodThumbnail();
+}
+
+Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {
+	return Data::DocumentThumbCacheKey(_dc, id);
+}
+
+Image *DocumentData::goodThumbnail() const {
+	return _goodThumbnail.get();
+}
+
+void DocumentData::validateGoodThumbnail() {
+	if (!isVideoFile() && !isAnimation()) {
+		_goodThumbnail = nullptr;
+	} else if (!_goodThumbnail && hasRemoteLocation()) {
+		_goodThumbnail = std::make_unique<Image>(
+			std::make_unique<Data::GoodThumbSource>(this));
+	}
+}
+
+void DocumentData::refreshGoodThumbnail() {
+	if (_goodThumbnail && !_goodThumbnail->loaded()) {
+		_goodThumbnail->replaceSource(
+			std::make_unique<Data::GoodThumbSource>(this));
+	}
 }
 
 bool DocumentData::saveToCache() const {
@@ -706,6 +732,8 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 				|| (that->sticker() && !that->sticker()->img->isNull())) {
 				ActiveCache().up(that);
 			}
+
+			that->refreshGoodThumbnail();
 			destroyLoaderDelayed();
 		}
 		_session->data().notifyDocumentLayoutChanged(this);
@@ -1281,6 +1309,7 @@ void DocumentData::setRemoteLocation(
 			}
 		}
 	}
+	validateGoodThumbnail();
 }
 
 void DocumentData::setContentUrl(const QString &url) {
