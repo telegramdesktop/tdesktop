@@ -386,7 +386,7 @@ Video::Video(
 }
 
 void Video::initDimensions() {
-	_maxw = 2 * st::minPhotoSize;
+	_maxw = 2 * st::overviewPhotoMinSize;
 	_minh = _maxw;
 }
 

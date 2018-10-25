@@ -2030,13 +2030,16 @@ QSize HistoryGif::countOptimalSize() {
 			th = ConvertScale(_data->thumb->height());
 		}
 	}
-	if (tw > st::maxGifSize) {
-		th = (st::maxGifSize * th) / tw;
-		tw = st::maxGifSize;
+	const auto maxSize = _data->isVideoMessage()
+		? st::maxVideoMessageSize
+		: st::maxGifSize;
+	if (tw > maxSize) {
+		th = (maxSize * th) / tw;
+		tw = maxSize;
 	}
-	if (th > st::maxGifSize) {
-		tw = (st::maxGifSize * tw) / th;
-		th = st::maxGifSize;
+	if (th > maxSize) {
+		tw = (maxSize * tw) / th;
+		th = maxSize;
 	}
 	if (!tw || !th) {
 		tw = th = 1;
@@ -2085,13 +2088,16 @@ QSize HistoryGif::countCurrentSize(int newWidth) {
 			th = ConvertScale(_data->thumb->height());
 		}
 	}
-	if (tw > st::maxGifSize) {
-		th = (st::maxGifSize * th) / tw;
-		tw = st::maxGifSize;
+	const auto maxSize = _data->isVideoMessage()
+		? st::maxVideoMessageSize
+		: st::maxGifSize;
+	if (tw > maxSize) {
+		th = (maxSize * th) / tw;
+		tw = maxSize;
 	}
-	if (th > st::maxGifSize) {
-		tw = (st::maxGifSize * tw) / th;
-		th = st::maxGifSize;
+	if (th > maxSize) {
+		tw = (maxSize * tw) / th;
+		th = maxSize;
 	}
 	if (!tw || !th) {
 		tw = th = 1;

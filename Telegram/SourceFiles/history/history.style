@@ -9,6 +9,13 @@ using "basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
+minPhotoSize: 100px;
+maxMediaSize: 430px;
+maxStickerSize: 256px;
+maxGifSize: 320px;
+maxVideoMessageSize: 240px;
+maxSignatureSize: 144px;
+
 historyMinimalWidth: 380px;
 
 historyScroll: ScrollArea(defaultScrollArea) {

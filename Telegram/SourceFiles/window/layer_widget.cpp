@@ -16,9 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
-#include "styles/style_boxes.h"
-#include "styles/style_widgets.h"
-#include "styles/style_chat_helpers.h"
 #include "ui/widgets/shadow.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
@@ -26,6 +23,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"
 #include "window/window_controller.h"
+#include "styles/style_boxes.h"
+#include "styles/style_widgets.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_history.h"
 
 namespace {
 
