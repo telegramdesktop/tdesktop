@@ -117,6 +117,8 @@ public:
 	void stop(const AudioMsgId &audio);
 	void stop(const AudioMsgId &audio, State state);
 
+	void updatePlaybackSpeed();
+
 	// Video player audio stream interface.
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(const AudioMsgId &id, TimeMs frameMs, TimeMs systemMs);

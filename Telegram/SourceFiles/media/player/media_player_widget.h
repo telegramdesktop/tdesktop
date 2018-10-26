@@ -66,6 +66,7 @@ private:
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();
 	void updateRepeatTrackIcon();
+	void updatePlaybackSpeedIcon();
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();
 
@@ -103,6 +104,7 @@ private:
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::IconButton> _repeatTrack;
+	object_ptr<Ui::IconButton> _playbackSpeed;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
