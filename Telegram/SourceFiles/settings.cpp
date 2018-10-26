@@ -44,7 +44,6 @@ uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
 
 QByteArray gLocalSalt;
-int gRealScale = kInterfaceScaleAuto;
 int gScreenScale = kInterfaceScaleAuto;
 int gConfigScale = kInterfaceScaleAuto;
 

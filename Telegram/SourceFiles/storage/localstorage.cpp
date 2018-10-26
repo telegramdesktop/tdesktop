@@ -1383,7 +1383,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			case kOneAndHalf: return 150;
 			case kTwo: return 200;
 			}
-			return cRealScale();
+			return cConfigScale();
 		}());
 	} break;
 

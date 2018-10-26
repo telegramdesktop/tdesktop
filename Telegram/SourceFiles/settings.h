@@ -90,7 +90,6 @@ DeclareSetting(bool, StartToSettings);
 DeclareReadSetting(bool, ManyInstance);
 
 DeclareSetting(QByteArray, LocalSalt);
-DeclareSetting(int, RealScale);
 DeclareSetting(int, ScreenScale);
 DeclareSetting(int, ConfigScale);
 DeclareSetting(QString, TimeFormat);
@@ -194,7 +193,7 @@ inline int cEvalScale(int scale) {
 }
 
 inline int cScale() {
-	return cEvalScale(cRealScale());
+	return cEvalScale(cConfigScale());
 }
 
 template <typename T>
@@ -214,5 +213,4 @@ inline void SetScaleChecked(int scale) {
 		? kInterfaceScaleAuto
 		: snap(scale, kInterfaceScaleMin, kInterfaceScaleMax / cIntRetinaFactor());
 	cSetConfigScale(checked);
-	cSetRealScale(checked);
 }

@@ -112,8 +112,7 @@ void SetupInterfaceScale(
 		container,
 		rpl::event_stream<bool>());
 
-	const auto switched = (cConfigScale() == kInterfaceScaleAuto)
-		|| (cConfigScale() == cScreenScale());
+	const auto switched = (cConfigScale() == kInterfaceScaleAuto);
 	const auto button = AddButton(
 		container,
 		lng_settings_default_scale,
@@ -129,6 +128,7 @@ void SetupInterfaceScale(
 		? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
 		: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
 	const auto sectionFromScale = [](int scale) {
+		scale = cEvalScale(scale);
 		auto result = 0;
 		for (const auto value : ScaleValues) {
 			if (scale <= value) {
@@ -145,19 +145,11 @@ void SetupInterfaceScale(
 		*inSetScale = true;
 		const auto guard = gsl::finally([=] { *inSetScale = false; });
 
-		if (scale == cScreenScale()) {
-			scale = kInterfaceScaleAuto;
-		}
 		toggled->fire(scale == kInterfaceScaleAuto);
-		const auto applying = scale;
-		if (scale == kInterfaceScaleAuto) {
-			scale = cScreenScale();
-		}
 		slider->setActiveSection(sectionFromScale(scale));
-
-		if (cEvalScale(scale) != cEvalScale(cRealScale())) {
+		if (cEvalScale(scale) != cEvalScale(cConfigScale())) {
 			const auto confirmed = crl::guard(button, [=] {
-				cSetConfigScale(applying);
+				cSetConfigScale(scale);
 				Local::writeSettings();
 				App::restart();
 			});
@@ -165,45 +157,18 @@ void SetupInterfaceScale(
 				App::CallDelayed(
 					st::defaultSettingsSlider.duration,
 					button,
-					[=] { (*setScale)(cRealScale()); });
+					[=] { (*setScale)(cConfigScale()); });
 			});
 			Ui::show(Box<ConfirmBox>(
 				lang(lng_settings_need_restart),
 				lang(lng_settings_restart_now),
 				confirmed,
 				cancelled));
-		} else {
+		} else if (scale != cConfigScale()) {
 			cSetConfigScale(scale);
 			Local::writeSettings();
 		}
 	};
-	button->toggledValue(
-	) | rpl::start_with_next([=](bool checked) {
-		auto scale = checked ? kInterfaceScaleAuto : cEvalScale(cConfigScale());
-		if (scale == cScreenScale()) {
-			if (scale != cScale()) {
-				scale = cScale();
-			} else {
-				auto selected = 0;
-				for (const auto possible : ScaleValues) {
-					if (possible == scale) {
-						if (selected) {
-							break;
-						} else {
-							selected = -1;
-						}
-					} else if (selected == -1) {
-						selected = possible;
-						break;
-					} else {
-						selected = possible;
-					}
-				}
-				scale = selected;
-			}
-		}
-		(*setScale)(scale);
-	}, button->lifetime());
 
 	const auto label = [](int scale) {
 		return QString::number(scale) + '%';
@@ -217,9 +182,20 @@ void SetupInterfaceScale(
 	}
 	slider->setActiveSectionFast(sectionFromScale(cConfigScale()));
 	slider->sectionActivated(
-	) | rpl::start_with_next([=](int section) {
-		(*setScale)(scaleByIndex(section));
+	) | rpl::map([=](int section) {
+		return scaleByIndex(section);
+	}) | rpl::start_with_next([=](int scale) {
+		(*setScale)((scale == cScreenScale())
+			? kInterfaceScaleAuto
+			: scale);
 	}, slider->lifetime());
+
+	button->toggledValue(
+	) | rpl::map([](bool checked) {
+		return checked ? kInterfaceScaleAuto : cEvalScale(cConfigScale());
+	}) | rpl::start_with_next([=](int scale) {
+		(*setScale)(scale);
+	}, button->lifetime());
 }
 
 void OpenFaq() {
