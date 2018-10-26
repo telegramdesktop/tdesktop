@@ -76,7 +76,7 @@ void LanguageBox::Inner::languageChanged(int languageIndex) {
 	activateCurrent();
 	auto languageId = (*_languages)[languageIndex].id;
 	if (Lang::Current().id() != languageId) {
-		// "custom" is applied each time it is passed to switchToLanguage().
+		// "#custom" is applied each time it's passed to switchToLanguage().
 		// So we check that the language really has changed.
 		Lang::CurrentCloudManager().switchToLanguage(languageId);
 	}
@@ -142,7 +142,7 @@ void LanguageBox::refreshLanguages() {
 			currentIndex = 0;
 		}
 	}
-	if (currentId == qstr("custom")) {
+	if (currentId == qstr("#custom")) {
 		_languages.insert(_languages.begin(), { currentId, qsl("Custom LangPack"), qsl("Custom LangPack") });
 		currentIndex = 0;
 	} else if (currentIndex < 0) {

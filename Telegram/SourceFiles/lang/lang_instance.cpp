@@ -176,7 +176,7 @@ QString CloudLangPackName() {
 void Instance::switchToId(const QString &id) {
 	reset();
 	_id = id;
-	if (_id == qstr("TEST_X") || _id == qstr("TEST_0")) {
+	if (_id == qstr("#TEST_X") || _id == qstr("#TEST_0")) {
 		for (auto &value : _values) {
 			value = PrepareTestValue(value, _id[5]);
 		}
@@ -287,6 +287,9 @@ void Instance::fillFromSerialized(const QByteArray &data) {
 	}
 
 	if (!customFilePathAbsolute.isEmpty()) {
+		if (id == qstr("custom")) {
+			id = '#' + id;
+		}
 		auto currentCustomFileContent = Lang::FileParser::ReadFile(customFilePathAbsolute, customFilePathRelative);
 		if (!currentCustomFileContent.isEmpty() && currentCustomFileContent != customFileContent) {
 			loadFromCustomContent(customFilePathAbsolute, customFilePathRelative, currentCustomFileContent);
@@ -333,7 +336,7 @@ void Instance::loadFromContent(const QByteArray &content) {
 }
 
 void Instance::loadFromCustomContent(const QString &absolutePath, const QString &relativePath, const QByteArray &content) {
-	_id = qsl("custom");
+	_id = qsl("#custom");
 	_version = 0;
 	_customFilePathAbsolute = absolutePath;
 	_customFilePathRelative = relativePath;
