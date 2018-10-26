@@ -24,6 +24,8 @@ If we find issues with your pull request, we may suggest some changes and improv
 
 Unfortunately we **do not merge** any pull requests that have new feature implementations, translations to new languages and those which introduce any new user interface elements.
 
+If you have a translations-related contribution, check out [Translations platform][translate].
+
 Telegram Desktop is not a standalone application but a part of [Telegram project][telegram], so all the decisions about the features, languages, user experience, user interface and the design are made inside Telegram team, often according to some roadmap which is not public.
 
 ## Build instructions
@@ -113,3 +115,4 @@ Before you submit a pull request, please test your changes. Verify that Telegram
 [pr]: https://github.com/telegramdesktop/tdesktop/compare
 [build_instructions]: https://github.com/telegramdesktop/tdesktop/blob/master/README.md#build-instructions
 [closing-issues-via-commit-messages]: https://help.github.com/articles/closing-issues-via-commit-messages/
+[translate]: https://translations.telegram.org
