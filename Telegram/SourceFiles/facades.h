@@ -304,6 +304,7 @@ DeclareVar(bool, ReplaceEmoji);
 DeclareVar(bool, SuggestEmoji);
 DeclareVar(bool, SuggestStickersByEmoji);
 DeclareRefVar(base::Observable<void>, ReplaceEmojiChanged);
+DeclareVar(float, VoiceMsgPlaybackSpeed);
 DeclareVar(bool, SoundNotify);
 DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);

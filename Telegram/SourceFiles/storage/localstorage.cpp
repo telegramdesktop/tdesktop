@@ -598,6 +598,7 @@ enum {
 	dbiCacheSettings = 0x56,
 	dbiAnimationsDisabled = 0x57,
 	dbiScalePercent = 0x58,
+	dbiPlaybackSpeed = 0x59,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1749,6 +1750,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetVideoVolume(snap(v / 1e6, 0., 1.));
 	} break;
 
+	case dbiPlaybackSpeed: {
+		quint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetVoiceMsgPlaybackSpeed(v);
+	} break;
+
 	default:
 	LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
 	return false;
@@ -2596,6 +2605,7 @@ void writeSettings() {
 	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
+	data.stream << quint32(dbiPlaybackSpeed) << quint32(Global::VoiceMsgPlaybackSpeed());
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());

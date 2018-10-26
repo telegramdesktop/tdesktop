@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio_track.h"
 #include "platform/platform_audio.h"
 #include "messenger.h"
+#include "facades.h"
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -43,6 +44,13 @@ namespace Audio {
 namespace {
 
 Player::Mixer *MixerInstance = nullptr;
+
+struct PlaybackSpeedData {
+	ALuint uiEffectSlot = 0;
+	ALuint uiEffect = 0;
+	ALuint uiFilter = 0;
+};
+PlaybackSpeedData _playbackSpeedData;
 
 // Thread: Any.
 bool ContextErrorHappened() {
@@ -144,6 +152,24 @@ bool CreatePlaybackDevice() {
 	alListener3f(AL_VELOCITY, 0.f, 0.f, 0.f);
 	alListenerfv(AL_ORIENTATION, v);
 
+	// playback speed related init
+	// generate an effect slot and an effect
+	alGenAuxiliaryEffectSlots(1, &_playbackSpeedData.uiEffectSlot);
+	alGenEffects(1, &_playbackSpeedData.uiEffect);
+	// initialize the pitch shifter effect
+	alEffecti(_playbackSpeedData.uiEffect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
+	// 12 semitones = 1 octave
+	alEffecti(_playbackSpeedData.uiEffect, AL_PITCH_SHIFTER_COARSE_TUNE, -12);
+	// connect the effect with the effect slot
+	alAuxiliaryEffectSloti(_playbackSpeedData.uiEffectSlot, AL_EFFECTSLOT_EFFECT, _playbackSpeedData.uiEffect);
+	// initialize a filter to disable the direct (dry) path
+	alGenFilters(1, &_playbackSpeedData.uiFilter);
+	alFilteri(_playbackSpeedData.uiFilter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+	// disable all frequencies
+	alFilterf(_playbackSpeedData.uiFilter, AL_LOWPASS_GAIN, 0.f);
+	// to use the modified playback speed:
+	// connect both the effect slot and filter with the stream source and set AL_PITCH
+
 	alDistanceModel(AL_NONE);
 
 	return true;
@@ -154,6 +180,15 @@ void ClosePlaybackDevice() {
 	if (!AudioDevice) return;
 
 	LOG(("Audio Info: Closing audio playback device."));
+
+	// playback speed related
+	alDeleteFilters(1, &_playbackSpeedData.uiFilter);
+	alDeleteEffects(1, &_playbackSpeedData.uiEffect);
+	alDeleteAuxiliaryEffectSlots(1, &_playbackSpeedData.uiEffectSlot);
+	_playbackSpeedData.uiFilter = 0;
+	_playbackSpeedData.uiEffect = 0;
+	_playbackSpeedData.uiEffectSlot = 0;
+
 	if (Player::mixer()) {
 		Player::mixer()->detachTracks();
 	}
@@ -290,6 +325,7 @@ void Mixer::Track::createStream() {
 	alSource3f(stream.source, AL_VELOCITY, 0, 0, 0);
 	alSourcei(stream.source, AL_LOOPING, 0);
 	alGenBuffers(3, stream.buffers);
+	mixer()->updatePlaybackSpeed();
 }
 
 void Mixer::Track::destroyStream() {
@@ -981,6 +1017,29 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 		}
 	}
 	if (current) emit updated(current);
+}
+
+void Mixer::updatePlaybackSpeed()
+{
+	const auto track = trackForType(AudioMsgId::Type::Voice);
+	if (!track || track->state.id.type() != AudioMsgId::Type::Voice || !track->isStreamCreated()) {
+		return;
+	}
+	const auto src = track->stream.source;
+	// Note: This alters the playback speed AND the pitch
+	alSourcef(src, AL_PITCH, Global::VoiceMsgPlaybackSpeed());
+	// fix the pitch using effects and filters
+	if (Global::VoiceMsgPlaybackSpeed() > 1.f) {
+		// connect the effect slot with the stream
+		alSource3i(src, AL_AUXILIARY_SEND_FILTER, Media::Audio::_playbackSpeedData.uiEffectSlot, 0, 0);
+		// connect the filter with the stream
+		alSourcei(src, AL_DIRECT_FILTER, Media::Audio::_playbackSpeedData.uiFilter);
+	} else {
+		// disconnect the effect slot
+		alSource3i(src, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
+		// disconnect the filter
+		alSourcei(src, AL_DIRECT_FILTER, AL_FILTER_NULL);
+	}
 }
 
 void Mixer::stopAndClear() {

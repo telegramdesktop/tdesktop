@@ -72,6 +72,32 @@ mediaPlayerRepeatInactiveIcon: icon {
 	{ "player_repeat", mediaPlayerInactiveFg, point(9px, 11px)}
 };
 
+mediaPlayerSpeedButton: IconButton {
+	width: 31px;
+	height: 30px;
+
+	icon: icon {
+		{ "voice2x", mediaPlayerActiveFg, point(8px, 11px) }
+	};
+	iconPosition: point(0px, 0px);
+
+	rippleAreaPosition: point(3px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+mediaPlayerSpeedDisabledIcon: icon {
+	{ "voice2x", menuIconFg, point(8px, 11px)}
+};
+mediaPlayerSpeedDisabledIconOver: icon {
+	{ "voice2x", menuIconFgOver, point(8px, 11px)}
+};
+mediaPlayerSpeedDisabledRippleBg: windowBgOver;
+mediaPlayerSpeedInactiveIcon: icon {
+	{ "voice2x", mediaPlayerInactiveFg, point(8px, 11px)}
+};
+
 mediaPlayerVolumeIcon0: icon {
 	{ "player_volume0", mediaPlayerActiveFg },
 };
