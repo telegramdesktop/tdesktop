@@ -89,6 +89,14 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 	if (!data.has_cached_page()) {
 		return {};
 	}
+	const auto parseMedia = [&] {
+		if (data.has_photo()) {
+			Auth().data().photo(data.vphoto);
+		}
+		if (data.has_document()) {
+			Auth().data().document(data.vdocument);
+		}
+	};
 	return data.vcached_page.match([&](const auto &page) {
 		for (const auto &block : page.vblocks.v) {
 			switch (block.type()) {
@@ -100,11 +108,13 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 			case mtpc_pageBlockAudio:
 				return WebPageCollage();
 			case mtpc_pageBlockSlideshow:
+				parseMedia();
 				return ExtractCollage(
 					block.c_pageBlockSlideshow().vitems.v,
 					page.vphotos.v,
 					page.vdocuments.v);
 			case mtpc_pageBlockCollage:
+				parseMedia();
 				return ExtractCollage(
 					block.c_pageBlockCollage().vitems.v,
 					page.vphotos.v,
