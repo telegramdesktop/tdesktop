@@ -43,12 +43,14 @@ QImage ImageSource::takeLoaded() {
 
 void ImageSource::unload() {
 	if (_bytes.isEmpty() && !_data.isNull()) {
-		if (_format.isEmpty()) {
+		if (_format != "JPG") {
 			_format = "PNG";
 		}
-
-		QBuffer buffer(&_bytes);
-		_data.save(&buffer, _format);
+		{
+			QBuffer buffer(&_bytes);
+			_data.save(&buffer, _format);
+		}
+		Assert(!_bytes.isEmpty());
 	}
 	_data = QImage();
 }
