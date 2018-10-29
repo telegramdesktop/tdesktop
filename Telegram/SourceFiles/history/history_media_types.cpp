@@ -1172,13 +1172,20 @@ void HistoryVideo::validateGroupedCache(
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	using Option = Images::Option;
-	const auto loaded = _data->thumb->loaded();
+	const auto good = _data->goodThumbnail();
+	const auto useGood = (good && good->loaded());
+	const auto image = useGood ? good : _data->thumb.get();
+	if (good && !useGood) {
+		good->load({});
+	}
+
+	const auto loaded = useGood ? true : _data->thumb->loaded();
 	const auto loadLevel = loaded ? 1 : 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
 	const auto options = Option::Smooth
 		| Option::RoundedLarge
-		| Option::Blurred
+		| (useGood ? Option(0) : Option::Blurred)
 		| ((corners & RectPart::TopLeft) ? Option::RoundedTopLeft : Option::None)
 		| ((corners & RectPart::TopRight) ? Option::RoundedTopRight : Option::None)
 		| ((corners & RectPart::BottomLeft) ? Option::RoundedBottomLeft : Option::None)
@@ -1198,7 +1205,6 @@ void HistoryVideo::validateGroupedCache(
 		{ width, height });
 	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
 	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
-	const auto &image = _data->thumb;
 
 	*cacheKey = key;
 	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
