@@ -402,7 +402,7 @@ void RemoteSource::cancel() {
 
 void RemoteSource::unload() {
 	if (loaderValid()) {
-		destroyLoaderDelayed();
+		delete base::take(_loader);
 	}
 }
 
