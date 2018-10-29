@@ -844,7 +844,10 @@ static void eAppendItems(QScriptAnalysis *analysis, int &start, int &stop, const
 
 class TextPainter {
 public:
-	TextPainter(Painter *p, const Text *t) : _p(p), _t(t) {
+	TextPainter(Painter *p, const Text *t)
+	: _p(p)
+	, _t(t)
+	, _originalPen(p ? p->pen() : QPen()) {
 	}
 
 	~TextPainter() {
@@ -861,7 +864,6 @@ public:
 		if (_p) {
 			_p->setFont(_t->_st->font);
 			_textPalette = &_p->textPalette();
-			_originalPen = _p->pen();
 			_originalPenSelected = (_textPalette->selectFg->c.alphaF() == 0) ? _originalPen : _textPalette->selectFg->p;
 		}
 
@@ -2409,7 +2411,7 @@ private:
 	bool _breakEverywhere = false;
 	int _elideRemoveFromEnd = 0;
 	style::align _align = style::al_topleft;
-	QPen _originalPen;
+	const QPen _originalPen;
 	QPen _originalPenSelected;
 	const QPen *_currentPen = nullptr;
 	const QPen *_currentPenSelected = nullptr;
