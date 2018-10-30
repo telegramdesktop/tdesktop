@@ -18,7 +18,9 @@ namespace Images {
 
 ImageSource::ImageSource(QImage &&data, const QByteArray &format)
 : _data(std::move(data))
-, _format(format) {
+, _format(format)
+, _width(_data.width())
+, _height(_data.height()) {
 }
 
 void ImageSource::load(
@@ -108,11 +110,11 @@ void ImageSource::setImageBytes(const QByteArray &bytes) {
 }
 
 int ImageSource::width() {
-	return _data.width();
+	return _width;
 }
 
 int ImageSource::height() {
-	return _data.height();
+	return _height;
 }
 
 int ImageSource::bytesSize() {
@@ -120,6 +122,10 @@ int ImageSource::bytesSize() {
 }
 
 void ImageSource::setInformation(int size, int width, int height) {
+	if (width && height) {
+		_width = width;
+		_height = height;
+	}
 }
 
 QByteArray ImageSource::bytesForCache() {
