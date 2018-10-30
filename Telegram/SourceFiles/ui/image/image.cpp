@@ -770,7 +770,6 @@ void Image::checkSource() const {
 }
 
 void Image::unload() const {
-	_source->takeLoaded();
 	_source->unload();
 	invalidateSizeCache();
 	ActiveCache().decrement(ComputeUsage(_data));
