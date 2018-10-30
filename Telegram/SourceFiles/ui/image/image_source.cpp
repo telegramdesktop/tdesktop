@@ -149,7 +149,9 @@ LocalFileSource::LocalFileSource(
 : _path(path)
 , _bytes(content)
 , _format(format)
-, _data(std::move(data)) {
+, _data(std::move(data))
+, _width(_data.width())
+, _height(_data.height()) {
 }
 
 void LocalFileSource::load(

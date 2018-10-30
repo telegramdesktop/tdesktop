@@ -595,9 +595,10 @@ void DocumentData::unload() {
 		delete replyPreview.get();
 		replyPreview = ImagePtr();
 	}
-
-	ActiveCache().decrement(_data.size());
-	_data.clear();
+	if (!_data.isEmpty()) {
+		ActiveCache().decrement(_data.size());
+		_data.clear();
+	}
 }
 
 void DocumentData::automaticLoad(
@@ -1358,6 +1359,7 @@ DocumentData::~DocumentData() {
 	if (loading()) {
 		destroyLoaderDelayed();
 	}
+	unload();
 }
 
 QString DocumentData::ComposeNameString(

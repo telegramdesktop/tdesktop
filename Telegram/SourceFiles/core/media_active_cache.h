@@ -32,7 +32,6 @@ private:
 	SingleQueuedInvokation _delayed;
 	int64 _usage = 0;
 	int64 _limit = 0;
-	Fn<void(Type*)> _unload;
 
 };
 
