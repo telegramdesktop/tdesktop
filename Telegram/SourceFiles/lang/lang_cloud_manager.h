@@ -19,15 +19,19 @@ namespace Lang {
 class Instance;
 enum class Pack;
 
+struct Language {
+	QString id;
+	QString pluralId;
+	QString baseId;
+	QString name;
+	QString nativeName;
+};
+Language ParseLanguage(const MTPLangPackLanguage &data);
+
 class CloudManager : public base::has_weak_ptr, private MTP::Sender, private base::Subscriber {
 public:
 	CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto);
 
-	struct Language {
-		QString id;
-		QString name;
-		QString nativeName;
-	};
 	using Languages = QVector<Language>;
 
 	void requestLanguageList();
@@ -103,11 +107,11 @@ private:
 
 };
 
-inline bool operator==(const CloudManager::Language &a, const CloudManager::Language &b) {
+inline bool operator==(const Language &a, const Language &b) {
 	return (a.id == b.id) && (a.name == b.name);
 }
 
-inline bool operator!=(const CloudManager::Language &a, const CloudManager::Language &b) {
+inline bool operator!=(const Language &a, const Language &b) {
 	return !(a == b);
 }
 

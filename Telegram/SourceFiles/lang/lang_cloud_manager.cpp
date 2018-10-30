@@ -107,6 +107,20 @@ void ConfirmSwitchBox::prepare() {
 
 } // namespace
 
+Language ParseLanguage(const MTPLangPackLanguage &data) {
+	return data.match([](const MTPDlangPackLanguage &data) {
+		return Language{
+			qs(data.vlang_code),
+			qs(data.vplural_code),
+			(data.has_base_lang_code()
+				? qs(data.vbase_lang_code)
+				: QString()),
+			qs(data.vname),
+			qs(data.vnative_name)
+		};
+	});
+}
+
 CloudManager::CloudManager(
 	Instance &langpack,
 	not_null<MTP::Instance*> mtproto)
@@ -246,10 +260,8 @@ void CloudManager::requestLanguageList() {
 		MTP_string(CloudLangPackName())
 	)).done([=](const MTPVector<MTPLangPackLanguage> &result) {
 		auto languages = Languages();
-		for_const (auto &langData, result.v) {
-			Assert(langData.type() == mtpc_langPackLanguage);
-			auto &language = langData.c_langPackLanguage();
-			languages.push_back({ qs(language.vlang_code), qs(language.vname), qs(language.vnative_name) });
+		for (const auto &language : result.v) {
+			languages.push_back(ParseLanguage(language));
 		}
 		if (_languages != languages) {
 			_languages = languages;
@@ -348,6 +360,7 @@ void CloudManager::switchWithWarning(const QString &id) {
 				const auto pluralId = qs(data.vplural_code);
 				const auto baseId = qs(data.vbase_lang_code);
 				const auto perform = [=] {
+					Local::pushRecentLanguage(ParseLanguage(result));
 					performSwitchAndRestart(id, pluralId, baseId);
 				};
 				Ui::show(Box<ConfirmSwitchBox>(

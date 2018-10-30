@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "auth_session.h"
 
+namespace Lang {
+struct Language;
+} // namespace Lang
+
 namespace Storage {
 class EncryptionKey;
 } // namespace Storage
@@ -141,6 +145,8 @@ bool copyThemeColorsToPalette(const QString &file);
 Window::Theme::Saved readThemeAfterSwitch();
 
 void writeLangPack();
+void pushRecentLanguage(const Lang::Language &language);
+QVector<Lang::Language> readRecentLanguages();
 
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();
