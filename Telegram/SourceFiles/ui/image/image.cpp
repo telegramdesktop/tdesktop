@@ -18,8 +18,8 @@ using namespace Images;
 namespace Images {
 namespace {
 
-// After 64MB of unpacked images we try to clear some memory.
-constexpr auto kMemoryForCache = 64 * 1024 * 1024;
+// After 128 MB of unpacked images we try to clear some memory.
+constexpr auto kMemoryForCache = 128 * 1024 * 1024;
 
 QMap<QString, Image*> LocalFileImages;
 QMap<QString, Image*> WebUrlImages;
