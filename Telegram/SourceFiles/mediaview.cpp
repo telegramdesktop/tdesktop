@@ -3138,6 +3138,10 @@ void MediaView::setVisible(bool visible) {
 		stopGif();
 		destroyThemePreview();
 		_radial.stop();
+		_current = QPixmap();
+		_themePreview = nullptr;
+		_themeApply.destroyDelayed();
+		_themeCancel.destroyDelayed();
 	}
 }
 
