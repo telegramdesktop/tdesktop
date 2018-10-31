@@ -323,10 +323,8 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		&& unreadCount() > 0) {
 		changeUnreadCount(-1);
 	}
-	if (const auto channel = peer->asChannel()) {
-		if (channel->pinnedMessageId() == item->id) {
-			channel->clearPinnedMessage();
-		}
+	if (peer->pinnedMessageId() == item->id) {
+		peer->clearPinnedMessage();
 	}
 }
 
@@ -1216,9 +1214,7 @@ void History::applyServiceChanges(
 
 	case mtpc_messageActionPinMessage: {
 		if (data.has_reply_to_msg_id() && item) {
-			if (auto channel = item->history()->peer->asChannel()) {
-				channel->setPinnedMessageId(data.vreply_to_msg_id.v);
-			}
+			item->history()->peer->setPinnedMessageId(data.vreply_to_msg_id.v);
 		}
 	} break;
 
@@ -2764,7 +2760,7 @@ void History::changedInChatListHook(Dialogs::Mode list, bool added) {
 void History::changedChatListPinHook() {
 	Notify::peerUpdatedDelayed(
 		peer,
-		Notify::PeerUpdate::Flag::PinnedChanged);
+		Notify::PeerUpdate::Flag::ChatPinnedChanged);
 }
 
 void History::removeBlock(not_null<HistoryBlock*> block) {

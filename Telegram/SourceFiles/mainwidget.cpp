@@ -4705,13 +4705,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateChannelPinnedMessage: {
-		auto &d = update.c_updateChannelPinnedMessage();
-		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
-			channel->setPinnedMessageId(d.vid.v);
-		}
-	} break;
-
 	case mtpc_updateChannelTooLong: {
 		auto &d = update.c_updateChannelTooLong();
 		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
@@ -4732,6 +4725,28 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateChannelAvailableMessages();
 		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			channel->setAvailableMinId(d.vavailable_min_id.v);
+		}
+	} break;
+
+	// Pinned message.
+	case mtpc_updateUserPinnedMessage: {
+		const auto &d = update.c_updateUserPinnedMessage();
+		if (const auto user = App::userLoaded(d.vuser_id.v)) {
+			user->setPinnedMessageId(d.vid.v);
+		}
+	} break;
+
+	case mtpc_updateChatPinnedMessage: {
+		const auto &d = update.c_updateChatPinnedMessage();
+		if (const auto chat = App::chatLoaded(d.vchat_id.v)) {
+			chat->setPinnedMessageId(d.vid.v);
+		}
+	} break;
+
+	case mtpc_updateChannelPinnedMessage: {
+		const auto &d = update.c_updateChannelPinnedMessage();
+		if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
+			channel->setPinnedMessageId(d.vid.v);
 		}
 	} break;
 

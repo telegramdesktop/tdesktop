@@ -210,6 +210,15 @@ public:
 
 	ImagePtr currentUserpic() const;
 
+	bool canPinMessages() const;
+	MsgId pinnedMessageId() const {
+		return _pinnedMessageId;
+	}
+	void setPinnedMessageId(MsgId messageId);
+	void clearPinnedMessage() {
+		setPinnedMessageId(0);
+	}
+
 protected:
 	void updateNameDelayed(
 		const QString &newName,
@@ -242,6 +251,7 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	TimeMs _lastFullUpdate = 0;
+	MsgId _pinnedMessageId = 0;
 
 };
 
@@ -918,7 +928,6 @@ public:
 	bool hiddenPreHistory() const;
 	bool canAddMembers() const;
 	bool canAddAdmins() const;
-	bool canPinMessages() const;
 	bool canPublish() const;
 	bool canWrite() const;
 	bool canViewMembers() const;
@@ -999,14 +1008,6 @@ public:
 	}
 	void setAvailableMinId(MsgId availableMinId);
 
-	MsgId pinnedMessageId() const {
-		return _pinnedMessageId;
-	}
-	void setPinnedMessageId(MsgId messageId);
-	void clearPinnedMessage() {
-		setPinnedMessageId(0);
-	}
-
 	void setFeed(not_null<Data::Feed*> feed);
 	void clearFeed();
 
@@ -1031,7 +1032,6 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	MsgId _availableMinId = 0;
-	MsgId _pinnedMessageId = 0;
 
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;

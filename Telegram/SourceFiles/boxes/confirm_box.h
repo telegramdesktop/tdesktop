@@ -142,7 +142,7 @@ private:
 
 class PinMessageBox : public BoxContent, public RPCSender {
 public:
-	PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId);
+	PinMessageBox(QWidget*, not_null<PeerData*> peer, MsgId msgId);
 
 protected:
 	void prepare() override;
@@ -155,7 +155,7 @@ private:
 	void pinDone(const MTPUpdates &updates);
 	bool pinFail(const RPCError &error);
 
-	ChannelData *_channel;
+	not_null<PeerData*> _peer;
 	MsgId _msgId;
 
 	object_ptr<Ui::FlatLabel> _text;

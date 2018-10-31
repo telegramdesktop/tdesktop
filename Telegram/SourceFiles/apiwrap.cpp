@@ -881,6 +881,11 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		chat->setUserpicPhoto(f.vchat_photo);
 		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
+		if (f.has_pinned_msg_id()) {
+			chat->setPinnedMessageId(f.vpinned_msg_id.v);
+		} else {
+			chat->clearPinnedMessage();
+		}
 		chat->fullUpdated();
 
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
@@ -1018,6 +1023,11 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 		user->setBotInfo(d.vbot_info);
 	} else {
 		user->setBotInfoVersion(-1);
+	}
+	if (d.has_pinned_msg_id()) {
+		user->setPinnedMessageId(d.vpinned_msg_id.v);
+	} else {
+		user->clearPinnedMessage();
 	}
 	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 	user->setCallsStatus(d.is_phone_calls_private() ? UserData::CallsStatus::Private : d.is_phone_calls_available() ? UserData::CallsStatus::Enabled : UserData::CallsStatus::Disabled);

@@ -202,7 +202,7 @@ void Filler::addPinToggle() {
 
 	auto lifetime = Notify::PeerUpdateViewer(
 		peer,
-		Notify::PeerUpdate::Flag::PinnedChanged
+		Notify::PeerUpdate::Flag::ChatPinnedChanged
 	) | rpl::start_with_next([peer, pinAction, pinText] {
 		auto isPinned = App::history(peer)->isPinnedDialog();
 		pinAction->setText(pinText(isPinned));

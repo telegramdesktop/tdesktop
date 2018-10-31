@@ -121,12 +121,12 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	});
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto changes = UpdateFlag::PinnedChanged
+	auto changes = UpdateFlag::ChatPinnedChanged
 		| UpdateFlag::NameChanged
 		| UpdateFlag::PhotoChanged
 		| UpdateFlag::UserIsContact;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
-		if (update.flags & UpdateFlag::PinnedChanged) {
+		if (update.flags & UpdateFlag::ChatPinnedChanged) {
 			stopReorderPinned();
 		}
 		if (update.flags & UpdateFlag::NameChanged) {

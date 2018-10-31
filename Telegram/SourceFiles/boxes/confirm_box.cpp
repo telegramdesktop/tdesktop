@@ -403,8 +403,11 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 	_note.drawLeft(p, st::boxPadding.left(), _textHeight + st::boxPadding.bottom(), _textWidth, width());
 }
 
-PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
-: _channel(channel)
+PinMessageBox::PinMessageBox(
+	QWidget*,
+	not_null<PeerData*> peer,
+	MsgId msgId)
+: _peer(peer)
 , _msgId(msgId)
 , _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel) {
 }
@@ -413,7 +416,7 @@ void PinMessageBox::prepare() {
 	addButton(langFactory(lng_pinned_pin), [this] { pinMessage(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	if (_channel->isMegagroup()) {
+	if (_peer->isChat() || _peer->isMegagroup()) {
 		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
 	}
 
@@ -443,14 +446,14 @@ void PinMessageBox::keyPressEvent(QKeyEvent *e) {
 void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
-	auto flags = MTPchannels_UpdatePinnedMessage::Flags(0);
+	auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
 	if (_notify && !_notify->checked()) {
-		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
+		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
 	}
 	_requestId = MTP::send(
-		MTPchannels_UpdatePinnedMessage(
+		MTPmessages_UpdatePinnedMessage(
 			MTP_flags(flags),
-			_channel->inputChannel,
+			_peer->input,
 			MTP_int(_msgId)),
 		rpcDone(&PinMessageBox::pinDone),
 		rpcFail(&PinMessageBox::pinFail));
