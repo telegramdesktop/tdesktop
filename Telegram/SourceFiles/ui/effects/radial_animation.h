@@ -43,6 +43,7 @@ private:
 	anim::value a_arcEnd;
 	anim::value a_arcStart;
 	BasicAnimation _animation;
+	bool _finished = false;
 
 };
 

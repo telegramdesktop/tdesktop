@@ -125,6 +125,28 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 	return result;
 }
 
+void PaintInterpolatedIcon(
+		Painter &p,
+		const style::icon &a,
+		const style::icon &b,
+		float64 b_ratio,
+		QRect rect) {
+	PainterHighQualityEnabler hq(p);
+	p.save();
+	p.translate(rect.center());
+	p.setOpacity(b_ratio);
+	p.scale(b_ratio, b_ratio);
+	b.paintInCenter(p, rect.translated(-rect.center()));
+	p.restore();
+
+	p.save();
+	p.translate(rect.center());
+	p.setOpacity(1. - b_ratio);
+	p.scale(1. - b_ratio, 1. - b_ratio);
+	a.paintInCenter(p, rect.translated(-rect.center()));
+	p.restore();
+}
+
 } // namespace
 
 QString FillAmountAndCurrency(uint64 amount, const QString &currency) {
@@ -488,7 +510,8 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		p.setOpacity(radialOpacity);
 		auto icon = ([radial, this, selected]() -> const style::icon* {
 			if (radial || _data->loading()) {
-				if (!_data->full->location().isNull()) {
+				if (_data->uploading()
+					|| !_data->full->location().isNull()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -625,8 +648,11 @@ void HistoryPhoto::drawGrouped(
 		|| (!loaded && !_data->loading())
 		|| _data->waitingForAlbum();
 	if (displayState) {
-		const auto radialOpacity = (radial && loaded && !_data->uploading())
+		const auto radialOpacity = radial
 			? _animation->radial.opacity()
+			: 1.;
+		const auto backOpacity = (loaded && !_data->uploading())
+			? radialOpacity
 			: 1.;
 		const auto radialSize = st::historyGroupRadialSize;
 		const auto inner = QRect(
@@ -645,27 +671,37 @@ void HistoryPhoto::drawGrouped(
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 
-		p.setOpacity(radialOpacity * p.opacity());
+		p.setOpacity(backOpacity * p.opacity());
 
 		{
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
 		}
 
-		p.setOpacity(radialOpacity);
-		auto icon = [&]() -> const style::icon* {
+		const auto icon = [&]() -> const style::icon* {
 			if (_data->waitingForAlbum()) {
 				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
 			} else if (radial || _data->loading()) {
-				if (!_data->full->location().isNull()) {
+				if (_data->uploading() || !_data->full->location().isNull()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		}();
+		const auto previous = [&]() -> const style::icon* {
+			if (_data->waitingForAlbum()) {
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+			}
+			return nullptr;
+		}();
+		p.setOpacity(backOpacity);
 		if (icon) {
-			icon->paintInCenter(p, inner);
+			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+				PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+			} else {
+				icon->paintInCenter(p, inner);
+			}
 		}
 		p.setOpacity(1);
 		if (radial) {
@@ -1082,8 +1118,11 @@ void HistoryVideo::drawGrouped(
 		App::complexOverlayRect(p, geometry, roundRadius, corners);
 	}
 
-	const auto radialOpacity = (radial && loaded && !_data->uploading())
+	const auto radialOpacity = radial
 		? _animation->radial.opacity()
+		: 1.;
+	const auto backOpacity = (loaded && !_data->uploading())
+		? radialOpacity
 		: 1.;
 	const auto radialSize = st::historyGroupRadialSize;
 	const auto inner = QRect(
@@ -1102,14 +1141,13 @@ void HistoryVideo::drawGrouped(
 		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 	}
 
-	p.setOpacity(radialOpacity * p.opacity());
+	p.setOpacity(backOpacity * p.opacity());
 
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(inner);
 	}
 
-	p.setOpacity(radialOpacity);
 	auto icon = [&]() -> const style::icon * {
 		if (_data->waitingForAlbum()) {
 			return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
@@ -1123,8 +1161,20 @@ void HistoryVideo::drawGrouped(
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	}();
+	const auto previous = [&]() -> const style::icon* {
+		if (_data->waitingForAlbum()) {
+			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+		}
+		return nullptr;
+	}();
+	p.setOpacity(backOpacity);
 	if (icon) {
-		icon->paintInCenter(p, inner);
+		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+			LOG(("INTERPOLATING: %1").arg(radialOpacity));
+			PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+		} else {
+			icon->paintInCenter(p, inner);
+		}
 	}
 	p.setOpacity(1);
 	if (radial) {
