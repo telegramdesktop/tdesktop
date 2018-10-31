@@ -1947,6 +1947,13 @@ void MediaView::toggleVideoPaused() {
 }
 
 void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
+	// Seek works bad: it seeks to the next keyframe after positionMs.
+	// At least let user to seek to the beginning of the video.
+	if (positionMs < 1000
+		&& (!_videoDurationMs || (positionMs * 20 < _videoDurationMs))) {
+		positionMs = 0;
+	}
+
 	_autoplayVideoDocument = _doc;
 
 	if (_current.isNull()) {
