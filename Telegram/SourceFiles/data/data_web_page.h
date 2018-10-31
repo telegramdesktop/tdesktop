@@ -10,19 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
-enum WebPageType {
-	WebPagePhoto,
-	WebPageVideo,
-	WebPageProfile,
-	WebPageArticle
+enum class WebPageType {
+	Photo,
+	Video,
+	Profile,
+	Article,
+	ArticleWithIV,
 };
 
-inline WebPageType toWebPageType(const QString &type) {
-	if (type == qstr("photo")) return WebPagePhoto;
-	if (type == qstr("video")) return WebPageVideo;
-	if (type == qstr("profile")) return WebPageProfile;
-	return WebPageArticle;
-}
+WebPageType ParseWebPageType(const MTPDwebPage &type);
 
 struct WebPageCollage {
 	using Item = base::variant<PhotoData*, DocumentData*>;
@@ -37,37 +33,9 @@ struct WebPageCollage {
 struct WebPageData {
 	WebPageData(const WebPageId &id) : id(id) {
 	}
-	WebPageData(
-		const WebPageId &id,
-		WebPageType type,
-		const QString &url,
-		const QString &displayUrl,
-		const QString &siteName,
-		const QString &title,
-		const TextWithEntities &description,
-		PhotoData *photo,
-		DocumentData *document,
-		WebPageCollage &&collage,
-		int duration,
-		const QString &author,
-		int pendingTill)
-	: id(id)
-	, type(type)
-	, url(url)
-	, displayUrl(displayUrl)
-	, siteName(siteName)
-	, title(title)
-	, description(description)
-	, duration(duration)
-	, author(author)
-	, photo(photo)
-	, document(document)
-	, collage(std::move(collage))
-	, pendingTill(pendingTill) {
-	}
 
 	bool applyChanges(
-		const QString &newType,
+		WebPageType newType,
 		const QString &newUrl,
 		const QString &newDisplayUrl,
 		const QString &newSiteName,
@@ -81,7 +49,7 @@ struct WebPageData {
 		int newPendingTill);
 
 	WebPageId id = 0;
-	WebPageType type = WebPageArticle;
+	WebPageType type = WebPageType::Article;
 	QString url;
 	QString displayUrl;
 	QString siteName;

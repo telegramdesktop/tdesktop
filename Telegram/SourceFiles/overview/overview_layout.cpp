@@ -1246,9 +1246,11 @@ Link::Link(
 				_page->document,
 				parent->fullId());
 		} else if (_page->photo) {
-			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
+			if (_page->type == WebPageType::Profile || _page->type == WebPageType::Video) {
 				_photol = std::make_shared<UrlClickHandler>(_page->url);
-			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
+			} else if (_page->type == WebPageType::Photo
+				|| _page->siteName == qstr("Twitter")
+				|| _page->siteName == qstr("Facebook")) {
 				_photol = std::make_shared<PhotoOpenClickHandler>(
 					_page->photo,
 					parent->fullId());

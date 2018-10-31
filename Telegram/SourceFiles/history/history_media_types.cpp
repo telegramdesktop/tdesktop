@@ -3476,18 +3476,28 @@ QSize HistoryWebPage::countOptimalSize() {
 	}
 
 	// init layout
-	auto title = TextUtilities::SingleLine(_data->title.isEmpty() ? _data->author : _data->title);
+	auto title = TextUtilities::SingleLine(_data->title.isEmpty()
+		? _data->author
+		: _data->title);
 	if (!_collage.empty()) {
 		_asArticle = false;
-	} else if (!_data->document && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
-		if (_data->type == WebPageProfile) {
+	} else if (!_data->document
+		&& _data->photo
+		&& _data->type != WebPageType::Photo
+		&& _data->type != WebPageType::Video) {
+		if (_data->type == WebPageType::Profile) {
 			_asArticle = true;
-		} else if (_data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
+		} else if (_data->siteName == qstr("Twitter")
+			|| _data->siteName == qstr("Facebook")
+			|| _data->type == WebPageType::ArticleWithIV) {
 			_asArticle = false;
 		} else {
 			_asArticle = true;
 		}
-		if (_asArticle && _data->description.text.isEmpty() && title.isEmpty() && _data->siteName.isEmpty()) {
+		if (_asArticle
+			&& _data->description.text.isEmpty()
+			&& title.isEmpty()
+			&& _data->siteName.isEmpty()) {
 			_asArticle = false;
 		}
 	} else {
@@ -3585,7 +3595,7 @@ QSize HistoryWebPage::countOptimalSize() {
 			minHeight += bottomInfoPadding();
 		}
 	}
-	if (_data->type == WebPageVideo && _data->duration) {
+	if (_data->type == WebPageType::Video && _data->duration) {
 		_duration = formatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
@@ -3810,7 +3820,8 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto pixwidth = _attach->width();
 		auto pixheight = _attach->height();
 
-		if (_data->type == WebPageVideo && _attach->type() == MediaTypePhoto) {
+		if (_data->type == WebPageType::Video
+			&& _attach->type() == MediaTypePhoto) {
 			if (_attach->isReadyForOpen()) {
 				if (_data->siteName == qstr("YouTube")) {
 					st::youtubeIcon.paint(p, (pixwidth - st::youtubeIcon.width()) / 2, (pixheight - st::youtubeIcon.height()) / 2, width());
@@ -3922,9 +3933,12 @@ TextState HistoryWebPage::textState(QPoint point, StateRequest request) const {
 			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 
 			if (result.link && !_data->document && _data->photo && _collage.empty() && _attach->isReadyForOpen()) {
-				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
+				if (_data->type == WebPageType::Profile
+					|| _data->type == WebPageType::Video) {
 					result.link = _openl;
-				} else if (_data->type == WebPagePhoto || _data->siteName == qstr("Twitter") || _data->siteName == qstr("Facebook")) {
+				} else if (_data->type == WebPageType::Photo
+					|| _data->siteName == qstr("Twitter")
+					|| _data->siteName == qstr("Facebook")) {
 					// leave photo link
 				} else {
 					result.link = _openl;

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryItem;
 class BoxContent;
 struct WebPageCollage;
+enum class WebPageType;
 
 namespace HistoryView {
 struct Group;
@@ -302,7 +303,7 @@ public:
 		const TextWithEntities &content);
 	not_null<WebPageData*> webpage(
 		WebPageId id,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -484,7 +485,7 @@ private:
 		const MTPDwebPage &data);
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,

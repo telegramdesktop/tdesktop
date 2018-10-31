@@ -1259,7 +1259,7 @@ not_null<WebPageData*> Session::webpage(const MTPDwebPagePending &data) {
 	const auto result = webpage(data.vid.v);
 	webpageApplyFields(
 		result,
-		QString(),
+		WebPageType::Article,
 		QString(),
 		QString(),
 		QString(),
@@ -1282,7 +1282,7 @@ not_null<WebPageData*> Session::webpage(
 		const TextWithEntities &content) {
 	return webpage(
 		id,
-		qsl("article"),
+		WebPageType::Article,
 		QString(),
 		QString(),
 		siteName,
@@ -1298,7 +1298,7 @@ not_null<WebPageData*> Session::webpage(
 
 not_null<WebPageData*> Session::webpage(
 		WebPageId id,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -1347,7 +1347,7 @@ void Session::webpageApplyFields(
 	const auto pendingTill = TimeId(0);
 	webpageApplyFields(
 		page,
-		data.has_type() ? qs(data.vtype) : qsl("article"),
+		ParseWebPageType(data),
 		qs(data.vurl),
 		qs(data.vdisplay_url),
 		siteName,
@@ -1363,7 +1363,7 @@ void Session::webpageApplyFields(
 
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,

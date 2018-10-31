@@ -128,12 +128,22 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 
 } // namespace
 
+WebPageType ParseWebPageType(const MTPDwebPage &page) {
+	const auto type = page.has_type() ? qs(page.vtype) : QString();
+	if (type == qstr("photo")) return WebPageType::Photo;
+	if (type == qstr("video")) return WebPageType::Video;
+	if (type == qstr("profile")) return WebPageType::Profile;
+	return page.has_cached_page()
+		? WebPageType::ArticleWithIV
+		: WebPageType::Article;
+}
+
 WebPageCollage::WebPageCollage(const MTPDwebPage &data)
 : WebPageCollage(ExtractCollage(data)) {
 }
 
 bool WebPageData::applyChanges(
-		const QString &newType,
+		WebPageType newType,
 		const QString &newUrl,
 		const QString &newDisplayUrl,
 		const QString &newSiteName,
@@ -153,7 +163,6 @@ bool WebPageData::applyChanges(
 		return false;
 	}
 
-	const auto resultType = toWebPageType(newType);
 	const auto resultUrl = TextUtilities::Clean(newUrl);
 	const auto resultDisplayUrl = TextUtilities::Clean(
 		newDisplayUrl);
@@ -177,7 +186,7 @@ bool WebPageData::applyChanges(
 		return QString();
 	}();
 
-	if (type == resultType
+	if (type == newType
 		&& url == resultUrl
 		&& displayUrl == resultDisplayUrl
 		&& siteName == resultSiteName
@@ -194,7 +203,7 @@ bool WebPageData::applyChanges(
 	if (pendingTill > 0 && newPendingTill <= 0) {
 		Auth().api().clearWebPageRequest(this);
 	}
-	type = resultType;
+	type = newType;
 	url = resultUrl;
 	displayUrl = resultDisplayUrl;
 	siteName = resultSiteName;
