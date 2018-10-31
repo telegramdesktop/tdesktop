@@ -19,8 +19,6 @@ namespace Window {
 namespace Theme {
 
 class Editor : public TWidget {
-	Q_OBJECT
-
 public:
 	Editor(QWidget*, const QString &path);
 

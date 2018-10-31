@@ -199,8 +199,6 @@ protected:
 class StorageImageLocation;
 class WebFileLocation;
 class mtpFileLoader : public FileLoader, public RPCSender {
-	Q_OBJECT
-
 public:
 	mtpFileLoader(
 		not_null<StorageImageLocation*> location,
@@ -330,8 +328,6 @@ private:
 class webFileLoaderPrivate;
 
 class webFileLoader : public FileLoader {
-	Q_OBJECT
-
 public:
 	webFileLoader(
 		const QString &url,
@@ -422,10 +418,7 @@ private:
 class WebLoadMainManager : public QObject {
 	Q_OBJECT
 
-public:
-
 public slots:
-
 	void progress(webFileLoader *loader, qint64 already, qint64 size);
 	void finished(webFileLoader *loader, QByteArray data);
 	void error(webFileLoader *loader);

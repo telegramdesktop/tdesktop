@@ -68,8 +68,6 @@ private:
 
 // This class is hold in header because it requires Qt preprocessing.
 class MultiSelect::Inner : public TWidget {
-	Q_OBJECT
-
 public:
 	using ScrollCallback = Fn<void(int activeTop, int activeBottom)>;
 	Inner(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholderFactory, ScrollCallback callback);
@@ -158,7 +156,6 @@ private:
 	Fn<void(int heightDelta)> _resizedCallback;
 
 };
-
 
 class MultiSelect::Item {
 public:
