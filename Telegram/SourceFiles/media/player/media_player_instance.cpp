@@ -56,21 +56,24 @@ Instance::Instance()
 	});
 
 	// While we have one Media::Player::Instance for all authsessions we have to do this.
-	auto handleAuthSessionChange = [this] {
+	const auto handleAuthSessionChange = [=] {
 		if (AuthSession::Exists()) {
-			subscribe(Auth().calls().currentCallChanged(), [this](Calls::Call *call) {
+			subscribe(Auth().calls().currentCallChanged(), [=](Calls::Call *call) {
 				if (call) {
-					pause(AudioMsgId::Type::Voice);
-					pause(AudioMsgId::Type::Song);
+					pauseOnCall(AudioMsgId::Type::Voice);
+					pauseOnCall(AudioMsgId::Type::Song);
+				} else {
+					resumeOnCall(AudioMsgId::Type::Voice);
+					resumeOnCall(AudioMsgId::Type::Song);
 				}
 			});
 		} else {
 			handleLogout();
 		}
 	};
-	subscribe(Messenger::Instance().authSessionChanged(), [=] {
-		handleAuthSessionChange();
-	});
+	subscribe(
+		Messenger::Instance().authSessionChanged(),
+		handleAuthSessionChange);
 	handleAuthSessionChange();
 }
 
@@ -289,6 +292,9 @@ void Instance::play(AudioMsgId::Type type) {
 			play(data->current);
 		}
 	}
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = false;
+	}
 }
 
 void Instance::play(const AudioMsgId &audioId) {
@@ -313,21 +319,24 @@ void Instance::play(const AudioMsgId &audioId) {
 }
 
 void Instance::pause(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
+	const auto state = mixer()->currentState(type);
 	if (state.id) {
 		mixer()->pause(state.id);
 	}
 }
 
 void Instance::stop(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
+	const auto state = mixer()->currentState(type);
 	if (state.id) {
 		mixer()->stop(state.id);
+	}
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = false;
 	}
 }
 
 void Instance::playPause(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
+	const auto state = mixer()->currentState(type);
 	if (state.id) {
 		if (IsStopped(state.state)) {
 			play(state.id);
@@ -341,17 +350,43 @@ void Instance::playPause(AudioMsgId::Type type) {
 			play(data->current);
 		}
 	}
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = false;
+	}
+}
+
+void Instance::pauseOnCall(AudioMsgId::Type type) {
+	const auto state = mixer()->currentState(type);
+	if (!state.id
+		|| IsStopped(state.state)
+		|| IsPaused(state.state)
+		|| state.state == State::Pausing) {
+		return;
+	}
+	pause(type);
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = true;
+	}
+}
+
+void Instance::resumeOnCall(AudioMsgId::Type type) {
+	if (const auto data = getData(type)) {
+		if (data->resumeOnCallEnd) {
+			data->resumeOnCallEnd = false;
+		}
+		play(type);
+	}
 }
 
 bool Instance::next(AudioMsgId::Type type) {
-	if (auto data = getData(type)) {
+	if (const auto data = getData(type)) {
 		return moveInPlaylist(data, 1, false);
 	}
 	return false;
 }
 
 bool Instance::previous(AudioMsgId::Type type) {
-	if (auto data = getData(type)) {
+	if (const auto data = getData(type)) {
 		return moveInPlaylist(data, -1, false);
 	}
 	return false;

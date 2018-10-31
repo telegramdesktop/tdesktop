@@ -149,10 +149,14 @@ private:
 		History *migrated = nullptr;
 		bool repeatEnabled = false;
 		bool isPlaying = false;
+		bool resumeOnCallEnd = false;
 	};
 
 	// Observed notifications.
 	void handleSongUpdate(const AudioMsgId &audioId);
+
+	void pauseOnCall(AudioMsgId::Type type);
+	void resumeOnCall(AudioMsgId::Type type);
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
