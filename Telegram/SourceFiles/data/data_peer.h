@@ -183,10 +183,13 @@ public:
 	PhotoId userpicPhotoId() const {
 		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
 	}
+	Data::FileOrigin userpicOrigin() const {
+		return Data::FileOrigin(Data::FileOriginPeerPhoto(id));
+	}
 	Data::FileOrigin userpicPhotoOrigin() const {
 		return (isUser() && userpicPhotoId())
 			? Data::FileOriginUserPhoto(bareId(), userpicPhotoId())
-			: Data::FileOrigin(Data::FileOriginPeerPhoto(id));
+			: Data::FileOrigin();
 	}
 
 	int nameVersion = 1;

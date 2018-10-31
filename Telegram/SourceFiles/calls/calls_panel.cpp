@@ -523,13 +523,13 @@ void Panel::refreshUserPhoto() {
 	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
 		_userPhotoId = photo->id;
 		_userPhotoFull = true;
-		createUserpicCache(photo->full);
+		createUserpicCache(photo->full, _user->userpicPhotoOrigin());
 	} else if (_userPhoto.isNull()) {
-		createUserpicCache(_user->currentUserpic());
+		createUserpicCache(_user->currentUserpic(), _user->userpicOrigin());
 	}
 }
 
-void Panel::createUserpicCache(ImagePtr image) {
+void Panel::createUserpicCache(ImagePtr image, Data::FileOrigin origin) {
 	auto size = st::callWidth * cIntRetinaFactor();
 	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
@@ -543,7 +543,7 @@ void Panel::createUserpicCache(ImagePtr image) {
 			width = size;
 		}
 		_userPhoto = image->pixNoCache(
-			_user->userpicPhotoOrigin(),
+			origin,
 			width,
 			height,
 			options,

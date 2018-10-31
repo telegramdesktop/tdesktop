@@ -187,7 +187,7 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 
 ImagePtr PeerData::currentUserpic() const {
 	if (_userpic) {
-		_userpic->load(userpicPhotoOrigin());
+		_userpic->load(userpicOrigin());
 		if (_userpic->loaded()) {
 			if (!useEmptyUserpic()) {
 				_userpicEmpty = nullptr;
@@ -203,7 +203,7 @@ ImagePtr PeerData::currentUserpic() const {
 
 void PeerData::paintUserpic(Painter &p, int x, int y, int size) const {
 	if (auto userpic = currentUserpic()) {
-		p.drawPixmap(x, y, userpic->pixCircled(userpicPhotoOrigin(), size, size));
+		p.drawPixmap(x, y, userpic->pixCircled(userpicOrigin(), size, size));
 	} else {
 		_userpicEmpty->paint(p, x, y, x + size + x, size);
 	}
@@ -211,7 +211,7 @@ void PeerData::paintUserpic(Painter &p, int x, int y, int size) const {
 
 void PeerData::paintUserpicRounded(Painter &p, int x, int y, int size) const {
 	if (auto userpic = currentUserpic()) {
-		p.drawPixmap(x, y, userpic->pixRounded(userpicPhotoOrigin(), size, size, ImageRoundRadius::Small));
+		p.drawPixmap(x, y, userpic->pixRounded(userpicOrigin(), size, size, ImageRoundRadius::Small));
 	} else {
 		_userpicEmpty->paintRounded(p, x, y, x + size + x, size);
 	}
@@ -219,14 +219,14 @@ void PeerData::paintUserpicRounded(Painter &p, int x, int y, int size) const {
 
 void PeerData::paintUserpicSquare(Painter &p, int x, int y, int size) const {
 	if (auto userpic = currentUserpic()) {
-		p.drawPixmap(x, y, userpic->pix(userpicPhotoOrigin(), size, size));
+		p.drawPixmap(x, y, userpic->pix(userpicOrigin(), size, size));
 	} else {
 		_userpicEmpty->paintSquare(p, x, y, x + size + x, size);
 	}
 }
 
 void PeerData::loadUserpic(bool loadFirst, bool prior) {
-	_userpic->load(userpicPhotoOrigin(), loadFirst, prior);
+	_userpic->load(userpicOrigin(), loadFirst, prior);
 }
 
 bool PeerData::userpicLoaded() const {
@@ -256,7 +256,7 @@ void PeerData::saveUserpicRounded(const QString &path, int size) const {
 
 QPixmap PeerData::genUserpic(int size) const {
 	if (auto userpic = currentUserpic()) {
-		return userpic->pixCircled(userpicPhotoOrigin(), size, size);
+		return userpic->pixCircled(userpicOrigin(), size, size);
 	}
 	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
@@ -270,7 +270,7 @@ QPixmap PeerData::genUserpic(int size) const {
 
 QPixmap PeerData::genUserpicRounded(int size) const {
 	if (auto userpic = currentUserpic()) {
-		return userpic->pixRounded(userpicPhotoOrigin(), size, size, ImageRoundRadius::Small);
+		return userpic->pixRounded(userpicOrigin(), size, size, ImageRoundRadius::Small);
 	}
 	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
