@@ -3472,7 +3472,19 @@ QSize HistoryWebPage::countOptimalSize() {
 	auto lineHeight = unitedLineHeight();
 
 	if (!_openl && !_data->url.isEmpty()) {
-		_openl = std::make_shared<UrlClickHandler>(_data->url, true);
+		const auto previewOfHiddenUrl = [&] {
+			const auto full = _parent->data()->originalText();
+			for (const auto &entity : full.entities) {
+				if (entity.type() == EntityInTextCustomUrl
+					&& entity.data() == _data->url) {
+					return true;
+				}
+			}
+			return false;
+		}();
+		_openl = previewOfHiddenUrl
+			? std::make_shared<HiddenUrlClickHandler>(_data->url)
+			: std::make_shared<UrlClickHandler>(_data->url, true);
 	}
 
 	// init layout
