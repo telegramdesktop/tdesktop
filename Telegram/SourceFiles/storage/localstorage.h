@@ -146,7 +146,9 @@ Window::Theme::Saved readThemeAfterSwitch();
 
 void writeLangPack();
 void pushRecentLanguage(const Lang::Language &language);
-QVector<Lang::Language> readRecentLanguages();
+std::vector<Lang::Language> readRecentLanguages();
+void saveRecentLanguages(const std::vector<Lang::Language> &list);
+void removeRecentLanguage(const QString &id);
 
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();

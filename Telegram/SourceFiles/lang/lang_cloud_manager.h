@@ -32,10 +32,10 @@ class CloudManager : public base::has_weak_ptr, private MTP::Sender, private bas
 public:
 	CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto);
 
-	using Languages = QVector<Language>;
+	using Languages = std::vector<Language>;
 
 	void requestLanguageList();
-	Languages languageList() const {
+	const Languages &languageList() const {
 		return _languages;
 	}
 	base::Observable<void> &languageListChanged() {

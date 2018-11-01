@@ -4131,17 +4131,15 @@ void writeLangPack() {
 	file.writeEncrypted(data, SettingsKey);
 }
 
-void pushRecentLanguage(const Lang::Language &language) {
-	if (language.id.startsWith('#')) {
+void saveRecentLanguages(const std::vector<Lang::Language> &list) {
+	if (list.empty()) {
+		if (_languagesKey) {
+			clearKey(_languagesKey, FileOption::Safe);
+			_languagesKey = 0;
+			writeSettings();
+		}
 		return;
 	}
-	auto list = readRecentLanguages();
-	list.erase(
-		ranges::remove_if(
-			list,
-			[&](const Lang::Language &v) { return (v.id == language.id); }),
-		list.end());
-	list.insert(list.begin(), language);
 
 	auto size = sizeof(qint32);
 	for (const auto &language : list) {
@@ -4171,7 +4169,33 @@ void pushRecentLanguage(const Lang::Language &language) {
 	file.writeEncrypted(data, SettingsKey);
 }
 
-QVector<Lang::Language> readRecentLanguages() {
+void pushRecentLanguage(const Lang::Language &language) {
+	if (language.id.startsWith('#')) {
+		return;
+	}
+	auto list = readRecentLanguages();
+	list.erase(
+		ranges::remove_if(
+			list,
+			[&](const Lang::Language &v) { return (v.id == language.id); }),
+		end(list));
+	list.insert(list.begin(), language);
+
+	saveRecentLanguages(list);
+}
+
+void removeRecentLanguage(const QString &id) {
+	auto list = readRecentLanguages();
+	list.erase(
+		ranges::remove_if(
+			list,
+			[&](const Lang::Language &v) { return (v.id == id); }),
+		end(list));
+
+	saveRecentLanguages(list);
+}
+
+std::vector<Lang::Language> readRecentLanguages() {
 	FileReadDescriptor languages;
 	if (!_languagesKey || !readEncryptedFile(languages, _languagesKey, FileOption::Safe, SettingsKey)) {
 		return {};
@@ -4181,7 +4205,7 @@ QVector<Lang::Language> readRecentLanguages() {
 	if (count <= 0) {
 		return {};
 	}
-	auto result = QVector<Lang::Language>();
+	auto result = std::vector<Lang::Language>();
 	result.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		auto language = Lang::Language();

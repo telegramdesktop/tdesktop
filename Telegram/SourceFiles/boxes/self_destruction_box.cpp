@@ -67,7 +67,7 @@ void SelfDestructionBox::showContent() {
 			_ttlGroup,
 			value,
 			DaysLabel(value),
-			st::langsButton);
+			st::autolockButton);
 		button->moveToLeft(st::boxPadding.left(), y);
 		y += button->heightNoMargins() + st::boxOptionListSkip;
 	}

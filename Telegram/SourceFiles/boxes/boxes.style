@@ -556,9 +556,13 @@ connectionPasswordInputField: InputField(defaultInputField) {
 }
 connectionIPv6Skip: 11px;
 
-langsWidth: 256px;
-langsButton: Checkbox(defaultBoxCheckbox) {
+autolockWidth: 256px;
+autolockButton: Checkbox(defaultBoxCheckbox) {
 	width: 200px;
+}
+
+langsRadio: Radio(defaultRadio) {
+	bg: boxBg;
 }
 
 backgroundPadding: 10px;
