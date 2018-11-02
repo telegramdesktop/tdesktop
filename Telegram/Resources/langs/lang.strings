@@ -1793,6 +1793,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_switch_about" = "You are about to apply a custom language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
 "lng_language_switch_link" = "translation panel";
 "lng_language_switch_apply" = "Change";
+"lng_language_not_found" = "Sorry, this language pack doesn't exist.";
+"lng_language_already" = "You're already using this language pack. You can change your language back in Settings.";
+"lng_language_not_ready_title" = "Insufficient data";
+"lng_language_not_ready_about" = "Unfortunately, this custom language pack ({lang_name}) doesn't contain data for Telegram Desktop. You can contribute to this language pack using the {link}.";
+"lng_language_not_ready_link" = "translations platform";
 
 // Wnd specific
 

@@ -43,12 +43,28 @@ private:
 
 };
 
+class NotReadyBox : public BoxContent {
+public:
+	NotReadyBox(
+		QWidget*,
+		const MTPDlangPackLanguage &data,
+		const QString &editLink);
+
+protected:
+	void prepare() override;
+
+private:
+	QString _name;
+	QString _editLink;
+
+};
+
 ConfirmSwitchBox::ConfirmSwitchBox(
 	QWidget*,
 	const MTPDlangPackLanguage &data,
 	const QString &editLink,
 	Fn<void()> apply)
-: _name(qs(data.vname))
+: _name(qs(data.vnative_name))
 , _percent(data.vtranslated_count.v * 100 / data.vstrings_count.v)
 , _editLink(editLink)
 , _apply(std::move(apply)) {
@@ -84,7 +100,8 @@ void ConfirmSwitchBox::prepare() {
 		this,
 		object_ptr<Ui::FlatLabel>(
 			this,
-			rpl::single(text)),
+			rpl::single(text),
+			st::boxLabel),
 		QMargins{ st::boxPadding.left(), 0, st::boxPadding.right(), 0 });
 	content->entity()->setClickHandlerFilter([=](auto&&...) {
 		UrlClickHandler::Open(_editLink);
@@ -97,6 +114,50 @@ void ConfirmSwitchBox::prepare() {
 		apply();
 	});
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+
+	content->resizeToWidth(st::boxWideWidth);
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::boxWideWidth, height);
+	}, lifetime());
+}
+
+NotReadyBox::NotReadyBox(
+	QWidget*,
+	const MTPDlangPackLanguage &data,
+	const QString &editLink)
+: _name(qs(data.vnative_name))
+, _editLink(editLink) {
+}
+
+void NotReadyBox::prepare() {
+	setTitle(langFactory(lng_language_not_ready_title));
+
+	auto link = TextWithEntities{ lang(lng_language_not_ready_link) };
+	link.entities.push_back(EntityInText(
+		EntityInTextCustomUrl,
+		0,
+		link.text.size(),
+		QString("internal:go_to_translations")));
+	auto name = TextWithEntities{ _name };
+	const auto text = lng_language_not_ready_about__generic(
+		lt_lang_name,
+		name,
+		lt_link,
+		link);
+	auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+		this,
+		object_ptr<Ui::FlatLabel>(
+			this,
+			rpl::single(text),
+			st::boxLabel),
+		QMargins{ st::boxPadding.left(), 0, st::boxPadding.right(), 0 });
+	content->entity()->setClickHandlerFilter([=](auto&&...) {
+		UrlClickHandler::Open(_editLink);
+		return false;
+	});
+
+	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 
 	content->resizeToWidth(st::boxWidth);
 	content->heightValue(
@@ -346,6 +407,7 @@ void CloudManager::switchWithWarning(const QString &id) {
 	Expects(!id.isEmpty());
 
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
+		Ui::show(Box<InformBox>(lang(lng_language_already)));
 		return;
 	}
 
@@ -356,6 +418,9 @@ void CloudManager::switchWithWarning(const QString &id) {
 	)).done([=](const MTPLangPackLanguage &result) {
 		_switchingToLanguageRequest = 0;
 		result.match([=](const MTPDlangPackLanguage &data) {
+			const auto link = "https://translations.telegram.org/"
+				+ id
+				+ '/';
 			if (data.vtranslated_count.v > 0) {
 				const auto pluralId = qs(data.vplural_code);
 				const auto baseId = qs(data.vbase_lang_code);
@@ -363,17 +428,16 @@ void CloudManager::switchWithWarning(const QString &id) {
 					Local::pushRecentLanguage(ParseLanguage(result));
 					performSwitchAndRestart(id, pluralId, baseId);
 				};
-				Ui::show(Box<ConfirmSwitchBox>(
-					data,
-					"https://translations.telegram.org/" + id + '/',
-					perform));
+				Ui::show(Box<ConfirmSwitchBox>(data, link, perform));
 			} else {
-				Ui::show(Box<InformBox>(
-					"not translated :("));
+				Ui::show(Box<NotReadyBox>(data, link));
 			}
 		});
 	}).fail([=](const RPCError &error) {
 		_switchingToLanguageRequest = 0;
+		if (error.type() == "LANG_CODE_NOT_SUPPORTED") {
+			Ui::show(Box<InformBox>(lang(lng_language_not_found)));
+		}
 	}).send();
 }
 
