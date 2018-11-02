@@ -172,13 +172,13 @@ void PeerData::setUserpic(
 }
 
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
-	auto photoId = [&]() -> PhotoId {
-		if (const auto photo = Auth().data().photo(data)) {
-			photo->peer = this;
-			return photo->id;
-		}
-		return 0;
-	}();
+	const auto photoId = data.match([&](const MTPDphoto &data) {
+		const auto photo = Auth().data().photo(data);
+		photo->peer = this;
+		return photo->id;
+	}, [](const MTPDphotoEmpty &data) {
+		return PhotoId(0);
+	});
 	if (_userpicPhotoId != photoId) {
 		_userpicPhotoId = photoId;
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
@@ -332,7 +332,7 @@ void PeerData::setUserpicChecked(
 
 bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
-		return user->isSelf();
+		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
 	} else if (const auto chat = asChat()) {
 		return chat->adminsEnabled() ? chat->amAdmin() : chat->amIn();
 	} else if (const auto channel = asChannel()) {

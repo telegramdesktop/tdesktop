@@ -867,20 +867,23 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		auto &f = d.vfull_chat.c_chatFull();
 		App::feedParticipants(f.vparticipants, false);
-		auto &v = f.vbot_info.v;
-		for_const (auto &item, v) {
-			switch (item.type()) {
-			case mtpc_botInfo: {
-				auto &b = item.c_botInfo();
-				if (auto user = App::userLoaded(b.vuser_id.v)) {
-					user->setBotInfo(item);
-					fullPeerUpdated().notify(user);
-				}
-			} break;
+		if (f.has_bot_info()) {
+			for (const auto &item : f.vbot_info.v) {
+				item.match([&](const MTPDbotInfo &data) {
+					if (const auto bot = App::userLoaded(data.vuser_id.v)) {
+						bot->setBotInfo(item);
+						fullPeerUpdated().notify(bot);
+					}
+				});
 			}
 		}
-		chat->setUserpicPhoto(f.vchat_photo);
-		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
+		chat->setUserpicPhoto(f.has_chat_photo()
+			? f.vchat_photo
+			: MTPPhoto(MTP_photoEmpty(MTP_long(0))));
+		chat->setInviteLink(
+			(f.vexported_invite.type() == mtpc_chatInviteExported
+				? qs(f.vexported_invite.c_chatInviteExported().vlink)
+				: QString()));
 		if (f.has_pinned_msg_id()) {
 			chat->setPinnedMessageId(f.vpinned_msg_id.v);
 		} else {
@@ -1029,6 +1032,7 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 	} else {
 		user->clearPinnedMessage();
 	}
+	user->setFullFlags(d.vflags.v);
 	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
 	user->setCallsStatus(d.is_phone_calls_private() ? UserData::CallsStatus::Private : d.is_phone_calls_available() ? UserData::CallsStatus::Enabled : UserData::CallsStatus::Disabled);
 	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
