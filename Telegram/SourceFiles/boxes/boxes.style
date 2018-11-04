@@ -402,6 +402,21 @@ shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
+shareComment: InputField(defaultInputField) {
+	font: normalFont;
+	textMargins: margins(8px, 8px, 8px, 6px);
+	heightMin: 36px;
+	heightMax: 72px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	border: 0px;
+	borderActive: 0px;
+}
+shareCommentPadding: margins(5px, 5px, 5px, 5px);
 
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;

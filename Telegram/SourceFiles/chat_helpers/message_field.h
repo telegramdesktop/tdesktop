@@ -32,7 +32,6 @@ Fn<bool(
 	QString text,
 	QString link,
 	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Window::Controller*> controller,
 		not_null<Ui::InputField*> field);
 void InitMessageField(
 	not_null<Window::Controller*> controller,

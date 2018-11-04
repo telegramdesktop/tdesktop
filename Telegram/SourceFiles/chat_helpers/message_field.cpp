@@ -279,7 +279,6 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Window::Controller*> controller,
 		not_null<Ui::InputField*> field) {
 	const auto weak = make_weak(field);
 	return [=](
@@ -318,8 +317,7 @@ void InitMessageField(
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(
-		DefaultEditLinkCallback(controller, field));
+	field->setEditLinkCallback(DefaultEditLinkCallback(field));
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {

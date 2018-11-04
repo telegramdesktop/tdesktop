@@ -123,7 +123,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 		}
 	};
-	auto submitCallback = [data, isGroup](const QVector<PeerData*> &result) {
+	auto submitCallback = [=](
+			QVector<PeerData*> &&result,
+			TextWithTags &&comment) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
@@ -187,6 +189,13 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 					continue;
 				}
 
+				const auto history = App::history(peer);
+				if (!comment.text.isEmpty()) {
+					auto message = ApiWrap::MessageToSend(history);
+					message.textWithTags = comment;
+					message.clearDraft = false;
+					Auth().api().sendMessage(std::move(message));
+				}
 				auto request = MTPmessages_ForwardMessages(
 					MTP_flags(sendFlags),
 					data->peer->input,
@@ -194,8 +203,14 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 					MTP_vector<MTPlong>(generateRandom()),
 					peer->input);
 				auto callback = doneCallback;
-				auto requestId = MTP::send(request, rpcDone(std::move(callback)));
-				data->requests.insert(requestId);
+				history->sendRequestId = MTP::send(
+					request,
+					rpcDone(base::duplicate(doneCallback)),
+					nullptr,
+					0,
+					0,
+					history->sendRequestId);
+				data->requests.insert(history->sendRequestId);
 			}
 		}
 	};

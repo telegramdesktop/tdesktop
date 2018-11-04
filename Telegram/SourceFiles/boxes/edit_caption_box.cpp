@@ -215,8 +215,7 @@ EditCaptionBox::EditCaptionBox(
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, _field));
+	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
 }
 
 void EditCaptionBox::prepareGifPreview(not_null<DocumentData*> document) {

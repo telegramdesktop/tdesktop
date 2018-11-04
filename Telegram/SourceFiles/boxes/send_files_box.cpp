@@ -1582,8 +1582,7 @@ void SendFilesBox::setupCaption() {
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
 	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
-	_caption->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, _caption));
+	_caption->setEditLinkCallback(DefaultEditLinkCallback(_caption));
 }
 
 void SendFilesBox::captionResized() {
