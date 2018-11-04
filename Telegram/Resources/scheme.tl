@@ -539,10 +539,12 @@ contacts.found#b3134d9d my_results:Vector<Peer> results:Vector<Peer> chats:Vecto
 inputPrivacyKeyStatusTimestamp#4f96cb18 = InputPrivacyKey;
 inputPrivacyKeyChatInvite#bdfb0426 = InputPrivacyKey;
 inputPrivacyKeyPhoneCall#fabadc5f = InputPrivacyKey;
+inputPrivacyKeyPhoneP2P#db9e70d2 = InputPrivacyKey;
 
 privacyKeyStatusTimestamp#bc2eab30 = PrivacyKey;
 privacyKeyChatInvite#500e6dfa = PrivacyKey;
 privacyKeyPhoneCall#3d662b7b = PrivacyKey;
+privacyKeyPhoneP2P#39491cc8 = PrivacyKey;
 
 inputPrivacyValueAllowContacts#d09e07b = InputPrivacyRule;
 inputPrivacyValueAllowAll#184b35ce = InputPrivacyRule;
@@ -590,7 +592,7 @@ webPagePending#c586da1c id:long date:int = WebPage;
 webPage#5f07b4bc flags:# id:long url:string display_url:string hash:int type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document cached_page:flags.10?Page = WebPage;
 webPageNotModified#85849473 = WebPage;
 
-authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
+authorization#ad01d61d flags:# current:flags.0?true official_app:flags.1?true password_pending:flags.2?true hash:long device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
 
 account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
 
@@ -798,6 +800,11 @@ textFixed#6c3f19b9 text:RichText = RichText;
 textUrl#3c2884c1 text:RichText url:string webpage_id:long = RichText;
 textEmail#de5a0dd6 text:RichText email:string = RichText;
 textConcat#7e6260d7 texts:Vector<RichText> = RichText;
+textSubscript#ed6a8504 text:RichText = RichText;
+textSuperscript#c7fb5e01 text:RichText = RichText;
+textMarked#34b8621 text:RichText = RichText;
+textPhone#1ccb966a text:RichText phone:string = RichText;
+textImage#81ccf4f document_id:long w:int h:int = RichText;
 
 pageBlockUnsupported#13567e8a = PageBlock;
 pageBlockTitle#70abc3fd text:RichText = PageBlock;
@@ -810,21 +817,24 @@ pageBlockPreformatted#c070d93e text:RichText language:string = PageBlock;
 pageBlockFooter#48870999 text:RichText = PageBlock;
 pageBlockDivider#db20b188 = PageBlock;
 pageBlockAnchor#ce0d37b0 name:string = PageBlock;
-pageBlockList#3a58c7f4 ordered:Bool items:Vector<RichText> = PageBlock;
+pageBlockList#e4e88011 items:Vector<PageListItem> = PageBlock;
 pageBlockBlockquote#263d7c26 text:RichText caption:RichText = PageBlock;
 pageBlockPullquote#4f4456d3 text:RichText caption:RichText = PageBlock;
-pageBlockPhoto#e9c69982 photo_id:long caption:RichText = PageBlock;
-pageBlockVideo#d9d71866 flags:# autoplay:flags.0?true loop:flags.1?true video_id:long caption:RichText = PageBlock;
+pageBlockPhoto#1759c560 flags:# photo_id:long caption:PageCaption url:flags.0?string webpage_id:flags.0?long = PageBlock;
+pageBlockVideo#7c8fe7b6 flags:# autoplay:flags.0?true loop:flags.1?true video_id:long caption:PageCaption = PageBlock;
 pageBlockCover#39f23300 cover:PageBlock = PageBlock;
-pageBlockEmbed#cde200d1 flags:# full_width:flags.0?true allow_scrolling:flags.3?true url:flags.1?string html:flags.2?string poster_photo_id:flags.4?long w:int h:int caption:RichText = PageBlock;
-pageBlockEmbedPost#292c7be9 url:string webpage_id:long author_photo_id:long author:string date:int blocks:Vector<PageBlock> caption:RichText = PageBlock;
-pageBlockCollage#8b31c4f items:Vector<PageBlock> caption:RichText = PageBlock;
-pageBlockSlideshow#130c8963 items:Vector<PageBlock> caption:RichText = PageBlock;
+pageBlockEmbed#a8718dc5 flags:# full_width:flags.0?true allow_scrolling:flags.3?true url:flags.1?string html:flags.2?string poster_photo_id:flags.4?long w:flags.5?int h:flags.5?int caption:PageCaption = PageBlock;
+pageBlockEmbedPost#f259a80b url:string webpage_id:long author_photo_id:long author:string date:int blocks:Vector<PageBlock> caption:PageCaption = PageBlock;
+pageBlockCollage#65a0fa4d items:Vector<PageBlock> caption:PageCaption = PageBlock;
+pageBlockSlideshow#31f9590 items:Vector<PageBlock> caption:PageCaption = PageBlock;
 pageBlockChannel#ef1751b5 channel:Chat = PageBlock;
-pageBlockAudio#31b81a7f audio_id:long caption:RichText = PageBlock;
-
-pagePart#8e3f9ebe blocks:Vector<PageBlock> photos:Vector<Photo> documents:Vector<Document> = Page;
-pageFull#556ec7aa blocks:Vector<PageBlock> photos:Vector<Photo> documents:Vector<Document> = Page;
+pageBlockAudio#804361ea audio_id:long caption:PageCaption = PageBlock;
+pageBlockKicker#1e148390 text:RichText = PageBlock;
+pageBlockTable#bf4dea82 flags:# bordered:flags.0?true striped:flags.1?true title:RichText rows:Vector<PageTableRow> = PageBlock;
+pageBlockOrderedList#9a8ae1e1 items:Vector<PageListOrderedItem> = PageBlock;
+pageBlockDetails#76768bed flags:# open:flags.0?true blocks:Vector<PageBlock> title:RichText = PageBlock;
+pageBlockRelatedArticles#16115a96 title:RichText articles:Vector<PageRelatedArticle> = PageBlock;
+pageBlockMap#a44f3ef6 geo:GeoPoint zoom:int w:int h:int caption:PageCaption = PageBlock;
 
 phoneCallDiscardReasonMissed#85e42301 = PhoneCallDiscardReason;
 phoneCallDiscardReasonDisconnect#e095c1a0 = PhoneCallDiscardReason;
@@ -883,7 +893,7 @@ phoneCallEmpty#5366c915 id:long = PhoneCall;
 phoneCallWaiting#1b8f4ad1 flags:# id:long access_hash:long date:int admin_id:int participant_id:int protocol:PhoneCallProtocol receive_date:flags.0?int = PhoneCall;
 phoneCallRequested#83761ce4 id:long access_hash:long date:int admin_id:int participant_id:int g_a_hash:bytes protocol:PhoneCallProtocol = PhoneCall;
 phoneCallAccepted#6d003d3f id:long access_hash:long date:int admin_id:int participant_id:int g_b:bytes protocol:PhoneCallProtocol = PhoneCall;
-phoneCall#ffe6ab67 id:long access_hash:long date:int admin_id:int participant_id:int g_a_or_b:bytes key_fingerprint:long protocol:PhoneCallProtocol connection:PhoneConnection alternative_connections:Vector<PhoneConnection> start_date:int = PhoneCall;
+phoneCall#e6f9ddf3 flags:# p2p_allowed:flags.5?true id:long access_hash:long date:int admin_id:int participant_id:int g_a_or_b:bytes key_fingerprint:long protocol:PhoneCallProtocol connection:PhoneConnection alternative_connections:Vector<PhoneConnection> start_date:int = PhoneCall;
 phoneCallDiscarded#50ca4de1 flags:# need_rating:flags.2?true need_debug:flags.3?true id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = PhoneCall;
 
 phoneConnection#9d4c17c0 id:long ip:string ipv6:string port:int peer_tag:bytes = PhoneConnection;
@@ -1045,6 +1055,22 @@ secureRequiredTypeOneOf#27477b4 types:Vector<SecureRequiredType> = SecureRequire
 
 help.passportConfigNotModified#bfb9f457 = help.PassportConfig;
 help.passportConfig#a098d6af hash:int countries_langs:DataJSON = help.PassportConfig;
+
+pageTableCell#34566b6a flags:# header:flags.0?true align_center:flags.3?true align_right:flags.4?true valign_middle:flags.5?true valign_bottom:flags.6?true text:flags.7?RichText colspan:flags.1?int rowspan:flags.2?int = PageTableCell;
+
+pageTableRow#e0c0c5e5 cells:Vector<PageTableCell> = PageTableRow;
+
+pageCaption#6f747657 text:RichText credit:RichText = PageCaption;
+
+pageListItemText#b92fb6cd text:RichText = PageListItem;
+pageListItemBlocks#25e073fc blocks:Vector<PageBlock> = PageListItem;
+
+pageListOrderedItemText#5e068047 num:string text:RichText = PageListOrderedItem;
+pageListOrderedItemBlocks#98dd8936 num:string blocks:Vector<PageBlock> = PageListOrderedItem;
+
+pageRelatedArticle#f186f93c flags:# url:string webpage_id:long title:flags.0?string description:flags.1?string photo_id:flags.2?long = PageRelatedArticle;
+
+page#f199a0a8 flags:# part:flags.0?true rtl:flags.1?true blocks:Vector<PageBlock> photos:Vector<Photo> documents:Vector<Document> = Page;
 
 ---functions---
 
@@ -1338,4 +1364,4 @@ langpack.getDifference#9d51e814 lang_code:string from_version:int = LangPackDiff
 langpack.getLanguages#42c6978f lang_pack:string = Vector<LangPackLanguage>;
 langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLanguage;
 
-// LAYER 87
+// LAYER 88
