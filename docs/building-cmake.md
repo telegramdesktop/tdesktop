@@ -4,6 +4,10 @@
 
 Choose an empty folder for the future build, for example **/home/user/TBuild**. It will be named ***BuildPath*** in the rest of this document.
 
+### Obtain your API credentials
+
+You will require **api_id** and **api_hash** to access the Telegram API servers. To learn how to obtain them [click here][api_credentials].
+
 ### Install software and required packages
 
 You will need GCC 7.2 and CMake 3.2 installed. To install them and all the required dependencies run
@@ -150,9 +154,9 @@ Go to ***BuildPath*** and run
 
 ### Building the project
 
-Go to ***BuildPath*/tdesktop/Telegram** and run
+Go to ***BuildPath*/tdesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    gyp/refresh.sh
+    gyp/refresh.sh --api-id YOUR_API_ID --api-hash YOUR_API_HASH
 
 To make Debug version go to ***BuildPath*/tdesktop/out/Debug** and run
 
@@ -164,3 +168,4 @@ To make Release version go to ***BuildPath*/tdesktop/out/Release** and run
 
 You can debug your builds from Qt Creator, just open **CMakeLists.txt** from ***BuildPath*/tdesktop/out/Debug** and launch with debug.
 
+[api_credentials]: api_credentials.md
