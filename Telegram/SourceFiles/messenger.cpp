@@ -499,7 +499,7 @@ void Messenger::startMtp() {
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
-			_authSession->settings().moveFrom(
+			_authSession->moveSettingsFrom(
 				std::move(*_private->storedAuthSession));
 		}
 		_private->storedAuthSession.reset();

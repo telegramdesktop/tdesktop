@@ -28,10 +28,6 @@ namespace Data {
 class Session;
 } // namespace Data
 
-namespace Calls {
-enum class PeerToPeer;
-} // namespace Calls
-
 namespace Storage {
 class Downloader;
 class Uploader;
@@ -186,14 +182,8 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
-	rpl::producer<Calls::PeerToPeer> callsPeerToPeerValue() const {
-		return _variables.callsPeerToPeer.value();
-	}
-	Calls::PeerToPeer callsPeerToPeer() const {
-		return _variables.callsPeerToPeer.current();
-	}
-	void setCallsPeerToPeer(Calls::PeerToPeer value) {
-		_variables.callsPeerToPeer = value;
+	bool hadLegacyCallsPeerToPeerNobody() const {
+		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
 
 private:
@@ -219,9 +209,8 @@ private:
 			= kDefaultDialogsWidthRatio; // per-window
 		rpl::variable<int> thirdColumnWidth
 			= kDefaultThirdColumnWidth; // per-window
-		rpl::variable<Calls::PeerToPeer> callsPeerToPeer
-			= Calls::PeerToPeer();
 		Ui::InputSubmitSettings sendSubmitWay;
+		bool hadLegacyCallsPeerToPeerNobody = false;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 30 * 24 * 60 * 60;
@@ -290,6 +279,7 @@ public:
 	AuthSessionSettings &settings() {
 		return _settings;
 	}
+	void moveSettingsFrom(AuthSessionSettings &&other);
 	void saveSettingsDelayed(TimeMs delay = kDefaultSaveDelay);
 
 	ApiWrap &api() {

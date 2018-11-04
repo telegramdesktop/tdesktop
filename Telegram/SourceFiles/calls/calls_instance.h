@@ -18,14 +18,6 @@ class Track;
 
 namespace Calls {
 
-enum class PeerToPeer {
-	DefaultContacts,
-	DefaultEveryone,
-	Everyone,
-	Contacts,
-	Nobody,
-};
-
 class Panel;
 
 class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber, public base::has_weak_ptr {

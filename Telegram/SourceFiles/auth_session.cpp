@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
+constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 } // namespace
 
@@ -78,7 +79,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.thirdColumnWidth.current());
 		stream << qint32(_variables.thirdSectionExtendedBy);
 		stream << qint32(_variables.sendFilesWay);
-		stream << qint32(_variables.callsPeerToPeer.current());
+		stream << qint32(0);// LEGACY _variables.callsPeerToPeer.current());
 		stream << qint32(_variables.sendSubmitWay);
 		stream << qint32(_variables.supportSwitch);
 		stream << qint32(_variables.supportFixChatsOrder ? 1 : 0);
@@ -109,7 +110,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	int thirdColumnWidth = _variables.thirdColumnWidth.current();
 	int thirdSectionExtendedBy = _variables.thirdSectionExtendedBy;
 	qint32 sendFilesWay = static_cast<qint32>(_variables.sendFilesWay);
-	qint32 callsPeerToPeer = qint32(_variables.callsPeerToPeer.current());
+	qint32 legacyCallsPeerToPeer = qint32(0);
 	qint32 sendSubmitWay = static_cast<qint32>(_variables.sendSubmitWay);
 	qint32 supportSwitch = static_cast<qint32>(_variables.supportSwitch);
 	qint32 supportFixChatsOrder = _variables.supportFixChatsOrder ? 1 : 0;
@@ -168,7 +169,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 		stream >> sendFilesWay;
 	}
 	if (!stream.atEnd()) {
-		stream >> callsPeerToPeer;
+		stream >> legacyCallsPeerToPeer;
 	}
 	if (!stream.atEnd()) {
 		stream >> sendSubmitWay;
@@ -225,14 +226,6 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	case SendFilesWay::Photos:
 	case SendFilesWay::Files: _variables.sendFilesWay = uncheckedSendFilesWay; break;
 	}
-	auto uncheckedCallsPeerToPeer = static_cast<Calls::PeerToPeer>(callsPeerToPeer);
-	switch (uncheckedCallsPeerToPeer) {
-	case Calls::PeerToPeer::DefaultContacts:
-	case Calls::PeerToPeer::DefaultEveryone:
-	case Calls::PeerToPeer::Everyone:
-	case Calls::PeerToPeer::Contacts:
-	case Calls::PeerToPeer::Nobody: _variables.callsPeerToPeer = uncheckedCallsPeerToPeer; break;
-	}
 	auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(
 		sendSubmitWay);
 	switch (uncheckedSendSubmitWay) {
@@ -249,6 +242,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.supportFixChatsOrder = (supportFixChatsOrder == 1);
 	_variables.supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
 	_variables.supportChatsTimeSlice = supportChatsTimeSlice;
+	_variables.hadLegacyCallsPeerToPeerNobody = (legacyCallsPeerToPeer == kLegacyCallsPeerToPeerNobody);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
@@ -414,6 +408,18 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 		return false;
 	}
 	return true;
+}
+
+void AuthSession::moveSettingsFrom(AuthSessionSettings &&other) {
+	_settings.moveFrom(std::move(other));
+	if (_settings.hadLegacyCallsPeerToPeerNobody()) {
+		api().savePrivacy(
+			MTP_inputPrivacyKeyPhoneP2P(),
+			QVector<MTPInputPrivacyRule>(
+				1,
+				MTP_inputPrivacyValueDisallowAll()));
+		saveSettingsDelayed();
+	}
 }
 
 void AuthSession::saveSettingsDelayed(TimeMs delay) {
