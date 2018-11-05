@@ -268,6 +268,8 @@ protected:
 	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
+	int duration() const;
+
 	not_null<DocumentData*> _data;
 	StatusText _status;
 	ClickHandlerPtr _namel;

@@ -199,7 +199,7 @@ void ListWidget::Section::setHeader(not_null<BaseLayout*> item) {
 		case Type::Photo:
 		case Type::Video:
 		case Type::RoundFile:
-		case Type::VoiceFile:
+		case Type::RoundVoiceFile:
 		case Type::File:
 			return langMonthFull(date);
 
@@ -225,7 +225,7 @@ bool ListWidget::Section::belongsHere(
 	case Type::Photo:
 	case Type::Video:
 	case Type::RoundFile:
-	case Type::VoiceFile:
+	case Type::RoundVoiceFile:
 	case Type::File:
 		return date.year() == myDate.year()
 			&& date.month() == myDate.month();
@@ -455,7 +455,7 @@ void ListWidget::Section::resizeToWidth(int newWidth) {
 		}
 	} break;
 
-	case Type::VoiceFile:
+	case Type::RoundVoiceFile:
 	case Type::MusicFile:
 		resizeOneColumn(0, newWidth);
 		break;
@@ -482,7 +482,7 @@ int ListWidget::Section::MinItemHeight(Type type, int width) {
 		return (st::infoMediaMinGridSize + st::infoMediaSkip) / itemsInRow;
 	} break;
 
-	case Type::VoiceFile:
+	case Type::RoundVoiceFile:
 		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom() + st::lineWidth;
 	case Type::File:
 		return songSt.filePadding.top() + songSt.fileThumbSize + songSt.filePadding.bottom() + st::lineWidth;
@@ -519,7 +519,7 @@ int ListWidget::Section::recountHeight() const {
 		}
 	} break;
 
-	case Type::VoiceFile:
+	case Type::RoundVoiceFile:
 	case Type::File:
 	case Type::MusicFile:
 	case Type::Link:
@@ -857,27 +857,27 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 	using namespace Layout;
 	switch (type) {
 	case Type::Photo:
-		if (auto photo = getPhoto()) {
+		if (const auto photo = getPhoto()) {
 			return std::make_unique<Photo>(item, photo);
 		}
 		return nullptr;
 	case Type::Video:
-		if (auto file = getFile()) {
+		if (const auto file = getFile()) {
 			return std::make_unique<Video>(item, file);
 		}
 		return nullptr;
 	case Type::File:
-		if (auto file = getFile()) {
+		if (const auto file = getFile()) {
 			return std::make_unique<Document>(item, file, songSt);
 		}
 		return nullptr;
 	case Type::MusicFile:
-		if (auto file = getFile()) {
+		if (const auto file = getFile()) {
 			return std::make_unique<Document>(item, file, songSt);
 		}
 		return nullptr;
-	case Type::VoiceFile:
-		if (auto file = getFile()) {
+	case Type::RoundVoiceFile:
+		if (const auto file = getFile()) {
 			return std::make_unique<Voice>(item, file, songSt);
 		}
 		return nullptr;

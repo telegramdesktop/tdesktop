@@ -189,7 +189,11 @@ void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document) {
 	const auto context = parent()->fullId();
 	const auto createSaveHandler = [&]() -> ClickHandlerPtr {
-		if (document->isVoiceMessage()) {
+		if (document->isVideoMessage()) {
+			return std::make_shared<GifOpenClickHandler>(
+				document,
+				context);
+		} else if (document->isVoiceMessage()) {
 			return std::make_shared<DocumentOpenClickHandler>(
 				document,
 				context);
@@ -199,9 +203,13 @@ void RadialProgressItem::setDocumentLinks(
 			context);
 	};
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(
-			document,
-			context),
+		(document->isVideoMessage()
+			? std::make_shared<GifOpenClickHandler>(
+				document,
+				context)
+			: std::make_shared<DocumentOpenClickHandler>(
+				document,
+				context)),
 		createSaveHandler(),
 		std::make_shared<DocumentCancelClickHandler>(
 			document,
@@ -567,13 +575,14 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(parent)
 , _data(voice)
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
+, _namel(_data->isVideoMessage()
+	? std::make_shared<GifOpenClickHandler>(_data, parent->fullId())
+	: std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st) {
 	AddComponents(Info::Bit());
 
-	Assert(_data->isVoiceMessage());
-
 	setDocumentLinks(_data);
+	_data->thumb->load(parent->fullId());
 
 	updateName();
 	const auto dateText = textcmdLink(
@@ -587,7 +596,7 @@ Voice::Voice(
 			lt_date,
 			dateText,
 			lt_duration,
-			formatDurationText(_data->voice()->duration)),
+			formatDurationText(duration())),
 		opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
@@ -632,13 +641,28 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		_width);
 	if (clip.intersects(inner)) {
 		p.setPen(Qt::NoPen);
+		const auto drawThumb = !_data->thumb->isNull()
+			&& _data->thumb->loaded();
+		if (drawThumb) {
+			const auto thumb = _data->thumb->pixCircled(
+				parent()->fullId(),
+				inner.width(),
+				inner.height());
+			p.drawPixmap(inner.topLeft(), thumb);
+		} else if (!_data->thumb->isNull()) {
+			PainterHighQualityEnabler hq(p);
+			p.setBrush(st::imageBg);
+			p.drawEllipse(inner);
+		}
 		if (selected) {
-			p.setBrush(st::msgFileInBgSelected);
+			p.setBrush(drawThumb ? st::msgDateImgBgSelected : st::msgFileInBgSelected);
+		} else if (!_data->thumb->isNull()) {
+			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		} else {
 			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
-
 		{
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
@@ -650,7 +674,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
-		auto icon = ([showPause, this, selected] {
+		auto icon = [&] {
 			if (showPause) {
 				return &(selected ? _st.songPauseSelected : _st.songPause);
 			} else if (_status.size() < 0 || _status.size() == FileStatusSizeLoaded) {
@@ -659,7 +683,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				return &(selected ? _st.songCancelSelected : _st.songCancel);
 			}
 			return &(selected ? _st.songDownloadSelected : _st.songDownload);
-		})();
+		}();
 		icon->paintInCenter(p, inner);
 	}
 
@@ -794,6 +818,12 @@ void Voice::updateName() {
 	_nameVersion = version;
 }
 
+int Voice::duration() const {
+	return _data->voice()
+		? _data->voice()->duration
+		: std::max(_data->duration(), 0);
+}
+
 bool Voice::updateStatusText() {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
@@ -803,7 +833,7 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeLoaded;
 		using State = Media::Player::State;
 		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-		if (state.id == AudioMsgId(_data, parent()->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+		if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.playId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 			statusSize = -1 - (state.position / state.frequency);
 			realDuration = (state.length / state.frequency);
 			showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
@@ -812,7 +842,7 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _status.size()) {
-		_status.update(statusSize, _data->size, _data->voice()->duration, realDuration);
+		_status.update(statusSize, _data->size, duration(), realDuration);
 	}
 	return showPause;
 }
@@ -911,7 +941,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
 
-			auto icon = ([showPause, loaded, this, selected] {
+			auto icon = [&] {
 				if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);
 				} else if (loaded) {
@@ -920,7 +950,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				}
 				return &(selected ? _st.songDownloadSelected : _st.songDownload);
-			})();
+			}();
 			icon->paintInCenter(p, inner);
 		}
 	} else {
