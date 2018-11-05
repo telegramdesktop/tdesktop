@@ -662,7 +662,7 @@ struct Data {
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
 	std::vector<ProxyData> ProxiesList;
 	ProxyData SelectedProxy;
-	bool UseProxy = false;
+	ProxyData::Settings ProxySettings = ProxyData::Settings::System;
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
@@ -791,7 +791,7 @@ DefineVar(Global, bool, NotificationsDemoIsShown);
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, std::vector<ProxyData>, ProxiesList);
 DefineVar(Global, ProxyData, SelectedProxy);
-DefineVar(Global, bool, UseProxy);
+DefineVar(Global, ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 

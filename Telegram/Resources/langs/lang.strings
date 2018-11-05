@@ -491,7 +491,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_connection_save" = "Save";
 
 "lng_proxy_settings" = "Proxy settings";
-"lng_proxy_use" = "Use proxy";
+"lng_proxy_disable" = "Disable proxy";
+"lng_proxy_use_system_settings" = "Use system proxy settings";
+"lng_proxy_use_custom" = "Use custom proxy";
 "lng_proxy_use_for_calls" = "Use proxy for calls";
 "lng_proxy_about" = "Proxy servers may be helpful in accessing Telegram if there is no connection in a specific region.";
 "lng_proxy_add" = "Add proxy";

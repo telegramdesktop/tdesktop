@@ -107,7 +107,9 @@ public:
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
-	void setCurrentProxy(const ProxyData &proxy, bool enabled);
+	void setCurrentProxy(
+		const ProxyData &proxy,
+		ProxyData::Settings settings);
 	void badMtprotoConfigurationError();
 
 	// Set from legacy storage.

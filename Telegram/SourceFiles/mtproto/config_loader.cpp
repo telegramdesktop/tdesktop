@@ -102,7 +102,7 @@ void ConfigLoader::enumerate() {
 }
 
 void ConfigLoader::refreshSpecialLoader() {
-	if (Global::UseProxy()) {
+	if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
 		_specialLoader.reset();
 		return;
 	}
@@ -157,7 +157,7 @@ void ConfigLoader::addSpecialEndpoint(
 
 void ConfigLoader::sendSpecialRequest() {
 	terminateSpecialRequest();
-	if (Global::UseProxy()) {
+	if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
 		_specialLoader.reset();
 		return;
 	}

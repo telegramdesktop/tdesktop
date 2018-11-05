@@ -43,7 +43,7 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [] {
 		const auto transport = MTP::dctransport();
-		if (!Global::UseProxy()) {
+		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? lang(lng_connection_auto_connecting)
 				: lng_connection_auto(lt_transport, transport);

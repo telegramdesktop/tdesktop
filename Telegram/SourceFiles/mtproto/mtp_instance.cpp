@@ -329,7 +329,8 @@ void Instance::Private::applyDomainIps(
 	for (auto &proxy : Global::RefProxiesList()) {
 		applyToProxy(proxy);
 	}
-	if (applyToProxy(Global::RefSelectedProxy()) && Global::UseProxy()) {
+	if (applyToProxy(Global::RefSelectedProxy())
+		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
 		for (auto &session : _sessions) {
 			session.second->refreshOptions();
 		}
@@ -358,7 +359,8 @@ void Instance::Private::setGoodProxyDomain(
 	for (auto &proxy : Global::RefProxiesList()) {
 		applyToProxy(proxy);
 	}
-	if (applyToProxy(Global::RefSelectedProxy()) && Global::UseProxy()) {
+	if (applyToProxy(Global::RefSelectedProxy())
+		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
 		Sandbox::refreshGlobalProxy();
 	}
 }

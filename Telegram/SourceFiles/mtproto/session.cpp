@@ -171,9 +171,10 @@ void Session::restart() {
 
 void Session::refreshOptions() {
 	const auto &proxy = Global::SelectedProxy();
-	const auto proxyType = Global::UseProxy()
-		? proxy.type
-		: ProxyData::Type::None;
+	const auto proxyType =
+		(Global::ProxySettings() == ProxyData::Settings::Enabled
+			? proxy.type
+			: ProxyData::Type::None);
 	const auto useTcp = (proxyType != ProxyData::Type::Http);
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
@@ -182,7 +183,9 @@ void Session::refreshOptions() {
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
-		Global::UseProxy() ? proxy : ProxyData(),
+		(Global::ProxySettings() == ProxyData::Settings::Enabled
+			? proxy
+			: ProxyData()),
 		useIPv4,
 		useIPv6,
 		useHttp,

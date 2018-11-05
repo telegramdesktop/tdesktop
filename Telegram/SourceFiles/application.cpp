@@ -362,7 +362,7 @@ void Application::refreshGlobalProxy() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = [&] {
 		if (Global::started()) {
-			return Global::UseProxy()
+			return (Global::ProxySettings() == ProxyData::Settings::Enabled)
 				? Global::SelectedProxy()
 				: ProxyData();
 		}
@@ -372,8 +372,11 @@ void Application::refreshGlobalProxy() {
 		|| proxy.type == ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(
 			ToNetworkProxy(ToDirectIpProxy(proxy)));
-	} else {
+	} else if (!Global::started()
+		|| Global::ProxySettings() == ProxyData::Settings::System) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
+	} else {
+		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 	}
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }

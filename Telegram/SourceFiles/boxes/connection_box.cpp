@@ -110,7 +110,7 @@ private:
 
 	not_null<ProxiesBoxController*> _controller;
 	QPointer<Ui::Checkbox> _tryIPv6;
-	QPointer<Ui::Checkbox> _useProxy;
+	std::shared_ptr<Ui::RadioenumGroup<ProxyData::Settings>> _proxySettings;
 	QPointer<Ui::SlideWrap<Ui::Checkbox>> _proxyForCalls;
 	QPointer<Ui::DividerLabel> _about;
 	base::unique_qptr<Ui::RpWidget> _noRows;
@@ -504,10 +504,29 @@ void ProxiesBox::setupContent() {
 			lang(lng_connection_try_ipv6),
 			Global::TryIPv6()),
 		st::proxyTryIPv6Padding);
-	_useProxy = inner->add(
-		object_ptr<Ui::Checkbox>(
+	_proxySettings
+		= std::make_shared<Ui::RadioenumGroup<ProxyData::Settings>>(
+			Global::ProxySettings());
+	inner->add(
+		object_ptr<Ui::Radioenum<ProxyData::Settings>>(
 			inner,
-			lang(lng_proxy_use)),
+			_proxySettings,
+			ProxyData::Settings::Disabled,
+			lang(lng_proxy_disable)),
+		st::proxyUsePadding);
+	inner->add(
+		object_ptr<Ui::Radioenum<ProxyData::Settings>>(
+			inner,
+			_proxySettings,
+			ProxyData::Settings::System,
+			lang(lng_proxy_use_system_settings)),
+		st::proxyUsePadding);
+	inner->add(
+		object_ptr<Ui::Radioenum<ProxyData::Settings>>(
+			inner,
+			_proxySettings,
+			ProxyData::Settings::Enabled,
+			lang(lng_proxy_use_custom)),
 		st::proxyUsePadding);
 	_proxyForCalls = inner->add(
 		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
@@ -543,9 +562,9 @@ void ProxiesBox::setupContent() {
 		inner,
 		st::proxyRowPadding.bottom()));
 
-	subscribe(_useProxy->checkedChanged, [=](bool checked) {
-		if (!_controller->setProxyEnabled(checked)) {
-			_useProxy->setChecked(false);
+	_proxySettings->setChangedCallback([=](ProxyData::Settings value) {
+		if (!_controller->setProxySettings(value)) {
+			_proxySettings->setValue(Global::ProxySettings());
 			addNewProxy();
 		}
 		refreshProxyForCalls();
@@ -553,11 +572,11 @@ void ProxiesBox::setupContent() {
 	subscribe(_tryIPv6->checkedChanged, [=](bool checked) {
 		_controller->setTryIPv6(checked);
 	});
-	_controller->proxyEnabledValue(
-	) | rpl::start_with_next([=](bool enabled) {
-		_useProxy->setChecked(enabled);
-	}, _useProxy->lifetime());
-	_useProxy->finishAnimating();
+	_controller->proxySettingsValue(
+	) | rpl::start_with_next([=](ProxyData::Settings value) {
+		_proxySettings->setValue(value);
+	}, inner->lifetime());
+
 	subscribe(_proxyForCalls->entity()->checkedChanged, [=](bool checked) {
 		_controller->setProxyForCalls(checked);
 	});
@@ -588,7 +607,8 @@ void ProxiesBox::refreshProxyForCalls() {
 		return;
 	}
 	_proxyForCalls->toggle(
-		_useProxy->checked() && _currentProxySupportsCallsId != 0,
+		(_proxySettings->value() == ProxyData::Settings::Enabled
+			&& _currentProxySupportsCallsId != 0),
 		anim::type::normal);
 }
 
@@ -1032,7 +1052,7 @@ ProxiesBoxController::ProxiesBoxController()
 	}) | ranges::to_vector;
 
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
-		_proxyEnabledChanges.fire_copy(Global::UseProxy());
+		_proxySettingsChanges.fire_copy(Global::ProxySettings());
 		const auto i = findByProxy(Global::SelectedProxy());
 		if (i != end(_list)) {
 			updateView(*i);
@@ -1074,7 +1094,9 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			if (ranges::find(proxies, proxy) == end(proxies)) {
 				proxies.push_back(proxy);
 			}
-			Messenger::Instance().setCurrentProxy(proxy, true);
+			Messenger::Instance().setCurrentProxy(
+				proxy,
+				ProxyData::Settings::Enabled);
 			Local::writeSettings();
 			if (const auto strong = box->data()) {
 				strong->closeBox();
@@ -1083,9 +1105,10 @@ void ProxiesBoxController::ShowApplyConfirmation(
 	}
 }
 
-rpl::producer<bool> ProxiesBoxController::proxyEnabledValue() const {
-	return _proxyEnabledChanges.events_starting_with_copy(
-		Global::UseProxy()
+auto ProxiesBoxController::proxySettingsValue() const
+-> rpl::producer<ProxyData::Settings> {
+	return _proxySettingsChanges.events_starting_with_copy(
+		Global::ProxySettings()
 	) | rpl::distinct_until_changed();
 }
 
@@ -1227,7 +1250,8 @@ void ProxiesBoxController::shareItem(int id) {
 
 void ProxiesBoxController::applyItem(int id) {
 	auto item = findById(id);
-	if (Global::UseProxy() && Global::SelectedProxy() == item->data) {
+	if ((Global::ProxySettings() == ProxyData::Settings::Enabled)
+		&& Global::SelectedProxy() == item->data) {
 		return;
 	} else if (item->deleted) {
 		return;
@@ -1235,7 +1259,9 @@ void ProxiesBoxController::applyItem(int id) {
 
 	auto j = findByProxy(Global::SelectedProxy());
 
-	Messenger::Instance().setCurrentProxy(item->data, true);
+	Messenger::Instance().setCurrentProxy(
+		item->data,
+		ProxyData::Settings::Enabled);
 	saveDelayed();
 
 	if (j != end(_list)) {
@@ -1254,11 +1280,11 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 
 		if (item->data == Global::SelectedProxy()) {
 			_lastSelectedProxy = base::take(Global::RefSelectedProxy());
-			if (Global::UseProxy()) {
+			if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
 				_lastSelectedProxyUsed = true;
 				Messenger::Instance().setCurrentProxy(
 					ProxyData(),
-					false);
+					ProxyData::Settings::System);
 				saveDelayed();
 			} else {
 				_lastSelectedProxyUsed = false;
@@ -1278,12 +1304,12 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 		}
 
 		if (!Global::SelectedProxy() && _lastSelectedProxy == item->data) {
-			Assert(!Global::UseProxy());
+			Assert(Global::ProxySettings() != ProxyData::Settings::Enabled);
 
 			if (base::take(_lastSelectedProxyUsed)) {
 				Messenger::Instance().setCurrentProxy(
 					base::take(_lastSelectedProxy),
-					true);
+					ProxyData::Settings::Enabled);
 			} else {
 				Global::SetSelectedProxy(base::take(_lastSelectedProxy));
 			}
@@ -1372,10 +1398,10 @@ void ProxiesBoxController::addNewItem(const ProxyData &proxy) {
 	applyItem(_list.back().id);
 }
 
-bool ProxiesBoxController::setProxyEnabled(bool enabled) {
-	if (Global::UseProxy() == enabled) {
+bool ProxiesBoxController::setProxySettings(ProxyData::Settings value) {
+	if (Global::ProxySettings() == value) {
 		return true;
-	} else if (enabled) {
+	} else if (value == ProxyData::Settings::Enabled) {
 		if (Global::ProxiesList().empty()) {
 			return false;
 		} else if (!Global::SelectedProxy()) {
@@ -1388,7 +1414,7 @@ bool ProxiesBoxController::setProxyEnabled(bool enabled) {
 	}
 	Messenger::Instance().setCurrentProxy(
 		Global::SelectedProxy(),
-		enabled);
+		value);
 	saveDelayed();
 	return true;
 }
@@ -1398,7 +1424,8 @@ void ProxiesBoxController::setProxyForCalls(bool enabled) {
 		return;
 	}
 	Global::SetUseProxyForCalls(enabled);
-	if (Global::UseProxy() && Global::SelectedProxy().supportsCalls()) {
+	if ((Global::ProxySettings() == ProxyData::Settings::Enabled)
+		&& Global::SelectedProxy().supportsCalls()) {
 		Global::RefConnectionTypeChanged().notify();
 	}
 	saveDelayed();
@@ -1438,7 +1465,8 @@ void ProxiesBoxController::updateView(const Item &item) {
 		Unexpected("Proxy type in ProxiesBoxController::updateView.");
 	}();
 	const auto state = [&] {
-		if (!selected || !Global::UseProxy()) {
+		if (!selected
+			|| (Global::ProxySettings() != ProxyData::Settings::Enabled)) {
 			return item.state;
 		} else if (MTP::dcstate() == MTP::ConnectedState) {
 			return ItemState::Online;

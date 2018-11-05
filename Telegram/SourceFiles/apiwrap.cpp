@@ -195,11 +195,8 @@ void ApiWrap::refreshProxyPromotion() {
 		getProxyPromotionDelayed(now, next);
 		return;
 	}
-	const auto proxy = Global::UseProxy()
-		? Global::SelectedProxy()
-		: ProxyData();
 	const auto key = [&]() -> std::pair<QString, uint32> {
-		if (!Global::UseProxy()) {
+		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
 			return {};
 		}
 		const auto &proxy = Global::SelectedProxy();

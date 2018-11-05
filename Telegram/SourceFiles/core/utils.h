@@ -334,6 +334,11 @@ enum DBIWorkMode {
 };
 
 struct ProxyData {
+	enum class Settings {
+		System,
+		Enabled,
+		Disabled,
+	};
 	enum class Type {
 		None,
 		Socks5,

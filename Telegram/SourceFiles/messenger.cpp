@@ -283,18 +283,19 @@ bool Messenger::eventFilter(QObject *object, QEvent *e) {
 
 void Messenger::setCurrentProxy(
 		const ProxyData &proxy,
-		bool enabled) {
+		ProxyData::Settings settings) {
 	const auto key = [&](const ProxyData &proxy) {
 		if (proxy.type == ProxyData::Type::Mtproto) {
 			return std::make_pair(proxy.host, proxy.port);
 		}
 		return std::make_pair(QString(), uint32(0));
 	};
-	const auto previousKey = key(Global::UseProxy()
-		? Global::SelectedProxy()
-		: ProxyData());
+	const auto previousKey = key(
+		(Global::ProxySettings() == ProxyData::Settings::Enabled
+			? Global::SelectedProxy()
+			: ProxyData()));
 	Global::SetSelectedProxy(proxy);
-	Global::SetUseProxy(enabled);
+	Global::SetProxySettings(settings);
 	Sandbox::refreshGlobalProxy();
 	if (_mtproto) {
 		_mtproto->restart();
@@ -309,10 +310,16 @@ void Messenger::setCurrentProxy(
 }
 
 void Messenger::badMtprotoConfigurationError() {
-	if (Global::UseProxy() && !_badProxyDisableBox) {
+	if (Global::ProxySettings() == ProxyData::Settings::Enabled
+		&& !_badProxyDisableBox) {
+		const auto disableCallback = [=] {
+			setCurrentProxy(
+				Global::SelectedProxy(),
+				ProxyData::Settings::System);
+		};
 		_badProxyDisableBox = Ui::show(Box<InformBox>(
 			Lang::Hard::ProxyConfigError(),
-			[=] { setCurrentProxy(Global::SelectedProxy(), false); }));
+			disableCallback));
 	}
 }
 

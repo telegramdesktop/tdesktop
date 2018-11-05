@@ -612,7 +612,8 @@ enum {
 	dbictHttpAuto = 1, // not used
 	dbictHttpProxy = 2,
 	dbictTcpProxy = 3,
-	dbictProxiesList = 4,
+	dbictProxiesListOld = 4,
+	dbictProxiesList = 5,
 };
 
 typedef QMap<PeerId, FileKey> DraftsMap;
@@ -1214,7 +1215,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		} break;
 		};
 		Global::SetSelectedProxy(proxy ? proxy : ProxyData());
-		Global::SetUseProxy(proxy ? true : false);
+		Global::SetProxySettings(proxy
+			? ProxyData::Settings::Enabled
+			: ProxyData::Settings::System);
 		if (proxy) {
 			Global::SetProxiesList({ 1, proxy });
 		} else {
@@ -1248,14 +1251,16 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				: ProxyData::Type::None;
 			return proxy;
 		};
-		if (connectionType == dbictProxiesList) {
+		if (connectionType == dbictProxiesListOld
+			|| connectionType == dbictProxiesList) {
 			qint32 count = 0, index = 0;
 			stream >> count >> index;
-			if (std::abs(index) > count) {
-				Global::SetUseProxyForCalls(true);
+			qint32 settings = 0, calls = 0;
+			if (connectionType == dbictProxiesList) {
+				stream >> settings >> calls;
+			} else if (std::abs(index) > count) {
+				calls = 1;
 				index -= (index > 0 ? count : -count);
-			} else {
-				Global::SetUseProxyForCalls(false);
 			}
 
 			auto list = std::vector<ProxyData>();
@@ -1273,13 +1278,31 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				return false;
 			}
 			Global::SetProxiesList(list);
-			Global::SetUseProxy(index > 0 && index <= list.size());
-			index = std::abs(index);
+			if (connectionType == dbictProxiesListOld) {
+				settings = static_cast<qint32>(
+					(index > 0 && index <= list.size()
+						? ProxyData::Settings::Enabled
+						: ProxyData::Settings::System));
+				index = std::abs(index);
+			}
 			if (index > 0 && index <= list.size()) {
 				Global::SetSelectedProxy(list[index - 1]);
 			} else {
 				Global::SetSelectedProxy(ProxyData());
 			}
+
+			const auto unchecked = static_cast<ProxyData::Settings>(settings);
+			switch (unchecked) {
+			case ProxyData::Settings::Disabled:
+			case ProxyData::Settings::System:
+			case ProxyData::Settings::Enabled:
+				Global::SetProxySettings(unchecked);
+				break;
+			default:
+				Global::SetProxySettings(ProxyData::Settings::System);
+				break;
+			}
+			Global::SetUseProxyForCalls(calls == 1);
 		} else {
 			const auto proxy = readProxy();
 			if (!_checkStreamStatus(stream)) {
@@ -1290,14 +1313,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				Global::SetSelectedProxy(proxy);
 				if (connectionType == dbictTcpProxy
 					|| connectionType == dbictHttpProxy) {
-					Global::SetUseProxy(true);
+					Global::SetProxySettings(ProxyData::Settings::Enabled);
 				} else {
-					Global::SetUseProxy(false);
+					Global::SetProxySettings(ProxyData::Settings::System);
 				}
 			} else {
 				Global::SetProxiesList({});
 				Global::SetSelectedProxy(ProxyData());
-				Global::SetUseProxy(false);
+				Global::SetProxySettings(ProxyData::Settings::System);
 			}
 		}
 		Sandbox::refreshGlobalProxy();
@@ -2576,10 +2599,9 @@ void writeSettings() {
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());
-	const auto index = qint32(proxyIt - begin(proxies))
-		+ qint32(Global::UseProxyForCalls() ? proxies.size() : 0)
-		+ 1;
-	data.stream << (Global::UseProxy() ? index : -index);
+	data.stream << qint32(proxyIt - begin(proxies)) + 1;
+	data.stream << qint32(Global::ProxySettings());
+	data.stream << qint32(Global::UseProxyForCalls() ? 1 : 0);
 	for (const auto &proxy : proxies) {
 		data.stream << qint32(kProxyTypeShift + int(proxy.type));
 		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;

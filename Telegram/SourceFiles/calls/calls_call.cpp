@@ -597,7 +597,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetConfig(config);
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
 	_controller->SetCallbacks(callbacks);
-	if (Global::UseProxy() && Global::UseProxyForCalls()) {
+	if (Global::UseProxyForCalls()
+		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
 		const auto proxy = Global::SelectedProxy();
 		if (proxy.supportsCalls()) {
 			Assert(proxy.type == ProxyData::Type::Socks5);
