@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/layer_widget.h"
+#include "media/player/media_player_float.h"
 
 namespace Window {
 class Controller;
@@ -20,7 +21,9 @@ class MoveMemento;
 class WrapWidget;
 class TopBar;
 
-class LayerWidget : public Window::LayerWidget {
+class LayerWidget
+	: public Window::LayerWidget
+	, private ::Media::Player::FloatDelegate {
 public:
 	LayerWidget(
 		not_null<Window::Controller*> controller,
@@ -41,6 +44,8 @@ public:
 
 	static int MinimalSupportedWidth();
 
+	~LayerWidget();
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void doSetInnerFocus() override;
@@ -48,6 +53,16 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	not_null<::Media::Player::FloatDelegate*> floatPlayerDelegate();
+	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	not_null<Window::Controller*> floatPlayerController() override;
+	not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
+		Window::Column column) override;
+	void floatPlayerEnumerateSections(Fn<void(
+		not_null<Window::AbstractSectionWidget*> widget,
+		Window::Column widgetColumn)> callback) override;
+	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
+
 	void setupHeightConsumers();
 
 	not_null<Window::Controller*> _controller;

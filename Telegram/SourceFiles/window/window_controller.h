@@ -22,6 +22,8 @@ enum class Type;
 namespace Media {
 namespace Player {
 class RoundController;
+class FloatController;
+class FloatDelegate;
 } // namespace Player
 } // namespace Media
 
@@ -242,6 +244,14 @@ public:
 	RoundController *roundVideo(FullMsgId contextId) const;
 	void roundVideoFinished(not_null<RoundController*> video);
 
+	void setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate);
+	void replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	void restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	rpl::producer<FullMsgId> floatPlayerClosed() const;
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -275,6 +285,9 @@ private:
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 
 	std::unique_ptr<RoundController> _roundVideo;
+	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
+	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
+	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 
 	rpl::lifetime _lifetime;
 

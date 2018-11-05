@@ -551,6 +551,40 @@ void Controller::roundVideoFinished(not_null<RoundController*> video) {
 	}
 }
 
+void Controller::setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate) {
+	Expects(_defaultFloatPlayerDelegate == nullptr);
+
+	_defaultFloatPlayerDelegate = delegate;
+	_floatPlayers = std::make_unique<Media::Player::FloatController>(
+		delegate);
+	_floatPlayers->closeEvents();
+}
+
+void Controller::replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_floatPlayers != nullptr);
+
+	_replacementFloatPlayerDelegate = replacement;
+	_floatPlayers->replaceDelegate(replacement);
+}
+
+void Controller::restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_floatPlayers != nullptr);
+
+	if (_replacementFloatPlayerDelegate == replacement) {
+		_replacementFloatPlayerDelegate = nullptr;
+		_floatPlayers->replaceDelegate(_defaultFloatPlayerDelegate);
+	}
+}
+
+rpl::producer<FullMsgId> Controller::floatPlayerClosed() const {
+	Expects(_floatPlayers != nullptr);
+
+	return _floatPlayers->closeEvents();
+}
+
 Controller::~Controller() = default;
 
 } // namespace Window

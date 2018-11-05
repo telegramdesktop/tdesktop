@@ -470,7 +470,8 @@ private:
 	void floatPlayerEnumerateSections(Fn<void(
 		not_null<Window::AbstractSectionWidget*> widget,
 		Window::Column widgetColumn)> callback) override;
-	void floatPlayerCloseHook(FullMsgId itemId) override;
+	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
+	void floatPlayerClosed(FullMsgId itemId);
 
 	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
 
@@ -523,7 +524,6 @@ private:
 	object_ptr<Media::Player::Panel> _playerPlaylist;
 	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
-	Media::Player::FloatController _playerFloats;
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };

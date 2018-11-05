@@ -228,10 +228,15 @@ MainWidget::MainWidget(
 	this,
 	_controller,
 	Media::Player::Panel::Layout::OnlyPlaylist)
-, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full)
-, _playerFloats(floatPlayerDelegate()) {
+, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
+
+	_controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	_controller->floatPlayerClosed(
+	) | rpl::start_with_next([=](FullMsgId itemId) {
+		floatPlayerClosed(itemId);
+	}, lifetime());
 
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
@@ -435,7 +440,13 @@ void MainWidget::floatPlayerEnumerateSections(Fn<void(
 	}
 }
 
-void MainWidget::floatPlayerCloseHook(FullMsgId itemId) {
+bool MainWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
+	auto isVisible = false;
+	Auth().data().queryItemVisibility().notify({ item, &isVisible }, true);
+	return isVisible;
+}
+
+void MainWidget::floatPlayerClosed(FullMsgId itemId) {
 	if (_player) {
 		const auto voiceData = Media::Player::instance()->current(
 			AudioMsgId::Type::Voice);
@@ -649,7 +660,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				} else {
 					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				}
-				_playerFloats.checkVisibility();
+				floatPlayerCheckVisibility();
 			}
 		} else {
 			if (_forwardConfirm) {
@@ -688,7 +699,7 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		updateControlsGeometry();
 		_dialogs->activate();
 	}
-	_playerFloats.checkVisibility();
+	floatPlayerCheckVisibility();
 }
 
 void MainWidget::showForwardLayer(MessageIdsList &&items) {
@@ -1820,7 +1831,7 @@ void MainWidget::ui_showPeerHistory(
 		_dialogs->update();
 	}
 
-	_playerFloats.checkVisibility();
+	floatPlayerCheckVisibility();
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
@@ -1905,10 +1916,10 @@ Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::Sect
 	if (!_thirdSection->hasTopBarShadow()) {
 		result.withTopBarShadow = false;
 	}
-	_playerFloats.hideAll();
+	floatPlayerHideAll();
 	auto sectionTop = getThirdSectionTop();
 	result.oldContentCache = _thirdSection->grabForShowAnimation(result);
-	_playerFloats.showVisible();
+	floatPlayerShowVisible();
 	return result;
 }
 
@@ -1926,7 +1937,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 		result.withTopBarShadow = false;
 	}
 
-	_playerFloats.hideAll();
+	floatPlayerHideAll();
 	if (_player) {
 		_player->hideShadow();
 	}
@@ -1974,7 +1985,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	if (_player) {
 		_player->showShadow();
 	}
-	_playerFloats.showVisible();
+	floatPlayerShowVisible();
 
 	return result;
 }
@@ -2116,7 +2127,7 @@ void MainWidget::showNewSection(
 		}
 	}
 
-	_playerFloats.checkVisibility();
+	floatPlayerCheckVisibility();
 	orderWidgets();
 }
 
@@ -2223,7 +2234,7 @@ void MainWidget::orderWidgets() {
 	_connecting->raise();
 	_playerPlaylist->raise();
 	_playerPanel->raise();
-	_playerFloats.raiseAll();
+	floatPlayerRaiseAll();
 	if (_hider) _hider->raise();
 }
 
@@ -2236,7 +2247,7 @@ QRect MainWidget::historyRect() const {
 
 QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	QPixmap result;
-	_playerFloats.hideAll();
+	floatPlayerHideAll();
 	if (_player) {
 		_player->hideShadow();
 	}
@@ -2287,7 +2298,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (_player) {
 		_player->showShadow();
 	}
-	_playerFloats.showVisible();
+	floatPlayerShowVisible();
 	return result;
 }
 
@@ -2424,7 +2435,7 @@ void MainWidget::hideAll() {
 		_player->setVisible(false);
 		_playerHeight = 0;
 	}
-	_playerFloats.hideAll();
+	floatPlayerHideAll();
 }
 
 void MainWidget::showAll() {
@@ -2497,8 +2508,8 @@ void MainWidget::showAll() {
 		_playerHeight = _player->contentHeight();
 	}
 	updateControlsGeometry();
-	_playerFloats.checkVisibility();
-	_playerFloats.showVisible();
+	floatPlayerCheckVisibility();
+	floatPlayerShowVisible();
 
 	App::wnd()->checkHistoryActivation();
 }
@@ -2609,7 +2620,7 @@ void MainWidget::updateControlsGeometry() {
 	updateMediaPlaylistPosition(_playerPlaylist->x());
 	_contentScrollAddToY = 0;
 
-	_playerFloats.updatePositions();
+	floatPlayerUpdatePositions();
 }
 
 void MainWidget::refreshResizeAreas() {
@@ -2852,7 +2863,7 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 			return true;
 		}
 	} else if (e->type() == QEvent::Wheel) {
-		if (const auto result = _playerFloats.filterWheelEvent(o, e)) {
+		if (const auto result = floatPlayerFilterWheelEvent(o, e)) {
 			return *result;
 		}
 	}

@@ -305,6 +305,58 @@ FloatController::FloatController(not_null<FloatDelegate*> delegate)
 			checkCurrent();
 		}
 	});
+
+	startDelegateHandling();
+}
+
+void FloatController::replaceDelegate(not_null<FloatDelegate*> delegate) {
+	_delegateLifetime.destroy();
+
+	_delegate = delegate;
+	_parent = _delegate->floatPlayerWidget();
+
+	// Currently moving floats between windows is not supported.
+	Assert(_controller == _delegate->floatPlayerController());
+
+	startDelegateHandling();
+
+	for (const auto &item : _items) {
+		item->widget->setParent(_parent);
+	}
+	checkVisibility();
+}
+
+void FloatController::startDelegateHandling() {
+	_delegate->floatPlayerCheckVisibilityRequests(
+	) | rpl::start_with_next([=] {
+		checkVisibility();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerHideAllRequests(
+	) | rpl::start_with_next([=] {
+		hideAll();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerShowVisibleRequests(
+	) | rpl::start_with_next([=] {
+		showVisible();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerRaiseAllRequests(
+	) | rpl::start_with_next([=] {
+		raiseAll();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerUpdatePositionsRequests(
+	) | rpl::start_with_next([=] {
+		updatePositions();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerFilterWheelEventRequests(
+	) | rpl::start_with_next([=](
+			const FloatDelegate::FloatPlayerFilterWheelEventRequest &request) {
+		*request.result = filterWheelEvent(request.object, request.event);
+	}, _delegateLifetime);
 }
 
 void FloatController::checkCurrent() {
@@ -364,16 +416,15 @@ void FloatController::toggle(not_null<Item*> instance) {
 }
 
 void FloatController::checkVisibility() {
-	auto instance = current();
+	const auto instance = current();
 	if (!instance) {
 		return;
 	}
 
-	auto amVisible = false;
-	if (auto item = instance->widget->item()) {
-		Auth().data().queryItemVisibility().notify({ item, &amVisible }, true);
-	}
-	instance->hiddenByHistory = amVisible;
+	const auto item = instance->widget->item();
+	instance->hiddenByHistory = item
+		? _delegate->floatPlayerIsVisible(item)
+		: false;
 	toggle(instance);
 	updatePosition(instance);
 }
@@ -405,8 +456,8 @@ void FloatController::updatePositions() {
 }
 
 std::optional<bool> FloatController::filterWheelEvent(
-		QObject *object,
-		QEvent *event) {
+		not_null<QObject*> object,
+		not_null<QEvent*> event) {
 	for (const auto &instance : _items) {
 		if (instance->widget == object) {
 			const auto section = _delegate->floatPlayerGetSection(
@@ -575,7 +626,7 @@ void FloatController::finishDrag(not_null<Item*> instance, bool closed) {
 
 	if (closed) {
 		if (const auto item = instance->widget->item()) {
-			_delegate->floatPlayerCloseHook(item->fullId());
+			_closeEvents.fire(item->fullId());
 		}
 		instance->widget->detach();
 	}
