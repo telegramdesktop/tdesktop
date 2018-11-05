@@ -214,28 +214,6 @@ StackItemSection::StackItemSection(
 , _memento(std::move(memento)) {
 }
 
-template <typename ToggleCallback, typename DraggedCallback>
-MainWidget::Float::Float(
-	QWidget *parent,
-	not_null<Window::Controller*> controller,
-	not_null<HistoryItem*> item,
-	ToggleCallback toggle,
-	DraggedCallback dragged)
-: animationSide(RectPart::Right)
-, column(Window::Column::Second)
-, corner(RectPart::TopRight)
-, widget(
-	parent,
-	controller,
-	item,
-	[this, toggle = std::move(toggle)](bool visible) {
-		toggle(this, visible);
-	},
-	[this, dragged = std::move(dragged)](bool closed) {
-		dragged(this, closed);
-	}) {
-}
-
 MainWidget::MainWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
@@ -250,7 +228,8 @@ MainWidget::MainWidget(
 	this,
 	_controller,
 	Media::Player::Panel::Layout::OnlyPlaylist)
-, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full) {
+, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full)
+, _playerFloats(floatPlayerDelegate()) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 
@@ -294,9 +273,6 @@ MainWidget::MainWidget(
 	) | rpl::start_with_next(
 		[this] { updateControlsGeometry(); },
 		lifetime());
-	subscribe(_controller->floatPlayerAreaUpdated(), [this] {
-		checkFloatPlayerVisibility();
-	});
 
 	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	using namespace rpl::mappers;
@@ -358,11 +334,6 @@ MainWidget::MainWidget(
 			}
 		}
 	});
-	subscribe(Media::Player::instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
-		if (type == AudioMsgId::Type::Voice) {
-			checkCurrentFloatPlayer();
-		}
-	});
 
 	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
 
@@ -388,170 +359,20 @@ void MainWidget::setupConnectingWidget() {
 		Window::AdaptiveIsOneColumn() | rpl::map(!_1));
 }
 
-void MainWidget::checkCurrentFloatPlayer() {
-	const auto state = Media::Player::instance()->current(AudioMsgId::Type::Voice);
-	const auto fullId = state.contextId();
-	const auto last = currentFloatPlayer();
-	if (last
-		&& !last->widget->detached()
-		&& last->widget->item()->fullId() == fullId) {
-		return;
-	}
-	if (last) {
-		last->widget->detach();
-	}
-	if (const auto item = App::histItemById(fullId)) {
-		if (const auto media = item->media()) {
-			if (const auto document = media->document()) {
-				if (document->isVideoMessage()) {
-					createFloatPlayer(item);
-				}
-			}
-		}
-	}
+not_null<Media::Player::FloatDelegate*> MainWidget::floatPlayerDelegate() {
+	return static_cast<Media::Player::FloatDelegate*>(this);
 }
 
-void MainWidget::createFloatPlayer(not_null<HistoryItem*> item) {
-	_playerFloats.push_back(std::make_unique<Float>(
-		this,
-		_controller,
-		item,
-		[this](not_null<Float*> instance, bool visible) {
-			instance->hiddenByWidget = !visible;
-			toggleFloatPlayer(instance);
-		},
-		[this](not_null<Float*> instance, bool closed) {
-			finishFloatPlayerDrag(instance, closed);
-		}));
-	currentFloatPlayer()->column = Auth().settings().floatPlayerColumn();
-	currentFloatPlayer()->corner = Auth().settings().floatPlayerCorner();
-	checkFloatPlayerVisibility();
+not_null<Ui::RpWidget*> MainWidget::floatPlayerWidget() {
+	return this;
 }
 
-void MainWidget::toggleFloatPlayer(not_null<Float*> instance) {
-	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && instance->widget->isReady();
-	if (instance->visible != visible) {
-		instance->widget->resetMouseState();
-		instance->visible = visible;
-		if (!instance->visibleAnimation.animating() && !instance->hiddenByDrag) {
-			auto finalRect = QRect(getFloatPlayerPosition(instance), instance->widget->size());
-			instance->animationSide = getFloatPlayerSide(finalRect.center());
-		}
-		instance->visibleAnimation.start([this, instance] {
-			updateFloatPlayerPosition(instance);
-		}, visible ? 0. : 1., visible ? 1. : 0., st::slideDuration, visible ? anim::easeOutCirc : anim::linear);
-		updateFloatPlayerPosition(instance);
-	}
+not_null<Window::Controller*> MainWidget::floatPlayerController() {
+	return _controller;
 }
 
-void MainWidget::checkFloatPlayerVisibility() {
-	auto instance = currentFloatPlayer();
-	if (!instance) {
-		return;
-	}
-
-	auto amVisible = false;
-	if (auto item = instance->widget->item()) {
-		Auth().data().queryItemVisibility().notify({ item, &amVisible }, true);
-	}
-	instance->hiddenByHistory = amVisible;
-	toggleFloatPlayer(instance);
-	updateFloatPlayerPosition(instance);
-}
-
-void MainWidget::updateFloatPlayerPosition(not_null<Float*> instance) {
-	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
-	if (visible == 0. && !instance->visible) {
-		instance->widget->hide();
-		if (instance->widget->detached()) {
-			InvokeQueued(instance->widget, [this, instance] {
-				removeFloatPlayer(instance);
-			});
-		}
-		return;
-	}
-
-	if (!instance->widget->dragged()) {
-		if (instance->widget->isHidden()) {
-			instance->widget->show();
-		}
-
-		auto dragged = instance->draggedAnimation.current(1.);
-		auto position = QPoint();
-		if (instance->hiddenByDrag) {
-			instance->widget->setOpacity(instance->widget->countOpacityByParent());
-			position = getFloatPlayerHiddenPosition(instance->dragFrom, instance->widget->size(), instance->animationSide);
-		} else {
-			instance->widget->setOpacity(visible * visible);
-			position = getFloatPlayerPosition(instance);
-			if (visible < 1.) {
-				auto hiddenPosition = getFloatPlayerHiddenPosition(position, instance->widget->size(), instance->animationSide);
-				position.setX(anim::interpolate(hiddenPosition.x(), position.x(), visible));
-				position.setY(anim::interpolate(hiddenPosition.y(), position.y(), visible));
-			}
-		}
-		if (dragged < 1.) {
-			position.setX(anim::interpolate(instance->dragFrom.x(), position.x(), dragged));
-			position.setY(anim::interpolate(instance->dragFrom.y(), position.y(), dragged));
-		}
-		instance->widget->move(position);
-	}
-}
-
-QPoint MainWidget::getFloatPlayerHiddenPosition(QPoint position, QSize size, RectPart side) const {
-	switch (side) {
-	case RectPart::Left: return QPoint(-size.width(), position.y());
-	case RectPart::Top: return QPoint(position.x(), -size.height());
-	case RectPart::Right: return QPoint(width(), position.y());
-	case RectPart::Bottom: return QPoint(position.x(), height());
-	}
-	Unexpected("Bad side in MainWidget::getFloatPlayerHiddenPosition().");
-}
-
-QPoint MainWidget::getFloatPlayerPosition(not_null<Float*> instance) const {
-	auto section = getFloatPlayerSection(instance->column);
-	auto rect = section->rectForFloatPlayer();
-	auto position = rect.topLeft();
-	if (IsBottomCorner(instance->corner)) {
-		position.setY(position.y() + rect.height() - instance->widget->height());
-	}
-	if (IsRightCorner(instance->corner)) {
-		position.setX(position.x() + rect.width() - instance->widget->width());
-	}
-	return mapFromGlobal(position);
-}
-
-RectPart MainWidget::getFloatPlayerSide(QPoint center) const {
-	auto left = qAbs(center.x());
-	auto right = qAbs(width() - center.x());
-	auto top = qAbs(center.y());
-	auto bottom = qAbs(height() - center.y());
-	if (left < right && left < top && left < bottom) {
-		return RectPart::Left;
-	} else if (right < top && right < bottom) {
-		return RectPart::Right;
-	} else if (top < bottom) {
-		return RectPart::Top;
-	}
-	return RectPart::Bottom;
-}
-
-void MainWidget::removeFloatPlayer(not_null<Float*> instance) {
-	auto widget = std::move(instance->widget);
-	auto i = std::find_if(_playerFloats.begin(), _playerFloats.end(), [instance](auto &item) {
-		return (item.get() == instance);
-	});
-	Assert(i != _playerFloats.end());
-	_playerFloats.erase(i);
-
-	// ~QWidget() can call HistoryInner::enterEvent() which can
-	// lead to repaintHistoryItem() and we'll have an instance
-	// in _playerFloats with destroyed widget. So we destroy the
-	// instance first and only after that destroy the widget.
-	widget.destroy();
-}
-
-Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(Window::Column column) const {
+not_null<Window::AbstractSectionWidget*> MainWidget::floatPlayerGetSection(
+		Window::Column column) {
 	if (Adaptive::ThreeColumn()) {
 		if (column == Window::Column::First) {
 			return _dialogs;
@@ -581,100 +402,52 @@ Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(Window::Column 
 	return _dialogs;
 }
 
-void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
-	Expects(!_playerFloats.empty());
-	auto size = _playerFloats.back()->widget->size();
-	auto min = INT_MAX;
-	auto column = Auth().settings().floatPlayerColumn();
-	auto corner = Auth().settings().floatPlayerCorner();
-	auto checkSection = [this, center, size, &min, &column, &corner](
-			Window::AbstractSectionWidget *widget,
-			Window::Column widgetColumn) {
-		auto rect = mapFromGlobal(widget->rectForFloatPlayer());
-		auto left = rect.x() + (size.width() / 2);
-		auto right = rect.x() + rect.width() - (size.width() / 2);
-		auto top = rect.y() + (size.height() / 2);
-		auto bottom = rect.y() + rect.height() - (size.height() / 2);
-		auto checkCorner = [&](QPoint point, RectPart checked) {
-			auto distance = (point - center).manhattanLength();
-			if (min > distance) {
-				min = distance;
-				column = widgetColumn;
-				corner = checked;
-			}
-		};
-		checkCorner({ left, top }, RectPart::TopLeft);
-		checkCorner({ right, top }, RectPart::TopRight);
-		checkCorner({ left, bottom }, RectPart::BottomLeft);
-		checkCorner({ right, bottom }, RectPart::BottomRight);
-	};
-
+void MainWidget::floatPlayerEnumerateSections(Fn<void(
+		not_null<Window::AbstractSectionWidget*> widget,
+		Window::Column widgetColumn)> callback) {
 	if (Adaptive::ThreeColumn()) {
-		checkSection(_dialogs, Window::Column::First);
+		callback(_dialogs, Window::Column::First);
 		if (_mainSection) {
-			checkSection(_mainSection, Window::Column::Second);
+			callback(_mainSection, Window::Column::Second);
 		} else {
-			checkSection(_history, Window::Column::Second);
+			callback(_history, Window::Column::Second);
 		}
 		if (_thirdSection) {
-			checkSection(_thirdSection, Window::Column::Third);
+			callback(_thirdSection, Window::Column::Third);
 		}
 	} else if (Adaptive::Normal()) {
-		checkSection(_dialogs, Window::Column::First);
+		callback(_dialogs, Window::Column::First);
 		if (_mainSection) {
-			checkSection(_mainSection, Window::Column::Second);
+			callback(_mainSection, Window::Column::Second);
 		} else {
-			checkSection(_history, Window::Column::Second);
+			callback(_history, Window::Column::Second);
 		}
 	} else {
 		if (Adaptive::OneColumn() && selectingPeer()) {
-			checkSection(_dialogs, Window::Column::First);
+			callback(_dialogs, Window::Column::First);
 		} else if (_mainSection) {
-			checkSection(_mainSection, Window::Column::Second);
+			callback(_mainSection, Window::Column::Second);
 		} else if (!Adaptive::OneColumn() || _history->peer()) {
-			checkSection(_history, Window::Column::Second);
+			callback(_history, Window::Column::Second);
 		} else {
-			checkSection(_dialogs, Window::Column::First);
+			callback(_dialogs, Window::Column::First);
 		}
-	}
-	if (Auth().settings().floatPlayerColumn() != column) {
-		Auth().settings().setFloatPlayerColumn(column);
-		Auth().saveSettingsDelayed();
-	}
-	if (Auth().settings().floatPlayerCorner() != corner) {
-		Auth().settings().setFloatPlayerCorner(corner);
-		Auth().saveSettingsDelayed();
 	}
 }
 
-void MainWidget::finishFloatPlayerDrag(not_null<Float*> instance, bool closed) {
-	instance->dragFrom = instance->widget->pos();
-	auto center = instance->widget->geometry().center();
-	if (closed) {
-		instance->hiddenByDrag = true;
-		instance->animationSide = getFloatPlayerSide(center);
-	}
-	updateFloatPlayerColumnCorner(center);
-	instance->column = Auth().settings().floatPlayerColumn();
-	instance->corner = Auth().settings().floatPlayerCorner();
-
-	instance->draggedAnimation.finish();
-	instance->draggedAnimation.start([this, instance] { updateFloatPlayerPosition(instance); }, 0., 1., st::slideDuration, anim::sineInOut);
-	updateFloatPlayerPosition(instance);
-
-	if (closed) {
-		if (auto item = instance->widget->item()) {
-			auto voiceData = Media::Player::instance()->current(AudioMsgId::Type::Voice);
-			if (_player && voiceData.contextId() == item->fullId()) {
-				_player->entity()->stopAndClose();
-			}
+void MainWidget::floatPlayerCloseHook(FullMsgId itemId) {
+	if (_player) {
+		const auto voiceData = Media::Player::instance()->current(
+			AudioMsgId::Type::Voice);
+		if (voiceData.contextId() == itemId) {
+			_player->entity()->stopAndClose();
 		}
-		instance->widget->detach();
 	}
 }
 
 bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
+
 	const auto peer = App::peer(peerId);
 	const auto error = GetErrorTextForForward(
 		peer,
@@ -876,7 +649,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				} else {
 					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				}
-				checkFloatPlayerVisibility();
+				_playerFloats.checkVisibility();
 			}
 		} else {
 			if (_forwardConfirm) {
@@ -915,7 +688,7 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		updateControlsGeometry();
 		_dialogs->activate();
 	}
-	checkFloatPlayerVisibility();
+	_playerFloats.checkVisibility();
 }
 
 void MainWidget::showForwardLayer(MessageIdsList &&items) {
@@ -2047,7 +1820,7 @@ void MainWidget::ui_showPeerHistory(
 		_dialogs->update();
 	}
 
-	checkFloatPlayerVisibility();
+	_playerFloats.checkVisibility();
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
@@ -2132,16 +1905,10 @@ Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::Sect
 	if (!_thirdSection->hasTopBarShadow()) {
 		result.withTopBarShadow = false;
 	}
-	for (auto &instance : _playerFloats) {
-		instance->widget->hide();
-	}
+	_playerFloats.hideAll();
 	auto sectionTop = getThirdSectionTop();
 	result.oldContentCache = _thirdSection->grabForShowAnimation(result);
-	for (auto &instance : _playerFloats) {
-		if (instance->visible) {
-			instance->widget->show();
-		}
-	}
+	_playerFloats.showVisible();
 	return result;
 }
 
@@ -2159,9 +1926,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 		result.withTopBarShadow = false;
 	}
 
-	for (auto &instance : _playerFloats) {
-		instance->widget->hide();
-	}
+	_playerFloats.hideAll();
 	if (_player) {
 		_player->hideShadow();
 	}
@@ -2209,11 +1974,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	if (_player) {
 		_player->showShadow();
 	}
-	for (auto &instance : _playerFloats) {
-		if (instance->visible) {
-			instance->widget->show();
-		}
-	}
+	_playerFloats.showVisible();
 
 	return result;
 }
@@ -2355,7 +2116,7 @@ void MainWidget::showNewSection(
 		}
 	}
 
-	checkFloatPlayerVisibility();
+	_playerFloats.checkVisibility();
 	orderWidgets();
 }
 
@@ -2462,9 +2223,7 @@ void MainWidget::orderWidgets() {
 	_connecting->raise();
 	_playerPlaylist->raise();
 	_playerPanel->raise();
-	for (auto &instance : _playerFloats) {
-		instance->widget->raise();
-	}
+	_playerFloats.raiseAll();
 	if (_hider) _hider->raise();
 }
 
@@ -2477,9 +2236,7 @@ QRect MainWidget::historyRect() const {
 
 QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	QPixmap result;
-	for (auto &instance : _playerFloats) {
-		instance->widget->hide();
-	}
+	_playerFloats.hideAll();
 	if (_player) {
 		_player->hideShadow();
 	}
@@ -2530,11 +2287,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (_player) {
 		_player->showShadow();
 	}
-	for (auto &instance : _playerFloats) {
-		if (instance->visible) {
-			instance->widget->show();
-		}
-	}
+	_playerFloats.showVisible();
 	return result;
 }
 
@@ -2671,9 +2424,7 @@ void MainWidget::hideAll() {
 		_player->setVisible(false);
 		_playerHeight = 0;
 	}
-	for (auto &instance : _playerFloats) {
-		instance->widget->hide();
-	}
+	_playerFloats.hideAll();
 }
 
 void MainWidget::showAll() {
@@ -2746,12 +2497,8 @@ void MainWidget::showAll() {
 		_playerHeight = _player->contentHeight();
 	}
 	updateControlsGeometry();
-	if (auto instance = currentFloatPlayer()) {
-		checkFloatPlayerVisibility();
-		if (instance->visible) {
-			instance->widget->show();
-		}
-	}
+	_playerFloats.checkVisibility();
+	_playerFloats.showVisible();
 
 	App::wnd()->checkHistoryActivation();
 }
@@ -2861,9 +2608,8 @@ void MainWidget::updateControlsGeometry() {
 	updateMediaPlayerPosition();
 	updateMediaPlaylistPosition(_playerPlaylist->x());
 	_contentScrollAddToY = 0;
-	for (auto &instance : _playerFloats) {
-		updateFloatPlayerPosition(instance.get());
-	}
+
+	_playerFloats.updatePositions();
 }
 
 void MainWidget::refreshResizeAreas() {
@@ -3105,16 +2851,12 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 			_controller->showBackFromStack();
 			return true;
 		}
-	} else if (e->type() == QEvent::Wheel && !_playerFloats.empty()) {
-		for (auto &instance : _playerFloats) {
-			if (instance->widget == o) {
-				auto section = getFloatPlayerSection(
-					instance->column);
-				return section->wheelEventFromFloatPlayer(e);
-			}
+	} else if (e->type() == QEvent::Wheel) {
+		if (const auto result = _playerFloats.filterWheelEvent(o, e)) {
+			return *result;
 		}
 	}
-	return TWidget::eventFilter(o, e);
+	return RpWidget::eventFilter(o, e);
 }
 
 void MainWidget::handleAdaptiveLayoutUpdate() {

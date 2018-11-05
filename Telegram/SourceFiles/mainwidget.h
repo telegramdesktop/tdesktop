@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/single_timer.h"
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
+#include "media/player/media_player_float.h"
 
 struct HistoryMessageMarkupButton;
 class MainWindow;
@@ -36,7 +37,6 @@ namespace Player {
 class Widget;
 class VolumeWidget;
 class Panel;
-class Float;
 } // namespace Player
 } // namespace Media
 
@@ -80,7 +80,11 @@ class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
 
-class MainWidget : public Ui::RpWidget, public RPCSender, private base::Subscriber {
+class MainWidget
+	: public Ui::RpWidget
+	, public RPCSender
+	, private base::Subscriber
+	, private Media::Player::FloatDelegate {
 	Q_OBJECT
 
 public:
@@ -349,28 +353,6 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
-	struct Float {
-		template <typename ToggleCallback, typename DraggedCallback>
-		Float(
-			QWidget *parent,
-			not_null<Window::Controller*> controller,
-			not_null<HistoryItem*> item,
-			ToggleCallback toggle,
-			DraggedCallback dragged);
-
-		bool hiddenByWidget = false;
-		bool hiddenByHistory = false;
-		bool visible = false;
-		RectPart animationSide;
-		Animation visibleAnimation;
-		Window::Column column;
-		RectPart corner;
-		QPoint dragFrom;
-		Animation draggedAnimation;
-		bool hiddenByDrag = false;
-		object_ptr<Media::Player::Float> widget;
-	};
-
 	using ChannelGetDifferenceTime = QMap<ChannelData*, TimeMs>;
 	enum class ChannelDifferenceRequest {
 		Unknown,
@@ -479,27 +461,16 @@ private:
 	void showAll();
 
 	void clearCachedBackground();
-	void checkCurrentFloatPlayer();
-	void createFloatPlayer(not_null<HistoryItem*> item);
-	void toggleFloatPlayer(not_null<Float*> instance);
-	void checkFloatPlayerVisibility();
-	void updateFloatPlayerPosition(not_null<Float*> instance);
-	void removeFloatPlayer(not_null<Float*> instance);
-	Float *currentFloatPlayer() const {
-		return _playerFloats.empty() ? nullptr : _playerFloats.back().get();
-	}
-	Window::AbstractSectionWidget *getFloatPlayerSection(
-		Window::Column column) const;
-	void finishFloatPlayerDrag(
-		not_null<Float*> instance,
-		bool closed);
-	void updateFloatPlayerColumnCorner(QPoint center);
-	QPoint getFloatPlayerPosition(not_null<Float*> instance) const;
-	QPoint getFloatPlayerHiddenPosition(
-		QPoint position,
-		QSize size,
-		RectPart side) const;
-	RectPart getFloatPlayerSide(QPoint center) const;
+
+	not_null<Media::Player::FloatDelegate*> floatPlayerDelegate();
+	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	not_null<Window::Controller*> floatPlayerController() override;
+	not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
+		Window::Column column) override;
+	void floatPlayerEnumerateSections(Fn<void(
+		not_null<Window::AbstractSectionWidget*> widget,
+		Window::Column widgetColumn)> callback) override;
+	void floatPlayerCloseHook(FullMsgId itemId) override;
 
 	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
 
@@ -552,7 +523,7 @@ private:
 	object_ptr<Media::Player::Panel> _playerPlaylist;
 	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
-	std::vector<std::unique_ptr<Float>> _playerFloats;
+	Media::Player::FloatController _playerFloats;
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };
