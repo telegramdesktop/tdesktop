@@ -194,6 +194,14 @@ if r.status_code == 404:
   }))
   checkResponseCode(r, 201)
 
+tagname = 'v' + version
+call("git fetch origin".split());
+if stable == 1:
+  call("git push launchpad {}:master".format(tagname).split())
+else:
+  call("git push launchpad {}:beta".format(tagname).split())
+call("git push --tags launchpad".split())
+
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
 checkResponseCode(r, 200);
 
