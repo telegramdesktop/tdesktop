@@ -68,15 +68,19 @@ private:
 
 	};
 
+	struct AddResult {
+		int inslice = 0;
+		int added = 0;
+	};
 	template <typename Range>
-	int uniteAndAdd(
+	AddResult uniteAndAdd(
 		SparseIdsSliceUpdate &update,
 		base::flat_set<Slice>::iterator uniteFrom,
 		base::flat_set<Slice>::iterator uniteTill,
 		const Range &messages,
 		MsgRange noSkipRange);
 	template <typename Range>
-	int addRangeItemsAndCountNew(
+	AddResult addRangeItemsAndCountNew(
 		SparseIdsSliceUpdate &update,
 		const Range &messages,
 		MsgRange noSkipRange);
