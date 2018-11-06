@@ -43,6 +43,7 @@ public:
 	}
 	void requestLangPackDifference(const QString &langId);
 	void applyLangPackDifference(const MTPLangPackDifference &difference);
+	void setCurrentVersions(int version, int baseVersion);
 
 	void resetToDefault();
 	void switchWithWarning(const QString &id);

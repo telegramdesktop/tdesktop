@@ -187,11 +187,6 @@ CloudManager::CloudManager(
 	not_null<MTP::Instance*> mtproto)
 : MTP::Sender()
 , _langpack(langpack) {
-	const auto current = LanguageIdOrDefault(_langpack.id());
-	requestLangPackDifference(current);
-	if (const auto base = _langpack.baseId(); !base.isEmpty()) {
-		requestLangPackDifference(base);
-	}
 }
 
 Pack CloudManager::packTypeFromId(const QString &id) const {
@@ -290,6 +285,16 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 			}
 		}
 	}
+}
+
+void CloudManager::setCurrentVersions(int version, int baseVersion) {
+	const auto check = [&](Pack pack, int version) {
+		if (version > _langpack.version(pack) && !packRequestId(pack)) {
+			requestLangPackDifference(pack);
+		}
+	};
+	check(Pack::Current, version);
+	check(Pack::Base, baseVersion);
 }
 
 void CloudManager::applyLangPackDifference(

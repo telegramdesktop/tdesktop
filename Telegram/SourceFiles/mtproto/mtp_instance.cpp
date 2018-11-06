@@ -776,6 +776,13 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		? qs(data.vsuggested_lang_code)
 		: QString();
 	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
+	Lang::CurrentCloudManager().setCurrentVersions(
+		(data.has_lang_pack_version()
+			? data.vlang_pack_version.v
+			: 0),
+		(data.has_base_lang_pack_version()
+			? data.vbase_lang_pack_version.v
+			: 0));
 
 	if (data.has_autoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(data.vautoupdate_url_prefix));
