@@ -1898,6 +1898,7 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 		switch (peer.type()) {
 		case mtpc_inputNotifyUsers: return peerFromUser(0);
 		case mtpc_inputNotifyChats: return peerFromChat(0);
+		case mtpc_inputNotifyBroadcasts: return peerFromChannel(0);
 		case mtpc_inputNotifyPeer: {
 			const auto &inner = peer.c_inputNotifyPeer().vpeer;
 			switch (inner.type()) {
@@ -2273,6 +2274,11 @@ void ApiWrap::notifySettingReceived(
 	break;
 	case mtpc_inputNotifyChats:
 		_session->data().applyNotifySetting(MTP_notifyChats(), settings);
+	break;
+	case mtpc_inputNotifyBroadcasts:
+		_session->data().applyNotifySetting(
+			MTP_notifyBroadcasts(),
+			settings);
 	break;
 	case mtpc_inputNotifyPeer: {
 		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer;

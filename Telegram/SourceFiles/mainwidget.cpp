@@ -3345,6 +3345,7 @@ void MainWidget::mtpPing() {
 void MainWidget::start() {
 	Auth().api().requestNotifySettings(MTP_inputNotifyUsers());
 	Auth().api().requestNotifySettings(MTP_inputNotifyChats());
+	Auth().api().requestNotifySettings(MTP_inputNotifyBroadcasts());
 
 	Local::readSavedPeers();
 	cSetOtherOnline(0);

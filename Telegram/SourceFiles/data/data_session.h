@@ -416,6 +416,7 @@ public:
 	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
 	rpl::producer<> defaultUserNotifyUpdates() const;
 	rpl::producer<> defaultChatNotifyUpdates() const;
+	rpl::producer<> defaultBroadcastNotifyUpdates() const;
 	rpl::producer<> defaultNotifyUpdates(
 		not_null<const PeerData*> peer) const;
 
@@ -641,8 +642,10 @@ private:
 
 	NotifySettings _defaultUserNotifySettings;
 	NotifySettings _defaultChatNotifySettings;
+	NotifySettings _defaultBroadcastNotifySettings;
 	rpl::event_stream<> _defaultUserNotifyUpdates;
 	rpl::event_stream<> _defaultChatNotifyUpdates;
+	rpl::event_stream<> _defaultBroadcastNotifyUpdates;
 	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
 	base::Timer _unmuteByFinishedTimer;
 

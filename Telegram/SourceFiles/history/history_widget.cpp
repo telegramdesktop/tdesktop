@@ -719,13 +719,17 @@ HistoryWidget::HistoryWidget(
 			}
 		}
 	}));
+
 	rpl::merge(
 		Auth().data().defaultUserNotifyUpdates(),
-		Auth().data().defaultChatNotifyUpdates()
+		Auth().data().defaultChatNotifyUpdates(),
+		Auth().data().defaultBroadcastNotifyUpdates()
 	) | rpl::start_with_next([=] {
 		updateNotifyControls();
 	}, lifetime());
-	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
+
+	subscribe(Auth().data().queryItemVisibility(), [=](
+			const Data::Session::ItemVisibilityQuery &query) {
 		if (_a_show.animating()
 			|| _history != query.item->history()
 			|| !query.item->mainView() || !isVisible()) {
@@ -735,7 +739,8 @@ HistoryWidget::HistoryWidget(
 			auto top = _list->itemTop(view);
 			if (top >= 0) {
 				auto scrollTop = _scroll->scrollTop();
-				if (top + view->height() > scrollTop && top < scrollTop + _scroll->height()) {
+				if (top + view->height() > scrollTop
+					&& top < scrollTop + _scroll->height()) {
 					*query.isVisible = true;
 				}
 			}

@@ -1134,11 +1134,20 @@ namespace App {
 		}
 	}
 
-	void enumerateChatsChannels(
-			Fn<void(not_null<PeerData*>)> action) {
+	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) {
 		for (const auto &[peerId, peer] : peersData) {
-			if (!peer->isUser()) {
+			if (peer->isChat() || peer->isMegagroup()) {
 				action(peer.get());
+			}
+		}
+	}
+
+	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (const auto channel = peer->asChannel()) {
+				if (!channel->isMegagroup()) {
+					action(channel);
+				}
 			}
 		}
 	}
