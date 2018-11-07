@@ -89,7 +89,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout 18bb46163af
+    git checkout openal-soft-1.19.1
     cd build
     cmake -G "Visual Studio 15 2017" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
     msbuild OpenAL32.vcxproj /property:Configuration=Debug
