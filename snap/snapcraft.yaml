@@ -86,6 +86,8 @@ parts:
     organize:
       Telegram: bin/Telegram
     configflags:
+      - -Dapi_id=611335
+      - -Dapi_hash=d524b414d21f4d37f08684c1df41ac9c
       - -Dlinux_path_breakpad=$SNAPCRAFT_STAGE
       - -Dlinux_path_range=$SNAPCRAFT_STAGE/range-v3
       - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
