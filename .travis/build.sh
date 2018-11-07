@@ -472,7 +472,7 @@ buildOpenAL() {
     rm -rf "$EXTERNAL/openal-soft"
   fi
   cd $OPENAL_PATH
-  rm -rf *
+  sudo rm -rf *
 
   cd "$EXTERNAL"
   git clone https://github.com/kcat/openal-soft.git
