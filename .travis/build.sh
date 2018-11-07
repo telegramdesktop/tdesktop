@@ -40,7 +40,7 @@ FFMPEG_PATH="$BUILD/ffmpeg"
 FFMPEG_CACHE_VERSION="3"
 
 OPENAL_PATH="$BUILD/openal-soft"
-OPENAL_CACHE_VERSION="3"
+OPENAL_CACHE_VERSION="4"
 
 GYP_DEFINES=""
 
@@ -476,6 +476,8 @@ buildOpenAL() {
 
   cd "$EXTERNAL"
   git clone https://github.com/kcat/openal-soft.git
+  cd openal-soft
+  git checkout openal-soft-1.19.1
 
   cd "$EXTERNAL/openal-soft/build"
   cmake \

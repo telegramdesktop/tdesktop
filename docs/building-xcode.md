@@ -87,7 +87,9 @@ Go to ***BuildPath*** and run
     cd ..
 
     git clone git://repo.or.cz/openal-soft.git
-    cd openal-soft/build
+    cd openal-soft
+    git checkout openal-soft-1.19.1
+    cd build
     cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make -j4
     sudo make install

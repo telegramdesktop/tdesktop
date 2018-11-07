@@ -89,7 +89,7 @@ Go to ***BuildPath*** and run
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout v1.18
+    git checkout openal-soft-1.19.1
     cd build
     cmake -D LIBTYPE:STRING=STATIC ..
     make $MAKE_THREADS_CNT
