@@ -67,7 +67,6 @@ private:
 
 	not_null<Ui::VerticalLayout*> _inner;
 	base::unique_qptr<Ui::RpWidget> _about;
-	base::unique_qptr<Ui::RpWidget> _button;
 
 };
 

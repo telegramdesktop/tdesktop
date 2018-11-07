@@ -118,11 +118,14 @@ public:
 		_boxClosingStream.fire({});
 	}
 
-	void setDelegate(BoxContentDelegate *newDelegate) {
+	void setDelegate(not_null<BoxContentDelegate*> newDelegate) {
 		_delegate = newDelegate;
 		_preparing = true;
 		prepare();
 		finishPrepare();
+	}
+	not_null<BoxContentDelegate*> getDelegate() const {
+		return _delegate;
 	}
 
 public slots:
@@ -186,10 +189,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
-
-	not_null<BoxContentDelegate*> getDelegate() const {
-		return _delegate;
-	}
 
 private slots:
 	void onScroll();

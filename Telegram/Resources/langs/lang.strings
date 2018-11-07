@@ -342,6 +342,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable passcode";
 "lng_settings_password_disable" = "Disable cloud password";
+"lng_settings_password_abort" = "Abort two-step verification setup";
+"lng_settings_password_reenter_email" = "Re-enter recovery email";
 "lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
 "lng_settings_name_label" = "Name";
 "lng_settings_username_label" = "Username";
@@ -449,7 +451,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_logout" = "Log out";
 "lng_passcode_need_unblock" = "You need to unlock me first.";
 
-"lng_cloud_password_waiting" = "Confirmation link sent to {email}...";
+"lng_cloud_password_waiting_code" = "Confirmation code sent to {email}...";
+"lng_cloud_password_confirm" = "Confirm recovery email";
 "lng_cloud_password_change" = "Change cloud password";
 "lng_cloud_password_create" = "Cloud password";
 "lng_cloud_password_remove" = "Remove cloud password";
@@ -475,6 +478,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_wrong" = "Wrong cloud password";
 "lng_cloud_password_is_same" = "Password was not changed";
 "lng_cloud_password_passport_losing" = "Warning! All data saved in your Telegram Passport will be lost!";
+"lng_cloud_password_resend" = "Resend code";
+"lng_cloud_password_resent" = "Code was resent.";
 
 "lng_connection_auto_connecting" = "Default (connecting...)";
 "lng_connection_auto" = "Default ({transport} used)";
@@ -1602,7 +1607,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passport_create_password" = "Please create a password which will be used\nto encrypt your personal data.";
 "lng_passport_about_password" = "This password will also be required whenever\nyou log in to a new device.";
 "lng_passport_password_create" = "Create a password";
-"lng_passport_link_sent" = "A confirmation link was sent to your email\n{email}";
+"lng_passport_email_validate" = "Validate";
+"lng_passport_code_sent" = "A confirmation code was sent to\n{email}";
 "lng_passport_stop_password_sure" = "Are you sure you want to cancel setting up your password?";
 "lng_passport_password_placeholder" = "Your password";
 "lng_passport_next" = "Next";

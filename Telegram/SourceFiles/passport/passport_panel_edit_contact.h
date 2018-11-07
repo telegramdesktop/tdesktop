@@ -83,6 +83,8 @@ object_ptr<BoxContent> VerifyEmailBox(
 	const QString &email,
 	int codeLength,
 	Fn<void(QString code)> submit,
-	rpl::producer<QString> error);
+	Fn<void()> resend,
+	rpl::producer<QString> error,
+	rpl::producer<QString> resent);
 
 } // namespace Passport

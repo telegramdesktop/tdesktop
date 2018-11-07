@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/special_buttons.h"
+#include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_icon.h"
 #include "styles/style_passport.h"
@@ -226,29 +227,49 @@ void PanelNoPassword::refreshBottom() {
 				_inner,
 				(pattern.isEmpty()
 					? lang(lng_passport_about_password)
-					: lng_passport_link_sent(lt_email, pattern)),
+					: lng_passport_code_sent(lt_email, pattern)),
 				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordSetupLabel)),
 		st::passportFormAbout2Padding)->entity());
-	const auto button = _inner->add(
-		object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
-			_inner,
-			object_ptr<Ui::RoundButton>(
-				_inner,
-				langFactory(pattern.isEmpty()
-					? lng_passport_password_create
-					: lng_cancel),
-				st::defaultBoxButton)));
 	if (pattern.isEmpty()) {
+		const auto button = _inner->add(
+			object_ptr<Ui::CenterWrap<Ui::RoundButton>>(
+				_inner,
+				object_ptr<Ui::RoundButton>(
+					_inner,
+					langFactory(lng_passport_password_create),
+					st::defaultBoxButton)));
 		button->entity()->addClickHandler([=] {
 			_controller->setupPassword();
 		});
 	} else {
-		button->entity()->addClickHandler([=] {
+		const auto container = _inner->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				_inner,
+				st::defaultBoxButton.height));
+		const auto cancel = Ui::CreateChild<Ui::RoundButton>(
+			container,
+			langFactory(lng_cancel),
+			st::defaultBoxButton);
+		cancel->addClickHandler([=] {
 			_controller->cancelPasswordSubmit();
 		});
+		const auto validate = Ui::CreateChild<Ui::RoundButton>(
+			container,
+			langFactory(lng_passport_email_validate),
+			st::defaultBoxButton);
+		validate->addClickHandler([=] {
+			_controller->validateRecoveryEmail();
+		});
+		container->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			const auto both = cancel->width()
+				+ validate->width()
+				+ st::boxLittleSkip;
+			cancel->moveToLeft((width - both) / 2, 0, width);
+			validate->moveToRight((width - both) / 2, 0, width);
+		}, container->lifetime());
 	}
-	_button.reset(button);
 }
 
 } // namespace Passport

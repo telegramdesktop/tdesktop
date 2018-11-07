@@ -5038,16 +5038,7 @@ void ApiWrap::reloadPasswordState() {
 }
 
 void ApiWrap::clearUnconfirmedPassword() {
-	_passwordRequestId = request(MTPaccount_UpdatePasswordSettings(
-		MTP_inputCheckPasswordEmpty(),
-		MTP_account_passwordInputSettings(
-			MTP_flags(
-				MTPDaccount_passwordInputSettings::Flag::f_email),
-			MTP_passwordKdfAlgoUnknown(), // new_algo
-			MTP_bytes(QByteArray()), // new_password_hash
-			MTP_string(QString()), // hint
-			MTP_string(QString()), // email
-			MTPSecureSecretSettings())
+	_passwordRequestId = request(MTPaccount_CancelPasswordEmail(
 	)).done([=](const MTPBool &result) {
 		_passwordRequestId = 0;
 		reloadPasswordState();
