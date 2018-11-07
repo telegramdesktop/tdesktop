@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
@@ -194,11 +195,8 @@ void ApiWrap::refreshProxyPromotion() {
 		getProxyPromotionDelayed(now, next);
 		return;
 	}
-	const auto proxy = Global::UseProxy()
-		? Global::SelectedProxy()
-		: ProxyData();
 	const auto key = [&]() -> std::pair<QString, uint32> {
-		if (!Global::UseProxy()) {
+		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
 			return {};
 		}
 		const auto &proxy = Global::SelectedProxy();
@@ -610,11 +608,23 @@ void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
 //	}).send();
 //}
 
-void ApiWrap::requestDialogEntry(not_null<History*> history) {
-	if (_dialogRequests.contains(history)) {
+void ApiWrap::requestDialogEntry(
+		not_null<History*> history,
+		Fn<void()> callback) {
+	const auto[i, ok] = _dialogRequests.try_emplace(history);
+	if (callback) {
+		i->second.push_back(std::move(callback));
+	}
+	if (!ok) {
 		return;
 	}
-	_dialogRequests.emplace(history);
+	const auto finalize = [=] {
+		if (const auto callbacks = _dialogRequests.take(history)) {
+			for (const auto callback : *callbacks) {
+				callback();
+			}
+		}
+	};
 	auto peers = QVector<MTPInputDialogPeer>(
 		1,
 		MTP_inputDialogPeer(history->peer->input));
@@ -623,9 +633,46 @@ void ApiWrap::requestDialogEntry(not_null<History*> history) {
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		historyDialogEntryApplied(history);
-		_dialogRequests.remove(history);
+		finalize();
 	}).fail([=](const RPCError &error) {
-		_dialogRequests.remove(history);
+		finalize();
+	}).send();
+}
+
+void ApiWrap::requestDialogEntries(
+		std::vector<not_null<History*>> histories) {
+	const auto already = [&](not_null<History*> history) {
+		const auto [i, ok] = _dialogRequests.try_emplace(history);
+		return !ok;
+	};
+	histories.erase(ranges::remove_if(histories, already), end(histories));
+	if (histories.empty()) {
+		return;
+	}
+	auto peers = QVector<MTPInputDialogPeer>();
+	peers.reserve(histories.size());
+	for (const auto history : histories) {
+		peers.push_back(MTP_inputDialogPeer(history->peer->input));
+	}
+	const auto finalize = [=](std::vector<not_null<History*>> histories) {
+		for (const auto history : histories) {
+			if (const auto callbacks = _dialogRequests.take(history)) {
+				for (const auto callback : *callbacks) {
+					callback();
+				}
+			}
+		}
+	};
+	request(MTPmessages_GetPeerDialogs(
+		MTP_vector(std::move(peers))
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		applyPeerDialogs(result);
+		for (const auto history : histories) {
+			historyDialogEntryApplied(history);
+		}
+		finalize(histories);
+	}).fail([=](const RPCError &error) {
+		finalize(histories);
 	}).send();
 }
 
@@ -4286,6 +4333,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	options.replyTo = message.replyTo;
 	options.generateLocal = true;
 	options.webPageId = message.webPageId;
+	options.handleSupportSwitch = message.handleSupportSwitch;
 	sendAction(options);
 
 	if (!peer->canWrite()) {

@@ -17,6 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "mainwindow.h"
 
+namespace {
+
+constexpr auto kReportReasonLengthMax = 200;
+
+} // namespace
+
 ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer)
 : _peer(peer) {
 }
@@ -89,7 +95,7 @@ void ReportBox::reasonChanged(Reason reason) {
 				langFactory(lng_report_reason_description));
 			_reasonOtherText->show();
 			_reasonOtherText->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-			_reasonOtherText->setMaxLength(MaxPhotoCaption);
+			_reasonOtherText->setMaxLength(kReportReasonLengthMax);
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 
 			updateMaxHeight();

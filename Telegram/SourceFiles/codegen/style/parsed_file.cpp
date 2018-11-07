@@ -133,17 +133,14 @@ bool validateAlignString(const QString &value) {
 Modifier GetModifier(const QString &name) {
 	static QMap<QString, Modifier> modifiers;
 	if (modifiers.empty()) {
-		modifiers.insert("invert", [](QImage &png100x, QImage &png200x) {
-			png100x.invertPixels();
-			png200x.invertPixels();
+		modifiers.insert("invert", [](QImage &image) {
+			image.invertPixels();
 		});
-		modifiers.insert("flip_horizontal", [](QImage &png100x, QImage &png200x) {
-			png100x = png100x.mirrored(true, false);
-			png200x = png200x.mirrored(true, false);
+		modifiers.insert("flip_horizontal", [](QImage &image) {
+			image = image.mirrored(true, false);
 		});
-		modifiers.insert("flip_vertical", [](QImage &png100x, QImage &png200x) {
-			png100x = png100x.mirrored(false, true);
-			png200x = png200x.mirrored(false, true);
+		modifiers.insert("flip_vertical", [](QImage &image) {
+			image = image.mirrored(false, true);
 		});
 	}
 	return modifiers.value(name);

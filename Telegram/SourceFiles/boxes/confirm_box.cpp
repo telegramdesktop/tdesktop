@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
+#include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
@@ -657,7 +658,8 @@ ConfirmInviteBox::ConfirmInviteBox(
 	const QVector<UserData*> &participants)
 : _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
-, _participants(participants) {
+, _participants(participants)
+, _isChannel(isChannel) {
 	_title->setText(title);
 	QString status;
 	if (_participants.isEmpty() || _participants.size() >= count) {
@@ -678,7 +680,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 			size,
 			data.vphoto_small);
 		if (!location.isNull()) {
-			_photo = ImagePtr(location);
+			_photo = Images::Create(location);
 			if (!_photo->loaded()) {
 				subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 				_photo->load(Data::FileOrigin());
@@ -693,7 +695,10 @@ ConfirmInviteBox::ConfirmInviteBox(
 }
 
 void ConfirmInviteBox::prepare() {
-	addButton(langFactory(lng_group_invite_join), [] {
+	const auto joinKey = _isChannel
+		? lng_profile_join_channel
+		: lng_profile_join_group;
+	addButton(langFactory(joinKey), [] {
 		if (auto main = App::main()) {
 			main->onInviteImport();
 		}

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 
 #include "data/data_session.h"
+#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
 #include "auth_session.h"
@@ -102,11 +103,16 @@ bool PhotoData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
-void PhotoData::forget() {
-	thumb->forget();
-	replyPreview->forget();
-	medium->forget();
-	full->forget();
+void PhotoData::unload() {
+	// Forget thumb only when image cache limit exceeds.
+	//thumb->unload();
+	medium->unload();
+	full->unload();
+	if (!replyPreview->isNull()) {
+		// Should be std::unique_ptr<Image>.
+		delete replyPreview.get();
+		replyPreview = ImagePtr();
+	}
 }
 
 ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
@@ -119,21 +125,22 @@ ImagePtr PhotoData::makeReplyPreview(Data::FileOrigin origin) {
 			int w = image->width(), h = image->height();
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
-			return ImagePtr(
+			return Images::Create(
 				(w > h
 					? image->pix(
 						origin,
 						w * st::msgReplyBarSize.height() / h,
 						st::msgReplyBarSize.height())
-					: image->pix(origin, st::msgReplyBarSize.height())),
+					: image->pix(origin, st::msgReplyBarSize.height())
+				).toImage(),
 				"PNG");
 		};
-		if (thumb->toDelayedStorageImage()
+		if (thumb->isDelayedStorageImage()
 			&& !full->isNull()
-			&& !full->toDelayedStorageImage()) {
-			return previewFromImage(full);
+			&& !full->isDelayedStorageImage()) {
+			replyPreview = previewFromImage(full);
 		} else {
-			return previewFromImage(thumb);
+			replyPreview = previewFromImage(thumb);
 		}
 	}
 	return replyPreview;

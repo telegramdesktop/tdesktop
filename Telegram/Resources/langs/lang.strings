@@ -278,7 +278,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_use_native_notifications" = "Use native notifications";
-"lng_settings_advanced_notifications" = "Notifications position and count";
 "lng_settings_notifications_position" = "Location on the screen";
 "lng_settings_notifications_count" = "Notifications count";
 "lng_settings_sound_notify" = "Play sound";
@@ -331,15 +330,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_language" = "Language";
 "lng_settings_default_scale" = "Default interface scale";
-"lng_settings_edit_info" = "Edit information";
 "lng_settings_connection_type" = "Connection type";
 "lng_settings_downloading_update" = "Downloading update {progress}...";
-"lng_settings_use_night_mode" = "Use night mode";
 "lng_settings_privacy_title" = "Privacy";
 "lng_settings_last_seen" = "Last seen";
 "lng_settings_calls" = "Voice calls";
 "lng_settings_groups_invite" = "Groups";
-"lng_settings_group_privacy_about" = "Change who can add you to groups and channel.";
+"lng_settings_group_privacy_about" = "Change who can add you to groups and channels.";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable passcode";
 "lng_settings_password_disable" = "Disable cloud password";
@@ -494,7 +491,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_connection_save" = "Save";
 
 "lng_proxy_settings" = "Proxy settings";
-"lng_proxy_use" = "Use proxy";
+"lng_proxy_disable" = "Disable proxy";
+"lng_proxy_use_system_settings" = "Use system proxy settings";
+"lng_proxy_use_custom" = "Use custom proxy";
 "lng_proxy_use_for_calls" = "Use proxy for calls";
 "lng_proxy_about" = "Proxy servers may be helpful in accessing Telegram if there is no connection in a specific region.";
 "lng_proxy_add" = "Add proxy";
@@ -847,7 +846,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_kick_user" = "{from} removed {user}";
 "lng_action_user_left" = "{from} left the group";
 "lng_action_user_joined" = "{from} joined the group";
-"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
+"lng_action_user_joined_by_link_from" = "{from} joined the group via invite link from {user}";
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
 "lng_action_removed_photo_channel" = "Channel photo removed";
@@ -1406,6 +1405,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";
 
+"lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
+
 "lng_player_message_today" = "Today at {time}";
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
@@ -1747,6 +1748,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_location" = "Download path: {path}";
 "lng_export_option_html" = "Human-readable HTML";
 "lng_export_option_json" = "Machine-readable JSON";
+"lng_export_limits" = "From: {from}, to: {till}";
+"lng_export_beginning" = "the oldest message";
+"lng_export_end" = "present";
+"lng_export_from_beginning" = "Reset";
+"lng_export_till_end" = "Reset";
 "lng_export_start" = "Export";
 "lng_export_state_initializing" = "Initializing...";
 "lng_export_state_userpics" = "Profile pictures";

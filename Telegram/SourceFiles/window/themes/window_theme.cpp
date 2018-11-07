@@ -409,10 +409,9 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 	} else {
 		if (_id == kInitialBackground) {
 			image.load(qsl(":/gui/art/bg_initial.jpg"));
-			if (cRetina()) {
-				image = image.scaledToWidth(image.width() * 2, Qt::SmoothTransformation);
-			} else if (cScale() != dbisOne) {
-				image = image.scaledToWidth(convertScale(image.width()), Qt::SmoothTransformation);
+			const auto scale = cScale() * cIntRetinaFactor();
+			if (scale != 100) {
+				image = image.scaledToWidth(ConvertScale(image.width(), scale), Qt::SmoothTransformation);
 			}
 		} else if (_id == kDefaultBackground || image.isNull()) {
 			_id = kDefaultBackground;
@@ -451,7 +450,7 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 
 		if (testingPalette()) {
 			return false;
-		} else if (IsNonDefaultThemeOrBackground() || nightMode()) {
+		} else if (isNonDefaultThemeOrBackground() || nightMode()) {
 			return !usingThemeBackground();
 		}
 		return !usingDefaultBackground();
@@ -857,10 +856,6 @@ bool Apply(std::unique_ptr<Preview> preview) {
 	return true;
 }
 
-void ApplyDefault() {
-	ApplyDefaultWithPath(IsNightMode() ? NightThemePath() : QString());
-}
-
 void ApplyDefaultWithPath(const QString &themePath) {
 	if (!themePath.isEmpty()) {
 		if (auto preview = PreviewFromFile(themePath)) {
@@ -937,10 +932,6 @@ QString NightThemePath() {
 	return str_const_toString(kNightThemeFile);
 }
 
-bool IsNonDefaultThemeOrBackground() {
-	return Background()->isNonDefaultThemeOrBackground();
-}
-
 bool IsNonDefaultBackground() {
 	return Background()->isNonDefaultBackground();
 }
@@ -961,10 +952,6 @@ void ToggleNightMode() {
 
 void ToggleNightMode(const QString &path) {
 	Background()->toggleNightMode(path);
-}
-
-bool SuggestThemeReset() {
-	return IsNonDefaultThemeOrBackground();
 }
 
 bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {

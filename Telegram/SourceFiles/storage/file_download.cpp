@@ -127,6 +127,31 @@ FileLoader::FileLoader(
 	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
 }
 
+void FileLoader::finishWithBytes(const QByteArray &data) {
+	_data = data;
+	_localStatus = LocalStatus::Loaded;
+	if (!_filename.isEmpty() && _toCache == LoadToCacheAsWell) {
+		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
+		if (!_fileIsOpen) {
+			cancel(true);
+			return;
+		}
+		if (_file.write(_data) != qint64(_data.size())) {
+			cancel(true);
+			return;
+		}
+	}
+
+	_finished = true;
+	if (_fileIsOpen) {
+		_file.close();
+		_fileIsOpen = false;
+		Platform::File::PostprocessDownloaded(
+			QFileInfo(_file).absoluteFilePath());
+	}
+	_downloader->taskFinished().notify();
+}
+
 QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
 	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
 		readImage(shrinkBox);
@@ -134,11 +159,11 @@ QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
 	return _imageFormat;
 }
 
-QPixmap FileLoader::imagePixmap(const QSize &shrinkBox) const {
-	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
+QImage FileLoader::imageData(const QSize &shrinkBox) const {
+	if (_imageData.isNull() && _locationType == UnknownFileLocation) {
 		readImage(shrinkBox);
 	}
-	return _imagePixmap;
+	return _imageData;
 }
 
 void FileLoader::readImage(const QSize &shrinkBox) const {
@@ -146,9 +171,9 @@ void FileLoader::readImage(const QSize &shrinkBox) const {
 	auto image = App::readImage(_data, &format, false);
 	if (!image.isNull()) {
 		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
-			_imagePixmap = App::pixmapFromImageInPlace(image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+			_imageData = image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 		} else {
-			_imagePixmap = App::pixmapFromImageInPlace(std::move(image));
+			_imageData = std::move(image);
 		}
 		_imageFormat = format;
 	}
@@ -222,39 +247,18 @@ FileLoader::~FileLoader() {
 void FileLoader::localLoaded(
 		const StorageImageSaved &result,
 		const QByteArray &imageFormat,
-		const QPixmap &imagePixmap) {
+		const QImage &imageData) {
 	_localLoading.kill();
 	if (result.data.isEmpty()) {
 		_localStatus = LocalStatus::NotFound;
 		start(true);
 		return;
 	}
-	_data = result.data;
-	if (!imagePixmap.isNull()) {
+	if (!imageData.isNull()) {
 		_imageFormat = imageFormat;
-		_imagePixmap = imagePixmap;
+		_imageData = imageData;
 	}
-	_localStatus = LocalStatus::Loaded;
-	if (!_filename.isEmpty() && _toCache == LoadToCacheAsWell) {
-		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
-		if (!_fileIsOpen) {
-			cancel(true);
-			return;
-		}
-		if (_file.write(_data) != qint64(_data.size())) {
-			cancel(true);
-			return;
-		}
-	}
-
-	_finished = true;
-	if (_fileIsOpen) {
-		_file.close();
-		_fileIsOpen = false;
-		Platform::File::PostprocessDownloaded(
-			QFileInfo(_file).absoluteFilePath());
-	}
-	_downloader->taskFinished().notify();
+	finishWithBytes(result.data);
 
 	emit progress(this);
 
@@ -389,7 +393,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 			localLoaded(
 				StorageImageSaved(std::move(value)),
 				format,
-				App::pixmapFromImageInPlace(std::move(image)));
+				std::move(image));
 		});
 	};
 	Auth().data().cache().get(key, [=, callback = std::move(done)](
@@ -559,6 +563,30 @@ mtpFileLoader::mtpFileLoader(
 	_queue = &i.value();
 }
 
+mtpFileLoader::mtpFileLoader(
+	const GeoPointLocation *location,
+	int32 size,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
+: FileLoader(
+	QString(),
+	size,
+	UnknownFileLocation,
+	LoadToCacheAsWell,
+	fromCloud,
+	autoLoading,
+	cacheTag)
+, _dcId(Global::WebFileDcId())
+, _geoLocation(location) {
+	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
+	auto i = queues.find(shiftedDcId);
+	if (i == queues.cend()) {
+		i = queues.insert(shiftedDcId, FileLoaderQueue(kMaxFileQueries));
+	}
+	_queue = &i.value();
+}
+
 int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
 	return (_fileIsOpen ? _file.size() : _data.size()) - (includeSkipped ? 0 : _skippedBytes);
 }
@@ -657,6 +685,25 @@ void mtpFileLoader::makeRequest(int offset) {
 					MTP_inputWebFileLocation(
 						MTP_bytes(_urlLocation->url()),
 						MTP_long(_urlLocation->accessHash())),
+					MTP_int(offset),
+					MTP_int(limit)),
+				rpcDone(&mtpFileLoader::webPartLoaded),
+				rpcFail(&mtpFileLoader::partFailed),
+				shiftedDcId,
+				50);
+		} else if (_geoLocation) {
+			Assert(requestData.dcId == _dcId);
+			return MTP::send(
+				MTPupload_GetWebFile(
+					MTP_inputWebFileGeoPointLocation(
+						MTP_inputGeoPoint(
+							MTP_double(_geoLocation->lat),
+							MTP_double(_geoLocation->lon)),
+						MTP_long(_geoLocation->access),
+						MTP_int(_geoLocation->width),
+						MTP_int(_geoLocation->height),
+						MTP_int(_geoLocation->zoom),
+						MTP_int(_geoLocation->scale)),
 					MTP_int(offset),
 					MTP_int(limit)),
 				rpcDone(&mtpFileLoader::webPartLoaded),
@@ -783,7 +830,7 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 	state.ivec[12] = static_cast<uchar>((counterOffset >> 24) & 0xFF);
 
 	auto decryptInPlace = result.c_upload_cdnFile().vbytes.v;
-	auto buffer = bytes::make_span(decryptInPlace);
+	auto buffer = bytes::make_detached_span(decryptInPlace);
 	MTP::aesCtrEncrypt(buffer, key.data(), &state);
 
 	switch (checkCdnFileHash(offset, buffer)) {
@@ -910,17 +957,7 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				return false;
 			}
 		} else {
-			if (offset > 100 * 1024 * 1024) {
-				// Debugging weird out of memory crashes.
-				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(buffer.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_filename).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
-				info += QString(", locationtype: %1, inqueue: %2, localstatus: %3").arg(int(_locationType)).arg(Logs::b(_inQueue)).arg(int(_localStatus));
-				CrashReports::SetAnnotation("DebugInfo", info);
-			}
 			_data.reserve(offset + buffer.size());
-			if (offset > 100 * 1024 * 1024) {
-				CrashReports::ClearAnnotation("DebugInfo");
-			}
-
 			if (offset > _data.size()) {
 				_skippedBytes += offset - _data.size();
 				_data.resize(offset);
@@ -932,7 +969,9 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 				if (int64(offset + buffer.size()) > _data.size()) {
 					_data.resize(offset + buffer.size());
 				}
-				auto dst = bytes::make_span(_data).subspan(offset, buffer.size());
+				const auto dst = bytes::make_detached_span(_data).subspan(
+					offset,
+					buffer.size());
 				bytes::copy(dst, buffer);
 			}
 		}
@@ -1113,9 +1152,11 @@ void mtpFileLoader::changeCDNParams(
 std::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
 	if (_urlLocation) {
 		return Data::WebDocumentCacheKey(*_urlLocation);
+	} else if (_geoLocation) {
+		return Data::GeoPointCacheKey(*_geoLocation);
 	} else if (_location) {
 		return Data::StorageCacheKey(*_location);
-	} else if (_toCache == LoadToCacheAsWell) {
+	} else if (_toCache == LoadToCacheAsWell && _id != 0) {
 		return Data::DocumentCacheKey(_dcId, _id);
 	}
 	return std::nullopt;

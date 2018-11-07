@@ -15,6 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 enum class SendFilesWay;
 
+namespace Ui {
+enum class InputSubmitSettings;
+} // namespace Ui
+
+namespace Support {
+enum class SwitchSettings;
+class Templates;
+} // namespace Support
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -68,6 +77,32 @@ public:
 	SendFilesWay sendFilesWay() const {
 		return _variables.sendFilesWay;
 	}
+	void setSendSubmitWay(Ui::InputSubmitSettings value) {
+		_variables.sendSubmitWay = value;
+	}
+	Ui::InputSubmitSettings sendSubmitWay() const {
+		return _variables.sendSubmitWay;
+	}
+
+	void setSupportSwitch(Support::SwitchSettings value) {
+		_variables.supportSwitch = value;
+	}
+	Support::SwitchSettings supportSwitch() const {
+		return _variables.supportSwitch;
+	}
+	void setSupportFixChatsOrder(bool fix) {
+		_variables.supportFixChatsOrder = fix;
+	}
+	bool supportFixChatsOrder() const {
+		return _variables.supportFixChatsOrder;
+	}
+	void setSupportTemplatesAutocomplete(bool enabled) {
+		_variables.supportTemplatesAutocomplete = enabled;
+	}
+	bool supportTemplatesAutocomplete() const {
+		return _variables.supportTemplatesAutocomplete;
+	}
+
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
 	}
@@ -183,6 +218,11 @@ private:
 			= kDefaultThirdColumnWidth; // per-window
 		rpl::variable<Calls::PeerToPeer> callsPeerToPeer
 			= Calls::PeerToPeer();
+		Ui::InputSubmitSettings sendSubmitWay;
+
+		Support::SwitchSettings supportSwitch;
+		bool supportFixChatsOrder = true;
+		bool supportTemplatesAutocomplete = true;
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
@@ -262,6 +302,9 @@ public:
 	base::Observable<DocumentData*> documentUpdated;
 	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 
+	bool supportMode() const;
+	not_null<Support::Templates*> supportTemplates() const;
+
 	~AuthSession();
 
 private:
@@ -286,6 +329,8 @@ private:
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;
+
+	const std::unique_ptr<Support::Templates> _supportTemplates;
 
 	rpl::lifetime _lifetime;
 

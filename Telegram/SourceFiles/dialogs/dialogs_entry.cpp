@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 #include "styles/style_dialogs.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -69,6 +70,11 @@ bool Entry::needUpdateInChatList() const {
 }
 
 void Entry::updateChatListSortPosition() {
+	if (Auth().supportMode()
+		&& _sortKeyInChatList != 0
+		&& Auth().settings().supportFixChatsOrder()) {
+		return;
+	}
 	_sortKeyInChatList = useProxyPromotion()
 		? ProxyPromotedDialogPos()
 		: isPinnedDialog()

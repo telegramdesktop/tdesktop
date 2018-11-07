@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_emoji_fingerprint.h"
 
 #include "calls/calls_call.h"
+#include "ui/emoji_config.h"
 
 namespace Calls {
 namespace {

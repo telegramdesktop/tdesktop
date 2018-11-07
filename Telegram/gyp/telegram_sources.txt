@@ -38,8 +38,6 @@
 <(src_loc)/boxes/local_storage_box.h
 <(src_loc)/boxes/mute_settings_box.cpp
 <(src_loc)/boxes/mute_settings_box.h
-<(src_loc)/boxes/notifications_box.cpp
-<(src_loc)/boxes/notifications_box.h
 <(src_loc)/boxes/peer_list_box.cpp
 <(src_loc)/boxes/peer_list_box.h
 <(src_loc)/boxes/peer_list_controllers.cpp
@@ -121,6 +119,7 @@
 <(src_loc)/core/launcher.h
 <(src_loc)/core/main_queue_processor.cpp
 <(src_loc)/core/main_queue_processor.h
+<(src_loc)/core/media_active_cache.h
 <(src_loc)/core/mime_type.cpp
 <(src_loc)/core/mime_type.h
 <(src_loc)/core/single_timer.cpp
@@ -137,6 +136,8 @@
 <(src_loc)/data/data_channel_admins.h
 <(src_loc)/data/data_document.cpp
 <(src_loc)/data/data_document.h
+<(src_loc)/data/data_document_good_thumbnail.cpp
+<(src_loc)/data/data_document_good_thumbnail.h
 <(src_loc)/data/data_drafts.cpp
 <(src_loc)/data/data_drafts.h
 <(src_loc)/data/data_feed.cpp
@@ -372,8 +373,6 @@
 <(src_loc)/media/view/media_clip_controller.h
 <(src_loc)/media/view/media_clip_playback.cpp
 <(src_loc)/media/view/media_clip_playback.h
-<(src_loc)/media/view/media_clip_volume_controller.cpp
-<(src_loc)/media/view/media_clip_volume_controller.h
 <(src_loc)/media/view/media_view_group_thumbs.cpp
 <(src_loc)/media/view/media_view_group_thumbs.h
 <(src_loc)/media/media_audio.cpp
@@ -578,6 +577,12 @@
 <(src_loc)/storage/storage_sparse_ids_list.h
 <(src_loc)/storage/storage_user_photos.cpp
 <(src_loc)/storage/storage_user_photos.h
+<(src_loc)/support/support_autocomplete.cpp
+<(src_loc)/support/support_autocomplete.h
+<(src_loc)/support/support_common.cpp
+<(src_loc)/support/support_common.h
+<(src_loc)/support/support_templates.cpp
+<(src_loc)/support/support_templates.h
 <(src_loc)/ui/effects/cross_animation.cpp
 <(src_loc)/ui/effects/cross_animation.h
 <(src_loc)/ui/effects/fade_animation.cpp
@@ -596,6 +601,14 @@
 <(src_loc)/ui/effects/send_action_animations.h
 <(src_loc)/ui/effects/slide_animation.cpp
 <(src_loc)/ui/effects/slide_animation.h
+<(src_loc)/ui/image/image.cpp
+<(src_loc)/ui/image/image.h
+<(src_loc)/ui/image/image_location.cpp
+<(src_loc)/ui/image/image_location.h
+<(src_loc)/ui/image/image_prepare.cpp
+<(src_loc)/ui/image/image_prepare.h
+<(src_loc)/ui/image/image_source.cpp
+<(src_loc)/ui/image/image_source.h
 <(src_loc)/ui/style/style_core.cpp
 <(src_loc)/ui/style/style_core.h
 <(src_loc)/ui/style/style_core_color.cpp
@@ -670,8 +683,6 @@
 <(src_loc)/ui/focus_persister.h
 <(src_loc)/ui/grouped_layout.cpp
 <(src_loc)/ui/grouped_layout.h
-<(src_loc)/ui/images.cpp
-<(src_loc)/ui/images.h
 <(src_loc)/ui/resize_area.h
 <(src_loc)/ui/rp_widget.cpp
 <(src_loc)/ui/rp_widget.h

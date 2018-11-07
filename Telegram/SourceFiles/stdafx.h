@@ -36,10 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma warning(pop)
 #endif // __clang__ || _MSC_VER >= 1914
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
-#define OS_MAC_OLD
-#endif // QT_VERSION < 5.5.0
-
 #ifdef OS_MAC_STORE
 #define MAC_USE_BREAKPAD
 #endif // OS_MAC_STORE
@@ -92,7 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/animation.h"
 #include "ui/twidget.h"
-#include "ui/images.h"
+#include "ui/image/image_location.h"
 #include "ui/text/text.h"
 
 #include "data/data_types.h"

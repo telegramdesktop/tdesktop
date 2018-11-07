@@ -189,6 +189,8 @@ private:
 	void handlePeerNameChange(
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters);
+	bool uniqueSearchResults() const;
+	bool hasHistoryInSearchResults(not_null<History*> history) const;
 
 	void applyDialog(const MTPDdialog &dialog);
 //	void applyFeedDialog(const MTPDdialogFeed &dialog); // #feed

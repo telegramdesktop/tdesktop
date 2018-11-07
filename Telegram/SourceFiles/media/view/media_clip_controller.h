@@ -22,7 +22,6 @@ struct TrackState;
 namespace Clip {
 
 class Playback;
-class VolumeController;
 
 class Controller : public TWidget {
 	Q_OBJECT
@@ -74,7 +73,7 @@ private:
 	object_ptr<Ui::IconButton> _playPauseResume;
 	object_ptr<Ui::MediaSlider> _playbackSlider;
 	std::unique_ptr<Playback> _playback;
-	object_ptr<VolumeController> _volumeController;
+	object_ptr<Ui::MediaSlider> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;

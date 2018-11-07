@@ -471,6 +471,9 @@ private:
 
 	void addItemsToLists(const std::vector<not_null<HistoryItem*>> &items);
 	void clearSendAction(not_null<UserData*> from);
+	bool clearUnreadOnClientSide() const;
+	bool skipUnreadUpdate() const;
+	bool skipUnreadUpdateForClientSideUnread() const;
 
 	HistoryItem *lastAvailableMessage() const;
 	void getNextFirstUnreadMessage();

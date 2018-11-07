@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 
 #include "ui/widgets/shadow.h"
+#include "ui/image/image_prepare.h"
 #include "platform/platform_specific.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -502,11 +503,13 @@ PopupMenu::~PopupMenu() {
 		delete submenu;
 	}
 	if (const auto parent = parentWidget()) {
-		crl::on_main(parent, [=] {
-			if (!parent->isHidden()) {
-				parent->activateWindow();
-			}
-		});
+		if (qApp->focusWidget() != nullptr) {
+			crl::on_main(parent, [=] {
+				if (!parent->isHidden()) {
+					parent->activateWindow();
+				}
+			});
+		}
 	}
 	if (_destroyedCallback) {
 		_destroyedCallback();

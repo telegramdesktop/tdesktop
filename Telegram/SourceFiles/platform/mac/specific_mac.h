@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/mac/specific_mac_p.h"
 
+class LocationCoords;
+
 namespace Platform {
 
 inline bool TranslucentWindowsSupported(QPoint globalPosition) {

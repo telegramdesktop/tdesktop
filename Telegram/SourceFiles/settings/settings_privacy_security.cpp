@@ -384,6 +384,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, lng_settings_destroy_title);
 
@@ -408,7 +409,6 @@ void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupSessionsList(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, lng_settings_sessions_title);
 
@@ -437,9 +437,9 @@ void PrivacySecurity::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupPrivacy(content);
+	SetupSessionsList(content);
 	SetupLocalPasscode(content);
 	SetupCloudPassword(content);
-	SetupSessionsList(content);
 	SetupSelfDestruction(content);
 
 	Ui::ResizeFitChild(this, content);

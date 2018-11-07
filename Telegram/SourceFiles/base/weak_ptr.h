@@ -11,11 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <memory>
 
 namespace base {
+
+class has_weak_ptr;
+
 namespace details {
 
 struct alive_tracker {
+	explicit alive_tracker(const has_weak_ptr *value) : value(value) {
+	}
+
 	std::atomic<int> counter = 1;
-	std::atomic<bool> dead = false;
+	std::atomic<const has_weak_ptr*> value;
 };
 
 inline alive_tracker *check_and_increment(alive_tracker *tracker) noexcept {
@@ -32,8 +38,6 @@ inline void decrement(alive_tracker *tracker) noexcept {
 }
 
 } // namespace details
-
-class has_weak_ptr;
 
 template <typename T>
 class weak_ptr;
@@ -54,7 +58,7 @@ public:
 
 	~has_weak_ptr() {
 		if (auto alive = _alive.load()) {
-			alive->dead.store(true);
+			alive->value.store(nullptr);
 			details::decrement(alive);
 		}
 	}
@@ -66,7 +70,7 @@ private:
 	details::alive_tracker *incrementAliveTracker() const {
 		auto current = _alive.load();
 		if (!current) {
-			auto alive = std::make_unique<details::alive_tracker>();
+			auto alive = std::make_unique<details::alive_tracker>(this);
 			if (_alive.compare_exchange_strong(current, alive.get())) {
 				return alive.release();
 			}
@@ -84,8 +88,7 @@ class weak_ptr {
 public:
 	weak_ptr() = default;
 	weak_ptr(T *value)
-	: _alive(value ? value->incrementAliveTracker() : nullptr)
-	, _value(value) {
+	: _alive(value ? value->incrementAliveTracker() : nullptr) {
 	}
 	weak_ptr(const std::unique_ptr<T> &value)
 	: weak_ptr(value.get()) {
@@ -97,28 +100,24 @@ public:
 	: weak_ptr(value.lock().get()) {
 	}
 	weak_ptr(const weak_ptr &other) noexcept
-	: _alive(details::check_and_increment(other._alive))
-	, _value(other._value) {
+	: _alive(details::check_and_increment(other._alive)) {
 	}
 	weak_ptr(weak_ptr &&other) noexcept
-	: _alive(std::exchange(other._alive, nullptr))
-	, _value(std::exchange(other._value, nullptr)) {
+	: _alive(std::exchange(other._alive, nullptr)) {
 	}
 	template <
 		typename Other,
 		typename = std::enable_if_t<
 			std::is_base_of_v<T, Other> && !std::is_same_v<T, Other>>>
 	weak_ptr(const weak_ptr<Other> &other) noexcept
-	: _alive(details::check_and_increment(other._alive))
-	, _value(other._value) {
+	: _alive(details::check_and_increment(other._alive)) {
 	}
 	template <
 		typename Other,
 		typename = std::enable_if_t<
 			std::is_base_of_v<T, Other> && !std::is_same_v<T, Other>>>
 	weak_ptr(weak_ptr<Other> &&other) noexcept
-	: _alive(std::exchange(other._alive, nullptr))
-	, _value(std::exchange(other._value, nullptr)) {
+	: _alive(std::exchange(other._alive, nullptr)) {
 	}
 
 	weak_ptr &operator=(T *value) {
@@ -138,18 +137,16 @@ public:
 		return *this;
 	}
 	weak_ptr &operator=(const weak_ptr &other) noexcept {
-		if (_value != other._value) {
+		if (_alive != other._alive) {
 			destroy();
 			_alive = details::check_and_increment(other._alive);
-			_value = other._value;
 		}
 		return *this;
 	}
 	weak_ptr &operator=(weak_ptr &&other) noexcept {
-		if (_value != other._value) {
+		if (_alive != other._alive) {
 			destroy();
 			_alive = std::exchange(other._alive, nullptr);
-			_value = std::exchange(other._value, nullptr);
 		}
 		return *this;
 	}
@@ -158,10 +155,9 @@ public:
 		typename = std::enable_if_t<
 			std::is_base_of_v<T, Other> && !std::is_same_v<T, Other>>>
 	weak_ptr &operator=(const weak_ptr<Other> &other) noexcept {
-		if (_value != other._value) {
+		if (_alive != other._alive) {
 			destroy();
 			_alive = details::check_and_increment(other._alive);
-			_value = other._value;
 		}
 		return *this;
 	}
@@ -170,10 +166,9 @@ public:
 		typename = std::enable_if_t<
 			std::is_base_of_v<T, Other> && !std::is_same_v<T, Other>>>
 	weak_ptr &operator=(weak_ptr<Other> &&other) noexcept {
-		if (_value != other._value) {
+		if (_alive != other._alive) {
 			destroy();
 			_alive = std::exchange(other._alive, nullptr);
-			_value = std::exchange(other._value, nullptr);
 		}
 		return *this;
 	}
@@ -183,10 +178,15 @@ public:
 	}
 
 	T *get() const noexcept {
-		return (_alive && !_alive->dead) ? _value : nullptr;
+		const auto strong = _alive ? _alive->value.load() : nullptr;
+		if constexpr (std::is_const_v<T>) {
+			return static_cast<T*>(strong);
+		} else {
+			return const_cast<T*>(static_cast<const T*>(strong));
+		}
 	}
 	explicit operator bool() const noexcept {
-		return (_alive && !_alive->dead);
+		return (_alive && _alive->value);
 	}
 	T &operator*() const noexcept {
 		return *get();
@@ -196,10 +196,9 @@ public:
 	}
 
 	void reset(T *value = nullptr) {
-		if (_value != value) {
+		if (get() != value) {
 			destroy();
 			_alive = value ? value->incrementAliveTracker() : nullptr;
-			_value = value;
 		}
 	}
 
@@ -211,7 +210,6 @@ private:
 	}
 
 	details::alive_tracker *_alive = nullptr;
-	T *_value = nullptr;
 
 	template <typename Other>
 	friend class weak_ptr;

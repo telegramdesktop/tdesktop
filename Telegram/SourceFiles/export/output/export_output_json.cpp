@@ -1010,13 +1010,16 @@ Result JsonWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
+		if (Data::SkipMessageByDate(message, _settings)) {
+			continue;
+		}
 		block.append(prepareArrayItemStart() + SerializeMessage(
 			_context,
 			message,
 			data.peers,
 			_environment.internalLinksDomain));
 	}
-	return _output->writeBlock(block);
+	return block.isEmpty() ? Result::Success() : _output->writeBlock(block);
 }
 
 Result JsonWriter::writeDialogEnd() {

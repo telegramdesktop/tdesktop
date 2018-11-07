@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
 #include <gsl/gsl>
 #include <gsl/gsl_byte>
 
@@ -20,9 +21,15 @@ using vector = std::vector<type>;
 template <gsl::index Size>
 using array = std::array<type, Size>;
 
+inline span make_detached_span(QByteArray &container) {
+	return gsl::as_writeable_bytes(gsl::make_span(container));
+}
+
 template <
 	typename Container,
-	typename = std::enable_if_t<!std::is_const_v<Container>>>
+	typename = std::enable_if_t<
+		!std::is_const_v<Container>
+		&& !std::is_same_v<Container, QByteArray>>>
 inline span make_span(Container &container) {
 	return gsl::as_writeable_bytes(gsl::make_span(container));
 }

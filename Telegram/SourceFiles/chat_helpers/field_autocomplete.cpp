@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/image/image.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
@@ -231,7 +232,11 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (auto i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) {
+			if (!listAllSuggestions
+				&& (i->first.size() == _filter.size()
+					|| !TextUtilities::RemoveAccents(i->first).startsWith(
+						_filter,
+						Qt::CaseInsensitive))) {
 				continue;
 			}
 			hrows.push_back(i->first);

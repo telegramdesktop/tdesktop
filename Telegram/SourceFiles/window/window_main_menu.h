@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class IconButton;
@@ -20,7 +21,7 @@ namespace Window {
 
 class Controller;
 
-class MainMenu : public TWidget, private base::Subscriber {
+class MainMenu : public Ui::RpWidget, private base::Subscriber {
 public:
 	MainMenu(QWidget *parent, not_null<Controller*> controller);
 
@@ -35,11 +36,14 @@ protected:
 private:
 	void updateControlsGeometry();
 	void updatePhone();
+	void initResetScaleButton();
 	void refreshMenu();
 
+	class ResetScaleButton;
 	not_null<Controller*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton = { nullptr };
 	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
+	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::Menu> _menu;
 	object_ptr<Ui::FlatLabel> _telegram;
 	object_ptr<Ui::FlatLabel> _version;

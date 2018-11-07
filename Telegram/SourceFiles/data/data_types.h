@@ -25,6 +25,7 @@ class InputField;
 
 class StorageImageLocation;
 class WebFileLocation;
+struct GeoPointLocation;
 
 namespace Data {
 
@@ -37,9 +38,11 @@ struct UploadState {
 };
 
 Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id);
+Storage::Cache::Key DocumentThumbCacheKey(int32 dcId, uint64 id);
 Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location);
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location);
 Storage::Cache::Key UrlCacheKey(const QString &location);
+Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location);
 
 constexpr auto kImageCacheTag = uint8(0x01);
 constexpr auto kStickerCacheTag = uint8(0x02);
@@ -292,7 +295,7 @@ using WebPageId = uint64;
 using GameId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
-using PreparedPhotoThumbs = QMap<char, QPixmap>;
+using PreparedPhotoThumbs = QMap<char, QImage>;
 
 // [0] == -1 -- counting, [0] == -2 -- could not count
 using VoiceWaveform = QVector<signed char>;

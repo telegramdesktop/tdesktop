@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 
 #include "ui/widgets/shadow.h"
-#include "styles/style_chat_helpers.h"
+#include "ui/image/image_prepare.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
 #include "messenger.h"
+#include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
 namespace {

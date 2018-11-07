@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-void initLocationManager();
-void deinitLocationManager();
-
 class LocationCoords {
 public:
 	LocationCoords() = default;
@@ -32,9 +29,31 @@ public:
 			MTP_long(_access));
 	}
 
+	float64 lat() const {
+		return _lat;
+	}
+	float64 lon() const {
+		return _lon;
+	}
+	uint64 accessHash() const {
+		return _access;
+	}
+
+	inline size_t hash() const {
+#ifndef OS_MAC_OLD
+		return QtPrivate::QHashCombine().operator()(
+				std::hash<float64>()(_lat),
+				_lon);
+#else // OS_MAC_OLD
+		const auto h1 = std::hash<float64>()(_lat);
+		const auto h2 = std::hash<float64>()(_lon);
+		return ((h1 << 16) | (h1 >> 16)) ^ h2;
+#endif // OS_MAC_OLD
+	}
+
 private:
 	static QString asString(float64 value) {
-		static constexpr auto kPrecision = 6;
+		constexpr auto kPrecision = 6;
 		return QString::number(value, 'f', kPrecision);
 	}
 
@@ -46,31 +65,31 @@ private:
 		return (a._lat < b._lat) || ((a._lat == b._lat) && (a._lon < b._lon));
 	}
 
-	friend inline uint qHash(const LocationCoords &t, uint seed = 0) {
-#ifndef OS_MAC_OLD
-		return qHash(QtPrivate::QHashCombine().operator()(qHash(t._lat), t._lon), seed);
-#else // OS_MAC_OLD
-		uint h1 = qHash(t._lat, seed);
-		uint h2 = qHash(t._lon, seed);
-		return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
-#endif // OS_MAC_OLD
-	}
-
 	float64 _lat = 0;
 	float64 _lon = 0;
 	uint64 _access = 0;
 
 };
 
-struct LocationData {
-	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {
+namespace std {
+
+template <>
+struct hash<LocationCoords> {
+	size_t operator()(const LocationCoords &value) const {
+		return value.hash();
 	}
+};
+
+} // namespace std
+
+struct LocationData {
+	LocationData(const LocationCoords &coords);
 
 	LocationCoords coords;
 	ImagePtr thumb;
-	bool loading;
 
 	void load(Data::FileOrigin origin);
+
 };
 
 class LocationClickHandler : public ClickHandler {
@@ -97,33 +116,5 @@ private:
 	void setup();
 	LocationCoords _coords;
 	QString _text;
-
-};
-
-class LocationManager : public QObject {
-	Q_OBJECT
-
-public:
-	void init();
-	void reinit();
-	void deinit();
-
-	void getData(LocationData *data);
-
-	~LocationManager() {
-		deinit();
-	}
-
-public slots:
-	void onFinished(QNetworkReply *reply);
-	void onFailed(QNetworkReply *reply);
-
-private:
-	void failed(LocationData *data);
-
-	QNetworkAccessManager *manager = nullptr;
-	QMap<QNetworkReply*, LocationData*> dataLoadings, imageLoadings;
-	QMap<LocationData*, int32> serverRedirects;
-	ImagePtr *notLoadedPlaceholder = nullptr;
 
 };

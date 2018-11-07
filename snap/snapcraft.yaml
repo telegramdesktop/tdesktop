@@ -48,6 +48,20 @@ apps:
       - removable-media
       - unity7
 
+plugs:
+  gtk-3-themes:
+    interface: content
+    target: $SNAP/usr/share/themes
+    default-provider: gtk-common-themes
+  icon-themes:
+    interface: content
+    target: $SNAP/usr/share/icons
+    default-provider: gtk-common-themes
+  sound-themes:
+    interface: content
+    target: $SNAP/usr/share/sounds
+    default-provider: gtk-common-themes
+
 parts:
   telegram:
     plugin: gyp-cmake
@@ -72,6 +86,8 @@ parts:
     organize:
       Telegram: bin/Telegram
     configflags:
+      - -Dapi_id=611335
+      - -Dapi_hash=d524b414d21f4d37f08684c1df41ac9c
       - -Dlinux_path_breakpad=$SNAPCRAFT_STAGE
       - -Dlinux_path_range=$SNAPCRAFT_STAGE/range-v3
       - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
@@ -92,12 +108,12 @@ parts:
     override-build: |
       set -xe
       snapcraftctl build
+      part_src=$SNAPCRAFT_PART_INSTALL/../src
       snap_gui=$SNAPCRAFT_STAGE/../snap/gui
       mkdir -vp $snap_gui
-      cp -v lib/xdg/telegramdesktop.desktop $snap_gui
-      cp -v Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
+      cp -v $part_src/lib/xdg/telegramdesktop.desktop $snap_gui
+      cp -v $part_src/Telegram/Resources/art/icon512@2x.png $snap_gui/icon.png
       sed -i "s|^Icon=.*|Icon=\${SNAP}/meta/gui/icon.png|g" $snap_gui/telegramdesktop.desktop
-      echo "Keywords=tg;chat;im;messaging;messenger;" >> $snap_gui/telegramdesktop.desktop
     after:
       - breakpad
       - ffmpeg
@@ -122,10 +138,18 @@ parts:
       - libpulse0
       - libunity9
     after: [desktop-gtk3]
-    stage: [-./usr/share/fonts/**]
+    stage:
+      - -./usr/share/fonts/**
+      - -./usr/share/themes/**
+      - -./usr/share/icons/**
+      - -./usr/share/sounds/**
 
   desktop-gtk3:
-    stage: [-./usr/share/fonts/**]
+    stage:
+      - -./usr/share/fonts/**
+      - -./usr/share/themes/**
+      - -./usr/share/icons/**
+      - -./usr/share/sounds/**
     override-build: |
       set -xe
       snapcraftctl build

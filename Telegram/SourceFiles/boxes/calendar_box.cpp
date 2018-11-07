@@ -185,16 +185,13 @@ QString CalendarBox::Context::labelFromIndex(int index) const {
 
 class CalendarBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 public:
-	Inner(QWidget *parent, Context *context);
+	Inner(
+		QWidget *parent,
+		not_null<Context*> context,
+		const style::CalendarSizes &st);
 
-	int countHeight() {
-		auto innerHeight = st::calendarDaysHeight + _context->rowsCount() * st::calendarCellSize.height();
-		return st::calendarPadding.top() + innerHeight + st::calendarPadding.bottom();
-	}
-
-	void setDateChosenCallback(Fn<void(QDate)> callback) {
-		_dateChosenCallback = std::move(callback);
-	}
+	int countHeight();
+	void setDateChosenCallback(Fn<void(QDate)> callback);
 
 	~Inner();
 
@@ -215,7 +212,8 @@ private:
 	void paintDayNames(Painter &p, QRect clip);
 	void paintRows(Painter &p, QRect clip);
 
-	Context *_context = nullptr;
+	const style::CalendarSizes &_st;
+	not_null<Context*> _context;
 
 	std::map<int, std::unique_ptr<Ui::RippleAnimation>> _ripples;
 
@@ -227,8 +225,12 @@ private:
 
 };
 
-CalendarBox::Inner::Inner(QWidget *parent, Context *context)
+CalendarBox::Inner::Inner(
+	QWidget *parent,
+	not_null<Context*> context,
+	const style::CalendarSizes &st)
 : TWidget(parent)
+, _st(st)
 , _context(context) {
 	setMouseTracking(true);
 	subscribe(context->month(), [this](QDate month) {
@@ -245,7 +247,7 @@ void CalendarBox::Inner::monthChanged(QDate month) {
 }
 
 void CalendarBox::Inner::resizeToCurrent() {
-	resize(st::boxWideWidth, countHeight());
+	resize(_st.width, countHeight());
 }
 
 void CalendarBox::Inner::paintEvent(QPaintEvent *e) {
@@ -260,13 +262,13 @@ void CalendarBox::Inner::paintEvent(QPaintEvent *e) {
 void CalendarBox::Inner::paintDayNames(Painter &p, QRect clip) {
 	p.setFont(st::calendarDaysFont);
 	p.setPen(st::calendarDaysFg);
-	auto y = st::calendarPadding.top();
+	auto y = _st.padding.top();
 	auto x = rowsLeft();
-	if (!myrtlrect(x, y, st::calendarCellSize.width() * kDaysInWeek, st::calendarDaysHeight).intersects(clip)) {
+	if (!myrtlrect(x, y, _st.cellSize.width() * kDaysInWeek, _st.daysHeight).intersects(clip)) {
 		return;
 	}
-	for (auto i = 0; i != kDaysInWeek; ++i, x += st::calendarCellSize.width()) {
-		auto rect = myrtlrect(x, y, st::calendarCellSize.width(), st::calendarDaysHeight);
+	for (auto i = 0; i != kDaysInWeek; ++i, x += _st.cellSize.width()) {
+		auto rect = myrtlrect(x, y, _st.cellSize.width(), _st.daysHeight);
 		if (!rect.intersects(clip)) {
 			continue;
 		}
@@ -275,11 +277,11 @@ void CalendarBox::Inner::paintDayNames(Painter &p, QRect clip) {
 }
 
 int CalendarBox::Inner::rowsLeft() const {
-	return st::calendarPadding.left();
+	return _st.padding.left();
 }
 
 int CalendarBox::Inner::rowsTop() const {
-	return st::calendarPadding.top() + st::calendarDaysHeight;
+	return _st.padding.top() + _st.daysHeight;
 }
 
 void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
@@ -290,24 +292,24 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 	auto highlightedIndex = _context->highlightedIndex();
 	for (auto row = 0, rowsCount = _context->rowsCount(), daysCount = _context->daysCount()
 		; row != rowsCount
-		; ++row, y += st::calendarCellSize.height()) {
+		; ++row, y += _st.cellSize.height()) {
 		auto x = rowsLeft();
-		if (!myrtlrect(x, y, st::calendarCellSize.width() * kDaysInWeek, st::calendarCellSize.height()).intersects(clip)) {
+		if (!myrtlrect(x, y, _st.cellSize.width() * kDaysInWeek, _st.cellSize.height()).intersects(clip)) {
 			index += kDaysInWeek;
 			continue;
 		}
-		for (auto col = 0; col != kDaysInWeek; ++col, ++index, x += st::calendarCellSize.width()) {
-			auto rect = myrtlrect(x, y, st::calendarCellSize.width(), st::calendarCellSize.height());
+		for (auto col = 0; col != kDaysInWeek; ++col, ++index, x += _st.cellSize.width()) {
+			auto rect = myrtlrect(x, y, _st.cellSize.width(), _st.cellSize.height());
 			auto grayedOut = (index < 0 || index >= daysCount || !rect.intersects(clip));
 			auto highlighted = (index == highlightedIndex);
 			auto enabled = _context->isEnabled(index);
-			auto innerLeft = x + (st::calendarCellSize.width() - st::calendarCellInner) / 2;
-			auto innerTop = y + (st::calendarCellSize.height() - st::calendarCellInner) / 2;
+			auto innerLeft = x + (_st.cellSize.width() - _st.cellInner) / 2;
+			auto innerTop = y + (_st.cellSize.height() - _st.cellInner) / 2;
 			if (highlighted) {
 				PainterHighQualityEnabler hq(p);
 				p.setPen(Qt::NoPen);
 				p.setBrush(grayedOut ? st::windowBgOver : st::dialogsBgActive);
-				p.drawEllipse(myrtlrect(innerLeft, innerTop, st::calendarCellInner, st::calendarCellInner));
+				p.drawEllipse(myrtlrect(innerLeft, innerTop, _st.cellInner, _st.cellInner));
 				p.setBrush(Qt::NoBrush);
 			}
 			auto it = _ripples.find(index);
@@ -336,7 +338,7 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 }
 
 void CalendarBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	const auto size = st::calendarCellSize;
+	const auto size = _st.cellSize;
 	const auto point = e->pos();
 	const auto inner = QRect(
 		rowsLeft(),
@@ -371,14 +373,14 @@ void CalendarBox::Inner::mousePressEvent(QMouseEvent *e) {
 
 		auto row = index / kDaysInWeek;
 		auto col = index % kDaysInWeek;
-		auto cell = QRect(rowsLeft() + col * st::calendarCellSize.width(), rowsTop() + row * st::calendarCellSize.height(), st::calendarCellSize.width(), st::calendarCellSize.height());
+		auto cell = QRect(rowsLeft() + col * _st.cellSize.width(), rowsTop() + row * _st.cellSize.height(), _st.cellSize.width(), _st.cellSize.height());
 		auto it = _ripples.find(_selected);
 		if (it == _ripples.cend()) {
-			auto mask = Ui::RippleAnimation::ellipseMask(QSize(st::calendarCellInner, st::calendarCellInner));
+			auto mask = Ui::RippleAnimation::ellipseMask(QSize(_st.cellInner, _st.cellInner));
 			auto update = [this, cell] { rtlupdate(cell); };
 			it = _ripples.emplace(_selected, std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(mask), std::move(update))).first;
 		}
-		auto ripplePosition = QPoint(cell.x() + (st::calendarCellSize.width() - st::calendarCellInner) / 2, cell.y() + (st::calendarCellSize.height() - st::calendarCellInner) / 2);
+		auto ripplePosition = QPoint(cell.x() + (_st.cellSize.width() - _st.cellInner) / 2, cell.y() + (_st.cellSize.height() - _st.cellInner) / 2);
 		it->second->add(e->pos() - ripplePosition);
 	}
 }
@@ -403,11 +405,23 @@ void CalendarBox::Inner::setPressed(int pressed) {
 	}
 }
 
+int CalendarBox::Inner::countHeight() {
+	const auto innerHeight = _st.daysHeight
+		+ _context->rowsCount() * _st.cellSize.height();
+	return _st.padding.top()
+		+ innerHeight
+		+ _st.padding.bottom();
+}
+
+void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
+	_dateChosenCallback = std::move(callback);
+}
+
 CalendarBox::Inner::~Inner() = default;
 
 class CalendarBox::Title : public TWidget, private base::Subscriber {
 public:
-	Title(QWidget *parent, Context *context)
+	Title(QWidget *parent, not_null<Context*> context)
 	: TWidget(parent)
 	, _context(context) {
 		subscribe(_context->month(), [this](QDate date) { monthChanged(date); });
@@ -419,7 +433,7 @@ protected:
 private:
 	void monthChanged(QDate month);
 
-	Context *_context = nullptr;
+	not_null<Context*> _context;
 
 	QString _text;
 	int _textWidth = 0;
@@ -440,13 +454,36 @@ void CalendarBox::Title::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft((width() - _textWidth) / 2, (height() - st::calendarTitleFont->height) / 2, width(), _text, _textWidth);
 }
 
-CalendarBox::CalendarBox(QWidget*, QDate month, QDate highlighted, Fn<void(QDate date)> callback)
-: _context(std::make_unique<Context>(month, highlighted))
-, _inner(this, _context.get())
+CalendarBox::CalendarBox(
+	QWidget*,
+	QDate month,
+	QDate highlighted,
+	Fn<void(QDate date)> callback,
+	FnMut<void(not_null<CalendarBox*>)> finalize)
+: CalendarBox(
+	nullptr,
+	month,
+	highlighted,
+	std::move(callback),
+	std::move(finalize),
+	st::defaultCalendarSizes) {
+}
+
+CalendarBox::CalendarBox(
+	QWidget*,
+	QDate month,
+	QDate highlighted,
+	Fn<void(QDate date)> callback,
+	FnMut<void(not_null<CalendarBox*>)> finalize,
+	const style::CalendarSizes &st)
+: _st(st)
+, _context(std::make_unique<Context>(month, highlighted))
+, _inner(this, _context.get(), _st)
 , _title(this, _context.get())
 , _previous(this, st::calendarPrevious)
 , _next(this, st::calendarNext)
-, _callback(std::move(callback)) {
+, _callback(std::move(callback))
+, _finalize(std::move(finalize)) {
 }
 
 void CalendarBox::setMinDate(QDate date) {
@@ -477,6 +514,10 @@ void CalendarBox::prepare() {
 	subscribe(_context->month(), [this](QDate month) { monthChanged(month); });
 
 	_context->start();
+
+	if (_finalize) {
+		_finalize(this);
+	}
 }
 
 bool CalendarBox::isPreviousEnabled() const {
@@ -488,7 +529,7 @@ bool CalendarBox::isNextEnabled() const {
 }
 
 void CalendarBox::monthChanged(QDate month) {
-	setDimensions(st::boxWideWidth, st::calendarTitleHeight + _inner->countHeight());
+	setDimensions(_st.width, st::calendarTitleHeight + _inner->countHeight());
 	auto previousEnabled = isPreviousEnabled();
 	_previous->setIconOverride(previousEnabled ? nullptr : &st::calendarPreviousDisabled);
 	_previous->setRippleColorOverride(previousEnabled ? nullptr : &st::boxBg);

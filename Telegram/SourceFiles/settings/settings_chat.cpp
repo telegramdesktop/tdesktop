@@ -15,9 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/local_storage_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/toast/toast.h"
+#include "ui/image/image.h"
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
@@ -25,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "data/data_session.h"
+#include "support/support_common.h"
+#include "support/support_templates.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "styles/style_settings.h"
@@ -416,7 +421,8 @@ QString DownloadPathText() {
 }
 
 void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container, st::settingsStickersEmojiPadding);
+	AddDivider(container);
+	AddSkip(container);
 
 	AddSubsectionTitle(container, lng_settings_stickers_emoji);
 
@@ -472,7 +478,9 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
 		lng_stickers_you_have,
-		st::settingsButton
+		st::settingsChatButton,
+		&st::settingsIconStickers,
+		st::settingsChatIconLeft
 	)->addClickHandler([] {
 		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
 	});
@@ -488,14 +496,9 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 
 	AddSkip(container, st::settingsSendTypeSkip);
 
-	enum class SendByType {
-		Enter,
-		CtrlEnter,
-	};
+	using SendByType = Ui::InputSubmitSettings;
 
 	const auto skip = st::settingsSendTypeSkip;
-	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
-		cCtrlEnter() ? SendByType::CtrlEnter : SendByType::Enter);
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	const auto inner = wrap.data();
 	container->add(
@@ -504,10 +507,9 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 			std::move(wrap),
 			QMargins(0, skip, 0, skip)));
 
-	const auto add = [&](
-		SendByType value,
-		LangKey key,
-		style::margins padding) {
+	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
+		Auth().settings().sendSubmitWay());
+	const auto add = [&](SendByType value, LangKey key) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
@@ -519,18 +521,15 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 	};
 	const auto small = st::settingsSendTypePadding;
 	const auto top = skip;
-	add(
-		SendByType::Enter,
-		lng_settings_send_enter,
-		{ small.left(), small.top() + top, small.right(), small.bottom() });
+	add(SendByType::Enter, lng_settings_send_enter);
 	add(
 		SendByType::CtrlEnter,
 		((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
 			? lng_settings_send_cmdenter
-			: lng_settings_send_ctrlenter),
-		{ small.left(), small.top(), small.right(), small.bottom() + top });
+			: lng_settings_send_ctrlenter));
+
 	group->setChangedCallback([](SendByType value) {
-		cSetCtrlEnter(value == SendByType::CtrlEnter);
+		Auth().settings().setSendSubmitWay(value);
 		if (App::main()) {
 			App::main()->ctrlEnterSubmitUpdated();
 		}
@@ -705,53 +704,6 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 		Adaptive::Changed().notify();
 		Local::writeUserSettings();
 	}, adaptive->lifetime());
-}
-
-void SetupNightMode(not_null<Ui::VerticalLayout*> container) {
-	const auto calling = Ui::AttachAsChild(container, 0);
-	AddButton(
-		container,
-		lng_settings_use_night_mode,
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(Window::Theme::IsNightMode())
-	)->toggledValue(
-	) | rpl::start_with_next([=](bool toggled) {
-		++*calling;
-		const auto change = [=] {
-			if (!--*calling && toggled != Window::Theme::IsNightMode()) {
-				Window::Theme::ToggleNightMode();
-				Window::Theme::KeepApplied();
-			}
-		};
-		App::CallDelayed(
-			st::settingsButton.toggle.duration,
-			container,
-			change);
-	}, container->lifetime());
-}
-
-void SetupUseDefaultTheme(not_null<Ui::VerticalLayout*> container) {
-	using Update = const Window::Theme::BackgroundUpdate;
-	container->add(
-		object_ptr<Ui::SlideWrap<Button>>(
-			container,
-			object_ptr<Button>(
-				container,
-				Lang::Viewer(lng_settings_bg_use_default),
-				st::settingsButton))
-	)->toggleOn(rpl::single(
-		Window::Theme::SuggestThemeReset()
-	) | rpl::then(base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme
-			|| update.type == Update::Type::New);
-	}) | rpl::map([] {
-		return Window::Theme::SuggestThemeReset();
-	})))->entity()->addClickHandler([] {
-		Window::Theme::ApplyDefault();
-	});
 }
 
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
@@ -934,26 +886,84 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
-	AddSkip(container);
+	AddSkip(container, st::settingsPrivacySkip);
 
 	AddSubsectionTitle(container, lng_settings_themes);
 
+	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
-	//SetupNightMode(container);
+	AddSkip(container, st::settingsThemesBottomSkip);
 
 	AddButton(
 		container,
 		lng_settings_bg_edit_theme,
-		st::settingsButton
+		st::settingsChatButton,
+		&st::settingsIconThemes,
+		st::settingsChatIconLeft
 	)->addClickHandler(App::LambdaDelayed(
-		st::settingsButton.ripple.hideDuration,
+		st::settingsChatButton.ripple.hideDuration,
 		container,
 		[] { Window::Theme::Editor::Start(); }));
 
-	//SetupUseDefaultTheme(container);
-
 	AddSkip(container);
+}
+
+void SetupSupport(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container);
+
+	AddSubsectionTitle(container, rpl::single(qsl("Support settings")));
+
+	AddSkip(container, st::settingsSendTypeSkip);
+
+	using SwitchType = Support::SwitchSettings;
+
+	const auto skip = st::settingsSendTypeSkip;
+	auto wrap = object_ptr<Ui::VerticalLayout>(container);
+	const auto inner = wrap.data();
+	container->add(
+		object_ptr<Ui::OverrideMargins>(
+			container,
+			std::move(wrap),
+			QMargins(0, skip, 0, skip)));
+
+	const auto group = std::make_shared<Ui::RadioenumGroup<SwitchType>>(
+		Auth().settings().supportSwitch());
+	const auto add = [&](SwitchType value, const QString &label) {
+		inner->add(
+			object_ptr<Ui::Radioenum<SwitchType>>(
+				inner,
+				group,
+				value,
+				label,
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	};
+	add(SwitchType::None, "Just send the reply");
+	add(SwitchType::Next, "Send and switch to next");
+	add(SwitchType::Previous, "Send and switch to previous");
+	group->setChangedCallback([](SwitchType value) {
+		Auth().settings().setSupportSwitch(value);
+		Local::writeUserSettings();
+	});
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	base::ObservableViewer(
+		inner->add(
+			object_ptr<Ui::Checkbox>(
+				inner,
+				"Enable templates autocomplete",
+				Auth().settings().supportTemplatesAutocomplete(),
+				st::settingsCheckbox),
+			st::settingsSendTypePadding
+		)->checkedChanged
+	) | rpl::start_with_next([=](bool checked) {
+		Auth().settings().setSupportTemplatesAutocomplete(checked);
+		Local::writeUserSettings();
+	}, inner->lifetime());
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+	AddSkip(inner);
 }
 
 Chat::Chat(QWidget *parent, not_null<UserData*> self)
@@ -965,10 +975,10 @@ Chat::Chat(QWidget *parent, not_null<UserData*> self)
 void Chat::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	SetupThemeOptions(content);
+	SetupChatBackground(content);
 	SetupStickersEmoji(content);
 	SetupMessages(content);
-	SetupChatBackground(content);
-	SetupThemeOptions(content);
 
 	Ui::ResizeFitChild(this, content);
 }

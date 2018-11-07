@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 
+namespace Images {
+class Source;
+} // namespace Images
+
 namespace Storage {
 namespace Cache {
 struct Key;
@@ -121,7 +125,7 @@ public:
 
 	void performActionOnLoad();
 
-	void forget();
+	void unload();
 	ImagePtr makeReplyPreview(Data::FileOrigin origin);
 
 	StickerData *sticker() const;
@@ -153,6 +157,12 @@ public:
 	}
 
 	bool hasGoodStickerThumb() const;
+
+	Image *goodThumbnail() const;
+	Storage::Cache::Key goodThumbnailCacheKey() const;
+	void setGoodThumbnail(QImage &&image, QByteArray &&bytes);
+	void refreshGoodThumbnail();
+	void replaceGoodThumbnail(std::unique_ptr<Images::Source> &&source);
 
 	void setRemoteLocation(
 		int32 dc,
@@ -206,6 +216,7 @@ private:
 	friend class Serialize::Document;
 
 	LocationType locationType() const;
+	void validateGoodThumbnail();
 
 	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
 
@@ -217,6 +228,8 @@ private:
 	QString _filename;
 	QString _mimeString;
 	WebFileLocation _urlLocation;
+
+	std::unique_ptr<Image> _goodThumbnail;
 
 	not_null<AuthSession*> _session;
 

@@ -26,15 +26,22 @@ void RadialAnimation::start(float64 prg) {
 bool RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
 	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
 	const auto result = (iprg != qRound(a_arcEnd.to()));
-	if (result) {
+	if (_finished != finished) {
+		a_arcEnd.start(iprg);
+		_finished = finished;
+		_lastStart = _lastTime;
+	} else if (result) {
 		a_arcEnd.start(iprg);
 		_lastStart = _lastTime;
 	}
 	_lastTime = ms;
 
-	auto dt = float64(ms - _lastStart);
-	auto fulldt = float64(ms - _firstStart);
-	_opacity = qMin(fulldt / st::radialDuration, 1.);
+	const auto dt = float64(ms - _lastStart);
+	const auto fulldt = float64(ms - _firstStart);
+	const auto opacitydt = _finished
+		? (_lastStart - _firstStart)
+		: fulldt;
+	_opacity = qMin(opacitydt / st::radialDuration, 1.);
 	if (anim::Disabled()) {
 		a_arcEnd.update(1., anim::linear);
 		if (finished) {

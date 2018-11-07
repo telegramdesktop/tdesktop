@@ -318,36 +318,8 @@ inline T snap(const T &v, const T &_min, const T &_max) {
 	return (v < _min) ? _min : ((v > _max) ? _max : v);
 }
 
-template <typename T>
-class ManagedPtr {
-public:
-	ManagedPtr() = default;
-	ManagedPtr(T *p) : _data(p) {
-	}
-	T *operator->() const {
-		return _data;
-	}
-	T *v() const {
-		return _data;
-	}
-
-	explicit operator bool() const {
-		return _data != nullptr;
-	}
-
-protected:
-	using Parent = ManagedPtr<T>;
-	T *_data = nullptr;
-
-};
-
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
-
-enum DBISendKey {
-	dbiskEnter = 0,
-	dbiskCtrlEnter = 1,
-};
 
 enum DBINotifyView {
 	dbinvShowPreview = 0,
@@ -362,6 +334,11 @@ enum DBIWorkMode {
 };
 
 struct ProxyData {
+	enum class Settings {
+		System,
+		Enabled,
+		Disabled,
+	};
 	enum class Type {
 		None,
 		Socks5,
@@ -392,16 +369,6 @@ struct ProxyData {
 
 ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex = 0);
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
-
-enum DBIScale {
-	dbisAuto = 0,
-	dbisOne = 1,
-	dbisOneAndQuarter = 2,
-	dbisOneAndHalf = 3,
-	dbisTwo = 4,
-
-	dbisScaleCount = 5,
-};
 
 static const int MatrixRowShift = 40000;
 

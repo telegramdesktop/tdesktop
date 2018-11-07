@@ -42,7 +42,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -107,17 +109,13 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 		return;
 	}
 
-	if (cRetina()) {
-		cSetConfigScale(dbisOne);
-		cSetRealScale(dbisOne);
-	}
-
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 
 	style::startManager();
 	anim::startManager();
 	Ui::InitTextOptions();
+	Ui::Emoji::Init();
 	Media::Player::start();
 
 	DEBUG_LOG(("Application Info: inited..."));
@@ -147,7 +145,6 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	Shortcuts::start();
 
-	initLocationManager();
 	App::initMedia();
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
@@ -286,18 +283,19 @@ bool Messenger::eventFilter(QObject *object, QEvent *e) {
 
 void Messenger::setCurrentProxy(
 		const ProxyData &proxy,
-		bool enabled) {
+		ProxyData::Settings settings) {
 	const auto key = [&](const ProxyData &proxy) {
 		if (proxy.type == ProxyData::Type::Mtproto) {
 			return std::make_pair(proxy.host, proxy.port);
 		}
 		return std::make_pair(QString(), uint32(0));
 	};
-	const auto previousKey = key(Global::UseProxy()
-		? Global::SelectedProxy()
-		: ProxyData());
+	const auto previousKey = key(
+		(Global::ProxySettings() == ProxyData::Settings::Enabled
+			? Global::SelectedProxy()
+			: ProxyData()));
 	Global::SetSelectedProxy(proxy);
-	Global::SetUseProxy(enabled);
+	Global::SetProxySettings(settings);
 	Sandbox::refreshGlobalProxy();
 	if (_mtproto) {
 		_mtproto->restart();
@@ -312,10 +310,16 @@ void Messenger::setCurrentProxy(
 }
 
 void Messenger::badMtprotoConfigurationError() {
-	if (Global::UseProxy() && !_badProxyDisableBox) {
+	if (Global::ProxySettings() == ProxyData::Settings::Enabled
+		&& !_badProxyDisableBox) {
+		const auto disableCallback = [=] {
+			setCurrentProxy(
+				Global::SelectedProxy(),
+				ProxyData::Settings::System);
+		};
 		_badProxyDisableBox = Ui::show(Box<InformBox>(
 			Lang::Hard::ProxyConfigError(),
-			[=] { setCurrentProxy(Global::SelectedProxy(), false); }));
+			disableCallback));
 	}
 }
 
@@ -463,14 +467,21 @@ void Messenger::startMtp() {
 	}
 
 	if (_private->authSessionUserId) {
+		QDataStream peekStream(_private->authSessionUserSerialized);
+		const auto phone = Serialize::peekUserPhone(
+			_private->authSessionUserStreamVersion,
+			peekStream);
+		const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
+			? MTPDuser::Flag()
+			: MTPDuser::Flag::f_phone);
 		authSessionCreate(MTP_user(
-			MTP_flags(MTPDuser::Flag::f_self),
+			MTP_flags(flags),
 			MTP_int(base::take(_private->authSessionUserId)),
 			MTPlong(), // access_hash
 			MTPstring(), // first_name
 			MTPstring(), // last_name
 			MTPstring(), // username
-			MTPstring(), // phone
+			MTP_string(phone),
 			MTPUserProfilePhoto(),
 			MTPUserStatus(),
 			MTPint(), // bot_info_version
@@ -566,8 +577,8 @@ void Messenger::startLocalStorage() {
 			}
 		}
 	});
-	subscribe(authSessionChanged(), [this] {
-		InvokeQueued(this, [this] {
+	subscribe(authSessionChanged(), [=] {
+		InvokeQueued(this, [=] {
 			const auto phone = AuthSession::Exists()
 				? Auth().user()->phone()
 				: QString();
@@ -581,6 +592,7 @@ void Messenger::startLocalStorage() {
 			if (_mtproto) {
 				_mtproto->requestConfig();
 			}
+			Platform::SetApplicationIcon(Window::CreateIcon());
 		});
 	});
 }
@@ -1018,11 +1030,12 @@ Messenger::~Messenger() {
 
 	Shortcuts::finish();
 
+	Ui::Emoji::Clear();
+
 	anim::stopManager();
 
 	stopWebLoadManager();
 	App::deinitMedia();
-	deinitLocationManager();
 
 	Window::Theme::Unload();
 
@@ -1118,7 +1131,7 @@ void Messenger::loggedOut() {
 	Local::reset();
 
 	cSetOtherOnline(0);
-	clearStorageImages();
+	Images::ClearRemote();
 }
 
 QPoint Messenger::getPointForCallPanelCenter() const {

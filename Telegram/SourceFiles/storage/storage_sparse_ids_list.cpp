@@ -31,18 +31,18 @@ void SparseIdsList::Slice::merge(
 }
 
 template <typename Range>
-int SparseIdsList::uniteAndAdd(
+SparseIdsList::AddResult SparseIdsList::uniteAndAdd(
 		SparseIdsSliceUpdate &update,
 		base::flat_set<Slice>::iterator uniteFrom,
 		base::flat_set<Slice>::iterator uniteTill,
 		const Range &messages,
 		MsgRange noSkipRange) {
-	auto uniteFromIndex = uniteFrom - _slices.begin();
-	auto was = uniteFrom->messages.size();
+	const auto uniteFromIndex = uniteFrom - _slices.begin();
+	const auto was = int(uniteFrom->messages.size());
 	_slices.modify(uniteFrom, [&](Slice &slice) {
 		slice.merge(messages, noSkipRange);
 	});
-	auto firstToErase = uniteFrom + 1;
+	const auto firstToErase = uniteFrom + 1;
 	if (firstToErase != uniteTill) {
 		for (auto it = firstToErase; it != uniteTill; ++it) {
 			_slices.modify(uniteFrom, [&](Slice &slice) {
@@ -54,11 +54,12 @@ int SparseIdsList::uniteAndAdd(
 	}
 	update.messages = &uniteFrom->messages;
 	update.range = uniteFrom->range;
-	return uniteFrom->messages.size() - was;
+	const auto count = int(uniteFrom->messages.size());
+	return { count, count - was };
 }
 
 template <typename Range>
-int SparseIdsList::addRangeItemsAndCountNew(
+SparseIdsList::AddResult SparseIdsList::addRangeItemsAndCountNew(
 		SparseIdsSliceUpdate &update,
 		const Range &messages,
 		MsgRange noSkipRange) {
@@ -86,7 +87,8 @@ int SparseIdsList::addRangeItemsAndCountNew(
 		noSkipRange);
 	update.messages = &slice->messages;
 	update.range = slice->range;
-	return slice->messages.size();
+	const auto count = int(slice->messages.size());
+	return { count, count };
 }
 
 template <typename Range>
@@ -97,21 +99,23 @@ void SparseIdsList::addRange(
 		bool incrementCount) {
 	Expects(!count || !incrementCount);
 
-	auto wasCount = _count;
 	auto update = SparseIdsSliceUpdate();
-	auto result = addRangeItemsAndCountNew(
+	const auto result = addRangeItemsAndCountNew(
 		update,
 		messages,
 		noSkipRange);
 	if (count) {
 		_count = count;
-	} else if (incrementCount && _count && result > 0) {
-		*_count += result;
+	} else if (incrementCount && _count && result.added > 0) {
+		*_count += result.added;
 	}
 	if (_slices.size() == 1) {
 		if (_slices.front().range == MsgRange { 0, ServerMaxMsgId }) {
 			_count = _slices.front().messages.size();
 		}
+	}
+	if (_count) {
+		accumulate_max(*_count, result.inslice);
 	}
 	update.count = _count;
 	_sliceUpdated.fire(std::move(update));

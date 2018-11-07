@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "data/data_shared_media.h"
 #include "data/data_user_photos.h"
+#include "data/data_web_page.h"
 
 namespace Media {
 namespace Player {
@@ -147,6 +148,7 @@ private:
 	};
 	Entity entityForUserPhotos(int index) const;
 	Entity entityForSharedMedia(int index) const;
+	Entity entityForCollage(int index) const;
 	Entity entityByIndex(int index) const;
 	Entity entityForItemId(const FullMsgId &itemId) const;
 	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
@@ -174,6 +176,12 @@ private:
 	bool validUserPhotos() const;
 	void validateUserPhotos();
 	void handleUserPhotosUpdate(UserPhotosSlice &&update);
+
+	struct Collage;
+	using CollageKey = WebPageCollage::Item;
+	std::optional<CollageKey> collageKey() const;
+	bool validCollage() const;
+	void validateCollage();
 
 	Data::FileOrigin fileOrigin() const;
 
@@ -207,7 +215,6 @@ private:
 
 	void initAnimation();
 	void createClipReader();
-	Images::Options videoThumbOptions() const;
 
 	void initThemePreview();
 	void destroyThemePreview();
@@ -253,6 +260,8 @@ private:
 	std::optional<SharedMediaWithLastSlice::Key> _sharedMediaDataKey;
 	std::unique_ptr<UserPhotos> _userPhotos;
 	std::optional<UserPhotosSlice> _userPhotosData;
+	std::unique_ptr<Collage> _collage;
+	std::optional<WebPageCollage> _collageData;
 
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;

@@ -95,10 +95,11 @@ void Channels::setupHeader() {
 		parent,
 		rpl::single(QString()));
 
-	object_ptr<Profile::FloatingIcon>(
-		parent,
-		st::infoIconFeed,
-		st::infoIconPosition);
+	// #feed
+	//object_ptr<Profile::FloatingIcon>(
+	//	parent,
+	//	st::infoIconFeed,
+	//	st::infoIconPosition);
 
 	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
 	_title = setupTitle();

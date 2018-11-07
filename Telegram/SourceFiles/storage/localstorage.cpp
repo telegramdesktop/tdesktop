@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/emoji_config.h"
 #include "export/export_settings.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
@@ -522,7 +524,7 @@ enum {
 	dbiDcOptionOldOld = 0x02,
 	dbiChatSizeMax = 0x03,
 	dbiMutePeer = 0x04,
-	dbiSendKey = 0x05,
+	dbiSendKeyOld = 0x05,
 	dbiAutoStart = 0x06,
 	dbiStartMinimized = 0x07,
 	dbiSoundNotify = 0x08,
@@ -539,7 +541,7 @@ enum {
 	dbiReplaceEmoji = 0x13,
 	dbiAskDownloadPath = 0x14,
 	dbiDownloadPathOld = 0x15,
-	dbiScale = 0x16,
+	dbiScaleOld = 0x16,
 	dbiEmojiTabOld = 0x17,
 	dbiRecentEmojiOldOld = 0x18,
 	dbiLoggedPhoneNumber = 0x19,
@@ -595,6 +597,7 @@ enum {
 	dbiTileBackground = 0x55,
 	dbiCacheSettings = 0x56,
 	dbiAnimationsDisabled = 0x57,
+	dbiScalePercent = 0x58,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -609,7 +612,8 @@ enum {
 	dbictHttpAuto = 1, // not used
 	dbictHttpProxy = 2,
 	dbictTcpProxy = 3,
-	dbictProxiesList = 4,
+	dbictProxiesListOld = 4,
+	dbictProxiesList = 5,
 };
 
 typedef QMap<PeerId, FileKey> DraftsMap;
@@ -1211,7 +1215,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		} break;
 		};
 		Global::SetSelectedProxy(proxy ? proxy : ProxyData());
-		Global::SetUseProxy(proxy ? true : false);
+		Global::SetProxySettings(proxy
+			? ProxyData::Settings::Enabled
+			: ProxyData::Settings::System);
 		if (proxy) {
 			Global::SetProxiesList({ 1, proxy });
 		} else {
@@ -1245,14 +1251,16 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				: ProxyData::Type::None;
 			return proxy;
 		};
-		if (connectionType == dbictProxiesList) {
+		if (connectionType == dbictProxiesListOld
+			|| connectionType == dbictProxiesList) {
 			qint32 count = 0, index = 0;
 			stream >> count >> index;
-			if (std::abs(index) > count) {
-				Global::SetUseProxyForCalls(true);
+			qint32 settings = 0, calls = 0;
+			if (connectionType == dbictProxiesList) {
+				stream >> settings >> calls;
+			} else if (std::abs(index) > count) {
+				calls = 1;
 				index -= (index > 0 ? count : -count);
-			} else {
-				Global::SetUseProxyForCalls(false);
 			}
 
 			auto list = std::vector<ProxyData>();
@@ -1270,13 +1278,31 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				return false;
 			}
 			Global::SetProxiesList(list);
-			Global::SetUseProxy(index > 0 && index <= list.size());
-			index = std::abs(index);
+			if (connectionType == dbictProxiesListOld) {
+				settings = static_cast<qint32>(
+					(index > 0 && index <= list.size()
+						? ProxyData::Settings::Enabled
+						: ProxyData::Settings::System));
+				index = std::abs(index);
+			}
 			if (index > 0 && index <= list.size()) {
 				Global::SetSelectedProxy(list[index - 1]);
 			} else {
 				Global::SetSelectedProxy(ProxyData());
 			}
+
+			const auto unchecked = static_cast<ProxyData::Settings>(settings);
+			switch (unchecked) {
+			case ProxyData::Settings::Disabled:
+			case ProxyData::Settings::System:
+			case ProxyData::Settings::Enabled:
+				Global::SetProxySettings(unchecked);
+				break;
+			default:
+				Global::SetProxySettings(ProxyData::Settings::System);
+				break;
+			}
+			Global::SetUseProxyForCalls(calls == 1);
 		} else {
 			const auto proxy = readProxy();
 			if (!_checkStreamStatus(stream)) {
@@ -1287,14 +1313,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				Global::SetSelectedProxy(proxy);
 				if (connectionType == dbictTcpProxy
 					|| connectionType == dbictHttpProxy) {
-					Global::SetUseProxy(true);
+					Global::SetProxySettings(ProxyData::Settings::Enabled);
 				} else {
-					Global::SetUseProxy(false);
+					Global::SetProxySettings(ProxyData::Settings::System);
 				}
 			} else {
 				Global::SetProxiesList({});
 				Global::SetSelectedProxy(ProxyData());
-				Global::SetUseProxy(false);
+				Global::SetProxySettings(ProxyData::Settings::System);
 			}
 		}
 		Sandbox::refreshGlobalProxy();
@@ -1362,22 +1388,34 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetLastUpdateCheck(v);
 	} break;
 
-	case dbiScale: {
+	case dbiScaleOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		DBIScale s = cRealScale();
-		switch (v) {
-		case dbisAuto: s = dbisAuto; break;
-		case dbisOne: s = dbisOne; break;
-		case dbisOneAndQuarter: s = dbisOneAndQuarter; break;
-		case dbisOneAndHalf: s = dbisOneAndHalf; break;
-		case dbisTwo: s = dbisTwo; break;
-		}
-		if (cRetina()) s = dbisOne;
-		cSetConfigScale(s);
-		cSetRealScale(s);
+		SetScaleChecked([&] {
+			constexpr auto kAuto = 0;
+			constexpr auto kOne = 1;
+			constexpr auto kOneAndQuarter = 2;
+			constexpr auto kOneAndHalf = 3;
+			constexpr auto kTwo = 4;
+			switch (v) {
+			case kAuto: return kInterfaceScaleAuto;
+			case kOne: return 100;
+			case kOneAndQuarter: return 125;
+			case kOneAndHalf: return 150;
+			case kTwo: return 200;
+			}
+			return cConfigScale();
+		}());
+	} break;
+
+	case dbiScalePercent: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		SetScaleChecked(v);
 	} break;
 
 	case dbiLangOld: {
@@ -1432,13 +1470,19 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 	} break;
 
-	case dbiSendKey: {
+	case dbiSendKeyOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetCtrlEnter(v == dbiskCtrlEnter);
-		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
+		using SendSettings = Ui::InputSubmitSettings;
+		const auto unchecked = static_cast<SendSettings>(v);
+
+		if (unchecked != SendSettings::Enter
+			&& unchecked != SendSettings::CtrlEnter) {
+			return false;
+		}
+		GetStoredAuthSessionCache().setSendSubmitWay(unchecked);
 	} break;
 
 	case dbiCatsAndDogs: { // deprecated
@@ -1945,7 +1989,6 @@ void _writeUserSettings() {
 	}
 
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
 	data.stream
 		<< quint32(dbiTileBackground)
 		<< qint32(Window::Theme::Background()->tileDay() ? 1 : 0)
@@ -2548,7 +2591,7 @@ void writeSettings() {
 	data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
 	data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
-	data.stream << quint32(dbiScale) << qint32(cConfigScale());
+	data.stream << quint32(dbiScalePercent) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
@@ -2556,10 +2599,9 @@ void writeSettings() {
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());
-	const auto index = qint32(proxyIt - begin(proxies))
-		+ qint32(Global::UseProxyForCalls() ? proxies.size() : 0)
-		+ 1;
-	data.stream << (Global::UseProxy() ? index : -index);
+	data.stream << qint32(proxyIt - begin(proxies)) + 1;
+	data.stream << qint32(Global::ProxySettings());
+	data.stream << qint32(Global::UseProxyForCalls() ? 1 : 0);
 	for (const auto &proxy : proxies) {
 		data.stream << qint32(kProxyTypeShift + int(proxy.type));
 		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
@@ -4339,6 +4381,8 @@ void WriteExportSettings(const Export::Settings &settings) {
 		}, [&](const MTPDinputPeerEmpty &) {
 			data.stream << kSinglePeerTypeEmpty;
 		});
+		data.stream << qint32(settings.singlePeerFrom);
+		data.stream << qint32(settings.singlePeerTill);
 
 		FileWriteDescriptor file(_exportSettingsKey);
 		file.writeEncrypted(data);
@@ -4360,6 +4404,7 @@ Export::Settings ReadExportSettings() {
 	QString path;
 	qint32 singlePeerType = 0, singlePeerBareId = 0;
 	quint64 singlePeerAccessHash = 0;
+	qint32 singlePeerFrom = 0, singlePeerTill = 0;
 	file.stream
 		>> types
 		>> fullChats
@@ -4380,6 +4425,9 @@ Export::Settings ReadExportSettings() {
 		case kSinglePeerTypeEmpty: break;
 		default: return Export::Settings();
 		}
+	}
+	if (!file.stream.atEnd()) {
+		file.stream >> singlePeerFrom >> singlePeerTill;
 	}
 	auto result = Export::Settings();
 	result.types = Export::Settings::Types::from_raw(types);
@@ -4408,6 +4456,8 @@ Export::Settings ReadExportSettings() {
 		}
 		Unexpected("Type in export data single peer.");
 	}();
+	result.singlePeerFrom = singlePeerFrom;
+	result.singlePeerTill = singlePeerTill;
 	return (file.stream.status() == QDataStream::Ok && result.validate())
 		? result
 		: Export::Settings();
@@ -4522,8 +4572,13 @@ void writeSelf() {
 
 void readSelf(const QByteArray &serialized, int32 streamVersion) {
 	QDataStream stream(serialized);
+	const auto user = Auth().user();
+	const auto wasLoadedStatus = std::exchange(
+		user->loadedStatus,
+		PeerData::NotLoaded);
 	const auto self = Serialize::readPeer(streamVersion, stream);
-	if (!self || !self->isSelf() || self != Auth().user()) {
+	if (!self || !self->isSelf() || self != user) {
+		user->loadedStatus = wasLoadedStatus;
 		return;
 	}
 

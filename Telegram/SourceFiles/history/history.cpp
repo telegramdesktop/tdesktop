@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_feed_messages.h"
 #include "data/data_channel_admins.h"
 #include "data/data_feed.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
 
@@ -1261,7 +1262,6 @@ void History::mainViewRemoved(
 }
 
 void History::newItemAdded(not_null<HistoryItem*> item) {
-	App::checkImageCacheSize();
 	item->indexAsNewItem();
 	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
 		if (from == item->author()) {
@@ -1714,6 +1714,9 @@ void History::setUnreadCount(int newUnreadCount) {
 }
 
 void History::setUnreadMark(bool unread) {
+	if (clearUnreadOnClientSide()) {
+		unread = false;
+	}
 	if (_unreadMark != unread) {
 		_unreadMark = unread;
 		if (!_unreadCount || !*_unreadCount) {
@@ -2176,8 +2179,13 @@ void History::markFullyLoaded() {
 
 void History::setLastMessage(HistoryItem *item) {
 	if (item) {
-		if (_lastMessage && !*_lastMessage) {
-			Local::removeSavedPeer(peer);
+		if (_lastMessage) {
+			if (!*_lastMessage) {
+				Local::removeSavedPeer(peer);
+			} else if (!IsServerMsgId((*_lastMessage)->id)
+				&& (*_lastMessage)->date() > item->date()) {
+				return;
+			}
 		}
 		_lastMessage = item;
 		if (const auto feed = peer->feed()) {
@@ -2280,12 +2288,42 @@ void History::applyDialog(const MTPDdialog &data) {
 	}
 }
 
+bool History::clearUnreadOnClientSide() const {
+	if (!Auth().supportMode()) {
+		return false;
+	}
+	if (const auto user = peer->asUser()) {
+		if (user->flags() & MTPDuser::Flag::f_deleted) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool History::skipUnreadUpdateForClientSideUnread() const {
+	if (peer->id != peerFromUser(ServiceUserId)) {
+		return false;
+	} else if (!_unreadCount || !*_unreadCount) {
+		return false;
+	} else if (!_lastMessage || IsServerMsgId((*_lastMessage)->id)) {
+		return false;
+	}
+	return true;
+}
+
+bool History::skipUnreadUpdate() const {
+	return skipUnreadUpdateForClientSideUnread()
+		|| clearUnreadOnClientSide();
+}
+
 void History::applyDialogFields(
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead) {
-	setUnreadCount(unreadCount);
-	setInboxReadTill(maxInboxRead);
+	if (!skipUnreadUpdate()) {
+		setUnreadCount(unreadCount);
+		setInboxReadTill(maxInboxRead);
+	}
 	setOutboxReadTill(maxOutboxRead);
 }
 
@@ -2301,6 +2339,12 @@ void History::applyDialogTopMessage(MsgId topMessageId) {
 		}
 	} else {
 		setLastMessage(nullptr);
+	}
+	if (clearUnreadOnClientSide()) {
+		setUnreadCount(0);
+		if (const auto last = lastMessage()) {
+			setInboxReadTill(last->id);
+		}
 	}
 }
 

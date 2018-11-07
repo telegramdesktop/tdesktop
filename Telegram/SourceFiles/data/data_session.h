@@ -11,10 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_groups.h"
+#include "history/history_location_manager.h"
 #include "base/timer.h"
 
 class HistoryItem;
 class BoxContent;
+struct WebPageCollage;
+enum class WebPageType;
 
 namespace HistoryView {
 struct Group;
@@ -261,14 +264,17 @@ public:
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
-	PhotoData *photoFromWeb(const MTPWebDocument &data, ImagePtr thumb);
+	PhotoData *photoFromWeb(
+		const MTPWebDocument &data,
+		ImagePtr thumb = ImagePtr(),
+		bool willBecomeNormal = false);
 
 	not_null<DocumentData*> document(DocumentId id);
 	not_null<DocumentData*> document(const MTPDocument &data);
 	not_null<DocumentData*> document(const MTPDdocument &data);
 	not_null<DocumentData*> document(
 		const MTPdocument &data,
-		const QPixmap &thumb);
+		QImage &&thumb);
 	not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
@@ -297,7 +303,7 @@ public:
 		const TextWithEntities &content);
 	not_null<WebPageData*> webpage(
 		WebPageId id,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -305,6 +311,7 @@ public:
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill);
@@ -322,6 +329,8 @@ public:
 	void gameConvert(
 		not_null<GameData*> original,
 		const MTPGame &data);
+
+	not_null<LocationData*> location(const LocationCoords &coords);
 
 	void registerPhotoItem(
 		not_null<const PhotoData*> photo,
@@ -410,7 +419,9 @@ public:
 	rpl::producer<> defaultNotifyUpdates(
 		not_null<const PeerData*> peer) const;
 
-	void forgetMedia();
+	void serviceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media = MTP_messageMediaEmpty());
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -474,7 +485,7 @@ private:
 		const MTPDwebPage &data);
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -482,6 +493,7 @@ private:
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill);
@@ -520,6 +532,11 @@ private:
 	void enumerateItemViews(
 		not_null<const HistoryItem*> item,
 		Method method);
+
+	void insertCheckedServiceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media,
+		TimeId date);
 
 	not_null<AuthSession*> _session;
 
@@ -584,6 +601,9 @@ private:
 	std::unordered_map<
 		WebPageId,
 		std::unique_ptr<WebPageData>> _webpages;
+	std::unordered_map<
+		LocationCoords,
+		std::unique_ptr<LocationData>> _locations;
 	std::map<
 		not_null<const WebPageData*>,
 		base::flat_set<not_null<HistoryItem*>>> _webpageItems;

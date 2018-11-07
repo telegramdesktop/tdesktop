@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "messenger.h"
+#include "ui/image/image.h"
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
@@ -56,10 +57,10 @@ void UpdateImage(ImagePtr &old, ImagePtr now) {
 	}
 	if (old->isNull()) {
 		old = now;
-	} else if (const auto delayed = old->toDelayedStorageImage()) {
+	} else if (old->isDelayedStorageImage()) {
 		const auto location = now->location();
 		if (!location.isNull()) {
-			delayed->setStorageLocation(Data::FileOrigin(), location);
+			old->setDelayedStorageLocation(Data::FileOrigin(), location);
 		}
 	}
 }
@@ -329,7 +330,7 @@ void Session::notifyItemIdChange(IdChange event) {
 		view->refreshDataId();
 	};
 	enumerateItemViews(event.item, refreshViewDataId);
-	if (const auto group = Auth().data().groups().find(event.item)) {
+	if (const auto group = groups().find(event.item)) {
 		const auto leader = group->items.back();
 		if (leader != event.item) {
 			enumerateItemViews(leader, refreshViewDataId);
@@ -776,9 +777,9 @@ not_null<PhotoData*> Session::photo(const MTPDphoto &data) {
 not_null<PhotoData*> Session::photo(
 		const MTPPhoto &data,
 		const PreparedPhotoThumbs &thumbs) {
-	auto thumb = (const QPixmap*)nullptr;
-	auto medium = (const QPixmap*)nullptr;
-	auto full = (const QPixmap*)nullptr;
+	auto thumb = (const QImage*)nullptr;
+	auto medium = (const QImage*)nullptr;
+	auto full = (const QImage*)nullptr;
 	auto thumbLevel = -1;
 	auto mediumLevel = -1;
 	auto fullLevel = -1;
@@ -812,9 +813,9 @@ not_null<PhotoData*> Session::photo(
 			data.c_photo().vaccess_hash.v,
 			data.c_photo().vfile_reference.v,
 			data.c_photo().vdate.v,
-			ImagePtr(*thumb, "JPG"),
-			ImagePtr(*medium, "JPG"),
-			ImagePtr(*full, "JPG"));
+			Images::Create(base::duplicate(*thumb), "JPG"),
+			Images::Create(base::duplicate(*medium), "JPG"),
+			Images::Create(base::duplicate(*full), "JPG"));
 
 	case mtpc_photoEmpty:
 		return photo(data.c_photoEmpty().vid.v);
@@ -874,20 +875,24 @@ void Session::photoConvert(
 
 PhotoData *Session::photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb) {
-	const auto full = ImagePtr(data);
+		ImagePtr thumb,
+		bool willBecomeNormal) {
+	const auto full = Images::Create(data);
 	if (full->isNull()) {
 		return nullptr;
 	}
-	const auto width = full->width();
-	const auto height = full->height();
-	if (thumb->isNull()) {
-		auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-		thumb = ImagePtr(thumbsize.width(), thumbsize.height());
-	}
+	auto medium = ImagePtr();
+	if (willBecomeNormal) {
+		const auto width = full->width();
+		const auto height = full->height();
+		if (thumb->isNull()) {
+			auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
+			thumb = Images::Create(thumbsize.width(), thumbsize.height());
+		}
 
-	auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-	auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
+		auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
+		medium = Images::Create(mediumsize.width(), mediumsize.height());
+	}
 
 	return photo(
 		rand_value<PhotoId>(),
@@ -910,7 +915,7 @@ void Session::photoApplyFields(
 void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPDphoto &data) {
-		auto thumb = (const MTPPhotoSize*)nullptr;
+	auto thumb = (const MTPPhotoSize*)nullptr;
 	auto medium = (const MTPPhotoSize*)nullptr;
 	auto full = (const MTPPhotoSize*)nullptr;
 	auto thumbLevel = -1;
@@ -1012,7 +1017,7 @@ not_null<DocumentData*> Session::document(const MTPDdocument &data) {
 
 not_null<DocumentData*> Session::document(
 		const MTPdocument &data,
-		const QPixmap &thumb) {
+		QImage &&thumb) {
 	switch (data.type()) {
 	case mtpc_documentEmpty:
 		return document(data.c_documentEmpty().vid.v);
@@ -1026,7 +1031,7 @@ not_null<DocumentData*> Session::document(
 			fields.vdate.v,
 			fields.vattributes.v,
 			qs(fields.vmime_type),
-			ImagePtr(thumb, "JPG"),
+			Images::Create(std::move(thumb), "JPG"),
 			fields.vdc_id.v,
 			fields.vsize.v,
 			StorageImageLocation());
@@ -1254,7 +1259,7 @@ not_null<WebPageData*> Session::webpage(const MTPDwebPagePending &data) {
 	const auto result = webpage(data.vid.v);
 	webpageApplyFields(
 		result,
-		QString(),
+		WebPageType::Article,
 		QString(),
 		QString(),
 		QString(),
@@ -1262,6 +1267,7 @@ not_null<WebPageData*> Session::webpage(const MTPDwebPagePending &data) {
 		TextWithEntities(),
 		nullptr,
 		nullptr,
+		WebPageCollage(),
 		0,
 		QString(),
 		data.vdate.v
@@ -1276,7 +1282,7 @@ not_null<WebPageData*> Session::webpage(
 		const TextWithEntities &content) {
 	return webpage(
 		id,
-		qsl("article"),
+		WebPageType::Article,
 		QString(),
 		QString(),
 		siteName,
@@ -1284,6 +1290,7 @@ not_null<WebPageData*> Session::webpage(
 		content,
 		nullptr,
 		nullptr,
+		WebPageCollage(),
 		0,
 		QString(),
 		TimeId(0));
@@ -1291,7 +1298,7 @@ not_null<WebPageData*> Session::webpage(
 
 not_null<WebPageData*> Session::webpage(
 		WebPageId id,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -1299,6 +1306,7 @@ not_null<WebPageData*> Session::webpage(
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill) {
@@ -1313,6 +1321,7 @@ not_null<WebPageData*> Session::webpage(
 		description,
 		photo,
 		document,
+		std::move(collage),
 		duration,
 		author,
 		pendingTill);
@@ -1338,7 +1347,7 @@ void Session::webpageApplyFields(
 	const auto pendingTill = TimeId(0);
 	webpageApplyFields(
 		page,
-		data.has_type() ? qs(data.vtype) : qsl("article"),
+		ParseWebPageType(data),
 		qs(data.vurl),
 		qs(data.vdisplay_url),
 		siteName,
@@ -1346,6 +1355,7 @@ void Session::webpageApplyFields(
 		description,
 		data.has_photo() ? photo(data.vphoto).get() : nullptr,
 		data.has_document() ? document(data.vdocument).get() : nullptr,
+		WebPageCollage(data),
 		data.has_duration() ? data.vduration.v : 0,
 		data.has_author() ? qs(data.vauthor) : QString(),
 		pendingTill);
@@ -1353,7 +1363,7 @@ void Session::webpageApplyFields(
 
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
-		const QString &type,
+		WebPageType type,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -1361,6 +1371,7 @@ void Session::webpageApplyFields(
 		const TextWithEntities &description,
 		PhotoData *photo,
 		DocumentData *document,
+		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
 		TimeId pendingTill) {
@@ -1374,6 +1385,7 @@ void Session::webpageApplyFields(
 		description,
 		photo,
 		document,
+		std::move(collage),
 		duration,
 		author,
 		pendingTill);
@@ -1476,6 +1488,16 @@ void Session::gameApplyFields(
 	game->photo = photo;
 	game->document = document;
 	notifyGameUpdateDelayed(game);
+}
+
+not_null<LocationData*> Session::location(const LocationCoords &coords) {
+	auto i = _locations.find(coords);
+	if (i == _locations.cend()) {
+		i = _locations.emplace(
+			coords,
+			std::make_unique<LocationData>(coords)).first;
+	}
+	return i->second.get();
 }
 
 void Session::registerPhotoItem(
@@ -1922,13 +1944,75 @@ rpl::producer<> Session::defaultNotifyUpdates(
 		: defaultChatNotifyUpdates();
 }
 
-void Session::forgetMedia() {
-	for (const auto &[id, photo] : _photos) {
-		photo->forget();
+void Session::serviceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media) {
+	const auto date = unixtime();
+	if (!App::userLoaded(ServiceUserId)) {
+		App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(
+			MTP_flags(
+				MTPDuser::Flag::f_first_name
+				| MTPDuser::Flag::f_phone
+				| MTPDuser::Flag::f_status
+				| MTPDuser::Flag::f_verified),
+			MTP_int(ServiceUserId),
+			MTPlong(),
+			MTP_string("Telegram"),
+			MTPstring(),
+			MTPstring(),
+			MTP_string("42777"),
+			MTP_userProfilePhotoEmpty(),
+			MTP_userStatusRecently(),
+			MTPint(),
+			MTPstring(),
+			MTPstring(),
+			MTPstring())));
 	}
-	for (const auto &[id, document] : _documents) {
-		document->forget();
+	const auto history = App::history(peerFromUser(ServiceUserId));
+	if (!history->lastMessageKnown()) {
+		_session->api().requestDialogEntry(history, [=] {
+			insertCheckedServiceNotification(message, media, date);
+		});
+	} else {
+		insertCheckedServiceNotification(message, media, date);
 	}
+}
+
+void Session::insertCheckedServiceNotification(
+		const TextWithEntities &message,
+		const MTPMessageMedia &media,
+		TimeId date) {
+	const auto history = App::history(peerFromUser(ServiceUserId));
+	if (!history->isReadyFor(ShowAtUnreadMsgId)) {
+		history->setUnreadCount(0);
+		history->getReadyFor(ShowAtTheEndMsgId);
+	}
+	const auto flags = MTPDmessage::Flag::f_entities
+		| MTPDmessage::Flag::f_from_id
+		| MTPDmessage_ClientFlag::f_clientside_unread;
+	auto sending = TextWithEntities(), left = message;
+	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		App::histories().addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				MTP_int(clientMsgId()),
+				MTP_int(ServiceUserId),
+				MTP_peerUser(MTP_int(_session->userId())),
+				MTPnullFwdHeader,
+				MTPint(),
+				MTPint(),
+				MTP_int(date),
+				MTP_string(sending.text),
+				media,
+				MTPnullMarkup,
+				TextUtilities::EntitiesToMTP(sending.entities),
+				MTPint(),
+				MTPint(),
+				MTPstring(),
+				MTPlong()),
+			NewMessageUnread);
+	}
+	sendHistoryChangeNotifications();
 }
 
 void Session::setMimeForwardIds(MessageIdsList &&list) {

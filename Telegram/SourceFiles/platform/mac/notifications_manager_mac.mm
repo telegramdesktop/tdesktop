@@ -317,6 +317,8 @@ Manager::Private::~Private() {
 		putClearTask(ClearFinish());
 		_clearingThread.join();
 	}
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	[center setDelegate:nil];
 	[_delegate release];
 }
 

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 
@@ -78,14 +79,15 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		if (r.has_description()) result->_description = qs(r.vdescription);
 		if (r.has_url()) result->_url = qs(r.vurl);
 		if (r.has_thumb()) {
-			result->_thumb = ImagePtr(r.vthumb, result->thumbBox());
+			result->_thumb = Images::Create(r.vthumb, result->thumbBox());
 		}
 		if (r.has_content()) {
 			result->_content_url = GetContentUrl(r.vcontent);
 			if (result->_type == Type::Photo) {
 				result->_photo = Auth().data().photoFromWeb(
 					r.vcontent,
-					result->_thumb);
+					result->_thumb,
+					true);
 			} else {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(r.vcontent),
@@ -221,18 +223,22 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		return nullptr;
 	}
 
-	LocationCoords location;
-	if (result->getLocationCoords(&location)) {
-		int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
-		int32 zoom = 13, scale = 1;
-		if (cScale() == dbisTwo || cRetina()) {
-			scale = 2;
-			w /= 2;
-			h /= 2;
-		}
-		auto coords = location.latAsString() + ',' + location.lonAsString();
-		QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
-		result->_locationThumb = ImagePtr(url);
+	LocationCoords coords;
+	if (result->getLocationCoords(&coords)) {
+		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
+		const auto zoom = 15 + (scale - 1);
+		const auto w = st::inlineThumbSize / scale;
+		const auto h = st::inlineThumbSize / scale;
+
+		auto location = GeoPointLocation();
+		location.lat = coords.lat();
+		location.lon = coords.lon();
+		location.access = coords.accessHash();
+		location.width = w;
+		location.height = h;
+		location.zoom = zoom;
+		location.scale = scale;
+		result->_locationThumb = Images::Create(location);
 	}
 
 	return result;
@@ -273,13 +279,12 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 	return true;
 }
 
-void Result::forget() {
-	_thumb->forget();
+void Result::unload() {
 	if (_document) {
-		_document->forget();
+		_document->unload();
 	}
 	if (_photo) {
-		_photo->forget();
+		_photo->unload();
 	}
 }
 

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text_options.h"
+#include "styles/style_history.h"
 
 namespace {
 

@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 
 #include "data/data_session.h"
+#include "data/data_document_good_thumbnail.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"
+#include "core/media_active_cache.h"
 #include "core/mime_type.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
@@ -21,11 +23,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "window/window_controller.h"
 #include "storage/cache/storage_cache_database.h"
+#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "auth_session.h"
 #include "mainwindow.h"
 #include "messenger.h"
 
 namespace {
+
+constexpr auto kMemoryForCache = 32 * 1024 * 1024;
+
+Core::MediaActiveCache<DocumentData> &ActiveCache() {
+	static auto Instance = Core::MediaActiveCache<DocumentData>(
+		kMemoryForCache,
+		[](DocumentData *document) { document->unload(); });
+	return Instance;
+}
+
+int64 ComputeUsage(StickerData *sticker) {
+	return (sticker != nullptr && !sticker->img->isNull())
+		? sticker->img->width() * sticker->img->height() * 4
+		: 0;
+}
 
 QString JoinStringList(const QStringList &list, const QString &separator) {
 	const auto count = list.size();
@@ -511,6 +530,46 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			_additional = nullptr;
 		}
 	}
+	validateGoodThumbnail();
+}
+
+Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {
+	return Data::DocumentThumbCacheKey(_dc, id);
+}
+
+Image *DocumentData::goodThumbnail() const {
+	return _goodThumbnail.get();
+}
+
+void DocumentData::validateGoodThumbnail() {
+	if (!isVideoFile() && !isAnimation()) {
+		_goodThumbnail = nullptr;
+	} else if (!_goodThumbnail && hasRemoteLocation()) {
+		_goodThumbnail = std::make_unique<Image>(
+			std::make_unique<Data::GoodThumbSource>(this));
+	}
+}
+
+void DocumentData::refreshGoodThumbnail() {
+	if (_goodThumbnail && hasRemoteLocation()) {
+		replaceGoodThumbnail(std::make_unique<Data::GoodThumbSource>(this));
+	}
+}
+
+void DocumentData::replaceGoodThumbnail(
+		std::unique_ptr<Images::Source> &&source) {
+	_goodThumbnail->replaceSource(std::move(source));
+}
+
+void DocumentData::setGoodThumbnail(QImage &&image, QByteArray &&bytes) {
+	Expects(uploadingData != nullptr);
+
+	if (image.isNull()) {
+		return;
+	}
+	_goodThumbnail = std::make_unique<Image>(
+		std::make_unique<Images::LocalFileSource>(
+			QString(), std::move(bytes), "JPG", std::move(image)));
 }
 
 bool DocumentData::saveToCache() const {
@@ -519,11 +578,27 @@ bool DocumentData::saveToCache() const {
 		|| (isVoiceMessage() && size < Storage::kMaxVoiceInMemory);
 }
 
-void DocumentData::forget() {
-	thumb->forget();
-	if (sticker()) sticker()->img->forget();
-	replyPreview->forget();
-	_data.clear();
+void DocumentData::unload() {
+	// Forget thumb only when image cache limit exceeds.
+	//thumb->unload();
+	if (sticker()) {
+		if (!sticker()->img->isNull()) {
+			ActiveCache().decrement(ComputeUsage(sticker()));
+
+			// Should be std::unique_ptr<Image>.
+			delete sticker()->img.get();
+			sticker()->img = ImagePtr();
+		}
+	}
+	if (!replyPreview->isNull()) {
+		// Should be std::unique_ptr<Image>.
+		delete replyPreview.get();
+		replyPreview = ImagePtr();
+	}
+	if (!_data.isEmpty()) {
+		ActiveCache().decrement(_data.size());
+		_data.clear();
+	}
 }
 
 void DocumentData::automaticLoad(
@@ -658,10 +733,24 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 		} else {
 			auto that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(_loader->fileName());
+			ActiveCache().decrement(that->_data.size());
 			that->_data = _loader->bytes();
-			if (that->sticker() && !_loader->imagePixmap().isNull()) {
-				that->sticker()->img = ImagePtr(_data, _loader->imageFormat(), _loader->imagePixmap());
+			ActiveCache().increment(that->_data.size());
+			if (that->sticker()
+				&& that->sticker()->img->isNull()
+				&& !_loader->imageData().isNull()) {
+				that->sticker()->img = Images::Create(
+					_data,
+					_loader->imageFormat(),
+					_loader->imageData());
+				ActiveCache().increment(ComputeUsage(that->sticker()));
 			}
+			if (!that->_data.isEmpty()
+				|| (that->sticker() && !that->sticker()->img->isNull())) {
+				ActiveCache().up(that);
+			}
+
+			that->refreshGoodThumbnail();
 			destroyLoaderDelayed();
 		}
 		_session->data().notifyDocumentLayoutChanged(this);
@@ -873,6 +962,9 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 }
 
 QByteArray DocumentData::data() const {
+	if (!_data.isEmpty()) {
+		ActiveCache().up(const_cast<DocumentData*>(this));
+	}
 	return _data;
 }
 
@@ -953,7 +1045,7 @@ ImagePtr DocumentData::makeReplyPreview(Data::FileOrigin origin) {
 			auto options = Images::Option::Smooth | (isVideoMessage() ? Images::Option::Circled : Images::Option::None) | Images::Option::TransparentBackground;
 			auto outerSize = st::msgReplyBarSize.height();
 			auto image = thumb->pixNoCache(origin, thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
-			replyPreview = ImagePtr(image, "PNG");
+			replyPreview = Images::Create(image.toImage(), "PNG");
 		} else {
 			thumb->load(origin);
 		}
@@ -976,11 +1068,15 @@ void DocumentData::checkSticker() {
 		if (_data.isEmpty()) {
 			const auto &loc = location(true);
 			if (loc.accessEnable()) {
-				data->img = ImagePtr(loc.name());
+				data->img = Images::Create(loc.name(), "WEBP");
 				loc.accessDisable();
 			}
 		} else {
-			data->img = ImagePtr(_data);
+			data->img = Images::Create(_data, "WEBP");
+		}
+		if (const auto usage = ComputeUsage(data)) {
+			ActiveCache().increment(usage);
+			ActiveCache().up(this);
 		}
 	}
 }
@@ -1230,6 +1326,7 @@ void DocumentData::setRemoteLocation(
 			}
 		}
 	}
+	validateGoodThumbnail();
 }
 
 void DocumentData::setContentUrl(const QString &url) {
@@ -1245,7 +1342,12 @@ void DocumentData::collectLocalData(DocumentData *local) {
 
 	_session->data().cache().copyIfEmpty(local->cacheKey(), cacheKey());
 	if (!local->_data.isEmpty()) {
+		ActiveCache().decrement(_data.size());
 		_data = local->_data;
+		ActiveCache().increment(_data.size());
+		if (!_data.isEmpty()) {
+			ActiveCache().up(this);
+		}
 	}
 	if (!local->_location.isEmpty()) {
 		_location = local->_location;
@@ -1257,6 +1359,7 @@ DocumentData::~DocumentData() {
 	if (loading()) {
 		destroyLoaderDelayed();
 	}
+	unload();
 }
 
 QString DocumentData::ComposeNameString(

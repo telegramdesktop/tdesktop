@@ -73,6 +73,7 @@ private:
 	const style::RippleAnimation &_st;
 	std::unique_ptr<RippleAnimation> _ripple;
 	bool _forceRippled = false;
+	rpl::lifetime _forceRippledSubscription;
 
 };
 

@@ -402,14 +402,25 @@ shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
+shareComment: InputField(defaultInputField) {
+	font: normalFont;
+	textMargins: margins(8px, 8px, 8px, 6px);
+	heightMin: 36px;
+	heightMax: 72px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	border: 0px;
+	borderActive: 0px;
+}
+shareCommentPadding: margins(5px, 5px, 5px, 5px);
 
-notificationsBoxHeight: 420px;
-notificationsBoxMonitorTop: 63px;
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
 notificationsBoxScreenSize: size(280px, 160px);
-notificationsBoxCountLabelTop: 80px;
-notificationsBoxCountTop: 30px;
 
 notificationsSampleSkip: 5px;
 notificationsSampleTopSkip: 5px;
@@ -577,14 +588,24 @@ calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
 calendarNext: IconButton(calendarPrevious) {
 	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
 }
+CalendarSizes {
+	width: pixels;
+	daysHeight: pixels;
+	cellSize: size;
+	cellInner: pixels;
+	padding: margins;
+}
 calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
 calendarTitleFont: boxTitleFont;
+defaultCalendarSizes: CalendarSizes {
+	width: boxWideWidth;
+	daysHeight: 32px;
+	cellSize: size(48px, 40px);
+	cellInner: 34px;
+	padding: margins(14px, 15px, 14px, 10px);
+}
 calendarDaysFont: normalFont;
 calendarDaysFg: boxTitleAdditionalFg;
-calendarDaysHeight: 32px;
-calendarCellSize: size(48px, 40px);
-calendarCellInner: 34px;
-calendarPadding: margins(14px, 15px, 14px, 10px);
 calendarScroll: backgroundScroll;
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "storage/localstorage.h"
+#include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 
@@ -186,7 +187,7 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 
 ImagePtr PeerData::currentUserpic() const {
 	if (_userpic) {
-		_userpic->load(userpicPhotoOrigin());
+		_userpic->load(userpicOrigin());
 		if (_userpic->loaded()) {
 			if (!useEmptyUserpic()) {
 				_userpicEmpty = nullptr;
@@ -194,12 +195,15 @@ ImagePtr PeerData::currentUserpic() const {
 			return _userpic;
 		}
 	}
+	if (!_userpicEmpty) {
+		refreshEmptyUserpic();
+	}
 	return ImagePtr();
 }
 
 void PeerData::paintUserpic(Painter &p, int x, int y, int size) const {
 	if (auto userpic = currentUserpic()) {
-		p.drawPixmap(x, y, userpic->pixCircled(userpicPhotoOrigin(), size, size));
+		p.drawPixmap(x, y, userpic->pixCircled(userpicOrigin(), size, size));
 	} else {
 		_userpicEmpty->paint(p, x, y, x + size + x, size);
 	}
@@ -207,7 +211,7 @@ void PeerData::paintUserpic(Painter &p, int x, int y, int size) const {
 
 void PeerData::paintUserpicRounded(Painter &p, int x, int y, int size) const {
 	if (auto userpic = currentUserpic()) {
-		p.drawPixmap(x, y, userpic->pixRounded(userpicPhotoOrigin(), size, size, ImageRoundRadius::Small));
+		p.drawPixmap(x, y, userpic->pixRounded(userpicOrigin(), size, size, ImageRoundRadius::Small));
 	} else {
 		_userpicEmpty->paintRounded(p, x, y, x + size + x, size);
 	}
@@ -215,10 +219,24 @@ void PeerData::paintUserpicRounded(Painter &p, int x, int y, int size) const {
 
 void PeerData::paintUserpicSquare(Painter &p, int x, int y, int size) const {
 	if (auto userpic = currentUserpic()) {
-		p.drawPixmap(x, y, userpic->pix(userpicPhotoOrigin(), size, size));
+		p.drawPixmap(x, y, userpic->pix(userpicOrigin(), size, size));
 	} else {
 		_userpicEmpty->paintSquare(p, x, y, x + size + x, size);
 	}
+}
+
+void PeerData::loadUserpic(bool loadFirst, bool prior) {
+	_userpic->load(userpicOrigin(), loadFirst, prior);
+}
+
+bool PeerData::userpicLoaded() const {
+	return _userpic->loaded();
+}
+
+bool PeerData::useEmptyUserpic() const {
+	return _userpicLocation.isNull()
+		|| !_userpic
+		|| !_userpic->loaded();
 }
 
 StorageKey PeerData::userpicUniqueKey() const {
@@ -238,7 +256,7 @@ void PeerData::saveUserpicRounded(const QString &path, int size) const {
 
 QPixmap PeerData::genUserpic(int size) const {
 	if (auto userpic = currentUserpic()) {
-		return userpic->pixCircled(userpicPhotoOrigin(), size, size);
+		return userpic->pixCircled(userpicOrigin(), size, size);
 	}
 	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
@@ -252,7 +270,7 @@ QPixmap PeerData::genUserpic(int size) const {
 
 QPixmap PeerData::genUserpicRounded(int size) const {
 	if (auto userpic = currentUserpic()) {
-		return userpic->pixRounded(userpicPhotoOrigin(), size, size, ImageRoundRadius::Small);
+		return userpic->pixRounded(userpicOrigin(), size, size, ImageRoundRadius::Small);
 	}
 	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
@@ -269,7 +287,7 @@ void PeerData::updateUserpic(
 		const MTPFileLocation &location) {
 	const auto size = kUserpicSize;
 	const auto loc = StorageImageLocation::FromMTP(size, size, location);
-	const auto photo = loc.isNull() ? ImagePtr() : ImagePtr(loc);
+	const auto photo = loc.isNull() ? ImagePtr() : Images::Create(loc);
 	setUserpicChecked(photoId, loc, photo);
 }
 
@@ -281,10 +299,9 @@ void PeerData::clearUserpic() {
 			auto image = Messenger::Instance().logoNoMargin().scaledToWidth(
 				kUserpicSize,
 				Qt::SmoothTransformation);
-			auto pixmap = App::pixmapFromImageInPlace(std::move(image));
 			return _userpic
 				? _userpic
-				: ImagePtr(std::move(pixmap), "PNG");
+				: Images::Create(std::move(image), "PNG");
 		}
 		return ImagePtr();
 	}();
@@ -296,7 +313,7 @@ void PeerData::setUserpicChecked(
 		const StorageImageLocation &location,
 		ImagePtr userpic) {
 	if (_userpicPhotoId != photoId
-		|| _userpic.v() != userpic.v()
+		|| _userpic.get() != userpic.get()
 		|| _userpicLocation != location) {
 		setUserpic(photoId, location, userpic);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);

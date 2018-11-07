@@ -51,7 +51,7 @@ auto GenerateCodes() {
 		});
 	}
 	codes.emplace(qsl("loadlang"), [] {
-		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
+		Lang::CurrentCloudManager().switchToLanguage(qsl("#custom"));
 	});
 	codes.emplace(qsl("debugfiles"), [] {
 		if (!Logs::DebugEnabled()) {

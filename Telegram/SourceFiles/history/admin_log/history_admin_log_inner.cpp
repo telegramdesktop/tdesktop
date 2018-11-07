@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/image/image.h"
 #include "core/file_utilities.h"
 #include "core/tl_help.h"
 #include "base/overload.h"

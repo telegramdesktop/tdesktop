@@ -36,6 +36,16 @@ constexpr auto kMaxGroupChannelTitle = 255; // See also edit_peer_info_box.
 constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMinUsernameLength = 5;
 
+bool IsValidPhone(QString phone) {
+	phone = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
+	return (phone.length() >= 8)
+		|| (phone == qsl("333"))
+		|| (phone.startsWith(qsl("42"))
+			&& (phone.length() == 2
+				|| phone.length() == 5
+				|| phone == qsl("4242")));
+}
+
 } // namespace
 
 style::InputField CreateBioFieldStyle() {
@@ -208,7 +218,7 @@ void AddContactBox::save() {
 			_first->showError();
 		}
 		return;
-	} else if (!_user && !App::isValidPhone(phone)) {
+	} else if (!_user && !IsValidPhone(phone)) {
 		_phone->setFocus();
 		_phone->showError();
 		return;

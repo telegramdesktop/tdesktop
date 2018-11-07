@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/cross_animation.h"
 #include "ui/effects/numbers_animation.h"
+#include "ui/image/image_prepare.h"
+#include "window/themes/window_theme.h"
 #include "lang/lang_instance.h"
 
 namespace Ui {
@@ -88,14 +90,25 @@ void RippleButton::setForceRippled(
 	if (_forceRippled != rippled) {
 		_forceRippled = rippled;
 		if (_forceRippled) {
+			_forceRippledSubscription = base::ObservableViewer(
+				*Window::Theme::Background()
+			) | rpl::start_with_next([=](
+					const Window::Theme::BackgroundUpdate &update) {
+				if (update.paletteChanged() && _ripple) {
+					_ripple->forceRepaint();
+				}
+			});
 			ensureRipple();
 			if (_ripple->empty()) {
 				_ripple->addFading();
 			} else {
 				_ripple->lastUnstop();
 			}
-		} else if (_ripple) {
-			_ripple->lastStop();
+		} else {
+			if (_ripple) {
+				_ripple->lastStop();
+			}
+			_forceRippledSubscription.destroy();
 		}
 	}
 	if (animated == anim::type::instant && _ripple) {

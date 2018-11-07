@@ -673,6 +673,8 @@ buildTelegram() {
 
   cd "$UPSTREAM/Telegram/gyp"
   "$GYP_PATH/gyp" \
+      -Dapi_id=17349 \
+      -Dapi_hash=344583e45741c457fe1862106095a5eb \
       -Dbuild_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \

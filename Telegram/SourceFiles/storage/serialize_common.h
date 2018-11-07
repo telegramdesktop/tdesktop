@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/images.h"
 #include "mtproto/auth_key.h"
 
 namespace Serialize {
@@ -110,5 +109,6 @@ inline MTP::AuthKey::Data read<MTP::AuthKey::Data>(QDataStream &stream) {
 uint32 peerSize(not_null<PeerData*> peer);
 void writePeer(QDataStream &stream, PeerData *peer);
 PeerData *readPeer(int streamAppVersion, QDataStream &stream);
+QString peekUserPhone(int streamAppVersion, QDataStream &stream);
 
 } // namespace Serialize

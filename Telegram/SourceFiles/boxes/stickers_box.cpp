@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/image/image.h"
 #include "auth_session.h"
 #include "messenger.h"
 

@@ -766,13 +766,13 @@ void SingleFilePreview::prepareThumb(const QImage &preview) {
 		| Images::Option::RoundedTopRight
 		| Images::Option::RoundedBottomLeft
 		| Images::Option::RoundedBottomRight;
-	_fileThumb = Images::pixmap(
+	_fileThumb = App::pixmapFromImageInPlace(Images::prepare(
 		preview,
 		thumbWidth * cIntRetinaFactor(),
 		0,
 		options,
 		st::msgFileThumbSize,
-		st::msgFileThumbSize);
+		st::msgFileThumbSize));
 }
 
 void SingleFilePreview::preparePreview(const Storage::PreparedFile &file) {
@@ -1556,7 +1556,7 @@ void SendFilesBox::applyAlbumOrder() {
 }
 
 void SendFilesBox::setupCaption() {
-	_caption->setMaxLength(MaxPhotoCaption);
+	_caption->setMaxLength(Global::CaptionLengthMax());
 	_caption->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
@@ -1582,8 +1582,7 @@ void SendFilesBox::setupCaption() {
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
 	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
-	_caption->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, _caption));
+	_caption->setEditLinkCallback(DefaultEditLinkCallback(_caption));
 }
 
 void SendFilesBox::captionResized() {

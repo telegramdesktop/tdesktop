@@ -336,6 +336,10 @@ bool IsApplicationActive() {
 	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
 }
 
+void SetApplicationIcon(const QIcon &icon) {
+	qApp->setWindowIcon(icon);
+}
+
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	WCHAR result[MAX_PATH + 1] = { 0 };
 	auto count = GetModuleFileName(nullptr, result, MAX_PATH + 1);
@@ -624,6 +628,37 @@ void RegisterCustomScheme() {
 	if (!_psOpenRegKey(L"Software\\RegisteredApplications", &rkey)) return;
 	if (!_psSetKeyValue(rkey, L"Telegram Desktop", qsl("SOFTWARE\\TelegramDesktop\\Capabilities"))) return;
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+}
+
+PermissionStatus GetPermissionStatus(PermissionType type) {
+	if (type==PermissionType::Microphone) {
+		PermissionStatus result=PermissionStatus::Granted;
+		HKEY hKey;
+		LSTATUS res=RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone", 0, KEY_QUERY_VALUE, &hKey);
+		if(res==ERROR_SUCCESS) {
+			wchar_t buf[20];
+			DWORD length=sizeof(buf);
+			res=RegQueryValueEx(hKey, L"Value", NULL, NULL, (LPBYTE)buf, &length);
+			if(res==ERROR_SUCCESS) {
+				if(wcscmp(buf, L"Deny")==0) {
+					result=PermissionStatus::Denied;
+				}
+			}
+			RegCloseKey(hKey);
+		}
+		return result;
+	}
+	return PermissionStatus::Granted;
+}
+
+void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
+	resultCallback(PermissionStatus::Granted);
+}
+
+void OpenSystemSettingsForPermission(PermissionType type) {
+	if (type==PermissionType::Microphone) {
+		ShellExecute(NULL, L"open", L"ms-settings:privacy-microphone", NULL, NULL, SW_SHOWDEFAULT);
+	}
 }
 
 } // namespace Platform

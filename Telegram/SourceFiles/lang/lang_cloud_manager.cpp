@@ -185,13 +185,15 @@ void CloudManager::applyLangPackData(const MTPDlangPackDifference &data) {
 	} else if (!data.vstrings.v.isEmpty()) {
 		_langpack.applyDifference(data);
 		Local::writeLangPack();
+	} else if (_restartAfterSwitch) {
+		Local::writeLangPack();
 	} else {
 		LOG(("Lang Info: Up to date."));
 	}
 }
 
 bool CloudManager::canApplyWithoutRestart(const QString &id) const {
-	if (id == qstr("TEST_X") || id == qstr("TEST_0")) {
+	if (id == qstr("#TEST_X") || id == qstr("#TEST_0")) {
 		return true;
 	}
 
@@ -207,12 +209,12 @@ void CloudManager::switchToLanguage(QString id) {
 	if (id.isEmpty()) {
 		id = DefaultLanguageId();
 	}
-	if (_langpack.id() == id && id != qstr("custom")) {
+	if (_langpack.id() == id && id != qstr("#custom")) {
 		return;
 	}
 
 	request(_switchingToLanguageRequest).cancel();
-	if (id == qstr("custom")) {
+	if (id == qstr("#custom")) {
 		performSwitchToCustom();
 	} else if (canApplyWithoutRestart(id)) {
 		performSwitch(id);
@@ -258,7 +260,7 @@ void CloudManager::performSwitchToCustom() {
 		Lang::FileParser loader(filePath, { lng_sure_save_language });
 		if (loader.errors().isEmpty()) {
 			weak->request(weak->_switchingToLanguageRequest).cancel();
-			if (weak->canApplyWithoutRestart(qsl("custom"))) {
+			if (weak->canApplyWithoutRestart(qsl("#custom"))) {
 				weak->_langpack.switchToCustomFile(filePath);
 			} else {
 				const auto values = loader.found();
@@ -292,7 +294,9 @@ void CloudManager::performSwitchToCustom() {
 }
 
 void CloudManager::switchToTestLanguage() {
-	auto testLanguageId = (_langpack.id() == qstr("TEST_X")) ? qsl("TEST_0") : qsl("TEST_X");
+	const auto testLanguageId = (_langpack.id() == qstr("#TEST_X"))
+		? qsl("#TEST_0")
+		: qsl("#TEST_X");
 	performSwitch(testLanguageId);
 }
 

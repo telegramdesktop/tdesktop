@@ -17,8 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_clip_reader.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
+#include "media/player/media_player_instance.h"
 #include "media/player/media_player_round_controller.h"
 #include "window/window_controller.h"
+#include "window/section_widget.h"
 #include "auth_session.h"
 #include "styles/style_media_player.h"
 #include "styles/style_history.h"
@@ -263,6 +265,370 @@ void Float::repaintItem() {
 	update();
 	if (hasFrame() && _toggleCallback) {
 		_toggleCallback(true);
+	}
+}
+
+
+template <typename ToggleCallback, typename DraggedCallback>
+FloatController::Item::Item(
+	not_null<QWidget*> parent,
+	not_null<Window::Controller*> controller,
+	not_null<HistoryItem*> item,
+	ToggleCallback toggle,
+	DraggedCallback dragged)
+: animationSide(RectPart::Right)
+, column(Window::Column::Second)
+, corner(RectPart::TopRight)
+, widget(
+	parent,
+	controller,
+	item,
+	[=, toggle = std::move(toggle)](bool visible) {
+		toggle(this, visible);
+	},
+	[=, dragged = std::move(dragged)](bool closed) {
+		dragged(this, closed);
+	}) {
+}
+
+FloatController::FloatController(not_null<FloatDelegate*> delegate)
+: _delegate(delegate)
+, _parent(_delegate->floatPlayerWidget())
+, _controller(_delegate->floatPlayerController()) {
+	subscribe(_controller->floatPlayerAreaUpdated(), [=] {
+		checkVisibility();
+	});
+
+	subscribe(Media::Player::instance()->trackChangedNotifier(), [=](
+			AudioMsgId::Type type) {
+		if (type == AudioMsgId::Type::Voice) {
+			checkCurrent();
+		}
+	});
+
+	startDelegateHandling();
+}
+
+void FloatController::replaceDelegate(not_null<FloatDelegate*> delegate) {
+	_delegateLifetime.destroy();
+
+	_delegate = delegate;
+	_parent = _delegate->floatPlayerWidget();
+
+	// Currently moving floats between windows is not supported.
+	Assert(_controller == _delegate->floatPlayerController());
+
+	startDelegateHandling();
+
+	for (const auto &item : _items) {
+		item->widget->setParent(_parent);
+	}
+	checkVisibility();
+}
+
+void FloatController::startDelegateHandling() {
+	_delegate->floatPlayerCheckVisibilityRequests(
+	) | rpl::start_with_next([=] {
+		checkVisibility();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerHideAllRequests(
+	) | rpl::start_with_next([=] {
+		hideAll();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerShowVisibleRequests(
+	) | rpl::start_with_next([=] {
+		showVisible();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerRaiseAllRequests(
+	) | rpl::start_with_next([=] {
+		raiseAll();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerUpdatePositionsRequests(
+	) | rpl::start_with_next([=] {
+		updatePositions();
+	}, _delegateLifetime);
+
+	_delegate->floatPlayerFilterWheelEventRequests(
+	) | rpl::start_with_next([=](
+			const FloatDelegate::FloatPlayerFilterWheelEventRequest &request) {
+		*request.result = filterWheelEvent(request.object, request.event);
+	}, _delegateLifetime);
+}
+
+void FloatController::checkCurrent() {
+	const auto state = Media::Player::instance()->current(AudioMsgId::Type::Voice);
+	const auto fullId = state.contextId();
+	const auto last = current();
+	if (last
+		&& !last->widget->detached()
+		&& last->widget->item()->fullId() == fullId) {
+		return;
+	}
+	if (last) {
+		last->widget->detach();
+	}
+	if (const auto item = App::histItemById(fullId)) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
+				if (document->isVideoMessage()) {
+					create(item);
+				}
+			}
+		}
+	}
+}
+
+void FloatController::create(not_null<HistoryItem*> item) {
+	_items.push_back(std::make_unique<Item>(
+		_parent,
+		_controller,
+		item,
+		[=](not_null<Item*> instance, bool visible) {
+			instance->hiddenByWidget = !visible;
+			toggle(instance);
+		},
+		[=](not_null<Item*> instance, bool closed) {
+			finishDrag(instance, closed);
+		}));
+	current()->column = Auth().settings().floatPlayerColumn();
+	current()->corner = Auth().settings().floatPlayerCorner();
+	checkVisibility();
+}
+
+void FloatController::toggle(not_null<Item*> instance) {
+	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && instance->widget->isReady();
+	if (instance->visible != visible) {
+		instance->widget->resetMouseState();
+		instance->visible = visible;
+		if (!instance->visibleAnimation.animating() && !instance->hiddenByDrag) {
+			auto finalRect = QRect(getPosition(instance), instance->widget->size());
+			instance->animationSide = getSide(finalRect.center());
+		}
+		instance->visibleAnimation.start([=] {
+			updatePosition(instance);
+		}, visible ? 0. : 1., visible ? 1. : 0., st::slideDuration, visible ? anim::easeOutCirc : anim::linear);
+		updatePosition(instance);
+	}
+}
+
+void FloatController::checkVisibility() {
+	const auto instance = current();
+	if (!instance) {
+		return;
+	}
+
+	const auto item = instance->widget->item();
+	instance->hiddenByHistory = item
+		? _delegate->floatPlayerIsVisible(item)
+		: false;
+	toggle(instance);
+	updatePosition(instance);
+}
+
+void FloatController::hideAll() {
+	for (const auto &instance : _items) {
+		instance->widget->hide();
+	}
+}
+
+void FloatController::showVisible() {
+	for (const auto &instance : _items) {
+		if (instance->visible) {
+			instance->widget->show();
+		}
+	}
+}
+
+void FloatController::raiseAll() {
+	for (const auto &instance : _items) {
+		instance->widget->raise();
+	}
+}
+
+void FloatController::updatePositions() {
+	for (const auto &instance : _items) {
+		updatePosition(instance.get());
+	}
+}
+
+std::optional<bool> FloatController::filterWheelEvent(
+		not_null<QObject*> object,
+		not_null<QEvent*> event) {
+	for (const auto &instance : _items) {
+		if (instance->widget == object) {
+			const auto section = _delegate->floatPlayerGetSection(
+				instance->column);
+			return section->wheelEventFromFloatPlayer(event);
+		}
+	}
+	return std::nullopt;
+}
+
+void FloatController::updatePosition(not_null<Item*> instance) {
+	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
+	if (visible == 0. && !instance->visible) {
+		instance->widget->hide();
+		if (instance->widget->detached()) {
+			InvokeQueued(instance->widget, [=] {
+				remove(instance);
+			});
+		}
+		return;
+	}
+
+	if (!instance->widget->dragged()) {
+		if (instance->widget->isHidden()) {
+			instance->widget->show();
+		}
+
+		auto dragged = instance->draggedAnimation.current(1.);
+		auto position = QPoint();
+		if (instance->hiddenByDrag) {
+			instance->widget->setOpacity(instance->widget->countOpacityByParent());
+			position = getHiddenPosition(instance->dragFrom, instance->widget->size(), instance->animationSide);
+		} else {
+			instance->widget->setOpacity(visible * visible);
+			position = getPosition(instance);
+			if (visible < 1.) {
+				auto hiddenPosition = getHiddenPosition(position, instance->widget->size(), instance->animationSide);
+				position.setX(anim::interpolate(hiddenPosition.x(), position.x(), visible));
+				position.setY(anim::interpolate(hiddenPosition.y(), position.y(), visible));
+			}
+		}
+		if (dragged < 1.) {
+			position.setX(anim::interpolate(instance->dragFrom.x(), position.x(), dragged));
+			position.setY(anim::interpolate(instance->dragFrom.y(), position.y(), dragged));
+		}
+		instance->widget->move(position);
+	}
+}
+
+QPoint FloatController::getHiddenPosition(
+		QPoint position,
+		QSize size,
+		RectPart side) const {
+	switch (side) {
+	case RectPart::Left: return { -size.width(), position.y() };
+	case RectPart::Top: return { position.x(), -size.height() };
+	case RectPart::Right: return { _parent->width(), position.y() };
+	case RectPart::Bottom: return { position.x(), _parent->height() };
+	}
+	Unexpected("Bad side in MainWidget::getFloatPlayerHiddenPosition().");
+}
+
+QPoint FloatController::getPosition(not_null<Item*> instance) const {
+	const auto section = _delegate->floatPlayerGetSection(instance->column);
+	const auto rect = section->rectForFloatPlayer();
+	auto position = rect.topLeft();
+	if (IsBottomCorner(instance->corner)) {
+		position.setY(position.y() + rect.height() - instance->widget->height());
+	}
+	if (IsRightCorner(instance->corner)) {
+		position.setX(position.x() + rect.width() - instance->widget->width());
+	}
+	return _parent->mapFromGlobal(position);
+}
+
+RectPart FloatController::getSide(QPoint center) const {
+	const auto left = std::abs(center.x());
+	const auto right = std::abs(_parent->width() - center.x());
+	const auto top = std::abs(center.y());
+	const auto bottom = std::abs(_parent->height() - center.y());
+	if (left < right && left < top && left < bottom) {
+		return RectPart::Left;
+	} else if (right < top && right < bottom) {
+		return RectPart::Right;
+	} else if (top < bottom) {
+		return RectPart::Top;
+	}
+	return RectPart::Bottom;
+}
+
+void FloatController::remove(not_null<Item*> instance) {
+	auto widget = std::move(instance->widget);
+	auto i = ranges::find_if(_items, [&](auto &item) {
+		return (item.get() == instance);
+	});
+	Assert(i != _items.end());
+	_items.erase(i);
+
+	// ~QWidget() can call HistoryInner::enterEvent() which can
+	// lead to repaintHistoryItem() and we'll have an instance
+	// in _items with destroyed widget. So we destroy the
+	// instance first and only after that destroy the widget.
+	widget.destroy();
+}
+
+void FloatController::updateColumnCorner(QPoint center) {
+	Expects(!_items.empty());
+
+	auto size = _items.back()->widget->size();
+	auto min = INT_MAX;
+	auto column = Auth().settings().floatPlayerColumn();
+	auto corner = Auth().settings().floatPlayerCorner();
+	auto checkSection = [&](
+			not_null<Window::AbstractSectionWidget*> widget,
+			Window::Column widgetColumn) {
+		auto rect = _parent->mapFromGlobal(widget->rectForFloatPlayer());
+		auto left = rect.x() + (size.width() / 2);
+		auto right = rect.x() + rect.width() - (size.width() / 2);
+		auto top = rect.y() + (size.height() / 2);
+		auto bottom = rect.y() + rect.height() - (size.height() / 2);
+		auto checkCorner = [&](QPoint point, RectPart checked) {
+			auto distance = (point - center).manhattanLength();
+			if (min > distance) {
+				min = distance;
+				column = widgetColumn;
+				corner = checked;
+			}
+		};
+		checkCorner({ left, top }, RectPart::TopLeft);
+		checkCorner({ right, top }, RectPart::TopRight);
+		checkCorner({ left, bottom }, RectPart::BottomLeft);
+		checkCorner({ right, bottom }, RectPart::BottomRight);
+	};
+
+	_delegate->floatPlayerEnumerateSections(checkSection);
+
+	if (Auth().settings().floatPlayerColumn() != column) {
+		Auth().settings().setFloatPlayerColumn(column);
+		Auth().saveSettingsDelayed();
+	}
+	if (Auth().settings().floatPlayerCorner() != corner) {
+		Auth().settings().setFloatPlayerCorner(corner);
+		Auth().saveSettingsDelayed();
+	}
+}
+
+void FloatController::finishDrag(not_null<Item*> instance, bool closed) {
+	instance->dragFrom = instance->widget->pos();
+	const auto center = instance->widget->geometry().center();
+	if (closed) {
+		instance->hiddenByDrag = true;
+		instance->animationSide = getSide(center);
+	}
+	updateColumnCorner(center);
+	instance->column = Auth().settings().floatPlayerColumn();
+	instance->corner = Auth().settings().floatPlayerCorner();
+
+	instance->draggedAnimation.finish();
+	instance->draggedAnimation.start(
+		[=] { updatePosition(instance); },
+		0.,
+		1.,
+		st::slideDuration,
+		anim::sineInOut);
+	updatePosition(instance);
+
+	if (closed) {
+		if (const auto item = instance->widget->item()) {
+			_closeEvents.fire(item->fullId());
+		}
+		instance->widget->detach();
 	}
 }
 

@@ -64,9 +64,6 @@ private:
 	QMap<QString, int> iconMasks_; // icon file -> index
 	std::map<QString, int, std::greater<QString>> paletteIndices_;
 
-	std::vector<int> _scales = { 4, 5, 6, 8 }; // scale / 4 gives our 1.00, 1.25, 1.50, 2.00
-	std::vector<const char *> _scaleNames = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
-
 };
 
 } // namespace style

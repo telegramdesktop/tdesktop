@@ -52,6 +52,10 @@ bool IsApplicationActive() {
 	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
 }
 
+void SetApplicationIcon(const QIcon &icon) {
+	qApp->setWindowIcon(icon);
+}
+
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	constexpr auto kMaxPath = 1024;
 	char result[kMaxPath] = { 0 };
@@ -378,6 +382,7 @@ void RegisterCustomScheme() {
 			s << "Type=Application\n";
 			s << "Categories=Network;InstantMessaging;Qt;\n";
 			s << "MimeType=x-scheme-handler/tg;\n";
+			s << "Keywords=tg;chat;im;messaging;messenger;sms;tdesktop;\n";
 			s << "X-GNOME-UsesNotifications=true\n";
 			f.close();
 
@@ -432,6 +437,17 @@ void RegisterCustomScheme() {
 		}
 	}
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+}
+
+PermissionStatus GetPermissionStatus(PermissionType type){
+	return PermissionStatus::Granted;
+}
+
+void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback){
+	resultCallback(PermissionStatus::Granted);
+}
+
+void OpenSystemSettingsForPermission(PermissionType type){
 }
 
 namespace ThirdParty {

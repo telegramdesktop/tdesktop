@@ -185,7 +185,7 @@ inline bool IsTopCorner(ScreenCorner corner) {
 
 namespace Sandbox {
 
-bool CheckAlphaVersionDir();
+bool CheckPortableVersionDir();
 void WorkingDirReady();
 void WriteInstallBetaVersionsSetting();
 void WriteDebugModeSetting();
@@ -286,6 +286,7 @@ DeclareVar(int32, WebFileDcId);
 DeclareVar(QString, TxtDomainString);
 DeclareVar(bool, PhoneCallsEnabled);
 DeclareVar(bool, BlockedMode);
+DeclareVar(int32, CaptionLengthMax);
 DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
@@ -316,7 +317,7 @@ DeclareVar(bool, NotificationsDemoIsShown);
 DeclareVar(bool, TryIPv6);
 DeclareVar(std::vector<ProxyData>, ProxiesList);
 DeclareVar(ProxyData, SelectedProxy);
-DeclareVar(bool, UseProxy);
+DeclareVar(ProxyData::Settings, ProxySettings);
 DeclareVar(bool, UseProxyForCalls);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 

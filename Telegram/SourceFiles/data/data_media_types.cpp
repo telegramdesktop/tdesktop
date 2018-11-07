@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
+#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
@@ -55,8 +58,7 @@ Invoice ComputeInvoiceData(const MTPDmessageMediaInvoice &data) {
 		result.receiptMsgId = data.vreceipt_msg_id.v;
 	}
 	if (data.has_photo()) {
-		const auto thumb = ImagePtr();
-		result.photo = Auth().data().photoFromWeb(data.vphoto, thumb);
+		result.photo = Auth().data().photoFromWeb(data.vphoto);
 	}
 	return result;
 }
@@ -345,64 +347,84 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	if (photo.type() != mtpc_photo) {
 		return false;
 	}
+	struct SizeData {
+		char letter = 0;
+		int width = 0;
+		int height = 0;
+		const MTPFileLocation *location = nullptr;
+		QByteArray bytes;
+	};
 	const auto saveImageToCache = [](
-			const MTPDfileLocation &location,
-			const ImagePtr &image) {
-		const auto key = StorageImageLocation(0, 0, location);
+			const ImagePtr &image,
+			SizeData size) {
+		Expects(size.location != nullptr);
+
+		const auto key = StorageImageLocation(
+			size.width,
+			size.height,
+			size.location->c_fileLocation());
 		if (key.isNull() || image->isNull() || !image->loaded()) {
 			return;
 		}
-		if (image->savedData().isEmpty()) {
-			image->forget();
-		} else if (image->savedData().size() > Storage::kMaxFileInMemory) {
+		if (size.bytes.isEmpty()) {
+			size.bytes = image->bytesForCache();
+		}
+		const auto length = size.bytes.size();
+		if (!length || length > Storage::kMaxFileInMemory) {
+			LOG(("App Error: Bad photo data for saving to cache."));
 			return;
 		}
 		Auth().data().cache().putIfEmpty(
 			Data::StorageCacheKey(key),
 			Storage::Cache::Database::TaggedValue(
-				image->savedData(),
+				std::move(size.bytes),
 				Data::kImageCacheTag));
+		image->replaceSource(
+			std::make_unique<Images::StorageSource>(key, length));
 	};
 	auto &sizes = photo.c_photo().vsizes.v;
 	auto max = 0;
-	const MTPDfileLocation *maxLocation = 0;
+	auto maxSize = SizeData();
 	for (const auto &data : sizes) {
-		char size = 0;
-		const MTPFileLocation *loc = 0;
-		switch (data.type()) {
-		case mtpc_photoSize: {
-			const auto &s = data.c_photoSize().vtype.v;
-			loc = &data.c_photoSize().vlocation;
-			if (s.size()) size = s[0];
-		} break;
-
-		case mtpc_photoCachedSize: {
-			const auto &s = data.c_photoCachedSize().vtype.v;
-			loc = &data.c_photoCachedSize().vlocation;
-			if (s.size()) size = s[0];
-		} break;
-		}
-		if (!loc || loc->type() != mtpc_fileLocation) {
+		const auto size = data.match([](const MTPDphotoSize &data) {
+			return SizeData{
+				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vw.v,
+				data.vh.v,
+				&data.vlocation,
+				QByteArray()
+			};
+		}, [](const MTPDphotoCachedSize &data) {
+			return SizeData{
+				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vw.v,
+				data.vh.v,
+				&data.vlocation,
+				qba(data.vbytes)
+			};
+		}, [](const MTPDphotoSizeEmpty &) {
+			return SizeData();
+		});
+		if (!size.location || size.location->type() != mtpc_fileLocation) {
 			continue;
 		}
-		const auto &location = loc->c_fileLocation();
-		if (size == 's') {
-			saveImageToCache(location, _photo->thumb);
-		} else if (size == 'm') {
-			saveImageToCache(location, _photo->medium);
-		} else if (size == 'x' && max < 1) {
+		if (size.letter == 's') {
+			saveImageToCache(_photo->thumb, size);
+		} else if (size.letter == 'm') {
+			saveImageToCache(_photo->medium, size);
+		} else if (size.letter == 'x' && max < 1) {
 			max = 1;
-			maxLocation = &location;
-		} else if (size == 'y' && max < 2) {
+			maxSize = size;
+		} else if (size.letter == 'y' && max < 2) {
 			max = 2;
-			maxLocation = &location;
-		//} else if (size == 'w' && max < 3) {
+			maxSize = size;
+		//} else if (size.letter == 'w' && max < 3) {
 		//	max = 3;
-		//	maxLocation = &loc->c_fileLocation();
+		//	maxSize = size;
 		}
 	}
-	if (maxLocation) {
-		saveImageToCache(*maxLocation, _photo->full);
+	if (maxSize.location) {
+		saveImageToCache(_photo->full, maxSize);
 	}
 	return true;
 }
@@ -654,6 +676,23 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	Auth().data().documentConvert(_document, data.vdocument);
+
+	if (const auto good = _document->goodThumbnail()) {
+		auto bytes = good->bytesForCache();
+		if (const auto length = bytes.size()) {
+			if (length > Storage::kMaxFileInMemory) {
+				LOG(("App Error: Bad thumbnail data for saving to cache."));
+			} else {
+				Auth().data().cache().putIfEmpty(
+					_document->goodThumbnailCacheKey(),
+					Storage::Cache::Database::TaggedValue(
+						std::move(bytes),
+						Data::kImageCacheTag));
+				_document->refreshGoodThumbnail();
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -764,7 +803,7 @@ MediaLocation::MediaLocation(
 	const QString &title,
 	const QString &description)
 : Media(parent)
-, _location(App::location(coords))
+, _location(Auth().data().location(coords))
 , _title(title)
 , _description(description) {
 }
@@ -935,18 +974,18 @@ WebPageData *MediaWebPage::webpage() const {
 }
 
 bool MediaWebPage::hasReplyPreview() const {
-	if (const auto document = _page->document) {
+	if (const auto document = MediaWebPage::document()) {
 		return !document->thumb->isNull();
-	} else if (const auto photo = _page->photo) {
+	} else if (const auto photo = MediaWebPage::photo()) {
 		return !photo->thumb->isNull();
 	}
 	return false;
 }
 
 ImagePtr MediaWebPage::replyPreview() const {
-	if (const auto document = _page->document) {
+	if (const auto document = MediaWebPage::document()) {
 		return document->makeReplyPreview(parent()->fullId());
-	} else if (const auto photo = _page->photo) {
+	} else if (const auto photo = MediaWebPage::photo()) {
 		return photo->makeReplyPreview(parent()->fullId());
 	}
 	return ImagePtr();

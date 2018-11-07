@@ -88,6 +88,8 @@
       'AL_ALEXT_PROTOTYPES',
       'TGVOIP_USE_CXX11_LIB',
       'XXH_INLINE_ALL',
+      'TDESKTOP_API_ID=<(api_id)',
+      'TDESKTOP_API_HASH=<(api_hash)',
       '<!@(python -c "for s in \'<(build_defines)\'.split(\',\'): print(s)")',
     ],
 
@@ -126,7 +128,7 @@
     'conditions': [
       [ '"<(official_build_target)" != ""', {
         'defines': [
-          'CUSTOM_API_ID',
+          'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',
         ],
         'dependencies': [
           'utils.gyp:Packer',
@@ -136,6 +138,13 @@
         'mac_bundle_resources': [
           '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
           '../Telegram/Images.xcassets',
+        ],
+      }], [ 'build_macstore', {
+        'mac_sandbox': 1,
+        'mac_sandbox_development_team': '6N38VWS5BX',
+        'product_name': 'Telegram Desktop',
+        'sources': [
+          '../Telegram/Telegram Desktop.entitlements',
         ],
       }],
     ],

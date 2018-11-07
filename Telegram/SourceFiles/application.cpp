@@ -362,7 +362,7 @@ void Application::refreshGlobalProxy() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = [&] {
 		if (Global::started()) {
-			return Global::UseProxy()
+			return (Global::ProxySettings() == ProxyData::Settings::Enabled)
 				? Global::SelectedProxy()
 				: ProxyData();
 		}
@@ -372,8 +372,11 @@ void Application::refreshGlobalProxy() {
 		|| proxy.type == ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(
 			ToNetworkProxy(ToDirectIpProxy(proxy)));
-	} else {
+	} else if (!Global::started()
+		|| Global::ProxySettings() == ProxyData::Settings::System) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
+	} else {
+		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 	}
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 }
@@ -459,15 +462,20 @@ void connect(const char *signal, QObject *object, const char *method) {
 void launch() {
 	Assert(application() != 0);
 
-	float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
-	if (dpi <= 108) { // 0-96-108
-		cSetScreenScale(dbisOne);
-	} else if (dpi <= 132) { // 108-120-132
-		cSetScreenScale(dbisOneAndQuarter);
-	} else if (dpi <= 168) { // 132-144-168
-		cSetScreenScale(dbisOneAndHalf);
-	} else { // 168-192-inf
-		cSetScreenScale(dbisTwo);
+	const auto dpi = Application::primaryScreen()->logicalDotsPerInch();
+	LOG(("Primary screen DPI: %1").arg(dpi));
+	if (dpi <= 108) {
+		cSetScreenScale(100); // 100%:  96 DPI (0-108)
+	} else if (dpi <= 132) {
+		cSetScreenScale(125); // 125%: 120 DPI (108-132)
+	} else if (dpi <= 168) {
+		cSetScreenScale(150); // 150%: 144 DPI (132-168)
+	} else if (dpi <= 216) {
+		cSetScreenScale(200); // 200%: 192 DPI (168-216)
+	} else if (dpi <= 264) {
+		cSetScreenScale(250); // 250%: 240 DPI (216-264)
+	} else {
+		cSetScreenScale(300); // 300%: 288 DPI (264-inf)
 	}
 
 	auto devicePixelRatio = application()->devicePixelRatio();
@@ -479,11 +487,9 @@ void launch() {
 			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
 			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
 		}
-		cSetRetina(true);
 		cSetRetinaFactor(devicePixelRatio);
 		cSetIntRetinaFactor(int32(cRetinaFactor()));
-		cSetConfigScale(dbisOne);
-		cSetRealScale(dbisOne);
+		cSetScreenScale(kInterfaceScaleDefault);
 	}
 
 	application()->createMessenger();

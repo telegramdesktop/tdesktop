@@ -11,8 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_photo.h"
 
+namespace Data {
+class Media;
+} // namespace Data
+
 class HistoryGroupedMedia : public HistoryMedia {
 public:
+	static constexpr auto kMaxSize = 10;
+
+	HistoryGroupedMedia(
+		not_null<Element*> parent,
+		const std::vector<std::unique_ptr<Data::Media>> &medias);
 	HistoryGroupedMedia(
 		not_null<Element*> parent,
 		const std::vector<not_null<HistoryItem*>> &items);
@@ -83,7 +92,9 @@ public:
 
 private:
 	struct Part {
-		Part(not_null<HistoryItem*> item);
+		Part(
+			not_null<HistoryView::Element*> parent,
+			not_null<Data::Media*> media);
 
 		not_null<HistoryItem*> item;
 		std::unique_ptr<HistoryMedia> content;
@@ -96,15 +107,18 @@ private:
 
 	};
 
-	bool applyGroup(const std::vector<not_null<HistoryItem*>> &items);
+	template <typename DataMediaRange>
+	bool applyGroup(const DataMediaRange &medias);
+
+	template <typename DataMediaRange>
+	bool validateGroupParts(const DataMediaRange &medias) const;
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
 	bool needInfoDisplay() const;
 	bool computeNeedBubble() const;
 	not_null<HistoryMedia*> main() const;
-	bool validateGroupParts(
-		const std::vector<not_null<HistoryItem*>> &items) const;
 	TextState getPartState(
 		QPoint point,
 		StateRequest request) const;

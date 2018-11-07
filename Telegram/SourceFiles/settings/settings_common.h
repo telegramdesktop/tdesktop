@@ -74,23 +74,29 @@ not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,
 	LangKey text,
 	const style::InfoProfileButton &st,
-	const style::icon *leftIcon = nullptr);
+	const style::icon *leftIcon = nullptr,
+	int iconLeft = 0);
 not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
 	const style::InfoProfileButton &st,
-	const style::icon *leftIcon = nullptr);
+	const style::icon *leftIcon = nullptr,
+	int iconLeft = 0);
 not_null<Button*> AddButtonWithLabel(
 	not_null<Ui::VerticalLayout*> container,
 	LangKey text,
 	rpl::producer<QString> label,
 	const style::InfoProfileButton &st,
-	const style::icon *leftIcon = nullptr);
+	const style::icon *leftIcon = nullptr,
+	int iconLeft = 0);
 void CreateRightLabel(
 	not_null<Button*> button,
 	rpl::producer<QString> label,
 	const style::InfoProfileButton &st,
 	LangKey buttonText);
+void AddSubsectionTitle(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> text);
 void AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> conatiner,
 	LangKey text);

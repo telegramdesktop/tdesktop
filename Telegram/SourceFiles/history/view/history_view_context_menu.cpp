@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "history/history_media_types.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/image/image.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/confirm_box.h"
 #include "data/data_photo.h"

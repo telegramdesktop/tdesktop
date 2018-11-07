@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/empty_userpic.h"
+#include "ui/emoji_config.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
@@ -521,13 +523,13 @@ void Panel::refreshUserPhoto() {
 	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
 		_userPhotoId = photo->id;
 		_userPhotoFull = true;
-		createUserpicCache(photo->full);
+		createUserpicCache(photo->full, _user->userpicPhotoOrigin());
 	} else if (_userPhoto.isNull()) {
-		createUserpicCache(_user->currentUserpic());
+		createUserpicCache(_user->currentUserpic(), _user->userpicOrigin());
 	}
 }
 
-void Panel::createUserpicCache(ImagePtr image) {
+void Panel::createUserpicCache(ImagePtr image, Data::FileOrigin origin) {
 	auto size = st::callWidth * cIntRetinaFactor();
 	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
@@ -541,13 +543,13 @@ void Panel::createUserpicCache(ImagePtr image) {
 			width = size;
 		}
 		_userPhoto = image->pixNoCache(
-			_user->userpicPhotoOrigin(),
+			origin,
 			width,
 			height,
 			options,
 			st::callWidth,
 			st::callWidth);
-		if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
+		_userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		auto filled = QImage(QSize(st::callWidth, st::callWidth) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		filled.setDevicePixelRatio(cRetinaFactor());
@@ -725,12 +727,12 @@ void Panel::paintEvent(QPaintEvent *e) {
 	if (!_fingerprint.empty()) {
 		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Small);
 
-		auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-		auto size = realSize / cIntRetinaFactor();
+		const auto realSize = Ui::Emoji::GetSizeLarge();
+		const auto size = realSize / cIntRetinaFactor();
 		auto left = _fingerprintArea.left() + st::callFingerprintPadding.left();
-		auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
-		for (auto emoji : _fingerprint) {
-			p.drawPixmap(QPoint(left, top), App::emojiLarge(), QRect(emoji->x() * realSize, emoji->y() * realSize, realSize, realSize));
+		const auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
+		for (const auto emoji : _fingerprint) {
+			Ui::Emoji::Draw(p, emoji, realSize, left, top);
 			left += st::callFingerprintSkip + size;
 		}
 	}
@@ -868,7 +870,7 @@ void Panel::fillFingerprint() {
 	Expects(_call != nullptr);
 	_fingerprint = ComputeEmojiFingerprint(_call);
 
-	auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
+	auto realSize = Ui::Emoji::GetSizeLarge();
 	auto size = realSize / cIntRetinaFactor();
 	auto count = _fingerprint.size();
 	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;

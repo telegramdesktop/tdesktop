@@ -33,6 +33,13 @@ struct InstantReplaces {
 
 };
 
+enum class InputSubmitSettings {
+	Enter,
+	CtrlEnter,
+	Both,
+	None,
+};
+
 class FlatInput : public TWidgetHelper<QLineEdit>, private base::Subscriber {
 	Q_OBJECT
 
@@ -258,13 +265,11 @@ public:
 	bool isUndoAvailable() const;
 	bool isRedoAvailable() const;
 
-	enum class SubmitSettings {
-		None,
-		Enter,
-		CtrlEnter,
-		Both,
-	};
+	using SubmitSettings = InputSubmitSettings;
 	void setSubmitSettings(SubmitSettings settings);
+	static bool ShouldSubmit(
+		SubmitSettings settings,
+		Qt::KeyboardModifiers modifiers);
 	void customUpDown(bool isCustom);
 	void customTab(bool isCustom);
 	int borderAnimationStart() const;

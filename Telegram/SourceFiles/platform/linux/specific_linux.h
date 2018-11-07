@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <execinfo.h>
 #include <signal.h>
 
+class LocationCoords;
+
 namespace Platform {
 
 inline void SetWatchingMediaKeys(bool watching) {

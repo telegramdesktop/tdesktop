@@ -2279,6 +2279,9 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	auto saved = std::optional<MessageInfo>();
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
+		if (Data::SkipMessageByDate(message, _settings)) {
+			continue;
+		}
 		const auto newIndex = (_messagesCount / kMessagesInFile);
 		if (oldIndex != newIndex) {
 			if (const auto result = _chat->writeBlock(block); !result) {
@@ -2328,7 +2331,7 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	if (saved) {
 		_lastMessageInfo = std::make_unique<MessageInfo>(*saved);
 	}
-	return _chat->writeBlock(block);
+	return block.isEmpty() ? Result::Success() : _chat->writeBlock(block);
 }
 
 Result HtmlWriter::writeEmptySinglePeer() {
@@ -2345,7 +2348,7 @@ Result HtmlWriter::writeEmptySinglePeer() {
 		--_dateMessageId,
 		_dialog,
 		_settings.path,
-		"Empty chat"));
+		"No exported messages"));
 }
 
 Result HtmlWriter::writeDialogEnd() {

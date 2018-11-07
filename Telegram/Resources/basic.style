@@ -243,12 +243,6 @@ dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
 
-minPhotoSize: 100px;
-maxMediaSize: 430px;
-maxStickerSize: 256px;
-maxGifSize: 320px;
-maxSignatureSize: 144px;
-
 radialSize: size(50px, 50px);
 radialLine: 3px;
 radialDuration: 350;

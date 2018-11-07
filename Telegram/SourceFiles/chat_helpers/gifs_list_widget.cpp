@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/stickers.h"
@@ -404,24 +405,24 @@ void GifsListWidget::processHideFinished() {
 }
 
 void GifsListWidget::processPanelHideFinished() {
-	auto itemForget = [](auto &item) {
-		if (auto document = item->getDocument()) {
-			document->forget();
+	const auto itemForget = [](const auto &item) {
+		if (const auto document = item->getDocument()) {
+			document->unload();
 		}
-		if (auto photo = item->getPhoto()) {
-			photo->forget();
+		if (const auto photo = item->getPhoto()) {
+			photo->unload();
 		}
-		if (auto result = item->getResult()) {
-			result->forget();
+		if (const auto result = item->getResult()) {
+			result->unload();
 		}
 	};
 	// Preserve panel state through visibility toggles.
 	//clearInlineRows(false);
-	for_const (auto &item, _gifLayouts) {
-		itemForget(item.second);
+	for (const auto &[document, layout] : _gifLayouts) {
+		itemForget(layout);
 	}
-	for_const (auto &item, _inlineLayouts) {
-		itemForget(item.second);
+	for (const auto &[document, layout] : _inlineLayouts) {
+		itemForget(layout);
 	}
 }
 

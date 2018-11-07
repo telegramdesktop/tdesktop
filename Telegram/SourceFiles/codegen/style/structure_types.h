@@ -59,13 +59,6 @@ inline bool operator!=(const Type &a, const Type &b) {
 
 namespace data {
 
-inline int pxAdjust(int value, int scale) {
-	if (value < 0) {
-		return -pxAdjust(-value, scale);
-	}
-	return qFloor((value * scale / 4.) + 0.1);
-}
-
 struct point {
 	int x, y;
 };

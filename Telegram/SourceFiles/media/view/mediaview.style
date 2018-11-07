@@ -43,7 +43,7 @@ mediaviewPauseIcon: icon {{ "media_pause", mediaviewPlaybackIconFg, point(1px, 1
 mediaviewPauseIconOver: icon {{ "media_pause", mediaviewPlaybackIconFgOver, point(1px, 1px) }};
 mediaviewPlayPauseLeft: 17px;
 mediaviewFullScreenLeft: 17px;
-mediaviewVolumeLeft: 15px;
+mediaviewVolumeLeft: 7px;
 
 mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
 	icon: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFg, point(0px, 0px) }};
@@ -55,11 +55,7 @@ mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", mediaviewPlayba
 
 mediaviewPlaybackTop: 28px;
 
-mediaviewVolumeSize: size(44px, 20px);
-mediaviewVolumeIcon: icon {{ "media_volume", mediaviewPlaybackInactiveOver, point(0px, 0px) }};
-mediaviewVolumeOnIcon: icon {{ "media_volume", mediaviewPlaybackActive, point(0px, 0px) }};
-mediaviewVolumeOnIconOver: icon {{ "media_volume", mediaviewPlaybackActiveOver, point(0px, 0px) }};
-mediaviewVolumeIconTop: 8px;
+mediaviewVolumeWidth: 60px;
 mediaviewControllerRadius: 25px;
 
 mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};

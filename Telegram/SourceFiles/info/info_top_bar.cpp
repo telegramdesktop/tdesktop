@@ -488,8 +488,7 @@ Ui::StringWithNumbers TopBar::generateSelectedText() const {
 		case Type::File: return lng_media_selected_file__generic<Data>;
 		case Type::MusicFile: return lng_media_selected_song__generic<Data>;
 		case Type::Link: return lng_media_selected_link__generic<Data>;
-		case Type::VoiceFile: return lng_media_selected_audio__generic<Data>;
-//		case Type::RoundFile: return lng_media_selected_round__generic<Data>;
+		case Type::RoundVoiceFile: return lng_media_selected_audio__generic<Data>;
 		}
 		Unexpected("Type in TopBar::generateSelectedText()");
 	}();
@@ -580,7 +579,7 @@ rpl::producer<QString> TitleValue(
 				return lng_media_type_songs;
 			case Section::MediaType::File:
 				return lng_media_type_files;
-			case Section::MediaType::VoiceFile:
+			case Section::MediaType::RoundVoiceFile:
 				return lng_media_type_audios;
 			case Section::MediaType::Link:
 				return lng_media_type_links;

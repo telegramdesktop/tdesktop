@@ -74,10 +74,10 @@ public:
 	void applyItem(int id);
 	object_ptr<BoxContent> editItemBox(int id);
 	object_ptr<BoxContent> addNewItemBox();
-	bool setProxyEnabled(bool enabled);
+	bool setProxySettings(ProxyData::Settings value);
 	void setProxyForCalls(bool enabled);
 	void setTryIPv6(bool enabled);
-	rpl::producer<bool> proxyEnabledValue() const;
+	rpl::producer<ProxyData::Settings> proxySettingsValue() const;
 
 	rpl::producer<ItemView> views() const;
 
@@ -117,7 +117,7 @@ private:
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;
 	base::Timer _saveTimer;
-	rpl::event_stream<bool> _proxyEnabledChanges;
+	rpl::event_stream<ProxyData::Settings> _proxySettingsChanges;
 
 	ProxyData _lastSelectedProxy;
 	bool _lastSelectedProxyUsed = false;

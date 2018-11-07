@@ -29,6 +29,7 @@ LayerWidget::LayerWidget(
 : _controller(controller)
 , _content(this, controller, Wrap::Layer, memento) {
 	setupHeightConsumers();
+	_controller->replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
 
 LayerWidget::LayerWidget(
@@ -37,6 +38,35 @@ LayerWidget::LayerWidget(
 : _controller(controller)
 , _content(memento->takeContent(this, Wrap::Layer)) {
 	setupHeightConsumers();
+	_controller->replaceFloatPlayerDelegate(floatPlayerDelegate());
+}
+
+auto LayerWidget::floatPlayerDelegate()
+-> not_null<::Media::Player::FloatDelegate*> {
+	return static_cast<::Media::Player::FloatDelegate*>(this);
+}
+
+not_null<Ui::RpWidget*> LayerWidget::floatPlayerWidget() {
+	return this;
+}
+
+not_null<Window::Controller*> LayerWidget::floatPlayerController() {
+	return _controller;
+}
+
+not_null<Window::AbstractSectionWidget*> LayerWidget::floatPlayerGetSection(
+		Window::Column column) {
+	return _content;
+}
+
+void LayerWidget::floatPlayerEnumerateSections(Fn<void(
+		not_null<Window::AbstractSectionWidget*> widget,
+		Window::Column widgetColumn)> callback) {
+	callback(_content, Window::Column::Second);
+}
+
+bool LayerWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
+	return false;
 }
 
 void LayerWidget::setupHeightConsumers() {
@@ -56,6 +86,7 @@ void LayerWidget::setupHeightConsumers() {
 }
 
 void LayerWidget::showFinished() {
+	floatPlayerShowVisible();
 }
 
 void LayerWidget::parentResized() {
@@ -189,6 +220,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		move(newGeometry.topLeft());
 	}
 
+	floatPlayerUpdatePositions();
 	return desiredHeight;
 }
 
@@ -219,6 +251,10 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 			nullptr,
 			parts);
 	}
+}
+
+LayerWidget::~LayerWidget() {
+	_controller->restoreFloatPlayerDelegate(floatPlayerDelegate());
 }
 
 } // namespace Info

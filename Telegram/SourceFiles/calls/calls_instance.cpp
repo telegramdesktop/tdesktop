@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
 #include "media/media_audio_track.h"
+#include "platform/platform_specific.h"
+#include "mainwidget.h"
 
 #include "boxes/rate_call_box.h"
 namespace Calls {
@@ -38,7 +40,9 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
 		return;
 	}
-	createCall(user, Call::Type::Outgoing);
+	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
+		createCall(user, Call::Type::Outgoing);
+	}));
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -283,6 +287,31 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 
 bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
+}
+
+void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
+	Platform::PermissionStatus status=Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
+	if (status==Platform::PermissionStatus::Granted) {
+		onSuccess();
+	} else if(status==Platform::PermissionStatus::CanRequest) {
+		Platform::RequestPermission(Platform::PermissionType::Microphone, crl::guard(this, [=](Platform::PermissionStatus status) {
+			if (status==Platform::PermissionStatus::Granted) {
+				crl::on_main(onSuccess);
+			} else {
+				if (_currentCall) {
+					_currentCall->hangup();
+				}
+			}
+		}));
+	} else {
+		if (alreadyInCall()) {
+			_currentCall->hangup();
+		}
+		Ui::show(Box<ConfirmBox>(lang(lng_no_mic_permission), lang(lng_menu_settings), crl::guard(this, [] {
+			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
+			Ui::hideLayer();
+		})));
+	}
 }
 
 Instance::~Instance() {

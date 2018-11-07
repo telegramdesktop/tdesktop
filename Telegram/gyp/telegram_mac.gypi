@@ -37,6 +37,9 @@
       },
     },
   }], [ 'build_macold', {
+    'defines': [
+      'OS_MAC_OLD',
+    ],
     'xcode_settings': {
       'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
@@ -193,12 +196,6 @@
         '<(libs_loc)/breakpad/src/client/mac/build/Release',
       ],
     },
-    'mac_sandbox': 1,
-    'mac_sandbox_development_team': '6N38VWS5BX',
-    'product_name': 'Telegram Desktop',
-    'sources': [
-      '../Telegram/Telegram Desktop.entitlements',
-    ],
     'defines': [
       'TDESKTOP_DISABLE_AUTOUPDATE',
       'OS_MAC_STORE',

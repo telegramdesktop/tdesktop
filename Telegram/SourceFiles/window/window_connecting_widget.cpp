@@ -345,7 +345,8 @@ void ConnectingWidget::refreshState() {
 	const auto state = [&]() -> State {
 		const auto under = isOver();
 		const auto mtp = MTP::dcstate();
-		const auto throughProxy = Global::UseProxy();
+		const auto throughProxy
+			= (Global::ProxySettings() == ProxyData::Settings::Enabled);
 		if (mtp == MTP::ConnectingState
 			|| mtp == MTP::DisconnectedState
 			|| (mtp < 0 && mtp > -600)) {

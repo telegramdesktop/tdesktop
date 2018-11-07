@@ -124,7 +124,9 @@ void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) 
 	} else if (media.type == SendMediaType::File || media.type == SendMediaType::Audio) {
 		const auto document = media.photoThumbs.isEmpty()
 			? Auth().data().document(media.document)
-			: Auth().data().document(media.document, media.photoThumbs.begin().value());
+			: Auth().data().document(
+				media.document,
+				base::duplicate(media.photoThumbs.begin().value()));
 		if (!media.data.isEmpty()) {
 			document->setData(media.data);
 			if (document->saveToCache()
@@ -153,8 +155,13 @@ void Uploader::upload(
 	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
 		auto document = file->thumb.isNull()
 			? Auth().data().document(file->document)
-			: Auth().data().document(file->document, file->thumb);
+			: Auth().data().document(
+				file->document,
+				std::move(file->thumb));
 		document->uploadingData = std::make_unique<Data::UploadState>(document->size);
+		document->setGoodThumbnail(
+			std::move(file->goodThumbnail),
+			std::move(file->goodThumbnailBytes));
 		if (!file->content.isEmpty()) {
 			document->setData(file->content);
 			if (document->saveToCache()

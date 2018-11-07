@@ -32,8 +32,7 @@ inline auto MediaTextPhrase(Type type) {
 	case Type::File: return lng_profile_files;
 	case Type::MusicFile: return lng_profile_songs;
 	case Type::Link: return lng_profile_shared_links;
-	case Type::VoiceFile: return lng_profile_audios;
-//	case Type::RoundFile: return lng_profile_rounds;
+	case Type::RoundVoiceFile: return lng_profile_audios;
 	}
 	Unexpected("Type in MediaTextPhrase()");
 };

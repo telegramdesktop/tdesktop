@@ -23,6 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "boxes/send_files_box.h"
+#include "ui/widgets/input_fields.h"
+#include "support/support_common.h"
+#include "support/support_templates.h"
 #include "observer_peer.h"
 
 namespace {
@@ -35,7 +38,9 @@ AuthSessionSettings::Variables::Variables()
 : sendFilesWay(SendFilesWay::Album)
 , selectorTab(ChatHelpers::SelectorTab::Emoji)
 , floatPlayerColumn(Window::Column::Second)
-, floatPlayerCorner(RectPart::TopRight) {
+, floatPlayerCorner(RectPart::TopRight)
+, sendSubmitWay(Ui::InputSubmitSettings::Enter)
+, supportSwitch(Support::SwitchSettings::Next) {
 }
 
 QByteArray AuthSessionSettings::serialize() const {
@@ -74,6 +79,10 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.thirdSectionExtendedBy);
 		stream << qint32(_variables.sendFilesWay);
 		stream << qint32(_variables.callsPeerToPeer.current());
+		stream << qint32(_variables.sendSubmitWay);
+		stream << qint32(_variables.supportSwitch);
+		stream << qint32(_variables.supportFixChatsOrder ? 1 : 0);
+		stream << qint32(_variables.supportTemplatesAutocomplete ? 1 : 0);
 	}
 	return result;
 }
@@ -100,6 +109,11 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	int thirdSectionExtendedBy = _variables.thirdSectionExtendedBy;
 	qint32 sendFilesWay = static_cast<qint32>(_variables.sendFilesWay);
 	qint32 callsPeerToPeer = qint32(_variables.callsPeerToPeer.current());
+	qint32 sendSubmitWay = static_cast<qint32>(_variables.sendSubmitWay);
+	qint32 supportSwitch = static_cast<qint32>(_variables.supportSwitch);
+	qint32 supportFixChatsOrder = _variables.supportFixChatsOrder ? 1 : 0;
+	qint32 supportTemplatesAutocomplete = _variables.supportTemplatesAutocomplete ? 1 : 0;
+
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
@@ -154,6 +168,14 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	if (!stream.atEnd()) {
 		stream >> callsPeerToPeer;
 	}
+	if (!stream.atEnd()) {
+		stream >> sendSubmitWay;
+		stream >> supportSwitch;
+		stream >> supportFixChatsOrder;
+	}
+	if (!stream.atEnd()) {
+		stream >> supportTemplatesAutocomplete;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -206,6 +228,21 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	case Calls::PeerToPeer::Contacts:
 	case Calls::PeerToPeer::Nobody: _variables.callsPeerToPeer = uncheckedCallsPeerToPeer; break;
 	}
+	auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(
+		sendSubmitWay);
+	switch (uncheckedSendSubmitWay) {
+	case Ui::InputSubmitSettings::Enter:
+	case Ui::InputSubmitSettings::CtrlEnter: _variables.sendSubmitWay = uncheckedSendSubmitWay; break;
+	}
+	auto uncheckedSupportSwitch = static_cast<Support::SwitchSettings>(
+		supportSwitch);
+	switch (uncheckedSupportSwitch) {
+	case Support::SwitchSettings::None:
+	case Support::SwitchSettings::Next:
+	case Support::SwitchSettings::Previous: _variables.supportSwitch = uncheckedSupportSwitch; break;
+	}
+	_variables.supportFixChatsOrder = (supportFixChatsOrder == 1);
+	_variables.supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
 }
 
 void AuthSessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
@@ -292,7 +329,11 @@ AuthSession::AuthSession(const MTPUser &user)
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
-, _changelogs(Core::Changelogs::Create(this)) {
+, _changelogs(Core::Changelogs::Create(this))
+, _supportTemplates(
+	(Support::ValidateAccount(user)
+		? std::make_unique<Support::Templates>(this)
+		: nullptr)) {
 	App::feedUser(user);
 
 	_saveDataTimer.setCallback([=] {
@@ -389,6 +430,16 @@ void AuthSession::checkAutoLockIn(TimeMs time) {
 		if (remain > 0 && remain <= time) return;
 	}
 	_autoLockTimer.callOnce(time);
+}
+
+bool AuthSession::supportMode() const {
+	return (_supportTemplates != nullptr);
+}
+
+not_null<Support::Templates*> AuthSession::supportTemplates() const {
+	Expects(supportMode());
+
+	return _supportTemplates.get();
 }
 
 AuthSession::~AuthSession() = default;

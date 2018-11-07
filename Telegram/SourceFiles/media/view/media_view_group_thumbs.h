@@ -12,13 +12,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class SharedMediaWithLastSlice;
 class UserPhotosSlice;
+struct WebPageCollage;
 
 namespace Media {
 namespace View {
 
 class GroupThumbs : public base::has_weak_ptr {
 public:
-	using Key = base::variant<PhotoId, FullMsgId>;
+	struct CollageKey {
+		int index = 0;
+
+		inline bool operator<(const CollageKey &other) const {
+			return index < other.index;
+		}
+	};
+	struct CollageSlice {
+		FullMsgId context;
+		not_null<const WebPageCollage*> data;
+
+		int size() const;
+	};
+	using Key = base::variant<PhotoId, FullMsgId, CollageKey>;
 
 	static void Refresh(
 		std::unique_ptr<GroupThumbs> &instance,
@@ -28,6 +42,11 @@ public:
 	static void Refresh(
 		std::unique_ptr<GroupThumbs> &instance,
 		const UserPhotosSlice &slice,
+		int index,
+		int availableWidth);
+	static void Refresh(
+		std::unique_ptr<GroupThumbs> &instance,
+		const CollageSlice &slice,
 		int index,
 		int availableWidth);
 	void clear();
@@ -53,7 +72,10 @@ public:
 		return _lifetime;
 	}
 
-	using Context = base::optional_variant<PeerId, MessageGroupId>;
+	using Context = base::optional_variant<
+		PeerId,
+		MessageGroupId,
+		FullMsgId>;
 
 	GroupThumbs(Context context);
 	~GroupThumbs();
@@ -73,6 +95,10 @@ private:
 	void markCacheStale();
 	not_null<Thumb*> validateCacheEntry(Key key);
 	std::unique_ptr<Thumb> createThumb(Key key);
+	std::unique_ptr<Thumb> createThumb(
+		Key key,
+		const WebPageCollage &collage,
+		int index);
 	std::unique_ptr<Thumb> createThumb(Key key, ImagePtr image);
 
 	void update();

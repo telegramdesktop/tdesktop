@@ -691,6 +691,8 @@ bool Message::hasFromPhoto() const {
 		}
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
+	case Context::ContactPreview:
+		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
 }
@@ -1283,6 +1285,8 @@ bool Message::hasFromName() const {
 			&& (!item->history()->peer->isUser()
 				|| item->history()->peer->isSelf());
 	} break;
+	case Context::ContactPreview:
+		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
 }

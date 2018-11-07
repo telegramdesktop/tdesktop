@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 
 #include "auth_session.h"
+#include "ui/image/image.h"
 
 namespace Serialize {
 
@@ -255,9 +256,24 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		result->setUserpic(
 			photoId,
 			photoLoc,
-			photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
+			photoLoc.isNull() ? ImagePtr() : Images::Create(photoLoc));
 	}
 	return result;
+}
+
+QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
+	quint64 peerId = 0, photoId = 0;
+	stream >> peerId >> photoId;
+	if (!peerId || !peerIsUser(peerId)) {
+		return QString();
+	}
+
+	const auto photoLoc = readStorageImageLocation(
+		streamAppVersion,
+		stream);
+	QString first, last, phone;
+	stream >> first >> last >> phone;
+	return phone;
 }
 
 } // namespace Serialize

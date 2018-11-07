@@ -322,7 +322,7 @@ bool DebugEnabled() {
 void start(not_null<Core::Launcher*> launcher) {
 	Assert(LogsData == 0);
 
-	if (!Sandbox::CheckAlphaVersionDir()) {
+	if (!Sandbox::CheckPortableVersionDir()) {
 		return;
 	}
 
@@ -332,18 +332,20 @@ void start(not_null<Core::Launcher*> launcher) {
 
 	if (cAlphaVersion()) {
 		workingDirChosen = true;
+
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 	} else {
-#ifdef _DEBUG
-		cForceWorkingDir(cExeDir());
-#else // _DEBUG
 		if (!cWorkingDir().isEmpty()) {
-			// This value must come only from the "-workdir" argument.
+			// This value must come from TelegramForcePortable
+			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 		} else {
+#ifdef _DEBUG
+			cForceWorkingDir(cExeDir());
+#else // _DEBUG
 			cForceWorkingDir(psAppDataPath());
-		}
 #endif // !_DEBUG
+		}
 		workingDirChosen = true;
 
 #if defined Q_OS_LINUX && !defined _DEBUG // fix first version
@@ -354,6 +356,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	} else {
 		cForceWorkingDir(psAppDataPath());
 		workingDirChosen = true;
+
 #elif defined OS_WIN_STORE // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
 #ifdef _DEBUG
 		cForceWorkingDir(cExeDir());
@@ -361,13 +364,16 @@ void start(not_null<Core::Launcher*> launcher) {
 		cForceWorkingDir(psAppDataPath());
 #endif // !_DEBUG
 		workingDirChosen = true;
+
 #elif defined Q_OS_WIN
 	} else {
 		if (!cWorkingDir().isEmpty()) {
-			// This value must come only from the "-workdir" argument.
+			// This value must come from TelegramForcePortable
+			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		}
+
 #endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || OS_WIN_STORE
 	}
 

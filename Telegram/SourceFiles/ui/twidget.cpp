@@ -91,7 +91,16 @@ void Start() {
 			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
 		}
 	}
-#endif // Q_OS_WIN
+	QFont::insertSubstitution(qsl("Open Sans"), qsl("Segoe UI"));
+	QFont::insertSubstitution(qsl("Open Sans Semibold"), qsl("Segoe UI Semibold"));
+#elif defined Q_OS_MAC // Q_OS_WIN
+	auto list = QStringList();
+	list.append(qsl(".SF NS Text"));
+	list.append(qsl("Helvetica Neue"));
+	list.append(qsl("Lucida Grande"));
+	QFont::insertSubstitutions(qsl("Open Sans"), list);
+	QFont::insertSubstitutions(qsl("Open Sans Semibold"), list);
+#endif // Q_OS_WIN || Q_OS_MAC
 }
 
 QString GetOverride(const QString &familyName) {

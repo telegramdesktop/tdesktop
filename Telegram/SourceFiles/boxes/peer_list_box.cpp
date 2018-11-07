@@ -654,7 +654,7 @@ void PeerListContent::removeFromSearchIndex(not_null<PeerListRow*> row) {
 			auto it = _searchIndex.find(ch);
 			if (it != _searchIndex.cend()) {
 				auto &entry = it->second;
-				entry.erase(std::remove(entry.begin(), entry.end(), row), entry.end());
+				entry.erase(ranges::remove(entry, row), end(entry));
 				if (entry.empty()) {
 					_searchIndex.erase(it);
 				}
@@ -666,6 +666,7 @@ void PeerListContent::removeFromSearchIndex(not_null<PeerListRow*> row) {
 
 void PeerListContent::prependRow(std::unique_ptr<PeerListRow> row) {
 	Expects(row != nullptr);
+
 	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		addRowEntry(row.get());
 		_rows.insert(_rows.begin(), std::move(row));
@@ -729,11 +730,11 @@ void PeerListContent::removeRow(not_null<PeerListRow*> row) {
 
 	_rowsById.erase(row->id());
 	auto &byPeer = _rowsByPeer[row->peer()];
-	byPeer.erase(std::remove(byPeer.begin(), byPeer.end(), row), byPeer.end());
+	byPeer.erase(ranges::remove(byPeer, row), end(byPeer));
 	removeFromSearchIndex(row);
 	_filterResults.erase(
-		std::find(_filterResults.begin(), _filterResults.end(), row),
-		_filterResults.end());
+		ranges::remove(_filterResults, row),
+		end(_filterResults));
 	removeRowAtIndex(eraseFrom, index);
 
 	restoreSelection();

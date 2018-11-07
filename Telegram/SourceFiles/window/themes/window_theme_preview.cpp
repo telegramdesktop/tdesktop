@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "platform/platform_window_title.h"
 #include "ui/text_options.h"
+#include "ui/image/image_prepare.h"
+#include "ui/emoji_config.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_mediaview.h"
@@ -277,8 +279,8 @@ void Generator::addDateBubble(QString date) {
 void Generator::addPhotoBubble(QString image, QString caption, QString date, Status status) {
 	Bubble bubble;
 	bubble.photo.load(image);
-	bubble.photoWidth = convertScale(bubble.photo.width() / 2);
-	bubble.photoHeight = convertScale(bubble.photo.height() / 2);
+	bubble.photoWidth = ConvertScale(bubble.photo.width() / 2);
+	bubble.photoHeight = ConvertScale(bubble.photo.height() / 2);
 	auto skipBlock = computeSkipBlock(status, date);
 	bubble.text.setRichText(st::messageTextStyle, caption + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
 
@@ -489,12 +491,7 @@ void Generator::paintComposeArea() {
 	auto inner = QRect(QPoint(attachEmojiLeft + (st::historyAttachEmoji.width - st::historyEmojiCircle.width()) / 2, controlsTop + st::historyEmojiCircleTop), st::historyEmojiCircle);
 	_p->drawEllipse(inner);
 
-	auto fakeMargin = 0;
-	switch (cScale()) {
-	case dbisOneAndQuarter: fakeMargin = 1; break;
-	case dbisOneAndHalf: fakeMargin = 2; break;
-	case dbisTwo: fakeMargin = 4; break;
-	}
+	const auto fakeMargin = (cScale() - 100) / 25;
 
 	auto fieldLeft = _composeArea.x() + st::historyAttach.width + fakeMargin;
 	auto fieldTop = _composeArea.y() + _composeArea.height() - st::historyAttach.height + st::historySendPadding + fakeMargin;
@@ -952,7 +949,7 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 		currentInt = *lastLineInts;
 		++maxSize;
 	}
-	if (cRetina() && (maxSize % cIntRetinaFactor())) {
+	if (maxSize % cIntRetinaFactor()) {
 		maxSize -= (maxSize % cIntRetinaFactor());
 	}
 	auto size = maxSize / cIntRetinaFactor();

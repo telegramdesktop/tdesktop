@@ -4,6 +4,10 @@
 
 Choose a folder for the future build, for example **/Users/user/TBuild**. It will be named ***BuildPath*** in the rest of this document. All commands will be launched from Terminal.
 
+### Obtain your API credentials
+
+You will require **api_id** and **api_hash** to access the Telegram API servers. To learn how to obtain them [click here][api_credentials].
+
 ### Download libraries
 
 Download [**xz-5.0.5**](http://tukaani.org/xz/xz-5.0.5.tar.gz) and unpack to ***BuildPath*/Libraries/xz-5.0.5**
@@ -17,7 +21,7 @@ Go to ***BuildPath*** and run
     MACOSX_DEPLOYMENT_TARGET=10.8
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm automake libtool
+    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm
 
     sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
@@ -91,7 +95,7 @@ Go to ***BuildPath*** and run
 
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    export PATH="$PWD/depot_tools:$PATH" 
+    export PATH="$PWD/depot_tools:$PATH"
     cd gyp
     git checkout 702ac58e47
     git apply ../../tdesktop/Telegram/Patches/gyp.diff
@@ -138,3 +142,5 @@ Go to ***BuildPath*/tdesktop/Telegram** and run
     gyp/refresh.sh
 
 Then launch Xcode, open ***BuildPath*/tdesktop/Telegram/Telegram.xcodeproj** and build for Debug / Release.
+
+[api_credentials]: api_credentials.md

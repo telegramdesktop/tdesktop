@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_internal.h"
 #include "storage/localstorage.h"
 #include "mainwidget.h"
+#include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 
 namespace InlineBots {

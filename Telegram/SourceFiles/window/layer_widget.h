@@ -197,8 +197,6 @@ private:
 } // namespace Window
 
 class MediaPreviewWidget : public TWidget, private base::Subscriber {
-	Q_OBJECT
-
 public:
 	MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller);
 

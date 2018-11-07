@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/crash_reports.h"
 #include "ui/text/text_block.h"
+#include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
 #include "boxes/confirm_box.h"
@@ -602,7 +603,9 @@ public:
 
 		ch = emojiLookback = 0;
 		lastSkipped = false;
-		checkTilde = !cRetina() && (_t->_st->font->size() == 13) && (_t->_st->font->flags() == 0) && (_t->_st->font->f.family() == qstr("Open Sans")); // tilde Open Sans fix
+		checkTilde = (_t->_st->font->size() * cIntRetinaFactor() == 13)
+			&& (_t->_st->font->flags() == 0)
+			&& (_t->_st->font->f.family() == qstr("Open Sans")); // tilde Open Sans fix
 		for (; ptr <= end; ++ptr) {
 			while (checkEntities() || (rich && checkCommand())) {
 			}
@@ -841,7 +844,10 @@ static void eAppendItems(QScriptAnalysis *analysis, int &start, int &stop, const
 
 class TextPainter {
 public:
-	TextPainter(Painter *p, const Text *t) : _p(p), _t(t) {
+	TextPainter(Painter *p, const Text *t)
+	: _p(p)
+	, _t(t)
+	, _originalPen(p ? p->pen() : QPen()) {
 	}
 
 	~TextPainter() {
@@ -858,7 +864,6 @@ public:
 		if (_p) {
 			_p->setFont(_t->_st->font);
 			_textPalette = &_p->textPalette();
-			_originalPen = _p->pen();
 			_originalPenSelected = (_textPalette->selectFg->c.alphaF() == 0) ? _originalPen : _textPalette->selectFg->p;
 		}
 
@@ -1441,7 +1446,12 @@ private:
 							}
 						}
 					}
-					emojiDraw(*_p, static_cast<EmojiBlock*>(currentBlock)->emoji, (glyphX + st::emojiPadding).toInt(), _y + _yDelta + emojiY);
+					Ui::Emoji::Draw(
+						*_p,
+						static_cast<EmojiBlock*>(currentBlock)->emoji,
+						Ui::Emoji::GetSizeNormal(),
+						(glyphX + st::emojiPadding).toInt(),
+						_y + _yDelta + emojiY);
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
 //					_p->fillRect(QRect(x.toInt(), _y, currentBlock->width(), static_cast<SkipBlock*>(currentBlock)->height()), QColor(0, 0, 0, 32));
 				}
@@ -2401,7 +2411,7 @@ private:
 	bool _breakEverywhere = false;
 	int _elideRemoveFromEnd = 0;
 	style::align _align = style::al_topleft;
-	QPen _originalPen;
+	const QPen _originalPen;
 	QPen _originalPenSelected;
 	const QPen *_currentPen = nullptr;
 	const QPen *_currentPenSelected = nullptr;
@@ -3124,8 +3134,3 @@ void Text::clearFields() {
 }
 
 Text::~Text() = default;
-
-void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
-	auto size = Ui::Emoji::Size();
-	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x() * size, e->y() * size, size, size));
-}

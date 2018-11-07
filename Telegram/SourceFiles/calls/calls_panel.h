@@ -92,7 +92,7 @@ private:
 	void processUserPhoto();
 	void refreshUserPhoto();
 	bool isGoodUserPhoto(PhotoData *photo);
-	void createUserpicCache(ImagePtr image);
+	void createUserpicCache(ImagePtr image, Data::FileOrigin origin);
 	QRect signalBarsRect() const;
 	void paintSignalBarsBg(Painter &p);
 

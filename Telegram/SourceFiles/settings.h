@@ -64,7 +64,6 @@ DeclareSetting(QString, DialogHelperPath);
 inline const QString &cDialogHelperPathFinal() {
 	return cDialogHelperPath().isEmpty() ? cExeDir() : cDialogHelperPath();
 }
-DeclareSetting(bool, CtrlEnter);
 
 DeclareSetting(bool, AutoUpdate);
 
@@ -91,30 +90,12 @@ DeclareSetting(bool, StartToSettings);
 DeclareReadSetting(bool, ManyInstance);
 
 DeclareSetting(QByteArray, LocalSalt);
-DeclareSetting(DBIScale, RealScale);
-DeclareSetting(DBIScale, ScreenScale);
-DeclareSetting(DBIScale, ConfigScale);
+DeclareSetting(int, ScreenScale);
+DeclareSetting(int, ConfigScale);
 DeclareSetting(QString, TimeFormat);
 
 inline void cChangeTimeFormat(const QString &newFormat) {
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
-}
-
-inline DBIScale cEvalScale(DBIScale scale) {
-	return (scale == dbisAuto) ? cScreenScale() : scale;
-}
-inline DBIScale cScale() {
-	return cEvalScale(cRealScale());
-}
-
-template <typename T>
-T convertScale(T v) {
-	switch (cScale()) {
-		case dbisOneAndQuarter: return qRound(float64(v) * 1.25 - 0.01);
-		case dbisOneAndHalf: return qRound(float64(v) * 1.5 - 0.01);
-		case dbisTwo: return v * 2;
-	}
-	return v;
 }
 
 namespace Ui {
@@ -173,7 +154,6 @@ inline bool passcodeCanTry() {
 DeclareSetting(QStringList, SendPaths);
 DeclareSetting(QString, StartUrl);
 
-DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 
@@ -202,3 +182,35 @@ DeclareSetting(int32, AutoDownloadPhoto);
 DeclareSetting(int32, AutoDownloadAudio);
 DeclareSetting(int32, AutoDownloadGif);
 DeclareSetting(bool, AutoPlayGif);
+
+constexpr auto kInterfaceScaleAuto = 0;
+constexpr auto kInterfaceScaleMin = 100;
+constexpr auto kInterfaceScaleDefault = 100;
+constexpr auto kInterfaceScaleMax = 300;
+
+inline int cEvalScale(int scale) {
+	return (scale == kInterfaceScaleAuto) ? cScreenScale() : scale;
+}
+
+inline int cScale() {
+	return cEvalScale(cConfigScale());
+}
+
+template <typename T>
+inline T ConvertScale(T value, int scale) {
+	return (value < 0.)
+		? (-ConvertScale(-value, scale))
+		: T(std::round((float64(value) * scale / 100.) - 0.01));
+}
+
+template <typename T>
+inline T ConvertScale(T value) {
+	return ConvertScale(value, cScale());
+}
+
+inline void SetScaleChecked(int scale) {
+	const auto checked = (scale == kInterfaceScaleAuto)
+		? kInterfaceScaleAuto
+		: snap(scale, kInterfaceScaleMin, kInterfaceScaleMax / cIntRetinaFactor());
+	cSetConfigScale(checked);
+}

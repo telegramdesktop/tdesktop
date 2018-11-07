@@ -379,8 +379,8 @@ MainWindow::MainWindow()
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 #endif // !OS_MAC_OLD
 
-	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
-	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
+	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), 100);
+	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), 100);
 
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 
@@ -536,7 +536,7 @@ void MainWindow::updateIconCounters() {
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
 		img.detach();
 		imgsel.detach();
-		int32 size = cRetina() ? 44 : 22;
+		int32 size = 22 * cIntRetinaFactor();
 		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
 		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
 		icon.addPixmap(App::pixmapFromImageInPlace(std::move(img)));
@@ -699,6 +699,7 @@ void MainWindow::updateGlobalMenuHook() {
 	const auto logged = AuthSession::Exists();
 	const auto locked = !Messenger::Instance().locked();
 	const auto inactive = !logged || locked;
+	const auto support = logged && Auth().supportMode();
 	_forceDisabled(psLogout, !logged && !locked);
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);
@@ -707,10 +708,10 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psPaste, !canPaste);
 	_forceDisabled(psDelete, !canDelete);
 	_forceDisabled(psSelectAll, !canSelectAll);
-	_forceDisabled(psContacts, inactive);
+	_forceDisabled(psContacts, inactive || support);
 	_forceDisabled(psAddContact, inactive);
-	_forceDisabled(psNewGroup, inactive);
-	_forceDisabled(psNewChannel, inactive);
+	_forceDisabled(psNewGroup, inactive || support);
+	_forceDisabled(psNewChannel, inactive || support);
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
 }
 

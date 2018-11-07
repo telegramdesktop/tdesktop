@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "lang/lang_tag.h"
 #include "base/qthelp_url.h"
+#include "ui/emoji_config.h"
 
 namespace TextUtilities {
 namespace {

@@ -20,6 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_media_prepare.h"
 
+namespace {
+
+constexpr auto kThumbnailQuality = 87;
+
+} // namespace
+
 using Storage::ValidateThumbDimensions;
 
 SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
@@ -31,26 +37,26 @@ SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 	image.save(&jpegBuffer, "JPG", 87);
 
 	const auto scaled = [&](int size) {
-		return App::pixmapFromImageInPlace(image.scaled(
+		return image.scaled(
 			size,
 			size,
 			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation));
+			Qt::SmoothTransformation);
 	};
-	const auto push = [&](const char *type, QPixmap &&pixmap) {
+	const auto push = [&](const char *type, QImage &&image) {
 		photoSizes.push_back(MTP_photoSize(
 			MTP_string(type),
 			MTP_fileLocationUnavailable(
 				MTP_long(0),
 				MTP_int(0),
 				MTP_long(0)),
-			MTP_int(pixmap.width()),
-			MTP_int(pixmap.height()), MTP_int(0)));
-		photoThumbs.insert(type[0], std::move(pixmap));
+			MTP_int(image.width()),
+			MTP_int(image.height()), MTP_int(0)));
+		photoThumbs.insert(type[0], std::move(image));
 	};
 	push("a", scaled(160));
 	push("b", scaled(320));
-	push("c", App::pixmapFromImageInPlace(std::move(image)));
+	push("c", std::move(image));
 
 	const auto id = rand_value<PhotoId>();
 	const auto photo = MTP_photo(
@@ -531,7 +537,8 @@ void FileLoadTask::process() {
 
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
-	QPixmap thumb;
+	QImage thumb, goodThumbnail;
+	QByteArray goodThumbnailBytes;
 
 	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
 
@@ -552,7 +559,7 @@ void FileLoadTask::process() {
 			if (!song->cover.isNull()) { // cover to thumb
 				auto coverWidth = song->cover.width();
 				auto coverHeight = song->cover.height();
-				auto full = (coverWidth > 90 || coverHeight > 90) ? App::pixmapFromImageInPlace(song->cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(song->cover));
+				auto full = (coverWidth > 90 || coverHeight > 90) ? song->cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation) : std::move(song->cover);
 				{
 					auto thumbFormat = QByteArray("JPG");
 					auto thumbQuality = 87;
@@ -577,21 +584,21 @@ void FileLoadTask::process() {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
 			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
 
-			auto cover = (coverWidth > 90 || coverHeight > 90)
+			goodThumbnail = video->thumbnail;
+			{
+				QBuffer buffer(&goodThumbnailBytes);
+				goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+			}
+
+			thumbId = rand_value<uint64>();
+			thumb = (coverWidth > 90 || coverHeight > 90)
 				? video->thumbnail.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)
 				: std::move(video->thumbnail);
 			{
-				auto thumbFormat = QByteArray("JPG");
-				auto thumbQuality = 87;
-
 				QBuffer buffer(&thumbdata);
-				cover.save(&buffer, thumbFormat, thumbQuality);
+				thumb.save(&buffer, "JPG", kThumbnailQuality);
 			}
-
-			thumb = App::pixmapFromImageInPlace(std::move(cover));
 			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0));
-
-			thumbId = rand_value<uint64>();
 		}
 	}
 
@@ -603,15 +610,15 @@ void FileLoadTask::process() {
 			if (isAnimation) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != SendMediaType::File) {
-				auto thumb = (w > 100 || h > 100) ? App::pixmapFromImageInPlace(fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
+				auto thumb = (w > 100 || h > 100) ? fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				photoThumbs.insert('s', thumb);
 				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-				auto medium = (w > 320 || h > 320) ? App::pixmapFromImageInPlace(fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
+				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				photoThumbs.insert('m', medium);
 				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
-				auto full = (w > 1280 || h > 1280) ? App::pixmapFromImageInPlace(fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
+				auto full = (w > 1280 || h > 1280) ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				photoThumbs.insert('y', full);
 				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
@@ -647,17 +654,13 @@ void FileLoadTask::process() {
 				thumbname = qsl("thumb.webp");
 			}
 
-			QPixmap full = (w > 90 || h > 90) ? App::pixmapFromImageInPlace(fullimage.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage, Qt::ColorOnly);
-
+			thumbId = rand_value<uint64>();
+			thumb = (w > 90 || h > 90) ? fullimage.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
+			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0));
 			{
 				QBuffer buffer(&thumbdata);
-				full.save(&buffer, thumbFormat, thumbQuality);
+				thumb.save(&buffer, thumbFormat, thumbQuality);
 			}
-
-			thumb = full;
-			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
-
-			thumbId = rand_value<uint64>();
 		}
 	}
 
@@ -704,7 +707,10 @@ void FileLoadTask::process() {
 	_result->thumbId = thumbId;
 	_result->thumbname = thumbname;
 	_result->setThumbData(thumbdata);
-	_result->thumb = thumb;
+	_result->thumb = std::move(thumb);
+
+	_result->goodThumbnail = std::move(goodThumbnail);
+	_result->goodThumbnailBytes = std::move(goodThumbnailBytes);
 
 	_result->photo = photo;
 	_result->document = document;

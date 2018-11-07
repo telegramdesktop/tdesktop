@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_caption_box.h"
 
 #include "ui/widgets/input_fields.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "media/media_clip_reader.h"
 #include "history/history.h"
@@ -78,13 +79,13 @@ EditCaptionBox::EditCaptionBox(
 					| Images::Option::RoundedTopRight
 					| Images::Option::RoundedBottomLeft
 					| Images::Option::RoundedBottomRight;
-				_thumb = Images::pixmap(
+				_thumb = App::pixmapFromImageInPlace(Images::prepare(
 					image->pix(_msgId).toImage(),
 					_thumbw * cIntRetinaFactor(),
 					0,
 					options,
 					st::msgFileThumbSize,
-					st::msgFileThumbSize);
+					st::msgFileThumbSize));
 			};
 		}
 
@@ -209,13 +210,12 @@ EditCaptionBox::EditCaptionBox(
 		Ui::InputField::Mode::MultiLine,
 		langFactory(lng_photo_caption),
 		editData);
-	_field->setMaxLength(MaxPhotoCaption);
+	_field->setMaxLength(Global::CaptionLengthMax());
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, _field));
+	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
 }
 
 void EditCaptionBox::prepareGifPreview(not_null<DocumentData*> document) {

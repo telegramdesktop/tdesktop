@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 
 #include "data/data_peer.h"
+#include "ui/emoji_config.h"
 #include "styles/style_history.h"
 
 namespace Ui {

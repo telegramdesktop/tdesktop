@@ -56,7 +56,6 @@ struct Preview {
 
 bool Apply(const QString &filepath);
 bool Apply(std::unique_ptr<Preview> preview);
-void ApplyDefault();
 void ApplyDefaultWithPath(const QString &themePath);
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
@@ -66,8 +65,6 @@ void SetNightModeValue(bool nightMode);
 void ToggleNightMode();
 void ToggleNightMode(const QString &themePath);
 bool IsNonDefaultBackground();
-bool IsNonDefaultThemeOrBackground();
-bool SuggestThemeReset();
 void Revert();
 
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
@@ -154,7 +151,6 @@ private:
 	friend void ToggleNightMode(const QString &themePath);
 	friend void KeepApplied();
 	friend bool IsNonDefaultBackground();
-	friend bool IsNonDefaultThemeOrBackground();
 
 	int32 _id = internal::kUninitializedBackground;
 	QPixmap _pixmap;

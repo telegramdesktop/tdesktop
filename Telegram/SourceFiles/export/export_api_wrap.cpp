@@ -931,7 +931,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		Expects(_chatProcess != nullptr);
 
 		const auto count = result.match(
-		[](const MTPDmessages_messages &data) {
+			[](const MTPDmessages_messages &data) {
 			return data.vmessages.v.size();
 		}, [](const MTPDmessages_messagesSlice &data) {
 			return data.vcount.v;
@@ -944,13 +944,53 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 			error("Unexpected messagesNotModified received.");
 			return;
 		}
-		_chatProcess->info.messagesCountPerSplit[localSplitIndex] = count;
-		if (localSplitIndex + 1 < _chatProcess->info.splits.size()) {
-			requestMessagesCount(localSplitIndex + 1);
-		} else if (_chatProcess->start(_chatProcess->info)) {
-			requestMessagesSlice();
+		const auto skipSplit = !Data::SingleMessageAfter(
+			result,
+			_settings->singlePeerFrom);
+		if (skipSplit) {
+			// No messages from the requested range, skip this split.
+			messagesCountLoaded(localSplitIndex, 0);
+			return;
 		}
+		checkFirstMessageDate(localSplitIndex, count);
 	});
+}
+
+void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
+	Expects(_chatProcess != nullptr);
+	Expects(localSplitIndex < _chatProcess->info.splits.size());
+
+	if (_settings->singlePeerTill <= 0) {
+		messagesCountLoaded(localSplitIndex, count);
+		return;
+	}
+
+	// Request first message in this split to check if its' date < till.
+	requestChatMessages(
+		_chatProcess->info.splits[localSplitIndex],
+		1, // offset_id
+		-1, // add_offset
+		1, // limit
+		[=](const MTPmessages_Messages &result) {
+		Expects(_chatProcess != nullptr);
+
+		const auto skipSplit = !Data::SingleMessageBefore(
+			result,
+			_settings->singlePeerTill);
+		messagesCountLoaded(localSplitIndex, skipSplit ? 0 : count);
+	});
+}
+
+void ApiWrap::messagesCountLoaded(int localSplitIndex, int count) {
+	Expects(_chatProcess != nullptr);
+	Expects(localSplitIndex < _chatProcess->info.splits.size());
+
+	_chatProcess->info.messagesCountPerSplit[localSplitIndex] = count;
+	if (localSplitIndex + 1 < _chatProcess->info.splits.size()) {
+		requestMessagesCount(localSplitIndex + 1);
+	} else if (_chatProcess->start(_chatProcess->info)) {
+		requestMessagesSlice();
+	}
 }
 
 void ApiWrap::finishExport(FnMut<void()> done) {
@@ -1200,6 +1240,12 @@ void ApiWrap::appendChatsSlice(
 void ApiWrap::requestMessagesSlice() {
 	Expects(_chatProcess != nullptr);
 
+	const auto count = _chatProcess->info.messagesCountPerSplit[
+		_chatProcess->localSplitIndex];
+	if (!count) {
+		loadMessagesFiles({});
+		return;
+	}
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
 		_chatProcess->largestIdPlusOne,
@@ -1308,6 +1354,10 @@ void ApiWrap::loadNextMessageFile() {
 	for (auto &list = _chatProcess->slice->list
 		; _chatProcess->fileIndex < list.size()
 		; ++_chatProcess->fileIndex) {
+		const auto &message = list[_chatProcess->fileIndex];
+		if (Data::SkipMessageByDate(message, *_settings)) {
+			continue;
+		}
 		const auto fileProgress = [=](FileProgress value) {
 			return loadMessageFileProgress(value);
 		};
@@ -1452,7 +1502,10 @@ bool ApiWrap::processFileLoad(
 	}) : Type(0);
 
 	const auto limit = _settings->media.sizeLimit;
-	if ((_settings->media.types & type) != type) {
+	if (message && Data::SkipMessageByDate(*message, *_settings)) {
+		file.skipReason = SkipReason::DateLimits;
+		return true;
+	} else if ((_settings->media.types & type) != type) {
 		file.skipReason = SkipReason::FileType;
 		return true;
 	} else if ((message ? message->file().size : file.size) >= limit) {

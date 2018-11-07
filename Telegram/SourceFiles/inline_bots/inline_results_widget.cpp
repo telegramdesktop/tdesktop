@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image_prepare.h"
 #include "boxes/confirm_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -266,20 +267,20 @@ void Inner::clearSelection() {
 
 void Inner::hideFinish(bool completely) {
 	if (completely) {
-		auto itemForget = [](auto &item) {
-			if (auto document = item->getDocument()) {
-				document->forget();
+		const auto unload = [](const auto &item) {
+			if (const auto document = item->getDocument()) {
+				document->unload();
 			}
-			if (auto photo = item->getPhoto()) {
-				photo->forget();
+			if (const auto photo = item->getPhoto()) {
+				photo->unload();
 			}
-			if (auto result = item->getResult()) {
-				result->forget();
+			if (const auto result = item->getResult()) {
+				result->unload();
 			}
 		};
 		clearInlineRows(false);
-		for_const (auto &item, _inlineLayouts) {
-			itemForget(item.second);
+		for (const auto &[result, layout] : _inlineLayouts) {
+			unload(layout);
 		}
 	}
 }

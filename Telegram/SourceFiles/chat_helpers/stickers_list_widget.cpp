@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/stickers.h"
@@ -690,9 +691,11 @@ StickersListWidget::StickersListWidget(QWidget *parent, not_null<Window::Control
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
 
-	subscribe(Auth().downloaderTaskFinished(), [this] {
-		update();
-		readVisibleSets();
+	subscribe(Auth().downloaderTaskFinished(), [=] {
+		if (isVisible()) {
+			update();
+			readVisibleSets();
+		}
 	});
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelStickersChanged, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _megagroupSet) {

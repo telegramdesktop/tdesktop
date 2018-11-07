@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
@@ -46,22 +47,36 @@ constexpr auto kIdsLimit = 48;
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
 
+Images::Options VideoThumbOptions(not_null<DocumentData*> document) {
+	const auto result = Images::Option::Smooth | Images::Option::Blurred;
+	return (document && document->isVideoMessage())
+		? (result | Images::Option::Circled)
+		: result;
+}
+
 } // namespace
 
 struct MediaView::SharedMedia {
-	SharedMedia(SharedMediaWithLastSlice::Key key) : key(key) {
+	SharedMedia(SharedMediaKey key) : key(key) {
 	}
 
-	SharedMediaWithLastSlice::Key key;
+	SharedMediaKey key;
 	rpl::lifetime lifetime;
 };
 
 struct MediaView::UserPhotos {
-	UserPhotos(UserPhotosSlice::Key key) : key(key) {
+	UserPhotos(UserPhotosKey key) : key(key) {
 	}
 
-	UserPhotosSlice::Key key;
+	UserPhotosKey key;
 	rpl::lifetime lifetime;
+};
+
+struct MediaView::Collage {
+	Collage(CollageKey key) : key(key) {
+	}
+
+	CollageKey key;
 };
 
 MediaView::MediaView()
@@ -113,6 +128,7 @@ MediaView::MediaView()
 		} else {
 			_sharedMedia = nullptr;
 			_userPhotos = nullptr;
+			_collage = nullptr;
 		}
 	};
 	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
@@ -291,6 +307,9 @@ void MediaView::refreshNavVisibility() {
 	} else if (_userPhotosData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index && (*_index + 1 < _userPhotosData->size());
+	} else if (_collageData) {
+		_leftNavVisible = _index && (*_index > 0);
+		_rightNavVisible = _index && (*_index + 1 < _collageData->items.size());
 	} else {
 		_leftNavVisible = false;
 		_rightNavVisible = false;
@@ -336,12 +355,12 @@ void MediaView::updateControls() {
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
-		if (_photo) {
+		if (const auto item = App::histItemById(_msgid)) {
+			return ItemDateTime(item);
+		} else if (_photo) {
 			return ParseDateTime(_photo->date);
 		} else if (_doc) {
 			return ParseDateTime(_doc->date);
-		} else if (const auto item = App::histItemById(_msgid)) {
-			return ItemDateTime(item);
 		}
 		return dNow;
 	}();
@@ -588,8 +607,8 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 	}
 	const auto wasAnimating = _radial.animating();
 	const auto updated = _radial.update(
-		radialProgress(), 
-		!radialLoading(), 
+		radialProgress(),
+		!radialLoading(),
 		ms + radialTimeShift());
 	if (timer && (wasAnimating || _radial.animating()) && (!anim::Disabled() || updated)) {
 		update(radialRect());
@@ -1084,7 +1103,12 @@ void MediaView::onCopy() {
 
 std::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 	using Type = SharedMediaType;
-	if (auto item = App::histItemById(_msgid)) {
+	if (const auto item = App::histItemById(_msgid)) {
+		if (const auto media = item->media()) {
+			if (media->webpage()) {
+				return std::nullopt;
+			}
+		}
 		if (_photo) {
 			if (item->toHistoryMessage()) {
 				return Type::PhotoVideo;
@@ -1217,17 +1241,17 @@ std::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
 }
 
 bool MediaView::validUserPhotos() const {
-	if (auto key = userPhotosKey()) {
+	if (const auto key = userPhotosKey()) {
 		if (!_userPhotos) {
 			return false;
 		}
-		auto countDistanceInData = [](const auto &a, const auto &b) {
+		const auto countDistanceInData = [](const auto &a, const auto &b) {
 			return [&](const UserPhotosSlice &data) {
 				return data.distance(a, b);
 			};
 		};
 
-		auto distance = (key == _userPhotos->key) ? 0 :
+		const auto distance = (key == _userPhotos->key) ? 0 :
 			_userPhotosData
 			| countDistanceInData(*key, _userPhotos->key)
 			| func::abs;
@@ -1239,7 +1263,7 @@ bool MediaView::validUserPhotos() const {
 }
 
 void MediaView::validateUserPhotos() {
-	if (auto key = userPhotosKey()) {
+	if (const auto key = userPhotosKey()) {
 		_userPhotos = std::make_unique<UserPhotos>(*key);
 		UserPhotosReversedViewer(
 			*key,
@@ -1266,12 +1290,75 @@ void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 	preloadData(0);
 }
 
+std::optional<MediaView::CollageKey> MediaView::collageKey() const {
+	if (const auto item = App::histItemById(_msgid)) {
+		if (const auto media = item->media()) {
+			if (const auto page = media->webpage()) {
+				for (const auto item : page->collage.items) {
+					if (item == _photo || item == _doc) {
+						return item;
+					}
+				}
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+bool MediaView::validCollage() const {
+	if (const auto key = collageKey()) {
+		if (!_collage) {
+			return false;
+		}
+		const auto countDistanceInData = [](const auto &a, const auto &b) {
+			return [&](const WebPageCollage &data) {
+				const auto i = ranges::find(data.items, a);
+				const auto j = ranges::find(data.items, b);
+				return (i != end(data.items) && j != end(data.items))
+					? std::make_optional(i - j)
+					: std::nullopt;
+			};
+		};
+
+		if (key == _collage->key) {
+			return true;
+		} else if (_collageData) {
+			const auto &items = _collageData->items;
+			if (ranges::find(items, *key) != end(items)
+				&& ranges::find(items, _collage->key) != end(items)) {
+				return true;
+			}
+		}
+	}
+	return (_collage == nullptr);
+}
+
+void MediaView::validateCollage() {
+	if (const auto key = collageKey()) {
+		_collage = std::make_unique<Collage>(*key);
+		_collageData = WebPageCollage();
+		if (const auto item = App::histItemById(_msgid)) {
+			if (const auto media = item->media()) {
+				if (const auto page = media->webpage()) {
+					_collageData = page->collage;
+				}
+			}
+		}
+	} else {
+		_collage = nullptr;
+		_collageData = std::nullopt;
+	}
+}
+
 void MediaView::refreshMediaViewer() {
 	if (!validSharedMedia()) {
 		validateSharedMedia();
 	}
 	if (!validUserPhotos()) {
 		validateUserPhotos();
+	}
+	if (!validCollage()) {
+		validateCollage();
 	}
 	findCurrent();
 	updateControls();
@@ -1282,6 +1369,10 @@ void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text();
 	if (!item) {
 		return;
+	} else if (const auto media = item->media()) {
+		if (media->webpage()) {
+			return;
+		}
 	}
 	const auto caption = item->originalText();
 	if (caption.text.isEmpty()) {
@@ -1314,6 +1405,12 @@ void MediaView::refreshGroupThumbs() {
 			*_userPhotosData,
 			*_index,
 			_groupThumbsAvailableWidth);
+	} else if (_index && _collageData) {
+		Media::View::GroupThumbs::Refresh(
+			_groupThumbs,
+			{ _msgid, &*_collageData },
+			*_index,
+			_groupThumbsAvailableWidth);
 	} else if (_groupThumbs) {
 		_groupThumbs->clear();
 		_groupThumbs->resizeToWidth(_groupThumbsAvailableWidth);
@@ -1339,11 +1436,16 @@ void MediaView::initGroupThumbs() {
 
 	_groupThumbs->activateRequests(
 	) | rpl::start_with_next([this](Media::View::GroupThumbs::Key key) {
+		using CollageKey = Media::View::GroupThumbs::CollageKey;
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
 			const auto photo = Auth().data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
 		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
+		} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
+			if (_collageData) {
+				moveToEntity(entityForCollage(collageKey->index));
+			}
 		}
 	}, _groupThumbs->lifetime());
 
@@ -1455,8 +1557,8 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;
-	_w = convertScale(photo->full->width());
-	_h = convertScale(photo->full->height());
+	_w = ConvertScale(photo->full->width());
+	_h = ConvertScale(photo->full->height());
 	if (isHidden()) {
 		moveToScreen();
 	}
@@ -1600,11 +1702,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		updateThemePreviewGeometry();
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
-		_w = convertScale(_current.width());
-		_h = convertScale(_current.height());
+		_w = ConvertScale(_current.width());
+		_h = ConvertScale(_current.height());
 	} else {
-		_w = convertScale(_gif->width());
-		_h = convertScale(_gif->height());
+		_w = ConvertScale(_gif->width());
+		_h = ConvertScale(_gif->height());
 	}
 	if (isHidden()) {
 		moveToScreen();
@@ -1679,14 +1781,6 @@ void MediaView::displayFinished() {
 	}
 }
 
-Images::Options MediaView::videoThumbOptions() const {
-	auto options = Images::Option::Smooth | Images::Option::Blurred;
-	if (_doc && _doc->isVideoMessage()) {
-		options |= Images::Option::Circled;
-	}
-	return options;
-}
-
 void MediaView::initAnimation() {
 	Expects(_doc != nullptr);
 	Expects(_doc->isAnimation() || _doc->isVideoFile());
@@ -1700,10 +1794,10 @@ void MediaView::initAnimation() {
 	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		auto w = _doc->dimensions.width();
 		auto h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1716,10 +1810,10 @@ void MediaView::createClipReader() {
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideoFile() || _doc->isVideoMessage())
 		? Media::Clip::Reader::Mode::Video
@@ -1853,6 +1947,13 @@ void MediaView::toggleVideoPaused() {
 }
 
 void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
+	// Seek works bad: it seeks to the next keyframe after positionMs.
+	// At least let user to seek to the beginning of the video.
+	if (positionMs < 1000
+		&& (!_videoDurationMs || (positionMs * 20 < _videoDurationMs))) {
+		positionMs = 0;
+	}
+
 	_autoplayVideoDocument = _doc;
 
 	if (_current.isNull()) {
@@ -1985,17 +2086,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->full->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current.setDevicePixelRatio(cRetinaFactor());
 			_full = 1;
 		} else if (_full < 0 && _photo->medium->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->medium->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth | Images::Option::Blurred);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current.setDevicePixelRatio(cRetinaFactor());
 			_full = 0;
 		} else if (_current.isNull() && _photo->thumb->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
 			_current = _photo->thumb->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth | Images::Option::Blurred);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current.setDevicePixelRatio(cRetinaFactor());
 		} else if (_current.isNull()) {
 			_current = _photo->thumb->pix(fileOrigin());
 		}
@@ -2437,8 +2538,8 @@ void MediaView::setZoomLevel(int newZoom) {
 	if (_zoom == newZoom) return;
 
 	float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
-	_w = gifShown() ? convertScale(_gif->width()) : (convertScale(_current.width()) / cIntRetinaFactor());
-	_h = gifShown() ? convertScale(_gif->height()) : (convertScale(_current.height()) / cIntRetinaFactor());
+	_w = gifShown() ? ConvertScale(_gif->width()) : (ConvertScale(_current.width()) / cIntRetinaFactor());
+	_h = gifShown() ? ConvertScale(_gif->height()) : (ConvertScale(_current.height()) / cIntRetinaFactor());
 	if (z >= 0) {
 		nx = (_x - width() / 2.) / (z + 1);
 		ny = (_y - height() / 2.) / (z + 1);
@@ -2464,7 +2565,7 @@ void MediaView::setZoomLevel(int newZoom) {
 }
 
 MediaView::Entity MediaView::entityForUserPhotos(int index) const {
-	Expects(!!_userPhotosData);
+	Expects(_userPhotosData.has_value());
 
 	if (index < 0 || index >= _userPhotosData->size()) {
 		return { std::nullopt, nullptr };
@@ -2476,7 +2577,7 @@ MediaView::Entity MediaView::entityForUserPhotos(int index) const {
 }
 
 MediaView::Entity MediaView::entityForSharedMedia(int index) const {
-	Expects(!!_sharedMediaData);
+	Expects(_sharedMediaData.has_value());
 
 	if (index < 0 || index >= _sharedMediaData->size()) {
 		return { std::nullopt, nullptr };
@@ -2487,6 +2588,22 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 		return { *photo, nullptr };
 	} else if (const auto itemId = base::get_if<FullMsgId>(&value)) {
 		return entityForItemId(*itemId);
+	}
+	return { std::nullopt, nullptr };
+}
+
+MediaView::Entity MediaView::entityForCollage(int index) const {
+	Expects(_collageData.has_value());
+
+	const auto item = App::histItemById(_msgid);
+	const auto &items = _collageData->items;
+	if (!item || index < 0 || index >= items.size()) {
+		return { std::nullopt, nullptr };
+	}
+	if (const auto document = base::get_if<DocumentData*>(&items[index])) {
+		return { *document, item };
+	} else if (const auto photo = base::get_if<PhotoData*>(&items[index])) {
+		return { *photo, item };
 	}
 	return { std::nullopt, nullptr };
 }
@@ -2510,6 +2627,8 @@ MediaView::Entity MediaView::entityByIndex(int index) const {
 		return entityForSharedMedia(index);
 	} else if (_userPhotosData) {
 		return entityForUserPhotos(index);
+	} else if (_collageData) {
+		return entityForCollage(index);
 	}
 	return { std::nullopt, nullptr };
 }
@@ -2589,9 +2708,9 @@ void MediaView::preloadData(int delta) {
 		auto forgetIndex = *_index - delta * 2;
 		auto entity = entityByIndex(forgetIndex);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-			(*photo)->forget();
+			(*photo)->unload();
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			(*document)->forget();
+			(*document)->unload();
 		}
 	}
 
@@ -3008,6 +3127,8 @@ void MediaView::setVisible(bool visible) {
 		_sharedMediaDataKey = std::nullopt;
 		_userPhotos = nullptr;
 		_userPhotosData = std::nullopt;
+		_collage = nullptr;
+		_collageData = std::nullopt;
 		if (_menu) _menu->hideMenu(true);
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;
@@ -3024,6 +3145,10 @@ void MediaView::setVisible(bool visible) {
 		stopGif();
 		destroyThemePreview();
 		_radial.stop();
+		_current = QPixmap();
+		_themePreview = nullptr;
+		_themeApply.destroyDelayed();
+		_themeCancel.destroyDelayed();
 	}
 }
 
@@ -3075,6 +3200,15 @@ void MediaView::findCurrent() {
 			? (_index | func::add(*_userPhotosData->skippedBefore()))
 			: std::nullopt;
 		_fullCount = _userPhotosData->fullCount();
+	} else if (_collageData) {
+		const auto item = _photo ? WebPageCollage::Item(_photo) : _doc;
+		const auto &items = _collageData->items;
+		const auto i = ranges::find(items, item);
+		_index = (i != end(items))
+			? std::make_optional(int(i - begin(items)))
+			: std::nullopt;
+		_fullIndex = _index;
+		_fullCount = items.size();
 	} else {
 		_index = _fullIndex = _fullCount = std::nullopt;
 	}

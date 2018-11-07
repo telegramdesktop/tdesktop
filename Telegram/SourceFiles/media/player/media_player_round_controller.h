@@ -26,7 +26,9 @@ namespace Player {
 struct TrackState;
 enum class State;
 
-class RoundController : private base::Subscriber {
+class RoundController
+	: public base::has_weak_ptr
+	, private base::Subscriber {
 	struct CreateTag;
 
 public:

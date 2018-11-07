@@ -66,3 +66,7 @@ inline constexpr void validate(bool condition, const char *message, const char *
 #undef Unexpected
 #endif // Unexpected
 #define Unexpected(message) (::base::assertion::fail("Unexpected: " message, __FILE__, __LINE__))
+
+#ifdef _DEBUG
+#define AssertIsDebug(...)
+#endif // _DEBUG

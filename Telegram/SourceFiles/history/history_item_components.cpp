@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "history/history_message.h"
 #include "history/history_media.h"

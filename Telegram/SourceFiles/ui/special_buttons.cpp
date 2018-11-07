@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_layout.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -201,7 +202,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 		: (over
 			? st::historyEmojiCircleFgOver
 			: st::historyEmojiCircleFg));
-	if (_loading && anim::Disabled()) {
+	if (anim::Disabled() && _loading && _loading->animating()) {
 		anim::DrawStaticLoading(
 			p,
 			inner,

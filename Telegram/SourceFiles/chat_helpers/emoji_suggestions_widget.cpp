@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/inner_dropdown.h"
+#include "ui/emoji_config.h"
 #include "platform/platform_specific.h"
 #include "styles/style_chat_helpers.h"
-#include "ui/widgets/inner_dropdown.h"
 
 namespace Ui {
 namespace Emoji {
@@ -176,24 +177,29 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 	if (clip.intersects(topskip)) p.fillRect(clip.intersected(topskip), _st->itemBg);
 	if (clip.intersects(bottomskip)) p.fillRect(clip.intersected(bottomskip), _st->itemBg);
 
-	auto top = _st->skip;
+	const auto top = _st->skip;
 	p.setFont(_st->itemFont);
-	auto from = floorclamp(clip.top() - top, _rowHeight, 0, _rows.size());
-	auto to = ceilclamp(clip.top() + clip.height() - top, _rowHeight, 0, _rows.size());
+	const auto from = floorclamp(clip.top() - top, _rowHeight, 0, _rows.size());
+	const auto to = ceilclamp(clip.top() + clip.height() - top, _rowHeight, 0, _rows.size());
 	p.translate(0, top + from * _rowHeight);
 	for (auto i = from; i != to; ++i) {
 		auto &row = _rows[i];
-		auto selected = (i == _selected || i == _pressed);
+		const auto selected = (i == _selected || i == _pressed);
 		p.fillRect(0, 0, width(), _rowHeight, selected ? _st->itemBgOver : _st->itemBg);
-		if (auto ripple = row.ripple()) {
+		if (const auto ripple = row.ripple()) {
 			ripple->paint(p, 0, 0, width(), ms);
 			if (ripple->empty()) {
 				row.resetRipple();
 			}
 		}
-		auto emoji = row.emoji();
-		auto esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-		p.drawPixmapLeft((_st->itemPadding.left() - (esize / cIntRetinaFactor())) / 2, (_rowHeight - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(emoji->x() * esize, emoji->y() * esize, esize, esize));
+		const auto emoji = row.emoji();
+		const auto esize = Ui::Emoji::GetSizeLarge();
+		Ui::Emoji::Draw(
+			p,
+			emoji,
+			esize,
+			(_st->itemPadding.left() - (esize / cIntRetinaFactor())) / 2,
+			(_rowHeight - (esize / cIntRetinaFactor())) / 2);
 		p.setPen(selected ? _st->itemFgOver : _st->itemFg);
 		p.drawTextLeft(_st->itemPadding.left(), _st->itemPadding.top(), width(), row.label());
 		p.translate(0, _rowHeight);
