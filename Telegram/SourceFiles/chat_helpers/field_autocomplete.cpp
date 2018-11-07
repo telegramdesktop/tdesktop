@@ -232,7 +232,11 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (auto i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (!listAllSuggestions && (!i->first.startsWith(_filter, Qt::CaseInsensitive) || i->first.size() == _filter.size())) {
+			if (!listAllSuggestions
+				&& (i->first.size() == _filter.size()
+					|| !TextUtilities::RemoveAccents(i->first).startsWith(
+						_filter,
+						Qt::CaseInsensitive))) {
 				continue;
 			}
 			hrows.push_back(i->first);
