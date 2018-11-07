@@ -1070,6 +1070,10 @@ void LanguageBox::prepare() {
 
 void LanguageBox::keyPressEvent(QKeyEvent *e) {
 	const auto key = e->key();
+	if (key == Qt::Key_Escape) {
+		closeBox();
+		return;
+	}
 	const auto selected = [&] {
 		if (key == Qt::Key_Up) {
 			return _jump(-1);
