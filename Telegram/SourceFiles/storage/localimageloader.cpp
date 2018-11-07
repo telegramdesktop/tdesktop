@@ -582,6 +582,9 @@ void FileLoadTask::process() {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			}
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
+			if (video->supportsStreaming) {
+				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+			}
 			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
 
 			goodThumbnail = video->thumbnail;

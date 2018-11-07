@@ -438,6 +438,8 @@ not_null<AuthSession*> DocumentData::session() const {
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
+	_isImage = false;
+	_supportsStreaming = false;
 	for (int32 i = 0, l = attributes.size(); i < l; ++i) {
 		switch (attributes[i].type()) {
 		case mtpc_documentAttributeImageSize: {
@@ -467,6 +469,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 				type = d.is_round_message() ? RoundVideoDocument : VideoDocument;
 			}
 			_duration = d.vduration.v;
+			_supportsStreaming = d.is_supports_streaming();
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
@@ -1295,14 +1298,17 @@ int32 DocumentData::duration() const {
 }
 
 bool DocumentData::isImage() const {
-	return !isAnimation() && !isVideoFile() && (_duration > 0);
+	return _isImage;
+}
+
+bool DocumentData::supportsStreaming() const {
+	return _supportsStreaming;
 }
 
 void DocumentData::recountIsImage() {
-	if (isAnimation() || isVideoFile()) {
-		return;
-	}
-	_duration = fileIsImage(filename(), mimeString()) ? 1 : -1; // hack
+	_isImage = !isAnimation()
+		&& !isVideoFile()
+		&& fileIsImage(filename(), mimeString());
 }
 
 bool DocumentData::hasGoodStickerThumb() const {

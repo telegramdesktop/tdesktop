@@ -389,6 +389,8 @@
 <(src_loc)/media/media_audio_track.h
 <(src_loc)/media/media_child_ffmpeg_loader.cpp
 <(src_loc)/media/media_child_ffmpeg_loader.h
+<(src_loc)/media/media_clip_check_streaming.cpp
+<(src_loc)/media/media_clip_check_streaming.h
 <(src_loc)/media/media_clip_ffmpeg.cpp
 <(src_loc)/media/media_clip_ffmpeg.h
 <(src_loc)/media/media_clip_implementation.cpp

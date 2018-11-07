@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "media/media_clip_ffmpeg.h"
 #include "media/media_clip_qtgif.h"
+#include "media/media_clip_check_streaming.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -892,6 +893,10 @@ FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteA
 				}
 				result.duration = static_cast<int>(durationMs / 1000);
 			}
+
+			result.supportsStreaming = CheckStreamingSupport(
+				localLocation,
+				localData);
 		}
 	}
 	return result;

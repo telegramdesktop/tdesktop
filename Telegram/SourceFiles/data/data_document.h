@@ -152,6 +152,7 @@ public:
 	int32 duration() const;
 	bool isImage() const;
 	void recountIsImage();
+	bool supportsStreaming() const;
 	void setData(const QByteArray &data) {
 		_data = data;
 	}
@@ -237,6 +238,8 @@ private:
 	QByteArray _data;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
+	bool _isImage = false;
+	bool _supportsStreaming = false;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;

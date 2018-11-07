@@ -262,6 +262,7 @@ struct FileMediaInformation {
 	};
 	struct Video {
 		bool isGifv = false;
+		bool supportsStreaming = false;
 		int duration = -1;
 		QImage thumbnail;
 	};

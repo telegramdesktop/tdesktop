@@ -97,6 +97,9 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			if (document->isVideoMessage()) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
 			}
+			if (document->supportsStreaming()) {
+				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+			}
 			attributes.push_back(MTP_documentAttributeVideo(
 				MTP_flags(flags),
 				MTP_int(duration),
