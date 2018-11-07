@@ -3473,14 +3473,34 @@ QSize HistoryWebPage::countOptimalSize() {
 
 	if (!_openl && !_data->url.isEmpty()) {
 		const auto previewOfHiddenUrl = [&] {
+			const auto simplify = [](const QString &url) {
+				auto result = url.toLower();
+				if (result.endsWith('/')) {
+					result.chop(1);
+				}
+				const auto prefixes = { qstr("http://"), qstr("https://") };
+				for (const auto &prefix : prefixes) {
+					if (result.startsWith(prefix)) {
+						result = result.mid(prefix.size());
+						break;
+					}
+				}
+				return result;
+			};
+			const auto simplified = simplify(_data->url);
 			const auto full = _parent->data()->originalText();
 			for (const auto &entity : full.entities) {
-				if (entity.type() == EntityInTextCustomUrl
-					&& entity.data() == _data->url) {
-					return true;
+				if (entity.type() != EntityInTextUrl) {
+					continue;
+				}
+				const auto link = full.text.mid(
+					entity.offset(),
+					entity.length());
+				if (simplify(link) == simplified) {
+					return false;
 				}
 			}
-			return false;
+			return true;
 		}();
 		_openl = previewOfHiddenUrl
 			? std::make_shared<HiddenUrlClickHandler>(_data->url)
