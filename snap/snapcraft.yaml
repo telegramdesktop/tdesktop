@@ -284,7 +284,7 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-branch: v1.19
+    source-tag: openal-soft-1.19.1
     plugin: cmake
     build-packages:
       - oss4-dev

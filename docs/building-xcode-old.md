@@ -102,8 +102,10 @@ Go to ***BuildPath*** and run
     cd ..
 
     git clone git://repo.or.cz/openal-soft.git
-    cd openal-soft/build
-    cmake -DLIBTYPE:STRING=STATIC -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
+    cd openal-soft
+    git checkout openal-soft-1.19.1
+    cd build
+    LDFLAGS='-isysroot /' cmake -DLIBTYPE:STRING=STATIC -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
     make -j4
     sudo make install
     cd ../..

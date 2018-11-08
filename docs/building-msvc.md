@@ -87,13 +87,13 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm
     cd ..\..\..\..
 
-    git clone git://repo.or.cz/openal-soft.git
+    git clone https://github.com/john-preston/openal-soft.git
     cd openal-soft
-    git checkout openal-soft-1.19.1
+    git checkout fix_macro
     cd build
     cmake -G "Visual Studio 15 2017" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
-    msbuild OpenAL32.vcxproj /property:Configuration=Debug
-    msbuild OpenAL32.vcxproj /property:Configuration=Release
+    msbuild OpenAL.vcxproj /property:Configuration=Debug
+    msbuild OpenAL.vcxproj /property:Configuration=Release
     cd ..\..
 
     git clone https://github.com/google/breakpad

@@ -16,7 +16,6 @@
       '-lUxTheme',
       '-lDbgHelp',
       '-lOpenAL32',
-      '-lcommon',
       '-lopus',
       'windows/common',
       'windows/handler/exception_handler',
