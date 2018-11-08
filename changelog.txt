@@ -1,3 +1,11 @@
+1.4.5 beta (08.11.18)
+
+- Listen to voice and video messages in 2X mode if you're in a hurry.
+- Find video messages in the shared voice messages section.
+- Add a comment when you share posts from channels.
+- View all photos and videos in Twitter and Instagram link previews.
+- Bug fixes and other minor improvements.
+
 1.4.4 beta (16.10.18)
 
 - Interface scaling for large screens, up to 300% (up to 150% for macOS retina screens).

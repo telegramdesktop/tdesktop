@@ -19,22 +19,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1002024,
-		"- Add links with custom text from context menu "
-		"or by Ctrl/Cmd + K keyboard shortcut."
-	},
-	{
-		1002025,
-		"- Apply markdown formatting (```, `, **, __) "
-		"only when sending the message.\n"
-
-		"- Display connection quality bars in calls.\n"
-
-		"- Telegram Desktop can update itself through MTProto.\n"
-
-		"- Bug fixes and other minor improvements."
-	},
-	{
 		1003011,
 		"- Added a new night theme.\n"
 
@@ -66,6 +50,20 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Updated emoji."
 	},
+	{
+		1004005,
+		"- Listen to voice and video messages in 2X mode "
+		"if you're in a hurry.\n"
+
+		"- Find video messages in the shared voice messages section.\n"
+
+		"- Add a comment when you share posts from channels.\n"
+
+		"- View all photos and videos "
+		"in Twitter and Instagram link previews.\n"
+
+		"- Bug fixes and other minor improvements."
+	}
 	};
 }
 
