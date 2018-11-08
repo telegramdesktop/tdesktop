@@ -825,10 +825,10 @@ void ConnectionPrivate::tryToSend() {
 			? "n/a"
 			: Messenger::Instance().launcher()->systemVersion();
 #if defined OS_MAC_STORE || defined OS_WIN_STORE
-		const auto appVersion = str_const_toString(AppVersionStr)
+		const auto appVersion = QString::fromLatin1(AppVersionStr)
 			+ " store";
 #else // OS_MAC_STORE || OS_WIN_STORE
-		const auto appVersion = str_const_toString(AppVersionStr);
+		const auto appVersion = QString::fromLatin1(AppVersionStr);
 #endif // OS_MAC_STORE || OS_WIN_STORE
 		const auto proxyType = _connectionOptions->proxy.type;
 		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);

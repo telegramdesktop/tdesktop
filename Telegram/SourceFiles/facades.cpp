@@ -411,11 +411,11 @@ bool CheckPortableVersionDir() {
 	const auto portable = cExeDir() + qsl("TelegramForcePortable");
 	QFile key(portable + qsl("/tdata/alpha"));
 	if (cAlphaVersion()) {
+		Assert(*AlphaPrivateKey != 0);
+
 		cForceWorkingDir(portable + '/');
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
-		if (*AlphaPrivateKey) {
-			cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
-		}
+		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
 		if (!key.open(QIODevice::WriteOnly)) {
 			LOG(("FATAL: Could not open '%1' for writing private key!"
 				).arg(key.fileName()));

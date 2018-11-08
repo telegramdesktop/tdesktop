@@ -231,12 +231,11 @@ constexpr auto ApiHash = "344583e45741c457fe1862106095a5eb";
 #error "Only little endian is supported!"
 #endif // Q_BYTE_ORDER == Q_BIG_ENDIAN
 
-#ifndef ALPHA_VERSION_MACRO
-#error "Alpha version macro is not defined."
-#endif
+#if (TDESKTOP_ALPHA_VERSION != 0)
 
-#if (defined TDESKTOP_OFFICIAL_TARGET) && (ALPHA_VERSION_MACRO > 0ULL)
-#include "../../../TelegramPrivate/alpha_private.h" // private key for downloading closed alphas
+// Private key for downloading closed alphas.
+#include "../../../TelegramPrivate/alpha_private.h"
+
 #else
 static const char *AlphaPrivateKey = "";
 #endif

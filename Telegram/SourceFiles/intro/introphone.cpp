@@ -24,7 +24,7 @@ namespace Intro {
 namespace {
 
 void SendToBannedHelp(const QString &phone) {
-	const auto version = QString::fromLatin1(AppVersionStr.c_str())
+	const auto version = QString::fromLatin1(AppVersionStr)
 		+ (cAlphaVersion()
 			? qsl(" alpha %1").arg(cAlphaVersion())
 			: (AppBetaVersion ? " beta" : ""));
