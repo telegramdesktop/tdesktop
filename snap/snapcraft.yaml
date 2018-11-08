@@ -14,12 +14,9 @@ version-script: |
   set -x
   version_file=Telegram/build/version
   version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
-  alpha=$(sed -n "s/AlphaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
-  beta=$(sed -n "s/BetaVersion[ ]\+\(.*\)\+/\1/p" $version_file)
+  beta=$(sed -n "s/BetaChannel[ ]\+\(.*\)\+/\1/p" $version_file)
 
-  if [ "$alpha" != "0" ]; then
-    version="$version-alpha"
-  elif [ "$beta" != "0" ]; then
+  if [ "$beta" != "0" ]; then
     version="$version-beta"
   fi
 
