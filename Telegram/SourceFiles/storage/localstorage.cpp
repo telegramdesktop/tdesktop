@@ -1751,11 +1751,11 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 	} break;
 
 	case dbiPlaybackSpeed: {
-		quint32 v;
+		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetVoiceMsgPlaybackSpeed(v);
+		Global::SetVoiceMsgPlaybackSpeed((v == 2) ? 2. : 1.);
 	} break;
 
 	default:
@@ -1975,7 +1975,7 @@ void _writeUserSettings() {
 		? userDataInstance->serialize()
 		: QByteArray();
 
-	uint32 size = 22 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 23 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
 	size += sizeof(quint32) + sizeof(qint32);
@@ -2028,6 +2028,7 @@ void _writeUserSettings() {
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
+	data.stream << quint32(dbiPlaybackSpeed) << qint32(std::round(Global::VoiceMsgPlaybackSpeed()));
 
 	{
 		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
@@ -2605,7 +2606,6 @@ void writeSettings() {
 	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
-	data.stream << quint32(dbiPlaybackSpeed) << quint32(Global::VoiceMsgPlaybackSpeed());
 
 	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
 	data.stream << qint32(proxies.size());

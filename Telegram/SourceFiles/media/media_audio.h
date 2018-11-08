@@ -117,8 +117,6 @@ public:
 	void stop(const AudioMsgId &audio);
 	void stop(const AudioMsgId &audio, State state);
 
-	void updatePlaybackSpeed();
-
 	// Video player audio stream interface.
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(const AudioMsgId &id, TimeMs frameMs, TimeMs systemMs);
@@ -143,6 +141,9 @@ public:
 	float64 getSongVolume() const;
 	void setVideoVolume(float64 volume);
 	float64 getVideoVolume() const;
+
+	// Thread: Any. Locks AudioMutex.
+	void setVoicePlaybackSpeed(float64 speed);
 
 	~Mixer();
 
@@ -183,7 +184,7 @@ private:
 		void started();
 
 		bool isStreamCreated() const;
-		void ensureStreamCreated();
+		void ensureStreamCreated(AudioMsgId::Type type);
 
 		int getNotQueuedBufferIndex();
 
@@ -215,7 +216,7 @@ private:
 		TimeMs lastUpdateCorrectedMs = 0;
 
 	private:
-		void createStream();
+		void createStream(AudioMsgId::Type type);
 		void destroyStream();
 		void resetStream();
 
@@ -223,6 +224,8 @@ private:
 
 	// Thread: Any. Must be locked: AudioMutex.
 	void setStoppedState(Track *current, State state = State::Stopped);
+	void updatePlaybackSpeed(Track *track);
+	void updatePlaybackSpeed(Track *track, bool doubled);
 
 	Track *trackForType(AudioMsgId::Type type, int index = -1); // -1 uses currentIndex(type)
 	const Track *trackForType(AudioMsgId::Type type, int index = -1) const;
@@ -239,6 +242,7 @@ private:
 
 	QAtomicInt _volumeVideo;
 	QAtomicInt _volumeSong;
+	QAtomicInt _voicePlaybackSpeed;
 
 	friend class Fader;
 	friend class Loaders;

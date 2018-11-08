@@ -206,7 +206,7 @@ void Loaders::loadData(AudioMsgId audio, TimeMs positionMs) {
 		track->fadeStartPosition = position;
 	}
 	if (samplesCount) {
-		track->ensureStreamCreated();
+		track->ensureStreamCreated(type);
 
 		auto bufferIndex = track->getNotQueuedBufferIndex();
 

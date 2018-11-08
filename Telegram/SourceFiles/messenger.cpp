@@ -510,6 +510,9 @@ void Messenger::startMtp() {
 	if (_authSession) {
 		// Skip all pending self updates so that we won't Local::writeSelf.
 		Notify::peerUpdatedSendDelayed();
+
+		Media::Player::mixer()->setVoicePlaybackSpeed(
+			Global::VoiceMsgPlaybackSpeed());
 	}
 }
 
@@ -1114,6 +1117,8 @@ void Messenger::loggedOut() {
 	}
 	clearPasscodeLock();
 	Media::Player::mixer()->stopAndClear();
+	Global::SetVoiceMsgPlaybackSpeed(1.);
+	Media::Player::mixer()->setVoicePlaybackSpeed(1.);
 	if (const auto w = getActiveWindow()) {
 		w->tempDirDelete(Local::ClearManagerAll);
 		w->setupIntro();

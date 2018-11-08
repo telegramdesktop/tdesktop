@@ -133,10 +133,11 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 
 	updatePlaybackSpeedIcon();
 	_playbackSpeed->setClickedCallback([=] {
-		Global::SetVoiceMsgPlaybackSpeed(Global::VoiceMsgPlaybackSpeed() == 1.f ? 2.f : 1.f);
-		mixer()->updatePlaybackSpeed();
+		const auto updated = (3. - Global::VoiceMsgPlaybackSpeed());
+		Global::SetVoiceMsgPlaybackSpeed(updated);
+		mixer()->setVoicePlaybackSpeed(updated);
 		updatePlaybackSpeedIcon();
-		Local::writeSettings();
+		Local::writeUserSettings();
 	});
 
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
@@ -369,10 +370,9 @@ void Widget::updateRepeatTrackIcon() {
 	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
-void Widget::updatePlaybackSpeedIcon()
-{
+void Widget::updatePlaybackSpeedIcon() {
 	const auto playbackSpeed = Global::VoiceMsgPlaybackSpeed();
-	const auto isDefaultSpeed = playbackSpeed == 1.f;
+	const auto isDefaultSpeed = std::round(playbackSpeed) == 1.f;
 	_playbackSpeed->setIconOverride(isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr, isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIconOver : nullptr);
 	_playbackSpeed->setRippleColorOverride(isDefaultSpeed ? &st::mediaPlayerSpeedDisabledRippleBg : nullptr);
 }

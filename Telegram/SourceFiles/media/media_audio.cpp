@@ -318,14 +318,16 @@ Mixer *mixer() {
 	return Audio::MixerInstance;
 }
 
-void Mixer::Track::createStream() {
+void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alGenSources(1, &stream.source);
 	alSourcef(stream.source, AL_PITCH, 1.f);
 	alSource3f(stream.source, AL_POSITION, 0, 0, 0);
 	alSource3f(stream.source, AL_VELOCITY, 0, 0, 0);
 	alSourcei(stream.source, AL_LOOPING, 0);
 	alGenBuffers(3, stream.buffers);
-	mixer()->updatePlaybackSpeed();
+	if (type == AudioMsgId::Type::Voice) {
+		mixer()->updatePlaybackSpeed(this);
+	}
 }
 
 void Mixer::Track::destroyStream() {
@@ -344,7 +346,7 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 		return;
 	}
 
-	createStream();
+	createStream(type);
 	for (auto i = 0; i != kBuffersCount; ++i) {
 		if (!samplesCount[i]) {
 			break;
@@ -415,9 +417,9 @@ bool Mixer::Track::isStreamCreated() const {
 	return alIsSource(stream.source);
 }
 
-void Mixer::Track::ensureStreamCreated() {
+void Mixer::Track::ensureStreamCreated(AudioMsgId::Type type) {
 	if (!isStreamCreated()) {
-		createStream();
+		createStream(type);
 	}
 }
 
@@ -1019,26 +1021,30 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 	if (current) emit updated(current);
 }
 
-void Mixer::updatePlaybackSpeed()
-{
-	const auto track = trackForType(AudioMsgId::Type::Voice);
-	if (!track || track->state.id.type() != AudioMsgId::Type::Voice || !track->isStreamCreated()) {
+// Thread: Any. Must be locked: AudioMutex.
+void Mixer::updatePlaybackSpeed(Track *track) {
+	const auto doubled = (_voicePlaybackSpeed.loadAcquire() == 2);
+	updatePlaybackSpeed(track, doubled);
+}
+
+void Mixer::updatePlaybackSpeed(Track *track, bool doubled) {
+	if (!track->isStreamCreated()) {
 		return;
 	}
-	const auto src = track->stream.source;
+	const auto source = track->stream.source;
 	// Note: This alters the playback speed AND the pitch
-	alSourcef(src, AL_PITCH, Global::VoiceMsgPlaybackSpeed());
+	alSourcef(source, AL_PITCH, doubled ? 2. : 1.);
 	// fix the pitch using effects and filters
-	if (Global::VoiceMsgPlaybackSpeed() > 1.f) {
+	if (doubled) {
 		// connect the effect slot with the stream
-		alSource3i(src, AL_AUXILIARY_SEND_FILTER, Media::Audio::_playbackSpeedData.uiEffectSlot, 0, 0);
+		alSource3i(source, AL_AUXILIARY_SEND_FILTER, Media::Audio::_playbackSpeedData.uiEffectSlot, 0, 0);
 		// connect the filter with the stream
-		alSourcei(src, AL_DIRECT_FILTER, Media::Audio::_playbackSpeedData.uiFilter);
+		alSourcei(source, AL_DIRECT_FILTER, Media::Audio::_playbackSpeedData.uiFilter);
 	} else {
 		// disconnect the effect slot
-		alSource3i(src, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
+		alSource3i(source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
 		// disconnect the filter
-		alSourcei(src, AL_DIRECT_FILTER, AL_FILTER_NULL);
+		alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
 	}
 }
 
@@ -1141,6 +1147,17 @@ void Mixer::reattachTracks() {
 		trackForType(AudioMsgId::Type::Song, i)->reattach(AudioMsgId::Type::Song);
 	}
 	_videoTrack.reattach(AudioMsgId::Type::Video);
+}
+
+// Thread: Any. Locks AudioMutex.
+void Mixer::setVoicePlaybackSpeed(float64 speed) {
+	const auto doubled = (std::round(speed) == 2);
+	_voicePlaybackSpeed.storeRelease(doubled ? 2 : 1);
+
+	QMutexLocker lock(&AudioMutex);
+	for (auto &track : _audioTracks) {
+		updatePlaybackSpeed(&track, doubled);
+	}
 }
 
 void Mixer::setSongVolume(float64 volume) {
