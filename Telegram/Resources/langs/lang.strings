@@ -846,7 +846,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_kick_user" = "{from} removed {user}";
 "lng_action_user_left" = "{from} left the group";
 "lng_action_user_joined" = "{from} joined the group";
-"lng_action_user_joined_by_link_from" = "{from} joined the group via invite link from {user}";
+"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
 "lng_action_removed_photo_channel" = "Channel photo removed";

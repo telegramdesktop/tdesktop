@@ -36,14 +36,14 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedText {};
 		auto &users = action.vusers.v;
 		if (users.size() == 1) {
-			auto user = App::user(peerFromUser(users[0]));
-			if (user == _from) {
+			auto u = App::user(peerFromUser(users[0]));
+			if (u == _from) {
 				result.links.push_back(fromLink());
 				result.text = lng_action_user_joined(lt_from, fromLinkText());
 			} else {
 				result.links.push_back(fromLink());
-				result.links.push_back(user->createOpenLink());
-				result.text = lng_action_add_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
+				result.links.push_back(u->createOpenLink());
+				result.text = lng_action_add_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, u->name));
 			}
 		} else if (users.isEmpty()) {
 			result.links.push_back(fromLink());
@@ -69,11 +69,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareChatJoinedByLink = [this](const MTPDmessageActionChatJoinedByLink &action) {
-		const auto user = App::user(peerFromUser(action.vinviter_id.v));
 		auto result = PreparedText {};
 		result.links.push_back(fromLink());
-		result.links.push_back(user->createOpenLink());
-		result.text = lng_action_user_joined_by_link_from(lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
+		result.text = lng_action_user_joined_by_link(lt_from, fromLinkText());
 		return result;
 	};
 
