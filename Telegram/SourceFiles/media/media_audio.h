@@ -31,9 +31,6 @@ void ScheduleDetachFromDeviceSafe();
 void ScheduleDetachIfNotUsedSafe();
 void StopDetachIfNotUsedSafe();
 
-template <typename Callback>
-void IterateSamples();
-
 } // namespace Audio
 
 namespace Player {

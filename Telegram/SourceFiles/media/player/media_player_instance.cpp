@@ -373,8 +373,8 @@ void Instance::resumeOnCall(AudioMsgId::Type type) {
 	if (const auto data = getData(type)) {
 		if (data->resumeOnCallEnd) {
 			data->resumeOnCallEnd = false;
+			play(type);
 		}
-		play(type);
 	}
 }
 
