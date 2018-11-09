@@ -241,6 +241,9 @@ bool PeerData::useEmptyUserpic() const {
 
 StorageKey PeerData::userpicUniqueKey() const {
 	if (useEmptyUserpic()) {
+		if (!_userpicEmpty) {
+			refreshEmptyUserpic();
+		}
 		return _userpicEmpty->uniqueKey();
 	}
 	return storageKey(_userpicLocation);
