@@ -259,7 +259,7 @@ void Widget::handleSeekFinished(float64 progress) {
 void Widget::resizeEvent(QResizeEvent *e) {
 	auto right = st::mediaPlayerCloseRight;
 	_close->moveToRight(right, st::mediaPlayerPlayTop); right += _close->width();
-	if (_type == AudioMsgId::Type::Voice) {
+	if (hasPlaybackSpeedControl()) {
 		_playbackSpeed->moveToRight(right, st::mediaPlayerPlayTop); right += _playbackSpeed->width();
 	}
 	_repeatTrack->moveToRight(right, st::mediaPlayerPlayTop); right += _repeatTrack->width();
@@ -345,7 +345,7 @@ int Widget::getLabelsRight() const {
 	auto result = st::mediaPlayerCloseRight + _close->width();
 	if (_type == AudioMsgId::Type::Song) {
 		result += _repeatTrack->width() + _volumeToggle->width();
-	} else if (_type == AudioMsgId::Type::Voice) {
+	} else if (hasPlaybackSpeedControl()) {
 		result += _playbackSpeed->width();
 	}
 	result += st::mediaPlayerPadding;
@@ -391,12 +391,20 @@ void Widget::checkForTypeChange() {
 	}
 }
 
+bool Widget::hasPlaybackSpeedControl() const {
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return (_type == AudioMsgId::Type::Voice);
+#else // TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return false;
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
+}
+
 void Widget::setType(AudioMsgId::Type type) {
 	if (_type != type) {
 		_type = type;
 		_repeatTrack->setVisible(_type == AudioMsgId::Type::Song);
 		_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
-		_playbackSpeed->setVisible(_type == AudioMsgId::Type::Voice);
+		_playbackSpeed->setVisible(hasPlaybackSpeedControl());
 		if (!_shadow->isHidden()) {
 			_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
 		}

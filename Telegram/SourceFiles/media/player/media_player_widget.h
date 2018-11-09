@@ -70,6 +70,7 @@ private:
 	void createPrevNextButtons();
 	void destroyPrevNextButtons();
 
+	bool hasPlaybackSpeedControl() const;
 	void updateVolumeToggleIcon();
 
 	void checkForTypeChange();

@@ -45,12 +45,14 @@ namespace {
 
 Player::Mixer *MixerInstance = nullptr;
 
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 struct PlaybackSpeedData {
 	ALuint uiEffectSlot = 0;
 	ALuint uiEffect = 0;
 	ALuint uiFilter = 0;
 };
 PlaybackSpeedData _playbackSpeedData;
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 // Thread: Any.
 bool ContextErrorHappened() {
@@ -152,6 +154,7 @@ bool CreatePlaybackDevice() {
 	alListener3f(AL_VELOCITY, 0.f, 0.f, 0.f);
 	alListenerfv(AL_ORIENTATION, v);
 
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	// playback speed related init
 	// generate an effect slot and an effect
 	alGenAuxiliaryEffectSlots(1, &_playbackSpeedData.uiEffectSlot);
@@ -169,6 +172,7 @@ bool CreatePlaybackDevice() {
 	alFilterf(_playbackSpeedData.uiFilter, AL_LOWPASS_GAIN, 0.f);
 	// to use the modified playback speed:
 	// connect both the effect slot and filter with the stream source and set AL_PITCH
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 	alDistanceModel(AL_NONE);
 
@@ -181,6 +185,7 @@ void ClosePlaybackDevice() {
 
 	LOG(("Audio Info: Closing audio playback device."));
 
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	// playback speed related
 	alDeleteFilters(1, &_playbackSpeedData.uiFilter);
 	alDeleteEffects(1, &_playbackSpeedData.uiEffect);
@@ -188,6 +193,7 @@ void ClosePlaybackDevice() {
 	_playbackSpeedData.uiFilter = 0;
 	_playbackSpeedData.uiEffect = 0;
 	_playbackSpeedData.uiEffectSlot = 0;
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 	if (Player::mixer()) {
 		Player::mixer()->detachTracks();
@@ -1031,6 +1037,7 @@ void Mixer::updatePlaybackSpeed(Track *track, bool doubled) {
 	if (!track->isStreamCreated()) {
 		return;
 	}
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	const auto source = track->stream.source;
 	// Note: This alters the playback speed AND the pitch
 	alSourcef(source, AL_PITCH, doubled ? 2. : 1.);
@@ -1046,6 +1053,7 @@ void Mixer::updatePlaybackSpeed(Track *track, bool doubled) {
 		// disconnect the filter
 		alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
 	}
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 }
 
 void Mixer::stopAndClear() {
