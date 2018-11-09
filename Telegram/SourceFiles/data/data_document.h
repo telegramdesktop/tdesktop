@@ -126,7 +126,7 @@ public:
 	void performActionOnLoad();
 
 	void unload();
-	ImagePtr makeReplyPreview(Data::FileOrigin origin);
+	Image *getReplyPreview(Data::FileOrigin origin);
 
 	StickerData *sticker() const;
 	void checkSticker();
@@ -206,7 +206,7 @@ public:
 	DocumentType type = FileDocument;
 	QSize dimensions;
 	int32 date = 0;
-	ImagePtr thumb, replyPreview;
+	ImagePtr thumb;
 	int32 size = 0;
 
 	FileStatus status = FileReady;
@@ -231,6 +231,7 @@ private:
 	WebFileLocation _urlLocation;
 
 	std::unique_ptr<Image> _goodThumbnail;
+	std::unique_ptr<Image> _replyPreview;
 
 	not_null<AuthSession*> _session;
 

@@ -6641,10 +6641,9 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		if (!drawWebPagePreview) {
 			if (drawMsgText) {
 				if (drawMsgText->media() && drawMsgText->media()->hasReplyPreview()) {
-					auto replyPreview = drawMsgText->media()->replyPreview();
-					if (!replyPreview->isNull()) {
+					if (const auto image = drawMsgText->media()->replyPreview()) {
 						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(drawMsgText->fullId(), replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
+						p.drawPixmap(to.x(), to.y(), image->pixSingle(drawMsgText->fullId(), image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 				}
@@ -6675,8 +6674,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				|| firstItem->serviceMsg();
 			const auto preview = (_toForward.size() < 2 && firstMedia && firstMedia->hasReplyPreview())
 				? firstMedia->replyPreview()
-				: ImagePtr();
-			if (!preview->isNull()) {
+				: nullptr;
+			if (preview) {
 				auto to = QRect(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (preview->width() == preview->height()) {
 					p.drawPixmap(to.x(), to.y(), preview->pix(firstItem->fullId()));
@@ -6698,14 +6697,16 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		auto previewLeft = st::historyReplySkip + st::webPageLeft;
 		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor);
 		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->document && !_previewData->document->thumb->isNull())) {
-			auto replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview(Data::FileOrigin()) : _previewData->document->makeReplyPreview(Data::FileOrigin());
-			if (!replyPreview->isNull()) {
+			const auto preview = _previewData->photo
+				? _previewData->photo->getReplyPreview(Data::FileOrigin())
+				: _previewData->document->getReplyPreview(Data::FileOrigin());
+			if (preview) {
 				auto to = QRect(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				if (replyPreview->width() == replyPreview->height()) {
-					p.drawPixmap(to.x(), to.y(), replyPreview->pix(Data::FileOrigin()));
+				if (preview->width() == preview->height()) {
+					p.drawPixmap(to.x(), to.y(), preview->pix(Data::FileOrigin()));
 				} else {
-					auto from = (replyPreview->width() > replyPreview->height()) ? QRect((replyPreview->width() - replyPreview->height()) / 2, 0, replyPreview->height(), replyPreview->height()) : QRect(0, (replyPreview->height() - replyPreview->width()) / 2, replyPreview->width(), replyPreview->width());
-					p.drawPixmap(to, replyPreview->pix(Data::FileOrigin()), from);
+					auto from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
+					p.drawPixmap(to, preview->pix(Data::FileOrigin()), from);
 				}
 			}
 			previewLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
@@ -6807,10 +6808,9 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
 	if (_pinnedBar->msg) {
 		if (_pinnedBar->msg->media() && _pinnedBar->msg->media()->hasReplyPreview()) {
-			ImagePtr replyPreview = _pinnedBar->msg->media()->replyPreview();
-			if (!replyPreview->isNull()) {
+			if (const auto image = _pinnedBar->msg->media()->replyPreview()) {
 				QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(_pinnedBar->msg->fullId(), replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
+				p.drawPixmap(to.x(), to.y(), image->pixSingle(_pinnedBar->msg->fullId(), image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 			}
 			left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 		}

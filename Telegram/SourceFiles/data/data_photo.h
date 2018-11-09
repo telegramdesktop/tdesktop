@@ -39,7 +39,7 @@ public:
 	bool waitingForAlbum() const;
 
 	void unload();
-	ImagePtr makeReplyPreview(Data::FileOrigin origin);
+	Image *getReplyPreview(Data::FileOrigin origin);
 
 	MTPInputPhoto mtpInput() const;
 
@@ -53,7 +53,7 @@ public:
 	uint64 access = 0;
 	QByteArray fileReference;
 	TimeId date = 0;
-	ImagePtr thumb, replyPreview;
+	ImagePtr thumb;
 	ImagePtr medium;
 	ImagePtr full;
 
@@ -61,6 +61,9 @@ public:
 	// geo, caption
 
 	std::unique_ptr<Data::UploadState> uploadingData;
+
+private:
+	std::unique_ptr<Image> _replyPreview;
 
 };
 

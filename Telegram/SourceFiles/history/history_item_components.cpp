@@ -258,12 +258,11 @@ void HistoryMessageReply::paint(
 			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
-				const auto replyPreview = replyToMsg->media()->replyPreview();
-				if (!replyPreview->isNull()) {
+				if (const auto image = replyToMsg->media()->replyPreview()) {
 					auto to = rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
-					auto previewWidth = replyPreview->width() / cIntRetinaFactor();
-					auto previewHeight = replyPreview->height() / cIntRetinaFactor();
-					auto preview = replyPreview->pixSingle(replyToMsg->fullId(), previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, RectPart::AllCorners, selected ? &st::msgStickerOverlay : nullptr);
+					auto previewWidth = image->width() / cIntRetinaFactor();
+					auto previewHeight = image->height() / cIntRetinaFactor();
+					auto preview = image->pixSingle(replyToMsg->fullId(), previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, RectPart::AllCorners, selected ? &st::msgStickerOverlay : nullptr);
 					p.drawPixmap(to.x(), to.y(), preview);
 				}
 			}

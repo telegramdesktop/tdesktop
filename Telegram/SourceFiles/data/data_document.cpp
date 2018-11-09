@@ -593,11 +593,7 @@ void DocumentData::unload() {
 			sticker()->img = ImagePtr();
 		}
 	}
-	if (!replyPreview->isNull()) {
-		// Should be std::unique_ptr<Image>.
-		delete replyPreview.get();
-		replyPreview = ImagePtr();
-	}
+	_replyPreview = nullptr;
 	if (!_data.isEmpty()) {
 		ActiveCache().decrement(_data.size());
 		_data.clear();
@@ -1037,8 +1033,8 @@ bool DocumentData::isStickerSetInstalled() const {
 	return false;
 }
 
-ImagePtr DocumentData::makeReplyPreview(Data::FileOrigin origin) {
-	if (replyPreview->isNull() && !thumb->isNull()) {
+Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
+	if (!_replyPreview->isNull() && !thumb->isNull()) {
 		if (thumb->loaded()) {
 			int w = thumb->width(), h = thumb->height();
 			if (w <= 0) w = 1;
@@ -1048,12 +1044,15 @@ ImagePtr DocumentData::makeReplyPreview(Data::FileOrigin origin) {
 			auto options = Images::Option::Smooth | (isVideoMessage() ? Images::Option::Circled : Images::Option::None) | Images::Option::TransparentBackground;
 			auto outerSize = st::msgReplyBarSize.height();
 			auto image = thumb->pixNoCache(origin, thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
-			replyPreview = Images::Create(image.toImage(), "PNG");
+			_replyPreview = std::make_unique<Image>(
+				std::make_unique<Images::ImageSource>(
+					image.toImage(),
+					"PNG"));
 		} else {
 			thumb->load(origin);
 		}
 	}
-	return replyPreview;
+	return _replyPreview.get();
 }
 
 StickerData *DocumentData::sticker() const {

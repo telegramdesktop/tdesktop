@@ -175,8 +175,8 @@ bool Media::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr Media::replyPreview() const {
-	return ImagePtr();
+Image *Media::replyPreview() const {
+	return nullptr;
 }
 
 bool Media::allowsForward() const {
@@ -270,8 +270,8 @@ bool MediaPhoto::hasReplyPreview() const {
 	return !_photo->thumb->isNull();
 }
 
-ImagePtr MediaPhoto::replyPreview() const {
-	return _photo->makeReplyPreview(parent()->fullId());
+Image *MediaPhoto::replyPreview() const {
+	return _photo->getReplyPreview(parent()->fullId());
 }
 
 QString MediaPhoto::notificationText() const {
@@ -508,8 +508,8 @@ bool MediaFile::hasReplyPreview() const {
 	return !_document->thumb->isNull();
 }
 
-ImagePtr MediaFile::replyPreview() const {
-	return _document->makeReplyPreview(parent()->fullId());
+Image *MediaFile::replyPreview() const {
+	return _document->getReplyPreview(parent()->fullId());
 }
 
 QString MediaFile::chatsListText() const {
@@ -982,13 +982,13 @@ bool MediaWebPage::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr MediaWebPage::replyPreview() const {
+Image *MediaWebPage::replyPreview() const {
 	if (const auto document = MediaWebPage::document()) {
-		return document->makeReplyPreview(parent()->fullId());
+		return document->getReplyPreview(parent()->fullId());
 	} else if (const auto photo = MediaWebPage::photo()) {
-		return photo->makeReplyPreview(parent()->fullId());
+		return photo->getReplyPreview(parent()->fullId());
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QString MediaWebPage::chatsListText() const {
@@ -1045,13 +1045,13 @@ bool MediaGame::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr MediaGame::replyPreview() const {
+Image *MediaGame::replyPreview() const {
 	if (const auto document = _game->document) {
-		return document->makeReplyPreview(parent()->fullId());
+		return document->getReplyPreview(parent()->fullId());
 	} else if (const auto photo = _game->photo) {
-		return photo->makeReplyPreview(parent()->fullId());
+		return photo->getReplyPreview(parent()->fullId());
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QString MediaGame::notificationText() const {
@@ -1145,11 +1145,11 @@ bool MediaInvoice::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr MediaInvoice::replyPreview() const {
+Image *MediaInvoice::replyPreview() const {
 	if (const auto photo = _invoice.photo) {
-		return photo->makeReplyPreview(parent()->fullId());
+		return photo->getReplyPreview(parent()->fullId());
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QString MediaInvoice::notificationText() const {
