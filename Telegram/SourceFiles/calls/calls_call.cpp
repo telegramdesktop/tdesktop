@@ -58,7 +58,7 @@ void ConvertEndpoint(
 		(uint16_t)mtc.vport.v,
 		ipv4,
 		ipv6,
-		tgvoip::Endpoint::TYPE_UDP_RELAY,
+		tgvoip::Endpoint::Type::UDP_RELAY,
 		(unsigned char*)mtc.vpeer_tag.v.data()));
 }
 
