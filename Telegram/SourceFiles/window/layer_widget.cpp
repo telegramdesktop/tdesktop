@@ -666,7 +666,7 @@ void LayerStackWidget::showSpecialLayer(
 		object_ptr<LayerWidget> layer,
 		anim::type animated) {
 	startAnimation([this, layer = std::move(layer)]() mutable {
-		_specialLayer.destroyDelayed();
+		_specialLayer.destroy();
 		_specialLayer = std::move(layer);
 		initChildLayer(_specialLayer);
 	}, [this] {
@@ -699,7 +699,7 @@ void LayerStackWidget::showMainMenu(
 		_mainMenu->setParent(this);
 	}, [this] {
 		clearLayers();
-		_specialLayer.destroyDelayed();
+		_specialLayer.destroy();
 	}, Action::ShowMainMenu, animated);
 }
 

@@ -53,6 +53,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void closeHook() override;
+
+	void restoreFloatPlayerDelegate();
 	not_null<::Media::Player::FloatDelegate*> floatPlayerDelegate();
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
 	not_null<Window::Controller*> floatPlayerController() override;
@@ -71,6 +74,8 @@ private:
 	int _desiredHeight = 0;
 	bool _inResize = false;
 	bool _tillBottom = false;
+
+	bool _floatPlayerDelegateRestored = false;
 
 };
 

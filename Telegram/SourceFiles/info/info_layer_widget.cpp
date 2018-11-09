@@ -253,8 +253,19 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void LayerWidget::restoreFloatPlayerDelegate() {
+	if (!_floatPlayerDelegateRestored) {
+		_floatPlayerDelegateRestored = true;
+		_controller->restoreFloatPlayerDelegate(floatPlayerDelegate());
+	}
+}
+
+void LayerWidget::closeHook() {
+	restoreFloatPlayerDelegate();
+}
+
 LayerWidget::~LayerWidget() {
-	_controller->restoreFloatPlayerDelegate(floatPlayerDelegate());
+	restoreFloatPlayerDelegate();
 }
 
 } // namespace Info
