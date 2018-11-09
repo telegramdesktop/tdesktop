@@ -426,7 +426,7 @@ void CloudManager::switchWithWarning(const QString &id) {
 			const auto link = "https://translations.telegram.org/"
 				+ id
 				+ '/';
-			if (data.vtranslated_count.v > 0) {
+			if (data.vstrings_count.v > 0) {
 				const auto pluralId = qs(data.vplural_code);
 				const auto baseId = qs(data.vbase_lang_code);
 				const auto perform = [=] {
