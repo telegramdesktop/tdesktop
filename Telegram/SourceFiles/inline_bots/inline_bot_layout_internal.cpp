@@ -445,15 +445,15 @@ QSize Sticker::getThumbSize() const {
 void Sticker::prepareThumb() const {
 	if (const auto document = getShownDocument()) {
 		document->checkStickerThumb();
-
-		const auto sticker = document->getStickerThumb();
-		if (!_thumbLoaded && !sticker->isNull() && sticker->loaded()) {
-			const auto thumbSize = getThumbSize();
-			_thumb = sticker->pix(
-				document->stickerSetOrigin(),
-				thumbSize.width(),
-				thumbSize.height());
-			_thumbLoaded = true;
+		if (const auto sticker = document->getStickerThumb()) {
+			if (!_thumbLoaded && sticker->loaded()) {
+				const auto thumbSize = getThumbSize();
+				_thumb = sticker->pix(
+					document->stickerSetOrigin(),
+					thumbSize.width(),
+					thumbSize.height());
+				_thumbLoaded = true;
+			}
 		}
 	} else {
 		const auto origin = fileOrigin();

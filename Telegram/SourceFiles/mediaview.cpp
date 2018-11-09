@@ -1617,9 +1617,8 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	if (_doc) {
 		if (_doc->sticker()) {
-			_doc->checkSticker();
-			if (!_doc->sticker()->img->isNull()) {
-				_current = _doc->sticker()->img->pix(fileOrigin());
+			if (const auto image = _doc->getStickerImage()) {
+				_current = image->pix(fileOrigin());
 			} else {
 				_current = _doc->thumb->pixBlurred(
 					fileOrigin(),
@@ -2107,7 +2106,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (imgRect.intersects(r)) {
 			auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners, ms) : _current;
-			if (!_gif && (!_doc || !_doc->sticker() || _doc->sticker()->img->isNull()) && toDraw.hasAlpha()) {
+			if (!_gif && (!_doc || !_doc->getStickerImage()) && toDraw.hasAlpha()) {
 				p.fillRect(imgRect, _transparentBrush);
 			}
 			if (toDraw.width() != _w * cIntRetinaFactor()) {
@@ -2719,8 +2718,8 @@ void MediaView::preloadData(int delta) {
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 			(*photo)->download(fileOrigin());
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			if (auto sticker = (*document)->sticker()) {
-				sticker->img->load(fileOrigin());
+			if (const auto image = (*document)->getStickerImage()) {
+				image->load(fileOrigin());
 			} else {
 				(*document)->thumb->load(fileOrigin());
 				(*document)->automaticLoad(fileOrigin(), entity.item);

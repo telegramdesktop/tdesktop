@@ -2998,19 +2998,23 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 	if (rtl()) usex = width() - usex - usew;
 
-	if (selected) {
-		if (sticker->img->isNull()) {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), _data->thumb->pixBlurredColored(item->fullId(), st::msgStickerOverlay, _pixw, _pixh));
-		} else {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), sticker->img->pixColored(item->fullId(), st::msgStickerOverlay, _pixw, _pixh));
+	const auto &pixmap = [&]() -> const QPixmap & {
+		const auto o = item->fullId();
+		const auto w = _pixw;
+		const auto h = _pixh;
+		const auto &c = st::msgStickerOverlay;
+		if (const auto image = _data->getStickerImage()) {
+			return selected
+				? image->pixColored(o, c, w, h)
+				: image->pix(o, w, h);
 		}
-	} else {
-		if (sticker->img->isNull()) {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), _data->thumb->pixBlurred(item->fullId(), _pixw, _pixh));
-		} else {
-			p.drawPixmap(QPoint(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2), sticker->img->pix(item->fullId(), _pixw, _pixh));
-		}
-	}
+		return selected
+			? _data->thumb->pixBlurredColored(o, c, w, h)
+			: _data->thumb->pixBlurred(o, w, h);
+	}();
+	p.drawPixmap(
+		QPoint{ usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2 },
+		pixmap);
 
 	if (!inWebPage) {
 		auto fullRight = usex + usew;

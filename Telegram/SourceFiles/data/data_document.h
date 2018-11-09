@@ -47,7 +47,7 @@ struct DocumentAdditionalData {
 struct StickerData : public DocumentAdditionalData {
 	Data::FileOrigin setOrigin() const;
 
-	ImagePtr img;
+	std::unique_ptr<Image> image;
 	QString alt;
 	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
 	StorageImageLocation loc; // doc thumb location
@@ -131,7 +131,8 @@ public:
 	StickerData *sticker() const;
 	void checkSticker();
 	void checkStickerThumb();
-	ImagePtr getStickerThumb();
+	Image *getStickerThumb();
+	Image *getStickerImage();
 	Data::FileOrigin stickerSetOrigin() const;
 	Data::FileOrigin stickerOrGifOrigin() const;
 	bool isStickerSetInstalled() const;

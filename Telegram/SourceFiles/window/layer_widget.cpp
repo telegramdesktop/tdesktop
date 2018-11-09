@@ -1009,17 +1009,14 @@ QPixmap MediaPreviewWidget::currentImage() const {
 	if (_document) {
 		if (_document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
-				_document->checkSticker();
-				if (_document->sticker()->img->isNull()) {
-					if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
-						QSize s = currentDimensions();
-						_cache = _document->thumb->pixBlurred(_origin, s.width(), s.height());
-						_cacheStatus = CacheThumbLoaded;
-					}
-				} else {
+				if (const auto image = _document->getStickerImage()) {
 					QSize s = currentDimensions();
-					_cache = _document->sticker()->img->pix(_origin, s.width(), s.height());
+					_cache = image->pix(_origin, s.width(), s.height());
 					_cacheStatus = CacheLoaded;
+				} else if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
+					QSize s = currentDimensions();
+					_cache = _document->thumb->pixBlurred(_origin, s.width(), s.height());
+					_cacheStatus = CacheThumbLoaded;
 				}
 			}
 		} else {
