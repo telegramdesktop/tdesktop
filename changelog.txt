@@ -1,3 +1,7 @@
+1.4.6 beta (09.11.18)
+
+- Bug fixes and other minor improvements.
+
 1.4.5 beta (08.11.18)
 
 - Listen to voice and video messages in 2X mode if you're in a hurry.
