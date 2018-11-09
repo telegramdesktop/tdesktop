@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/effects/radial_animation.h"
 #include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -43,9 +44,16 @@ QString SwitchToChooseFromQuery() {
 
 } // namespace
 
-class DialogsWidget::UpdateButton : public Ui::RippleButton {
+class DialogsWidget::BottomButton : public Ui::RippleButton {
 public:
-	UpdateButton(QWidget *parent);
+	BottomButton(
+		QWidget *parent,
+		const QString &text,
+		const style::FlatButton &st,
+		const style::icon &icon,
+		const style::icon &iconOver);
+
+	void setText(const QString &text);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -53,39 +61,84 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
+	void step_radial(TimeMs ms, bool timer);
+
 	QString _text;
 	const style::FlatButton &_st;
+	const style::icon &_icon;
+	const style::icon &_iconOver;
+	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
 
 };
 
-DialogsWidget::UpdateButton::UpdateButton(QWidget *parent) : RippleButton(parent, st::dialogsUpdateButton.ripple)
-, _text(lang(lng_update_telegram).toUpper())
-, _st(st::dialogsUpdateButton) {
+DialogsWidget::BottomButton::BottomButton(
+	QWidget *parent,
+	const QString &text,
+	const style::FlatButton &st,
+	const style::icon &icon,
+	const style::icon &iconOver)
+: RippleButton(parent, st.ripple)
+, _text(text.toUpper())
+, _st(st)
+, _icon(icon)
+, _iconOver(iconOver) {
 	resize(st::columnMinimalWidthLeft, _st.height);
 }
 
-void DialogsWidget::UpdateButton::onStateChanged(State was, StateChangeSource source) {
-	RippleButton::onStateChanged(was, source);
+void DialogsWidget::BottomButton::setText(const QString &text) {
+	_text = text.toUpper();
 	update();
 }
 
-void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+void DialogsWidget::BottomButton::step_radial(TimeMs ms, bool timer) {
+	if (timer && !anim::Disabled() && width() < st::columnMinimalWidthLeft) {
+		update();
+	}
+}
+
+void DialogsWidget::BottomButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+	if ((was & StateFlag::Disabled) != (state() & StateFlag::Disabled)) {
+		_loading = isDisabled()
+			? std::make_unique<Ui::InfiniteRadialAnimation>(
+				animation(this, &BottomButton::step_radial),
+				st::dialogsLoadMoreLoading)
+			: nullptr;
+		if (_loading) {
+			_loading->start();
+		}
+	}
+	update();
+}
+
+void DialogsWidget::BottomButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	const auto over = isOver() && !isDisabled();
 
 	QRect r(0, height() - _st.height, width(), _st.height);
-	p.fillRect(r, isOver() ? _st.overBgColor : _st.bgColor);
+	p.fillRect(r, over ? _st.overBgColor : _st.bgColor);
 
-	paintRipple(p, 0, 0, getms());
+	if (!isDisabled()) {
+		paintRipple(p, 0, 0, getms());
+	}
 
-	p.setFont(isOver() ? _st.overFont : _st.font);
+	p.setFont(over ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
-	p.setPen(isOver() ? _st.overColor : _st.color);
+	p.setPen(over ? _st.overColor : _st.color);
 
 	if (width() >= st::columnMinimalWidthLeft) {
 		r.setTop(_st.textTop);
 		p.drawText(r, _text, style::al_top);
+	} else if (isDisabled() && _loading) {
+		_loading->draw(
+			p,
+			QPoint(
+				(width() - st::dialogsLoadMoreLoading.size.width()) / 2,
+				(height() - st::dialogsLoadMoreLoading.size.height()) / 2),
+			width());
 	} else {
-		(isOver() ? st::dialogsInstallUpdateOver : st::dialogsInstallUpdate).paintInCenter(p, r);
+		(over ? _iconOver : _icon).paintInCenter(p, r);
 	}
 }
 
@@ -173,6 +226,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
 	setupConnectingWidget();
+	setupSupportLoadingLimit();
 }
 
 void DialogsWidget::setupConnectingWidget() {
@@ -181,13 +235,29 @@ void DialogsWidget::setupConnectingWidget() {
 		Window::AdaptiveIsOneColumn());
 }
 
+void DialogsWidget::setupSupportLoadingLimit() {
+	if (!Auth().supportMode()) {
+		return;
+	}
+	Auth().settings().supportChatsTimeSliceValue(
+	) | rpl::start_with_next([=](int seconds) {
+		_dialogsLoadTill = seconds ? std::max(unixtime() - seconds, 0) : 0;
+		refreshLoadMoreButton();
+	}, lifetime());
+}
+
 void DialogsWidget::checkUpdateStatus() {
 	Expects(!Core::UpdaterDisabled());
 
 	using Checker = Core::UpdateChecker;
 	if (Checker().state() == Checker::State::Ready) {
 		if (_updateTelegram) return;
-		_updateTelegram.create(this);
+		_updateTelegram.create(
+			this,
+			lang(lng_update_telegram),
+			st::dialogsUpdateButton,
+			st::dialogsInstallUpdate,
+			st::dialogsInstallUpdateOver);
 		_updateTelegram->show();
 		_updateTelegram->setClickedCallback([] {
 			Core::checkReadyUpdate();
@@ -369,6 +439,10 @@ void DialogsWidget::dialogsReceived(
 	_dialogsRequestId = 0;
 	loadDialogs();
 
+	if (!_dialogsRequestId) {
+		refreshLoadMoreButton();
+	}
+
 	Auth().data().moreChatsLoaded().notify();
 	if (_dialogsFull && _pinnedDialogsReceived) {
 		Auth().data().allChatsLoaded().set(true);
@@ -423,6 +497,36 @@ void DialogsWidget::updateDialogsOffset(
 	} else {
 		_dialogsFull = true;
 	}
+}
+
+void DialogsWidget::refreshLoadMoreButton() {
+	if (_dialogsFull || !_dialogsLoadTill) {
+		_loadMoreChats.destroy();
+		updateControlsGeometry();
+		return;
+	}
+	if (!_loadMoreChats) {
+		_loadMoreChats.create(
+			this,
+			"Load more",
+			st::dialogsLoadMoreButton,
+			st::dialogsLoadMore,
+			st::dialogsLoadMore);
+		_loadMoreChats->addClickHandler([=] {
+			if (_loadMoreChats->isDisabled()) {
+				return;
+			}
+			const auto max = Auth().settings().supportChatsTimeSlice();
+			_dialogsLoadTill = _dialogsOffsetDate
+				? (_dialogsOffsetDate - max)
+				: (unixtime() - max);
+			loadDialogs();
+		});
+		updateControlsGeometry();
+	}
+	const auto loading = !loadingBlockedByDate();
+	_loadMoreChats->setDisabled(loading);
+	_loadMoreChats->setText(loading ? "Loading..." : "Load more");
 }
 
 void DialogsWidget::pinnedDialogsReceived(
@@ -731,10 +835,20 @@ void DialogsWidget::onSearchMore() {
 	}
 }
 
+bool DialogsWidget::loadingBlockedByDate() const {
+	return !_dialogsFull
+		&& !_dialogsRequestId
+		&& (_dialogsLoadTill > 0)
+		&& (_dialogsOffsetDate > 0)
+		&& (_dialogsOffsetDate <= _dialogsLoadTill);
+}
+
 void DialogsWidget::loadDialogs() {
 	if (_dialogsRequestId) return;
 	if (_dialogsFull) {
 		_inner->addAllSavedPeers();
+		return;
+	} else if (loadingBlockedByDate()) {
 		return;
 	}
 
@@ -759,6 +873,7 @@ void DialogsWidget::loadDialogs() {
 	if (!_pinnedDialogsReceived) {
 		loadPinnedDialogs();
 	}
+	refreshLoadMoreButton();
 }
 
 void DialogsWidget::loadPinnedDialogs() {
@@ -1205,11 +1320,19 @@ void DialogsWidget::updateControlsGeometry() {
 	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;
 	auto newScrollTop = _scroll->scrollTop() + addToScroll;
 	auto scrollHeight = height() - scrollTop;
-	if (_updateTelegram) {
-		auto updateHeight = _updateTelegram->height();
-		_updateTelegram->setGeometry(0, height() - updateHeight, width(), updateHeight);
-		scrollHeight -= updateHeight;
-	}
+	const auto putBottomButton = [&](object_ptr<BottomButton> &button) {
+		if (button) {
+			const auto buttonHeight = button->height();
+			scrollHeight -= buttonHeight;
+			button->setGeometry(
+				0,
+				scrollTop + scrollHeight,
+				width(),
+				buttonHeight);
+		}
+	};
+	putBottomButton(_updateTelegram);
+	putBottomButton(_loadMoreChats);
 	auto wasScrollHeight = _scroll->height();
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
 	if (scrollHeight != wasScrollHeight) {

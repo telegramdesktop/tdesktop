@@ -908,30 +908,14 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
-void SetupSupport(not_null<Ui::VerticalLayout*> container) {
-	AddSkip(container);
-
-	AddSubsectionTitle(container, rpl::single(qsl("Support settings")));
-
-	AddSkip(container, st::settingsSendTypeSkip);
-
+void SetupSupportSwitchSettings(not_null<Ui::VerticalLayout*> container) {
 	using SwitchType = Support::SwitchSettings;
-
-	const auto skip = st::settingsSendTypeSkip;
-	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	const auto inner = wrap.data();
-	container->add(
-		object_ptr<Ui::OverrideMargins>(
-			container,
-			std::move(wrap),
-			QMargins(0, skip, 0, skip)));
-
 	const auto group = std::make_shared<Ui::RadioenumGroup<SwitchType>>(
 		Auth().settings().supportSwitch());
 	const auto add = [&](SwitchType value, const QString &label) {
-		inner->add(
+		container->add(
 			object_ptr<Ui::Radioenum<SwitchType>>(
-				inner,
+				container,
 				group,
 				value,
 				label,
@@ -945,6 +929,62 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 		Auth().settings().setSupportSwitch(value);
 		Local::writeUserSettings();
 	});
+}
+
+void SetupSupportChatsLimitSlice(not_null<Ui::VerticalLayout*> container) {
+	constexpr auto kDayDuration = 24 * 60 * 60;
+	struct Option {
+		int days = 0;
+		QString label;
+	};
+	const auto options = std::vector<Option>{
+		{ 1, "1 day" },
+		{ 7, "1 week" },
+		{ 30, "1 month" },
+		{ 365, "1 year" },
+		{ 0, "All of them" },
+	};
+	const auto current = Auth().settings().supportChatsTimeSlice();
+	const auto days = current / kDayDuration;
+	const auto best = ranges::min_element(
+		options,
+		std::less<>(),
+		[&](const Option &option) { return std::abs(option.days - days); });
+
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>(best->days);
+	for (const auto &option : options) {
+		container->add(
+			object_ptr<Ui::Radiobutton>(
+				container,
+				group,
+				option.days,
+				option.label,
+				st::settingsSendType),
+			st::settingsSendTypePadding);
+	}
+	group->setChangedCallback([=](int days) {
+		Auth().settings().setSupportChatsTimeSlice(days * kDayDuration);
+		Local::writeUserSettings();
+	});
+}
+
+void SetupSupport(not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container);
+
+	AddSubsectionTitle(container, rpl::single(qsl("Support settings")));
+
+	AddSkip(container, st::settingsSendTypeSkip);
+
+	const auto skip = st::settingsSendTypeSkip;
+	auto wrap = object_ptr<Ui::VerticalLayout>(container);
+	const auto inner = wrap.data();
+	container->add(
+		object_ptr<Ui::OverrideMargins>(
+			container,
+			std::move(wrap),
+			QMargins(0, skip, 0, skip)));
+
+	SetupSupportSwitchSettings(inner);
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
 
@@ -963,6 +1003,13 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 	}, inner->lifetime());
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
+
+	AddSubsectionTitle(inner, rpl::single(qsl("Load chats for a period")));
+
+	SetupSupportChatsLimitSlice(inner);
+
+	AddSkip(inner, st::settingsCheckboxesSkip);
+
 	AddSkip(inner);
 }
 

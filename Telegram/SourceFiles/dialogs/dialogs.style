@@ -194,9 +194,27 @@ dialogsUpdateButton: FlatButton {
 		color: activeButtonBgRipple;
 	}
 }
-
 dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
 dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
+
+dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
+	color: lightButtonFg;
+	overColor: lightButtonFg;
+	bgColor: lightButtonBg;
+	overBgColor: lightButtonBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+
+	height: 36px;
+	textTop: 9px;
+}
+dialogsLoadMore: icon {{ "install_update-flip_vertical", lightButtonFg }};
+dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: lightButtonFg;
+	thickness: 3px;
+	size: size(12px, 12px);
+}
 
 dialogsForwardHeight: 32px;
 dialogsForwardTextLeft: 35px;

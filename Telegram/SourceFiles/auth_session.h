@@ -102,6 +102,9 @@ public:
 	bool supportTemplatesAutocomplete() const {
 		return _variables.supportTemplatesAutocomplete;
 	}
+	void setSupportChatsTimeSlice(int slice);
+	int supportChatsTimeSlice() const;
+	rpl::producer<int> supportChatsTimeSliceValue() const;
 
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
@@ -220,9 +223,14 @@ private:
 			= Calls::PeerToPeer();
 		Ui::InputSubmitSettings sendSubmitWay;
 
+		static constexpr auto kDefaultSupportChatsLimitSlice
+			= 30 * 24 * 60 * 60;
+
 		Support::SwitchSettings supportSwitch;
 		bool supportFixChatsOrder = true;
 		bool supportTemplatesAutocomplete = true;
+		rpl::variable<int> supportChatsTimeSlice
+			= kDefaultSupportChatsLimitSlice;
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;

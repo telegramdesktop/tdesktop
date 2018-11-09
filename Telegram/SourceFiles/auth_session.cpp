@@ -83,6 +83,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.supportSwitch);
 		stream << qint32(_variables.supportFixChatsOrder ? 1 : 0);
 		stream << qint32(_variables.supportTemplatesAutocomplete ? 1 : 0);
+		stream << qint32(_variables.supportChatsTimeSlice.current());
 	}
 	return result;
 }
@@ -113,6 +114,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 supportSwitch = static_cast<qint32>(_variables.supportSwitch);
 	qint32 supportFixChatsOrder = _variables.supportFixChatsOrder ? 1 : 0;
 	qint32 supportTemplatesAutocomplete = _variables.supportTemplatesAutocomplete ? 1 : 0;
+	qint32 supportChatsTimeSlice = _variables.supportChatsTimeSlice.current();
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -175,6 +177,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	}
 	if (!stream.atEnd()) {
 		stream >> supportTemplatesAutocomplete;
+	}
+	if (!stream.atEnd()) {
+		stream >> supportChatsTimeSlice;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -243,6 +248,19 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	}
 	_variables.supportFixChatsOrder = (supportFixChatsOrder == 1);
 	_variables.supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
+	_variables.supportChatsTimeSlice = supportChatsTimeSlice;
+}
+
+void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
+	_variables.supportChatsTimeSlice = slice;
+}
+
+int AuthSessionSettings::supportChatsTimeSlice() const {
+	return _variables.supportChatsTimeSlice.current();
+}
+
+rpl::producer<int> AuthSessionSettings::supportChatsTimeSliceValue() const {
+	return _variables.supportChatsTimeSlice.value();
 }
 
 void AuthSessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
