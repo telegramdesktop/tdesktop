@@ -265,7 +265,9 @@ void LayerWidget::closeHook() {
 }
 
 LayerWidget::~LayerWidget() {
-	restoreFloatPlayerDelegate();
+	if (!App::quitting()) {
+		restoreFloatPlayerDelegate();
+	}
 }
 
 } // namespace Info
