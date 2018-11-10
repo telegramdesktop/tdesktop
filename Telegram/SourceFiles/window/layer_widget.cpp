@@ -400,11 +400,16 @@ void LayerStackWidget::hideLayers(anim::type animated) {
 }
 
 void LayerStackWidget::hideAll(anim::type animated) {
-	startAnimation([] {}, [this] {
+	const auto clear = [=] {
 		clearLayers();
 		clearSpecialLayer();
 		_mainMenu.destroyDelayed();
-	}, Action::HideAll, animated);
+	};
+	if (App::quitting()) {
+		clear();
+	} else {
+		startAnimation([] {}, clear, Action::HideAll, animated);
+	}
 }
 
 void LayerStackWidget::hideTopLayer(anim::type animated) {

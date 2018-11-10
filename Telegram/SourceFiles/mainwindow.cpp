@@ -904,6 +904,7 @@ void MainWindow::updateIsActiveHook() {
 }
 
 MainWindow::~MainWindow() {
+	ui_hideSettingsAndLayer(anim::type::instant);
 	if (_clearManager) {
 		_clearManager->stop();
 		_clearManager = nullptr;
