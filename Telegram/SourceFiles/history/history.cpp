@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -2405,6 +2406,10 @@ HistoryItem *History::lastSentMessage() const {
 	for (const auto &block : base::reversed(blocks)) {
 		for (const auto &message : base::reversed(block->messages)) {
 			const auto item = message->data();
+			// Skip if message is video message or sticker.
+			if (const auto media = item->media()) {
+				if (!media->allowsEditCaption()) continue;
+			}
 			if (IsServerMsgId(item->id)
 				&& !item->serviceMsg()
 				&& (item->out() || peer->isSelf())) {
