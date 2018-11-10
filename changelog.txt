@@ -1,3 +1,7 @@
+1.4.7 beta (10.11.18)
+
+- Crash fix.
+
 1.4.6 beta (09.11.18)
 
 - Bug fixes and other minor improvements.
