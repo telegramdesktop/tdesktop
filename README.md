@@ -31,7 +31,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Google Crashpad ([Apache License 2.0](https://chromium.googlesource.com/crashpad/crashpad/+/master/LICENSE))
 * GYP ([BSD License](https://github.com/bnoordhuis/gyp/blob/master/LICENSE))
 * Ninja ([Apache License 2.0](https://github.com/ninja-build/ninja/blob/master/COPYING))
-* OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
+* OpenAL Soft ([LGPL](https://github.com/kcat/openal-soft/blob/master/COPYING))
 * Opus codec ([BSD License](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
 * Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
