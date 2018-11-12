@@ -34,7 +34,7 @@ using Platform::File::internal::EscapeShell;
 
 namespace {
 
-bool _psRunCommand(const QByteArray &command) {
+bool RunShellCommand(const QByteArray &command) {
         auto result = system(command.constData());
         if (result) {
                 DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
@@ -42,6 +42,113 @@ bool _psRunCommand(const QByteArray &command) {
         }
         DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
         return true;
+}
+
+void FallbackFontConfig() {
+#ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+	const auto path = cWorkingDir() + "tdata/fc-version-check.txt";
+	const auto escaped = EscapeShell(QFile::encodeName(path));
+	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
+	const auto finish = gsl::finally([&] {
+		if (QFile(custom).exists()) {
+			LOG(("Custom FONTCONFIG_FILE: ") + custom);
+			qputenv("FONTCONFIG_FILE", QFile::encodeName(custom));
+		}
+	});
+
+	const auto command = "fc-list --version > " + escaped + " 2> " + escaped;
+	if (!RunShellCommand(command)) {
+		LOG(("App Error: Could not run '%1'").arg(QString::fromLatin1(command)));
+		return;
+	} else if (!QFile::exists(path)) {
+		LOG(("App Error: Could not find fc-list --version output from: ") + path);
+		return;
+	}
+	QFile output(path);
+	if (!output.open(QIODevice::ReadOnly)) {
+		LOG(("App Error: Could not open fc-list --version output from: ") + path);
+		return;
+	}
+	const auto result = QString::fromLatin1(output.readAll());
+	LOG(("Fontconfig version string: ") + result);
+	const auto regex = QRegularExpression(
+		"version\\s+(\\d+)\\.(\\d+)",
+		QRegularExpression::CaseInsensitiveOption);
+	const auto match = regex.match(result);
+	if (!match.hasMatch()) {
+		LOG(("App Error: Could not read fc-list --version output from: ") + path);
+		return;
+	}
+	const auto major = match.capturedRef(1).toInt();
+	const auto minor = match.capturedRef(2).toInt();
+	LOG(("Fontconfig version: %1.%2").arg(major).arg(minor));
+	if (major <= 2 && (major != 2 || minor <= 12)) {
+		if (qgetenv("TDESKTOP_FORCE_CUSTOM_FONCONFIG").isEmpty()) {
+			return;
+		}
+	}
+	QFile file(custom);
+	if (!file.open(QIODevice::WriteOnly)) {
+		return;
+	}
+	file.write(R"CONF(<?xml version='1.0'?>
+<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
+<fontconfig>
+	<dir>/usr/share/fonts</dir>
+	<dir>/usr/local/share/fonts</dir>
+	<dir>~/.fonts</dir>
+	<dir>~/.local/share/fonts</dir>
+	<dir>/usr/X11R6/lib/X11/fonts</dir>
+	<dir prefix="xdg">fonts</dir>
+	<match target="pattern">
+		<test qual="any" name="family">
+			<string>mono</string>
+		</test>
+		<edit name="family" mode="assign" binding="same">
+			<string>monospace</string>
+		</edit>
+	</match>
+	<match target="pattern">
+		<test qual="any" name="family">
+			<string>sans serif</string>
+		</test>
+		<edit name="family" mode="assign" binding="same">
+			<string>sans-serif</string>
+		</edit>
+	</match>
+	<match target="pattern">
+		<test qual="any" name="family">
+			<string>sans</string>
+		</test>
+		<edit name="family" mode="assign" binding="same">
+			<string>sans-serif</string>
+		</edit>
+	</match>
+	<cachedir>/var/cache/fontconfig_11</cachedir>
+	<cachedir prefix="xdg">fontconfig_11</cachedir>
+	<cachedir>~/.fontconfig_11</cachedir>
+	<match target="font">
+	<edit mode="assign" name="antialias">
+		<bool>true</bool>
+	</edit>
+	<edit mode="assign" name="embeddedbitmap">
+		<bool>false</bool>
+	</edit>
+	<edit mode="assign" name="hinting">
+		<bool>true</bool>
+	</edit>
+	<edit mode="assign" name="hintstyle">
+		<const>hintslight</const>
+	</edit>
+	<edit mode="assign" name="lcdfilter">
+		<const>lcddefault</const>
+	</edit>
+	<edit mode="assign" name="rgba">
+		<const>rgb</const>
+	</edit>
+	</match>
+</fontconfig>)CONF");
+#endif // TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 }
 
 } // namespace
@@ -293,6 +400,7 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
+	FallbackFontConfig();
 }
 
 void finish() {
@@ -386,12 +494,12 @@ void RegisterCustomScheme() {
 			s << "X-GNOME-UsesNotifications=true\n";
 			f.close();
 
-			if (_psRunCommand("desktop-file-install --dir=" + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + EscapeShell(QFile::encodeName(file)))) {
+			if (RunShellCommand("desktop-file-install --dir=" + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + EscapeShell(QFile::encodeName(file)))) {
 				DEBUG_LOG(("App Info: removing old .desktop file"));
 				QFile(qsl("%1.local/share/applications/telegram.desktop").arg(home)).remove();
 
-				_psRunCommand("update-desktop-database " + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))));
-				_psRunCommand("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg");
+				RunShellCommand("update-desktop-database " + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))));
+				RunShellCommand("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg");
 			}
 		} else {
 			LOG(("App Error: Could not open '%1' for write").arg(file));
@@ -400,9 +508,9 @@ void RegisterCustomScheme() {
 #endif // !TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 
 	DEBUG_LOG(("App Info: registerting for Gnome"));
-	if (_psRunCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + EscapeShell(EscapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {
-		_psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false");
-		_psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true");
+	if (RunShellCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + EscapeShell(EscapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {
+		RunShellCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false");
+		RunShellCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true");
 	}
 
 	DEBUG_LOG(("App Info: placing .protocol file"));
