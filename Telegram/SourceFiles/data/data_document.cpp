@@ -1382,6 +1382,7 @@ DocumentData::~DocumentData() {
 		destroyLoaderDelayed();
 	}
 	unload();
+	ActiveCache().remove(this);
 }
 
 QString DocumentData::ComposeNameString(
