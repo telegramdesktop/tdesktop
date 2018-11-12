@@ -174,8 +174,7 @@ void SignalHandler(int signum) {
 			ProcessAnnotations[i.first] = wrapped;
 		}
 
-		const Annotations c_ProcessAnnotations(ProcessAnnotations);
-		for (const auto &i : c_ProcessAnnotations) {
+		for (const auto &i : ProcessAnnotations) {
 			dump() << i.first.c_str() << ": " << i.second.c_str() << "\n";
 		}
 		psWriteDump();
@@ -260,9 +259,7 @@ void SignalHandler(int signum) {
 	backtrace_symbols_fd(addresses, size, ReportFileNo);
 
 #else // Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
-	dump() << "\nBacktrace:\n";
-
-	psWriteStackTrace();
+	dump() << "\nBacktrace omitted.\n";
 #endif // else for Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
 
 	dump() << "\n";

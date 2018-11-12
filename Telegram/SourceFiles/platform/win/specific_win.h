@@ -54,7 +54,6 @@ inline void psCheckLocalSocket(const QString &) {
 }
 
 void psWriteDump();
-void psWriteStackTrace();
 
 void psDeleteDir(const QString &dir);
 
