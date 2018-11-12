@@ -83,71 +83,11 @@ void FallbackFontConfig() {
 	const auto minor = match.capturedRef(2).toInt();
 	LOG(("Fontconfig version: %1.%2").arg(major).arg(minor));
 	if (major <= 2 && (major != 2 || minor <= 12)) {
-		if (qgetenv("TDESKTOP_FORCE_CUSTOM_FONCONFIG").isEmpty()) {
+		if (qgetenv("TDESKTOP_FORCE_CUSTOM_FONTCONFIG").isEmpty()) {
 			return;
 		}
 	}
-	QFile file(custom);
-	if (!file.open(QIODevice::WriteOnly)) {
-		return;
-	}
-	file.write(R"CONF(<?xml version='1.0'?>
-<!DOCTYPE fontconfig SYSTEM 'fonts.dtd'>
-<fontconfig>
-	<dir>/usr/share/fonts</dir>
-	<dir>/usr/local/share/fonts</dir>
-	<dir>~/.fonts</dir>
-	<dir>~/.local/share/fonts</dir>
-	<dir>/usr/X11R6/lib/X11/fonts</dir>
-	<dir prefix="xdg">fonts</dir>
-	<match target="pattern">
-		<test qual="any" name="family">
-			<string>mono</string>
-		</test>
-		<edit name="family" mode="assign" binding="same">
-			<string>monospace</string>
-		</edit>
-	</match>
-	<match target="pattern">
-		<test qual="any" name="family">
-			<string>sans serif</string>
-		</test>
-		<edit name="family" mode="assign" binding="same">
-			<string>sans-serif</string>
-		</edit>
-	</match>
-	<match target="pattern">
-		<test qual="any" name="family">
-			<string>sans</string>
-		</test>
-		<edit name="family" mode="assign" binding="same">
-			<string>sans-serif</string>
-		</edit>
-	</match>
-	<cachedir>/var/cache/fontconfig_11</cachedir>
-	<cachedir prefix="xdg">fontconfig_11</cachedir>
-	<cachedir>~/.fontconfig_11</cachedir>
-	<match target="font">
-	<edit mode="assign" name="antialias">
-		<bool>true</bool>
-	</edit>
-	<edit mode="assign" name="embeddedbitmap">
-		<bool>false</bool>
-	</edit>
-	<edit mode="assign" name="hinting">
-		<bool>true</bool>
-	</edit>
-	<edit mode="assign" name="hintstyle">
-		<const>hintslight</const>
-	</edit>
-	<edit mode="assign" name="lcdfilter">
-		<const>lcddefault</const>
-	</edit>
-	<edit mode="assign" name="rgba">
-		<const>rgb</const>
-	</edit>
-	</match>
-</fontconfig>)CONF");
+	QFile(":/fc/fc-custom.conf").copy(custom);
 #endif // TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 }
 
