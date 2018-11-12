@@ -145,6 +145,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_add_admin_unban" = "This user is currently restricted or banned. Are you sure you want to unban and promote them?";
 "lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
 "lng_sure_ban_user_group" = "Ban {user} in the group?";
+"lng_sure_ban_user_channel" = "Ban {user} in the channel?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
 
@@ -606,6 +607,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mute_duration_hours#one" = "For {count} hour";
 "lng_mute_duration_hours#other" = "For {count} hours";
+"lng_mute_duration_days#one" = "For {count} day";
+"lng_mute_duration_days#other" = "For {count} days";
+"lng_mute_duration_forever" = "Forever";
 "lng_mute_box_tip" = "Choose for how long you would like to turn off notifications for the following chat";
 
 "lng_preview_loading" = "Getting Link Info...";

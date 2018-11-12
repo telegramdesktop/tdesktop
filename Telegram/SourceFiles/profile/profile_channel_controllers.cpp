@@ -1592,8 +1592,10 @@ void AddParticipantBoxController::kickUser(not_null<UserData*> user, bool sure) 
 
 	// Finally kick him.
 	if (!sure) {
-		auto text = lng_sure_ban_user_group(lt_user, App::peerName(user));
-		_editBox = Ui::show(Box<ConfirmBox>(text, [weak, user] {
+		const auto text = (_channel->isMegagroup()
+			? lng_sure_ban_user_group
+			: lng_sure_ban_user_channel)(lt_user, App::peerName(user));
+		_editBox = Ui::show(Box<ConfirmBox>(text, [=] {
 			if (weak) {
 				weak->kickUser(user, true);
 			}
