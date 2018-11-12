@@ -64,10 +64,10 @@ private:
 
 class LocalFileSource : public Source {
 public:
-	LocalFileSource(
+	explicit LocalFileSource(
 		const QString &path,
-		const QByteArray &content,
-		const QByteArray &format,
+		const QByteArray &content = QByteArray(),
+		const QByteArray &format = QByteArray(),
 		QImage &&data = QImage());
 
 	void load(
