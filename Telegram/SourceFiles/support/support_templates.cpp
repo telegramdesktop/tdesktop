@@ -45,6 +45,10 @@ QString NormalizeQuestion(const QString &question) {
 	return result;
 }
 
+QString NormalizeKey(const QString &query) {
+	return TextUtilities::RemoveAccents(query.trimmed().toLower());
+}
+
 struct FileResult {
 	TemplatesFile result;
 	QStringList errors;
@@ -128,7 +132,10 @@ QString ReadByLineGetUrl(const QByteArray &blob, Callback &&callback) {
 		switch (state) {
 		case State::Keys:
 			if (!line.isEmpty()) {
-				question.keys.push_back(line);
+				question.originalKeys.push_back(line);
+				if (const auto norm = NormalizeKey(line); !norm.isEmpty()) {
+					question.normalizedKeys.push_back(norm);
+				}
 			}
 			break;
 		case State::Value:
@@ -266,9 +273,9 @@ TemplatesIndex ComputeIndex(const TemplatesData &data) {
 	auto uniqueFirst = std::map<QChar, base::flat_set<Id>>();
 	auto uniqueFull = std::map<Id, base::flat_set<Term>>();
 	const auto pushString = [&](
-		const Id &id,
-		const QString &string,
-		int weight) {
+			const Id &id,
+			const QString &string,
+			int weight) {
 		const auto list = TextUtilities::PrepareSearchWords(string);
 		for (const auto &word : list) {
 			uniqueFirst[word[0]].emplace(id);
@@ -278,7 +285,7 @@ TemplatesIndex ComputeIndex(const TemplatesData &data) {
 	for (const auto &[path, file] : data.files) {
 		for (const auto &[normalized, question] : file.questions) {
 			const auto id = std::make_pair(path, normalized);
-			for (const auto &key : question.keys) {
+			for (const auto &key : question.normalizedKeys) {
 				pushString(id, key, kWeightStep * kWeightStep);
 			}
 			pushString(id, question.question, kWeightStep);
@@ -335,7 +342,8 @@ void MoveKeys(TemplatesFile &to, const TemplatesFile &from) {
 	const auto &existing = from.questions;
 	for (auto &[normalized, question] : to.questions) {
 		if (const auto i = existing.find(normalized); i != end(existing)) {
-			question.keys = i->second.keys;
+			question.originalKeys = i->second.originalKeys;
+			question.normalizedKeys = i->second.normalizedKeys;
 		}
 	}
 }
@@ -347,7 +355,7 @@ Delta ComputeDelta(const TemplatesFile &was, const TemplatesFile &now) {
 		if (i == end(was.questions)) {
 			result.added.push_back(&question);
 		} else {
-			result.keys.emplace(normalized, i->second.keys);
+			result.keys.emplace(normalized, i->second.originalKeys);
 			if (i->second.value != question.value) {
 				result.changed.push_back(&question);
 			}
@@ -368,7 +376,7 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 		for (const auto question : delta.added) {
 			result += qsl("Q: %1\nK: %2\nA: %3\n\n"
 			).arg(question->question
-			).arg(question->keys.join(qsl(", "))
+			).arg(question->originalKeys.join(qsl(", "))
 			).arg(question->value.trimmed());
 		}
 	}
@@ -420,16 +428,12 @@ int CountMaxKeyLength(const TemplatesData &data) {
 	auto result = 0;
 	for (const auto &[path, file] : data.files) {
 		for (const auto &[normalized, question] : file.questions) {
-			for (const auto &key : question.keys) {
+			for (const auto &key : question.normalizedKeys) {
 				accumulate_max(result, key.size());
 			}
 		}
 	}
 	return result;
-}
-
-QString NormalizeKey(const QString &query) {
-	return TextUtilities::RemoveAccents(query.trimmed().toLower());
 }
 
 } // namespace
@@ -601,7 +605,7 @@ auto Templates::matchExact(QString query) const
 
 	for (const auto &[path, file] : _data.files) {
 		for (const auto &[normalized, question] : file.questions) {
-			for (const auto &key : question.keys) {
+			for (const auto &key : question.normalizedKeys) {
 				if (key == query) {
 					return QuestionByKey{ question, key };
 				}
@@ -627,7 +631,7 @@ auto Templates::matchFromEnd(QString query) const
 	auto result = std::optional<QuestionByKey>();
 	for (const auto &[path, file] : _data.files) {
 		for (const auto &[normalized, question] : file.questions) {
-			for (const auto &key : question.keys) {
+			for (const auto &key : question.normalizedKeys) {
 				if (key.size() <= queries.size()
 					&& queries[key.size() - 1] == key
 					&& (!result || result->key.size() < key.size())) {

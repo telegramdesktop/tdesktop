@@ -16,7 +16,8 @@ namespace details {
 
 struct TemplatesQuestion {
 	QString question;
-	QStringList keys;
+	QStringList originalKeys;
+	QStringList normalizedKeys;
 	QString value;
 };
 

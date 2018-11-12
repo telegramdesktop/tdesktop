@@ -122,7 +122,7 @@ void Inner::prepareRow(Row &row) {
 	row.question.setText(st::autocompleteRowTitle, row.data.question);
 	row.keys.setText(
 		st::autocompleteRowKeys,
-		row.data.keys.join(qstr(", ")));
+		row.data.originalKeys.join(qstr(", ")));
 	row.answer.setText(st::autocompleteRowAnswer, row.data.value);
 }
 
