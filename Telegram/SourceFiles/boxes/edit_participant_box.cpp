@@ -227,9 +227,14 @@ void EditAdminBox::prepare() {
 	addControl(object_ptr<BoxContentDivider>(this), QMargins());
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_edit_admin_header), Ui::FlatLabel::InitType::Simple, st::rightsHeaderLabel), st::rightsHeaderMargin);
 
-	auto prepareRights = (hadRights ? _oldRights : DefaultRights(channel()));
-	auto addCheckbox = [this, &prepareRights](Flags flags, const QString &text) {
-		auto checked = (prepareRights.c_channelAdminRights().vflags.v & flags) != 0;
+	const auto prepareRights = hadRights ? _oldRights : DefaultRights(channel());
+	const auto filterByMyRights = canSave()
+		&& !hadRights
+		&& !channel()->amCreator();
+	const auto prepareFlags = prepareRights.c_channelAdminRights().vflags.v
+		& (filterByMyRights ? channel()->adminRights() : ~Flag(0));
+	auto addCheckbox = [&](Flags flags, const QString &text) {
+		const auto checked = (prepareFlags & flags) != 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle), st::rightsToggleMargin);
 		subscribe(control->checkedChanged, [this, control](bool checked) {
 			InvokeQueued(this, [this, control] { applyDependencies(control); });
