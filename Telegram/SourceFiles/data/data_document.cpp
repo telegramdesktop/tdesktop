@@ -1292,7 +1292,13 @@ bool DocumentData::isAudioFile() const {
 	} else if (isSong()) {
 		return true;
 	}
-	return _mimeString.startsWith(qstr("audio/"), Qt::CaseInsensitive);
+	const auto prefix = qstr("audio/");
+	if (!_mimeString.startsWith(prefix, Qt::CaseInsensitive)) {
+		return false;
+	}
+	const auto left = _mimeString.midRef(prefix.size()).toString();
+	const auto types = { qstr("x-wav"), qstr("wav"), qstr("mp4") };
+	return ranges::find(types, left) != end(types);
 }
 
 bool DocumentData::isSharedMediaMusic() const {
