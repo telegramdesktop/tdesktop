@@ -330,6 +330,7 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alSource3f(stream.source, AL_POSITION, 0, 0, 0);
 	alSource3f(stream.source, AL_VELOCITY, 0, 0, 0);
 	alSourcei(stream.source, AL_LOOPING, 0);
+	alSourcei(stream.source, AL_DIRECT_CHANNELS_SOFT, 1);
 	alGenBuffers(3, stream.buffers);
 	if (type == AudioMsgId::Type::Voice) {
 		mixer()->updatePlaybackSpeed(this);
