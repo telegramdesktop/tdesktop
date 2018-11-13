@@ -29,7 +29,6 @@ public:
 	ConfirmSwitchBox(
 		QWidget*,
 		const MTPDlangPackLanguage &data,
-		const QString &editLink,
 		Fn<void()> apply);
 
 protected:
@@ -48,8 +47,7 @@ class NotReadyBox : public BoxContent {
 public:
 	NotReadyBox(
 		QWidget*,
-		const MTPDlangPackLanguage &data,
-		const QString &editLink);
+		const MTPDlangPackLanguage &data);
 
 protected:
 	void prepare() override;
@@ -63,12 +61,11 @@ private:
 ConfirmSwitchBox::ConfirmSwitchBox(
 	QWidget*,
 	const MTPDlangPackLanguage &data,
-	const QString &editLink,
 	Fn<void()> apply)
 : _name(qs(data.vnative_name))
 , _percent(data.vtranslated_count.v * 100 / data.vstrings_count.v)
 , _official(data.is_official())
-, _editLink(editLink)
+, _editLink(qs(data.vtranslations_url))
 , _apply(std::move(apply)) {
 }
 
@@ -128,10 +125,9 @@ void ConfirmSwitchBox::prepare() {
 
 NotReadyBox::NotReadyBox(
 	QWidget*,
-	const MTPDlangPackLanguage &data,
-	const QString &editLink)
+	const MTPDlangPackLanguage &data)
 : _name(qs(data.vnative_name))
-, _editLink(editLink) {
+, _editLink(qs(data.vtranslations_url)) {
 }
 
 void NotReadyBox::prepare() {
@@ -456,13 +452,10 @@ void CloudManager::requestLanguageAndSwitch(
 			return;
 		}
 		result.match([=](const MTPDlangPackLanguage &data) {
-			const auto link = "https://translations.telegram.org/"
-				+ id
-				+ '/';
 			if (data.vstrings_count.v > 0) {
-				Ui::show(Box<ConfirmSwitchBox>(data, link, finalize));
+				Ui::show(Box<ConfirmSwitchBox>(data, finalize));
 			} else {
-				Ui::show(Box<NotReadyBox>(data, link));
+				Ui::show(Box<NotReadyBox>(data));
 			}
 		});
 	}).fail([=](const RPCError &error) {
