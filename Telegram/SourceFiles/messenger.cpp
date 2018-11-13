@@ -387,6 +387,9 @@ void Messenger::setAuthSessionFromStorage(
 		int32 selfStreamVersion) {
 	Expects(!authSession());
 
+	DEBUG_LOG(("authSessionUserSerialized set: %1"
+		).arg(selfSerialized.size()));
+
 	_private->storedAuthSession = std::move(data);
 	_private->authSessionUserSerialized = std::move(selfSerialized);
 	_private->authSessionUserStreamVersion = selfStreamVersion;
@@ -467,6 +470,8 @@ void Messenger::startMtp() {
 	}
 
 	if (_private->authSessionUserId) {
+		DEBUG_LOG(("authSessionUserSerialized.size: %1"
+			).arg(_private->authSessionUserSerialized.size()));
 		QDataStream peekStream(_private->authSessionUserSerialized);
 		const auto phone = Serialize::peekUserPhone(
 			_private->authSessionUserStreamVersion,

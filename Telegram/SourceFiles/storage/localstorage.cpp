@@ -2325,6 +2325,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readUserSettings();
 	_readMtpData();
 
+	DEBUG_LOG(("selfSerialized set: %1").arg(selfSerialized.size()));
 	Messenger::Instance().setAuthSessionFromStorage(
 		std::move(StoredAuthSessionCache),
 		std::move(selfSerialized),
@@ -2372,10 +2373,12 @@ void _writeMap(WriteMapWhen when) {
 	uint32 mapSize = 0;
 	const auto self = [] {
 		if (!AuthSession::Exists()) {
+			DEBUG_LOG(("AuthSelf Warning: Session does not exist."));
 			return QByteArray();
 		}
 		const auto self = Auth().user();
 		if (self->phone().isEmpty()) {
+			DEBUG_LOG(("AuthSelf Error: Phone is empty."));
 			return QByteArray();
 		}
 		auto result = QByteArray();
