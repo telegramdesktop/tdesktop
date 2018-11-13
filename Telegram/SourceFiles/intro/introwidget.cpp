@@ -623,7 +623,7 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 	const auto defaultId = Lang::DefaultLanguageId();
 	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
 	if (currentId.isEmpty() && !suggested.isEmpty() && suggested != defaultId) {
-		Lang::Current().switchToId(defaultId);
+		Lang::Current().switchToId(Lang::DefaultLanguage());
 		Local::writeLangPack();
 	}
 

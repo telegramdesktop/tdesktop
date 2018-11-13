@@ -31,10 +31,27 @@ inline QString ConvertLegacyLanguageId(const QString &languageId) {
 	return languageId.toLower().replace('_', '-');
 }
 
+struct Language {
+	QString id;
+	QString pluralId;
+	QString baseId;
+	QString name;
+	QString nativeName;
+};
+
+inline bool operator==(const Language &a, const Language &b) {
+	return (a.id == b.id) && (a.name == b.name);
+}
+
+inline bool operator!=(const Language &a, const Language &b) {
+	return !(a == b);
+}
+
 QString DefaultLanguageId();
 QString LanguageIdOrDefault(const QString &id);
 QString CloudLangPackName();
 QString CustomLanguageId();
+Language DefaultLanguage();
 
 class Instance;
 Instance &Current();
@@ -54,10 +71,7 @@ public:
 	Instance();
 	Instance(not_null<Instance*> derived, const PrivateTag &);
 
-	void switchToId(
-		const QString &id,
-		const QString &pluralId = QString(),
-		const QString &baseId = QString());
+	void switchToId(const Language &language);
 	void switchToCustomFile(const QString &filePath);
 
 	Instance(const Instance &other) = delete;
@@ -70,6 +84,8 @@ public:
 	QString cloudLangCode(Pack pack) const;
 	QString id() const;
 	QString baseId() const;
+	QString name() const;
+	QString nativeName() const;
 	QString id(Pack pack) const;
 	bool isCustom() const;
 	int version(Pack pack) const;
@@ -111,10 +127,7 @@ private:
 	void applyDifferenceToMe(const MTPDlangPackDifference &difference);
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
-	void reset(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId);
+	void reset(const Language &language);
 	void fillFromCustomContent(
 		const QString &absolutePath,
 		const QString &relativePath,
@@ -130,6 +143,7 @@ private:
 	Instance *_derived = nullptr;
 
 	QString _id, _pluralId;
+	QString _name, _nativeName;
 	int _legacyId = kLegacyLanguageNone;
 	QString _customFilePathAbsolute;
 	QString _customFilePathRelative;

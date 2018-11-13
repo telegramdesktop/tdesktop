@@ -33,14 +33,14 @@ void SetupLanguageButton(
 	const auto button = AddButtonWithLabel(
 		container,
 		lng_settings_language,
-		Lang::Viewer(lng_language_name),
+		rpl::single(Lang::Current().nativeName()),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconLanguage : nullptr);
 	const auto guard = Ui::AttachAsChild(button, base::binary_guard());
 	button->addClickHandler([=] {
 		const auto m = button->clickModifiers();
 		if ((m & Qt::ShiftModifier) && (m & Qt::AltModifier)) {
-			Lang::CurrentCloudManager().switchToLanguage(qsl("#custom"));
+			Lang::CurrentCloudManager().switchToLanguage({ qsl("#custom") });
 		} else {
 			*guard = LanguageBox::Show();
 		}

@@ -51,6 +51,7 @@ public:
 	int selected() const;
 	void setSelected(int selected);
 	rpl::producer<bool> hasSelection() const;
+	rpl::producer<bool> isEmpty() const;
 
 	void activateSelected();
 	rpl::producer<Language> activations() const;
@@ -155,6 +156,7 @@ private:
 
 	rpl::event_stream<bool> _hasSelection;
 	rpl::event_stream<Language> _activations;
+	rpl::event_stream<bool> _isEmpty;
 
 };
 
@@ -162,8 +164,8 @@ class Content : public Ui::RpWidget {
 public:
 	Content(
 		QWidget *parent,
-		const Languages &official,
-		const Languages &unofficial);
+		const Languages &recent,
+		const Languages &official);
 
 	Ui::ScrollToRequest jump(int rows);
 	void filter(const QString &query);
@@ -172,8 +174,8 @@ public:
 
 private:
 	void setupContent(
-		const Languages &official,
-		const Languages &unofficial);
+		const Languages &recent,
+		const Languages &official);
 
 	Fn<Ui::ScrollToRequest(int rows)> _jump;
 	Fn<void(const QString &query)> _filter;
@@ -181,6 +183,50 @@ private:
 	Fn<void()> _activateBySubmit;
 
 };
+
+std::pair<Languages, Languages> PrepareLists() {
+	const auto projId = [](const Language &language) {
+		return language.id;
+	};
+	const auto current = Lang::LanguageIdOrDefault(Lang::Current().id());
+	auto official = Lang::CurrentCloudManager().languageList();
+	auto recent = Local::readRecentLanguages();
+	ranges::stable_partition(recent, [&](const Language &language) {
+		return (language.id == current);
+	});
+	if (recent.empty() || recent.front().id != current) {
+		if (ranges::find(official, current, projId) == end(official)) {
+			const auto generate = [&] {
+				const auto name = (current == "#custom")
+					? "Custom lang pack"
+					: Lang::Current().name();
+				return Language{
+					current,
+					QString(),
+					QString(),
+					name,
+					Lang::Current().nativeName()
+				};
+			};
+			const auto i = ranges::find(official, current, projId);
+			recent.insert(begin(recent), generate());
+		}
+	}
+	auto i = begin(official), e = end(official);
+	const auto remover = [&](const Language &language) {
+		auto k = ranges::find(i, e, language.id, projId);
+		if (k == e) {
+			return false;
+		}
+		for (; k != i; --k) {
+			std::swap(*k, *(k - 1));
+		}
+		++i;
+		return true;
+	};
+	recent.erase(ranges::remove_if(recent, remover), end(recent));
+	return { std::move(recent), std::move(official) };
+}
 
 Rows::Rows(
 	QWidget *parent,
@@ -273,7 +319,8 @@ void Rows::mouseMoveEvent(QMouseEvent *e) {
 
 void Rows::mousePressEvent(QMouseEvent *e) {
 	updatePressed(_selected);
-	if (_pressed.has_value()) {
+	if (_pressed.has_value()
+		&& !rowBySelection(_pressed).menuToggleForceRippled) {
 		addRipple(_pressed, e->pos());
 	}
 }
@@ -310,7 +357,7 @@ void Rows::ensureRippleBySelection(Selection selected) {
 }
 
 void Rows::ensureRippleBySelection(not_null<Row*> row, Selection selected) {
-	auto &ripple = rippleBySelection(row, _pressed);
+	auto &ripple = rippleBySelection(row, selected);
 	if (ripple) {
 		return;
 	}
@@ -326,6 +373,13 @@ void Rows::ensureRippleBySelection(not_null<Row*> row, Selection selected) {
 }
 
 void Rows::mouseReleaseEvent(QMouseEvent *e) {
+	if (_menu && e->button() == Qt::LeftButton) {
+		if (_menu->isHiding()) {
+			_menu->otherEnter();
+		} else {
+			_menu->otherLeave();
+		}
+	}
 	const auto pressed = _pressed;
 	updatePressed({});
 	if (pressed == _selected) {
@@ -526,6 +580,8 @@ void Rows::filter(const QString &query) {
 
 	resizeToWidth(width());
 	Ui::SendPendingMoveResizeEvents(this);
+
+	_isEmpty.fire(count() == 0);
 }
 
 int Rows::count() const {
@@ -571,6 +627,12 @@ rpl::producer<bool> Rows::hasSelection() const {
 	return _hasSelection.events();
 }
 
+rpl::producer<bool> Rows::isEmpty() const {
+	return _isEmpty.events_starting_with(
+		count() == 0
+	) | rpl::distinct_until_changed();
+}
+
 void Rows::repaint(Selection selected) {
 	selected.match([](std::nullopt_t) {
 	}, [&](const auto &data) {
@@ -607,8 +669,10 @@ void Rows::updateSelected(Selection selected) {
 
 void Rows::updatePressed(Selection pressed) {
 	if (_pressed.has_value()) {
-		if (const auto ripple = rippleBySelection(_pressed).get()) {
-			ripple->lastStop();
+		if (!rowBySelection(_pressed).menuToggleForceRippled) {
+			if (const auto ripple = rippleBySelection(_pressed).get()) {
+				ripple->lastStop();
+			}
 		}
 	}
 	_pressed = pressed;
@@ -779,84 +843,61 @@ void Rows::paintEvent(QPaintEvent *e) {
 
 Content::Content(
 	QWidget *parent,
-	const Languages &official,
-	const Languages &unofficial)
+	const Languages &recent,
+	const Languages &official)
 : RpWidget(parent) {
-	setupContent(official, unofficial);
+	setupContent(recent, official);
 }
 
 void Content::setupContent(
-		const Languages &official,
-		const Languages &unofficial) {
+		const Languages &recent,
+		const Languages &official) {
+	using namespace rpl::mappers;
+
 	const auto current = Lang::LanguageIdOrDefault(Lang::Current().id());
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	const auto primary = content->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			content,
-			object_ptr<Ui::VerticalLayout>(content)));
-	const auto container = primary->entity();
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::boxVerticalMargin));
-	const auto main = container->add(object_ptr<Rows>(
-		container,
-		official,
-		current,
-		true));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::boxVerticalMargin));
-	const auto additional = !unofficial.empty()
-		? content->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			content,
-			object_ptr<Ui::VerticalLayout>(content)))
-		: nullptr;
-	const auto inner = additional ? additional->entity() : nullptr;
-	const auto divider = inner
-		? inner->add(object_ptr<Ui::SlideWrap<BoxContentDivider>>(
-			inner,
-			object_ptr<BoxContentDivider>(inner)))
-		: nullptr;
-	const auto label = inner
-		? inner->add(
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				Lang::Viewer(lng_languages_unofficial),
-				st::passportFormHeader),
-			st::passportFormHeaderPadding)
-		: nullptr;
-	const auto other = inner
-		? inner->add(object_ptr<Rows>(inner, unofficial, current, false))
-		: nullptr;
-	if (inner) {
+	const auto add = [&](const Languages &list, bool areOfficial) {
+		if (list.empty()) {
+			return (Rows*)nullptr;
+		}
+		const auto wrap = content->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				content,
+				object_ptr<Ui::VerticalLayout>(content)));
+		const auto inner = wrap->entity();
 		inner->add(object_ptr<Ui::FixedHeightWidget>(
 			inner,
 			st::boxVerticalMargin));
-	}
+		const auto rows = inner->add(object_ptr<Rows>(
+			inner,
+			list,
+			current,
+			areOfficial));
+		inner->add(object_ptr<Ui::FixedHeightWidget>(
+			inner,
+			st::boxVerticalMargin));
+
+		rows->isEmpty() | rpl::start_with_next([=](bool empty) {
+			wrap->toggle(!empty, anim::type::instant);
+		}, rows->lifetime());
+
+		return rows;
+	};
+	const auto main = add(recent, false);
+	const auto divider = content->add(
+		object_ptr<Ui::SlideWrap<BoxContentDivider>>(
+			content,
+			object_ptr<BoxContentDivider>(content)));
+	const auto other = add(official, true);
 	Ui::ResizeFitChild(this, content);
 
-	using namespace rpl::mappers;
-	auto nonempty = [](Rows *rows) {
-		return rows->heightValue(
-		) | rpl::map(
-			_1 > 0
-		) | rpl::distinct_until_changed(
-		);
-	};
-	nonempty(main) | rpl::start_with_next([=](bool nonempty) {
-		primary->toggle(nonempty, anim::type::instant);
-	}, main->lifetime());
-	if (other) {
-		nonempty(other) | rpl::start_with_next([=](bool nonempty) {
-			additional->toggle(nonempty, anim::type::instant);
-		}, other->lifetime());
-
+	if (main && other) {
 		rpl::combine(
-			nonempty(main),
-			nonempty(other),
-			_1 && _2
-		) | rpl::start_with_next([=](bool nonempty) {
-			divider->toggle(nonempty, anim::type::instant);
+			main->isEmpty(),
+			other->isEmpty(),
+			_1 || _2
+		) | rpl::start_with_next([=](bool empty) {
+			divider->toggle(!empty, anim::type::instant);
 		}, divider->lifetime());
 
 		const auto excludeSelections = [](Rows *a, Rows *b) {
@@ -869,27 +910,40 @@ void Content::setupContent(
 		};
 		excludeSelections(main, other);
 		excludeSelections(other, main);
+	} else {
+		divider->hide(anim::type::instant);
 	}
 
+	const auto count = [](Rows *widget) {
+		return widget ? widget->count() : 0;
+	};
+	const auto selected = [](Rows *widget) {
+		return widget ? widget->selected() : -1;
+	};
 	const auto rowsCount = [=] {
-		return main->count() + (other ? other->count() : 0);
+		return count(main) + count(other);
 	};
 	const auto selectedIndex = [=] {
-		if (const auto index = main->selected(); index >= 0) {
+		if (const auto index = selected(main); index >= 0) {
 			return index;
+		} else if (const auto index = selected(other); index >= 0) {
+			return count(main) + index;
 		}
-		const auto index = other ? other->selected() : -1;
-		return (index >= 0) ? (main->count() + index) : -1;
+		return -1;
 	};
 	const auto setSelectedIndex = [=](int index) {
-		const auto count = main->count();
-		if (index >= count) {
-			main->setSelected(-1);
+		const auto first = count(main);
+		if (index >= first) {
+			if (main) {
+				main->setSelected(-1);
+			}
 			if (other) {
-				other->setSelected(index - count);
+				other->setSelected(index - first);
 			}
 		} else {
-			main->setSelected(index);
+			if (main) {
+				main->setSelected(index);
+			}
 			if (other) {
 				other->setSelected(-1);
 			}
@@ -904,11 +958,9 @@ void Content::setupContent(
 				result.ymin + shift,
 				result.ymax + shift);
 		};
-		if (const auto index = main->selected(); index >= 0) {
+		if (const auto index = selected(main); index >= 0) {
 			return coords(main, index);
-		}
-		const auto index = other ? other->selected() : -1;
-		if (index >= 0) {
+		} else if (const auto index = selected(other); index >= 0) {
 			return coords(other, index);
 		}
 		return Ui::ScrollToRequest(-1, -1);
@@ -930,14 +982,21 @@ void Content::setupContent(
 		}
 		return selectedCoords();
 	};
-	_filter = [=](const QString &query) {
-		main->filter(query);
-		if (other) {
-			other->filter(query);
+	const auto filter = [](Rows *widget, const QString &query) {
+		if (widget) {
+			widget->filter(query);
 		}
 	};
+	_filter = [=](const QString &query) {
+		filter(main, query);
+		filter(other, query);
+	};
 	_activations = [=] {
-		if (!other) {
+		if (!main && !other) {
+			return rpl::never<Language>() | rpl::type_erased();
+		} else if (!main) {
+			return other->activations();
+		} else if (!other) {
 			return main->activations();
 		}
 		return rpl::merge(
@@ -949,7 +1008,9 @@ void Content::setupContent(
 		if (selectedIndex() < 0) {
 			_jump(1);
 		}
-		main->activateSelected();
+		if (main) {
+			main->activateSelected();
+		}
 		if (other) {
 			other->activateSelected();
 		}
@@ -981,49 +1042,11 @@ void LanguageBox::prepare() {
 
 	const auto select = createMultiSelect();
 
-	const auto current = Lang::LanguageIdOrDefault(Lang::Current().id());
-	auto official = Lang::CurrentCloudManager().languageList();
-	if (official.empty()) {
-		official.push_back({ "en", {}, {}, "English", "English" });
-	}
-	ranges::stable_partition(official, [&](const Language &language) {
-		return (language.id == current);
-	});
-	ranges::stable_partition(official, [&](const Language &language) {
-		return (language.id == current) || (language.id == "en");
-	});
-	const auto foundInOfficial = [&](const Language &language) {
-		return ranges::find(official, language.id, [](const Language &v) {
-			return v.id;
-		}) != official.end();
-	};
-	auto unofficial = Local::readRecentLanguages();
-	unofficial.erase(
-		ranges::remove_if(
-			unofficial,
-			foundInOfficial),
-		end(unofficial));
-	ranges::stable_partition(unofficial, [&](const Language &language) {
-		return (language.id == current);
-	});
-	if (official.front().id != current
-		&& (unofficial.empty() || unofficial.front().id != current)) {
-		const auto name = (current == "#custom")
-			? "Custom lang pack"
-			: lang(lng_language_name);
-		unofficial.push_back({
-			current,
-			QString(),
-			QString(),
-			name,
-			lang(lng_language_name)
-		});
-	}
-
 	using namespace rpl::mappers;
 
+	const auto [recent, official] = PrepareLists();
 	const auto inner = setInnerWidget(
-		object_ptr<Content>(this, official, unofficial),
+		object_ptr<Content>(this, recent, official),
 		st::boxLayerScroll,
 		select->height());
 	inner->resizeToWidth(st::boxWidth);
@@ -1053,10 +1076,7 @@ void LanguageBox::prepare() {
 		// "#custom" is applied each time it's passed to switchToLanguage().
 		// So we check that the language really has changed.
 		if (language.id != Lang::Current().id()) {
-			Lang::CurrentCloudManager().switchToLanguage(
-				language.id,
-				language.pluralId,
-				language.baseId);
+			Lang::CurrentCloudManager().switchToLanguage(language);
 		}
 	}, inner->lifetime());
 

@@ -38,6 +38,7 @@ protected:
 private:
 	QString _name;
 	int _percent = 0;
+	bool _official = false;
 	QString _editLink;
 	Fn<void()> _apply;
 
@@ -66,6 +67,7 @@ ConfirmSwitchBox::ConfirmSwitchBox(
 	Fn<void()> apply)
 : _name(qs(data.vnative_name))
 , _percent(data.vtranslated_count.v * 100 / data.vstrings_count.v)
+, _official(data.is_official())
 , _editLink(editLink)
 , _apply(std::move(apply)) {
 }
@@ -89,7 +91,9 @@ void ConfirmSwitchBox::prepare() {
 		EntityInTextBold,
 		0,
 		percent.text.size()));
-	const auto text = lng_language_switch_about__generic(
+	const auto text = (_official
+		? lng_language_switch_about_official__generic<TextWithEntities>
+		: lng_language_switch_about_unofficial__generic<TextWithEntities>)(
 		lt_lang_name,
 		name,
 		lt_percent,
@@ -351,32 +355,43 @@ void CloudManager::offerSwitchLangPack() {
 	}
 }
 
-QString CloudManager::findOfferedLanguageName() {
+Language CloudManager::findOfferedLanguage() const {
 	for (const auto &language : _languages) {
 		if (language.id == _offerSwitchToId) {
-			return language.name;
+			return language;
 		}
 	}
-	return QString();
+	return {};
 }
 
 bool CloudManager::showOfferSwitchBox() {
-	auto name = findOfferedLanguageName();
-	if (name.isEmpty()) {
+	const auto language = findOfferedLanguage();
+	if (language.id.isEmpty()) {
 		return false;
 	}
 
-	Ui::show(Box<ConfirmBox>("Do you want to switch your language to " + name + "? You can always change your language in Settings.", "Change", lang(lng_cancel), [this] {
+	const auto confirm = [=] {
 		Ui::hideLayer();
 		if (_offerSwitchToId.isEmpty()) {
 			return;
 		}
-		performSwitchAndRestart(_offerSwitchToId);
-	}, [this] {
+		performSwitchAndRestart(language);
+	};
+	const auto cancel = [=] {
 		Ui::hideLayer();
-		changeIdAndReInitConnection(DefaultLanguageId());
+		changeIdAndReInitConnection(DefaultLanguage());
 		Local::writeLangPack();
-	}), LayerOption::KeepOther);
+	};
+	Ui::show(
+		Box<ConfirmBox>(
+			"Do you want to switch your language to "
+			+ language.nativeName
+			+ "? You can always change your language in Settings.",
+			"Change",
+			lang(lng_cancel),
+			confirm,
+			cancel),
+		LayerOption::KeepOther);
 	return true;
 }
 
@@ -405,10 +420,20 @@ bool CloudManager::canApplyWithoutRestart(const QString &id) const {
 }
 
 void CloudManager::resetToDefault() {
-	performSwitch(DefaultLanguageId());
+	performSwitch(DefaultLanguage());
+}
+
+void CloudManager::switchToLanguage(const QString &id) {
+	requestLanguageAndSwitch(id, false);
 }
 
 void CloudManager::switchWithWarning(const QString &id) {
+	requestLanguageAndSwitch(id, true);
+}
+
+void CloudManager::requestLanguageAndSwitch(
+		const QString &id,
+		bool warning) {
 	Expects(!id.isEmpty());
 
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
@@ -422,18 +447,20 @@ void CloudManager::switchWithWarning(const QString &id) {
 		MTP_string(id)
 	)).done([=](const MTPLangPackLanguage &result) {
 		_switchingToLanguageRequest = 0;
+		const auto language = Lang::ParseLanguage(result);
+		const auto finalize = [=] {
+			performSwitchAndRestart(language);
+		};
+		if (!warning) {
+			finalize();
+			return;
+		}
 		result.match([=](const MTPDlangPackLanguage &data) {
 			const auto link = "https://translations.telegram.org/"
 				+ id
 				+ '/';
 			if (data.vstrings_count.v > 0) {
-				const auto pluralId = qs(data.vplural_code);
-				const auto baseId = qs(data.vbase_lang_code);
-				const auto perform = [=] {
-					Local::pushRecentLanguage(ParseLanguage(result));
-					performSwitchAndRestart(id, pluralId, baseId);
-				};
-				Ui::show(Box<ConfirmSwitchBox>(data, link, perform));
+				Ui::show(Box<ConfirmSwitchBox>(data, link, finalize));
 			} else {
 				Ui::show(Box<NotReadyBox>(data, link));
 			}
@@ -446,27 +473,23 @@ void CloudManager::switchWithWarning(const QString &id) {
 	}).send();
 }
 
-void CloudManager::switchToLanguage(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
-	const auto requested = LanguageIdOrDefault(id);
-	if (_langpack.id() == requested && requested != qstr("#custom")) {
+void CloudManager::switchToLanguage(const Language &data) {
+	if (_langpack.id() == data.id && data.id != qstr("#custom")) {
 		return;
 	}
 
 	request(_switchingToLanguageRequest).cancel();
-	if (requested == qstr("#custom")) {
+	if (data.id == qstr("#custom")) {
 		performSwitchToCustom();
-	} else if (canApplyWithoutRestart(requested)) {
-		performSwitch(requested, pluralId, baseId);
+	} else if (canApplyWithoutRestart(data.id)) {
+		performSwitch(data);
 	} else {
 		QVector<MTPstring> keys;
 		keys.reserve(3);
 		keys.push_back(MTP_string("lng_sure_save_language"));
 		_switchingToLanguageRequest = request(MTPlangpack_GetStrings(
 			MTP_string(Lang::CloudLangPackName()),
-			MTP_string(requested),
+			MTP_string(data.id),
 			MTP_vector<MTPstring>(std::move(keys))
 		)).done([=](const MTPVector<MTPLangPackString> &result) {
 			_switchingToLanguageRequest = 0;
@@ -480,15 +503,12 @@ void CloudManager::switchToLanguage(
 			const auto text = lang(lng_sure_save_language)
 				+ "\n\n"
 				+ getValue(lng_sure_save_language);
-			const auto perform = [=] {
-				performSwitchAndRestart(requested, pluralId, baseId);
-			};
 			Ui::show(
 				Box<ConfirmBox>(
 					text,
 					lang(lng_box_ok),
 					lang(lng_cancel),
-					perform),
+					[=] { performSwitchAndRestart(data); }),
 				LayerOption::KeepOther);
 		}).fail([=](const RPCError &error) {
 			_switchingToLanguageRequest = 0;
@@ -545,24 +565,19 @@ void CloudManager::switchToTestLanguage() {
 	const auto testLanguageId = (_langpack.id() == qstr("#TEST_X"))
 		? qsl("#TEST_0")
 		: qsl("#TEST_X");
-	performSwitch(testLanguageId);
+	performSwitch({ testLanguageId });
 }
 
-void CloudManager::performSwitch(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
+void CloudManager::performSwitch(const Language &data) {
 	_restartAfterSwitch = false;
-	switchLangPackId(id, pluralId, baseId);
+	switchLangPackId(data);
 	requestLangPackDifference(Pack::Current);
 	requestLangPackDifference(Pack::Base);
 }
 
-void CloudManager::performSwitchAndRestart(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
-	performSwitch(id, pluralId, baseId);
+void CloudManager::performSwitchAndRestart(const Language &data) {
+	Local::pushRecentLanguage(data);
+	performSwitch(data);
 	restartAfterSwitch();
 }
 
@@ -574,26 +589,21 @@ void CloudManager::restartAfterSwitch() {
 	}
 }
 
-void CloudManager::switchLangPackId(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
+void CloudManager::switchLangPackId(const Language &data) {
 	const auto currentId = _langpack.id();
 	const auto currentBaseId = _langpack.baseId();
-	const auto notChanged = (currentId == id && currentBaseId == baseId)
+	const auto notChanged = (currentId == data.id
+		&& currentBaseId == data.baseId)
 		|| (currentId.isEmpty()
 			&& currentBaseId.isEmpty()
-			&& id == DefaultLanguageId());
+			&& data.id == DefaultLanguageId());
 	if (!notChanged) {
-		changeIdAndReInitConnection(id, pluralId, baseId);
+		changeIdAndReInitConnection(data);
 	}
 }
 
-void CloudManager::changeIdAndReInitConnection(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
-	_langpack.switchToId(id, pluralId, baseId);
+void CloudManager::changeIdAndReInitConnection(const Language &data) {
+	_langpack.switchToId(data);
 
 	auto mtproto = requestMTP();
 	mtproto->reInitConnection(mtproto->mainDcId());

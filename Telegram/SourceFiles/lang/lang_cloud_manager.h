@@ -18,14 +18,8 @@ namespace Lang {
 
 class Instance;
 enum class Pack;
+struct Language;
 
-struct Language {
-	QString id;
-	QString pluralId;
-	QString baseId;
-	QString name;
-	QString nativeName;
-};
 Language ParseLanguage(const MTPLangPackLanguage &data);
 
 class CloudManager : public base::has_weak_ptr, private MTP::Sender, private base::Subscriber {
@@ -47,10 +41,8 @@ public:
 
 	void resetToDefault();
 	void switchWithWarning(const QString &id);
-	void switchToLanguage(
-		const QString &id,
-		const QString &pluralId = QString(),
-		const QString &baseId = QString());
+	void switchToLanguage(const QString &id);
+	void switchToLanguage(const Language &data);
 	void switchToTestLanguage();
 	void setSuggestedLanguage(const QString &langCode);
 	QString suggestedLanguage() const {
@@ -67,28 +59,17 @@ private:
 	void requestLangPackDifference(Pack pack);
 	bool canApplyWithoutRestart(const QString &id) const;
 	void performSwitchToCustom();
-	void performSwitch(
-		const QString &id,
-		const QString &pluralId = QString(),
-		const QString &baseId = QString());
-	void performSwitchAndRestart(
-		const QString &id,
-		const QString &pluralId = QString(),
-		const QString &baseId = QString());
+	void performSwitch(const Language &data);
+	void performSwitchAndRestart(const Language &data);
 	void restartAfterSwitch();
 	void offerSwitchLangPack();
 	bool showOfferSwitchBox();
-	QString findOfferedLanguageName();
+	Language findOfferedLanguage() const;
 
+	void requestLanguageAndSwitch(const QString &id, bool warning);
 	void applyLangPackData(Pack pack, const MTPDlangPackDifference &data);
-	void switchLangPackId(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId);
-	void changeIdAndReInitConnection(
-		const QString &id,
-		const QString &pluralId = QString(),
-		const QString &baseId = QString());
+	void switchLangPackId(const Language &data);
+	void changeIdAndReInitConnection(const Language &data);
 
 	Instance &_langpack;
 	Languages _languages;
@@ -107,14 +88,6 @@ private:
 	mtpRequestId _switchingToLanguageRequest = 0;
 
 };
-
-inline bool operator==(const Language &a, const Language &b) {
-	return (a.id == b.id) && (a.name == b.name);
-}
-
-inline bool operator!=(const Language &a, const Language &b) {
-	return !(a == b);
-}
 
 CloudManager &CurrentCloudManager();
 

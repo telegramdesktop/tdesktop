@@ -292,7 +292,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
-"lng_languages_unofficial" = "Unofficial languages";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
 "lng_settings_install_beta" = "Install beta versions";
@@ -1790,7 +1789,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_about_left_chats" = "Below are the supergroups and channels from this export that you've left or where you were banned.\n\nNote that when you leave a channel or supergroup you've created, you have the option to either delete it, or simply leave (in case you want to rejoin later, or keep the community alive despite not being a member).";
 
 "lng_language_switch_title" = "Change language?";
-"lng_language_switch_about" = "You are about to apply a custom language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
+"lng_language_switch_about_official" = "You are about to apply a language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
+"lng_language_switch_about_unofficial" = "You are about to apply a custom language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
 "lng_language_switch_link" = "translation panel";
 "lng_language_switch_apply" = "Change";
 "lng_language_not_found" = "Sorry, this language pack doesn't exist.";

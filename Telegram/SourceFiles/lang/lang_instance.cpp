@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lang {
 namespace {
 
+const auto kSerializeVersionTag = qsl("#new");
+constexpr auto kSerializeVersion = 1;
 constexpr auto kDefaultLanguage = str_const("en");
 constexpr auto kCloudLangPackName = str_const("tdesktop");
 constexpr auto kCustomLanguage = str_const("#custom");
@@ -223,6 +225,16 @@ QString CustomLanguageId() {
 	return str_const_toString(kCustomLanguage);
 }
 
+Language DefaultLanguage() {
+	return Language{
+		qsl("en"),
+		QString(),
+		QString(),
+		qsl("English"),
+		qsl("English"),
+	};
+}
+
 struct Instance::PrivateTag {
 };
 
@@ -236,11 +248,8 @@ Instance::Instance(not_null<Instance*> derived, const PrivateTag &)
 , _nonDefaultSet(kLangKeysCount, 0) {
 }
 
-void Instance::switchToId(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
-	reset(id, pluralId, baseId);
+void Instance::switchToId(const Language &data) {
+	reset(data);
 	if (_id == qstr("#TEST_X") || _id == qstr("#TEST_0")) {
 		for (auto &value : _values) {
 			value = PrepareTestValue(value, _id[5]);
@@ -259,7 +268,7 @@ void Instance::setBaseId(const QString &baseId, const QString &pluralId) {
 		if (!_base) {
 			_base = std::make_unique<Instance>(this, PrivateTag{});
 		}
-		_base->switchToId(baseId, _pluralId, QString());
+		_base->switchToId({ baseId, _pluralId });
 	}
 }
 
@@ -270,18 +279,17 @@ void Instance::switchToCustomFile(const QString &filePath) {
 	}
 }
 
-void Instance::reset(
-		const QString &id,
-		const QString &pluralId,
-		const QString &baseId) {
-	const auto computedPluralId = !pluralId.isEmpty()
-		? pluralId
-		: !baseId.isEmpty()
-		? baseId
-		: id;
-	setBaseId(baseId, computedPluralId);
-	_id = LanguageIdOrDefault(id);
+void Instance::reset(const Language &data) {
+	const auto computedPluralId = !data.pluralId.isEmpty()
+		? data.pluralId
+		: !data.baseId.isEmpty()
+		? data.baseId
+		: data.id;
+	setBaseId(data.baseId, computedPluralId);
+	_id = LanguageIdOrDefault(data.id);
 	_pluralId = computedPluralId;
+	_name = data.name;
+	_nativeName = data.nativeName;
 
 	_legacyId = kLegacyLanguageNone;
 	_customFilePathAbsolute = QString();
@@ -325,6 +333,16 @@ QString Instance::baseId() const {
 	return id(Pack::Base);
 }
 
+QString Instance::name() const {
+	return _name.isEmpty() ? getValue(lng_language_name) : _name;
+}
+
+QString Instance::nativeName() const {
+	return _nativeName.isEmpty()
+		? getValue(lng_language_name)
+		: _nativeName;
+}
+
 QString Instance::id(Pack pack) const {
 	return (pack != Pack::Base)
 		? _id
@@ -352,35 +370,45 @@ QString Instance::langPackName() const {
 }
 
 QByteArray Instance::serialize() const {
-	auto size = Serialize::stringSize(_id);
-	size += sizeof(qint32); // version
-	size += Serialize::stringSize(_customFilePathAbsolute) + Serialize::stringSize(_customFilePathRelative);
-	size += Serialize::bytearraySize(_customFileContent);
-	size += sizeof(qint32); // _nonDefaultValues.size()
+	auto size = Serialize::stringSize(kSerializeVersionTag)
+		+ sizeof(qint32) // serializeVersion
+		+ Serialize::stringSize(_id)
+		+ Serialize::stringSize(_pluralId)
+		+ Serialize::stringSize(_name)
+		+ Serialize::stringSize(_nativeName)
+		+ sizeof(qint32) // version
+		+ Serialize::stringSize(_customFilePathAbsolute)
+		+ Serialize::stringSize(_customFilePathRelative)
+		+ Serialize::bytearraySize(_customFileContent)
+		+ sizeof(qint32); // _nonDefaultValues.size()
 	for (auto &nonDefault : _nonDefaultValues) {
-		size += Serialize::bytearraySize(nonDefault.first) + Serialize::bytearraySize(nonDefault.second);
+		size += Serialize::bytearraySize(nonDefault.first)
+			+ Serialize::bytearraySize(nonDefault.second);
 	}
-	size += Serialize::stringSize(_pluralId);
-	auto base = _base ? _base->serialize() : QByteArray();
-	if (!base.isEmpty()) {
-		size += Serialize::bytearraySize(base);
-	}
+	const auto base = _base ? _base->serialize() : QByteArray();
+	size += Serialize::bytearraySize(base);
 
 	auto result = QByteArray();
 	result.reserve(size);
 	{
 		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
-		stream << _id << qint32(_version);
-		stream << _customFilePathAbsolute << _customFilePathRelative << _customFileContent;
-		stream << qint32(_nonDefaultValues.size());
-		for (auto &nonDefault : _nonDefaultValues) {
+		stream
+			<< kSerializeVersionTag
+			<< qint32(kSerializeVersion)
+			<< _id
+			<< _pluralId
+			<< _name
+			<< _nativeName
+			<< qint32(_version)
+			<< _customFilePathAbsolute
+			<< _customFilePathRelative
+			<< _customFileContent
+			<< qint32(_nonDefaultValues.size());
+		for (const auto &nonDefault : _nonDefaultValues) {
 			stream << nonDefault.first << nonDefault.second;
 		}
-		stream << _pluralId;
-		if (!base.isEmpty()) {
-			stream << base;
-		}
+		stream << base;
 	}
 	return result;
 }
@@ -390,18 +418,41 @@ void Instance::fillFromSerialized(
 		int dataAppVersion) {
 	QDataStream stream(data);
 	stream.setVersion(QDataStream::Qt_5_1);
-	QString id;
-	QString pluralId;
+	qint32 serializeVersion = 0;
+	QString serializeVersionTag;
+	QString id, pluralId, name, nativeName;
 	qint32 version = 0;
 	QString customFilePathAbsolute, customFilePathRelative;
 	QByteArray customFileContent;
 	qint32 nonDefaultValuesCount = 0;
-	stream >> id >> version;
-	stream
-		>> customFilePathAbsolute
-		>> customFilePathRelative
-		>> customFileContent;
-	stream >> nonDefaultValuesCount;
+	stream >> serializeVersionTag;
+	const auto legacyFormat = (serializeVersionTag != kSerializeVersionTag);
+	if (legacyFormat) {
+		id = serializeVersionTag;
+		stream
+			>> version
+			>> customFilePathAbsolute
+			>> customFilePathRelative
+			>> customFileContent
+			>> nonDefaultValuesCount;
+	} else {
+		stream >> serializeVersion;
+		if (serializeVersion == kSerializeVersion) {
+			stream
+				>> id
+				>> pluralId
+				>> name
+				>> nativeName
+				>> version
+				>> customFilePathAbsolute
+				>> customFilePathRelative
+				>> customFileContent
+				>> nonDefaultValuesCount;
+		} else {
+			LOG(("Lang Error: Unsupported serialize version."));
+			return;
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("Lang Error: Could not read data from serialized langpack."));
 		return;
@@ -444,26 +495,25 @@ void Instance::fillFromSerialized(
 	}
 
 	_base = nullptr;
-	if (!stream.atEnd()) {
-		stream >> pluralId;
+	QByteArray base;
+	if (legacyFormat) {
 		if (!stream.atEnd()) {
-			QByteArray base;
-			stream >> base;
-			if (stream.status() != QDataStream::Ok || base.isEmpty()) {
-				LOG(("Lang Error: "
-					"Could not read data from serialized langpack."));
-				return;
-			}
-			_base = std::make_unique<Instance>(this, PrivateTag{});
-			_base->fillFromSerialized(base, dataAppVersion);
+			stream >> pluralId;
+		} else {
+			pluralId = id;
 		}
-		if (stream.status() != QDataStream::Ok) {
+		if (!stream.atEnd()) {
+			stream >> base;
+		}
+		if (stream.status() != QDataStream::Ok || base.isEmpty()) {
 			LOG(("Lang Error: "
 				"Could not read data from serialized langpack."));
 			return;
 		}
-	} else {
-		pluralId = id;
+	}
+	if (!base.isEmpty()) {
+		_base = std::make_unique<Instance>(this, PrivateTag{});
+		_base->fillFromSerialized(base, dataAppVersion);
 	}
 
 	_id = id;
@@ -472,6 +522,8 @@ void Instance::fillFromSerialized(
 			customFilePathAbsolute,
 			customFilePathRelative)
 		: pluralId;
+	_name = name;
+	_nativeName = nativeName;
 	_version = version;
 	_customFilePathAbsolute = customFilePathAbsolute;
 	_customFilePathRelative = customFilePathRelative;
@@ -501,6 +553,7 @@ void Instance::fillFromCustomContent(
 	setBaseId(QString(), QString());
 	_id = CustomLanguageId();
 	_pluralId = PluralCodeForCustom(absolutePath, relativePath);
+	_name = _nativeName = QString();
 	loadFromCustomContent(absolutePath, relativePath, content);
 }
 
@@ -520,10 +573,9 @@ bool Instance::loadFromCustomFile(const QString &filePath) {
 	auto relativePath = QDir().relativeFilePath(filePath);
 	auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
 	if (!content.isEmpty()) {
-		reset(
+		reset({
 			CustomLanguageId(),
-			PluralCodeForCustom(absolutePath, relativePath),
-			QString());
+			PluralCodeForCustom(absolutePath, relativePath) });
 		loadFromCustomContent(absolutePath, relativePath, content);
 		updatePluralRules();
 		return true;
@@ -564,6 +616,7 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 	if (!isCustom()) {
 		_pluralId = _id;
 	}
+	_name = _nativeName = QString();
 	_base = nullptr;
 	updatePluralRules();
 }
