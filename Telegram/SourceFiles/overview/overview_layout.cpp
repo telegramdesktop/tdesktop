@@ -888,7 +888,7 @@ Document::Document(
 
 void Document::initDimensions() {
 	_maxw = _st.maxWidth;
-	if (_data->isAudioFile()) {
+	if (_data->isSong()) {
 		_minh = _st.songPadding.top() + _st.songThumbSize + _st.songPadding.bottom();
 	} else {
 		_minh = _st.filePadding.top() + _st.fileThumbSize + _st.filePadding.bottom() + st::lineWidth;
@@ -913,7 +913,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 	bool wthumb = withThumb();
 
-	auto isSong = _data->isAudioFile();
+	auto isSong = _data->isSong();
 	if (isSong) {
 		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		nameright = _st.songPadding.left();
@@ -1063,7 +1063,7 @@ TextState Document::getState(
 	const auto loaded = _data->loaded();
 	const auto wthumb = withThumb();
 
-	if (_data->isAudioFile()) {
+	if (_data->isSong()) {
 		const auto nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		const auto nameright = _st.songPadding.left();
 		const auto namewidth = std::min(
@@ -1173,13 +1173,13 @@ bool Document::dataLoaded() const {
 }
 
 bool Document::iconAnimated() const {
-	return _data->isAudioFile()
+	return _data->isSong()
 		|| !_data->loaded()
 		|| (_radial && _radial->animating());
 }
 
 bool Document::withThumb() const {
-	return !_data->isAudioFile()
+	return !_data->isSong()
 		&& !_data->thumb->isNull()
 		&& _data->thumb->width()
 		&& _data->thumb->height()
@@ -1196,7 +1196,7 @@ bool Document::updateStatusText() {
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
-		if (_data->isAudioFile()) {
+		if (_data->isSong()) {
 			statusSize = FileStatusSizeLoaded;
 			using State = Media::Player::State;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
