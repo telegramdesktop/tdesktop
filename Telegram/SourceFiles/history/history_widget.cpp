@@ -797,6 +797,7 @@ void HistoryWidget::supportInitAutocomplete() {
 void HistoryWidget::supportInsertText(const QString &text) {
 	_field->setFocus();
 	_field->textCursor().insertText(text);
+	_field->ensureCursorVisible();
 }
 
 void HistoryWidget::supportShareContact(Support::Contact contact) {

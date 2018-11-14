@@ -2464,6 +2464,10 @@ void InputField::clearFocus() {
 	_inner->clearFocus();
 }
 
+void InputField::ensureCursorVisible() {
+	_inner->ensureCursorVisible();
+}
+
 not_null<QTextEdit*> InputField::rawTextEdit() {
 	return _inner.get();
 }
