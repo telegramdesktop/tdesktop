@@ -504,8 +504,11 @@ void Instance::fillFromSerialized(
 		}
 		if (!stream.atEnd()) {
 			stream >> base;
+			if (base.isEmpty()) {
+				stream.setStatus(QDataStream::ReadCorruptData);
+			}
 		}
-		if (stream.status() != QDataStream::Ok || base.isEmpty()) {
+		if (stream.status() != QDataStream::Ok) {
 			LOG(("Lang Error: "
 				"Could not read data from serialized langpack."));
 			return;
