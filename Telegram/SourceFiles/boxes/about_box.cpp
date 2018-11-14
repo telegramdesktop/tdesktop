@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr) + (cAlphaVersion() ? qsl(" alpha %1").arg(cAlphaVersion()) : (AppBetaVersion ? " beta" : ""))), st::aboutVersionLink)
+: _version(this, lng_about_version(lt_version, currentVersionText()), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text3(this, st::aboutLabel) {
