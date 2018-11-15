@@ -306,7 +306,7 @@ public:
 	void takeLocalDraft(History *from);
 	void createLocalDraftFromCloud();
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft);
-	Data::Draft *createCloudDraft(Data::Draft *fromDraft);
+	Data::Draft *createCloudDraft(const Data::Draft *fromDraft);
 	bool skipCloudDraft(const QString &text, TimeId date) const;
 	void setSentDraftText(const QString &text);
 	void clearSentDraftText(const QString &text);

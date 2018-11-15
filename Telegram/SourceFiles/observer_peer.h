@@ -39,33 +39,34 @@ struct PeerUpdate {
 		RestrictionReasonChanged  = (1 << 8),
 		UnreadViewChanged         = (1 << 9),
 		PinnedMessageChanged      = (1 << 10),
+		OccupiedChanged           = (1 << 11),
 
 		// For chats and channels
-		InviteLinkChanged         = (1 << 11),
-		MembersChanged            = (1 << 12),
-		AdminsChanged             = (1 << 13),
-		BannedUsersChanged        = (1 << 14),
-		UnreadMentionsChanged     = (1 << 15),
+		InviteLinkChanged         = (1 << 12),
+		MembersChanged            = (1 << 13),
+		AdminsChanged             = (1 << 14),
+		BannedUsersChanged        = (1 << 15),
+		UnreadMentionsChanged     = (1 << 16),
 
 		// For users
-		UserCanShareContact       = (1 << 16),
-		UserIsContact             = (1 << 17),
-		UserPhoneChanged          = (1 << 18),
-		UserIsBlocked             = (1 << 19),
-		BotCommandsChanged        = (1 << 20),
-		UserOnlineChanged         = (1 << 21),
-		BotCanAddToGroups         = (1 << 22),
-		UserCommonChatsChanged    = (1 << 23),
-		UserHasCalls              = (1 << 24),
+		UserCanShareContact       = (1 << 17),
+		UserIsContact             = (1 << 18),
+		UserPhoneChanged          = (1 << 19),
+		UserIsBlocked             = (1 << 20),
+		BotCommandsChanged        = (1 << 21),
+		UserOnlineChanged         = (1 << 22),
+		BotCanAddToGroups         = (1 << 23),
+		UserCommonChatsChanged    = (1 << 24),
+		UserHasCalls              = (1 << 25),
 
 		// For chats
-		ChatCanEdit               = (1 << 16),
+		ChatCanEdit               = (1 << 17),
 
 		// For channels
-		ChannelAmIn               = (1 << 16),
-		ChannelRightsChanged      = (1 << 17),
-		ChannelStickersChanged    = (1 << 18),
-		ChannelPromotedChanged    = (1 << 19),
+		ChannelAmIn               = (1 << 17),
+		ChannelRightsChanged      = (1 << 18),
+		ChannelStickersChanged    = (1 << 19),
+		ChannelPromotedChanged    = (1 << 20),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

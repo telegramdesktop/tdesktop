@@ -582,6 +582,8 @@
 <(src_loc)/support/support_autocomplete.h
 <(src_loc)/support/support_common.cpp
 <(src_loc)/support/support_common.h
+<(src_loc)/support/support_helper.cpp
+<(src_loc)/support/support_helper.h
 <(src_loc)/support/support_templates.cpp
 <(src_loc)/support/support_templates.h
 <(src_loc)/ui/effects/cross_animation.cpp

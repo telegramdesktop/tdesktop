@@ -328,11 +328,11 @@ Autocomplete::Autocomplete(QWidget *parent, not_null<AuthSession*> session)
 }
 
 void Autocomplete::activate(not_null<Ui::InputField*> field) {
-	if (Auth().settings().supportTemplatesAutocomplete()) {
+	if (_session->settings().supportTemplatesAutocomplete()) {
 		_activate();
 	} else {
-		const auto templates = Auth().supportTemplates();
-		const auto max = templates->maxKeyLength();
+		const auto &templates = _session->supportTemplates();
+		const auto max = templates.maxKeyLength();
 		auto cursor = field->textCursor();
 		const auto position = cursor.position();
 		const auto anchor = cursor.anchor();
@@ -344,8 +344,8 @@ void Autocomplete::activate(not_null<Ui::InputField*> field) {
 				std::max(position - max, 0),
 				position);
 		const auto result = (position != anchor)
-			? templates->matchExact(text.text)
-			: templates->matchFromEnd(text.text);
+			? templates.matchExact(text.text)
+			: templates.matchFromEnd(text.text);
 		if (result) {
 			const auto till = std::max(position, anchor);
 			const auto from = till - result->key.size();
@@ -410,7 +410,7 @@ void Autocomplete::setupContent() {
 
 	const auto refresh = [=] {
 		inner->showRows(
-			_session->supportTemplates()->query(input->getLastText()));
+			_session->supportTemplates().query(input->getLastText()));
 		scroll->scrollToY(0);
 	};
 

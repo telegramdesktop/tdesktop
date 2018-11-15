@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
 #include "data/data_feed.h"
+#include "support/support_helper.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "styles/style_window.h"
@@ -52,6 +53,7 @@ TopBarWidget::TopBarWidget(
 , _search(this, st::topBarSearch)
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
+, _titlePeerText(st::windowMinWidth / 3)
 , _onlineUpdater([this] { updateOnlineDisplay(); }) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -104,7 +106,8 @@ TopBarWidget::TopBarWidget(
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto flags = UpdateFlag::UserHasCalls
 		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged;
+		| UpdateFlag::MembersChanged
+		| UpdateFlag::OccupiedChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [this](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::UserHasCalls) {
 			if (update.peer->isUser()) {
@@ -331,14 +334,15 @@ void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 		p.setFont(st::dialogsTextFont);
 		if (paintConnectingState(p, nameleft, statustop, width(), ms)) {
 			return;
-		} else if (history->paintSendAction(
-			p,
-			nameleft,
-			statustop,
-			namewidth,
-			width(),
-			st::historyStatusFgTyping,
-			ms)) {
+		} else if (!Support::IsOccupiedBySomeone(history)
+			&& history->paintSendAction(
+				p,
+				nameleft,
+				statustop,
+				namewidth,
+				width(),
+				st::historyStatusFgTyping,
+				ms)) {
 			return;
 		} else {
 			paintStatus(p, nameleft, statustop, namewidth, width());
@@ -379,25 +383,20 @@ void TopBarWidget::paintStatus(
 		int top,
 		int availableWidth,
 		int outerWidth) {
-	auto statustext = _titlePeerText;
-	auto statuswidth = _titlePeerTextWidth;
-	if (statuswidth > availableWidth) {
-		statustext = st::dialogsTextFont->elided(
-			statustext,
-			availableWidth,
-			Qt::ElideLeft);
-		statuswidth = st::dialogsTextFont->width(statustext);
-	}
-	p.setPen(_titlePeerTextOnline
+	const auto occupied = Auth().supportMode()
+		&& Support::IsOccupiedBySomeone(_activeChat.history());
+	p.setPen(occupied
+		? st::dialogsTextPaletteDraft.linkFg
+		: _titlePeerTextOnline
 		? st::historyStatusFgActive
 		: st::historyStatusFg);
-	p.drawTextLeft(left, top, outerWidth, statustext, statuswidth);
+	_titlePeerText.drawLeftElided(p, left, top, availableWidth, outerWidth);
 }
 
 QRect TopBarWidget::getMembersShowAreaGeometry() const {
 	int membersTextLeft = _leftTaken;
 	int membersTextTop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	int membersTextWidth = _titlePeerTextWidth;
+	int membersTextWidth = _titlePeerText.maxWidth();
 	int membersTextHeight = st::topBarHeight - membersTextTop;
 
 	return myrtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight);
@@ -745,7 +744,10 @@ void TopBarWidget::updateOnlineDisplay() {
 	QString text;
 	const auto now = unixtime();
 	bool titlePeerTextOnline = false;
-	if (const auto user = _activeChat.peer()->asUser()) {
+	if (Auth().supportMode()
+		&& Support::IsOccupiedBySomeone(_activeChat.history())) {
+		text = Support::ChatOccupiedString();
+	} else if (const auto user = _activeChat.peer()->asUser()) {
 		text = Data::OnlineText(user, now);
 		titlePeerTextOnline = Data::OnlineTextActive(user, now);
 	} else if (const auto chat = _activeChat.peer()->asChat()) {
@@ -753,7 +755,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.empty()) {
 			if (!_titlePeerText.isEmpty()) {
-				text = _titlePeerText;
+				text = _titlePeerText.originalText();
 			} else if (chat->count <= 0) {
 				text = lang(lng_group_status);
 			} else {
@@ -810,10 +812,9 @@ void TopBarWidget::updateOnlineDisplay() {
 			text = lang(channel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
 	}
-	if (_titlePeerText != text) {
-		_titlePeerText = text;
+	if (_titlePeerText.originalText() != text) {
+		_titlePeerText.setText(st::dialogsTextStyle, text);
 		_titlePeerTextOnline = titlePeerTextOnline;
-		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
 		updateMembersShowArea();
 		update();
 	}

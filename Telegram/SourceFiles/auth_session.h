@@ -21,6 +21,7 @@ enum class InputSubmitSettings;
 
 namespace Support {
 enum class SwitchSettings;
+class Helper;
 class Templates;
 } // namespace Support
 
@@ -301,7 +302,8 @@ public:
 	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 
 	bool supportMode() const;
-	not_null<Support::Templates*> supportTemplates() const;
+	Support::Helper &supportHelper() const;
+	Support::Templates &supportTemplates() const;
 
 	~AuthSession();
 
@@ -328,7 +330,7 @@ private:
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;
 
-	const std::unique_ptr<Support::Templates> _supportTemplates;
+	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	rpl::lifetime _lifetime;
 

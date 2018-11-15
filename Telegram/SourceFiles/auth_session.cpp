@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
 #include "support/support_common.h"
-#include "support/support_templates.h"
+#include "support/support_helper.h"
 #include "observer_peer.h"
 
 namespace {
@@ -342,9 +342,9 @@ AuthSession::AuthSession(const MTPUser &user)
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _changelogs(Core::Changelogs::Create(this))
-, _supportTemplates(
+, _supportHelper(
 	(Support::ValidateAccount(user)
-		? std::make_unique<Support::Templates>(this)
+		? std::make_unique<Support::Helper>(this)
 		: nullptr)) {
 	App::feedUser(user);
 
@@ -457,13 +457,17 @@ void AuthSession::checkAutoLockIn(TimeMs time) {
 }
 
 bool AuthSession::supportMode() const {
-	return (_supportTemplates != nullptr);
+	return (_supportHelper != nullptr);
 }
 
-not_null<Support::Templates*> AuthSession::supportTemplates() const {
+Support::Helper &AuthSession::supportHelper() const {
 	Expects(supportMode());
 
-	return _supportTemplates.get();
+	return *_supportHelper;
+}
+
+Support::Templates& AuthSession::supportTemplates() const {
+	return supportHelper().templates();
 }
 
 AuthSession::~AuthSession() = default;

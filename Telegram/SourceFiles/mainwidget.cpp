@@ -3840,13 +3840,14 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 void MainWidget::saveDraftToCloud() {
 	_history->saveFieldToHistoryLocalDraft();
 
-	auto peer = _history->peer();
-	if (auto history = App::historyLoaded(peer)) {
+	const auto peer = _history->peer();
+	if (const auto history = App::historyLoaded(peer)) {
 		writeDrafts(history);
 
-		auto localDraft = history->localDraft();
-		auto cloudDraft = history->cloudDraft();
-		if (!Data::draftsAreEqual(localDraft, cloudDraft)) {
+		const auto localDraft = history->localDraft();
+		const auto cloudDraft = history->cloudDraft();
+		if (!Data::draftsAreEqual(localDraft, cloudDraft)
+			&& !Auth().supportMode()) {
 			Auth().api().saveDraftToCloudDelayed(history);
 		}
 	}
@@ -3859,17 +3860,27 @@ void MainWidget::applyCloudDraft(History *history) {
 void MainWidget::writeDrafts(History *history) {
 	Local::MessageDraft storedLocalDraft, storedEditDraft;
 	MessageCursor localCursor, editCursor;
-	if (auto localDraft = history->localDraft()) {
-		if (!Data::draftsAreEqual(localDraft, history->cloudDraft())) {
-			storedLocalDraft = Local::MessageDraft(localDraft->msgId, localDraft->textWithTags, localDraft->previewCancelled);
+	if (const auto localDraft = history->localDraft()) {
+		if (Auth().supportMode()
+			|| !Data::draftsAreEqual(localDraft, history->cloudDraft())) {
+			storedLocalDraft = Local::MessageDraft(
+				localDraft->msgId,
+				localDraft->textWithTags,
+				localDraft->previewCancelled);
 			localCursor = localDraft->cursor;
 		}
 	}
-	if (auto editDraft = history->editDraft()) {
-		storedEditDraft = Local::MessageDraft(editDraft->msgId, editDraft->textWithTags, editDraft->previewCancelled);
+	if (const auto editDraft = history->editDraft()) {
+		storedEditDraft = Local::MessageDraft(
+			editDraft->msgId,
+			editDraft->textWithTags,
+			editDraft->previewCancelled);
 		editCursor = editDraft->cursor;
 	}
-	Local::writeDrafts(history->peer->id, storedLocalDraft, storedEditDraft);
+	Local::writeDrafts(
+		history->peer->id,
+		storedLocalDraft,
+		storedEditDraft);
 	Local::writeDraftCursors(history->peer->id, localCursor, editCursor);
 }
 

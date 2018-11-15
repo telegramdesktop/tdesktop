@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "support/support_helper.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 
@@ -50,6 +51,10 @@ Controller::Controller(not_null<MainWindow*> window)
 			startRoundVideo(item);
 		}
 	}, lifetime());
+
+	if (Auth().supportMode()) {
+		Auth().supportHelper().registerWindow(this);
+	}
 }
 
 void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {

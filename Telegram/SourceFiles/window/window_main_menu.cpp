@@ -214,13 +214,13 @@ void MainMenu::refreshMenu() {
 
 		const auto subscription = Ui::AttachAsChild(_menu, rpl::lifetime());
 		_menu->addAction(qsl("Reload templates"), [=] {
-			*subscription = Auth().supportTemplates()->errors(
+			*subscription = Auth().supportTemplates().errors(
 			) | rpl::start_with_next([=](QStringList errors) {
 				Ui::Toast::Show(errors.isEmpty()
 					? "Templates reloaded!"
 					: ("Errors:\n\n" + errors.join("\n\n")));
 			});
-			Auth().supportTemplates()->reload();
+			Auth().supportTemplates().reload();
 		}, &st::mainMenuReload, &st::mainMenuReloadOver);
 	}
 	_menu->addAction(lang(lng_menu_settings), [] {

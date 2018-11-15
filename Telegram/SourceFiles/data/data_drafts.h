@@ -47,11 +47,12 @@ inline bool draftStringIsEmpty(const QString &text) {
 	return true;
 }
 
-inline bool draftIsNull(Draft *draft) {
-	return !draft || (draftStringIsEmpty(draft->textWithTags.text) && !draft->msgId);
+inline bool draftIsNull(const Draft *draft) {
+	return !draft
+		|| (draftStringIsEmpty(draft->textWithTags.text) && !draft->msgId);
 }
 
-inline bool draftsAreEqual(Draft *a, Draft *b) {
+inline bool draftsAreEqual(const Draft *a, const Draft *b) {
 	bool aIsNull = draftIsNull(a);
 	bool bIsNull = draftIsNull(b);
 	if (aIsNull) {
@@ -60,7 +61,9 @@ inline bool draftsAreEqual(Draft *a, Draft *b) {
 		return false;
 	}
 
-	return (a->textWithTags == b->textWithTags) && (a->msgId == b->msgId) && (a->previewCancelled == b->previewCancelled);
+	return (a->textWithTags == b->textWithTags)
+		&& (a->msgId == b->msgId)
+		&& (a->previewCancelled == b->previewCancelled);
 }
 
 } // namespace Data

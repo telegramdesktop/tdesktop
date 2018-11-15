@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "lang/lang_keys.h"
+#include "support/support_helper.h"
 #include "history/history_item.h"
 #include "history/history.h"
 
@@ -173,6 +174,11 @@ void paintRow(
 		TimeMs ms,
 		PaintItemCallback &&paintItemCallback,
 		PaintCounterCallback &&paintCounterCallback) {
+	const auto supportMode = Auth().supportMode();
+	if (supportMode) {
+		draft = nullptr;
+	}
+
 	auto active = (flags & Flag::Active);
 	auto selected = (flags & Flag::Selected);
 	auto fullRect = QRect(0, 0, fullWidth, st::dialogsRowHeight);
@@ -250,7 +256,7 @@ void paintRow(
 	auto texttop = st::dialogsPadding.y()
 		+ st::msgNameFont->height
 		+ st::dialogsSkip;
-	if (draft) {
+	if (draft || (supportMode && Support::IsOccupiedBySomeone(history))) {
 		if (!promoted) {
 			paintRowDate(p, date, rectForName, active, selected);
 		}
@@ -267,7 +273,9 @@ void paintRow(
 		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
-				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
+				auto draftText = supportMode
+					? textcmdLink(1, Support::ChatOccupiedString())
+					: lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
 				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, Ui::DialogTextOptions());
 			}
 			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));

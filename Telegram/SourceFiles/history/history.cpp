@@ -348,12 +348,14 @@ void History::takeLocalDraft(History *from) {
 
 void History::createLocalDraftFromCloud() {
 	auto draft = cloudDraft();
-	if (Data::draftIsNull(draft) || !draft->date) {
+	if (Data::draftIsNull(draft) || !draft->date || Auth().supportMode()) {
 		return;
 	}
 
 	auto existing = localDraft();
-	if (Data::draftIsNull(existing) || !existing->date || draft->date >= existing->date) {
+	if (Data::draftIsNull(existing)
+		|| !existing->date
+		|| draft->date >= existing->date) {
 		if (!existing) {
 			setLocalDraft(std::make_unique<Data::Draft>(
 				draft->textWithTags,
@@ -376,7 +378,7 @@ void History::setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
 	cloudDraftTextCache.clear();
 }
 
-Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
+Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 	if (Data::draftIsNull(fromDraft)) {
 		setCloudDraft(std::make_unique<Data::Draft>(
 			TextWithTags(),
@@ -1830,7 +1832,7 @@ std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
 TimeId History::adjustChatListTimeId() const {
 	const auto result = chatsListTimeId();
 	if (const auto draft = cloudDraft()) {
-		if (!Data::draftIsNull(draft)) {
+		if (!Data::draftIsNull(draft) && !Auth().supportMode()) {
 			return std::max(result, draft->date);
 		}
 	}

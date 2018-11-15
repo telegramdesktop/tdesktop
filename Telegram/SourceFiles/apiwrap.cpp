@@ -2193,7 +2193,11 @@ void ApiWrap::saveDraftsToCloud() {
 		if (cloudDraft && cloudDraft->saveRequestId) {
 			request(base::take(cloudDraft->saveRequestId)).cancel();
 		}
-		cloudDraft = history->createCloudDraft(localDraft);
+		if (!Auth().supportMode()) {
+			cloudDraft = history->createCloudDraft(localDraft);
+		} else if (!cloudDraft) {
+			cloudDraft = history->createCloudDraft(nullptr);
+		}
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;

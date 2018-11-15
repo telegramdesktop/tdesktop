@@ -124,7 +124,8 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	auto changes = UpdateFlag::ChatPinnedChanged
 		| UpdateFlag::NameChanged
 		| UpdateFlag::PhotoChanged
-		| UpdateFlag::UserIsContact;
+		| UpdateFlag::UserIsContact
+		| UpdateFlag::OccupiedChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::ChatPinnedChanged) {
 			stopReorderPinned();
@@ -132,7 +133,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		if (update.flags & UpdateFlag::NameChanged) {
 			handlePeerNameChange(update.peer, update.oldNameFirstLetters);
 		}
-		if (update.flags & UpdateFlag::PhotoChanged) {
+		if (update.flags & (UpdateFlag::PhotoChanged | UpdateFlag::OccupiedChanged)) {
 			this->update();
 			emit App::main()->dialogsUpdated();
 		}
