@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <pwd.h>
 
 #include <iostream>
+#include <QProcess>
+#include <QVersionNumber>
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -46,8 +48,6 @@ bool RunShellCommand(const QByteArray &command) {
 
 void FallbackFontConfig() {
 #ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
-	const auto path = cWorkingDir() + "tdata/fc-version-check.txt";
-	const auto escaped = EscapeShell(QFile::encodeName(path));
 	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
 	const auto finish = gsl::finally([&] {
 		if (QFile(custom).exists()) {
@@ -56,37 +56,31 @@ void FallbackFontConfig() {
 		}
 	});
 
-	const auto command = "fc-list --version > " + escaped + " 2> " + escaped;
-	if (!RunShellCommand(command)) {
-		LOG(("App Error: Could not run '%1'").arg(QString::fromLatin1(command)));
-		return;
-	} else if (!QFile::exists(path)) {
-		LOG(("App Error: Could not find fc-list --version output from: ") + path);
-		return;
-	}
-	QFile output(path);
-	if (!output.open(QIODevice::ReadOnly)) {
-		LOG(("App Error: Could not open fc-list --version output from: ") + path);
+	QProcess process;
+	process.setProcessChannelMode(QProcess::MergedChannels);
+	process.start("fc-list", QStringList() << "--version");
+	process.waitForFinished();
+	if (process.exitCode() > 0) {
+		LOG(("App Error: Could not start fc-list. Process exited with code: %1.").arg(process.exitCode()));
 		return;
 	}
-	const auto result = QString::fromLatin1(output.readAll());
-	LOG(("Fontconfig version string: ") + result);
-	const auto regex = QRegularExpression(
-		"version\\s+(\\d+)\\.(\\d+)",
-		QRegularExpression::CaseInsensitiveOption);
-	const auto match = regex.match(result);
-	if (!match.hasMatch()) {
-		LOG(("App Error: Could not read fc-list --version output from: ") + path);
+
+	QString result(process.readAllStandardOutput());
+	DEBUG_LOG(("Fontconfig version string: ") + result);
+
+	QVersionNumber version = QVersionNumber::fromString(result.split("version ").last());
+	if (version.isNull()) {
+		LOG(("App Error: Could not get version from fc-list output."));
 		return;
 	}
-	const auto major = match.capturedRef(1).toInt();
-	const auto minor = match.capturedRef(2).toInt();
-	LOG(("Fontconfig version: %1.%2").arg(major).arg(minor));
-	if (major <= 2 && (major != 2 || minor <= 12)) {
+
+	LOG(("Fontconfig version: %1.").arg(version.toString()));
+	if (version < QVersionNumber::fromString("2.13")) {
 		if (qgetenv("TDESKTOP_FORCE_CUSTOM_FONTCONFIG").isEmpty()) {
 			return;
 		}
 	}
+
 	QFile(":/fc/fc-custom.conf").copy(custom);
 #endif // TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 }
