@@ -98,6 +98,7 @@ public:
 
 	QString title() override;
 	LangKey optionsTitleKey() override;
+	LangKey optionLabelKey(EditPrivacyBox::Option option) override;
 	rpl::producer<QString> warning() override;
 	LangKey exceptionButtonTextKey(Exception exception) override;
 	QString exceptionBoxTitle(Exception exception) override;

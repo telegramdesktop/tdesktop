@@ -44,17 +44,33 @@ rpl::producer<> PasscodeChanges() {
 	));
 }
 
-QString PrivacyBase(ApiWrap::Privacy::Option option) {
-	const auto key = [&] {
+QString PrivacyBase(
+		ApiWrap::Privacy::Key key,
+		ApiWrap::Privacy::Option option) {
+	const auto phrase = [&] {
+		using Key = ApiWrap::Privacy::Key;
 		using Option = ApiWrap::Privacy::Option;
-		switch (option) {
-		case Option::Everyone: return lng_edit_privacy_everyone;
-		case Option::Contacts: return lng_edit_privacy_contacts;
-		case Option::Nobody: return lng_edit_privacy_nobody;
+		switch (key) {
+		case Key::CallsPeer2Peer:
+			switch (option) {
+			case Option::Everyone:
+				return lng_edit_privacy_calls_p2p_everyone;
+			case Option::Contacts:
+				return lng_edit_privacy_calls_p2p_contacts;
+			case Option::Nobody:
+				return lng_edit_privacy_calls_p2p_nobody;
+			}
+			Unexpected("Value in Privacy::Option.");
+		default:
+			switch (option) {
+			case Option::Everyone: return lng_edit_privacy_everyone;
+			case Option::Contacts: return lng_edit_privacy_contacts;
+			case Option::Nobody: return lng_edit_privacy_nobody;
+			}
+			Unexpected("Value in Privacy::Option.");
 		}
-		Unexpected("Value in Privacy::Option.");
 	}();
-	return lang(key);
+	return lang(phrase);
 }
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
@@ -84,7 +100,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		Auth().api().reloadPrivacy(key);
 		return Auth().api().privacyValue(
 			key
-		) | rpl::map([](const Privacy &value) {
+		) | rpl::map([=](const Privacy &value) {
 			auto add = QStringList();
 			if (const auto never = value.never.size()) {
 				add.push_back("-" + QString::number(never));
@@ -93,9 +109,10 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 				add.push_back("+" + QString::number(always));
 			}
 			if (!add.isEmpty()) {
-				return PrivacyBase(value.option) + " (" + add.join(", ") + ")";
+				return PrivacyBase(key, value.option)
+					+ " (" + add.join(", ") + ")";
 			} else {
-				return PrivacyBase(value.option);
+				return PrivacyBase(key, value.option);
 			}
 		});
 	};

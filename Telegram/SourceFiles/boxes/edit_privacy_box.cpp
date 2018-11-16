@@ -83,6 +83,15 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
+LangKey EditPrivacyBox::Controller::optionLabelKey(Option option) {
+	switch (option) {
+	case Option::Everyone: return lng_edit_privacy_everyone;
+	case Option::Contacts: return lng_edit_privacy_contacts;
+	case Option::Nobody: return lng_edit_privacy_nobody;
+	}
+	Unexpected("Option value in optionsLabelKey.");
+}
+
 EditPrivacyBox::EditPrivacyBox(
 	QWidget*,
 	std::unique_ptr<Controller> controller,
@@ -182,29 +191,21 @@ bool EditPrivacyBox::showExceptionLink(Exception exception) const {
 	Unexpected("Invalid exception value.");
 }
 
-Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::AddOption(
+Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::addOption(
 		not_null<Ui::VerticalLayout*> container,
 		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
 		Option option) {
-	const auto label = [&] {
-		switch (option) {
-		case Option::Everyone: return lng_edit_privacy_everyone;
-		case Option::Contacts: return lng_edit_privacy_contacts;
-		case Option::Nobody: return lng_edit_privacy_nobody;
-		}
-		Unexpected("Option value in EditPrivacyBox::AddOption.");
-	}();
 	return container->add(
 		object_ptr<Ui::Radioenum<Option>>(
 			container,
 			group,
 			option,
-			lang(label),
+			lang(_controller->optionLabelKey(option)),
 			st::settingsSendType),
 		st::settingsSendTypePadding);
 }
 
-Ui::FlatLabel *EditPrivacyBox::AddLabel(
+Ui::FlatLabel *EditPrivacyBox::addLabel(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text) {
 	const auto wrap = container->add(
@@ -244,9 +245,9 @@ void EditPrivacyBox::setupContent() {
 		toggle->fire({});
 	});
 
-	const auto addOption = [&](Option option) {
+	const auto addOptionRow = [&](Option option) {
 		return (_controller->hasOption(option) || (_value.option == option))
-			? AddOption(content, group, option)
+			? addOption(content, group, option)
 			: nullptr;
 	};
 	const auto addExceptionLink = [=](Exception exception) {
@@ -286,10 +287,10 @@ void EditPrivacyBox::setupContent() {
 	};
 
 	AddSubsectionTitle(content, _controller->optionsTitleKey());
-	addOption(Option::Everyone);
-	addOption(Option::Contacts);
-	addOption(Option::Nobody);
-	AddLabel(content, _controller->warning());
+	addOptionRow(Option::Everyone);
+	addOptionRow(Option::Contacts);
+	addOptionRow(Option::Nobody);
+	addLabel(content, _controller->warning());
 	AddSkip(content);
 
 	AddDivider(content);
@@ -297,7 +298,7 @@ void EditPrivacyBox::setupContent() {
 	AddSubsectionTitle(content, lng_edit_privacy_exceptions);
 	const auto always = addExceptionLink(Exception::Always);
 	const auto never = addExceptionLink(Exception::Never);
-	AddLabel(content, _controller->exceptionsDescription());
+	addLabel(content, _controller->exceptionsDescription());
 	AddSkip(content);
 
 	addButton(langFactory(lng_settings_save), [=] {

@@ -601,6 +601,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_calls_p2p_always_title" = "Always allow";
 "lng_edit_privacy_calls_p2p_never_title" = "Never allow";
 
+"lng_edit_privacy_calls_p2p_everyone" = "Everybody";
+"lng_edit_privacy_calls_p2p_contacts" = "My contacts";
+"lng_edit_privacy_calls_p2p_nobody" = "Nobody";
+
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
 "lng_self_destruct_months#one" = "{count} month";

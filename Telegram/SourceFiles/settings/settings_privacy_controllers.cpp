@@ -384,6 +384,16 @@ LangKey CallsPeer2PeerPrivacyController::optionsTitleKey() {
 	return lng_edit_privacy_calls_p2p_header;
 }
 
+LangKey CallsPeer2PeerPrivacyController::optionLabelKey(
+		EditPrivacyBox::Option option) {
+	switch (option) {
+		case Option::Everyone: return lng_edit_privacy_calls_p2p_everyone;
+		case Option::Contacts: return lng_edit_privacy_calls_p2p_contacts;
+		case Option::Nobody: return lng_edit_privacy_calls_p2p_nobody;
+	}
+	Unexpected("Option value in optionsLabelKey.");
+}
+
 rpl::producer<QString> CallsPeer2PeerPrivacyController::warning() {
 	return Lang::Viewer(lng_settings_peer_to_peer_about);
 }
