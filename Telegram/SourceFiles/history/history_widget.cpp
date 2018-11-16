@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_results_widget.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
+#include "core/shortcuts.h"
 #include "support/support_common.h"
 #include "support/support_autocomplete.h"
 #include "dialogs/dialogs_key.h"
@@ -778,6 +779,7 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	orderWidgets();
+	setupShortcuts();
 }
 
 void HistoryWidget::supportInitAutocomplete() {
@@ -1582,17 +1584,30 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 	}
 }
 
-bool HistoryWidget::cmd_search() {
-	if (!inFocusChain() || !_history) return false;
-
-	App::main()->searchInChat(_history);
-	return true;
+void HistoryWidget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		if (isActiveWindow() && !Ui::isLayerShown() && _history) {
+			if (inFocusChain()) {
+				request->check(Command::Search) && request->handle([=] {
+					App::main()->searchInChat(_history);
+					return true;
+				});
+			}
+			request->check(Command::ChatPrevious) && request->handle([=] {
+				return showPreviousChat();
+			});
+			request->check(Command::ChatNext) && request->handle([=] {
+				return showNextChat();
+			});
+		}
+	}, lifetime());
 }
 
-bool HistoryWidget::cmd_next_chat() {
-	if (!_history) {
-		return false;
-	}
+bool HistoryWidget::showNextChat() {
+	Expects(_history != nullptr);
+
 	const auto next = App::main()->chatListEntryAfter(
 		Dialogs::RowDescriptor(
 			_history,
@@ -1611,10 +1626,9 @@ bool HistoryWidget::cmd_next_chat() {
 	return jumpToDialogRow(to);
 }
 
-bool HistoryWidget::cmd_previous_chat() {
-	if (!_history) {
-		return false;
-	}
+bool HistoryWidget::showPreviousChat() {
+	Expects(_history != nullptr);
+
 	const auto previous = App::main()->chatListEntryBefore(
 		Dialogs::RowDescriptor(
 			_history,

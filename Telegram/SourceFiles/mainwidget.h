@@ -314,10 +314,6 @@ public:
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_historyMuteUpdated(History *history);
 
-	bool cmd_search();
-	bool cmd_next_chat();
-	bool cmd_previous_chat();
-
 	~MainWidget();
 
 signals:

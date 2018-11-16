@@ -65,6 +65,9 @@
   <qresource prefix="/qt-project.org">
     <file>qmime/freedesktop.org.xml</file>
   </qresource>
+  <qresource prefix="/misc">
+    <file alias="default_shortcuts-custom.json">../default_shortcuts-custom.json</file>
+  </qresource>
   <qresource prefix="/langs">
     <file alias="lang_it.strings">../langs/lang_it.strings</file>
     <file alias="lang_es.strings">../langs/lang_es.strings</file>

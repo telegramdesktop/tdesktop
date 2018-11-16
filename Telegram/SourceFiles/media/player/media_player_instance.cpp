@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_media_types.h"
 #include "window/window_controller.h"
+#include "core/shortcuts.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "auth_session.h"
@@ -75,6 +76,8 @@ Instance::Instance()
 		Messenger::Instance().authSessionChanged(),
 		handleAuthSessionChange);
 	handleAuthSessionChange();
+
+	setupShortcuts();
 }
 
 AudioMsgId::Type Instance::getActiveType() const {
@@ -492,6 +495,37 @@ void Instance::handleLogout() {
 	reset(AudioMsgId::Type::Voice);
 	reset(AudioMsgId::Type::Song);
 	_usePanelPlayer.notify(false, true);
+}
+
+void Instance::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::MediaPlay) && request->handle([=] {
+			play();
+			return true;
+		});
+		request->check(Command::MediaPause) && request->handle([=] {
+			pause();
+			return true;
+		});
+		request->check(Command::MediaPlayPause) && request->handle([=] {
+			playPause();
+			return true;
+		});
+		request->check(Command::MediaStop) && request->handle([=] {
+			stop();
+			return true;
+		});
+		request->check(Command::MediaPrevious) && request->handle([=] {
+			previous();
+			return true;
+		});
+		request->check(Command::MediaNext) && request->handle([=] {
+			next();
+			return true;
+		});
+	}, _lifetime);
 }
 
 } // namespace Player

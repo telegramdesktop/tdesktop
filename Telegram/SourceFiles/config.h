@@ -68,8 +68,6 @@ enum {
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
 
-	ShortcutsCountLimit = 256, // how many shortcuts can be in json file
-
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,

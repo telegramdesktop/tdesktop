@@ -87,8 +87,6 @@ public:
 
 	void applyFilter(FilterValue &&value);
 
-	bool cmd_search() override;
-
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -104,6 +102,7 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<SectionMemento*> memento);
 	void restoreState(not_null<SectionMemento*> memento);
+	void setupShortcuts();
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;

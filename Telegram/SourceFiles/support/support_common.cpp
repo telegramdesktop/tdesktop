@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "support/support_common.h"
 
-#include "shortcuts.h"
+#include "core/shortcuts.h"
 
 namespace Support {
 
@@ -36,10 +36,10 @@ Qt::KeyboardModifiers SkipSwitchModifiers() {
 void PerformSwitch(SwitchSettings value) {
 	switch (value) {
 	case SwitchSettings::Next:
-		Shortcuts::launch("next_chat");
+		Shortcuts::Launch(Shortcuts::Command::ChatNext);
 		break;
 	case SwitchSettings::Previous:
-		Shortcuts::launch("previous_chat");
+		Shortcuts::Launch(Shortcuts::Command::ChatPrevious);
 		break;
 	default:
 		break;

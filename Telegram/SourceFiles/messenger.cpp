@@ -12,13 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/timer.h"
 #include "core/update_checker.h"
+#include "core/shortcuts.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "application.h"
-#include "shortcuts.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "calls/calls_instance.h"
@@ -143,8 +143,7 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	DEBUG_LOG(("Application Info: window created..."));
 
-	Shortcuts::start();
-
+	startShortcuts();
 	App::initMedia();
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
@@ -172,11 +171,8 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	_window->updateIsActive(Global::OnlineFocusTimeout());
 
-	if (!Shortcuts::errors().isEmpty()) {
-		const QStringList &errors(Shortcuts::errors());
-		for (QStringList::const_iterator i = errors.cbegin(), e = errors.cend(); i != e; ++i) {
-			LOG(("Shortcuts Error: %1").arg(*i));
-		}
+	for (const auto &error : Shortcuts::Errors()) {
+		LOG(("Shortcuts Error: %1").arg(error));
 	}
 }
 
@@ -252,8 +248,10 @@ bool Messenger::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::Shortcut: {
-		DEBUG_LOG(("Shortcut event caught: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
-		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
+		const auto event = static_cast<QShortcutEvent*>(e);
+		DEBUG_LOG(("Shortcut event caught: %1"
+			).arg(event->key().toString()));
+		if (Shortcuts::HandleEvent(event)) {
 			return true;
 		}
 	} break;
@@ -1039,7 +1037,7 @@ Messenger::~Messenger() {
 	_mtproto.reset();
 	_mtprotoForKeysDestroy.reset();
 
-	Shortcuts::finish();
+	Shortcuts::Finish();
 
 	Ui::Emoji::Clear();
 
@@ -1216,4 +1214,30 @@ void Messenger::quitDelayed() {
 		_private->quitTimer.setCallback([] { QCoreApplication::quit(); });
 		_private->quitTimer.callOnce(kQuitPreventTimeoutMs);
 	}
+}
+
+void Messenger::startShortcuts() {
+	Shortcuts::Start();
+
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Quit) && request->handle([] {
+			App::quit();
+			return true;
+		});
+		request->check(Command::Lock) && request->handle([=] {
+			if (!passcodeLocked() && Global::LocalPasscode()) {
+				lockByPasscode();
+				return true;
+			}
+			return false;
+		});
+		request->check(Command::Minimize) && request->handle([=] {
+			return minimizeActiveWindow();
+		});
+		request->check(Command::Close) && request->handle([=] {
+			return closeActiveWindow();
+		});
+	}, _lifetime);
 }

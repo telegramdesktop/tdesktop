@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
-#include "shortcuts.h"
+#include "core/shortcuts.h"
 #include "messenger.h"
 #include "auth_session.h"
 #include "application.h"

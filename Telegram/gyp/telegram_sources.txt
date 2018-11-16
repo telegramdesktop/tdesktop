@@ -122,6 +122,8 @@
 <(src_loc)/core/media_active_cache.h
 <(src_loc)/core/mime_type.cpp
 <(src_loc)/core/mime_type.h
+<(src_loc)/core/shortcuts.cpp
+<(src_loc)/core/shortcuts.h
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
 <(src_loc)/core/tl_help.h
@@ -766,8 +768,6 @@
 <(src_loc)/qt_static_plugins.cpp
 <(src_loc)/settings.cpp
 <(src_loc)/settings.h
-<(src_loc)/shortcuts.cpp
-<(src_loc)/shortcuts.h
 <(emoji_suggestions_loc)/emoji_suggestions.cpp
 <(emoji_suggestions_loc)/emoji_suggestions.h
 

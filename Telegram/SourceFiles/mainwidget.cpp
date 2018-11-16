@@ -61,7 +61,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/download_path_box.h"
 #include "boxes/connection_box.h"
 #include "storage/localstorage.h"
-#include "shortcuts.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
@@ -79,6 +78,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
 #include "core/update_checker.h"
+#include "core/shortcuts.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "export/export_settings.h"
@@ -619,24 +619,6 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 
 void MainWidget::notify_historyMuteUpdated(History *history) {
 	_dialogs->notify_historyMuteUpdated(history);
-}
-
-bool MainWidget::cmd_search() {
-	if (Ui::isLayerShown() || !isActiveWindow()) return false;
-	if (_mainSection) {
-		return _mainSection->cmd_search();
-	}
-	return _history->cmd_search();
-}
-
-bool MainWidget::cmd_next_chat() {
-	if (Ui::isLayerShown() || !isActiveWindow()) return false;
-	return _history->cmd_next_chat();
-}
-
-bool MainWidget::cmd_previous_chat() {
-	if (Ui::isLayerShown() || !isActiveWindow()) return false;
-	return _history->cmd_previous_chat();
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1208,7 +1190,7 @@ void MainWidget::closeBothPlayers() {
 	Media::Player::instance()->stop(AudioMsgId::Type::Voice);
 	Media::Player::instance()->stop(AudioMsgId::Type::Song);
 
-	Shortcuts::disableMediaShortcuts();
+	Shortcuts::DisableMediaShortcuts();
 }
 
 void MainWidget::createPlayer() {
@@ -1230,7 +1212,7 @@ void MainWidget::createPlayer() {
 		if (_a_show.animating()) {
 			_player->show(anim::type::instant);
 			_player->setVisible(false);
-			Shortcuts::enableMediaShortcuts();
+			Shortcuts::EnableMediaShortcuts();
 		} else {
 			_player->hide(anim::type::instant);
 		}
@@ -1240,7 +1222,7 @@ void MainWidget::createPlayer() {
 			_player->show(anim::type::normal);
 			_playerHeight = _contentScrollAddToY = _player->contentHeight();
 			updateControlsGeometry();
-			Shortcuts::enableMediaShortcuts();
+			Shortcuts::EnableMediaShortcuts();
 		}
 	}
 }

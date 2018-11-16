@@ -354,10 +354,6 @@ public:
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
 
-	bool cmd_search();
-	bool cmd_next_chat();
-	bool cmd_previous_chat();
-
 	~HistoryWidget();
 
 protected:
@@ -569,6 +565,10 @@ private:
 		return _editMsgId != 0;
 	}
 	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
+
+	void setupShortcuts();
+	bool showNextChat();
+	bool showPreviousChat();
 
 	MsgId _replyToId = 0;
 	Text _replyToName;

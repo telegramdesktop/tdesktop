@@ -220,6 +220,7 @@ public slots:
 private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void startLocalStorage();
+	void startShortcuts();
 
 	friend void App::quit();
 	static void QuitAttempt();
@@ -276,5 +277,7 @@ private:
 		rpl::lifetime subscription;
 	};
 	std::vector<LeaveSubscription> _leaveSubscriptions;
+
+	rpl::lifetime _lifetime;
 
 };
