@@ -406,7 +406,7 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 	reserveItemsForSize(chat->participants.size());
 	addUser(chat, Auth().user())->onlineForSort
 		= std::numeric_limits<TimeId>::max();
-	for (auto [user, v] : chat->participants) {
+	for (const auto &[user, v] : chat->participants) {
 		if (!user->isSelf()) {
 			addUser(chat, user);
 		}

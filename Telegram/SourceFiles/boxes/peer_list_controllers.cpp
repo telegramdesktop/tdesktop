@@ -656,7 +656,7 @@ void EditChatAdminsBoxController::rebuildRows() {
 	admins.reserve(allAdmins ? _chat->participants.size() : _chat->admins.size());
 	others.reserve(_chat->participants.size());
 
-	for (auto [user, version] : _chat->participants) {
+	for (const auto [user, version] : _chat->participants) {
 		if (user->id == peerFromUser(_chat->creator)) continue;
 		if (_chat->admins.contains(user)) {
 			admins.push_back(user);

@@ -91,3 +91,31 @@ TEST_CASE("flat_maps custom comparator", "[flat_map]") {
 		checkSorted();
 	}
 }
+
+TEST_CASE("flat_maps structured bindings", "[flat_map]") {
+	base::flat_map<int, std::unique_ptr<double>> v;
+	v.emplace(0, std::make_unique<double>(0.));
+	v.emplace(1, std::make_unique<double>(1.));
+
+	SECTION("structred binded range-based for loop") {
+		for (const auto &[key, value] : v) {
+			REQUIRE(key == int(std::round(*value)));
+		}
+	}
+
+	SECTION("non-const structured binded range-based for loop") {
+		base::flat_map<int, int> second = {
+			{ 1, 1 },
+			{ 2, 2 },
+			{ 2, 3 },
+			{ 3, 3 },
+		};
+		REQUIRE(second.size() == 3);
+		//for (auto [a, b] : second) { // #MSVC Bug, reported
+		//	REQUIRE(a == b);
+		//}
+		for (const auto [a, b] : second) {
+			REQUIRE(a == b);
+		}
+	}
+}
