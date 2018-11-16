@@ -26,6 +26,12 @@ enum class Command {
 
 	ChatPrevious,
 	ChatNext,
+	ChatFirst,
+	ChatLast,
+
+	SupportReloadTemplates,
+	SupportToggleMuted,
+	SupportScrollToCurrent,
 };
 
 bool Launch(Command command);

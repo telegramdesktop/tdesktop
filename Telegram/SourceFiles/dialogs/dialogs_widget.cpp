@@ -1450,18 +1450,8 @@ void DialogsWidget::destroyData() {
 	_inner->destroyData();
 }
 
-Dialogs::RowDescriptor DialogsWidget::chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const {
-	return _inner->chatListEntryBefore(which);
-}
-
-Dialogs::RowDescriptor DialogsWidget::chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const {
-	return _inner->chatListEntryAfter(which);
-}
-
-void DialogsWidget::scrollToPeer(not_null<History*> history, MsgId msgId) {
-	_inner->scrollToPeer(history, msgId);
+void DialogsWidget::scrollToEntry(const Dialogs::RowDescriptor &entry) {
+	_inner->scrollToEntry(entry);
 }
 
 void DialogsWidget::removeDialog(Dialogs::Key key) {

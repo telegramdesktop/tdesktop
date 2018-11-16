@@ -322,14 +322,14 @@ void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> m
 
 void Widget::setupShortcuts() {
 	Shortcuts::Requests(
-	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	) | rpl::filter([=] {
+		return isActiveWindow() && !Ui::isLayerShown() && inFocusChain();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		if (isActiveWindow() && !Ui::isLayerShown() && inFocusChain()) {
-			request->check(Command::Search, 1) && request->handle([=] {
-				_fixedBar->showSearch();
-				return true;
-			});
-		}
+		request->check(Command::Search, 1) && request->handle([=] {
+			_fixedBar->showSearch();
+			return true;
+		});
 	}, lifetime());
 }
 

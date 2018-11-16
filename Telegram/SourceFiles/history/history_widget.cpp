@@ -1586,80 +1586,25 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 
 void HistoryWidget::setupShortcuts() {
 	Shortcuts::Requests(
-	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	) | rpl::filter([=] {
+		return isActiveWindow() && !Ui::isLayerShown() && inFocusChain();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		if (isActiveWindow() && !Ui::isLayerShown() && _history) {
-			if (inFocusChain()) {
-				request->check(Command::Search) && request->handle([=] {
-					App::main()->searchInChat(_history);
+		if (_history) {
+			request->check(Command::Search) && request->handle([=] {
+				App::main()->searchInChat(_history);
+				return true;
+			});
+			if (Auth().supportMode()) {
+				request->check(
+					Command::SupportToggleMuted
+				) && request->handle([=] {
+					onMuteUnmute();
 					return true;
 				});
 			}
-			request->check(Command::ChatPrevious) && request->handle([=] {
-				return showPreviousChat();
-			});
-			request->check(Command::ChatNext) && request->handle([=] {
-				return showNextChat();
-			});
 		}
 	}, lifetime());
-}
-
-bool HistoryWidget::showNextChat() {
-	Expects(_history != nullptr);
-
-	const auto next = App::main()->chatListEntryAfter(
-		Dialogs::RowDescriptor(
-			_history,
-			FullMsgId(_history->channelId(), std::max(_showAtMsgId, 0))));
-	const auto to = [&] {
-		auto result = next;
-		if (Auth().supportMode()) {
-			while (result.key
-				&& !result.key.entry()->chatListUnreadCount()
-				&& !result.key.entry()->chatListUnreadMark()) {
-				result = App::main()->chatListEntryAfter(result);
-			}
-		}
-		return result;
-	}();
-	return jumpToDialogRow(to);
-}
-
-bool HistoryWidget::showPreviousChat() {
-	Expects(_history != nullptr);
-
-	const auto previous = App::main()->chatListEntryBefore(
-		Dialogs::RowDescriptor(
-			_history,
-			FullMsgId(_history->channelId(), std::max(_showAtMsgId, 0))));
-	const auto to = [&] {
-		auto result = previous;
-		if (Auth().supportMode()) {
-			while (result.key
-				&& !result.key.entry()->chatListUnreadCount()
-				&& !result.key.entry()->chatListUnreadMark()) {
-				result = App::main()->chatListEntryBefore(result);
-			}
-		}
-		return result;
-	}();
-	return jumpToDialogRow(to);
-}
-
-bool HistoryWidget::jumpToDialogRow(const Dialogs::RowDescriptor &to) {
-	if (const auto history = to.key.history()) {
-		Ui::showPeerHistory(history, to.fullId.msg);
-		return true;
-	} else if (const auto feed = to.key.feed()) {
-		if (const auto item = App::histItemById(to.fullId)) {
-			controller()->showSection(
-				HistoryFeed::Memento(feed, item->position()));
-		} else {
-			controller()->showSection(HistoryFeed::Memento(feed));
-		}
-	}
-	return false;
 }
 
 void HistoryWidget::clearReplyReturns() {

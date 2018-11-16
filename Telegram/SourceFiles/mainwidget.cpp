@@ -1807,7 +1807,9 @@ void MainWidget::ui_showPeerHistory(
 	if (!_dialogs->isHidden()) {
 		if (!back) {
 			if (const auto history = _history->history()) {
-				_dialogs->scrollToPeer(history, showAtMsgId);
+				_dialogs->scrollToEntry(Dialogs::RowDescriptor(
+					history,
+					FullMsgId(history->channelId(), showAtMsgId)));
 			}
 		}
 		_dialogs->update();
@@ -1818,22 +1820,6 @@ void MainWidget::ui_showPeerHistory(
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
 	return _history->ui_getPeerForMouseAction();
-}
-
-Dialogs::RowDescriptor MainWidget::chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const {
-	if (selectingPeer()) {
-		return Dialogs::RowDescriptor();
-	}
-	return _dialogs->chatListEntryBefore(which);
-}
-
-Dialogs::RowDescriptor MainWidget::chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const {
-	if (selectingPeer()) {
-		return Dialogs::RowDescriptor();
-	}
-	return _dialogs->chatListEntryAfter(which);
 }
 
 PeerData *MainWidget::peer() {

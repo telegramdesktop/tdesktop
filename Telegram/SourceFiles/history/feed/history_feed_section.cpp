@@ -299,14 +299,14 @@ void Widget::setInternalState(
 
 void Widget::setupShortcuts() {
 	Shortcuts::Requests(
-	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	) | rpl::filter([=] {
+		return isActiveWindow() && !Ui::isLayerShown() && inFocusChain();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		if (isActiveWindow() && !Ui::isLayerShown() && inFocusChain()) {
-			request->check(Command::Search, 1) && request->handle([=] {
-				App::main()->searchInChat(_feed);
-				return true;
-			});
-		}
+		request->check(Command::Search, 1) && request->handle([=] {
+			App::main()->searchInChat(_feed);
+			return true;
+		});
 	}, lifetime());
 }
 

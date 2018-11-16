@@ -88,6 +88,8 @@ private:
 
 	std::unique_ptr<Updates> _updates;
 
+	rpl::lifetime _lifetime;
+
 };
 
 } // namespace Support

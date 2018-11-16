@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/toast/toast.h"
 #include "data/data_session.h"
+#include "core/shortcuts.h"
 #include "auth_session.h"
 
 namespace Support {
@@ -449,6 +450,16 @@ struct Templates::Updates {
 
 Templates::Templates(not_null<AuthSession*> session) : _session(session) {
 	load();
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(
+			Command::SupportReloadTemplates
+		) && request->handle([=] {
+			reload();
+			return true;
+		});
+	}, _lifetime);
 }
 
 void Templates::reload() {

@@ -137,11 +137,6 @@ public:
 		not_null<HistoryItem*> item);
 	void markActiveHistoryAsRead();
 
-	Dialogs::RowDescriptor chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const;
-
 	PeerData *peer();
 
 	int backgroundFromY() const;

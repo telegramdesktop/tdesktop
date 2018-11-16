@@ -66,12 +66,7 @@ public:
 
 	void destroyData();
 
-	Dialogs::RowDescriptor chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const;
-
-	void scrollToPeer(not_null<History*> history, MsgId msgId);
+	void scrollToEntry(const Dialogs::RowDescriptor &entry);
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
@@ -191,6 +186,22 @@ private:
 		const base::flat_set<QChar> &oldLetters);
 	bool uniqueSearchResults() const;
 	bool hasHistoryInSearchResults(not_null<History*> history) const;
+
+	void setupShortcuts();
+	bool showNextChat(const Dialogs::RowDescriptor &current);
+	bool showPreviousChat(const Dialogs::RowDescriptor &current);
+	bool showFirstChat();
+	bool showLastChat();
+	bool jumpToDialogRow(
+		const Dialogs::RowDescriptor &to,
+		int skipDirection);
+
+	Dialogs::RowDescriptor chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryFirst() const;
+	Dialogs::RowDescriptor chatListEntryLast() const;
 
 	void applyDialog(const MTPDdialog &dialog);
 //	void applyFeedDialog(const MTPDdialogFeed &dialog); // #feed
