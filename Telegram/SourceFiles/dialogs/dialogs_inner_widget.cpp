@@ -2792,18 +2792,20 @@ void DialogsInner::setupShortcuts() {
 		}
 		const auto row = _controller->activeChatEntryCurrent();
 		if (row.key) {
+			const auto prev = computeJump(chatListEntryBefore(row), -1);
+			const auto next = computeJump(chatListEntryAfter(row), 1);
 			request->check(Command::ChatPrevious) && request->handle([=] {
-				return showPreviousChat(row);
+				return jumpToDialogRow(prev);
 			});
 			request->check(Command::ChatNext) && request->handle([=] {
-				return showNextChat(row);
+				return jumpToDialogRow(next);
 			});
 		}
 		request->check(Command::ChatFirst) && request->handle([=] {
-			return showFirstChat();
+			return jumpToDialogRow(computeJump(chatListEntryFirst(), 1));
 		});
 		request->check(Command::ChatLast) && request->handle([=] {
-			return showLastChat();
+			return jumpToDialogRow(computeJump(chatListEntryLast(), -1));
 		});
 		if (Auth().supportMode() && row.key.history()) {
 			request->check(
@@ -2816,43 +2818,28 @@ void DialogsInner::setupShortcuts() {
 	}, lifetime());
 }
 
-bool DialogsInner::showNextChat(const Dialogs::RowDescriptor &current) {
-	return jumpToDialogRow(chatListEntryAfter(current), 1);
-}
-
-bool DialogsInner::showPreviousChat(const Dialogs::RowDescriptor &current) {
-	return jumpToDialogRow(chatListEntryBefore(current), -1);
-}
-
-bool DialogsInner::showFirstChat() {
-	return jumpToDialogRow(chatListEntryFirst(), 1);
-}
-
-bool DialogsInner::showLastChat() {
-	return jumpToDialogRow(chatListEntryLast(), -1);
-}
-
-bool DialogsInner::jumpToDialogRow(
+Dialogs::RowDescriptor DialogsInner::computeJump(
 		const Dialogs::RowDescriptor &to,
 		int skipDirection) {
-	const auto entry = [&] {
-		auto result = to;
-		if (Auth().supportMode()) {
-			while (result.key
-				&& !result.key.entry()->chatListUnreadCount()
-				&& !result.key.entry()->chatListUnreadMark()) {
-				result = (skipDirection > 0)
-					? chatListEntryAfter(result)
-					: chatListEntryBefore(result);
-			}
+	auto result = to;
+	if (Auth().supportMode()) {
+		while (result.key
+			&& !result.key.entry()->chatListUnreadCount()
+			&& !result.key.entry()->chatListUnreadMark()) {
+			result = (skipDirection > 0)
+				? chatListEntryAfter(result)
+				: chatListEntryBefore(result);
 		}
-		return result;
-	}();
-	if (const auto history = entry.key.history()) {
-		Ui::showPeerHistory(history, entry.fullId.msg);
+	}
+	return result;
+}
+
+bool DialogsInner::jumpToDialogRow(const Dialogs::RowDescriptor &to) {
+	if (const auto history = to.key.history()) {
+		Ui::showPeerHistory(history, to.fullId.msg);
 		return true;
-	} else if (const auto feed = entry.key.feed()) {
-		if (const auto item = App::histItemById(entry.fullId)) {
+	} else if (const auto feed = to.key.feed()) {
+		if (const auto item = App::histItemById(to.fullId)) {
 			_controller->showSection(
 				HistoryFeed::Memento(feed, item->position()));
 		} else {

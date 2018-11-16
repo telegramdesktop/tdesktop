@@ -33,17 +33,14 @@ Qt::KeyboardModifiers SkipSwitchModifiers() {
 	return Qt::ControlModifier | Qt::ShiftModifier;
 }
 
-void PerformSwitch(SwitchSettings value) {
+FnMut<bool()> GetSwitchMethod(SwitchSettings value) {
 	switch (value) {
 	case SwitchSettings::Next:
-		Shortcuts::Launch(Shortcuts::Command::ChatNext);
-		break;
+		return Shortcuts::RequestHandler(Shortcuts::Command::ChatNext);
 	case SwitchSettings::Previous:
-		Shortcuts::Launch(Shortcuts::Command::ChatPrevious);
-		break;
-	default:
-		break;
+		return Shortcuts::RequestHandler(Shortcuts::Command::ChatPrevious);
 	}
+	return nullptr;
 }
 
 } // namespace Support

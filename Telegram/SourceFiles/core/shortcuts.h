@@ -34,7 +34,7 @@ enum class Command {
 	SupportScrollToCurrent,
 };
 
-bool Launch(Command command);
+[[nodiscard]] FnMut<bool()> RequestHandler(Command command);
 
 class Request {
 public:
@@ -48,7 +48,7 @@ private:
 	int _handlerPriority = -1;
 	FnMut<bool()> _handler;
 
-	friend bool Launch(Command command);
+	friend FnMut<bool()> RequestHandler(Command command);
 
 };
 
@@ -57,6 +57,7 @@ rpl::producer<not_null<Request*>> Requests();
 void Start();
 void Finish();
 
+bool Launch(Command command);
 bool HandleEvent(not_null<QShortcutEvent*> event);
 
 const QStringList &Errors();

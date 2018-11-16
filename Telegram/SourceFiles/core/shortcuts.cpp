@@ -417,10 +417,17 @@ bool Request::handle(FnMut<bool()> handler) {
 	return true;
 }
 
-bool Launch(Command command) {
+FnMut<bool()> RequestHandler(Command command) {
 	auto request = Request(command);
 	RequestsStream.fire(&request);
-	return request._handler ? request._handler() : false;
+	return std::move(request._handler);
+}
+
+bool Launch(Command command) {
+	if (auto handler = RequestHandler(command)) {
+		return handler();
+	}
+	return false;
 }
 
 rpl::producer<not_null<Request*>> Requests() {

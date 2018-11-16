@@ -188,13 +188,10 @@ private:
 	bool hasHistoryInSearchResults(not_null<History*> history) const;
 
 	void setupShortcuts();
-	bool showNextChat(const Dialogs::RowDescriptor &current);
-	bool showPreviousChat(const Dialogs::RowDescriptor &current);
-	bool showFirstChat();
-	bool showLastChat();
-	bool jumpToDialogRow(
+	Dialogs::RowDescriptor computeJump(
 		const Dialogs::RowDescriptor &to,
 		int skipDirection);
+	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
 
 	Dialogs::RowDescriptor chatListEntryBefore(
 		const Dialogs::RowDescriptor &which) const;

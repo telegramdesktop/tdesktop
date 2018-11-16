@@ -3738,9 +3738,10 @@ void HistoryWidget::handleSupportSwitch(not_null<History*> updated) {
 	if (_history != updated || !Auth().supportMode()) {
 		return;
 	}
-	crl::on_main(this, [to = Auth().settings().supportSwitch()] {
-		Support::PerformSwitch(to);
-	});
+
+	crl::on_main(
+		this,
+		Support::GetSwitchMethod(Auth().settings().supportSwitch()));
 }
 
 void HistoryWidget::inlineBotResolveDone(
