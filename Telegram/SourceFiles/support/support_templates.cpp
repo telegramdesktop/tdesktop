@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "support/support_templates.h"
 
+#include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "auth_session.h"
 
@@ -447,10 +448,21 @@ struct Templates::Updates {
 };
 
 Templates::Templates(not_null<AuthSession*> session) : _session(session) {
-	reload();
+	load();
 }
 
 void Templates::reload() {
+	_reloadToastSubscription = errors(
+	) | rpl::start_with_next([=](QStringList errors) {
+		Ui::Toast::Show(errors.isEmpty()
+			? "Templates reloaded!"
+			: ("Errors:\n\n" + errors.join("\n\n")));
+	});
+
+	load();
+}
+
+void Templates::load() {
 	if (_reloadAfterRead) {
 		return;
 	} else if (_reading.alive() || _updates) {
@@ -465,23 +477,23 @@ void Templates::reload() {
 		result.index = ComputeIndex(result.result);
 		crl::on_main([
 			=,
-				result = std::move(result),
-				guard = std::move(guard)
+			result = std::move(result),
+			guard = std::move(guard)
 		]() mutable {
-				if (!guard.alive()) {
-					return;
+			if (!guard.alive()) {
+				return;
+			}
+			setData(std::move(result.result));
+			_index = std::move(result.index);
+			_errors.fire(std::move(result.errors));
+			crl::on_main(this, [=] {
+				if (base::take(_reloadAfterRead)) {
+					reload();
+				} else {
+					update();
 				}
-				setData(std::move(result.result));
-				_index = std::move(result.index);
-				_errors.fire(std::move(result.errors));
-				crl::on_main(this, [=] {
-					if (base::take(_reloadAfterRead)) {
-						reload();
-					} else {
-						update();
-					}
-				});
 			});
+		});
 	});
 }
 
