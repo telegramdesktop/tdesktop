@@ -170,7 +170,7 @@ void VerifyBox::setupControls(
 	}, lifetime());
 
 	_submit = [=] {
-		submit(_code->getLastText());
+		submit(_code->getDigitsOnly());
 	};
 	if (codeLength > 0) {
 		_code->setAutoSubmit(codeLength, _submit);

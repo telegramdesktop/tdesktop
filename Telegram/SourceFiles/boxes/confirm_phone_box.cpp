@@ -21,17 +21,43 @@ object_ptr<ConfirmPhoneBox> CurrentConfirmPhoneBox = { nullptr };
 
 } // namespace
 
+SentCodeField::SentCodeField(
+	QWidget *parent,
+	const style::InputField &st,
+	Fn<QString()> placeholderFactory,
+	const QString &val)
+: Ui::InputField(parent, st, std::move(placeholderFactory), val) {
+	connect(this, &Ui::InputField::changed, [this] { fix(); });
+}
+
+void SentCodeField::setAutoSubmit(int length, Fn<void()> submitCallback) {
+	_autoSubmitLength = length;
+	_submitCallback = std::move(submitCallback);
+}
+
+void SentCodeField::setChangedCallback(Fn<void()> changedCallback) {
+	_changedCallback = std::move(changedCallback);
+}
+
+QString SentCodeField::getDigitsOnly() const {
+	return QString(
+		getLastText()
+	).remove(
+		QRegularExpression("[^\\d]")
+	);
+}
+
 void SentCodeField::fix() {
 	if (_fixing) return;
 
 	_fixing = true;
 	auto newText = QString();
-	auto now = getLastText();
+	const auto now = getLastText();
 	auto oldPos = textCursor().position();
 	auto newPos = -1;
 	auto oldLen = now.size();
 	auto digitCount = 0;
-	for_const (auto ch, now) {
+	for (const auto ch : now) {
 		if (ch.isDigit()) {
 			++digitCount;
 		}
@@ -40,11 +66,12 @@ void SentCodeField::fix() {
 	if (_autoSubmitLength > 0 && digitCount > _autoSubmitLength) {
 		digitCount = _autoSubmitLength;
 	}
-	auto strict = (_autoSubmitLength > 0 && digitCount == _autoSubmitLength);
+	auto strict = (_autoSubmitLength > 0)
+		&& (digitCount == _autoSubmitLength);
 
 	newText.reserve(oldLen);
 	int i = 0;
-	for_const (auto ch, now) {
+	for (const auto ch : now) {
 		if (i++ == oldPos) {
 			newPos = newText.length();
 		}
@@ -56,14 +83,15 @@ void SentCodeField::fix() {
 			if (strict && !digitCount) {
 				break;
 			}
+		} else if (ch == '-') {
+			newText += ch;
 		}
 	}
 	if (newPos < 0) {
 		newPos = newText.length();
 	}
 	if (newText != now) {
-		now = newText;
-		setText(now);
+		setText(newText);
 		setCursorPosition(newPos);
 	}
 	_fixing = false;
@@ -76,7 +104,9 @@ void SentCodeField::fix() {
 	}
 }
 
-SentCodeCall::SentCodeCall(FnMut<void()> callCallback, Fn<void()> updateCallback)
+SentCodeCall::SentCodeCall(
+	FnMut<void()> callCallback,
+	Fn<void()> updateCallback)
 : _call(std::move(callCallback))
 , _update(std::move(updateCallback)) {
 	_timer.setCallback([=] {
@@ -220,7 +250,7 @@ void ConfirmPhoneBox::sendCode() {
 	if (_sendCodeRequestId) {
 		return;
 	}
-	auto code = _code->getLastText();
+	const auto code = _code->getDigitsOnly();
 	if (code.isEmpty()) {
 		_code->showError();
 		return;
@@ -231,7 +261,10 @@ void ConfirmPhoneBox::sendCode() {
 
 	showError(QString());
 
-	_sendCodeRequestId = MTP::send(MTPaccount_ConfirmPhone(MTP_string(_phoneHash), MTP_string(_code->getLastText())), rpcDone(&ConfirmPhoneBox::confirmDone), rpcFail(&ConfirmPhoneBox::confirmFail));
+	_sendCodeRequestId = MTP::send(
+		MTPaccount_ConfirmPhone(MTP_string(_phoneHash), MTP_string(code)),
+		rpcDone(&ConfirmPhoneBox::confirmDone),
+		rpcFail(&ConfirmPhoneBox::confirmFail));
 }
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
