@@ -3739,9 +3739,10 @@ void HistoryWidget::handleSupportSwitch(not_null<History*> updated) {
 		return;
 	}
 
-	crl::on_main(
-		this,
-		Support::GetSwitchMethod(Auth().settings().supportSwitch()));
+	const auto setting = Auth().settings().supportSwitch();
+	if (auto method = Support::GetSwitchMethod(setting)) {
+		crl::on_main(this, std::move(method));
+	}
 }
 
 void HistoryWidget::inlineBotResolveDone(
