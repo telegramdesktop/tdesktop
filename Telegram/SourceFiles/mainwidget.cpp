@@ -4578,7 +4578,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			Ui::show(Box<InformBox>(text));
 		} else {
 			Auth().data().serviceNotification(text, d.vmedia);
-			emit App::wnd()->checkNewAuthorization();
+			Auth().data().checkNewAuthorization();
 		}
 	} break;
 

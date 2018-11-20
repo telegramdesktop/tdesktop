@@ -549,6 +549,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sessions_other_header" = "Active sessions";
 "lng_sessions_other_desc" = "You can log in to Telegram from other mobile, tablet and desktop devices, using the same phone number. All your data will be instantly synchronized.";
 "lng_sessions_terminate_all" = "Terminate all other sessions";
+"lng_sessions_terminate_all_about" = "Logs out all devices except for this one.";
+"lng_sessions_incomplete" = "Incomplete login attempts";
+"lng_sessions_incomplete_about" = "The devices above have no access to your messages. The code was entered correctly, but no correct password was given.";
 
 "lng_blocked_list_title" = "Blocked users";
 "lng_blocked_list_unknown_phone" = "unknown phone number";

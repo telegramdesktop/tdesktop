@@ -423,6 +423,8 @@ public:
 	void serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media = MTP_messageMediaEmpty());
+	void checkNewAuthorization();
+	rpl::producer<> newAuthorizationChecks() const;
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -655,6 +657,8 @@ private:
 		const Passport::SavedCredentials,
 		int>;
 	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
+
+	rpl::event_stream<> _newAuthorizationChecks;
 
 	rpl::lifetime _lifetime;
 

@@ -2001,6 +2001,14 @@ void Session::serviceNotification(
 	}
 }
 
+void Session::checkNewAuthorization() {
+	_newAuthorizationChecks.fire({});
+}
+
+rpl::producer<> Session::newAuthorizationChecks() const {
+	return _newAuthorizationChecks.events();
+}
+
 void Session::insertCheckedServiceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media,

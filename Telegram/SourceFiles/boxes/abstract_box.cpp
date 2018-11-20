@@ -77,7 +77,9 @@ void BoxContent::finishPrepare() {
 void BoxContent::finishScrollCreate() {
 	Expects(_scroll != nullptr);
 
-	_scroll->show();
+	if (!_scroll->isHidden()) {
+		_scroll->show();
+	}
 	updateScrollAreaGeometry();
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
