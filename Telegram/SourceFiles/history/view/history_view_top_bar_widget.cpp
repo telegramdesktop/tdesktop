@@ -106,8 +106,7 @@ TopBarWidget::TopBarWidget(
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto flags = UpdateFlag::UserHasCalls
 		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged
-		| UpdateFlag::OccupiedChanged;
+		| UpdateFlag::MembersChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [this](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::UserHasCalls) {
 			if (update.peer->isUser()) {
@@ -334,8 +333,7 @@ void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 		p.setFont(st::dialogsTextFont);
 		if (paintConnectingState(p, nameleft, statustop, width(), ms)) {
 			return;
-		} else if (!Support::IsOccupiedBySomeone(history)
-			&& history->paintSendAction(
+		} else if (history->paintSendAction(
 				p,
 				nameleft,
 				statustop,
@@ -383,11 +381,7 @@ void TopBarWidget::paintStatus(
 		int top,
 		int availableWidth,
 		int outerWidth) {
-	const auto occupied = Auth().supportMode()
-		&& Support::IsOccupiedBySomeone(_activeChat.history());
-	p.setPen(occupied
-		? st::dialogsTextPaletteDraft.linkFg
-		: _titlePeerTextOnline
+	p.setPen(_titlePeerTextOnline
 		? st::historyStatusFgActive
 		: st::historyStatusFg);
 	_titlePeerText.drawLeftElided(p, left, top, availableWidth, outerWidth);
@@ -744,10 +738,7 @@ void TopBarWidget::updateOnlineDisplay() {
 	QString text;
 	const auto now = unixtime();
 	bool titlePeerTextOnline = false;
-	if (Auth().supportMode()
-		&& Support::IsOccupiedBySomeone(_activeChat.history())) {
-		text = Support::ChatOccupiedString();
-	} else if (const auto user = _activeChat.peer()->asUser()) {
+	if (const auto user = _activeChat.peer()->asUser()) {
 		text = Data::OnlineText(user, now);
 		titlePeerTextOnline = Data::OnlineTextActive(user, now);
 	} else if (const auto chat = _activeChat.peer()->asChat()) {

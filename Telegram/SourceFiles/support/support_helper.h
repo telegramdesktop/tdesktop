@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "support/support_templates.h"
+#include "mtproto/sender.h"
 
 class AuthSession;
 
@@ -18,7 +19,7 @@ class Controller;
 
 namespace Support {
 
-class Helper {
+class Helper : private MTP::Sender {
 public:
 	explicit Helper(not_null<AuthSession*> session);
 
@@ -27,6 +28,9 @@ public:
 
 	void chatOccupiedUpdated(not_null<History*> history);
 
+	bool isOccupiedByMe(History *history) const;
+	bool isOccupiedBySomeone(History *history) const;
+
 	Templates &templates();
 
 private:
@@ -34,11 +38,15 @@ private:
 	void updateOccupiedHistory(
 		not_null<Window::Controller*> controller,
 		History *history);
+	void setSupportName(const QString &name);
+	void occupyIfNotYet();
 	void occupyInDraft();
 	void reoccupy();
 
 	not_null<AuthSession*> _session;
 	Templates _templates;
+	QString _supportName;
+	QString _supportNameNormalized;
 
 	History *_occupiedHistory = nullptr;
 	base::Timer _reoccupyTimer;
@@ -49,8 +57,6 @@ private:
 
 };
 
-bool IsOccupiedByMe(History *history);
-bool IsOccupiedBySomeone(History *history);
-QString ChatOccupiedString();
+QString ChatOccupiedString(not_null<History*> history);
 
 } // namespace Support

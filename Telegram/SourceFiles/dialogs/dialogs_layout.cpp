@@ -256,7 +256,9 @@ void paintRow(
 	auto texttop = st::dialogsPadding.y()
 		+ st::msgNameFont->height
 		+ st::dialogsSkip;
-	if (draft || (supportMode && Support::IsOccupiedBySomeone(history))) {
+	if (draft
+		|| (supportMode
+			&& Auth().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {
 			paintRowDate(p, date, rectForName, active, selected);
 		}
@@ -274,7 +276,7 @@ void paintRow(
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
 				auto draftText = supportMode
-					? textcmdLink(1, Support::ChatOccupiedString())
+					? textcmdLink(1, Support::ChatOccupiedString(history))
 					: lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
 				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, Ui::DialogTextOptions());
 			}

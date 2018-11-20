@@ -25,13 +25,19 @@ uint32 OccupationTag() {
 	return uint32(Sandbox::UserTag() & 0xFFFFFFFFU);
 }
 
-Data::Draft OccupiedDraft() {
+QString NormalizeName(QString name) {
+	return name.replace(':', '_').replace(';', '_');
+}
+
+Data::Draft OccupiedDraft(const QString &normalizedName) {
 	const auto now = unixtime(), till = now + kOccupyFor;
 	return {
 		TextWithTags{ "t:"
 			+ QString::number(till)
 			+ ";u:"
-			+ QString::number(OccupationTag()) },
+			+ QString::number(OccupationTag())
+			+ ";n:"
+			+ normalizedName },
 		MsgId(0),
 		MessageCursor(),
 		false
@@ -66,6 +72,36 @@ uint32 ParseOccupationTag(History *history) {
 		}
 	}
 	return valid ? result : 0;
+}
+
+QString ParseOccupationName(History *history) {
+	if (!history) {
+		return QString();
+	}
+	const auto draft = history->cloudDraft();
+	if (!draft) {
+		return QString();
+	}
+	const auto &text = draft->textWithTags.text;
+#ifndef OS_MAC_OLD
+	const auto parts = text.splitRef(';');
+#else // OS_MAC_OLD
+	const auto parts = text.split(';');
+#endif // OS_MAC_OLD
+	auto valid = false;
+	auto result = QString();
+	for (const auto &part : parts) {
+		if (part.startsWith(qstr("t:"))) {
+			if (part.mid(2).toInt() >= unixtime()) {
+				valid = true;
+			} else {
+				return 0;
+			}
+		} else if (part.startsWith(qstr("n:"))) {
+			result = part.mid(2).toString();
+		}
+	}
+	return valid ? result : QString();
 }
 
 TimeId OccupiedBySomeoneTill(History *history) {
@@ -109,6 +145,15 @@ Helper::Helper(not_null<AuthSession*> session)
 , _templates(_session)
 , _reoccupyTimer([=] { reoccupy(); })
 , _checkOccupiedTimer([=] { checkOccupiedChats(); }) {
+	request(MTPhelp_GetSupportName(
+	)).done([=](const MTPhelp_SupportName &result) {
+		result.match([&](const MTPDhelp_supportName &data) {
+			setSupportName(qs(data.vname));
+		});
+	}).fail([=](const RPCError &error) {
+		setSupportName(
+			qsl("[rand^") + QString::number(Sandbox::UserTag()) + ']');
+	}).send();
 }
 
 void Helper::registerWindow(not_null<Window::Controller*> controller) {
@@ -126,9 +171,7 @@ void Helper::cloudDraftChanged(not_null<History*> history) {
 	if (history != _occupiedHistory) {
 		return;
 	}
-	if (!IsOccupiedByMe(_occupiedHistory)) {
-		occupyInDraft();
-	}
+	occupyIfNotYet();
 }
 
 void Helper::chatOccupiedUpdated(not_null<History*> history) {
@@ -170,7 +213,7 @@ void Helper::checkOccupiedChats() {
 void Helper::updateOccupiedHistory(
 		not_null<Window::Controller*> controller,
 		History *history) {
-	if (IsOccupiedByMe(_occupiedHistory)) {
+	if (isOccupiedByMe(_occupiedHistory)) {
 		_occupiedHistory->clearCloudDraft();
 		_session->api().saveDraftToCloudDelayed(_occupiedHistory);
 	}
@@ -178,9 +221,23 @@ void Helper::updateOccupiedHistory(
 	occupyInDraft();
 }
 
+void Helper::setSupportName(const QString &name) {
+	_supportName = name;
+	_supportNameNormalized = NormalizeName(name);
+	occupyIfNotYet();
+}
+
+void Helper::occupyIfNotYet() {
+	if (!isOccupiedByMe(_occupiedHistory)) {
+		occupyInDraft();
+	}
+}
+
 void Helper::occupyInDraft() {
-	if (_occupiedHistory && !IsOccupiedBySomeone(_occupiedHistory)) {
-		const auto draft = OccupiedDraft();
+	if (_occupiedHistory
+		&& !isOccupiedBySomeone(_occupiedHistory)
+		&& !_supportName.isEmpty()) {
+		const auto draft = OccupiedDraft(_supportNameNormalized);
 		_occupiedHistory->createCloudDraft(&draft);
 		_session->api().saveDraftToCloudDelayed(_occupiedHistory);
 		_reoccupyTimer.callEach(kReoccupyEach);
@@ -188,33 +245,37 @@ void Helper::occupyInDraft() {
 }
 
 void Helper::reoccupy() {
-	if (IsOccupiedByMe(_occupiedHistory)) {
-		const auto draft = OccupiedDraft();
+	if (isOccupiedByMe(_occupiedHistory)) {
+		const auto draft = OccupiedDraft(_supportNameNormalized);
 		_occupiedHistory->createCloudDraft(&draft);
 		_session->api().saveDraftToCloudDelayed(_occupiedHistory);
 	}
 }
 
-Templates &Helper::templates() {
-	return _templates;
-}
-
-bool IsOccupiedByMe(History *history) {
+bool Helper::isOccupiedByMe(History *history) const {
 	if (const auto tag = ParseOccupationTag(history)) {
 		return (tag == OccupationTag());
 	}
 	return false;
 }
 
-bool IsOccupiedBySomeone(History *history) {
+bool Helper::isOccupiedBySomeone(History *history) const {
 	if (const auto tag = ParseOccupationTag(history)) {
 		return (tag != OccupationTag());
 	}
 	return false;
 }
 
-QString ChatOccupiedString() {
-	return QString::fromUtf8("\xe2\x9c\x8b\xef\xb8\x8f chat taken");
+Templates &Helper::templates() {
+	return _templates;
+}
+
+QString ChatOccupiedString(not_null<History*> history) {
+	const auto hand = QString::fromUtf8("\xe2\x9c\x8b\xef\xb8\x8f");
+	const auto name = ParseOccupationName(history);
+	return (name.isEmpty() || name.startsWith(qstr("[rand^")))
+		? hand + " chat taken"
+		: hand + ' ' + name + " is here";
 }
 
 } // namespace Support
