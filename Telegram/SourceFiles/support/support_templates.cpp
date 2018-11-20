@@ -657,7 +657,7 @@ auto Templates::matchFromEnd(QString query) const
 			for (const auto &key : question.normalizedKeys) {
 				if (key.size() <= queries.size()
 					&& queries[key.size() - 1] == key
-					&& (!result || result->key.size() < key.size())) {
+					&& (!result || result->key.size() <= key.size())) {
 					result = QuestionByKey{ question, key };
 				}
 			}
@@ -688,7 +688,6 @@ auto Templates::query(const QString &text) const -> std::vector<Question> {
 		return _data.files.at(id.first).questions.at(id.second);
 	};
 
-	using Pair = std::pair<Question, int>;
 	const auto computeWeight = [&](const Id &id) {
 		auto result = 0;
 		const auto full = _index.full.find(id);
@@ -717,19 +716,31 @@ auto Templates::query(const QString &text) const -> std::vector<Question> {
 		}
 		return result;
 	};
+	using Pair = std::pair<Id, int>;
 	const auto pairById = [&](const Id &id) {
-		return std::make_pair(questionById(id), computeWeight(id));
+		return std::make_pair(id, computeWeight(id));
+	};
+	const auto sorter = [](const Pair &a, const Pair &b) {
+		// weight DESC filename DESC question ASC
+		if (a.second > b.second) {
+			return true;
+		} else if (a.second < b.second) {
+			return false;
+		} else if (a.first.first > b.first.first) {
+			return true;
+		} else if (a.first.first < b.first.first) {
+			return false;
+		} else {
+			return (a.first.second < b.first.second);
+		}
 	};
 	const auto good = narrowed->second | ranges::view::transform(
 		pairById
 	) | ranges::view::filter([](const Pair &pair) {
 		return pair.second > 0;
-	}) | ranges::to_vector | ranges::action::sort(
-		std::greater<>(),
-		[](const Pair &pair) { return pair.second; }
-	);
-	return good | ranges::view::transform([](const Pair &pair) {
-		return pair.first;
+	}) | ranges::to_vector | ranges::action::stable_sort(sorter);
+	return good | ranges::view::transform([&](const Pair &pair) {
+		return questionById(pair.first);
 	}) | ranges::view::take(kQueryLimit) | ranges::to_vector;
 }
 
