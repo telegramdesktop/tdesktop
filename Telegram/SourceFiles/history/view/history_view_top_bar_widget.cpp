@@ -106,7 +106,8 @@ TopBarWidget::TopBarWidget(
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto flags = UpdateFlag::UserHasCalls
 		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged;
+		| UpdateFlag::MembersChanged
+		| UpdateFlag::UserSupportInfoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [this](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::UserHasCalls) {
 			if (update.peer->isUser()) {
@@ -739,8 +740,14 @@ void TopBarWidget::updateOnlineDisplay() {
 	const auto now = unixtime();
 	bool titlePeerTextOnline = false;
 	if (const auto user = _activeChat.peer()->asUser()) {
-		text = Data::OnlineText(user, now);
-		titlePeerTextOnline = Data::OnlineTextActive(user, now);
+		if (Auth().supportMode()
+			&& !Auth().supportHelper().infoCurrent(user).text.empty()) {
+			text = QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f check info");
+			titlePeerTextOnline = false;
+		} else {
+			text = Data::OnlineText(user, now);
+			titlePeerTextOnline = Data::OnlineTextActive(user, now);
+		}
 	} else if (const auto chat = _activeChat.peer()->asChat()) {
 		if (!chat->amIn()) {
 			text = lang(lng_chat_status_unaccessible);

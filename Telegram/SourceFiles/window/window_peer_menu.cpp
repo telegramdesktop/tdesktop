@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "history/history.h"
 #include "window/window_controller.h"
+#include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/feed/info_feed_channels_controllers.h"
@@ -316,6 +317,11 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 
 void Filler::addUserActions(not_null<UserData*> user) {
 	if (_source != PeerMenuSource::ChatsList) {
+		if (Auth().supportMode()) {
+			_addAction("Edit support info", [=] {
+				Auth().supportHelper().editInfo(user);
+			});
+		}
 		if (user->isContact()) {
 			if (!user->isSelf()) {
 				_addAction(

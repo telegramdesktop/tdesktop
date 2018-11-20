@@ -10,16 +10,122 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "data/data_drafts.h"
 #include "history/history.h"
+#include "boxes/abstract_box.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/text/text_entity.h"
+#include "ui/text_options.h"
+#include "chat_helpers/message_field.h"
+#include "lang/lang_keys.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "styles/style_boxes.h"
 
 namespace Support {
 namespace {
 
 constexpr auto kOccupyFor = TimeId(60);
 constexpr auto kReoccupyEach = 30 * TimeMs(1000);
+
+class EditInfoBox : public BoxContent {
+public:
+	EditInfoBox(
+		QWidget*,
+		const TextWithTags &text,
+		Fn<void(TextWithTags, Fn<void(bool success)>)> submit);
+
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+private:
+	object_ptr<Ui::InputField> _field = { nullptr };
+	Fn<void(TextWithTags, Fn<void(bool success)>)> _submit;
+
+};
+
+EditInfoBox::EditInfoBox(
+	QWidget*,
+	const TextWithTags &text,
+	Fn<void(TextWithTags, Fn<void(bool success)>)> submit)
+: _field(
+	this,
+	st::supportInfoField,
+	Ui::InputField::Mode::MultiLine,
+	[] { return QString("Support information"); },
+	text)
+, _submit(std::move(submit)) {
+	_field->setMaxLength(Global::CaptionLengthMax());
+	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	_field->setInstantReplaces(Ui::InstantReplaces::Default());
+	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_field->setMarkdownReplacesEnabled(rpl::single(true));
+	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
+}
+
+void EditInfoBox::prepare() {
+	setTitle([] { return QString("Edit support information"); });
+
+	const auto save = [=] {
+		const auto done = crl::guard(this, [=](bool success) {
+			if (success) {
+				closeBox();
+			} else {
+				_field->showError();
+			}
+		});
+		_submit(_field->getTextWithAppliedMarkdown(), done);
+	};
+	addButton(langFactory(lng_settings_save), save);
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+
+	connect(_field, &Ui::InputField::submitted, save);
+	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
+
+	auto cursor = _field->textCursor();
+	cursor.movePosition(QTextCursor::End);
+	_field->setTextCursor(cursor);
+
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_field->resizeToWidth(
+			width - st::boxPadding.left() - st::boxPadding.right());
+		_field->moveToLeft(st::boxPadding.left(), st::boxPadding.bottom());
+	}, _field->lifetime());
+
+	_field->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(
+			st::boxWideWidth,
+			st::boxPadding.bottom() + height + st::boxPadding.bottom());
+	}, _field->lifetime());
+}
+
+void EditInfoBox::setInnerFocus() {
+	_field->setFocusFast();
+}
+
+QString FormatDateTime(TimeId value) {
+	const auto now = QDateTime::currentDateTime();
+	const auto date = ParseDateTime(value);
+	if (date.date() == now.date()) {
+		return lng_mediaview_today(
+			lt_time,
+			date.time().toString(cTimeFormat()));
+	} else if (date.date().addDays(1) == now.date()) {
+		return lng_mediaview_yesterday(
+			lt_time,
+			date.time().toString(cTimeFormat()));
+	} else {
+		return lng_mediaview_date_time(
+			lt_date,
+			date.date().toString(qsl("dd.MM.yy")),
+			lt_time,
+			date.time().toString(cTimeFormat()));
+	}
+}
 
 uint32 OccupationTag() {
 	return uint32(Sandbox::UserTag() & 0xFFFFFFFFU);
@@ -45,7 +151,7 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 }
 
 uint32 ParseOccupationTag(History *history) {
-	if (!history) {
+	if (!history || !history->peer->isUser()) {
 		return 0;
 	}
 	const auto draft = history->cloudDraft();
@@ -75,7 +181,7 @@ uint32 ParseOccupationTag(History *history) {
 }
 
 QString ParseOccupationName(History *history) {
-	if (!history) {
+	if (!history || !history->peer->isUser()) {
 		return QString();
 	}
 	const auto draft = history->cloudDraft();
@@ -105,7 +211,7 @@ QString ParseOccupationName(History *history) {
 }
 
 TimeId OccupiedBySomeoneTill(History *history) {
-	if (!history) {
+	if (!history || !history->peer->isUser()) {
 		return 0;
 	}
 	const auto draft = history->cloudDraft();
@@ -159,7 +265,8 @@ Helper::Helper(not_null<AuthSession*> session)
 void Helper::registerWindow(not_null<Window::Controller*> controller) {
 	controller->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
-		return key.history();
+		const auto history = key.history();
+		return (history && history->peer->isUser()) ? history : nullptr;
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](History *history) {
 		updateOccupiedHistory(controller, history);
@@ -179,12 +286,12 @@ void Helper::chatOccupiedUpdated(not_null<History*> history) {
 		_occupiedChats[history] = till + 2;
 		Notify::peerUpdatedDelayed(
 			history->peer,
-			Notify::PeerUpdate::Flag::OccupiedChanged);
+			Notify::PeerUpdate::Flag::UserOccupiedChanged);
 		checkOccupiedChats();
 	} else if (_occupiedChats.take(history)) {
 		Notify::peerUpdatedDelayed(
 			history->peer,
-			Notify::PeerUpdate::Flag::OccupiedChanged);
+			Notify::PeerUpdate::Flag::UserOccupiedChanged);
 	}
 }
 
@@ -200,7 +307,7 @@ void Helper::checkOccupiedChats() {
 			_occupiedChats.erase(nearest);
 			Notify::peerUpdatedDelayed(
 				history->peer,
-				Notify::PeerUpdate::Flag::OccupiedChanged);
+				Notify::PeerUpdate::Flag::UserOccupiedChanged);
 		} else {
 			_checkOccupiedTimer.callOnce(
 				(nearest->second - now) * TimeMs(1000));
@@ -264,6 +371,140 @@ bool Helper::isOccupiedBySomeone(History *history) const {
 		return (tag != OccupationTag());
 	}
 	return false;
+}
+
+void Helper::refreshInfo(not_null<UserData*> user) {
+	request(MTPhelp_GetUserInfo(
+		user->inputUser
+	)).done([=](const MTPhelp_UserInfo &result) {
+		applyInfo(user, result);
+		if (_userInfoEditPending.contains(user)) {
+			_userInfoEditPending.erase(user);
+			showEditInfoBox(user);
+		}
+	}).send();
+}
+
+void Helper::applyInfo(
+		not_null<UserData*> user,
+		const MTPhelp_UserInfo &result) {
+	const auto notify = [&] {
+		Notify::peerUpdatedDelayed(
+			user,
+			Notify::PeerUpdate::Flag::UserSupportInfoChanged);
+	};
+	const auto remove = [&] {
+		if (_userInformation.take(user)) {
+			notify();
+		}
+	};
+	result.match([&](const MTPDhelp_userInfo &data) {
+		auto info = UserInfo();
+		info.author = qs(data.vauthor);
+		info.date = data.vdate.v;
+		info.text = TextWithEntities{
+			qs(data.vmessage),
+			TextUtilities::EntitiesFromMTP(data.ventities.v) };
+		if (info.text.empty()) {
+			remove();
+		} else if (_userInformation[user] != info) {
+			_userInformation[user] = info;
+			notify();
+		}
+	}, [&](const MTPDhelp_userInfoEmpty &) {
+		remove();
+	});
+}
+
+rpl::producer<UserInfo> Helper::infoValue(not_null<UserData*> user) const {
+	return Notify::PeerUpdateValue(
+		user,
+		Notify::PeerUpdate::Flag::UserSupportInfoChanged
+	) | rpl::map([=] {
+		return infoCurrent(user);
+	});
+}
+
+rpl::producer<QString> Helper::infoLabelValue(
+		not_null<UserData*> user) const {
+	return infoValue(
+		user
+	) | rpl::map([](const Support::UserInfo &info) {
+		return info.author + ", " + FormatDateTime(info.date);
+	});
+}
+
+rpl::producer<TextWithEntities> Helper::infoTextValue(
+		not_null<UserData*> user) const {
+	return infoValue(
+		user
+	) | rpl::map([](const Support::UserInfo &info) {
+		return info.text;
+	});
+}
+
+UserInfo Helper::infoCurrent(not_null<UserData*> user) const {
+	const auto i = _userInformation.find(user);
+	return (i != end(_userInformation)) ? i->second : UserInfo();
+}
+
+void Helper::editInfo(not_null<UserData*> user) {
+	if (!_userInfoEditPending.contains(user)) {
+		_userInfoEditPending.emplace(user);
+		refreshInfo(user);
+	}
+}
+
+void Helper::showEditInfoBox(not_null<UserData*> user) {
+	const auto info = infoCurrent(user);
+	const auto editData = TextWithTags{
+		info.text.text,
+		ConvertEntitiesToTextTags(info.text.entities)
+	};
+
+	const auto save = [=](TextWithTags result, Fn<void(bool)> done) {
+		saveInfo(user, TextWithEntities{
+			result.text,
+			ConvertTextTagsToEntities(result.tags)
+		}, done);
+	};
+	Ui::show(Box<EditInfoBox>(editData, save), LayerOption::KeepOther);
+}
+
+void Helper::saveInfo(
+		not_null<UserData*> user,
+		TextWithEntities text,
+		Fn<void(bool success)> done) {
+	const auto i = _userInfoSaving.find(user);
+	if (i != end(_userInfoSaving)) {
+		if (i->second.data == text) {
+			return;
+		} else {
+			i->second.data = text;
+			request(base::take(i->second.requestId)).cancel();
+		}
+	} else {
+		_userInfoSaving.emplace(user, SavingInfo{ text });
+	}
+
+	TextUtilities::PrepareForSending(
+		text,
+		Ui::ItemTextDefaultOptions().flags);
+	TextUtilities::Trim(text);
+
+	const auto entities = TextUtilities::EntitiesToMTP(
+		text.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+	_userInfoSaving[user].requestId = request(MTPhelp_EditUserInfo(
+		user->inputUser,
+		MTP_string(text.text),
+		entities
+	)).done([=](const MTPhelp_UserInfo &result) {
+		applyInfo(user, result);
+		done(true);
+	}).fail([=](const RPCError &error) {
+		done(false);
+	}).send();
 }
 
 Templates &Helper::templates() {

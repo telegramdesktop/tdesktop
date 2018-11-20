@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
+#include "support/support_helper.h"
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
@@ -814,18 +815,25 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 		auto failHandler = [this, peer](const RPCError &error) {
 			_fullPeerRequests.remove(peer);
 		};
-		if (auto user = peer->asUser()) {
+		if (const auto user = peer->asUser()) {
+			if (_session->supportMode()) {
+				_session->supportHelper().refreshInfo(user);
+			}
 			return request(MTPusers_GetFullUser(
 				user->inputUser
-			)).done([this, user](const MTPUserFull &result, mtpRequestId requestId) {
+			)).done([=](const MTPUserFull &result, mtpRequestId requestId) {
 				gotUserFull(user, result, requestId);
 			}).fail(failHandler).send();
-		} else if (auto chat = peer->asChat()) {
-			return request(MTPmessages_GetFullChat(chat->inputChat)).done([this, peer](const MTPmessages_ChatFull &result, mtpRequestId requestId) {
+		} else if (const auto chat = peer->asChat()) {
+			return request(MTPmessages_GetFullChat(
+				chat->inputChat
+			)).done([=](const MTPmessages_ChatFull &result, mtpRequestId requestId) {
 				gotChatFull(peer, result, requestId);
 			}).fail(failHandler).send();
-		} else if (auto channel = peer->asChannel()) {
-			return request(MTPchannels_GetFullChannel(channel->inputChannel)).done([this, peer](const MTPmessages_ChatFull &result, mtpRequestId requestId) {
+		} else if (const auto channel = peer->asChannel()) {
+			return request(MTPchannels_GetFullChannel(
+				channel->inputChannel
+			)).done([=](const MTPmessages_ChatFull &result, mtpRequestId requestId) {
 				gotChatFull(peer, result, requestId);
 			}).fail(failHandler).send();
 		}

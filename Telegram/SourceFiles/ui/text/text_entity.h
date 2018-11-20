@@ -100,6 +100,17 @@ private:
 
 };
 
+inline bool operator==(const EntityInText &a, const EntityInText &b) {
+	return (a.type() == b.type())
+		&& (a.offset() == b.offset())
+		&& (a.length() == b.length())
+		&& (a.data() == b.data());
+}
+
+inline bool operator!=(const EntityInText &a, const EntityInText &b) {
+	return !(a == b);
+}
+
 struct TextWithEntities {
 	QString text;
 	EntitiesInText entities;
@@ -108,6 +119,18 @@ struct TextWithEntities {
 		return text.isEmpty();
 	}
 };
+
+inline bool operator==(
+		const TextWithEntities &a,
+		const TextWithEntities &b) {
+	return (a.text == b.text) && (a.entities == b.entities);
+}
+
+inline bool operator!=(
+		const TextWithEntities &a,
+		const TextWithEntities &b) {
+	return !(a == b);
+}
 
 enum {
 	TextParseMultiline = 0x001,

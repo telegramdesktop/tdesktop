@@ -542,6 +542,10 @@ confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
 confirmCompressedSkip: 10px;
 
+supportInfoField: InputField(defaultInputField) {
+	heightMax: 256px;
+}
+
 connectionHostInputField: InputField(defaultInputField) {
 	width: 160px;
 }
