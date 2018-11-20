@@ -2521,8 +2521,8 @@ bool DialogsInner::chooseRow() {
 				HistoryFeed::Memento(feed, chosen.message),
 				Window::SectionShow::Way::ClearStack);
 		}
-		if (openSearchResult) {
-			emit searchResultChosen();
+		if (openSearchResult && !Auth().supportMode()) {
+			emit clearSearchQuery();
 		}
 		updateSelectedRow();
 		_selected = nullptr;

@@ -114,7 +114,7 @@ signals:
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
-	void searchResultChosen();
+	void clearSearchQuery();
 	void cancelSearchInChat();
 	void completeHashtag(QString tag);
 	void refreshHashtags();
