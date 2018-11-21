@@ -578,9 +578,7 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 	)->toggleOn(rpl::single(Global::AskDownloadPath()));
 
 #ifndef OS_WIN_STORE
-	const auto showpath = Ui::AttachAsChild(
-		ask,
-		rpl::event_stream<bool>());
+	const auto showpath = Ui::CreateChild<rpl::event_stream<bool>>(ask);
 	const auto path = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,

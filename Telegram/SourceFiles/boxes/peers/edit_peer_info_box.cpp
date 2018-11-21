@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -303,6 +304,9 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		_wrap->window(),
+		result->entity());
 
 	QObject::connect(
 		result->entity(),
@@ -334,6 +338,9 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		_wrap->window(),
+		result->entity());
 
 	QObject::connect(
 		result->entity(),
@@ -1430,10 +1437,10 @@ EditPeerInfoBox::EditPeerInfoBox(
 }
 
 void EditPeerInfoBox::prepare() {
-	auto controller = std::make_unique<Controller>(this, _peer);
+	auto controller = Ui::CreateChild<Controller>(this, this, _peer);
 	_focusRequests.events(
 	) | rpl::start_with_next(
-		[c = controller.get()] { c->setFocus(); },
+		[=] { controller->setFocus(); },
 		lifetime());
 	auto content = controller->createContent();
 	content->heightValue(
@@ -1443,5 +1450,4 @@ void EditPeerInfoBox::prepare() {
 	setInnerWidget(object_ptr<Ui::OverrideMargins>(
 		this,
 		std::move(content)));
-	Ui::AttachAsChild(this, std::move(controller));
 }

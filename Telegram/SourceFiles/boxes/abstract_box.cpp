@@ -375,6 +375,10 @@ void AbstractBox::updateButtonsPositions() {
 	}
 }
 
+QPointer<QWidget> AbstractBox::outerContainer() {
+	return parentWidget();
+}
+
 void AbstractBox::updateTitlePosition() {
 	_titleLeft = _layerType ? st::boxLayerTitlePosition.x() : st::boxTitlePosition.x();
 	_titleTop = _layerType ? st::boxLayerTitlePosition.y() : st::boxTitlePosition.y();

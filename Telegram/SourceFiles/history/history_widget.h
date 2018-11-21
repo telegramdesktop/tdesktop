@@ -55,9 +55,6 @@ class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
-namespace Emoji {
-class SuggestionsController;
-} // namespace Emoji
 } // namespace Ui
 
 namespace Window {
@@ -861,7 +858,7 @@ private:
 	DragState _attachDragState;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
-	object_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions = { nullptr };
+	Fn<void()> _raiseEmojiSuggestions;
 
 	bool _nonEmptySelection = false;
 

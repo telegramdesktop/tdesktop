@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -342,6 +343,9 @@ void GroupInfoBox::prepare() {
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title ->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_title);
 
 	if (_creating == CreatingGroupChannel) {
 		_description.create(
@@ -358,6 +362,10 @@ void GroupInfoBox::prepare() {
 		connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 		connect(_description, &Ui::InputField::submitted, [=] { submit(); });
 		connect(_description, &Ui::InputField::cancelled, [=] { closeBox(); });
+
+		Ui::Emoji::SuggestionsController::Init(
+			getDelegate()->outerContainer(),
+			_description);
 	}
 
 	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
@@ -1080,83 +1088,6 @@ bool EditNameBox::saveSelfFail(const RPCError &error) {
 	return true;
 }
 
-EditBioBox::EditBioBox(QWidget*, not_null<UserData*> self) : BoxContent()
-, _dynamicFieldStyle(CreateBioFieldStyle())
-, _self(self)
-, _bio(
-	this,
-	_dynamicFieldStyle,
-	Ui::InputField::Mode::MultiLine,
-	langFactory(lng_bio_placeholder),
-	_self->about())
-, _countdown(this, QString(), Ui::FlatLabel::InitType::Simple, st::editBioCountdownLabel)
-, _about(this, lang(lng_bio_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel) {
-}
-
-void EditBioBox::prepare() {
-	setTitle(langFactory(lng_bio_title));
-
-	addButton(langFactory(lng_settings_save), [this] { save(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
-	_bio->setMaxLength(kMaxBioLength);
-	_bio->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	auto cursor = _bio->textCursor();
-	cursor.setPosition(_bio->getLastText().size());
-	_bio->setTextCursor(cursor);
-	connect(_bio, &Ui::InputField::submitted, [=] { save(); });
-	connect(_bio, &Ui::InputField::resized, [=] { updateMaxHeight(); });
-	connect(_bio, &Ui::InputField::changed, [=] { handleBioUpdated(); });
-	_bio->setInstantReplaces(Ui::InstantReplaces::Default());
-	_bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	handleBioUpdated();
-	updateMaxHeight();
-}
-
-void EditBioBox::updateMaxHeight() {
-	auto newHeight = st::contactPadding.top() + _bio->height() + st::boxLittleSkip + _about->height() + st::boxPadding.bottom() + st::contactPadding.bottom();
-	setDimensions(st::boxWideWidth, newHeight);
-}
-
-void EditBioBox::handleBioUpdated() {
-	auto text = _bio->getLastText();
-	if (text.indexOf('\n') >= 0) {
-		auto position = _bio->textCursor().position();
-		_bio->setText(text.replace('\n', ' '));
-		auto cursor = _bio->textCursor();
-		cursor.setPosition(position);
-		_bio->setTextCursor(cursor);
-	}
-	auto countLeft = qMax(kMaxBioLength - text.size(), 0);
-	_countdown->setText(QString::number(countLeft));
-}
-
-void EditBioBox::setInnerFocus() {
-	_bio->setFocusFast();
-}
-
-void EditBioBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
-
-	_bio->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _bio->height());
-	_bio->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::contactPadding.top());
-	_countdown->moveToRight(st::boxPadding.right(), _bio->y() + _dynamicFieldStyle.textMargins.top());
-	_about->moveToLeft(st::boxPadding.left(), _bio->y() + _bio->height() + st::boxLittleSkip);
-}
-
-void EditBioBox::save() {
-	if (_requestId) return;
-
-	auto text = TextUtilities::PrepareForSending(_bio->getLastText());
-	_sentBio = text;
-
-	auto flags = MTPaccount_UpdateProfile::Flag::f_about;
-	_requestId = request(MTPaccount_UpdateProfile(MTP_flags(flags), MTPstring(), MTPstring(), MTP_string(text))).done([this](const MTPUser &result) {
-		App::feedUsers(MTP_vector<MTPUser>(1, result));
-		_self->setAbout(_sentBio);
-		closeBox();
-	}).send();
-}
-
 EditChannelBox::EditChannelBox(QWidget*, not_null<ChannelData*> channel)
 : _channel(channel)
 , _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
@@ -1190,6 +1121,10 @@ void EditChannelBox::prepare() {
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_title);
+
 	_description->setMaxLength(kMaxChannelDescription);
 	_description->setInstantReplaces(Ui::InstantReplaces::Default());
 	_description->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
@@ -1197,6 +1132,9 @@ void EditChannelBox::prepare() {
 	connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 	connect(_description, &Ui::InputField::submitted, [=] { save(); });
 	connect(_description, &Ui::InputField::cancelled, [=] { closeBox(); });
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_description);
 
 	_publicLink->addClickHandler([=] { setupPublicLink(); });
 	_publicLink->setVisible(_channel->canEditUsername());

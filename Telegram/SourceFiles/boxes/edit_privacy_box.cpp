@@ -238,7 +238,7 @@ void EditPrivacyBox::setupContent() {
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>(
 		_value.option);
-	const auto toggle = Ui::AttachAsChild(content, rpl::event_stream<>());
+	const auto toggle = Ui::CreateChild<rpl::event_stream<>>(content);
 
 	group->setChangedCallback([=](Option value) {
 		_value.option = value;
@@ -251,9 +251,7 @@ void EditPrivacyBox::setupContent() {
 			: nullptr;
 	};
 	const auto addExceptionLink = [=](Exception exception) {
-		const auto update = Ui::AttachAsChild(
-			content,
-			rpl::event_stream<>());
+		const auto update = Ui::CreateChild<rpl::event_stream<>>(content);
 		auto label = update->events_starting_with(
 			rpl::empty_value()
 		) | rpl::map([=] {

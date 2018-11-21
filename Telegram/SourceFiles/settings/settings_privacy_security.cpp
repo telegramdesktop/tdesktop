@@ -117,7 +117,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		});
 	};
 	const auto add = [&](LangKey label, Privacy::Key key, auto controller) {
-		const auto shower = Ui::AttachAsChild(container, rpl::lifetime());
+		const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 		AddButtonWithLabel(
 			container,
 			label,

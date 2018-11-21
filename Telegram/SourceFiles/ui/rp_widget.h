@@ -15,13 +15,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace details {
 
+struct ForwardTag {
+};
+
+struct InPlaceTag {
+};
+
 template <typename Value>
 class AttachmentOwner : public QObject {
 public:
 	template <typename OtherValue>
-	AttachmentOwner(QObject *parent, OtherValue &&value)
+	AttachmentOwner(QObject *parent, const ForwardTag&, OtherValue &&value)
 	: QObject(parent)
 	, _value(std::forward<OtherValue>(value)) {
+	}
+
+	template <typename ...Args>
+	AttachmentOwner(QObject *parent, const InPlaceTag&, Args &&...args)
+	: QObject(parent)
+	, _value(std::forward<Args>(args)...) {
 	}
 
 	not_null<Value*> value() {
@@ -44,12 +56,20 @@ inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
 		std::forward<Args>(args)...);
 }
 
-template <typename Widget, typename Parent, typename ...Args>
-inline Widget *CreateChild(
+template <typename Value, typename Parent, typename ...Args>
+inline Value *CreateChild(
 		Parent *parent,
 		Args &&...args) {
 	Expects(parent != nullptr);
-	return new Widget(parent, std::forward<Args>(args)...);
+
+	if constexpr (std::is_base_of_v<QObject, Value>) {
+		return new Value(parent, std::forward<Args>(args)...);
+	} else {
+		return CreateChild<details::AttachmentOwner<Value>>(
+			parent,
+			details::InPlaceTag{},
+			std::forward<Args>(args)...)->value();
+	}
 }
 
 inline void DestroyChild(QWidget *child) {
@@ -66,8 +86,8 @@ inline not_null<std::decay_t<Value>*> AttachAsChild(
 		Value &&value) {
 	return CreateChild<details::AttachmentOwner<std::decay_t<Value>>>(
 		parent.get(),
-		std::forward<Value>(value)
-	)->value();
+		details::ForwardTag{},
+		std::forward<Value>(value))->value();
 }
 
 template <typename Widget>

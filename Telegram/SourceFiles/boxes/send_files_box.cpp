@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "history/history_media_types.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "ui/widgets/checkbox.h"
@@ -1583,6 +1584,9 @@ void SendFilesBox::setupCaption() {
 	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
 	_caption->setEditLinkCallback(DefaultEditLinkCallback(_caption));
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_caption);
 }
 
 void SendFilesBox::captionResized() {

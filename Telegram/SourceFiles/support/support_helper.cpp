@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_entity.h"
 #include "ui/text_options.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
@@ -84,6 +85,9 @@ void EditInfoBox::prepare() {
 
 	connect(_field, &Ui::InputField::submitted, save);
 	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_field);
 
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);

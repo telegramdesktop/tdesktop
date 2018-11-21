@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -112,6 +113,9 @@ void EditLinkBox::prepare() {
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
 	text->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		text);
 
 	const auto url = content->add(
 		object_ptr<Ui::InputField>(

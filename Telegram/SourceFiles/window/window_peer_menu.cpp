@@ -201,15 +201,14 @@ void Filler::addPinToggle() {
 	};
 	auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
-	auto lifetime = Notify::PeerUpdateViewer(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(pinAction);
+	Notify::PeerUpdateViewer(
 		peer,
 		Notify::PeerUpdate::Flag::ChatPinnedChanged
 	) | rpl::start_with_next([peer, pinAction, pinText] {
 		auto isPinned = App::history(peer)->isPinnedDialog();
 		pinAction->setText(pinText(isPinned));
-	});
-
-	Ui::AttachAsChild(pinAction, std::move(lifetime));
+	}, *lifetime);
 }
 
 void Filler::addInfo() {
@@ -263,14 +262,13 @@ void Filler::addToggleUnreadMark() {
 		}
 	});
 
-	auto lifetime = Notify::PeerUpdateViewer(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action);
+	Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::UnreadViewChanged
 	) | rpl::start_with_next([=] {
 		action->setText(label(peer));
-	});
-
-	Ui::AttachAsChild(action, std::move(lifetime));
+	}, *lifetime);
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
@@ -301,14 +299,13 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		}
 	});
 
-	auto lifetime = Notify::PeerUpdateViewer(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(blockAction);
+	Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::UserIsBlocked
 	) | rpl::start_with_next([=] {
 		blockAction->setText(blockText(user));
-	});
-
-	Ui::AttachAsChild(blockAction, std::move(lifetime));
+	}, *lifetime);
 
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 		Auth().api().requestFullPeer(user);
@@ -714,13 +711,12 @@ void PeerMenuAddMuteAction(
 		}
 	});
 
-	auto lifetime = Info::Profile::NotificationsEnabledValue(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(muteAction);
+	Info::Profile::NotificationsEnabledValue(
 		peer
 	) | rpl::start_with_next([=](bool enabled) {
 		muteAction->setText(muteText(!enabled));
-	});
-
-	Ui::AttachAsChild(muteAction, std::move(lifetime));
+	}, *lifetime);
 }
 // #feed
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {

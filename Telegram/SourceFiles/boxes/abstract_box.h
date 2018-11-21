@@ -56,6 +56,8 @@ public:
 		return result;
 	}
 
+	virtual QPointer<QWidget> outerContainer() = 0;
+
 };
 
 class BoxContent : public Ui::RpWidget, protected base::Subscriber {
@@ -247,6 +249,7 @@ public:
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
 	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
 	void updateButtonsPositions() override;
+	QPointer<QWidget> outerContainer() override;
 
 	void setDimensions(int newWidth, int maxHeight) override;
 

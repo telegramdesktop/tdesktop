@@ -36,7 +36,7 @@ void SetupLanguageButton(
 		rpl::single(Lang::Current().nativeName()),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconLanguage : nullptr);
-	const auto guard = Ui::AttachAsChild(button, base::binary_guard());
+	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());
 	button->addClickHandler([=] {
 		const auto m = button->clickModifiers();
 		if ((m & Qt::ShiftModifier) && (m & Qt::AltModifier)) {
@@ -108,9 +108,8 @@ void SetupInterfaceScale(
 		return;
 	}
 
-	const auto toggled = Ui::AttachAsChild(
-		container,
-		rpl::event_stream<bool>());
+	const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(
+		container.get());
 
 	const auto switched = (cConfigScale() == kInterfaceScaleAuto);
 	const auto button = AddButton(
@@ -138,7 +137,7 @@ void SetupInterfaceScale(
 		}
 		return (result == ScaleValues.size()) ? (result - 1) : result;
 	};
-	const auto inSetScale = Ui::AttachAsChild(container, false);
+	const auto inSetScale = Ui::CreateChild<bool>(container.get());
 	const auto setScale = std::make_shared<Fn<void(int)>>();
 	*setScale = [=](int scale) {
 		if (*inSetScale) return;

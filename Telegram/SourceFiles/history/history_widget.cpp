@@ -558,13 +558,10 @@ HistoryWidget::HistoryWidget(
 		Unexpected("action in MimeData hook.");
 	});
 
-	_emojiSuggestions.create(this, _field->rawTextEdit());
-	_emojiSuggestions->setReplaceCallback([=](
-			int from,
-			int till,
-			const QString &replacement) {
-		_field->commitInstantReplacement(from, till, replacement);
-	});
+	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
+		this,
+		_field);
+	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 	updateFieldSubmitSettings();
 
 	_field->hide();
@@ -1180,7 +1177,7 @@ void HistoryWidget::orderWidgets() {
 	if (_tabbedPanel) {
 		_tabbedPanel->raise();
 	}
-	_emojiSuggestions->raise();
+	_raiseEmojiSuggestions();
 	if (_tabbedSelectorToggleTooltip) {
 		_tabbedSelectorToggleTooltip->raise();
 	}
