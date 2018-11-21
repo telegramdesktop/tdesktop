@@ -477,15 +477,9 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _searchResults.size());
 			p.translate(0, from * st::dialogsRowHeight);
 			if (from < _searchResults.size()) {
-				const auto activePeer = activeEntry.key.peer();
 				for (; from < to; ++from) {
 					const auto &result = _searchResults[from];
-					const auto item = result->item();
-					const auto peer = item->history()->peer;
-					const auto active = (item->fullId() == activeEntry.fullId)
-						|| (peer->migrateTo()
-							&& (peer->migrateTo()->bareId() == activeEntry.fullId.channel)
-							&& (item->id == -activeEntry.fullId.msg));
+					const auto active = isSearchResultActive(result.get(), activeEntry);
 					const auto selected = (from == (isPressed()
 						? _searchedPressed
 						: _searchedSelected));
@@ -503,6 +497,18 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			}
 		}
 	}
+}
+
+bool DialogsInner::isSearchResultActive(
+		not_null<Dialogs::FakeRow*> result,
+		const Dialogs::RowDescriptor &entry) const {
+	const auto item = result->item();
+	const auto peer = item->history()->peer;
+	return (item->fullId() == entry.fullId)
+		|| (peer->migrateTo()
+			&& (peer->migrateTo()->bareId() == entry.fullId.channel)
+			&& (item->id == -entry.fullId.msg))
+		|| (uniqueSearchResults() && peer == entry.key.peer());
 }
 
 void DialogsInner::paintPeerSearchResult(
@@ -2576,16 +2582,16 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 	if (!whichHistory) {
 		return Dialogs::RowDescriptor();
 	}
-	if (whichFullId && !_searchResults.empty()) {
+	if (!_searchResults.empty()) {
 		for (auto b = _searchResults.cbegin(), i = b + 1, e = _searchResults.cend(); i != e; ++i) {
-			if ((*i)->item()->fullId() == whichFullId) {
+			if (isSearchResultActive(i->get(), which)) {
 				const auto j = i - 1;
 				return Dialogs::RowDescriptor(
 					(*j)->item()->history(),
 					(*j)->item()->fullId());
 			}
 		}
-		if (_searchResults[0]->item()->fullId() == whichFullId) {
+		if (isSearchResultActive(_searchResults[0].get(), which)) {
 			if (_peerSearchResults.empty()) {
 				if (_filterResults.isEmpty()) {
 					return Dialogs::RowDescriptor();
@@ -2653,16 +2659,14 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryAfter(
 	if (!whichHistory) {
 		return Dialogs::RowDescriptor();
 	}
-	if (whichFullId) {
-		for (auto i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
-			if ((*i)->item()->fullId() == whichFullId) {
-				if (++i != e) {
-					return Dialogs::RowDescriptor(
-						(*i)->item()->history(),
-						(*i)->item()->fullId());
-				}
-				return Dialogs::RowDescriptor();
+	for (auto i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
+		if (isSearchResultActive(i->get(), which)) {
+			if (++i != e) {
+				return Dialogs::RowDescriptor(
+					(*i)->item()->history(),
+					(*i)->item()->fullId());
 			}
+			return Dialogs::RowDescriptor();
 		}
 	}
 	for (auto i = _peerSearchResults.cbegin(), e = _peerSearchResults.cend(); i != e; ++i) {
@@ -2836,7 +2840,11 @@ Dialogs::RowDescriptor DialogsInner::computeJump(
 
 bool DialogsInner::jumpToDialogRow(const Dialogs::RowDescriptor &to) {
 	if (const auto history = to.key.history()) {
-		Ui::showPeerHistory(history, to.fullId.msg);
+		Ui::showPeerHistory(
+			history,
+			(uniqueSearchResults()
+				? ShowAtUnreadMsgId
+				: to.fullId.msg));
 		return true;
 	} else if (const auto feed = to.key.feed()) {
 		if (const auto item = App::histItemById(to.fullId)) {

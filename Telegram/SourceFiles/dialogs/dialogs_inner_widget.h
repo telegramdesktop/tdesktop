@@ -150,6 +150,9 @@ private:
 	bool switchImportantChats();
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
+	bool isSearchResultActive(
+		not_null<Dialogs::FakeRow*> result,
+		const Dialogs::RowDescriptor &entry) const;
 
 	void userIsContactUpdated(not_null<UserData*> user);
 	void mousePressReleased(Qt::MouseButton button);
