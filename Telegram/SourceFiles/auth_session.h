@@ -214,7 +214,7 @@ private:
 		bool hadLegacyCallsPeerToPeerNobody = false;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
-			= 30 * 24 * 60 * 60;
+			= 7 * 24 * 60 * 60;
 
 		Support::SwitchSettings supportSwitch;
 		bool supportFixChatsOrder = true;
