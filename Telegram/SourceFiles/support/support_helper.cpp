@@ -28,6 +28,7 @@ namespace {
 
 constexpr auto kOccupyFor = TimeId(60);
 constexpr auto kReoccupyEach = 30 * TimeMs(1000);
+constexpr auto kMaxSupportInfoLength = MaxMessageSize * 4;
 
 class EditInfoBox : public BoxContent {
 public:
@@ -57,7 +58,7 @@ EditInfoBox::EditInfoBox(
 	[] { return QString("Support information"); },
 	text)
 , _submit(std::move(submit)) {
-	_field->setMaxLength(Global::CaptionLengthMax());
+	_field->setMaxLength(kMaxSupportInfoLength);
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
