@@ -40,10 +40,22 @@ class StickersListWidget;
 class GifsListWidget;
 
 class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
-	Q_OBJECT
-
 public:
+	struct InlineChosen {
+		not_null<InlineBots::Result*> result;
+		not_null<UserData*> bot;
+	};
+
 	TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller);
+
+	rpl::producer<EmojiPtr> emojiChosen() const;
+	rpl::producer<not_null<DocumentData*>> fileChosen() const;
+	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<InlineChosen> inlineResultChosen() const;
+
+	rpl::producer<> cancelled() const;
+	rpl::producer<> checkForHide() const;
+	rpl::producer<> slideFinished() const;
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
@@ -86,21 +98,6 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-
-private slots:
-	void onScroll();
-
-signals:
-	void emojiSelected(EmojiPtr emoji);
-	void stickerOrGifSelected(not_null<DocumentData*> sticker);
-	void photoSelected(not_null<PhotoData*> photo);
-	void inlineResultSelected(
-		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot);
-
-	void cancelled();
-	void slideFinished();
-	void checkForHide();
 
 private:
 	class Tab {
@@ -145,6 +142,7 @@ private:
 	void checkRestrictedPeer();
 	bool isRestrictedView();
 	void updateRestrictedLabelGeometry();
+	void handleScroll();
 
 	QImage grabForAnimation();
 
@@ -193,12 +191,11 @@ private:
 	Fn<void(SelectorTab)> _beforeHidingCallback;
 
 	rpl::event_stream<> _showRequests;
+	rpl::event_stream<> _slideFinished;
 
 };
 
 class TabbedSelector::Inner : public Ui::RpWidget {
-	Q_OBJECT
-
 public:
 	Inner(QWidget *parent, not_null<Window::Controller*> controller);
 
@@ -222,11 +219,10 @@ public:
 	virtual void beforeHiding() {
 	}
 
-	virtual object_ptr<InnerFooter> createFooter() = 0;
+	rpl::producer<int> scrollToRequests() const;
+	rpl::producer<bool> disableScrollRequests() const;
 
-signals:
-	void scrollToY(int y);
-	void disableScroll(bool disabled);
+	virtual object_ptr<InnerFooter> createFooter() = 0;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -246,12 +242,18 @@ protected:
 	virtual void processPanelHideFinished() {
 	}
 
+	void scrollTo(int y);
+	void disableScroll(bool disabled);
+
 private:
 	not_null<Window::Controller*> _controller;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	int _minimalHeight = 0;
+
+	rpl::event_stream<int> _scrollToRequests;
+	rpl::event_stream<bool> _disableScrollRequests;
 
 };
 

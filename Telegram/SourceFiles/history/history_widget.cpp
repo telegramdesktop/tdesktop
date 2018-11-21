@@ -477,14 +477,9 @@ HistoryWidget::HistoryWidget(
 	connect(_field, SIGNAL(changed()), this, SLOT(onTextChange()));
 	connect(App::wnd()->windowHandle(), SIGNAL(visibleChanged(bool)), this, SLOT(onWindowVisibleChanged()));
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
-	connect(
-		_tabbedSelector,
-		&TabbedSelector::emojiSelected,
-		_field,
-		[=](EmojiPtr emoji) { InsertEmojiToField(_field, emoji); });
-	connect(_tabbedSelector, SIGNAL(stickerOrGifSelected(not_null<DocumentData*>)), this, SLOT(onStickerOrGifSend(not_null<DocumentData*>)));
-	connect(_tabbedSelector, SIGNAL(photoSelected(not_null<PhotoData*>)), this, SLOT(onPhotoSend(not_null<PhotoData*>)));
-	connect(_tabbedSelector, SIGNAL(inlineResultSelected(not_null<InlineBots::Result*>,not_null<UserData*>)), this, SLOT(onInlineResultSend(not_null<InlineBots::Result*>,not_null<UserData*>)));
+
+	initTabbedSelector();
+
 	connect(Media::Capture::instance(), SIGNAL(error()), this, SLOT(onRecordError()));
 	connect(Media::Capture::instance(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
 	connect(Media::Capture::instance(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
@@ -532,7 +527,9 @@ HistoryWidget::HistoryWidget(
 	connect(_fieldAutocomplete, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onMentionInsert(UserData*)));
 	connect(_fieldAutocomplete, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_fieldAutocomplete, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SLOT(onHashtagOrBotCommandInsert(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_fieldAutocomplete, SIGNAL(stickerChosen(not_null<DocumentData*>,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerOrGifSend(not_null<DocumentData*>)));
+	connect(_fieldAutocomplete, &FieldAutocomplete::stickerChosen, this, [=](not_null<DocumentData*> document) {
+		sendExistingDocument(document);
+	});
 	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	if (_supportAutocomplete) {
 		supportInitAutocomplete();
@@ -777,6 +774,28 @@ HistoryWidget::HistoryWidget(
 
 	orderWidgets();
 	setupShortcuts();
+}
+
+void HistoryWidget::initTabbedSelector() {
+	_tabbedSelector->emojiChosen(
+	) | rpl::start_with_next([=](EmojiPtr emoji) {
+		InsertEmojiToField(_field, emoji);
+	}, lifetime());
+
+	_tabbedSelector->fileChosen(
+	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		sendExistingDocument(document);
+	}, lifetime());
+
+	_tabbedSelector->photoChosen(
+	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
+		sendExistingPhoto(photo);
+	}, lifetime());
+
+	_tabbedSelector->inlineResultChosen(
+	) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
+		sendInlineResult(data.result, data.bot);
+	}, lifetime());
 }
 
 void HistoryWidget::supportInitAutocomplete() {
@@ -1148,8 +1167,10 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 		}
 		if (!_inlineResults) {
 			_inlineResults.create(this, controller());
-			_inlineResults->setResultSelectedCallback([this](InlineBots::Result *result, UserData *bot) {
-				onInlineResultSend(result, bot);
+			_inlineResults->setResultSelectedCallback([=](
+					InlineBots::Result *result,
+					UserData *bot) {
+				sendInlineResult(result, bot);
 			});
 			updateControlsGeometry();
 			orderWidgets();
@@ -5488,34 +5509,7 @@ void HistoryWidget::onFieldTabbed() {
 	}
 }
 
-bool HistoryWidget::onStickerOrGifSend(not_null<DocumentData*> document) {
-	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChannelRestriction::f_send_stickers)) {
-			Ui::show(
-				Box<InformBox>(lang(lng_restricted_send_stickers)),
-				LayerOption::KeepOther);
-			return false;
-		}
-	}
-	return sendExistingDocument(
-		document,
-		document->stickerOrGifOrigin(),
-		TextWithEntities());
-}
-
-void HistoryWidget::onPhotoSend(not_null<PhotoData*> photo) {
-	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
-			Ui::show(
-				Box<InformBox>(lang(lng_restricted_send_media)),
-				LayerOption::KeepOther);
-			return;
-		}
-	}
-	sendExistingPhoto(photo, TextWithEntities());
-}
-
-void HistoryWidget::onInlineResultSend(
+void HistoryWidget::sendInlineResult(
 		not_null<InlineBots::Result*> result,
 		not_null<UserData*> bot) {
 	if (!_peer || !_peer->canWrite()) {
@@ -5662,11 +5656,19 @@ void HistoryWidget::destroyPinnedBar() {
 
 bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
-		Data::FileOrigin origin,
 		TextWithEntities caption) {
-	if (!_peer || !_peer->canWrite()) {
+	if (const auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		if (megagroup->restricted(ChannelRestriction::f_send_stickers)) {
+			Ui::show(
+				Box<InformBox>(lang(lng_restricted_send_stickers)),
+				LayerOption::KeepOther);
+			return false;
+		}
+	} else if (!_peer || !_peer->canWrite()) {
 		return false;
 	}
+
+	const auto origin = document->stickerOrGifOrigin();
 
 	auto options = ApiWrap::SendOptions(_history);
 	options.clearDraft = false;
@@ -5688,11 +5690,18 @@ bool HistoryWidget::sendExistingDocument(
 	return true;
 }
 
-void HistoryWidget::sendExistingPhoto(
+bool HistoryWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		TextWithEntities caption) {
-	if (!_peer || !_peer->canWrite()) {
-		return;
+	if (const auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
+			Ui::show(
+				Box<InformBox>(lang(lng_restricted_send_media)),
+				LayerOption::KeepOther);
+			return false;
+		}
+	} else if (!_peer || !_peer->canWrite()) {
+		return false;
 	}
 
 	auto options = ApiWrap::SendOptions(_history);
@@ -5774,6 +5783,8 @@ void HistoryWidget::sendExistingPhoto(
 	hideSelectorControlsAnimated();
 
 	_field->setFocus();
+
+	return true;
 }
 
 void HistoryWidget::setFieldText(

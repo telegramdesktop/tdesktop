@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/twidget.h"
+#include "base/timer.h"
 #include "chat_helpers/stickers.h"
 
 namespace Ui {
@@ -152,7 +153,6 @@ signals:
 public slots:
 	void onParentGeometryChanged();
 	void onUpdateSelected(bool force = false);
-	void onPreview();
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -167,22 +167,25 @@ private:
 
 	void updateSelectedRow();
 	void setSel(int sel, bool scroll = false);
+	void showPreview();
 
-	FieldAutocomplete *_parent;
-	MentionRows *_mrows;
-	HashtagRows *_hrows;
-	BotCommandRows *_brows;
-	StickerRows *_srows;
-	int32 _stickersPerRow, _recentInlineBotsInRows;
-	int32 _sel, _down;
-	bool _mouseSel;
+	FieldAutocomplete *_parent = nullptr;
+	MentionRows *_mrows = nullptr;
+	HashtagRows *_hrows = nullptr;
+	BotCommandRows *_brows = nullptr;
+	StickerRows *_srows = nullptr;
+	int _stickersPerRow = 1;
+	int _recentInlineBotsInRows = 0;
+	int _sel = -1;
+	int _down = -1;
+	bool _mouseSel = false;
 	QPoint _mousePos;
 
-	bool _overDelete;
+	bool _overDelete = false;
 
-	bool _previewShown;
+	bool _previewShown = false;
 
-	QTimer _previewTimer;
+	base::Timer _previewTimer;
 
 };
 

@@ -331,6 +331,13 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		TextWithEntities caption = TextWithEntities());
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		TextWithEntities caption = TextWithEntities());
+
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
@@ -389,11 +396,6 @@ public slots:
 	void onTextChange();
 
 	void onFieldTabbed();
-	bool onStickerOrGifSend(not_null<DocumentData*> document);
-	void onPhotoSend(not_null<PhotoData*> photo);
-	void onInlineResultSend(
-		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot);
 
 	void onWindowVisibleChanged();
 
@@ -430,6 +432,8 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
+
+	void initTabbedSelector();
 
 	void send(Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
 	void handlePendingHistoryUpdate();
@@ -601,13 +605,9 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	bool sendExistingDocument(
-		not_null<DocumentData*> document,
-		Data::FileOrigin origin,
-		TextWithEntities caption);
-	void sendExistingPhoto(
-		not_null<PhotoData*> photo,
-		TextWithEntities caption);
+	void sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;

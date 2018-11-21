@@ -261,6 +261,7 @@ object_ptr<TabbedSelector::Inner> TabbedSelector::Tab::takeWidget() {
 
 void TabbedSelector::Tab::returnWidget(object_ptr<Inner> widget) {
 	_widget = std::move(widget);
+
 	Ensures(_widget == _weak);
 }
 
@@ -293,29 +294,30 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 
 	for (auto &tab : _tabs) {
 		auto widget = tab.widget();
-		connect(widget, &Inner::scrollToY, this, [this, tab = &tab](int y) {
+
+		widget->scrollToRequests(
+		) | rpl::start_with_next([=, tab = &tab](int y) {
 			if (tab == currentTab()) {
 				scrollToY(y);
 			} else {
 				tab->saveScrollTop(y);
 			}
-		});
-		connect(widget, &Inner::disableScroll, this, [this, tab = &tab](bool disabled) {
+		}, widget->lifetime());
+
+		widget->disableScrollRequests(
+		) | rpl::start_with_next([=, tab = &tab](bool disabled) {
 			if (tab == currentTab()) {
 				_scroll->disableScroll(disabled);
 			}
-		});
+		}, widget->lifetime());
 	}
 
-	connect(stickers(), SIGNAL(scrollUpdated()), this, SLOT(onScroll()));
-	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(emoji(), SIGNAL(selected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
-	connect(stickers(), SIGNAL(selected(not_null<DocumentData*>)), this, SIGNAL(stickerOrGifSelected(not_null<DocumentData*>)));
-	connect(stickers(), SIGNAL(checkForHide()), this, SIGNAL(checkForHide()));
-	connect(gifs(), SIGNAL(selected(not_null<DocumentData*>)), this, SIGNAL(stickerOrGifSelected(not_null<DocumentData*>)));
-	connect(gifs(), SIGNAL(selected(not_null<PhotoData*>)), this, SIGNAL(photoSelected(not_null<PhotoData*>)));
-	connect(gifs(), SIGNAL(selected(not_null<InlineBots::Result*>,not_null<UserData*>)), this, SIGNAL(inlineResultSelected(not_null<InlineBots::Result*>,not_null<UserData*>)));
-	connect(gifs(), SIGNAL(cancelled()), this, SIGNAL(cancelled()));
+	rpl::merge(
+		stickers()->scrollUpdated() | rpl::map([] { return 0; }),
+		_scroll->scrollTopChanges()
+	) | rpl::start_with_next([=] {
+		handleScroll();
+	}, lifetime());
 
 	_topShadow->raise();
 	_bottomShadow->raise();
@@ -338,6 +340,35 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 	//	setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
+}
+
+rpl::producer<EmojiPtr> TabbedSelector::emojiChosen() const {
+	return emoji()->chosen();
+}
+
+rpl::producer<not_null<DocumentData*>> TabbedSelector::fileChosen() const {
+	return rpl::merge(stickers()->chosen(), gifs()->fileChosen());
+}
+
+rpl::producer<not_null<PhotoData*>> TabbedSelector::photoChosen() const {
+	return gifs()->photoChosen();
+}
+
+auto TabbedSelector::inlineResultChosen() const
+-> rpl::producer<InlineChosen> {
+	return gifs()->inlineResultChosen();
+}
+
+rpl::producer<> TabbedSelector::cancelled() const {
+	return gifs()->cancelRequests();
+}
+
+rpl::producer<> TabbedSelector::checkForHide() const {
+	return stickers()->checkForHide();
+}
+
+rpl::producer<> TabbedSelector::slideFinished() const {
+	return _slideFinished.events();
 }
 
 void TabbedSelector::resizeEvent(QResizeEvent *e) {
@@ -408,7 +439,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 		if (!_a_slide.animating()) {
 			_slideAnimation.reset();
 			afterShown();
-			emit slideFinished();
+			_slideFinished.fire({});
 		}
 	} else {
 		paintContent(p);
@@ -607,7 +638,7 @@ void TabbedSelector::hideForSliding() {
 	currentTab()->widget()->clearSelection();
 }
 
-void TabbedSelector::onScroll() {
+void TabbedSelector::handleScroll() {
 	auto scrollTop = _scroll->scrollTop();
 	auto scrollBottom = scrollTop + _scroll->height();
 	currentTab()->widget()->setVisibleTopBottom(scrollTop, scrollBottom);
@@ -712,7 +743,7 @@ void TabbedSelector::setWidgetToScrollArea() {
 
 	_scroll->disableScroll(false);
 	scrollToY(currentTab()->getScrollTop());
-	onScroll();
+	handleScroll();
 }
 
 void TabbedSelector::scrollToY(int y) {
@@ -727,6 +758,22 @@ TabbedSelector::Inner::Inner(
 	not_null<Window::Controller*> controller)
 : RpWidget(parent)
 , _controller(controller) {
+}
+
+rpl::producer<int> TabbedSelector::Inner::scrollToRequests() const {
+	return _scrollToRequests.events();
+}
+
+rpl::producer<bool> TabbedSelector::Inner::disableScrollRequests() const {
+	return _disableScrollRequests.events();
+}
+
+void TabbedSelector::Inner::scrollTo(int y) {
+	_scrollToRequests.fire_copy(y);
+}
+
+void TabbedSelector::Inner::disableScroll(bool disabled) {
+	_disableScrollRequests.fire_copy(disabled);
 }
 
 void TabbedSelector::Inner::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {

@@ -29,12 +29,14 @@ class StickersListWidget
 	: public TabbedSelector::Inner
 	, private base::Subscriber
 	, private MTP::Sender {
-	Q_OBJECT
-
 public:
 	StickersListWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller);
+
+	rpl::producer<not_null<DocumentData*>> chosen() const;
+	rpl::producer<> scrollUpdated() const;
+	rpl::producer<> checkForHide() const;
 
 	void refreshRecent() override;
 	void preloadImages() override;
@@ -81,15 +83,6 @@ protected:
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
 	int countDesiredHeight(int newWidth) override;
-
-private slots:
-	void onSettings();
-	void onPreview();
-
-signals:
-	void selected(not_null<DocumentData*> sticker);
-	void scrollUpdated();
-	void checkForHide();
 
 private:
 	class Footer;
@@ -248,6 +241,8 @@ private:
 	void fillCloudSearchRows(const std::vector<uint64> &cloudSets);
 	void addSearchRow(not_null<const Stickers::Set*> set);
 
+	void showPreview();
+
 	ChannelData *_megagroupSet = nullptr;
 	std::vector<Set> _mySets;
 	std::vector<Set> _featuredSets;
@@ -281,7 +276,7 @@ private:
 
 	object_ptr<Ui::LinkButton> _settings;
 
-	QTimer _previewTimer;
+	base::Timer _previewTimer;
 	bool _previewShown = false;
 
 	std::map<QString, std::vector<uint64>> _searchCache;
@@ -289,6 +284,10 @@ private:
 	base::Timer _searchRequestTimer;
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
+
+	rpl::event_stream<not_null<DocumentData*>> _chosen;
+	rpl::event_stream<> _scrollUpdated;
+	rpl::event_stream<> _checkForHide;
 
 };
 

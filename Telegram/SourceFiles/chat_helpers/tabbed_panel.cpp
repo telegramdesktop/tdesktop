@@ -66,24 +66,31 @@ TabbedPanel::TabbedPanel(
 
 	_hideTimer.setCallback([this] { hideByTimerOrLeave(); });
 
-	connect(_selector, &TabbedSelector::checkForHide, this, [this] {
+	_selector->checkForHide(
+	) | rpl::start_with_next([=] {
 		if (!rect().contains(mapFromGlobal(QCursor::pos()))) {
 			_hideTimer.callOnce(kDelayedHideTimeoutMs);
 		}
-	});
-	connect(_selector, &TabbedSelector::cancelled, this, [this] {
+	}, lifetime());
+
+	_selector->cancelled(
+	) | rpl::start_with_next([=] {
 		hideAnimated();
-	});
-	connect(_selector, &TabbedSelector::slideFinished, this, [this] {
-		InvokeQueued(this, [this] {
+	}, lifetime());
+
+	_selector->slideFinished(
+	) | rpl::start_with_next([=] {
+		InvokeQueued(this, [=] {
 			if (_hideAfterSlide) {
 				startOpacityAnimation(true);
 			}
 		});
-	});
+	}, lifetime());
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+		connect(App::wnd()->windowHandle(), &QWindow::activeChanged, this, [=] {
+			windowActiveChanged();
+		});
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
@@ -122,7 +129,7 @@ void TabbedPanel::updateContentHeight() {
 	update();
 }
 
-void TabbedPanel::onWndActiveChanged() {
+void TabbedPanel::windowActiveChanged() {
 	if (!App::wnd()->windowHandle()->isActive() && !isHidden() && !preventAutoHide()) {
 		hideAnimated();
 	}

@@ -22,9 +22,7 @@ namespace ChatHelpers {
 
 class TabbedSelector;
 
-class TabbedPanel : public Ui::RpWidget{
-	Q_OBJECT
-
+class TabbedPanel : public Ui::RpWidget {
 public:
 	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller);
 	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
@@ -55,9 +53,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-private slots:
-	void onWndActiveChanged();
-
 private:
 	void hideByTimerOrLeave();
 	void moveByBottom();
@@ -65,6 +60,7 @@ private:
 		return !_selector;
 	}
 	void showFromSelector();
+	void windowActiveChanged();
 
 	style::margins innerPadding() const;
 
