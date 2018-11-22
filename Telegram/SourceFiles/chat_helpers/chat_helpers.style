@@ -151,6 +151,9 @@ emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanDesiredSize: 45px;
 
+inlineResultsMinHeight: 278px;
+inlineResultsMaxHeight: 640px;
+
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;
 emojiPanHeaderLeft: 22px;

@@ -535,7 +535,7 @@ autoDownloadTitlePosition: point(23px, 18px);
 autoDownloadTitleFont: font(15px semibold);
 
 confirmCaptionArea: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 1px, 4px);
+	textMargins: margins(1px, 26px, 31px, 4px);
 	heightMax: 78px;
 }
 confirmBg: windowBgOver;

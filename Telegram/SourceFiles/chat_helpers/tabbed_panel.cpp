@@ -38,7 +38,10 @@ TabbedPanel::TabbedPanel(
 	object_ptr<TabbedSelector> selector)
 : RpWidget(parent)
 , _controller(controller)
-, _selector(std::move(selector)) {
+, _selector(std::move(selector))
+, _heightRatio(st::emojiPanHeightRatio)
+, _minContentHeight(st::emojiPanMinHeight)
+, _maxContentHeight(st::emojiPanMaxHeight) {
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::buttonRadius);
 	_selector->setAfterShownCallback([this](SelectorTab tab) {
@@ -97,8 +100,19 @@ TabbedPanel::TabbedPanel(
 	hideChildren();
 }
 
-void TabbedPanel::moveBottom(int bottom) {
+void TabbedPanel::moveBottomRight(int bottom, int right) {
 	_bottom = bottom;
+	_right = right;
+	updateContentHeight();
+}
+
+void TabbedPanel::setDesiredHeightValues(
+		float64 ratio,
+		int minHeight,
+		int maxHeight) {
+	_heightRatio = ratio;
+	_minContentHeight = minHeight;
+	_maxContentHeight = maxHeight;
 	updateContentHeight();
 }
 
@@ -110,8 +124,11 @@ void TabbedPanel::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto marginsHeight = _selector->marginTop() + _selector->marginBottom();
 	auto availableHeight = _bottom - marginsHeight;
-	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * availableHeight) - addedHeight;
-	auto contentHeight = marginsHeight + snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	auto wantedContentHeight = qRound(_heightRatio * availableHeight) - addedHeight;
+	auto contentHeight = marginsHeight + snap(
+		wantedContentHeight,
+		_minContentHeight,
+		_maxContentHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;
 	if (contentHeight == _contentHeight) {
 		move(x(), resultTop);
@@ -169,7 +186,8 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 }
 
 void TabbedPanel::moveByBottom() {
-	moveToRight(0, y());
+	const auto right = std::max(parentWidget()->width() - _right, 0);
+	moveToRight(right, y());
 	updateContentHeight();
 }
 
@@ -369,6 +387,7 @@ void TabbedPanel::showStarted() {
 	if (isHidden()) {
 		_selector->showStarted();
 		moveByBottom();
+		raise();
 		show();
 		startShowAnimation();
 	} else if (_hiding) {

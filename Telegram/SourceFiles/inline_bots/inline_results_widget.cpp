@@ -43,7 +43,7 @@ Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidge
 , _controller(controller)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::emojiPanMinHeight);
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::inlineResultsMinHeight);
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -760,7 +760,7 @@ void Widget::moveBottom(int bottom) {
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
-	auto contentHeight = snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	auto contentHeight = snap(wantedContentHeight, st::inlineResultsMinHeight, st::inlineResultsMaxHeight);
 	accumulate_min(contentHeight, _bottom - addedHeight);
 	accumulate_min(contentHeight, _contentMaxHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;

@@ -679,9 +679,13 @@ bool SuggestionsController::outerFilter(not_null<QEvent*> event) {
 	switch (type) {
 	case QEvent::Move:
 	case QEvent::Resize: {
-		if (_shown) {
-			updateGeometry();
-		}
+		// updateGeometry uses not only container geometry, but also
+		// container children geometries that will be updated later.
+		InvokeQueued(_container, [=] {
+			if (_shown) {
+				updateGeometry();
+			}
+		});
 	} break;
 	}
 	return false;

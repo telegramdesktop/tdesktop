@@ -25,11 +25,18 @@ class TabbedSelector;
 class TabbedPanel : public Ui::RpWidget {
 public:
 	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller);
-	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
+	TabbedPanel(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		object_ptr<TabbedSelector> selector);
 
 	object_ptr<TabbedSelector> takeSelector();
 	QPointer<TabbedSelector> getSelector() const;
-	void moveBottom(int bottom);
+	void moveBottomRight(int bottom, int right);
+	void setDesiredHeightValues(
+		float64 ratio,
+		int minHeight,
+		int maxHeight);
 
 	void hideFast();
 	bool hiding() const {
@@ -86,6 +93,10 @@ private:
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
 	int _bottom = 0;
+	int _right = 0;
+	float64 _heightRatio = 1.;
+	int _minContentHeight = 0;
+	int _maxContentHeight = 0;
 
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;

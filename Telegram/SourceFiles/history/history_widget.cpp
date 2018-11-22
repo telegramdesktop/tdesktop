@@ -4091,7 +4091,7 @@ void HistoryWidget::moveFieldControls() {
 		_inlineResults->moveBottom(_field->y() - st::historySendPadding);
 	}
 	if (_tabbedPanel) {
-		_tabbedPanel->moveBottom(buttonsBottom);
+		_tabbedPanel->moveBottomRight(buttonsBottom, width());
 	}
 
 	auto fullWidthButtonRect = myrtlrect(

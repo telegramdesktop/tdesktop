@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "ui/special_buttons.h"
 #include "media/media_clip_reader.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -17,7 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
+#include "core/event_filter.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_controller.h"
 #include "mainwidget.h"
@@ -25,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
@@ -219,6 +224,25 @@ EditCaptionBox::EditCaptionBox(
 	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
 }
 
+bool EditCaptionBox::emojiFilter(not_null<QEvent*> event) {
+	const auto type = event->type();
+	if (type == QEvent::Move || type == QEvent::Resize) {
+		// updateEmojiPanelGeometry uses not only container geometry, but
+		// also container children geometries that will be updated later.
+		crl::on_main(this, [=] { updateEmojiPanelGeometry(); });
+	}
+	return false;
+}
+
+void EditCaptionBox::updateEmojiPanelGeometry() {
+	const auto parent = _emojiPanel->parentWidget();
+	const auto global = _emojiToggle->mapToGlobal({ 0, 0 });
+	const auto local = parent->mapFromGlobal(global);
+	_emojiPanel->moveBottomRight(
+		local.y(),
+		local.x() + _emojiToggle->width() * 3);
+}
+
 void EditCaptionBox::prepareGifPreview(not_null<DocumentData*> document) {
 	if (_gifPreview) {
 		return;
@@ -266,6 +290,8 @@ void EditCaptionBox::prepare() {
 		getDelegate()->outerContainer(),
 		_field);
 
+	setupEmojiPanel();
+
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
@@ -274,7 +300,38 @@ void EditCaptionBox::prepare() {
 void EditCaptionBox::captionResized() {
 	updateBoxSize();
 	resizeEvent(0);
+	updateEmojiPanelGeometry();
 	update();
+}
+
+void EditCaptionBox::setupEmojiPanel() {
+	const auto container = getDelegate()->outerContainer();
+	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		container,
+		_controller,
+		object_ptr<ChatHelpers::TabbedSelector>(
+			nullptr,
+			_controller,
+			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+	_emojiPanel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	_emojiPanel->hide();
+	_emojiPanel->getSelector()->emojiChosen(
+	) | rpl::start_with_next([=](EmojiPtr emoji) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	}, lifetime());
+
+	_emojiFilter.reset(Core::InstallEventFilter(
+		container,
+		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
+
+	_emojiToggle.create(this, st::boxAttachEmoji);
+	_emojiToggle->installEventFilter(_emojiPanel);
+	_emojiToggle->addClickHandler([=] {
+		_emojiPanel->toggleAnimated();
+	});
 }
 
 void EditCaptionBox::updateBoxSize() {
@@ -393,6 +450,11 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_field->resize(st::sendMediaPreviewSize, _field->height());
 	_field->moveToLeft(st::boxPhotoPadding.left(), height() - st::normalFont->height - errorTopSkip() - _field->height());
+	_emojiToggle->moveToLeft(
+		(st::boxPhotoPadding.left()
+			+ st::sendMediaPreviewSize
+			- _emojiToggle->width()),
+		_field->y() + st::boxAttachEmojiTop);
 }
 
 void EditCaptionBox::setInnerFocus() {
