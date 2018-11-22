@@ -155,8 +155,17 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 	};
 }
 
+[[nodiscard]] bool TrackHistoryOccupation(History *history) {
+	if (!history) {
+		return false;
+	} else if (const auto user = history->peer->asUser()) {
+		return !user->botInfo;
+	}
+	return false;
+}
+
 uint32 ParseOccupationTag(History *history) {
-	if (!history || !history->peer->isUser()) {
+	if (!TrackHistoryOccupation(history)) {
 		return 0;
 	}
 	const auto draft = history->cloudDraft();
@@ -186,7 +195,7 @@ uint32 ParseOccupationTag(History *history) {
 }
 
 QString ParseOccupationName(History *history) {
-	if (!history || !history->peer->isUser()) {
+	if (!TrackHistoryOccupation(history)) {
 		return QString();
 	}
 	const auto draft = history->cloudDraft();
@@ -216,7 +225,7 @@ QString ParseOccupationName(History *history) {
 }
 
 TimeId OccupiedBySomeoneTill(History *history) {
-	if (!history || !history->peer->isUser()) {
+	if (!TrackHistoryOccupation(history)) {
 		return 0;
 	}
 	const auto draft = history->cloudDraft();
@@ -271,7 +280,7 @@ void Helper::registerWindow(not_null<Window::Controller*> controller) {
 	controller->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
 		const auto history = key.history();
-		return (history && history->peer->isUser()) ? history : nullptr;
+		return TrackHistoryOccupation(history) ? history : nullptr;
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](History *history) {
 		updateOccupiedHistory(controller, history);
