@@ -45,8 +45,15 @@ public:
 		not_null<InlineBots::Result*> result;
 		not_null<UserData*> bot;
 	};
+	enum class Mode {
+		Full,
+		EmojiOnly
+	};
 
-	TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller);
+	TabbedSelector(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		Mode mode = Mode::Full);
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
 	rpl::producer<not_null<DocumentData*>> fileChosen() const;
@@ -69,6 +76,7 @@ public:
 
 	int marginTop() const;
 	int marginBottom() const;
+	int scrollTop() const;
 
 	bool preventAutoHide() const;
 	bool isSliding() const {
@@ -112,7 +120,7 @@ private:
 		SelectorTab type() const {
 			return _type;
 		}
-		not_null<Inner*> widget() const {
+		Inner *widget() const {
 			return _weak;
 		}
 		not_null<InnerFooter*> footer() const {
@@ -135,6 +143,11 @@ private:
 		int _scrollTop = 0;
 
 	};
+
+	bool full() const;
+	Tab createTab(
+		SelectorTab type,
+		not_null<Window::Controller*> controller);
 
 	void paintSlideFrame(Painter &p, TimeMs ms);
 	void paintContent(Painter &p);
@@ -171,6 +184,7 @@ private:
 	not_null<StickersListWidget*> stickers() const;
 	not_null<GifsListWidget*> gifs() const;
 
+	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
 	int _footerTop = 0;
 	PeerData *_currentPeer = nullptr;

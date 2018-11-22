@@ -67,14 +67,6 @@ private:
 	// Rounded rect which has shadow around it.
 	QRect innerRect() const;
 
-	// Inner rect with removed st::buttonRadius from top and bottom.
-	// This one is allowed to be not rounded.
-	QRect horizontalRect() const;
-
-	// Inner rect with removed st::buttonRadius from left and right.
-	// This one is allowed to be not rounded.
-	QRect verticalRect() const;
-
 	QImage grabForAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);

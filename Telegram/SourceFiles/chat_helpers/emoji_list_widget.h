@@ -31,7 +31,9 @@ class EmojiListWidget
 	: public TabbedSelector::Inner
 	, public Ui::AbstractTooltipShower {
 public:
-	EmojiListWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	EmojiListWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller);
 
 	using Section = Ui::Emoji::Section;
 

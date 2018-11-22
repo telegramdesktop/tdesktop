@@ -52,8 +52,8 @@ TabbedPanel::TabbedPanel(
 		}
 	});
 	_selector->showRequests(
-	) | rpl::start_with_next([this] {
-		this->showFromSelector();
+	) | rpl::start_with_next([=] {
+		showFromSelector();
 	}, lifetime());
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
@@ -404,14 +404,6 @@ style::margins TabbedPanel::innerPadding() const {
 
 QRect TabbedPanel::innerRect() const {
 	return rect().marginsRemoved(innerPadding());
-}
-
-QRect TabbedPanel::horizontalRect() const {
-	return innerRect().marginsRemoved(style::margins(0, st::buttonRadius, 0, st::buttonRadius));
-}
-
-QRect TabbedPanel::verticalRect() const {
-	return innerRect().marginsRemoved(style::margins(st::buttonRadius, 0, st::buttonRadius, 0));
 }
 
 bool TabbedPanel::overlaps(const QRect &globalRect) const {
