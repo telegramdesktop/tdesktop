@@ -31,7 +31,6 @@ double objc_appkitVersion();
 
 QString objc_documentsPath();
 QString objc_appDataPath();
-QString objc_downloadPath();
 QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);

@@ -206,10 +206,6 @@ QString psAppDataPath() {
 	return objc_appDataPath();
 }
 
-QString psDownloadPath() {
-	return objc_downloadPath();
-}
-
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);

@@ -489,14 +489,6 @@ QString objc_appDataPath() {
 	return QString();
 }
 
-QString objc_downloadPath() {
-	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDownloadsDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
-	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + str_const_toString(AppName) + '/';
-	}
-	return QString();
-}
-
 QByteArray objc_downloadPathBookmark(const QString &path) {
 #ifndef OS_MAC_STORE
 	return QByteArray();

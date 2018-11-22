@@ -979,7 +979,7 @@ void MediaView::onDownload() {
 
 	QString path;
 	if (Global::DownloadPath().isEmpty()) {
-		path = psDownloadPath();
+		path = File::DefaultDownloadPath();
 	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
