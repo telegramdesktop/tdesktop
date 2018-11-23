@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
+#include "base/unique_qptr.h"
 
 class MainWidget;
 class BoxContent;
@@ -66,7 +67,6 @@ public:
 	void activate();
 
 	void noIntro(Intro::Widget *was);
-	void layerHidden(not_null<Window::LayerStackWidget*> layer);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
@@ -153,7 +153,7 @@ private:
 	[[nodiscard]] bool skipTrayClick() const;
 
 	void ensureLayerCreated();
-	void destroyLayerDelayed();
+	void destroyLayer();
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
@@ -167,7 +167,7 @@ private:
 	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
-	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
+	base::unique_qptr<Window::LayerStackWidget> _layer;
 	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };

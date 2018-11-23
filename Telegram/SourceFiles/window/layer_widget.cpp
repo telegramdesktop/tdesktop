@@ -208,7 +208,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	_inPaintEvent = true;
 	auto guard = gsl::finally([this] {
 		_inPaintEvent = false;
-		checkIfDone();
+		crl::on_main(this, [=] { checkIfDone(); });
 	});
 
 	if (!_bodyCache.isNull()) {
@@ -400,10 +400,10 @@ void LayerStackWidget::hideLayers(anim::type animated) {
 }
 
 void LayerStackWidget::hideAll(anim::type animated) {
-	startAnimation([] {}, [=] {
+	startAnimation([] {}, [&] {
 		clearLayers();
 		clearSpecialLayer();
-		_mainMenu.destroyDelayed();
+		_mainMenu.destroy();
 	}, Action::HideAll, animated);
 }
 
@@ -635,12 +635,12 @@ void LayerStackWidget::animationDone() {
 		layer->show();
 		hidden = false;
 	}
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	if (hidden) {
 		_hideFinishStream.fire({});
 	} else {
 		showFinished();
 	}
-	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
 rpl::producer<> LayerStackWidget::hideFinishEvents() const {
@@ -665,12 +665,12 @@ void LayerStackWidget::showFinished() {
 void LayerStackWidget::showSpecialLayer(
 		object_ptr<LayerWidget> layer,
 		anim::type animated) {
-	startAnimation([this, layer = std::move(layer)]() mutable {
+	startAnimation([&] {
 		_specialLayer.destroy();
 		_specialLayer = std::move(layer);
 		initChildLayer(_specialLayer);
-	}, [this] {
-		_mainMenu.destroyDelayed();
+	}, [&] {
+		_mainMenu.destroy();
 	}, Action::ShowSpecialLayer, animated);
 }
 
@@ -684,9 +684,9 @@ bool LayerStackWidget::showSectionInternal(
 }
 
 void LayerStackWidget::hideSpecialLayer(anim::type animated) {
-	startAnimation([] {}, [this] {
+	startAnimation([] {}, [&] {
 		clearSpecialLayer();
-		_mainMenu.destroyDelayed();
+		_mainMenu.destroy();
 	}, Action::HideSpecialLayer, animated);
 }
 
@@ -697,7 +697,7 @@ void LayerStackWidget::showMainMenu(
 		_mainMenu.create(this, controller);
 		_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
 		_mainMenu->setParent(this);
-	}, [this] {
+	}, [&] {
 		clearLayers();
 		_specialLayer.destroy();
 	}, Action::ShowMainMenu, animated);
@@ -729,8 +729,8 @@ LayerWidget *LayerStackWidget::pushBox(
 			showFinished();
 		}
 	} else {
-		startAnimation([] {}, [this] {
-			_mainMenu.destroyDelayed();
+		startAnimation([] {}, [&] {
+			_mainMenu.destroy();
 		}, Action::ShowLayer, animated);
 	}
 
@@ -768,7 +768,7 @@ void LayerStackWidget::clearLayers() {
 void LayerStackWidget::clearSpecialLayer() {
 	if (_specialLayer) {
 		_specialLayer->setClosing();
-		_specialLayer.destroyDelayed();
+		_specialLayer.destroy();
 	}
 }
 
