@@ -287,13 +287,13 @@ QImage RemoteSource::takeLoaded() {
 
 	auto data = _loader->imageData(shrinkBox());
 	if (data.isNull()) {
-		destroyLoaderDelayed(CancelledFileLoader);
+		destroyLoader(CancelledFileLoader);
 		return QImage();
 	}
 
 	setInformation(_loader->bytes().size(), data.width(), data.height());
 
-	destroyLoaderDelayed();
+	destroyLoader();
 
 	return data;
 }
@@ -302,12 +302,15 @@ bool RemoteSource::loaderValid() const {
 	return _loader && _loader != CancelledFileLoader;
 }
 
-void RemoteSource::destroyLoaderDelayed(FileLoader *newValue) {
+void RemoteSource::destroyLoader(FileLoader *newValue) {
 	Expects(loaderValid());
 
-	_loader->stop();
-	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	Auth().downloader().delayedDestroyLoader(std::move(loader));
+	const auto loader = std::exchange(_loader, newValue);
+	if (_loader == CancelledFileLoader) {
+		loader->cancel();
+	}
+	loader->stop();
+	delete loader;
 }
 
 void RemoteSource::loadLocal() {
@@ -401,11 +404,7 @@ bool RemoteSource::displayLoading() {
 void RemoteSource::cancel() {
 	if (!loaderValid()) return;
 
-	const auto loader = std::exchange(_loader, CancelledFileLoader);
-	loader->cancel();
-	loader->stop();
-	Auth().downloader().delayedDestroyLoader(
-		std::unique_ptr<FileLoader>(loader));
+	destroyLoader(CancelledFileLoader);
 }
 
 void RemoteSource::unload() {
