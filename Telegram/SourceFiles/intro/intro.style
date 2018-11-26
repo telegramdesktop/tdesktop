@@ -59,6 +59,7 @@ introTitle: FlatLabel(defaultFlatLabel) {
 }
 introTitleTop: 1px;
 introDescription: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
 	textFg: introDescriptionFg;
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 20px;

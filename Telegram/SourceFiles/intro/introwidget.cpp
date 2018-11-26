@@ -658,6 +658,7 @@ void Widget::Step::updateLabelsPosition() {
 		_description->moveToLeft((width() - _description->width()) / 2, contentTop() + st::introCoverDescriptionTop);
 	} else {
 		_title->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introTitleTop);
+		_description->resizeToWidth(st::introDescription.minWidth);
 		_description->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
 	}
 	if (_error) {
