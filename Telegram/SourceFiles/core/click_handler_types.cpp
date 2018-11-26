@@ -158,6 +158,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
 		if (UrlRequiresConfirmation(url)) {
+			Messenger::Instance().hideMediaView();
 			const auto displayUrl = parsedUrl.isValid()
 				? parsedUrl.toDisplayString()
 				: url;
