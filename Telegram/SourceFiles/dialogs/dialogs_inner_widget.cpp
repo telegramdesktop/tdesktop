@@ -2513,7 +2513,7 @@ bool DialogsInner::chooseRow() {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
 			Local::saveRecentSearchHashtags(_filter);
 		}
-		const auto openSearchResult = !App::main()->selectingPeer(true)
+		const auto openSearchResult = !App::main()->selectingPeer()
 			&& (_state == State::Filtered)
 			&& base::in_range(_filteredSelected, 0, _filterResults.size());
 		if (const auto history = chosen.key.history()) {

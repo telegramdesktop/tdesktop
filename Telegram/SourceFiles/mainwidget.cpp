@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
+#include "window/window_history_hider.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
 #include "core/update_checker.h"
@@ -475,9 +476,12 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 }
 
 bool MainWidget::shareUrl(
-		not_null<PeerData*> peer,
+		PeerId peerId,
 		const QString &url,
 		const QString &text) {
+	Expects(peerId != 0);
+
+	const auto peer = App::peer(peerId);
 	if (!peer->canWrite()) {
 		Ui::show(Box<InformBox>(lang(lng_share_cant)));
 		return false;
@@ -510,9 +514,11 @@ void MainWidget::replyToItem(not_null<HistoryItem*> item) {
 	}
 }
 
-bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
-	PeerData *p = App::peer(peer);
-	if (!peer || !p->canWrite()) {
+bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
+	Expects(peerId != 0);
+
+	const auto peer = App::peer(peerId);
+	if (!peer->canWrite()) {
 		Ui::show(Box<InformBox>(lang(lng_inline_switch_cant)));
 		return false;
 	}
@@ -521,7 +527,7 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
 	h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
-	bool opened = _history->peer() && (_history->peer()->id == peer);
+	const auto opened = _history->peer() && (_history->peer() == peer);
 	if (opened) {
 		_history->applyDraft();
 	} else {
@@ -548,7 +554,7 @@ void MainWidget::finishForwarding(not_null<History*> history) {
 	dialogsToUp();
 }
 
-bool MainWidget::onSendPaths(const PeerId &peerId) {
+bool MainWidget::sendPaths(PeerId peerId) {
 	Expects(peerId != 0);
 
 	auto peer = App::peer(peerId);
@@ -575,7 +581,7 @@ void MainWidget::onFilesOrForwardDrop(
 			// We've already released the mouse button, so the forwarding is cancelled.
 			if (_hider) {
 				_hider->startHide();
-				noHider(_hider);
+				clearHider(_hider);
 			}
 		}
 	} else {
@@ -621,45 +627,49 @@ void MainWidget::notify_historyMuteUpdated(History *history) {
 	_dialogs->notify_historyMuteUpdated(history);
 }
 
-void MainWidget::noHider(HistoryHider *destroyed) {
-	if (_hider == destroyed) {
-		_hider = nullptr;
-		if (Adaptive::OneColumn()) {
-			if (_forwardConfirm) {
-				_forwardConfirm->closeBox();
-				_forwardConfirm = nullptr;
-			}
-			if (_mainSection || (_history->peer() && _history->peer()->id)) {
-				auto animationParams = ([this] {
-					if (_mainSection) {
-						return prepareMainSectionAnimation(_mainSection);
-					}
-					return prepareHistoryAnimation(_history->peer() ? _history->peer()->id : 0);
-				})();
-				_dialogs->hide();
+void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
+	if (_hider != instance) {
+		return;
+	}
+	_hider.release();
+	if (Adaptive::OneColumn()) {
+		if (_mainSection || (_history->peer() && _history->peer()->id)) {
+			auto animationParams = ([=] {
 				if (_mainSection) {
-					_mainSection->showAnimated(Window::SlideDirection::FromRight, animationParams);
-				} else {
-					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
+					return prepareMainSectionAnimation(_mainSection);
 				}
-				floatPlayerCheckVisibility();
+				return prepareHistoryAnimation(_history->peer() ? _history->peer()->id : 0);
+			})();
+			_dialogs->hide();
+			if (_mainSection) {
+				_mainSection->showAnimated(Window::SlideDirection::FromRight, animationParams);
+			} else {
+				_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 			}
-		} else {
-			if (_forwardConfirm) {
-				_forwardConfirm->deleteLater();
-				_forwardConfirm = nullptr;
-			}
+			floatPlayerCheckVisibility();
 		}
 	}
 }
 
-void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
+void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 	if (Messenger::Instance().locked()) {
 		return;
 	}
 
-	_hider = std::move(h);
-	connect(_hider, SIGNAL(forwarded()), _dialogs, SLOT(onCancelSearch()));
+	_hider = std::move(hider);
+	_hider->setParent(this);
+
+	_hider->hidden(
+	) | rpl::start_with_next([=, instance = _hider.get()] {
+		clearHider(instance);
+		instance->deleteLater();
+	}, _hider->lifetime());
+
+	_hider->confirmed(
+	) | rpl::start_with_next([=] {
+		_dialogs->onCancelSearch();
+	}, _hider->lifetime());
+
 	if (Adaptive::OneColumn()) {
 		dialogsToUp();
 
@@ -685,11 +695,25 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 }
 
 void MainWidget::showForwardLayer(MessageIdsList &&items) {
-	hiderLayer(object_ptr<HistoryHider>(this, std::move(items)));
+	auto callback = [=, items = std::move(items)](PeerId peer) mutable {
+		return setForwardDraft(peer, std::move(items));
+	};
+	hiderLayer(base::make_unique_q<Window::HistoryHider>(
+		this,
+		lang(lng_forward_choose),
+		std::move(callback)));
 }
 
 void MainWidget::showSendPathsLayer() {
-	hiderLayer(object_ptr<HistoryHider>(this));
+	hiderLayer(base::make_unique_q<Window::HistoryHider>(
+		this,
+		lang(lng_forward_choose),
+		[=](PeerId peer) { return sendPaths(peer); }));
+	if (_hider) {
+		connect(_hider, &QObject::destroyed, [] {
+			cSetSendPaths(QStringList());
+		});
+	}
 }
 
 void MainWidget::deleteLayer(FullMsgId itemId) {
@@ -738,32 +762,27 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	if (url.trimmed().startsWith('@')) {
 		return;
 	}
-	hiderLayer(object_ptr<HistoryHider>(this, url, text));
+	auto callback = [=](PeerId peer) {
+		return shareUrl(peer, url, text);
+	};
+	hiderLayer(base::make_unique_q<Window::HistoryHider>(
+		this,
+		lang(lng_forward_choose),
+		std::move(callback)));
 }
 
 void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
-	hiderLayer(object_ptr<HistoryHider>(this, botAndQuery));
+	auto callback = [=](PeerId peer) {
+		return inlineSwitchChosen(peer, botAndQuery);
+	};
+	hiderLayer(base::make_unique_q<Window::HistoryHider>(
+		this,
+		lang(lng_inline_switch_choose),
+		std::move(callback)));
 }
 
-bool MainWidget::selectingPeer(bool withConfirm) const {
-	return _hider ? (withConfirm ? _hider->withConfirm() : true) : false;
-}
-
-bool MainWidget::selectingPeerForInlineSwitch() {
-	return selectingPeer() ? !_hider->botAndQuery().isEmpty() : false;
-}
-
-void MainWidget::offerPeer(PeerId peer) {
-	Ui::hideLayer();
-	if (_hider->offerPeer(peer) && Adaptive::OneColumn()) {
-		_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), crl::guard(this, [this] {
-			_hider->forward();
-			if (_forwardConfirm) _forwardConfirm->closeBox();
-			if (_hider) _hider->offerPeer(0);
-		}), crl::guard(this, [this] {
-			if (_hider && _forwardConfirm) _hider->offerPeer(0);
-		})));
-	}
+bool MainWidget::selectingPeer() const {
+	return _hider ? true : false;
 }
 
 void MainWidget::dialogsActivate() {
@@ -1453,7 +1472,7 @@ bool MainWidget::onSendSticker(DocumentData *document) {
 void MainWidget::dialogsCancelled() {
 	if (_hider) {
 		_hider->startHide();
-		noHider(_hider);
+		clearHider(_hider);
 	}
 	_history->activate();
 }
@@ -1538,9 +1557,7 @@ void MainWidget::pushReplyReturn(not_null<HistoryItem*> item) {
 
 void MainWidget::setInnerFocus() {
 	if (_hider || !_history->peer()) {
-		if (_hider && _hider->wasOffered()) {
-			_hider->setFocus();
-		} else if (!_hider && _mainSection) {
+		if (!_hider && _mainSection) {
 			_mainSection->setInnerFocus();
 		} else if (!_hider && _thirdSection) {
 			_thirdSection->setInnerFocus();
@@ -1634,7 +1651,7 @@ void MainWidget::createDialog(Dialogs::Key key) {
 
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
 	if (selectingPeer()) {
-		offerPeer(peerId);
+		_hider->offerPeer(peerId);
 	} else {
 		Ui::showPeerHistory(peerId, showAtMsgId);
 	}
@@ -1711,7 +1728,7 @@ void MainWidget::ui_showPeerHistory(
 	}
 	if (_hider) {
 		_hider->startHide();
-		_hider = nullptr;
+		_hider.release();
 	}
 
 	auto animatedShow = [&] {
@@ -2415,15 +2432,6 @@ void MainWidget::showAll() {
 		_sideShadow->hide();
 		if (_hider) {
 			_hider->hide();
-			if (!_forwardConfirm && _hider->wasOffered()) {
-				_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), crl::guard(this, [this] {
-					_hider->forward();
-					if (_forwardConfirm) _forwardConfirm->closeBox();
-					if (_hider) _hider->offerPeer(0);
-				}), crl::guard(this, [this] {
-					if (_hider && _forwardConfirm) _hider->offerPeer(0);
-				})), LayerOption::CloseOther, anim::type::instant);
-			}
 		}
 		if (selectingPeer()) {
 			_dialogs->showFast();
@@ -2449,13 +2457,6 @@ void MainWidget::showAll() {
 		_sideShadow->show();
 		if (_hider) {
 			_hider->show();
-			if (_forwardConfirm) {
-				_forwardConfirm = nullptr;
-				Ui::hideLayer(anim::type::instant);
-				if (_hider->wasOffered()) {
-					_hider->setFocus();
-				}
-			}
 		}
 		_dialogs->showFast();
 		if (_mainSection) {
@@ -3598,11 +3599,7 @@ void MainWidget::activate() {
 	if (_a_show.animating()) return;
 	if (!_mainSection) {
 		if (_hider) {
-			if (_hider->wasOffered()) {
-				_hider->setFocus();
-			} else {
-				_dialogs->activate();
-			}
+			_dialogs->activate();
         } else if (App::wnd() && !Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
 				showSendPathsLayer();
@@ -3651,10 +3648,6 @@ int32 MainWidget::dlgsWidth() const {
 MainWidget::~MainWidget() {
 	if (App::main() == this) _history->showHistory(0, 0);
 
-	if (HistoryHider *hider = _hider) {
-		_hider = nullptr;
-		delete hider;
-	}
 	Messenger::Instance().mtp()->clearGlobalHandlers();
 }
 
