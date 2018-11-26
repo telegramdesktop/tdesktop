@@ -102,7 +102,6 @@ void showMediaPreview(
 	Data::FileOrigin origin,
 	not_null<DocumentData*> document);
 void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo);
-void hideMediaPreview();
 
 template <typename BoxType>
 QPointer<BoxType> show(

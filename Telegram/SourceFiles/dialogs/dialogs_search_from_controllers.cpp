@@ -76,7 +76,9 @@ void ChatSearchFromController::prepare() {
 
 void ChatSearchFromController::rowClicked(not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
-	_callback(row->peer()->asUser());
+
+	const auto onstack = _callback;
+	onstack(row->peer()->asUser());
 }
 
 void ChatSearchFromController::rebuildRows() {
@@ -143,7 +145,9 @@ void ChannelSearchFromController::prepare() {
 
 void ChannelSearchFromController::rowClicked(not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
-	_callback(row->peer()->asUser());
+
+	const auto onstack = _callback;
+	onstack(row->peer()->asUser());
 }
 
 std::unique_ptr<PeerListRow> ChannelSearchFromController::createRow(not_null<UserData*> user) const {

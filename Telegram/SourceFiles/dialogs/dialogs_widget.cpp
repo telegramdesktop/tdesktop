@@ -1199,13 +1199,12 @@ void DialogsWidget::showSearchFrom() {
 		Dialogs::ShowSearchFromBox(
 			controller(),
 			peer,
-			crl::guard(this, [=](
-					not_null<UserData*> user) {
+			crl::guard(this, [=](not_null<UserData*> user) {
 				Ui::hideLayer();
 				setSearchInChat(chat, user);
 				onFilterUpdate(true);
 			}),
-			crl::guard(this, [this] { _filter->setFocus(); }));
+			crl::guard(this, [=] { _filter->setFocus(); }));
 	}
 }
 

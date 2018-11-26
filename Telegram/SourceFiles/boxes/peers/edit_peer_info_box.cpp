@@ -124,6 +124,7 @@ private:
 	void submitTitle();
 	void submitDescription();
 	void deleteWithConfirmation();
+	void deleteChannel();
 	void privacyChanged(Privacy value);
 
 	void checkUsernameAvailability();
@@ -1404,28 +1405,35 @@ void Controller::savePhoto() {
 }
 
 void Controller::deleteWithConfirmation() {
-	auto channel = _peer->asChannel();
+	const auto channel = _peer->asChannel();
 	Assert(channel != nullptr);
 
 	auto text = lang(_isGroup
 		? lng_sure_delete_group
 		: lng_sure_delete_channel);
-	auto deleteCallback = [=] {
-		Ui::hideLayer();
-		Ui::showChatsList();
-		if (auto chat = channel->migrateFrom()) {
-			App::main()->deleteAndExit(chat);
-		}
-		MTP::send(
-			MTPchannels_DeleteChannel(channel->inputChannel),
-			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-			App::main()->rpcFail(&MainWidget::deleteChannelFailed));
-	};
+	auto deleteCallback = crl::guard(this, [=] {
+		deleteChannel();
+	});
 	Ui::show(Box<ConfirmBox>(
 		text,
 		lang(lng_box_delete),
 		st::attentionBoxButton,
 		std::move(deleteCallback)), LayerOption::KeepOther);
+}
+
+void Controller::deleteChannel() {
+	const auto channel = _peer->asChannel();
+	const auto chat = channel->migrateFrom();
+
+	Ui::hideLayer();
+	Ui::showChatsList();
+	if (chat) {
+		App::main()->deleteAndExit(chat);
+	}
+	MTP::send(
+		MTPchannels_DeleteChannel(channel->inputChannel),
+		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+		App::main()->rpcFail(&MainWidget::deleteChannelFailed));
 }
 
 } // namespace

@@ -2361,6 +2361,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 	_removingSetId = Stickers::MegagroupSetId;
 	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), crl::guard(this, [this, group = _megagroupSet] {
 		Expects(group->mgInfo != nullptr);
+
 		if (group->mgInfo->stickerSet.type() != mtpc_inputStickerSetEmpty) {
 			Auth().api().setGroupStickerSet(group, MTP_inputStickerSetEmpty());
 		}

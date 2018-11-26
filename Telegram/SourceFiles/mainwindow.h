@@ -116,7 +116,6 @@ public:
 	void ui_showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo);
-	void ui_hideMediaPreview();
 
 protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
@@ -152,6 +151,7 @@ signals:
 private:
 	[[nodiscard]] bool skipTrayClick() const;
 
+	void hideMediaPreview();
 	void ensureLayerCreated();
 	void destroyLayer();
 

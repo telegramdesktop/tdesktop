@@ -385,8 +385,10 @@ void MainWindow::ui_showMediaPreview(
 	_mediaPreview->showPreview(origin, photo);
 }
 
-void MainWindow::ui_hideMediaPreview() {
-	if (!_mediaPreview) return;
+void MainWindow::hideMediaPreview() {
+	if (!_mediaPreview) {
+		return;
+	}
 	_mediaPreview->hidePreview();
 }
 
@@ -484,12 +486,12 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::MouseButtonRelease: {
-		Ui::hideMediaPreview();
+		hideMediaPreview();
 	} break;
 
 	case QEvent::ApplicationActivate: {
 		if (object == QCoreApplication::instance()) {
-			InvokeQueued(this, [this] {
+			InvokeQueued(this, [=] {
 				handleActiveChanged();
 			});
 		}

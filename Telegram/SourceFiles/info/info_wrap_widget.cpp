@@ -403,9 +403,8 @@ void WrapWidget::createTopBar() {
 
 void WrapWidget::checkBeforeClose(Fn<void()> close) {
 	const auto confirmed = [=] {
-		const auto copy = close;
 		Ui::hideLayer();
-		copy();
+		close();
 	};
 	if (_controller->canSaveChangesNow()) {
 		Ui::show(Box<ConfirmBox>(

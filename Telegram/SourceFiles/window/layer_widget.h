@@ -55,8 +55,8 @@ public:
 
 protected:
 	void closeLayer() {
-		if (_closedCallback) {
-			_closedCallback();
+		if (const auto callback = base::take(_closedCallback)) {
+			callback();
 		}
 	}
 	void mousePressEvent(QMouseEvent *e) override {
@@ -81,8 +81,6 @@ private:
 };
 
 class LayerStackWidget : public Ui::RpWidget {
-	Q_OBJECT
-
 public:
 	LayerStackWidget(QWidget *parent);
 
@@ -126,11 +124,6 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onLayerDestroyed(QObject *obj);
-	void onLayerClosed(LayerWidget *layer);
-	void onLayerResized();
-
 private:
 	void appendBox(
 		object_ptr<BoxContent> box,
@@ -147,6 +140,7 @@ private:
 		anim::type animated);
 	void showFinished();
 	void hideCurrent(anim::type animated);
+	void closeLayer(not_null<LayerWidget*> layer);
 
 	enum class Action {
 		ShowMainMenu,
@@ -175,13 +169,13 @@ private:
 	void sendFakeMouseEvent();
 
 	LayerWidget *currentLayer() {
-		return _layers.empty() ? nullptr : _layers.back();
+		return _layers.empty() ? nullptr : _layers.back().get();
 	}
 	const LayerWidget *currentLayer() const {
 		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
-	QList<LayerWidget*> _layers;
+	std::vector<std::unique_ptr<LayerWidget>> _layers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
 	object_ptr<MainMenu> _mainMenu = { nullptr };

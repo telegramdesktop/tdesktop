@@ -217,12 +217,6 @@ void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo) {
 	}
 }
 
-void hideMediaPreview() {
-	if (auto w = App::wnd()) {
-		w->ui_hideMediaPreview();
-	}
-}
-
 void hideLayer(anim::type animated) {
 	if (auto w = App::wnd()) {
 		w->ui_showBox(

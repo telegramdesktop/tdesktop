@@ -412,7 +412,10 @@ void GroupInfoBox::submitName() {
 	}
 }
 
-void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users) {
+void GroupInfoBox::createGroup(
+		not_null<PeerListBox*> selectUsersBox,
+		const QString &title,
+		const std::vector<not_null<PeerData*>> &users) {
 	if (_creationRequestId) return;
 
 	auto inputs = QVector<MTPInputUser>();
@@ -427,7 +430,11 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 	if (inputs.empty()) {
 		return;
 	}
-	_creationRequestId = request(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(inputs), MTP_string(title))).done([this](const MTPUpdates &result) {
+	_creationRequestId = request(MTPmessages_CreateChat(
+		MTP_vector<MTPInputUser>(inputs),
+		MTP_string(title)
+	)).done([=](const MTPUpdates &result) {
+		auto image = _photo->takeResultImage();
 		Ui::hideLayer();
 
 		App::main()->sentUpdatesReceived(result);
@@ -440,28 +447,30 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 				case mtpc_updatesCombined:
 					return &updates->c_updatesCombined().vchats.v;
 				}
-				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates->type()));
+				LOG(("API Error: unexpected update cons %1 "
+					"(GroupInfoBox::creationDone)").arg(updates->type()));
 				return std::nullopt;
 			}
 			| [](auto chats) {
-				return (!chats->empty() && chats->front().type() == mtpc_chat)
+				return (!chats->empty()
+					&& chats->front().type() == mtpc_chat)
 					? base::make_optional(chats)
 					: std::nullopt;
 			}
 			| [](auto chats) {
 				return App::chat(chats->front().c_chat().vid.v);
 			}
-			| [this](not_null<ChatData*> chat) {
-				auto image = _photo->takeResultImage();
+			| [&](not_null<ChatData*> chat) {
 				if (!image.isNull()) {
 					Auth().api().uploadPeerPhoto(chat, std::move(image));
 				}
 				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 			};
 		if (!success) {
-			LOG(("API Error: chat not found in updates (ContactsBox::creationDone)"));
+			LOG(("API Error: chat not found in updates "
+				"(ContactsBox::creationDone)"));
 		}
-	}).fail([this, selectUsersBox](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		_creationRequestId = 0;
 		if (error.type() == qstr("NO_CHAT_TITLE")) {
 			auto weak = make_weak(this);

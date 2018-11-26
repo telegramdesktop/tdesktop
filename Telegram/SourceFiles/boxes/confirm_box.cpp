@@ -27,6 +27,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "observer_peer.h"
 
+namespace {
+
+void ConvertToSupergroupDone(const MTPUpdates &updates) {
+	App::main()->sentUpdatesReceived(updates);
+
+	auto handleChats = [](const MTPVector<MTPChat> &chats) {
+		for (const auto &chat : chats.v) {
+			if (chat.type() == mtpc_channel) {
+				const auto channel = App::channel(chat.c_channel().vid.v);
+				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
+				Auth().api().requestParticipantsCountDelayed(channel);
+			}
+		}
+	};
+
+	switch (updates.type()) {
+	case mtpc_updates:
+		handleChats(updates.c_updates().vchats);
+		break;
+	case mtpc_updatesCombined:
+		handleChats(updates.c_updatesCombined().vchats);
+		break;
+	default:
+		LOG(("API Error: unexpected update cons %1 "
+			"(ConvertToSupergroupBox::convertDone)").arg(updates.type()));
+		break;
+	}
+}
+
+} // namespace
+
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -138,8 +169,10 @@ void ConfirmBox::prepare() {
 	}
 
 	boxClosing() | rpl::start_with_next([=] {
-		if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
-			_cancelledCallback();
+		if (!_confirmed && (!_strictCancel || _cancelled)) {
+			if (auto callback = std::move(_cancelledCallback)) {
+				callback();
+			}
 		}
 	}, lifetime());
 
@@ -167,8 +200,8 @@ void ConfirmBox::textUpdated() {
 void ConfirmBox::confirmed() {
 	if (!_confirmed) {
 		_confirmed = true;
-		if (_confirmedCallback) {
-			_confirmedCallback();
+		if (auto callback = std::move(_confirmedCallback)) {
+			callback();
 		}
 	}
 }
@@ -188,11 +221,12 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (auto activated = ClickHandler::unpressed()) {
+	if (const auto activated = ClickHandler::unpressed()) {
 		Ui::hideLayer();
 		App::activateClickHandler(activated, e->button());
+		return;
 	}
-	return BoxContent::mouseReleaseEvent(e);
+	BoxContent::mouseReleaseEvent(e);
 }
 
 void ConfirmBox::leaveEventHook(QEvent *e) {
@@ -359,23 +393,7 @@ void ConvertToSupergroupBox::convertToSupergroup() {
 
 void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 	Ui::hideLayer();
-	App::main()->sentUpdatesReceived(updates);
-
-	auto handleChats = [](auto &mtpChats) {
-		for_const (auto &mtpChat, mtpChats.v) {
-			if (mtpChat.type() == mtpc_channel) {
-				const auto channel = App::channel(mtpChat.c_channel().vid.v);
-				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-				Auth().api().requestParticipantsCountDelayed(channel);
-			}
-		}
-	};
-
-	switch (updates.type()) {
-	case mtpc_updates: handleChats(updates.c_updates().vchats); break;
-	case mtpc_updatesCombined: handleChats(updates.c_updatesCombined().vchats); break;
-	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
-	}
+	ConvertToSupergroupDone(updates);
 }
 
 bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
