@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "messenger.h"
+#include "mainwidget.h"
 #include "application.h"
 #include "platform/platform_specific.h"
 #include "history/view/history_view_element.h"
@@ -231,7 +232,7 @@ QString MentionClickHandler::copyToClipboardContextItemText() const {
 void MentionClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
+		App::main()->openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
 	}
 }
 

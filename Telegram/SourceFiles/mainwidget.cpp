@@ -3404,16 +3404,6 @@ void MainWidget::openPeerByName(
 	}
 }
 
-void MainWidget::joinGroupByHash(const QString &hash) {
-	Messenger::Instance().hideMediaView();
-	MTP::send(MTPmessages_CheckChatInvite(MTP_string(hash)), rpcDone(&MainWidget::inviteCheckDone, hash), rpcFail(&MainWidget::inviteCheckFail));
-}
-
-void MainWidget::stickersBox(const MTPInputStickerSet &set) {
-	Messenger::Instance().hideMediaView();
-	Ui::show(Box<StickerSetBox>(set));
-}
-
 void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 	auto history = App::historyLoaded(channel->id);
 	if (_updatedChannels.contains(channel)) {
@@ -3495,102 +3485,12 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 	return true;
 }
 
-void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
-	switch (invite.type()) {
-	case mtpc_chatInvite: {
-		auto &d = invite.c_chatInvite();
-
-		auto participants = QVector<UserData*>();
-		if (d.has_participants()) {
-			auto &v = d.vparticipants.v;
-			participants.reserve(v.size());
-			for_const (auto &user, v) {
-				if (auto feededUser = App::feedUser(user)) {
-					participants.push_back(feededUser);
-				}
-			}
-		}
-		_inviteHash = hash;
-		auto box = Box<ConfirmInviteBox>(
-			qs(d.vtitle),
-			d.is_channel() && !d.is_megagroup(),
-			d.vphoto,
-			d.vparticipants_count.v,
-			participants);
-		Ui::show(std::move(box));
-	} break;
-
-	case mtpc_chatInviteAlready: {
-		auto &d = invite.c_chatInviteAlready();
-		if (auto chat = App::feedChat(d.vchat)) {
-			_controller->showPeerHistory(
-				chat,
-				SectionShow::Way::Forward);
-		}
-	} break;
-	}
-}
-
-bool MainWidget::inviteCheckFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (error.code() == 400) {
-		Ui::show(Box<InformBox>(lang(lng_group_invite_bad_link)));
-	}
-	return true;
-}
-
-void MainWidget::onInviteImport() {
-	if (_inviteHash.isEmpty()) return;
-	MTP::send(
-		MTPmessages_ImportChatInvite(MTP_string(_inviteHash)),
-		rpcDone(&MainWidget::inviteImportDone),
-		rpcFail(&MainWidget::inviteImportFail));
-}
-
-void MainWidget::inviteImportDone(const MTPUpdates &updates) {
-	App::main()->sentUpdatesReceived(updates);
-
-	Ui::hideLayer();
-	const QVector<MTPChat> *v = 0;
-	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
-	default: LOG(("API Error: unexpected update cons %1 (MainWidget::inviteImportDone)").arg(updates.type())); break;
-	}
-	if (v && !v->isEmpty()) {
-		const auto &mtpChat = v->front();
-		const auto peerId = [&] {
-			if (mtpChat.type() == mtpc_chat) {
-				return peerFromChat(mtpChat.c_chat().vid.v);
-			} else if (mtpChat.type() == mtpc_channel) {
-				return peerFromChannel(mtpChat.c_channel().vid.v);
-			}
-			return PeerId(0);
-		}();
-		if (const auto peer = App::peerLoaded(peerId)) {
-			_controller->showPeerHistory(
-				peer,
-				SectionShow::Way::Forward);
-		}
-	}
-}
-
-bool MainWidget::inviteImportFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-		Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
-	} else if (error.code() == 400) {
-		Ui::show(Box<InformBox>(lang(error.type() == qstr("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
-	}
-
-	return true;
-}
-
 void MainWidget::incrementSticker(DocumentData *sticker) {
-	if (!sticker || !sticker->sticker()) return;
-	if (sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) return;
+	if (!sticker
+		|| !sticker->sticker()
+		|| sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) {
+		return;
+	}
 
 	bool writeRecentStickers = false;
 	auto &sets = Auth().data().stickerSetsRef();

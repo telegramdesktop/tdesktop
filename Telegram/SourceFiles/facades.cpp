@@ -163,14 +163,6 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	}
 }
 
-void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
-	if (MainWidget *m = main()) m->openPeerByName(username, msgId, startToken);
-}
-
-void joinGroupByHash(const QString &hash) {
-	if (MainWidget *m = main()) m->joinGroupByHash(hash);
-}
-
 void showSettings() {
 	if (auto w = wnd()) {
 		w->showSettings();

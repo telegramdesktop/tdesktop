@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "boxes/confirm_box.h"
 #include "boxes/report_box.h"
+#include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
@@ -1769,11 +1770,7 @@ void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
-	if (auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
+	StickerSetBox::Show(document);
 }
 
 void HistoryInner::cancelContextDownload(not_null<DocumentData*> document) {

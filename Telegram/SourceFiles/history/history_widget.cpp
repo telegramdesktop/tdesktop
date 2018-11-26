@@ -3030,9 +3030,7 @@ void HistoryWidget::saveEditMsg() {
 }
 
 void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 	if (req == _saveEditMsgRequestId) {
 		_saveEditMsgRequestId = 0;
 		cancelEdit();
@@ -4778,6 +4776,7 @@ void HistoryWidget::onReportSpamHide() {
 
 void HistoryWidget::onReportSpamClear() {
 	Expects(_peer != nullptr);
+
 	InvokeQueued(App::main(), [peer = _peer] {
 		if (peer->isUser()) {
 			App::main()->deleteConversation(peer);
@@ -5967,9 +5966,7 @@ void HistoryWidget::unpinMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::unpinDone(const MTPUpdates &updates) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 }
 
 void HistoryWidget::onPinnedHide() {

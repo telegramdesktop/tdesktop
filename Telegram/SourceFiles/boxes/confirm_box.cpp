@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 void ConvertToSupergroupDone(const MTPUpdates &updates) {
-	App::main()->sentUpdatesReceived(updates);
+	Auth().api().applyUpdates(updates);
 
 	auto handleChats = [](const MTPVector<MTPChat> &chats) {
 		for (const auto &chat : chats.v) {
@@ -478,9 +478,7 @@ void PinMessageBox::pinMessage() {
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 	Ui::hideLayer();
 }
 
@@ -617,10 +615,6 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void DeleteMessagesBox::deleteAndClear() {
-	if (!App::main()) {
-		return;
-	}
-
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
 			Auth().api().kickParticipant(
@@ -672,38 +666,43 @@ void DeleteMessagesBox::deleteAndClear() {
 
 ConfirmInviteBox::ConfirmInviteBox(
 	QWidget*,
-	const QString &title,
-	bool isChannel,
-	const MTPChatPhoto &photo,
-	int count,
-	const QVector<UserData*> &participants)
-: _title(this, st::confirmInviteTitle)
+	const MTPDchatInvite &data,
+	Fn<void()> submit)
+: _submit(std::move(submit))
+, _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
-, _participants(participants)
-, _isChannel(isChannel) {
-	_title->setText(title);
-	QString status;
-	if (_participants.isEmpty() || _participants.size() >= count) {
-		if (count > 0) {
-			status = lng_chat_status_members(lt_count, count);
+, _participants(GetParticipants(data))
+, _isChannel(data.is_channel() && !data.is_megagroup()) {
+	const auto title = qs(data.vtitle);
+	const auto count = data.vparticipants_count.v;
+	const auto status = [&] {
+		if (_participants.empty() || _participants.size() >= count) {
+			if (count > 0) {
+				return lng_chat_status_members(lt_count, count);
+			} else {
+				return lang(_isChannel
+					? lng_channel_status
+					: lng_group_status);
+			}
 		} else {
-			status = lang(isChannel ? lng_channel_status : lng_group_status);
+			return lng_group_invite_members(lt_count, count);
 		}
-	} else {
-		status = lng_group_invite_members(lt_count, count);
-	}
+	}();
+	_title->setText(title);
 	_status->setText(status);
-	if (photo.type() == mtpc_chatPhoto) {
-		const auto &data = photo.c_chatPhoto();
+	if (data.vphoto.type() == mtpc_chatPhoto) {
+		const auto &photo = data.vphoto.c_chatPhoto();
 		const auto size = 160;
 		const auto location = StorageImageLocation::FromMTP(
 			size,
 			size,
-			data.vphoto_small);
+			photo.vphoto_small);
 		if (!location.isNull()) {
 			_photo = Images::Create(location);
 			if (!_photo->loaded()) {
-				subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+				subscribe(Auth().downloaderTaskFinished(), [=] {
+					update();
+				});
 				_photo->load(Data::FileOrigin());
 			}
 		}
@@ -715,29 +714,41 @@ ConfirmInviteBox::ConfirmInviteBox(
 	}
 }
 
+std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
+		const MTPDchatInvite &data) {
+	if (!data.has_participants()) {
+		return {};
+	}
+	const auto &v = data.vparticipants.v;
+	auto result = std::vector<not_null<UserData*>>();
+	result.reserve(v.size());
+	for (const auto &participant : v) {
+		if (const auto user = App::feedUser(participant)) {
+			result.push_back(user);
+		}
+	}
+	return result;
+}
+
 void ConfirmInviteBox::prepare() {
 	const auto joinKey = _isChannel
 		? lng_profile_join_channel
 		: lng_profile_join_group;
-	addButton(langFactory(joinKey), [] {
-		if (auto main = App::main()) {
-			main->onInviteImport();
-		}
-	});
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(joinKey), _submit);
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	if (_participants.size() > 4) {
-		_participants.resize(4);
+	while (_participants.size() > 4) {
+		_participants.pop_back();
 	}
 
 	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
-	if (!_participants.isEmpty()) {
+	if (!_participants.empty()) {
 		int skip = (st::boxWideWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
 		int padding = skip / 2;
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
 		int left = (st::boxWideWidth - sumWidth) / 2;
-		for_const (auto user, _participants) {
+		for (const auto user : _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
 			name->setText(user->firstName.isEmpty() ? App::peerName(user) : user->firstName);

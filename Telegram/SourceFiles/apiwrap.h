@@ -125,6 +125,12 @@ public:
 	void requestTermsUpdate();
 	void acceptTerms(bytes::const_span termsId);
 
+	void checkChatInvite(
+		const QString &hash,
+		FnMut<void(const MTPChatInvite &)> done,
+		FnMut<void(const RPCError &)> fail);
+	void importChatInvite(const QString &hash);
+
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
 		Fn<void(const MTPchannels_ChannelParticipants&)> callback);
@@ -707,6 +713,10 @@ private:
 
 	TimeMs _termsUpdateSendAt = 0;
 	mtpRequestId _termsUpdateRequestId = 0;
+
+	mtpRequestId _checkInviteRequestId = 0;
+	FnMut<void(const MTPChatInvite &result)> _checkInviteDone;
+	FnMut<void(const RPCError &error)> _checkInviteFail;
 
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
 

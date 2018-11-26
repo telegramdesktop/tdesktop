@@ -437,7 +437,7 @@ void GroupInfoBox::createGroup(
 		auto image = _photo->takeResultImage();
 		Ui::hideLayer();
 
-		App::main()->sentUpdatesReceived(result);
+		Auth().api().applyUpdates(result);
 
 		auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
@@ -542,7 +542,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 	bool mega = false;
 	auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
 	_creationRequestId = request(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description))).done([this](const MTPUpdates &result) {
-		App::main()->sentUpdatesReceived(result);
+		Auth().api().applyUpdates(result);
 
 		auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {

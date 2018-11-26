@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
+#include "core/local_url_handlers.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -26,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
-#include "core/update_checker.h"
-#include "passport/passport_form_controller.h"
 #include "observer_peer.h"
 #include "storage/storage_databases.h"
 #include "mainwidget.h"
@@ -799,142 +798,12 @@ bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 	}
 	auto command = urlTrimmed.midRef(protocol.size());
 
-	const auto showPassportForm = [](const QMap<QString, QString> &params) {
-		const auto botId = params.value("bot_id", QString()).toInt();
-		const auto scope = params.value("scope", QString());
-		const auto callback = params.value("callback_url", QString());
-		const auto publicKey = params.value("public_key", QString());
-		const auto nonce = params.value(
-			Passport::NonceNameByScope(scope),
-			QString());
-		const auto errors = params.value("errors", QString());
-		if (const auto window = App::wnd()) {
-			if (const auto controller = window->controller()) {
-				controller->showPassportForm(Passport::FormRequest(
-					botId,
-					scope,
-					callback,
-					publicKey,
-					nonce,
-					errors));
-				return true;
-			}
-		}
-		return false;
-	};
-
 	using namespace qthelp;
-	auto matchOptions = RegExOption::CaseInsensitive;
-	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			main->joinGroupByHash(joinChatMatch->captured(1));
-			return true;
-		}
-	} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			main->stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
-			return true;
-		}
-	} else if (auto languageMatch = regex_match(qsl("^setlanguage/?\\?lang=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
-		const auto langId = languageMatch->captured(1);
-		Lang::CurrentCloudManager().switchWithWarning(langId);
-	} else if (auto shareUrlMatch = regex_match(qsl("^msg_url/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto url = params.value(qsl("url"));
-			if (!url.isEmpty()) {
-				main->shareUrlLayer(url, params.value("text"));
-				return true;
-			}
-		}
-	} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto phone = params.value(qsl("phone"));
-			auto hash = params.value(qsl("hash"));
-			if (!phone.isEmpty() && !hash.isEmpty()) {
-				ConfirmPhoneBox::start(phone, hash);
-				return true;
-			}
-		}
-	} else if (auto usernameMatch = regex_match(qsl("^resolve/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto domain = params.value(qsl("domain"));
-			if (domain == qsl("telegrampassport")) {
-				return showPassportForm(params);
-			} else if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
-				auto start = qsl("start");
-				auto startToken = params.value(start);
-				if (startToken.isEmpty()) {
-					start = qsl("startgroup");
-					startToken = params.value(start);
-					if (startToken.isEmpty()) {
-						start = QString();
-					}
-				}
-				auto post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
-				auto postParam = params.value(qsl("post"));
-				if (auto postId = postParam.toInt()) {
-					post = postId;
-				}
-				auto gameParam = params.value(qsl("game"));
-				if (!gameParam.isEmpty() && regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), gameParam, matchOptions)) {
-					startToken = gameParam;
-					post = ShowAtGameShareMsgId;
-				}
-				const auto clickFromMessageId = context.value<FullMsgId>();
-				main->openPeerByName(
-					domain,
-					post,
-					startToken,
-					clickFromMessageId);
-				return true;
-			}
-		}
-	} else if (auto shareGameScoreMatch = regex_match(qsl("^share_game_score/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(shareGameScoreMatch->captured(1), UrlParamNameTransform::ToLower);
-			ShareGameScoreByHash(params.value(qsl("hash")));
-			return true;
-		}
-	} else if (auto socksMatch = regex_match(qsl("^socks/?\\?(.+)(#|$)"), command, matchOptions)) {
-		auto params = url_parse_params(socksMatch->captured(1), UrlParamNameTransform::ToLower);
-		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Socks5, params);
-		return true;
-	} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), command, matchOptions)) {
-		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
-		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
-		return true;
-	} else if (auto authMatch = regex_match(qsl("^passport/?\\?(.+)(#|$)"), command, matchOptions)) {
-		return showPassportForm(url_parse_params(
-			authMatch->captured(1),
-			UrlParamNameTransform::ToLower));
-	} else if (auto unknownMatch = regex_match(qsl("^([^\\?]+)(\\?|#|$)"), command, matchOptions)) {
-		if (_authSession) {
-			const auto request = unknownMatch->captured(1);
-			const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
-				const auto text = TextWithEntities{
-					qs(result.vmessage),
-					(result.has_entities()
-						? TextUtilities::EntitiesFromMTP(result.ventities.v)
-						: EntitiesInText())
-				};
-				if (result.is_update_app()) {
-					const auto box = std::make_shared<QPointer<BoxContent>>();
-					const auto callback = [=] {
-						Core::UpdateApplication();
-						if (*box) (*box)->closeBox();
-					};
-					*box = Ui::show(Box<ConfirmBox>(
-						text,
-						lang(lng_menu_update),
-						callback));
-				} else {
-					Ui::show(Box<InformBox>(text));
-				}
-			};
-			_authSession->api().requestDeepLinkInfo(request, callback);
+	const auto options = RegExOption::CaseInsensitive;
+	for (const auto &[expression, handler] : Core::LocalUrlHandlers()) {
+		const auto match = regex_match(expression, command, options);
+		if (match) {
+			return handler(match, context);
 		}
 	}
 	return false;

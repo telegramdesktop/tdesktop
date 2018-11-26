@@ -72,8 +72,8 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 		if (was & StateFlag::Over) {
 			_modifiers = e->modifiers();
 			auto weak = make_weak(this);
-			if (_clickedCallback) {
-				_clickedCallback();
+			if (const auto callback = _clickedCallback) {
+				callback();
 			} else {
 				emit clicked();
 			}

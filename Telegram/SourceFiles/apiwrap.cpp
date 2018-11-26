@@ -338,6 +338,60 @@ void ApiWrap::acceptTerms(bytes::const_span id) {
 	}).send();
 }
 
+void ApiWrap::checkChatInvite(
+		const QString &hash,
+		FnMut<void(const MTPChatInvite &)> done,
+		FnMut<void(const RPCError &)> fail) {
+	request(base::take(_checkInviteRequestId)).cancel();
+	_checkInviteRequestId = request(MTPmessages_CheckChatInvite(
+		MTP_string(hash)
+	)).done(std::move(done)).fail(std::move(fail)).send();
+}
+
+void ApiWrap::importChatInvite(const QString &hash) {
+	request(MTPmessages_ImportChatInvite(
+		MTP_string(hash)
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+
+		Ui::hideLayer();
+		const auto handleChats = [&](const MTPVector<MTPChat> &chats) {
+			if (chats.v.isEmpty()) {
+				return;
+			}
+			const auto peerId = chats.v[0].match([](const MTPDchat &data) {
+				return peerFromChat(data.vid.v);
+			}, [](const MTPDchannel &data) {
+				return peerFromChannel(data.vid.v);
+			}, [](auto&&) {
+				return PeerId(0);
+			});
+			if (const auto peer = App::peerLoaded(peerId)) {
+				App::wnd()->controller()->showPeerHistory(
+					peer,
+					Window::SectionShow::Way::Forward);
+			}
+		};
+		result.match([&](const MTPDupdates &data) {
+			handleChats(data.vchats);
+		}, [&](const MTPDupdatesCombined &data) {
+			handleChats(data.vchats);
+		}, [&](auto &&) {
+			LOG(("API Error: unexpected update cons %1 "
+				"(MainWidget::inviteImportDone)").arg(result.type()));
+		});
+	}).fail([=](const RPCError &error) {
+		const auto type = error.type();
+		if (type == qstr("CHANNELS_TOO_MUCH")) {
+			Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
+		} else if (error.code() == 400) {
+			Ui::show(Box<InformBox>(lang(type == qstr("USERS_TOO_MUCH")
+				? lng_group_invite_no_room
+				: lng_group_invite_bad_link)));
+		}
+	}).send();
+}
+
 void ApiWrap::applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId) {

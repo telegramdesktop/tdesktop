@@ -67,11 +67,6 @@ void activateBotCommand(
 	int row,
 	int column);
 void searchByHashtag(const QString &tag, PeerData *inPeer);
-void openPeerByName(
-	const QString &username,
-	MsgId msgId = ShowAtUnreadMsgId,
-	const QString &startToken = QString());
-void joinGroupByHash(const QString &hash);
 void showSettings();
 
 void activateClickHandler(ClickHandlerPtr handler, ClickContext context);

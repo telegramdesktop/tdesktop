@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 
 #include "auth_session.h"
-#include "mainwidget.h"
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/rate_call_box.h"
@@ -788,7 +788,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		// This could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
 		crl::on_main(this, [=] { setState(finalState); });
-		App::main()->sentUpdatesReceived(result);
+		Auth().api().applyUpdates(result);
 	}).fail([this, finalState](const RPCError &error) {
 		setState(finalState);
 	}).send();

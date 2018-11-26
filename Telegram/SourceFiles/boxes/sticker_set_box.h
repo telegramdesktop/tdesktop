@@ -21,6 +21,8 @@ class StickerSetBox : public BoxContent, public RPCSender {
 public:
 	StickerSetBox(QWidget*, const MTPInputStickerSet &set);
 
+	static void Show(DocumentData *document);
+
 protected:
 	void prepare() override;
 

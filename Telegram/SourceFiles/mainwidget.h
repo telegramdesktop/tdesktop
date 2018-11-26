@@ -106,8 +106,6 @@ public:
 		MsgId msgId = ShowAtUnreadMsgId,
 		const QString &startToken = QString(),
 		FullMsgId clickFromMessageId = FullMsgId());
-	void joinGroupByHash(const QString &hash);
-	void stickersBox(const MTPInputStickerSet &set);
 
 	bool started();
 
@@ -333,8 +331,6 @@ public slots:
 
 	void onCacheBackground();
 
-	void onInviteImport();
-
 	void onViewsIncrement();
 
 protected:
@@ -440,11 +436,6 @@ private:
 	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
-	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
-	bool inviteCheckFail(const RPCError &error);
-	void inviteImportDone(const MTPUpdates &result);
-	bool inviteImportFail(const RPCError &error);
-
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
 
@@ -480,8 +471,6 @@ private:
 
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
-
-	QString _inviteHash;
 
 	Animation _a_show;
 	bool _showBack = false;

@@ -24,9 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_controller.h"
-#include "mainwidget.h"
 #include "layout.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -509,9 +509,7 @@ void EditCaptionBox::save() {
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 	_saveRequestId = 0;
 	closeBox();
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 }
 
 bool EditCaptionBox::saveFail(const RPCError &error) {

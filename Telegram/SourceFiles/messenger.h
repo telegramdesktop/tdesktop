@@ -25,6 +25,7 @@ class Databases;
 
 namespace Core {
 class Launcher;
+class LocalUrlHandler;
 } // namespace Core
 
 namespace Window {
@@ -230,6 +231,8 @@ private:
 	void authSessionDestroy();
 	void clearPasscodeLock();
 	void loggedOut();
+
+	void fillLocalUrlHandlers();
 
 	not_null<Core::Launcher*> _launcher;
 

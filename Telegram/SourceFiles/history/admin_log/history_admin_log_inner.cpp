@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
+#include "boxes/sticker_set_box.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
@@ -1114,11 +1115,7 @@ void InnerWidget::copySelectedText() {
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
-	if (auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
+	StickerSetBox::Show(document);
 }
 
 void InnerWidget::cancelContextDownload(not_null<DocumentData*> document) {

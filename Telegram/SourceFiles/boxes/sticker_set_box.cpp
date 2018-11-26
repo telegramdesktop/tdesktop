@@ -103,6 +103,14 @@ StickerSetBox::StickerSetBox(QWidget*, const MTPInputStickerSet &set)
 : _set(set) {
 }
 
+void StickerSetBox::Show(DocumentData *document) {
+	if (const auto sticker = document ? document->sticker() : nullptr) {
+		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+			Ui::show(Box<StickerSetBox>(sticker->set));
+		}
+	}
+}
+
 void StickerSetBox::prepare() {
 	setTitle(langFactory(lng_contacts_loading));
 

@@ -671,7 +671,7 @@ bool Controller::canEditInviteLink() const {
 		}
 		return (!channel->isPublic() && channel->canAddMembers());
 	} else if (auto chat = _peer->asChat()) {
-		return !chat->inviteLink().isEmpty() || chat->canEdit();
+		return !chat->inviteLink().isEmpty() || chat->amCreator();
 	}
 	return false;
 }
