@@ -25,7 +25,7 @@ class Databases;
 
 namespace Core {
 class Launcher;
-class LocalUrlHandler;
+struct LocalUrlHandler;
 } // namespace Core
 
 namespace Window {

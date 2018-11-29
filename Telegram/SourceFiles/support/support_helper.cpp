@@ -218,7 +218,11 @@ QString ParseOccupationName(History *history) {
 				return 0;
 			}
 		} else if (part.startsWith(qstr("n:"))) {
+#ifndef OS_MAC_OLD
 			result = part.mid(2).toString();
+#else // OS_MAC_OLD
+			result = part.mid(2);
+#endif // OS_MAC_OLD
 		}
 	}
 	return valid ? result : QString();
