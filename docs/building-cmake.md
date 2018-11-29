@@ -48,7 +48,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/xiph/opus
     cd opus
-    git checkout v1.2.1
+    git checkout v1.3
     ./autogen.sh
     ./configure
     make $MAKE_THREADS_CNT
