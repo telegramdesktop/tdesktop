@@ -136,7 +136,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_2
+    git --recursive clone git://code.qt.io/qt/qt5.git qt5_6_2
     cd qt5_6_2
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.6.2
