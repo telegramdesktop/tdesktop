@@ -209,32 +209,32 @@ void SettingsWidget::setupOtherOptions(
 
 void SettingsWidget::setupPathAndFormat(
 		not_null<Ui::VerticalLayout*> container) {
-	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
-		readData().format);
-	formatGroup->setChangedCallback([=](Format format) {
-		changeData([&](Settings &data) {
-			data.format = format;
-		});
-	});
-	const auto addFormatOption = [&](LangKey key, Format format) {
-		const auto radio = container->add(
-			object_ptr<Ui::Radioenum<Format>>(
-				container,
-				formatGroup,
-				format,
-				lang(key),
-				st::defaultBoxCheckbox),
-			st::exportSettingPadding);
-	};
-	addFormatOption(lng_export_option_html, Format::Html);
-	addFormatOption(lng_export_option_json, Format::Json);
 	if (_singlePeerId != 0) {
 		addLocationLabel(container);
 		addLimitsLabel(container);
-	} else {
-		addHeader(container, lng_export_header_format);
-		addLocationLabel(container);
+		return;
 	}
+	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
+		readData().format);
+	formatGroup->setChangedCallback([=](Format format) {
+ 		changeData([&](Settings &data) {
+ 			data.format = format;
+ 		});
+ 	});
+ 	const auto addFormatOption = [&](LangKey key, Format format) {
+ 		const auto radio = container->add(
+ 			object_ptr<Ui::Radioenum<Format>>(
+ 				container,
+ 				formatGroup,
+ 				format,
+ 				lang(key),
+				st::defaultBoxCheckbox),
+			st::exportSettingPadding);
+	};
+	addHeader(container, lng_export_header_format);
+	addLocationLabel(container);
+	addFormatOption(lng_export_option_html, Format::Html);
+	addFormatOption(lng_export_option_json, Format::Json);
 }
 
 void SettingsWidget::addLocationLabel(
