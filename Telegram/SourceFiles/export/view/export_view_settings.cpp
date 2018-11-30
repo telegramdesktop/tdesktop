@@ -217,17 +217,17 @@ void SettingsWidget::setupPathAndFormat(
 	const auto formatGroup = std::make_shared<Ui::RadioenumGroup<Format>>(
 		readData().format);
 	formatGroup->setChangedCallback([=](Format format) {
- 		changeData([&](Settings &data) {
- 			data.format = format;
- 		});
- 	});
- 	const auto addFormatOption = [&](LangKey key, Format format) {
- 		const auto radio = container->add(
- 			object_ptr<Ui::Radioenum<Format>>(
- 				container,
- 				formatGroup,
- 				format,
- 				lang(key),
+		changeData([&](Settings &data) {
+			data.format = format;
+		});
+	});
+	const auto addFormatOption = [&](LangKey key, Format format) {
+		const auto radio = container->add(
+			object_ptr<Ui::Radioenum<Format>>(
+				container,
+				formatGroup,
+				format,
+				lang(key),
 				st::defaultBoxCheckbox),
 			st::exportSettingPadding);
 	};
