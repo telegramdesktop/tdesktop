@@ -910,7 +910,12 @@ void ChooseRecipientBoxController::prepareViewHook() {
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_callback(row->peer());
+	auto weak = base::make_weak(this);
+	auto callback = std::move(_callback);
+	callback(row->peer());
+	if (weak) {
+		_callback = std::move(callback);
+	}
 }
 
 auto ChooseRecipientBoxController::createRow(
