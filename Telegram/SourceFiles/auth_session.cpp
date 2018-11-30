@@ -45,11 +45,13 @@ AuthSessionSettings::Variables::Variables()
 }
 
 QByteArray AuthSessionSettings::serialize() const {
+	const auto autoDownload = _variables.autoDownload.serialize();
 	auto size = sizeof(qint32) * 23;
 	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
 		size += Serialize::stringSize(i.key()) + Serialize::stringSize(i.value());
 	}
 	size += _variables.groupStickersSectionHidden.size() * sizeof(quint64);
+	size += Serialize::bytearraySize(autoDownload);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -88,6 +90,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.includeMutedCounter ? 1 : 0);
 		stream << qint32(_variables.countUnreadMessages ? 1 : 0);
 		stream << qint32(_variables.exeLaunchWarning ? 1 : 0);
+		stream << autoDownload;
 	}
 	return result;
 }
@@ -122,6 +125,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 includeMutedCounter = _variables.includeMutedCounter ? 1 : 0;
 	qint32 countUnreadMessages = _variables.countUnreadMessages ? 1 : 0;
 	qint32 exeLaunchWarning = _variables.exeLaunchWarning ? 1 : 0;
+	QByteArray autoDownload;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -195,9 +199,16 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	if (!stream.atEnd()) {
 		stream >> exeLaunchWarning;
 	}
+	if (!stream.atEnd()) {
+		stream >> autoDownload;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
+		return;
+	}
+	if (!autoDownload.isEmpty()
+		&& !_variables.autoDownload.setFromSerialized(autoDownload)) {
 		return;
 	}
 

@@ -566,7 +566,7 @@ enum {
 	dbiIncludeMutedOld = 0x31,
 	dbiMegagroupSizeMax = 0x32,
 	dbiDownloadPath = 0x33,
-	dbiAutoDownload = 0x34,
+	dbiAutoDownloadOld = 0x34,
 	dbiSavedGifsLimit = 0x35,
 	dbiShowingSavedGifsOld = 0x36,
 	dbiAutoPlay = 0x37,
@@ -1057,14 +1057,37 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetSoundNotify(v == 1);
 	} break;
 
-	case dbiAutoDownload: {
+	case dbiAutoDownloadOld: {
 		qint32 photo, audio, gif;
 		stream >> photo >> audio >> gif;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetAutoDownloadPhoto(photo);
-		cSetAutoDownloadAudio(audio);
-		cSetAutoDownloadGif(gif);
+		using namespace Data::AutoDownload;
+		auto &settings = GetStoredAuthSessionCache().autoDownload();
+		const auto limit = [](qint32 value, qint32 mask) {
+			constexpr auto kLegacyLimit = 10 * 1024 * 1024;
+			return (value & mask) ? 0 : kLegacyLimit;
+		};
+		const auto set = [&](Type type, qint32 value) {
+			constexpr auto kNoPrivate = qint32(0x01);
+			constexpr auto kNoGroups = qint32(0x02);
+			settings.setBytesLimit(
+				Source::User,
+				type,
+				limit(value, kNoPrivate));
+			settings.setBytesLimit(
+				Source::Group,
+				type,
+				limit(value, kNoGroups));
+			settings.setBytesLimit(
+				Source::Channel,
+				type,
+				limit(value, kNoGroups));
+		};
+		set(Type::Photo, photo);
+		set(Type::VoiceMessage, audio);
+		set(Type::GIF, gif);
+		set(Type::VideoMessage, gif);
 	} break;
 
 	case dbiAutoPlay: {
@@ -2029,7 +2052,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
 	data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));
-	data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());
 	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);

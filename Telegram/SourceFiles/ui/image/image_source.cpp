@@ -351,12 +351,10 @@ void RemoteSource::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {
 	if (_loader != CancelledFileLoader && item) {
-		bool loadFromCloud = false;
-		if (item->history()->peer->isUser()) {
-			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
-		} else {
-			loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
-		}
+		const auto loadFromCloud = Data::AutoDownload::Should(
+			Auth().settings().autoDownload(),
+			item->history()->peer,
+			this);
 
 		if (_loader) {
 			if (loadFromCloud) _loader->permitLoadFromCloud();
@@ -656,12 +654,10 @@ void DelayedStorageSource::automaticLoad(
 		const HistoryItem *item) {
 	if (_location.isNull()) {
 		if (!_loadCancelled && item) {
-			bool loadFromCloud = false;
-			if (item->history()->peer->isUser()) {
-				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoPrivate);
-			} else {
-				loadFromCloud = !(cAutoDownloadPhoto() & dbiadNoGroups);
-			}
+			const auto loadFromCloud = Data::AutoDownload::Should(
+				Auth().settings().autoDownload(),
+				item->history()->peer,
+				this);
 
 			if (_loadRequested) {
 				if (loadFromCloud) _loadFromCloud = loadFromCloud;

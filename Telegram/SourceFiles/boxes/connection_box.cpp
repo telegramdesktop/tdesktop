@@ -945,8 +945,17 @@ void AutoDownloadBox::prepare() {
 
 void AutoDownloadBox::setupContent() {
 	using namespace Settings;
+	using namespace Data::AutoDownload;
+	using Type = Data::AutoDownload::Type;
+
+	constexpr auto kLegacyLimit = 10 * 1024 * 1024;
 
 	setTitle(langFactory(lng_media_auto_title));
+
+	const auto settings = &Auth().settings().autoDownload();
+	const auto checked = [=](Source source, Type type) {
+		return (settings->bytesLimit(source, type) > 0);
+	};
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(this);
 	const auto content = wrap.data();
@@ -955,65 +964,89 @@ void AutoDownloadBox::setupContent() {
 		std::move(wrap)));
 
 	using pair = std::pair<Ui::Checkbox*, Ui::Checkbox*>;
-	const auto pairValue = [](pair checkboxes) {
-		return (checkboxes.first->checked() ? 0 : dbiadNoPrivate)
-			| (checkboxes.second->checked() ? 0 : dbiadNoGroups);
+	const auto pairChecked = [](pair checkboxes) {
+		return std::make_pair(
+			checkboxes.first->checked(),
+			checkboxes.second->checked());
 	};
-	const auto enabledSomething = [](int32 oldValue, int32 newValue) {
-		return (uint32(oldValue) & ~uint32(newValue)) != 0;
+	const auto enabledSomething = [=](
+			Type type,
+			std::pair<bool, bool> pair) {
+		return (!checked(Source::User, type) && pair.first)
+			|| (!checked(Source::Group, type) && pair.second);
 	};
-	const auto addCheckbox = [&](int32 value, DBIAutoDownloadFlags flag) {
-		const auto label = (flag == dbiadNoPrivate)
+	const auto changedSomething = [=](
+			Type type,
+			std::pair<bool, bool> pair) {
+		return (checked(Source::User, type) != pair.first)
+			|| (checked(Source::Group, type) != pair.second);
+	};
+	const auto save = [=](
+			Type type,
+			std::pair<bool, bool> pair) {
+		const auto limit = [](bool checked) {
+			return checked ? kMaxBytesLimit : 0;
+		};
+		settings->setBytesLimit(Source::User, type, limit(pair.first));
+		settings->setBytesLimit(Source::Group, type, limit(pair.second));
+		settings->setBytesLimit(Source::Channel, type, limit(pair.second));
+	};
+	const auto addCheckbox = [&](Type type, Source source) {
+		const auto label = (source == Source::User)
 			? lng_media_auto_private_chats
 			: lng_media_auto_groups;
 		return content->add(
 			object_ptr<Ui::Checkbox>(
 				content,
 				lang(label),
-				!(value & flag),
+				checked(source, type),
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
-	const auto addPair = [&](int32 value) {
-		const auto first = addCheckbox(value, dbiadNoPrivate);
-		const auto second = addCheckbox(value, dbiadNoGroups);
+	const auto addPair = [&](Type type) {
+		const auto first = addCheckbox(type, Source::User);
+		const auto second = addCheckbox(type, Source::Group);
 		return pair(first, second);
 	};
 
 	AddSubsectionTitle(content, lng_media_photo_title);
-	const auto photo = addPair(cAutoDownloadPhoto());
+	const auto photo = addPair(Type::Photo);
 	AddSkip(content);
 
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_media_audio_title);
-	const auto audio = addPair(cAutoDownloadAudio());
+	const auto audio = addPair(Type::VoiceMessage);
 	AddSkip(content);
 
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_media_gif_title);
-	const auto gif = addPair(cAutoDownloadGif());
+	const auto gif = addPair(Type::GIF);
 	AddSkip(content);
 
 	addButton(langFactory(lng_connection_save), [=] {
-		const auto photoValue = pairValue(photo);
-		const auto audioValue = pairValue(audio);
-		const auto gifValue = pairValue(gif);
+		const auto photoChecked = pairChecked(photo);
+		const auto audioChecked = pairChecked(audio);
+		const auto gifChecked = pairChecked(gif);
 		const auto photosEnabled = enabledSomething(
-			cAutoDownloadPhoto(),
-			photoValue);
+			Type::Photo,
+			photoChecked);
 		const auto audioEnabled = enabledSomething(
-			cAutoDownloadAudio(),
-			audioValue);
+			Type::VoiceMessage,
+			audioChecked);
 		const auto gifEnabled = enabledSomething(
-			cAutoDownloadGif(),
-			gifValue);
-		const auto photosChanged = (cAutoDownloadPhoto() != photoValue);
-		const auto documentsChanged = (cAutoDownloadAudio() != audioValue)
-			|| (cAutoDownloadGif() != gifValue);
-		cSetAutoDownloadAudio(audioValue);
-		cSetAutoDownloadGif(gifValue);
-		cSetAutoDownloadPhoto(photoValue);
+			Type::GIF,
+			gifChecked);
+		const auto photosChanged = changedSomething(
+			Type::Photo,
+			photoChecked);
+		const auto documentsChanged = changedSomething(
+			Type::VoiceMessage,
+			audioChecked) || changedSomething(Type::GIF, gifChecked);
 		if (photosChanged || documentsChanged) {
+			save(Type::Photo, photoChecked);
+			save(Type::VoiceMessage, audioChecked);
+			save(Type::GIF, gifChecked);
+			save(Type::VideoMessage, gifChecked);
 			Local::writeUserSettings();
 		}
 		if (photosEnabled) {

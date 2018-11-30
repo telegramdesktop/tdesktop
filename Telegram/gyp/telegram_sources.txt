@@ -138,6 +138,8 @@
 <(src_loc)/core/version.h
 <(src_loc)/data/data_abstract_structure.cpp
 <(src_loc)/data/data_abstract_structure.h
+<(src_loc)/data/data_auto_download.cpp
+<(src_loc)/data/data_auto_download.h
 <(src_loc)/data/data_channel_admins.cpp
 <(src_loc)/data/data_channel_admins.h
 <(src_loc)/data/data_document.cpp

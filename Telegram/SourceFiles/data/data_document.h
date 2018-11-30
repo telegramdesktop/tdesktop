@@ -84,7 +84,7 @@ public:
 
 	void automaticLoad(
 		Data::FileOrigin origin,
-		const HistoryItem *item); // auto load sticker or video
+		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
 	enum FilePathResolveType {

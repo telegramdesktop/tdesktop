@@ -1269,9 +1269,6 @@ namespace App {
 		}
 		cSetRecentStickers(RecentStickerPack());
 		cSetReportSpamStatuses(ReportSpamStatuses());
-		cSetAutoDownloadPhoto(0);
-		cSetAutoDownloadAudio(0);
-		cSetAutoDownloadGif(0);
 	}
 
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency) {

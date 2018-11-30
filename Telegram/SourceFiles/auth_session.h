@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/filter.h>
 #include <rpl/variable.h>
 #include "base/timer.h"
+#include "data/data_auto_download.h"
 
 class ApiWrap;
 enum class SendFilesWay;
@@ -183,6 +184,13 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
+	Data::AutoDownload::Full &autoDownload() {
+		return _variables.autoDownload;
+	}
+	const Data::AutoDownload::Full &autoDownload() const {
+		return _variables.autoDownload;
+	}
+
 	bool hadLegacyCallsPeerToPeerNobody() const {
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
@@ -234,6 +242,7 @@ private:
 		bool includeMutedCounter = true;
 		bool countUnreadMessages = true;
 		bool exeLaunchWarning = true;
+		Data::AutoDownload::Full autoDownload;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

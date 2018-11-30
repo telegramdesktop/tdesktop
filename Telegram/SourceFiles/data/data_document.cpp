@@ -635,43 +635,44 @@ void DocumentData::automaticLoad(
 	if (loaded() || status != FileReady) return;
 
 	if (saveToCache() && _loader != CancelledMtpFileLoader) {
-		if (type == StickerDocument) {
-			save(origin, QString(), _actionOnLoad, _actionOnLoadMsgId);
-		} else if (isAnimation()) {
-			bool loadFromCloud = false;
-			if (item) {
-				if (item->history()->peer->isUser()) {
-					loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate);
-				} else {
-					loadFromCloud = !(cAutoDownloadGif() & dbiadNoGroups);
-				}
-			} else { // if load at least anywhere
-				loadFromCloud = !(cAutoDownloadGif() & dbiadNoPrivate) || !(cAutoDownloadGif() & dbiadNoGroups);
-			}
-			save(origin, QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
-		} else if (isVoiceMessage()) {
-			if (item) {
-				bool loadFromCloud = false;
-				if (item->history()->peer->isUser()) {
-					loadFromCloud = !(cAutoDownloadAudio() & dbiadNoPrivate);
-				} else {
-					loadFromCloud = !(cAutoDownloadAudio() & dbiadNoGroups);
-				}
-				save(origin, QString(), _actionOnLoad, _actionOnLoadMsgId, loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly, true);
-			}
+		if (type == StickerDocument
+			|| isAnimation()
+			|| (isVoiceMessage() && item)) {
+			const auto shouldLoadFromCloud = item
+				? Data::AutoDownload::Should(
+					Auth().settings().autoDownload(),
+					item->history()->peer,
+					this)
+				: Data::AutoDownload::Should(
+					Auth().settings().autoDownload(),
+					this);
+			const auto loadFromCloud = shouldLoadFromCloud
+				? LoadFromCloudOrLocal
+				: LoadFromLocalOnly;
+			save(
+				origin,
+				QString(),
+				_actionOnLoad,
+				_actionOnLoadMsgId,
+				loadFromCloud,
+				true);
 		}
 	}
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || (!isAnimation() && !isVoiceMessage()) || !saveToCache() || _loader != CancelledMtpFileLoader) {
+	if (_loader != CancelledMtpFileLoader
+		|| status != FileReady
+		|| loaded()) {
 		return;
 	}
 	_loader = nullptr;
 }
 
 void DocumentData::performActionOnLoad() {
-	if (_actionOnLoad == ActionOnLoadNone) return;
+	if (_actionOnLoad == ActionOnLoadNone) {
+		return;
+	}
 
 	auto loc = location(true);
 	auto already = loc.name();

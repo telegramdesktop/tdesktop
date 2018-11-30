@@ -51,6 +51,8 @@ static_assert(sizeof(MTPint128) == 16, "Basic types size check failed");
 static_assert(sizeof(MTPint256) == 32, "Basic types size check failed");
 static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
 
+static_assert(sizeof(int) >= 4, "Basic types size check failed");
+
 // Unixtime functions
 
 namespace {
