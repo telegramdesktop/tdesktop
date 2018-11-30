@@ -169,6 +169,7 @@ protected:
 
 private:
 	bool loaderValid() const;
+	bool cancelled() const;
 	void destroyLoader(FileLoader *newValue = nullptr);
 
 	FileLoader *_loader = nullptr;

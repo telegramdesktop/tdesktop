@@ -106,6 +106,7 @@ public:
 		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
 		bool autoLoading = false);
 	void cancel();
+	bool cancelled() const;
 	float64 progress() const;
 	int32 loadOffset() const;
 	bool uploading() const;

@@ -299,14 +299,14 @@ QImage RemoteSource::takeLoaded() {
 }
 
 bool RemoteSource::loaderValid() const {
-	return _loader && _loader != CancelledFileLoader;
+	return _loader && !cancelled();
 }
 
 void RemoteSource::destroyLoader(FileLoader *newValue) {
 	Expects(loaderValid());
 
 	const auto loader = std::exchange(_loader, newValue);
-	if (_loader == CancelledFileLoader) {
+	if (cancelled()) {
 		loader->cancel();
 	}
 	loader->stop();
@@ -350,21 +350,26 @@ bool RemoteSource::loading() {
 void RemoteSource::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {
-	if (_loader != CancelledFileLoader && item) {
-		const auto loadFromCloud = Data::AutoDownload::Should(
-			Auth().settings().autoDownload(),
-			item->history()->peer,
-			this);
+	if (!item || cancelled()) {
+		return;
+	}
+	const auto loadFromCloud = Data::AutoDownload::Should(
+		Auth().settings().autoDownload(),
+		item->history()->peer,
+		this);
 
-		if (_loader) {
-			if (loadFromCloud) _loader->permitLoadFromCloud();
-		} else {
-			_loader = createLoader(
-				origin,
-				loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly,
-				true);
-			if (_loader) _loader->start();
+	if (_loader) {
+		if (loadFromCloud) {
+			_loader->permitLoadFromCloud();
 		}
+	} else {
+		_loader = createLoader(
+			origin,
+			loadFromCloud ? LoadFromCloudOrLocal : LoadFromLocalOnly,
+			true);
+	}
+	if (loaderValid()) {
+		_loader->start();
 	}
 }
 
@@ -386,11 +391,15 @@ void RemoteSource::load(
 	}
 }
 
+bool RemoteSource::cancelled() const {
+	return (_loader == CancelledFileLoader);
+}
+
 void RemoteSource::loadEvenCancelled(
 		Data::FileOrigin origin,
 		bool loadFirst,
 		bool prior) {
-	if (_loader == CancelledFileLoader) {
+	if (cancelled()) {
 		_loader = nullptr;
 	}
 	return load(origin, loadFirst, prior);

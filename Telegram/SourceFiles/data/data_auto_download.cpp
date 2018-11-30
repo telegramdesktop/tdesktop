@@ -18,6 +18,7 @@ namespace AutoDownload {
 namespace {
 
 constexpr auto kDefaultMaxSize = 10 * 1024 * 1024;
+constexpr auto kNonCacheMaxSize = 2 * 1024 * 1024;
 constexpr auto kVersion = char(1);
 
 template <typename Enum>
@@ -38,6 +39,9 @@ void SetDefaultsForSource(Full &data, Source source) {
 	data.setBytesLimit(source, Type::VoiceMessage, kDefaultMaxSize);
 	data.setBytesLimit(source, Type::VideoMessage, kDefaultMaxSize);
 	data.setBytesLimit(source, Type::GIF, kDefaultMaxSize);
+	data.setBytesLimit(source, Type::File, kNonCacheMaxSize);
+	data.setBytesLimit(source, Type::Video, kNonCacheMaxSize);
+	data.setBytesLimit(source, Type::Music, kNonCacheMaxSize);
 }
 
 const Full &Defaults() {
