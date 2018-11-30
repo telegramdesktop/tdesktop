@@ -635,7 +635,7 @@ struct Data {
 	bool SuggestEmoji = true;
 	bool SuggestStickersByEmoji = true;
 	base::Observable<void> ReplaceEmojiChanged;
-	float64 VoiceMsgPlaybackSpeed = 1.;
+	bool VoiceMsgPlaybackDoubled = false;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
 	bool RestoreSoundNotifyFromTray = false;
@@ -765,7 +765,7 @@ DefineVar(Global, bool, ReplaceEmoji);
 DefineVar(Global, bool, SuggestEmoji);
 DefineVar(Global, bool, SuggestStickersByEmoji);
 DefineRefVar(Global, base::Observable<void>, ReplaceEmojiChanged);
-DefineVar(Global, float64, VoiceMsgPlaybackSpeed);
+DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
 DefineVar(Global, bool, RestoreSoundNotifyFromTray);

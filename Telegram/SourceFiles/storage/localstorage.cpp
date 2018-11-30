@@ -1766,7 +1766,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetVoiceMsgPlaybackSpeed((v == 2) ? 2. : 1.);
+		Global::SetVoiceMsgPlaybackDoubled(v == 2);
 	} break;
 
 	default:
@@ -2039,7 +2039,7 @@ void _writeUserSettings() {
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
-	data.stream << quint32(dbiPlaybackSpeed) << qint32(std::round(Global::VoiceMsgPlaybackSpeed()));
+	data.stream << quint32(dbiPlaybackSpeed) << qint32(Global::VoiceMsgPlaybackDoubled() ? 2 : 1);
 
 	{
 		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
