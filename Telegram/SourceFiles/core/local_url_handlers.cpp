@@ -172,7 +172,7 @@ bool ResolveUsername(const Match &match, const QVariant &context) {
 	const auto domain = params.value(qsl("domain"));
 	const auto valid = [](const QString &domain) {
 		return qthelp::regex_match(
-			qsl("^[a-z0-9\\.\\_]+$"),
+			qsl("^[a-zA-Z0-9\\.\\_]+$"),
 			domain,
 			{}
 		).valid();
