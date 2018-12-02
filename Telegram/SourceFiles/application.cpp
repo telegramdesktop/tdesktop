@@ -87,6 +87,9 @@ bool InternalPassportLink(const QString &url) {
 			usernameMatch->captured(1),
 			UrlParamNameTransform::ToLower).value(qsl("domain"))
 		: QString();
+	if (!usernameValue.isEmpty() && usernameValue.front()=="@") {
+		usernameValue=usernameValue.mid(1);
+	}
 	const auto authLegacy = (usernameValue == qstr("telegrampassport"));
 	return authMatch->hasMatch() || authLegacy;
 }
