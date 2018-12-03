@@ -49,8 +49,6 @@
       'fcitxplatforminputcontextplugin',
       'himeplatforminputcontextplugin',
       'nimfplatforminputcontextplugin',
-      'gio-2.0',
-      'gobject-2.0',
       'liblzma.a',
       'libopenal.a',
       'libavformat.a',
