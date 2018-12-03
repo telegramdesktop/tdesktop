@@ -341,7 +341,8 @@ bool HasSendText(not_null<const Ui::InputField*> field) {
 InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
 	auto result = InlineBotQuery();
 
-	const auto &text = field->getTextWithTags().text;
+	const auto &full = field->getTextWithTags();
+	const auto &text = full.text;
 	const auto textLength = text.size();
 
 	auto inlineUsernameStart = 1;
@@ -367,6 +368,11 @@ InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
 			validInlineUsername = text[inlineUsernameEnd].isSpace();
 		}
 		if (validInlineUsername) {
+			if (!full.tags.isEmpty()
+				&& (full.tags.front().offset
+					< inlineUsernameStart + inlineUsernameLength)) {
+				return InlineBotQuery();
+			}
 			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
 			if (username != result.username) {
 				result.username = username.toString();
