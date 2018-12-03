@@ -773,26 +773,25 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 }
 
 void SetupChannelBox::save() {
-	if (_privacyGroup->value() == Privacy::Private) {
+	if (_saveRequestId) {
+		return;
+	} else if (_privacyGroup->value() == Privacy::Private) {
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 		} else {
 			closeBox();
 		}
+	} else {
+		const auto link = _link->text().trimmed();
+		if (link.isEmpty()) {
+			_link->setFocus();
+			_link->showError();
+			return;
+		}
+		_sentUsername = link;
+		_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 	}
-
-	if (_saveRequestId) return;
-
-	QString link = _link->text().trimmed();
-	if (link.isEmpty()) {
-		_link->setFocus();
-		_link->showError();
-		return;
-	}
-
-	_sentUsername = link;
-	_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 }
 
 void SetupChannelBox::handleChange() {
