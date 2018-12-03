@@ -100,4 +100,6 @@ private:
 
 QString ChatOccupiedString(not_null<History*> history);
 
+QString InterpretSendPath(const QString &path);
+
 } // namespace Support

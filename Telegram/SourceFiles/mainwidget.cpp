@@ -86,6 +86,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_top_bar.h"
 #include "export/view/export_view_panel_controller.h"
 #include "auth_session.h"
+#include "support/support_helper.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
@@ -3602,7 +3603,17 @@ void MainWidget::activate() {
 			_dialogs->activate();
         } else if (App::wnd() && !Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
-				showSendPathsLayer();
+				const auto interpret = qstr("interpret://");
+				const auto path = cSendPaths()[0];
+				if (path.startsWith(interpret)) {
+					cSetSendPaths(QStringList());
+					const auto error = Support::InterpretSendPath(path.mid(interpret.size()));
+					if (!error.isEmpty()) {
+						Ui::show(Box<InformBox>(error));
+					}
+				} else {
+					showSendPathsLayer();
+				}
 			} else if (_history->peer()) {
 				_history->activate();
 			} else {

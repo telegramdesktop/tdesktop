@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"
+#include "storage/storage_media_prepare.h"
+#include "storage/localimageloader.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -535,6 +537,53 @@ QString ChatOccupiedString(not_null<History*> history) {
 	return (name.isEmpty() || name.startsWith(qstr("[rand^")))
 		? hand + " chat taken"
 		: hand + ' ' + name + " is here";
+}
+
+QString InterpretSendPath(const QString &path) {
+	QFile f(path);
+	if (!f.open(QIODevice::ReadOnly)) {
+		return "App Error: Could not open interpret file: " + path;
+	}
+	const auto content = QString::fromUtf8(f.readAll());
+	f.close();
+	const auto lines = content.split('\n');
+	auto toId = PeerId(0);
+	auto filePath = QString();
+	auto caption = QString();
+	for (const auto &line : lines) {
+		if (line.startsWith(qstr("from: "))) {
+			if (Auth().userId() != line.mid(qstr("from: ").size()).toInt()) {
+				return "App Error: Wrong current user.";
+			}
+		} else if (line.startsWith(qstr("channel: "))) {
+			const auto channelId = line.mid(qstr("channel: ").size()).toInt();
+			toId = peerFromChannel(channelId);
+		} else if (line.startsWith(qstr("file: "))) {
+			const auto path = line.mid(qstr("file: ").size());
+			if (!QFile(path).exists()) {
+				return "App Error: Could not find file with path: " + path;
+			}
+			filePath = path;
+		} else if (line.startsWith(qstr("caption: "))) {
+			caption = line.mid(qstr("caption: ").size());
+		} else if (!caption.isEmpty()) {
+			caption += '\n' + line;
+		} else {
+			return "App Error: Invalid command: " + line;
+		}
+	}
+	const auto history = App::historyLoaded(toId);
+	if (!history) {
+		return "App Error: Could not find channel with id: " + QString::number(peerToChannel(toId));
+	}
+	Ui::showPeerHistory(history, ShowAtUnreadMsgId);
+	Auth().api().sendFiles(
+		Storage::PrepareMediaList(QStringList(filePath), st::sendMediaPreviewSize),
+		SendMediaType::File,
+		{ caption },
+		nullptr,
+		ApiWrap::SendOptions(history));
+	return QString();
 }
 
 } // namespace Support
