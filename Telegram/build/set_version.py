@@ -26,7 +26,7 @@ versionPatch = ''
 versionAlpha = '0'
 versionBeta = False
 for arg in sys.argv:
-  match = re.match(r'^(\d+)\.(\d+)(\.(\d+)(\.(\d+|beta))?)?', arg)
+  match = re.match(r'^\s*(\d+)\.(\d+)(\.(\d+)(\.(\d+|beta))?)?\s*$', arg)
   if match:
     inputVersion = arg
     versionMajor = match.group(1)
@@ -38,8 +38,12 @@ for arg in sys.argv:
       else:
         versionAlpha = match.group(6)
 
+if not len(versionMajor):
+  print("Wrong version parameter")
+  finish(1)
+
 def checkVersionPart(part):
-  cleared = int(part) % 1000
+  cleared = int(part) % 1000 if len(part) > 0 else 0
   if str(cleared) != part:
     print("Bad version part: " + part)
     finish(1)
