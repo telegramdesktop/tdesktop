@@ -695,28 +695,18 @@ void TopBarWidget::createUnreadBadge() {
 void TopBarWidget::updateUnreadBadge() {
 	if (!_unreadBadge) return;
 
-	auto mutedCount = App::histories().unreadMutedCount();
-	auto fullCounter = App::histories().unreadBadge()
-		+ (Global::IncludeMuted() ? 0 : mutedCount);
-
-	// Do not include currently shown chat in the top bar unread counter.
-	if (const auto history = _activeChat.history()) {
-		auto shownUnreadCount = history->unreadCount();
-		fullCounter -= shownUnreadCount;
-		if (history->mute()) {
-			mutedCount -= shownUnreadCount;
+	const auto history = _activeChat.history();
+	const auto active = !App::histories().unreadBadgeMutedIgnoreOne(history);
+	const auto counter = App::histories().unreadBadgeIgnoreOne(history);
+	const auto text = [&] {
+		if (!counter) {
+			return QString();
 		}
-	}
-
-	auto active = (mutedCount < fullCounter);
-	_unreadBadge->setText([&] {
-		if (auto counter = (fullCounter - (Global::IncludeMuted() ? 0 : mutedCount))) {
-			return (counter > 999)
-				? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
-				: QString::number(counter);
-		}
-		return QString();
-	}(), active);
+		return (counter > 999)
+			? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
+			: QString::number(counter);
+	}();
+	_unreadBadge->setText(text, active);
 }
 
 void TopBarWidget::updateInfoToggleActive() {

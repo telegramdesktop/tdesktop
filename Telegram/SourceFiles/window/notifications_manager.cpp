@@ -45,7 +45,8 @@ System::System(AuthSession *session) : _authSession(session) {
 			clearAll();
 		} else if (type == ChangeType::ViewParams) {
 			updateAll();
-		} else if (type == ChangeType::IncludeMuted) {
+		} else if (type == ChangeType::IncludeMuted
+			|| type == ChangeType::CountMessages) {
 			Notify::unreadCounterUpdated();
 		}
 	});

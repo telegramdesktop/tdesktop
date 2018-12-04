@@ -784,19 +784,30 @@ void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected
 	p.setFont(st::semiboldFont);
 	p.setPen(st::dialogsNameFg);
 
-	int unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
-	bool mutedHidden = (current == Dialogs::Mode::Important);
-	QString text = lang(mutedHidden ? lng_dialogs_show_all_chats : lng_dialogs_hide_muted_chats);
-	int textBaseline = unreadTop + (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2 + st::dialogsUnreadFont->ascent;
+	const auto unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
+	const auto mutedHidden = (current == Dialogs::Mode::Important);
+	const auto text = lang(mutedHidden
+		? lng_dialogs_show_all_chats
+		: lng_dialogs_hide_muted_chats);
+	const auto textBaseline = unreadTop
+		+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
+		+ st::dialogsUnreadFont->ascent;
 	p.drawText(st::dialogsPadding.x(), textBaseline, text);
 
-	if (mutedHidden) {
-		if (int32 unread = App::histories().unreadMutedCount()) {
-			int unreadRight = fullWidth - st::dialogsPadding.x();
-			UnreadBadgeStyle st;
-			st.muted = true;
-			paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, st, nullptr);
-		}
+	if (!mutedHidden) {
+		return;
+	}
+	if (const auto unread = App::histories().unreadOnlyMutedBadge()) {
+		const auto unreadRight = fullWidth - st::dialogsPadding.x();
+		UnreadBadgeStyle st;
+		st.muted = true;
+		paintUnreadCount(
+			p,
+			QString::number(unread),
+			unreadRight,
+			unreadTop,
+			st,
+			nullptr);
 	}
 }
 

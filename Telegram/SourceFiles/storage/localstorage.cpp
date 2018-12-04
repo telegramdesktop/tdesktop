@@ -563,7 +563,7 @@ enum {
 	dbiTryIPv6 = 0x28,
 	dbiSongVolume = 0x29,
 	dbiWindowsNotificationsOld = 0x30,
-	dbiIncludeMuted = 0x31,
+	dbiIncludeMutedOld = 0x31,
 	dbiMegagroupSizeMax = 0x32,
 	dbiDownloadPath = 0x33,
 	dbiAutoDownload = 0x34,
@@ -1099,12 +1099,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetModerateModeEnabled(enabled == 1);
 	} break;
 
-	case dbiIncludeMuted: {
+	case dbiIncludeMutedOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetIncludeMuted(v == 1);
+		GetStoredAuthSessionCache().setIncludeMutedCounter(v == 1);
 	} break;
 
 	case dbiShowingSavedGifsOld: {
@@ -2019,7 +2019,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiSuggestEmoji) << qint32(Global::SuggestEmoji() ? 1 : 0);
 	data.stream << quint32(dbiSuggestStickersByEmoji) << qint32(Global::SuggestStickersByEmoji() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
-	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
 	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());

@@ -187,6 +187,19 @@ public:
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
 
+	bool includeMutedCounter() const {
+		return _variables.includeMutedCounter;
+	}
+	void setIncludeMutedCounter(bool value) {
+		_variables.includeMutedCounter = value;
+	}
+	bool countUnreadMessages() const {
+		return _variables.countUnreadMessages;
+	}
+	void setCountUnreadMessages(bool value) {
+		_variables.countUnreadMessages = value;
+	}
+
 private:
 	struct Variables {
 		Variables();
@@ -212,6 +225,8 @@ private:
 			= kDefaultThirdColumnWidth; // per-window
 		Ui::InputSubmitSettings sendSubmitWay;
 		bool hadLegacyCallsPeerToPeerNobody = false;
+		bool includeMutedCounter = true;
+		bool countUnreadMessages = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

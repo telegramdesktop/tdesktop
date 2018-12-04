@@ -153,6 +153,8 @@ public:
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
 	}
+	int unreadBadge() const;
+	bool unreadBadgeMuted() const;
 	void logOut();
 
 	// Media component.

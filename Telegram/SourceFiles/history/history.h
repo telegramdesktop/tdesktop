@@ -23,6 +23,7 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 class HistoryMedia;
+class AuthSession;
 
 namespace Data {
 struct Draft;
@@ -72,10 +73,16 @@ public:
 	BasicAnimation _a_typings;
 
 	int unreadBadge() const;
-	int unreadMutedCount() const;
-	bool unreadOnlyMuted() const;
+	bool unreadBadgeMuted() const;
+	int unreadBadgeIgnoreOne(History *history) const;
+	bool unreadBadgeMutedIgnoreOne(History *history) const;
+	int unreadOnlyMutedBadge() const;
+
 	void unreadIncrement(int count, bool muted);
 	void unreadMuteChanged(int count, bool muted);
+	void unreadEntriesChanged(
+		int withUnreadDelta,
+		int mutedWithUnreadDelta);
 
 	struct SendActionAnimationUpdate {
 		History *history;
@@ -90,11 +97,23 @@ public:
 
 private:
 	void checkSelfDestructItems();
+	int computeUnreadBadge(
+		int full,
+		int muted,
+		int entriesFull,
+		int entriesMuted) const;
+	bool computeUnreadBadgeMuted(
+		int full,
+		int muted,
+		int entriesFull,
+		int entriesMuted) const;
 
 	std::unordered_map<PeerId, std::unique_ptr<History>> _map;
 
 	int _unreadFull = 0;
 	int _unreadMuted = 0;
+	int _unreadEntriesFull = 0;
+	int _unreadEntriesMuted = 0;
 	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
 
 	base::Timer _selfDestructTimer;

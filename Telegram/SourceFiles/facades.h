@@ -302,7 +302,6 @@ DeclareVar(bool, VoiceMsgPlaybackDoubled);
 DeclareVar(bool, SoundNotify);
 DeclareVar(bool, DesktopNotify);
 DeclareVar(bool, RestoreSoundNotifyFromTray);
-DeclareVar(bool, IncludeMuted);
 DeclareVar(DBINotifyView, NotifyView);
 DeclareVar(bool, NativeNotifications);
 DeclareVar(int, NotificationsCount);

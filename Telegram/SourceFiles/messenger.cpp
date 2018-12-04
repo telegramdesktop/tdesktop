@@ -740,14 +740,23 @@ void Messenger::authSessionDestroy() {
 	authSessionChanged().notify(true);
 }
 
+int Messenger::unreadBadge() const {
+	return _authSession ? App::histories().unreadBadge() : 0;
+}
+
+bool Messenger::unreadBadgeMuted() const {
+	return _authSession ? App::histories().unreadBadgeMuted() : false;
+}
+
 void Messenger::setInternalLinkDomain(const QString &domain) const {
-	// This domain should start with 'http[s]://' and end with '/', like 'https://t.me/'.
-	auto validate = [](auto &domain) {
-		auto prefixes = {
+	// This domain should start with 'http[s]://' and end with '/'.
+	// Like 'https://telegram.me/' or 'https://t.me/'.
+	auto validate = [](const auto &domain) {
+		const auto prefixes = {
 			qstr("https://"),
 			qstr("http://"),
 		};
-		for (auto &prefix : prefixes) {
+		for (const auto &prefix : prefixes) {
 			if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
 				return domain.endsWith('/');
 			}

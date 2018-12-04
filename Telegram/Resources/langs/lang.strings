@@ -283,6 +283,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_notifications_count" = "Notifications count";
 "lng_settings_sound_notify" = "Play sound";
 "lng_settings_include_muted" = "Include muted chats in unread count";
+"lng_settings_count_unread" = "Count unread messages";
 
 "lng_notification_preview" = "You have a new message";
 "lng_notification_reply" = "Reply";
