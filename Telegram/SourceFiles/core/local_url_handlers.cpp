@@ -69,8 +69,9 @@ bool ShowStickerSet(const Match &match, const QVariant &context) {
 }
 
 bool SetLanguage(const Match &match, const QVariant &context) {
-	const auto languageId = match->captured(1);
-	Lang::CurrentCloudManager().switchWithWarning(languageId);
+	// #TODO langs
+	//const auto languageId = match->captured(1);
+	//Lang::CurrentCloudManager().switchWithWarning(languageId);
 	return true;
 }
 
