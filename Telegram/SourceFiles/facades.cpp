@@ -38,19 +38,19 @@ void CallDelayed(int duration, FnMut<void()> &&lambda) {
 } // namespace internal
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
-	if (auto m = main()) {
+	if (auto m = App::main()) {
 		m->sendBotCommand(peer, bot, cmd, replyTo);
 	}
 }
 
 void hideSingleUseKeyboard(const HistoryItem *msg) {
-	if (auto m = main()) {
+	if (auto m = App::main()) {
 		m->hideSingleUseKeyboard(msg->history()->peer, msg->id);
 	}
 }
 
 bool insertBotCommand(const QString &cmd) {
-	if (auto m = main()) {
+	if (auto m = App::main()) {
 		return m->insertBotCommand(cmd);
 	}
 	return false;
@@ -82,7 +82,7 @@ void activateBotCommand(
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
-		if (auto m = main()) {
+		if (auto m = App::main()) {
 			m->app_sendBotCallback(button, msg, row, column);
 		}
 	} break;
@@ -149,7 +149,7 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (const auto m = main()) {
+	if (const auto m = App::main()) {
 		Ui::hideSettingsAndLayer();
 		Messenger::Instance().hideMediaView();
 		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
@@ -164,13 +164,13 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 }
 
 void showSettings() {
-	if (auto w = wnd()) {
+	if (auto w = App::wnd()) {
 		w->showSettings();
 	}
 }
 
 void activateClickHandler(ClickHandlerPtr handler, ClickContext context) {
-	crl::on_main(wnd(), [=] {
+	crl::on_main(App::wnd(), [=] {
 		handler->onClick(context);
 	});
 }

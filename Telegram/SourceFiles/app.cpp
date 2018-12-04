@@ -1529,12 +1529,12 @@ namespace App {
 		}
 		setLaunchState(QuitRequested);
 
-		if (auto window = wnd()) {
+		if (auto window = App::wnd()) {
 			if (!Sandbox::isSavingSession()) {
 				window->hide();
 			}
 		}
-		if (auto mainwidget = main()) {
+		if (auto mainwidget = App::main()) {
 			mainwidget->saveDraftToCloud();
 		}
 		Messenger::QuitAttempt();
