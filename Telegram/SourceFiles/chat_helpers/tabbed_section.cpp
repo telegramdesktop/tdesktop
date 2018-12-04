@@ -62,13 +62,8 @@ TabbedSection::TabbedSection(
 	_selector->setGeometry(rect());
 	_selector->showStarted();
 	_selector->show();
-	connect(_selector, &TabbedSelector::cancelled, this, [this] {
-		if (_cancelledCallback) {
-			_cancelledCallback();
-		}
-	});
-	_selector->setAfterShownCallback(Fn<void(SelectorTab)>());
-	_selector->setBeforeHidingCallback(Fn<void(SelectorTab)>());
+	_selector->setAfterShownCallback(nullptr);
+	_selector->setBeforeHidingCallback(nullptr);
 
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 }

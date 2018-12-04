@@ -115,6 +115,21 @@ void InstallOperatorNewHandler() {
 	});
 }
 
+void InstallQtMessageHandler() {
+	static QtMessageHandler original = nullptr;
+	original = qInstallMessageHandler([](
+			QtMsgType type,
+			const QMessageLogContext &context,
+			const QString &message) {
+		if (original) {
+			original(type, context, message);
+		}
+		if (type == QtFatalMsg) {
+			Unexpected("Qt FATAL message was generated!");
+		}
+	});
+}
+
 Qt::HANDLE ReportingThreadId = nullptr;
 bool ReportingHeaderWritten = false;
 QMutex ReportingMutex;
@@ -450,6 +465,7 @@ Status Restart() {
 		}
 
 		InstallOperatorNewHandler();
+		InstallQtMessageHandler();
 
 		return Started;
 	}

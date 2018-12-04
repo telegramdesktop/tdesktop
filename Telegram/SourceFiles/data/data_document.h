@@ -220,7 +220,7 @@ private:
 	LocationType locationType() const;
 	void validateGoodThumbnail();
 
-	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
+	void destroyLoader(mtpFileLoader *newValue = nullptr) const;
 
 	// Two types of location: from MTProto by dc+access or from web by url
 	int32 _dc = 0;

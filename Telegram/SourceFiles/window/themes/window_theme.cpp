@@ -22,6 +22,7 @@ namespace {
 
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
+constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
 constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 constexpr auto kMinimumTiledSize = 512;
 constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
@@ -291,12 +292,20 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 		}
 
 		if (!backgroundContent.isEmpty()) {
+			auto check = QBuffer(&backgroundContent);
+			auto reader = QImageReader(&check);
+			const auto size = reader.size();
+			if (size.isEmpty()
+				|| (size.width() * size.height() > kBackgroundSizeLimit)) {
+				LOG(("Theme Error: bad background image size in the theme file."));
+				return false;
+			}
 			auto background = App::readImage(backgroundContent);
 			if (background.isNull()) {
 				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;
 			}
-			QBuffer buffer(&cache.background);
+			auto buffer = QBuffer(&cache.background);
 			if (!background.save(&buffer, "BMP")) {
 				LOG(("Theme Error: could not write background image as a BMP to cache."));
 				return false;

@@ -35,6 +35,8 @@ void OpenWith(const QString &filepath, QPoint menuPosition);
 void Launch(const QString &filepath);
 void ShowInFolder(const QString &filepath);
 
+QString DefaultDownloadPath();
+
 namespace internal {
 
 inline QString UrlToLocalDefault(const QUrl &url) {

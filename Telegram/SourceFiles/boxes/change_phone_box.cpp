@@ -254,7 +254,7 @@ void ChangePhoneBox::EnterCode::submit() {
 	}
 	hideError();
 
-	auto code = _code->getLastText().trimmed();
+	const auto code = _code->getDigitsOnly();
 	_requestId = MTP::send(MTPaccount_ChangePhone(
 		MTP_string(_phone),
 		MTP_string(_hash),

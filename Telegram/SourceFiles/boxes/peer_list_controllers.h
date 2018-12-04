@@ -198,7 +198,9 @@ private:
 
 };
 
-class AddBotToGroupBoxController : public ChatsListBoxController, public base::has_weak_ptr {
+class AddBotToGroupBoxController
+	: public ChatsListBoxController
+	, public base::has_weak_ptr {
 public:
 	static void Start(not_null<UserData*> bot);
 
@@ -227,7 +229,9 @@ private:
 
 };
 
-class ChooseRecipientBoxController : public ChatsListBoxController {
+class ChooseRecipientBoxController
+	: public ChatsListBoxController
+	, public base::has_weak_ptr {
 public:
 	ChooseRecipientBoxController(
 		FnMut<void(not_null<PeerData*>)> callback);

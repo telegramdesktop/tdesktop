@@ -1057,7 +1057,7 @@ void FlatInput::phPrepare(Painter &p, float64 placeholderFocused) {
 void FlatInput::keyPressEvent(QKeyEvent *e) {
 	QString wasText(_oldtext);
 
-	if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
+	if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_PageUp || e->key() == Qt::Key_PageDown)) {
 		e->ignore();
 	} else {
 		QLineEdit::keyPressEvent(e);
@@ -2464,6 +2464,10 @@ void InputField::clearFocus() {
 	_inner->clearFocus();
 }
 
+void InputField::ensureCursorVisible() {
+	_inner->ensureCursorVisible();
+}
+
 not_null<QTextEdit*> InputField::rawTextEdit() {
 	return _inner.get();
 }
@@ -2530,7 +2534,7 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 		e->ignore();
 	} else if (handleMarkdownKey(e)) {
 		e->accept();
-	} else if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
+	} else if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_PageUp || e->key() == Qt::Key_PageDown)) {
 		e->ignore();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
@@ -3756,7 +3760,7 @@ void MaskedInputField::keyPressEvent(QKeyEvent *e) {
 	QString wasText(_oldtext);
 	int32 wasCursor(_oldcursor);
 
-	if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
+	if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_PageUp || e->key() == Qt::Key_PageDown)) {
 		e->ignore();
 	} else {
 		QLineEdit::keyPressEvent(e);

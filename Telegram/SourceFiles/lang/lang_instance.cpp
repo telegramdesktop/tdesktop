@@ -18,9 +18,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lang {
 namespace {
 
+const auto kSerializeVersionTag = qsl("#new");
+constexpr auto kSerializeVersion = 1;
 constexpr auto kDefaultLanguage = str_const("en");
 constexpr auto kCloudLangPackName = str_const("tdesktop");
+constexpr auto kCustomLanguage = str_const("#custom");
 constexpr auto kLangValuesLimit = 20000;
+
+std::vector<QString> PrepareDefaultValues() {
+	auto result = std::vector<QString>();
+	result.reserve(kLangKeysCount);
+	for (auto i = 0; i != kLangKeysCount; ++i) {
+		result.emplace_back(GetOriginalValue(LangKey(i)));
+	}
+	return result;
+}
 
 class ValueParser {
 public:
@@ -163,55 +175,132 @@ QString PrepareTestValue(const QString &current, QChar filler) {
 	return result;
 }
 
+QString PluralCodeForCustom(
+	const QString &absolutePath,
+	const QString &relativePath) {
+	const auto path = !absolutePath.isEmpty()
+		? absolutePath
+		: relativePath;
+	const auto name = QFileInfo(path).fileName();
+	if (const auto match = qthelp::regex_match(
+			"_([a-z]{2,3}_[A-Z]{2,3}|\\-[a-z]{2,3})?\\.",
+			name)) {
+		return match->captured(1);
+	}
+	return DefaultLanguageId();
+}
+
+template <typename Save>
+void ParseKeyValue(
+		const QByteArray &key,
+		const QByteArray &value,
+		Save &&save) {
+	const auto index = GetKeyIndex(QLatin1String(key));
+	if (index != kLangKeysCount) {
+		ValueParser parser(key, index, value);
+		if (parser.parse()) {
+			save(index, parser.takeResult());
+		}
+	} else if (!key.startsWith("cloud_")) {
+		DEBUG_LOG(("Lang Warning: Unknown key '%1'"
+			).arg(QString::fromLatin1(key)));
+	}
+}
+
 } // namespace
 
 QString DefaultLanguageId() {
 	return str_const_toString(kDefaultLanguage);
 }
 
+QString LanguageIdOrDefault(const QString &id) {
+	return !id.isEmpty() ? id : DefaultLanguageId();
+}
+
 QString CloudLangPackName() {
 	return str_const_toString(kCloudLangPackName);
 }
 
-void Instance::switchToId(const QString &id) {
-	reset();
-	_id = id;
+QString CustomLanguageId() {
+	return str_const_toString(kCustomLanguage);
+}
+
+Language DefaultLanguage() {
+	return Language{
+		qsl("en"),
+		QString(),
+		QString(),
+		qsl("English"),
+		qsl("English"),
+	};
+}
+
+struct Instance::PrivateTag {
+};
+
+Instance::Instance()
+: _values(PrepareDefaultValues())
+, _nonDefaultSet(kLangKeysCount, 0) {
+}
+
+Instance::Instance(not_null<Instance*> derived, const PrivateTag &)
+: _derived(derived)
+, _nonDefaultSet(kLangKeysCount, 0) {
+}
+
+void Instance::switchToId(const Language &data) {
+	reset(data);
 	if (_id == qstr("#TEST_X") || _id == qstr("#TEST_0")) {
 		for (auto &value : _values) {
 			value = PrepareTestValue(value, _id[5]);
 		}
-		_updated.notify();
+		if (!_derived) {
+			_updated.notify();
+		}
 	}
 	updatePluralRules();
 }
 
-void Instance::switchToCustomFile(const QString &filePath) {
-	reset();
-	fillFromCustomFile(filePath);
-	Local::writeLangPack();
-	_updated.notify();
+void Instance::setBaseId(const QString &baseId, const QString &pluralId) {
+	if (baseId.isEmpty()) {
+		_base = nullptr;
+	} else {
+		if (!_base) {
+			_base = std::make_unique<Instance>(this, PrivateTag{});
+		}
+		_base->switchToId({ baseId, _pluralId });
+	}
 }
 
-void Instance::reset() {
-	_values.clear();
-	_nonDefaultValues.clear();
-	_nonDefaultSet.clear();
+void Instance::switchToCustomFile(const QString &filePath) {
+	if (loadFromCustomFile(filePath)) {
+		Local::writeLangPack();
+		_updated.notify();
+	}
+}
+
+void Instance::reset(const Language &data) {
+	const auto computedPluralId = !data.pluralId.isEmpty()
+		? data.pluralId
+		: !data.baseId.isEmpty()
+		? data.baseId
+		: data.id;
+	setBaseId(data.baseId, computedPluralId);
+	_id = LanguageIdOrDefault(data.id);
+	_pluralId = computedPluralId;
+	_name = data.name;
+	_nativeName = data.nativeName;
+
 	_legacyId = kLegacyLanguageNone;
 	_customFilePathAbsolute = QString();
 	_customFilePathRelative = QString();
 	_customFileContent = QByteArray();
 	_version = 0;
-
-	fillDefaults();
-}
-
-void Instance::fillDefaults() {
-	Expects(_values.empty());
-	_values.reserve(kLangKeysCount);
-	for (auto i = 0; i != kLangKeysCount; ++i) {
-		_values.emplace_back(GetOriginalValue(LangKey(i)));
+	_nonDefaultValues.clear();
+	for (auto i = 0, count = int(_values.size()); i != count; ++i) {
+		_values[i] = GetOriginalValue(LangKey(i));
 	}
-	_nonDefaultSet = std::vector<uchar>(kLangKeysCount, 0);
+	ranges::fill(_nonDefaultSet, 0);
 }
 
 QString Instance::systemLangCode() const {
@@ -230,11 +319,50 @@ QString Instance::systemLangCode() const {
 	return _systemLanguage;
 }
 
-QString Instance::cloudLangCode() const {
-	if (isCustom() || id().isEmpty()) {
-		return DefaultLanguageId();
-	}
-	return id();
+QString Instance::cloudLangCode(Pack pack) const {
+	return (isCustom() || id().isEmpty())
+		? DefaultLanguageId()
+		: id(pack);
+}
+
+QString Instance::id() const {
+	return id(Pack::Current);
+}
+
+QString Instance::baseId() const {
+	return id(Pack::Base);
+}
+
+QString Instance::name() const {
+	return _name.isEmpty() ? getValue(lng_language_name) : _name;
+}
+
+QString Instance::nativeName() const {
+	return _nativeName.isEmpty()
+		? getValue(lng_language_name)
+		: _nativeName;
+}
+
+QString Instance::id(Pack pack) const {
+	return (pack != Pack::Base)
+		? _id
+		: _base
+		? _base->id(Pack::Current)
+		: QString();
+}
+
+bool Instance::isCustom() const {
+	return (_id == CustomLanguageId())
+		|| (_id == qstr("#TEST_X"))
+		|| (_id == qstr("#TEST_0"));
+}
+
+int Instance::version(Pack pack) const {
+	return (pack != Pack::Base)
+		? _version
+		: _base
+		? _base->version(Pack::Current)
+		: 0;
 }
 
 QString Instance::langPackName() const {
@@ -242,57 +370,110 @@ QString Instance::langPackName() const {
 }
 
 QByteArray Instance::serialize() const {
-	auto size = Serialize::stringSize(_id);
-	size += sizeof(qint32); // version
-	size += Serialize::stringSize(_customFilePathAbsolute) + Serialize::stringSize(_customFilePathRelative);
-	size += Serialize::bytearraySize(_customFileContent);
-	size += sizeof(qint32); // _nonDefaultValues.size()
+	auto size = Serialize::stringSize(kSerializeVersionTag)
+		+ sizeof(qint32) // serializeVersion
+		+ Serialize::stringSize(_id)
+		+ Serialize::stringSize(_pluralId)
+		+ Serialize::stringSize(_name)
+		+ Serialize::stringSize(_nativeName)
+		+ sizeof(qint32) // version
+		+ Serialize::stringSize(_customFilePathAbsolute)
+		+ Serialize::stringSize(_customFilePathRelative)
+		+ Serialize::bytearraySize(_customFileContent)
+		+ sizeof(qint32); // _nonDefaultValues.size()
 	for (auto &nonDefault : _nonDefaultValues) {
-		size += Serialize::bytearraySize(nonDefault.first) + Serialize::bytearraySize(nonDefault.second);
+		size += Serialize::bytearraySize(nonDefault.first)
+			+ Serialize::bytearraySize(nonDefault.second);
 	}
+	const auto base = _base ? _base->serialize() : QByteArray();
+	size += Serialize::bytearraySize(base);
 
 	auto result = QByteArray();
 	result.reserve(size);
 	{
 		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
-		stream << _id << qint32(_version);
-		stream << _customFilePathAbsolute << _customFilePathRelative << _customFileContent;
-		stream << qint32(_nonDefaultValues.size());
-		for (auto &nonDefault : _nonDefaultValues) {
+		stream
+			<< kSerializeVersionTag
+			<< qint32(kSerializeVersion)
+			<< _id
+			<< _pluralId
+			<< _name
+			<< _nativeName
+			<< qint32(_version)
+			<< _customFilePathAbsolute
+			<< _customFilePathRelative
+			<< _customFileContent
+			<< qint32(_nonDefaultValues.size());
+		for (const auto &nonDefault : _nonDefaultValues) {
 			stream << nonDefault.first << nonDefault.second;
 		}
+		stream << base;
 	}
 	return result;
 }
 
-void Instance::fillFromSerialized(const QByteArray &data) {
+void Instance::fillFromSerialized(
+		const QByteArray &data,
+		int dataAppVersion) {
 	QDataStream stream(data);
 	stream.setVersion(QDataStream::Qt_5_1);
-	QString id;
+	qint32 serializeVersion = 0;
+	QString serializeVersionTag;
+	QString id, pluralId, name, nativeName;
 	qint32 version = 0;
 	QString customFilePathAbsolute, customFilePathRelative;
 	QByteArray customFileContent;
 	qint32 nonDefaultValuesCount = 0;
-	stream >> id >> version;
-	stream >> customFilePathAbsolute >> customFilePathRelative >> customFileContent;
-	stream >> nonDefaultValuesCount;
+	stream >> serializeVersionTag;
+	const auto legacyFormat = (serializeVersionTag != kSerializeVersionTag);
+	if (legacyFormat) {
+		id = serializeVersionTag;
+		stream
+			>> version
+			>> customFilePathAbsolute
+			>> customFilePathRelative
+			>> customFileContent
+			>> nonDefaultValuesCount;
+	} else {
+		stream >> serializeVersion;
+		if (serializeVersion == kSerializeVersion) {
+			stream
+				>> id
+				>> pluralId
+				>> name
+				>> nativeName
+				>> version
+				>> customFilePathAbsolute
+				>> customFilePathRelative
+				>> customFileContent
+				>> nonDefaultValuesCount;
+		} else {
+			LOG(("Lang Error: Unsupported serialize version."));
+			return;
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("Lang Error: Could not read data from serialized langpack."));
 		return;
 	}
 	if (nonDefaultValuesCount > kLangValuesLimit) {
-		LOG(("Lang Error: Values count limit exceeded: %1").arg(nonDefaultValuesCount));
+		LOG(("Lang Error: Values count limit exceeded: %1"
+			).arg(nonDefaultValuesCount));
 		return;
 	}
 
 	if (!customFilePathAbsolute.isEmpty()) {
-		if (id == qstr("custom")) {
-			id = '#' + id;
-		}
-		auto currentCustomFileContent = Lang::FileParser::ReadFile(customFilePathAbsolute, customFilePathRelative);
-		if (!currentCustomFileContent.isEmpty() && currentCustomFileContent != customFileContent) {
-			loadFromCustomContent(customFilePathAbsolute, customFilePathRelative, currentCustomFileContent);
+		id = CustomLanguageId();
+		auto currentCustomFileContent = Lang::FileParser::ReadFile(
+			customFilePathAbsolute,
+			customFilePathRelative);
+		if (!currentCustomFileContent.isEmpty()
+			&& currentCustomFileContent != customFileContent) {
+			fillFromCustomContent(
+				customFilePathAbsolute,
+				customFilePathRelative,
+				currentCustomFileContent);
 			Local::writeLangPack();
 			return;
 		}
@@ -304,7 +485,8 @@ void Instance::fillFromSerialized(const QByteArray &data) {
 		QByteArray key, value;
 		stream >> key >> value;
 		if (stream.status() != QDataStream::Ok) {
-			LOG(("Lang Error: Could not read data from serialized langpack."));
+			LOG(("Lang Error: "
+				"Could not read data from serialized langpack."));
 			return;
 		}
 
@@ -312,7 +494,39 @@ void Instance::fillFromSerialized(const QByteArray &data) {
 		nonDefaultStrings.push_back(value);
 	}
 
+	_base = nullptr;
+	QByteArray base;
+	if (legacyFormat) {
+		if (!stream.atEnd()) {
+			stream >> pluralId;
+		} else {
+			pluralId = id;
+		}
+		if (!stream.atEnd()) {
+			stream >> base;
+			if (base.isEmpty()) {
+				stream.setStatus(QDataStream::ReadCorruptData);
+			}
+		}
+		if (stream.status() != QDataStream::Ok) {
+			LOG(("Lang Error: "
+				"Could not read data from serialized langpack."));
+			return;
+		}
+	}
+	if (!base.isEmpty()) {
+		_base = std::make_unique<Instance>(this, PrivateTag{});
+		_base->fillFromSerialized(base, dataAppVersion);
+	}
+
 	_id = id;
+	_pluralId = (id == CustomLanguageId())
+		? PluralCodeForCustom(
+			customFilePathAbsolute,
+			customFilePathRelative)
+		: pluralId;
+	_name = name;
+	_nativeName = nativeName;
 	_version = version;
 	_customFilePathAbsolute = customFilePathAbsolute;
 	_customFilePathRelative = customFilePathRelative;
@@ -335,8 +549,21 @@ void Instance::loadFromContent(const QByteArray &content) {
 	}
 }
 
-void Instance::loadFromCustomContent(const QString &absolutePath, const QString &relativePath, const QByteArray &content) {
-	_id = qsl("#custom");
+void Instance::fillFromCustomContent(
+		const QString &absolutePath,
+		const QString &relativePath,
+		const QByteArray &content) {
+	setBaseId(QString(), QString());
+	_id = CustomLanguageId();
+	_pluralId = PluralCodeForCustom(absolutePath, relativePath);
+	_name = _nativeName = QString();
+	loadFromCustomContent(absolutePath, relativePath, content);
+}
+
+void Instance::loadFromCustomContent(
+		const QString &absolutePath,
+		const QString &relativePath,
+		const QByteArray &content) {
 	_version = 0;
 	_customFilePathAbsolute = absolutePath;
 	_customFilePathRelative = relativePath;
@@ -344,14 +571,19 @@ void Instance::loadFromCustomContent(const QString &absolutePath, const QString 
 	loadFromContent(_customFileContent);
 }
 
-void Instance::fillFromCustomFile(const QString &filePath) {
+bool Instance::loadFromCustomFile(const QString &filePath) {
 	auto absolutePath = QFileInfo(filePath).absoluteFilePath();
 	auto relativePath = QDir().relativeFilePath(filePath);
 	auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
 	if (!content.isEmpty()) {
+		reset({
+			CustomLanguageId(),
+			PluralCodeForCustom(absolutePath, relativePath) });
 		loadFromCustomContent(absolutePath, relativePath, content);
 		updatePluralRules();
+		return true;
 	}
+	return false;
 }
 
 void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
@@ -370,7 +602,7 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 		auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
 		if (!content.isEmpty()) {
 			_legacyId = legacyId;
-			loadFromCustomContent(absolutePath, relativePath, content);
+			fillFromCustomContent(absolutePath, relativePath, content);
 		}
 	} else if (legacyId > kLegacyDefaultLanguage && legacyId < base::array_size(kLegacyLanguages)) {
 		auto languageId = str_const_toString(kLegacyLanguages[legacyId]);
@@ -383,66 +615,105 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 			loadFromContent(content);
 		}
 	}
-	_id = ConvertLegacyLanguageId(_id);
+	_id = LanguageIdOrDefault(ConvertLegacyLanguageId(_id));
+	if (!isCustom()) {
+		_pluralId = _id;
+	}
+	_name = _nativeName = QString();
+	_base = nullptr;
 	updatePluralRules();
 }
 
+// SetCallback takes two QByteArrays: key, value.
+// It is called for all key-value pairs in string.
+// ResetCallback takes one QByteArray: key.
 template <typename SetCallback, typename ResetCallback>
-void Instance::HandleString(const MTPLangPackString &mtpString, SetCallback setCallback, ResetCallback resetCallback) {
-	switch (mtpString.type()) {
-	case mtpc_langPackString: {
-		auto &string = mtpString.c_langPackString();
-		setCallback(qba(string.vkey), qba(string.vvalue));
-	} break;
-
-	case mtpc_langPackStringPluralized: {
-		auto &string = mtpString.c_langPackStringPluralized();
-		auto key = qba(string.vkey);
-		setCallback(key + "#zero", string.has_zero_value() ? qba(string.vzero_value) : QByteArray());
-		setCallback(key + "#one", string.has_one_value() ? qba(string.vone_value) : QByteArray());
-		setCallback(key + "#two", string.has_two_value() ? qba(string.vtwo_value) : QByteArray());
-		setCallback(key + "#few", string.has_few_value() ? qba(string.vfew_value) : QByteArray());
-		setCallback(key + "#many", string.has_many_value() ? qba(string.vmany_value) : QByteArray());
-		setCallback(key + "#other", qba(string.vother_value));
-	} break;
-
-	case mtpc_langPackStringDeleted: {
-		auto &string = mtpString.c_langPackStringDeleted();
-		auto key = qba(string.vkey);
+void HandleString(
+		const MTPLangPackString &string,
+		SetCallback setCallback,
+		ResetCallback resetCallback) {
+	string.match([&](const MTPDlangPackString &data) {
+		setCallback(qba(data.vkey), qba(data.vvalue));
+	}, [&](const MTPDlangPackStringPluralized &data) {
+		const auto key = qba(data.vkey);
+		setCallback(
+			key + "#zero",
+			data.has_zero_value() ? qba(data.vzero_value) : QByteArray());
+		setCallback(
+			key + "#one",
+			data.has_one_value() ? qba(data.vone_value) : QByteArray());
+		setCallback(
+			key + "#two",
+			data.has_two_value() ? qba(data.vtwo_value) : QByteArray());
+		setCallback(
+			key + "#few",
+			data.has_few_value() ? qba(data.vfew_value) : QByteArray());
+		setCallback(
+			key + "#many",
+			data.has_many_value() ? qba(data.vmany_value) : QByteArray());
+		setCallback(key + "#other", qba(data.vother_value));
+	}, [&](const MTPDlangPackStringDeleted &data) {
+		auto key = qba(data.vkey);
 		resetCallback(key);
-		for (auto plural : { "#zero", "#one", "#two", "#few", "#many", "#other" }) {
+		const auto postfixes = {
+			"#zero",
+			"#one",
+			"#two",
+			"#few",
+			"#many",
+			"#other"
+		};
+		for (const auto plural : postfixes) {
 			resetCallback(key + plural);
 		}
-	} break;
+	});
+}
 
-	default: Unexpected("LangPack string type in applyUpdate().");
+void Instance::applyDifference(
+		Pack pack,
+		const MTPDlangPackDifference &difference) {
+	switch (pack) {
+	case Pack::Current:
+		applyDifferenceToMe(difference);
+		break;
+	case Pack::Base:
+		Assert(_base != nullptr);
+		_base->applyDifference(Pack::Current, difference);
+		break;
+	default:
+		Unexpected("Pack in Instance::applyDifference.");
 	}
 }
 
-void Instance::applyDifference(const MTPDlangPackDifference &difference) {
-	auto updateLanguageId = qs(difference.vlang_code);
-	auto isValidUpdate = (updateLanguageId == _id) || (_id.isEmpty() && updateLanguageId == DefaultLanguageId());
-	Expects(isValidUpdate);
+void Instance::applyDifferenceToMe(
+		const MTPDlangPackDifference &difference) {
+	Expects(LanguageIdOrDefault(_id) == qs(difference.vlang_code));
 	Expects(difference.vfrom_version.v <= _version);
 
 	_version = difference.vversion.v;
-	for_const (auto &mtpString, difference.vstrings.v) {
-		HandleString(mtpString, [this](auto &&key, auto &&value) {
+	for (const auto &string : difference.vstrings.v) {
+		HandleString(string, [&](auto &&key, auto &&value) {
 			applyValue(key, value);
-		}, [this](auto &&key) {
+		}, [&](auto &&key) {
 			resetValue(key);
 		});
 	}
-	_updated.notify();
+	if (!_derived) {
+		_updated.notify();
+	} else {
+		_derived->_updated.notify();
+	}
 }
 
 std::map<LangKey, QString> Instance::ParseStrings(
 		const MTPVector<MTPLangPackString> &strings) {
 	auto result = std::map<LangKey, QString>();
-	for (auto &mtpString : strings.v) {
-		HandleString(mtpString, [&result](auto &&key, auto &&value) {
-			ParseKeyValue(key, value, result);
-		}, [&result](auto &&key) {
+	for (const auto &string : strings.v) {
+		HandleString(string, [&](auto &&key, auto &&value) {
+			ParseKeyValue(key, value, [&](LangKey key, QString &&value) {
+				result[key] = std::move(value);
+			});
+		}, [&](auto &&key) {
 			auto keyIndex = GetKeyIndex(QLatin1String(key));
 			if (keyIndex != kLangKeysCount) {
 				result.erase(keyIndex);
@@ -452,65 +723,54 @@ std::map<LangKey, QString> Instance::ParseStrings(
 	return result;
 }
 
-template <typename Result>
-LangKey Instance::ParseKeyValue(
-		const QByteArray &key,
-		const QByteArray &value,
-		Result &result) {
-	auto keyIndex = GetKeyIndex(QLatin1String(key));
-	if (keyIndex == kLangKeysCount) {
-		if (!key.startsWith("cloud_")) {
-			LOG(("Lang Warning: Unknown key '%1'"
-				).arg(QString::fromLatin1(key)));
-		}
-		return kLangKeysCount;
-	}
-
-	ValueParser parser(key, keyIndex, value);
-	if (parser.parse()) {
-		result[keyIndex] = parser.takeResult();
-		return keyIndex;
-	}
-	return kLangKeysCount;
-}
-
 QString Instance::getNonDefaultValue(const QByteArray &key) const {
 	const auto i = _nonDefaultValues.find(key);
 	return (i != end(_nonDefaultValues))
 		? QString::fromUtf8(i->second)
+		: _base
+		? _base->getNonDefaultValue(key)
 		: QString();
 }
 
 void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
 	_nonDefaultValues[key] = value;
-	auto index = ParseKeyValue(key, value, _values);
-	if (index != kLangKeysCount) {
-		_nonDefaultSet[index] = 1;
-	}
+	ParseKeyValue(key, value, [&](LangKey key, QString &&value) {
+		_nonDefaultSet[key] = 1;
+		if (!_derived) {
+			_values[key] = std::move(value);
+		} else if (!_derived->_nonDefaultSet[key]) {
+			_derived->_values[key] = std::move(value);
+		}
+	});
 }
 
 void Instance::updatePluralRules() {
-	auto id = _id;
-	if (isCustom()) {
-		auto path = _customFilePathAbsolute.isEmpty()
-			? _customFilePathRelative
-			: _customFilePathAbsolute;
-		auto name = QFileInfo(path).fileName();
-		if (auto match = qthelp::regex_match("_([a-z]{2,3})(_[A-Z]{2,3}|\\-[a-z]{2,3})?\\.", name)) {
-			id = match->captured(1);
-		}
-	} else if (auto match = qthelp::regex_match("^([a-z]{2,3})(_[A-Z]{2,3}|\\-[a-z]{2,3})$", id)) {
-		id = match->captured(1);
+	if (_pluralId.isEmpty()) {
+		_pluralId = isCustom()
+			? PluralCodeForCustom(
+				_customFilePathAbsolute,
+				_customFilePathRelative)
+			: LanguageIdOrDefault(_id);
 	}
-	UpdatePluralRules(id);
+	UpdatePluralRules(_pluralId);
 }
 
 void Instance::resetValue(const QByteArray &key) {
 	_nonDefaultValues.erase(key);
 
-	auto keyIndex = GetKeyIndex(QLatin1String(key));
+	const auto keyIndex = GetKeyIndex(QLatin1String(key));
 	if (keyIndex != kLangKeysCount) {
-		_values[keyIndex] = GetOriginalValue(keyIndex);
+		_nonDefaultSet[keyIndex] = 0;
+		if (!_derived) {
+			const auto base = _base
+				? _base->getNonDefaultValue(key)
+				: QString();
+			_values[keyIndex] = !base.isEmpty()
+				? base
+				: GetOriginalValue(keyIndex);
+		} else if (!_derived->_nonDefaultSet[keyIndex]) {
+			_derived->_values[keyIndex] = GetOriginalValue(keyIndex);
+		}
 	}
 }
 

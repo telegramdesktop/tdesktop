@@ -416,12 +416,15 @@ public:
 	bool notifySettingsUnknown(not_null<const PeerData*> peer) const;
 	rpl::producer<> defaultUserNotifyUpdates() const;
 	rpl::producer<> defaultChatNotifyUpdates() const;
+	rpl::producer<> defaultBroadcastNotifyUpdates() const;
 	rpl::producer<> defaultNotifyUpdates(
 		not_null<const PeerData*> peer) const;
 
 	void serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media = MTP_messageMediaEmpty());
+	void checkNewAuthorization();
+	rpl::producer<> newAuthorizationChecks() const;
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -641,8 +644,10 @@ private:
 
 	NotifySettings _defaultUserNotifySettings;
 	NotifySettings _defaultChatNotifySettings;
+	NotifySettings _defaultBroadcastNotifySettings;
 	rpl::event_stream<> _defaultUserNotifyUpdates;
 	rpl::event_stream<> _defaultChatNotifyUpdates;
+	rpl::event_stream<> _defaultBroadcastNotifyUpdates;
 	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
 	base::Timer _unmuteByFinishedTimer;
 
@@ -652,6 +657,8 @@ private:
 		const Passport::SavedCredentials,
 		int>;
 	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
+
+	rpl::event_stream<> _newAuthorizationChecks;
 
 	rpl::lifetime _lifetime;
 

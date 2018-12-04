@@ -140,7 +140,7 @@ public:
 	float64 getVideoVolume() const;
 
 	// Thread: Any. Locks AudioMutex.
-	void setVoicePlaybackSpeed(float64 speed);
+	void setVoicePlaybackDoubled(bool doubled);
 
 	~Mixer();
 
@@ -239,7 +239,7 @@ private:
 
 	QAtomicInt _volumeVideo;
 	QAtomicInt _volumeSong;
-	QAtomicInt _voicePlaybackSpeed;
+	QAtomicInt _voicePlaybackDoubled = { 0 };
 
 	friend class Fader;
 	friend class Loaders;

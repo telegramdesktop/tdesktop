@@ -443,7 +443,7 @@ sessionsHeight: 350px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
 sessionCurrentHeight: 118px;
-sessionPadding: margins(21px, 10px, 21px, 0px);
+sessionPadding: margins(23px, 10px, 23px, 0px);
 sessionNameFont: msgNameFont;
 sessionNameFg: boxTextFg;
 sessionWhenFont: msgDateFont;
@@ -535,12 +535,16 @@ autoDownloadTitlePosition: point(23px, 18px);
 autoDownloadTitleFont: font(15px semibold);
 
 confirmCaptionArea: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 1px, 4px);
+	textMargins: margins(1px, 26px, 31px, 4px);
 	heightMax: 78px;
 }
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
 confirmCompressedSkip: 10px;
+
+supportInfoField: InputField(defaultInputField) {
+	heightMax: 256px;
+}
 
 connectionHostInputField: InputField(defaultInputField) {
 	width: 160px;
@@ -556,9 +560,13 @@ connectionPasswordInputField: InputField(defaultInputField) {
 }
 connectionIPv6Skip: 11px;
 
-langsWidth: 256px;
-langsButton: Checkbox(defaultBoxCheckbox) {
+autolockWidth: 256px;
+autolockButton: Checkbox(defaultBoxCheckbox) {
 	width: 200px;
+}
+
+langsRadio: Radio(defaultRadio) {
+	bg: boxBg;
 }
 
 backgroundPadding: 10px;

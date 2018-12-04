@@ -54,9 +54,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 
 #include <range/v3/all.hpp>
-#ifdef Q_OS_WIN
-#include "platform/win/windows_range_v3_helpers.h"
-#endif // Q_OS_WIN
 
 // Ensures/Expects.
 #include <gsl/gsl_assert>

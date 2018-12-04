@@ -142,7 +142,7 @@ private:
 
 class PinMessageBox : public BoxContent, public RPCSender {
 public:
-	PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId);
+	PinMessageBox(QWidget*, not_null<PeerData*> peer, MsgId msgId);
 
 protected:
 	void prepare() override;
@@ -155,7 +155,7 @@ private:
 	void pinDone(const MTPUpdates &updates);
 	bool pinFail(const RPCError &error);
 
-	ChannelData *_channel;
+	not_null<PeerData*> _peer;
 	MsgId _msgId;
 
 	object_ptr<Ui::FlatLabel> _text;
@@ -205,7 +205,10 @@ private:
 
 class ConfirmInviteBox : public BoxContent, public RPCSender {
 public:
-	ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
+	ConfirmInviteBox(
+		QWidget*,
+		const MTPDchatInvite &data,
+		Fn<void()> submit);
 	~ConfirmInviteBox();
 
 protected:
@@ -215,11 +218,15 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	static std::vector<not_null<UserData*>> GetParticipants(
+		const MTPDchatInvite &data);
+
+	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
 	ImagePtr _photo;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
-	QVector<UserData*> _participants;
+	std::vector<not_null<UserData*>> _participants;
 	bool _isChannel = false;
 
 	int _userWidth = 0;

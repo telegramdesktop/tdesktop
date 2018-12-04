@@ -38,7 +38,10 @@ TabbedPanel::TabbedPanel(
 	object_ptr<TabbedSelector> selector)
 : RpWidget(parent)
 , _controller(controller)
-, _selector(std::move(selector)) {
+, _selector(std::move(selector))
+, _heightRatio(st::emojiPanHeightRatio)
+, _minContentHeight(st::emojiPanMinHeight)
+, _maxContentHeight(st::emojiPanMaxHeight) {
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::buttonRadius);
 	_selector->setAfterShownCallback([this](SelectorTab tab) {
@@ -52,8 +55,8 @@ TabbedPanel::TabbedPanel(
 		}
 	});
 	_selector->showRequests(
-	) | rpl::start_with_next([this] {
-		this->showFromSelector();
+	) | rpl::start_with_next([=] {
+		showFromSelector();
 	}, lifetime());
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
@@ -66,32 +69,50 @@ TabbedPanel::TabbedPanel(
 
 	_hideTimer.setCallback([this] { hideByTimerOrLeave(); });
 
-	connect(_selector, &TabbedSelector::checkForHide, this, [this] {
+	_selector->checkForHide(
+	) | rpl::start_with_next([=] {
 		if (!rect().contains(mapFromGlobal(QCursor::pos()))) {
 			_hideTimer.callOnce(kDelayedHideTimeoutMs);
 		}
-	});
-	connect(_selector, &TabbedSelector::cancelled, this, [this] {
+	}, lifetime());
+
+	_selector->cancelled(
+	) | rpl::start_with_next([=] {
 		hideAnimated();
-	});
-	connect(_selector, &TabbedSelector::slideFinished, this, [this] {
-		InvokeQueued(this, [this] {
+	}, lifetime());
+
+	_selector->slideFinished(
+	) | rpl::start_with_next([=] {
+		InvokeQueued(this, [=] {
 			if (_hideAfterSlide) {
 				startOpacityAnimation(true);
 			}
 		});
-	});
+	}, lifetime());
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+		connect(App::wnd()->windowHandle(), &QWindow::activeChanged, this, [=] {
+			windowActiveChanged();
+		});
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
 	hideChildren();
 }
 
-void TabbedPanel::moveBottom(int bottom) {
+void TabbedPanel::moveBottomRight(int bottom, int right) {
 	_bottom = bottom;
+	_right = right;
+	updateContentHeight();
+}
+
+void TabbedPanel::setDesiredHeightValues(
+		float64 ratio,
+		int minHeight,
+		int maxHeight) {
+	_heightRatio = ratio;
+	_minContentHeight = minHeight;
+	_maxContentHeight = maxHeight;
 	updateContentHeight();
 }
 
@@ -103,8 +124,11 @@ void TabbedPanel::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto marginsHeight = _selector->marginTop() + _selector->marginBottom();
 	auto availableHeight = _bottom - marginsHeight;
-	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * availableHeight) - addedHeight;
-	auto contentHeight = marginsHeight + snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	auto wantedContentHeight = qRound(_heightRatio * availableHeight) - addedHeight;
+	auto contentHeight = marginsHeight + snap(
+		wantedContentHeight,
+		_minContentHeight,
+		_maxContentHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;
 	if (contentHeight == _contentHeight) {
 		move(x(), resultTop);
@@ -122,7 +146,7 @@ void TabbedPanel::updateContentHeight() {
 	update();
 }
 
-void TabbedPanel::onWndActiveChanged() {
+void TabbedPanel::windowActiveChanged() {
 	if (!App::wnd()->windowHandle()->isActive() && !isHidden() && !preventAutoHide()) {
 		hideAnimated();
 	}
@@ -162,7 +186,8 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 }
 
 void TabbedPanel::moveByBottom() {
-	moveToRight(0, y());
+	const auto right = std::max(parentWidget()->width() - _right, 0);
+	moveToRight(right, y());
 	updateContentHeight();
 }
 
@@ -362,6 +387,7 @@ void TabbedPanel::showStarted() {
 	if (isHidden()) {
 		_selector->showStarted();
 		moveByBottom();
+		raise();
 		show();
 		startShowAnimation();
 	} else if (_hiding) {
@@ -397,14 +423,6 @@ style::margins TabbedPanel::innerPadding() const {
 
 QRect TabbedPanel::innerRect() const {
 	return rect().marginsRemoved(innerPadding());
-}
-
-QRect TabbedPanel::horizontalRect() const {
-	return innerRect().marginsRemoved(style::margins(0, st::buttonRadius, 0, st::buttonRadius));
-}
-
-QRect TabbedPanel::verticalRect() const {
-	return innerRect().marginsRemoved(style::margins(st::buttonRadius, 0, st::buttonRadius, 0));
 }
 
 bool TabbedPanel::overlaps(const QRect &globalRect) const {

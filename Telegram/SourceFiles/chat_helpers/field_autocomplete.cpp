@@ -513,15 +513,7 @@ FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, Mentio
 , _hrows(hrows)
 , _brows(brows)
 , _srows(srows)
-, _stickersPerRow(1)
-, _recentInlineBotsInRows(0)
-, _sel(-1)
-, _down(-1)
-, _mouseSel(false)
-, _overDelete(false)
-, _previewShown(false) {
-	_previewTimer.setSingleShot(true);
-	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
+, _previewTimer([=] { showPreview(); }) {
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 }
 
@@ -806,13 +798,13 @@ void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 			chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 		} else {
 			_down = _sel;
-			_previewTimer.start(QApplication::startDragTime());
+			_previewTimer.callOnce(QApplication::startDragTime());
 		}
 	}
 }
 
 void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
-	_previewTimer.stop();
+	_previewTimer.cancel();
 
 	int32 pressed = _down;
 	_down = -1;
@@ -915,7 +907,7 @@ void FieldAutocompleteInner::onParentGeometryChanged() {
 	}
 }
 
-void FieldAutocompleteInner::onPreview() {
+void FieldAutocompleteInner::showPreview() {
 	if (_down >= 0 && _down < _srows->size()) {
 		Ui::showMediaPreview(
 			(*_srows)[_down]->stickerSetOrigin(),

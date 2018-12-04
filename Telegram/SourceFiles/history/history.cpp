@@ -108,6 +108,7 @@ void Histories::clear() {
 	_map.clear();
 
 	_unreadFull = _unreadMuted = 0;
+	_unreadEntriesFull = _unreadEntriesMuted = 0;
 	Notify::unreadCounterUpdated();
 	App::historyClearItems();
 	typing.clear();
@@ -164,34 +165,135 @@ HistoryItem *Histories::addNewMessage(
 }
 
 int Histories::unreadBadge() const {
-	return _unreadFull - (Global::IncludeMuted() ? 0 : _unreadMuted);
+	return computeUnreadBadge(
+		_unreadFull,
+		_unreadMuted,
+		_unreadEntriesFull,
+		_unreadEntriesMuted);
 }
 
-int Histories::unreadMutedCount() const {
-	return _unreadMuted;
+bool Histories::unreadBadgeMuted() const {
+	return computeUnreadBadgeMuted(
+		_unreadFull,
+		_unreadMuted,
+		_unreadEntriesFull,
+		_unreadEntriesMuted);
+}
+
+int Histories::unreadBadgeIgnoreOne(History *history) const {
+	const auto removeCount = (history
+		&& history->inChatList(Dialogs::Mode::All))
+		? history->unreadCount()
+		: 0;
+	if (!removeCount) {
+		return unreadBadge();
+	}
+	const auto removeMuted = history->mute();
+	return computeUnreadBadge(
+		_unreadFull - removeCount,
+		_unreadMuted - (removeMuted ? removeCount : 0),
+		_unreadEntriesFull - 1,
+		_unreadEntriesMuted - (removeMuted ? 1 : 0));
+}
+
+bool Histories::unreadBadgeMutedIgnoreOne(History *history) const {
+	const auto removeCount = (history
+		&& history->inChatList(Dialogs::Mode::All))
+		? history->unreadCount()
+		: 0;
+	if (!removeCount) {
+		return unreadBadgeMuted();
+	}
+	const auto removeMuted = history->mute();
+	return computeUnreadBadgeMuted(
+		_unreadFull - removeCount,
+		_unreadMuted - (removeMuted ? removeCount : 0),
+		_unreadEntriesFull - 1,
+		_unreadEntriesMuted - (removeMuted ? 1 : 0));
+}
+
+int Histories::unreadOnlyMutedBadge() const {
+	return Auth().settings().countUnreadMessages()
+		? _unreadMuted
+		: _unreadEntriesMuted;
+}
+
+int Histories::computeUnreadBadge(
+		int full,
+		int muted,
+		int entriesFull,
+		int entriesMuted) const {
+	const auto withMuted = Auth().settings().includeMutedCounter();
+	return Auth().settings().countUnreadMessages()
+		? (full - (withMuted ? 0 : muted))
+		: (entriesFull - (withMuted ? 0 : entriesMuted));
+}
+
+bool Histories::computeUnreadBadgeMuted(
+		int full,
+		int muted,
+		int entriesFull,
+		int entriesMuted) const {
+	if (!Auth().settings().includeMutedCounter()) {
+		return false;
+	}
+	return Auth().settings().countUnreadMessages()
+		? (muted >= full)
+		: (entriesMuted >= entriesFull);
 }
 
 void Histories::unreadIncrement(int count, bool muted) {
+	if (!count) {
+		return;
+	}
 	_unreadFull += count;
 	if (muted) {
 		_unreadMuted += count;
 	}
-	if (!muted || Global::IncludeMuted()) {
-		Notify::unreadCounterUpdated();
+	if (Auth().settings().countUnreadMessages()) {
+		if (!muted || Auth().settings().includeMutedCounter()) {
+			Notify::unreadCounterUpdated();
+		}
 	}
 }
 
 void Histories::unreadMuteChanged(int count, bool muted) {
+	const auto wasAll = (_unreadMuted == _unreadFull);
 	if (muted) {
 		_unreadMuted += count;
 	} else {
 		_unreadMuted -= count;
 	}
-	Notify::unreadCounterUpdated();
+	if (Auth().settings().countUnreadMessages()) {
+		const auto nowAll = (_unreadMuted == _unreadFull);
+		const auto changed = !Auth().settings().includeMutedCounter()
+			|| (wasAll != nowAll);
+		if (changed) {
+			Notify::unreadCounterUpdated();
+		}
+	}
 }
 
-bool Histories::unreadOnlyMuted() const {
-	return Global::IncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
+void Histories::unreadEntriesChanged(
+		int withUnreadDelta,
+		int mutedWithUnreadDelta) {
+	if (!withUnreadDelta && !mutedWithUnreadDelta) {
+		return;
+	}
+	const auto wasAll = (_unreadEntriesMuted == _unreadEntriesFull);
+	_unreadEntriesFull += withUnreadDelta;
+	_unreadEntriesMuted += mutedWithUnreadDelta;
+	if (!Auth().settings().countUnreadMessages()) {
+		const auto nowAll = (_unreadEntriesMuted == _unreadEntriesFull);
+		const auto withMuted = Auth().settings().includeMutedCounter();
+		const auto withMutedChanged = withMuted
+			&& (withUnreadDelta != 0 || wasAll != nowAll);
+		const auto withoutMutedChanged = !withMuted
+			&& (withUnreadDelta != mutedWithUnreadDelta);
+		if (withMutedChanged || withoutMutedChanged) {
+			Notify::unreadCounterUpdated();
+		}
+	}
 }
 
 void Histories::selfDestructIn(not_null<HistoryItem*> item, TimeMs delay) {
@@ -323,10 +425,8 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		&& unreadCount() > 0) {
 		changeUnreadCount(-1);
 	}
-	if (const auto channel = peer->asChannel()) {
-		if (channel->pinnedMessageId() == item->id) {
-			channel->clearPinnedMessage();
-		}
+	if (peer->pinnedMessageId() == item->id) {
+		peer->clearPinnedMessage();
 	}
 }
 
@@ -350,12 +450,14 @@ void History::takeLocalDraft(History *from) {
 
 void History::createLocalDraftFromCloud() {
 	auto draft = cloudDraft();
-	if (Data::draftIsNull(draft) || !draft->date) {
+	if (Data::draftIsNull(draft) || !draft->date || Auth().supportMode()) {
 		return;
 	}
 
 	auto existing = localDraft();
-	if (Data::draftIsNull(existing) || !existing->date || draft->date >= existing->date) {
+	if (Data::draftIsNull(existing)
+		|| !existing->date
+		|| draft->date >= existing->date) {
 		if (!existing) {
 			setLocalDraft(std::make_unique<Data::Draft>(
 				draft->textWithTags,
@@ -378,7 +480,7 @@ void History::setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
 	cloudDraftTextCache.clear();
 }
 
-Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
+Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 	if (Data::draftIsNull(fromDraft)) {
 		setCloudDraft(std::make_unique<Data::Draft>(
 			TextWithTags(),
@@ -1219,9 +1321,7 @@ void History::applyServiceChanges(
 
 	case mtpc_messageActionPinMessage: {
 		if (data.has_reply_to_msg_id() && item) {
-			if (auto channel = item->history()->peer->asChannel()) {
-				channel->setPinnedMessageId(data.vreply_to_msg_id.v);
-			}
+			item->history()->peer->setPinnedMessageId(data.vreply_to_msg_id.v);
 		}
 	} break;
 
@@ -1660,6 +1760,7 @@ bool History::unreadCountKnown() const {
 
 void History::setUnreadCount(int newUnreadCount) {
 	if (!_unreadCount || *_unreadCount != newUnreadCount) {
+		const auto wasUnread = _unreadMark || unreadCount();
 		const auto unreadCountDelta = _unreadCount | [&](int count) {
 			return newUnreadCount - count;
 		};
@@ -1704,12 +1805,20 @@ void History::setUnreadCount(int newUnreadCount) {
 		}
 
 		if (inChatList(Dialogs::Mode::All)) {
-			const auto delta = unreadCountDelta
+			const auto delta = unreadMarkDelta + (unreadCountDelta
 				? *unreadCountDelta
-				: newUnreadCount;
-			App::histories().unreadIncrement(
-				delta + unreadMarkDelta,
-				mute());
+				: newUnreadCount);
+			App::histories().unreadIncrement(delta, mute());
+
+			const auto nowUnread = (*_unreadCount > 0) || _unreadMark;
+			const auto entriesDelta = (wasUnread && !nowUnread)
+				? -1
+				: (nowUnread && !wasUnread)
+				? 1
+				: 0;
+			App::histories().unreadEntriesChanged(
+				entriesDelta,
+				mute() ? entriesDelta : 0);
 		}
 		Notify::peerUpdatedDelayed(
 			peer,
@@ -1727,6 +1836,9 @@ void History::setUnreadMark(bool unread) {
 			if (inChatList(Dialogs::Mode::All)) {
 				const auto delta = _unreadMark ? 1 : -1;
 				App::histories().unreadIncrement(delta, mute());
+				App::histories().unreadEntriesChanged(
+					delta,
+					mute() ? delta : 0);
 
 				updateChatListEntry();
 			}
@@ -1781,6 +1893,13 @@ bool History::changeMute(bool newMute) {
 	if (inChatList(Dialogs::Mode::All)) {
 		if (const auto count = historiesUnreadCount()) {
 			App::histories().unreadMuteChanged(count, _mute);
+
+			const auto entriesWithUnreadDelta = 0;
+			const auto mutedEntriesWithUnreadDelta = _mute ? 1 : -1;
+			App::histories().unreadEntriesChanged(
+				entriesWithUnreadDelta,
+				mutedEntriesWithUnreadDelta);
+
 			Notify::unreadCounterUpdated();
 		}
 		Notify::historyMuteUpdated(this);
@@ -1837,7 +1956,7 @@ std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
 TimeId History::adjustChatListTimeId() const {
 	const auto result = chatsListTimeId();
 	if (const auto draft = cloudDraft()) {
-		if (!Data::draftIsNull(draft)) {
+		if (!Data::draftIsNull(draft) && !Auth().supportMode()) {
 			return std::max(result, draft->date);
 		}
 	}
@@ -2760,6 +2879,11 @@ void History::changedInChatListHook(Dialogs::Mode list, bool added) {
 	if (list == Dialogs::Mode::All) {
 		if (const auto delta = historiesUnreadCount() * (added ? 1 : -1)) {
 			App::histories().unreadIncrement(delta, mute());
+
+			const auto entriesDelta = added ? 1 : -1;
+			App::histories().unreadEntriesChanged(
+				entriesDelta,
+				mute() ? entriesDelta : 0);
 		}
 	}
 }
@@ -2767,7 +2891,7 @@ void History::changedInChatListHook(Dialogs::Mode list, bool added) {
 void History::changedChatListPinHook() {
 	Notify::peerUpdatedDelayed(
 		peer,
-		Notify::PeerUpdate::Flag::PinnedChanged);
+		Notify::PeerUpdate::Flag::ChatPinnedChanged);
 }
 
 void History::removeBlock(not_null<HistoryBlock*> block) {

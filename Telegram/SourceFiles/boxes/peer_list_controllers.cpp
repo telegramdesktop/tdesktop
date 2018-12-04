@@ -42,6 +42,61 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 	return {};
 }
 
+void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
+	const auto history = App::historyLoaded(chat);
+	const auto randomId = rand_value<uint64>();
+	const auto requestId = MTP::send(
+		MTPmessages_SendMedia(
+			MTP_flags(0),
+			chat->input,
+			MTP_int(0),
+			MTP_inputMediaGame(
+				MTP_inputGameShortName(
+					bot->inputUser,
+					MTP_string(bot->botInfo->shareGameShortName))),
+			MTP_string(""),
+			MTP_long(randomId),
+			MTPnullMarkup,
+			MTPnullEntities),
+		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+		App::main()->rpcFail(&MainWidget::sendMessageFail),
+		0,
+		0,
+		history ? history->sendRequestId : 0);
+	if (history) {
+		history->sendRequestId = requestId;
+	}
+	Ui::hideLayer();
+	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+}
+
+void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
+	if (auto &info = bot->botInfo) {
+		if (!info->startGroupToken.isEmpty()) {
+			MTP::send(
+				MTPmessages_StartBot(
+					bot->inputUser,
+					chat->input,
+					MTP_long(rand_value<uint64>()),
+					MTP_string(info->startGroupToken)),
+				App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+				App::main()->rpcFail(
+					&MainWidget::addParticipantFail,
+					{ bot, chat }));
+		} else {
+			App::main()->addParticipants(
+				chat,
+				{ 1, bot });
+		}
+	} else {
+		App::main()->addParticipants(
+			chat,
+			{ 1, bot });
+	}
+	Ui::hideLayer();
+	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+}
+
 } // namespace
 
 // Not used for now.
@@ -656,7 +711,7 @@ void EditChatAdminsBoxController::rebuildRows() {
 	admins.reserve(allAdmins ? _chat->participants.size() : _chat->admins.size());
 	others.reserve(_chat->participants.size());
 
-	for (auto [user, version] : _chat->participants) {
+	for (const auto [user, version] : _chat->participants) {
 		if (user->id == peerFromUser(_chat->creator)) continue;
 		if (_chat->admins.contains(user)) {
 			admins.push_back(user);
@@ -751,36 +806,9 @@ void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
-	auto send = [weak = base::make_weak(this), bot = _bot, chat] {
-		if (!weak) {
-			return;
-		}
-		const auto history = App::historyLoaded(chat);
-		const auto randomId = rand_value<uint64>();
-		const auto requestId = MTP::send(
-			MTPmessages_SendMedia(
-				MTP_flags(0),
-				chat->input,
-				MTP_int(0),
-				MTP_inputMediaGame(
-					MTP_inputGameShortName(
-						bot->inputUser,
-						MTP_string(bot->botInfo->shareGameShortName))),
-				MTP_string(""),
-				MTP_long(randomId),
-				MTPnullMarkup,
-				MTPnullEntities),
-			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-			App::main()->rpcFail(&MainWidget::sendMessageFail),
-			0,
-			0,
-			history ? history->sendRequestId : 0);
-		if (history) {
-			history->sendRequestId = requestId;
-		}
-		Ui::hideLayer();
-		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-	};
+	auto send = crl::guard(this, [bot = _bot, chat] {
+		ShareBotGame(bot, chat);
+	});
 	auto confirmText = [chat] {
 		if (chat->isUser()) {
 			return lng_bot_sure_share_game(lt_user, App::peerName(chat));
@@ -801,35 +829,9 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			return;
 		}
 	}
-	auto send = [weak = base::make_weak(this), bot = _bot, chat] {
-		if (!weak) {
-			return;
-		}
-		if (auto &info = bot->botInfo) {
-			if (!info->startGroupToken.isEmpty()) {
-				MTP::send(
-					MTPmessages_StartBot(
-						bot->inputUser,
-						chat->input,
-						MTP_long(rand_value<uint64>()),
-						MTP_string(info->startGroupToken)),
-					App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-					App::main()->rpcFail(
-						&MainWidget::addParticipantFail,
-						{ bot, chat }));
-			} else {
-				App::main()->addParticipants(
-					chat,
-					{ 1, bot });
-			}
-		} else {
-			App::main()->addParticipants(
-				chat,
-				{ 1, bot });
-		}
-		Ui::hideLayer();
-		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-	};
+	auto send = crl::guard(this, [bot = _bot, chat] {
+		AddBotToGroup(bot, chat);
+	});
 	auto confirmText = lng_bot_sure_invite(lt_group, chat->name);
 	Ui::show(
 		Box<ConfirmBox>(confirmText, send),
@@ -908,7 +910,12 @@ void ChooseRecipientBoxController::prepareViewHook() {
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_callback(row->peer());
+	auto weak = base::make_weak(this);
+	auto callback = std::move(_callback);
+	callback(row->peer());
+	if (weak) {
+		_callback = std::move(callback);
+	}
 }
 
 auto ChooseRecipientBoxController::createRow(

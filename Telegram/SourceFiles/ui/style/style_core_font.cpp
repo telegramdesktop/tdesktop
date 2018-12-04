@@ -57,7 +57,11 @@ FontData::FontData(int size, uint32 flags, int family, Font *other)
 	modified[_flags] = Font(this);
 
 	f.setPixelSize(size);
-	f.setBold(_flags & FontBold);
+	if (_flags & FontBold) {
+		f.setBold(_flags & FontBold);
+	} else if (fontFamilies[family] == "Open Sans Semibold") {
+		f.setWeight(QFont::DemiBold);
+	}
 	f.setItalic(_flags & FontItalic);
 	f.setUnderline(_flags & FontUnderline);
 	f.setStyleStrategy(QFont::PreferQuality);

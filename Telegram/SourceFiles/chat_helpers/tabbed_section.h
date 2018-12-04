@@ -49,9 +49,6 @@ public:
 
 	void beforeHiding();
 	void afterShown();
-	void setCancelledCallback(Fn<void()> callback) {
-		_cancelledCallback = std::move(callback);
-	}
 
 	object_ptr<TabbedSelector> takeSelector();
 	QPointer<TabbedSelector> getSelector() const;
@@ -77,7 +74,6 @@ protected:
 
 private:
 	object_ptr<TabbedSelector> _selector;
-	Fn<void()> _cancelledCallback;
 	Fn<void(object_ptr<TabbedSelector>)> _returnMethod;
 
 };

@@ -189,6 +189,7 @@ UserpicsSlice ParseUserpicsSlice(
 struct User {
 	ContactInfo info;
 	Utf8String username;
+	int32 id;
 	bool isBot = false;
 	bool isSelf = false;
 

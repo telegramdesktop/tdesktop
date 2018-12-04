@@ -588,6 +588,10 @@ managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
 }
 managePeerButtonLabelPosition: point(25px, 10px);
 
+terminateSessionsButton: InfoProfileButton(infoBlockButton) {
+	padding: margins(23px, 12px, 23px, 10px);
+}
+
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info_media_photo_empty", infoEmptyFg }};
 infoEmptyVideo: icon {{ "info_media_video_empty", infoEmptyFg }};

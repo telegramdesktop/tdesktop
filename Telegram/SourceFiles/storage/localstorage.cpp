@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_cloud_manager.h"
 #include "media/media_audio.h"
 #include "mtproto/dc_options.h"
 #include "messenger.h"
@@ -562,7 +563,7 @@ enum {
 	dbiTryIPv6 = 0x28,
 	dbiSongVolume = 0x29,
 	dbiWindowsNotificationsOld = 0x30,
-	dbiIncludeMuted = 0x31,
+	dbiIncludeMutedOld = 0x31,
 	dbiMegagroupSizeMax = 0x32,
 	dbiDownloadPath = 0x33,
 	dbiAutoDownload = 0x34,
@@ -599,6 +600,7 @@ enum {
 	dbiAnimationsDisabled = 0x57,
 	dbiScalePercent = 0x58,
 	dbiPlaybackSpeed = 0x59,
+	dbiLanguagesKey = 0x5a,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -664,6 +666,7 @@ FileKey _exportSettingsKey = 0;
 
 FileKey _savedPeersKey = 0;
 FileKey _langPackKey = 0;
+FileKey _languagesKey = 0;
 
 bool _mapChanged = false;
 int32 _oldMapVersion = 0, _oldSettingsVersion = 0;
@@ -1096,12 +1099,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetModerateModeEnabled(enabled == 1);
 	} break;
 
-	case dbiIncludeMuted: {
+	case dbiIncludeMutedOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetIncludeMuted(v == 1);
+		GetStoredAuthSessionCache().setIncludeMutedCounter(v == 1);
 	} break;
 
 	case dbiShowingSavedGifsOld: {
@@ -1352,6 +1355,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		_langPackKey = langPackKey;
+	} break;
+
+	case dbiLanguagesKey: {
+		quint64 languagesKey = 0;
+		stream >> languagesKey;
+		if (!_checkStreamStatus(stream)) return false;
+
+		_languagesKey = languagesKey;
 	} break;
 
 	case dbiTryIPv6: {
@@ -1755,7 +1766,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetVoiceMsgPlaybackSpeed((v == 2) ? 2. : 1.);
+		Global::SetVoiceMsgPlaybackDoubled(v == 2);
 	} break;
 
 	default:
@@ -2008,7 +2019,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiSuggestEmoji) << qint32(Global::SuggestEmoji() ? 1 : 0);
 	data.stream << quint32(dbiSuggestStickersByEmoji) << qint32(Global::SuggestStickersByEmoji() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
-	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
 	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
@@ -2028,7 +2038,7 @@ void _writeUserSettings() {
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
-	data.stream << quint32(dbiPlaybackSpeed) << qint32(std::round(Global::VoiceMsgPlaybackSpeed()));
+	data.stream << quint32(dbiPlaybackSpeed) << qint32(Global::VoiceMsgPlaybackDoubled() ? 2 : 1);
 
 	{
 		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
@@ -2325,6 +2335,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readUserSettings();
 	_readMtpData();
 
+	DEBUG_LOG(("selfSerialized set: %1").arg(selfSerialized.size()));
 	Messenger::Instance().setAuthSessionFromStorage(
 		std::move(StoredAuthSessionCache),
 		std::move(selfSerialized),
@@ -2372,10 +2383,12 @@ void _writeMap(WriteMapWhen when) {
 	uint32 mapSize = 0;
 	const auto self = [] {
 		if (!AuthSession::Exists()) {
+			DEBUG_LOG(("AuthSelf Warning: Session does not exist."));
 			return QByteArray();
 		}
 		const auto self = Auth().user();
 		if (self->phone().isEmpty()) {
+			DEBUG_LOG(("AuthSelf Error: Phone is empty."));
 			return QByteArray();
 		}
 		auto result = QByteArray();
@@ -2625,6 +2638,9 @@ void writeSettings() {
 		<< quint32(Window::Theme::IsNightMode() ? 1 : 0);
 	if (_langPackKey) {
 		data.stream << quint32(dbiLangPackKey) << quint64(_langPackKey);
+	}
+	if (_languagesKey) {
+		data.stream << quint32(dbiLanguagesKey) << quint64(_languagesKey);
 	}
 
 	auto position = cWindowPos();
@@ -4096,7 +4112,7 @@ void readLangPack() {
 	auto data = QByteArray();
 	langpack.stream >> data;
 	if (langpack.stream.status() == QDataStream::Ok) {
-		Lang::Current().fillFromSerialized(data);
+		Lang::Current().fillFromSerialized(data, langpack.version);
 	}
 }
 
@@ -4112,6 +4128,98 @@ void writeLangPack() {
 
 	FileWriteDescriptor file(_langPackKey, FileOption::Safe);
 	file.writeEncrypted(data, SettingsKey);
+}
+
+void saveRecentLanguages(const std::vector<Lang::Language> &list) {
+	if (list.empty()) {
+		if (_languagesKey) {
+			clearKey(_languagesKey, FileOption::Safe);
+			_languagesKey = 0;
+			writeSettings();
+		}
+		return;
+	}
+
+	auto size = sizeof(qint32);
+	for (const auto &language : list) {
+		size += Serialize::stringSize(language.id)
+			+ Serialize::stringSize(language.pluralId)
+			+ Serialize::stringSize(language.baseId)
+			+ Serialize::stringSize(language.name)
+			+ Serialize::stringSize(language.nativeName);
+	}
+	if (!_languagesKey) {
+		_languagesKey = genKey(FileOption::Safe);
+		writeSettings();
+	}
+
+	EncryptedDescriptor data(size);
+	data.stream << qint32(list.size());
+	for (const auto &language : list) {
+		data.stream
+			<< language.id
+			<< language.pluralId
+			<< language.baseId
+			<< language.name
+			<< language.nativeName;
+	}
+
+	FileWriteDescriptor file(_languagesKey, FileOption::Safe);
+	file.writeEncrypted(data, SettingsKey);
+}
+
+void pushRecentLanguage(const Lang::Language &language) {
+	if (language.id.startsWith('#')) {
+		return;
+	}
+	auto list = readRecentLanguages();
+	list.erase(
+		ranges::remove_if(
+			list,
+			[&](const Lang::Language &v) { return (v.id == language.id); }),
+		end(list));
+	list.insert(list.begin(), language);
+
+	saveRecentLanguages(list);
+}
+
+void removeRecentLanguage(const QString &id) {
+	auto list = readRecentLanguages();
+	list.erase(
+		ranges::remove_if(
+			list,
+			[&](const Lang::Language &v) { return (v.id == id); }),
+		end(list));
+
+	saveRecentLanguages(list);
+}
+
+std::vector<Lang::Language> readRecentLanguages() {
+	FileReadDescriptor languages;
+	if (!_languagesKey || !readEncryptedFile(languages, _languagesKey, FileOption::Safe, SettingsKey)) {
+		return {};
+	}
+	qint32 count = 0;
+	languages.stream >> count;
+	if (count <= 0) {
+		return {};
+	}
+	auto result = std::vector<Lang::Language>();
+	result.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		auto language = Lang::Language();
+		languages.stream
+			>> language.id
+			>> language.pluralId
+			>> language.baseId
+			>> language.name
+			>> language.nativeName;
+		result.push_back(language);
+	}
+	if (languages.stream.status() != QDataStream::Ok) {
+		return {};
+	}
+	return result;
 }
 
 bool copyThemeColorsToPalette(const QString &path) {

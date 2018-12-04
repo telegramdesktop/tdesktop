@@ -172,13 +172,13 @@ void PeerData::setUserpic(
 }
 
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
-	auto photoId = [&]() -> PhotoId {
-		if (const auto photo = Auth().data().photo(data)) {
-			photo->peer = this;
-			return photo->id;
-		}
-		return 0;
-	}();
+	const auto photoId = data.match([&](const MTPDphoto &data) {
+		const auto photo = Auth().data().photo(data);
+		photo->peer = this;
+		return photo->id;
+	}, [](const MTPDphotoEmpty &data) {
+		return PhotoId(0);
+	});
 	if (_userpicPhotoId != photoId) {
 		_userpicPhotoId = photoId;
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
@@ -327,6 +327,39 @@ void PeerData::setUserpicChecked(
 					Data::FeedUpdateFlag::ChannelPhoto);
 			}
 		}
+	}
+}
+
+bool PeerData::canPinMessages() const {
+	if (const auto user = asUser()) {
+		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
+	} else if (const auto chat = asChat()) {
+		return chat->adminsEnabled() ? chat->amAdmin() : chat->amIn();
+	} else if (const auto channel = asChannel()) {
+		using AdminRight = ChannelData::AdminRight;
+		if (channel->isMegagroup()) {
+			return (channel->adminRights() & AdminRight::f_pin_messages)
+				|| channel->amCreator();
+		}
+		return (channel->adminRights() & AdminRight::f_edit_messages)
+			|| channel->amCreator();
+	}
+	Unexpected("Peer type in PeerData::canPinMessages.");
+}
+
+void PeerData::setPinnedMessageId(MsgId messageId) {
+	const auto min = [&] {
+		if (const auto channel = asChannel()) {
+			return channel->availableMinId();
+		}
+		return MsgId(0);
+	}();
+	messageId = (messageId > min) ? messageId : MsgId(0);
+	if (_pinnedMessageId != messageId) {
+		_pinnedMessageId = messageId;
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::PinnedMessageChanged);
 	}
 }
 
@@ -872,22 +905,9 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 		if (auto history = App::historyLoaded(this)) {
 			history->clearUpTill(availableMinId);
 		}
-		if (_pinnedMessageId <= _availableMinId) {
-			_pinnedMessageId = MsgId(0);
-			Notify::peerUpdatedDelayed(
-				this,
-				Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+		if (pinnedMessageId() <= _availableMinId) {
+			clearPinnedMessage();
 		}
-	}
-}
-
-void ChannelData::setPinnedMessageId(MsgId messageId) {
-	messageId = (messageId > _availableMinId) ? messageId : MsgId(0);
-	if (_pinnedMessageId != messageId) {
-		_pinnedMessageId = messageId;
-		Notify::peerUpdatedDelayed(
-			this,
-			Notify::PeerUpdate::Flag::ChannelPinnedChanged);
 	}
 }
 
@@ -945,15 +965,6 @@ bool ChannelData::canAddMembers() const {
 
 bool ChannelData::canAddAdmins() const {
 	return (adminRights() & AdminRight::f_add_admins)
-		|| amCreator();
-}
-
-bool ChannelData::canPinMessages() const {
-	if (isMegagroup()) {
-		return (adminRights() & AdminRight::f_pin_messages)
-			|| amCreator();
-	}
-	return (adminRights() & AdminRight::f_edit_messages)
 		|| amCreator();
 }
 

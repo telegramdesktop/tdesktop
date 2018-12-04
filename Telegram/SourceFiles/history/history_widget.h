@@ -55,9 +55,6 @@ class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
-namespace Emoji {
-class SuggestionsController;
-} // namespace Emoji
 } // namespace Ui
 
 namespace Window {
@@ -110,74 +107,6 @@ private:
 	object_ptr<Ui::FlatButton> _report;
 	object_ptr<Ui::FlatButton> _hide;
 	object_ptr<Ui::LinkButton> _clear;
-
-};
-
-class HistoryHider : public Ui::RpWidget, private base::Subscriber {
-	Q_OBJECT
-
-public:
-	HistoryHider(MainWidget *parent, MessageIdsList &&items); // forward messages
-	HistoryHider(MainWidget *parent); // send path from command line argument
-	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
-	HistoryHider(MainWidget *parent, const QString &botAndQuery); // inline switch button handler
-
-	bool withConfirm() const;
-
-	bool offerPeer(PeerId peer);
-	QString offeredText() const;
-	QString botAndQuery() const {
-		return _botAndQuery;
-	}
-
-	bool wasOffered() const;
-
-	void forwardDone();
-
-	~HistoryHider();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-public slots:
-	void startHide();
-	void forward();
-
-signals:
-	void forwarded();
-
-private:
-	void refreshLang();
-	void updateControlsGeometry();
-	void animationCallback();
-	void init();
-	MainWidget *parent();
-
-	MessageIdsList _forwardItems;
-	bool _sendPath = false;
-
-	QString _shareUrl, _shareText;
-	QString _botAndQuery;
-
-	object_ptr<Ui::RoundButton> _send;
-	object_ptr<Ui::RoundButton> _cancel;
-	PeerData *_offered = nullptr;
-
-	Animation _a_opacity;
-
-	QRect _box;
-	bool _hiding = false;
-
-	mtpRequestId _forwardRequest = 0;
-
-	int _chooseWidth = 0;
-
-	Text _toText;
-	int32 _toTextWidth = 0;
-	QPixmap _cacheForAnim;
 
 };
 
@@ -334,6 +263,13 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		TextWithEntities caption = TextWithEntities());
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		TextWithEntities caption = TextWithEntities());
+
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
@@ -353,10 +289,6 @@ public:
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
-
-	bool cmd_search();
-	bool cmd_next_chat();
-	bool cmd_previous_chat();
 
 	~HistoryWidget();
 
@@ -396,11 +328,6 @@ public slots:
 	void onTextChange();
 
 	void onFieldTabbed();
-	bool onStickerOrGifSend(not_null<DocumentData*> document);
-	void onPhotoSend(not_null<PhotoData*> photo);
-	void onInlineResultSend(
-		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot);
 
 	void onWindowVisibleChanged();
 
@@ -437,6 +364,8 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
+
+	void initTabbedSelector();
 
 	void send(Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
 	void handlePendingHistoryUpdate();
@@ -570,6 +499,10 @@ private:
 	}
 	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
 
+	void setupShortcuts();
+	bool showNextChat();
+	bool showPreviousChat();
+
 	MsgId _replyToId = 0;
 	Text _replyToName;
 	int _replyToNameVersion = 0;
@@ -604,13 +537,9 @@ private:
 	void destroyPinnedBar();
 	void unpinDone(const MTPUpdates &updates);
 
-	bool sendExistingDocument(
-		not_null<DocumentData*> document,
-		Data::FileOrigin origin,
-		TextWithEntities caption);
-	void sendExistingPhoto(
-		not_null<PhotoData*> photo,
-		TextWithEntities caption);
+	void sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
@@ -704,10 +633,6 @@ private:
 
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
-
-	void unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req);
-	bool unblockFail(const RPCError &error, mtpRequestId req);
-	void blockDone(PeerData *peer, const MTPBool &result);
 
 	void countHistoryShowFrom();
 
@@ -818,7 +743,6 @@ private:
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
-	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
@@ -861,7 +785,7 @@ private:
 	DragState _attachDragState;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
-	object_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions = { nullptr };
+	Fn<void()> _raiseEmojiSuggestions;
 
 	bool _nonEmptySelection = false;
 

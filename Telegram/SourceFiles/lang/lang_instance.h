@@ -31,20 +31,47 @@ inline QString ConvertLegacyLanguageId(const QString &languageId) {
 	return languageId.toLower().replace('_', '-');
 }
 
+struct Language {
+	QString id;
+	QString pluralId;
+	QString baseId;
+	QString name;
+	QString nativeName;
+};
+
+inline bool operator==(const Language &a, const Language &b) {
+	return (a.id == b.id) && (a.name == b.name);
+}
+
+inline bool operator!=(const Language &a, const Language &b) {
+	return !(a == b);
+}
+
 QString DefaultLanguageId();
+QString LanguageIdOrDefault(const QString &id);
 QString CloudLangPackName();
+QString CustomLanguageId();
+Language DefaultLanguage();
 
 class Instance;
 Instance &Current();
 
 rpl::producer<QString> Viewer(LangKey key);
 
+enum class Pack {
+	None,
+	Current,
+	Base,
+};
+
 class Instance {
+	struct PrivateTag;
+
 public:
-	Instance() {
-		fillDefaults();
-	}
-	void switchToId(const QString &id);
+	Instance();
+	Instance(not_null<Instance*> derived, const PrivateTag &);
+
+	void switchToId(const Language &language);
 	void switchToCustomFile(const QString &filePath);
 
 	Instance(const Instance &other) = delete;
@@ -53,26 +80,23 @@ public:
 	Instance &operator=(Instance &&other) = default;
 
 	QString systemLangCode() const;
-	QString cloudLangCode() const;
 	QString langPackName() const;
-
-	QString id() const {
-		return _id;
-	}
-	bool isCustom() const {
-		return (_id == qstr("#custom"))
-			|| (_id == qstr("#TEST_X"))
-			|| (_id == qstr("#TEST_0"));
-	}
-	int version() const {
-		return _version;
-	}
+	QString cloudLangCode(Pack pack) const;
+	QString id() const;
+	QString baseId() const;
+	QString name() const;
+	QString nativeName() const;
+	QString id(Pack pack) const;
+	bool isCustom() const;
+	int version(Pack pack) const;
 
 	QByteArray serialize() const;
-	void fillFromSerialized(const QByteArray &data);
+	void fillFromSerialized(const QByteArray &data, int dataAppVersion);
 	void fillFromLegacy(int legacyId, const QString &legacyPath);
 
-	void applyDifference(const MTPDlangPackDifference &difference);
+	void applyDifference(
+		Pack pack,
+		const MTPDlangPackDifference &difference);
 	static std::map<LangKey, QString> ParseStrings(
 		const MTPVector<MTPLangPackString> &strings);
 	base::Observable<void> &updated() {
@@ -80,46 +104,35 @@ public:
 	}
 
 	QString getValue(LangKey key) const {
-		Expects(key >= 0 && key < kLangKeysCount);
-		Expects(_values.size() == kLangKeysCount);
+		Expects(key >= 0 && key < _values.size());
 
 		return _values[key];
 	}
 	QString getNonDefaultValue(const QByteArray &key) const;
 	bool isNonDefaultPlural(LangKey key) const {
-		Expects(key >= 0 && key < kLangKeysCount);
-		Expects(_nonDefaultSet.size() == kLangKeysCount);
+		Expects(key >= 0 && key + 5 < _nonDefaultSet.size());
 
 		return _nonDefaultSet[key]
 			|| _nonDefaultSet[key + 1]
 			|| _nonDefaultSet[key + 2]
 			|| _nonDefaultSet[key + 3]
 			|| _nonDefaultSet[key + 4]
-			|| _nonDefaultSet[key + 5];
+			|| _nonDefaultSet[key + 5]
+			|| (_base && _base->isNonDefaultPlural(key));
 	}
 
 private:
-	// SetCallback takes two QByteArrays: key, value.
-	// It is called for all key-value pairs in string.
-	// ResetCallback takes one QByteArray: key.
-	template <typename SetCallback, typename ResetCallback>
-	static void HandleString(
-		const MTPLangPackString &mtpString,
-		SetCallback setCallback,
-		ResetCallback resetCallback);
+	void setBaseId(const QString &baseId, const QString &pluralId);
 
-	// Writes each key-value pair in the result container.
-	template <typename Result>
-	static LangKey ParseKeyValue(
-		const QByteArray &key,
-		const QByteArray &value,
-		Result &result);
-
+	void applyDifferenceToMe(const MTPDlangPackDifference &difference);
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
-	void reset();
-	void fillDefaults();
-	void fillFromCustomFile(const QString &filePath);
+	void reset(const Language &language);
+	void fillFromCustomContent(
+		const QString &absolutePath,
+		const QString &relativePath,
+		const QByteArray &content);
+	bool loadFromCustomFile(const QString &filePath);
 	void loadFromContent(const QByteArray &content);
 	void loadFromCustomContent(
 		const QString &absolutePath,
@@ -127,7 +140,10 @@ private:
 		const QByteArray &content);
 	void updatePluralRules();
 
-	QString _id;
+	Instance *_derived = nullptr;
+
+	QString _id, _pluralId;
+	QString _name, _nativeName;
 	int _legacyId = kLegacyLanguageNone;
 	QString _customFilePathAbsolute;
 	QString _customFilePathRelative;
@@ -140,6 +156,8 @@ private:
 	std::vector<QString> _values;
 	std::vector<uchar> _nonDefaultSet;
 	std::map<QByteArray, QByteArray> _nonDefaultValues;
+
+	std::unique_ptr<Instance> _base;
 
 };
 

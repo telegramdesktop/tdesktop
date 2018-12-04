@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/inner_dropdown.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
 #include "platform/platform_specific.h"
+#include "core/event_filter.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
@@ -73,6 +75,14 @@ SuggestionsWidget::SuggestionsWidget(QWidget *parent, const style::Menu &st) : T
 	setMouseTracking(true);
 }
 
+rpl::producer<bool> SuggestionsWidget::toggleAnimated() const {
+	return _toggleAnimated.events();
+}
+
+rpl::producer<QString> SuggestionsWidget::triggered() const {
+	return _triggered.events();
+}
+
 void SuggestionsWidget::showWithQuery(const QString &query) {
 	if (_query == query) {
 		return;
@@ -80,7 +90,7 @@ void SuggestionsWidget::showWithQuery(const QString &query) {
 	_query = query;
 	auto rows = getRowsByQuery();
 	if (rows.empty()) {
-		toggleAnimated.notify(false, true);
+		_toggleAnimated.fire(false);
 	}
 	clearSelection();
 	_rows = std::move(rows);
@@ -90,7 +100,7 @@ void SuggestionsWidget::showWithQuery(const QString &query) {
 		setSelected(0);
 	}
 	if (!_rows.empty()) {
-		toggleAnimated.notify(true, true);
+		_toggleAnimated.fire(true);
 	}
 }
 
@@ -336,7 +346,7 @@ void SuggestionsWidget::triggerSelectedRow() {
 }
 
 void SuggestionsWidget::triggerRow(const Row &row) {
-	triggered.notify(row.emoji()->text(), true);
+	_triggered.fire(row.emoji()->text());
 }
 
 void SuggestionsWidget::enterEventHook(QEvent *e) {
@@ -352,24 +362,66 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 	return TWidget::leaveEventHook(e);
 }
 
-SuggestionsController::SuggestionsController(QWidget *parent, not_null<QTextEdit*> field)
-: QObject(nullptr)
-, _field(field)
-, _container(parent, st::emojiSuggestionsDropdown)
-, _suggestions(_container->setOwnedWidget(object_ptr<Ui::Emoji::SuggestionsWidget>(parent, st::emojiSuggestionsMenu))) {
+SuggestionsController::SuggestionsController(
+	not_null<QWidget*> outer,
+	not_null<QTextEdit*> field)
+: _field(field) {
+	_container = base::make_unique_q<InnerDropdown>(
+		outer,
+		st::emojiSuggestionsDropdown);
 	_container->setAutoHiding(false);
+	_suggestions = _container->setOwnedWidget(
+		object_ptr<Ui::Emoji::SuggestionsWidget>(
+			_container,
+			st::emojiSuggestionsMenu));
 
 	setReplaceCallback(nullptr);
 
-	_field->installEventFilter(this);
-	connect(_field, &QTextEdit::textChanged, this, [this] { handleTextChange(); });
-	connect(_field, &QTextEdit::cursorPositionChanged, this, [this] { handleCursorPositionChange(); });
+	_fieldFilter.reset(Core::InstallEventFilter(
+		_field,
+		[=](not_null<QEvent*> event) { return fieldFilter(event); }));
+	_outerFilter.reset(Core::InstallEventFilter(
+		outer,
+		[=](not_null<QEvent*> event) { return outerFilter(event); }));
+	QObject::connect(
+		_field,
+		&QTextEdit::textChanged,
+		_container,
+		[=] { handleTextChange(); });
+	QObject::connect(
+		_field,
+		&QTextEdit::cursorPositionChanged,
+		_container,
+		[=] { handleCursorPositionChange(); });
 
-	subscribe(_suggestions->toggleAnimated, [this](bool visible) { suggestionsUpdated(visible); });
-	subscribe(_suggestions->triggered, [this](QString replacement) { replaceCurrent(replacement); });
+	_suggestions->toggleAnimated(
+	) | rpl::start_with_next([=](bool visible) {
+		suggestionsUpdated(visible);
+	}, _lifetime);
+	_suggestions->triggered(
+	) | rpl::start_with_next([=](QString replacement) {
+		replaceCurrent(replacement);
+	}, _lifetime);
+
 	updateForceHidden();
 
 	handleTextChange();
+}
+
+SuggestionsController *SuggestionsController::Init(
+		not_null<QWidget*> outer,
+		not_null<Ui::InputField*> field) {
+	const auto result = Ui::CreateChild<SuggestionsController>(
+		field.get(),
+		outer,
+		field->rawTextEdit());
+	result->setReplaceCallback([=](
+			int from,
+			int till,
+			const QString &replacement) {
+		field->commitInstantReplacement(from, till, replacement);
+	});
+	return result;
 }
 
 void SuggestionsController::setReplaceCallback(
@@ -391,9 +443,9 @@ void SuggestionsController::setReplaceCallback(
 
 void SuggestionsController::handleTextChange() {
 	_ignoreCursorPositionChange = true;
-	InvokeQueued(this, [this] { _ignoreCursorPositionChange = false; });
+	InvokeQueued(_container, [=] { _ignoreCursorPositionChange = false; });
 
-	auto query = getEmojiQuery();
+	const auto query = getEmojiQuery();
 	if (query.isEmpty() || _textChangeAfterKeyPress) {
 		_suggestions->showWithQuery(query);
 	}
@@ -509,7 +561,7 @@ void SuggestionsController::replaceCurrent(const QString &replacement) {
 }
 
 void SuggestionsController::handleCursorPositionChange() {
-	InvokeQueued(this, [this] {
+	InvokeQueued(_container, [=] {
 		if (_ignoreCursorPositionChange) {
 			return;
 		}
@@ -523,7 +575,11 @@ void SuggestionsController::suggestionsUpdated(bool visible) {
 		_container->resizeToContent();
 		updateGeometry();
 		if (!_forceHidden) {
-			_container->showAnimated(Ui::PanelAnimation::Origin::BottomLeft);
+			if (_container->isHidden() || _container->isHiding()) {
+				raise();
+			}
+			_container->showAnimated(
+				Ui::PanelAnimation::Origin::BottomLeft);
 		}
 	} else if (!_forceHidden) {
 		_container->hideAnimated();
@@ -563,7 +619,7 @@ void SuggestionsController::updateGeometry() {
 }
 
 void SuggestionsController::updateForceHidden() {
-	_forceHidden = !_field->isVisible();
+	_forceHidden = !_field->isVisible() || !_field->hasFocus();
 	if (_forceHidden) {
 		_container->hideFast();
 	} else if (_shown) {
@@ -571,51 +627,68 @@ void SuggestionsController::updateForceHidden() {
 	}
 }
 
-bool SuggestionsController::eventFilter(QObject *object, QEvent *event) {
-	if (object == _field) {
-		auto type = event->type();
-		switch (type) {
-		case QEvent::Move:
-		case QEvent::Resize: {
+bool SuggestionsController::fieldFilter(not_null<QEvent*> event) {
+	auto type = event->type();
+	switch (type) {
+	case QEvent::Move:
+	case QEvent::Resize: {
+		if (_shown) {
+			updateGeometry();
+		}
+	} break;
+
+	case QEvent::Show:
+	case QEvent::ShowToParent:
+	case QEvent::Hide:
+	case QEvent::HideToParent:
+	case QEvent::FocusIn:
+	case QEvent::FocusOut: {
+		updateForceHidden();
+	} break;
+
+	case QEvent::KeyPress: {
+		const auto key = static_cast<QKeyEvent*>(event.get())->key();
+		switch (key) {
+		case Qt::Key_Enter:
+		case Qt::Key_Return:
+		case Qt::Key_Tab:
+		case Qt::Key_Up:
+		case Qt::Key_Down:
+			if (_shown && !_forceHidden) {
+				_suggestions->handleKeyEvent(key);
+				return true;
+			}
+			break;
+
+		case Qt::Key_Escape:
+			if (_shown && !_forceHidden) {
+				_suggestions->showWithQuery(QString());
+				return true;
+			}
+			break;
+		}
+		_textChangeAfterKeyPress = true;
+		InvokeQueued(_container, [=] { _textChangeAfterKeyPress = false; });
+	} break;
+	}
+	return false;
+}
+
+bool SuggestionsController::outerFilter(not_null<QEvent*> event) {
+	auto type = event->type();
+	switch (type) {
+	case QEvent::Move:
+	case QEvent::Resize: {
+		// updateGeometry uses not only container geometry, but also
+		// container children geometries that will be updated later.
+		InvokeQueued(_container, [=] {
 			if (_shown) {
 				updateGeometry();
 			}
-		} break;
-
-		case QEvent::Show:
-		case QEvent::ShowToParent:
-		case QEvent::Hide:
-		case QEvent::HideToParent: {
-			updateForceHidden();
-		} break;
-
-		case QEvent::KeyPress: {
-			auto key = static_cast<QKeyEvent*>(event)->key();
-			switch (key) {
-			case Qt::Key_Enter:
-			case Qt::Key_Return:
-			case Qt::Key_Tab:
-			case Qt::Key_Up:
-			case Qt::Key_Down:
-				if (_shown && !_forceHidden) {
-					_suggestions->handleKeyEvent(key);
-					return true;
-				}
-				break;
-
-			case Qt::Key_Escape:
-				if (_shown && !_forceHidden) {
-					_suggestions->showWithQuery(QString());
-					return true;
-				}
-				break;
-			}
-			_textChangeAfterKeyPress = true;
-			InvokeQueued(this, [this] { _textChangeAfterKeyPress = false; });
-		} break;
-		}
+		});
+	} break;
 	}
-	return QObject::eventFilter(object, event);
+	return false;
 }
 
 void SuggestionsController::raise() {

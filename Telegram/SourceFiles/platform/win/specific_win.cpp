@@ -193,10 +193,6 @@ QString psAppDataPathOld() {
 	return QString();
 }
 
-QString psDownloadPath() {
-	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + str_const_toString(AppName) + '/';
-}
-
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);

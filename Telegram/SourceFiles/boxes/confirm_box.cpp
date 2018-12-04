@@ -27,6 +27,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "observer_peer.h"
 
+namespace {
+
+void ConvertToSupergroupDone(const MTPUpdates &updates) {
+	Auth().api().applyUpdates(updates);
+
+	auto handleChats = [](const MTPVector<MTPChat> &chats) {
+		for (const auto &chat : chats.v) {
+			if (chat.type() == mtpc_channel) {
+				const auto channel = App::channel(chat.c_channel().vid.v);
+				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
+				Auth().api().requestParticipantsCountDelayed(channel);
+			}
+		}
+	};
+
+	switch (updates.type()) {
+	case mtpc_updates:
+		handleChats(updates.c_updates().vchats);
+		break;
+	case mtpc_updatesCombined:
+		handleChats(updates.c_updatesCombined().vchats);
+		break;
+	default:
+		LOG(("API Error: unexpected update cons %1 "
+			"(ConvertToSupergroupBox::convertDone)").arg(updates.type()));
+		break;
+	}
+}
+
+} // namespace
+
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -138,8 +169,10 @@ void ConfirmBox::prepare() {
 	}
 
 	boxClosing() | rpl::start_with_next([=] {
-		if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
-			_cancelledCallback();
+		if (!_confirmed && (!_strictCancel || _cancelled)) {
+			if (auto callback = std::move(_cancelledCallback)) {
+				callback();
+			}
 		}
 	}, lifetime());
 
@@ -167,8 +200,8 @@ void ConfirmBox::textUpdated() {
 void ConfirmBox::confirmed() {
 	if (!_confirmed) {
 		_confirmed = true;
-		if (_confirmedCallback) {
-			_confirmedCallback();
+		if (auto callback = std::move(_confirmedCallback)) {
+			callback();
 		}
 	}
 }
@@ -188,11 +221,12 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (auto activated = ClickHandler::unpressed()) {
+	if (const auto activated = ClickHandler::unpressed()) {
 		Ui::hideLayer();
 		App::activateClickHandler(activated, e->button());
+		return;
 	}
-	return BoxContent::mouseReleaseEvent(e);
+	BoxContent::mouseReleaseEvent(e);
 }
 
 void ConfirmBox::leaveEventHook(QEvent *e) {
@@ -359,23 +393,7 @@ void ConvertToSupergroupBox::convertToSupergroup() {
 
 void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 	Ui::hideLayer();
-	App::main()->sentUpdatesReceived(updates);
-
-	auto handleChats = [](auto &mtpChats) {
-		for_const (auto &mtpChat, mtpChats.v) {
-			if (mtpChat.type() == mtpc_channel) {
-				const auto channel = App::channel(mtpChat.c_channel().vid.v);
-				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-				Auth().api().requestParticipantsCountDelayed(channel);
-			}
-		}
-	};
-
-	switch (updates.type()) {
-	case mtpc_updates: handleChats(updates.c_updates().vchats); break;
-	case mtpc_updatesCombined: handleChats(updates.c_updatesCombined().vchats); break;
-	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
-	}
+	ConvertToSupergroupDone(updates);
 }
 
 bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
@@ -403,8 +421,11 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 	_note.drawLeft(p, st::boxPadding.left(), _textHeight + st::boxPadding.bottom(), _textWidth, width());
 }
 
-PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
-: _channel(channel)
+PinMessageBox::PinMessageBox(
+	QWidget*,
+	not_null<PeerData*> peer,
+	MsgId msgId)
+: _peer(peer)
 , _msgId(msgId)
 , _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel) {
 }
@@ -413,7 +434,7 @@ void PinMessageBox::prepare() {
 	addButton(langFactory(lng_pinned_pin), [this] { pinMessage(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	if (_channel->isMegagroup()) {
+	if (_peer->isChat() || _peer->isMegagroup()) {
 		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
 	}
 
@@ -443,23 +464,21 @@ void PinMessageBox::keyPressEvent(QKeyEvent *e) {
 void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
-	auto flags = MTPchannels_UpdatePinnedMessage::Flags(0);
+	auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
 	if (_notify && !_notify->checked()) {
-		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
+		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
 	}
 	_requestId = MTP::send(
-		MTPchannels_UpdatePinnedMessage(
+		MTPmessages_UpdatePinnedMessage(
 			MTP_flags(flags),
-			_channel->inputChannel,
+			_peer->input,
 			MTP_int(_msgId)),
 		rpcDone(&PinMessageBox::pinDone),
 		rpcFail(&PinMessageBox::pinFail));
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 	Ui::hideLayer();
 }
 
@@ -596,10 +615,6 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void DeleteMessagesBox::deleteAndClear() {
-	if (!App::main()) {
-		return;
-	}
-
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
 			Auth().api().kickParticipant(
@@ -651,38 +666,43 @@ void DeleteMessagesBox::deleteAndClear() {
 
 ConfirmInviteBox::ConfirmInviteBox(
 	QWidget*,
-	const QString &title,
-	bool isChannel,
-	const MTPChatPhoto &photo,
-	int count,
-	const QVector<UserData*> &participants)
-: _title(this, st::confirmInviteTitle)
+	const MTPDchatInvite &data,
+	Fn<void()> submit)
+: _submit(std::move(submit))
+, _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
-, _participants(participants)
-, _isChannel(isChannel) {
-	_title->setText(title);
-	QString status;
-	if (_participants.isEmpty() || _participants.size() >= count) {
-		if (count > 0) {
-			status = lng_chat_status_members(lt_count, count);
+, _participants(GetParticipants(data))
+, _isChannel(data.is_channel() && !data.is_megagroup()) {
+	const auto title = qs(data.vtitle);
+	const auto count = data.vparticipants_count.v;
+	const auto status = [&] {
+		if (_participants.empty() || _participants.size() >= count) {
+			if (count > 0) {
+				return lng_chat_status_members(lt_count, count);
+			} else {
+				return lang(_isChannel
+					? lng_channel_status
+					: lng_group_status);
+			}
 		} else {
-			status = lang(isChannel ? lng_channel_status : lng_group_status);
+			return lng_group_invite_members(lt_count, count);
 		}
-	} else {
-		status = lng_group_invite_members(lt_count, count);
-	}
+	}();
+	_title->setText(title);
 	_status->setText(status);
-	if (photo.type() == mtpc_chatPhoto) {
-		const auto &data = photo.c_chatPhoto();
+	if (data.vphoto.type() == mtpc_chatPhoto) {
+		const auto &photo = data.vphoto.c_chatPhoto();
 		const auto size = 160;
 		const auto location = StorageImageLocation::FromMTP(
 			size,
 			size,
-			data.vphoto_small);
+			photo.vphoto_small);
 		if (!location.isNull()) {
 			_photo = Images::Create(location);
 			if (!_photo->loaded()) {
-				subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+				subscribe(Auth().downloaderTaskFinished(), [=] {
+					update();
+				});
 				_photo->load(Data::FileOrigin());
 			}
 		}
@@ -694,29 +714,41 @@ ConfirmInviteBox::ConfirmInviteBox(
 	}
 }
 
+std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
+		const MTPDchatInvite &data) {
+	if (!data.has_participants()) {
+		return {};
+	}
+	const auto &v = data.vparticipants.v;
+	auto result = std::vector<not_null<UserData*>>();
+	result.reserve(v.size());
+	for (const auto &participant : v) {
+		if (const auto user = App::feedUser(participant)) {
+			result.push_back(user);
+		}
+	}
+	return result;
+}
+
 void ConfirmInviteBox::prepare() {
 	const auto joinKey = _isChannel
 		? lng_profile_join_channel
 		: lng_profile_join_group;
-	addButton(langFactory(joinKey), [] {
-		if (auto main = App::main()) {
-			main->onInviteImport();
-		}
-	});
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(joinKey), _submit);
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	if (_participants.size() > 4) {
-		_participants.resize(4);
+	while (_participants.size() > 4) {
+		_participants.pop_back();
 	}
 
 	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
-	if (!_participants.isEmpty()) {
+	if (!_participants.empty()) {
 		int skip = (st::boxWideWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
 		int padding = skip / 2;
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
 		int left = (st::boxWideWidth - sumWidth) / 2;
-		for_const (auto user, _participants) {
+		for (const auto user : _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
 			name->setText(user->firstName.isEmpty() ? App::peerName(user) : user->firstName);

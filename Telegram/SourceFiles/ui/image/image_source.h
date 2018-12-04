@@ -169,7 +169,7 @@ protected:
 
 private:
 	bool loaderValid() const;
-	void destroyLoaderDelayed(FileLoader *newValue = nullptr);
+	void destroyLoader(FileLoader *newValue = nullptr);
 
 	FileLoader *_loader = nullptr;
 

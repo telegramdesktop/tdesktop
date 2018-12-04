@@ -109,12 +109,12 @@ bool IsDefaultPath(const QString &path) {
 			: value;
 		return (cPlatform() == dbipWindows) ? result.toLower() : result;
 	};
-	return (check(path) == check(psDownloadPath()));
+	return (check(path) == check(File::DefaultDownloadPath()));
 }
 
 void ResolveSettings(Settings &settings) {
 	if (settings.path.isEmpty()) {
-		settings.path = psDownloadPath();
+		settings.path = File::DefaultDownloadPath();
 		settings.forceSubPath = true;
 	} else {
 		settings.forceSubPath = IsDefaultPath(settings.path);
@@ -381,7 +381,7 @@ void PanelController::saveSettings() const {
 		return (cPlatform() == dbipWindows) ? result.toLower() : result;
 	};
 	auto settings = *_settings;
-	if (check(settings.path) == check(psDownloadPath())) {
+	if (check(settings.path) == check(File::DefaultDownloadPath())) {
 		settings.path = QString();
 	}
 	Local::WriteExportSettings(settings);

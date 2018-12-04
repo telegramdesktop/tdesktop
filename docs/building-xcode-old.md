@@ -75,7 +75,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/xiph/opus
     cd opus
-    git checkout v1.2.1
+    git checkout v1.3
     ./autogen.sh
     CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure --prefix=/usr/local/macold
     make -j4

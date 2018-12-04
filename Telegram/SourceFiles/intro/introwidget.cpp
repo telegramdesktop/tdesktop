@@ -142,21 +142,21 @@ void Widget::createLanguageLink() {
 		updateControlsGeometry();
 	};
 
-	auto currentId = Lang::Current().id();
-	auto defaultId = Lang::DefaultLanguageId();
-	auto suggestedId = Lang::CurrentCloudManager().suggestedLanguage();
-	if (!currentId.isEmpty() && currentId != defaultId) {
+	const auto currentId = Lang::LanguageIdOrDefault(Lang::Current().id());
+	const auto defaultId = Lang::DefaultLanguageId();
+	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
+	if (currentId != defaultId) {
 		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
-	} else if (!suggestedId.isEmpty() && suggestedId != currentId) {
+	} else if (!suggested.isEmpty() && suggested != currentId) {
 		request(MTPlangpack_GetStrings(
 			MTP_string(Lang::CloudLangPackName()),
-			MTP_string(suggestedId),
+			MTP_string(suggested),
 			MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this"))
 		)).done([=](const MTPVector<MTPLangPackString> &result) {
 			auto strings = Lang::Instance::ParseStrings(result);
 			auto it = strings.find(lng_switch_to_this);
 			if (it != strings.end()) {
-				createLink(it->second, suggestedId);
+				createLink(it->second, suggested);
 			}
 		}).send();
 	}
@@ -619,11 +619,11 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 	}
 
 	// Save the default language if we've suggested some other and user ignored it.
-	auto currentId = Lang::Current().id();
-	auto defaultId = Lang::DefaultLanguageId();
-	auto suggestedId = Lang::CurrentCloudManager().suggestedLanguage();
-	if (currentId.isEmpty() && !suggestedId.isEmpty() && suggestedId != defaultId) {
-		Lang::Current().switchToId(defaultId);
+	const auto currentId = Lang::Current().id();
+	const auto defaultId = Lang::DefaultLanguageId();
+	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
+	if (currentId.isEmpty() && !suggested.isEmpty() && suggested != defaultId) {
+		Lang::Current().switchToId(Lang::DefaultLanguage());
 		Local::writeLangPack();
 	}
 
@@ -658,6 +658,7 @@ void Widget::Step::updateLabelsPosition() {
 		_description->moveToLeft((width() - _description->width()) / 2, contentTop() + st::introCoverDescriptionTop);
 	} else {
 		_title->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introTitleTop);
+		_description->resizeToWidth(st::introDescription.minWidth);
 		_description->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
 	}
 	if (_error) {

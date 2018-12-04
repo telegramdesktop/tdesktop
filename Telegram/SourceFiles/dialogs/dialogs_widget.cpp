@@ -159,7 +159,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
 	connect(_inner, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
-	connect(_inner, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
+	connect(_inner, SIGNAL(clearSearchQuery()), this, SLOT(onCancel()));
 	connect(_inner, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
 	connect(_inner, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
 	connect(_inner, SIGNAL(cancelSearchInChat()), this, SLOT(onCancelSearchInChat()));
@@ -1199,13 +1199,12 @@ void DialogsWidget::showSearchFrom() {
 		Dialogs::ShowSearchFromBox(
 			controller(),
 			peer,
-			crl::guard(this, [=](
-					not_null<UserData*> user) {
+			crl::guard(this, [=](not_null<UserData*> user) {
 				Ui::hideLayer();
 				setSearchInChat(chat, user);
 				onFilterUpdate(true);
 			}),
-			crl::guard(this, [this] { _filter->setFocus(); }));
+			crl::guard(this, [=] { _filter->setFocus(); }));
 	}
 }
 
@@ -1450,18 +1449,8 @@ void DialogsWidget::destroyData() {
 	_inner->destroyData();
 }
 
-Dialogs::RowDescriptor DialogsWidget::chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const {
-	return _inner->chatListEntryBefore(which);
-}
-
-Dialogs::RowDescriptor DialogsWidget::chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const {
-	return _inner->chatListEntryAfter(which);
-}
-
-void DialogsWidget::scrollToPeer(not_null<History*> history, MsgId msgId) {
-	_inner->scrollToPeer(history, msgId);
+void DialogsWidget::scrollToEntry(const Dialogs::RowDescriptor &entry) {
+	_inner->scrollToEntry(entry);
 }
 
 void DialogsWidget::removeDialog(Dialogs::Key key) {

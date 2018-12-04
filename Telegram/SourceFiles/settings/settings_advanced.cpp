@@ -77,12 +77,10 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		return;
 	}
 
-	const auto texts = Ui::AttachAsChild(
-		container,
-		rpl::event_stream<QString>());
-	const auto downloading = Ui::AttachAsChild(
-		container,
-		rpl::event_stream<bool>());
+	const auto texts = Ui::CreateChild<rpl::event_stream<QString>>(
+		container.get());
+	const auto downloading = Ui::CreateChild<rpl::event_stream<bool>>(
+		container.get());
 	const auto version = lng_settings_current_version(
 		lt_version,
 		currentVersionText());

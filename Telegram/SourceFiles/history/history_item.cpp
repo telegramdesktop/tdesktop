@@ -321,20 +321,14 @@ void HistoryItem::setRealId(MsgId newId) {
 }
 
 bool HistoryItem::isPinned() const {
-	if (auto channel = _history->peer->asChannel()) {
-		return (channel->pinnedMessageId() == id);
-	}
-	return false;
+	return (_history->peer->pinnedMessageId() == id);
 }
 
 bool HistoryItem::canPin() const {
 	if (id < 0 || !toHistoryMessage()) {
 		return false;
 	}
-	if (auto channel = _history->peer->asChannel()) {
-		return channel->canPinMessages();
-	}
-	return false;
+	return _history->peer->canPinMessages();
 }
 
 bool HistoryItem::allowsForward() const {

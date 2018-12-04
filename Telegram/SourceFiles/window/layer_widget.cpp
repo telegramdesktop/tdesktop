@@ -208,7 +208,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	_inPaintEvent = true;
 	auto guard = gsl::finally([this] {
 		_inPaintEvent = false;
-		checkIfDone();
+		crl::on_main(this, [=] { checkIfDone(); });
 	});
 
 	if (!_bodyCache.isNull()) {
@@ -400,10 +400,10 @@ void LayerStackWidget::hideLayers(anim::type animated) {
 }
 
 void LayerStackWidget::hideAll(anim::type animated) {
-	startAnimation([] {}, [=] {
+	startAnimation([] {}, [&] {
 		clearLayers();
 		clearSpecialLayer();
-		_mainMenu.destroyDelayed();
+		_mainMenu.destroy();
 	}, Action::HideAll, animated);
 }
 
@@ -457,21 +457,28 @@ void LayerStackWidget::setCacheImages() {
 	_background->setCacheImages(std::move(bodyCache), std::move(mainMenuCache), std::move(specialLayerCache), std::move(layerCache));
 }
 
-void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
-	if (!layer->setClosing()) {
+void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
+	const auto weak = make_weak(layer.get());
+	if (weak->inFocusChain()) {
+		setFocus();
+	}
+	if (!weak || !weak->setClosing()) {
 		// This layer is already closing.
 		return;
+	} else if (!weak) {
+		// setClosing() could've killed the layer.
+		return;
 	}
-	layer->deleteLater();
+
 	if (layer == _specialLayer) {
 		hideAll(anim::type::normal);
 	} else if (layer == currentLayer()) {
 		if (_layers.size() == 1) {
 			hideCurrent(anim::type::normal);
 		} else {
-			if (layer->inFocusChain()) setFocus();
-			layer->hide();
+			auto taken = std::move(_layers.back());
 			_layers.pop_back();
+
 			layer = currentLayer();
 			layer->parentResized();
 			if (!_background->animating()) {
@@ -481,7 +488,7 @@ void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
 		}
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
-			if (layer == *i) {
+			if (layer == i->get()) {
 				_layers.erase(i);
 				break;
 			}
@@ -489,21 +496,17 @@ void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
 	}
 }
 
-void LayerStackWidget::onLayerResized() {
-	updateLayerBoxes();
-}
-
 void LayerStackWidget::updateLayerBoxes() {
-	auto getLayerBox = [this]() {
-		if (auto layer = currentLayer()) {
+	const auto layerBox = [&] {
+		if (const auto layer = currentLayer()) {
 			return layer->geometry();
 		}
 		return QRect();
-	};
-	auto getSpecialLayerBox = [this]() {
-		return _specialLayer ? _specialLayer->geometry() : QRect();
-	};
-	_background->setLayerBoxes(getSpecialLayerBox(), getLayerBox());
+	}();
+	const auto specialLayerBox = _specialLayer
+		? _specialLayer->geometry()
+		: QRect();
+	_background->setLayerBoxes(specialLayerBox, layerBox);
 	update();
 }
 
@@ -563,15 +566,28 @@ void LayerStackWidget::startAnimation(
 }
 
 void LayerStackWidget::resizeEvent(QResizeEvent *e) {
+	const auto weak = make_weak(this);
 	_background->setGeometry(rect());
+	if (!weak) {
+		return;
+	}
 	if (_specialLayer) {
 		_specialLayer->parentResized();
+		if (!weak) {
+			return;
+		}
 	}
-	if (auto layer = currentLayer()) {
+	if (const auto layer = currentLayer()) {
 		layer->parentResized();
+		if (!weak) {
+			return;
+		}
 	}
 	if (_mainMenu) {
 		_mainMenu->resize(_mainMenu->width(), height());
+		if (!weak) {
+			return;
+		}
 	}
 	updateLayerBoxes();
 }
@@ -594,15 +610,15 @@ void LayerStackWidget::showBox(
 void LayerStackWidget::replaceBox(
 		object_ptr<BoxContent> box,
 		anim::type animated) {
-	auto pointer = pushBox(std::move(box), animated);
-	while (!_layers.isEmpty() && _layers.front() != pointer) {
-		auto removingLayer = _layers.front();
-		_layers.pop_front();
+	const auto pointer = pushBox(std::move(box), animated);
+	while (!_layers.empty() && _layers.front().get() != pointer) {
+		auto removingLayer = std::move(_layers.front());
+		_layers.erase(begin(_layers));
 
+		if (removingLayer->inFocusChain()) {
+			setFocus();
+		}
 		removingLayer->setClosing();
-		if (removingLayer->inFocusChain()) setFocus();
-		removingLayer->hide();
-		removingLayer->deleteLater();
 	}
 }
 
@@ -616,7 +632,7 @@ void LayerStackWidget::prepareForAnimation() {
 	if (_specialLayer) {
 		_specialLayer->hide();
 	}
-	if (auto layer = currentLayer()) {
+	if (const auto layer = currentLayer()) {
 		layer->hide();
 	}
 }
@@ -635,12 +651,12 @@ void LayerStackWidget::animationDone() {
 		layer->show();
 		hidden = false;
 	}
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	if (hidden) {
 		_hideFinishStream.fire({});
 	} else {
 		showFinished();
 	}
-	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
 rpl::producer<> LayerStackWidget::hideFinishEvents() const {
@@ -665,12 +681,12 @@ void LayerStackWidget::showFinished() {
 void LayerStackWidget::showSpecialLayer(
 		object_ptr<LayerWidget> layer,
 		anim::type animated) {
-	startAnimation([this, layer = std::move(layer)]() mutable {
+	startAnimation([&] {
 		_specialLayer.destroy();
 		_specialLayer = std::move(layer);
 		initChildLayer(_specialLayer);
-	}, [this] {
-		_mainMenu.destroyDelayed();
+	}, [&] {
+		_mainMenu.destroy();
 	}, Action::ShowSpecialLayer, animated);
 }
 
@@ -684,9 +700,9 @@ bool LayerStackWidget::showSectionInternal(
 }
 
 void LayerStackWidget::hideSpecialLayer(anim::type animated) {
-	startAnimation([] {}, [this] {
+	startAnimation([] {}, [&] {
 		clearSpecialLayer();
-		_mainMenu.destroyDelayed();
+		_mainMenu.destroy();
 	}, Action::HideSpecialLayer, animated);
 }
 
@@ -697,7 +713,7 @@ void LayerStackWidget::showMainMenu(
 		_mainMenu.create(this, controller);
 		_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
 		_mainMenu->setParent(this);
-	}, [this] {
+	}, [&] {
 		clearLayers();
 		_specialLayer.destroy();
 	}, Action::ShowMainMenu, animated);
@@ -717,24 +733,22 @@ LayerWidget *LayerStackWidget::pushBox(
 		if (oldLayer->inFocusChain()) setFocus();
 		oldLayer->hide();
 	}
-	auto layer = object_ptr<AbstractBox>(
-		this,
-		std::move(box));
-	_layers.push_back(layer);
-	initChildLayer(layer);
+	_layers.push_back(std::make_unique<AbstractBox>(this, std::move(box)));
+	const auto raw = _layers.back().get();
+	initChildLayer(raw);
 
 	if (_layers.size() > 1) {
 		if (!_background->animating()) {
-			layer->setVisible(true);
+			raw->setVisible(true);
 			showFinished();
 		}
 	} else {
-		startAnimation([] {}, [this] {
-			_mainMenu.destroyDelayed();
+		startAnimation([] {}, [&] {
+			_mainMenu.destroy();
 		}, Action::ShowLayer, animated);
 	}
 
-	return layer.data();
+	return raw;
 }
 
 void LayerStackWidget::prependBox(
@@ -744,10 +758,12 @@ void LayerStackWidget::prependBox(
 		replaceBox(std::move(box), animated);
 		return;
 	}
-	auto layer = object_ptr<AbstractBox>(this, std::move(box));
-	layer->hide();
-	_layers.push_front(layer);
-	initChildLayer(layer);
+	_layers.insert(
+		begin(_layers),
+		std::make_unique<AbstractBox>(this, std::move(box)));
+	const auto raw = _layers.front().get();
+	raw->hide();
+	initChildLayer(raw);
 }
 
 bool LayerStackWidget::takeToThirdSection() {
@@ -757,26 +773,25 @@ bool LayerStackWidget::takeToThirdSection() {
 }
 
 void LayerStackWidget::clearLayers() {
-	for (auto layer : base::take(_layers)) {
+	for (auto &layer : base::take(_layers)) {
+		if (layer->inFocusChain()) {
+			setFocus();
+		}
 		layer->setClosing();
-		if (layer->inFocusChain()) setFocus();
-		layer->hide();
-		layer->deleteLater();
 	}
 }
 
 void LayerStackWidget::clearSpecialLayer() {
 	if (_specialLayer) {
 		_specialLayer->setClosing();
-		_specialLayer.destroyDelayed();
+		_specialLayer.destroy();
 	}
 }
 
 void LayerStackWidget::initChildLayer(LayerWidget *layer) {
 	layer->setParent(this);
-	layer->setClosedCallback([this, layer] { onLayerClosed(layer); });
-	layer->setResizedCallback([this] { onLayerResized(); });
-	connect(layer, SIGNAL(destroyed(QObject*)), this, SLOT(onLayerDestroyed(QObject*)));
+	layer->setClosedCallback([=] { closeLayer(layer); });
+	layer->setResizedCallback([=] { updateLayerBoxes(); });
 	Ui::SendPendingMoveResizeEvents(layer);
 	layer->parentResized();
 }
@@ -797,41 +812,7 @@ void LayerStackWidget::sendFakeMouseEvent() {
 	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
-void LayerStackWidget::onLayerDestroyed(QObject *obj) {
-	if (obj == _specialLayer) {
-		_specialLayer = nullptr;
-		hideAll(anim::type::normal);
-	} else if (obj == currentLayer()) {
-		_layers.pop_back();
-		if (auto newLayer = currentLayer()) {
-			newLayer->parentResized();
-			if (!_background->animating()) {
-				newLayer->show();
-				showFinished();
-			}
-		} else if (!_specialLayer) {
-			hideAll(anim::type::normal);
-		}
-	} else {
-		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
-			if (obj == *i) {
-				_layers.erase(i);
-				break;
-			}
-		}
-	}
-}
-
-LayerStackWidget::~LayerStackWidget() {
-	// We must destroy all layers before we destroy LayerStackWidget.
-	// Some layers in destructor call layer-related methods, like hiding
-	// other layers, that call methods of LayerStackWidget and access
-	// its fields, so if it is destroyed already everything crashes.
-	for (auto layer : base::take(_layers)) {
-		layer->hide();
-		delete layer;
-	}
-}
+LayerStackWidget::~LayerStackWidget() = default;
 
 } // namespace Window
 

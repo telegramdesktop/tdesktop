@@ -27,6 +27,7 @@ namespace Notifications {
 enum class ChangeType {
 	SoundEnabled,
 	IncludeMuted,
+	CountMessages,
 	DesktopEnabled,
 	ViewParams,
 	MaxCount,

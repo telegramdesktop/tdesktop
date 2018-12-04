@@ -131,8 +131,8 @@ namespace App {
 		return channel(channelId, PeerData::FullLoaded);
 	}
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action);
-	void enumerateChatsChannels(
-		Fn<void(not_null<PeerData*>)> action);
+	void enumerateGroups(Fn<void(not_null<PeerData*>)> action);
+	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action);
 
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);

@@ -138,6 +138,16 @@ void ShowInFolder(const QString &filepath) {
 	});
 }
 
+QString DefaultDownloadPath() {
+	return QStandardPaths::writableLocation(
+		QStandardPaths::DownloadLocation)
+		+ '/'
+		+ (AuthSession::Exists() && Auth().supportMode()
+			? "Tsupport Desktop"
+			: str_const_toString(AppName))
+		+ '/';
+}
+
 namespace internal {
 
 void UnsafeOpenEmailLinkDefault(const QString &email) {

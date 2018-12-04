@@ -56,12 +56,16 @@ not_null<Window::Controller*> LayerWidget::floatPlayerController() {
 
 not_null<Window::AbstractSectionWidget*> LayerWidget::floatPlayerGetSection(
 		Window::Column column) {
+	Expects(_content != nullptr);
+
 	return _content;
 }
 
 void LayerWidget::floatPlayerEnumerateSections(Fn<void(
 		not_null<Window::AbstractSectionWidget*> widget,
 		Window::Column widgetColumn)> callback) {
+	Expects(_content != nullptr);
+
 	callback(_content, Window::Column::Second);
 }
 
@@ -70,6 +74,8 @@ bool LayerWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
 }
 
 void LayerWidget::setupHeightConsumers() {
+	Expects(_content != nullptr);
+
 	_content->scrollTillBottomChanges(
 	) | rpl::filter([this] {
 		return !_inResize;
@@ -90,14 +96,33 @@ void LayerWidget::showFinished() {
 }
 
 void LayerWidget::parentResized() {
+	if (!_content) {
+		return;
+	}
+
 	auto parentSize = parentWidget()->size();
 	auto parentWidth = parentSize.width();
 	if (parentWidth < MinimalSupportedWidth()) {
 		Ui::FocusPersister persister(this);
-		auto localCopy = _controller;
+		restoreFloatPlayerDelegate();
+
 		auto memento = MoveMemento(std::move(_content));
-		localCopy->hideSpecialLayer(anim::type::instant);
-		localCopy->showSection(
+
+		// We want to call hideSpecialLayer synchronously to avoid glitches,
+		// but we can't destroy LayerStackWidget from its' resizeEvent,
+		// because QWidget has such code for resizing:
+		//
+		// QResizeEvent e(r.size(), olds);
+		// QApplication::sendEvent(q, &e);
+		// if (q->windowHandle())
+		//   q->update();
+		//
+		// So we call it queued. It would be cool to call it 'right after'
+		// the resize event handling was finished.
+		InvokeQueued(this, [=] {
+			_controller->hideSpecialLayer(anim::type::instant);
+		});
+		_controller->showSection(
 			std::move(memento),
 			Window::SectionShow(
 				Window::SectionShow::Way::Forward,
@@ -153,7 +178,7 @@ bool LayerWidget::takeToThirdSection() {
 bool LayerWidget::showSectionInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
-	if (_content->showInternal(memento, params)) {
+	if (_content && _content->showInternal(memento, params)) {
 		if (params.activation != anim::activation::background) {
 			Ui::hideLayer();
 		}
@@ -163,11 +188,11 @@ bool LayerWidget::showSectionInternal(
 }
 
 bool LayerWidget::closeByOutsideClick() const {
-	return _content->closeByOutsideClick();
+	return _content ? _content->closeByOutsideClick() : true;
 }
 
 int LayerWidget::MinimalSupportedWidth() {
-	auto minimalMargins = 2 * st::infoMinimalLayerMargin;
+	const auto minimalMargins = 2 * st::infoMinimalLayerMargin;
 	return st::infoMinimalWidth + minimalMargins;
 }
 
@@ -225,7 +250,9 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 }
 
 void LayerWidget::doSetInnerFocus() {
-	_content->setInnerFocus();
+	if (_content) {
+		_content->setInnerFocus();
+	}
 }
 
 void LayerWidget::paintEvent(QPaintEvent *e) {

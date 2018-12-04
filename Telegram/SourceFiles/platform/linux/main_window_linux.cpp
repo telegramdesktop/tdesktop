@@ -71,8 +71,11 @@ gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 QImage _trayIconImageGen() {
-	int32 counter = App::histories().unreadBadge(), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
-	bool muted = App::histories().unreadOnlyMuted();
+	const auto counter = Messenger::Instance().unreadBadge();
+	const auto muted = Messenger::Instance().unreadBadgeMuted();
+	const auto counterSlice = (counter >= 1000)
+		? (1000 + (counter % 100))
+		: counter;
 	if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
 		if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
 			_trayIconImageBack = Messenger::Instance().logo().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
@@ -109,8 +112,9 @@ QImage _trayIconImageGen() {
 }
 
 QString _trayIconImageFile() {
-	int32 counter = App::histories().unreadBadge(), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
-	bool muted = App::histories().unreadOnlyMuted();
+	const auto counter = Messenger::Instance().unreadBadge();
+	const auto muted = Messenger::Instance().unreadBadgeMuted();
+	const auto counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
 
 	QString name = cWorkingDir() + qsl("tdata/ticons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
 	QFileInfo info(name);
@@ -329,7 +333,7 @@ void MainWindow::unreadCounterChangedHook() {
 void MainWindow::updateIconCounters() {
 	updateWindowIcon();
 
-	auto counter = App::histories().unreadBadge();
+	const auto counter = Messenger::Instance().unreadBadge();
 
 #if !defined(TDESKTOP_DISABLE_GTK_INTEGRATION) && !defined(TDESKTOP_DISABLE_UNITY_INTEGRATION)
 	if (_psUnityLauncherEntry) {
@@ -368,8 +372,8 @@ void MainWindow::updateIconCounters() {
 			QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 			icon = QIcon(path.constData());
 		} else {
-			int32 counter = App::histories().unreadBadge();
-			bool muted = App::histories().unreadOnlyMuted();
+			const auto counter = Messenger::Instance().unreadBadge();
+			const auto muted = Messenger::Instance().unreadBadgeMuted();
 
 			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 			auto &fg = st::trayCounterFg;

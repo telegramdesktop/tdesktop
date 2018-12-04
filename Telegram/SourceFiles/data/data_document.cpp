@@ -146,7 +146,7 @@ QString FileNameUnsafe(
 
 	QString path;
 	if (Global::DownloadPath().isEmpty()) {
-		path = psDownloadPath();
+		path = File::DefaultDownloadPath();
 	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
@@ -725,7 +725,7 @@ void DocumentData::performActionOnLoad() {
 bool DocumentData::loaded(FilePathResolveType type) const {
 	if (loading() && _loader->finished()) {
 		if (_loader->cancelled()) {
-			destroyLoaderDelayed(CancelledMtpFileLoader);
+			destroyLoader(CancelledMtpFileLoader);
 		} else {
 			auto that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(_loader->fileName());
@@ -748,17 +748,20 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 			}
 
 			that->refreshGoodThumbnail();
-			destroyLoaderDelayed();
+			destroyLoader();
 		}
 		_session->data().notifyDocumentLayoutChanged(this);
 	}
 	return !data().isEmpty() || !filepath(type).isEmpty();
 }
 
-void DocumentData::destroyLoaderDelayed(mtpFileLoader *newValue) const {
-	_loader->stop();
-	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	_session->downloader().delayedDestroyLoader(std::move(loader));
+void DocumentData::destroyLoader(mtpFileLoader *newValue) const {
+	const auto loader = std::exchange(_loader, newValue);
+	if (_loader == CancelledMtpFileLoader) {
+		loader->cancel();
+	}
+	loader->stop();
+	delete loader;
 }
 
 bool DocumentData::loading() const {
@@ -838,7 +841,9 @@ void DocumentData::save(
 		return;
 	}
 
-	if (_loader == CancelledMtpFileLoader) _loader = nullptr;
+	if (_loader == CancelledMtpFileLoader) {
+		_loader = nullptr;
+	}
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel(); // changes _actionOnLoad
@@ -894,10 +899,7 @@ void DocumentData::cancel() {
 		return;
 	}
 
-	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, CancelledMtpFileLoader));
-	loader->cancel();
-	loader->stop();
-	_session->downloader().delayedDestroyLoader(std::move(loader));
+	destroyLoader(CancelledMtpFileLoader);
 	_session->data().notifyDocumentLayoutChanged(this);
 	if (auto main = App::main()) {
 		main->documentLoadProgress(this);
@@ -1382,7 +1384,7 @@ void DocumentData::collectLocalData(DocumentData *local) {
 
 DocumentData::~DocumentData() {
 	if (loading()) {
-		destroyLoaderDelayed();
+		destroyLoader();
 	}
 	unload();
 	ActiveCache().remove(this);

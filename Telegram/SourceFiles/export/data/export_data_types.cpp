@@ -617,6 +617,7 @@ User ParseUser(const MTPUser &data) {
 	auto result = User();
 	result.info = ParseContactInfo(data);
 	data.match([&](const MTPDuser &data) {
+		result.id = data.vid.v;
 		if (data.has_username()) {
 			result.username = ParseString(data.vusername);
 		}

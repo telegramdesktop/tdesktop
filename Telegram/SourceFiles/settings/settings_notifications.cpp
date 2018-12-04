@@ -545,7 +545,10 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		Global::SoundNotify());
 	const auto muted = addCheckbox(
 		lng_settings_include_muted,
-		Global::IncludeMuted());
+		Auth().settings().includeMutedCounter());
+	const auto count = addCheckbox(
+		lng_settings_count_unread,
+		Auth().settings().countUnreadMessages());
 
 	const auto nativeNotificationsKey = [&] {
 		if (!Platform::Notifications::Supported()) {
@@ -644,10 +647,19 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	base::ObservableViewer(
 		muted->checkedChanged
 	) | rpl::filter([](bool checked) {
-		return (checked != Global::IncludeMuted());
+		return (checked != Auth().settings().includeMutedCounter());
 	}) | rpl::start_with_next([=](bool checked) {
-		Global::SetIncludeMuted(checked);
+		Auth().settings().setIncludeMutedCounter(checked);
 		changed(Change::IncludeMuted);
+	}, muted->lifetime());
+
+	base::ObservableViewer(
+		count->checkedChanged
+	) | rpl::filter([](bool checked) {
+		return (checked != Auth().settings().countUnreadMessages());
+	}) | rpl::start_with_next([=](bool checked) {
+		Auth().settings().setCountUnreadMessages(checked);
+		changed(Change::CountMessages);
 	}, muted->lifetime());
 
 	base::ObservableViewer(

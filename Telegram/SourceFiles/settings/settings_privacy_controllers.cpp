@@ -97,7 +97,7 @@ void BlockedBoxController::prepare() {
 	delegate()->peerListRefreshRows();
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
-		if (auto user = update.peer->asUser()) {
+		if (const auto user = update.peer->asUser()) {
 			handleBlockedEvent(user);
 		}
 	}));
@@ -169,7 +169,7 @@ void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &resul
 	delegate()->peerListRefreshRows();
 }
 
-void BlockedBoxController::handleBlockedEvent(UserData *user) {
+void BlockedBoxController::handleBlockedEvent(not_null<UserData*> user) {
 	if (user->isBlocked()) {
 		if (prependRow(user)) {
 			delegate()->peerListRefreshRows();
@@ -195,7 +195,7 @@ void BlockedBoxController::BlockNewUser() {
 		LayerOption::KeepOther);
 }
 
-bool BlockedBoxController::appendRow(UserData *user) {
+bool BlockedBoxController::appendRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -203,7 +203,7 @@ bool BlockedBoxController::appendRow(UserData *user) {
 	return true;
 }
 
-bool BlockedBoxController::prependRow(UserData *user) {
+bool BlockedBoxController::prependRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -211,9 +211,12 @@ bool BlockedBoxController::prependRow(UserData *user) {
 	return true;
 }
 
-std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) const {
+std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
+		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink(lang(lng_blocked_list_unblock));
+	row->setActionLink(lang(user->botInfo
+		? lng_blocked_list_restart
+		: lng_blocked_list_unblock));
 	const auto status = [&] {
 		if (!user->phone().isEmpty()) {
 			return App::formatPhone(user->phone());
@@ -368,50 +371,55 @@ rpl::producer<QString> CallsPrivacyController::exceptionsDescription() {
 	return Lang::Viewer(lng_edit_privacy_calls_exceptions);
 }
 
-Fn<void()> CallsPrivacyController::setupAdditional(
-		not_null<Ui::VerticalLayout*> container) {
-	using PeerToPeer = Calls::PeerToPeer;
-	const auto convert = [](PeerToPeer value) {
-		switch (value) {
-		case PeerToPeer::DefaultContacts: return Option::Contacts;
-		case PeerToPeer::DefaultEveryone: return Option::Everyone;
-		case PeerToPeer::Everyone: return Option::Everyone;
-		case PeerToPeer::Contacts: return Option::Contacts;
-		case PeerToPeer::Nobody: return Option::Nobody;
-		}
-		Unexpected("Calls::PeerToPeer value.");
-	};
-	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>(
-		convert(Auth().settings().callsPeerToPeer()));
-	const auto changed = Ui::AttachAsChild(container, false);
-	group->setChangedCallback([=](Option) {
-		*changed = true;
-	});
+ApiWrap::Privacy::Key CallsPeer2PeerPrivacyController::key() {
+	return Key::CallsPeer2Peer;
+}
 
-	AddDivider(container);
-	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_peer_to_peer);
-	EditPrivacyBox::AddOption(container, group, Option::Everyone);
-	EditPrivacyBox::AddOption(container, group, Option::Contacts);
-	EditPrivacyBox::AddOption(container, group, Option::Nobody);
-	EditPrivacyBox::AddLabel(
-		container,
-		Lang::Viewer(lng_settings_peer_to_peer_about));
-	AddSkip(container);
+MTPInputPrivacyKey CallsPeer2PeerPrivacyController::apiKey() {
+	return MTP_inputPrivacyKeyPhoneP2P();
+}
 
-	return [=] {
-		if (*changed) {
-			Auth().settings().setCallsPeerToPeer([&] {
-				switch (group->value()) {
-				case Option::Everyone: return PeerToPeer::Everyone;
-				case Option::Contacts: return PeerToPeer::Contacts;
-				case Option::Nobody: return PeerToPeer::Nobody;
-				}
-				Unexpected("PeerToPeer edit value.");
-			}());
-			Auth().saveSettingsDelayed();
-		}
-	};
+QString CallsPeer2PeerPrivacyController::title() {
+	return lang(lng_edit_privacy_calls_p2p_title);
+}
+
+LangKey CallsPeer2PeerPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_calls_p2p_header;
+}
+
+LangKey CallsPeer2PeerPrivacyController::optionLabelKey(
+		EditPrivacyBox::Option option) {
+	switch (option) {
+		case Option::Everyone: return lng_edit_privacy_calls_p2p_everyone;
+		case Option::Contacts: return lng_edit_privacy_calls_p2p_contacts;
+		case Option::Nobody: return lng_edit_privacy_calls_p2p_nobody;
+	}
+	Unexpected("Option value in optionsLabelKey.");
+}
+
+rpl::producer<QString> CallsPeer2PeerPrivacyController::warning() {
+	return Lang::Viewer(lng_settings_peer_to_peer_about);
+}
+
+LangKey CallsPeer2PeerPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_calls_p2p_always_empty;
+	case Exception::Never: return lng_edit_privacy_calls_p2p_never_empty;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPeer2PeerPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_calls_p2p_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_calls_p2p_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_calls_p2p_exceptions);
 }
 
 } // namespace Settings

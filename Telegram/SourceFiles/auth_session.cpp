@@ -25,12 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
 #include "support/support_common.h"
-#include "support/support_templates.h"
+#include "support/support_helper.h"
 #include "observer_peer.h"
 
 namespace {
 
 constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
+constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 } // namespace
 
@@ -78,12 +79,14 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.thirdColumnWidth.current());
 		stream << qint32(_variables.thirdSectionExtendedBy);
 		stream << qint32(_variables.sendFilesWay);
-		stream << qint32(_variables.callsPeerToPeer.current());
+		stream << qint32(0);// LEGACY _variables.callsPeerToPeer.current());
 		stream << qint32(_variables.sendSubmitWay);
 		stream << qint32(_variables.supportSwitch);
 		stream << qint32(_variables.supportFixChatsOrder ? 1 : 0);
 		stream << qint32(_variables.supportTemplatesAutocomplete ? 1 : 0);
 		stream << qint32(_variables.supportChatsTimeSlice.current());
+		stream << qint32(_variables.includeMutedCounter ? 1 : 0);
+		stream << qint32(_variables.countUnreadMessages ? 1 : 0);
 	}
 	return result;
 }
@@ -109,12 +112,14 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	int thirdColumnWidth = _variables.thirdColumnWidth.current();
 	int thirdSectionExtendedBy = _variables.thirdSectionExtendedBy;
 	qint32 sendFilesWay = static_cast<qint32>(_variables.sendFilesWay);
-	qint32 callsPeerToPeer = qint32(_variables.callsPeerToPeer.current());
+	qint32 legacyCallsPeerToPeer = qint32(0);
 	qint32 sendSubmitWay = static_cast<qint32>(_variables.sendSubmitWay);
 	qint32 supportSwitch = static_cast<qint32>(_variables.supportSwitch);
 	qint32 supportFixChatsOrder = _variables.supportFixChatsOrder ? 1 : 0;
 	qint32 supportTemplatesAutocomplete = _variables.supportTemplatesAutocomplete ? 1 : 0;
 	qint32 supportChatsTimeSlice = _variables.supportChatsTimeSlice.current();
+	qint32 includeMutedCounter = _variables.includeMutedCounter ? 1 : 0;
+	qint32 countUnreadMessages = _variables.countUnreadMessages ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -168,7 +173,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 		stream >> sendFilesWay;
 	}
 	if (!stream.atEnd()) {
-		stream >> callsPeerToPeer;
+		stream >> legacyCallsPeerToPeer;
 	}
 	if (!stream.atEnd()) {
 		stream >> sendSubmitWay;
@@ -180,6 +185,10 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	}
 	if (!stream.atEnd()) {
 		stream >> supportChatsTimeSlice;
+	}
+	if (!stream.atEnd()) {
+		stream >> includeMutedCounter;
+		stream >> countUnreadMessages;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -225,14 +234,6 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	case SendFilesWay::Photos:
 	case SendFilesWay::Files: _variables.sendFilesWay = uncheckedSendFilesWay; break;
 	}
-	auto uncheckedCallsPeerToPeer = static_cast<Calls::PeerToPeer>(callsPeerToPeer);
-	switch (uncheckedCallsPeerToPeer) {
-	case Calls::PeerToPeer::DefaultContacts:
-	case Calls::PeerToPeer::DefaultEveryone:
-	case Calls::PeerToPeer::Everyone:
-	case Calls::PeerToPeer::Contacts:
-	case Calls::PeerToPeer::Nobody: _variables.callsPeerToPeer = uncheckedCallsPeerToPeer; break;
-	}
 	auto uncheckedSendSubmitWay = static_cast<Ui::InputSubmitSettings>(
 		sendSubmitWay);
 	switch (uncheckedSendSubmitWay) {
@@ -249,6 +250,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.supportFixChatsOrder = (supportFixChatsOrder == 1);
 	_variables.supportTemplatesAutocomplete = (supportTemplatesAutocomplete == 1);
 	_variables.supportChatsTimeSlice = supportChatsTimeSlice;
+	_variables.hadLegacyCallsPeerToPeerNobody = (legacyCallsPeerToPeer == kLegacyCallsPeerToPeerNobody);
+	_variables.includeMutedCounter = (includeMutedCounter == 1);
+	_variables.countUnreadMessages = (countUnreadMessages == 1);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
@@ -348,9 +352,9 @@ AuthSession::AuthSession(const MTPUser &user)
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _changelogs(Core::Changelogs::Create(this))
-, _supportTemplates(
+, _supportHelper(
 	(Support::ValidateAccount(user)
-		? std::make_unique<Support::Templates>(this)
+		? std::make_unique<Support::Helper>(this)
 		: nullptr)) {
 	App::feedUser(user);
 
@@ -416,6 +420,18 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 	return true;
 }
 
+void AuthSession::moveSettingsFrom(AuthSessionSettings &&other) {
+	_settings.moveFrom(std::move(other));
+	if (_settings.hadLegacyCallsPeerToPeerNobody()) {
+		api().savePrivacy(
+			MTP_inputPrivacyKeyPhoneP2P(),
+			QVector<MTPInputPrivacyRule>(
+				1,
+				MTP_inputPrivacyValueDisallowAll()));
+		saveSettingsDelayed();
+	}
+}
+
 void AuthSession::saveSettingsDelayed(TimeMs delay) {
 	Expects(this == &Auth());
 
@@ -451,13 +467,17 @@ void AuthSession::checkAutoLockIn(TimeMs time) {
 }
 
 bool AuthSession::supportMode() const {
-	return (_supportTemplates != nullptr);
+	return (_supportHelper != nullptr);
 }
 
-not_null<Support::Templates*> AuthSession::supportTemplates() const {
+Support::Helper &AuthSession::supportHelper() const {
 	Expects(supportMode());
 
-	return _supportTemplates.get();
+	return *_supportHelper;
+}
+
+Support::Templates& AuthSession::supportTemplates() const {
+	return supportHelper().templates();
 }
 
 AuthSession::~AuthSession() = default;

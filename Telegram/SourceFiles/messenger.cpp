@@ -12,13 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/timer.h"
 #include "core/update_checker.h"
+#include "core/shortcuts.h"
+#include "core/local_url_handlers.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "application.h"
-#include "shortcuts.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "calls/calls_instance.h"
@@ -26,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
-#include "core/update_checker.h"
-#include "passport/passport_form_controller.h"
 #include "observer_peer.h"
 #include "storage/storage_databases.h"
 #include "mainwidget.h"
@@ -143,8 +142,7 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	DEBUG_LOG(("Application Info: window created..."));
 
-	Shortcuts::start();
-
+	startShortcuts();
 	App::initMedia();
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
@@ -172,11 +170,8 @@ Messenger::Messenger(not_null<Core::Launcher*> launcher)
 
 	_window->updateIsActive(Global::OnlineFocusTimeout());
 
-	if (!Shortcuts::errors().isEmpty()) {
-		const QStringList &errors(Shortcuts::errors());
-		for (QStringList::const_iterator i = errors.cbegin(), e = errors.cend(); i != e; ++i) {
-			LOG(("Shortcuts Error: %1").arg(*i));
-		}
+	for (const auto &error : Shortcuts::Errors()) {
+		LOG(("Shortcuts Error: %1").arg(error));
 	}
 }
 
@@ -200,7 +195,6 @@ void Messenger::showPhoto(not_null<const PhotoOpenClickHandler*> link) {
 }
 
 void Messenger::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
-	if (_mediaView->isHidden()) Ui::hideLayer(anim::type::instant);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
@@ -209,7 +203,6 @@ void Messenger::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 void Messenger::showPhoto(
 		not_null<PhotoData*> photo,
 		not_null<PeerData*> peer) {
-	if (_mediaView->isHidden()) Ui::hideLayer(anim::type::instant);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
@@ -219,9 +212,6 @@ void Messenger::showDocument(not_null<DocumentData*> document, HistoryItem *item
 	if (cUseExternalVideoPlayer() && document->isVideoFile()) {
 		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
 	} else {
-		if (_mediaView->isHidden()) {
-			Ui::hideLayer(anim::type::instant);
-		}
 		_mediaView->showDocument(document, item);
 		_mediaView->activateWindow();
 		_mediaView->setFocus();
@@ -252,8 +242,10 @@ bool Messenger::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::Shortcut: {
-		DEBUG_LOG(("Shortcut event caught: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
-		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
+		const auto event = static_cast<QShortcutEvent*>(e);
+		DEBUG_LOG(("Shortcut event caught: %1"
+			).arg(event->key().toString()));
+		if (Shortcuts::HandleEvent(event)) {
 			return true;
 		}
 	} break;
@@ -387,6 +379,9 @@ void Messenger::setAuthSessionFromStorage(
 		int32 selfStreamVersion) {
 	Expects(!authSession());
 
+	DEBUG_LOG(("authSessionUserSerialized set: %1"
+		).arg(selfSerialized.size()));
+
 	_private->storedAuthSession = std::move(data);
 	_private->authSessionUserSerialized = std::move(selfSerialized);
 	_private->authSessionUserStreamVersion = selfStreamVersion;
@@ -467,6 +462,8 @@ void Messenger::startMtp() {
 	}
 
 	if (_private->authSessionUserId) {
+		DEBUG_LOG(("authSessionUserSerialized.size: %1"
+			).arg(_private->authSessionUserSerialized.size()));
 		QDataStream peekStream(_private->authSessionUserSerialized);
 		const auto phone = Serialize::peekUserPhone(
 			_private->authSessionUserStreamVersion,
@@ -494,7 +491,7 @@ void Messenger::startMtp() {
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
-			_authSession->settings().moveFrom(
+			_authSession->moveSettingsFrom(
 				std::move(*_private->storedAuthSession));
 		}
 		_private->storedAuthSession.reset();
@@ -511,8 +508,8 @@ void Messenger::startMtp() {
 		// Skip all pending self updates so that we won't Local::writeSelf.
 		Notify::peerUpdatedSendDelayed();
 
-		Media::Player::mixer()->setVoicePlaybackSpeed(
-			Global::VoiceMsgPlaybackSpeed());
+		Media::Player::mixer()->setVoicePlaybackDoubled(
+			Global::VoiceMsgPlaybackDoubled());
 	}
 }
 
@@ -743,14 +740,23 @@ void Messenger::authSessionDestroy() {
 	authSessionChanged().notify(true);
 }
 
+int Messenger::unreadBadge() const {
+	return _authSession ? App::histories().unreadBadge() : 0;
+}
+
+bool Messenger::unreadBadgeMuted() const {
+	return _authSession ? App::histories().unreadBadgeMuted() : false;
+}
+
 void Messenger::setInternalLinkDomain(const QString &domain) const {
-	// This domain should start with 'http[s]://' and end with '/', like 'https://t.me/'.
-	auto validate = [](auto &domain) {
-		auto prefixes = {
+	// This domain should start with 'http[s]://' and end with '/'.
+	// Like 'https://telegram.me/' or 'https://t.me/'.
+	auto validate = [](const auto &domain) {
+		const auto prefixes = {
 			qstr("https://"),
 			qstr("http://"),
 		};
-		for (auto &prefix : prefixes) {
+		for (const auto &prefix : prefixes) {
 			if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
 				return domain.endsWith('/');
 			}
@@ -801,139 +807,12 @@ bool Messenger::openLocalUrl(const QString &url, QVariant context) {
 	}
 	auto command = urlTrimmed.midRef(protocol.size());
 
-	const auto showPassportForm = [](const QMap<QString, QString> &params) {
-		const auto botId = params.value("bot_id", QString()).toInt();
-		const auto scope = params.value("scope", QString());
-		const auto callback = params.value("callback_url", QString());
-		const auto publicKey = params.value("public_key", QString());
-		const auto nonce = params.value(
-			Passport::NonceNameByScope(scope),
-			QString());
-		const auto errors = params.value("errors", QString());
-		if (const auto window = App::wnd()) {
-			if (const auto controller = window->controller()) {
-				controller->showPassportForm(Passport::FormRequest(
-					botId,
-					scope,
-					callback,
-					publicKey,
-					nonce,
-					errors));
-				return true;
-			}
-		}
-		return false;
-	};
-
 	using namespace qthelp;
-	auto matchOptions = RegExOption::CaseInsensitive;
-	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			main->joinGroupByHash(joinChatMatch->captured(1));
-			return true;
-		}
-	} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			main->stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
-			return true;
-		}
-	} else if (auto shareUrlMatch = regex_match(qsl("^msg_url/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto url = params.value(qsl("url"));
-			if (!url.isEmpty()) {
-				main->shareUrlLayer(url, params.value("text"));
-				return true;
-			}
-		}
-	} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto phone = params.value(qsl("phone"));
-			auto hash = params.value(qsl("hash"));
-			if (!phone.isEmpty() && !hash.isEmpty()) {
-				ConfirmPhoneBox::start(phone, hash);
-				return true;
-			}
-		}
-	} else if (auto usernameMatch = regex_match(qsl("^resolve/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
-			auto domain = params.value(qsl("domain"));
-			if (domain == qsl("telegrampassport")) {
-				return showPassportForm(params);
-			} else if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
-				auto start = qsl("start");
-				auto startToken = params.value(start);
-				if (startToken.isEmpty()) {
-					start = qsl("startgroup");
-					startToken = params.value(start);
-					if (startToken.isEmpty()) {
-						start = QString();
-					}
-				}
-				auto post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
-				auto postParam = params.value(qsl("post"));
-				if (auto postId = postParam.toInt()) {
-					post = postId;
-				}
-				auto gameParam = params.value(qsl("game"));
-				if (!gameParam.isEmpty() && regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), gameParam, matchOptions)) {
-					startToken = gameParam;
-					post = ShowAtGameShareMsgId;
-				}
-				const auto clickFromMessageId = context.value<FullMsgId>();
-				main->openPeerByName(
-					domain,
-					post,
-					startToken,
-					clickFromMessageId);
-				return true;
-			}
-		}
-	} else if (auto shareGameScoreMatch = regex_match(qsl("^share_game_score/?\\?(.+)(#|$)"), command, matchOptions)) {
-		if (auto main = App::main()) {
-			auto params = url_parse_params(shareGameScoreMatch->captured(1), UrlParamNameTransform::ToLower);
-			ShareGameScoreByHash(params.value(qsl("hash")));
-			return true;
-		}
-	} else if (auto socksMatch = regex_match(qsl("^socks/?\\?(.+)(#|$)"), command, matchOptions)) {
-		auto params = url_parse_params(socksMatch->captured(1), UrlParamNameTransform::ToLower);
-		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Socks5, params);
-		return true;
-	} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), command, matchOptions)) {
-		auto params = url_parse_params(proxyMatch->captured(1), UrlParamNameTransform::ToLower);
-		ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
-		return true;
-	} else if (auto authMatch = regex_match(qsl("^passport/?\\?(.+)(#|$)"), command, matchOptions)) {
-		return showPassportForm(url_parse_params(
-			authMatch->captured(1),
-			UrlParamNameTransform::ToLower));
-	} else if (auto unknownMatch = regex_match(qsl("^([^\\?]+)(\\?|#|$)"), command, matchOptions)) {
-		if (_authSession) {
-			const auto request = unknownMatch->captured(1);
-			const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
-				const auto text = TextWithEntities{
-					qs(result.vmessage),
-					(result.has_entities()
-						? TextUtilities::EntitiesFromMTP(result.ventities.v)
-						: EntitiesInText())
-				};
-				if (result.is_update_app()) {
-					const auto box = std::make_shared<QPointer<BoxContent>>();
-					const auto callback = [=] {
-						Core::UpdateApplication();
-						if (*box) (*box)->closeBox();
-					};
-					*box = Ui::show(Box<ConfirmBox>(
-						text,
-						lang(lng_menu_update),
-						callback));
-				} else {
-					Ui::show(Box<InformBox>(text));
-				}
-			};
-			_authSession->api().requestDeepLinkInfo(request, callback);
+	const auto options = RegExOption::CaseInsensitive;
+	for (const auto &[expression, handler] : Core::LocalUrlHandlers()) {
+		const auto match = regex_match(expression, command, options);
+		if (match) {
+			return handler(match, context);
 		}
 	}
 	return false;
@@ -1031,7 +910,7 @@ Messenger::~Messenger() {
 	_mtproto.reset();
 	_mtprotoForKeysDestroy.reset();
 
-	Shortcuts::finish();
+	Shortcuts::Finish();
 
 	Ui::Emoji::Clear();
 
@@ -1117,8 +996,8 @@ void Messenger::loggedOut() {
 	}
 	clearPasscodeLock();
 	Media::Player::mixer()->stopAndClear();
-	Global::SetVoiceMsgPlaybackSpeed(1.);
-	Media::Player::mixer()->setVoicePlaybackSpeed(1.);
+	Global::SetVoiceMsgPlaybackDoubled(false);
+	Media::Player::mixer()->setVoicePlaybackDoubled(false);
 	if (const auto w = getActiveWindow()) {
 		w->tempDirDelete(Local::ClearManagerAll);
 		w->setupIntro();
@@ -1208,4 +1087,30 @@ void Messenger::quitDelayed() {
 		_private->quitTimer.setCallback([] { QCoreApplication::quit(); });
 		_private->quitTimer.callOnce(kQuitPreventTimeoutMs);
 	}
+}
+
+void Messenger::startShortcuts() {
+	Shortcuts::Start();
+
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Quit) && request->handle([] {
+			App::quit();
+			return true;
+		});
+		request->check(Command::Lock) && request->handle([=] {
+			if (!passcodeLocked() && Global::LocalPasscode()) {
+				lockByPasscode();
+				return true;
+			}
+			return false;
+		});
+		request->check(Command::Minimize) && request->handle([=] {
+			return minimizeActiveWindow();
+		});
+		request->check(Command::Close) && request->handle([=] {
+			return closeActiveWindow();
+		});
+	}, _lifetime);
 }

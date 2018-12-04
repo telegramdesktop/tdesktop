@@ -16,6 +16,10 @@ namespace Window {
 class Controller;
 } // namespace Window
 
+namespace ChatHelpers {
+class TabbedPanel;
+} // namespace ChatHelpers
+
 namespace Ui {
 template <typename Enum>
 class Radioenum;
@@ -24,6 +28,7 @@ class RadioenumGroup;
 class RoundButton;
 class InputField;
 struct GroupMediaLayout;
+class EmojiButton;
 } // namespace Ui
 
 namespace Window {
@@ -80,6 +85,10 @@ private:
 		not_null<Ui::ScrollArea*> wrap,
 		not_null<AlbumPreview*> content);
 
+	void setupEmojiPanel();
+	void updateEmojiPanelGeometry();
+	bool emojiFilter(not_null<QEvent*> event);
+
 	void refreshAlbumMediaCount();
 	void preparePreview();
 	void prepareSingleFilePreview();
@@ -116,6 +125,10 @@ private:
 	bool _confirmed = false;
 
 	object_ptr<Ui::InputField> _caption = { nullptr };
+	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
+	base::unique_qptr<QObject> _emojiFilter;
+
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };

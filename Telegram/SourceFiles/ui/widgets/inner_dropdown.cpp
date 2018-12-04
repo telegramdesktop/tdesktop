@@ -96,7 +96,7 @@ void InnerDropdown::onScroll() {
 void InnerDropdown::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	const auto ms = getms();
 	if (_a_show.animating(ms)) {
 		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
 			// _a_opacity.current(ms)->opacityAnimationCallback()->_showAnimation.reset()
@@ -115,7 +115,7 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 		showChildren();
 	} else {
 		if (!_cache.isNull()) _cache = QPixmap();
-		auto inner = rect().marginsRemoved(_st.padding);
+		const auto inner = rect().marginsRemoved(_st.padding);
 		Shadow::paint(p, inner, width(), _st.shadow);
 		App::roundRect(p, inner, _st.bg, ImageRoundRadius::Small);
 	}
@@ -130,7 +130,7 @@ void InnerDropdown::enterEventHook(QEvent *e) {
 
 void InnerDropdown::leaveEventHook(QEvent *e) {
 	if (_autoHiding) {
-		auto ms = getms();
+		const auto ms = getms();
 		if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
 			hideAnimated();
 		} else {
@@ -148,7 +148,7 @@ void InnerDropdown::otherEnter() {
 
 void InnerDropdown::otherLeave() {
 	if (_autoHiding) {
-		auto ms = getms();
+		const auto ms = getms();
 		if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
 			hideAnimated();
 		} else {

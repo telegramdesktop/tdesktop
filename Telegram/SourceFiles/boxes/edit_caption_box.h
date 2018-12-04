@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace ChatHelpers {
+class TabbedPanel;
+} // namespace ChatHelpers
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -19,6 +23,7 @@ class Media;
 
 namespace Ui {
 class InputField;
+class EmojiButton;
 } // namespace Ui
 
 namespace Window {
@@ -44,6 +49,10 @@ private:
 	void prepareGifPreview(not_null<DocumentData*> document);
 	void clipCallback(Media::Clip::Notification notification);
 
+	void setupEmojiPanel();
+	void updateEmojiPanelGeometry();
+	bool emojiFilter(not_null<QEvent*> event);
+
 	void save();
 	void captionResized();
 
@@ -65,6 +74,9 @@ private:
 	Media::Clip::ReaderPointer _gifPreview;
 
 	object_ptr<Ui::InputField> _field = { nullptr };
+	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
+	base::unique_qptr<QObject> _emojiFilter;
 
 	int _thumbx = 0;
 	int _thumbw = 0;

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "lang/lang_keys.h"
+#include "support/support_helper.h"
 #include "history/history_item.h"
 #include "history/history.h"
 
@@ -173,6 +174,11 @@ void paintRow(
 		TimeMs ms,
 		PaintItemCallback &&paintItemCallback,
 		PaintCounterCallback &&paintCounterCallback) {
+	const auto supportMode = Auth().supportMode();
+	if (supportMode) {
+		draft = nullptr;
+	}
+
 	auto active = (flags & Flag::Active);
 	auto selected = (flags & Flag::Selected);
 	auto fullRect = QRect(0, 0, fullWidth, st::dialogsRowHeight);
@@ -250,7 +256,9 @@ void paintRow(
 	auto texttop = st::dialogsPadding.y()
 		+ st::msgNameFont->height
 		+ st::dialogsSkip;
-	if (draft) {
+	if (draft
+		|| (supportMode
+			&& Auth().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {
 			paintRowDate(p, date, rectForName, active, selected);
 		}
@@ -267,11 +275,17 @@ void paintRow(
 		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
-				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
+				auto draftText = supportMode
+					? textcmdLink(1, Support::ChatOccupiedString(history))
+					: lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
 				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, Ui::DialogTextOptions());
 			}
 			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
-			p.setTextPalette(active ? st::dialogsTextPaletteDraftActive : (selected ? st::dialogsTextPaletteDraftOver : st::dialogsTextPaletteDraft));
+			if (supportMode) {
+				p.setTextPalette(active ? st::dialogsTextPaletteTakenActive : (selected ? st::dialogsTextPaletteTakenOver : st::dialogsTextPaletteTaken));
+			} else {
+				p.setTextPalette(active ? st::dialogsTextPaletteDraftActive : (selected ? st::dialogsTextPaletteDraftOver : st::dialogsTextPaletteDraft));
+			}
 			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, availableWidth, 1);
 			p.restoreTextPalette();
 		}
@@ -770,19 +784,30 @@ void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected
 	p.setFont(st::semiboldFont);
 	p.setPen(st::dialogsNameFg);
 
-	int unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
-	bool mutedHidden = (current == Dialogs::Mode::Important);
-	QString text = lang(mutedHidden ? lng_dialogs_show_all_chats : lng_dialogs_hide_muted_chats);
-	int textBaseline = unreadTop + (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2 + st::dialogsUnreadFont->ascent;
+	const auto unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
+	const auto mutedHidden = (current == Dialogs::Mode::Important);
+	const auto text = lang(mutedHidden
+		? lng_dialogs_show_all_chats
+		: lng_dialogs_hide_muted_chats);
+	const auto textBaseline = unreadTop
+		+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
+		+ st::dialogsUnreadFont->ascent;
 	p.drawText(st::dialogsPadding.x(), textBaseline, text);
 
-	if (mutedHidden) {
-		if (int32 unread = App::histories().unreadMutedCount()) {
-			int unreadRight = fullWidth - st::dialogsPadding.x();
-			UnreadBadgeStyle st;
-			st.muted = true;
-			paintUnreadCount(p, QString::number(unread), unreadRight, unreadTop, st, nullptr);
-		}
+	if (!mutedHidden) {
+		return;
+	}
+	if (const auto unread = App::histories().unreadOnlyMutedBadge()) {
+		const auto unreadRight = fullWidth - st::dialogsPadding.x();
+		UnreadBadgeStyle st;
+		st.muted = true;
+		paintUnreadCount(
+			p,
+			QString::number(unread),
+			unreadRight,
+			unreadTop,
+			st,
+			nullptr);
 	}
 }
 

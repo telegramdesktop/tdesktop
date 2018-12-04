@@ -201,32 +201,6 @@ private:
 
 };
 
-class EditBioBox : public BoxContent, private MTP::Sender {
-public:
-	EditBioBox(QWidget*, not_null<UserData*> self);
-
-protected:
-	void setInnerFocus() override;
-	void prepare() override;
-
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void updateMaxHeight();
-	void handleBioUpdated();
-	void save();
-
-	style::InputField _dynamicFieldStyle;
-	not_null<UserData*> _self;
-
-	object_ptr<Ui::InputField> _bio;
-	object_ptr<Ui::FlatLabel> _countdown;
-	object_ptr<Ui::FlatLabel> _about;
-	mtpRequestId _requestId = 0;
-	QString _sentBio;
-
-};
-
 class EditChannelBox : public BoxContent, public RPCSender {
 public:
 	EditChannelBox(QWidget*, not_null<ChannelData*> channel);

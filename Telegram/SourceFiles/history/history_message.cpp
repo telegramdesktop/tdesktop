@@ -100,24 +100,22 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	const auto canCopyLink = item->hasDirectLink() || isGame;
 
 	auto copyCallback = [data]() {
-		if (auto main = App::main()) {
-			if (auto item = App::histItemById(data->msgIds[0])) {
-				if (item->hasDirectLink()) {
-					QApplication::clipboard()->setText(item->directLink());
+		if (auto item = App::histItemById(data->msgIds[0])) {
+			if (item->hasDirectLink()) {
+				QApplication::clipboard()->setText(item->directLink());
 
-					Ui::Toast::Show(lang(lng_channel_public_link_copied));
-				} else if (const auto bot = item->getMessageBot()) {
-					if (const auto media = item->media()) {
-						if (const auto game = media->game()) {
-							const auto link = Messenger::Instance().createInternalLinkFull(
-								bot->username
-								+ qsl("?game=")
-								+ game->shortName);
+				Ui::Toast::Show(lang(lng_channel_public_link_copied));
+			} else if (const auto bot = item->getMessageBot()) {
+				if (const auto media = item->media()) {
+					if (const auto game = media->game()) {
+						const auto link = Messenger::Instance().createInternalLinkFull(
+							bot->username
+							+ qsl("?game=")
+							+ game->shortName);
 
-							QApplication::clipboard()->setText(link);
+						QApplication::clipboard()->setText(link);
 
-							Ui::Toast::Show(lang(lng_share_game_link_copied));
-						}
+						Ui::Toast::Show(lang(lng_share_game_link_copied));
 					}
 				}
 			}
@@ -156,9 +154,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		}
 
 		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
-			if (auto main = App::main()) {
-				main->sentUpdatesReceived(updates);
-			}
+			Auth().api().applyUpdates(updates);
 			data->requests.remove(requestId);
 			if (data->requests.empty()) {
 				Ui::Toast::Show(lang(lng_share_done));
@@ -183,35 +179,33 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 			return result;
 		};
-		if (auto main = App::main()) {
-			for (const auto peer : result) {
-				if (!GetErrorTextForForward(peer, items).isEmpty()) {
-					continue;
-				}
-
-				const auto history = App::history(peer);
-				if (!comment.text.isEmpty()) {
-					auto message = ApiWrap::MessageToSend(history);
-					message.textWithTags = comment;
-					message.clearDraft = false;
-					Auth().api().sendMessage(std::move(message));
-				}
-				auto request = MTPmessages_ForwardMessages(
-					MTP_flags(sendFlags),
-					data->peer->input,
-					MTP_vector<MTPint>(msgIds),
-					MTP_vector<MTPlong>(generateRandom()),
-					peer->input);
-				auto callback = doneCallback;
-				history->sendRequestId = MTP::send(
-					request,
-					rpcDone(base::duplicate(doneCallback)),
-					nullptr,
-					0,
-					0,
-					history->sendRequestId);
-				data->requests.insert(history->sendRequestId);
+		for (const auto peer : result) {
+			if (!GetErrorTextForForward(peer, items).isEmpty()) {
+				continue;
 			}
+
+			const auto history = App::history(peer);
+			if (!comment.text.isEmpty()) {
+				auto message = ApiWrap::MessageToSend(history);
+				message.textWithTags = comment;
+				message.clearDraft = false;
+				Auth().api().sendMessage(std::move(message));
+			}
+			auto request = MTPmessages_ForwardMessages(
+				MTP_flags(sendFlags),
+				data->peer->input,
+				MTP_vector<MTPint>(msgIds),
+				MTP_vector<MTPlong>(generateRandom()),
+				peer->input);
+			auto callback = doneCallback;
+			history->sendRequestId = MTP::send(
+				request,
+				rpcDone(base::duplicate(doneCallback)),
+				nullptr,
+				0,
+				0,
+				history->sendRequestId);
+			data->requests.insert(history->sendRequestId);
 		}
 	};
 	auto filterCallback = [isGame](PeerData *peer) {

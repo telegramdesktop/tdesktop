@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -275,7 +276,8 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		return nullptr;
 	}();
 	if (user) {
-		if (user->contactStatus() == UserData::ContactStatus::Contact) {
+		if (user->contactStatus() == UserData::ContactStatus::Contact
+			|| Auth().supportMode()) {
 			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
 		}
 		Ui::hideLayer();
@@ -341,6 +343,9 @@ void GroupInfoBox::prepare() {
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title ->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_title);
 
 	if (_creating == CreatingGroupChannel) {
 		_description.create(
@@ -357,6 +362,10 @@ void GroupInfoBox::prepare() {
 		connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 		connect(_description, &Ui::InputField::submitted, [=] { submit(); });
 		connect(_description, &Ui::InputField::cancelled, [=] { closeBox(); });
+
+		Ui::Emoji::SuggestionsController::Init(
+			getDelegate()->outerContainer(),
+			_description);
 	}
 
 	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
@@ -403,7 +412,10 @@ void GroupInfoBox::submitName() {
 	}
 }
 
-void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users) {
+void GroupInfoBox::createGroup(
+		not_null<PeerListBox*> selectUsersBox,
+		const QString &title,
+		const std::vector<not_null<PeerData*>> &users) {
 	if (_creationRequestId) return;
 
 	auto inputs = QVector<MTPInputUser>();
@@ -418,10 +430,14 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 	if (inputs.empty()) {
 		return;
 	}
-	_creationRequestId = request(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(inputs), MTP_string(title))).done([this](const MTPUpdates &result) {
+	_creationRequestId = request(MTPmessages_CreateChat(
+		MTP_vector<MTPInputUser>(inputs),
+		MTP_string(title)
+	)).done([=](const MTPUpdates &result) {
+		auto image = _photo->takeResultImage();
 		Ui::hideLayer();
 
-		App::main()->sentUpdatesReceived(result);
+		Auth().api().applyUpdates(result);
 
 		auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
@@ -431,28 +447,30 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 				case mtpc_updatesCombined:
 					return &updates->c_updatesCombined().vchats.v;
 				}
-				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates->type()));
+				LOG(("API Error: unexpected update cons %1 "
+					"(GroupInfoBox::creationDone)").arg(updates->type()));
 				return std::nullopt;
 			}
 			| [](auto chats) {
-				return (!chats->empty() && chats->front().type() == mtpc_chat)
+				return (!chats->empty()
+					&& chats->front().type() == mtpc_chat)
 					? base::make_optional(chats)
 					: std::nullopt;
 			}
 			| [](auto chats) {
 				return App::chat(chats->front().c_chat().vid.v);
 			}
-			| [this](not_null<ChatData*> chat) {
-				auto image = _photo->takeResultImage();
+			| [&](not_null<ChatData*> chat) {
 				if (!image.isNull()) {
 					Auth().api().uploadPeerPhoto(chat, std::move(image));
 				}
 				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 			};
 		if (!success) {
-			LOG(("API Error: chat not found in updates (ContactsBox::creationDone)"));
+			LOG(("API Error: chat not found in updates "
+				"(ContactsBox::creationDone)"));
 		}
-	}).fail([this, selectUsersBox](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		_creationRequestId = 0;
 		if (error.type() == qstr("NO_CHAT_TITLE")) {
 			auto weak = make_weak(this);
@@ -524,7 +542,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 	bool mega = false;
 	auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
 	_creationRequestId = request(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description))).done([this](const MTPUpdates &result) {
-		App::main()->sentUpdatesReceived(result);
+		Auth().api().applyUpdates(result);
 
 		auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
@@ -755,26 +773,25 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 }
 
 void SetupChannelBox::save() {
-	if (_privacyGroup->value() == Privacy::Private) {
+	if (_saveRequestId) {
+		return;
+	} else if (_privacyGroup->value() == Privacy::Private) {
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 		} else {
 			closeBox();
 		}
+	} else {
+		const auto link = _link->text().trimmed();
+		if (link.isEmpty()) {
+			_link->setFocus();
+			_link->showError();
+			return;
+		}
+		_sentUsername = link;
+		_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 	}
-
-	if (_saveRequestId) return;
-
-	QString link = _link->text().trimmed();
-	if (link.isEmpty()) {
-		_link->setFocus();
-		_link->showError();
-		return;
-	}
-
-	_sentUsername = link;
-	_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 }
 
 void SetupChannelBox::handleChange() {
@@ -1079,83 +1096,6 @@ bool EditNameBox::saveSelfFail(const RPCError &error) {
 	return true;
 }
 
-EditBioBox::EditBioBox(QWidget*, not_null<UserData*> self) : BoxContent()
-, _dynamicFieldStyle(CreateBioFieldStyle())
-, _self(self)
-, _bio(
-	this,
-	_dynamicFieldStyle,
-	Ui::InputField::Mode::MultiLine,
-	langFactory(lng_bio_placeholder),
-	_self->about())
-, _countdown(this, QString(), Ui::FlatLabel::InitType::Simple, st::editBioCountdownLabel)
-, _about(this, lang(lng_bio_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel) {
-}
-
-void EditBioBox::prepare() {
-	setTitle(langFactory(lng_bio_title));
-
-	addButton(langFactory(lng_settings_save), [this] { save(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
-	_bio->setMaxLength(kMaxBioLength);
-	_bio->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	auto cursor = _bio->textCursor();
-	cursor.setPosition(_bio->getLastText().size());
-	_bio->setTextCursor(cursor);
-	connect(_bio, &Ui::InputField::submitted, [=] { save(); });
-	connect(_bio, &Ui::InputField::resized, [=] { updateMaxHeight(); });
-	connect(_bio, &Ui::InputField::changed, [=] { handleBioUpdated(); });
-	_bio->setInstantReplaces(Ui::InstantReplaces::Default());
-	_bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	handleBioUpdated();
-	updateMaxHeight();
-}
-
-void EditBioBox::updateMaxHeight() {
-	auto newHeight = st::contactPadding.top() + _bio->height() + st::boxLittleSkip + _about->height() + st::boxPadding.bottom() + st::contactPadding.bottom();
-	setDimensions(st::boxWideWidth, newHeight);
-}
-
-void EditBioBox::handleBioUpdated() {
-	auto text = _bio->getLastText();
-	if (text.indexOf('\n') >= 0) {
-		auto position = _bio->textCursor().position();
-		_bio->setText(text.replace('\n', ' '));
-		auto cursor = _bio->textCursor();
-		cursor.setPosition(position);
-		_bio->setTextCursor(cursor);
-	}
-	auto countLeft = qMax(kMaxBioLength - text.size(), 0);
-	_countdown->setText(QString::number(countLeft));
-}
-
-void EditBioBox::setInnerFocus() {
-	_bio->setFocusFast();
-}
-
-void EditBioBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
-
-	_bio->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _bio->height());
-	_bio->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::contactPadding.top());
-	_countdown->moveToRight(st::boxPadding.right(), _bio->y() + _dynamicFieldStyle.textMargins.top());
-	_about->moveToLeft(st::boxPadding.left(), _bio->y() + _bio->height() + st::boxLittleSkip);
-}
-
-void EditBioBox::save() {
-	if (_requestId) return;
-
-	auto text = TextUtilities::PrepareForSending(_bio->getLastText());
-	_sentBio = text;
-
-	auto flags = MTPaccount_UpdateProfile::Flag::f_about;
-	_requestId = request(MTPaccount_UpdateProfile(MTP_flags(flags), MTPstring(), MTPstring(), MTP_string(text))).done([this](const MTPUser &result) {
-		App::feedUsers(MTP_vector<MTPUser>(1, result));
-		_self->setAbout(_sentBio);
-		closeBox();
-	}).send();
-}
-
 EditChannelBox::EditChannelBox(QWidget*, not_null<ChannelData*> channel)
 : _channel(channel)
 , _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
@@ -1189,6 +1129,10 @@ void EditChannelBox::prepare() {
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_title);
+
 	_description->setMaxLength(kMaxChannelDescription);
 	_description->setInstantReplaces(Ui::InstantReplaces::Default());
 	_description->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
@@ -1196,6 +1140,9 @@ void EditChannelBox::prepare() {
 	connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 	connect(_description, &Ui::InputField::submitted, [=] { save(); });
 	connect(_description, &Ui::InputField::cancelled, [=] { closeBox(); });
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_description);
 
 	_publicLink->addClickHandler([=] { setupPublicLink(); });
 	_publicLink->setVisible(_channel->canEditUsername());

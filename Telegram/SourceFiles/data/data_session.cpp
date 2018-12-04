@@ -1813,7 +1813,9 @@ void Session::requestNotifySettings(not_null<PeerData*> peer) {
 	if (defaultNotifySettings(peer).settingsUnknown()) {
 		_session->api().requestNotifySettings(peer->isUser()
 			? MTP_inputNotifyUsers()
-			: MTP_inputNotifyChats());
+			: (peer->isChat() || peer->isMegagroup())
+			? MTP_inputNotifyChats()
+			: MTP_inputNotifyBroadcasts());
 	}
 }
 
@@ -1840,13 +1842,28 @@ void Session::applyNotifySetting(
 		if (_defaultChatNotifySettings.change(settings)) {
 			_defaultChatNotifyUpdates.fire({});
 
-			App::enumerateChatsChannels([&](not_null<PeerData*> peer) {
+			App::enumerateGroups([&](not_null<PeerData*> peer) {
 				if (!peer->notifySettingsUnknown()
 					&& ((!peer->notifyMuteUntil()
 						&& _defaultChatNotifySettings.muteUntil())
 						|| (!peer->notifySilentPosts()
 							&& _defaultChatNotifySettings.silentPosts()))) {
 					updateNotifySettingsLocal(peer);
+				}
+			});
+		}
+	} break;
+	case mtpc_notifyBroadcasts: {
+		if (_defaultBroadcastNotifySettings.change(settings)) {
+			_defaultBroadcastNotifyUpdates.fire({});
+
+			App::enumerateChannels([&](not_null<ChannelData*> channel) {
+				if (!channel->notifySettingsUnknown()
+					&& ((!channel->notifyMuteUntil()
+						&& _defaultBroadcastNotifySettings.muteUntil())
+						|| (!channel->notifySilentPosts()
+							&& _defaultBroadcastNotifySettings.silentPosts()))) {
+					updateNotifySettingsLocal(channel);
 				}
 			});
 		}
@@ -1937,11 +1954,17 @@ rpl::producer<> Session::defaultChatNotifyUpdates() const {
 	return _defaultChatNotifyUpdates.events();
 }
 
+rpl::producer<> Session::defaultBroadcastNotifyUpdates() const {
+	return _defaultBroadcastNotifyUpdates.events();
+}
+
 rpl::producer<> Session::defaultNotifyUpdates(
 		not_null<const PeerData*> peer) const {
 	return peer->isUser()
 		? defaultUserNotifyUpdates()
-		: defaultChatNotifyUpdates();
+		: (peer->isChat() || peer->isMegagroup())
+		? defaultChatNotifyUpdates()
+		: defaultBroadcastNotifyUpdates();
 }
 
 void Session::serviceNotification(
@@ -1976,6 +1999,14 @@ void Session::serviceNotification(
 	} else {
 		insertCheckedServiceNotification(message, media, date);
 	}
+}
+
+void Session::checkNewAuthorization() {
+	_newAuthorizationChecks.fire({});
+}
+
+rpl::producer<> Session::newAuthorizationChecks() const {
+	return _newAuthorizationChecks.events();
 }
 
 void Session::insertCheckedServiceNotification(

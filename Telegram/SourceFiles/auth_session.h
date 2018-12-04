@@ -21,16 +21,13 @@ enum class InputSubmitSettings;
 
 namespace Support {
 enum class SwitchSettings;
+class Helper;
 class Templates;
 } // namespace Support
 
 namespace Data {
 class Session;
 } // namespace Data
-
-namespace Calls {
-enum class PeerToPeer;
-} // namespace Calls
 
 namespace Storage {
 class Downloader;
@@ -186,14 +183,21 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
-	rpl::producer<Calls::PeerToPeer> callsPeerToPeerValue() const {
-		return _variables.callsPeerToPeer.value();
+	bool hadLegacyCallsPeerToPeerNobody() const {
+		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
-	Calls::PeerToPeer callsPeerToPeer() const {
-		return _variables.callsPeerToPeer.current();
+
+	bool includeMutedCounter() const {
+		return _variables.includeMutedCounter;
 	}
-	void setCallsPeerToPeer(Calls::PeerToPeer value) {
-		_variables.callsPeerToPeer = value;
+	void setIncludeMutedCounter(bool value) {
+		_variables.includeMutedCounter = value;
+	}
+	bool countUnreadMessages() const {
+		return _variables.countUnreadMessages;
+	}
+	void setCountUnreadMessages(bool value) {
+		_variables.countUnreadMessages = value;
 	}
 
 private:
@@ -219,12 +223,13 @@ private:
 			= kDefaultDialogsWidthRatio; // per-window
 		rpl::variable<int> thirdColumnWidth
 			= kDefaultThirdColumnWidth; // per-window
-		rpl::variable<Calls::PeerToPeer> callsPeerToPeer
-			= Calls::PeerToPeer();
 		Ui::InputSubmitSettings sendSubmitWay;
+		bool hadLegacyCallsPeerToPeerNobody = false;
+		bool includeMutedCounter = true;
+		bool countUnreadMessages = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
-			= 30 * 24 * 60 * 60;
+			= 7 * 24 * 60 * 60;
 
 		Support::SwitchSettings supportSwitch;
 		bool supportFixChatsOrder = true;
@@ -290,6 +295,7 @@ public:
 	AuthSessionSettings &settings() {
 		return _settings;
 	}
+	void moveSettingsFrom(AuthSessionSettings &&other);
 	void saveSettingsDelayed(TimeMs delay = kDefaultSaveDelay);
 
 	ApiWrap &api() {
@@ -311,7 +317,8 @@ public:
 	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 
 	bool supportMode() const;
-	not_null<Support::Templates*> supportTemplates() const;
+	Support::Helper &supportHelper() const;
+	Support::Templates &supportTemplates() const;
 
 	~AuthSession();
 
@@ -338,7 +345,7 @@ private:
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;
 
-	const std::unique_ptr<Support::Templates> _supportTemplates;
+	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	rpl::lifetime _lifetime;
 

@@ -56,6 +56,8 @@ public:
 		return result;
 	}
 
+	virtual QPointer<QWidget> outerContainer() = 0;
+
 };
 
 class BoxContent : public Ui::RpWidget, protected base::Subscriber {
@@ -118,11 +120,14 @@ public:
 		_boxClosingStream.fire({});
 	}
 
-	void setDelegate(BoxContentDelegate *newDelegate) {
+	void setDelegate(not_null<BoxContentDelegate*> newDelegate) {
 		_delegate = newDelegate;
 		_preparing = true;
 		prepare();
 		finishPrepare();
+	}
+	not_null<BoxContentDelegate*> getDelegate() const {
+		return _delegate;
 	}
 
 public slots:
@@ -187,10 +192,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-	not_null<BoxContentDelegate*> getDelegate() const {
-		return _delegate;
-	}
-
 private slots:
 	void onScroll();
 	void onInnerResize();
@@ -248,6 +249,7 @@ public:
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
 	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
 	void updateButtonsPositions() override;
+	QPointer<QWidget> outerContainer() override;
 
 	void setDimensions(int newWidth, int maxHeight) override;
 

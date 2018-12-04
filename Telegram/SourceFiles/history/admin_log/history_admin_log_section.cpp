@@ -10,9 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/admin_log/history_admin_log_filter.h"
 #include "profile/profile_back_button.h"
-#include "styles/style_history.h"
-#include "styles/style_window.h"
-#include "styles/style_info.h"
+#include "core/shortcuts.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
@@ -25,6 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
 #include "lang/lang_keys.h"
+#include "styles/style_history.h"
+#include "styles/style_window.h"
+#include "styles/style_info.h"
 
 namespace AdminLog {
 
@@ -262,6 +263,8 @@ Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_nu
 	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
 
 	_whatIsThis->setClickedCallback([=] { Ui::show(Box<InformBox>(lang(lng_admin_log_about_text))); });
+
+	setupShortcuts();
 }
 
 void Widget::showFilter() {
@@ -317,12 +320,17 @@ void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> m
 	restoreState(memento);
 }
 
-bool Widget::cmd_search() {
-	if (!inFocusChain()) {
-		return false;
-	}
-	_fixedBar->showSearch();
-	return true;
+void Widget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return isActiveWindow() && !Ui::isLayerShown() && inFocusChain();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Search, 1) && request->handle([=] {
+			_fixedBar->showSearch();
+			return true;
+		});
+	}, lifetime());
 }
 
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {

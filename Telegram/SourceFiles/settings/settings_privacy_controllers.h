@@ -24,11 +24,11 @@ public:
 
 private:
 	void receivedUsers(const QVector<MTPContactBlocked> &result);
-	void handleBlockedEvent(UserData *user);
+	void handleBlockedEvent(not_null<UserData*> user);
 
-	bool appendRow(UserData *user);
-	bool prependRow(UserData *user);
-	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
+	bool appendRow(not_null<UserData*> user);
+	bool prependRow(not_null<UserData*> user);
+	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
@@ -86,8 +86,23 @@ public:
 	QString exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
 
-	Fn<void()> setupAdditional(
-		not_null<Ui::VerticalLayout*> container) override;
+};
+
+class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	QString title() override;
+	LangKey optionsTitleKey() override;
+	LangKey optionLabelKey(EditPrivacyBox::Option option) override;
+	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
 
 };
 

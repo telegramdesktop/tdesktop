@@ -25,6 +25,7 @@ class Databases;
 
 namespace Core {
 class Launcher;
+struct LocalUrlHandler;
 } // namespace Core
 
 namespace Window {
@@ -152,6 +153,8 @@ public:
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
 	}
+	int unreadBadge() const;
+	bool unreadBadgeMuted() const;
 	void logOut();
 
 	// Media component.
@@ -220,6 +223,7 @@ public slots:
 private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void startLocalStorage();
+	void startShortcuts();
 
 	friend void App::quit();
 	static void QuitAttempt();
@@ -229,6 +233,8 @@ private:
 	void authSessionDestroy();
 	void clearPasscodeLock();
 	void loggedOut();
+
+	void fillLocalUrlHandlers();
 
 	not_null<Core::Launcher*> _launcher;
 
@@ -276,5 +282,7 @@ private:
 		rpl::lifetime subscription;
 	};
 	std::vector<LeaveSubscription> _leaveSubscriptions;
+
+	rpl::lifetime _lifetime;
 
 };

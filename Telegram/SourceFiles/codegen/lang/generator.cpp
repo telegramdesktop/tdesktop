@@ -341,7 +341,7 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 		UpcomingIf,
 	};
 	auto checkTypes = QVector<UsedCheckType>();
-	auto checkLengthHistory = QVector<int>(1, 0);
+	auto checkLengthHistory = QVector<int>();
 	auto chars = QString();
 	auto tabsUsed = 1;
 
@@ -354,7 +354,6 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 			auto wasType = checkTypes.back();
 			chars.resize(chars.size() - 1);
 			checkTypes.pop_back();
-			checkLengthHistory.pop_back();
 			if (wasType == UsedCheckType::Switch || wasType == UsedCheckType::If) {
 				--tabsUsed;
 				if (wasType == UsedCheckType::Switch) {
@@ -362,6 +361,7 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 				}
 				if ((!chars.isEmpty() && key.midRef(0, chars.size()) != chars) || key == chars) {
 					source_->stream() << tabs(tabsUsed) << "}\n";
+					checkLengthHistory.pop_back();
 				}
 			}
 		}
@@ -422,13 +422,20 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 				}
 			}
 			auto usedIfForCheck = !weContinueOldSwitch && (usedIfForCheckCount > 0);
+			const auto checkedLength = checkLengthHistory.isEmpty()
+				? 0
+				: checkLengthHistory.back();
+			const auto requiredLength = qMax(
+				minimalLengthCheck,
+				checkedLength);
 			auto checkLengthCondition = QString();
 			if (weContinueOldSwitch) {
 				weContinueOldSwitch = false;
 			} else {
-				checkLengthCondition = (minimalLengthCheck > checkLengthHistory.back()) ? ("size >= " + QString::number(minimalLengthCheck)) : QString();
+				checkLengthCondition = (requiredLength > checkedLength) ? ("size >= " + QString::number(requiredLength)) : QString();
 				if (!usedIfForCheck) {
 					source_->stream() << tabs(tabsUsed) << (checkLengthCondition.isEmpty() ? QString() : ("if (" + checkLengthCondition + ") ")) << "switch (data[" << checking << "]) {\n";
+					checkLengthHistory.push_back(requiredLength);
 				}
 			}
 			if (usedIfForCheck) {
@@ -442,11 +449,11 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 					conditions.push_front(checkLengthCondition);
 				}
 				source_->stream() << tabs(tabsUsed) << "if (" << conditions.join(" && ") << ") {\n";
+				checkLengthHistory.push_back(requiredLength);
 				checkTypes.push_back(UsedCheckType::If);
 				for (auto i = 1; i != usedIfForCheckCount; ++i) {
 					checkTypes.push_back(UsedCheckType::UpcomingIf);
 					chars.push_back(keyChar);
-					checkLengthHistory.push_back(qMax(minimalLengthCheck, checkLengthHistory.back()));
 					keyChar = name[checking + i];
 				}
 			} else {
@@ -455,7 +462,6 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 			}
 			++tabsUsed;
 			chars.push_back(keyChar);
-			checkLengthHistory.push_back(qMax(minimalLengthCheck, checkLengthHistory.back()));
 		}
 		source_->stream() << tabs(tabsUsed) << "return (size == " << chars.size() << ") ? " << computeResult(name) << " : " << invalidResult << ";\n";
 	}

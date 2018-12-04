@@ -662,7 +662,7 @@ namespace App {
 					bool found = !h || !h->lastKeyboardFrom;
 					auto botStatus = -1;
 					for (auto i = chat->participants.begin(); i != chat->participants.end();) {
-						auto [user, version] = *i;
+						const auto [user, version] = *i;
 						if (version < pversion) {
 							i = chat->participants.erase(i);
 						} else {
@@ -761,7 +761,7 @@ namespace App {
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;
-						for (auto [participant, v] : chat->participants) {
+						for (const auto [participant, v] : chat->participants) {
 							if (participant->botInfo) {
 								if (true || botStatus > 0/* || !participant->botInfo->readsAllHistory*/) {
 									botStatus = 2;
@@ -1134,11 +1134,20 @@ namespace App {
 		}
 	}
 
-	void enumerateChatsChannels(
-			Fn<void(not_null<PeerData*>)> action) {
+	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) {
 		for (const auto &[peerId, peer] : peersData) {
-			if (!peer->isUser()) {
+			if (peer->isChat() || peer->isMegagroup()) {
 				action(peer.get());
+			}
+		}
+	}
+
+	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (const auto channel = peer->asChannel()) {
+				if (!channel->isMegagroup()) {
+					action(channel);
+				}
 			}
 		}
 	}

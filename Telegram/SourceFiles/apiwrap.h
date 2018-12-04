@@ -125,6 +125,12 @@ public:
 	void requestTermsUpdate();
 	void acceptTerms(bytes::const_span termsId);
 
+	void checkChatInvite(
+		const QString &hash,
+		FnMut<void(const MTPChatInvite &)> done,
+		FnMut<void(const RPCError &)> fail);
+	void importChatInvite(const QString &hash);
+
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
 		Fn<void(const MTPchannels_ChannelParticipants&)> callback);
@@ -323,6 +329,7 @@ public:
 		bool handleSupportSwitch = false;
 	};
 	void sendMessage(MessageToSend &&message);
+	void sendBotStart(not_null<UserData*> bot);
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
@@ -350,6 +357,7 @@ public:
 			LastSeen,
 			Calls,
 			Invites,
+			CallsPeer2Peer,
 		};
 		enum class Option {
 			Everyone,
@@ -706,6 +714,10 @@ private:
 
 	TimeMs _termsUpdateSendAt = 0;
 	mtpRequestId _termsUpdateRequestId = 0;
+
+	mtpRequestId _checkInviteRequestId = 0;
+	FnMut<void(const MTPChatInvite &result)> _checkInviteDone;
+	FnMut<void(const RPCError &error)> _checkInviteFail;
 
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
 

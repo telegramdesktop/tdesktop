@@ -117,11 +117,15 @@
 <(src_loc)/core/file_utilities.h
 <(src_loc)/core/launcher.cpp
 <(src_loc)/core/launcher.h
+<(src_loc)/core/local_url_handlers.cpp
+<(src_loc)/core/local_url_handlers.h
 <(src_loc)/core/main_queue_processor.cpp
 <(src_loc)/core/main_queue_processor.h
 <(src_loc)/core/media_active_cache.h
 <(src_loc)/core/mime_type.cpp
 <(src_loc)/core/mime_type.h
+<(src_loc)/core/shortcuts.cpp
+<(src_loc)/core/shortcuts.h
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
 <(src_loc)/core/tl_help.h
@@ -515,7 +519,6 @@
 <(src_loc)/platform/win/windows_dlls.h
 <(src_loc)/platform/win/windows_event_filter.cpp
 <(src_loc)/platform/win/windows_event_filter.h
-<(src_loc)/platform/win/windows_range_v3_helpers.h
 <(src_loc)/platform/platform_audio.h
 <(src_loc)/platform/platform_file_utilities.h
 <(src_loc)/platform/platform_launcher.h
@@ -583,6 +586,8 @@
 <(src_loc)/support/support_autocomplete.h
 <(src_loc)/support/support_common.cpp
 <(src_loc)/support/support_common.h
+<(src_loc)/support/support_helper.cpp
+<(src_loc)/support/support_helper.h
 <(src_loc)/support/support_templates.cpp
 <(src_loc)/support/support_templates.h
 <(src_loc)/ui/effects/cross_animation.cpp
@@ -715,6 +720,8 @@
 <(src_loc)/window/window_connecting_widget.h
 <(src_loc)/window/window_controller.cpp
 <(src_loc)/window/window_controller.h
+<(src_loc)/window/window_history_hider.cpp
+<(src_loc)/window/window_history_hider.h
 <(src_loc)/window/window_lock_widgets.cpp
 <(src_loc)/window/window_lock_widgets.h
 <(src_loc)/window/window_main_menu.cpp
@@ -765,8 +772,6 @@
 <(src_loc)/qt_static_plugins.cpp
 <(src_loc)/settings.cpp
 <(src_loc)/settings.h
-<(src_loc)/shortcuts.cpp
-<(src_loc)/shortcuts.h
 <(emoji_suggestions_loc)/emoji_suggestions.cpp
 <(emoji_suggestions_loc)/emoji_suggestions.h
 

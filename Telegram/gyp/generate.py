@@ -119,7 +119,7 @@ for format in gypFormats:
 os.chdir(scriptPath + '/../../out')
 for configuration in cmakeConfigurations:
     os.chdir(configuration)
-    result = subprocess.call('cmake .', shell=True)
+    result = subprocess.call('cmake "-GCodeBlocks - Unix Makefiles" .', shell=True)
     if result != 0:
         print('[ERROR] Failed calling cmake for ' + configuration)
         finish(result)

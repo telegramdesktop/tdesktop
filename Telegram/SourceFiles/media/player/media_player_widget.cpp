@@ -133,9 +133,9 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 
 	updatePlaybackSpeedIcon();
 	_playbackSpeed->setClickedCallback([=] {
-		const auto updated = (3. - Global::VoiceMsgPlaybackSpeed());
-		Global::SetVoiceMsgPlaybackSpeed(updated);
-		mixer()->setVoicePlaybackSpeed(updated);
+		const auto doubled = !Global::VoiceMsgPlaybackDoubled();
+		Global::SetVoiceMsgPlaybackDoubled(doubled);
+		mixer()->setVoicePlaybackDoubled(doubled);
 		updatePlaybackSpeedIcon();
 		Local::writeUserSettings();
 	});
@@ -371,10 +371,13 @@ void Widget::updateRepeatTrackIcon() {
 }
 
 void Widget::updatePlaybackSpeedIcon() {
-	const auto playbackSpeed = Global::VoiceMsgPlaybackSpeed();
-	const auto isDefaultSpeed = std::round(playbackSpeed) == 1.f;
-	_playbackSpeed->setIconOverride(isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr, isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIconOver : nullptr);
-	_playbackSpeed->setRippleColorOverride(isDefaultSpeed ? &st::mediaPlayerSpeedDisabledRippleBg : nullptr);
+	const auto doubled = Global::VoiceMsgPlaybackDoubled();
+	const auto isDefaultSpeed = !doubled;
+	_playbackSpeed->setIconOverride(
+		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,
+		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIconOver : nullptr);
+	_playbackSpeed->setRippleColorOverride(
+		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledRippleBg : nullptr);
 }
 
 void Widget::checkForTypeChange() {

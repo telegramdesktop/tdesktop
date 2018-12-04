@@ -127,6 +127,8 @@ private:
 	Instance();
 	friend void start();
 
+	void setupShortcuts();
+
 	using SharedMediaType = Storage::SharedMediaType;
 	using SliceKey = SparseIdsMergedSlice::Key;
 	struct Data {
@@ -201,6 +203,8 @@ private:
 	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
 	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
+
+	rpl::lifetime _lifetime;
 
 };
 

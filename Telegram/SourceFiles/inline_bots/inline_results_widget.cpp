@@ -40,17 +40,13 @@ constexpr auto kInlineBotRequestDelay = 400;
 } // namespace
 
 Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
-, _controller(controller) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::emojiPanMinHeight);
+, _controller(controller)
+, _updateInlineItems([=] { updateInlineItems(); })
+, _previewTimer([=] { showPreview(); }) {
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::inlineResultsMinHeight);
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
-
-	_previewTimer.setSingleShot(true);
-	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
-
-	_updateInlineItems.setSingleShot(true);
-	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
@@ -194,11 +190,11 @@ void Inner::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	ClickHandler::pressed();
-	_previewTimer.start(QApplication::startDragTime());
+	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
 void Inner::mouseReleaseEvent(QMouseEvent *e) {
-	_previewTimer.stop();
+	_previewTimer.cancel();
 
 	auto pressed = std::exchange(_pressed, -1);
 	auto activated = ClickHandler::unpressed();
@@ -572,7 +568,7 @@ void Inner::inlineItemRepaint(const ItemBase *layout) {
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -682,7 +678,7 @@ void Inner::updateSelected() {
 	}
 }
 
-void Inner::onPreview() {
+void Inner::showPreview() {
 	if (_pressed < 0) return;
 
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
@@ -698,12 +694,12 @@ void Inner::onPreview() {
 	}
 }
 
-void Inner::onUpdateInlineItems() {
+void Inner::updateInlineItems() {
 	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -764,7 +760,7 @@ void Widget::moveBottom(int bottom) {
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
-	auto contentHeight = snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	auto contentHeight = snap(wantedContentHeight, st::inlineResultsMinHeight, st::inlineResultsMaxHeight);
 	accumulate_min(contentHeight, _bottom - addedHeight);
 	accumulate_min(contentHeight, _contentMaxHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;

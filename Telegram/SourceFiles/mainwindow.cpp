@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
-#include "shortcuts.h"
+#include "core/shortcuts.h"
 #include "messenger.h"
 #include "auth_session.h"
 #include "application.h"
@@ -278,32 +278,43 @@ void MainWindow::showMainMenu() {
 }
 
 void MainWindow::ensureLayerCreated() {
-	if (!_layer) {
-		_layer.create(bodyWidget());
-		_layer->hideFinishEvents(
-		) | rpl::start_with_next([=, pointer = _layer.data()] {
-			layerHidden(pointer);
-		}, _layer->lifetime());
-		if (controller()) {
-			controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
-		}
+	if (_layer) {
+		return;
+	}
+	_layer = base::make_unique_q<Window::LayerStackWidget>(
+		bodyWidget());
+
+	_layer->hideFinishEvents(
+	) | rpl::start_with_next([=] {
+		destroyLayer();
+	}, _layer->lifetime());
+
+	if (controller()) {
+		controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 }
 
-void MainWindow::destroyLayerDelayed() {
-	if (_layer) {
-		_layer.destroyDelayed();
-		if (controller()) {
-			controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
-		}
+void MainWindow::destroyLayer() {
+	if (!_layer) {
+		return;
 	}
+	const auto resetFocus = Ui::InFocusChain(_layer);
+	if (resetFocus) setFocus();
+	_layer = nullptr;
+	if (controller()) {
+		controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
+	}
+	if (resetFocus) setInnerFocus();
+	InvokeQueued(this, [=] {
+		checkHistoryActivation();
+	});
 }
 
 void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
 	if (_layer) {
 		_layer->hideAll(animated);
 		if (animated == anim::type::instant) {
-			destroyLayerDelayed();
+			destroyLayer();
 		}
 	}
 }
@@ -331,7 +342,7 @@ void MainWindow::ui_showBox(
 			if ((animated == anim::type::instant)
 				&& _layer
 				&& !_layer->layerShown()) {
-				destroyLayerDelayed();
+				destroyLayer();
 			}
 		}
 		Messenger::Instance().hideMediaView();
@@ -374,8 +385,10 @@ void MainWindow::ui_showMediaPreview(
 	_mediaPreview->showPreview(origin, photo);
 }
 
-void MainWindow::ui_hideMediaPreview() {
-	if (!_mediaPreview) return;
+void MainWindow::hideMediaPreview() {
+	if (!_mediaPreview) {
+		return;
+	}
 	_mediaPreview->hidePreview();
 }
 
@@ -473,12 +486,12 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::MouseButtonRelease: {
-		Ui::hideMediaPreview();
+		hideMediaPreview();
 	} break;
 
 	case QEvent::ApplicationActivate: {
 		if (object == QCoreApplication::instance()) {
-			InvokeQueued(this, [this] {
+			InvokeQueued(this, [=] {
 				handleActiveChanged();
 			});
 		}
@@ -616,19 +629,6 @@ void MainWindow::noIntro(Intro::Widget *was) {
 	if (was == _intro) {
 		_intro = nullptr;
 	}
-}
-
-void MainWindow::layerHidden(not_null<Window::LayerStackWidget*> layer) {
-	if (_layer != layer) {
-		return;
-	}
-	auto resetFocus = Ui::InFocusChain(layer);
-	if (resetFocus) setFocus();
-	destroyLayerDelayed();
-	if (resetFocus) setInnerFocus();
-	InvokeQueued(this, [this] {
-		checkHistoryActivation();
-	});
 }
 
 bool MainWindow::takeThirdSectionFromLayer() {

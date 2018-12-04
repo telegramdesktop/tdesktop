@@ -63,6 +63,15 @@ dialogsTextPaletteDraftOver: TextPalette(defaultTextPalette) {
 dialogsTextPaletteDraftActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFgActive;
 }
+dialogsTextPaletteTaken: TextPalette(defaultTextPalette) {
+	linkFg: boxTextFgGood;
+}
+dialogsTextPaletteTakenOver: TextPalette(defaultTextPalette) {
+	linkFg: boxTextFgGood;
+}
+dialogsTextPaletteTakenActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFgActive;
+}
 
 dialogsMenuToggle: IconButton {
 	width: 40px;

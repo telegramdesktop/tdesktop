@@ -68,6 +68,7 @@ public:
 private:
 	struct Updates;
 
+	void load();
 	void update();
 	void ensureUpdatesCreated();
 	void updateRequestFinished(QNetworkReply *reply);
@@ -81,10 +82,13 @@ private:
 	rpl::event_stream<QStringList> _errors;
 	base::binary_guard _reading;
 	bool _reloadAfterRead = false;
+	rpl::lifetime _reloadToastSubscription;
 
 	int _maxKeyLength = 0;
 
 	std::unique_ptr<Updates> _updates;
+
+	rpl::lifetime _lifetime;
 
 };
 

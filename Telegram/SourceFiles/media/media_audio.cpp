@@ -33,6 +33,8 @@ ALCcontext *AudioContext = nullptr;
 
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
+constexpr auto kPlaybackSpeedMultiplier = 1.7;
+constexpr auto kPlaybackSpeedTune = -9;
 
 auto VolumeMultiplierAll = 1.;
 auto VolumeMultiplierSong = 1.;
@@ -162,7 +164,7 @@ bool CreatePlaybackDevice() {
 	// initialize the pitch shifter effect
 	alEffecti(_playbackSpeedData.uiEffect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
 	// 12 semitones = 1 octave
-	alEffecti(_playbackSpeedData.uiEffect, AL_PITCH_SHIFTER_COARSE_TUNE, -12);
+	alEffecti(_playbackSpeedData.uiEffect, AL_PITCH_SHIFTER_COARSE_TUNE, kPlaybackSpeedTune);
 	// connect the effect with the effect slot
 	alAuxiliaryEffectSloti(_playbackSpeedData.uiEffectSlot, AL_EFFECTSLOT_EFFECT, _playbackSpeedData.uiEffect);
 	// initialize a filter to disable the direct (dry) path
@@ -330,6 +332,7 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alSource3f(stream.source, AL_POSITION, 0, 0, 0);
 	alSource3f(stream.source, AL_VELOCITY, 0, 0, 0);
 	alSourcei(stream.source, AL_LOOPING, 0);
+	alSourcei(stream.source, AL_DIRECT_CHANNELS_SOFT, 1);
 	alGenBuffers(3, stream.buffers);
 	if (type == AudioMsgId::Type::Voice) {
 		mixer()->updatePlaybackSpeed(this);
@@ -1029,7 +1032,7 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 
 // Thread: Any. Must be locked: AudioMutex.
 void Mixer::updatePlaybackSpeed(Track *track) {
-	const auto doubled = (_voicePlaybackSpeed.loadAcquire() == 2);
+	const auto doubled = (_voicePlaybackDoubled.loadAcquire() == 1);
 	updatePlaybackSpeed(track, doubled);
 }
 
@@ -1040,7 +1043,7 @@ void Mixer::updatePlaybackSpeed(Track *track, bool doubled) {
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	const auto source = track->stream.source;
 	// Note: This alters the playback speed AND the pitch
-	alSourcef(source, AL_PITCH, doubled ? 2. : 1.);
+	alSourcef(source, AL_PITCH, doubled ? kPlaybackSpeedMultiplier : 1.);
 	// fix the pitch using effects and filters
 	if (doubled) {
 		// connect the effect slot with the stream
@@ -1158,9 +1161,8 @@ void Mixer::reattachTracks() {
 }
 
 // Thread: Any. Locks AudioMutex.
-void Mixer::setVoicePlaybackSpeed(float64 speed) {
-	const auto doubled = (std::round(speed) == 2);
-	_voicePlaybackSpeed.storeRelease(doubled ? 2 : 1);
+void Mixer::setVoicePlaybackDoubled(bool doubled) {
+	_voicePlaybackDoubled.storeRelease(doubled ? 1 : 0);
 
 	QMutexLocker lock(&AudioMutex);
 	for (auto &track : _audioTracks) {
