@@ -2408,7 +2408,10 @@ HistoryItem *History::lastSentMessage() const {
 			const auto item = message->data();
 			// Skip if message is video message or sticker.
 			if (const auto media = item->media()) {
-				if (!media->allowsEditCaption()) continue;
+				// Skip only if media is not webpage.
+				if (!media->webpage() && !media->allowsEditCaption()) {
+					continue;
+				}
 			}
 			if (IsServerMsgId(item->id)
 				&& !item->serviceMsg()
