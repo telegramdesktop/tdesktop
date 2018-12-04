@@ -634,10 +634,6 @@ private:
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
 
-	void unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req);
-	bool unblockFail(const RPCError &error, mtpRequestId req);
-	void blockDone(PeerData *peer, const MTPBool &result);
-
 	void countHistoryShowFrom();
 
 	enum class TextUpdateEvent {
@@ -747,7 +743,6 @@ private:
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
 	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
-	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;

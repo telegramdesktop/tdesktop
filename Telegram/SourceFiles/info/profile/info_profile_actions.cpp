@@ -574,7 +574,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 		switch (user->blockStatus()) {
 		case UserData::BlockStatus::Blocked:
 			return Lang::Viewer(user->botInfo
-				? lng_profile_unblock_bot
+				? lng_profile_restart_bot
 				: lng_profile_unblock_user);
 		case UserData::BlockStatus::NotBlocked:
 		default:
@@ -590,9 +590,12 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	) | rpl::map([](const QString &text) {
 		return !text.isEmpty();
 	});
-	auto callback = [user] {
+	auto callback = [=] {
 		if (user->isBlocked()) {
 			Auth().api().unblockUser(user);
+			if (user->botInfo) {
+				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+			}
 		} else {
 			Auth().api().blockUser(user);
 		}

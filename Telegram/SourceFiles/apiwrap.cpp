@@ -1907,15 +1907,21 @@ void ApiWrap::blockUser(not_null<UserData*> user) {
 
 void ApiWrap::unblockUser(not_null<UserData*> user) {
 	if (!user->isBlocked()) {
-		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
+		Notify::peerUpdatedDelayed(
+			user,
+			Notify::PeerUpdate::Flag::UserIsBlocked);
 	} else if (_blockRequests.find(user) == end(_blockRequests)) {
-		auto requestId = request(MTPcontacts_Unblock(user->inputUser)).done([this, user](const MTPBool &result) {
+		const auto requestId = request(MTPcontacts_Unblock(
+			user->inputUser
+		)).done([=](const MTPBool &result) {
 			_blockRequests.erase(user);
 			user->setBlockStatus(UserData::BlockStatus::NotBlocked);
-		}).fail([this, user](const RPCError &error) {
+			if (user->botInfo) {
+				sendBotStart(user);
+			}
+		}).fail([=](const RPCError &error) {
 			_blockRequests.erase(user);
 		}).send();
-
 		_blockRequests.emplace(user, requestId);
 	}
 }
@@ -4541,6 +4547,28 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 	if (const auto main = App::main()) {
 		main->finishForwarding(history);
+	}
+}
+
+void ApiWrap::sendBotStart(not_null<UserData*> bot) {
+	Expects(bot->botInfo != nullptr);
+
+	const auto token = bot->botInfo->startToken;
+	if (token.isEmpty()) {
+		auto message = ApiWrap::MessageToSend(App::history(bot));
+		message.textWithTags = { qsl("/start"), TextWithTags::Tags() };
+		sendMessage(std::move(message));
+	} else {
+		bot->botInfo->startToken = QString();
+		const auto randomId = rand_value<uint64>();
+		request(MTPmessages_StartBot(
+			bot->inputUser,
+			MTP_inputPeerEmpty(),
+			MTP_long(randomId),
+			MTP_string(token)
+		)).done([=](const MTPUpdates &result) {
+			applyUpdates(result);
+		}).send();
 	}
 }
 

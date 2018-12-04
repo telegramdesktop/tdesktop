@@ -97,7 +97,7 @@ void BlockedBoxController::prepare() {
 	delegate()->peerListRefreshRows();
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
-		if (auto user = update.peer->asUser()) {
+		if (const auto user = update.peer->asUser()) {
 			handleBlockedEvent(user);
 		}
 	}));
@@ -169,7 +169,7 @@ void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &resul
 	delegate()->peerListRefreshRows();
 }
 
-void BlockedBoxController::handleBlockedEvent(UserData *user) {
+void BlockedBoxController::handleBlockedEvent(not_null<UserData*> user) {
 	if (user->isBlocked()) {
 		if (prependRow(user)) {
 			delegate()->peerListRefreshRows();
@@ -195,7 +195,7 @@ void BlockedBoxController::BlockNewUser() {
 		LayerOption::KeepOther);
 }
 
-bool BlockedBoxController::appendRow(UserData *user) {
+bool BlockedBoxController::appendRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -203,7 +203,7 @@ bool BlockedBoxController::appendRow(UserData *user) {
 	return true;
 }
 
-bool BlockedBoxController::prependRow(UserData *user) {
+bool BlockedBoxController::prependRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -211,9 +211,12 @@ bool BlockedBoxController::prependRow(UserData *user) {
 	return true;
 }
 
-std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) const {
+std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
+		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink(lang(lng_blocked_list_unblock));
+	row->setActionLink(lang(user->botInfo
+		? lng_blocked_list_restart
+		: lng_blocked_list_unblock));
 	const auto status = [&] {
 		if (!user->phone().isEmpty()) {
 			return App::formatPhone(user->phone());

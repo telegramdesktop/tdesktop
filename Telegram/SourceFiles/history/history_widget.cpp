@@ -1642,14 +1642,19 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_tabbedSelector->setCurrentPeer(_peer);
 	}
 
-	if (_peer && _peer->isChannel()) {
-		_peer->asChannel()->updateFull();
-		_joinChannel->setText(lang(_peer->isMegagroup()
-			? lng_profile_join_group
-			: lng_profile_join_channel).toUpper());
+	if (_peer) {
+		_unblock->setText(lang(_peer->isUser() && _peer->asUser()->botInfo
+			? lng_restart_button
+			: lng_unblock_button).toUpper());
+		if (const auto channel = _peer->asChannel()) {
+			channel->updateFull();
+			_joinChannel->setText(lang(channel->isMegagroup()
+				? lng_profile_join_group
+				: lng_profile_join_channel).toUpper());
+		}
 	}
 
-	_unblockRequest = _reportSpamRequest = 0;
+	_reportSpamRequest = 0;
 	if (_reportSpamSettingRequestId > 0) {
 		MTP::cancel(_reportSpamSettingRequestId);
 	}
@@ -2873,64 +2878,22 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 }
 
 void HistoryWidget::onUnblock() {
-	if (_unblockRequest) return;
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->isBlocked()) {
+	if (!_peer || !_peer->isUser()) {
 		updateControlsVisibility();
 		return;
 	}
-
-	_unblockRequest = MTP::send(MTPcontacts_Unblock(_peer->asUser()->inputUser), rpcDone(&HistoryWidget::unblockDone, _peer), rpcFail(&HistoryWidget::unblockFail));
-}
-
-void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
-	if (!peer->isUser()) return;
-	if (_unblockRequest == req) _unblockRequest = 0;
-	peer->asUser()->setBlockStatus(UserData::BlockStatus::NotBlocked);
-}
-
-bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (_unblockRequest == req) _unblockRequest = 0;
-	return false;
-}
-
-void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
-	if (!peer->isUser()) return;
-
-	peer->asUser()->setBlockStatus(UserData::BlockStatus::Blocked);
+	Auth().api().unblockUser(_peer->asUser());
 }
 
 void HistoryWidget::onBotStart() {
-	if (!_peer || !_peer->isUser() || !_peer->asUser()->botInfo || !_canSendMessages) {
+	if (!_peer
+		|| !_peer->isUser()
+		|| !_peer->asUser()->botInfo
+		|| !_canSendMessages) {
 		updateControlsVisibility();
 		return;
 	}
-
-	QString token = _peer->asUser()->botInfo->startToken;
-	if (token.isEmpty()) {
-		sendBotCommand(_peer, _peer->asUser(), qsl("/start"), 0);
-	} else {
-		uint64 randomId = rand_value<uint64>();
-		MTP::send(
-			MTPmessages_StartBot(
-				_peer->asUser()->inputUser,
-				MTP_inputPeerEmpty(),
-				MTP_long(randomId),
-				MTP_string(token)),
-			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-			App::main()->rpcFail(
-				&MainWidget::addParticipantFail,
-				{ _peer->asUser(), (PeerData*)nullptr }));
-
-		_peer->asUser()->botInfo->startToken = QString();
-		if (_keyboard->hasMarkup()) {
-			if (_keyboard->singleUse() && _keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _history->lastKeyboardUsed) {
-				_history->lastKeyboardHiddenId = _history->lastKeyboardId;
-			}
-			if (!kbWasHidden()) _kbShown = _keyboard->hasMarkup();
-		}
-	}
+	Auth().api().sendBotStart(_peer->asUser());
 	updateControlsVisibility();
 	updateControlsGeometry();
 }
@@ -4486,15 +4449,19 @@ void HistoryWidget::onReportSpamClicked() {
 		if (_reportSpamRequest) return;
 
 		Ui::hideLayer();
-		if (auto user = peer->asUser()) {
-			MTP::send(MTPcontacts_Block(user->inputUser), rpcDone(&HistoryWidget::blockDone, peer), RPCFailHandlerPtr(), 0, 5);
+		_reportSpamRequest = MTP::send(
+			MTPmessages_ReportSpam(peer->input),
+			rpcDone(&HistoryWidget::reportSpamDone, peer),
+			rpcFail(&HistoryWidget::reportSpamFail), 0, 5);
+		if (const auto user = peer->asUser()) {
+			Auth().api().blockUser(user);
 		}
-		_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(peer->input), rpcDone(&HistoryWidget::reportSpamDone, peer), rpcFail(&HistoryWidget::reportSpamFail));
 	})));
 }
 
 void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
 	Expects(peer != nullptr);
+
 	if (req == _reportSpamRequest) {
 		_reportSpamRequest = 0;
 	}

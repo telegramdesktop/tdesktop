@@ -275,27 +275,17 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 	auto blockText = [](not_null<UserData*> user) {
 		return lang(user->isBlocked()
 			? (user->botInfo
-				? lng_profile_unblock_bot
+				? lng_profile_restart_bot
 				: lng_profile_unblock_user)
 			: (user->botInfo
 				? lng_profile_block_bot
 				: lng_profile_block_user));
 	};
-	auto blockAction = _addAction(blockText(user), [user] {
-		auto willBeBlocked = !user->isBlocked();
-		auto handler = ::rpcDone([user, willBeBlocked](const MTPBool &result) {
-			user->setBlockStatus(willBeBlocked
-				? UserData::BlockStatus::Blocked
-				: UserData::BlockStatus::NotBlocked);
-		});
-		if (willBeBlocked) {
-			MTP::send(
-				MTPcontacts_Block(user->inputUser),
-				std::move(handler));
+	auto blockAction = _addAction(blockText(user), [=] {
+		if (user->isBlocked()) {
+			Auth().api().unblockUser(user);
 		} else {
-			MTP::send(
-				MTPcontacts_Unblock(user->inputUser),
-				std::move(handler));
+			Auth().api().blockUser(user);
 		}
 	});
 

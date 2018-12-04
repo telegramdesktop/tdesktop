@@ -557,6 +557,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_blocked_list_title" = "Blocked users";
 "lng_blocked_list_unknown_phone" = "unknown phone number";
 "lng_blocked_list_unblock" = "Unblock";
+"lng_blocked_list_restart" = "Restart";
 "lng_blocked_list_add" = "Block user";
 "lng_blocked_list_add_title" = "Select user to block";
 "lng_blocked_list_already_blocked" = "blocked already";
@@ -667,7 +668,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_report" = "Report";
 "lng_profile_search_messages" = "Search for messages";
 "lng_profile_block_bot" = "Stop and block bot";
-"lng_profile_unblock_bot" = "Unblock bot";
+"lng_profile_restart_bot" = "Restart bot";
 "lng_profile_invite_to_group" = "Add to Group";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
@@ -1095,6 +1096,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_from_draft" = "Draft";
 "lng_bot_description" = "What can this bot do?";
 "lng_unblock_button" = "Unblock";
+"lng_restart_button" = "Restart";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 "lng_saved_messages" = "Saved Messages";

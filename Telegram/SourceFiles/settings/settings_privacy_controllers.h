@@ -24,11 +24,11 @@ public:
 
 private:
 	void receivedUsers(const QVector<MTPContactBlocked> &result);
-	void handleBlockedEvent(UserData *user);
+	void handleBlockedEvent(not_null<UserData*> user);
 
-	bool appendRow(UserData *user);
-	bool prependRow(UserData *user);
-	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
+	bool appendRow(not_null<UserData*> user);
+	bool prependRow(not_null<UserData*> user);
+	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;

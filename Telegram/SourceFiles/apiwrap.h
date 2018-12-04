@@ -329,6 +329,7 @@ public:
 		bool handleSupportSwitch = false;
 	};
 	void sendMessage(MessageToSend &&message);
+	void sendBotStart(not_null<UserData*> bot);
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
