@@ -164,6 +164,8 @@ Memento::~Memento() = default;
 
 MoveMemento::MoveMemento(object_ptr<WrapWidget> content)
 : _content(std::move(content)) {
+	_content->hide();
+	_content->setParent(nullptr);
 }
 
 object_ptr<Window::SectionWidget> MoveMemento::createWidget(

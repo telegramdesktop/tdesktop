@@ -497,16 +497,16 @@ void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
 }
 
 void LayerStackWidget::updateLayerBoxes() {
-	auto getLayerBox = [this]() {
-		if (auto layer = currentLayer()) {
+	const auto layerBox = [&] {
+		if (const auto layer = currentLayer()) {
 			return layer->geometry();
 		}
 		return QRect();
-	};
-	auto getSpecialLayerBox = [this]() {
-		return _specialLayer ? _specialLayer->geometry() : QRect();
-	};
-	_background->setLayerBoxes(getSpecialLayerBox(), getLayerBox());
+	}();
+	const auto specialLayerBox = _specialLayer
+		? _specialLayer->geometry()
+		: QRect();
+	_background->setLayerBoxes(specialLayerBox, layerBox);
 	update();
 }
 
@@ -566,15 +566,28 @@ void LayerStackWidget::startAnimation(
 }
 
 void LayerStackWidget::resizeEvent(QResizeEvent *e) {
+	const auto weak = make_weak(this);
 	_background->setGeometry(rect());
+	if (!weak) {
+		return;
+	}
 	if (_specialLayer) {
 		_specialLayer->parentResized();
+		if (!weak) {
+			return;
+		}
 	}
-	if (auto layer = currentLayer()) {
+	if (const auto layer = currentLayer()) {
 		layer->parentResized();
+		if (!weak) {
+			return;
+		}
 	}
 	if (_mainMenu) {
 		_mainMenu->resize(_mainMenu->width(), height());
+		if (!weak) {
+			return;
+		}
 	}
 	updateLayerBoxes();
 }
