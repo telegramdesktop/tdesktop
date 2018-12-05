@@ -385,7 +385,12 @@ void PeerData::fillNames() {
 		}
 		appendToIndex(user->username);
 		if (isSelf()) {
-			appendToIndex(lang(lng_saved_messages));
+			const auto english = qsl("Saved messages");
+			const auto localized = lang(lng_saved_messages);
+			appendToIndex(english);
+			if (localized != english) {
+				appendToIndex(localized);
+			}
 		}
 	} else if (const auto channel = asChannel()) {
 		appendToIndex(channel->username);
