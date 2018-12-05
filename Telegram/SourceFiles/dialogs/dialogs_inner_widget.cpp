@@ -1842,10 +1842,13 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 	auto &saved = cRefSavedPeersByTime();
 	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
-		const auto history = App::history(saved.last()->id);
-		history->setChatsListTimeId(ServerTimeFromParsed(saved.lastKey()));
+		const auto lastDate = saved.lastKey();
+		const auto lastPeer = saved.last();
+		saved.remove(lastDate, lastPeer);
+
+		const auto history = App::history(lastPeer);
+		history->setChatsListTimeId(ServerTimeFromParsed(lastDate));
 		_contactsNoDialogs->del(history);
-		saved.remove(saved.lastKey(), saved.last());
 	}
 }
 
