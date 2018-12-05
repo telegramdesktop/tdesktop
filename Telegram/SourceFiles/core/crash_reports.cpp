@@ -125,6 +125,7 @@ void InstallQtMessageHandler() {
 			original(type, context, message);
 		}
 		if (type == QtFatalMsg) {
+			CrashReports::SetAnnotation("QtFatal", message);
 			Unexpected("Qt FATAL message was generated!");
 		}
 	});
