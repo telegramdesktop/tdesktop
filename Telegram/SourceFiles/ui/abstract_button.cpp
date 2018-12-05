@@ -66,12 +66,17 @@ void AbstractButton::mouseMoveEvent(QMouseEvent *e) {
 
 void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 	if (_state & StateFlag::Down) {
-		auto was = _state;
+		const auto was = _state;
 		_state &= ~State(StateFlag::Down);
+
+		auto weak = make_weak(this);
 		onStateChanged(was, StateChangeSource::ByPress);
+		if (!weak) {
+			return;
+		}
+
 		if (was & StateFlag::Over) {
 			_modifiers = e->modifiers();
-			auto weak = make_weak(this);
 			if (const auto callback = _clickedCallback) {
 				callback();
 			} else {

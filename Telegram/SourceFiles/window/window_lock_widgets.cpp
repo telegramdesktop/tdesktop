@@ -305,11 +305,10 @@ void TermsBox::prepare() {
 	}
 
 	if (age) {
-		base::ObservableViewer(
-			age->entity()->checkedChanged
+		age->entity()->checkedChanges(
 		) | rpl::start_with_next([=] {
 			toggleAgeError(false);
-		}, lifetime());
+		}, age->lifetime());
 
 		heightValue(
 		) | rpl::start_with_next([=](int height) {

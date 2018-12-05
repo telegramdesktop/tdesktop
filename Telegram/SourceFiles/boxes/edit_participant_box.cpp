@@ -236,9 +236,12 @@ void EditAdminBox::prepare() {
 	auto addCheckbox = [&](Flags flags, const QString &text) {
 		const auto checked = (prepareFlags & flags) != 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle), st::rightsToggleMargin);
-		subscribe(control->checkedChanged, [this, control](bool checked) {
-			InvokeQueued(this, [this, control] { applyDependencies(control); });
-		});
+		control->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
+			InvokeQueued(this, [=] {
+				applyDependencies(control);
+			});
+		}, control->lifetime());
 		if (!channel()->amCreator()) {
 			if (!(channel()->adminRights() & flags)) {
 				control->setDisabled(true); // Grey out options that we don't have ourselves.
@@ -267,11 +270,14 @@ void EditAdminBox::prepare() {
 
 	auto addAdmins = _checkboxes.find(Flag::f_add_admins);
 	if (addAdmins != _checkboxes.end()) {
-		_aboutAddAdmins = addControl(object_ptr<Ui::FlatLabel>(this, st::boxLabel), st::rightsAboutMargin);
+		_aboutAddAdmins = addControl(
+			object_ptr<Ui::FlatLabel>(this, st::boxLabel),
+			st::rightsAboutMargin);
 		Assert(addAdmins != _checkboxes.end());
-		subscribe(addAdmins->second->checkedChanged, [this](bool checked) {
+		addAdmins->second->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
 			refreshAboutAddAdminsText();
-		});
+		}, addAdmins->second->lifetime());
 		refreshAboutAddAdminsText();
 	}
 
@@ -354,12 +360,15 @@ void EditRestrictedBox::prepare() {
 	auto prepareRights = (_oldRights.c_channelBannedRights().vflags.v ? _oldRights : DefaultRights(channel()));
 	_until = prepareRights.c_channelBannedRights().vuntil_date.v;
 
-	auto addCheckbox = [this, &prepareRights](Flags flags, const QString &text) {
+	auto addCheckbox = [&](Flags flags, const QString &text) {
 		auto checked = (prepareRights.c_channelBannedRights().vflags.v & flags) == 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle), st::rightsToggleMargin);
-		subscribe(control->checkedChanged, [this, control](bool checked) {
-			InvokeQueued(this, [this, control] { applyDependencies(control); });
-		});
+		control->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
+			InvokeQueued(this, [=] {
+				applyDependencies(control);
+			});
+		}, control->lifetime());
 		if (!canSave()) {
 			control->setDisabled(true);
 		}

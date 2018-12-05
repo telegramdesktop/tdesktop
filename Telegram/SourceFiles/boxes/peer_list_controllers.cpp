@@ -127,14 +127,23 @@ void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
 //	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 //}
 
-class EditChatAdminsBoxController::LabeledCheckbox : public TWidget, private base::Subscriber {
+class EditChatAdminsBoxController::LabeledCheckbox : public Ui::RpWidget {
 public:
-	LabeledCheckbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox, const style::Check &checkSt = st::defaultCheck);
-
-	base::Observable<bool> checkedChanged;
+	LabeledCheckbox(
+		QWidget *parent,
+		const QString &text,
+		bool checked = false,
+		const style::Checkbox &st = st::defaultCheckbox,
+		const style::Check &checkSt = st::defaultCheck);
 
 	bool checked() const {
 		return _checkbox->checked();
+	}
+	rpl::producer<bool> checkedChanges() const {
+		return _checkbox->checkedChanges();
+	}
+	rpl::producer<bool> checkedValue() const {
+		return _checkbox->checkedValue();
 	}
 
 	void setLabelText(
@@ -605,9 +614,8 @@ EditChatAdminsBoxController::LabeledCheckbox::LabeledCheckbox(
 	bool checked,
 	const style::Checkbox &st,
 	const style::Check &checkSt)
-: TWidget(parent)
+: RpWidget(parent)
 , _checkbox(this, text, checked, st, checkSt) {
-	subscribe(_checkbox->checkedChanged, [this](bool value) { checkedChanged.notify(value, true); });
 }
 
 void EditChatAdminsBoxController::LabeledCheckbox::setLabelText(
@@ -676,7 +684,8 @@ void EditChatAdminsBoxController::prepare() {
 		}));
 	}
 
-	subscribe(_allAdmins->checkedChanged, [this](bool checked) {
+	_allAdmins->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
 		delegate()->peerListSetSearchMode(checked ? PeerListSearchMode::Disabled : PeerListSearchMode::Enabled);
 		for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {
 			auto row = delegate()->peerListRowAt(i);
@@ -687,7 +696,7 @@ void EditChatAdminsBoxController::prepare() {
 				row->setDisabledState(PeerListRow::State::Active);
 			}
 		}
-	});
+	}, _allAdmins->lifetime());
 }
 
 void EditChatAdminsBoxController::createAllAdminsCheckbox() {

@@ -441,11 +441,10 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 			st::settingsCheckbox);
 	};
 	const auto add = [&](LangKey label, bool checked, auto &&handle) {
-		base::ObservableViewer(
-			inner->add(
-				checkbox(label, checked),
-				st::settingsCheckboxPadding
-			)->checkedChanged
+		inner->add(
+			checkbox(label, checked),
+			st::settingsCheckboxPadding
+		)->checkedChanges(
 		) | rpl::start_with_next(
 			std::move(handle),
 			inner->lifetime());
@@ -670,8 +669,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));
 
-	base::ObservableViewer(
-		tile->checkedChanged
+	tile->checkedChanges(
 	) | rpl::start_with_next([](bool checked) {
 		Window::Theme::Background()->setTile(checked);
 	}, tile->lifetime());
@@ -695,8 +693,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 		return (Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide);
 	}));
 
-	base::ObservableViewer(
-		adaptive->entity()->checkedChanged
+	adaptive->entity()->checkedChanges(
 	) | rpl::start_with_next([](bool checked) {
 		Global::SetAdaptiveForWide(checked);
 		Adaptive::Changed().notify();
@@ -986,15 +983,14 @@ void SetupSupport(not_null<Ui::VerticalLayout*> container) {
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
 
-	base::ObservableViewer(
-		inner->add(
-			object_ptr<Ui::Checkbox>(
-				inner,
-				"Enable templates autocomplete",
-				Auth().settings().supportTemplatesAutocomplete(),
-				st::settingsCheckbox),
-			st::settingsSendTypePadding
-		)->checkedChanged
+	inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			"Enable templates autocomplete",
+			Auth().settings().supportTemplatesAutocomplete(),
+			st::settingsCheckbox),
+		st::settingsSendTypePadding
+	)->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		Auth().settings().setSupportTemplatesAutocomplete(checked);
 		Local::writeUserSettings();

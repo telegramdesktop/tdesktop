@@ -569,17 +569,20 @@ void ProxiesBox::setupContent() {
 		}
 		refreshProxyForCalls();
 	});
-	subscribe(_tryIPv6->checkedChanged, [=](bool checked) {
+	_tryIPv6->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
 		_controller->setTryIPv6(checked);
-	});
+	}, _tryIPv6->lifetime());
+
 	_controller->proxySettingsValue(
 	) | rpl::start_with_next([=](ProxyData::Settings value) {
 		_proxySettings->setValue(value);
 	}, inner->lifetime());
 
-	subscribe(_proxyForCalls->entity()->checkedChanged, [=](bool checked) {
+	_proxyForCalls->entity()->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
 		_controller->setProxyForCalls(checked);
-	});
+	}, _proxyForCalls->lifetime());
 
 	if (_rows.empty()) {
 		createNoRowsLabel();

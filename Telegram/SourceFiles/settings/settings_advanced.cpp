@@ -296,8 +296,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		Local::writeSettings();
 	};
 
-	base::ObservableViewer(
-		tray->checkedChanged
+	tray->checkedChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != trayEnabled());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -309,8 +308,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 	}, tray->lifetime());
 
 	if (taskbar) {
-		base::ObservableViewer(
-			taskbar->checkedChanged
+		taskbar->checkedChanges(
 		) | rpl::filter([=](bool checked) {
 			return (checked != taskbarEnabled());
 		}) | rpl::start_with_next([=](bool checked) {
@@ -338,8 +336,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			lng_settings_add_sendto,
 			cSendToMenu());
 
-		base::ObservableViewer(
-			autostart->checkedChanged
+		autostart->checkedChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != cAutoStart());
 		}) | rpl::start_with_next([=](bool checked) {
@@ -354,13 +351,8 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			}
 		}, autostart->lifetime());
 
-		minimized->toggleOn(rpl::single(
-			autostart->checked()
-		) | rpl::then(base::ObservableViewer(
-			autostart->checkedChanged
-		)));
-		base::ObservableViewer(
-			minimized->entity()->checkedChanged
+		minimized->toggleOn(autostart->checkedValue());
+		minimized->entity()->checkedChanges(
 		) | rpl::filter([=](bool checked) {
 			return (checked != minimizedToggled());
 		}) | rpl::start_with_next([=](bool checked) {
@@ -380,8 +372,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			minimized->entity()->setChecked(minimizedToggled());
 		}, minimized->lifetime());
 
-		base::ObservableViewer(
-			sendto->checkedChanged
+		sendto->checkedChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != cSendToMenu());
 		}) | rpl::start_with_next([](bool checked) {
