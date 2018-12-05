@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_media_types.h"
 #include "window/window_controller.h"
 #include "storage/cache/storage_cache_database.h"
+#include "boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "auth_session.h"
@@ -63,6 +64,29 @@ QString JoinStringList(const QStringList &list, const QString &separator) {
 		result.append(separator).append(list[i]);
 	}
 	return result;
+}
+
+void LaunchWithWarning(const QString &name) {
+	if (!Data::IsExecutableName(name)
+		|| !Auth().settings().exeLaunchWarning()) {
+		File::Launch(name);
+		return;
+	}
+	const auto extension = '.' + Data::FileExtension(name);
+	const auto callback = [=](bool checked) {
+		if (checked) {
+			Auth().settings().setExeLaunchWarning(false);
+			Auth().saveSettingsDelayed();
+		}
+		File::Launch(name);
+	};
+	Ui::show(Box<ConfirmDontWarnBox>(
+		lng_launch_exe_warning(
+			lt_extension,
+			textcmdStartSemibold() + extension + textcmdStopSemibold()),
+		lang(lng_launch_exe_dont_ask),
+		lang(lng_launch_exe_sure),
+		callback));
 }
 
 } // namespace
@@ -308,15 +332,15 @@ void DocumentOpenClickHandler::Open(
 				Messenger::Instance().showDocument(data, context);
 				location.accessDisable();
 			} else {
-				auto filepath = location.name();
-				if (documentIsValidMediaFile(filepath)) {
+				const auto filepath = location.name();
+				if (Data::IsValidMediaFile(filepath)) {
 					File::Launch(filepath);
 				}
 			}
 			data->session()->data().markMediaRead(data);
 		} else if (data->isVoiceMessage() || data->isAudioFile() || data->isVideoFile()) {
-			auto filepath = location.name();
-			if (documentIsValidMediaFile(filepath)) {
+			const auto filepath = location.name();
+			if (Data::IsValidMediaFile(filepath)) {
 				File::Launch(filepath);
 			}
 			data->session()->data().markMediaRead(data);
@@ -335,14 +359,14 @@ void DocumentOpenClickHandler::Open(
 						Messenger::Instance().showDocument(data, context);
 					}
 				} else {
-					File::Launch(location.name());
+					LaunchWithWarning(location.name());
 				}
 				location.accessDisable();
 			} else {
-				File::Launch(location.name());
+				LaunchWithWarning(location.name());
 			}
 		} else {
-			File::Launch(location.name());
+			LaunchWithWarning(location.name());
 		}
 		return;
 	}
@@ -703,7 +727,7 @@ void DocumentData::performActionOnLoad() {
 			File::OpenWith(already, QCursor::pos());
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
 			if (isVoiceMessage() || isAudioFile() || isVideoFile()) {
-				if (documentIsValidMediaFile(already)) {
+				if (Data::IsValidMediaFile(already)) {
 					File::Launch(already);
 				}
 				_session->data().markMediaRead(this);
@@ -711,11 +735,11 @@ void DocumentData::performActionOnLoad() {
 				if (showImage && QImageReader(loc.name()).canRead()) {
 					Messenger::Instance().showDocument(this, item);
 				} else {
-					File::Launch(already);
+					LaunchWithWarning(already);
 				}
 				loc.accessDisable();
 			} else {
-				File::Launch(already);
+				LaunchWithWarning(already);
 			}
 		}
 	}
@@ -1405,3 +1429,57 @@ QString DocumentData::ComposeNameString(
 	auto trackTitle = (songTitle.isEmpty() ? qsl("Unknown Track") : songTitle);
 	return songPerformer + QString::fromUtf8(" \xe2\x80\x93 ") + trackTitle;
 }
+
+namespace Data {
+
+QString FileExtension(const QString &filepath) {
+	const auto reversed = ranges::view::reverse(filepath);
+	const auto last = ranges::find_first_of(reversed, ".\\/");
+	if (last == reversed.end() || *last != '.') {
+		return QString();
+	}
+	return QString(last.base(), last - reversed.begin());
+}
+
+bool IsValidMediaFile(const QString &filepath) {
+	static const auto kExtensions = [] {
+		const auto list = qsl("\
+webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf \
+amv mp4 m4p m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p \
+f4a f4b wma divx evo mk3d mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat \
+dsh dvr-ms m1v fla flr sol wrap smi swf wtv 8svx 16svx iff aiff aif aifc \
+au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka shn tak tta wv \
+brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
+dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 \
+minipsf psflib 2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym \
+jam mp1 mscz").split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
+
+	return ranges::binary_search(
+		kExtensions,
+		FileExtension(filepath).toLower());
+}
+
+bool IsExecutableName(const QString &filepath) {
+	static const auto kExtensions = [] {
+		const auto joined =
+#ifdef Q_OS_MAC
+			qsl("action app bin command csh osx workflow");
+#elif defined Q_OS_LINUX // Q_OS_MAC
+			qsl("bin csh ksh out run");
+#else // Q_OS_MAC || Q_OS_LINUX
+			qsl("\
+bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi msp mst \
+paf pif ps1 reg rgs scr sct shb shs u3p vb vbe vbs vbscript ws wsf");
+#endif // !Q_OS_MAC && !Q_OS_LINUX
+		const auto list = joined.split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
+
+	return ranges::binary_search(
+		kExtensions,
+		FileExtension(filepath).toLower());
+}
+
+} // namespace Data

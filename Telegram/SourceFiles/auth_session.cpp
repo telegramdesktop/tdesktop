@@ -45,7 +45,7 @@ AuthSessionSettings::Variables::Variables()
 }
 
 QByteArray AuthSessionSettings::serialize() const {
-	auto size = sizeof(qint32) * 10;
+	auto size = sizeof(qint32) * 23;
 	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
 		size += Serialize::stringSize(i.key()) + Serialize::stringSize(i.value());
 	}
@@ -87,6 +87,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.supportChatsTimeSlice.current());
 		stream << qint32(_variables.includeMutedCounter ? 1 : 0);
 		stream << qint32(_variables.countUnreadMessages ? 1 : 0);
+		stream << qint32(_variables.exeLaunchWarning ? 1 : 0);
 	}
 	return result;
 }
@@ -120,6 +121,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 supportChatsTimeSlice = _variables.supportChatsTimeSlice.current();
 	qint32 includeMutedCounter = _variables.includeMutedCounter ? 1 : 0;
 	qint32 countUnreadMessages = _variables.countUnreadMessages ? 1 : 0;
+	qint32 exeLaunchWarning = _variables.exeLaunchWarning ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -190,6 +192,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 		stream >> includeMutedCounter;
 		stream >> countUnreadMessages;
 	}
+	if (!stream.atEnd()) {
+		stream >> exeLaunchWarning;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -253,6 +258,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.hadLegacyCallsPeerToPeerNobody = (legacyCallsPeerToPeer == kLegacyCallsPeerToPeerNobody);
 	_variables.includeMutedCounter = (includeMutedCounter == 1);
 	_variables.countUnreadMessages = (countUnreadMessages == 1);
+	_variables.exeLaunchWarning = (exeLaunchWarning == 1);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {

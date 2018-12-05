@@ -199,6 +199,12 @@ public:
 	void setCountUnreadMessages(bool value) {
 		_variables.countUnreadMessages = value;
 	}
+	bool exeLaunchWarning() const {
+		return _variables.exeLaunchWarning;
+	}
+	void setExeLaunchWarning(bool warning) {
+		_variables.exeLaunchWarning = warning;
+	}
 
 private:
 	struct Variables {
@@ -227,6 +233,7 @@ private:
 		bool hadLegacyCallsPeerToPeerNobody = false;
 		bool includeMutedCounter = true;
 		bool countUnreadMessages = true;
+		bool exeLaunchWarning = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

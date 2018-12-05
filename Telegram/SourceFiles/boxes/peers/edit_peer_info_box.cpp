@@ -221,8 +221,6 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createUpgradeButton());
 	_wrap->add(createDeleteButton());
 
-	_wrap->resizeToWidth(st::boxWideWidth);
-
 	return result;
 }
 
@@ -1451,10 +1449,7 @@ void EditPeerInfoBox::prepare() {
 		[=] { controller->setFocus(); },
 		lifetime());
 	auto content = controller->createContent();
-	content->heightValue(
-	) | rpl::start_with_next([this](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, content->lifetime());
+	setDimensionsToContent(st::boxWideWidth, content);
 	setInnerWidget(object_ptr<Ui::OverrideMargins>(
 		this,
 		std::move(content)));

@@ -145,6 +145,16 @@ void BoxContent::onInnerResize() {
 	updateShadowsVisibility();
 }
 
+void BoxContent::setDimensionsToContent(
+		int newWidth,
+		not_null<Ui::RpWidget*> content) {
+	content->resizeToWidth(newWidth);
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(newWidth, height);
+	}, content->lifetime());
+}
+
 void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
 	if (_innerTopSkip != innerTopSkip) {
 		auto delta = innerTopSkip - _innerTopSkip;

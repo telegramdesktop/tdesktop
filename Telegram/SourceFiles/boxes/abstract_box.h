@@ -152,6 +152,9 @@ protected:
 	void setDimensions(int newWidth, int maxHeight) {
 		getDelegate()->setDimensions(newWidth, maxHeight);
 	}
+	void setDimensionsToContent(
+		int newWidth,
+		not_null<Ui::RpWidget*> content);
 	void setInnerTopSkip(int topSkip, bool scrollBottomFixed = false);
 	void setInnerBottomSkip(int bottomSkip);
 

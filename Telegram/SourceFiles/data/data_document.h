@@ -331,3 +331,11 @@ QString FileNameForSave(
 	QString name,
 	bool savingAs,
 	const QDir &dir = QDir());
+
+namespace Data {
+
+QString FileExtension(const QString &filepath);
+bool IsValidMediaFile(const QString &filepath);
+bool IsExecutableName(const QString &filepath);
+
+} // namespace Data

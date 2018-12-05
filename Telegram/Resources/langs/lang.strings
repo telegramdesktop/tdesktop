@@ -1825,6 +1825,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_not_ready_about" = "Unfortunately, this custom language pack ({lang_name}) doesn't contain data for Telegram Desktop. You can contribute to this language pack using the {link}.";
 "lng_language_not_ready_link" = "translations platform";
 
+"lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
+"lng_launch_exe_sure" = "Run";
+"lng_launch_exe_dont_ask" = "Don't ask me again";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
@@ -803,3 +804,51 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 }
 
 ConfirmInviteBox::~ConfirmInviteBox() = default;
+
+ConfirmDontWarnBox::ConfirmDontWarnBox(
+	QWidget*,
+	const QString &text,
+	const QString &checkbox,
+	const QString &confirm,
+	FnMut<void(bool)> callback)
+: _confirm(confirm)
+, _content(setupContent(text, checkbox, std::move(callback))) {
+}
+
+void ConfirmDontWarnBox::prepare() {
+	setDimensionsToContent(st::boxWidth, _content);
+	addButton([=] { return _confirm; }, [=] { _callback(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+}
+
+not_null<Ui::RpWidget*> ConfirmDontWarnBox::setupContent(
+		const QString &text,
+		const QString &checkbox,
+		FnMut<void(bool)> callback) {
+	const auto result = Ui::CreateChild<Ui::VerticalLayout>(this);
+	result->add(
+		object_ptr<Ui::FlatLabel>(
+			result,
+			text,
+			Ui::FlatLabel::InitType::Rich,
+			st::boxLabel),
+		st::boxPadding);
+	const auto control = result->add(
+		object_ptr<Ui::Checkbox>(
+			result,
+			checkbox,
+			false,
+			st::defaultBoxCheckbox),
+		style::margins(
+			st::boxPadding.left(),
+			st::boxPadding.bottom(),
+			st::boxPadding.right(),
+			st::boxPadding.bottom()));
+	_callback = [=, callback = std::move(callback)]() mutable {
+		const auto checked = control->checked();
+		auto local = std::move(callback);
+		closeBox();
+		local(checked);
+	};
+	return result;
+}

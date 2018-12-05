@@ -232,3 +232,27 @@ private:
 	int _userWidth = 0;
 
 };
+
+class ConfirmDontWarnBox : public BoxContent {
+public:
+	ConfirmDontWarnBox(
+		QWidget*,
+		const QString &text,
+		const QString &checkbox,
+		const QString &confirm,
+		FnMut<void(bool)> callback);
+
+protected:
+	void prepare() override;
+
+private:
+	not_null<Ui::RpWidget*> setupContent(
+		const QString &text,
+		const QString &checkbox,
+		FnMut<void(bool)> callback);
+
+	QString _confirm;
+	FnMut<void()> _callback;
+	not_null<Ui::RpWidget*> _content;
+
+};

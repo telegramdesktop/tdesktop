@@ -1183,7 +1183,7 @@ bool Document::withThumb() const {
 		&& !_data->thumb->isNull()
 		&& _data->thumb->width()
 		&& _data->thumb->height()
-		&& !documentIsExecutableName(_data->filename());
+		&& !Data::IsExecutableName(_data->filename());
 }
 
 bool Document::updateStatusText() {

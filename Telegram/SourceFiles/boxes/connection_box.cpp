@@ -718,11 +718,7 @@ void ProxyBox::prepare() {
 	setTitle(langFactory(lng_proxy_edit));
 
 	refreshButtons();
-
-	_content->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, _content->lifetime());
+	setDimensionsToContent(st::boxWideWidth, _content);
 }
 
 void ProxyBox::refreshButtons() {
@@ -905,8 +901,6 @@ void ProxyBox::setupControls(const ProxyData &data) {
 	setupCredentials(data);
 	setupMtprotoCredentials(data);
 
-	_content->resizeToWidth(st::boxWideWidth);
-
 	const auto handleType = [=](Type type) {
 		_credentials->toggle(
 			type == Type::Http || type == Type::Socks5,
@@ -1032,15 +1026,7 @@ void AutoDownloadBox::setupContent() {
 	});
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	widthValue(
-	) | rpl::start_with_next([=](int width) {
-		content->resizeToWidth(width);
-	}, content->lifetime());
-
-	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, content->lifetime());
+	setDimensionsToContent(st::boxWideWidth, content);
 }
 
 ProxiesBoxController::ProxiesBoxController()
