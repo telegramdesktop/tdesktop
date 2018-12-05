@@ -45,6 +45,13 @@ ImagePtr Create(const GeoPointLocation &location);
 
 class Source {
 public:
+	Source() = default;
+	Source(const Source &other) = delete;
+	Source(Source &&other) = delete;
+	Source &operator=(const Source &other) = delete;
+	Source &operator=(Source &&other) = delete;
+	virtual ~Source() = default;
+
 	virtual void load(
 		Data::FileOrigin origin,
 		bool loadFirst,
@@ -82,8 +89,6 @@ public:
 	virtual void setInformation(int size, int width, int height) = 0;
 
 	virtual QByteArray bytesForCache() = 0;
-
-	virtual ~Source() = default;
 
 };
 

@@ -325,6 +325,8 @@ void RemoteSource::loadLocal() {
 void RemoteSource::setImageBytes(const QByteArray &bytes) {
 	if (bytes.isEmpty()) {
 		return;
+	} else if (loaderValid()) {
+		unload();
 	}
 	_loader = createLoader({}, LoadFromLocalOnly, true);
 	_loader->finishWithBytes(bytes);
