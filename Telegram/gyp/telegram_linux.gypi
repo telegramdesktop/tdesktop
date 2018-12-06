@@ -48,6 +48,7 @@
       'ibusplatforminputcontextplugin',
       'fcitxplatforminputcontextplugin',
       'himeplatforminputcontextplugin',
+      'nimfplatforminputcontextplugin',
       'liblzma.a',
       'libopenal.a',
       'libavformat.a',
