@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/local_storage_box.h"
 
-#include "styles/style_boxes.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
@@ -23,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "layout.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -323,7 +323,8 @@ void LocalStorageBox::clearByTag(uint8 tag) {
 
 void LocalStorageBox::setupControls() {
 	const auto container = setInnerWidget(
-		object_ptr<Ui::VerticalLayout>(this));
+		object_ptr<Ui::VerticalLayout>(this),
+		st::contactsMultiSelect.scroll);
 	const auto createRow = [&](
 			uint8 tag,
 			Fn<QString(size_type)> title,
