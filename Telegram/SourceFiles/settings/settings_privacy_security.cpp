@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/passcode_box.h"
-#include "boxes/autolock_box.h"
+#include "boxes/auto_lock_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/self_destruction_box.h"

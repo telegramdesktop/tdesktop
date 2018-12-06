@@ -472,6 +472,7 @@ void Advanced::setupContent() {
 		AddSkip(content);
 	}
 	SetupDataStorage(content);
+	SetupAutoDownload(content);
 	if (HasTray()) {
 		addDivider();
 		AddSkip(content);

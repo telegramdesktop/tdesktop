@@ -27,6 +27,9 @@ public:
 	float64 currentAnimationValue(TimeMs ms);
 	bool animating() const;
 
+	auto checkedChanges() const {
+		return _checks.events();
+	}
 	auto checkedValue() const {
 		return _checks.events_starting_with(checked());
 	}

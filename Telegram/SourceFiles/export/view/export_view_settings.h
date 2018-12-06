@@ -21,6 +21,9 @@ class ScrollArea;
 namespace Export {
 namespace View {
 
+constexpr auto kSizeValueCount = 80;
+int SizeLimitByIndex(int index);
+
 class SettingsWidget : public Ui::RpWidget {
 public:
 	SettingsWidget(QWidget *parent, Settings data);

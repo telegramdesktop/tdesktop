@@ -998,13 +998,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_audio" = "Voice message";
 
 "lng_media_auto_settings" = "Automatic media download";
+"lng_media_auto_in_private" = "In private chats";
+"lng_media_auto_in_groups" = "In groups";
+"lng_media_auto_in_channels" = "In channels";
 "lng_media_auto_title" = "Automatically download";
 "lng_media_photo_title" = "Photos";
+"lng_media_video_title" = "Video files";
 "lng_media_audio_title" = "Voice messages";
-"lng_media_gif_title" = "GIFs and animations";
-"lng_media_auto_private_chats" = "Private chats";
-"lng_media_auto_groups" = "Groups and channels";
-"lng_media_auto_play" = "Autoplay";
+"lng_media_video_messages_title" = "Round video messages";
+"lng_media_file_title" = "Files";
+"lng_media_music_title" = "Music";
+"lng_media_animation_title" = "Animated GIFs";
+"lng_media_size_limit" = "Limit by size";
+"lng_media_size_up_to" = "up to {size}";
 
 "lng_emoji_category1" = "People";
 "lng_emoji_category2" = "Nature";

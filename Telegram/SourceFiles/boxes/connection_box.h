@@ -22,18 +22,6 @@ template <typename Enum>
 class Radioenum;
 } // namespace Ui
 
-class AutoDownloadBox : public BoxContent {
-public:
-	AutoDownloadBox(QWidget *parent);
-
-protected:
-	void prepare() override;
-
-private:
-	void setupContent();
-
-};
-
 class ProxiesBoxController : public base::Subscriber {
 public:
 	using Type = ProxyData::Type;

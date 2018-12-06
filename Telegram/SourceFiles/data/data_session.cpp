@@ -247,19 +247,9 @@ void Session::photoLoadSettingsChanged() {
 	}
 }
 
-void Session::voiceLoadSettingsChanged() {
+void Session::documentLoadSettingsChanged() {
 	for (const auto &[id, document] : _documents) {
-		if (document->isVoiceMessage()) {
-			document->automaticLoadSettingsChanged();
-		}
-	}
-}
-
-void Session::animationLoadSettingsChanged() {
-	for (const auto &[id, document] : _documents) {
-		if (document->isAnimation()) {
-			document->automaticLoadSettingsChanged();
-		}
+		document->automaticLoadSettingsChanged();
 	}
 }
 

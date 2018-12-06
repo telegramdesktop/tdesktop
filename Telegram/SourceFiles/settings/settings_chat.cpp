@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "boxes/connection_box.h"
+#include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/background_box.h"
 #include "boxes/download_path_box.h"
@@ -616,16 +617,31 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 
 	}, ask->lifetime());
 
-	AddButton(
-		container,
-		lng_media_auto_settings,
-		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(Box<AutoDownloadBox>());
-	});
-
 	SetupLocalStorage(container);
 	SetupExport(container);
+
+	AddSkip(container, st::settingsCheckboxesSkip);
+}
+
+void SetupAutoDownload(not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+
+	AddSubsectionTitle(container, lng_media_auto_settings);
+
+	using Source = Data::AutoDownload::Source;
+	const auto add = [&](LangKey label, Source source) {
+		AddButton(
+			container,
+			label,
+			st::settingsButton
+		)->addClickHandler([=] {
+			Ui::show(Box<AutoDownloadBox>(source));
+		});
+	};
+	add(lng_media_auto_in_private, Source::User);
+	add(lng_media_auto_in_groups, Source::Group);
+	add(lng_media_auto_in_channels, Source::Channel);
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }

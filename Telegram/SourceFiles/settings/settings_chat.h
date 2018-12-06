@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 
 void SetupDataStorage(not_null<Ui::VerticalLayout*> container);
+void SetupAutoDownload(not_null<Ui::VerticalLayout*> container);
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container);
 void SetupSupport(not_null<Ui::VerticalLayout*> container);
 

@@ -7,37 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/connection_box.h"
 
-#include "data/data_photo.h"
-#include "data/data_document.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "base/qthelp_url.h"
-#include "mainwidget.h"
 #include "messenger.h"
-#include "mainwindow.h"
-#include "auth_session.h"
-#include "data/data_session.h"
-#include "mtproto/connection.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/dropdown_menu.h"
-#include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text_options.h"
-#include "history/history_location_manager.h"
-#include "settings/settings_common.h"
-#include "application.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -936,135 +923,6 @@ void ProxyBox::addLabel(
 
 } // namespace
 
-AutoDownloadBox::AutoDownloadBox(QWidget *parent) {
-}
-
-void AutoDownloadBox::prepare() {
-	setupContent();
-}
-
-void AutoDownloadBox::setupContent() {
-	using namespace Settings;
-	using namespace Data::AutoDownload;
-	using Type = Data::AutoDownload::Type;
-
-	constexpr auto kLegacyLimit = 10 * 1024 * 1024;
-
-	setTitle(langFactory(lng_media_auto_title));
-
-	const auto settings = &Auth().settings().autoDownload();
-	const auto checked = [=](Source source, Type type) {
-		return (settings->bytesLimit(source, type) > 0);
-	};
-
-	auto wrap = object_ptr<Ui::VerticalLayout>(this);
-	const auto content = wrap.data();
-	setInnerWidget(object_ptr<Ui::OverrideMargins>(
-		this,
-		std::move(wrap)));
-
-	using pair = std::pair<Ui::Checkbox*, Ui::Checkbox*>;
-	const auto pairChecked = [](pair checkboxes) {
-		return std::make_pair(
-			checkboxes.first->checked(),
-			checkboxes.second->checked());
-	};
-	const auto enabledSomething = [=](
-			Type type,
-			std::pair<bool, bool> pair) {
-		return (!checked(Source::User, type) && pair.first)
-			|| (!checked(Source::Group, type) && pair.second);
-	};
-	const auto changedSomething = [=](
-			Type type,
-			std::pair<bool, bool> pair) {
-		return (checked(Source::User, type) != pair.first)
-			|| (checked(Source::Group, type) != pair.second);
-	};
-	const auto save = [=](
-			Type type,
-			std::pair<bool, bool> pair) {
-		const auto limit = [](bool checked) {
-			return checked ? kMaxBytesLimit : 0;
-		};
-		settings->setBytesLimit(Source::User, type, limit(pair.first));
-		settings->setBytesLimit(Source::Group, type, limit(pair.second));
-		settings->setBytesLimit(Source::Channel, type, limit(pair.second));
-	};
-	const auto addCheckbox = [&](Type type, Source source) {
-		const auto label = (source == Source::User)
-			? lng_media_auto_private_chats
-			: lng_media_auto_groups;
-		return content->add(
-			object_ptr<Ui::Checkbox>(
-				content,
-				lang(label),
-				checked(source, type),
-				st::settingsSendType),
-			st::settingsSendTypePadding);
-	};
-	const auto addPair = [&](Type type) {
-		const auto first = addCheckbox(type, Source::User);
-		const auto second = addCheckbox(type, Source::Group);
-		return pair(first, second);
-	};
-
-	AddSubsectionTitle(content, lng_media_photo_title);
-	const auto photo = addPair(Type::Photo);
-	AddSkip(content);
-
-	AddSkip(content);
-	AddSubsectionTitle(content, lng_media_audio_title);
-	const auto audio = addPair(Type::VoiceMessage);
-	AddSkip(content);
-
-	AddSkip(content);
-	AddSubsectionTitle(content, lng_media_gif_title);
-	const auto gif = addPair(Type::GIF);
-	AddSkip(content);
-
-	addButton(langFactory(lng_connection_save), [=] {
-		const auto photoChecked = pairChecked(photo);
-		const auto audioChecked = pairChecked(audio);
-		const auto gifChecked = pairChecked(gif);
-		const auto photosEnabled = enabledSomething(
-			Type::Photo,
-			photoChecked);
-		const auto audioEnabled = enabledSomething(
-			Type::VoiceMessage,
-			audioChecked);
-		const auto gifEnabled = enabledSomething(
-			Type::GIF,
-			gifChecked);
-		const auto photosChanged = changedSomething(
-			Type::Photo,
-			photoChecked);
-		const auto documentsChanged = changedSomething(
-			Type::VoiceMessage,
-			audioChecked) || changedSomething(Type::GIF, gifChecked);
-		if (photosChanged || documentsChanged) {
-			save(Type::Photo, photoChecked);
-			save(Type::VoiceMessage, audioChecked);
-			save(Type::GIF, gifChecked);
-			save(Type::VideoMessage, gifChecked);
-			Local::writeUserSettings();
-		}
-		if (photosEnabled) {
-			Auth().data().photoLoadSettingsChanged();
-		}
-		if (audioEnabled) {
-			Auth().data().voiceLoadSettingsChanged();
-		}
-		if (gifEnabled) {
-			Auth().data().animationLoadSettingsChanged();
-		}
-		closeBox();
-	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
-
-	setDimensionsToContent(st::boxWideWidth, content);
-}
-
 ProxiesBoxController::ProxiesBoxController()
 : _saveTimer([] { Local::writeSettings(); }) {
 	_list = ranges::view::all(
@@ -1524,7 +1382,7 @@ void ProxiesBoxController::share(const ProxyData &proxy) {
 			? "&pass=" + qthelp::url_encode(proxy.password) : "")
 		+ ((proxy.type == Type::Mtproto && !proxy.password.isEmpty())
 			? "&secret=" + proxy.password : "");
-	Application::clipboard()->setText(link);
+	QApplication::clipboard()->setText(link);
 	Ui::Toast::Show(lang(lng_username_copied));
 }
 

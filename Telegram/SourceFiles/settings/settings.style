@@ -187,3 +187,7 @@ settingsThemeBubblePosition: point(6px, 8px);
 settingsThemeBubbleSkip: 4px;
 settingsThemeRadioBottom: 8px;
 settingsThemeMinSkip: 4px;
+
+autoDownloadLimitButton: InfoProfileButton(settingsButton) {
+	padding: margins(22px, 10px, 22px, 0px);
+}

@@ -27,8 +27,9 @@ public:
 		const style::InfoProfileButton &st);
 
 	Button *toggleOn(rpl::producer<bool> &&toggled);
-	rpl::producer<bool> toggledValue() const;
 	bool toggled() const;
+	rpl::producer<bool> toggledChanges() const;
+	rpl::producer<bool> toggledValue() const;
 
 	void setColorOverride(std::optional<QColor> textColorOverride);
 

@@ -238,8 +238,7 @@ public:
 		const Dialogs::Key &key2);
 
 	void photoLoadSettingsChanged();
-	void voiceLoadSettingsChanged();
-	void animationLoadSettingsChanged();
+	void documentLoadSettingsChanged();
 
 	void notifyPhotoLayoutChanged(not_null<const PhotoData*> photo);
 	void notifyDocumentLayoutChanged(

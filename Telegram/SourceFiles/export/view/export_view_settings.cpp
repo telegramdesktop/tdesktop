@@ -31,32 +31,7 @@ namespace Export {
 namespace View {
 namespace {
 
-constexpr auto kSizeValueCount = 80;
 constexpr auto kMegabyte = 1024 * 1024;
-
-int SizeLimitByIndex(int index) {
-	Expects(index >= 0 && index <= kSizeValueCount);
-
-	const auto megabytes = [&] {
-		if (index <= 10) {
-			return index;
-		} else if (index <= 30) {
-			return 10 + (index - 10) * 2;
-		} else if (index <= 40) {
-			return 50 + (index - 30) * 5;
-		} else if (index <= 60) {
-			return 100 + (index - 40) * 10;
-		} else if (index <= 70) {
-			return 300 + (index - 60) * 20;
-		} else {
-			return 500 + (index - 70) * 100;
-		}
-	};
-	if (!index) {
-		return kMegabyte / 2;
-	}
-	return megabytes() * kMegabyte;
-}
 
 PeerId ReadPeerId(const MTPInputPeer &data) {
 	return data.match([](const MTPDinputPeerUser &data) {
@@ -73,6 +48,33 @@ PeerId ReadPeerId(const MTPInputPeer &data) {
 }
 
 } // namespace
+
+int SizeLimitByIndex(int index) {
+	Expects(index >= 0 && index < kSizeValueCount);
+
+	index += 1;
+	const auto megabytes = [&] {
+		if (index <= 10) {
+			return index;
+		}
+		else if (index <= 30) {
+			return 10 + (index - 10) * 2;
+		}
+		else if (index <= 40) {
+			return 50 + (index - 30) * 5;
+		}
+		else if (index <= 60) {
+			return 100 + (index - 40) * 10;
+		}
+		else if (index <= 70) {
+			return 300 + (index - 60) * 20;
+		}
+		else {
+			return 500 + (index - 70) * 100;
+		}
+	}();
+	return megabytes * kMegabyte;
+}
 
 SettingsWidget::SettingsWidget(QWidget *parent, Settings data)
 : RpWidget(parent)
@@ -583,7 +585,7 @@ void SettingsWidget::addSizeSlider(
 		st::exportFileSizePadding);
 	slider->resize(st::exportFileSizeSlider.seekSize);
 	slider->setPseudoDiscrete(
-		kSizeValueCount + 1,
+		kSizeValueCount,
 		SizeLimitByIndex,
 		readData().media.sizeLimit,
 		[=](int limit) {
@@ -599,10 +601,7 @@ void SettingsWidget::addSizeSlider(
 		return data.media.sizeLimit;
 	}) | rpl::start_with_next([=](int sizeLimit) {
 		const auto limit = sizeLimit / kMegabyte;
-		const auto size = ((limit > 0)
-			? QString::number(limit)
-			: QString::number(float64(sizeLimit) / kMegabyte))
-			+ " MB";
+		const auto size = QString::number(limit) + " MB";
 		const auto text = lng_export_option_size_limit(lt_size, size);
 		label->setText(text);
 	}, slider->lifetime());
