@@ -125,6 +125,7 @@ Go to ***BuildPath*** and run
     cd qtbase/src/plugins/platforminputcontexts
     git clone https://github.com/telegramdesktop/fcitx.git
     git clone https://github.com/telegramdesktop/hime.git
+    git clone https://github.com/telegramdesktop/nimf.git
     cd ../../../..
 
     ./configure -prefix "/usr/local/tdesktop/Qt-5.6.2" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -openssl-linked -nomake examples -nomake tests
