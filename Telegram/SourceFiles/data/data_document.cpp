@@ -66,9 +66,18 @@ QString JoinStringList(const QStringList &list, const QString &separator) {
 	return result;
 }
 
-void LaunchWithWarning(const QString &name) {
-	if (!Data::IsExecutableName(name)
-		|| !Auth().settings().exeLaunchWarning()) {
+void LaunchWithWarning(const QString &name, HistoryItem *item) {
+	const auto warn = [&] {
+		if (!Data::IsExecutableName(name)) {
+			return false;
+		} else if (!Auth().settings().exeLaunchWarning()) {
+			return false;
+		} else if (item && item->history()->peer->isVerified()) {
+			return false;
+		}
+		return true;
+	}();
+	if (!warn) {
 		File::Launch(name);
 		return;
 	}
@@ -359,14 +368,14 @@ void DocumentOpenClickHandler::Open(
 						Messenger::Instance().showDocument(data, context);
 					}
 				} else {
-					LaunchWithWarning(location.name());
+					LaunchWithWarning(location.name(), context);
 				}
 				location.accessDisable();
 			} else {
-				LaunchWithWarning(location.name());
+				LaunchWithWarning(location.name(), context);
 			}
 		} else {
-			LaunchWithWarning(location.name());
+			LaunchWithWarning(location.name(), context);
 		}
 		return;
 	}
@@ -735,11 +744,11 @@ void DocumentData::performActionOnLoad() {
 				if (showImage && QImageReader(loc.name()).canRead()) {
 					Messenger::Instance().showDocument(this, item);
 				} else {
-					LaunchWithWarning(already);
+					LaunchWithWarning(already, item);
 				}
 				loc.accessDisable();
 			} else {
-				LaunchWithWarning(already);
+				LaunchWithWarning(already, item);
 			}
 		}
 	}
