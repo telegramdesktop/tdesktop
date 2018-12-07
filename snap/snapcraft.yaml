@@ -72,7 +72,7 @@ parts:
       - libicu-dev
       - liblzma-dev
       - libssl-dev
-      - libunity-dev
+      - libdee-dev
       - zlib1g-dev
     gyp-file: Telegram/gyp/Telegram.gyp
     build-type: 'Release'
@@ -133,7 +133,6 @@ parts:
       - libappindicator3-1
       - libnotify4
       - libpulse0
-      - libunity9
     after: [desktop-gtk3]
     stage:
       - -./usr/share/fonts/**

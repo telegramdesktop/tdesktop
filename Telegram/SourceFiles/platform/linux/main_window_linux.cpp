@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include <QtDBus>
 
 namespace Platform {
 namespace {
@@ -36,6 +37,8 @@ int32 _trayIconSize = 22;
 bool _trayIconMuted = true;
 int32 _trayIconCount = 0;
 QImage _trayIconImageBack, _trayIconImage;
+QString _desktopFile;
+QString _dbusPath = "/";
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 void _trayIconPopup(GtkStatusIcon *status_icon, guint button, guint32 activate_time, gpointer popup_menu) {
@@ -177,10 +180,16 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
 	return FALSE;
 }
 
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-UnityLauncherEntry *_psUnityLauncherEntry = nullptr;
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+
+quint32 djbStringHash(QString string) {
+        quint32 hash = 5381;
+        QByteArray chars = string.toLatin1();
+        for(int i = 0; i < chars.length(); i++){
+                hash = (hash << 5) + hash + chars[i];
+        }
+        return hash;
+}
 
 } // namespace
 
@@ -336,16 +345,20 @@ void MainWindow::updateIconCounters() {
 
 	const auto counter = Core::App().unreadBadge();
 
-#if !defined(TDESKTOP_DISABLE_GTK_INTEGRATION) && !defined(TDESKTOP_DISABLE_UNITY_INTEGRATION)
-	if (_psUnityLauncherEntry) {
+	if (useUnityCount) {
+		QVariantMap dbusUnityProperties;
 		if (counter > 0) {
-			Libs::unity_launcher_entry_set_count(_psUnityLauncherEntry, (counter > 9999) ? 9999 : counter);
-			Libs::unity_launcher_entry_set_count_visible(_psUnityLauncherEntry, TRUE);
+			// Gnome requires that count is a 64bit integer
+			dbusUnityProperties.insert("count", (qint64) ((counter > 9999) ? 9999 : (counter)));
+			dbusUnityProperties.insert("count-visible", true);
 		} else {
-			Libs::unity_launcher_entry_set_count_visible(_psUnityLauncherEntry, FALSE);
+			dbusUnityProperties.insert("count-visible", false);
 		}
+		QDBusMessage signal = QDBusMessage::createSignal(_dbusPath, "com.canonical.Unity.LauncherEntry", "Update");
+		signal << "application://" + _desktopFile;
+		signal << dbusUnityProperties;
+		QDBusConnection::sessionBus().send(signal);
 	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION && !TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 	if (noQtTrayIcon) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -441,15 +454,6 @@ void MainWindow::LibsLoaded() {
 	if (useStatusIcon) {
 		DEBUG_LOG(("Status icon api loaded!"));
 	}
-
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-	useUnityCount = (Libs::unity_launcher_entry_get_for_desktop_id != nullptr)
-			&& (Libs::unity_launcher_entry_set_count != nullptr)
-			&& (Libs::unity_launcher_entry_set_count_visible != nullptr);
-	if (useUnityCount) {
-		DEBUG_LOG(("Unity count api loaded!"));
-	}
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
@@ -544,23 +548,29 @@ void MainWindow::psCreateTrayIcon() {
 void MainWindow::psFirstShow() {
 	psCreateTrayIcon();
 
-#if !defined(TDESKTOP_DISABLE_GTK_INTEGRATION) && !defined(TDESKTOP_DISABLE_UNITY_INTEGRATION)
-	if (useUnityCount) {
-		_psUnityLauncherEntry = Libs::unity_launcher_entry_get_for_desktop_id("telegramdesktop.desktop");
-		if (_psUnityLauncherEntry) {
-			LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
-		} else {
-			_psUnityLauncherEntry = Libs::unity_launcher_entry_get_for_desktop_id("Telegram.desktop");
-			if (_psUnityLauncherEntry) {
-				LOG(("Found Unity Launcher entry Telegram.desktop!"));
+	if (QDBusInterface("com.canonical.Unity", "/").isValid()) {
+		auto snapName = QString::fromLatin1(qgetenv("SNAP_NAME"));
+		if(snapName.isEmpty()) {
+			if(!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, "telegramdesktop.desktop").isEmpty()) {
+				_desktopFile = "telegramdesktop.desktop";
+				LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
+				useUnityCount=true;
+			} else if(!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, "Telegram.desktop").isEmpty()) {
+				_desktopFile = "telegramdesktop.desktop";
+				LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
+				useUnityCount=true;
 			} else {
 				LOG(("Could not get Unity Launcher entry!"));
 			}
+		} else {
+			LOG(("SNAP Enviroment detected, setting Launcher entry to %1-telegramdesktop.desktop!").arg(snapName));
+			_desktopFile = snapName + "_telegramdesktop.desktop";
+			useUnityCount=true;
 		}
+		_dbusPath = "/com/canonical/unity/launcherentry/" + QString::number(djbStringHash("application://" + _desktopFile));
 	} else {
 		LOG(("Not using Unity Launcher count."));
 	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION && !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	psUpdateMargins();
 
@@ -613,12 +623,6 @@ MainWindow::~MainWindow() {
 		Libs::g_object_unref(_trayIndicator);
 		_trayIndicator = nullptr;
 	}
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-	if (_psUnityLauncherEntry) {
-		Libs::g_object_unref(_psUnityLauncherEntry);
-		_psUnityLauncherEntry = nullptr;
-	}
-#endif // ! TDESKTOP_DISABLE_UNITY_INTEGRATION
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 

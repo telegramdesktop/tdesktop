@@ -220,11 +220,6 @@ f_g_list_free g_list_free = nullptr;
 f_g_list_free_full g_list_free_full = nullptr;
 f_g_error_free g_error_free = nullptr;
 f_g_slist_free g_slist_free = nullptr;
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-f_unity_launcher_entry_set_count unity_launcher_entry_set_count = nullptr;
-f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_visible = nullptr;
-f_unity_launcher_entry_get_for_desktop_id unity_launcher_entry_get_for_desktop_id = nullptr;
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 void start() {
@@ -287,17 +282,6 @@ void start() {
 	} else {
 		LOG(("Could not load gtk-x11-2.0!"));
 	}
-
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-	if (DesktopEnvironment::TryUnityCounter()) {
-		QLibrary lib_unity(qstr("unity"), 9, 0);
-		loadLibrary(lib_unity, "unity", 9);
-
-		load(lib_unity, "unity_launcher_entry_get_for_desktop_id", unity_launcher_entry_get_for_desktop_id);
-		load(lib_unity, "unity_launcher_entry_set_count", unity_launcher_entry_set_count);
-		load(lib_unity, "unity_launcher_entry_set_count_visible", unity_launcher_entry_set_count_visible);
-	}
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 	if (gtkLoaded) {
 		startLibNotify();
