@@ -392,8 +392,7 @@ void Rows::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 bool Rows::canShare(not_null<const Row*> row) const {
-	// #TODO langs
-	return false && !_areOfficial && !row->data.id.startsWith('#');
+	return !_areOfficial && !row->data.id.startsWith('#');
 }
 
 bool Rows::canRemove(not_null<const Row*> row) const {
