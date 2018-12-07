@@ -116,10 +116,6 @@ build() {
     GYP_DEFINES+=",TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION"
   fi
 
-  if [[ $BUILD_VERSION == *"disable_unity_integration"* ]]; then
-    GYP_DEFINES+=",TDESKTOP_DISABLE_UNITY_INTEGRATION"
-  fi
-
   if [[ $BUILD_VERSION == *"disable_gtk_integration"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_GTK_INTEGRATION"
   fi
