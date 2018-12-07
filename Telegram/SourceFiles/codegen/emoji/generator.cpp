@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
 #include <QtGui/QPainter>
-#include <QtCore/QStandardPaths>
 #include <QtCore/QDir>
 
 #ifdef SUPPORT_IMAGE_GENERATION
@@ -219,17 +218,6 @@ QImage Generator::generateImage(int imageIndex) {
 	auto imagesCount = (fullRowsCount / kEmojiRowsInFile) + ((fullRowsCount % kEmojiRowsInFile) ? 1 : 0);
 
 	auto sourceSize = kScaleFromLarge ? kLargeEmojiSize : kEmojiSize;
-
-	const auto fontPath = QStandardPaths::writableLocation(
-		QStandardPaths::DownloadLocation)
-		+ "/NotoColorEmoji.ttf";
-	const auto regularId = QFontDatabase::addApplicationFont(fontPath);
-	if (regularId < 0) {
-		return QImage();
-	}
-	for (const auto &family : QFontDatabase::applicationFontFamilies(regularId)) {
-		std::cout << family.toStdString() << std::endl;
-	};
 
 	auto font = QGuiApplication::font();
 	font.setFamily(QStringLiteral("Apple Color Emoji"));
