@@ -29,6 +29,13 @@ constexpr auto kSetVersion = uint32(1);
 constexpr auto kCacheVersion = uint32(3);
 constexpr auto kMaxId = uint32(1 << 8);
 
+const auto kSets = {
+	Set{ 0, 0, "Mac" },
+	Set{ 1, 205, "Android" },
+	Set{ 2, 206, "Twemoji" },
+	Set{ 3, 237, "EmojiOne" },
+};
+
 // Right now we can't allow users of Ui::Emoji to create custom sizes.
 // Any Instance::Instance() can invalidate Universal.id() and sprites.
 // So all Instance::Instance() should happen before async generations.
@@ -76,12 +83,13 @@ auto SizeNormal = -1;
 auto SizeLarge = -1;
 auto SpritesCount = -1;
 
-std::unique_ptr<Instance> InstanceNormal;
-std::unique_ptr<Instance> InstanceLarge;
-std::shared_ptr<UniversalImages> Universal;
+auto InstanceNormal = std::unique_ptr<Instance>();
+auto InstanceLarge = std::unique_ptr<Instance>();
+auto Universal = std::shared_ptr<UniversalImages>();
+auto Updates = rpl::event_stream<>();
 
-std::map<int, QPixmap> MainEmojiMap;
-std::map<int, std::map<int, QPixmap>> OtherEmojiMap;
+auto MainEmojiMap = std::map<int, QPixmap>();
+auto OtherEmojiMap = std::map<int, std::map<int, QPixmap>>();
 
 int RowsCount(int index) {
 	if (index + 1 < SpritesCount) {
@@ -158,9 +166,8 @@ void ClearCurrentSetId() {
 	if (!id) {
 		return;
 	}
-	QFile(CurrentSettingPath()).remove();
 	QDir(SetDataPath(id)).removeRecursively();
-	Universal = std::make_shared<UniversalImages>(0);
+	SwitchToSet(0);
 }
 
 void SaveToFile(int id, const QImage &image, int size, int index) {
@@ -510,6 +517,45 @@ void ClearIrrelevantCache() {
 	});
 }
 
+std::vector<Set> Sets() {
+	return kSets;
+}
+
+int CurrentSetId() {
+	Expects(Universal != nullptr);
+
+	return Universal->id();
+}
+
+bool SwitchToSet(int id) {
+	Expects(IsValidSetId(id));
+
+	if (Universal && Universal->id() == id) {
+		return true;
+	}
+	auto universal = std::make_shared<UniversalImages>(id);
+	if (!universal->ensureLoaded()) {
+		return false;
+	}
+	auto setting = QFile(CurrentSettingPath());
+	if (!id) {
+		setting.remove();
+	} else if (setting.open(QIODevice::WriteOnly)) {
+		auto stream = QDataStream(&setting);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(id);
+	}
+	Universal = std::move(universal);
+	MainEmojiMap.clear();
+	OtherEmojiMap.clear();
+	Updates.fire({});
+	return true;
+}
+
+rpl::producer<> Updated() {
+	return Updates.events();
+}
+
 int GetSizeNormal() {
 	Expects(SizeNormal > 0);
 
@@ -833,7 +879,6 @@ void Instance::checkUniversalImages() {
 	}
 	if (!Universal->ensureLoaded() && Universal->id() != 0) {
 		ClearCurrentSetId();
-		Universal->ensureLoaded();
 	}
 }
 

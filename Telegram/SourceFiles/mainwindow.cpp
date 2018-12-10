@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/emoji_config.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
@@ -91,6 +92,11 @@ MainWindow::MainWindow() {
 	Messenger::Instance().lockChanges(
 	) | rpl::start_with_next([=] {
 		updateGlobalMenu();
+	}, lifetime());
+
+	Ui::Emoji::Updated(
+	) | rpl::start_with_next([=] {
+		Ui::ForceFullRepaint(this);
 	}, lifetime());
 
 	setAttribute(Qt::WA_NoSystemBackground);

@@ -45,6 +45,49 @@ const auto kClearFormatSequence = QKeySequence("ctrl+shift+n");
 const auto kMonospaceSequence = QKeySequence("ctrl+shift+m");
 const auto kEditLinkSequence = QKeySequence("ctrl+k");
 
+class InputDocument : public QTextDocument {
+public:
+	InputDocument(QObject *parent, const style::InputField &st);
+
+protected:
+	QVariant loadResource(int type, const QUrl &name) override;
+
+private:
+	const style::InputField &_st;
+	std::map<QUrl, QVariant> _emojiCache;
+	rpl::lifetime _lifetime;
+
+};
+
+InputDocument::InputDocument(QObject *parent, const style::InputField &st)
+: QTextDocument(parent)
+, _st(st) {
+	Ui::Emoji::Updated(
+	) | rpl::start_with_next([=] {
+		_emojiCache.clear();
+	}, _lifetime);
+}
+
+QVariant InputDocument::loadResource(int type, const QUrl &name) {
+	if (type != QTextDocument::ImageResource
+		|| name.scheme() != qstr("emoji")) {
+		return QTextDocument::loadResource(type, name);
+	}
+	const auto i = _emojiCache.find(name);
+	if (i != _emojiCache.end()) {
+		return i->second;
+	}
+	auto result = [&] {
+		if (const auto emoji = Ui::Emoji::FromUrl(name.toDisplayString())) {
+			const auto height = _st.font->height;
+			return QVariant(Ui::Emoji::SinglePixmap(emoji, height));
+		}
+		return QVariant();
+	}();
+	_emojiCache.emplace(name, result);
+	return result;
+}
+
 bool IsNewline(QChar ch) {
 	return (kNewlineChars.indexOf(ch) >= 0);
 }
@@ -727,10 +770,6 @@ public:
 	Inner(not_null<InputField*> parent) : QTextEdit(parent) {
 	}
 
-	QVariant loadResource(int type, const QUrl &name) override {
-		return outer()->loadResource(type, name);
-	}
-
 protected:
 	bool viewportEvent(QEvent *e) override {
 		return outer()->viewportEventInner(e);
@@ -1141,6 +1180,8 @@ InputField::InputField(
 , _inner(std::make_unique<Inner>(this))
 , _lastTextWithTags(value)
 , _placeholderFactory(std::move(placeholderFactory)) {
+	_inner->setDocument(Ui::CreateChild<InputDocument>(_inner.get(), _st));
+
 	_inner->setAcceptRichText(false);
 	resize(_st.width, _minHeight);
 
@@ -1231,14 +1272,6 @@ bool InputField::viewportEventInner(QEvent *e) {
 		}
 	}
 	return _inner->QTextEdit::viewportEvent(e);
-}
-
-QVariant InputField::loadResource(int type, const QUrl &name) {
-	const auto imageName = name.toDisplayString();
-	if (const auto emoji = Ui::Emoji::FromUrl(imageName)) {
-		return QVariant(Ui::Emoji::SinglePixmap(emoji, _st.font->height));
-	}
-	return _inner->QTextEdit::loadResource(type, name);
 }
 
 void InputField::updatePalette() {

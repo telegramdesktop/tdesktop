@@ -20,6 +20,17 @@ void Clear();
 
 void ClearIrrelevantCache();
 
+struct Set {
+	int id = 0;
+	int postId = 0;
+	QString name;
+};
+
+std::vector<Set> Sets();
+int CurrentSetId();
+bool SwitchToSet(int id);
+rpl::producer<> Updated();
+
 int GetSizeNormal();
 int GetSizeLarge();
 

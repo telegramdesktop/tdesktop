@@ -341,7 +341,6 @@ private:
 
 	void handleContentsChanged();
 	bool viewportEventInner(QEvent *e);
-	QVariant loadResource(int type, const QUrl &name);
 	void handleTouchEvent(QTouchEvent *e);
 
 	void updatePalette();
