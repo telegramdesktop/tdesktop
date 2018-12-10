@@ -138,23 +138,5 @@ void AddRecent(EmojiPtr emoji);
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight);
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y);
 
-class Instance {
-public:
-	explicit Instance(int size);
-
-	bool cached() const;
-	void draw(QPainter &p, EmojiPtr emoji, int x, int y);
-
-private:
-	void readCache();
-	void generateCache();
-	void pushSprite(QImage &&data);
-
-	int _size = 0;
-	std::vector<QPixmap> _sprites;
-	base::binary_guard _generating;
-
-};
-
 } // namespace Emoji
 } // namespace Ui

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
+#include "base/parse_helper.h"
 #include "auth_session.h"
 
 namespace Ui {
@@ -24,18 +25,49 @@ constexpr auto kUniversalSize = 72;
 constexpr auto kImagesPerRow = 32;
 constexpr auto kImageRowsPerSprite = 16;
 
-constexpr auto kVersion = 3;
+constexpr auto kSetVersion = uint32(1);
+constexpr auto kCacheVersion = uint32(3);
+constexpr auto kMaxId = uint32(1 << 8);
+
+// Right now we can't allow users of Ui::Emoji to create custom sizes.
+// Any Instance::Instance() can invalidate Universal.id() and sprites.
+// So all Instance::Instance() should happen before async generations.
+class Instance {
+public:
+	explicit Instance(int size);
+
+	bool cached() const;
+	void draw(QPainter &p, EmojiPtr emoji, int x, int y);
+
+private:
+	void readCache();
+	void generateCache();
+	void checkUniversalImages();
+	void pushSprite(QImage &&data);
+
+	int _id = 0;
+	int _size = 0;
+	std::vector<QPixmap> _sprites;
+	base::binary_guard _generating;
+
+};
 
 class UniversalImages {
 public:
-	void ensureLoaded();
+	explicit UniversalImages(int id);
+
+	int id() const;
+	bool ensureLoaded();
 	void clear();
 
 	void draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) const;
 
+	// This method must be thread safe and so it is called after
+	// the _id value is fixed and all _sprites are loaded.
 	QImage generate(int size, int index) const;
 
 private:
+	int _id = 0;
 	std::vector<QImage> _sprites;
 
 };
@@ -46,7 +78,7 @@ auto SpritesCount = -1;
 
 std::unique_ptr<Instance> InstanceNormal;
 std::unique_ptr<Instance> InstanceLarge;
-UniversalImages Universal;
+std::shared_ptr<UniversalImages> Universal;
 
 std::map<int, QPixmap> MainEmojiMap;
 std::map<int, std::map<int, QPixmap>> OtherEmojiMap;
@@ -76,7 +108,62 @@ QString CacheFilePath(int size, int index) {
 		+ QString::number(index);
 }
 
-void SaveToFile(const QImage &image, int size, int index) {
+QString CurrentSettingPath() {
+	return CacheFileFolder() + "/current";
+}
+
+bool IsValidSetId(int id) {
+	return (id == 0) || (id > 0 && id < kMaxId);
+}
+
+[[nodiscard]] QString SetDataPath(int id) {
+	Expects(IsValidSetId(id) && id != 0);
+
+	return CacheFileFolder() + "/set" + QString::number(id);
+}
+
+uint32 ComputeVersion(int id) {
+	Expects(IsValidSetId(id));
+
+	static_assert(kCacheVersion > 0 && kCacheVersion < (1 << 16));
+	static_assert(kSetVersion > 0 && kSetVersion < (1 << 8));
+
+	auto result = uint32(kCacheVersion);
+	if (!id) {
+		return result;
+	}
+	result |= (uint32(id) << 24) | (uint32(kSetVersion) << 16);
+	return result;
+}
+
+int ReadCurrentSetId() {
+	const auto path = CurrentSettingPath();
+	auto file = QFile(path);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return 0;
+	}
+	auto stream = QDataStream(&file);
+	stream.setVersion(QDataStream::Qt_5_1);
+	auto id = qint32(0);
+	stream >> id;
+	return (stream.status() == QDataStream::Ok && IsValidSetId(id))
+		? id
+		: 0;
+}
+
+void ClearCurrentSetId() {
+	Expects(Universal != nullptr);
+
+	const auto id = Universal->id();
+	if (!id) {
+		return;
+	}
+	QFile(CurrentSettingPath()).remove();
+	QDir(SetDataPath(id)).removeRecursively();
+	Universal = std::make_shared<UniversalImages>(0);
+}
+
+void SaveToFile(int id, const QImage &image, int size, int index) {
 	Expects(image.bytesPerLine() == image.width() * 4);
 
 	QFile f(CacheFilePath(size, index));
@@ -97,7 +184,7 @@ void SaveToFile(const QImage &image, int size, int index) {
 		) == data.size();
 	};
 	const uint32 header[] = {
-		uint32(kVersion),
+		uint32(ComputeVersion(id)),
 		uint32(size),
 		uint32(image.width()),
 		uint32(image.height()),
@@ -115,7 +202,7 @@ void SaveToFile(const QImage &image, int size, int index) {
 	}
 }
 
-QImage LoadFromFile(int size, int index) {
+QImage LoadFromFile(int id, int size, int index) {
 	const auto rows = RowsCount(index);
 	const auto width = kImagesPerRow * size;
 	const auto height = rows * size;
@@ -136,7 +223,7 @@ QImage LoadFromFile(int size, int index) {
 	};
 	uint32 header[4] = { 0 };
 	if (!read(bytes::make_span(header))
-		|| header[0] != kVersion
+		|| header[0] != ComputeVersion(id)
 		|| header[1] != size
 		|| header[2] != width
 		|| header[3] != height) {
@@ -175,19 +262,93 @@ QImage LoadFromFile(int size, int index) {
 	return result;
 }
 
-void UniversalImages::ensureLoaded() {
+std::vector<QImage> LoadSprites(int id) {
+	Expects(IsValidSetId(id));
+	Expects(SpritesCount > 0);
+
+	auto result = std::vector<QImage>();
+	const auto folder = (id != 0)
+		? SetDataPath(id) + '/'
+		: qsl(":/gui/emoji/");
+	const auto base = folder + "emoji_";
+	return ranges::view::ints(
+		0,
+		SpritesCount
+	) | ranges::view::transform([&](int index) {
+		return base + QString::number(index + 1) + ".webp";
+	}) | ranges::view::transform([](const QString &path) {
+		return QImage(path, "WEBP");
+	}) | ranges::to_vector;
+}
+
+bool ValidateConfig(int id) {
+	Expects(IsValidSetId(id));
+
+	if (!id) {
+		return true;
+	}
+	constexpr auto kSizeLimit = 65536;
+	auto config = QFile(SetDataPath(id) + "/config.json");
+	if (!config.open(QIODevice::ReadOnly) || config.size() > kSizeLimit) {
+		return false;
+	}
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(
+		base::parse::stripComments(config.readAll()),
+		&error);
+	config.close();
+	if (error.error != QJsonParseError::NoError) {
+		return false;
+	}
+	if (document.object()["id"].toInt() != id
+		|| document.object()["version"].toInt() != kSetVersion) {
+		return false;
+	}
+	return true;
+}
+
+std::vector<QImage> LoadAndValidateSprites(int id) {
+	Expects(IsValidSetId(id));
+	Expects(SpritesCount > 0);
+
+	if (!ValidateConfig(id)) {
+		return {};
+	}
+	auto result = LoadSprites(id);
+	const auto sizes = ranges::view::ints(
+		0,
+		SpritesCount
+	) | ranges::view::transform([](int index) {
+		return QSize(
+			kImagesPerRow * kUniversalSize,
+			RowsCount(index) * kUniversalSize);
+	});
+	const auto good = ranges::view::zip_with(
+		[](const QImage &data, QSize size) { return data.size() == size; },
+		result,
+		sizes);
+	if (ranges::find(good, false) != end(good)) {
+		return {};
+	}
+	return result;
+}
+
+UniversalImages::UniversalImages(int id) : _id(id) {
+	Expects(IsValidSetId(id));
+}
+
+int UniversalImages::id() const {
+	return _id;
+}
+
+bool UniversalImages::ensureLoaded() {
 	Expects(SpritesCount > 0);
 
 	if (!_sprites.empty()) {
-		return;
+		return true;
 	}
-	_sprites.reserve(SpritesCount);
-	const auto base = qsl(":/gui/emoji/emoji_");
-	for (auto i = 0; i != SpritesCount; ++i) {
-		auto image = QImage();
-		image.load(base + QString::number(i + 1) + ".webp", "WEBP");
-		_sprites.push_back(std::move(image));
-	}
+	_sprites = LoadAndValidateSprites(_id);
+	return !_sprites.empty();
 }
 
 void UniversalImages::clear() {
@@ -250,7 +411,7 @@ QImage UniversalImages::generate(int size, int index) const {
 			}
 		}
 	}
-	SaveToFile(result, size, index);
+	SaveToFile(_id, result, size, index);
 	return result;
 }
 
@@ -298,8 +459,8 @@ EmojiPtr FindReplacement(const QChar *start, const QChar *end, int *outLength) {
 void ClearUniversalChecked() {
 	Expects(InstanceNormal != nullptr && InstanceLarge != nullptr);
 
-	if (InstanceNormal->cached() && InstanceLarge->cached()) {
-		Universal.clear();
+	if (InstanceNormal->cached() && InstanceLarge->cached() && Universal) {
+		Universal->clear();
 	}
 }
 
@@ -308,11 +469,13 @@ void ClearUniversalChecked() {
 void Init() {
 	internal::Init();
 
-	SizeNormal = ConvertScale(18, cScale() * cIntRetinaFactor());
-	SizeLarge = int(ConvertScale(18 * 4 / 3., cScale() * cIntRetinaFactor()));
 	const auto count = internal::FullCount();
 	const auto persprite = kImagesPerRow * kImageRowsPerSprite;
 	SpritesCount = (count / persprite) + ((count % persprite) ? 1 : 0);
+
+	SizeNormal = ConvertScale(18, cScale() * cIntRetinaFactor());
+	SizeLarge = int(ConvertScale(18 * 4 / 3., cScale() * cIntRetinaFactor()));
+	Universal = std::make_shared<UniversalImages>(ReadCurrentSetId());
 
 	InstanceNormal = std::make_unique<Instance>(SizeNormal);
 	InstanceLarge = std::make_unique<Instance>(SizeLarge);
@@ -335,9 +498,13 @@ void ClearIrrelevantCache() {
 		const auto list = QDir(folder).entryList(QDir::Files);
 		const auto good1 = CacheFileNameMask(SizeNormal);
 		const auto good2 = CacheFileNameMask(SizeLarge);
+		const auto good3full = CurrentSettingPath();
 		for (const auto &name : list) {
 			if (!name.startsWith(good1) && !name.startsWith(good2)) {
-				QFile(folder + '/' + name).remove();
+				const auto full = folder + '/' + name;
+				if (full != good3full) {
+					QFile(full).remove();
+				}
 			}
 		}
 	});
@@ -615,22 +782,29 @@ void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) {
 	}
 }
 
-Instance::Instance(int size) : _size(size) {
+Instance::Instance(int size) : _id(Universal->id()), _size(size) {
+	Expects(Universal != nullptr);
+
 	readCache();
 	if (!cached()) {
-		Universal.ensureLoaded();
 		generateCache();
 	}
 }
 
 bool Instance::cached() const {
-	return (_sprites.size() == SpritesCount);
+	Expects(Universal != nullptr);
+
+	return (Universal->id() == _id) && (_sprites.size() == SpritesCount);
 }
 
 void Instance::draw(QPainter &p, EmojiPtr emoji, int x, int y) {
+	if (Universal && Universal->id() != _id) {
+		generateCache();
+	}
 	const auto sprite = emoji->sprite();
 	if (sprite >= _sprites.size()) {
-		Universal.draw(p, emoji, _size, x, y);
+		Assert(Universal != nullptr);
+		Universal->draw(p, emoji, _size, x, y);
 		return;
 	}
 	p.drawPixmap(
@@ -641,7 +815,7 @@ void Instance::draw(QPainter &p, EmojiPtr emoji, int x, int y) {
 
 void Instance::readCache() {
 	for (auto i = 0; i != SpritesCount; ++i) {
-		auto image = LoadFromFile(_size, i);
+		auto image = LoadFromFile(_id, _size, i);
 		if (image.isNull()) {
 			return;
 		}
@@ -649,18 +823,38 @@ void Instance::readCache() {
 	}
 }
 
+void Instance::checkUniversalImages() {
+	Expects(Universal != nullptr);
+
+	if (_id != Universal->id()) {
+		_id = Universal->id();
+		_generating.kill();
+		_sprites.clear();
+	}
+	if (!Universal->ensureLoaded() && Universal->id() != 0) {
+		ClearCurrentSetId();
+		Universal->ensureLoaded();
+	}
+}
+
 void Instance::generateCache() {
+	checkUniversalImages();
+
 	const auto size = _size;
 	const auto index = _sprites.size();
 	auto [left, right] = base::make_binary_guard();
 	_generating = std::move(left);
-	crl::async([=, guard = std::move(right)]() mutable {
+	crl::async([
+		=,
+		universal = Universal,
+		guard = std::move(right)
+	]() mutable {
 		crl::on_main([
-			this,
-			image = Universal.generate(size, index),
+			=,
+			image = universal->generate(size, index),
 			guard = std::move(guard)
 		]() mutable {
-			if (!guard.alive()) {
+			if (!guard.alive() || universal != Universal) {
 				return;
 			}
 			pushSprite(std::move(image));
