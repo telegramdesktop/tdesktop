@@ -35,7 +35,6 @@ namespace Calls {
 namespace {
 
 constexpr auto kMinLayer = 65;
-constexpr auto kMaxLayer = 75;
 constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
 
@@ -193,7 +192,7 @@ void Call::startOutgoing() {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(kMaxLayer))
+			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
@@ -268,7 +267,7 @@ void Call::actuallyAnswer() {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(kMaxLayer))
+			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
@@ -481,7 +480,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
-			MTP_int(kMaxLayer))
+			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
