@@ -1,3 +1,17 @@
+1.5 (10.12.18)
+
+- Support for custom languages. Crowdsource a cloud-based language pack for Telegram in any language using our Translations platform - then apply it in real time.
+- Interface scaling for large screens, up to 300% (up to 150% for macOS retina screens).
+- 'Count unread messages' setting for the Badge counter in Settings > Notifications. Disable to show number of unread chats.
+- Video messages displayed in shared media (under voice messages).
+- Updated emoji. Farewell to question marks!
+
+Also in this update:
+- Listen to voice and video messages in 2X mode if you're in a hurry.
+- Add a comment when sharing posts from channels.
+- View all photos and videos in Twitter and Instagram link previews.
+- Add emoji to media captions.
+
 1.4.8 beta (04.12.18)
 
 - Add emoji to media captions.
