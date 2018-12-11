@@ -268,7 +268,7 @@ void Instance::setBaseId(const QString &baseId, const QString &pluralId) {
 		if (!_base) {
 			_base = std::make_unique<Instance>(this, PrivateTag{});
 		}
-		_base->switchToId({ baseId, _pluralId });
+		_base->switchToId({ baseId, pluralId });
 	}
 }
 
@@ -513,6 +513,8 @@ void Instance::fillFromSerialized(
 				"Could not read data from serialized langpack."));
 			return;
 		}
+	} else {
+		stream >> base;
 	}
 	if (!base.isEmpty()) {
 		_base = std::make_unique<Instance>(this, PrivateTag{});

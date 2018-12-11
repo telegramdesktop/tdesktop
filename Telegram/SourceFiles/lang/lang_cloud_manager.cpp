@@ -221,7 +221,6 @@ mtpRequestId CloudManager::packRequestId(Pack pack) const {
 }
 
 void CloudManager::requestLangPackDifference(Pack pack) {
-	const auto base = (pack == Pack::Base);
 	request(base::take(packRequestId(pack))).cancel();
 	if (_langpack.isCustom()) {
 		return;
