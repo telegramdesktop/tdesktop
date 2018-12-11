@@ -750,18 +750,19 @@ void psWriteDump() {
 			GetCurrentProcess(),
 			&data,
 			sizeof(data))) {
+		const auto mb = 1024 * 1024;
 		CrashReports::dump()
 			<< "Memory-usage: "
-			<< data.PeakWorkingSetSize
-			<< " (peak), "
-			<< data.WorkingSetSize
-			<< " (current)\n";
+			<< (data.PeakWorkingSetSize / mb)
+			<< " MB (peak), "
+			<< (data.WorkingSetSize / mb)
+			<< " MB (current)\n";
 		CrashReports::dump()
 			<< "Pagefile-usage: "
-			<< data.PeakPagefileUsage
-			<< " (peak), "
-			<< data.PagefileUsage
-			<< " (current)\n";
+			<< (data.PeakPagefileUsage / mb)
+			<< " MB (peak), "
+			<< (data.PagefileUsage / mb)
+			<< " MB (current)\n";
 	}
 #endif // TDESKTOP_DISABLE_CRASH_REPORTS
 }
