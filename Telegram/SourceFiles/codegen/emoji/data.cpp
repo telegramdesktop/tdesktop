@@ -2302,7 +2302,9 @@ bool CheckOldInCurrent(std::set<Id> variatedIds) {
 		}
 	}
 
-	for (const auto [inputId, gender] : WithoutGenderAliases) {
+	for (const auto &entry : WithoutGenderAliases) {
+		const auto &inputId = entry.first;
+		const auto &gender = entry.second;
 		if (findInMany(categories, inputId)) {
 			continue;
 		}
