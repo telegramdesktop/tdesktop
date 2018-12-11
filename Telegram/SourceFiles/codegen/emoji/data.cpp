@@ -1894,17 +1894,25 @@ InputCategory Category7 = {
 // But they should be displayed as emoji even without gender symbols.
 // So we map which gender symbol to use for an emoji without one.
 std::map<InputId, uint32> WithoutGenderAliases = {
+ { { 0xD83EDD26U, }, 0x2642U },
+ { { 0xD83EDD37U, }, 0x2640U },
+ { { 0xD83EDD38U, }, 0x2642U },
+ { { 0xD83EDD3CU, }, 0x2640U },
+ { { 0xD83EDD3DU, }, 0x2642U },
+ { { 0xD83EDD3EU, }, 0x2640U },
+ { { 0xD83EDD39U, }, 0x2642U },
  { { 0xD83EDDB8U, }, 0x2640U },
  { { 0xD83EDDB9U, }, 0x2640U },
+ { { 0xD83EDDD6U, }, 0x2642U },
+ { { 0xD83EDDD7U, }, 0x2640U },
+ { { 0xD83EDDD8U, }, 0x2640U },
  { { 0xD83EDDD9U, }, 0x2640U },
  { { 0xD83EDDDAU, }, 0x2640U },
  { { 0xD83EDDDBU, }, 0x2640U },
  { { 0xD83EDDDCU, }, 0x2642U },
  { { 0xD83EDDDDU, }, 0x2642U },
  { { 0xD83EDDDEU, }, 0x2642U },
- { { 0xD83EDDD6U, }, 0x2642U },
- { { 0xD83EDDD7U, }, 0x2640U },
- { { 0xD83EDDD8U, }, 0x2640U },
+ { { 0xD83EDDDFU, }, 0x2642U },
 };
 
 // Some flags are sent as one string, but are rendered as a different too.
