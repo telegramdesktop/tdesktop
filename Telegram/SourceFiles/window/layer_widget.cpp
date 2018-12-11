@@ -559,9 +559,12 @@ void LayerStackWidget::startAnimation(
 	} else {
 		setupNewWidgets();
 		setCacheImages();
+		const auto weak = make_weak(this);
 		clearOldWidgets();
-		prepareForAnimation();
-		_background->startAnimation(action);
+		if (weak) {
+			prepareForAnimation();
+			_background->startAnimation(action);
+		}
 	}
 }
 
