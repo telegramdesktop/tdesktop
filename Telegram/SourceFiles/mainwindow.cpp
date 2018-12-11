@@ -81,6 +81,9 @@ MainWindow::MainWindow() {
 
 	subscribe(Messenger::Instance().authSessionChanged(), [this] {
 		updateGlobalMenu();
+		if (!AuthSession::Exists()) {
+			_mediaPreview.destroy();
+		}
 	});
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
