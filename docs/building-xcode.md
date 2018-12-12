@@ -90,7 +90,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout openal-soft-1.19.1
     cd build
-    LDFLAGS='-isysroot /' cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
+    LDFLAGS='-stdlib=libc++' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make -j4
     sudo make install
     cd ../..
