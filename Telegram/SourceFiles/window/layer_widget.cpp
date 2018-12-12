@@ -375,7 +375,7 @@ void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	crl::on_main(this, [=] { backgroundClicked(); });
+	Ui::PostponeCall(this, [=] { backgroundClicked(); });
 }
 
 void LayerStackWidget::backgroundClicked() {

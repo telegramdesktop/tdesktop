@@ -102,6 +102,7 @@ Application::Application(
 		int &argc,
 		char **argv)
 : QApplication(argc, argv)
+, _mainThreadId(QThread::currentThreadId())
 , _launcher(launcher)
 , _updateChecker(Core::UpdaterDisabled()
 	? nullptr
@@ -356,6 +357,12 @@ void Application::createMessenger() {
 	Expects(!App::quitting());
 
 	_messengerInstance = std::make_unique<Messenger>(_launcher);
+
+	// Ideally this should go to constructor.
+	// But we want to catch all native events and Messenger installs
+	// its own filter that can filter out some of them. So we install
+	// our filter after the Messenger constructor installs his.
+	installNativeEventFilter(this);
 }
 
 void Application::refreshGlobalProxy() {
@@ -379,6 +386,53 @@ void Application::refreshGlobalProxy() {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 	}
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
+}
+
+void Application::postponeCall(FnMut<void()> &&callable) {
+	Expects(callable != nullptr);
+	Expects(_eventNestingLevel > _loopNestingLevel);
+
+	_postponedCalls.push_back({
+		_loopNestingLevel,
+		std::move(callable)
+	});
+}
+
+bool Application::notify(QObject *receiver, QEvent *e) {
+	if (QThread::currentThreadId() != _mainThreadId) {
+		return QApplication::notify(receiver, e);
+	}
+	++_eventNestingLevel;
+	const auto result = QApplication::notify(receiver, e);
+	if (_eventNestingLevel == _loopNestingLevel) {
+		_loopNestingLevel = _previousLoopNestingLevels.back();
+		_previousLoopNestingLevels.pop_back();
+	}
+	processPostponedCalls(--_eventNestingLevel);
+	return result;
+}
+
+void Application::processPostponedCalls(int level) {
+	while (!_postponedCalls.empty()) {
+		auto &last = _postponedCalls.back();
+		if (last.loopNestingLevel != level) {
+			break;
+		}
+		auto taken = std::move(last);
+		_postponedCalls.pop_back();
+		taken.callable();
+	}
+}
+
+bool Application::nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
+	if (_eventNestingLevel > _loopNestingLevel) {
+		_previousLoopNestingLevels.push_back(_loopNestingLevel);
+		_loopNestingLevel = _eventNestingLevel;
+	}
+	return false;
 }
 
 void Application::closeApplication() {

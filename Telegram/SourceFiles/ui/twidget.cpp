@@ -233,6 +233,11 @@ void ForceFullRepaint(not_null<QWidget*> widget) {
 	refresher->show();
 }
 
+void PostponeCall(FnMut<void()> &&callable) {
+	const auto app = static_cast<Application*>(qApp);
+	app->postponeCall(std::move(callable));
+}
+
 } // namespace Ui
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
