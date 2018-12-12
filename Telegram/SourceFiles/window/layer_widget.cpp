@@ -375,18 +375,23 @@ void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	if (_hideByBackgroundClick) {
-		if (const auto layer = currentLayer()) {
-			if (!layer->closeByOutsideClick()) {
-				return;
-			}
-		} else if (const auto special = _specialLayer.data()) {
-			if (!special->closeByOutsideClick()) {
-				return;
-			}
-		}
-		hideCurrent(anim::type::normal);
+	crl::on_main(this, [=] { backgroundClicked(); });
+}
+
+void LayerStackWidget::backgroundClicked() {
+	if (!_hideByBackgroundClick) {
+		return;
 	}
+	if (const auto layer = currentLayer()) {
+		if (!layer->closeByOutsideClick()) {
+			return;
+		}
+	} else if (const auto special = _specialLayer.data()) {
+		if (!special->closeByOutsideClick()) {
+			return;
+		}
+	}
+	hideCurrent(anim::type::normal);
 }
 
 void LayerStackWidget::hideCurrent(anim::type animated) {

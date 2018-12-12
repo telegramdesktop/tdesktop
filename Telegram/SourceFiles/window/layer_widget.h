@@ -134,6 +134,7 @@ private:
 	void replaceBox(
 		object_ptr<BoxContent> box,
 		anim::type animated);
+	void backgroundClicked();
 
 	LayerWidget *pushBox(
 		object_ptr<BoxContent> box,
