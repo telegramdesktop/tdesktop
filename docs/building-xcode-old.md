@@ -14,6 +14,8 @@ Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) 
 
 ### Clone source code and prepare libraries
 
+**Copy crt1.10.6.o from Xcode SDK path to /usr/local/lib**
+
 Go to ***BuildPath*** and run
 
     MACOSX_DEPLOYMENT_TARGET=10.6
@@ -105,7 +107,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout openal-soft-1.19.1
     cd build
-    LDFLAGS='-isysroot /' cmake -DLIBTYPE:STRING=STATIC -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
+    LDFLAGS='/usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a -isysroot /' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
     make -j4
     sudo make install
     cd ../..
@@ -145,7 +147,7 @@ Go to ***BuildPath*** and run
     cd qtimageformats && git checkout v5.3.2 && git apply ../../../../tdesktop/Telegram/Patches/macold/qtimageformats_5_3_2.diff && cd ..
     cd qtbase && git checkout v5.3.2 && git apply ../../../../tdesktop/Telegram/Patches/macold/qtbase_5_3_2.diff && cd ..
 
-    OPENSSL_LIBS="$CurDir/openssl/libssl.a $CurDir/openssl/libcrypto.a" ./configure -prefix "/usr/local/macold/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -openssl-linked -I "$CurDir/openssl/include" -no-glib -nomake examples -nomake tests -platform macx-g++
+    OPENSSL_LIBS="$CurDir/openssl/libssl.a $CurDir/openssl/libcrypto.a" ./configure -prefix "/usr/local/macold/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -openssl-linked -I "$CurDir/openssl/include" -I "/usr/local/macold/include/c++/v1" -no-glib -nomake examples -nomake tests -platform macx-g++
 
     make -j4
     sudo make install
