@@ -1,3 +1,7 @@
+1.5.2 (13.12.18)
+
+- Bug fixes and other minor improvements.
+
 1.5.1 (11.12.18)
 
 - Bug fixes and other minor improvements.
