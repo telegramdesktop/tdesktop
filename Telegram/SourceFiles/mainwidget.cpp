@@ -1210,7 +1210,7 @@ void MainWidget::closeBothPlayers() {
 	Media::Player::instance()->stop(AudioMsgId::Type::Voice);
 	Media::Player::instance()->stop(AudioMsgId::Type::Song);
 
-	Shortcuts::DisableMediaShortcuts();
+	Shortcuts::ToggleMediaShortcuts(false);
 }
 
 void MainWidget::createPlayer() {
@@ -1232,7 +1232,7 @@ void MainWidget::createPlayer() {
 		if (_a_show.animating()) {
 			_player->show(anim::type::instant);
 			_player->setVisible(false);
-			Shortcuts::EnableMediaShortcuts();
+			Shortcuts::ToggleMediaShortcuts(true);
 		} else {
 			_player->hide(anim::type::instant);
 		}
@@ -1242,7 +1242,7 @@ void MainWidget::createPlayer() {
 			_player->show(anim::type::normal);
 			_playerHeight = _contentScrollAddToY = _player->contentHeight();
 			updateControlsGeometry();
-			Shortcuts::EnableMediaShortcuts();
+			Shortcuts::ToggleMediaShortcuts(true);
 		}
 	}
 }

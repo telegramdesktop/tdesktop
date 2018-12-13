@@ -37,6 +37,12 @@ const auto MediaCommands = base::flat_set<Command>{
 	Command::MediaNext,
 };
 
+const auto SupportCommands = base::flat_set<Command>{
+	Command::SupportReloadTemplates,
+	Command::SupportToggleMuted,
+	Command::SupportScrollToCurrent,
+};
+
 const auto CommandByName = base::flat_map<QString, Command>{
 	{ qsl("close_telegram")   , Command::Close },
 	{ qsl("lock_telegram")    , Command::Lock },
@@ -86,6 +92,7 @@ public:
 
 	std::optional<Command> lookup(int shortcutId) const;
 	void toggleMedia(bool toggled);
+	void toggleSupport(bool toggled);
 
 	const QStringList &errors() const;
 
@@ -104,6 +111,7 @@ private:
 	base::flat_map<int, Command> _commandByShortcutId;
 
 	base::flat_set<QShortcut*> _mediaShortcuts;
+	base::flat_set<QShortcut*> _supportShortcuts;
 
 };
 
@@ -168,6 +176,7 @@ void Manager::clear() {
 	_shortcuts.clear();
 	_commandByShortcutId.clear();
 	_mediaShortcuts.clear();
+	_supportShortcuts.clear();
 }
 
 const QStringList &Manager::errors() const {
@@ -183,6 +192,12 @@ std::optional<Command> Manager::lookup(int shortcutId) const {
 
 void Manager::toggleMedia(bool toggled) {
 	for (const auto shortcut : _mediaShortcuts) {
+		shortcut->setEnabled(toggled);
+	}
+}
+
+void Manager::toggleSupport(bool toggled) {
+	for (const auto shortcut : _supportShortcuts) {
 		shortcut->setEnabled(toggled);
 	}
 }
@@ -352,7 +367,8 @@ void Manager::set(const QString &keys, Command command) {
 		shortcut->setAutoRepeat(false);
 	}
 	const auto isMediaShortcut = MediaCommands.contains(command);
-	if (isMediaShortcut) {
+	const auto isSupportShortcut = SupportCommands.contains(command);
+	if (isMediaShortcut || isSupportShortcut) {
 		shortcut->setEnabled(false);
 	}
 	const auto id = shortcut->id();
@@ -369,6 +385,9 @@ void Manager::set(const QString &keys, Command command) {
 	_commandByShortcutId.emplace(id, command);
 	if (isMediaShortcut) {
 		_mediaShortcuts.emplace(i->second.get());
+	}
+	if (isSupportShortcut) {
+		_supportShortcuts.emplace(i->second.get());
 	}
 }
 
@@ -394,6 +413,7 @@ void Manager::unregister(base::unique_qptr<QShortcut> shortcut) {
 	if (shortcut) {
 		_commandByShortcutId.erase(shortcut->id());
 		_mediaShortcuts.erase(shortcut.get());
+		_supportShortcuts.erase(shortcut.get());
 	}
 }
 
@@ -451,14 +471,13 @@ bool HandleEvent(not_null<QShortcutEvent*> event) {
 	return false;
 }
 
-void EnableMediaShortcuts() {
-	Data.toggleMedia(true);
-	Platform::SetWatchingMediaKeys(true);
+void ToggleMediaShortcuts(bool toggled) {
+	Data.toggleMedia(toggled);
+	Platform::SetWatchingMediaKeys(toggled);
 }
 
-void DisableMediaShortcuts() {
-	Data.toggleMedia(false);
-	Platform::SetWatchingMediaKeys(false);
+void ToggleSupportShortcuts(bool toggled) {
+	Data.toggleSupport(toggled);
 }
 
 void Finish() {

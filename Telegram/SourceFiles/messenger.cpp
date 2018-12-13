@@ -593,6 +593,8 @@ void Messenger::startLocalStorage() {
 				_mtproto->requestConfig();
 			}
 			Platform::SetApplicationIcon(Window::CreateIcon());
+			Shortcuts::ToggleSupportShortcuts(
+				_authSession && _authSession->supportMode());
 		});
 	});
 }
