@@ -348,9 +348,7 @@ public:
 	bool useProxyPromotion() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
-	bool toImportant() const override {
-		return !mute();
-	}
+	bool toImportant() const override;
 	int chatListUnreadCount() const override;
 	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;

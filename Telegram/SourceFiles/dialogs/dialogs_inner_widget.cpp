@@ -2031,7 +2031,7 @@ void DialogsInner::userIsContactUpdated(not_null<UserData*> user) {
 void DialogsInner::notify_historyMuteUpdated(History *history) {
 	if (!_dialogsImportant || !history->inChatList(Dialogs::Mode::All)) return;
 
-	if (history->mute()) {
+	if (!history->toImportant()) {
 		if (Global::DialogsMode() == Dialogs::Mode::Important) {
 			if (_selected && _selected->history() == history) {
 				_selected = nullptr;

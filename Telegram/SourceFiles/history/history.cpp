@@ -947,11 +947,17 @@ not_null<HistoryItem*> History::addNewGame(
 }
 
 void History::setUnreadMentionsCount(int count) {
+	const auto had = _unreadMentionsCount && (*_unreadMentionsCount > 0);
 	if (_unreadMentions.size() > count) {
 		LOG(("API Warning: real mentions count is greater than received mentions count"));
 		count = _unreadMentions.size();
 	}
 	_unreadMentionsCount = count;
+	const auto has = (count > 0);
+	if (has != had && Global::DialogsModeEnabled()) {
+		Notify::historyMuteUpdated(this);
+		updateChatListEntry();
+	}
 }
 
 bool History::addToUnreadMentions(
@@ -965,8 +971,8 @@ bool History::addToUnreadMentions(
 		: false;
 	if (allLoaded) {
 		if (type == UnreadMentionType::New) {
-			++*_unreadMentionsCount;
 			_unreadMentions.insert(msgId);
+			setUnreadMentionsCount(*_unreadMentionsCount + 1);
 			return true;
 		}
 	} else if (!_unreadMentions.empty() && type != UnreadMentionType::New) {
@@ -978,10 +984,8 @@ bool History::addToUnreadMentions(
 
 void History::eraseFromUnreadMentions(MsgId msgId) {
 	_unreadMentions.remove(msgId);
-	if (_unreadMentionsCount) {
-		if (*_unreadMentionsCount > 0) {
-			--*_unreadMentionsCount;
-		}
+	if (_unreadMentionsCount && *_unreadMentionsCount > 0) {
+		setUnreadMentionsCount(*_unreadMentionsCount - 1);
 	}
 	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
 }
@@ -2360,6 +2364,10 @@ bool History::shouldBeInChatList() const {
 		}
 	}
 	return true;
+}
+
+bool History::toImportant() const {
+	return !mute() || hasUnreadMentions();
 }
 
 void History::unknownMessageDeleted(MsgId messageId) {
