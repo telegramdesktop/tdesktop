@@ -2256,17 +2256,13 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		: false;
 	const auto animating = reader && reader->started();
 
-	if (!animating || item->id < 0) {
-		if (displayLoading) {
-			ensureAnimation();
-			if (!_animation->radial.animating()) {
-				_animation->radial.start(dataProgress());
-			}
+	if ((!animating || item->id < 0) && displayLoading) {
+		ensureAnimation();
+		if (!_animation->radial.animating()) {
+			_animation->radial.start(dataProgress());
 		}
-		updateStatusText();
-	} else if (playingVideo) {
-		updateStatusText();
 	}
+	updateStatusText();
 	auto radial = isRadialAnimation(ms);
 
 	if (bubble) {
