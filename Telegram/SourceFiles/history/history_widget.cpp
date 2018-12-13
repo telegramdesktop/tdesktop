@@ -3057,11 +3057,7 @@ void HistoryWidget::chooseAttach() {
 			auto list = Storage::PrepareMediaList(
 				result.paths,
 				st::sendMediaPreviewSize);
-			if (list.allFilesForCompress || list.albumIsPossible) {
-				confirmSendingFiles(std::move(list), CompressConfirm::Auto);
-			} else if (!showSendingFilesError(list)) {
-				uploadFiles(std::move(list), SendMediaType::File);
-			}
+			confirmSendingFiles(std::move(list), CompressConfirm::Auto);
 		}
 	}));
 }
