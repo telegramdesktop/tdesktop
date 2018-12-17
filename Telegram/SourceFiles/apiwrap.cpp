@@ -4752,6 +4752,36 @@ void ApiWrap::sendExistingDocument(
 	};
 	performRequest();
 
+	//AssertIsDebug();
+	//auto answers = QVector<MTPPollAnswer>{
+	//	MTP_pollAnswer(MTP_string("first option"), MTP_bytes("a")),
+	//	MTP_pollAnswer(MTP_string("second option"), MTP_bytes("b")),
+	//	MTP_pollAnswer(MTP_string("third very very very very very very "
+	//	"very very very very very very option"), MTP_bytes("c")),
+	//	MTP_pollAnswer(MTP_string("fourth option"), MTP_bytes("d")),
+	//};
+	//history->sendRequestId = request(MTPmessages_SendMedia(
+	//	MTP_flags(sendFlags),
+	//	peer->input,
+	//	MTP_int(replyTo),
+	//	MTP_inputMediaPoll(
+	//		MTP_poll(
+	//			MTP_long(rand_value<uint64>()),
+	//			MTP_flags(0),
+	//			MTP_string("Very very very very very very very very very very "
+	//			"very very very long poll question text"),
+	//			MTP_vector<MTPPollAnswer>(answers))),
+	//	MTP_string(captionText),
+	//	MTP_long(rand_value<uint64>()),
+	//	MTPnullMarkup,
+	//	sentEntities
+	//)).done([=](const MTPUpdates &result) {
+	//	applyUpdates(result);
+	//}).fail(
+	//	base::duplicate(*failHandler)
+	//).afterRequest(history->sendRequestId
+	//).send();
+
 	if (const auto main = App::main()) {
 		main->finishForwarding(history);
 		if (document->sticker()) {
