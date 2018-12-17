@@ -133,3 +133,38 @@ HistoryItem *FileClickHandler::getActionItem() const {
 		? App::histItemById(context())
 		: nullptr;
 }
+
+PeerId PeerFromMessage(const MTPmessage &message) {
+	return message.match([](const MTPDmessageEmpty &) {
+		return PeerId(0);
+	}, [](const auto &message) {
+		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;
+		auto to_id = peerFromMTP(message.vto_id);
+		auto out = message.is_out();
+		return (out || !peerIsUser(to_id)) ? to_id : from_id;
+	});
+}
+
+MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message) {
+	return message.match([](const MTPDmessageEmpty &) {
+		return MTPDmessage::Flags(0);
+	}, [](const MTPDmessage &message) {
+		return message.vflags.v;
+	}, [](const MTPDmessageService &message) {
+		return mtpCastFlags(message.vflags.v);
+	});
+}
+
+MsgId IdFromMessage(const MTPmessage &message) {
+	return message.match([](const auto &message) {
+		return message.vid.v;
+	});
+}
+
+TimeId DateFromMessage(const MTPmessage &message) {
+	return message.match([](const MTPDmessageEmpty &) {
+		return TimeId(0);
+	}, [](const auto &message) {
+		return message.vdate.v;
+	});
+}

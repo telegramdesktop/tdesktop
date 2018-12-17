@@ -41,6 +41,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+enum class MediaCheckResult {
+	Good,
+	Unsupported,
+	Empty,
+	HasTimeToLive,
+};
+
 not_null<HistoryItem*> CreateUnsupportedMessage(
 		not_null<History*> history,
 		MsgId msgId,
@@ -67,6 +74,75 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		from,
 		QString(),
 		text);
+}
+
+MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
+	using Result = MediaCheckResult;
+	return media.match([](const MTPDmessageMediaEmpty &) {
+		return Result::Good;
+	}, [](const MTPDmessageMediaContact &) {
+		return Result::Good;
+	}, [](const MTPDmessageMediaGeo &data) {
+		return data.vgeo.match([](const MTPDgeoPoint &) {
+			return Result::Good;
+		}, [](const MTPDgeoPointEmpty &) {
+			return Result::Empty;
+		});
+	}, [](const MTPDmessageMediaVenue &data) {
+		return data.vgeo.match([](const MTPDgeoPoint &) {
+			return Result::Good;
+		}, [](const MTPDgeoPointEmpty &) {
+			return Result::Empty;
+		});
+	}, [](const MTPDmessageMediaGeoLive &data) {
+		return data.vgeo.match([](const MTPDgeoPoint &) {
+			return Result::Good;
+		}, [](const MTPDgeoPointEmpty &) {
+			return Result::Empty;
+		});
+	}, [](const MTPDmessageMediaPhoto &data) {
+		if (data.has_ttl_seconds()) {
+			return Result::HasTimeToLive;
+		} else if (!data.has_photo()) {
+			return Result::Empty;
+		}
+		return data.vphoto.match([](const MTPDphoto &) {
+			return Result::Good;
+		}, [](const MTPDphotoEmpty &) {
+			return Result::Empty;
+		});
+	}, [](const MTPDmessageMediaDocument &data) {
+		if (data.has_ttl_seconds()) {
+			return Result::HasTimeToLive;
+		} else if (!data.has_document()) {
+			return Result::Empty;
+		}
+		return data.vdocument.match([](const MTPDdocument &) {
+			return Result::Good;
+		}, [](const MTPDdocumentEmpty &) {
+			return Result::Empty;
+		});
+	}, [](const MTPDmessageMediaWebPage &data) {
+		return data.vwebpage.match([](const MTPDwebPage &) {
+			return Result::Good;
+		}, [](const MTPDwebPageEmpty &) {
+			return Result::Good;
+		}, [](const MTPDwebPagePending &) {
+			return Result::Good;
+		}, [](const MTPDwebPageNotModified &) {
+			return Result::Unsupported;
+		});
+	}, [](const MTPDmessageMediaGame &data) {
+		return data.vgame.match([](const MTPDgame &) {
+			return Result::Good;
+		});
+	}, [](const MTPDmessageMediaInvoice &) {
+		return Result::Good;
+	}, [](const MTPDmessageMediaPoll &) { // #TODO polls
+		return Result::Unsupported;
+	}, [](const MTPDmessageMediaUnsupported &) {
+		return Result::Unsupported;
+	});
 }
 
 } // namespace
@@ -676,98 +752,11 @@ ClickHandlerPtr goToMessageClickHandler(
 not_null<HistoryItem*> HistoryItem::Create(
 		not_null<History*> history,
 		const MTPMessage &message) {
-	switch (message.type()) {
-	case mtpc_messageEmpty: {
-		const auto &data = message.c_messageEmpty();
-		const auto text = HistoryService::PreparedText {
-			lang(lng_message_empty)
-		};
-		return new HistoryService(history, data.vid.v, TimeId(0), text);
-	} break;
-
-	case mtpc_message: {
-		const auto &data = message.c_message();
-		enum class MediaCheckResult {
-			Good,
-			Unsupported,
-			Empty,
-			HasTimeToLive,
-		};
-		auto badMedia = MediaCheckResult::Good;
-		const auto &media = data.vmedia;
-		if (data.has_media()) switch (media.type()) {
-		case mtpc_messageMediaEmpty:
-		case mtpc_messageMediaContact: break;
-		case mtpc_messageMediaGeo:
-			switch (media.c_messageMediaGeo().vgeo.type()) {
-			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaVenue:
-			switch (media.c_messageMediaVenue().vgeo.type()) {
-			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaGeoLive:
-			switch (media.c_messageMediaGeoLive().vgeo.type()) {
-			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaPhoto: {
-			auto &photo = media.c_messageMediaPhoto();
-			if (photo.has_ttl_seconds()) {
-				badMedia = MediaCheckResult::HasTimeToLive;
-			} else if (!photo.has_photo()) {
-				badMedia = MediaCheckResult::Empty;
-			} else {
-				switch (photo.vphoto.type()) {
-				case mtpc_photo: break;
-				case mtpc_photoEmpty: badMedia = MediaCheckResult::Empty; break;
-				default: badMedia = MediaCheckResult::Unsupported; break;
-				}
-			}
-		} break;
-		case mtpc_messageMediaDocument: {
-			auto &document = media.c_messageMediaDocument();
-			if (document.has_ttl_seconds()) {
-				badMedia = MediaCheckResult::HasTimeToLive;
-			} else if (!document.has_document()) {
-				badMedia = MediaCheckResult::Empty;
-			} else {
-				switch (document.vdocument.type()) {
-				case mtpc_document: break;
-				case mtpc_documentEmpty: badMedia = MediaCheckResult::Empty; break;
-				default: badMedia = MediaCheckResult::Unsupported; break;
-				}
-			}
-		} break;
-		case mtpc_messageMediaWebPage:
-			switch (media.c_messageMediaWebPage().vwebpage.type()) {
-			case mtpc_webPage:
-			case mtpc_webPageEmpty:
-			case mtpc_webPagePending: break;
-			case mtpc_webPageNotModified:
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaGame:
-		switch (media.c_messageMediaGame().vgame.type()) {
-			case mtpc_game: break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
-			}
-			break;
-		case mtpc_messageMediaInvoice:
-			break;
-		case mtpc_messageMediaUnsupported:
-		default: badMedia = MediaCheckResult::Unsupported; break;
-		}
-		if (badMedia == MediaCheckResult::Unsupported) {
+	return message.match([&](const MTPDmessage &data) -> HistoryItem* {
+		const auto checked = data.has_media()
+			? CheckMessageMedia(data.vmedia)
+			: MediaCheckResult::Good;
+		if (checked == MediaCheckResult::Unsupported) {
 			return CreateUnsupportedMessage(
 				history,
 				data.vid.v,
@@ -776,7 +765,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vvia_bot_id.v,
 				data.vdate.v,
 				data.vfrom_id.v);
-		} else if (badMedia == MediaCheckResult::Empty) {
+		} else if (checked == MediaCheckResult::Empty) {
 			const auto text = HistoryService::PreparedText {
 				lang(lng_message_empty)
 			};
@@ -787,20 +776,19 @@ not_null<HistoryItem*> HistoryItem::Create(
 				text,
 				data.vflags.v,
 				data.has_from_id() ? data.vfrom_id.v : UserId(0));
-		} else if (badMedia == MediaCheckResult::HasTimeToLive) {
+		} else if (checked == MediaCheckResult::HasTimeToLive) {
 			return new HistoryService(history, data);
 		}
 		return new HistoryMessage(history, data);
-	} break;
-
-	case mtpc_messageService: {
-		auto &data = message.c_messageService();
+	}, [&](const MTPDmessageService &data) -> HistoryItem* {
 		if (data.vaction.type() == mtpc_messageActionPhoneCall) {
 			return new HistoryMessage(history, data);
 		}
 		return new HistoryService(history, data);
-	} break;
-	}
-
-	Unexpected("Type in HistoryItem::Create().");
+	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
+		const auto text = HistoryService::PreparedText{
+			lang(lng_message_empty)
+		};
+		return new HistoryService(history, data.vid.v, TimeId(0), text);
+	});
 }

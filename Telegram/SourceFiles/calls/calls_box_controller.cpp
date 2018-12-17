@@ -303,8 +303,8 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	}
 
 	for_const (auto &message, result) {
-		auto msgId = idFromMessage(message);
-		auto peerId = peerFromMessage(message);
+		auto msgId = IdFromMessage(message);
+		auto peerId = PeerFromMessage(message);
 		if (auto peer = App::peerLoaded(peerId)) {
 			auto item = App::histories().addNewMessage(message, NewMessageExisting);
 			insertRow(item, InsertWay::Append);

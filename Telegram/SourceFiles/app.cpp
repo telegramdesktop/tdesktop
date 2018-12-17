@@ -874,22 +874,20 @@ namespace App {
 		return false;
 	}
 
-	void updateEditedMessage(const MTPMessage &m) {
-		auto apply = [](const auto &data) {
-			auto peerId = peerFromMTP(data.vto_id);
-			if (data.has_from_id() && peerId == Auth().userPeerId()) {
-				peerId = peerFromUser(data.vfrom_id);
+	void updateEditedMessage(const MTPMessage &message) {
+		message.match([](const MTPDmessageEmpty &) {
+		}, [](const auto &message) {
+			auto peerId = peerFromMTP(message.vto_id);
+			if (message.has_from_id() && peerId == Auth().userPeerId()) {
+				peerId = peerFromUser(message.vfrom_id);
 			}
-			if (auto existing = App::histItemById(peerToChannel(peerId), data.vid.v)) {
-				existing->applyEdition(data);
+			const auto existing = App::histItemById(
+				peerToChannel(peerId),
+				message.vid.v);
+			if (existing) {
+				existing->applyEdition(message);
 			}
-		};
-
-		if (m.type() == mtpc_message) { // apply message edit
-			apply(m.c_message());
-		} else if (m.type() == mtpc_messageService) {
-			apply(m.c_messageService());
-		}
+		});
 	}
 
 	void addSavedGif(DocumentData *doc) {
@@ -932,7 +930,7 @@ namespace App {
 					}
 				}
 			}
-			const auto msgId = idFromMessage(msg);
+			const auto msgId = IdFromMessage(msg);
 			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 		}
 		for (const auto [position, index] : indices) {

@@ -2285,10 +2285,10 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	}
 
 	const auto ExtractFirstId = [&] {
-		return histList->empty() ? -1 : idFromMessage(histList->front());
+		return histList->empty() ? -1 : IdFromMessage(histList->front());
 	};
 	const auto ExtractLastId = [&] {
-		return histList->empty() ? -1 : idFromMessage(histList->back());
+		return histList->empty() ? -1 : IdFromMessage(histList->back());
 	};
 	const auto PeerString = [](PeerId peerId) {
 		if (peerIsUser(peerId)) {

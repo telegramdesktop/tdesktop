@@ -470,9 +470,9 @@ void DialogsWidget::updateDialogsOffset(
 		}
 		for (auto j = messages.size(); j != 0;) {
 			const auto &message = messages[--j];
-			if (idFromMessage(message) == msgId
-				&& peerFromMessage(message) == peer) {
-				if (const auto date = dateFromMessage(message)) {
+			if (IdFromMessage(message) == msgId
+				&& PeerFromMessage(message) == peer) {
+				if (const auto date = DateFromMessage(message)) {
 					lastDate = date;
 				}
 				return;

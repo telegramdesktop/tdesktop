@@ -758,110 +758,110 @@ void HistoryMessage::setMedia(const MTPMessageMedia &media) {
 std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media) {
-	switch (media.type()) {
-	case mtpc_messageMediaContact: {
-		const auto &data = media.c_messageMediaContact();
+	using Result = std::unique_ptr<Data::Media>;
+	return media.match([&](const MTPDmessageMediaContact &media) -> Result {
 		return std::make_unique<Data::MediaContact>(
 			item,
-			data.vuser_id.v,
-			qs(data.vfirst_name),
-			qs(data.vlast_name),
-			qs(data.vphone_number));
-	} break;
-	case mtpc_messageMediaGeo: {
-		const auto &data = media.c_messageMediaGeo().vgeo;
-		if (data.type() == mtpc_geoPoint) {
+			media.vuser_id.v,
+			qs(media.vfirst_name),
+			qs(media.vlast_name),
+			qs(media.vphone_number));
+	}, [&](const MTPDmessageMediaGeo &media) -> Result {
+		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(data.c_geoPoint()));
-		}
-	} break;
-	case mtpc_messageMediaGeoLive: {
-		const auto &data = media.c_messageMediaGeoLive().vgeo;
-		if (data.type() == mtpc_geoPoint) {
+				LocationCoords(point));
+		}, [](const MTPDgeoPointEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaGeoLive &media) -> Result {
+		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(data.c_geoPoint()));
-		}
-	} break;
-	case mtpc_messageMediaVenue: {
-		const auto &data = media.c_messageMediaVenue();
-		if (data.vgeo.type() == mtpc_geoPoint) {
+				LocationCoords(point));
+		}, [](const MTPDgeoPointEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaVenue &media) -> Result {
+		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(data.vgeo.c_geoPoint()),
-				qs(data.vtitle),
-				qs(data.vaddress));
-		}
-	} break;
-	case mtpc_messageMediaPhoto: {
-		const auto &data = media.c_messageMediaPhoto();
-		if (data.has_ttl_seconds()) {
+				LocationCoords(point),
+				qs(media.vtitle),
+				qs(media.vaddress));
+		}, [](const MTPDgeoPointEmpty &data) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaPhoto &media) -> Result {
+		if (media.has_ttl_seconds()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaPhoto "
 				"with ttl_seconds in HistoryMessage."));
-		} else if (data.has_photo() && data.vphoto.type() == mtpc_photo) {
-			return std::make_unique<Data::MediaPhoto>(
-				item,
-				Auth().data().photo(data.vphoto.c_photo()));
-		} else {
+			return nullptr;
+		} else if (!media.has_photo()) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaPhoto "
 				"without photo and without ttl_seconds."));
+			return nullptr;
 		}
-	} break;
-	case mtpc_messageMediaDocument: {
-		const auto &data = media.c_messageMediaDocument();
-		if (data.has_ttl_seconds()) {
+		return media.vphoto.match([&](const MTPDphoto &photo) -> Result {
+			return std::make_unique<Data::MediaPhoto>(
+				item,
+				Auth().data().photo(photo));
+		}, [](const MTPDphotoEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaDocument &media) -> Result {
+		if (media.has_ttl_seconds()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaDocument "
 				"with ttl_seconds in HistoryMessage."));
-		} else if (data.has_document()
-			&& data.vdocument.type() == mtpc_document) {
-			return std::make_unique<Data::MediaFile>(
-				item,
-				Auth().data().document(data.vdocument.c_document()));
-		} else {
+			return nullptr;
+		} else if (!media.has_document()) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaDocument "
 				"without document and without ttl_seconds."));
+			return nullptr;
 		}
-	} break;
-	case mtpc_messageMediaWebPage: {
-		const auto &data = media.c_messageMediaWebPage().vwebpage;
-		switch (data.type()) {
-		case mtpc_webPageEmpty: break;
-		case mtpc_webPagePending:
+		const auto &document = media.vdocument;
+		return document.match([&](const MTPDdocument &document) -> Result {
+			return std::make_unique<Data::MediaFile>(
+				item,
+				Auth().data().document(document));
+		}, [](const MTPDdocumentEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaWebPage &media) {
+		return media.vwebpage.match([](const MTPDwebPageEmpty &) -> Result {
+			return nullptr;
+		}, [&](const MTPDwebPagePending &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				Auth().data().webpage(data.c_webPagePending()));
-			break;
-		case mtpc_webPage:
+				Auth().data().webpage(webpage));
+		}, [&](const MTPDwebPage &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				Auth().data().webpage(data.c_webPage()));
-			break;
-		case mtpc_webPageNotModified:
+				Auth().data().webpage(webpage));
+		}, [](const MTPDwebPageNotModified &) -> Result {
 			LOG(("API Error: "
 				"webPageNotModified is unexpected in message media."));
-			break;
-		}
-	} break;
-	case mtpc_messageMediaGame: {
-		const auto &data = media.c_messageMediaGame().vgame;
-		if (data.type() == mtpc_game) {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaGame &media) -> Result {
+		return media.vgame.match([&](const MTPDgame &game) {
 			return std::make_unique<Data::MediaGame>(
 				item,
-				Auth().data().game(data.c_game()));
-		}
-	} break;
-	case mtpc_messageMediaInvoice: {
-		return std::make_unique<Data::MediaInvoice>(
-			item,
-			media.c_messageMediaInvoice());
-	} break;
-	};
-
+				Auth().data().game(game));
+		});
+	}, [&](const MTPDmessageMediaInvoice &media) -> Result {
+		return std::make_unique<Data::MediaInvoice>(item, media);
+	}, [&](const MTPDmessageMediaPoll &media) -> Result { // #TODO polls
+		return nullptr;
+	}, [](const MTPDmessageMediaEmpty &) -> Result {
+		return nullptr;
+	}, [](const MTPDmessageMediaUnsupported &) -> Result {
+		return nullptr;
+	});
 	return nullptr;
 }
 

@@ -154,7 +154,7 @@ void Histories::remove(const PeerId &peer) {
 HistoryItem *Histories::addNewMessage(
 		const MTPMessage &msg,
 		NewMessageType type) {
-	auto peer = peerFromMessage(msg);
+	auto peer = PeerFromMessage(msg);
 	if (!peer) return nullptr;
 
 	auto result = App::history(peer)->addNewMessage(msg, type);
@@ -750,7 +750,7 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 HistoryItem *History::createItem(
 		const MTPMessage &message,
 		bool detachExistingItem) {
-	const auto messageId = idFromMessage(message);
+	const auto messageId = IdFromMessage(message);
 	if (!messageId) {
 		return nullptr;
 	}

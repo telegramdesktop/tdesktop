@@ -3846,56 +3846,57 @@ enum class DataIsLoadedResult {
 	MentionNotLoaded = 2,
 	Ok = 3,
 };
-DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &msg) {
-	switch (msg.type()) {
-	case mtpc_message: {
-		const MTPDmessage &d(msg.c_message());
-		if (!d.is_post() && d.has_from_id()) {
-			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
+DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &message) {
+	return message.match([](const MTPDmessage &message) {
+		if (!message.is_post() && message.has_from_id()) {
+			if (!App::userLoaded(peerFromUser(message.vfrom_id))) {
 				return DataIsLoadedResult::FromNotLoaded;
 			}
 		}
-		if (d.has_via_bot_id()) {
-			if (!App::userLoaded(peerFromUser(d.vvia_bot_id))) {
+		if (message.has_via_bot_id()) {
+			if (!App::userLoaded(peerFromUser(message.vvia_bot_id))) {
 				return DataIsLoadedResult::NotLoaded;
 			}
 		}
-		if (d.has_fwd_from() && !fwdInfoDataLoaded(d.vfwd_from)) {
+		if (message.has_fwd_from()
+			&& !fwdInfoDataLoaded(message.vfwd_from)) {
 			return DataIsLoadedResult::NotLoaded;
 		}
-		if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
+		if (message.has_entities()
+			&& !mentionUsersLoaded(message.ventities)) {
 			return DataIsLoadedResult::MentionNotLoaded;
 		}
-	} break;
-	case mtpc_messageService: {
-		const MTPDmessageService &d(msg.c_messageService());
-		if (!d.is_post() && d.has_from_id()) {
-			if (!App::userLoaded(peerFromUser(d.vfrom_id))) {
+		return DataIsLoadedResult::Ok;
+	}, [](const MTPDmessageService &message) {
+		if (!message.is_post() && message.has_from_id()) {
+			if (!App::userLoaded(peerFromUser(message.vfrom_id))) {
 				return DataIsLoadedResult::FromNotLoaded;
 			}
 		}
-		switch (d.vaction.type()) {
-		case mtpc_messageActionChatAddUser: {
-			for_const (const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.v) {
+		return message.vaction.match(
+		[](const MTPDmessageActionChatAddUser &action) {
+			for (const MTPint &userId : action.vusers.v) {
 				if (!App::userLoaded(peerFromUser(userId))) {
 					return DataIsLoadedResult::NotLoaded;
 				}
 			}
-		} break;
-		case mtpc_messageActionChatJoinedByLink: {
-			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatJoinedByLink().vinviter_id))) {
+			return DataIsLoadedResult::Ok;
+		}, [](const MTPDmessageActionChatJoinedByLink &action) {
+			if (!App::userLoaded(peerFromUser(action.vinviter_id))) {
 				return DataIsLoadedResult::NotLoaded;
 			}
-		} break;
-		case mtpc_messageActionChatDeleteUser: {
-			if (!App::userLoaded(peerFromUser(d.vaction.c_messageActionChatDeleteUser().vuser_id))) {
+			return DataIsLoadedResult::Ok;
+		}, [](const MTPDmessageActionChatDeleteUser &action) {
+			if (!App::userLoaded(peerFromUser(action.vuser_id))) {
 				return DataIsLoadedResult::NotLoaded;
 			}
-		} break;
-		}
-	} break;
-	}
-	return DataIsLoadedResult::Ok;
+			return DataIsLoadedResult::Ok;
+		}, [](const auto &) {
+			return DataIsLoadedResult::Ok;
+		});
+	}, [](const MTPDmessageEmpty &message) {
+		return DataIsLoadedResult::Ok;
+	});
 }
 
 } // namespace
@@ -4052,7 +4053,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNewChannelMessage: {
 		auto &d = update.c_updateNewChannelMessage();
-		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+		auto channel = App::channelLoaded(peerToChannel(PeerFromMessage(d.vmessage)));
 		auto isDataLoaded = allDataLoadedForMessage(d.vmessage);
 		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
 			MTP_LOG(0, ("getDifference { good - "
@@ -4146,7 +4147,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateEditChannelMessage: {
 		auto &d = update.c_updateEditChannelMessage();
-		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+		auto channel = App::channelLoaded(peerToChannel(PeerFromMessage(d.vmessage)));
 
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference

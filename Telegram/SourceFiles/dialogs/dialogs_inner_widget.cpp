@@ -1885,9 +1885,9 @@ bool DialogsInner::searchReceived(
 	auto unknownUnreadCounts = std::vector<not_null<History*>>();
 	TimeId lastDateFound = 0;
 	for_const (auto message, messages) {
-		auto msgId = idFromMessage(message);
-		auto peerId = peerFromMessage(message);
-		auto lastDate = dateFromMessage(message);
+		auto msgId = IdFromMessage(message);
+		auto peerId = PeerFromMessage(message);
+		auto lastDate = DateFromMessage(message);
 		if (const auto peer = App::peerLoaded(peerId)) {
 			if (lastDate) {
 				const auto item = App::histories().addNewMessage(

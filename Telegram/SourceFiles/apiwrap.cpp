@@ -2773,7 +2773,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 
 	auto indices = base::flat_map<uint64, int>(); // copied from feedMsgs
 	for (auto i = 0, l = v->size(); i != l; ++i) {
-		const auto msgId = idFromMessage(v->at(i));
+		const auto msgId = IdFromMessage(v->at(i));
 		indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 	}
 
@@ -3434,8 +3434,8 @@ void ApiWrap::requestMessageAfterDate(
 		if (auto list = getMessagesList()) {
 			App::feedMsgs(*list, NewMessageExisting);
 			for (auto &message : *list) {
-				if (dateFromMessage(message) >= offsetDate) {
-					callback(idFromMessage(message));
+				if (DateFromMessage(message) >= offsetDate) {
+					callback(IdFromMessage(message));
 					return;
 				}
 			}
