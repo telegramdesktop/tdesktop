@@ -700,7 +700,7 @@ void MainWindow::updateGlobalMenuHook() {
 	}
 	App::wnd()->updateIsActive(0);
 	const auto logged = AuthSession::Exists();
-	const auto locked = !Messenger::Instance().locked();
+	const auto locked = Messenger::Instance().locked();
 	const auto inactive = !logged || locked;
 	const auto support = logged && Auth().supportMode();
 	_forceDisabled(psLogout, !logged && !locked);
