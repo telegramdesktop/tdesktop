@@ -1058,6 +1058,8 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return "You have sent the following documents: "
 			+ SerializeList(list);
+	}, [&](const ActionContactSignUp &data) {
+		return serviceFrom + " joined Telegram";
 	}, [](std::nullopt_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

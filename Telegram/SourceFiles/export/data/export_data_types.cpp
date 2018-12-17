@@ -1011,6 +1011,8 @@ ServiceAction ParseServiceAction(
 			}));
 		}
 		result.content = content;
+	}, [&](const MTPDmessageActionContactSignUp &data) {
+		result.content = ActionContactSignUp();
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

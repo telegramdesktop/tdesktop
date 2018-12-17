@@ -204,6 +204,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareContactSignUp = [this] {
+		auto result = PreparedText{};
+		result.links.push_back(fromLink());
+		result.text = lng_action_user_registered(lt_from, fromLinkText());
+		return result;
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -226,6 +233,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
 	case mtpc_messageActionBotAllowed: messageText = prepareBotAllowed(action.c_messageActionBotAllowed()); break;
 	case mtpc_messageActionSecureValuesSent: messageText = prepareSecureValuesSent(action.c_messageActionSecureValuesSent()); break;
+	case mtpc_messageActionContactSignUp: messageText = prepareContactSignUp(); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 
@@ -258,6 +266,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				this,
 				history()->peer,
 				Auth().data().photo(photo.c_photo()));
+		}
+	} break;
+
+	case mtpc_messageActionContactSignUp: {
+		const auto &data = action.c_messageActionContactSignUp();
+		if (data.is_silent()) {
+			_flags |= MTPDmessage::Flag::f_silent;
 		}
 	} break;
 

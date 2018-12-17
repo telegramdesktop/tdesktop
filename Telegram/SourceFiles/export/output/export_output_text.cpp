@@ -332,6 +332,9 @@ QByteArray SerializeMessage(
 		} else if (!list.empty()) {
 			push("Values", JoinList(", ", list));
 		}
+	}, [&](const ActionContactSignUp &data) {
+		pushActor();
+		pushAction("Join Telegram");
 	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {

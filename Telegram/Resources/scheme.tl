@@ -194,8 +194,6 @@ inputDocumentFileLocation#196683d9 id:long access_hash:long file_reference:bytes
 inputSecureFileLocation#cbc7ee28 id:long access_hash:long = InputFileLocation;
 inputTakeoutFileLocation#29be5899 = InputFileLocation;
 
-inputAppEvent#770656a8 time:double type:string peer:long data:string = InputAppEvent;
-
 peerUser#9db1bc6d user_id:int = Peer;
 peerChat#bad0e5bb chat_id:int = Peer;
 peerChannel#bddde532 channel_id:int = Peer;
@@ -284,6 +282,7 @@ messageActionCustomAction#fae69f56 message:string = MessageAction;
 messageActionBotAllowed#abe9affe domain:string = MessageAction;
 messageActionSecureValuesSentMe#1b287353 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted = MessageAction;
 messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAction;
+messageActionContactSignUp#70ef8294 flags:# silent:flags.0?true = MessageAction;
 
 dialog#e4def5db flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
@@ -322,6 +321,7 @@ wallPaperSolid#63117f24 id:int title:string bg_color:int color:int = WallPaper;
 inputReportReasonSpam#58dbcab8 = ReportReason;
 inputReportReasonViolence#1e22c78d = ReportReason;
 inputReportReasonPornography#2e59d922 = ReportReason;
+inputReportReasonChildAbuse#adf44ee3 = ReportReason;
 inputReportReasonOther#e1746d0a text:string = ReportReason;
 inputReportReasonCopyright#9b89f93a = ReportReason;
 
@@ -387,7 +387,6 @@ updateChatParticipants#7761198 participants:ChatParticipants = Update;
 updateUserStatus#1bfbd823 user_id:int status:UserStatus = Update;
 updateUserName#a7332b73 user_id:int first_name:string last_name:string username:string = Update;
 updateUserPhoto#95313b0c user_id:int date:int photo:UserProfilePhoto previous:Bool = Update;
-updateContactRegistered#2575bbb9 user_id:int date:int = Update;
 updateContactLink#9d2e67c5 user_id:int my_link:ContactLink foreign_link:ContactLink = Update;
 updateNewEncryptedMessage#12bcbd9a message:EncryptedMessage qts:int = Update;
 updateEncryptedChatTyping#1710f156 chat_id:int = Update;
@@ -916,7 +915,7 @@ langPackStringDeleted#2979eeb2 key:string = LangPackString;
 
 langPackDifference#f385c1f6 lang_code:string from_version:int version:int strings:Vector<LangPackString> = LangPackDifference;
 
-langPackLanguage#eeca5ce3 flags:# official:flags.0?true rtl:flags.2?true name:string native_name:string lang_code:string base_lang_code:flags.1?string plural_code:string strings_count:int translated_count:int translations_url:string = LangPackLanguage;
+langPackLanguage#eeca5ce3 flags:# official:flags.0?true rtl:flags.2?true beta:flags.3?true name:string native_name:string lang_code:string base_lang_code:flags.1?string plural_code:string strings_count:int translated_count:int translations_url:string = LangPackLanguage;
 
 channelAdminRights#5d7ceba5 flags:# change_info:flags.0?true post_messages:flags.1?true edit_messages:flags.2?true delete_messages:flags.3?true ban_users:flags.4?true invite_users:flags.5?true invite_link:flags.6?true pin_messages:flags.7?true add_admins:flags.9?true manage_call:flags.10?true = ChannelAdminRights;
 
@@ -1057,6 +1056,17 @@ secureRequiredTypeOneOf#27477b4 types:Vector<SecureRequiredType> = SecureRequire
 help.passportConfigNotModified#bfb9f457 = help.PassportConfig;
 help.passportConfig#a098d6af hash:int countries_langs:DataJSON = help.PassportConfig;
 
+inputAppEvent#1d1b1245 time:double type:string peer:long data:JSONValue = InputAppEvent;
+
+jsonObjectValue#c0de1bd9 key:string value:JSONValue = JSONObjectValue;
+
+jsonNull#3f6d7b68 = JSONValue;
+jsonBool#c7345e6a value:Bool = JSONValue;
+jsonNumber#2be0dfa4 value:double = JSONValue;
+jsonString#b71e767a value:string = JSONValue;
+jsonArray#f7444763 value:Vector<JSONValue> = JSONValue;
+jsonObject#99c1d49d value:Vector<JSONObjectValue> = JSONValue;
+
 pageTableCell#34566b6a flags:# header:flags.0?true align_center:flags.3?true align_right:flags.4?true valign_middle:flags.5?true valign_bottom:flags.6?true text:flags.7?RichText colspan:flags.1?int rowspan:flags.2?int = PageTableCell;
 
 pageTableRow#e0c0c5e5 cells:Vector<PageTableCell> = PageTableRow;
@@ -1071,7 +1081,7 @@ pageListOrderedItemBlocks#98dd8936 num:string blocks:Vector<PageBlock> = PageLis
 
 pageRelatedArticle#b390dc08 flags:# url:string webpage_id:long title:flags.0?string description:flags.1?string photo_id:flags.2?long author:flags.3?string published_date:flags.4?int = PageRelatedArticle;
 
-page#ae891bec flags:# part:flags.0?true rtl:flags.1?true url:string blocks:Vector<PageBlock> photos:Vector<Photo> documents:Vector<Document> = Page;
+page#ae891bec flags:# part:flags.0?true rtl:flags.1?true v2:flags.2?true url:string blocks:Vector<PageBlock> photos:Vector<Photo> documents:Vector<Document> = Page;
 
 help.supportName#8c05f1c9 name:string = help.SupportName;
 
@@ -1149,6 +1159,9 @@ account.finishTakeoutSession#1d2652ee flags:# success:flags.0?true = Bool;
 account.confirmPasswordEmail#8fdf1920 code:string = Bool;
 account.resendPasswordEmail#7a7f2a15 = Bool;
 account.cancelPasswordEmail#c1cbd5b6 = Bool;
+account.getContactSignUpNotification#9f07c728 = Bool;
+account.setContactSignUpNotification#cff43f61 silent:Bool = Bool;
+account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true peer:flags.0?InputNotifyPeer = Updates;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;
@@ -1163,8 +1176,6 @@ contacts.deleteContacts#59ab389e id:Vector<InputUser> = Bool;
 contacts.block#332b49fc id:InputUser = Bool;
 contacts.unblock#e54100bd id:InputUser = Bool;
 contacts.getBlocked#f57c350f offset:int limit:int = contacts.Blocked;
-contacts.exportCard#84e53737 = Vector<int>;
-contacts.importCard#4fe196fe export_card:Vector<int> = User;
 contacts.search#11f812d8 q:string limit:int = contacts.Found;
 contacts.resolveUsername#f93ccba3 username:string = contacts.ResolvedPeer;
 contacts.getTopPeers#d4982db5 flags:# correspondents:flags.0?true bots_pm:flags.1?true bots_inline:flags.2?true phone_calls:flags.3?true groups:flags.10?true channels:flags.15?true offset:int limit:int hash:int = contacts.TopPeers;
@@ -1296,7 +1307,6 @@ upload.getFileHashes#c7025931 location:InputFileLocation offset:int = Vector<Fil
 help.getConfig#c4f9186b = Config;
 help.getNearestDc#1fb33026 = NearestDc;
 help.getAppUpdate#522d5a7d source:string = help.AppUpdate;
-help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getInviteText#4d392343 = help.InviteText;
 help.getSupport#9cdf08cd = help.Support;
 help.getAppChangelog#9010ef6f prev_app_version:string = Updates;
@@ -1307,6 +1317,8 @@ help.getProxyData#3d7758e1 = help.ProxyData;
 help.getTermsOfServiceUpdate#2ca51fd1 = help.TermsOfServiceUpdate;
 help.acceptTermsOfService#ee72f79a id:DataJSON = Bool;
 help.getDeepLinkInfo#3fedc75f path:string = help.DeepLinkInfo;
+help.getAppConfig#98914110 = JSONValue;
+help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getPassportConfig#c661ad08 hash:int = help.PassportConfig;
 help.getSupportName#d360e72c = help.SupportName;
 help.getUserInfo#38a08d3 user_id:InputUser = help.UserInfo;
@@ -1376,4 +1388,4 @@ langpack.getDifference#9d51e814 lang_code:string from_version:int = LangPackDiff
 langpack.getLanguages#42c6978f lang_pack:string = Vector<LangPackLanguage>;
 langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLanguage;
 
-// LAYER 89
+// LAYER 90

@@ -459,6 +459,9 @@ QByteArray SerializeMessage(
 			}()));
 		}
 		pushBare("values", SerializeArray(context, list));
+	}, [&](const ActionContactSignUp &data) {
+		pushActor();
+		pushAction("joined_telegram");
 	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {

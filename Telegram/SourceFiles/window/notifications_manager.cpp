@@ -60,7 +60,9 @@ void System::createManager() {
 }
 
 void System::schedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !AuthSession::Exists()) return;
+	if (App::quitting()
+		|| !history->currentNotification()
+		|| !AuthSession::Exists()) return;
 
 	const auto notifyBy = (!history->peer->isUser() && item->mentionsMe())
 		? item->from().get()

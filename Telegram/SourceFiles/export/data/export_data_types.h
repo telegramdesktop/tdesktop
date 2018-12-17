@@ -422,6 +422,9 @@ struct ActionSecureValuesSent {
 	std::vector<Type> types;
 };
 
+struct ActionContactSignUp {
+};
+
 struct ServiceAction {
 	base::optional_variant<
 		ActionChatCreate,
@@ -442,7 +445,8 @@ struct ServiceAction {
 		ActionScreenshotTaken,
 		ActionCustomAction,
 		ActionBotAllowed,
-		ActionSecureValuesSent> content;
+		ActionSecureValuesSent,
+		ActionContactSignUp> content;
 };
 
 ServiceAction ParseServiceAction(
