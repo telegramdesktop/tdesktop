@@ -269,13 +269,6 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		}
 	} break;
 
-	case mtpc_messageActionContactSignUp: {
-		const auto &data = action.c_messageActionContactSignUp();
-		if (data.is_silent()) {
-			_flags |= MTPDmessage::Flag::f_silent;
-		}
-	} break;
-
 	case mtpc_messageActionChatMigrateTo:
 	case mtpc_messageActionChannelMigrateFrom: {
 		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;

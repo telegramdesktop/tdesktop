@@ -869,6 +869,8 @@ Media ParseMedia(
 	}, [&](const MTPDmessageMediaGeoLive &data) {
 		result.content = ParseGeoPoint(data.vgeo);
 		result.ttl = data.vperiod.v;
+	}, [&](const MTPDmessageMediaPoll &data) {
+		//result.content = ParsePoll(data); // #TODO polls
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
