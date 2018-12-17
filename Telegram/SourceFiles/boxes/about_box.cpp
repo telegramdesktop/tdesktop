@@ -87,12 +87,18 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 }
 
 QString telegramFaqLink() {
-	auto result = qsl("https://telegram.org/faq");
-	auto language = Lang::Current().id();
-	for (auto faqLanguage : { "de", "es", "it", "ko", "br" }) {
-		if (language.startsWith(QLatin1String(faqLanguage))) {
-			result.append('/').append(faqLanguage);
+	const auto result = qsl("https://telegram.org/faq");
+	const auto langpacked = [&](const char *language) {
+		return result + '/' + language;
+	};
+	const auto current = Lang::Current().id();
+	for (const auto language : { "de", "es", "it", "ko" }) {
+		if (current.startsWith(QLatin1String(language))) {
+			return langpacked(language);
 		}
+	}
+	if (current.startsWith(qstr("pt-br"))) {
+		return langpacked("br");
 	}
 	return result;
 }
