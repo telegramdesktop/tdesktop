@@ -1473,7 +1473,7 @@ bool IsExecutableName(const QString &filepath) {
 	static const auto kExtensions = [] {
 		const auto joined =
 #ifdef Q_OS_MAC
-			qsl("action app bin command csh osx workflow");
+			qsl("action app bin command csh osx workflow terminal");
 #elif defined Q_OS_LINUX // Q_OS_MAC
 			qsl("bin csh ksh out run");
 #else // Q_OS_MAC || Q_OS_LINUX
