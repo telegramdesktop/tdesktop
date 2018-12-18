@@ -19,10 +19,6 @@ public:
 		not_null<Element*> parent,
 		not_null<Data::Invoice*> invoice);
 
-	HistoryMediaType type() const override {
-		return MediaTypeInvoice;
-	}
-
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	MsgId getReceiptMsgId() const {

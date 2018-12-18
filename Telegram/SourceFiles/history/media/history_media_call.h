@@ -20,10 +20,6 @@ public:
 		not_null<Element*> parent,
 		not_null<Data::Call*> call);
 
-	HistoryMediaType type() const override {
-		return MediaTypeCall;
-	}
-
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 

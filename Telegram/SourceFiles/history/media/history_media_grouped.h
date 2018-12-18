@@ -26,10 +26,6 @@ public:
 		not_null<Element*> parent,
 		const std::vector<not_null<HistoryItem*>> &items);
 
-	HistoryMediaType type() const override {
-		return MediaTypeGrouped;
-	}
-
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(

@@ -477,7 +477,9 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto pixheight = _attach->height();
 
 		if (_data->type == WebPageType::Video
-			&& _attach->type() == MediaTypePhoto) {
+			&& _collage.empty()
+			&& _data->photo
+			&& !_data->document) {
 			if (_attach->isReadyForOpen()) {
 				if (_data->siteName == qstr("YouTube")) {
 					st::youtubeIcon.paint(p, (pixwidth - st::youtubeIcon.width()) / 2, (pixheight - st::youtubeIcon.height()) / 2, width());

@@ -20,10 +20,6 @@ public:
 		const QString &title = QString(),
 		const QString &description = QString());
 
-	HistoryMediaType type() const override {
-		return MediaTypeLocation;
-	}
-
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 

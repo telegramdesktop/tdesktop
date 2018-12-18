@@ -19,10 +19,6 @@ public:
 		not_null<Element*> parent,
 		not_null<WebPageData*> data);
 
-	HistoryMediaType type() const override {
-		return MediaTypeWebPage;
-	}
-
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;

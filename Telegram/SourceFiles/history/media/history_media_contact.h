@@ -19,10 +19,6 @@ public:
 		const QString &phone);
 	~HistoryContact();
 
-	HistoryMediaType type() const override {
-		return MediaTypeContact;
-	}
-
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 

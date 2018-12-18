@@ -479,18 +479,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			AddToggleGroupingAction(result, linkPeer->peer());
 		}
 	} else if (!request.overSelection && view && !hasSelection) {
-		auto media = view->media();
+		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
-		if (media) {
-			if (media->type() == MediaTypeWebPage
-				&& static_cast<HistoryWebPage*>(media)->attach()) {
-				media = static_cast<HistoryWebPage*>(media)->attach();
-			}
-			if (media->type() == MediaTypeSticker) {
-				if (const auto document = media->getDocument()) {
-					AddDocumentActions(result, document, view->data()->fullId());
-				}
-			}
+		if (const auto document = media ? media->getDocument() : nullptr) {
+			AddDocumentActions(result, document, view->data()->fullId());
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);

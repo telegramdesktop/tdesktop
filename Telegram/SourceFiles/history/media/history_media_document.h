@@ -20,8 +20,6 @@ public:
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
 
-	HistoryMediaType type() const override;
-
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 	void updatePressed(QPoint point) override;

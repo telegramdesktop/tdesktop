@@ -51,14 +51,6 @@ HistoryDocument::HistoryDocument(
 	}
 }
 
-HistoryMediaType HistoryDocument::type() const {
-	return _data->isVoiceMessage()
-		? MediaTypeVoiceFile
-		: (_data->isSong()
-			? MediaTypeMusicFile
-			: MediaTypeFile);
-}
-
 float64 HistoryDocument::dataProgress() const {
 	return _data->progress();
 }

@@ -21,10 +21,6 @@ public:
 		not_null<PhotoData*> photo,
 		int width);
 
-	HistoryMediaType type() const override {
-		return MediaTypePhoto;
-	}
-
 	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
