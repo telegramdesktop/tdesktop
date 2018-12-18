@@ -1529,22 +1529,16 @@ not_null<PollData*> Session::poll(const MTPDmessageMediaPoll &data) {
 }
 
 void Session::applyPollUpdate(const MTPDupdateMessagePoll &update) {
-	const auto poll = [&] {
-		if (update.has_poll()) {
-			return update.vpoll.match([&](const MTPDpoll &data) {
-				const auto i = _polls.find(data.vid.v);
-				return (i != end(_polls)) ? i->second.get() : nullptr;
-			});
-		}
-		const auto item = App::histItemById(
-			peerToChannel(peerFromMTP(update.vpeer)),
-			update.vmsg_id.v);
-		return (item && item->media())
-			? item->media()->poll()
-			: nullptr;
+	const auto updated = [&] {
+		const auto i = _polls.find(update.vpoll_id.v);
+		return (i == end(_polls))
+			? nullptr
+			: update.has_poll()
+			? poll(update.vpoll).get()
+			: i->second.get();
 	}();
-	if (poll && poll->applyResults(update.vresults)) {
-		requestPollViewRepaint(poll);
+	if (updated && updated->applyResults(update.vresults)) {
+		requestPollViewRepaint(updated);
 	}
 }
 

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
-//#include "history/media/history_media_types.h"
 #include "history/history_message.h"
 #include "window/themes/window_theme.h"
 #include "boxes/peer_list_box.h"

@@ -244,6 +244,8 @@
 <(src_loc)/history/media/history_media_location.cpp
 <(src_loc)/history/media/history_media_photo.h
 <(src_loc)/history/media/history_media_photo.cpp
+<(src_loc)/history/media/history_media_poll.h
+<(src_loc)/history/media/history_media_poll.cpp
 <(src_loc)/history/media/history_media_sticker.h
 <(src_loc)/history/media/history_media_sticker.cpp
 <(src_loc)/history/media/history_media_video.h

@@ -258,19 +258,6 @@ videoIcon: icon {
 };
 locationSize: size(320px, 240px);
 
-webPageLeft: 10px;
-webPageBar: 2px;
-webPageTitleFont: semiboldFont;
-webPageTitleStyle: semiboldTextStyle;
-webPageTitleOutFg: historyTextOutFg;
-webPageTitleInFg: historyTextInFg;
-webPageDescriptionOutFg: historyTextOutFg;
-webPageDescriptionInFg: historyTextInFg;
-webPageDescriptionFont: normalFont;
-webPageDescriptionStyle: defaultTextStyle;
-webPagePhotoSize: 100px;
-webPagePhotoDelta: 8px;
-
 mediaPlayerSuppressDuration: 150;
 
 botDescSkip: 8px;

@@ -67,6 +67,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 			}
 		}
 	}
+	++version;
 	return true;
 }
 

@@ -38,6 +38,8 @@ struct PollData {
 	int totalVoters = 0;
 	bool closed = false;
 
+	int version = 0;
+
 private:
 	bool applyResultToAnswers(
 		const MTPPollAnswerVoters &result,

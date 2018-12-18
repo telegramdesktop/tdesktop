@@ -479,6 +479,26 @@ historyAboutProxyPadding: margins(20px, 10px, 20px, 10px);
 historyMapPoint: icon {{ "map_point", mapPointDrop }};
 historyMapPointInner: icon {{ "map_point_inner", mapPointDot }};
 
+webPageLeft: 10px;
+webPageBar: 2px;
+webPageTitleFont: semiboldFont;
+webPageTitleStyle: semiboldTextStyle;
+webPageTitleOutFg: historyTextOutFg;
+webPageTitleInFg: historyTextInFg;
+webPageDescriptionOutFg: historyTextOutFg;
+webPageDescriptionInFg: historyTextInFg;
+webPageDescriptionFont: normalFont;
+webPageDescriptionStyle: defaultTextStyle;
+webPagePhotoSize: 100px;
+webPagePhotoDelta: 8px;
+
+historyPollQuestionStyle: semiboldTextStyle;
+historyPollAnswerStyle: defaultTextStyle;
+historyPollQuestionTop: 7px;
+historyPollSubtitleSkip: 5px;
+historyPollAnswerPadding: margins(30px, 16px, 0px, 16px);
+historyPollAnswersSkip: 5px;
+
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;
 	height: 30px;

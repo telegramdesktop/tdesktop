@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_invoice.h"
 #include "history/media/history_media_call.h"
 #include "history/media/history_media_web_page.h"
+#include "history/media/history_media_poll.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "ui/text_options.h"
@@ -1241,7 +1242,7 @@ bool MediaPoll::updateSentMedia(const MTPMessageMedia &media) {
 std::unique_ptr<HistoryMedia> MediaPoll::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) {
-	return nullptr;
+	return std::make_unique<HistoryPoll>(message, _poll);
 }
 
 } // namespace Data

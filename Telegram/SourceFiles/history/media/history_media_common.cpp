@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_document.h"
 #include "history/media/history_media_sticker.h"
 #include "history/media/history_media_video.h"
+#include "styles/style_history.h"
 
 int documentMaxStatusWidth(DocumentData *document) {
 	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));

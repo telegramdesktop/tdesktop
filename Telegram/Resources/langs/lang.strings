@@ -1829,6 +1829,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_launch_exe_sure" = "Run";
 "lng_launch_exe_dont_ask" = "Don't ask me again";
 
+"lng_polls_anonymous" = "Anonymous Poll";
+"lng_polls_votes_count#one" = "{count} vote";
+"lng_polls_votes_count#other" = "{count} votes";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
