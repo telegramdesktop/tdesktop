@@ -152,6 +152,10 @@ LocationData *Media::location() const {
 	return nullptr;
 }
 
+PollData *Media::poll() const {
+	return nullptr;
+}
+
 bool Media::uploading() const {
 	return false;
 }
@@ -1176,6 +1180,54 @@ std::unique_ptr<HistoryMedia> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryInvoice>(message, &_invoice);
+}
+
+MediaPoll::MediaPoll(
+	not_null<HistoryItem*> parent,
+	not_null<PollData*> poll)
+: Media(parent)
+, _poll(poll) {
+}
+
+MediaPoll::~MediaPoll() {
+}
+
+std::unique_ptr<Media> MediaPoll::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaPoll>(parent, _poll);
+}
+
+PollData *MediaPoll::poll() const {
+	return _poll;
+}
+
+QString MediaPoll::chatsListText() const {
+	return QString(); // #TODO polls
+}
+
+QString MediaPoll::notificationText() const {
+	return QString(); // #TODO polls
+}
+
+QString MediaPoll::pinnedTextSubstring() const {
+	return QString(); // #TODO polls
+}
+
+TextWithEntities MediaPoll::clipboardText() const {
+	return TextWithEntities(); // #TODO polls
+}
+
+bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaPoll::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+std::unique_ptr<HistoryMedia> MediaPoll::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
+	return nullptr;
 }
 
 } // namespace Data

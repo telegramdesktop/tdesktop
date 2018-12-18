@@ -2797,7 +2797,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 			++i;
 		}
 	}
-	_session->data().sendWebPageGameNotifications();
+	_session->data().sendWebPageGamePollNotifications();
 }
 
 void ApiWrap::stickersSaveOrder() {

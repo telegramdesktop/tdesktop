@@ -243,6 +243,7 @@ class DocumentData;
 class PhotoData;
 struct WebPageData;
 struct GameData;
+struct PollData;
 
 class AudioMsgId;
 class PhotoClickHandler;
@@ -262,6 +263,7 @@ using AudioId = uint64;
 using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
+using PollId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 using PreparedPhotoThumbs = QMap<char, QImage>;

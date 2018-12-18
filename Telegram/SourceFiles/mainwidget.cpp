@@ -4246,7 +4246,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// Update web page anyway.
 		Auth().data().webpage(d.vwebpage);
 		_history->updatePreview();
-		Auth().data().sendWebPageGameNotifications();
+		Auth().data().sendWebPageGamePollNotifications();
 
 		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 	} break;
@@ -4257,7 +4257,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// Update web page anyway.
 		Auth().data().webpage(d.vwebpage);
 		_history->updatePreview();
-		Auth().data().sendWebPageGameNotifications();
+		Auth().data().sendWebPageGamePollNotifications();
 
 		auto channel = App::channelLoaded(d.vchannel_id.v);
 		if (channel && !_handlingChannelDifference) {
@@ -4269,6 +4269,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		} else {
 			Auth().api().applyUpdateNoPtsCheck(update);
 		}
+	} break;
+
+	case mtpc_updateMessagePoll: {
+		Auth().data().applyPollUpdate(update.c_updateMessagePoll());
 	} break;
 
 	case mtpc_updateUserTyping: {

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
+#include "data/data_poll.h"
 
 namespace Data {
 namespace {
@@ -293,6 +294,14 @@ void Session::requestDocumentViewRepaint(
 	if (i != end(_documentItems)) {
 		for (const auto item : i->second) {
 			requestItemRepaint(item);
+		}
+	}
+}
+
+void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
+	if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
+		for (const auto view : i->second) {
+			requestViewResize(view);
 		}
 	}
 }
@@ -1490,6 +1499,55 @@ void Session::gameApplyFields(
 	notifyGameUpdateDelayed(game);
 }
 
+not_null<PollData*> Session::poll(PollId id) {
+	auto i = _polls.find(id);
+	if (i == _polls.cend()) {
+		i = _polls.emplace(id, std::make_unique<PollData>(id)).first;
+	}
+	return i->second.get();
+}
+
+not_null<PollData*> Session::poll(const MTPPoll &data) {
+	return data.match([&](const MTPDpoll &data) {
+		const auto id = data.vid.v;
+		const auto result = poll(id);
+		const auto changed = result->applyChanges(data);
+		if (changed) {
+			notifyPollUpdateDelayed(result);
+		}
+		return result;
+	});
+}
+
+not_null<PollData*> Session::poll(const MTPDmessageMediaPoll &data) {
+	const auto result = poll(data.vpoll);
+	const auto changed = result->applyResults(data.vresults);
+	if (changed) {
+		requestPollViewRepaint(result);
+	}
+	return result;
+}
+
+void Session::applyPollUpdate(const MTPDupdateMessagePoll &update) {
+	const auto poll = [&] {
+		if (update.has_poll()) {
+			return update.vpoll.match([&](const MTPDpoll &data) {
+				const auto i = _polls.find(data.vid.v);
+				return (i != end(_polls)) ? i->second.get() : nullptr;
+			});
+		}
+		const auto item = App::histItemById(
+			peerToChannel(peerFromMTP(update.vpeer)),
+			update.vmsg_id.v);
+		return (item && item->media())
+			? item->media()->poll()
+			: nullptr;
+	}();
+	if (poll && poll->applyResults(update.vresults)) {
+		requestPollViewRepaint(poll);
+	}
+}
+
 not_null<LocationData*> Session::location(const LocationCoords &coords) {
 	auto i = _locations.find(coords);
 	if (i == _locations.cend()) {
@@ -1586,6 +1644,24 @@ void Session::unregisterGameView(
 		auto &items = i->second;
 		if (items.remove(view) && items.empty()) {
 			_gameViews.erase(i);
+		}
+	}
+}
+
+void Session::registerPollView(
+		not_null<const PollData*> poll,
+		not_null<ViewElement*> view) {
+	_pollViews[poll].insert(view);
+}
+
+void Session::unregisterPollView(
+		not_null<const PollData*> poll,
+		not_null<ViewElement*> view) {
+	const auto i = _pollViews.find(poll);
+	if (i != _pollViews.end()) {
+		auto &items = i->second;
+		if (items.remove(view) && items.empty()) {
+			_pollViews.erase(i);
 		}
 	}
 }
@@ -1714,23 +1790,37 @@ QString Session::findContactPhone(UserId contactId) const {
 	return QString();
 }
 
+bool Session::hasPendingWebPageGamePollNotification() const {
+	return !_webpagesUpdated.empty()
+		|| !_gamesUpdated.empty()
+		|| !_pollsUpdated.empty();
+}
+
 void Session::notifyWebPageUpdateDelayed(not_null<WebPageData*> page) {
-	const auto invoke = _webpagesUpdated.empty() && _gamesUpdated.empty();
+	const auto invoke = !hasPendingWebPageGamePollNotification();
 	_webpagesUpdated.insert(page);
 	if (invoke) {
-		crl::on_main(_session, [=] { sendWebPageGameNotifications(); });
+		crl::on_main(_session, [=] { sendWebPageGamePollNotifications(); });
 	}
 }
 
 void Session::notifyGameUpdateDelayed(not_null<GameData*> game) {
-	const auto invoke = _webpagesUpdated.empty() && _gamesUpdated.empty();
+	const auto invoke = !hasPendingWebPageGamePollNotification();
 	_gamesUpdated.insert(game);
 	if (invoke) {
-		crl::on_main(_session, [=] { sendWebPageGameNotifications(); });
+		crl::on_main(_session, [=] { sendWebPageGamePollNotifications(); });
 	}
 }
 
-void Session::sendWebPageGameNotifications() {
+void Session::notifyPollUpdateDelayed(not_null<PollData*> poll) {
+	const auto invoke = !hasPendingWebPageGamePollNotification();
+	_pollsUpdated.insert(poll);
+	if (invoke) {
+		crl::on_main(_session, [=] { sendWebPageGamePollNotifications(); });
+	}
+}
+
+void Session::sendWebPageGamePollNotifications() {
 	for (const auto page : base::take(_webpagesUpdated)) {
 		const auto i = _webpageViews.find(page);
 		if (i != _webpageViews.end()) {
@@ -1741,6 +1831,13 @@ void Session::sendWebPageGameNotifications() {
 	}
 	for (const auto game : base::take(_gamesUpdated)) {
 		if (const auto i = _gameViews.find(game); i != _gameViews.end()) {
+			for (const auto view : i->second) {
+				requestViewResize(view);
+			}
+		}
+	}
+	for (const auto poll : base::take(_pollsUpdated)) {
+		if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
 			for (const auto view : i->second) {
 				requestViewResize(view);
 			}

@@ -138,8 +138,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		});
 	}, [](const MTPDmessageMediaInvoice &) {
 		return Result::Good;
-	}, [](const MTPDmessageMediaPoll &) { // #TODO polls
-		return Result::Unsupported;
+	}, [](const MTPDmessageMediaPoll &) {
+		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});

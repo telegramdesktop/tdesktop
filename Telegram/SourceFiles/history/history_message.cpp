@@ -855,8 +855,10 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		});
 	}, [&](const MTPDmessageMediaInvoice &media) -> Result {
 		return std::make_unique<Data::MediaInvoice>(item, media);
-	}, [&](const MTPDmessageMediaPoll &media) -> Result { // #TODO polls
-		return nullptr;
+	}, [&](const MTPDmessageMediaPoll &media) -> Result {
+		return std::make_unique<Data::MediaPoll>(
+			item,
+			Auth().data().poll(media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

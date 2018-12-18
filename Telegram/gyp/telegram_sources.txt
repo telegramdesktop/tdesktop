@@ -166,6 +166,8 @@
 <(src_loc)/data/data_peer_values.h
 <(src_loc)/data/data_photo.cpp
 <(src_loc)/data/data_photo.h
+<(src_loc)/data/data_poll.cpp
+<(src_loc)/data/data_poll.h
 <(src_loc)/data/data_search_controller.cpp
 <(src_loc)/data/data_search_controller.h
 <(src_loc)/data/data_session.cpp

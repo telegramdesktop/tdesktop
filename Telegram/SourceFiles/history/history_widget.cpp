@@ -5928,7 +5928,7 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 				: nullptr;
 			updatePreview();
 		}
-		Auth().data().sendWebPageGameNotifications();
+		Auth().data().sendWebPageGamePollNotifications();
 	} else if (result.type() == mtpc_messageMediaEmpty) {
 		_previewCache.insert(links, 0);
 		if (links == _previewLinks && !_previewCancelled) {
