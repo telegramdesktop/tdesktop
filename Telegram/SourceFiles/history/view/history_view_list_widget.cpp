@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_list_widget.h"
 
-#include "history/history_media_types.h"
+#include "history/media/history_media.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "data/data_media_types.h"
+#include "data/data_document.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {

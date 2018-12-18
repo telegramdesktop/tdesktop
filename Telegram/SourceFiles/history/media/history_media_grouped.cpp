@@ -5,10 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/history_media_grouped.h"
+#include "history/media/history_media_grouped.h"
 
 #include "history/history_item_components.h"
-#include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"

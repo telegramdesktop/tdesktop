@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/history_media.h"
+#include "history/media/history_media.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 
