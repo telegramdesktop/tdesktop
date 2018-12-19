@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_game.h"
 #include "data/data_web_page.h"
+#include "data/data_poll.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
 #include "layout.h"
@@ -1092,7 +1093,7 @@ GameData *MediaGame::game() const {
 }
 
 QString MediaGame::pinnedTextSubstring() const {
-	auto title = _game->title;
+	const auto title = _game->title;
 	return lng_action_pinned_media_game(lt_game, title);
 }
 
@@ -1224,7 +1225,7 @@ QString MediaPoll::notificationText() const {
 }
 
 QString MediaPoll::pinnedTextSubstring() const {
-	return QString(); // #TODO polls
+	return QChar(171) + _poll->question + QChar(187);
 }
 
 TextWithEntities MediaPoll::clipboardText() const {

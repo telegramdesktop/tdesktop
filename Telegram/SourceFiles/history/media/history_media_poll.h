@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media.h"
 
+struct PollAnswer;
+
 class HistoryPoll : public HistoryMedia {
 public:
 	HistoryPoll(
@@ -32,6 +34,8 @@ public:
 		return false;
 	}
 
+	~HistoryPoll();
+
 private:
 	struct Answer {
 		Answer();
@@ -39,19 +43,43 @@ private:
 		Text text;
 		QByteArray option;
 		mutable int votes = 0;
+		mutable int votesPercentWidth = 0;
+		mutable float64 filling = 0.;
+		mutable QString votesPercent;
 		mutable bool chosen = false;
+		ClickHandlerPtr handler;
 	};
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	int countAnswerHeight(const Answer &answer, int innerWidth) const;
+	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
+		const Answer &answer) const;
 	void updateTexts();
 	void updateVotes() const;
 	void updateTotalVotes() const;
+	void updateAnswerVotes() const;
+	void updateAnswerVotesFromOriginal(
+		const Answer &answer,
+		const PollAnswer &original,
+		int totalVotes,
+		int maxVotes) const;
+
+	int paintAnswer(
+		Painter &p,
+		const Answer &answer,
+		int left,
+		int top,
+		int width,
+		int outerWidth,
+		TextSelection selection,
+		TimeMs ms) const;
 
 	not_null<PollData*> _poll;
 	int _pollVersion = 0;
 	mutable int _totalVotes = 0;
 	mutable bool _voted = false;
+	bool _closed = false;
 
 	Text _question;
 	Text _subtitle;

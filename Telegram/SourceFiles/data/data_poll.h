@@ -32,6 +32,8 @@ struct PollData {
 	PollAnswer *answerByOption(const QByteArray &option);
 	const PollAnswer *answerByOption(const QByteArray &option) const;
 
+	bool voted() const;
+
 	PollId id = 0;
 	QString question;
 	std::vector<PollAnswer> answers;

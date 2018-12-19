@@ -414,6 +414,28 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 	return false;
 }
 
+bool HistoryItem::canStopPoll() const {
+	if (id < 0
+		|| Has<HistoryMessageVia>()
+		|| Has<HistoryMessageForwarded>()) {
+		return false;
+	}
+
+	const auto peer = _history->peer;
+	if (peer->isSelf()) {
+		return true;
+	} else if (const auto channel = peer->asChannel()) {
+		if (isPost() && channel->canEditMessages()) {
+			return true;
+		} else if (out()) {
+			return isPost() ? channel->canPublish() : channel->canWrite();
+		} else {
+			return false;
+		}
+	}
+	return out();
+}
+
 bool HistoryItem::canDelete() const {
 	if (isLogEntry() || (!IsServerMsgId(id) && serviceMsg())) {
 		return false;

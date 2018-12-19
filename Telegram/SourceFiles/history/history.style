@@ -492,12 +492,28 @@ webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
 
-historyPollQuestionStyle: semiboldTextStyle;
-historyPollAnswerStyle: defaultTextStyle;
+historyPollQuestionFont: font(boxFontSize semibold);
+historyPollQuestionStyle: TextStyle(defaultTextStyle) {
+	font: historyPollQuestionFont;
+	linkFont: historyPollQuestionFont;
+	linkFontOver: historyPollQuestionFont;
+}
+historyPollAnswerStyle: TextStyle(defaultTextStyle) {
+	font: boxTextFont;
+	linkFont: boxTextFont;
+	linkFontOver: boxTextFont;
+}
 historyPollQuestionTop: 7px;
 historyPollSubtitleSkip: 5px;
 historyPollAnswerPadding: margins(30px, 16px, 0px, 16px);
 historyPollAnswersSkip: 5px;
+historyPollPercentFont: semiboldFont;
+historyPollPercentSkip: 5px;
+historyPollPercentTop: 3px;
+historyPollFillingMin: 8px;
+historyPollFillingHeight: 6px;
+historyPollFillingRadius: 2px;
+historyPollFillingBottom: 10px;
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;

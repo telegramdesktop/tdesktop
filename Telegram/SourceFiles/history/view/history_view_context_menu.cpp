@@ -505,4 +505,12 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	return result;
 }
 
+void StopPoll(FullMsgId itemId) {
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_polls_stop_warning),
+		lang(lng_polls_stop_sure),
+		lang(lng_cancel),
+		[=] { Ui::hideLayer(); Auth().api().closePoll(itemId); }));
+}
+
 } // namespace HistoryView

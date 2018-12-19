@@ -588,41 +588,22 @@ bool HistoryMessage::allowsForward() const {
 	return !_media || _media->allowsForward();
 }
 
-bool HistoryMessage::allowsEdit(TimeId now) const {
+bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	const auto peer = _history->peer;
-	const auto messageToMyself = peer->isSelf();
-	const auto canPinInMegagroup = [&] {
-		if (const auto megagroup = peer->asMegagroup()) {
-			return megagroup->canPinMessages();
+	if (peer->isSelf()) {
+		return false;
+	} else if (const auto megagroup = peer->asMegagroup()) {
+		if (megagroup->canPinMessages()) {
+			return false;
 		}
-		return false;
-	}();
-	const auto messageTooOld = (messageToMyself || canPinInMegagroup)
-		? false
-		: (now - date() >= Global::EditTimeLimit());
-	if (id < 0 || messageTooOld) {
-		return false;
 	}
+	return (now - date() >= Global::EditTimeLimit());
+}
 
-	if (Has<HistoryMessageVia>() || Has<HistoryMessageForwarded>()) {
-		return false;
-	}
-
-	if (_media && !_media->allowsEdit()) {
-		return false;
-	}
-	if (messageToMyself) {
-		return true;
-	}
-	if (const auto channel = _history->peer->asChannel()) {
-		if (isPost() && channel->canEditMessages()) {
-			return true;
-		}
-		if (out()) {
-			return isPost() ? channel->canPublish() : channel->canWrite();
-		}
-	}
-	return out();
+bool HistoryMessage::allowsEdit(TimeId now) const {
+	return canStopPoll()
+		&& !isTooOldForEdit(now)
+		&& (!_media || _media->allowsEdit());
 }
 
 bool HistoryMessage::uploading() const {

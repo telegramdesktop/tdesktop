@@ -1832,6 +1832,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_anonymous" = "Anonymous Poll";
 "lng_polls_votes_count#one" = "{count} vote";
 "lng_polls_votes_count#other" = "{count} votes";
+"lng_polls_retract" = "Retract vote";
+"lng_polls_stop" = "Stop poll";
+"lng_polls_stop_warning" = "If you stop this poll now, nobody will be able to vote in it anymore. This action cannot be undone.";
+"lng_polls_stop_sure" = "Stop";
 
 // Wnd specific
 

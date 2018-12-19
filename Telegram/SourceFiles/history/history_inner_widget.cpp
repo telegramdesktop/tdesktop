@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_context_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_document.h"
+#include "data/data_poll.h"
 #include "data/data_photo.h"
 
 namespace {
@@ -1636,6 +1638,22 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 							saveDocumentToFile(itemId, document);
 						}));
+					}
+				}
+				if (const auto media = item->media()) {
+					if (const auto poll = media->poll()) {
+						if (!poll->closed) {
+							if (poll->voted()) {
+								_menu->addAction(lang(lng_polls_retract), [=] {
+									Auth().api().sendPollVotes(itemId, {});
+								});
+							}
+							if (item->canStopPoll()) {
+								_menu->addAction(lang(lng_polls_stop), [=] {
+									HistoryView::StopPoll(itemId);
+								});
+							}
+						}
 					}
 				}
 				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {

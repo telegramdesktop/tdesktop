@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
+#include "data/data_poll.h"
 #include "data/data_feed.h"
 #include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
@@ -4751,35 +4752,35 @@ void ApiWrap::sendExistingDocument(
 	};
 	performRequest();
 
-	//AssertIsDebug();
-	//auto answers = QVector<MTPPollAnswer>{
-	//	MTP_pollAnswer(MTP_string("first option"), MTP_bytes("a")),
-	//	MTP_pollAnswer(MTP_string("second option"), MTP_bytes("b")),
-	//	MTP_pollAnswer(MTP_string("third very very very very very very "
-	//	"very very very very very very option"), MTP_bytes("c")),
-	//	MTP_pollAnswer(MTP_string("fourth option"), MTP_bytes("d")),
-	//};
-	//history->sendRequestId = request(MTPmessages_SendMedia(
-	//	MTP_flags(sendFlags),
-	//	peer->input,
-	//	MTP_int(replyTo),
-	//	MTP_inputMediaPoll(
-	//		MTP_poll(
-	//			MTP_long(rand_value<uint64>()),
-	//			MTP_flags(0),
-	//			MTP_string("Very very very very very very very very very very "
-	//			"very very very long poll question text"),
-	//			MTP_vector<MTPPollAnswer>(answers))),
-	//	MTP_string(captionText),
-	//	MTP_long(rand_value<uint64>()),
-	//	MTPnullMarkup,
-	//	sentEntities
-	//)).done([=](const MTPUpdates &result) {
-	//	applyUpdates(result);
-	//}).fail(
-	//	base::duplicate(*failHandler)
-	//).afterRequest(history->sendRequestId
-	//).send();
+	AssertIsDebug();
+	auto answers = QVector<MTPPollAnswer>{
+		MTP_pollAnswer(MTP_string("first option"), MTP_bytes("a")),
+		MTP_pollAnswer(MTP_string("second option"), MTP_bytes("b")),
+		MTP_pollAnswer(MTP_string("third very very very very very very "
+		"very very very very very very option"), MTP_bytes("c")),
+		MTP_pollAnswer(MTP_string("fourth option"), MTP_bytes("d")),
+	};
+	history->sendRequestId = request(MTPmessages_SendMedia(
+		MTP_flags(sendFlags),
+		peer->input,
+		MTP_int(replyTo),
+		MTP_inputMediaPoll(
+			MTP_poll(
+				MTP_long(rand_value<uint64>()),
+				MTP_flags(0),
+				MTP_string("Very very very very very very very very very very "
+				"very very very long poll question text"),
+				MTP_vector<MTPPollAnswer>(answers))),
+		MTP_string(captionText),
+		MTP_long(rand_value<uint64>()),
+		MTPnullMarkup,
+		sentEntities
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).fail(
+		base::duplicate(*failHandler)
+	).afterRequest(history->sendRequestId
+	).send();
 
 	if (const auto main = App::main()) {
 		main->finishForwarding(history);
@@ -5341,6 +5342,81 @@ void ApiWrap::saveSelfDestruct(int days) {
 void ApiWrap::setSelfDestructDays(int days) {
 	_selfDestructDays = days;
 	_selfDestructChanges.fire_copy(days);
+}
+
+void ApiWrap::sendPollVotes(
+		FullMsgId itemId,
+		const std::vector<QByteArray> &options) {
+	if (_pollVotesRequestIds.contains(itemId)) {
+		return;
+	}
+	const auto item = App::histItemById(itemId);
+	if (!item) {
+		return;
+	}
+
+	auto prepared = QVector<MTPbytes>();
+	prepared.reserve(options.size());
+	ranges::transform(
+		options,
+		ranges::back_inserter(prepared),
+		[](const QByteArray &option) { return MTP_bytes(option); });
+	const auto requestId = request(MTPmessages_SendVote(
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTP_vector<MTPbytes>(prepared)
+	)).done([=](const MTPUpdates &result) {
+		_pollVotesRequestIds.erase(itemId);
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		_pollVotesRequestIds.erase(itemId);
+	}).send();
+	_pollVotesRequestIds.emplace(itemId, requestId);
+}
+
+void ApiWrap::closePoll(FullMsgId itemId) {
+	if (_pollCloseRequestIds.contains(itemId)) {
+		return;
+	}
+	const auto item = App::histItemById(itemId);
+	const auto media = item ? item->media() : nullptr;
+	const auto poll = media ? media->poll() : nullptr;
+	if (!poll) {
+		return;
+	}
+
+	const auto convert = [](const PollAnswer &answer) {
+		return MTP_pollAnswer(
+			MTP_string(answer.text),
+			MTP_bytes(answer.option));
+	};
+
+	auto answers = QVector<MTPPollAnswer>();
+	answers.reserve(poll->answers.size());
+	ranges::transform(
+		poll->answers,
+		ranges::back_inserter(answers),
+		convert);
+
+	const auto requestId = request(MTPmessages_EditMessage(
+		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTPstring(),
+		MTP_inputMediaPoll(MTP_poll(
+			MTP_long(poll->id),
+			MTP_flags(MTPDpoll::Flag::f_closed),
+			MTP_string(poll->question),
+			MTP_vector<MTPPollAnswer>(answers))),
+		MTPReplyMarkup(),
+		MTPVector<MTPMessageEntity>()
+	)).done([=](const MTPUpdates &result) {
+		_pollCloseRequestIds.erase(itemId);
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		_pollCloseRequestIds.erase(itemId);
+	}).send();
+	_pollCloseRequestIds.emplace(itemId, requestId);
 }
 
 void ApiWrap::readServerHistory(not_null<History*> history) {

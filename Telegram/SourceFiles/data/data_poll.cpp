@@ -121,3 +121,7 @@ bool PollData::applyResultToAnswers(
 		return changed;
 	});
 }
+
+bool PollData::voted() const {
+	return ranges::find(answers, true, &PollAnswer::chosen) != end(answers);
+}
