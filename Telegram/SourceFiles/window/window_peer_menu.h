@@ -50,6 +50,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user);
 void PeerMenuAddContact(not_null<UserData*> user);
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
+void PeerMenuCreatePoll(not_null<PeerData*> peer);
 
 //void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group); // #feed
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);

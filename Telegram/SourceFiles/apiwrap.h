@@ -377,6 +377,11 @@ public:
 	rpl::producer<int> selfDestructValue() const;
 	void saveSelfDestruct(int days);
 
+	void createPoll(
+		const PollData &data,
+		const SendOptions &options,
+		FnMut<void()> done,
+		FnMut<void(const RPCError &error)> fail);
 	void sendPollVotes(
 		FullMsgId itemId,
 		const std::vector<QByteArray> &options);

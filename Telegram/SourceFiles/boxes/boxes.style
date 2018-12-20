@@ -834,3 +834,53 @@ themesScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: 0px;
 	topsh: 0px;
 }
+
+createPollField: InputField(defaultInputField) {
+	font: boxTextFont;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(left);
+	heightMin: 36px;
+	heightMax: 86px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+}
+createPollFieldPadding: margins(22px, 5px, 22px, 5px);
+createPollOptionField: InputField(createPollField) {
+	textMargins: margins(22px, 8px, 40px, 8px);
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	heightMax: 64px;
+}
+createPollLimitLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 274px;
+	align: align(topleft);
+}
+createPollOptionRemove: CrossButton {
+	width: 22px;
+	height: 22px;
+
+	cross: CrossAnimation {
+		size: 22px;
+		skip: 6px;
+		stroke: 1px;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+createPollOptionRemovePosition: point(10px, 7px);

@@ -408,7 +408,9 @@ bool Application::notify(QObject *receiver, QEvent *e) {
 		_loopNestingLevel = _previousLoopNestingLevels.back();
 		_previousLoopNestingLevels.pop_back();
 	}
-	processPostponedCalls(--_eventNestingLevel);
+	const auto processTillLevel = _eventNestingLevel - 1;
+	processPostponedCalls(processTillLevel);
+	_eventNestingLevel = processTillLevel;
 	return result;
 }
 

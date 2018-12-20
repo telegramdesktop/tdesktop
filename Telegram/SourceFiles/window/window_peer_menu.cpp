@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
+#include "boxes/create_poll_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/manage_peer_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
@@ -360,6 +361,11 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 				lang(lng_profile_add_participant),
 				[chat] { AddChatMembers(chat); });
 		}
+		if (chat->canWrite()) {
+			_addAction(
+				lang(lng_polls_create),
+				[=] { PeerMenuCreatePoll(chat); });
+		}
 		_addAction(
 			lang(lng_profile_export_chat),
 			[=] { PeerMenuExportChat(chat); });
@@ -396,6 +402,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			_addAction(
 				lang(lng_channel_add_members),
 				[channel] { PeerMenuAddChannelMembers(channel); });
+		}
+		if (channel->canWrite()) {
+			_addAction(
+				lang(lng_polls_create),
+				[=] { PeerMenuCreatePoll(channel); });
 		}
 		_addAction(
 			lang(isGroup
@@ -613,6 +624,19 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 				box->closeBox();
 			});
 		}));
+}
+
+void PeerMenuCreatePoll(not_null<PeerData*> peer) {
+	const auto box = Ui::show(Box<CreatePollBox>());
+	box->submitRequests(
+	) | rpl::start_with_next([=](const PollData &result) {
+		const auto options = ApiWrap::SendOptions(App::history(peer));
+		Auth().api().createPoll(result, options, crl::guard(box, [=] {
+			box->closeBox();
+		}), crl::guard(box, [=](const RPCError &error) {
+			box->submitFailed(lang(lng_attach_failed));
+		}));
+	}, box->lifetime());
 }
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(

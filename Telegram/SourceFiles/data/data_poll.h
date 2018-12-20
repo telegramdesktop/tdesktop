@@ -48,3 +48,5 @@ private:
 		bool isMinResults);
 
 };
+
+MTPPoll PollDataToMTP(not_null<const PollData*> poll);

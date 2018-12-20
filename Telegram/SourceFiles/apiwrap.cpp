@@ -4752,36 +4752,6 @@ void ApiWrap::sendExistingDocument(
 	};
 	performRequest();
 
-	AssertIsDebug();
-	auto answers = QVector<MTPPollAnswer>{
-		MTP_pollAnswer(MTP_string("first option"), MTP_bytes("a")),
-		MTP_pollAnswer(MTP_string("second option"), MTP_bytes("b")),
-		MTP_pollAnswer(MTP_string("third very very very very very very "
-		"very very very very very very option"), MTP_bytes("c")),
-		MTP_pollAnswer(MTP_string("fourth option"), MTP_bytes("d")),
-	};
-	history->sendRequestId = request(MTPmessages_SendMedia(
-		MTP_flags(sendFlags),
-		peer->input,
-		MTP_int(replyTo),
-		MTP_inputMediaPoll(
-			MTP_poll(
-				MTP_long(rand_value<uint64>()),
-				MTP_flags(0),
-				MTP_string("Very very very very very very very very very very "
-				"very very very long poll question text"),
-				MTP_vector<MTPPollAnswer>(answers))),
-		MTP_string(captionText),
-		MTP_long(rand_value<uint64>()),
-		MTPnullMarkup,
-		sentEntities
-	)).done([=](const MTPUpdates &result) {
-		applyUpdates(result);
-	}).fail(
-		base::duplicate(*failHandler)
-	).afterRequest(history->sendRequestId
-	).send();
-
 	if (const auto main = App::main()) {
 		main->finishForwarding(history);
 		if (document->sticker()) {
@@ -5344,6 +5314,45 @@ void ApiWrap::setSelfDestructDays(int days) {
 	_selfDestructChanges.fire_copy(days);
 }
 
+void ApiWrap::createPoll(
+		const PollData &data,
+		const SendOptions &options,
+		FnMut<void()> done,
+		FnMut<void(const RPCError &error)> fail) {
+	sendAction(options);
+
+	const auto history = options.history;
+	const auto peer = history->peer;
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (options.replyTo) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+	}
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto silentPost = channelPost
+		&& _session->data().notifySilentPosts(peer);
+	if (silentPost) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+	}
+
+	const auto replyTo = options.replyTo;
+	history->sendRequestId = request(MTPmessages_SendMedia(
+		MTP_flags(sendFlags),
+		peer->input,
+		MTP_int(replyTo),
+		MTP_inputMediaPoll(PollDataToMTP(&data)),
+		MTP_string(QString()),
+		MTP_long(rand_value<uint64>()),
+		MTPReplyMarkup(),
+		MTPVector<MTPMessageEntity>()
+	)).done([=, done = std::move(done)](const MTPUpdates &result) mutable {
+		applyUpdates(result);
+		done();
+	}).fail([=, fail = std::move(fail)](const RPCError &error) mutable {
+		fail(error);
+	}).afterRequest(history->sendRequestId
+	).send();
+}
+
 void ApiWrap::sendPollVotes(
 		FullMsgId itemId,
 		const std::vector<QByteArray> &options) {
@@ -5385,29 +5394,12 @@ void ApiWrap::closePoll(FullMsgId itemId) {
 		return;
 	}
 
-	const auto convert = [](const PollAnswer &answer) {
-		return MTP_pollAnswer(
-			MTP_string(answer.text),
-			MTP_bytes(answer.option));
-	};
-
-	auto answers = QVector<MTPPollAnswer>();
-	answers.reserve(poll->answers.size());
-	ranges::transform(
-		poll->answers,
-		ranges::back_inserter(answers),
-		convert);
-
 	const auto requestId = request(MTPmessages_EditMessage(
 		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
 		item->history()->peer->input,
 		MTP_int(item->id),
 		MTPstring(),
-		MTP_inputMediaPoll(MTP_poll(
-			MTP_long(poll->id),
-			MTP_flags(MTPDpoll::Flag::f_closed),
-			MTP_string(poll->question),
-			MTP_vector<MTPPollAnswer>(answers))),
+		MTP_inputMediaPoll(PollDataToMTP(poll)),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>()
 	)).done([=](const MTPUpdates &result) {

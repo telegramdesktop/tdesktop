@@ -125,3 +125,22 @@ bool PollData::applyResultToAnswers(
 bool PollData::voted() const {
 	return ranges::find(answers, true, &PollAnswer::chosen) != end(answers);
 }
+
+MTPPoll PollDataToMTP(not_null<const PollData*> poll) {
+	const auto convert = [](const PollAnswer &answer) {
+		return MTP_pollAnswer(
+			MTP_string(answer.text),
+			MTP_bytes(answer.option));
+	};
+	auto answers = QVector<MTPPollAnswer>();
+	answers.reserve(poll->answers.size());
+	ranges::transform(
+		poll->answers,
+		ranges::back_inserter(answers),
+		convert);
+	return MTP_poll(
+		MTP_long(poll->id),
+		MTP_flags(MTPDpoll::Flag::f_closed),
+		MTP_string(poll->question),
+		MTP_vector<MTPPollAnswer>(answers));
+}

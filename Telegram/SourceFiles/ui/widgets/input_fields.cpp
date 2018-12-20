@@ -2160,7 +2160,11 @@ void InputField::handleContentsChanged() {
 
 	if (tagsChanged || (_lastTextWithTags.text != currentText)) {
 		_lastTextWithTags.text = currentText;
+		const auto weak = make_weak(this);
 		emit changed();
+		if (!weak) {
+			return;
+		}
 		checkContentHeight();
 	}
 	startPlaceholderAnimation();
