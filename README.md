@@ -7,7 +7,7 @@ This is the complete source code and the build instructions for the alpha versio
 [![Build status](https://ci.appveyor.com/api/projects/status/uiw2y768iy4i5bu8/branch/dev?svg=true)](https://ci.appveyor.com/project/telegramdesktop/tdesktop)
 
 [![Preview of Telegram Desktop][preview_image]][preview_image_url]
-[![Preview of Telegram Desktop Night mode][preview_image_night_mode]]
+![Preview of Telegram Desktop Night mode][preview_image_night_mode]
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
