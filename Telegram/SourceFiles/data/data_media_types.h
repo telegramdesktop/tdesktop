@@ -390,7 +390,6 @@ public:
 
 	PollData *poll() const override;
 
-	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;

@@ -1216,12 +1216,8 @@ PollData *MediaPoll::poll() const {
 	return _poll;
 }
 
-QString MediaPoll::chatsListText() const {
-	return QString(); // #TODO polls
-}
-
 QString MediaPoll::notificationText() const {
-	return QString(); // #TODO polls
+	return lang(lng_in_dlg_poll);
 }
 
 QString MediaPoll::pinnedTextSubstring() const {
@@ -1229,7 +1225,19 @@ QString MediaPoll::pinnedTextSubstring() const {
 }
 
 TextWithEntities MediaPoll::clipboardText() const {
-	return TextWithEntities(); // #TODO polls
+	const auto text = qsl("[ ")
+		+ lang(lng_in_dlg_poll)
+		+ qsl(" : ")
+		+ _poll->question
+		+ qsl(" ]")
+		+ ranges::accumulate(
+			ranges::view::all(
+				_poll->answers
+			) | ranges::view::transform(
+				[](const PollAnswer &answer) { return "\n- " + answer.text; }
+			),
+			QString());
+	return { text, EntitiesInText() };
 }
 
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {

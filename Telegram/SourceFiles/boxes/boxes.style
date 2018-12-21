@@ -863,6 +863,7 @@ createPollLimitLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;
 	align: align(topleft);
 }
+createPollLimitPadding: margins(22px, 10px, 22px, 5px);
 createPollOptionRemove: CrossButton {
 	width: 22px;
 	height: 22px;
@@ -884,3 +885,10 @@ createPollOptionRemove: CrossButton {
 	}
 }
 createPollOptionRemovePosition: point(10px, 7px);
+createPollWarning: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: boxTextFgError;
+	}
+}
+createPollWarningPosition: point(16px, 6px);

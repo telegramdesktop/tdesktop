@@ -15,10 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "core/event_filter.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "settings/settings_common.h"
 #include "base/unique_qptr.h"
 #include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -27,6 +29,7 @@ constexpr auto kMaxOptionsCount = 10;
 constexpr auto kOptionLimit = 100;
 constexpr auto kWarnQuestionLimit = 80;
 constexpr auto kWarnOptionLimit = 30;
+constexpr auto kErrorLimit = 99;
 
 class Options {
 public:
@@ -41,6 +44,7 @@ public:
 
 	[[nodiscard]] rpl::producer<int> usedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
+	[[nodiscard]] rpl::producer<> backspaceInFront() const;
 
 private:
 	class Option {
@@ -50,15 +54,14 @@ private:
 			not_null<Ui::VerticalLayout*> container,
 			int position);
 
-		[[nodisacrd]] bool hasShadow() const;
-		void createShadow();
-		//void destroyShadow();
-
-		void createRemove();
 		void toggleRemoveAlways(bool toggled);
+
+		//[[nodisacrd]] bool hasShadow() const;
+		//void destroyShadow();
 
 		[[nodiscard]] bool isEmpty() const;
 		[[nodiscard]] bool isGood() const;
+		[[nodiscard]] bool isTooLong() const;
 		[[nodiscard]] bool hasFocus() const;
 		void setFocus() const;
 		void clearValue();
@@ -74,6 +77,10 @@ private:
 
 	private:
 		Option() = default;
+
+		void createShadow();
+		void createRemove();
+		void createWarning();
 
 		base::unique_qptr<Ui::InputField> _field;
 		base::unique_qptr<Ui::PlainShadow> _shadow;
@@ -99,6 +106,7 @@ private:
 	rpl::variable<bool> _valid = false;
 	rpl::variable<int> _usedCount = 0;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
+	rpl::event_stream<> _backspaceInFront;
 
 };
 
@@ -108,6 +116,38 @@ void InitField(
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(container, field);
+}
+
+not_null<Ui::FlatLabel*> CreateWarningLabel(
+		not_null<QWidget*> parent,
+		not_null<Ui::InputField*> field,
+		int valueLimit,
+		int warnLimit) {
+	const auto result = Ui::CreateChild<Ui::FlatLabel>(
+		parent.get(),
+		QString(),
+		Ui::FlatLabel::InitType::Simple,
+		st::createPollWarning);
+	result->setAttribute(Qt::WA_TransparentForMouseEvents);
+	QObject::connect(field, &Ui::InputField::changed, [=] {
+		Ui::PostponeCall(crl::guard(field, [=] {
+			const auto length = field->getLastText().size();
+			const auto value = valueLimit - length;
+			const auto shown = (value < warnLimit)
+				&& (field->height() > st::createPollOptionField.heightMin);
+			result->setRichText((value >= 0)
+				? QString::number(value)
+				: textcmdLink(1, QString::number(value)));
+			result->setVisible(shown);
+		}));
+	});
+	return result;
+}
+
+void FocusAtEnd(not_null<Ui::InputField*> field) {
+	field->setFocus();
+	field->setCursorPosition(field->getLastText().size());
+	field->ensureCursorVisible();
 }
 
 Options::Option Options::Option::Create(
@@ -123,16 +163,18 @@ Options::Option Options::Option::Create(
 			Ui::InputField::Mode::MultiLine,
 			langFactory(lng_polls_create_option_add)));
 	InitField(outer, field);
+	field->setMaxLength(kOptionLimit + kErrorLimit);
 	result._field.reset(field);
 
 	result.createShadow();
 	result.createRemove();
+	result.createWarning();
 	return result;
 }
 
-bool Options::Option::hasShadow() const {
-	return (_shadow != nullptr);
-}
+//bool Options::Option::hasShadow() const {
+//	return (_shadow != nullptr);
+//}
 
 void Options::Option::createShadow() {
 	Expects(_field != nullptr);
@@ -195,13 +237,40 @@ void Options::Option::createRemove() {
 	_remove.reset(remove);
 }
 
+void Options::Option::createWarning() {
+	using namespace rpl::mappers;
+
+	const auto field = _field.get();
+	const auto warning = CreateWarningLabel(
+		field,
+		field,
+		kOptionLimit,
+		kWarnOptionLimit);
+	rpl::combine(
+		field->sizeValue(),
+		warning->sizeValue()
+	) | rpl::start_with_next([=](QSize size, QSize label) {
+		warning->moveToLeft(
+			(size.width()
+				- label.width()
+				- st::createPollWarningPosition.x()),
+			(size.height()
+				- label.height()
+				- st::createPollWarningPosition.y()),
+			size.width());
+	}, warning->lifetime());
+}
+
 bool Options::Option::isEmpty() const {
 	return _field->getLastText().trimmed().isEmpty();
 }
 
 bool Options::Option::isGood() const {
-	const auto text = _field->getLastText().trimmed();
-	return !text.isEmpty() && (text.size() <= kOptionLimit);
+	return !_field->getLastText().trimmed().isEmpty() && !isTooLong();
+}
+
+bool Options::Option::isTooLong() const {
+	return (_field->getLastText().size() > kOptionLimit);
 }
 
 bool Options::Option::hasFocus() const {
@@ -209,7 +278,7 @@ bool Options::Option::hasFocus() const {
 }
 
 void Options::Option::setFocus() const {
-	_field->setFocus();
+	FocusAtEnd(_field);
 }
 
 void Options::Option::clearValue() {
@@ -270,6 +339,10 @@ rpl::producer<int> Options::usedCount() const {
 
 rpl::producer<not_null<QWidget*>> Options::scrollToWidget() const {
 	return _scrollToWidget.events();
+}
+
+rpl::producer<> Options::backspaceInFront() const {
+	return _backspaceInFront.events();
 }
 
 std::vector<PollAnswer> Options::toPollAnswers() const {
@@ -378,6 +451,24 @@ void Options::addEmptyOption() {
 	QObject::connect(field, &Ui::InputField::focused, [=] {
 		_scrollToWidget.fire_copy(field);
 	});
+	Core::InstallEventFilter(field, [=](not_null<QEvent*> event) {
+		if (event->type() != QEvent::KeyPress
+			|| !field->getLastText().isEmpty()) {
+			return false;
+		}
+		const auto key = static_cast<QKeyEvent*>(event.get())->key();
+		if (key != Qt::Key_Backspace) {
+			return false;
+		}
+
+		const auto index = findField(field);
+		if (index > 0) {
+			_list[index - 1].setFocus();
+		} else {
+			_backspaceInFront.fire({});
+		}
+		return true;
+	});
 
 	_list.back().removeClicks(
 	) | rpl::start_with_next([=] {
@@ -403,7 +494,8 @@ void Options::addEmptyOption() {
 
 void Options::validateState() {
 	checkLastOption();
-	_valid = (ranges::count_if(_list, &Option::isGood) > 1);
+	_valid = (ranges::count_if(_list, &Option::isGood) > 1)
+		&& (ranges::find_if(_list, &Option::isTooLong) == end(_list));
 	const auto lastEmpty = !_list.empty() && _list.back().isEmpty();
 	_usedCount = _list.size() - (lastEmpty ? 1 : 0);
 }
@@ -454,6 +546,29 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 			langFactory(lng_polls_create_question_placeholder)),
 		st::createPollFieldPadding);
 	InitField(getDelegate()->outerContainer(), question);
+	question->setMaxLength(kQuestionLimit + kErrorLimit);
+
+	const auto warning = CreateWarningLabel(
+		container,
+		question,
+		kQuestionLimit,
+		kWarnQuestionLimit);
+	rpl::combine(
+		question->geometryValue(),
+		warning->sizeValue()
+	) | rpl::start_with_next([=](QRect geometry, QSize label) {
+		warning->moveToLeft(
+			(container->width()
+				- label.width()
+				- st::createPollWarningPosition.x()),
+			(geometry.y()
+				- st::createPollFieldPadding.top()
+				- st::settingsSubsectionTitlePadding.bottom()
+				- st::settingsSubsectionTitle.style.font->height
+				+ st::settingsSubsectionTitle.style.font->ascent
+				- st::createPollWarning.style.font->ascent),
+			geometry.width());
+	}, warning->lifetime());
 
 	return question;
 }
@@ -486,7 +601,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			container,
 			std::move(limit),
 			st::createPollLimitLabel),
-		st::createPollFieldPadding);
+		st::createPollLimitPadding);
 
 	const auto isValidQuestion = [=] {
 		const auto text = question->getLastText().trimmed();
@@ -512,7 +627,11 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto updateValid = [=] {
 		valid->fire(isValidQuestion() && options->isValid());
 	};
-	valid->events(
+	connect(question, &Ui::InputField::changed, [=] {
+		updateValid();
+	});
+	valid->events_starting_with(
+		false
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool valid) {
 		clearButtons();
@@ -534,6 +653,11 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		scrollToWidget(widget);
 	}, lifetime());
 
+	options->backspaceInFront(
+	) | rpl::start_with_next([=] {
+		FocusAtEnd(question);
+	}, lifetime());
+
 	return std::move(result);
 }
 
@@ -543,4 +667,7 @@ void CreatePollBox::prepare() {
 	const auto inner = setInnerWidget(setupContent());
 
 	setDimensionsToContent(st::boxWideWidth, inner);
+
+	setCloseByEscape(false);
+	setCloseByOutsideClick(false);
 }
