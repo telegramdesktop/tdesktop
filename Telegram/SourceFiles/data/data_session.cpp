@@ -53,9 +53,9 @@ using ViewElement = HistoryView::Element;
 // b: crop 320x320
 // c: crop 640x640
 // d: crop 1280x1280
-const auto ThumbLevels = QByteArray::fromRawData("sambcxydw", 9);
-const auto MediumLevels = QByteArray::fromRawData("mbcxasydw", 9);
-const auto FullLevels = QByteArray::fromRawData("yxwmsdcba", 9);
+const auto ThumbLevels = QByteArray::fromRawData("isambcxydw", 10);
+const auto MediumLevels = QByteArray::fromRawData("mbcxasydwi", 10);
+const auto FullLevels = QByteArray::fromRawData("yxwmsdcbai", 10);
 
 void UpdateImage(ImagePtr &old, ImagePtr now) {
 	if (now->isNull()) {
@@ -1752,20 +1752,11 @@ void Session::photoApplyFields(
 	auto mediumLevel = -1;
 	auto fullLevel = -1;
 	for (const auto &sizeData : data.vsizes.v) {
-		const auto sizeLetter = [&] {
-			switch (sizeData.type()) {
-			case mtpc_photoSizeEmpty: return char(0);
-			case mtpc_photoSize: {
-				const auto &data = sizeData.c_photoSize();
-				return data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0];
-			} break;
-			case mtpc_photoCachedSize: {
-				const auto &data = sizeData.c_photoCachedSize();
-				return data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0];
-			} break;
-			}
-			Unexpected("Type in photo size.");
-		}();
+		const auto sizeLetter = sizeData.match([](MTPDphotoSizeEmpty) {
+			return char(0);
+		}, [](const auto &size) {
+			return size.vtype.v.isEmpty() ? char(0) : size.vtype.v[0];
+		});
 		if (!sizeLetter) continue;
 
 		const auto newThumbLevel = ThumbLevels.indexOf(sizeLetter);
@@ -3016,42 +3007,41 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data) {
 	});
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
-			const auto &sizes = paper.vsizes.v;
-			const MTPPhotoSize *thumb = 0, *full = 0;
-			int32 thumbLevel = -1, fullLevel = -1;
-			for (auto j = sizes.cbegin(), e = sizes.cend(); j != e; ++j) {
-				char size = 0;
-				int32 w = 0, h = 0;
-				switch (j->type()) {
-				case mtpc_photoSize: {
-					auto &s = j->c_photoSize().vtype.v;
-					if (s.size()) size = s[0];
-					w = j->c_photoSize().vw.v;
-					h = j->c_photoSize().vh.v;
-				} break;
-
-				case mtpc_photoCachedSize: {
-					auto &s = j->c_photoCachedSize().vtype.v;
-					if (s.size()) size = s[0];
-					w = j->c_photoCachedSize().vw.v;
-					h = j->c_photoCachedSize().vh.v;
-				} break;
+			const MTPPhotoSize *thumb = nullptr;
+			const MTPPhotoSize *full = nullptr;
+			auto thumbLevel = -1;
+			auto fullLevel = -1;
+			for (const auto &photoSize : paper.vsizes.v) {
+				auto size = char(0);
+				auto w = 0;
+				auto h = 0;
+				photoSize.match([](const MTPDphotoSizeEmpty &) {
+					LOG(("API Error: photoSizeEmpty in wallpapers."));
+				}, [](const MTPDphotoStrippedSize &) {
+					LOG(("API Error: photoStrippedSize in wallpapers."));
+				}, [&](const auto &photoSize) {
+					if (photoSize.vtype.v.size()) {
+						size = photoSize.vtype.v[0];
+					}
+					w = photoSize.vw.v;
+					h = photoSize.vh.v;
+				});
+				if (!size || !w || !h) {
+					continue;
 				}
-				if (!size || !w || !h) continue;
 
-				const auto newThumbLevel = qAbs(
-					(st::backgroundSize.width() * cIntRetinaFactor()) - w);
+				const auto newThumbLevel = qAbs((st::backgroundSize.width() * cIntRetinaFactor()) - w);
 				const auto newFullLevel = qAbs(2560 - w);
 				if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
 					thumbLevel = newThumbLevel;
-					thumb = &(*j);
+					thumb = &photoSize;
 				}
 				if (fullLevel < 0 || newFullLevel < fullLevel) {
 					fullLevel = newFullLevel;
-					full = &(*j);
+					full = &photoSize;
 				}
 			}
-			if (thumb && full && full->type() != mtpc_photoSizeEmpty) {
+			if (thumb && full) {
 				_wallpapers.push_back({
 					paper.vid.v ? paper.vid.v : INT_MAX,
 					App::image(*thumb),

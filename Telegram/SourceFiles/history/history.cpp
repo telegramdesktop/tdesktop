@@ -1024,7 +1024,7 @@ void History::applyServiceChanges(
 				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation; break;
 				}
 				if (smallLoc && bigLoc) {
-					const auto newPhotoId = photo ? photo->id : 0;
+					const auto newPhotoId = photo ? photo->id : PhotoId();
 					if (const auto chat = peer->asChat()) {
 						chat->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
 					} else if (const auto channel = peer->asChannel()) {

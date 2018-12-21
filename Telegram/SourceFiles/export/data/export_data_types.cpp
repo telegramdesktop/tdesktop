@@ -233,6 +233,8 @@ Image ParseMaxImage(
 	auto maxArea = int64(0);
 	for (const auto &size : data.v) {
 		size.match([](const MTPDphotoSizeEmpty &) {
+		}, [](const MTPDphotoStrippedSize &) {
+			// Max image size should not be a stripped image.
 		}, [&](const auto &data) {
 			const auto area = data.vw.v * int64(data.vh.v);
 			if (area > maxArea) {
@@ -426,6 +428,9 @@ Document ParseDocument(
 			+ CleanDocumentName(ComputeDocumentName(context, result, date));
 
 		result.thumb = data.vthumb.match([](const MTPDphotoSizeEmpty &) {
+			return Image();
+		}, [](const MTPDphotoStrippedSize &) {
+			// For now stripped images are used only in photos.
 			return Image();
 		}, [&](const auto &data) {
 			auto result = Image();

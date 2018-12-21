@@ -27,7 +27,8 @@ struct FileReferenceAccumulator {
 		});
 	}
 	void push(const MTPPhotoSize &data) {
-		data.match([](const MTPDphotoSizeEmpty &data) {
+		data.match([](const MTPDphotoSizeEmpty &) {
+		}, [](const MTPDphotoStrippedSize &) {
 		}, [&](const auto &data) {
 			push(data.vlocation);
 		});

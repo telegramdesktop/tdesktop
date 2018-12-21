@@ -426,6 +426,9 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 			};
 		}, [](const MTPDphotoSizeEmpty &) {
 			return SizeData();
+		}, [](const MTPDphotoStrippedSize &data) {
+			// No need to save stripped images to local cache.
+			return SizeData();
 		});
 		if (!size.location || size.location->type() != mtpc_fileLocation) {
 			continue;
