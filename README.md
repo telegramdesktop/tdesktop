@@ -7,6 +7,7 @@ This is the complete source code and the build instructions for the alpha versio
 [![Build status](https://ci.appveyor.com/api/projects/status/uiw2y768iy4i5bu8/branch/dev?svg=true)](https://ci.appveyor.com/project/telegramdesktop/tdesktop)
 
 [![Preview of Telegram Desktop][preview_image]][preview_image_url]
+[![Preview of Telegram Desktop Night mode][preview_image_night_mode]]
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
@@ -16,7 +17,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Mac OS X 10.8 - Mac OS X 10.11
 * Mac OS X 10.6 - Mac OS X 10.7 (separate build)
 * Ubuntu 12.04 - Ubuntu 18.04
-* Fedora 22 - Fedora 28
+* Fedora 22 - Fedora 29
 * [Snappy](https://snapcraft.io/telegram-desktop)
 
 ## Third-party
@@ -59,4 +60,5 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
 [preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
+[preview_image_night_mode]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview_night_mode.png "Preview of Telegram Desktop Night Mode"
 [preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
