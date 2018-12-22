@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
+#include "data/data_poll.h"
 #include "dialogs/dialogs_key.h"
 
 namespace Window {
