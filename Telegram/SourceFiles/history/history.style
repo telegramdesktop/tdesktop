@@ -507,7 +507,7 @@ historyPollPercentFont: semiboldFont;
 historyPollPercentSkip: 6px;
 historyPollPercentTop: 0px;
 historyPollTotalVotesSkip: 5px;
-historyPollFillingMin: 8px;
+historyPollFillingMin: 4px;
 historyPollFillingHeight: 4px;
 historyPollFillingRadius: 1px;
 historyPollFillingBottom: 2px;
@@ -524,6 +524,7 @@ historyPollRadio: Radio(defaultRadio) {
 }
 historyPollRadioOpacity: 0.7;
 historyPollRadioOpacityOver: 1.;
+historyPollDuration: 300;
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;

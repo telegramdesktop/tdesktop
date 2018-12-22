@@ -64,6 +64,16 @@ FormattedLargeNumber FormatLargeNumber(int64 number) {
 HistoryPoll::Answer::Answer() : text(st::msgMinWidth / 2) {
 }
 
+void HistoryPoll::Answer::fillText(const PollAnswer &original) {
+	if (!text.isEmpty() && text.originalText() == original.text) {
+		return;
+	}
+	text.setText(
+		st::historyPollAnswerStyle,
+		original.text,
+		Ui::WebpageTextTitleOptions());
+}
+
 HistoryPoll::HistoryPoll(
 	not_null<Element*> parent,
 	not_null<PollData*> poll)
@@ -112,6 +122,10 @@ QSize HistoryPoll::countOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
+bool HistoryPoll::canVote() const {
+	return !_voted && !_closed;
+}
+
 int HistoryPoll::countAnswerHeight(
 		const Answer &answer,
 		int innerWidth) const {
@@ -157,8 +171,10 @@ void HistoryPoll::updateTexts() {
 		return;
 	}
 	_pollVersion = _poll->version;
-	_closed = _poll->closed;
 
+	const auto willStartAnimation = checkAnimationStart();
+
+	_closed = _poll->closed;
 	_question.setText(
 		st::historyPollQuestionStyle,
 		_poll->question,
@@ -168,22 +184,25 @@ void HistoryPoll::updateTexts() {
 		lang(_closed ? lng_polls_closed : lng_polls_anonymous));
 
 	updateAnswers();
+	updateVotes();
+
+	if (willStartAnimation) {
+		startAnimation();
+	}
 }
 
 void HistoryPoll::updateAnswers() {
-	const auto pairFromAnswer = [](const Answer &a) {
-		return std::make_pair(a.text.originalText(), a.option);
-	};
-	const auto pairFromPollAnswer = [](const PollAnswer &p) {
-		return std::make_pair(p.text, p.option);
-	};
 	const auto changed = !ranges::equal(
 		_answers,
 		_poll->answers,
 		ranges::equal_to(),
-		pairFromAnswer,
-		pairFromPollAnswer);
+		&Answer::option,
+		&PollAnswer::option);
 	if (!changed) {
+		auto &&answers = ranges::view::zip(_answers, _poll->answers);
+		for (auto &&[answer, original] : answers) {
+			answer.fillText(original);
+		}
 		return;
 	}
 	_answers = ranges::view::all(
@@ -191,16 +210,15 @@ void HistoryPoll::updateAnswers() {
 	) | ranges::view::transform([](const PollAnswer &answer) {
 		auto result = Answer();
 		result.option = answer.option;
-		result.text.setText(
-			st::historyPollAnswerStyle,
-			answer.text,
-			Ui::WebpageTextTitleOptions());
+		result.fillText(answer);
 		return result;
 	}) | ranges::to_vector;
 
 	for (auto &answer : _answers) {
 		answer.handler = createAnswerClickHandler(answer);
 	}
+
+	_answersAnimation = nullptr;
 }
 
 ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
@@ -216,6 +234,14 @@ void HistoryPoll::updateVotes() const {
 	updateTotalVotes();
 	_voted = _poll->voted();
 	updateAnswerVotes();
+}
+
+void HistoryPoll::updateVotesCheckAnimation() const {
+	const auto willStartAnimation = checkAnimationStart();
+	updateVotes();
+	if (willStartAnimation) {
+		startAnimation();
+	}
 }
 
 void HistoryPoll::updateTotalVotes() const {
@@ -279,7 +305,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 
-	updateVotes();
+	updateVotesCheckAnimation();
 
 	const auto outbg = _parent->hasOutLayout();
 	const auto selected = (selection == FullSelection);
@@ -300,10 +326,29 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	_subtitle.drawLeftElided(p, padding.left(), tshift, paintw, width());
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
-	for (const auto &answer : _answers) {
+	const auto progress = _answersAnimation
+		? _answersAnimation->progress.current(ms, 1.)
+		: 1.;
+	if (progress == 1.) {
+		_answersAnimation = nullptr;
+	}
+
+	auto &&answers = ranges::view::zip(
+		_answers,
+		ranges::view::ints(0, int(_answers.size())));
+	for (const auto &[answer, index] : answers) {
+		const auto animation = _answersAnimation
+			? &_answersAnimation->data[index]
+			: nullptr;
+		if (animation) {
+			animation->percent.update(progress, anim::linear);
+			animation->filling.update(progress, anim::linear);
+			animation->opacity.update(progress, anim::linear);
+		}
 		const auto height = paintAnswer(
 			p,
 			answer,
+			animation,
 			padding.left(),
 			tshift,
 			paintw,
@@ -322,18 +367,135 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 int HistoryPoll::paintAnswer(
 		Painter &p,
 		const Answer &answer,
+		const AnswerAnimation *animation,
 		int left,
 		int top,
 		int width,
 		int outerWidth,
 		TextSelection selection,
 		TimeMs ms) const {
-	const auto result = countAnswerHeight(answer, width);
-	const auto bottom = top + result;
+	const auto height = countAnswerHeight(answer, width);
+	const auto outbg = _parent->hasOutLayout();
+	const auto aleft = left + st::historyPollAnswerPadding.left();
+	const auto awidth = width
+		- st::historyPollAnswerPadding.left()
+		- st::historyPollAnswerPadding.right();
+
+	if (animation) {
+		const auto opacity = animation->opacity.current();
+		if (opacity < 1.) {
+			p.setOpacity(1. - opacity);
+			paintRadio(p, answer, left, top, selection);
+		}
+		if (opacity > 0.) {
+			const auto percent = QString::number(
+				int(std::round(animation->percent.current()))) + '%';
+			const auto percentWidth = st::historyPollPercentFont->width(
+				percent);
+			p.setOpacity(opacity);
+			paintPercent(
+				p,
+				percent,
+				percentWidth,
+				left,
+				top,
+				outerWidth,
+				selection);
+			p.setOpacity(sqrt(opacity));
+			paintFilling(
+				p,
+				animation->filling.current(),
+				left,
+				top,
+				width,
+				height,
+				selection);
+			p.setOpacity(1.);
+		}
+	} else if (canVote()) {
+		paintRadio(p, answer, left, top, selection);
+	} else {
+		paintPercent(
+			p,
+			answer.votesPercent,
+			answer.votesPercentWidth,
+			left,
+			top,
+			outerWidth,
+			selection);
+		paintFilling(
+			p,
+			answer.filling,
+			left,
+			top,
+			width,
+			height,
+			selection);
+	}
+
+	top += st::historyPollAnswerPadding.top();
+	p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+	answer.text.drawLeft(p, aleft, top, awidth, outerWidth);
+
+	return height;
+}
+
+void HistoryPoll::paintRadio(
+		Painter &p,
+		const Answer &answer,
+		int left,
+		int top,
+		TextSelection selection) const {
+	top += st::historyPollAnswerPadding.top();
+
 	const auto outbg = _parent->hasOutLayout();
 	const auto selected = (selection == FullSelection);
-	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 
+	PainterHighQualityEnabler hq(p);
+	const auto &st = st::historyPollRadio;
+	const auto over = ClickHandler::showAsActive(answer.handler);
+	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
+	auto pen = regular->p;
+	pen.setWidth(st.thickness);
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	const auto o = p.opacity();
+	p.setOpacity(o * (over ? st::historyPollRadioOpacityOver : st::historyPollRadioOpacity));
+	p.drawEllipse(QRectF(left, top, st.diameter, st.diameter).marginsRemoved(QMarginsF(st.thickness / 2., st.thickness / 2., st.thickness / 2., st.thickness / 2.)));
+	p.setOpacity(o);
+}
+
+void HistoryPoll::paintPercent(
+		Painter &p,
+		const QString &percent,
+		int percentWidth,
+		int left,
+		int top,
+		int outerWidth,
+		TextSelection selection) const {
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = (selection == FullSelection);
+	const auto aleft = left + st::historyPollAnswerPadding.left();
+
+	top += st::historyPollAnswerPadding.top();
+
+	p.setFont(st::historyPollPercentFont);
+	p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+	const auto pleft = aleft - percentWidth - st::historyPollPercentSkip;
+	p.drawTextLeft(pleft, top + st::historyPollPercentTop, outerWidth, percent, percentWidth);
+}
+
+void HistoryPoll::paintFilling(
+		Painter &p,
+		float64 filling,
+		int left,
+		int top,
+		int width,
+		int height,
+		TextSelection selection) const {
+	const auto bottom = top + height;
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = (selection == FullSelection);
 	const auto aleft = left + st::historyPollAnswerPadding.left();
 	const auto awidth = width
 		- st::historyPollAnswerPadding.left()
@@ -341,46 +503,89 @@ int HistoryPoll::paintAnswer(
 
 	top += st::historyPollAnswerPadding.top();
 
-	if (_voted || _closed) {
-		p.setFont(st::historyPollPercentFont);
-		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
-		const auto left = aleft
-			- answer.votesPercentWidth
-			- st::historyPollPercentSkip;
-		p.drawTextLeft(left, top + st::historyPollPercentTop, outerWidth, answer.votesPercent, answer.votesPercentWidth);
-	} else {
-		PainterHighQualityEnabler hq(p);
-		const auto &st = st::historyPollRadio;
-		const auto over = ClickHandler::showAsActive(answer.handler);
-		auto pen = regular->p;
-		pen.setWidth(st.thickness);
-		p.setPen(pen);
-		p.setBrush(Qt::NoBrush);
-		p.setOpacity(over ? st::historyPollRadioOpacityOver : st::historyPollRadioOpacity);
-		p.drawEllipse(QRectF(left, top, st.diameter, st.diameter).marginsRemoved(QMarginsF(st.thickness / 2., st.thickness / 2., st.thickness / 2., st.thickness / 2.)));
-		p.setOpacity(1.);
+	const auto bar = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(bar);
+	const auto max = awidth - st::historyPollFillingRight;
+	const auto size = anim::interpolate(st::historyPollFillingMin, max, filling);
+	const auto radius = st::historyPollFillingRadius;
+	const auto ftop = bottom - st::historyPollFillingBottom - st::historyPollFillingHeight;
+	p.drawRoundedRect(aleft, ftop, size, st::historyPollFillingHeight, radius, radius);
+}
+
+bool HistoryPoll::answerVotesChanged() const {
+	if (_poll->answers.size() != _answers.size()
+		|| _poll->answers.empty()) {
+		return false;
 	}
+	return !ranges::equal(
+		_answers,
+		_poll->answers,
+		ranges::equal_to(),
+		&Answer::votes,
+		&PollAnswer::votes);
+}
 
-	p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
-	answer.text.drawLeft(p, aleft, top, awidth, outerWidth);
+void HistoryPoll::saveStateInAnimation() const {
+	if (_answersAnimation) {
+		return;
+	}
+	const auto can = canVote();
+	_answersAnimation = std::make_unique<AnswersAnimation>();
+	_answersAnimation->data.reserve(_answers.size());
+	const auto convert = [&](const Answer &answer) {
+		auto result = AnswerAnimation();
+		result.percent = can
+			? 0.
+			: (answer.votes * 100. / std::max(_totalVotes, 1));
+		result.filling = can ? 0. : answer.filling;
+		result.opacity = can ? 0. : 1.;
+		return result;
+	};
+	ranges::transform(
+		_answers,
+		ranges::back_inserter(_answersAnimation->data),
+		convert);
+}
 
-	if (_voted || _closed) {
-		const auto bar = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(bar);
-		const auto max = awidth - st::historyPollFillingRight;
-		const auto size = anim::interpolate(st::historyPollFillingMin, max, answer.filling);
-		const auto radius = st::historyPollFillingRadius;
-		const auto top = bottom - st::historyPollFillingBottom - st::historyPollFillingHeight;
-		p.drawRoundedRect(aleft, top, size, st::historyPollFillingHeight, radius, radius);
+bool HistoryPoll::checkAnimationStart() const {
+	if (_poll->answers.size() != _answers.size()) {
+		// Skip initial changes.
+		return false;
+	}
+	const auto result = (canVote() != (!_poll->voted() && !_poll->closed))
+		|| answerVotesChanged();
+	if (result) {
+		saveStateInAnimation();
 	}
 	return result;
 }
 
+void HistoryPoll::startAnimation() const {
+	if (!_answersAnimation) {
+		return;
+	}
+
+	const auto can = canVote();
+	auto &&both = ranges::view::zip(_answers, _answersAnimation->data);
+	for (auto &&[answer, data] : both) {
+		data.percent.start(can
+			? 0.
+			: answer.votes * 100. / std::max(_totalVotes, 1));
+		data.filling.start(can ? 0. : answer.filling);
+		data.opacity.start(can ? 0. : 1.);
+	}
+	_answersAnimation->progress.start(
+		[=] { Auth().data().requestViewRepaint(_parent); },
+		0.,
+		1.,
+		st::historyPollDuration);
+}
+
 TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
-	if (_voted || _closed) {
+	if (!canVote()) {
 		return result;
 	}
 

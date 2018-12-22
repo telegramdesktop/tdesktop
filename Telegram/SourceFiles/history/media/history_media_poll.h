@@ -37,8 +37,21 @@ public:
 	~HistoryPoll();
 
 private:
+	struct AnswerAnimation {
+		anim::value percent;
+		anim::value filling;
+		anim::value opacity;
+	};
+
+	struct AnswersAnimation {
+		std::vector<AnswerAnimation> data;
+		Animation progress;
+	};
+
 	struct Answer {
 		Answer();
+
+		void fillText(const PollAnswer &original);
 
 		Text text;
 		QByteArray option;
@@ -49,8 +62,11 @@ private:
 		mutable bool chosen = false;
 		ClickHandlerPtr handler;
 	};
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
+
+	bool canVote() const;
 
 	int countAnswerHeight(const Answer &answer, int innerWidth) const;
 	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
@@ -65,16 +81,45 @@ private:
 		const PollAnswer &original,
 		int totalVotes,
 		int maxVotes) const;
+	void updateVotesCheckAnimation() const;
 
 	int paintAnswer(
 		Painter &p,
 		const Answer &answer,
+		const AnswerAnimation *animation,
 		int left,
 		int top,
 		int width,
 		int outerWidth,
 		TextSelection selection,
 		TimeMs ms) const;
+	void paintRadio(
+		Painter &p,
+		const Answer &answer,
+		int left,
+		int top,
+		TextSelection selection) const;
+	void paintPercent(
+		Painter &p,
+		const QString &percent,
+		int percentWidth,
+		int left,
+		int top,
+		int outerWidth,
+		TextSelection selection) const;
+	void paintFilling(
+		Painter &p,
+		float64 filling,
+		int left,
+		int top,
+		int width,
+		int height,
+		TextSelection selection) const;
+
+	bool checkAnimationStart() const;
+	bool answerVotesChanged() const;
+	void saveStateInAnimation() const;
+	void startAnimation() const;
 
 	not_null<PollData*> _poll;
 	int _pollVersion = 0;
@@ -86,5 +131,7 @@ private:
 	Text _subtitle;
 	std::vector<Answer> _answers;
 	mutable Text _totalVotesLabel;
+
+	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 
 };
