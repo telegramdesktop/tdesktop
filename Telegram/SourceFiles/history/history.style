@@ -525,6 +525,10 @@ historyPollRadio: Radio(defaultRadio) {
 historyPollRadioOpacity: 0.7;
 historyPollRadioOpacityOver: 1.;
 historyPollDuration: 300;
+historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	thickness: 2px;
+	size: size(18px, 18px);
+}
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;

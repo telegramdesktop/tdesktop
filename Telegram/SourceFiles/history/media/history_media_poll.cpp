@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "calls/calls_instance.h"
 #include "ui/text_options.h"
+#include "ui/effects/radial_animation.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_session.h"
@@ -60,6 +61,48 @@ FormattedLargeNumber FormatLargeNumber(int64 number) {
 }
 
 } // namespace
+
+struct HistoryPoll::AnswerAnimation {
+	anim::value percent;
+	anim::value filling;
+	anim::value opacity;
+};
+
+struct HistoryPoll::AnswersAnimation {
+	std::vector<AnswerAnimation> data;
+	Animation progress;
+};
+
+struct HistoryPoll::SendingAnimation {
+	SendingAnimation(
+		const QByteArray &option,
+		AnimationCallbacks &&callbacks);
+
+	QByteArray option;
+	Ui::InfiniteRadialAnimation animation;
+};
+
+struct HistoryPoll::Answer {
+	Answer();
+
+	void fillText(const PollAnswer &original);
+
+	Text text;
+	QByteArray option;
+	mutable int votes = 0;
+	mutable int votesPercentWidth = 0;
+	mutable float64 filling = 0.;
+	mutable QString votesPercent;
+	mutable bool chosen = false;
+	ClickHandlerPtr handler;
+};
+
+HistoryPoll::SendingAnimation::SendingAnimation(
+	const QByteArray &option,
+	AnimationCallbacks &&callbacks)
+: option(option)
+, animation(std::move(callbacks), st::historyPollRadialAnimation) {
+}
 
 HistoryPoll::Answer::Answer() : text(st::msgMinWidth / 2) {
 }
@@ -187,7 +230,7 @@ void HistoryPoll::updateTexts() {
 	updateVotes();
 
 	if (willStartAnimation) {
-		startAnimation();
+		startAnswersAnimation();
 	}
 }
 
@@ -218,7 +261,7 @@ void HistoryPoll::updateAnswers() {
 		answer.handler = createAnswerClickHandler(answer);
 	}
 
-	_answersAnimation = nullptr;
+	resetAnswersAnimation();
 }
 
 ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
@@ -236,12 +279,32 @@ void HistoryPoll::updateVotes() const {
 	updateTotalVotes();
 }
 
-void HistoryPoll::updateVotesCheckAnimation() const {
+void HistoryPoll::updateVotesCheckAnimations() const {
 	const auto willStartAnimation = checkAnimationStart();
 	updateVotes();
 	if (willStartAnimation) {
-		startAnimation();
+		startAnswersAnimation();
 	}
+
+	const auto &sending = _poll->sendingVote;
+	if (sending.isEmpty() == !_sendingAnimation) {
+		if (_sendingAnimation) {
+			_sendingAnimation->option = sending;
+		}
+		return;
+	}
+	if (sending.isEmpty()) {
+		if (!_answersAnimation) {
+			_sendingAnimation = nullptr;
+		}
+		return;
+	}
+	_sendingAnimation = std::make_unique<SendingAnimation>(
+		sending,
+		animation(
+			const_cast<HistoryPoll*>(this),
+			&HistoryPoll::step_radial));
+	_sendingAnimation->animation.start();
 }
 
 void HistoryPoll::updateTotalVotes() const {
@@ -307,7 +370,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 
-	updateVotesCheckAnimation();
+	updateVotesCheckAnimations();
 
 	const auto outbg = _parent->hasOutLayout();
 	const auto selected = (selection == FullSelection);
@@ -332,7 +395,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 		? _answersAnimation->progress.current(ms, 1.)
 		: 1.;
 	if (progress == 1.) {
-		_answersAnimation = nullptr;
+		resetAnswersAnimation();
 	}
 
 	auto &&answers = ranges::view::zip(
@@ -363,6 +426,19 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 		tshift += st::msgPadding.bottom();
 		p.setPen(regular);
 		_totalVotesLabel.drawLeftElided(p, padding.left(), tshift, paintw, width());
+	}
+}
+
+void HistoryPoll::resetAnswersAnimation() const {
+	_answersAnimation = nullptr;
+	if (_poll->sendingVote.isEmpty()) {
+		_sendingAnimation = nullptr;
+	}
+}
+
+void HistoryPoll::step_radial(TimeMs ms, bool timer) {
+	if (timer && !anim::Disabled()) {
+		Auth().data().requestViewRepaint(_parent);
 	}
 }
 
@@ -457,13 +533,34 @@ void HistoryPoll::paintRadio(
 	const auto &st = st::historyPollRadio;
 	const auto over = ClickHandler::showAsActive(answer.handler);
 	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
-	auto pen = regular->p;
-	pen.setWidth(st.thickness);
-	p.setPen(pen);
+
 	p.setBrush(Qt::NoBrush);
 	const auto o = p.opacity();
 	p.setOpacity(o * (over ? st::historyPollRadioOpacityOver : st::historyPollRadioOpacity));
-	p.drawEllipse(QRectF(left, top, st.diameter, st.diameter).marginsRemoved(QMarginsF(st.thickness / 2., st.thickness / 2., st.thickness / 2., st.thickness / 2.)));
+
+	const auto rect = QRectF(left, top, st.diameter, st.diameter).marginsRemoved(QMarginsF(st.thickness / 2., st.thickness / 2., st.thickness / 2., st.thickness / 2.));
+	if (_sendingAnimation && _sendingAnimation->option == answer.option) {
+		const auto &active = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+		if (anim::Disabled()) {
+			anim::DrawStaticLoading(p, rect, st.thickness, active);
+		} else {
+			const auto state = _sendingAnimation->animation.computeState();
+			auto pen = anim::pen(regular, active, state.shown);
+			pen.setWidth(st.thickness);
+			pen.setCapStyle(Qt::RoundCap);
+			p.setPen(pen);
+			p.drawArc(
+				rect,
+				state.arcFrom,
+				state.arcLength);
+		}
+	} else {
+		auto pen = regular->p;
+		pen.setWidth(st.thickness);
+		p.setPen(pen);
+		p.drawEllipse(rect);
+	}
+
 	p.setOpacity(o);
 }
 
@@ -564,7 +661,7 @@ bool HistoryPoll::checkAnimationStart() const {
 	return result;
 }
 
-void HistoryPoll::startAnimation() const {
+void HistoryPoll::startAnswersAnimation() const {
 	if (!_answersAnimation) {
 		return;
 	}
@@ -587,7 +684,7 @@ void HistoryPoll::startAnimation() const {
 
 TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
-	if (!canVote()) {
+	if (!canVote() || !_poll->sendingVote.isEmpty()) {
 		return result;
 	}
 

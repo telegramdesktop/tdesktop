@@ -37,31 +37,10 @@ public:
 	~HistoryPoll();
 
 private:
-	struct AnswerAnimation {
-		anim::value percent;
-		anim::value filling;
-		anim::value opacity;
-	};
-
-	struct AnswersAnimation {
-		std::vector<AnswerAnimation> data;
-		Animation progress;
-	};
-
-	struct Answer {
-		Answer();
-
-		void fillText(const PollAnswer &original);
-
-		Text text;
-		QByteArray option;
-		mutable int votes = 0;
-		mutable int votesPercentWidth = 0;
-		mutable float64 filling = 0.;
-		mutable QString votesPercent;
-		mutable bool chosen = false;
-		ClickHandlerPtr handler;
-	};
+	struct AnswerAnimation;
+	struct AnswersAnimation;
+	struct SendingAnimation;
+	struct Answer;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -81,7 +60,7 @@ private:
 		const PollAnswer &original,
 		int totalVotes,
 		int maxVotes) const;
-	void updateVotesCheckAnimation() const;
+	void updateVotesCheckAnimations() const;
 
 	int paintAnswer(
 		Painter &p,
@@ -119,7 +98,9 @@ private:
 	bool checkAnimationStart() const;
 	bool answerVotesChanged() const;
 	void saveStateInAnimation() const;
-	void startAnimation() const;
+	void startAnswersAnimation() const;
+	void resetAnswersAnimation() const;
+	void step_radial(TimeMs ms, bool timer);
 
 	not_null<PollData*> _poll;
 	int _pollVersion = 0;
@@ -133,5 +114,6 @@ private:
 	mutable Text _totalVotesLabel;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
+	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
 
 };

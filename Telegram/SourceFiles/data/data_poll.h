@@ -39,6 +39,7 @@ struct PollData {
 	std::vector<PollAnswer> answers;
 	int totalVoters = 0;
 	bool closed = false;
+	QByteArray sendingVote;
 
 	int version = 0;
 

@@ -5360,8 +5360,24 @@ void ApiWrap::sendPollVotes(
 		return;
 	}
 	const auto item = App::histItemById(itemId);
+	const auto media = item ? item->media() : nullptr;
+	const auto poll = media ? media->poll() : nullptr;
 	if (!item) {
 		return;
+	}
+
+	const auto showSending = poll && !options.empty();
+	const auto hideSending = [=] {
+		if (showSending) {
+			if (const auto item = App::histItemById(itemId)) {
+				poll->sendingVote = QByteArray();
+				_session->data().requestItemRepaint(item);
+			}
+		}
+	};
+	if (showSending) {
+		poll->sendingVote = options.front();
+		_session->data().requestItemRepaint(item);
 	}
 
 	auto prepared = QVector<MTPbytes>();
@@ -5376,9 +5392,11 @@ void ApiWrap::sendPollVotes(
 		MTP_vector<MTPbytes>(prepared)
 	)).done([=](const MTPUpdates &result) {
 		_pollVotesRequestIds.erase(itemId);
+		hideSending();
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		_pollVotesRequestIds.erase(itemId);
+		hideSending();
 	}).send();
 	_pollVotesRequestIds.emplace(itemId, requestId);
 }
