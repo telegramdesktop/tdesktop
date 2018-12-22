@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDateTime>
 #include <QtCore/QRegularExpression>
 #include <QtGui/QImageReader>
+#include <range/v3/view/all.hpp>
+#include <range/v3/view/transform.hpp>
+#include <range/v3/to_container.hpp>
 
 namespace App { // Hackish..
 QString formatPhone(QString phone);
@@ -507,6 +510,49 @@ Invoice ParseInvoice(const MTPDmessageMediaInvoice &data) {
 	return result;
 }
 
+Poll ParsePoll(const MTPDmessageMediaPoll &data) {
+	auto result = Poll();
+	data.vpoll.match([&](const MTPDpoll &poll) {
+		result.id = poll.vid.v;
+		result.question = ParseString(poll.vquestion);
+		result.closed = poll.is_closed();
+		result.answers = ranges::view::all(
+			poll.vanswers.v
+		) | ranges::view::transform([](const MTPPollAnswer &answer) {
+			return answer.match([](const MTPDpollAnswer &answer) {
+				auto result = Poll::Answer();
+				result.text = ParseString(answer.vtext);
+				result.option = answer.voption.v;
+				return result;
+			});
+		}) | ranges::to_vector;
+	});
+	data.vresults.match([&](const MTPDpollResults &results) {
+		if (results.has_total_voters()) {
+			result.totalVotes = results.vtotal_voters.v;
+		}
+		if (results.has_results()) {
+			for (const auto &single : results.vresults.v) {
+				single.match([&](const MTPDpollAnswerVoters &voters) {
+					const auto &option = voters.voption.v;
+					const auto i = ranges::find(
+						result.answers,
+						voters.voption.v,
+						&Poll::Answer::option);
+					if (i == end(result.answers)) {
+						return;
+					}
+					i->votes = voters.vvoters.v;
+					if (voters.is_chosen()) {
+						i->my = true;
+					}
+				});
+			}
+		}
+	});
+	return result;
+}
+
 UserpicsSlice ParseUserpicsSlice(
 		const MTPVector<MTPPhoto> &data,
 		int baseIndex) {
@@ -870,7 +916,7 @@ Media ParseMedia(
 		result.content = ParseGeoPoint(data.vgeo);
 		result.ttl = data.vperiod.v;
 	}, [&](const MTPDmessageMediaPoll &data) {
-		//result.content = ParsePoll(data); // #TODO polls
+		result.content = ParsePoll(data);
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }

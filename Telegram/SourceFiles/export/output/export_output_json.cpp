@@ -574,6 +574,29 @@ QByteArray SerializeMessage(
 				? NumberToString(data.receiptMsgId)
 				: QByteArray()) }
 		}));
+	}, [&](const Poll &data) {
+		context.nesting.push_back(Context::kObject);
+		const auto answers = ranges::view::all(
+			data.answers
+		) | ranges::view::transform([&](const Poll::Answer &answer) {
+			context.nesting.push_back(Context::kArray);
+			auto result = SerializeObject(context, {
+				{ "text", SerializeString(answer.text) },
+				{ "voters", NumberToString(answer.votes) },
+				{ "chosen", answer.my ? "true" : "false" },
+			});
+			context.nesting.pop_back();
+			return result;
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, answers);
+		context.nesting.pop_back();
+
+		pushBare("poll", SerializeObject(context, {
+			{ "question", SerializeString(data.question) },
+			{ "closed", data.closed ? "true" : "false" },
+			{ "total_voters", NumberToString(data.totalVotes) },
+			{ "answers", serialized }
+		}));
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](std::nullopt_t) {});
