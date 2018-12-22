@@ -231,9 +231,9 @@ ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
 }
 
 void HistoryPoll::updateVotes() const {
-	updateTotalVotes();
 	_voted = _poll->voted();
 	updateAnswerVotes();
+	updateTotalVotes();
 }
 
 void HistoryPoll::updateVotesCheckAnimation() const {
@@ -268,11 +268,13 @@ void HistoryPoll::updateAnswerVotesFromOriginal(
 		const PollAnswer &original,
 		int totalVotes,
 		int maxVotes) const {
-	if (!_voted && !_closed) {
+	if (canVote()) {
 		answer.votesPercent.clear();
 	} else if (answer.votes != original.votes
-		|| answer.votesPercent.isEmpty()) {
-		const auto percent = original.votes * 100 / totalVotes;
+		|| answer.votesPercent.isEmpty()
+		|| std::max(_totalVotes, 1) != totalVotes) {
+		const auto percent = int(std::round(
+			original.votes * 100. / totalVotes));
 		answer.votesPercent = QString::number(percent) + '%';
 		answer.votesPercentWidth = st::historyPollPercentFont->width(
 			answer.votesPercent);
@@ -286,7 +288,7 @@ void HistoryPoll::updateAnswerVotes() const {
 		|| _poll->answers.empty()) {
 		return;
 	}
-	const auto totalVotes = std::max(1, _totalVotes);
+	const auto totalVotes = std::max(1, _poll->totalVoters);
 	const auto maxVotes = std::max(1, ranges::max_element(
 		_poll->answers,
 		ranges::less(),
