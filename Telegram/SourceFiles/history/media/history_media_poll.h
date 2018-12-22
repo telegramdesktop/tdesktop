@@ -56,6 +56,7 @@ private:
 	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
 		const Answer &answer) const;
 	void updateTexts();
+	void updateAnswers();
 	void updateVotes() const;
 	void updateTotalVotes() const;
 	void updateAnswerVotes() const;

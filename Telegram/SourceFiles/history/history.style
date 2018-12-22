@@ -492,28 +492,38 @@ webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
 
-historyPollQuestionFont: font(boxFontSize semibold);
+historyPollQuestionFont: semiboldFont;
 historyPollQuestionStyle: TextStyle(defaultTextStyle) {
 	font: historyPollQuestionFont;
 	linkFont: historyPollQuestionFont;
 	linkFontOver: historyPollQuestionFont;
 }
-historyPollAnswerStyle: TextStyle(defaultTextStyle) {
-	font: boxTextFont;
-	linkFont: boxTextFont;
-	linkFontOver: boxTextFont;
-}
+historyPollAnswerStyle: defaultTextStyle;
 historyPollQuestionTop: 7px;
-historyPollSubtitleSkip: 5px;
-historyPollAnswerPadding: margins(30px, 16px, 0px, 16px);
-historyPollAnswersSkip: 5px;
+historyPollSubtitleSkip: 2px;
+historyPollAnswerPadding: margins(31px, 10px, 0px, 10px);
+historyPollAnswersSkip: 3px;
 historyPollPercentFont: semiboldFont;
-historyPollPercentSkip: 5px;
-historyPollPercentTop: 3px;
+historyPollPercentSkip: 6px;
+historyPollPercentTop: 0px;
+historyPollTotalVotesSkip: 5px;
 historyPollFillingMin: 8px;
-historyPollFillingHeight: 6px;
-historyPollFillingRadius: 2px;
-historyPollFillingBottom: 10px;
+historyPollFillingHeight: 4px;
+historyPollFillingRadius: 1px;
+historyPollFillingBottom: 2px;
+historyPollFillingRight: 4px;
+historyPollRadio: Radio(defaultRadio) {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 18px;
+	thickness: 2px;
+	skip: 65px; // * 0.1
+	duration: 120;
+	rippleAreaPadding: 8px;
+}
+historyPollRadioOpacity: 0.7;
+historyPollRadioOpacityOver: 1.;
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;

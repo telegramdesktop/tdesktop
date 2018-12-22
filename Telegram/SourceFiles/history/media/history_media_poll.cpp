@@ -93,10 +93,8 @@ QSize HistoryPoll::countOptimalSize() {
 		_answers
 	) | ranges::view::transform([](const Answer &answer) {
 		return st::historyPollAnswerPadding.top()
-			+ 2 * st::defaultCheckbox.textPosition.y()
 			+ answer.text.minHeight()
-			+ st::historyPollAnswerPadding.bottom()
-			+ st::lineWidth;
+			+ st::historyPollAnswerPadding.bottom();
 	}), 0);
 
 	auto minHeight = st::historyPollQuestionTop
@@ -121,10 +119,8 @@ int HistoryPoll::countAnswerHeight(
 		- st::historyPollAnswerPadding.left()
 		- st::historyPollAnswerPadding.right();
 	return st::historyPollAnswerPadding.top()
-		+ 2 * st::defaultCheckbox.textPosition.y()
 		+ answer.text.countHeight(answerWidth)
-		+ st::historyPollAnswerPadding.bottom()
-		+ st::lineWidth;
+		+ st::historyPollAnswerPadding.bottom();
 }
 
 QSize HistoryPoll::countCurrentSize(int newWidth) {
@@ -147,7 +143,7 @@ QSize HistoryPoll::countCurrentSize(int newWidth) {
 		+ st::msgDateFont->height
 		+ st::historyPollAnswersSkip
 		+ answersHeight
-		+ st::msgPadding.bottom()
+		+ st::historyPollTotalVotesSkip
 		+ st::msgDateFont->height
 		+ st::msgPadding.bottom();
 	if (!isBubbleTop()) {
@@ -161,14 +157,35 @@ void HistoryPoll::updateTexts() {
 		return;
 	}
 	_pollVersion = _poll->version;
+	_closed = _poll->closed;
+
 	_question.setText(
 		st::historyPollQuestionStyle,
 		_poll->question,
 		Ui::WebpageTextTitleOptions());
 	_subtitle.setText(
 		st::msgDateTextStyle,
-		lang(lng_polls_anonymous));
+		lang(_closed ? lng_polls_closed : lng_polls_anonymous));
 
+	updateAnswers();
+}
+
+void HistoryPoll::updateAnswers() {
+	const auto pairFromAnswer = [](const Answer &a) {
+		return std::make_pair(a.text.originalText(), a.option);
+	};
+	const auto pairFromPollAnswer = [](const PollAnswer &p) {
+		return std::make_pair(p.text, p.option);
+	};
+	const auto changed = !ranges::equal(
+		_answers,
+		_poll->answers,
+		ranges::equal_to(),
+		pairFromAnswer,
+		pairFromPollAnswer);
+	if (!changed) {
+		return;
+	}
 	_answers = ranges::view::all(
 		_poll->answers
 	) | ranges::view::transform([](const PollAnswer &answer) {
@@ -184,8 +201,6 @@ void HistoryPoll::updateTexts() {
 	for (auto &answer : _answers) {
 		answer.handler = createAnswerClickHandler(answer);
 	}
-
-	_closed = _poll->closed;
 }
 
 ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
@@ -208,15 +223,17 @@ void HistoryPoll::updateTotalVotes() const {
 		return;
 	}
 	_totalVotes = _poll->totalVoters;
-	if (!_totalVotes) {
-		_totalVotesLabel.clear();
-		return;
-	}
-	const auto formatted = FormatLargeNumber(_totalVotes);
-	auto string = lng_polls_votes_count(lt_count, formatted.rounded);
-	if (formatted.shortened) {
-		string.replace(QString::number(formatted.rounded), formatted.text);
-	}
+	const auto string = [&] {
+		if (!_totalVotes) {
+			return lang(lng_polls_votes_none);
+		}
+		const auto format = FormatLargeNumber(_totalVotes);
+		auto text = lng_polls_votes_count(lt_count, format.rounded);
+		if (format.shortened) {
+			text.replace(QString::number(format.rounded), format.text);
+		}
+		return text;
+	}();
 	_totalVotesLabel.setText(st::msgDateTextStyle, string);
 }
 
@@ -333,36 +350,30 @@ int HistoryPoll::paintAnswer(
 		p.drawTextLeft(left, top + st::historyPollPercentTop, outerWidth, answer.votesPercent, answer.votesPercentWidth);
 	} else {
 		PainterHighQualityEnabler hq(p);
-		const auto &st = st::defaultRadio;
+		const auto &st = st::historyPollRadio;
+		const auto over = ClickHandler::showAsActive(answer.handler);
 		auto pen = regular->p;
 		pen.setWidth(st.thickness);
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
+		p.setOpacity(over ? st::historyPollRadioOpacityOver : st::historyPollRadioOpacity);
 		p.drawEllipse(QRectF(left, top, st.diameter, st.diameter).marginsRemoved(QMarginsF(st.thickness / 2., st.thickness / 2., st.thickness / 2., st.thickness / 2.)));
+		p.setOpacity(1.);
 	}
 
-	top += st::defaultCheckbox.textPosition.y();
 	p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
 	answer.text.drawLeft(p, aleft, top, awidth, outerWidth);
 
 	if (_voted || _closed) {
-		auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+		const auto bar = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(semibold);
-		const auto size = anim::interpolate(st::historyPollFillingMin, awidth, answer.filling);
+		p.setBrush(bar);
+		const auto max = awidth - st::historyPollFillingRight;
+		const auto size = anim::interpolate(st::historyPollFillingMin, max, answer.filling);
 		const auto radius = st::historyPollFillingRadius;
 		const auto top = bottom - st::historyPollFillingBottom - st::historyPollFillingHeight;
 		p.drawRoundedRect(aleft, top, size, st::historyPollFillingHeight, radius, radius);
-	} else {
-		p.setOpacity(0.5);
-		p.fillRect(
-			aleft,
-			bottom - st::lineWidth,
-			outerWidth - aleft,
-			st::lineWidth,
-			regular);
-		p.setOpacity(1.);
 	}
 	return result;
 }
