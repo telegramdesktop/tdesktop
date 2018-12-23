@@ -308,7 +308,7 @@ void HistoryPoll::updateVotesCheckAnimations() const {
 }
 
 void HistoryPoll::updateTotalVotes() const {
-	if (_totalVotes == _poll->totalVoters) {
+	if (_totalVotes == _poll->totalVoters && !_totalVotesLabel.isEmpty()) {
 		return;
 	}
 	_totalVotes = _poll->totalVoters;
