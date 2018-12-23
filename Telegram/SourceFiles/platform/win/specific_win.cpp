@@ -657,6 +657,21 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 	}
 }
 
+bool NativeEventNestsLoop(void *message) {
+	const auto code = static_cast<const MSG*>(message)->message;
+	if (code > WM_NULL && code <= WM_GETMINMAXINFO) {
+		return true;
+	} else if (code >= WM_NCCREATE && code <= WM_NCXBUTTONDBLCLK) {
+		return true;
+	} else if (code == WM_WINDOWPOSCHANGING
+		|| code == WM_WINDOWPOSCHANGED
+		|| code == WM_STYLECHANGING
+		|| code == WM_STYLECHANGED) {
+		return true;
+	}
+	return false;
+}
+
 } // namespace Platform
 
 void psNewVersion() {

@@ -430,7 +430,8 @@ bool Application::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
 		long *result) {
-	if (_eventNestingLevel > _loopNestingLevel) {
+	if (_eventNestingLevel > _loopNestingLevel
+		&& Platform::NativeEventNestsLoop(message)) {
 		_previousLoopNestingLevels.push_back(_loopNestingLevel);
 		_loopNestingLevel = _eventNestingLevel;
 	}
