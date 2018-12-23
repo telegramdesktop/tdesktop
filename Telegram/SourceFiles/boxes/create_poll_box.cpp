@@ -160,7 +160,6 @@ Options::Option Options::Option::Create(
 		object_ptr<Ui::InputField>(
 			container,
 			st::createPollOptionField,
-			Ui::InputField::Mode::MultiLine,
 			langFactory(lng_polls_create_option_add)));
 	InitField(outer, field);
 	field->setMaxLength(kOptionLimit + kErrorLimit);
