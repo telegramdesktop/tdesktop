@@ -11,26 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 
-PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, const PeerId &peer)
+PhotoCropBox::PhotoCropBox(
+	QWidget*,
+	const QImage &img,
+	const QString &title)
 : _img(img)
-, _peerId(peer) {
-	init(img, nullptr);
-}
-
-PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, not_null<PeerData*> peer)
-: _img(img)
-, _peerId(peer->id) {
-	init(img, peer);
-}
-
-void PhotoCropBox::init(const QImage &img, PeerData *peer) {
-	if (peerIsChat(_peerId) || (peer && peer->isMegagroup())) {
-		_title = lang(lng_create_group_crop);
-	} else if (peerIsChannel(_peerId)) {
-		_title = lang(lng_create_channel_crop);
-	} else {
-		_title = lang(lng_settings_crop_profile);
-	}
+, _title(title) {
 }
 
 void PhotoCropBox::prepare() {

@@ -329,9 +329,9 @@ void GroupInfoBox::prepare() {
 
 	_photo.create(
 		this,
-		(_creating == CreatingGroupChannel)
-			? peerFromChannel(0)
-			: peerFromChat(0),
+		lang((_creating == CreatingGroupChannel)
+			? lng_create_channel_crop
+			: lng_create_group_crop),
 		Ui::UserpicButton::Role::ChangePhoto,
 		st::defaultUserpicButton);
 	_title.create(

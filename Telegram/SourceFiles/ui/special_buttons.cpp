@@ -34,6 +34,16 @@ namespace {
 
 constexpr int kWideScale = 5;
 
+QString CropTitle(not_null<PeerData*> peer) {
+	if (peer->isChat() || peer->isMegagroup()) {
+		return lang(lng_create_group_crop);
+	} else if (peer->isChannel()) {
+		return lang(lng_create_channel_crop);
+	} else {
+		return lang(lng_settings_crop_profile);
+	}
+}
+
 template <typename Callback>
 QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 	auto size = QSize(width, width) * cIntRetinaFactor();
@@ -50,7 +60,7 @@ QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 template <typename Callback>
 void SuggestPhoto(
 		const QImage &image,
-		PeerId peerForCrop,
+		const QString &title,
 		Callback &&callback) {
 	auto badAspect = [](int a, int b) {
 		return (a >= 10 * b);
@@ -64,8 +74,8 @@ void SuggestPhoto(
 		return;
 	}
 
-	auto box = Ui::show(
-		Box<PhotoCropBox>(image, peerForCrop),
+	const auto box = Ui::show(
+		Box<PhotoCropBox>(image, title),
 		LayerOption::KeepOther);
 	box->ready(
 	) | rpl::start_with_next(
@@ -76,7 +86,7 @@ void SuggestPhoto(
 template <typename Callback>
 void SuggestPhotoFile(
 		const FileDialog::OpenResult &result,
-		PeerId peerForCrop,
+		const QString &title,
 		Callback &&callback) {
 	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 		return;
@@ -92,14 +102,14 @@ void SuggestPhotoFile(
 	}();
 	SuggestPhoto(
 		image,
-		peerForCrop,
+		title,
 		std::forward<Callback>(callback));
 }
 
 template <typename Callback>
 void ShowChoosePhotoBox(
 		QPointer<QWidget> parent,
-		PeerId peerForCrop,
+		const QString &title,
 		Callback &&callback) {
 	auto imgExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*")
@@ -107,10 +117,10 @@ void ShowChoosePhotoBox(
 		+ qsl(");;")
 		+ FileDialog::AllFilesFilter();
 	auto handleChosenPhoto = [
-		peerForCrop,
+		title,
 		callback = std::forward<Callback>(callback)
 	](auto &&result) mutable {
-		SuggestPhotoFile(result, peerForCrop, std::move(callback));
+		SuggestPhotoFile(result, title, std::move(callback));
 	};
 	FileDialog::GetOpenPath(
 		parent,
@@ -426,12 +436,12 @@ void SendButton::recordAnimationCallback() {
 
 UserpicButton::UserpicButton(
 	QWidget *parent,
-	PeerId peerForCrop,
+	const QString &cropTitle,
 	Role role,
 	const style::UserpicButton &st)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
-, _peerForCrop(peerForCrop)
+, _cropTitle(cropTitle)
 , _role(role) {
 	Expects(_role == Role::ChangePhoto);
 
@@ -449,7 +459,7 @@ UserpicButton::UserpicButton(
 , _st(st)
 , _controller(controller)
 , _peer(peer)
-, _peerForCrop(_peer->id)
+, _cropTitle(CropTitle(_peer))
 , _role(role) {
 	processPeerPhoto();
 	prepare();
@@ -464,7 +474,7 @@ UserpicButton::UserpicButton(
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _peer(peer)
-, _peerForCrop(_peer->id)
+, _cropTitle(CropTitle(_peer))
 , _role(role) {
 	Expects(_role != Role::OpenProfile);
 
@@ -510,14 +520,14 @@ void UserpicButton::changePhotoLazy() {
 	auto callback = crl::guard(
 		this,
 		[this](QImage &&image) { setImage(std::move(image)); });
-	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
 }
 
 void UserpicButton::uploadNewPeerPhoto() {
 	auto callback = crl::guard(this, [=](QImage &&image) {
 		Auth().api().uploadPeerPhoto(_peer, std::move(image));
 	});
-	ShowChoosePhotoBox(this, _peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
 }
 
 void UserpicButton::openPeerPhoto() {

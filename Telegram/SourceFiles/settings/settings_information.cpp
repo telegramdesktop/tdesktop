@@ -74,7 +74,8 @@ void SetupPhoto(
 				return;
 			}
 
-			auto box = Ui::show(Box<PhotoCropBox>(image, self));
+			const auto box = Ui::show(
+				Box<PhotoCropBox>(image, lang(lng_settings_crop_profile)));
 			box->ready(
 			) | rpl::start_with_next([=](QImage &&image) {
 				Auth().api().uploadPeerPhoto(self, std::move(image));
