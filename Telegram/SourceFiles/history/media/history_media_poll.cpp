@@ -425,7 +425,14 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	if (!_totalVotesLabel.isEmpty()) {
 		tshift += st::msgPadding.bottom();
 		p.setPen(regular);
-		_totalVotesLabel.drawLeftElided(p, padding.left(), tshift, paintw, width());
+		_totalVotesLabel.drawLeftElided(
+			p,
+			padding.left(),
+			tshift,
+			std::min(
+				_totalVotesLabel.maxWidth(),
+				paintw - _parent->infoWidth()),
+			width());
 	}
 }
 
