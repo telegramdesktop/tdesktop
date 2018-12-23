@@ -5152,16 +5152,16 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e->key() == Qt::Key_Up) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			const auto item = _history
-				? _history->lastSentMessage()
-				: nullptr;
-			if (item
-				&& item->allowsEdit(unixtime())
-				&& _field->empty()
+			if (_field->empty()
 				&& !_editMsgId
 				&& !_replyToId) {
-				editMessage(item);
-				return;
+				const auto item = _history
+					? _history->lastSentMessage()
+					: nullptr;
+				if (item && item->allowsEdit(unixtime())) {
+					editMessage(item);
+					return;
+				}
 			}
 			_scroll->keyPressEvent(e);
 		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
