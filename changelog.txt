@@ -1,3 +1,7 @@
+1.5.4 (24.12.18)
+
+- Bug fixes and other minor improvements.
+
 1.5.3 (23.12.18)
 
 - Create polls in groups and channels - right from the chat menu.
