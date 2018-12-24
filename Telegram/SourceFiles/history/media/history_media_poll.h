@@ -34,6 +34,10 @@ public:
 		return false;
 	}
 
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) override;
+
 	~HistoryPoll();
 
 private:
@@ -47,7 +51,12 @@ private:
 
 	bool canVote() const;
 
-	int countAnswerHeight(const Answer &answer, int innerWidth) const;
+	[[nodiscard]] int countAnswerTop(
+		const Answer &answer,
+		int innerWidth) const;
+	[[nodiscard]] int countAnswerHeight(
+		const Answer &answer,
+		int innerWidth) const;
 	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
 		const Answer &answer) const;
 	void updateTexts();
@@ -102,6 +111,8 @@ private:
 	void resetAnswersAnimation() const;
 	void step_radial(TimeMs ms, bool timer);
 
+	void toggleRipple(Answer &answer, bool pressed);
+
 	not_null<PollData*> _poll;
 	int _pollVersion = 0;
 	mutable int _totalVotes = 0;
@@ -115,5 +126,6 @@ private:
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
+	mutable QPoint _lastLinkPoint;
 
 };

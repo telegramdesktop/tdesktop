@@ -529,6 +529,13 @@ historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimati
 	thickness: 2px;
 	size: size(18px, 18px);
 }
+historyPollRippleIn: RippleAnimation(defaultRippleAnimation) {
+	color: msgWaveformInInactive;
+}
+historyPollRippleOut: RippleAnimation(defaultRippleAnimation) {
+	color: msgWaveformOutInactive;
+}
+historyPollRippleOpacity: 0.3;
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;
