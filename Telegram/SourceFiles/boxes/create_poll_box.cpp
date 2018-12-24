@@ -588,7 +588,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),
 		container);
-	auto limit = options->usedCount() | rpl::map([=](int count) {
+	auto limit = options->usedCount() | rpl::after_next([=](int count) {
+		setCloseByEscape(!count);
+		setCloseByOutsideClick(!count);
+	}) | rpl::map([=](int count) {
 		return (count < kMaxOptionsCount)
 			? lng_polls_create_limit(lt_count, kMaxOptionsCount - count)
 			: lang(lng_polls_create_maximum);
@@ -666,7 +669,4 @@ void CreatePollBox::prepare() {
 	const auto inner = setInnerWidget(setupContent());
 
 	setDimensionsToContent(st::boxWideWidth, inner);
-
-	setCloseByEscape(false);
-	setCloseByOutsideClick(false);
 }
