@@ -1217,7 +1217,7 @@ PollData *MediaPoll::poll() const {
 }
 
 QString MediaPoll::notificationText() const {
-	return lang(lng_in_dlg_poll);
+	return _poll->question;
 }
 
 QString MediaPoll::pinnedTextSubstring() const {

@@ -6496,8 +6496,9 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 
 	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
 	if (_pinnedBar->msg) {
-		if (_pinnedBar->msg->media() && _pinnedBar->msg->media()->hasReplyPreview()) {
-			if (const auto image = _pinnedBar->msg->media()->replyPreview()) {
+		const auto media = _pinnedBar->msg->media();
+		if (media && media->hasReplyPreview()) {
+			if (const auto image = media->replyPreview()) {
 				QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				p.drawPixmap(to.x(), to.y(), image->pixSingle(_pinnedBar->msg->fullId(), image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 			}
@@ -6505,7 +6506,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		}
 		p.setPen(st::historyReplyNameFg);
 		p.setFont(st::msgServiceNameFont);
-		p.drawText(left, top + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
+		p.drawText(left, top + st::msgServiceNameFont->ascent, lang((media && media->poll()) ? lng_pinned_poll : lng_pinned_message));
 
 		p.setPen(st::historyComposeAreaFg);
 		p.setTextPalette(st::historyComposeAreaPalette);
