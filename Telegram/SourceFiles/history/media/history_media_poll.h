@@ -111,6 +111,7 @@ private:
 	void resetAnswersAnimation() const;
 	void step_radial(TimeMs ms, bool timer);
 
+	void checkPollResultsReload(TimeMs ms) const;
 	void toggleRipple(Answer &answer, bool pressed);
 
 	not_null<PollData*> _poll;

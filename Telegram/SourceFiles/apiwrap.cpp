@@ -5437,6 +5437,24 @@ void ApiWrap::closePoll(FullMsgId itemId) {
 	_pollCloseRequestIds.emplace(itemId, requestId);
 }
 
+void ApiWrap::reloadPollResults(not_null<HistoryItem*> item) {
+	const auto itemId = item->fullId();
+	if (!IsServerMsgId(item->id)
+		|| _pollReloadRequestIds.contains(itemId)) {
+		return;
+	}
+	const auto requestId = request(MTPmessages_GetPollResults(
+		item->history()->peer->input,
+		MTP_int(item->id)
+	)).done([=](const MTPUpdates &result) {
+		_pollReloadRequestIds.erase(itemId);
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		_pollReloadRequestIds.erase(itemId);
+	}).send();
+	_pollReloadRequestIds.emplace(itemId, requestId);
+}
+
 void ApiWrap::readServerHistory(not_null<History*> history) {
 	if (history->unreadCount()) {
 		readServerHistoryForce(history);

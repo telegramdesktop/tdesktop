@@ -7,7 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_poll.h"
 
+#include "apiwrap.h"
+#include "auth_session.h"
+
 namespace {
+
+constexpr auto kShortPollTimeout = 30 * TimeMs(1000);
 
 const PollAnswer *AnswerByOption(
 		const std::vector<PollAnswer> &list,
@@ -85,8 +90,19 @@ bool PollData::applyResults(const MTPPollResults &results) {
 			}
 		}
 		totalVoters = newTotalVoters;
+		lastResultsUpdate = getms();
 		return changed;
 	});
+}
+
+void PollData::checkResultsReload(not_null<HistoryItem*> item, TimeMs now) {
+	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
+		return;
+	} else if (closed) {
+		return;
+	}
+	lastResultsUpdate = now;
+	Auth().api().reloadPollResults(item);
 }
 
 PollAnswer *PollData::answerByOption(const QByteArray &option) {

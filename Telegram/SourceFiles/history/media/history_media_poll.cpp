@@ -401,6 +401,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 
 	updateVotesCheckAnimations();
+	_poll->checkResultsReload(_parent->data(), ms);
 
 	const auto outbg = _parent->hasOutLayout();
 	const auto selected = (selection == FullSelection);

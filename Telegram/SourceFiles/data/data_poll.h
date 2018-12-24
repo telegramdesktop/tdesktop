@@ -28,6 +28,7 @@ struct PollData {
 
 	bool applyChanges(const MTPDpoll &poll);
 	bool applyResults(const MTPPollResults &results);
+	void checkResultsReload(not_null<HistoryItem*> item, TimeMs now);
 
 	PollAnswer *answerByOption(const QByteArray &option);
 	const PollAnswer *answerByOption(const QByteArray &option) const;
@@ -40,6 +41,7 @@ struct PollData {
 	int totalVoters = 0;
 	bool closed = false;
 	QByteArray sendingVote;
+	TimeMs lastResultsUpdate = 0;
 
 	int version = 0;
 
