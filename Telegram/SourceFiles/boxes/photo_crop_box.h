@@ -37,7 +37,6 @@ private:
 	QImage _img;
 	QPixmap _thumb;
 	QImage _mask, _fade;
-	PeerId _peerId = 0;
 	rpl::event_stream<QImage> _readyImages;
 
 };

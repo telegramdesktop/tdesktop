@@ -15,8 +15,8 @@ PhotoCropBox::PhotoCropBox(
 	QWidget*,
 	const QImage &img,
 	const QString &title)
-: _img(img)
-, _title(title) {
+: _title(title)
+, _img(img) {
 }
 
 void PhotoCropBox::prepare() {
