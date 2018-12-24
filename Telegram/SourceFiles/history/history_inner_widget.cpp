@@ -955,7 +955,7 @@ void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	touchUpdateSpeed();
 }
 
-QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) {
+QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) const {
 	if (view) {
 		const auto top = itemTop(view);
 		p.setY(p.y() - top);
@@ -964,7 +964,9 @@ QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) {
 	return QPoint();
 }
 
-QPoint HistoryInner::mapPointToItem(QPoint p, const HistoryItem *item) {
+QPoint HistoryInner::mapPointToItem(
+		QPoint p,
+		const HistoryItem *item) const {
 	return item ? mapPointToItem(p, item->mainView()) : QPoint();
 }
 
@@ -2524,7 +2526,8 @@ void HistoryInner::mouseActionUpdate() {
 	}
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
-		|| dragState.cursor == CursorState::Forwarded) {
+		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
 
@@ -3037,8 +3040,17 @@ QString HistoryInner::tooltipText() const {
 				return forwarded->text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
-	} else if (auto lnk = ClickHandler::getActive()) {
+	} else if (const auto lnk = ClickHandler::getActive()) {
 		return lnk->tooltip();
+	} else if (const auto view = App::mousedItem()) {
+		StateRequest request;
+		const auto local = mapFromGlobal(_mousePosition);
+		const auto point = _widget->clampMousePosition(local);
+		request.flags |= Text::StateRequest::Flag::LookupCustomTooltip;
+		const auto state = view->textState(
+			mapPointToItem(point, view),
+			request);
+		return state.customTooltipText;
 	}
 	return QString();
 }

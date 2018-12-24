@@ -730,10 +730,11 @@ void HistoryPoll::startAnswersAnimation() const {
 
 TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
-	if (!canVote() || !_poll->sendingVote.isEmpty()) {
+	if (!_poll->sendingVote.isEmpty()) {
 		return result;
 	}
 
+	const auto can = canVote();
 	const auto padding = st::msgPadding;
 	auto paintw = width();
 	auto tshift = st::historyPollQuestionTop;
@@ -750,8 +751,18 @@ TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 	for (const auto &answer : _answers) {
 		const auto height = countAnswerHeight(answer, paintw);
 		if (point.y() >= tshift && point.y() < tshift + height) {
-			_lastLinkPoint = point;
-			result.link = answer.handler;
+			if (can) {
+				_lastLinkPoint = point;
+				result.link = answer.handler;
+			} else {
+				result.customTooltip = true;
+				using Flag = Text::StateRequest::Flag;
+				if (request.flags & Flag::LookupCustomTooltip) {
+					result.customTooltipText = answer.votes
+						? lng_polls_votes_count(lt_count, answer.votes)
+						: lang(lng_polls_votes_none);
+				}
+			}
 			return result;
 		}
 		tshift += height;

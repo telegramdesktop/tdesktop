@@ -115,9 +115,10 @@ public:
 
 	struct StateRequest {
 		enum class Flag {
-			BreakEverywhere = (1 << 0),
-			LookupSymbol    = (1 << 1),
-			LookupLink      = (1 << 2),
+			BreakEverywhere     = (1 << 0),
+			LookupSymbol        = (1 << 1),
+			LookupLink          = (1 << 2),
+			LookupCustomTooltip = (1 << 3),
 		};
 		using Flags = base::flags<Flag>;
 		friend inline constexpr auto is_flag_type(Flag) { return true; };

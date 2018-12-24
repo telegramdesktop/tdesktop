@@ -50,7 +50,9 @@ struct TextState {
 	CursorState cursor = CursorState::None;
 	ClickHandlerPtr link;
 	bool afterSymbol = false;
+	bool customTooltip = false;
 	uint16 symbol = 0;
+	QString customTooltipText;
 
 };
 
