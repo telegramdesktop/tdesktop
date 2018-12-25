@@ -692,11 +692,15 @@ void DialogsInner::activate() {
 }
 
 void DialogsInner::mouseMoveEvent(QMouseEvent *e) {
-	if (_mouseLastGlobalPosition != e->globalPos()) {
-		_mouseLastGlobalPosition = e->globalPos();
-		_mouseSelection = true;
+	const auto globalPosition = e->globalPos();
+	if (!_lastMousePosition) {
+		_lastMousePosition = globalPosition;
+		return;
+	} else if (!_mouseSelection
+		&& *_lastMousePosition == globalPosition) {
+		return;
 	}
-	updateSelected(e->pos());
+	selectByMouse(globalPosition);
 }
 
 void DialogsInner::clearIrrelevantState() {
@@ -718,16 +722,15 @@ void DialogsInner::clearIrrelevantState() {
 	}
 }
 
-void DialogsInner::updateSelected(QPoint localPos) {
-	if (updateReorderPinned(localPos)) {
+void DialogsInner::selectByMouse(QPoint globalPosition) {
+	const auto local = mapFromGlobal(globalPosition);
+	if (updateReorderPinned(local)) {
 		return;
 	}
+	_mouseSelection = true;
+	_lastMousePosition = globalPosition;
 
-	if (!_mouseSelection) {
-		return;
-	}
-
-	int w = width(), mouseY = localPos.y();
+	int w = width(), mouseY = local.y();
 	clearIrrelevantState();
 	if (_state == State::Default) {
 		auto importantSwitchSelected = (_dialogsImportant && mouseY >= 0 && mouseY < dialogsOffset());
@@ -756,7 +759,7 @@ void DialogsInner::updateSelected(QPoint localPos) {
 				_hashtagSelected = hashtagSelected;
 				updateSelectedRow();
 			}
-			_hashtagDeleteSelected = (_hashtagSelected >= 0) && (localPos.x() >= w - st::mentionHeight);
+			_hashtagDeleteSelected = (_hashtagSelected >= 0) && (local.x() >= w - st::mentionHeight);
 		}
 		if (!_filterResults.isEmpty()) {
 			auto skip = filteredOffset();
@@ -801,8 +804,7 @@ void DialogsInner::updateSelected(QPoint localPos) {
 }
 
 void DialogsInner::mousePressEvent(QMouseEvent *e) {
-	_mouseSelection = true;
-	updateSelected(e->pos());
+	selectByMouse(e->globalPos());
 
 	_pressButton = e->button();
 	setPressed(_selected);
@@ -851,7 +853,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 	}
 	if (anim::Disabled()
 		&& (!_pressed || !_pressed->entry()->isPinnedDialog())) {
-		mousePressReleased(e->button());
+		mousePressReleased(e->globalPos(), e->button());
 	}
 }
 
@@ -1072,15 +1074,16 @@ void DialogsInner::step_pinnedShifting(TimeMs ms, bool timer) {
 }
 
 void DialogsInner::mouseReleaseEvent(QMouseEvent *e) {
-	mousePressReleased(e->button());
+	mousePressReleased(e->globalPos(), e->button());
 }
 
-void DialogsInner::mousePressReleased(Qt::MouseButton button) {
+void DialogsInner::mousePressReleased(
+		QPoint globalPosition,
+		Qt::MouseButton button) {
 	auto wasDragging = (_dragging != nullptr);
 	if (wasDragging) {
 		updateReorderIndexGetCount();
 		if (_draggingIndex >= 0) {
-			auto localPosition = mapFromGlobal(QCursor::pos());
 			_pinnedRows[_draggingIndex].yadd.start(0.);
 			_pinnedRows[_draggingIndex].animStartTime = getms();
 			if (!_a_pinnedShifting.animating()) {
@@ -1105,7 +1108,7 @@ void DialogsInner::mousePressReleased(Qt::MouseButton button) {
 	auto searchedPressed = _searchedPressed;
 	setSearchedPressed(-1);
 	if (wasDragging) {
-		updateSelected();
+		selectByMouse(globalPosition);
 	}
 	updateSelectedRow();
 	if (!wasDragging && button == Qt::LeftButton) {
@@ -1439,7 +1442,6 @@ void DialogsInner::updateDialogRow(
 
 void DialogsInner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
-	updateSelected();
 }
 
 void DialogsInner::updateSelectedRow(Dialogs::Key key) {
@@ -1498,6 +1500,7 @@ void DialogsInner::dragLeft() {
 
 void DialogsInner::clearSelection() {
 	_mouseSelection = false;
+	_lastMousePosition = std::nullopt;
 	if (_importantSwitchSelected
 		|| _selected
 		|| _filteredSelected >= 0
@@ -1516,8 +1519,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = nullptr;
 
 	if (e->reason() == QContextMenuEvent::Mouse) {
-		_mouseSelection = true;
-		updateSelected();
+		selectByMouse(e->globalPos());
 	}
 
 	const auto key = [&]() -> Dialogs::Key {
@@ -1536,7 +1538,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 
 	_menuKey = key;
 	if (_pressButton != Qt::LeftButton) {
-		mousePressReleased(_pressButton);
+		mousePressReleased(e->globalPos(), _pressButton);
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
@@ -1561,11 +1563,10 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		if (_menuKey) {
 			updateSelectedRow(base::take(_menuKey));
 		}
-		auto localPos = mapFromGlobal(QCursor::pos());
-		if (rect().contains(localPos)) {
-			_mouseSelection = true;
+		const auto globalPosition = QCursor::pos();
+		if (rect().contains(mapFromGlobal(globalPosition))) {
 			setMouseTracking(true);
-			updateSelected(localPos);
+			selectByMouse(globalPosition);
 		}
 	});
 	_menu->popup(e->globalPos());
@@ -1573,10 +1574,12 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void DialogsInner::onParentGeometryChanged() {
-	auto localPos = mapFromGlobal(QCursor::pos());
-	if (rect().contains(localPos)) {
+	const auto globalPosition = QCursor::pos();
+	if (rect().contains(mapFromGlobal(globalPosition))) {
 		setMouseTracking(true);
-		updateSelected(localPos);
+		if (_mouseSelection) {
+			selectByMouse(globalPosition);
+		}
 	}
 }
 
@@ -1684,7 +1687,7 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 			}
 			refresh(true);
 		}
-		setMouseSelection(false, true);
+		clearMouseSelection(true);
 	}
 	if (_state != State::Default) {
 		emit searchMessages();
@@ -1697,7 +1700,7 @@ void DialogsInner::onHashtagFilterUpdate(QStringRef newFilter) {
 		if (!_hashtagResults.empty()) {
 			_hashtagResults.clear();
 			refresh(true);
-			setMouseSelection(false, true);
+			clearMouseSelection(true);
 		}
 		return;
 	}
@@ -1717,7 +1720,7 @@ void DialogsInner::onHashtagFilterUpdate(QStringRef newFilter) {
 		}
 	}
 	refresh(true);
-	setMouseSelection(false, true);
+	clearMouseSelection(true);
 }
 
 DialogsInner::~DialogsInner() {
@@ -1733,9 +1736,8 @@ void DialogsInner::clearSearchResults(bool clearPeerSearchResults) {
 	_lastSearchId = _lastSearchMigratedId = 0;
 }
 
-PeerData *DialogsInner::updateFromParentDrag(QPoint globalPos) {
-	_mouseSelection = true;
-	updateSelected(mapFromGlobal(globalPos));
+PeerData *DialogsInner::updateFromParentDrag(QPoint globalPosition) {
+	selectByMouse(globalPosition);
 	const auto getPeerFromRow = [](Dialogs::Row *row) -> PeerData* {
 		if (const auto history = row ? row->history() : nullptr) {
 			return history->peer;
@@ -2106,9 +2108,10 @@ void DialogsInner::refresh(bool toTop) {
 	update();
 }
 
-void DialogsInner::setMouseSelection(bool mouseSelection, bool toTop) {
-	_mouseSelection = mouseSelection;
-	if (!_mouseSelection && toTop) {
+void DialogsInner::clearMouseSelection(bool clearSelection) {
+	_mouseSelection = false;
+	_lastMousePosition = std::nullopt;
+	if (clearSelection) {
 		if (_state == State::Default) {
 			_selected = nullptr;
 			_importantSwitchSelected = false;
@@ -2215,6 +2218,7 @@ void DialogsInner::clearFilter() {
 }
 
 void DialogsInner::selectSkip(int32 direction) {
+	clearMouseSelection();
 	if (_state == State::Default) {
 		if (_importantSwitchSelected) {
 			if (!shownDialogs()->isEmpty() && direction > 0) {
@@ -2330,6 +2334,7 @@ void DialogsInner::scrollToEntry(const Dialogs::RowDescriptor &entry) {
 }
 
 void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
+	clearMouseSelection();
 	int toSkip = pixels / int(st::dialogsRowHeight);
 	if (_state == State::Default) {
 		if (!_selected) {
@@ -2457,9 +2462,7 @@ bool DialogsInner::chooseHashtag() {
 		cSetRecentSearchHashtags(recent);
 		Local::writeRecentHashtagsAndBots();
 		emit refreshHashtags();
-
-		_mouseSelection = true;
-		updateSelected();
+		selectByMouse(QCursor::pos());
 	} else {
 		Local::saveRecentSearchHashtags('#' + hashtag->tag);
 		emit completeHashtag(hashtag->tag);
@@ -2534,6 +2537,8 @@ bool DialogsInner::chooseRow() {
 			emit clearSearchQuery();
 		}
 		updateSelectedRow();
+		_mouseSelection = false;
+		_lastMousePosition = std::nullopt;
 		_selected = nullptr;
 		_hashtagSelected
 			= _filteredSelected

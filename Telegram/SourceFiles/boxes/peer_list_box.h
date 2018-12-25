@@ -553,7 +553,7 @@ private:
 	SelectedSaved saveSelectedData(Selected from);
 	Selected restoreSelectedData(SelectedSaved from);
 
-	void updateSelection();
+	void selectByMouse(QPoint globalPosition);
 	void loadProfilePhotos();
 	void checkScrollForPreload();
 
@@ -587,7 +587,7 @@ private:
 
 	void clearSearchRows();
 	void clearAllContent();
-	void handleMouseMove(QPoint position);
+	void handleMouseMove(QPoint globalPosition);
 	void mousePressReleased(Qt::MouseButton button);
 
 	const style::PeerList &_st;
@@ -602,6 +602,7 @@ private:
 	Selected _pressed;
 	Selected _contexted;
 	bool _mouseSelection = false;
+	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
@@ -621,8 +622,6 @@ private:
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
-
-	QPoint _lastMousePosition;
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;

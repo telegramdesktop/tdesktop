@@ -241,6 +241,7 @@ void SuggestionsWidget::handleKeyEvent(int key) {
 	}
 
 	_mouseSelection = false;
+	_lastMousePosition = std::nullopt;
 	setSelected(newSelected);
 }
 
@@ -272,6 +273,7 @@ void SuggestionsWidget::clearMouseSelection() {
 
 void SuggestionsWidget::clearSelection() {
 	_mouseSelection = false;
+	_lastMousePosition = std::nullopt;
 	setSelected(-1);
 }
 
@@ -296,24 +298,30 @@ void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 	auto inner = rect().marginsRemoved(QMargins(0, _st->skip, 0, _st->skip));
 	auto localPosition = e->pos();
 	if (inner.contains(localPosition)) {
-		_mouseSelection = true;
-		updateSelection(e->globalPos());
+		const auto globalPosition = e->globalPos();
+		if (!_lastMousePosition) {
+			_lastMousePosition = globalPosition;
+			return;
+		} else if (!_mouseSelection
+			&& *_lastMousePosition == globalPosition) {
+			return;
+		}
+		selectByMouse(globalPosition);
 	} else {
 		clearMouseSelection();
 	}
 }
 
-void SuggestionsWidget::updateSelection(QPoint globalPosition) {
-	if (!_mouseSelection) return;
-
+void SuggestionsWidget::selectByMouse(QPoint globalPosition) {
+	_mouseSelection = true;
+	_lastMousePosition = globalPosition;
 	auto p = mapFromGlobal(globalPosition) - QPoint(0, _st->skip);
 	auto selected = (p.y() >= 0) ? (p.y() / _rowHeight) : -1;
 	setSelected((selected >= 0 && selected < _rows.size()) ? selected : -1);
 }
+
 void SuggestionsWidget::mousePressEvent(QMouseEvent *e) {
-	if (!_mouseSelection) {
-		return;
-	}
+	selectByMouse(e->globalPos());
 	if (_selected >= 0 && _selected < _rows.size()) {
 		setPressed(_selected);
 		if (!_rows[_pressed].ripple()) {

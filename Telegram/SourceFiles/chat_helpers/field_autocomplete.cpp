@@ -682,13 +682,21 @@ void FieldAutocompleteInner::resizeEvent(QResizeEvent *e) {
 }
 
 void FieldAutocompleteInner::mouseMoveEvent(QMouseEvent *e) {
-	_mousePos = mapToGlobal(e->pos());
-	_mouseSel = true;
-	onUpdateSelected(true);
+	const auto globalPosition = e->globalPos();
+	if (!_lastMousePosition) {
+		_lastMousePosition = globalPosition;
+		return;
+	} else if (!_mouseSelection
+		&& *_lastMousePosition == globalPosition) {
+		return;
+	}
+	selectByMouse(globalPosition);
 }
 
 void FieldAutocompleteInner::clearSel(bool hidden) {
-	_mouseSel = _overDelete = false;
+	_overDelete = false;
+	_mouseSelection = false;
+	_lastMousePosition = std::nullopt;
 	setSel((_mrows->isEmpty() && _brows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
 	if (hidden) {
 		_down = -1;
@@ -697,7 +705,9 @@ void FieldAutocompleteInner::clearSel(bool hidden) {
 }
 
 bool FieldAutocompleteInner::moveSel(int key) {
-	_mouseSel = false;
+	_mouseSelection = false;
+	_lastMousePosition = std::nullopt;
+
 	int32 maxSel = (_mrows->isEmpty() ? (_hrows->isEmpty() ? (_brows->isEmpty() ? _srows->size() : _brows->size()) : _hrows->size()) : _mrows->size());
 	int32 direction = (key == Qt::Key_Up) ? -1 : (key == Qt::Key_Down ? 1 : 0);
 	if (!_srows->empty()) {
@@ -760,12 +770,9 @@ void FieldAutocompleteInner::setRecentInlineBotsInRows(int32 bots) {
 }
 
 void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
-	_mousePos = mapToGlobal(e->pos());
-	_mouseSel = true;
-	onUpdateSelected(true);
+	selectByMouse(e->globalPos());
 	if (e->button() == Qt::LeftButton) {
 		if (_overDelete && _sel >= 0 && _sel < (_mrows->isEmpty() ? _hrows->size() : _recentInlineBotsInRows)) {
-			_mousePos = mapToGlobal(e->pos());
 			bool removed = false;
 			if (_mrows->isEmpty()) {
 				QString toRemove = _hrows->at(_sel);
@@ -792,8 +799,7 @@ void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 			}
 			_parent->updateFiltered();
 
-			_mouseSel = true;
-			onUpdateSelected(true);
+			selectByMouse(e->globalPos());
 		} else if (_srows->empty()) {
 			chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 		} else {
@@ -809,9 +815,7 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 	int32 pressed = _down;
 	_down = -1;
 
-	_mousePos = mapToGlobal(e->pos());
-	_mouseSel = true;
-	onUpdateSelected(true);
+	selectByMouse(e->globalPos());
 
 	if (_previewShown) {
 		_previewShown = false;
@@ -825,14 +829,14 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 
 void FieldAutocompleteInner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
-	_mousePos = QCursor::pos();
-	onUpdateSelected(true);
 }
 
 void FieldAutocompleteInner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
-	if (_sel >= 0) {
+	if (_mouseSelection) {
 		setSel(-1);
+		_mouseSelection = false;
+		_lastMousePosition = std::nullopt;
 	}
 }
 
@@ -862,11 +866,14 @@ void FieldAutocompleteInner::setSel(int sel, bool scroll) {
 	}
 }
 
-void FieldAutocompleteInner::onUpdateSelected(bool force) {
-	QPoint mouse(mapFromGlobal(_mousePos));
-	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
+void FieldAutocompleteInner::selectByMouse(QPoint globalPosition) {
+	_mouseSelection = true;
+	_lastMousePosition = globalPosition;
+	const auto mouse = mapFromGlobal(globalPosition);
 
-	if (_down >= 0 && !_previewShown) return;
+	if (_down >= 0 && !_previewShown) {
+		return;
+	}
 
 	int32 sel = -1, maxSel = 0;
 	if (!_srows->empty()) {
@@ -900,10 +907,12 @@ void FieldAutocompleteInner::onUpdateSelected(bool force) {
 }
 
 void FieldAutocompleteInner::onParentGeometryChanged() {
-	_mousePos = QCursor::pos();
-	if (rect().contains(mapFromGlobal(_mousePos))) {
+	const auto globalPosition = QCursor::pos();
+	if (rect().contains(mapFromGlobal(globalPosition))) {
 		setMouseTracking(true);
-		onUpdateSelected(true);
+		if (_mouseSelection) {
+			selectByMouse(globalPosition);
+		}
 	}
 }
 

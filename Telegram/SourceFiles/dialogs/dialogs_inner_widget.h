@@ -76,8 +76,6 @@ public:
 	MsgId lastSearchId() const;
 	MsgId lastSearchMigratedId() const;
 
-	void setMouseSelection(bool mouseSelection, bool toTop = false);
-
 	enum class State {
 		Default,
 		Filtered,
@@ -93,7 +91,7 @@ public:
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
 
-	PeerData *updateFromParentDrag(QPoint globalPos);
+	PeerData *updateFromParentDrag(QPoint globalPosition);
 
 	void setLoadMoreCallback(Fn<void()> callback) {
 		_loadMoreCallback = std::move(callback);
@@ -154,13 +152,11 @@ private:
 		not_null<Dialogs::FakeRow*> result,
 		const Dialogs::RowDescriptor &entry) const;
 
+	void clearMouseSelection(bool clearSelection = false);
 	void userIsContactUpdated(not_null<UserData*> user);
-	void mousePressReleased(Qt::MouseButton button);
+	void mousePressReleased(QPoint globalPosition, Qt::MouseButton button);
 	void clearIrrelevantState();
-	void updateSelected() {
-		updateSelected(mapFromGlobal(QCursor::pos()));
-	}
-	void updateSelected(QPoint localPos);
+	void selectByMouse(QPoint globalPosition);
 	void loadPeerPhotos();
 	void setImportantSwitchPressed(bool pressed);
 	void setPressed(Dialogs::Row *pressed);
@@ -296,7 +292,7 @@ private:
 	DialogsList _contacts;
 
 	bool _mouseSelection = false;
-	QPoint _mouseLastGlobalPosition;
+	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	std::unique_ptr<ImportantSwitch> _importantSwitch;

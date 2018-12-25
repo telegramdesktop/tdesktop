@@ -1378,16 +1378,12 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 			}
 		}
 	} else if (e->key() == Qt::Key_Down) {
-		_inner->setMouseSelection(false);
 		_inner->selectSkip(1);
 	} else if (e->key() == Qt::Key_Up) {
-		_inner->setMouseSelection(false);
 		_inner->selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner->setMouseSelection(false);
 		_inner->selectSkipPage(_scroll->height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner->setMouseSelection(false);
 		_inner->selectSkipPage(_scroll->height(), -1);
 	} else {
 		e->ignore();

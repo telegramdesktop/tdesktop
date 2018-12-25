@@ -49,7 +49,7 @@ private:
 	void updateSelectedItem();
 	int itemTop(int index);
 	void updateItem(int index);
-	void updateSelection(QPoint globalPosition);
+	void selectByMouse(QPoint globalPosition);
 	void triggerSelectedRow();
 	void triggerRow(const Row &row);
 
@@ -59,6 +59,7 @@ private:
 	std::vector<Row> _rows;
 
 	int _rowHeight = 0;
+	std::optional<QPoint> _lastMousePosition;
 	bool _mouseSelection = false;
 	int _selected = -1;
 	int _pressed = -1;
