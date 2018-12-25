@@ -158,7 +158,7 @@ LabelWithNumbers::LabelWithNumbers(
 , _textTop(textTop)
 , _before(GetBefore(value))
 , _after(GetAfter(value))
-, _numbers(_st.style.font, [this] { update(); })
+, _numbers(_st.style.font, [=] { update(); })
 , _beforeWidth(_st.style.font->width(_before))
 , _afterWidth(st.style.font->width(_after)) {
 	Expects((value.offset < 0) == (value.length == 0));
@@ -247,6 +247,9 @@ Ui::StringWithNumbers ReplaceTag<Ui::StringWithNumbers>::Call(
 		ushort tag,
 		const Ui::StringWithNumbers &replacement) {
 	original.offset = FindTagReplacementPosition(original.text, tag);
+	if (original.offset < 0) {
+		return std::move(original);
+	}
 	original.text = ReplaceTag<QString>::Call(
 		std::move(original.text),
 		tag,
