@@ -1,3 +1,42 @@
+1.5.4 (24.12.18)
+
+- Bug fixes and other minor improvements.
+
+1.5.3 (23.12.18)
+
+- Create polls in groups and channels - right from the chat menu.
+
+1.5.2 (13.12.18)
+
+- Bug fixes and other minor improvements.
+
+1.5.1 (11.12.18)
+
+- Bug fixes and other minor improvements.
+
+1.5 (10.12.18)
+
+- Support for custom languages. Crowdsource a cloud-based language pack for Telegram in any language using our Translations platform - then apply it in real time.
+- Interface scaling for large screens, up to 300% (up to 150% for macOS retina screens).
+- 'Count unread messages' setting for the Badge counter in Settings > Notifications. Disable to show number of unread chats.
+- Video messages displayed in shared media (under voice messages).
+- Updated emoji. Farewell to question marks!
+
+Also in this update:
+- Listen to voice and video messages in 2X mode if you're in a hurry.
+- Add a comment when sharing posts from channels.
+- View all photos and videos in Twitter and Instagram link previews.
+- Add emoji to media captions.
+
+1.4.8 beta (04.12.18)
+
+- Add emoji to media captions.
+- Switch off the 'Count unread messages' option in Settings > Notifications if you want to see the unread chats count in the badge instead.
+
+1.4.7 beta (10.11.18)
+
+- Crash fix.
+
 1.4.6 beta (09.11.18)
 
 - Bug fixes and other minor improvements.

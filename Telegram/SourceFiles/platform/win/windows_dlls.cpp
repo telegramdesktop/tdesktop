@@ -50,6 +50,7 @@ f_RmRegisterResources RmRegisterResources;
 f_RmGetList RmGetList;
 f_RmShutdown RmShutdown;
 f_RmEndSession RmEndSession;
+f_GetProcessMemoryInfo GetProcessMemoryInfo;
 
 HINSTANCE LibUxTheme;
 HINSTANCE LibShell32;
@@ -58,6 +59,7 @@ HINSTANCE LibPropSys;
 HINSTANCE LibComBase;
 HINSTANCE LibDwmApi;
 HINSTANCE LibRstrtMgr;
+HINSTANCE LibPsApi;
 
 void start() {
 	init();
@@ -101,6 +103,9 @@ void start() {
 		load(LibRstrtMgr, "RmShutdown", RmShutdown);
 		load(LibRstrtMgr, "RmEndSession", RmEndSession);
 	}
+
+	LibPsApi = LoadLibrary(L"PSAPI.DLL");
+	load(LibPsApi, "GetProcessMemoryInfo", GetProcessMemoryInfo);
 }
 
 } // namespace Dlls

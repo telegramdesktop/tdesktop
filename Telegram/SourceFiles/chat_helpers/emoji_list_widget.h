@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/tooltip.h"
+#include "base/timer.h"
 
 namespace Ui {
 namespace Emoji {
@@ -24,68 +25,15 @@ namespace ChatHelpers {
 
 constexpr auto kEmojiSectionCount = 8;
 
-class EmojiColorPicker : public TWidget {
-	Q_OBJECT
+class EmojiColorPicker;
 
+class EmojiListWidget
+	: public TabbedSelector::Inner
+	, public Ui::AbstractTooltipShower {
 public:
-	EmojiColorPicker(QWidget *parent);
-
-	void showEmoji(EmojiPtr emoji);
-
-	void clearSelection();
-	void handleMouseMove(QPoint globalPos);
-	void handleMouseRelease(QPoint globalPos);
-	void setSingleSize(QSize size);
-
-	void hideFast();
-
-public slots:
-	void showAnimated();
-	void hideAnimated();
-
-signals:
-	void emojiSelected(EmojiPtr emoji);
-	void hidden();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-
-private:
-	void animationCallback();
-	void updateSize();
-
-	void drawVariant(Painter &p, int variant);
-
-	void updateSelected();
-	void setSelected(int newSelected);
-
-	bool _ignoreShow = false;
-
-	QVector<EmojiPtr> _variants;
-
-	int _selected = -1;
-	int _pressedSel = -1;
-	QPoint _lastMousePos;
-	QSize _singleSize;
-
-	bool _hiding = false;
-	QPixmap _cache;
-	Animation _a_opacity;
-
-	QTimer _hideTimer;
-
-};
-
-class EmojiListWidget : public TabbedSelector::Inner, public Ui::AbstractTooltipShower {
-	Q_OBJECT
-
-public:
-	EmojiListWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	EmojiListWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller);
 
 	using Section = Ui::Emoji::Section;
 
@@ -100,16 +48,7 @@ public:
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
 
-public slots:
-	void onShowPicker();
-	void onPickerHidden();
-	void onColorSelected(EmojiPtr emoji);
-
-	bool checkPickerHide();
-
-signals:
-	void selected(EmojiPtr emoji);
-	void switchToStickers();
+	rpl::producer<EmojiPtr> chosen() const;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -146,8 +85,12 @@ private:
 	SectionInfo sectionInfo(int section) const;
 	SectionInfo sectionInfoByOffset(int yOffset) const;
 
+	void showPicker();
+	void pickerHidden();
+	void colorChosen(EmojiPtr emoji);
+	bool checkPickerHide();
+
 	void ensureLoaded(int section);
-	int countSectionTop(int section) const;
 	void updateSelected();
 	void setSelected(int newSelected);
 
@@ -171,7 +114,9 @@ private:
 	QPoint _lastMousePos;
 
 	object_ptr<EmojiColorPicker> _picker;
-	QTimer _showPickerTimer;
+	base::Timer _showPickerTimer;
+
+	rpl::event_stream<EmojiPtr> _chosen;
 
 };
 

@@ -17,7 +17,7 @@ XKB_PATH="$BUILD/libxkbcommon"
 XKB_CACHE_VERSION="3"
 
 QT_PATH="$BUILD/qt"
-QT_CACHE_VERSION="3"
+QT_CACHE_VERSION="4"
 QT_PATCH="$UPSTREAM/Telegram/Patches/qtbase_${QT_VERSION//\./_}.diff"
 
 BREAKPAD_PATH="$BUILD/breakpad"
@@ -604,6 +604,7 @@ buildCustomQt() {
   cd "$EXTERNAL/qt${QT_VERSION}/qtbase/src/plugins/platforminputcontexts"
   git clone https://github.com/telegramdesktop/fcitx.git
   git clone https://github.com/telegramdesktop/hime.git
+  git clone https://github.com/telegramdesktop/nimf.git
   cd ../../../..
 
   ./configure -prefix $QT_PATH -release -opensource -confirm-license -qt-zlib \

@@ -17,9 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "shortcuts.h"
 #include "auth_session.h"
 #include "lang/lang_keys.h"
+#include "core/shortcuts.h"
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
 #include "ui/widgets/buttons.h"
@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
 #include "data/data_feed.h"
+#include "support/support_helper.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "styles/style_window.h"
@@ -52,6 +53,7 @@ TopBarWidget::TopBarWidget(
 , _search(this, st::topBarSearch)
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
+, _titlePeerText(st::windowMinWidth / 3)
 , _onlineUpdater([this] { updateOnlineDisplay(); }) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -104,7 +106,8 @@ TopBarWidget::TopBarWidget(
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto flags = UpdateFlag::UserHasCalls
 		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged;
+		| UpdateFlag::MembersChanged
+		| UpdateFlag::UserSupportInfoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [this](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::UserHasCalls) {
 			if (update.peer->isUser()) {
@@ -332,13 +335,13 @@ void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 		if (paintConnectingState(p, nameleft, statustop, width(), ms)) {
 			return;
 		} else if (history->paintSendAction(
-			p,
-			nameleft,
-			statustop,
-			namewidth,
-			width(),
-			st::historyStatusFgTyping,
-			ms)) {
+				p,
+				nameleft,
+				statustop,
+				namewidth,
+				width(),
+				st::historyStatusFgTyping,
+				ms)) {
 			return;
 		} else {
 			paintStatus(p, nameleft, statustop, namewidth, width());
@@ -379,25 +382,16 @@ void TopBarWidget::paintStatus(
 		int top,
 		int availableWidth,
 		int outerWidth) {
-	auto statustext = _titlePeerText;
-	auto statuswidth = _titlePeerTextWidth;
-	if (statuswidth > availableWidth) {
-		statustext = st::dialogsTextFont->elided(
-			statustext,
-			availableWidth,
-			Qt::ElideLeft);
-		statuswidth = st::dialogsTextFont->width(statustext);
-	}
 	p.setPen(_titlePeerTextOnline
 		? st::historyStatusFgActive
 		: st::historyStatusFg);
-	p.drawTextLeft(left, top, outerWidth, statustext, statuswidth);
+	_titlePeerText.drawLeftElided(p, left, top, availableWidth, outerWidth);
 }
 
 QRect TopBarWidget::getMembersShowAreaGeometry() const {
 	int membersTextLeft = _leftTaken;
 	int membersTextTop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	int membersTextWidth = _titlePeerTextWidth;
+	int membersTextWidth = _titlePeerText.maxWidth();
 	int membersTextHeight = st::topBarHeight - membersTextTop;
 
 	return myrtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight);
@@ -701,28 +695,18 @@ void TopBarWidget::createUnreadBadge() {
 void TopBarWidget::updateUnreadBadge() {
 	if (!_unreadBadge) return;
 
-	auto mutedCount = App::histories().unreadMutedCount();
-	auto fullCounter = App::histories().unreadBadge()
-		+ (Global::IncludeMuted() ? 0 : mutedCount);
-
-	// Do not include currently shown chat in the top bar unread counter.
-	if (const auto history = _activeChat.history()) {
-		auto shownUnreadCount = history->unreadCount();
-		fullCounter -= shownUnreadCount;
-		if (history->mute()) {
-			mutedCount -= shownUnreadCount;
+	const auto history = _activeChat.history();
+	const auto active = !App::histories().unreadBadgeMutedIgnoreOne(history);
+	const auto counter = App::histories().unreadBadgeIgnoreOne(history);
+	const auto text = [&] {
+		if (!counter) {
+			return QString();
 		}
-	}
-
-	auto active = (mutedCount < fullCounter);
-	_unreadBadge->setText([&] {
-		if (auto counter = (fullCounter - (Global::IncludeMuted() ? 0 : mutedCount))) {
-			return (counter > 999)
-				? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
-				: QString::number(counter);
-		}
-		return QString();
-	}(), active);
+		return (counter > 999)
+			? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
+			: QString::number(counter);
+	}();
+	_unreadBadge->setText(text, active);
 }
 
 void TopBarWidget::updateInfoToggleActive() {
@@ -746,14 +730,20 @@ void TopBarWidget::updateOnlineDisplay() {
 	const auto now = unixtime();
 	bool titlePeerTextOnline = false;
 	if (const auto user = _activeChat.peer()->asUser()) {
-		text = Data::OnlineText(user, now);
-		titlePeerTextOnline = Data::OnlineTextActive(user, now);
+		if (Auth().supportMode()
+			&& !Auth().supportHelper().infoCurrent(user).text.empty()) {
+			text = QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f check info");
+			titlePeerTextOnline = false;
+		} else {
+			text = Data::OnlineText(user, now);
+			titlePeerTextOnline = Data::OnlineTextActive(user, now);
+		}
 	} else if (const auto chat = _activeChat.peer()->asChat()) {
 		if (!chat->amIn()) {
 			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.empty()) {
 			if (!_titlePeerText.isEmpty()) {
-				text = _titlePeerText;
+				text = _titlePeerText.originalText();
 			} else if (chat->count <= 0) {
 				text = lang(lng_group_status);
 			} else {
@@ -763,7 +753,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			const auto self = Auth().user();
 			auto online = 0;
 			auto onlyMe = true;
-			for (auto [user, v] : chat->participants) {
+			for (const auto [user, v] : chat->participants) {
 				if (user->onlineTill > now) {
 					++online;
 					if (onlyMe && user != self) onlyMe = false;
@@ -810,10 +800,9 @@ void TopBarWidget::updateOnlineDisplay() {
 			text = lang(channel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
 	}
-	if (_titlePeerText != text) {
-		_titlePeerText = text;
+	if (_titlePeerText.originalText() != text) {
+		_titlePeerText.setText(st::dialogsTextStyle, text);
 		_titlePeerTextOnline = titlePeerTextOnline;
-		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
 		updateMembersShowArea();
 		update();
 	}
@@ -832,7 +821,7 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 	if (const auto user = _activeChat.peer()->asUser()) {
 		handleUser(user);
 	} else if (auto chat = _activeChat.peer()->asChat()) {
-		for (auto [user, v] : chat->participants) {
+		for (const auto [user, v] : chat->participants) {
 			handleUser(user);
 		}
 	} else if (_activeChat.peer()->isChannel()) {

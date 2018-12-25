@@ -204,6 +204,9 @@ public:
 	auto scrollTopValue() const {
 		return _scrollTopUpdated.events_starting_with(scrollTop());
 	}
+	auto scrollTopChanges() const {
+		return _scrollTopUpdated.events();
+	}
 
 	void scrollTo(ScrollToRequest request);
 	void scrollToWidget(not_null<QWidget*> widget);

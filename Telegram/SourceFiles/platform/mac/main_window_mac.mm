@@ -522,15 +522,18 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	auto counter = App::histories().unreadBadge();
+	const auto counter = Messenger::Instance().unreadBadge();
+	const auto muted = Messenger::Instance().unreadBadgeMuted();
 
-	QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-	_private->setWindowBadge(counter ? cnt : QString());
+	const auto string = !counter
+		? QString()
+		: (counter < 1000)
+		? QString("%1").arg(counter)
+		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
+	_private->setWindowBadge(string);
 
 	if (trayIcon) {
-		bool muted = App::histories().unreadOnlyMuted();
 		bool dm = objc_darkMode();
-
 		auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 		QIcon icon;
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
@@ -697,7 +700,7 @@ void MainWindow::updateGlobalMenuHook() {
 	}
 	App::wnd()->updateIsActive(0);
 	const auto logged = AuthSession::Exists();
-	const auto locked = !Messenger::Instance().locked();
+	const auto locked = Messenger::Instance().locked();
 	const auto inactive = !logged || locked;
 	const auto support = logged && Auth().supportMode();
 	_forceDisabled(psLogout, !logged && !locked);

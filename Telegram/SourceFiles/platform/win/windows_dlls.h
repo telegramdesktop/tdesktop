@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <roapi.h>
 #include <dwmapi.h>
 #include <RestartManager.h>
+#include <psapi.h>
 
 namespace Platform {
 namespace Dlls {
@@ -165,6 +166,14 @@ extern f_RmShutdown RmShutdown;
 using f_RmEndSession = DWORD(FAR STDAPICALLTYPE*)(
 	_In_ DWORD dwSessionHandle);
 extern f_RmEndSession RmEndSession;
+
+// PSAPI.DLL
+
+using f_GetProcessMemoryInfo = BOOL(FAR STDAPICALLTYPE*)(
+	HANDLE Process,
+	PPROCESS_MEMORY_COUNTERS ppsmemCounters,
+	DWORD cb);
+extern f_GetProcessMemoryInfo GetProcessMemoryInfo;
 
 } // namespace Dlls
 } // namespace Platform

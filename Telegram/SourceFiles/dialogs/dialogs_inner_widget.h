@@ -66,12 +66,7 @@ public:
 
 	void destroyData();
 
-	Dialogs::RowDescriptor chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const;
-
-	void scrollToPeer(not_null<History*> history, MsgId msgId);
+	void scrollToEntry(const Dialogs::RowDescriptor &entry);
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
@@ -119,7 +114,7 @@ signals:
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
-	void searchResultChosen();
+	void clearSearchQuery();
 	void cancelSearchInChat();
 	void completeHashtag(QString tag);
 	void refreshHashtags();
@@ -155,6 +150,9 @@ private:
 	bool switchImportantChats();
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
+	bool isSearchResultActive(
+		not_null<Dialogs::FakeRow*> result,
+		const Dialogs::RowDescriptor &entry) const;
 
 	void userIsContactUpdated(not_null<UserData*> user);
 	void mousePressReleased(Qt::MouseButton button);
@@ -191,6 +189,19 @@ private:
 		const base::flat_set<QChar> &oldLetters);
 	bool uniqueSearchResults() const;
 	bool hasHistoryInSearchResults(not_null<History*> history) const;
+
+	void setupShortcuts();
+	Dialogs::RowDescriptor computeJump(
+		const Dialogs::RowDescriptor &to,
+		int skipDirection);
+	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
+
+	Dialogs::RowDescriptor chatListEntryBefore(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryAfter(
+		const Dialogs::RowDescriptor &which) const;
+	Dialogs::RowDescriptor chatListEntryFirst() const;
+	Dialogs::RowDescriptor chatListEntryLast() const;
 
 	void applyDialog(const MTPDdialog &dialog);
 //	void applyFeedDialog(const MTPDdialogFeed &dialog); // #feed

@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_history.h"
 #include "history/history.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_web_page.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
+#include "boxes/sticker_set_box.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
@@ -34,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/edit_participant_box.h"
 #include "data/data_session.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "data/data_media_types.h"
 
 namespace AdminLog {
@@ -1010,47 +1014,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); });
 		} else {
 			if (item && !isUponSelected) {
-				auto mediaHasTextForCopy = false;
-				if (auto media = view->media()) {
-					mediaHasTextForCopy = media->hasTextForCopy();
-					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
-						media = static_cast<HistoryWebPage*>(media)->attach();
-					}
-					if (media->type() == MediaTypeSticker) {
-						if (const auto document = media->getDocument()) {
-							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
-									showStickerPackInfo(document);
-								});
-							}
-							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-								saveDocumentToFile(document);
-							}));
-						}
-					} else if (media->type() == MediaTypeGif && !link) {
-						if (auto document = media->getDocument()) {
-							if (document->loading()) {
-								_menu->addAction(lang(lng_context_cancel_download), [=] {
-									cancelContextDownload(document);
-								});
-							} else {
-								if (document->isGifv()) {
-									if (!cAutoPlayGif()) {
-										_menu->addAction(lang(lng_context_open_gif), [=] {
-											openContextGif(itemId);
-										});
-									}
-								}
-								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
-										showContextInFolder(document);
-									});
-								}
-								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-									saveDocumentToFile(document);
-								}));
-							}
-						}
+				const auto media = view->media();
+				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
+				if (const auto document = media ? media->getDocument() : nullptr) {
+					if (document->sticker()) {
+						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+							saveDocumentToFile(document);
+						}));
 					}
 				}
 				if (msg && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
@@ -1114,11 +1084,7 @@ void InnerWidget::copySelectedText() {
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
-	if (auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
+	StickerSetBox::Show(document);
 }
 
 void InnerWidget::cancelContextDownload(not_null<DocumentData*> document) {

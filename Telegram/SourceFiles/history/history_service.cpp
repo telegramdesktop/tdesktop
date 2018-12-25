@@ -13,13 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "layout.h"
 #include "history/history.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media_invoice.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
 #include "data/data_feed.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_game.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
@@ -204,6 +205,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareContactSignUp = [this] {
+		auto result = PreparedText{};
+		result.links.push_back(fromLink());
+		result.text = lng_action_user_registered(lt_from, fromLinkText());
+		return result;
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -226,6 +234,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
 	case mtpc_messageActionBotAllowed: messageText = prepareBotAllowed(action.c_messageActionBotAllowed()); break;
 	case mtpc_messageActionSecureValuesSent: messageText = prepareSecureValuesSent(action.c_messageActionSecureValuesSent()); break;
+	case mtpc_messageActionContactSignUp: messageText = prepareContactSignUp(); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 

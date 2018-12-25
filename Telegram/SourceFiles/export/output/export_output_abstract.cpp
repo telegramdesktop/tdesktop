@@ -440,6 +440,12 @@ Stats AbstractWriter::produceTestExample(
 		message.action.content = action;
 		return message;
 	}());
+	sliceChat2.list.push_back([&] {
+		auto message = serviceMessage();
+		auto action = Data::ActionContactSignUp();
+		message.action.content = action;
+		return message;
+	}());
 	auto dialogs = Data::DialogsInfo();
 	auto dialogBot = Data::DialogInfo();
 	dialogBot.messagesCountPerSplit.push_back(sliceBot1.list.size());

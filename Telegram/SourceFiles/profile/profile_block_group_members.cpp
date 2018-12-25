@@ -96,8 +96,9 @@ void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 	auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
 	box->setSaveCallback([megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 		Ui::hideLayer();
+		// #TODO use Auth().api().
 		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, oldRights, newRights](const MTPUpdates &result) {
-			if (App::main()) App::main()->sentUpdatesReceived(result);
+			Auth().api().applyUpdates(result);
 			megagroup->applyEditBanned(user, oldRights, newRights);
 		}));
 	});
@@ -406,7 +407,7 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 	reserveItemsForSize(chat->participants.size());
 	addUser(chat, Auth().user())->onlineForSort
 		= std::numeric_limits<TimeId>::max();
-	for (auto [user, v] : chat->participants) {
+	for (const auto &[user, v] : chat->participants) {
 		if (!user->isSelf()) {
 			addUser(chat, user);
 		}

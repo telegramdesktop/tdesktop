@@ -37,25 +37,6 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
-enum HistoryMediaType : char {
-	MediaTypePhoto,
-	MediaTypeVideo,
-	MediaTypeContact,
-	MediaTypeCall,
-	MediaTypeFile,
-	MediaTypeGif,
-	MediaTypeSticker,
-	MediaTypeLocation,
-	MediaTypeWebPage,
-	MediaTypeMusicFile,
-	MediaTypeVoiceFile,
-	MediaTypeGame,
-	MediaTypeInvoice,
-	MediaTypeGrouped,
-
-	MediaTypeCount
-};
-
 class HistoryMedia : public HistoryView::Object {
 public:
 	using Element = HistoryView::Element;
@@ -65,8 +46,6 @@ public:
 
 	HistoryMedia(not_null<Element*> parent) : _parent(parent) {
 	}
-
-	virtual HistoryMediaType type() const = 0;
 
 	virtual TextWithEntities selectedText(TextSelection selection) const {
 		return TextWithEntities();

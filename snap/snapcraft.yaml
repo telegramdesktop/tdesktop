@@ -321,6 +321,7 @@ parts:
       - platforminputcontexts:
         - https://github.com/telegramdesktop/fcitx.git
         - https://github.com/telegramdesktop/hime.git
+        - https://github.com/telegramdesktop/nimf.git
     environment:
       - CC: gcc-7
       - CXX: g++-7

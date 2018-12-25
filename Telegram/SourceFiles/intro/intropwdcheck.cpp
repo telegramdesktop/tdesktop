@@ -148,20 +148,21 @@ void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 
 	_sentRequest = 0;
 	stopCheck();
-	auto &err = error.type();
-	if (err == qstr("PASSWORD_HASH_INVALID")
-		|| err == qstr("SRP_PASSWORD_CHANGED")) {
+	const auto &type = error.type();
+	if (type == qstr("PASSWORD_HASH_INVALID")
+		|| type == qstr("SRP_PASSWORD_CHANGED")) {
 		showError(langFactory(lng_signin_bad_password));
 		_pwdField->selectAll();
 		_pwdField->showError();
-	} else if (err == qstr("PASSWORD_EMPTY")) {
+	} else if (type == qstr("PASSWORD_EMPTY")
+		|| type == qstr("AUTH_KEY_UNREGISTERED")) {
 		goBack();
-	} else if (err == qstr("SRP_ID_INVALID")) {
+	} else if (type == qstr("SRP_ID_INVALID")) {
 		handleSrpIdInvalid();
 	} else {
 		if (Logs::DebugEnabled()) { // internal server error
-			auto text = err + ": " + error.description();
-			showError([text] { return text; });
+			const auto text = type + ": " + error.description();
+			showError([=] { return text; });
 		} else {
 			showError(&Lang::Hard::ServerError);
 		}
@@ -235,22 +236,23 @@ void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 
 	_sentRequest = 0;
 	stopCheck();
-	const QString &err = error.type();
-	if (err == qstr("PASSWORD_EMPTY")) {
+	const auto &type = error.type();
+	if (type == qstr("PASSWORD_EMPTY")
+		|| type == qstr("AUTH_KEY_UNREGISTERED")) {
 		goBack();
-	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
+	} else if (type == qstr("PASSWORD_RECOVERY_NA")) {
 		recoverStartFail(error);
-	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
+	} else if (type == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		_emailPattern = QString();
 		onToPassword();
-	} else if (err == qstr("CODE_INVALID")) {
+	} else if (type == qstr("CODE_INVALID")) {
 		showError(langFactory(lng_signin_wrong_code));
 		_codeField->selectAll();
 		_codeField->showError();
 	} else {
 		if (Logs::DebugEnabled()) { // internal server error
-			auto text = err + ": " + error.description();
-			showError([text] { return text; });
+			const auto text = type + ": " + error.description();
+			showError([=] { return text; });
 		} else {
 			showError(&Lang::Hard::ServerError);
 		}

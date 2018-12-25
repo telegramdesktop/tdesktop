@@ -213,7 +213,7 @@ historyAttach: IconButton {
 historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
-	iconPosition: point(15px, 15px);
+	iconPosition: point(-1px, -1px);
 }
 historyAttachEmojiFgActive: windowActiveTextFg;
 historyAttachEmojiActive: icon {{ "send_control_emoji", historyAttachEmojiFgActive }};
@@ -478,3 +478,68 @@ historyAboutProxyPadding: margins(20px, 10px, 20px, 10px);
 
 historyMapPoint: icon {{ "map_point", mapPointDrop }};
 historyMapPointInner: icon {{ "map_point_inner", mapPointDot }};
+
+webPageLeft: 10px;
+webPageBar: 2px;
+webPageTitleFont: semiboldFont;
+webPageTitleStyle: semiboldTextStyle;
+webPageTitleOutFg: historyTextOutFg;
+webPageTitleInFg: historyTextInFg;
+webPageDescriptionOutFg: historyTextOutFg;
+webPageDescriptionInFg: historyTextInFg;
+webPageDescriptionFont: normalFont;
+webPageDescriptionStyle: defaultTextStyle;
+webPagePhotoSize: 100px;
+webPagePhotoDelta: 8px;
+
+historyPollQuestionFont: semiboldFont;
+historyPollQuestionStyle: TextStyle(defaultTextStyle) {
+	font: historyPollQuestionFont;
+	linkFont: historyPollQuestionFont;
+	linkFontOver: historyPollQuestionFont;
+}
+historyPollAnswerStyle: defaultTextStyle;
+historyPollQuestionTop: 7px;
+historyPollSubtitleSkip: 2px;
+historyPollAnswerPadding: margins(31px, 10px, 0px, 10px);
+historyPollAnswersSkip: 3px;
+historyPollPercentFont: semiboldFont;
+historyPollPercentSkip: 6px;
+historyPollPercentTop: 0px;
+historyPollTotalVotesSkip: 5px;
+historyPollFillingMin: 4px;
+historyPollFillingHeight: 4px;
+historyPollFillingRadius: 1px;
+historyPollFillingBottom: 2px;
+historyPollFillingRight: 4px;
+historyPollRadio: Radio(defaultRadio) {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 18px;
+	thickness: 2px;
+	skip: 65px; // * 0.1
+	duration: 120;
+	rippleAreaPadding: 8px;
+}
+historyPollRadioOpacity: 0.7;
+historyPollRadioOpacityOver: 1.;
+historyPollDuration: 300;
+historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	thickness: 2px;
+	size: size(18px, 18px);
+}
+historyPollRippleIn: RippleAnimation(defaultRippleAnimation) {
+	color: msgWaveformInInactive;
+}
+historyPollRippleOut: RippleAnimation(defaultRippleAnimation) {
+	color: msgWaveformOutInactive;
+}
+historyPollRippleOpacity: 0.3;
+
+boxAttachEmoji: IconButton(historyAttachEmoji) {
+	width: 30px;
+	height: 30px;
+	rippleAreaSize: 0px;
+}
+boxAttachEmojiTop: 20px;

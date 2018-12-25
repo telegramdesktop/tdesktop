@@ -545,7 +545,10 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		Global::SoundNotify());
 	const auto muted = addCheckbox(
 		lng_settings_include_muted,
-		Global::IncludeMuted());
+		Auth().settings().includeMutedCounter());
+	const auto count = addCheckbox(
+		lng_settings_count_unread,
+		Auth().settings().countUnreadMessages());
 
 	const auto nativeNotificationsKey = [&] {
 		if (!Platform::Notifications::Supported()) {
@@ -591,8 +594,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		Local::writeUserSettings();
 		Auth().notifications().settingsChanged().notify(change);
 	};
-	base::ObservableViewer(
-		desktop->checkedChanged
+	desktop->checkedChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Global::DesktopNotify());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -600,8 +602,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		changed(Change::DesktopEnabled);
 	}, desktop->lifetime());
 
-	base::ObservableViewer(
-		name->entity()->checkedChanged
+	name->entity()->checkedChanges(
 	) | rpl::map([=](bool checked) {
 		if (!checked) {
 			return dbinvShowNothing;
@@ -616,8 +617,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		changed(Change::ViewParams);
 	}, name->lifetime());
 
-	base::ObservableViewer(
-		preview->entity()->checkedChanged
+	preview->entity()->checkedChanges(
 	) | rpl::map([=](bool checked) {
 		if (checked) {
 			return dbinvShowPreview;
@@ -632,8 +632,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		changed(Change::ViewParams);
 	}, preview->lifetime());
 
-	base::ObservableViewer(
-		sound->checkedChanged
+	sound->checkedChanges(
 	) | rpl::filter([](bool checked) {
 		return (checked != Global::SoundNotify());
 	}) | rpl::start_with_next([=](bool checked) {
@@ -641,14 +640,21 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		changed(Change::SoundEnabled);
 	}, sound->lifetime());
 
-	base::ObservableViewer(
-		muted->checkedChanged
+	muted->checkedChanges(
 	) | rpl::filter([](bool checked) {
-		return (checked != Global::IncludeMuted());
+		return (checked != Auth().settings().includeMutedCounter());
 	}) | rpl::start_with_next([=](bool checked) {
-		Global::SetIncludeMuted(checked);
+		Auth().settings().setIncludeMutedCounter(checked);
 		changed(Change::IncludeMuted);
 	}, muted->lifetime());
+
+	count->checkedChanges(
+	) | rpl::filter([](bool checked) {
+		return (checked != Auth().settings().countUnreadMessages());
+	}) | rpl::start_with_next([=](bool checked) {
+		Auth().settings().setCountUnreadMessages(checked);
+		changed(Change::CountMessages);
+	}, count->lifetime());
 
 	base::ObservableViewer(
 		Auth().notifications().settingsChanged()
@@ -667,8 +673,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}, desktop->lifetime());
 
 	if (native) {
-		base::ObservableViewer(
-			native->checkedChanged
+		native->checkedChanges(
 		) | rpl::filter([](bool checked) {
 			return (checked != Global::NativeNotifications());
 		}) | rpl::start_with_next([=](bool checked) {

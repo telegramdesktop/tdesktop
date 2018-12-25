@@ -19,7 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 
-CodeInput::CodeInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory) : Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
+CodeInput::CodeInput(
+	QWidget *parent,
+	const style::InputField &st,
+	Fn<QString()> placeholderFactory)
+: Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {
@@ -48,6 +52,8 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 			if (strict && !digitCount) {
 				break;
 			}
+		} else if (ch == '-') {
+			newText += ch;
 		}
 		if (i == oldPos) {
 			newPos = newText.length();
@@ -65,8 +71,6 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 		nowCursor = newPos;
 		setCursorPosition(nowCursor);
 	}
-
-	if (strict) emit codeEntered();
 }
 
 CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
@@ -255,9 +259,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 
 void CodeWidget::onInputChange() {
 	hideError();
-	if (_code->getLastText().length() == getData()->codeLength) {
-		submit();
-	}
+	submit();
 }
 
 void CodeWidget::onSendCall() {
@@ -317,13 +319,23 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 }
 
 void CodeWidget::submit() {
-	if (_sentRequest) return;
+	const auto text = QString(
+		_code->getLastText()
+	).remove(
+		QRegularExpression("[^\\d]")
+	).mid(0, getData()->codeLength);
+
+	if (_sentRequest
+		|| _sentCode == text
+		|| text.size() != getData()->codeLength) {
+		return;
+	}
 
 	hideError();
 
 	_checkRequest->start(1000);
 
-	_sentCode = _code->getLastText();
+	_sentCode = text;
 	getData()->pwdRequest = Core::CloudPasswordCheckRequest();
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();

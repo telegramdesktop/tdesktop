@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_cloud_manager.h"
+#include "lang/lang_instance.h"
 #include "messenger.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/dc_options.h"
@@ -51,7 +52,7 @@ auto GenerateCodes() {
 		});
 	}
 	codes.emplace(qsl("loadlang"), [] {
-		Lang::CurrentCloudManager().switchToLanguage(qsl("#custom"));
+		Lang::CurrentCloudManager().switchToLanguage({ qsl("#custom") });
 	});
 	codes.emplace(qsl("debugfiles"), [] {
 		if (!Logs::DebugEnabled()) {

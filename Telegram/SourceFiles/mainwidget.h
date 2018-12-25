@@ -17,7 +17,6 @@ class MainWindow;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
-class HistoryHider;
 class StackItem;
 struct FileLoadResult;
 
@@ -67,6 +66,7 @@ class ConnectingWidget;
 struct SectionSlideParams;
 struct SectionShow;
 enum class Column;
+class HistoryHider;
 } // namespace Window
 
 namespace Calls {
@@ -106,8 +106,6 @@ public:
 		MsgId msgId = ShowAtUnreadMsgId,
 		const QString &startToken = QString(),
 		FullMsgId clickFromMessageId = FullMsgId());
-	void joinGroupByHash(const QString &hash);
-	void stickersBox(const MTPInputStickerSet &set);
 
 	bool started();
 
@@ -136,11 +134,6 @@ public:
 		not_null<History*> history,
 		not_null<HistoryItem*> item);
 	void markActiveHistoryAsRead();
-
-	Dialogs::RowDescriptor chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const;
 
 	PeerData *peer();
 
@@ -181,20 +174,17 @@ public:
 	void cancelUploadLayer(not_null<HistoryItem*> item);
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
-	void hiderLayer(object_ptr<HistoryHider> h);
-	void noHider(HistoryHider *destroyed);
+	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
 	bool setForwardDraft(PeerId peer, MessageIdsList &&items);
 	bool shareUrl(
-		not_null<PeerData*> peer,
+		PeerId peerId,
 		const QString &url,
 		const QString &text);
 	void replyToItem(not_null<HistoryItem*> item);
-	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
-	bool onSendPaths(const PeerId &peer);
+	bool inlineSwitchChosen(PeerId peerId, const QString &botAndQuery);
+	bool sendPaths(PeerId peerId);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
-	bool selectingPeer(bool withConfirm = false) const;
-	bool selectingPeerForInlineSwitch();
-	void offerPeer(PeerId peer);
+	bool selectingPeer() const;
 	void dialogsActivate();
 
 	void deletePhotoLayer(PhotoData *photo);
@@ -210,7 +200,6 @@ public:
 		not_null<PeerData*> peer,
 		bool deleteHistory = true);
 	void deleteAndExit(ChatData *chat);
-	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
 	void addParticipants(
 		not_null<PeerData*> chatOrChannel,
@@ -314,10 +303,6 @@ public:
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_historyMuteUpdated(History *history);
 
-	bool cmd_search();
-	bool cmd_next_chat();
-	bool cmd_previous_chat();
-
 	~MainWidget();
 
 signals:
@@ -341,8 +326,6 @@ public slots:
 	void checkIdleFinish();
 
 	void onCacheBackground();
-
-	void onInviteImport();
 
 	void onViewsIncrement();
 
@@ -449,16 +432,12 @@ private:
 	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
-	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
-	bool inviteCheckFail(const RPCError &error);
-	void inviteImportDone(const MTPUpdates &result);
-	bool inviteImportFail(const RPCError &error);
-
 	int getMainSectionTop() const;
 	int getThirdSectionTop() const;
 
 	void hideAll();
 	void showAll();
+	void clearHider(not_null<Window::HistoryHider*> instance);
 
 	void clearCachedBackground();
 
@@ -489,8 +468,6 @@ private:
 
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
-
-	QString _inviteHash;
 
 	Animation _a_show;
 	bool _showBack = false;
@@ -525,8 +502,7 @@ private:
 	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
 
-	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
-	object_ptr<HistoryHider> _hider = { nullptr };
+	base::unique_qptr<Window::HistoryHider> _hider;
 	std::vector<std::unique_ptr<StackItem>> _stack;
 
 	int _playerHeight = 0;

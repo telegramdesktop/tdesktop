@@ -63,6 +63,14 @@ std::map<int, const char*> BetaLogs() {
 		"in Twitter and Instagram link previews.\n"
 
 		"- Bug fixes and other minor improvements."
+	},
+	{
+		1004008,
+		"- Add emoji to media captions.\n"
+
+		"- Switch off the 'Count unread messages' option "
+		"in Settings > Notifications if you want to see "
+		"the unread chats count in the badge instead."
 	}
 	};
 }

@@ -277,7 +277,7 @@ void SeparatePanel::ensureLayerCreated() {
 	if (_layer) {
 		return;
 	}
-	_layer.create(_body);
+	_layer = base::make_unique_q<Window::LayerStackWidget>(_body);
 	_layer->setHideByBackgroundClick(false);
 	_layer->move(0, 0);
 	_body->sizeValue(
@@ -285,15 +285,11 @@ void SeparatePanel::ensureLayerCreated() {
 		_layer->resize(size);
 	}, _layer->lifetime());
 	_layer->hideFinishEvents(
-	) | rpl::start_with_next([=, pointer = _layer.data()]{
-		if (_layer != pointer) {
-			return;
-		}
-		auto saved = std::exchange(_layer, nullptr);
-		if (Ui::InFocusChain(saved)) {
+	) | rpl::start_with_next([=]{
+		if (Ui::InFocusChain(_layer)) {
 			setFocus();
 		}
-		saved.destroyDelayed();
+		_layer = nullptr;
 	}, _layer->lifetime());
 }
 

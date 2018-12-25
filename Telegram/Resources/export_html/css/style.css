@@ -311,7 +311,8 @@ div.selected {
     background-position: 12px 12px;
     background-size: 24px 24px;
 }
-.default .media .title {
+.default .media .title,
+.default .media_poll .question {
     padding-top: 4px;
     font-size: 14px;
 }

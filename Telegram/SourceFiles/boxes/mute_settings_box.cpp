@@ -58,9 +58,9 @@ void MuteSettingsBox::prepare() {
 			if (hours < 24) {
 				return lng_mute_duration_hours(lt_count, hours);
 			} else if (hours < kForeverHours) {
-				return lng_rights_chat_banned_day(lt_count, hours / 24);
+				return lng_mute_duration_days(lt_count, hours / 24);
 			} else {
-				return lang(lng_rights_chat_banned_forever);
+				return lang(lng_mute_duration_forever);
 			}
 		}();
 		object_ptr<Ui::Radiobutton> option(this, group, hours, text);

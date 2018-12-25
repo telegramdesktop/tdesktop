@@ -59,6 +59,20 @@ QImage GrabWidgetToImage(
 
 void ForceFullRepaint(not_null<QWidget*> widget);
 
+void PostponeCall(FnMut<void()> &&callable);
+
+template <
+	typename Guard,
+	typename Callable,
+	typename GuardTraits = crl::guard_traits<std::decay_t<Guard>>,
+	typename = std::enable_if_t<
+		sizeof(GuardTraits) != crl::details::dependent_zero<GuardTraits>>>
+inline void PostponeCall(Guard &&object, Callable &&callable) {
+	return PostponeCall(crl::guard(
+		std::forward<Guard>(object),
+		std::forward<Callable>(callable)));
+}
+
 } // namespace Ui
 
 enum class RectPart {

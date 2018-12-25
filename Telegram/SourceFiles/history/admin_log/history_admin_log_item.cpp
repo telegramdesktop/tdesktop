@@ -36,52 +36,50 @@ TextWithEntities PrepareText(const QString &value, const QString &emptyValue) {
 	return result;
 }
 
-MTPMessage PrepareLogMessage(const MTPMessage &message, MsgId newId, int32 newDate) {
-	switch (message.type()) {
-	case mtpc_messageEmpty: return MTP_messageEmpty(MTP_int(newId));
-	case mtpc_messageService: {
-		auto &data = message.c_messageService();
-		auto removeFlags = MTPDmessageService::Flag::f_out
+MTPMessage PrepareLogMessage(
+		const MTPMessage &message,
+		MsgId newId,
+		TimeId newDate) {
+	return message.match([&](const MTPDmessageEmpty &) {
+		return MTP_messageEmpty(MTP_int(newId));
+	}, [&](const MTPDmessageService &message) {
+		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
 			/* | MTPDmessageService::Flag::f_reply_to_msg_id*/;
-		auto flags = data.vflags.v & ~removeFlags;
+		const auto flags = message.vflags.v & ~removeFlags;
 		return MTP_messageService(
 			MTP_flags(flags),
 			MTP_int(newId),
-			data.vfrom_id,
-			data.vto_id,
-			data.vreply_to_msg_id,
+			message.vfrom_id,
+			message.vto_id,
+			message.vreply_to_msg_id,
 			MTP_int(newDate),
-			data.vaction);
-	} break;
-	case mtpc_message: {
-		auto &data = message.c_message();
-		auto removeFlags = MTPDmessage::Flag::f_out
+			message.vaction);
+	}, [&](const MTPDmessage &message) {
+		const auto removeFlags = MTPDmessage::Flag::f_out
 			| MTPDmessage::Flag::f_post
 			| MTPDmessage::Flag::f_reply_to_msg_id
 			| MTPDmessage::Flag::f_edit_date
 			| MTPDmessage::Flag::f_grouped_id;
-		auto flags = data.vflags.v & ~removeFlags;
+		const auto flags = message.vflags.v & ~removeFlags;
 		return MTP_message(
 			MTP_flags(flags),
 			MTP_int(newId),
-			data.vfrom_id,
-			data.vto_id,
-			data.vfwd_from,
-			data.vvia_bot_id,
-			data.vreply_to_msg_id,
+			message.vfrom_id,
+			message.vto_id,
+			message.vfwd_from,
+			message.vvia_bot_id,
+			message.vreply_to_msg_id,
 			MTP_int(newDate),
-			data.vmessage,
-			data.vmedia,
-			data.vreply_markup,
-			data.ventities,
-			data.vviews,
-			data.vedit_date,
+			message.vmessage,
+			message.vmedia,
+			message.vreply_markup,
+			message.ventities,
+			message.vviews,
+			message.vedit_date,
 			MTP_string(""),
-			data.vgrouped_id);
-	} break;
-	}
-	Unexpected("Type in PrepareLogMessage()");
+			message.vgrouped_id);
+	});
 }
 
 bool MediaCanHaveCaption(const MTPMessage &message) {

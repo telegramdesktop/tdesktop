@@ -95,6 +95,7 @@ public:
 
 	void setupPassword();
 	void cancelPasswordSubmit();
+	void validateRecoveryEmail();
 
 	bool canAddScan(FileType type) const;
 	void uploadScan(FileType type, QByteArray &&content);

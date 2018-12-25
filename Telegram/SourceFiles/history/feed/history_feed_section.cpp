@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_inner_widget.h"
 #include "core/event_filter.h"
+#include "core/shortcuts.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -134,6 +135,7 @@ Widget::Widget(
 	}, lifetime());
 
 	setupScrollDownButton();
+	setupShortcuts();
 }
 
 void Widget::setupScrollDownButton() {
@@ -295,13 +297,17 @@ void Widget::setInternalState(
 	restoreState(memento);
 }
 
-bool Widget::cmd_search() {
-	if (!inFocusChain()) {
-		return false;
-	}
-
-	App::main()->searchInChat(_feed);
-	return true;
+void Widget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return isActiveWindow() && !Ui::isLayerShown() && inFocusChain();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Search, 1) && request->handle([=] {
+			App::main()->searchInChat(_feed);
+			return true;
+		});
+	}, lifetime());
 }
 
 HistoryView::Context Widget::listContext() {

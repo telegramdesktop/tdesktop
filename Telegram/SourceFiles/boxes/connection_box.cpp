@@ -569,17 +569,20 @@ void ProxiesBox::setupContent() {
 		}
 		refreshProxyForCalls();
 	});
-	subscribe(_tryIPv6->checkedChanged, [=](bool checked) {
+	_tryIPv6->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
 		_controller->setTryIPv6(checked);
-	});
+	}, _tryIPv6->lifetime());
+
 	_controller->proxySettingsValue(
 	) | rpl::start_with_next([=](ProxyData::Settings value) {
 		_proxySettings->setValue(value);
 	}, inner->lifetime());
 
-	subscribe(_proxyForCalls->entity()->checkedChanged, [=](bool checked) {
+	_proxyForCalls->entity()->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
 		_controller->setProxyForCalls(checked);
-	});
+	}, _proxyForCalls->lifetime());
 
 	if (_rows.empty()) {
 		createNoRowsLabel();
@@ -718,11 +721,7 @@ void ProxyBox::prepare() {
 	setTitle(langFactory(lng_proxy_edit));
 
 	refreshButtons();
-
-	_content->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, _content->lifetime());
+	setDimensionsToContent(st::boxWideWidth, _content);
 }
 
 void ProxyBox::refreshButtons() {
@@ -905,8 +904,6 @@ void ProxyBox::setupControls(const ProxyData &data) {
 	setupCredentials(data);
 	setupMtprotoCredentials(data);
 
-	_content->resizeToWidth(st::boxWideWidth);
-
 	const auto handleType = [=](Type type) {
 		_credentials->toggle(
 			type == Type::Http || type == Type::Socks5,
@@ -1032,15 +1029,7 @@ void AutoDownloadBox::setupContent() {
 	});
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	widthValue(
-	) | rpl::start_with_next([=](int width) {
-		content->resizeToWidth(width);
-	}, content->lifetime());
-
-	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, content->lifetime());
+	setDimensionsToContent(st::boxWideWidth, content);
 }
 
 ProxiesBoxController::ProxiesBoxController()

@@ -464,8 +464,7 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 			((readData().types & types) == types),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
-	base::ObservableViewer(
-		checkbox->checkedChanged
+	checkbox->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		changeData([&](Settings &data) {
 			if (checked) {
@@ -474,7 +473,7 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 				data.types &= ~types;
 			}
 		});
-	}, lifetime());
+	}, checkbox->lifetime());
 	return checkbox;
 }
 
@@ -509,8 +508,7 @@ void SettingsWidget::addChatOption(
 				st::defaultBoxCheckbox),
 			st::exportSubSettingPadding));
 
-	base::ObservableViewer(
-		onlyMy->entity()->checkedChanged
+	onlyMy->entity()->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		changeData([&](Settings &data) {
 			if (checked) {
@@ -519,13 +517,9 @@ void SettingsWidget::addChatOption(
 				data.fullChats |= types;
 			}
 		});
-	}, checkbox->lifetime());
+	}, onlyMy->lifetime());
 
-	onlyMy->toggleOn(base::ObservableViewer(
-		checkbox->checkedChanged
-	));
-
-	onlyMy->toggle(checkbox->checked(), anim::type::instant);
+	onlyMy->toggleOn(checkbox->checkedValue());
 
 	if (types & (Type::PublicGroups | Type::PublicChannels)) {
 		onlyMy->entity()->setChecked(true);
@@ -568,8 +562,7 @@ void SettingsWidget::addMediaOption(
 			((readData().media.types & type) == type),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
-	base::ObservableViewer(
-		checkbox->checkedChanged
+	checkbox->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		changeData([&](Settings &data) {
 			if (checked) {
@@ -578,7 +571,7 @@ void SettingsWidget::addMediaOption(
 				data.media.types &= ~type;
 			}
 		});
-	}, lifetime());
+	}, checkbox->lifetime());
 }
 
 void SettingsWidget::addSizeSlider(

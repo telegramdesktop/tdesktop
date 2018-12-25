@@ -77,7 +77,9 @@ void BoxContent::finishPrepare() {
 void BoxContent::finishScrollCreate() {
 	Expects(_scroll != nullptr);
 
-	_scroll->show();
+	if (!_scroll->isHidden()) {
+		_scroll->show();
+	}
 	updateScrollAreaGeometry();
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
@@ -141,6 +143,16 @@ void BoxContent::onScroll() {
 void BoxContent::onInnerResize() {
 	updateInnerVisibleTopBottom();
 	updateShadowsVisibility();
+}
+
+void BoxContent::setDimensionsToContent(
+		int newWidth,
+		not_null<Ui::RpWidget*> content) {
+	content->resizeToWidth(newWidth);
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(newWidth, height);
+	}, content->lifetime());
 }
 
 void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
@@ -371,6 +383,10 @@ void AbstractBox::updateButtonsPositions() {
 			right += button->width() + padding.left();
 		}
 	}
+}
+
+QPointer<QWidget> AbstractBox::outerContainer() {
+	return parentWidget();
 }
 
 void AbstractBox::updateTitlePosition() {

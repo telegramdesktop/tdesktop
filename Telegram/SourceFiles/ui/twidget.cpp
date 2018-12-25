@@ -91,8 +91,11 @@ void Start() {
 			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
 		}
 	}
-	QFont::insertSubstitution(qsl("Open Sans"), qsl("Segoe UI"));
-	QFont::insertSubstitution(qsl("Open Sans Semibold"), qsl("Segoe UI Semibold"));
+	// Disable default fallbacks to Segoe UI, see:
+	// https://github.com/telegramdesktop/tdesktop/issues/5368
+	//
+	//QFont::insertSubstitution(qsl("Open Sans"), qsl("Segoe UI"));
+	//QFont::insertSubstitution(qsl("Open Sans Semibold"), qsl("Segoe UI Semibold"));
 #elif defined Q_OS_MAC // Q_OS_WIN
 	auto list = QStringList();
 	list.append(qsl(".SF NS Text"));
@@ -228,6 +231,11 @@ void ForceFullRepaint(not_null<QWidget*> widget) {
 	const auto refresher = std::make_unique<QWidget>(widget);
 	refresher->setGeometry(widget->rect());
 	refresher->show();
+}
+
+void PostponeCall(FnMut<void()> &&callable) {
+	const auto application = static_cast<Application*>(qApp);
+	application->postponeCall(std::move(callable));
 }
 
 } // namespace Ui

@@ -32,6 +32,7 @@ public:
 
 	rpl::producer<QByteArray> newPasswordSet() const;
 	rpl::producer<> passwordReloadNeeded() const;
+	rpl::producer<> clearUnconfirmedPassword() const;
 
 protected:
 	void prepare() override;
@@ -59,7 +60,12 @@ private:
 	void setPasswordFail(const RPCError &error);
 	void setPasswordFail(
 		const QByteArray &newPasswordBytes,
+		const QString &email,
 		const RPCError &error);
+	void validateEmail(
+		const QString &email,
+		int codeLength,
+		const QByteArray &newPasswordBytes);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 	void recoverStartFail(const RPCError &error);
@@ -90,9 +96,6 @@ private:
 		const Core::CloudPasswordResult &check,
 		const QString &newPassword,
 		Fn<void()> callback);
-	void resetSecretAndChangePassword(
-		const bytes::vector &oldPasswordHash,
-		const QString &newPassword);
 
 	void sendClearCloudPassword(const QString &oldPassword);
 	void sendClearCloudPassword(const Core::CloudPasswordResult &check);
@@ -134,6 +137,7 @@ private:
 
 	rpl::event_stream<QByteArray> _newPasswordSet;
 	rpl::event_stream<> _passwordReloadNeeded;
+	rpl::event_stream<> _clearUnconfirmedPassword;
 
 };
 
@@ -173,3 +177,10 @@ private:
 	rpl::event_stream<> _recoveryExpired;
 
 };
+
+struct RecoveryEmailValidation {
+	object_ptr<BoxContent> box;
+	rpl::producer<> reloadRequests;
+	rpl::producer<> cancelRequests;
+};
+RecoveryEmailValidation ConfirmRecoveryEmail(const QString &pattern);

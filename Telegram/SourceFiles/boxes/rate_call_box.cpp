@@ -15,7 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
-#include "mainwidget.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 
 namespace {
 
@@ -114,10 +115,14 @@ void RateCallBox::send() {
 		return;
 	}
 	auto comment = _comment ? _comment->getLastText().trimmed() : QString();
-	_requestId = request(MTPphone_SetCallRating(MTP_inputPhoneCall(MTP_long(_callId), MTP_long(_callAccessHash)), MTP_int(_rating), MTP_string(comment))).done([this](const MTPUpdates &updates) {
-		App::main()->sentUpdatesReceived(updates);
+	_requestId = request(MTPphone_SetCallRating(
+		MTP_inputPhoneCall(MTP_long(_callId), MTP_long(_callAccessHash)),
+		MTP_int(_rating),
+		MTP_string(comment)
+	)).done([=](const MTPUpdates &updates) {
+		Auth().api().applyUpdates(updates);
 		closeBox();
-	}).fail([this](const RPCError &error) { closeBox(); }).send();
+	}).fail([=](const RPCError &error) { closeBox(); }).send();
 }
 
 void RateCallBox::updateMaxHeight() {

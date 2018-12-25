@@ -30,8 +30,6 @@ public:
 	}
 	void clearPriorities();
 
-	void delayedDestroyLoader(std::unique_ptr<FileLoader> loader);
-
 	base::Observable<void> &taskFinished() {
 		return _taskFinishedObservable;
 	}
@@ -44,9 +42,6 @@ public:
 private:
 	base::Observable<void> _taskFinishedObservable;
 	int _priority = 1;
-
-	SingleQueuedInvokation _delayedLoadersDestroyer;
-	std::vector<std::unique_ptr<FileLoader>> _delayedDestroyedLoaders;
 
 	using RequestedInDc = std::array<int64, MTP::kDownloadSessionsCount>;
 	std::map<MTP::DcId, RequestedInDc> _requestedBytesAmount;
@@ -161,7 +156,8 @@ protected:
 	void removeFromQueue();
 	void cancel(bool failed);
 
-	void loadNext();
+	void notifyAboutProgress();
+	static void LoadNextFromQueue(not_null<FileLoaderQueue*> queue);
 	virtual bool loadPart() = 0;
 
 	not_null<Storage::Downloader*> _downloader;

@@ -136,9 +136,8 @@ private:
 	object_ptr<TWidget> _membersShowArea = { nullptr };
 	rpl::event_stream<bool> _membersShowAreaActive;
 
-	QString _titlePeerText;
+	Text _titlePeerText;
 	bool _titlePeerTextOnline = false;
-	int _titlePeerTextWidth = 0;
 	int _leftTaken = 0;
 	int _rightTaken = 0;
 	bool _animatingMode = false;

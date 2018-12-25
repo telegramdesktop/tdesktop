@@ -284,6 +284,7 @@ public:
 	bool hasFocus() const;
 	void setFocus();
 	void clearFocus();
+	void ensureCursorVisible();
 	not_null<QTextEdit*> rawTextEdit();
 	not_null<const QTextEdit*> rawTextEdit() const;
 

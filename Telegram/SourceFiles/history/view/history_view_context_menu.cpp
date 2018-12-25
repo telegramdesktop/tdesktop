@@ -13,11 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_message.h"
 #include "history/history_item_text.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_web_page.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/confirm_box.h"
+#include "boxes/sticker_set_box.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
@@ -71,11 +73,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {
-	if (const auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
+	StickerSetBox::Show(document);
 }
 
 void ToggleFavedSticker(
@@ -481,18 +479,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			AddToggleGroupingAction(result, linkPeer->peer());
 		}
 	} else if (!request.overSelection && view && !hasSelection) {
-		auto media = view->media();
+		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
-		if (media) {
-			if (media->type() == MediaTypeWebPage
-				&& static_cast<HistoryWebPage*>(media)->attach()) {
-				media = static_cast<HistoryWebPage*>(media)->attach();
-			}
-			if (media->type() == MediaTypeSticker) {
-				if (const auto document = media->getDocument()) {
-					AddDocumentActions(result, document, view->data()->fullId());
-				}
-			}
+		if (const auto document = media ? media->getDocument() : nullptr) {
+			AddDocumentActions(result, document, view->data()->fullId());
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);
@@ -513,6 +503,14 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
 	return result;
+}
+
+void StopPoll(FullMsgId itemId) {
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_polls_stop_warning),
+		lang(lng_polls_stop_sure),
+		lang(lng_cancel),
+		[=] { Ui::hideLayer(); Auth().api().closePoll(itemId); }));
 }
 
 } // namespace HistoryView

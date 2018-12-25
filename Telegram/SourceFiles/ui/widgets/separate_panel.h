@@ -84,7 +84,7 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _back;
 	object_ptr<Ui::RpWidget> _body;
 	base::unique_qptr<Ui::RpWidget> _inner;
-	object_ptr<Window::LayerStackWidget> _layer = { nullptr };
+	base::unique_qptr<Window::LayerStackWidget> _layer = { nullptr };
 	rpl::event_stream<> _synteticBackRequests;
 	rpl::event_stream<> _userCloseRequests;
 	rpl::event_stream<> _closeEvents;

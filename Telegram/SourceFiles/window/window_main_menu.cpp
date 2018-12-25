@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
-#include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
 #include "mainwindow.h"
@@ -212,15 +211,8 @@ void MainMenu::refreshMenu() {
 		(*fix)->setCheckable(true);
 		(*fix)->setChecked(Auth().settings().supportFixChatsOrder());
 
-		const auto subscription = Ui::AttachAsChild(_menu, rpl::lifetime());
 		_menu->addAction(qsl("Reload templates"), [=] {
-			*subscription = Auth().supportTemplates()->errors(
-			) | rpl::start_with_next([=](QStringList errors) {
-				Ui::Toast::Show(errors.isEmpty()
-					? "Templates reloaded!"
-					: ("Errors:\n\n" + errors.join("\n\n")));
-			});
-			Auth().supportTemplates()->reload();
+			Auth().supportTemplates().reload();
 		}, &st::mainMenuReload, &st::mainMenuReloadOver);
 	}
 	_menu->addAction(lang(lng_menu_settings), [] {

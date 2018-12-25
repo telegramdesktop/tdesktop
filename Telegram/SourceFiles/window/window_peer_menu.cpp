@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
+#include "boxes/create_poll_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/manage_peer_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
@@ -25,12 +26,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "history/history.h"
 #include "window/window_controller.h"
+#include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/feed/info_feed_channels_controllers.h"
 #include "info/profile/info_profile_values.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
+#include "data/data_poll.h"
 #include "dialogs/dialogs_key.h"
 
 namespace Window {
@@ -200,15 +203,14 @@ void Filler::addPinToggle() {
 	};
 	auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
-	auto lifetime = Notify::PeerUpdateViewer(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(pinAction);
+	Notify::PeerUpdateViewer(
 		peer,
-		Notify::PeerUpdate::Flag::PinnedChanged
+		Notify::PeerUpdate::Flag::ChatPinnedChanged
 	) | rpl::start_with_next([peer, pinAction, pinText] {
 		auto isPinned = App::history(peer)->isPinnedDialog();
 		pinAction->setText(pinText(isPinned));
-	});
-
-	Ui::AttachAsChild(pinAction, std::move(lifetime));
+	}, *lifetime);
 }
 
 void Filler::addInfo() {
@@ -262,52 +264,40 @@ void Filler::addToggleUnreadMark() {
 		}
 	});
 
-	auto lifetime = Notify::PeerUpdateViewer(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(action);
+	Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::UnreadViewChanged
 	) | rpl::start_with_next([=] {
 		action->setText(label(peer));
-	});
-
-	Ui::AttachAsChild(action, std::move(lifetime));
+	}, *lifetime);
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
 	auto blockText = [](not_null<UserData*> user) {
 		return lang(user->isBlocked()
 			? (user->botInfo
-				? lng_profile_unblock_bot
+				? lng_profile_restart_bot
 				: lng_profile_unblock_user)
 			: (user->botInfo
 				? lng_profile_block_bot
 				: lng_profile_block_user));
 	};
-	auto blockAction = _addAction(blockText(user), [user] {
-		auto willBeBlocked = !user->isBlocked();
-		auto handler = ::rpcDone([user, willBeBlocked](const MTPBool &result) {
-			user->setBlockStatus(willBeBlocked
-				? UserData::BlockStatus::Blocked
-				: UserData::BlockStatus::NotBlocked);
-		});
-		if (willBeBlocked) {
-			MTP::send(
-				MTPcontacts_Block(user->inputUser),
-				std::move(handler));
+	auto blockAction = _addAction(blockText(user), [=] {
+		if (user->isBlocked()) {
+			Auth().api().unblockUser(user);
 		} else {
-			MTP::send(
-				MTPcontacts_Unblock(user->inputUser),
-				std::move(handler));
+			Auth().api().blockUser(user);
 		}
 	});
 
-	auto lifetime = Notify::PeerUpdateViewer(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(blockAction);
+	Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::UserIsBlocked
 	) | rpl::start_with_next([=] {
 		blockAction->setText(blockText(user));
-	});
-
-	Ui::AttachAsChild(blockAction, std::move(lifetime));
+	}, *lifetime);
 
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 		Auth().api().requestFullPeer(user);
@@ -316,6 +306,11 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 
 void Filler::addUserActions(not_null<UserData*> user) {
 	if (_source != PeerMenuSource::ChatsList) {
+		if (Auth().supportMode()) {
+			_addAction("Edit support info", [=] {
+				Auth().supportHelper().editInfo(user);
+			});
+		}
 		if (user->isContact()) {
 			if (!user->isSelf()) {
 				_addAction(
@@ -367,6 +362,11 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 				lang(lng_profile_add_participant),
 				[chat] { AddChatMembers(chat); });
 		}
+		if (chat->canWrite()) {
+			_addAction(
+				lang(lng_polls_create),
+				[=] { PeerMenuCreatePoll(chat); });
+		}
 		_addAction(
 			lang(lng_profile_export_chat),
 			[=] { PeerMenuExportChat(chat); });
@@ -403,6 +403,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			_addAction(
 				lang(lng_channel_add_members),
 				[channel] { PeerMenuAddChannelMembers(channel); });
+		}
+		if (channel->canWrite()) {
+			_addAction(
+				lang(lng_polls_create),
+				[=] { PeerMenuCreatePoll(channel); });
 		}
 		_addAction(
 			lang(isGroup
@@ -622,6 +627,24 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 		}));
 }
 
+void PeerMenuCreatePoll(not_null<PeerData*> peer) {
+	const auto box = Ui::show(Box<CreatePollBox>());
+	const auto lock = box->lifetime().make_state<bool>(false);
+	box->submitRequests(
+	) | rpl::start_with_next([=](const PollData &result) {
+		if (std::exchange(*lock, true)) {
+			return;
+		}
+		const auto options = ApiWrap::SendOptions(App::history(peer));
+		Auth().api().createPoll(result, options, crl::guard(box, [=] {
+			box->closeBox();
+		}), crl::guard(box, [=](const RPCError &error) {
+			*lock = false;
+			box->submitFailed(lang(lng_attach_failed));
+		}));
+	}, box->lifetime());
+}
+
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		MessageIdsList &&items,
 		FnMut<void()> &&successCallback) {
@@ -708,13 +731,12 @@ void PeerMenuAddMuteAction(
 		}
 	});
 
-	auto lifetime = Info::Profile::NotificationsEnabledValue(
+	const auto lifetime = Ui::CreateChild<rpl::lifetime>(muteAction);
+	Info::Profile::NotificationsEnabledValue(
 		peer
 	) | rpl::start_with_next([=](bool enabled) {
 		muteAction->setText(muteText(!enabled));
-	});
-
-	Ui::AttachAsChild(muteAction, std::move(lifetime));
+	}, *lifetime);
 }
 // #feed
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {

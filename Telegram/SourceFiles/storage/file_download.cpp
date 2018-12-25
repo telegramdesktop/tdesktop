@@ -22,13 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 
-Downloader::Downloader()
-: _delayedLoadersDestroyer([this] { _delayedDestroyedLoaders.clear(); }) {
-}
-
-void Downloader::delayedDestroyLoader(std::unique_ptr<FileLoader> loader) {
-	_delayedDestroyedLoaders.push_back(std::move(loader));
-	_delayedLoadersDestroyer.call();
+Downloader::Downloader() {
 }
 
 void Downloader::clearPriorities() {
@@ -63,12 +57,7 @@ int Downloader::chooseDcIndexForRequest(MTP::DcId dcId) const {
 	return result;
 }
 
-Downloader::~Downloader() {
-	// The file loaders have pointer to downloader and they cancel
-	// requests in destructor where they use that pointer, so all
-	// of them need to be destroyed before any internal state of Downloader.
-	_delayedDestroyedLoaders.clear();
-}
+Downloader::~Downloader() = default;
 
 } // namespace Storage
 
@@ -202,13 +191,19 @@ void FileLoader::permitLoadFromCloud() {
 	_fromCloud = LoadFromCloudOrLocal;
 }
 
-void FileLoader::loadNext() {
-	if (_queue->queriesCount >= _queue->queriesLimit) {
+void FileLoader::notifyAboutProgress() {
+	const auto queue = _queue;
+	emit progress(this);
+	LoadNextFromQueue(queue);
+}
+
+void FileLoader::LoadNextFromQueue(not_null<FileLoaderQueue*> queue) {
+	if (queue->queriesCount >= queue->queriesLimit) {
 		return;
 	}
-	for (auto i = _queue->start; i;) {
+	for (auto i = queue->start; i;) {
 		if (i->loadPart()) {
-			if (_queue->queriesCount >= _queue->queriesLimit) {
+			if (queue->queriesCount >= queue->queriesLimit) {
 				return;
 			}
 		} else {
@@ -259,10 +254,7 @@ void FileLoader::localLoaded(
 		_imageData = imageData;
 	}
 	finishWithBytes(result.data);
-
-	emit progress(this);
-
-	loadNext();
+	notifyAboutProgress();
 }
 
 void FileLoader::start(bool loadFirst, bool prior) {
@@ -428,12 +420,14 @@ bool FileLoader::tryLoadLocal() {
 		return true;
 	}
 
+	const auto weak = make_weak(this);
 	if (const auto key = cacheKey()) {
 		loadLocal(*key);
 		emit progress(this);
 	}
-
-	if (_localStatus != LocalStatus::NotTried) {
+	if (!weak) {
+		return false;
+	} else if (_localStatus != LocalStatus::NotTried) {
 		return _finished;
 	} else if (_localLoading.alive()) {
 		_localStatus = LocalStatus::Loading;
@@ -460,16 +454,18 @@ void FileLoader::cancel(bool fail) {
 	_data = QByteArray();
 	removeFromQueue();
 
+	const auto queue = _queue;
+	const auto weak = make_weak(this);
 	if (fail) {
 		emit failed(this, started);
 	} else {
 		emit progress(this);
 	}
-
-	_filename = QString();
-	_file.setFileName(_filename);
-
-	loadNext();
+	if (weak) {
+		_filename = QString();
+		_file.setFileName(_filename);
+	}
+	LoadNextFromQueue(queue);
 }
 
 void FileLoader::startLoading(bool loadFirst, bool prior) {
@@ -901,8 +897,7 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, m
 				|| !weak) {
 				return;
 			} else if (_finished) {
-				emit progress(this);
-				loadNext();
+				notifyAboutProgress();
 				return;
 			}
 		} break;
@@ -911,9 +906,12 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, m
 		}
 	}
 	if (someMoreChecked) {
-		emit progress(this);
-		loadNext();
-		return requestMoreCdnFileHashes();
+		const auto weak = make_weak(this);
+		notifyAboutProgress();
+		if (weak) {
+			requestMoreCdnFileHashes();
+		}
+		return;
 	}
 	LOG(("API Error: Could not find cdnFileHash for offset %1 after getCdnFileHashes request.").arg(offset));
 	cancel(true);
@@ -1029,8 +1027,7 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 
 void mtpFileLoader::partLoaded(int offset, bytes::const_span buffer) {
 	if (feedPart(offset, buffer)) {
-		emit progress(this);
-		loadNext();
+		notifyAboutProgress();
 	}
 }
 
@@ -1251,9 +1248,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	}
 	_downloader->taskFinished().notify();
 
-	emit progress(this);
-
-	loadNext();
+	notifyAboutProgress();
 }
 
 void webFileLoader::onError() {

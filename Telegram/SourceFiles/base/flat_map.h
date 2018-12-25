@@ -76,6 +76,7 @@ struct flat_multi_map_pair_type {
 
 	const Key first;
 	Value second;
+
 };
 
 template <
@@ -315,6 +316,18 @@ public:
 		return (*this = std::move(copy));
 	}
 	flat_multi_map &operator=(flat_multi_map &&other) = default;
+
+	template <
+		typename Iterator,
+		typename = typename std::iterator_traits<Iterator>::iterator_category>
+	flat_multi_map(Iterator first, Iterator last)
+	: _data(first, last) {
+		std::sort(std::begin(impl()), std::end(impl()), compare());
+	}
+
+	flat_multi_map(std::initializer_list<pair_type> iter)
+	: flat_multi_map(iter.begin(), iter.end()) {
+	}
 
 	size_type size() const {
 		return impl().size();
@@ -614,6 +627,20 @@ public:
 	using reverse_iterator = typename parent::reverse_iterator;
 	using const_reverse_iterator = typename parent::const_reverse_iterator;
 
+	flat_map() = default;
+
+	template <
+		typename Iterator,
+		typename = typename std::iterator_traits<Iterator>::iterator_category
+	>
+	flat_map(Iterator first, Iterator last) : parent(first, last) {
+		finalize();
+	}
+
+	flat_map(std::initializer_list<pair_type> iter) : parent(iter.begin(), iter.end()) {
+		finalize();
+	}
+
 	using parent::parent;
 	using parent::size;
 	using parent::empty;
@@ -732,6 +759,74 @@ public:
 		return std::move(result);
 	}
 
+private:
+	void finalize() {
+		this->impl().erase(
+			std::unique(
+				std::begin(this->impl()),
+				std::end(this->impl()),
+				[&](auto &&a, auto &&b) {
+					return !this->compare()(a, b);
+				}
+			),
+			std::end(this->impl()));
+	}
+
 };
+
+} // namespace base
+
+// Structured bindings support.
+namespace std {
+
+template <typename Key, typename Value>
+class tuple_size<base::flat_multi_map_pair_type<Key, Value>>
+: public integral_constant<size_t, 2> {
+};
+
+template <typename Key, typename Value>
+class tuple_element<0, base::flat_multi_map_pair_type<Key, Value>> {
+public:
+	using type = const Key;
+};
+
+template <typename Key, typename Value>
+class tuple_element<1, base::flat_multi_map_pair_type<Key, Value>> {
+public:
+	using type = Value;
+};
+
+} // namespace std
+
+// Structured bindings support.
+namespace base {
+namespace details {
+
+template <std::size_t N, typename Key, typename Value>
+using flat_multi_map_pair_element = std::tuple_element_t<
+	N,
+	flat_multi_map_pair_type<Key, Value>>;
+
+} // namespace details
+
+template <std::size_t N, typename Key, typename Value>
+auto get(base::flat_multi_map_pair_type<Key, Value> &value)
+-> details::flat_multi_map_pair_element<N, Key, Value> & {
+	if constexpr (N == 0) {
+		return value.first;
+	} else {
+		return value.second;
+	}
+}
+
+template <std::size_t N, typename Key, typename Value>
+auto get(const base::flat_multi_map_pair_type<Key, Value> &value)
+-> const details::flat_multi_map_pair_element<N, Key, Value> & {
+	if constexpr (N == 0) {
+		return value.first;
+	} else {
+		return value.second;
+	}
+}
 
 } // namespace base

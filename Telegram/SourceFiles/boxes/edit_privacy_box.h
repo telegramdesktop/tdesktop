@@ -13,10 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum LangKey : int;
 
-namespace Calls {
-enum class PeerToPeer;
-} // namespace Calls
-
 namespace Ui {
 class VerticalLayout;
 class FlatLabel;
@@ -50,6 +46,7 @@ public:
 			return true;
 		}
 		virtual LangKey optionsTitleKey() = 0;
+		virtual LangKey optionLabelKey(Option option);
 		virtual rpl::producer<QString> warning() {
 			return rpl::never<QString>();
 		}
@@ -61,10 +58,6 @@ public:
 				bool someAreDisallowed,
 				FnMut<void()> saveCallback) {
 			saveCallback();
-		}
-		virtual Fn<void()> setupAdditional(
-				not_null<Ui::VerticalLayout*> container) {
-			return nullptr;
 		}
 
 		virtual ~Controller() = default;
@@ -90,14 +83,6 @@ public:
 		std::unique_ptr<Controller> controller,
 		const Value &value);
 
-	static Ui::Radioenum<Option> *AddOption(
-		not_null<Ui::VerticalLayout*> container,
-		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
-		Option option);
-	static Ui::FlatLabel *AddLabel(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text);
-
 protected:
 	void prepare() override;
 
@@ -105,6 +90,14 @@ private:
 	bool showExceptionLink(Exception exception) const;
 	void setupContent();
 	QVector<MTPInputPrivacyRule> collectResult();
+
+	Ui::Radioenum<Option> *addOption(
+		not_null<Ui::VerticalLayout*> container,
+		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
+		Option option);
+	Ui::FlatLabel *addLabel(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text);
 
 	void editExceptionUsers(Exception exception, Fn<void()> done);
 	std::vector<not_null<UserData*>> &exceptionUsers(Exception exception);

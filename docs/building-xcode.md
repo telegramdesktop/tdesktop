@@ -60,7 +60,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/xiph/opus
     cd opus
-    git checkout v1.2.1
+    git checkout v1.3
     ./autogen.sh
     CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make -j4
@@ -90,7 +90,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout openal-soft-1.19.1
     cd build
-    LDFLAGS='-isysroot /' cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
+    LDFLAGS='-stdlib=libc++' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make -j4
     sudo make install
     cd ../..

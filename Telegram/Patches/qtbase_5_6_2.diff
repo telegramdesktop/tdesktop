@@ -1,5 +1,5 @@
 diff --git a/mkspecs/common/msvc-desktop.conf b/mkspecs/common/msvc-desktop.conf
-index eec9e1f688..7ae53c7a1e 100644
+index eec9e1f..7ae53c7 100644
 --- a/mkspecs/common/msvc-desktop.conf
 +++ b/mkspecs/common/msvc-desktop.conf
 @@ -30,9 +30,10 @@ QMAKE_YACCFLAGS         = -d
@@ -17,7 +17,7 @@ index eec9e1f688..7ae53c7a1e 100644
  QMAKE_CFLAGS_LTCG       = -GL
  QMAKE_CFLAGS_SSE2       = -arch:SSE2
 diff --git a/src/corelib/io/qfsfileengine_win.cpp b/src/corelib/io/qfsfileengine_win.cpp
-index 391fbcc519..d07802bb7a 100644
+index 391fbcc..d07802b 100644
 --- a/src/corelib/io/qfsfileengine_win.cpp
 +++ b/src/corelib/io/qfsfileengine_win.cpp
 @@ -427,11 +427,12 @@ qint64 QFSFileEnginePrivate::nativeWrite(const char *data, qint64 len)
@@ -36,7 +36,7 @@ index 391fbcc519..d07802bb7a 100644
                  // Note: Only return error if the first WriteFile failed.
                  q->setError(QFile::WriteError, qt_error_string());
 diff --git a/src/corelib/tools/qunicodetables.cpp b/src/corelib/tools/qunicodetables.cpp
-index 14e4fd10aa..0619a176a7 100644
+index 14e4fd1..0619a17 100644
 --- a/src/corelib/tools/qunicodetables.cpp
 +++ b/src/corelib/tools/qunicodetables.cpp
 @@ -6227,7 +6227,8 @@ static const Properties uc_properties[] = {
@@ -50,7 +50,7 @@ index 14e4fd10aa..0619a176a7 100644
      { 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
      { 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
 diff --git a/src/gui/kernel/qhighdpiscaling.cpp b/src/gui/kernel/qhighdpiscaling.cpp
-index 2d00b9dce9..eeba86e936 100644
+index 2d00b9d..eeba86e 100644
 --- a/src/gui/kernel/qhighdpiscaling.cpp
 +++ b/src/gui/kernel/qhighdpiscaling.cpp
 @@ -51,6 +51,9 @@ static const char screenFactorsEnvVar[] = "QT_SCREEN_SCALE_FACTORS";
@@ -64,7 +64,7 @@ index 2d00b9dce9..eeba86e936 100644
      qreal result = 1;
      if (qEnvironmentVariableIsSet(scaleFactorEnvVar)) {
 diff --git a/src/gui/kernel/qplatformdialoghelper.h b/src/gui/kernel/qplatformdialoghelper.h
-index 5b2f4ece77..790db46d25 100644
+index 5b2f4ec..790db46 100644
 --- a/src/gui/kernel/qplatformdialoghelper.h
 +++ b/src/gui/kernel/qplatformdialoghelper.h
 @@ -386,6 +386,10 @@ public:
@@ -79,7 +79,7 @@ index 5b2f4ece77..790db46d25 100644
      virtual void selectNameFilter(const QString &filter) = 0;
      virtual QString selectedNameFilter() const = 0;
 diff --git a/src/gui/kernel/qwindow.cpp b/src/gui/kernel/qwindow.cpp
-index bcd29b6fe1..bcb0672f69 100644
+index bcd29b6..bcb0672 100644
 --- a/src/gui/kernel/qwindow.cpp
 +++ b/src/gui/kernel/qwindow.cpp
 @@ -2525,7 +2525,8 @@ void QWindowPrivate::setCursor(const QCursor *newCursor)
@@ -93,7 +93,7 @@ index bcd29b6fe1..bcb0672f69 100644
              QCursor *c = QGuiApplication::overrideCursor();
              if (!c && hasCursor)
 diff --git a/src/gui/painting/qpaintengine_p.h b/src/gui/painting/qpaintengine_p.h
-index 918c98997b..4158259743 100644
+index 918c989..4158259 100644
 --- a/src/gui/painting/qpaintengine_p.h
 +++ b/src/gui/painting/qpaintengine_p.h
 @@ -80,8 +80,18 @@ public:
@@ -117,7 +117,7 @@ index 918c98997b..4158259743 100644
  
          // Make sure we're inside the viewport.
 diff --git a/src/gui/text/qtextengine_p.h b/src/gui/text/qtextengine_p.h
-index 7e507bba2d..936e7a92cb 100644
+index 7e507bb..936e7a9 100644
 --- a/src/gui/text/qtextengine_p.h
 +++ b/src/gui/text/qtextengine_p.h
 @@ -283,7 +283,8 @@ private:
@@ -131,7 +131,7 @@ index 7e507bba2d..936e7a92cb 100644
  public:
      inline QTextItemInt()
 diff --git a/src/gui/text/qtextlayout.cpp b/src/gui/text/qtextlayout.cpp
-index aca475a581..5fa0be2c45 100644
+index aca475a..5fa0be2 100644
 --- a/src/gui/text/qtextlayout.cpp
 +++ b/src/gui/text/qtextlayout.cpp
 @@ -694,6 +694,9 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
@@ -208,7 +208,7 @@ index aca475a581..5fa0be2c45 100644
  
          static const QFixed RightBearingNotCalculated;
 diff --git a/src/gui/text/qtextlayout.h b/src/gui/text/qtextlayout.h
-index f74d4d4229..8ad672c9fe 100644
+index f74d4d4..8ad672c 100644
 --- a/src/gui/text/qtextlayout.h
 +++ b/src/gui/text/qtextlayout.h
 @@ -196,6 +196,9 @@ private:
@@ -222,7 +222,7 @@ index f74d4d4229..8ad672c9fe 100644
  
  
 diff --git a/src/network/access/qhttpnetworkconnection.cpp b/src/network/access/qhttpnetworkconnection.cpp
-index c4cb8e65c0..45793e364f 100644
+index c4cb8e6..45793e3 100644
 --- a/src/network/access/qhttpnetworkconnection.cpp
 +++ b/src/network/access/qhttpnetworkconnection.cpp
 @@ -110,6 +110,8 @@ QHttpNetworkConnectionPrivate::~QHttpNetworkConnectionPrivate()
@@ -235,7 +235,7 @@ index c4cb8e65c0..45793e364f 100644
              delete channels[i].socket;
          }
 diff --git a/src/network/socket/qnativesocketengine_win.cpp b/src/network/socket/qnativesocketengine_win.cpp
-index 41834b21ae..8cdf4ab145 100644
+index 41834b2..8cdf4ab 100644
 --- a/src/network/socket/qnativesocketengine_win.cpp
 +++ b/src/network/socket/qnativesocketengine_win.cpp
 @@ -675,6 +675,13 @@ bool QNativeSocketEnginePrivate::nativeConnect(const QHostAddress &address, quin
@@ -253,7 +253,7 @@ index 41834b21ae..8cdf4ab145 100644
                              setError(QAbstractSocket::NetworkError, AddressNotAvailableErrorString);
                              socketState = QAbstractSocket::UnconnectedState;
 diff --git a/src/platformsupport/dbustray/qdbustrayicon.cpp b/src/platformsupport/dbustray/qdbustrayicon.cpp
-index 4d6e70720d..9bdb0beb67 100644
+index 4d6e707..9bdb0be 100644
 --- a/src/platformsupport/dbustray/qdbustrayicon.cpp
 +++ b/src/platformsupport/dbustray/qdbustrayicon.cpp
 @@ -58,9 +58,18 @@ QT_BEGIN_NAMESPACE
@@ -290,7 +290,7 @@ index 4d6e70720d..9bdb0beb67 100644
      }
      if (!necessary)
 diff --git a/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp b/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
-index 728b166b71..1dc64593e1 100644
+index 728b166..1dc6459 100644
 --- a/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
 +++ b/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
 @@ -172,6 +172,79 @@ void QBasicFontDatabase::releaseHandle(void *handle)
@@ -388,7 +388,7 @@ index 728b166b71..1dc64593e1 100644
          if (error != FT_Err_Ok) {
              qDebug() << "FT_New_Face failed with index" << index << ':' << hex << error;
 diff --git a/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp b/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
-index 8ebabf3419..7bb8abd0d0 100644
+index 8ebabf3..7bb8abd 100644
 --- a/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
 +++ b/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
 @@ -375,6 +375,17 @@ static void populateFromPattern(FcPattern *pattern)
@@ -450,7 +450,7 @@ index 8ebabf3419..7bb8abd0d0 100644
          }
          populateFromPattern(pattern);
 diff --git a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
-index 566abf2126..5c5fde9813 100644
+index 566abf2..5c5fde9 100644
 --- a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 +++ b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 @@ -265,6 +265,13 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
@@ -482,7 +482,7 @@ index 566abf2126..5c5fde9813 100644
          if (CFNumberRef italic = (CFNumberRef) CFDictionaryGetValue(styles, kCTFontSlantTrait)) {
              double d;
 diff --git a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
-index 7b459584ea..2ed2fd9b3b 100644
+index 7b45958..2ed2fd9 100644
 --- a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
 +++ b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
 @@ -764,7 +764,8 @@ void QCoreTextFontEngine::getUnscaledGlyph(glyph_t glyph, QPainterPath *path, gl
@@ -496,7 +496,7 @@ index 7b459584ea..2ed2fd9b3b 100644
  
  QFontEngine *QCoreTextFontEngine::cloneWithSize(qreal pixelSize) const
 diff --git a/src/plugins/platforminputcontexts/compose/compose.pro b/src/plugins/platforminputcontexts/compose/compose.pro
-index 86bdd4729b..9b9c8ded08 100644
+index 86bdd47..9b9c8de 100644
 --- a/src/plugins/platforminputcontexts/compose/compose.pro
 +++ b/src/plugins/platforminputcontexts/compose/compose.pro
 @@ -15,7 +15,8 @@ HEADERS += $$PWD/qcomposeplatforminputcontext.h \
@@ -510,7 +510,7 @@ index 86bdd4729b..9b9c8ded08 100644
      LIBS += $$QMAKE_LIBS_XKBCOMMON
      QMAKE_CXXFLAGS += $$QMAKE_CFLAGS_XKBCOMMON
 diff --git a/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp b/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
-index d1bea9af23..36a15a6473 100644
+index d1bea9a..36a15a6 100644
 --- a/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
 +++ b/src/plugins/platforminputcontexts/compose/qcomposeplatforminputcontext.cpp
 @@ -232,6 +232,12 @@ bool QComposeInputContext::checkComposeTable()
@@ -527,7 +527,7 @@ index d1bea9af23..36a15a6473 100644
      event.setCommitString(QChar(character));
      QCoreApplication::sendEvent(m_focusObject, &event);
 diff --git a/src/plugins/platforminputcontexts/platforminputcontexts.pro b/src/plugins/platforminputcontexts/platforminputcontexts.pro
-index faea54b874..0f9650996e 100644
+index faea54b..fe4a837 100644
 --- a/src/plugins/platforminputcontexts/platforminputcontexts.pro
 +++ b/src/plugins/platforminputcontexts/platforminputcontexts.pro
 @@ -1,7 +1,8 @@
@@ -535,13 +535,13 @@ index faea54b874..0f9650996e 100644
  
  qtHaveModule(dbus) {
 -!mac:!win32:SUBDIRS += ibus
-+# Patch: Adding fcitx/hime input context plugin to our static build.
-+!mac:!win32:SUBDIRS += ibus fcitx hime
++# Patch: Adding fcitx/hime/nimf input context plugin to our static build.
++!mac:!win32:SUBDIRS += ibus fcitx hime nimf
  }
  
  contains(QT_CONFIG, xcb-plugin): SUBDIRS += compose
 diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
-index caa8884661..9dc3bc1661 100644
+index caa8884..9dc3bc1 100644
 --- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 +++ b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 @@ -210,7 +210,8 @@ QT_END_NAMESPACE
@@ -572,7 +572,7 @@ index caa8884661..9dc3bc1661 100644
  }
  
 diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.h b/src/plugins/platforms/cocoa/qcocoabackingstore.h
-index 934f68ad18..3ece6984ac 100644
+index 934f68a..3ece698 100644
 --- a/src/plugins/platforms/cocoa/qcocoabackingstore.h
 +++ b/src/plugins/platforms/cocoa/qcocoabackingstore.h
 @@ -64,6 +64,9 @@ public:
@@ -586,7 +586,7 @@ index 934f68ad18..3ece6984ac 100644
  
  QT_END_NAMESPACE
 diff --git a/src/plugins/platforms/cocoa/qcocoabackingstore.mm b/src/plugins/platforms/cocoa/qcocoabackingstore.mm
-index ca92103826..f27ea15bad 100644
+index ca92103..f27ea15 100644
 --- a/src/plugins/platforms/cocoa/qcocoabackingstore.mm
 +++ b/src/plugins/platforms/cocoa/qcocoabackingstore.mm
 @@ -38,7 +38,8 @@
@@ -624,7 +624,7 @@ index ca92103826..f27ea15bad 100644
          p.setCompositionMode(QPainter::CompositionMode_Source);
          const QVector<QRect> rects = region.rects();
 diff --git a/src/plugins/platforms/cocoa/qcocoahelpers.mm b/src/plugins/platforms/cocoa/qcocoahelpers.mm
-index 058209da7e..6af61e7dab 100644
+index 058209d..6af61e7 100644
 --- a/src/plugins/platforms/cocoa/qcocoahelpers.mm
 +++ b/src/plugins/platforms/cocoa/qcocoahelpers.mm
 @@ -546,9 +546,9 @@ OSStatus qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGIm
@@ -654,7 +654,7 @@ index 058209da7e..6af61e7dab 100644
  }
  
 diff --git a/src/plugins/platforms/cocoa/qcocoakeymapper.mm b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
-index c2d206fb45..9b9739862d 100644
+index c2d206f..9b97398 100644
 --- a/src/plugins/platforms/cocoa/qcocoakeymapper.mm
 +++ b/src/plugins/platforms/cocoa/qcocoakeymapper.mm
 @@ -384,6 +384,12 @@ bool QCocoaKeyMapper::updateKeyboard()
@@ -681,7 +681,7 @@ index c2d206fb45..9b9739862d 100644
      }
      return ret;
 diff --git a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
-index 8152c57ffd..87ba2f3f72 100644
+index 8152c57..87ba2f3 100644
 --- a/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 +++ b/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
 @@ -94,6 +94,8 @@ QT_USE_NAMESPACE
@@ -821,7 +821,7 @@ index 8152c57ffd..87ba2f3f72 100644
      }
  }
 diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
-index c0d5904367..f3c2047196 100644
+index c0d5904..f3c2047 100644
 --- a/src/plugins/platforms/cocoa/qcocoawindow.mm
 +++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
 @@ -141,7 +141,8 @@ static bool isMouseEvent(NSEvent *ev)
@@ -883,7 +883,7 @@ index c0d5904367..f3c2047196 100644
          [iconButton setImage:image];
          [image release];
 diff --git a/src/plugins/platforms/cocoa/qnsview.mm b/src/plugins/platforms/cocoa/qnsview.mm
-index c67bcfd23b..2616f420cb 100644
+index c67bcfd..2616f42 100644
 --- a/src/plugins/platforms/cocoa/qnsview.mm
 +++ b/src/plugins/platforms/cocoa/qnsview.mm
 @@ -647,6 +647,12 @@ QT_WARNING_POP
@@ -958,7 +958,7 @@ index c67bcfd23b..2616f420cb 100644
  {
      Q_UNUSED(sender);
 diff --git a/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp b/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
-index 94bb71e429..16ab51e166 100644
+index 94bb71e..16ab51e 100644
 --- a/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
 +++ b/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
 @@ -716,12 +716,20 @@ public:
@@ -1163,7 +1163,7 @@ index 94bb71e429..16ab51e166 100644
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
 diff --git a/src/plugins/platforms/windows/qwindowskeymapper.cpp b/src/plugins/platforms/windows/qwindowskeymapper.cpp
-index 1e58b9b3d4..1741c21a1c 100644
+index 1e58b9b..1741c21 100644
 --- a/src/plugins/platforms/windows/qwindowskeymapper.cpp
 +++ b/src/plugins/platforms/windows/qwindowskeymapper.cpp
 @@ -1268,6 +1268,10 @@ QList<int> QWindowsKeyMapper::possibleKeys(const QKeyEvent *e) const
@@ -1178,7 +1178,7 @@ index 1e58b9b3d4..1741c21a1c 100644
      if (!kbItem.exists)
          return result;
 diff --git a/src/plugins/platforms/windows/qwindowsservices.cpp b/src/plugins/platforms/windows/qwindowsservices.cpp
-index 1d23a9d9b9..640cd426ed 100644
+index 1d23a9d..640cd42 100644
 --- a/src/plugins/platforms/windows/qwindowsservices.cpp
 +++ b/src/plugins/platforms/windows/qwindowsservices.cpp
 @@ -127,6 +127,10 @@ static inline bool launchMail(const QUrl &url)
@@ -1193,7 +1193,7 @@ index 1d23a9d9b9..640cd426ed 100644
      // but that cannot handle a Windows command line [yet].
      command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
 diff --git a/src/plugins/platforms/windows/qwindowswindow.cpp b/src/plugins/platforms/windows/qwindowswindow.cpp
-index b38d7c29ae..34f19c4efa 100644
+index b38d7c2..34f19c4 100644
 --- a/src/plugins/platforms/windows/qwindowswindow.cpp
 +++ b/src/plugins/platforms/windows/qwindowswindow.cpp
 @@ -1020,7 +1020,8 @@ void QWindowsWindow::destroyWindow()
@@ -1247,7 +1247,7 @@ index b38d7c29ae..34f19c4efa 100644
          break;
      }
 diff --git a/src/plugins/platforms/windows/qwindowswindow.h b/src/plugins/platforms/windows/qwindowswindow.h
-index 6fffa1e6e9..cb1c9c1161 100644
+index 6fffa1e..cb1c9c1 100644
 --- a/src/plugins/platforms/windows/qwindowswindow.h
 +++ b/src/plugins/platforms/windows/qwindowswindow.h
 @@ -265,6 +265,10 @@ private:
@@ -1262,7 +1262,7 @@ index 6fffa1e6e9..cb1c9c1161 100644
      inline bool isDropSiteEnabled() const { return m_dropTarget != 0; }
      void setDropSiteEnabled(bool enabled);
 diff --git a/src/plugins/platforms/xcb/qxcbnativeinterface.cpp b/src/plugins/platforms/xcb/qxcbnativeinterface.cpp
-index 09e7ecf3a3..c0f15a4242 100644
+index 09e7ecf..c0f15a4 100644
 --- a/src/plugins/platforms/xcb/qxcbnativeinterface.cpp
 +++ b/src/plugins/platforms/xcb/qxcbnativeinterface.cpp
 @@ -79,7 +79,10 @@ static int resourceType(const QByteArray &key)
@@ -1292,7 +1292,7 @@ index 09e7ecf3a3..c0f15a4242 100644
          break;
      }
 diff --git a/src/plugins/platforms/xcb/qxcbnativeinterface.h b/src/plugins/platforms/xcb/qxcbnativeinterface.h
-index f88b710864..6f818a5a72 100644
+index f88b710..6f818a5 100644
 --- a/src/plugins/platforms/xcb/qxcbnativeinterface.h
 +++ b/src/plugins/platforms/xcb/qxcbnativeinterface.h
 @@ -68,7 +68,10 @@ public:
@@ -1308,7 +1308,7 @@ index f88b710864..6f818a5a72 100644
  
      QXcbNativeInterface();
 diff --git a/src/widgets/dialogs/qfiledialog.cpp b/src/widgets/dialogs/qfiledialog.cpp
-index bc2de899f5..aa8f8df4ad 100644
+index bc2de89..aa8f8df 100644
 --- a/src/widgets/dialogs/qfiledialog.cpp
 +++ b/src/widgets/dialogs/qfiledialog.cpp
 @@ -1200,6 +1200,15 @@ QList<QUrl> QFileDialogPrivate::userSelectedFiles() const
@@ -1343,7 +1343,7 @@ index bc2de899f5..aa8f8df4ad 100644
      Returns a list of urls containing the selected files in the dialog.
      If no files are selected, or the mode is not ExistingFiles or
 diff --git a/src/widgets/dialogs/qfiledialog.h b/src/widgets/dialogs/qfiledialog.h
-index ffe49a2dd2..42dc563c8a 100644
+index ffe49a2..42dc563 100644
 --- a/src/widgets/dialogs/qfiledialog.h
 +++ b/src/widgets/dialogs/qfiledialog.h
 @@ -108,6 +108,9 @@ public:
@@ -1357,7 +1357,7 @@ index ffe49a2dd2..42dc563c8a 100644
      QList<QUrl> selectedUrls() const;
  
 diff --git a/src/widgets/dialogs/qfiledialog_p.h b/src/widgets/dialogs/qfiledialog_p.h
-index f610e46f83..547a64695a 100644
+index f610e46..547a646 100644
 --- a/src/widgets/dialogs/qfiledialog_p.h
 +++ b/src/widgets/dialogs/qfiledialog_p.h
 @@ -123,6 +123,10 @@ public:
@@ -1398,7 +1398,7 @@ index f610e46f83..547a64695a 100644
  {
      if (QPlatformFileDialogHelper *helper = platformFileDialogHelper())
 diff --git a/src/widgets/kernel/qwidget.cpp b/src/widgets/kernel/qwidget.cpp
-index b1d80d7b8f..42e32fd404 100644
+index b1d80d7..42e32fd 100644
 --- a/src/widgets/kernel/qwidget.cpp
 +++ b/src/widgets/kernel/qwidget.cpp
 @@ -5138,6 +5138,17 @@ void QWidget::render(QPainter *painter, const QPoint &targetOffset,
@@ -1451,7 +1451,7 @@ index b1d80d7b8f..42e32fd404 100644
                  || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
                  res = focusNextPrevChild(false);
 diff --git a/src/widgets/util/qsystemtrayicon.cpp b/src/widgets/util/qsystemtrayicon.cpp
-index 704142fe5c..7c4340e459 100644
+index 704142f..7c4340e 100644
 --- a/src/widgets/util/qsystemtrayicon.cpp
 +++ b/src/widgets/util/qsystemtrayicon.cpp
 @@ -709,6 +709,10 @@ void QSystemTrayIconPrivate::updateMenu_sys_qpa()
@@ -1466,7 +1466,7 @@ index 704142fe5c..7c4340e459 100644
  }
  
 diff --git a/src/widgets/widgets/qabstractscrollarea.cpp b/src/widgets/widgets/qabstractscrollarea.cpp
-index 2e2a042bf1..472e37722b 100644
+index 2e2a042..472e377 100644
 --- a/src/widgets/widgets/qabstractscrollarea.cpp
 +++ b/src/widgets/widgets/qabstractscrollarea.cpp
 @@ -640,15 +640,22 @@ scrolling range.
@@ -1497,7 +1497,7 @@ index 2e2a042bf1..472e37722b 100644
  }
  
 diff --git a/src/widgets/widgets/qwidgetlinecontrol.cpp b/src/widgets/widgets/qwidgetlinecontrol.cpp
-index daf9f00c46..57499dc4a4 100644
+index daf9f00..57499dc 100644
 --- a/src/widgets/widgets/qwidgetlinecontrol.cpp
 +++ b/src/widgets/widgets/qwidgetlinecontrol.cpp
 @@ -40,6 +40,11 @@
@@ -1539,7 +1539,7 @@ index daf9f00c46..57499dc4a4 100644
  #ifndef QT_NO_COMPLETER
              complete(event->key());
 diff --git a/src/widgets/widgets/qwidgettextcontrol.cpp b/src/widgets/widgets/qwidgettextcontrol.cpp
-index deca002bf5..8a2023f503 100644
+index deca002..8a2023f 100644
 --- a/src/widgets/widgets/qwidgettextcontrol.cpp
 +++ b/src/widgets/widgets/qwidgettextcontrol.cpp
 @@ -71,6 +71,11 @@

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/history_media.h"
+#include "history/media/history_media.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 
@@ -25,10 +25,6 @@ public:
 	HistoryGroupedMedia(
 		not_null<Element*> parent,
 		const std::vector<not_null<HistoryItem*>> &items);
-
-	HistoryMediaType type() const override {
-		return MediaTypeGrouped;
-	}
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 

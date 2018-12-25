@@ -45,7 +45,8 @@ System::System(AuthSession *session) : _authSession(session) {
 			clearAll();
 		} else if (type == ChangeType::ViewParams) {
 			updateAll();
-		} else if (type == ChangeType::IncludeMuted) {
+		} else if (type == ChangeType::IncludeMuted
+			|| type == ChangeType::CountMessages) {
 			Notify::unreadCounterUpdated();
 		}
 	});
@@ -59,7 +60,9 @@ void System::createManager() {
 }
 
 void System::schedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !AuthSession::Exists()) return;
+	if (App::quitting()
+		|| !history->currentNotification()
+		|| !AuthSession::Exists()) return;
 
 	const auto notifyBy = (!history->peer->isUser() && item->mentionsMe())
 		? item->from().get()

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr) + (cAlphaVersion() ? qsl(" alpha %1").arg(cAlphaVersion()) : (AppBetaVersion ? " beta" : ""))), st::aboutVersionLink)
+: _version(this, lng_about_version(lt_version, currentVersionText()), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
 , _text3(this, st::aboutLabel) {
@@ -87,12 +87,18 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 }
 
 QString telegramFaqLink() {
-	auto result = qsl("https://telegram.org/faq");
-	auto language = Lang::Current().id();
-	for (auto faqLanguage : { "de", "es", "it", "ko", "br" }) {
-		if (language.startsWith(QLatin1String(faqLanguage))) {
-			result.append('/').append(faqLanguage);
+	const auto result = qsl("https://telegram.org/faq");
+	const auto langpacked = [&](const char *language) {
+		return result + '/' + language;
+	};
+	const auto current = Lang::Current().id();
+	for (const auto language : { "de", "es", "it", "ko" }) {
+		if (current.startsWith(QLatin1String(language))) {
+			return langpacked(language);
 		}
+	}
+	if (current.startsWith(qstr("pt-br"))) {
+		return langpacked("br");
 	}
 	return result;
 }

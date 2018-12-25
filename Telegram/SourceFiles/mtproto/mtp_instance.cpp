@@ -776,6 +776,13 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		? qs(data.vsuggested_lang_code)
 		: QString();
 	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
+	Lang::CurrentCloudManager().setCurrentVersions(
+		(data.has_lang_pack_version()
+			? data.vlang_pack_version.v
+			: 0),
+		(data.has_base_lang_pack_version()
+			? data.vbase_lang_pack_version.v
+			: 0));
 
 	if (data.has_autoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(data.vautoupdate_url_prefix));
@@ -785,18 +792,6 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	_configExpiresAt = getms(true)
 		+ (data.vexpires.v - unixtime()) * TimeMs(1000);
 	requestConfigIfExpired();
-
-	if (AuthSession::Exists()) {
-		using PeerToPeer = Calls::PeerToPeer;
-		const auto current = Auth().settings().callsPeerToPeer();
-		if (current == PeerToPeer::DefaultContacts
-			|| current == PeerToPeer::DefaultEveryone) {
-			Auth().settings().setCallsPeerToPeer(
-				(data.is_default_p2p_contacts()
-					? PeerToPeer::DefaultContacts
-					: PeerToPeer::DefaultEveryone));
-		}
-	}
 
 	emit _instance->configLoaded();
 }
@@ -1537,7 +1532,7 @@ QString Instance::systemLangCode() const {
 }
 
 QString Instance::cloudLangCode() const {
-	return Lang::Current().cloudLangCode();
+	return Lang::Current().cloudLangCode(Lang::Pack::Current);
 }
 
 QString Instance::langPackName() const {

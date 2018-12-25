@@ -62,5 +62,9 @@ inline QString UnknownSecureScanError() {
 	return qsl("Unknown scan read error.");
 }
 
+inline QString EmailConfirmationExpired() {
+	return qsl("This email confirmation has expired. Please setup two-step verification once again.");
+}
+
 } // namespace Hard
 } // namespace Lang

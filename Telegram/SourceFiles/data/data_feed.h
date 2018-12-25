@@ -94,6 +94,9 @@ private:
 		const std::vector<not_null<ChannelData*>> &add,
 		const std::vector<not_null<ChannelData*>> &remove);
 
+	template <typename PerformUpdate>
+	void updateUnreadCounts(PerformUpdate &&performUpdate);
+
 	FeedId _id = 0;
 	not_null<Data::Session*> _parent;
 	std::vector<not_null<History*>> _channels;

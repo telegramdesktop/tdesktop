@@ -55,7 +55,7 @@ Row *IndexedList::addByName(Key key) {
 }
 
 void IndexedList::adjustByPos(const RowsByLetter &links) {
-	for (auto [ch, row] : links) {
+	for (const auto [ch, row] : links) {
 		if (ch == QChar(0)) {
 			_list.adjustByPos(row);
 		} else {

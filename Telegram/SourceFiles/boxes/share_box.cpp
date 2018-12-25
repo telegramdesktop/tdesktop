@@ -25,10 +25,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
-#include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "window/themes/window_theme.h"
 #include "boxes/peer_list_box.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "auth_session.h"
 #include "messenger.h"
 #include "styles/style_boxes.h"
@@ -251,6 +251,10 @@ void ShareBox::prepare() {
 	_inner->setPeerSelectedChangedCallback([=](PeerData *peer, bool checked) {
 		innerSelectedChanged(peer, checked);
 	});
+
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_comment->entity());
 
 	_select->raise();
 }

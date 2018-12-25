@@ -738,6 +738,11 @@ void PanelController::setupPassword() {
 	) | rpl::start_with_next([=] {
 		_form->reloadPassword();
 	}, box->lifetime());
+
+	box->clearUnconfirmedPassword(
+	) | rpl::start_with_next([=] {
+		_form->cancelPassword();
+	}, box->lifetime());
 }
 
 void PanelController::cancelPasswordSubmit() {
@@ -746,6 +751,24 @@ void PanelController::cancelPasswordSubmit() {
 		lang(lng_passport_stop_password_sure),
 		lang(lng_passport_stop),
 		[=] { if (*box) (*box)->closeBox(); _form->cancelPassword(); }));
+}
+
+void PanelController::validateRecoveryEmail() {
+	auto validation = ConfirmRecoveryEmail(unconfirmedEmailPattern());
+
+	std::move(
+		validation.reloadRequests
+	) | rpl::start_with_next([=] {
+		_form->reloadPassword();
+	}, validation.box->lifetime());
+
+	std::move(
+		validation.cancelRequests
+	) | rpl::start_with_next([=] {
+		_form->cancelPassword();
+	}, validation.box->lifetime());
+
+	show(std::move(validation.box));
 }
 
 bool PanelController::canAddScan(FileType type) const {
@@ -1335,12 +1358,15 @@ void PanelController::processVerificationNeeded(
 				text,
 				value->verification.codeLength,
 				[=](const QString &code) { _form->verify(value, code); },
+				nullptr, // resend
 
 				rpl::duplicate(
 					update
 				) | rpl::map([=](not_null<const Value*> field) {
 					return field->verification.error;
-				}) | rpl::distinct_until_changed()));
+				}) | rpl::distinct_until_changed(),
+
+				rpl::never<QString>()));
 		} else {
 			Unexpected("Type in processVerificationNeeded.");
 		}

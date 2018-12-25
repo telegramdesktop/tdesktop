@@ -293,6 +293,10 @@ void MultiSelect::setSubmittedCallback(Fn<void(Qt::KeyboardModifiers)> callback)
 	_inner->setSubmittedCallback(std::move(callback));
 }
 
+void MultiSelect::setCancelledCallback(Fn<void()> callback) {
+	_inner->setCancelledCallback(std::move(callback));
+}
+
 void MultiSelect::setResizedCallback(Fn<void()> callback) {
 	_resizedCallback = std::move(callback);
 }
@@ -362,6 +366,7 @@ MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, Fn<QStr
 	connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
 	connect(_field, &Ui::InputField::changed, [=] { queryChanged(); });
 	connect(_field, &Ui::InputField::submitted, this, &Inner::submitted);
+	connect(_field, &Ui::InputField::cancelled, this, &Inner::cancelled);
 	_cancel->setClickedCallback([=] {
 		clearQuery();
 		_field->setFocus();
@@ -403,6 +408,10 @@ void MultiSelect::Inner::setQueryChangedCallback(Fn<void(const QString &query)> 
 void MultiSelect::Inner::setSubmittedCallback(
 		Fn<void(Qt::KeyboardModifiers)> callback) {
 	_submittedCallback = std::move(callback);
+}
+
+void MultiSelect::Inner::setCancelledCallback(Fn<void()> callback) {
+	_cancelledCallback = std::move(callback);
 }
 
 void MultiSelect::Inner::updateFieldGeometry() {
@@ -567,6 +576,12 @@ void MultiSelect::Inner::keyPressEvent(QKeyEvent *e) {
 void MultiSelect::Inner::submitted(Qt::KeyboardModifiers modifiers) {
 	if (_submittedCallback) {
 		_submittedCallback(modifiers);
+	}
+}
+
+void MultiSelect::Inner::cancelled() {
+	if (_cancelledCallback) {
+		_cancelledCallback();
 	}
 }
 

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_location_manager.h"
-#include "history/history_media_types.h"
 #include "history/history_service.h"
 #include "history/view/history_view_service_message.h"
 #include "auth_session.h"
@@ -29,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_session.h"
+#include "data/data_game.h"
 #include "data/data_media_types.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -100,24 +100,22 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	const auto canCopyLink = item->hasDirectLink() || isGame;
 
 	auto copyCallback = [data]() {
-		if (auto main = App::main()) {
-			if (auto item = App::histItemById(data->msgIds[0])) {
-				if (item->hasDirectLink()) {
-					QApplication::clipboard()->setText(item->directLink());
+		if (auto item = App::histItemById(data->msgIds[0])) {
+			if (item->hasDirectLink()) {
+				QApplication::clipboard()->setText(item->directLink());
 
-					Ui::Toast::Show(lang(lng_channel_public_link_copied));
-				} else if (const auto bot = item->getMessageBot()) {
-					if (const auto media = item->media()) {
-						if (const auto game = media->game()) {
-							const auto link = Messenger::Instance().createInternalLinkFull(
-								bot->username
-								+ qsl("?game=")
-								+ game->shortName);
+				Ui::Toast::Show(lang(lng_channel_public_link_copied));
+			} else if (const auto bot = item->getMessageBot()) {
+				if (const auto media = item->media()) {
+					if (const auto game = media->game()) {
+						const auto link = Messenger::Instance().createInternalLinkFull(
+							bot->username
+							+ qsl("?game=")
+							+ game->shortName);
 
-							QApplication::clipboard()->setText(link);
+						QApplication::clipboard()->setText(link);
 
-							Ui::Toast::Show(lang(lng_share_game_link_copied));
-						}
+						Ui::Toast::Show(lang(lng_share_game_link_copied));
 					}
 				}
 			}
@@ -156,9 +154,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		}
 
 		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
-			if (auto main = App::main()) {
-				main->sentUpdatesReceived(updates);
-			}
+			Auth().api().applyUpdates(updates);
 			data->requests.remove(requestId);
 			if (data->requests.empty()) {
 				Ui::Toast::Show(lang(lng_share_done));
@@ -183,35 +179,33 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 			return result;
 		};
-		if (auto main = App::main()) {
-			for (const auto peer : result) {
-				if (!GetErrorTextForForward(peer, items).isEmpty()) {
-					continue;
-				}
-
-				const auto history = App::history(peer);
-				if (!comment.text.isEmpty()) {
-					auto message = ApiWrap::MessageToSend(history);
-					message.textWithTags = comment;
-					message.clearDraft = false;
-					Auth().api().sendMessage(std::move(message));
-				}
-				auto request = MTPmessages_ForwardMessages(
-					MTP_flags(sendFlags),
-					data->peer->input,
-					MTP_vector<MTPint>(msgIds),
-					MTP_vector<MTPlong>(generateRandom()),
-					peer->input);
-				auto callback = doneCallback;
-				history->sendRequestId = MTP::send(
-					request,
-					rpcDone(base::duplicate(doneCallback)),
-					nullptr,
-					0,
-					0,
-					history->sendRequestId);
-				data->requests.insert(history->sendRequestId);
+		for (const auto peer : result) {
+			if (!GetErrorTextForForward(peer, items).isEmpty()) {
+				continue;
 			}
+
+			const auto history = App::history(peer);
+			if (!comment.text.isEmpty()) {
+				auto message = ApiWrap::MessageToSend(history);
+				message.textWithTags = comment;
+				message.clearDraft = false;
+				Auth().api().sendMessage(std::move(message));
+			}
+			auto request = MTPmessages_ForwardMessages(
+				MTP_flags(sendFlags),
+				data->peer->input,
+				MTP_vector<MTPint>(msgIds),
+				MTP_vector<MTPlong>(generateRandom()),
+				peer->input);
+			auto callback = doneCallback;
+			history->sendRequestId = MTP::send(
+				request,
+				rpcDone(base::duplicate(doneCallback)),
+				nullptr,
+				0,
+				0,
+				history->sendRequestId);
+			data->requests.insert(history->sendRequestId);
 		}
 	};
 	auto filterCallback = [isGame](PeerData *peer) {
@@ -594,41 +588,22 @@ bool HistoryMessage::allowsForward() const {
 	return !_media || _media->allowsForward();
 }
 
-bool HistoryMessage::allowsEdit(TimeId now) const {
+bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	const auto peer = _history->peer;
-	const auto messageToMyself = peer->isSelf();
-	const auto canPinInMegagroup = [&] {
-		if (const auto megagroup = peer->asMegagroup()) {
-			return megagroup->canPinMessages();
+	if (peer->isSelf()) {
+		return false;
+	} else if (const auto megagroup = peer->asMegagroup()) {
+		if (megagroup->canPinMessages()) {
+			return false;
 		}
-		return false;
-	}();
-	const auto messageTooOld = (messageToMyself || canPinInMegagroup)
-		? false
-		: (now - date() >= Global::EditTimeLimit());
-	if (id < 0 || messageTooOld) {
-		return false;
 	}
+	return (now - date() >= Global::EditTimeLimit());
+}
 
-	if (Has<HistoryMessageVia>() || Has<HistoryMessageForwarded>()) {
-		return false;
-	}
-
-	if (_media && !_media->allowsEdit()) {
-		return false;
-	}
-	if (messageToMyself) {
-		return true;
-	}
-	if (const auto channel = _history->peer->asChannel()) {
-		if (isPost() && channel->canEditMessages()) {
-			return true;
-		}
-		if (out()) {
-			return isPost() ? channel->canPublish() : channel->canWrite();
-		}
-	}
-	return out();
+bool HistoryMessage::allowsEdit(TimeId now) const {
+	return canStopPoll()
+		&& !isTooOldForEdit(now)
+		&& (!_media || _media->allowsEdit());
 }
 
 bool HistoryMessage::uploading() const {
@@ -764,110 +739,112 @@ void HistoryMessage::setMedia(const MTPMessageMedia &media) {
 std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media) {
-	switch (media.type()) {
-	case mtpc_messageMediaContact: {
-		const auto &data = media.c_messageMediaContact();
+	using Result = std::unique_ptr<Data::Media>;
+	return media.match([&](const MTPDmessageMediaContact &media) -> Result {
 		return std::make_unique<Data::MediaContact>(
 			item,
-			data.vuser_id.v,
-			qs(data.vfirst_name),
-			qs(data.vlast_name),
-			qs(data.vphone_number));
-	} break;
-	case mtpc_messageMediaGeo: {
-		const auto &data = media.c_messageMediaGeo().vgeo;
-		if (data.type() == mtpc_geoPoint) {
+			media.vuser_id.v,
+			qs(media.vfirst_name),
+			qs(media.vlast_name),
+			qs(media.vphone_number));
+	}, [&](const MTPDmessageMediaGeo &media) -> Result {
+		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(data.c_geoPoint()));
-		}
-	} break;
-	case mtpc_messageMediaGeoLive: {
-		const auto &data = media.c_messageMediaGeoLive().vgeo;
-		if (data.type() == mtpc_geoPoint) {
+				LocationCoords(point));
+		}, [](const MTPDgeoPointEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaGeoLive &media) -> Result {
+		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(data.c_geoPoint()));
-		}
-	} break;
-	case mtpc_messageMediaVenue: {
-		const auto &data = media.c_messageMediaVenue();
-		if (data.vgeo.type() == mtpc_geoPoint) {
+				LocationCoords(point));
+		}, [](const MTPDgeoPointEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaVenue &media) -> Result {
+		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(data.vgeo.c_geoPoint()),
-				qs(data.vtitle),
-				qs(data.vaddress));
-		}
-	} break;
-	case mtpc_messageMediaPhoto: {
-		const auto &data = media.c_messageMediaPhoto();
-		if (data.has_ttl_seconds()) {
+				LocationCoords(point),
+				qs(media.vtitle),
+				qs(media.vaddress));
+		}, [](const MTPDgeoPointEmpty &data) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaPhoto &media) -> Result {
+		if (media.has_ttl_seconds()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaPhoto "
 				"with ttl_seconds in HistoryMessage."));
-		} else if (data.has_photo() && data.vphoto.type() == mtpc_photo) {
-			return std::make_unique<Data::MediaPhoto>(
-				item,
-				Auth().data().photo(data.vphoto.c_photo()));
-		} else {
+			return nullptr;
+		} else if (!media.has_photo()) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaPhoto "
 				"without photo and without ttl_seconds."));
+			return nullptr;
 		}
-	} break;
-	case mtpc_messageMediaDocument: {
-		const auto &data = media.c_messageMediaDocument();
-		if (data.has_ttl_seconds()) {
+		return media.vphoto.match([&](const MTPDphoto &photo) -> Result {
+			return std::make_unique<Data::MediaPhoto>(
+				item,
+				Auth().data().photo(photo));
+		}, [](const MTPDphotoEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaDocument &media) -> Result {
+		if (media.has_ttl_seconds()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaDocument "
 				"with ttl_seconds in HistoryMessage."));
-		} else if (data.has_document()
-			&& data.vdocument.type() == mtpc_document) {
-			return std::make_unique<Data::MediaFile>(
-				item,
-				Auth().data().document(data.vdocument.c_document()));
-		} else {
+			return nullptr;
+		} else if (!media.has_document()) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaDocument "
 				"without document and without ttl_seconds."));
+			return nullptr;
 		}
-	} break;
-	case mtpc_messageMediaWebPage: {
-		const auto &data = media.c_messageMediaWebPage().vwebpage;
-		switch (data.type()) {
-		case mtpc_webPageEmpty: break;
-		case mtpc_webPagePending:
+		const auto &document = media.vdocument;
+		return document.match([&](const MTPDdocument &document) -> Result {
+			return std::make_unique<Data::MediaFile>(
+				item,
+				Auth().data().document(document));
+		}, [](const MTPDdocumentEmpty &) -> Result {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaWebPage &media) {
+		return media.vwebpage.match([](const MTPDwebPageEmpty &) -> Result {
+			return nullptr;
+		}, [&](const MTPDwebPagePending &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				Auth().data().webpage(data.c_webPagePending()));
-			break;
-		case mtpc_webPage:
+				Auth().data().webpage(webpage));
+		}, [&](const MTPDwebPage &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				Auth().data().webpage(data.c_webPage()));
-			break;
-		case mtpc_webPageNotModified:
+				Auth().data().webpage(webpage));
+		}, [](const MTPDwebPageNotModified &) -> Result {
 			LOG(("API Error: "
 				"webPageNotModified is unexpected in message media."));
-			break;
-		}
-	} break;
-	case mtpc_messageMediaGame: {
-		const auto &data = media.c_messageMediaGame().vgame;
-		if (data.type() == mtpc_game) {
+			return nullptr;
+		});
+	}, [&](const MTPDmessageMediaGame &media) -> Result {
+		return media.vgame.match([&](const MTPDgame &game) {
 			return std::make_unique<Data::MediaGame>(
 				item,
-				Auth().data().game(data.c_game()));
-		}
-	} break;
-	case mtpc_messageMediaInvoice: {
-		return std::make_unique<Data::MediaInvoice>(
+				Auth().data().game(game));
+		});
+	}, [&](const MTPDmessageMediaInvoice &media) -> Result {
+		return std::make_unique<Data::MediaInvoice>(item, media);
+	}, [&](const MTPDmessageMediaPoll &media) -> Result {
+		return std::make_unique<Data::MediaPoll>(
 			item,
-			media.c_messageMediaInvoice());
-	} break;
-	};
-
+			Auth().data().poll(media));
+	}, [](const MTPDmessageMediaEmpty &) -> Result {
+		return nullptr;
+	}, [](const MTPDmessageMediaUnsupported &) -> Result {
+		return nullptr;
+	});
 	return nullptr;
 }
 

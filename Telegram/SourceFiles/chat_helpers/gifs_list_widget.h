@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "chat_helpers/tabbed_selector.h"
+#include "base/timer.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
 namespace InlineBots {
@@ -32,10 +33,14 @@ class GifsListWidget
 	, public InlineBots::Layout::Context
 	, private base::Subscriber
 	, private MTP::Sender {
-	Q_OBJECT
-
 public:
+	using InlineChosen = TabbedSelector::InlineChosen;
+
 	GifsListWidget(QWidget *parent, not_null<Window::Controller*> controller);
+
+	rpl::producer<not_null<DocumentData*>> fileChosen() const;
+	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<InlineChosen> inlineResultChosen() const;
 
 	void refreshRecent() override;
 	void preloadImages() override;
@@ -56,6 +61,9 @@ public:
 	void searchForGifs(const QString &query);
 	void sendInlineRequest();
 
+	void cancelled();
+	rpl::producer<> cancelRequests() const;
+
 	~GifsListWidget();
 
 protected:
@@ -75,21 +83,6 @@ protected:
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
 	int countDesiredHeight(int newWidth) override;
-
-private slots:
-	void onPreview();
-	void onUpdateInlineItems();
-
-signals:
-	void selected(not_null<DocumentData*> sticker);
-	void selected(not_null<PhotoData*> photo);
-	void selected(
-		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot);
-	void cancelled();
-
-	void emptyInlineRows();
-	void scrollUpdated();
 
 private:
 	enum class Section {
@@ -120,9 +113,12 @@ private:
 	void updateSelected();
 	void paintInlineItems(Painter &p, QRect clip);
 
+	void updateInlineItems();
+	void showPreview();
+
 	Section _section = Section::Gifs;
 	TimeMs _lastScrolled = 0;
-	QTimer _updateInlineItems;
+	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
 	struct Row {
@@ -156,7 +152,7 @@ private:
 	int _pressed = -1;
 	QPoint _lastMousePos;
 
-	QTimer _previewTimer;
+	base::Timer _previewTimer;
 	bool _previewShown = false;
 
 	std::map<QString, std::unique_ptr<InlineCacheEntry>> _inlineCache;
@@ -167,6 +163,11 @@ private:
 	PeerData *_inlineQueryPeer = nullptr;
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId = 0;
+
+	rpl::event_stream<not_null<DocumentData*>> _fileChosen;
+	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
+	rpl::event_stream<InlineChosen> _inlineResultChosen;
+	rpl::event_stream<> _cancelled;
 
 };
 

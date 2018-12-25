@@ -7,10 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_media_types.h"
 
-#include "history/history_media_types.h"
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
+#include "history/media/history_media_photo.h"
+#include "history/media/history_media_sticker.h"
+#include "history/media/history_media_gif.h"
+#include "history/media/history_media_video.h"
+#include "history/media/history_media_document.h"
+#include "history/media/history_media_contact.h"
+#include "history/media/history_media_location.h"
+#include "history/media/history_media_game.h"
+#include "history/media/history_media_invoice.h"
+#include "history/media/history_media_call.h"
+#include "history/media/history_media_web_page.h"
+#include "history/media/history_media_poll.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "ui/text_options.h"
@@ -18,6 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
+#include "data/data_game.h"
+#include "data/data_web_page.h"
+#include "data/data_poll.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
 #include "layout.h"
@@ -149,6 +165,10 @@ const Invoice *Media::invoice() const {
 }
 
 LocationData *Media::location() const {
+	return nullptr;
+}
+
+PollData *Media::poll() const {
 	return nullptr;
 }
 
@@ -1073,7 +1093,7 @@ GameData *MediaGame::game() const {
 }
 
 QString MediaGame::pinnedTextSubstring() const {
-	auto title = _game->title;
+	const auto title = _game->title;
 	return lng_action_pinned_media_game(lt_game, title);
 }
 
@@ -1176,6 +1196,62 @@ std::unique_ptr<HistoryMedia> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryInvoice>(message, &_invoice);
+}
+
+MediaPoll::MediaPoll(
+	not_null<HistoryItem*> parent,
+	not_null<PollData*> poll)
+: Media(parent)
+, _poll(poll) {
+}
+
+MediaPoll::~MediaPoll() {
+}
+
+std::unique_ptr<Media> MediaPoll::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaPoll>(parent, _poll);
+}
+
+PollData *MediaPoll::poll() const {
+	return _poll;
+}
+
+QString MediaPoll::notificationText() const {
+	return _poll->question;
+}
+
+QString MediaPoll::pinnedTextSubstring() const {
+	return QChar(171) + _poll->question + QChar(187);
+}
+
+TextWithEntities MediaPoll::clipboardText() const {
+	const auto text = qsl("[ ")
+		+ lang(lng_in_dlg_poll)
+		+ qsl(" : ")
+		+ _poll->question
+		+ qsl(" ]")
+		+ ranges::accumulate(
+			ranges::view::all(
+				_poll->answers
+			) | ranges::view::transform(
+				[](const PollAnswer &answer) { return "\n- " + answer.text; }
+			),
+			QString());
+	return { text, EntitiesInText() };
+}
+
+bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaPoll::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+std::unique_ptr<HistoryMedia> MediaPoll::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
+	return std::make_unique<HistoryPoll>(message, _poll);
 }
 
 } // namespace Data

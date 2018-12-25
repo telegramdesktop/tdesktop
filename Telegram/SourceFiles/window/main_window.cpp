@@ -427,7 +427,9 @@ void MainWindow::updateControlsGeometry() {
 void MainWindow::updateUnreadCounter() {
 	if (!Global::started() || App::quitting()) return;
 
-	auto counter = App::histories().unreadBadge();
+	const auto counter = AuthSession::Exists()
+		? App::histories().unreadBadge()
+		: 0;
 	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");
 
 	unreadCounterChangedHook();

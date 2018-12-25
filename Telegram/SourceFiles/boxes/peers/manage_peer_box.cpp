@@ -218,14 +218,7 @@ void ManagePeerBox::prepare() {
 }
 
 void ManagePeerBox::setupContent() {
-	auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	FillManageBox(App::wnd()->controller(), _channel, content);
-	widthValue(
-	) | rpl::start_with_next([=](int width) {
-		content->resizeToWidth(width);
-	}, content->lifetime());
-	content->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(st::boxWidth, height);
-	}, content->lifetime());
+	setDimensionsToContent(st::boxWidth, content);
 }

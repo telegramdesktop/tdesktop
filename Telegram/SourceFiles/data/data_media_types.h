@@ -41,7 +41,6 @@ struct SharedContact {
 	QString firstName;
 	QString lastName;
 	QString phoneNumber;
-
 };
 
 struct Call {
@@ -49,7 +48,6 @@ struct Call {
 
 	int duration = 0;
 	FinishReason finishReason = FinishReason::Missed;
-
 };
 
 struct Invoice {
@@ -60,7 +58,6 @@ struct Invoice {
 	QString description;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
-
 };
 
 class Media {
@@ -80,6 +77,7 @@ public:
 	virtual GameData *game() const;
 	virtual const Invoice *invoice() const;
 	virtual LocationData *location() const;
+	virtual PollData *poll() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -378,6 +376,32 @@ public:
 
 private:
 	Invoice _invoice;
+
+};
+
+class MediaPoll : public Media {
+public:
+	MediaPoll(
+		not_null<HistoryItem*> parent,
+		not_null<PollData*> poll);
+	~MediaPoll();
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	PollData *poll() const override;
+
+	QString notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryMedia> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
+
+private:
+	not_null<PollData*> _poll;
 
 };
 

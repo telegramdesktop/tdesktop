@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
+#include "support/support_helper.h"
 
 namespace Data {
 namespace {
@@ -44,8 +45,8 @@ Draft::Draft(
 }
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
-	auto history = App::history(peerId);
-	auto textWithTags = TextWithTags {
+	const auto history = App::history(peerId);
+	const auto textWithTags = TextWithTags {
 		qs(draft.vmessage),
 		ConvertEntitiesToTextTags(
 			draft.has_entities()
@@ -56,14 +57,23 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 		return;
 	}
 	auto replyTo = draft.has_reply_to_msg_id() ? draft.vreply_to_msg_id.v : MsgId(0);
-	auto cloudDraft = std::make_unique<Draft>(textWithTags, replyTo, MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX), draft.is_no_webpage());
+	auto cloudDraft = std::make_unique<Draft>(
+		textWithTags,
+		replyTo,
+		MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
+		draft.is_no_webpage());
 	cloudDraft->date = draft.vdate.v;
 
 	history->setCloudDraft(std::move(cloudDraft));
 	history->createLocalDraftFromCloud();
-	history->updateChatListSortPosition();
+	if (Auth().supportMode()) {
+		history->updateChatListEntry();
+		Auth().supportHelper().cloudDraftChanged(history);
+	} else {
+		history->updateChatListSortPosition();
+	}
 
-	if (auto main = App::main()) {
+	if (const auto main = App::main()) {
 		main->applyCloudDraft(history);
 	}
 }
@@ -77,7 +87,12 @@ void clearPeerCloudDraft(PeerId peerId, TimeId date) {
 	history->clearCloudDraft();
 	history->clearLocalDraft();
 
-	history->updateChatListSortPosition();
+	if (Auth().supportMode()) {
+		history->updateChatListEntry();
+		Auth().supportHelper().cloudDraftChanged(history);
+	} else {
+		history->updateChatListSortPosition();
+	}
 
 	if (auto main = App::main()) {
 		main->applyCloudDraft(history);

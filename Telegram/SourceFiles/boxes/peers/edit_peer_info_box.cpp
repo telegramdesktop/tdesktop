@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -123,6 +124,7 @@ private:
 	void submitTitle();
 	void submitDescription();
 	void deleteWithConfirmation();
+	void deleteChannel();
 	void privacyChanged(Privacy value);
 
 	void checkUsernameAvailability();
@@ -219,8 +221,6 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createUpgradeButton());
 	_wrap->add(createDeleteButton());
 
-	_wrap->resizeToWidth(st::boxWideWidth);
-
 	return result;
 }
 
@@ -303,6 +303,9 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		_wrap->window(),
+		result->entity());
 
 	QObject::connect(
 		result->entity(),
@@ -334,6 +337,9 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		_wrap->window(),
+		result->entity());
 
 	QObject::connect(
 		result->entity(),
@@ -663,7 +669,7 @@ bool Controller::canEditInviteLink() const {
 		}
 		return (!channel->isPublic() && channel->canAddMembers());
 	} else if (auto chat = _peer->asChat()) {
-		return !chat->inviteLink().isEmpty() || chat->canEdit();
+		return !chat->inviteLink().isEmpty() || chat->amCreator();
 	}
 	return false;
 }
@@ -1397,28 +1403,35 @@ void Controller::savePhoto() {
 }
 
 void Controller::deleteWithConfirmation() {
-	auto channel = _peer->asChannel();
+	const auto channel = _peer->asChannel();
 	Assert(channel != nullptr);
 
 	auto text = lang(_isGroup
 		? lng_sure_delete_group
 		: lng_sure_delete_channel);
-	auto deleteCallback = [=] {
-		Ui::hideLayer();
-		Ui::showChatsList();
-		if (auto chat = channel->migrateFrom()) {
-			App::main()->deleteAndExit(chat);
-		}
-		MTP::send(
-			MTPchannels_DeleteChannel(channel->inputChannel),
-			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-			App::main()->rpcFail(&MainWidget::deleteChannelFailed));
-	};
+	auto deleteCallback = crl::guard(this, [=] {
+		deleteChannel();
+	});
 	Ui::show(Box<ConfirmBox>(
 		text,
 		lang(lng_box_delete),
 		st::attentionBoxButton,
 		std::move(deleteCallback)), LayerOption::KeepOther);
+}
+
+void Controller::deleteChannel() {
+	const auto channel = _peer->asChannel();
+	const auto chat = channel->migrateFrom();
+
+	Ui::hideLayer();
+	Ui::showChatsList();
+	if (chat) {
+		App::main()->deleteAndExit(chat);
+	}
+	MTP::send(
+		MTPchannels_DeleteChannel(channel->inputChannel),
+		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+		App::main()->rpcFail(&MainWidget::deleteChannelFailed));
 }
 
 } // namespace
@@ -1430,18 +1443,14 @@ EditPeerInfoBox::EditPeerInfoBox(
 }
 
 void EditPeerInfoBox::prepare() {
-	auto controller = std::make_unique<Controller>(this, _peer);
+	auto controller = Ui::CreateChild<Controller>(this, this, _peer);
 	_focusRequests.events(
 	) | rpl::start_with_next(
-		[c = controller.get()] { c->setFocus(); },
+		[=] { controller->setFocus(); },
 		lifetime());
 	auto content = controller->createContent();
-	content->heightValue(
-	) | rpl::start_with_next([this](int height) {
-		setDimensions(st::boxWideWidth, height);
-	}, content->lifetime());
+	setDimensionsToContent(st::boxWideWidth, content);
 	setInnerWidget(object_ptr<Ui::OverrideMargins>(
 		this,
 		std::move(content)));
-	Ui::AttachAsChild(this, std::move(controller));
 }

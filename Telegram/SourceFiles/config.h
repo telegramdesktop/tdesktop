@@ -68,8 +68,6 @@ enum {
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
 
-	ShortcutsCountLimit = 256, // how many shortcuts can be in json file
-
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,
@@ -91,7 +89,6 @@ enum {
 	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
 
 	WrongPasscodeTimeout = 1500,
-	SessionsShortPollTimeout = 60000,
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };

@@ -206,10 +206,6 @@ QString psAppDataPath() {
 	return objc_appDataPath();
 }
 
-QString psDownloadPath() {
-	return objc_downloadPath();
-}
-
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
@@ -334,6 +330,10 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 			break;
 	}
 #endif // OS_MAC_OLD
+}
+
+bool NativeEventNestsLoop(void *message) {
+	return true;
 }
 
 } // namespace Platform

@@ -54,7 +54,6 @@ inline void psCheckLocalSocket(const QString &) {
 }
 
 void psWriteDump();
-void psWriteStackTrace();
 
 void psDeleteDir(const QString &dir);
 
@@ -69,7 +68,6 @@ void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psAppDataPath();
 QString psAppDataPathOld();
-QString psDownloadPath();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 

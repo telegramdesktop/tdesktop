@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio.h"
 #include "history/history.h"
 #include "history/history_message.h"
-#include "history/history_media_types.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "window/themes/window_theme_preview.h"
@@ -979,7 +978,7 @@ void MediaView::onDownload() {
 
 	QString path;
 	if (Global::DownloadPath().isEmpty()) {
-		path = psDownloadPath();
+		path = File::DefaultDownloadPath();
 	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
@@ -2445,9 +2444,10 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
+	const auto ctrl = e->modifiers().testFlag(Qt::ControlModifier);
 	if (_clipController) {
-		auto toggle1 = (e->key() == Qt::Key_F && e->modifiers().testFlag(Qt::ControlModifier));
-		auto toggle2 = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || e->modifiers().testFlag(Qt::ControlModifier));
+		auto toggle1 = (e->key() == Qt::Key_F && ctrl);
+		auto toggle2 = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || ctrl);
 		if (toggle1 || toggle2) {
 			onVideoToggleFullScreen();
 			return;
@@ -2469,7 +2469,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
 		onSaveAs();
-	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
+	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && ctrl)) {
 		onCopy();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_doc && !_doc->loading() && (fileBubbleShown() || !_doc->loaded())) {
@@ -2487,12 +2487,12 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 			activateControls();
 		}
 		moveToNext(1);
-	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
+	} else if (ctrl) {
 		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
 			zoomIn();
 		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
 			zoomOut();
-		} else {
+		} else if (e->key() == Qt::Key_0) {
 			zoomReset();
 		}
 	}

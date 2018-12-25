@@ -234,46 +234,16 @@ Q_DECLARE_METATYPE(FullMsgId);
 
 using MessageIdsList = std::vector<FullMsgId>;
 
-inline PeerId peerFromMessage(const MTPmessage &msg) {
-	auto compute = [](auto &message) {
-		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;
-		auto to_id = peerFromMTP(message.vto_id);
-		auto out = message.is_out();
-		return (out || !peerIsUser(to_id)) ? to_id : from_id;
-	};
-	switch (msg.type()) {
-	case mtpc_message: return compute(msg.c_message());
-	case mtpc_messageService: return compute(msg.c_messageService());
-	}
-	return 0;
-}
-inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
-	switch (msg.type()) {
-	case mtpc_message: return msg.c_message().vflags.v;
-	case mtpc_messageService: return mtpCastFlags(msg.c_messageService().vflags.v);
-	}
-	return 0;
-}
-inline MsgId idFromMessage(const MTPmessage &msg) {
-	switch (msg.type()) {
-	case mtpc_messageEmpty: return msg.c_messageEmpty().vid.v;
-	case mtpc_message: return msg.c_message().vid.v;
-	case mtpc_messageService: return msg.c_messageService().vid.v;
-	}
-	Unexpected("Type in idFromMessage()");
-}
-inline TimeId dateFromMessage(const MTPmessage &msg) {
-	switch (msg.type()) {
-	case mtpc_message: return msg.c_message().vdate.v;
-	case mtpc_messageService: return msg.c_messageService().vdate.v;
-	}
-	return 0;
-}
+PeerId PeerFromMessage(const MTPmessage &message);
+MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message);
+MsgId IdFromMessage(const MTPmessage &message);
+TimeId DateFromMessage(const MTPmessage &message);
 
 class DocumentData;
 class PhotoData;
 struct WebPageData;
 struct GameData;
+struct PollData;
 
 class AudioMsgId;
 class PhotoClickHandler;
@@ -293,6 +263,7 @@ using AudioId = uint64;
 using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
+using PollId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 using PreparedPhotoThumbs = QMap<char, QImage>;

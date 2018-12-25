@@ -149,7 +149,7 @@ public:
 
 	UserpicButton(
 		QWidget *parent,
-		PeerId peerForCrop,
+		const QString &cropTitle,
 		Role role,
 		const style::UserpicButton &st);
 	UserpicButton(
@@ -206,7 +206,7 @@ private:
 	const style::UserpicButton &_st;
 	Window::Controller *_controller = nullptr;
 	PeerData *_peer = nullptr;
-	PeerId _peerForCrop = 0;
+	QString _cropTitle;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;
 	bool _waiting = false;

@@ -24,7 +24,7 @@ namespace Intro {
 SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _photo(
 	this,
-	peerFromUser(0),
+	lang(lng_settings_crop_profile),
 	Ui::UserpicButton::Role::ChangePhoto,
 	st::defaultUserpicButton)
 , _first(this, st::introName, langFactory(lng_signup_firstname))

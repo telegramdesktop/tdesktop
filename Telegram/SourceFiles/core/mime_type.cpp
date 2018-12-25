@@ -46,12 +46,14 @@ QString MimeType::name() const {
 }
 
 MimeType MimeTypeForName(const QString &mime) {
-	if (mime == qsl("image/webp")) {
+	if (mime == qstr("image/webp")) {
 		return MimeType(MimeType::Known::WebP);
-	} else if (mime == qsl("application/x-tdesktop-theme")) {
+	} else if (mime == qstr("application/x-tdesktop-theme")) {
 		return MimeType(MimeType::Known::TDesktopTheme);
-	} else if (mime == qsl("application/x-tdesktop-palette")) {
+	} else if (mime == qstr("application/x-tdesktop-palette")) {
 		return MimeType(MimeType::Known::TDesktopPalette);
+	} else if (mime == qstr("audio/mpeg3")) {
+		return MimeType(QMimeDatabase().mimeTypeForName("audio/mp3"));
 	}
 	return MimeType(QMimeDatabase().mimeTypeForName(mime));
 }

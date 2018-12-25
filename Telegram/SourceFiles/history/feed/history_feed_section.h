@@ -68,8 +68,6 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
 
-	bool cmd_search() override;
-
 	// HistoryView::ListDelegate interface.
 	HistoryView::Context listContext() override;
 	void listScrollTo(int top) override;
@@ -121,6 +119,8 @@ private:
 	void forwardSelected();
 	void confirmDeleteSelected();
 	void clearSelected();
+
+	void setupShortcuts();
 
 	not_null<Data::Feed*> _feed;
 	object_ptr<Ui::ScrollArea> _scroll;

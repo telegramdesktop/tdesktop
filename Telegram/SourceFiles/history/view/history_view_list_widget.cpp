@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_list_widget.h"
 
-#include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_sticker.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -33,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "data/data_media_types.h"
+#include "data/data_document.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -879,8 +881,8 @@ bool ListWidget::requiredToStartDragging(
 		not_null<Element*> view) const {
 	if (_mouseCursorState == CursorState::Date) {
 		return true;
-	} else if (const auto media = view->media()) {
-		return media->type() == MediaTypeSticker;
+	} else if (dynamic_cast<HistorySticker*>(view->media()) != nullptr) {
+		return true;
 	}
 	return false;
 }

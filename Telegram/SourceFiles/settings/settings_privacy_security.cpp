@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/self_destruction_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "calls/calls_instance.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
+#include "styles/style_boxes.h"
 
 namespace Settings {
 namespace {
@@ -42,17 +44,33 @@ rpl::producer<> PasscodeChanges() {
 	));
 }
 
-QString PrivacyBase(ApiWrap::Privacy::Option option) {
-	const auto key = [&] {
+QString PrivacyBase(
+		ApiWrap::Privacy::Key key,
+		ApiWrap::Privacy::Option option) {
+	const auto phrase = [&] {
+		using Key = ApiWrap::Privacy::Key;
 		using Option = ApiWrap::Privacy::Option;
-		switch (option) {
-		case Option::Everyone: return lng_edit_privacy_everyone;
-		case Option::Contacts: return lng_edit_privacy_contacts;
-		case Option::Nobody: return lng_edit_privacy_nobody;
+		switch (key) {
+		case Key::CallsPeer2Peer:
+			switch (option) {
+			case Option::Everyone:
+				return lng_edit_privacy_calls_p2p_everyone;
+			case Option::Contacts:
+				return lng_edit_privacy_calls_p2p_contacts;
+			case Option::Nobody:
+				return lng_edit_privacy_calls_p2p_nobody;
+			}
+			Unexpected("Value in Privacy::Option.");
+		default:
+			switch (option) {
+			case Option::Everyone: return lng_edit_privacy_everyone;
+			case Option::Contacts: return lng_edit_privacy_contacts;
+			case Option::Nobody: return lng_edit_privacy_nobody;
+			}
+			Unexpected("Value in Privacy::Option.");
 		}
-		Unexpected("Value in Privacy::Option.");
 	}();
-	return lang(key);
+	return lang(phrase);
 }
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
@@ -82,7 +100,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		Auth().api().reloadPrivacy(key);
 		return Auth().api().privacyValue(
 			key
-		) | rpl::map([](const Privacy &value) {
+		) | rpl::map([=](const Privacy &value) {
 			auto add = QStringList();
 			if (const auto never = value.never.size()) {
 				add.push_back("-" + QString::number(never));
@@ -91,14 +109,15 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 				add.push_back("+" + QString::number(always));
 			}
 			if (!add.isEmpty()) {
-				return PrivacyBase(value.option) + " (" + add.join(", ") + ")";
+				return PrivacyBase(key, value.option)
+					+ " (" + add.join(", ") + ")";
 			} else {
-				return PrivacyBase(value.option);
+				return PrivacyBase(key, value.option);
 			}
 		});
 	};
 	const auto add = [&](LangKey label, Privacy::Key key, auto controller) {
-		const auto shower = Ui::AttachAsChild(container, rpl::lifetime());
+		const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 		AddButtonWithLabel(
 			container,
 			label,
@@ -124,6 +143,10 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		lng_settings_calls,
 		Privacy::Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
+	add(
+		lng_settings_calls_peer_to_peer,
+		Privacy::Key::CallsPeer2Peer,
+		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
 	add(
 		lng_settings_groups_invite,
 		Privacy::Key::Invites,
@@ -238,11 +261,17 @@ void EditCloudPassword() {
 		current->notEmptyPassport,
 		current->hint,
 		current->newSecureSecret));
+
 	rpl::merge(
 		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
 		Auth().api().reloadPasswordState();
+	}, box->lifetime());
+
+	box->clearUnconfirmedPassword(
+	) | rpl::start_with_next([=] {
+		Auth().api().clearUnconfirmedPassword();
 	}, box->lifetime());
 }
 
@@ -262,6 +291,7 @@ void RemoveCloudPassword() {
 		current->hint,
 		current->newSecureSecret,
 		true));
+
 	rpl::merge(
 		box->newPasswordSet(
 		) | rpl::map([] { return rpl::empty_value(); }),
@@ -269,14 +299,20 @@ void RemoveCloudPassword() {
 	) | rpl::start_with_next([=] {
 		Auth().api().reloadPasswordState();
 	}, box->lifetime());
+
+	box->clearUnconfirmedPassword(
+	) | rpl::start_with_next([=] {
+		Auth().api().clearUnconfirmedPassword();
+	}, box->lifetime());
 }
 
 void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+	using State = Core::CloudPasswordState;
+
 	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, lng_settings_password_title);
-
-	using State = Core::CloudPasswordState;
 
 	auto has = rpl::single(
 		false
@@ -297,7 +333,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::filter([](const QString &pattern) {
 		return !pattern.isEmpty();
 	}) | rpl::map([](const QString &pattern) {
-		return lng_cloud_password_waiting(lt_email, pattern);
+		return lng_cloud_password_waiting_code(lt_email, pattern);
 	}));
 	auto unconfirmed = rpl::single(
 		true
@@ -342,7 +378,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 				container,
 				std::move(text),
 				st::settingsButton)));
-	change->toggleOn(std::move(
+	change->toggleOn(rpl::duplicate(
 		unconfirmed
 	) | rpl::map([](bool unconfirmed) {
 		return !unconfirmed;
@@ -353,6 +389,40 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 		}
 	});
 
+	const auto confirm = container->add(
+		object_ptr<Ui::SlideWrap<Button>>(
+			container,
+			object_ptr<Button>(
+				container,
+				Lang::Viewer(lng_cloud_password_confirm),
+				st::settingsButton)));
+	confirm->toggleOn(rpl::duplicate(
+		unconfirmed
+	))->setDuration(0);
+	confirm->entity()->addClickHandler([] {
+		const auto state = Auth().api().passwordStateCurrent();
+		auto validation = ConfirmRecoveryEmail(state->unconfirmedPattern);
+
+		std::move(
+			validation.reloadRequests
+		) | rpl::start_with_next([] {
+			Auth().api().reloadPasswordState();
+		}, validation.box->lifetime());
+
+		std::move(
+			validation.cancelRequests
+		) | rpl::start_with_next([] {
+			Auth().api().clearUnconfirmedPassword();
+		}, validation.box->lifetime());
+
+		Ui::show(std::move(validation.box));
+	});
+
+	const auto remove = [] {
+		if (CheckEditCloudPassword()) {
+			RemoveCloudPassword();
+		}
+	};
 	const auto disable = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,
@@ -360,12 +430,24 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 				container,
 				Lang::Viewer(lng_settings_password_disable),
 				st::settingsButton)));
-	disable->toggleOn(base::duplicate(has));
-	disable->entity()->addClickHandler([] {
-		if (CheckEditCloudPassword()) {
-			RemoveCloudPassword();
-		}
-	});
+	disable->toggleOn(rpl::combine(
+		rpl::duplicate(has),
+		rpl::duplicate(unconfirmed),
+		_1 && !_2));
+	disable->entity()->addClickHandler(remove);
+
+	const auto abort = container->add(
+		object_ptr<Ui::SlideWrap<Button>>(
+			container,
+			object_ptr<Button>(
+				container,
+				Lang::Viewer(lng_settings_password_abort),
+				st::settingsAttentionButton)));
+	abort->toggleOn(rpl::combine(
+		rpl::duplicate(has),
+		rpl::duplicate(unconfirmed),
+		_1 && _2));
+	abort->entity()->addClickHandler(remove);
 
 	const auto reloadOnActivation = [=](Qt::ApplicationState state) {
 		if (label->toggled() && state == Qt::ApplicationActive) {

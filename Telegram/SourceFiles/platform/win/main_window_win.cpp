@@ -727,8 +727,8 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	auto counter = App::histories().unreadBadge();
-	auto muted = App::histories().unreadOnlyMuted();
+	const auto counter = Messenger::Instance().unreadBadge();
+	const auto muted = Messenger::Instance().unreadBadgeMuted();
 
 	auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 	auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));

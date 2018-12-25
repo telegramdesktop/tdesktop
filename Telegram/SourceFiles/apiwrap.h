@@ -125,6 +125,12 @@ public:
 	void requestTermsUpdate();
 	void acceptTerms(bytes::const_span termsId);
 
+	void checkChatInvite(
+		const QString &hash,
+		FnMut<void(const MTPChatInvite &)> done,
+		FnMut<void(const RPCError &)> fail);
+	void importChatInvite(const QString &hash);
+
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
 		Fn<void(const MTPchannels_ChannelParticipants&)> callback);
@@ -323,6 +329,7 @@ public:
 		bool handleSupportSwitch = false;
 	};
 	void sendMessage(MessageToSend &&message);
+	void sendBotStart(not_null<UserData*> bot);
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
@@ -350,6 +357,7 @@ public:
 			LastSeen,
 			Calls,
 			Invites,
+			CallsPeer2Peer,
 		};
 		enum class Option {
 			Everyone,
@@ -368,6 +376,17 @@ public:
 	void reloadSelfDestruct();
 	rpl::producer<int> selfDestructValue() const;
 	void saveSelfDestruct(int days);
+
+	void createPoll(
+		const PollData &data,
+		const SendOptions &options,
+		FnMut<void()> done,
+		FnMut<void(const RPCError &error)> fail);
+	void sendPollVotes(
+		FullMsgId itemId,
+		const std::vector<QByteArray> &options);
+	void closePoll(FullMsgId itemId);
+	void reloadPollResults(not_null<HistoryItem*> item);
 
 	~ApiWrap();
 
@@ -707,6 +726,10 @@ private:
 	TimeMs _termsUpdateSendAt = 0;
 	mtpRequestId _termsUpdateRequestId = 0;
 
+	mtpRequestId _checkInviteRequestId = 0;
+	FnMut<void(const MTPChatInvite &result)> _checkInviteDone;
+	FnMut<void(const RPCError &error)> _checkInviteFail;
+
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
 
 	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
@@ -726,5 +749,9 @@ private:
 	mtpRequestId _selfDestructRequestId = 0;
 	std::optional<int> _selfDestructDays;
 	rpl::event_stream<int> _selfDestructChanges;
+
+	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
+	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
+	base::flat_map<FullMsgId, mtpRequestId> _pollReloadRequestIds;
 
 };

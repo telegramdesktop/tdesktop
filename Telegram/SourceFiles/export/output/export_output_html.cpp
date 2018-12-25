@@ -621,6 +621,7 @@ private:
 	[[nodiscard]] QByteArray pushPhotoMedia(
 		const Data::Photo &data,
 		const QString &basePath);
+	[[nodiscard]] QByteArray pushPoll(const Data::Poll &data);
 
 	File _file;
 	bool _closed = false;
@@ -1058,6 +1059,8 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return "You have sent the following documents: "
 			+ SerializeList(list);
+	}, [&](const ActionContactSignUp &data) {
+		return serviceFrom + " joined Telegram";
 	}, [](std::nullopt_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
@@ -1230,6 +1233,8 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 	} else if (const auto photo = base::get_if<Data::Photo>(&content)) {
 		Assert(!message.media.ttl);
 		return pushPhotoMedia(*photo, basePath);
+	} else if (const auto poll = base::get_if<Data::Poll>(&content)) {
+		return pushPoll(*poll);
 	}
 	Assert(!content.has_value());
 	return QByteArray();
@@ -1501,6 +1506,54 @@ QByteArray HtmlWriter::Wrap::pushPhotoMedia(
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushPoll(const Data::Poll &data) {
+	using namespace Data;
+
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushDiv("media_poll"));
+	result.append(pushDiv("question bold"));
+	result.append(SerializeString(data.question));
+	result.append(popTag());
+	result.append(pushDiv("details"));
+	if (data.closed) {
+		result.append(SerializeString("Final results"));
+	} else {
+		result.append(SerializeString("Anonymous poll"));
+	}
+	result.append(popTag());
+	const auto votes = [](int count) {
+		if (count > 1) {
+			return NumberToString(count) + " votes";
+		} else if (count > 0) {
+			return NumberToString(count) + " vote";
+		}
+		return QByteArray("No votes");
+	};
+	const auto details = [&](const Poll::Answer &answer) {
+		if (!answer.votes) {
+			return QByteArray("");
+		} else if (!answer.my) {
+			return " <span class=\"details\">"
+				+ votes(answer.votes)
+				+ "</span>";
+		}
+		return " <span class=\"details\">"
+			+ votes(answer.votes)
+			+ ", chosen vote</span>";
+	};
+	for (const auto &answer : data.answers) {
+		result.append(pushDiv("answer"));
+		result.append("- " + SerializeString(answer.text) + details(answer));
+		result.append(popTag());
+	}
+	result.append(pushDiv("total details	"));
+	result.append(votes(data.totalVotes));
+	result.append(popTag());
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
 MediaData HtmlWriter::Wrap::prepareMediaData(
 		const Data::Message &message,
 		const QString &basePath,
@@ -1656,6 +1709,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.title = data.title;
 		result.description = data.description;
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
+	}, [](const Poll &data) {
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](std::nullopt_t) {});

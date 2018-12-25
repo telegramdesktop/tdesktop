@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
+#include "history/media/history_media.h"
 #include "styles/style_history.h"
 #include "data/data_session.h"
 
@@ -163,14 +163,6 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	}
 }
 
-void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
-	if (MainWidget *m = main()) m->openPeerByName(username, msgId, startToken);
-}
-
-void joinGroupByHash(const QString &hash) {
-	if (MainWidget *m = main()) m->joinGroupByHash(hash);
-}
-
 void showSettings() {
 	if (auto w = wnd()) {
 		w->showSettings();
@@ -214,12 +206,6 @@ void showMediaPreview(
 void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo) {
 	if (auto w = App::wnd()) {
 		w->ui_showMediaPreview(origin, photo);
-	}
-}
-
-void hideMediaPreview() {
-	if (auto w = App::wnd()) {
-		w->ui_hideMediaPreview();
 	}
 }
 
@@ -649,11 +635,10 @@ struct Data {
 	bool SuggestEmoji = true;
 	bool SuggestStickersByEmoji = true;
 	base::Observable<void> ReplaceEmojiChanged;
-	float64 VoiceMsgPlaybackSpeed = 1.;
+	bool VoiceMsgPlaybackDoubled = false;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
 	bool RestoreSoundNotifyFromTray = false;
-	bool IncludeMuted = true;
 	DBINotifyView NotifyView = dbinvShowPreview;
 	bool NativeNotifications = false;
 	int NotificationsCount = 3;
@@ -779,11 +764,10 @@ DefineVar(Global, bool, ReplaceEmoji);
 DefineVar(Global, bool, SuggestEmoji);
 DefineVar(Global, bool, SuggestStickersByEmoji);
 DefineRefVar(Global, base::Observable<void>, ReplaceEmojiChanged);
-DefineVar(Global, float64, VoiceMsgPlaybackSpeed);
+DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
 DefineVar(Global, bool, RestoreSoundNotifyFromTray);
-DefineVar(Global, bool, IncludeMuted);
 DefineVar(Global, DBINotifyView, NotifyView);
 DefineVar(Global, bool, NativeNotifications);
 DefineVar(Global, int, NotificationsCount);

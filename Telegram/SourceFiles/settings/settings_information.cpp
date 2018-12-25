@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/special_buttons.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/change_phone_box.h"
@@ -73,7 +74,8 @@ void SetupPhoto(
 				return;
 			}
 
-			auto box = Ui::show(Box<PhotoCropBox>(image, self));
+			const auto box = Ui::show(
+				Box<PhotoCropBox>(image, lang(lng_settings_crop_profile)));
 			box->ready(
 			) | rpl::start_with_next([=](QImage &&image) {
 				Auth().api().uploadPeerPhoto(self, std::move(image));
@@ -125,7 +127,7 @@ void AddRow(
 		rpl::single(QString()),
 		st::settingsInfoRow,
 		&icon);
-	const auto forcopy = Ui::AttachAsChild(wrap, QString());
+	const auto forcopy = Ui::CreateChild<QString>(wrap.get());
 	wrap->setAcceptBoth();
 	wrap->clicks(
 	) | rpl::filter([=] {
@@ -287,9 +289,8 @@ BioManager SetupBio(
 	};
 	const auto style = Ui::AttachAsChild(container, bioStyle());
 	const auto current = Ui::AttachAsChild(container, self->about());
-	const auto changed = Ui::AttachAsChild(
-		container,
-		rpl::event_stream<bool>());
+	const auto changed = Ui::CreateChild<rpl::event_stream<bool>>(
+		container.get());
 	const auto bio = container->add(
 		object_ptr<Ui::InputField>(
 			container,
@@ -350,7 +351,7 @@ BioManager SetupBio(
 		}
 	}, bio->lifetime());
 
-	const auto generation = Ui::AttachAsChild(bio, 0);
+	const auto generation = Ui::CreateChild<int>(bio);
 	changed->events(
 	) | rpl::start_with_next([=](bool changed) {
 		if (changed) {
@@ -385,6 +386,7 @@ BioManager SetupBio(
 	QObject::connect(bio, &Ui::InputField::changed, updated);
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
 	bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(container->window(), bio);
 	updated();
 
 	container->add(

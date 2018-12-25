@@ -15,7 +15,7 @@ class UpdateChecker;
 bool InternalPassportLink(const QString &url);
 bool StartUrlRequiresActivate(const QString &url);
 
-class Application : public QApplication {
+class Application : public QApplication, private QAbstractNativeEventFilter {
 	Q_OBJECT
 
 public:
@@ -25,6 +25,9 @@ public:
 
 	void createMessenger();
 	void refreshGlobalProxy();
+
+	void postponeCall(FnMut<void()> &&callable);
+	bool notify(QObject *receiver, QEvent *e) override;
 
 	~Application();
 
@@ -49,6 +52,23 @@ public slots:
 private:
 	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
 	typedef QList<LocalClient> LocalClients;
+
+	struct PostponedCall {
+		int loopNestingLevel = 0;
+		FnMut<void()> callable;
+	};
+
+	bool nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		long *result) override;
+	void processPostponedCalls(int level);
+
+	const Qt::HANDLE _mainThreadId = nullptr;
+	int _eventNestingLevel = 0;
+	int _loopNestingLevel = 0;
+	std::vector<int> _previousLoopNestingLevels;
+	std::vector<PostponedCall> _postponedCalls;
 
 	not_null<Core::Launcher*> _launcher;
 	std::unique_ptr<Messenger> _messengerInstance;

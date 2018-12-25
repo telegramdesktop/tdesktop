@@ -17,6 +17,10 @@ settingsSectionButton: InfoProfileButton(infoProfileButton) {
 settingsButton: InfoProfileButton(settingsSectionButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
+settingsAttentionButton: InfoProfileButton(settingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
 settingsSectionSkip: 9px;
 settingsSectionIconLeft: 22px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);

@@ -191,9 +191,7 @@ bool SectionWithToggle::toggled() const {
 
 rpl::producer<bool> SectionWithToggle::toggledValue() const {
 	if (_toggle) {
-		return rpl::single(
-			_toggle->checked()
-		) | rpl::then(base::ObservableViewer(_toggle->checkedChanged));
+		return _toggle->checkedValue();
 	}
 	return rpl::never<bool>();
 }

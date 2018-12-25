@@ -122,11 +122,6 @@ public:
 		return nullptr;
 	}
 
-	// Global shortcut handler. For now that ugly :(
-	virtual bool cmd_search() {
-		return false;
-	}
-
 	static void PaintBackground(QWidget *widget, QPaintEvent *event);
 
 protected:

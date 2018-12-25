@@ -19,15 +19,10 @@ class FlatLabel;
 namespace Intro {
 
 class CodeInput final : public Ui::MaskedInputField {
-	Q_OBJECT
-
 public:
 	CodeInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory);
 
 	void setDigitsCountMax(int digitsCount);
-
-signals:
-	void codeEntered();
 
 protected:
 	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;

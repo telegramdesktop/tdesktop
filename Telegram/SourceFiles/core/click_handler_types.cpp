@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "messenger.h"
+#include "mainwidget.h"
 #include "application.h"
 #include "platform/platform_specific.h"
 #include "history/view/history_view_element.h"
@@ -36,6 +37,8 @@ QString tryConvertUrlToLocal(QString url) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto languageMatch = regex_match(qsl("^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://setlanguage?lang=") + url_encode(languageMatch->captured(1));
 		} else if (auto shareUrlMatch = regex_match(qsl("^share/url/?\\?(.+)$"), query, matchOptions)) {
 			return qsl("tg://msg_url?") + shareUrlMatch->captured(1);
 		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
@@ -156,6 +159,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
 		if (UrlRequiresConfirmation(url)) {
+			Messenger::Instance().hideMediaView();
 			const auto displayUrl = parsedUrl.isValid()
 				? parsedUrl.toDisplayString()
 				: url;
@@ -228,7 +232,7 @@ QString MentionClickHandler::copyToClipboardContextItemText() const {
 void MentionClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
+		App::main()->openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
 	}
 }
 

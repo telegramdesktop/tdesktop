@@ -156,12 +156,15 @@ public:
 	void setCheckAlignment(style::align alignment);
 
 	bool checked() const;
+	rpl::producer<bool> checkedChanges() const;
+	rpl::producer<bool> checkedValue() const;
 	enum class NotifyAboutChange {
 		Notify,
 		DontNotify,
 	};
-	void setChecked(bool checked, NotifyAboutChange notify = NotifyAboutChange::Notify);
-	base::Observable<bool> checkedChanged;
+	void setChecked(
+		bool checked,
+		NotifyAboutChange notify = NotifyAboutChange::Notify);
 
 	void finishAnimating();
 
@@ -192,6 +195,7 @@ private:
 
 	const style::Checkbox &_st;
 	std::unique_ptr<AbstractCheckView> _check;
+	rpl::event_stream<bool> _checkedChanges;
 	QPixmap _checkCache;
 
 	Text _text;
@@ -237,7 +241,7 @@ private:
 
 };
 
-class Radiobutton : public Checkbox, private base::Subscriber {
+class Radiobutton : public Checkbox {
 public:
 	Radiobutton(
 		QWidget *parent,
@@ -261,8 +265,10 @@ protected:
 private:
 	// Hide the names from Checkbox.
 	bool checked() const;
+	void checkedChanges() const;
+	void checkedValue() const;
 	void setChecked(bool checked, NotifyAboutChange notify);
-	void checkedChanged();
+
 	Checkbox *checkbox() {
 		return this;
 	}

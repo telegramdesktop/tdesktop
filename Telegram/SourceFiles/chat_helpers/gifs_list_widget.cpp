@@ -69,7 +69,7 @@ GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(p
 	});
 	connect(_field, &Ui::InputField::cancelled, [=] {
 		if (_field->getLastText().isEmpty()) {
-			emit _pan->cancelled();
+			_pan->cancelled();
 		} else {
 			_field->setText(QString());
 		}
@@ -125,15 +125,11 @@ GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
 : Inner(parent, controller)
-, _section(Section::Gifs) {
+, _section(Section::Gifs)
+, _updateInlineItems([=] { updateInlineItems(); })
+, _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
-
-	_previewTimer.setSingleShot(true);
-	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
-
-	_updateInlineItems.setSingleShot(true);
-	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
 	_inlineRequestTimer.setSingleShot(true);
 	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
@@ -152,8 +148,22 @@ GifsListWidget::GifsListWidget(
 	});
 }
 
+rpl::producer<not_null<DocumentData*>> GifsListWidget::fileChosen() const {
+	return _fileChosen.events();
+}
+
+rpl::producer<not_null<PhotoData*>> GifsListWidget::photoChosen() const {
+	return _photoChosen.events();
+}
+
+auto GifsListWidget::inlineResultChosen() const
+-> rpl::producer<InlineChosen> {
+	return _inlineResultChosen.events();
+}
+
 object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 	Expects(_footer == nullptr);
+
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
 	return std::move(result);
@@ -305,11 +315,11 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	ClickHandler::pressed();
-	_previewTimer.start(QApplication::startDragTime());
+	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
-	_previewTimer.stop();
+	_previewTimer.cancel();
 
 	auto pressed = std::exchange(_pressed, -1);
 	auto activated = ClickHandler::unpressed();
@@ -340,29 +350,28 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 	}
 
 	auto item = _rows[row].items[column];
-	if (auto photo = item->getPhoto()) {
+	if (const auto photo = item->getPhoto()) {
 		if (photo->medium->loaded() || photo->thumb->loaded()) {
-			emit selected(photo);
+			_photoChosen.fire_copy(photo);
 		} else if (!photo->medium->loading()) {
 			photo->thumb->loadEvenCancelled(Data::FileOrigin());
 			photo->medium->loadEvenCancelled(Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
 		if (document->loaded()) {
-			emit selected(document);
+			_fileChosen.fire_copy(document);
 		} else if (document->loading()) {
 			document->cancel();
 		} else {
-
 			DocumentOpenClickHandler::Open(
 				document->stickerOrGifOrigin(),
 				document,
 				nullptr,
 				ActionOnLoadNone);
 		}
-	} else if (auto inlineResult = item->getResult()) {
+	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			emit selected(inlineResult, _searchBot);
+			_inlineResultChosen.fire({ inlineResult, _searchBot });
 		}
 	}
 }
@@ -622,8 +631,7 @@ void GifsListWidget::switchToSavedGifs() {
 	clearInlineRows(false);
 	_section = Section::Gifs;
 	refreshSavedGifs();
-	emit scrollToY(0);
-	emit scrollUpdated();
+	scrollTo(0);
 }
 
 int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool resultsDeleted) {
@@ -747,7 +755,7 @@ void GifsListWidget::inlineItemRepaint(const InlineBots::Layout::ItemBase *layou
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -804,7 +812,7 @@ int32 GifsListWidget::showInlineRows(bool newResults) {
 	auto added = 0;
 	auto clear = !refreshInlineRows(&added);
 	if (newResults) {
-		scrollToY(0);
+		scrollTo(0);
 	}
 	return added;
 }
@@ -845,6 +853,14 @@ void GifsListWidget::searchForGifs(const QString &query) {
 			}
 		}).send();
 	}
+}
+
+void GifsListWidget::cancelled() {
+	_cancelled.fire({});
+}
+
+rpl::producer<> GifsListWidget::cancelRequests() const {
+	return _cancelled.events();
 }
 
 void GifsListWidget::sendInlineRequest() {
@@ -977,8 +993,10 @@ void GifsListWidget::updateSelected() {
 	}
 }
 
-void GifsListWidget::onPreview() {
-	if (_pressed < 0) return;
+void GifsListWidget::showPreview() {
+	if (_pressed < 0) {
+		return;
+	}
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows[row].items.size()) {
 		auto layout = _rows[row].items[col];
@@ -996,12 +1014,12 @@ void GifsListWidget::onPreview() {
 	}
 }
 
-void GifsListWidget::onUpdateInlineItems() {
+void GifsListWidget::updateInlineItems() {
 	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 

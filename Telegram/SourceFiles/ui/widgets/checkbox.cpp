@@ -428,6 +428,14 @@ bool Checkbox::checked() const {
 	return _check->checked();
 }
 
+rpl::producer<bool> Checkbox::checkedChanges() const {
+	return _checkedChanges.events();
+}
+
+rpl::producer<bool> Checkbox::checkedValue() const {
+	return _checkedChanges.events_starting_with(checked());
+}
+
 void Checkbox::resizeToText() {
 	if (_st.width <= 0) {
 		resizeToWidth(_text.maxWidth() - _st.width);
@@ -440,7 +448,7 @@ void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {
 	if (_check->checked() != checked) {
 		_check->setChecked(checked, anim::type::normal);
 		if (notify == NotifyAboutChange::Notify) {
-			checkedChanged.notify(checked, true);
+			_checkedChanges.fire_copy(checked);
 		}
 	}
 }
@@ -635,19 +643,24 @@ Radiobutton::Radiobutton(
 	std::move(check))
 , _group(group)
 , _value(value) {
+	using namespace rpl::mappers;
+
 	checkbox()->setChecked(group->hasValue() && group->value() == value);
 	_group->registerButton(this);
-	subscribe(checkbox()->checkedChanged, [this](bool checked) {
-		if (checked) {
-			_group->setValue(_value);
-		}
-	});
+	checkbox()->checkedChanges(
+	) | rpl::filter(
+		_1
+	) | rpl::start_with_next([=] {
+		_group->setValue(_value);
+	}, lifetime());
 }
 
 void Radiobutton::handleNewGroupValue(int value) {
 	auto checked = (value == _value);
 	if (checkbox()->checked() != checked) {
-		checkbox()->setChecked(checked, Ui::Checkbox::NotifyAboutChange::DontNotify);
+		checkbox()->setChecked(
+			checked,
+			Ui::Checkbox::NotifyAboutChange::DontNotify);
 	}
 }
 

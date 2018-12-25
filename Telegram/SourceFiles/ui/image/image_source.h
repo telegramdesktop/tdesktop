@@ -64,10 +64,10 @@ private:
 
 class LocalFileSource : public Source {
 public:
-	LocalFileSource(
+	explicit LocalFileSource(
 		const QString &path,
-		const QByteArray &content,
-		const QByteArray &format,
+		const QByteArray &content = QByteArray(),
+		const QByteArray &format = QByteArray(),
 		QImage &&data = QImage());
 
 	void load(
@@ -169,7 +169,7 @@ protected:
 
 private:
 	bool loaderValid() const;
-	void destroyLoaderDelayed(FileLoader *newValue = nullptr);
+	void destroyLoader(FileLoader *newValue = nullptr);
 
 	FileLoader *_loader = nullptr;
 

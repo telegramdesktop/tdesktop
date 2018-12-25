@@ -115,6 +115,22 @@ void InstallOperatorNewHandler() {
 	});
 }
 
+void InstallQtMessageHandler() {
+	static QtMessageHandler original = nullptr;
+	original = qInstallMessageHandler([](
+			QtMsgType type,
+			const QMessageLogContext &context,
+			const QString &message) {
+		if (original) {
+			original(type, context, message);
+		}
+		if (type == QtFatalMsg) {
+			CrashReports::SetAnnotation("QtFatal", message);
+			Unexpected("Qt FATAL message was generated!");
+		}
+	});
+}
+
 Qt::HANDLE ReportingThreadId = nullptr;
 bool ReportingHeaderWritten = false;
 QMutex ReportingMutex;
@@ -174,8 +190,7 @@ void SignalHandler(int signum) {
 			ProcessAnnotations[i.first] = wrapped;
 		}
 
-		const Annotations c_ProcessAnnotations(ProcessAnnotations);
-		for (const auto &i : c_ProcessAnnotations) {
+		for (const auto &i : ProcessAnnotations) {
 			dump() << i.first.c_str() << ": " << i.second.c_str() << "\n";
 		}
 		psWriteDump();
@@ -260,9 +275,7 @@ void SignalHandler(int signum) {
 	backtrace_symbols_fd(addresses, size, ReportFileNo);
 
 #else // Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
-	dump() << "\nBacktrace:\n";
-
-	psWriteStackTrace();
+	dump() << "\nBacktrace omitted.\n";
 #endif // else for Q_OS_MAC || Q_OS_LINUX32 || Q_OS_LINUX64
 
 	dump() << "\n";
@@ -453,6 +466,7 @@ Status Restart() {
 		}
 
 		InstallOperatorNewHandler();
+		InstallQtMessageHandler();
 
 		return Started;
 	}

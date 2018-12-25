@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text_options.h"
 
-#include "styles/style_window.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "styles/style_history.h"
+#include "styles/style_window.h"
 
 namespace Ui {
 namespace {

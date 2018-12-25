@@ -199,8 +199,8 @@ private:
 	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
 
-	QPoint mapPointToItem(QPoint p, const Element *view);
-	QPoint mapPointToItem(QPoint p, const HistoryItem *item);
+	QPoint mapPointToItem(QPoint p, const Element *view) const;
+	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 	void cancelContextDownload(not_null<DocumentData*> document);

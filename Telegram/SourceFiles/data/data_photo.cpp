@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "mainwidget.h"
-#include "history/history_media_types.h"
 #include "auth_session.h"
 #include "messenger.h"
 

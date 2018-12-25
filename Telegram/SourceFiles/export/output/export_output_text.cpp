@@ -332,6 +332,9 @@ QByteArray SerializeMessage(
 		} else if (!list.empty()) {
 			push("Values", JoinList(", ", list));
 		}
+	}, [&](const ActionContactSignUp &data) {
+		pushActor();
+		pushAction("Join Telegram");
 	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {
@@ -433,6 +436,19 @@ QByteArray SerializeMessage(
 				? "ID-" + NumberToString(data.receiptMsgId)
 				: QByteArray()) }
 		}));
+	}, [&](const Poll &data) {
+		push("Poll", SerializeKeyValue({
+			{ "Question", data.question },
+			{ "Closed", data.closed ? QByteArray("Yes") : QByteArray() },
+			{ "Votes", NumberToString(data.totalVotes) },
+		}));
+		for (const auto &answer : data.answers) {
+			push("Answer", SerializeKeyValue({
+				{ "Text", answer.text },
+				{ "Votes", NumberToString(answer.votes) },
+				{ "Chosen", answer.my ? QByteArray("Yes") : QByteArray() }
+			}));
+		}
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](std::nullopt_t) {});
