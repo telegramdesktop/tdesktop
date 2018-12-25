@@ -8,6 +8,7 @@ today = ''
 nextLast = False
 nextDate = False
 building = True
+composing = False
 for arg in sys.argv:
     if nextLast:
         lastCommit = arg
@@ -17,8 +18,11 @@ for arg in sys.argv:
         nextDate = False
     elif arg == 'send':
         building = False
+        composing = False
     elif arg == 'from':
         nextLast = True
+        building = False
+        composing = True
     elif arg == 'date':
         nextDate = True
 
@@ -103,60 +107,82 @@ if building:
     print('Finished.')
     finish(0)
 
+if composing:
+    templatePath = scriptPath + '/../../../TelegramPrivate/updates_template.txt'
+    if not os.path.exists(templatePath):
+        print('[ERROR] Template file "' + templatePath + '" not found.')
+        finish(1)
+
+    if not re.match(r'^[a-f0-9]{40}$', lastCommit):
+        print('[ERROR] Wrong last commit: ' + lastCommit)
+        finish(1)
+
+    log = subprocess.check_output(['git', 'log', lastCommit+'..HEAD'])
+    logLines = log.split('\n')
+    firstCommit = ''
+    commits = []
+    for line in logLines:
+        if line.startswith('commit '):
+            commit = line.split(' ')[1]
+            if not len(firstCommit):
+                firstCommit = commit
+            commits.append('')
+        elif line.startswith('    '):
+            stripped = line[4:]
+            if not len(stripped):
+                continue
+            elif not len(commits):
+                print('[ERROR] Bad git log output:')
+                print(log)
+                finish(1)
+            if len(commits[len(commits) - 1]):
+                commits[len(commits) - 1] += '\n' + stripped
+            else:
+                commits[len(commits) - 1] = '- ' + stripped
+    commits.reverse()
+    if not len(commits):
+        print('[ERROR] No commits since last build :(')
+        finish(1)
+
+    changelog = '\n'.join(commits)
+    print('\n\nReady! File: ' + archive + '\nChangelog:\n' + changelog)
+    with open(templatePath, 'r') as template:
+        with open(scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt', 'w') as f:
+            for line in template:
+                if line.startswith('//'):
+                    continue
+                line = line.replace('{path}', scriptPath + '/../../out/Debug/' + outputFolder + '/' + archive)
+                line = line.replace('{caption}', 'TDesktop at ' + today.replace('_', '.') + ':\n\n' + changelog)
+                f.write(line)
+    finish(0)
+
+commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
+if not os.path.exists(commandPath):
+    print('[ERROR] Command file not found.')
+    finish(1)
+
+readingCaption = False
+caption = ''
+with open(commandPath, 'r') as f:
+    for line in f:
+        if readingCaption:
+            caption = caption + line
+        elif line.startswith('caption: '):
+            readingCaption = True
+            caption = line[len('caption: '):]
+            if not caption.startswith('TDesktop at ' + today.replace('_', '.') + ':'):
+                print('[ERROR] Wrong caption start.')
+                finish(1)
+print('\n\nSending! File: ' + archive + '\nChangelog:\n' + caption)
+if len(caption) > 1024:
+    print('[ERROR] Length: ' + str(len(caption)))
+    print('vi ' + commandPath)
+    finish(1)
 
 if not os.path.exists('../out/Debug/' + outputFolder + '/' + archive):
     print('[ERROR] Not built yet.')
     finish(1)
 
-templatePath = scriptPath + '/../../../TelegramPrivate/updates_template.txt'
-if not os.path.exists(templatePath):
-    print('[ERROR] Template file "' + templatePath + '" not found.')
-    finish(1)
-
-if not re.match(r'^[a-f0-9]{40}$', lastCommit):
-    print('[ERROR] Wrong last commit: ' + lastCommit)
-    finish(1)
-
-log = subprocess.check_output(['git', 'log', lastCommit+'..HEAD'])
-logLines = log.split('\n')
-firstCommit = ''
-commits = []
-for line in logLines:
-    if line.startswith('commit '):
-        commit = line.split(' ')[1]
-        if not len(firstCommit):
-            firstCommit = commit
-        commits.append('')
-    elif line.startswith('    '):
-        stripped = line[4:]
-        if not len(stripped):
-            continue
-        elif not len(commits):
-            print('[ERROR] Bad git log output:')
-            print(log)
-            finish(1)
-        if len(commits[len(commits) - 1]):
-            commits[len(commits) - 1] += '\n' + stripped
-        else:
-            commits[len(commits) - 1] = '- ' + stripped
-commits.reverse()
-if not len(commits):
-    print('[ERROR] No commits since last build :(')
-    finish(1)
-
-changelog = '\n'.join(commits)
-print('\n\nReady! File: ' + archive + '\nChangelog:\n' + changelog)
-if len(changelog) > 1024:
-    print('[ERROR] Length: ' + str(len(changelog)))
-    finish(1)
-with open(templatePath, 'r') as template:
-    with open(scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt', 'w') as f:
-        for line in template:
-            if line.startswith('//'):
-                continue
-            line = line.replace('{path}', scriptPath + '/../../out/Debug/' + outputFolder + '/' + archive)
-            line = line.replace('{caption}', 'TDesktop at ' + today.replace('_', '.') + ':\n\n' + changelog)
-            f.write(line)
 subprocess.call(scriptPath + '/../../out/Debug/Telegram.app/Contents/MacOS/Telegram -sendpath interpret://' + scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt', shell=True)
 
 finish(0)
