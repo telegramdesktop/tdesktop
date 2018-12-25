@@ -488,10 +488,6 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 void OpenSystemSettingsForPermission(PermissionType type) {
 }
 
-bool NativeEventNestsLoop(void *message) {
-	return true;
-}
-
 namespace ThirdParty {
 
 void start() {

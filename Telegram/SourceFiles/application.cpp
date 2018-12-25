@@ -390,7 +390,20 @@ void Application::refreshGlobalProxy() {
 
 void Application::postponeCall(FnMut<void()> &&callable) {
 	Expects(callable != nullptr);
-	Expects(_eventNestingLevel > _loopNestingLevel);
+	Expects(_eventNestingLevel >= _loopNestingLevel);
+
+	// _loopNestingLevel == _eventNestingLevel means that we had a
+	// native event in a nesting loop that didn't get a notify() call
+	// after. That means we already have exited the nesting loop and
+	// there must not be any postponed calls with that nesting level.
+	if (_loopNestingLevel == _eventNestingLevel) {
+		Assert(_postponedCalls.empty()
+			|| _postponedCalls.back().loopNestingLevel < _loopNestingLevel);
+		Assert(!_previousLoopNestingLevels.empty());
+
+		_loopNestingLevel = _previousLoopNestingLevels.back();
+		_previousLoopNestingLevels.pop_back();
+	}
 
 	_postponedCalls.push_back({
 		_loopNestingLevel,
@@ -430,8 +443,7 @@ bool Application::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
 		long *result) {
-	if (_eventNestingLevel > _loopNestingLevel
-		&& Platform::NativeEventNestsLoop(message)) {
+	if (_eventNestingLevel > _loopNestingLevel) {
 		_previousLoopNestingLevels.push_back(_loopNestingLevel);
 		_loopNestingLevel = _eventNestingLevel;
 	}

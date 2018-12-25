@@ -332,10 +332,6 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 #endif // OS_MAC_OLD
 }
 
-bool NativeEventNestsLoop(void *message) {
-	return true;
-}
-
 } // namespace Platform
 
 void psNewVersion() {

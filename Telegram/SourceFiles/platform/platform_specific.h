@@ -35,8 +35,6 @@ PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
 void OpenSystemSettingsForPermission(PermissionType type);
 
-bool NativeEventNestsLoop(void *message);
-
 QString SystemLanguage();
 QString SystemCountry();
 
