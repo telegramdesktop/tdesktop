@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kQuestionLimit = 255;
-constexpr auto kMaxOptionsCount = 10;
+constexpr auto kMaxOptionsCount = PollData::kMaxOptions;
 constexpr auto kOptionLimit = 100;
 constexpr auto kWarnQuestionLimit = 80;
 constexpr auto kWarnOptionLimit = 30;

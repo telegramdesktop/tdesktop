@@ -61,6 +61,73 @@ FormattedLargeNumber FormatLargeNumber(int64 number) {
 	return result;
 }
 
+struct PercentCounterItem {
+	int index = 0;
+	int percent = 0;
+	int remainder = 0;
+
+	inline bool operator<(const PercentCounterItem &other) const {
+		if (remainder > other.remainder) {
+			return true;
+		} else if (remainder < other.remainder) {
+			return false;
+		}
+		return percent < other.percent;
+	}
+};
+
+void AdjustPercentCount(gsl::span<PercentCounterItem> items, int left) {
+	ranges::sort(items, std::less<>());
+	for (auto i = 0, count = int(items.size()); i != count;) {
+		const auto &item = items[i];
+		auto j = i + 1;
+		for (; j != count; ++j) {
+			if (items[j].percent != item.percent
+				|| items[j].remainder != item.remainder) {
+				break;
+			}
+		}
+		const auto equal = j - i;
+		if (equal <= left) {
+			left -= equal;
+			for (; i != j; ++i) {
+				++items[i].percent;
+			}
+		} else {
+			i = j;
+		}
+	}
+}
+
+void CountNicePercent(
+		gsl::span<const int> votes,
+		int total,
+		gsl::span<int> result) {
+	Expects(result.size() >= votes.size());
+	Expects(votes.size() <= PollData::kMaxOptions);
+
+	const auto count = size_type(votes.size());
+	PercentCounterItem ItemsStorage[PollData::kMaxOptions];
+	const auto items = gsl::make_span(ItemsStorage).subspan(0, count);
+	auto left = 100;
+	auto &&zipped = ranges::view::zip(
+		votes,
+		items,
+		ranges::view::ints(0));
+	for (auto &&[votes, item, index] : zipped) {
+		item.index = index;
+		item.percent = (votes * 100) / total;
+		item.remainder = (votes * 100) - (item.percent * total);
+		left -= item.percent;
+	}
+	if (left > 0 && left <= count) {
+		AdjustPercentCount(items, left);
+	}
+	for (const auto &item : items) {
+		result[item.index] = item.percent;
+	}
+}
+
 } // namespace
 
 struct HistoryPoll::AnswerAnimation {
@@ -90,11 +157,12 @@ struct HistoryPoll::Answer {
 
 	Text text;
 	QByteArray option;
-	mutable int votes = 0;
-	mutable int votesPercentWidth = 0;
-	mutable float64 filling = 0.;
-	mutable QString votesPercent;
-	mutable bool chosen = false;
+	int votes = 0;
+	int votesPercent = 0;
+	int votesPercentWidth = 0;
+	float64 filling = 0.;
+	QString votesPercentString;
+	bool chosen = false;
 	ClickHandlerPtr handler;
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
@@ -247,14 +315,18 @@ void HistoryPoll::updateTexts() {
 
 	const auto willStartAnimation = checkAnimationStart();
 
-	_closed = _poll->closed;
-	_question.setText(
-		st::historyPollQuestionStyle,
-		_poll->question,
-		Ui::WebpageTextTitleOptions());
-	_subtitle.setText(
-		st::msgDateTextStyle,
-		lang(_closed ? lng_polls_closed : lng_polls_anonymous));
+	if (_question.originalText() != _poll->question) {
+		_question.setText(
+			st::historyPollQuestionStyle,
+			_poll->question,
+			Ui::WebpageTextTitleOptions());
+	}
+	if (_closed != _poll->closed || _subtitle.isEmpty()) {
+		_closed = _poll->closed;
+		_subtitle.setText(
+			st::msgDateTextStyle,
+			lang(_closed ? lng_polls_closed : lng_polls_anonymous));
+	}
 
 	updateAnswers();
 	updateVotes();
@@ -303,19 +375,13 @@ ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
 	});
 }
 
-void HistoryPoll::updateVotes() const {
+void HistoryPoll::updateVotes() {
 	_voted = _poll->voted();
 	updateAnswerVotes();
 	updateTotalVotes();
 }
 
-void HistoryPoll::updateVotesCheckAnimations() const {
-	const auto willStartAnimation = checkAnimationStart();
-	updateVotes();
-	if (willStartAnimation) {
-		startAnswersAnimation();
-	}
-
+void HistoryPoll::checkSendingAnimation() const {
 	const auto &sending = _poll->sendingVote;
 	if (sending.isEmpty() == !_sendingAnimation) {
 		if (_sendingAnimation) {
@@ -337,7 +403,7 @@ void HistoryPoll::updateVotesCheckAnimations() const {
 	_sendingAnimation->animation.start();
 }
 
-void HistoryPoll::updateTotalVotes() const {
+void HistoryPoll::updateTotalVotes() {
 	if (_totalVotes == _poll->totalVoters && !_totalVotesLabel.isEmpty()) {
 		return;
 	}
@@ -357,26 +423,26 @@ void HistoryPoll::updateTotalVotes() const {
 }
 
 void HistoryPoll::updateAnswerVotesFromOriginal(
-		const Answer &answer,
+		Answer &answer,
 		const PollAnswer &original,
-		int totalVotes,
-		int maxVotes) const {
+		int percent,
+		int maxVotes) {
 	if (canVote()) {
-		answer.votesPercent.clear();
-	} else if (answer.votes != original.votes
-		|| answer.votesPercent.isEmpty()
-		|| std::max(_totalVotes, 1) != totalVotes) {
-		const auto percent = int(std::round(
-			original.votes * 100. / totalVotes));
-		answer.votesPercent = QString::number(percent) + '%';
+		answer.votesPercent = 0;
+		answer.votesPercentString.clear();
+		answer.votesPercentWidth = 0;
+	} else if (answer.votesPercentString.isEmpty()
+		|| answer.votesPercent != percent) {
+		answer.votesPercent = percent;
+		answer.votesPercentString = QString::number(percent) + '%';
 		answer.votesPercentWidth = st::historyPollPercentFont->width(
-			answer.votesPercent);
+			answer.votesPercentString);
 	}
 	answer.votes = original.votes;
 	answer.filling = answer.votes / float64(maxVotes);
 }
 
-void HistoryPoll::updateAnswerVotes() const {
+void HistoryPoll::updateAnswerVotes() {
 	if (_poll->answers.size() != _answers.size()
 		|| _poll->answers.empty()) {
 		return;
@@ -386,12 +452,33 @@ void HistoryPoll::updateAnswerVotes() const {
 		_poll->answers,
 		ranges::less(),
 		&PollAnswer::votes)->votes);
-	auto &&answers = ranges::view::zip(_answers, _poll->answers);
-	for (auto &&[answer, original] : answers) {
+
+	constexpr auto kMaxCount = PollData::kMaxOptions;
+	const auto count = size_type(_poll->answers.size());
+	Assert(count <= kMaxCount);
+	int PercentsStorage[kMaxCount] = { 0 };
+	int VotesStorage[kMaxCount] = { 0 };
+
+	ranges::copy(
+		ranges::view::all(
+			_poll->answers
+		) | ranges::view::transform(&PollAnswer::votes),
+		ranges::begin(VotesStorage));
+
+	CountNicePercent(
+		gsl::make_span(VotesStorage).subspan(0, count),
+		totalVotes,
+		gsl::make_span(PercentsStorage).subspan(0, count));
+
+	auto &&answers = ranges::view::zip(
+		_answers,
+		_poll->answers,
+		PercentsStorage);
+	for (auto &&[answer, original, percent] : answers) {
 		updateAnswerVotesFromOriginal(
 			answer,
 			original,
-			totalVotes,
+			percent,
 			maxVotes);
 	}
 }
@@ -400,7 +487,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 
-	updateVotesCheckAnimations();
+	checkSendingAnimation();
 	_poll->checkResultsReload(_parent->data(), ms);
 
 	const auto outbg = _parent->hasOutLayout();
@@ -542,7 +629,7 @@ int HistoryPoll::paintAnswer(
 	} else {
 		paintPercent(
 			p,
-			answer.votesPercent,
+			answer.votesPercentString,
 			answer.votesPercentWidth,
 			left,
 			top,
@@ -682,9 +769,7 @@ void HistoryPoll::saveStateInAnimation() const {
 	_answersAnimation->data.reserve(_answers.size());
 	const auto convert = [&](const Answer &answer) {
 		auto result = AnswerAnimation();
-		result.percent = can
-			? 0.
-			: (answer.votes * 100. / std::max(_totalVotes, 1));
+		result.percent = can ? 0. : float64(answer.votesPercent);
 		result.filling = can ? 0. : answer.filling;
 		result.opacity = can ? 0. : 1.;
 		return result;
@@ -716,9 +801,7 @@ void HistoryPoll::startAnswersAnimation() const {
 	const auto can = canVote();
 	auto &&both = ranges::view::zip(_answers, _answersAnimation->data);
 	for (auto &&[answer, data] : both) {
-		data.percent.start(can
-			? 0.
-			: answer.votes * 100. / std::max(_totalVotes, 1));
+		data.percent.start(can ? 0. : float64(answer.votesPercent));
 		data.filling.start(can ? 0. : answer.filling);
 		data.opacity.start(can ? 0. : 1.);
 	}

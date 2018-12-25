@@ -1523,7 +1523,7 @@ not_null<PollData*> Session::poll(const MTPDmessageMediaPoll &data) {
 	const auto result = poll(data.vpoll);
 	const auto changed = result->applyResults(data.vresults);
 	if (changed) {
-		requestPollViewRepaint(result);
+		notifyPollUpdateDelayed(result);
 	}
 	return result;
 }
@@ -1538,7 +1538,7 @@ void Session::applyPollUpdate(const MTPDupdateMessagePoll &update) {
 			: i->second.get();
 	}();
 	if (updated && updated->applyResults(update.vresults)) {
-		requestPollViewRepaint(updated);
+		notifyPollUpdateDelayed(updated);
 	}
 }
 

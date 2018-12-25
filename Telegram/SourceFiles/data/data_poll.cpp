@@ -51,7 +51,9 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 			result.text = qs(answer.vtext);
 			return result;
 		});
-	}) | ranges::to_vector;
+	}) | ranges::view::take(
+		kMaxOptions
+	) | ranges::to_vector;
 
 	const auto changed1 = (question != newQuestion)
 		|| (closed != newClosed);
@@ -78,6 +80,8 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 
 bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
+		lastResultsUpdate = getms();
+
 		const auto newTotalVoters = results.has_total_voters()
 			? results.vtotal_voters.v
 			: totalVoters;
@@ -89,8 +93,11 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				}
 			}
 		}
+		if (!changed) {
+			return false;
+		}
 		totalVoters = newTotalVoters;
-		lastResultsUpdate = getms();
+		++version;
 		return changed;
 	});
 }

@@ -61,15 +61,15 @@ private:
 		const Answer &answer) const;
 	void updateTexts();
 	void updateAnswers();
-	void updateVotes() const;
-	void updateTotalVotes() const;
-	void updateAnswerVotes() const;
+	void updateVotes();
+	void updateTotalVotes();
+	void updateAnswerVotes();
 	void updateAnswerVotesFromOriginal(
-		const Answer &answer,
+		Answer &answer,
 		const PollAnswer &original,
-		int totalVotes,
-		int maxVotes) const;
-	void updateVotesCheckAnimations() const;
+		int percent,
+		int maxVotes);
+	void checkSendingAnimation() const;
 
 	int paintAnswer(
 		Painter &p,
@@ -115,14 +115,14 @@ private:
 
 	not_null<PollData*> _poll;
 	int _pollVersion = 0;
-	mutable int _totalVotes = 0;
-	mutable bool _voted = false;
+	int _totalVotes = 0;
+	bool _voted = false;
 	bool _closed = false;
 
 	Text _question;
 	Text _subtitle;
 	std::vector<Answer> _answers;
-	mutable Text _totalVotesLabel;
+	Text _totalVotesLabel;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;

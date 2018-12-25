@@ -45,6 +45,8 @@ struct PollData {
 
 	int version = 0;
 
+	static constexpr auto kMaxOptions = 10;
+
 private:
 	bool applyResultToAnswers(
 		const MTPPollAnswerVoters &result,
