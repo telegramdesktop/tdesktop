@@ -174,7 +174,8 @@ void Call::start(bytes::const_span random) {
 		} else {
 			startIncoming();
 		}
-	} else if (_state == State::ExchangingKeys && _answerAfterDhConfigReceived) {
+	} else if (_state == State::ExchangingKeys
+		&& _answerAfterDhConfigReceived) {
 		answer();
 	}
 }
@@ -409,7 +410,9 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		if (data.vid.v != _id) {
 			return false;
 		}
-		if (_type == Type::Incoming && _state == State::ExchangingKeys) {
+		if (_type == Type::Incoming
+			&& _state == State::ExchangingKeys
+			&& !_controller) {
 			startConfirmedCall(data);
 		}
 	} return true;
