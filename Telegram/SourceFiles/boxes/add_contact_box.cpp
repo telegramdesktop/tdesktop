@@ -1359,7 +1359,8 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : 
 
 	resize(width(), 5 * _rowHeight);
 
-	request(MTPchannels_GetAdminedPublicChannels()).done([this](const MTPmessages_Chats &result) {
+	request(MTPchannels_GetAdminedPublicChannels(
+	)).done([=](const MTPmessages_Chats &result) {
 		if (auto chats = Api::getChatsFromMessagesChats(result)) {
 			for_const (auto &chat, chats->v) {
 				if (auto peer = App::feedChat(chat)) {
@@ -1387,23 +1388,30 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : 
 	}).send();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, Fn<void()> revokeCallback)
-: _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
+RevokePublicLinkBox::RevokePublicLinkBox(
+	QWidget*,
+	Fn<void()> revokeCallback)
+: _aboutRevoke(
+	this,
+	lang(lng_channels_too_much_public_about),
+	Ui::FlatLabel::InitType::Simple,
+	st::aboutRevokePublicLabel)
 , _revokeCallback(std::move(revokeCallback)) {
 }
 
 void RevokePublicLinkBox::prepare() {
 	_innerTop = st::boxPadding.top() + _aboutRevoke->height() + st::boxPadding.top();
-	_inner = setInnerWidget(object_ptr<Inner>(this, [this] {
+	_inner = setInnerWidget(object_ptr<Inner>(this, [=] {
+		const auto callback = _revokeCallback;
 		closeBox();
-		if (_revokeCallback) {
-			_revokeCallback();
+		if (callback) {
+			callback();
 		}
 	}), st::boxLayerScroll, _innerTop);
 
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 
 	_inner->resizeToWidth(st::boxWideWidth);
 	setDimensions(st::boxWideWidth, _innerTop + _inner->height());
@@ -1448,12 +1456,16 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		auto confirmText = lang(lng_channels_too_much_public_revoke);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
 			if (_revokeRequestId) return;
-			_revokeRequestId = request(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string(""))).done([this](const MTPBool &result) {
+			_revokeRequestId = request(MTPchannels_UpdateUsername(
+				pressed->asChannel()->inputChannel,
+				MTP_string("")
+			)).done([=](const MTPBool &result) {
+				const auto callback = _revokeCallback;
 				if (_weakRevokeConfirmBox) {
 					_weakRevokeConfirmBox->closeBox();
 				}
-				if (_revokeCallback) {
-					_revokeCallback();
+				if (callback) {
+					callback();
 				}
 			}).send();
 		})), LayerOption::KeepOther);
