@@ -434,6 +434,9 @@ void CloudManager::requestLanguageAndSwitch(
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
 		Ui::show(Box<InformBox>(lang(lng_language_already)));
 		return;
+	} else if (id == qstr("#custom")) {
+		performSwitchToCustom();
+		return;
 	}
 
 	request(_switchingToLanguageRequest).cancel();
