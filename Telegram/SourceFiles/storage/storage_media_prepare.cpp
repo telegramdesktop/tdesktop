@@ -311,6 +311,16 @@ void PreparedList::mergeToEnd(PreparedList &&other) {
 	}
 }
 
+bool PreparedList::canAddCaption(bool isAlbum, bool compressImages) const {
+	const auto isSticker = [&] {
+		if (files.empty() || compressImages) {
+			return false;
+		}
+		return (files.front().mime == qstr("image/webp"));
+	};
+	return isAlbum || (files.size() == 1 && !isSticker());
+}
+
 int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }

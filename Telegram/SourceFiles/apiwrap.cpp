@@ -4302,14 +4302,10 @@ void ApiWrap::sendFiles(
 		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendOptions &options) {
-	const auto isSticker = [&] {
-		if (list.files.empty() || type != SendMediaType::File) {
-			return false;
-		}
-		return list.files.front().mime == qstr("image/webp");
-	};
-	if ((list.files.size() > 1 || isSticker())
-		&& !caption.text.isEmpty() && !album) {
+	const auto haveCaption = !caption.text.isEmpty();
+	const auto isAlbum = (album != nullptr);
+	const auto compressImages = (type == SendMediaType::Photo);
+	if (haveCaption && !list.canAddCaption(isAlbum, compressImages)) {
 		auto message = MessageToSend(options.history);
 		message.textWithTags = std::move(caption);
 		message.replyTo = options.replyTo;

@@ -896,10 +896,14 @@ rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
 	return rpl::single(st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
-Fn<QString()> FieldPlaceholder(const Storage::PreparedList &list) {
-	return langFactory(list.files.size() > 1
-		? lng_photos_comment
-		: lng_photo_caption);
+Fn<QString()> FieldPlaceholder(
+		const Storage::PreparedList &list,
+		SendFilesWay way) {
+	const auto isAlbum = (way == SendFilesWay::Album);
+	const auto compressImages = (way != SendFilesWay::Files);
+	return langFactory(list.canAddCaption(isAlbum, compressImages)
+		? lng_photo_caption
+		: lng_photos_comment);
 }
 
 } // namespace
@@ -1339,7 +1343,7 @@ SendFilesBox::SendFilesBox(
 	this,
 	st::confirmCaptionArea,
 	Ui::InputField::Mode::MultiLine,
-	FieldPlaceholder(_list),
+	nullptr,
 	caption) {
 }
 
@@ -1433,8 +1437,8 @@ void SendFilesBox::setupShadows(
 void SendFilesBox::prepare() {
 	_send = addButton(langFactory(lng_send_button), [this] { send(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
-	setupCaption();
 	initSendWay();
+	setupCaption();
 	preparePreview();
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_confirmed && _cancelledCallback) {
@@ -1469,12 +1473,17 @@ void SendFilesBox::initSendWay() {
 	}();
 	_sendWay = std::make_shared<Ui::RadioenumGroup<SendFilesWay>>(value);
 	_sendWay->setChangedCallback([this](SendFilesWay value) {
+		updateCaptionPlaceholder();
 		applyAlbumOrder();
 		if (_albumPreview) {
 			_albumPreview->setSendWay(value);
 		}
 		setInnerFocus();
 	});
+}
+
+void SendFilesBox::updateCaptionPlaceholder() {
+	_caption->setPlaceholder(FieldPlaceholder(_list, _sendWay->value()));
 }
 
 void SendFilesBox::refreshAlbumMediaCount() {
@@ -1505,7 +1514,6 @@ void SendFilesBox::preparePreview() {
 void SendFilesBox::setupControls() {
 	setupTitleText();
 	setupSendWayControls();
-	_caption->setPlaceholder(FieldPlaceholder(_list));
 }
 
 void SendFilesBox::setupSendWayControls() {
@@ -1593,6 +1601,7 @@ void SendFilesBox::setupCaption() {
 		getDelegate()->outerContainer(),
 		_caption);
 
+	updateCaptionPlaceholder();
 	setupEmojiPanel();
 }
 

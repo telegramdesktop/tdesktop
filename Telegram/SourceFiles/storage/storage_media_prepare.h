@@ -61,6 +61,8 @@ struct PreparedList {
 		std::vector<int> order);
 	void mergeToEnd(PreparedList &&other);
 
+	bool canAddCaption(bool isAlbum, bool compressImages) const;
+
 	Error error = Error::None;
 	QString errorData;
 	std::vector<PreparedFile> files;

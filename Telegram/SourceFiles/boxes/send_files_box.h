@@ -101,6 +101,7 @@ private:
 	void setupTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
+	void updateCaptionPlaceholder();
 
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool canAddUrls(const QList<QUrl> &urls) const;
