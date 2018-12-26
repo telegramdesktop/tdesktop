@@ -1064,25 +1064,19 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		using namespace Data::AutoDownload;
 		auto &settings = GetStoredAuthSessionCache().autoDownload();
-		const auto limit = [](qint32 value, qint32 mask) {
-			constexpr auto kLegacyLimit = 10 * 1024 * 1024;
-			return (value & mask) ? 0 : kLegacyLimit;
+		const auto disabled = [](qint32 value, qint32 mask) {
+			return (value & mask) != 0;
 		};
 		const auto set = [&](Type type, qint32 value) {
 			constexpr auto kNoPrivate = qint32(0x01);
 			constexpr auto kNoGroups = qint32(0x02);
-			settings.setBytesLimit(
-				Source::User,
-				type,
-				limit(value, kNoPrivate));
-			settings.setBytesLimit(
-				Source::Group,
-				type,
-				limit(value, kNoGroups));
-			settings.setBytesLimit(
-				Source::Channel,
-				type,
-				limit(value, kNoGroups));
+			if (disabled(value, kNoPrivate)) {
+				settings.setBytesLimit(Source::User, type, 0);
+			}
+			if (disabled(value, kNoGroups)) {
+				settings.setBytesLimit(Source::Group, type, 0);
+				settings.setBytesLimit(Source::Channel, type, 0);
+			}
 		};
 		set(Type::Photo, photo);
 		set(Type::VoiceMessage, audio);

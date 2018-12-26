@@ -43,8 +43,6 @@ void AutoDownloadBox::setupContent() {
 	using namespace rpl::mappers;
 	using Type = Data::AutoDownload::Type;
 
-	constexpr auto kLegacyLimit = 10 * 1024 * 1024;
-
 	setTitle(langFactory(lng_media_auto_title));
 
 	const auto settings = &Auth().settings().autoDownload();
