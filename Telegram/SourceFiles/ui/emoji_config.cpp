@@ -124,12 +124,6 @@ bool IsValidSetId(int id) {
 	return (id == 0) || (id > 0 && id < kMaxId);
 }
 
-[[nodiscard]] QString SetDataPath(int id) {
-	Expects(IsValidSetId(id) && id != 0);
-
-	return CacheFileFolder() + "/set" + QString::number(id);
-}
-
 uint32 ComputeVersion(int id) {
 	Expects(IsValidSetId(id));
 
@@ -166,7 +160,7 @@ void ClearCurrentSetId() {
 	if (!id) {
 		return;
 	}
-	QDir(SetDataPath(id)).removeRecursively();
+	QDir(internal::SetDataPath(id)).removeRecursively();
 	SwitchToSet(0);
 }
 
@@ -275,7 +269,7 @@ std::vector<QImage> LoadSprites(int id) {
 
 	auto result = std::vector<QImage>();
 	const auto folder = (id != 0)
-		? SetDataPath(id) + '/'
+		? internal::SetDataPath(id) + '/'
 		: qsl(":/gui/emoji/");
 	const auto base = folder + "emoji_";
 	return ranges::view::ints(
@@ -295,7 +289,7 @@ bool ValidateConfig(int id) {
 		return true;
 	}
 	constexpr auto kSizeLimit = 65536;
-	auto config = QFile(SetDataPath(id) + "/config.json");
+	auto config = QFile(internal::SetDataPath(id) + "/config.json");
 	if (!config.open(QIODevice::ReadOnly) || config.size() > kSizeLimit) {
 		return false;
 	}
@@ -473,6 +467,16 @@ void ClearUniversalChecked() {
 
 } // namespace
 
+namespace internal {
+
+QString SetDataPath(int id) {
+	Expects(IsValidSetId(id) && id != 0);
+
+	return CacheFileFolder() + "/set" + QString::number(id);
+}
+
+} // namespace internal
+
 void Init() {
 	internal::Init();
 
@@ -558,7 +562,7 @@ bool SetIsReady(int id) {
 	if (!id) {
 		return true;
 	}
-	const auto folder = SetDataPath(id) + '/';
+	const auto folder = internal::SetDataPath(id) + '/';
 	auto names = ranges::view::ints(
 		0,
 		SpritesCount + 1

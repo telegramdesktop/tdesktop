@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "storage/localstorage.h"
 #include "messenger.h"
-#include "mtproto/session.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
 #include "info/info_memento.h"
@@ -39,8 +38,6 @@ namespace {
 
 constexpr auto kUpdaterTimeout = 10 * TimeMs(1000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
-constexpr auto kMaxUpdateSize = 256 * 1024 * 1024;
-constexpr auto kChunkSize = 128 * 1024;
 
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
 bool UpdaterIsDisabled = true;
@@ -64,52 +61,7 @@ using VersionInt = int;
 using VersionChar = wchar_t;
 #endif // Q_OS_WIN
 
-class Loader : public base::has_weak_ptr {
-public:
-	Loader(const QString &filename, int chunkSize);
-
-	void start();
-
-	int alreadySize() const;
-	int totalSize() const;
-
-	rpl::producer<Progress> progress() const;
-	rpl::producer<QString> ready() const;
-	rpl::producer<> failed() const;
-
-	rpl::lifetime &lifetime();
-
-	virtual ~Loader() = default;
-
-protected:
-	bool startOutput();
-	void threadSafeFailed();
-
-	// Single threaded.
-	void writeChunk(bytes::const_span data, int totalSize);
-
-private:
-	virtual void startLoading() = 0;
-
-	bool validateOutput();
-	void threadSafeProgress(Progress progress);
-	void threadSafeReady();
-
-	QString _filename;
-	QString _filepath;
-	int _chunkSize = 0;
-
-	QFile _output;
-	int _alreadySize = 0;
-	int _totalSize = 0;
-	mutable QMutex _sizesMutex;
-	rpl::event_stream<Progress> _progress;
-	rpl::event_stream<QString> _ready;
-	rpl::event_stream<> _failed;
-
-	rpl::lifetime _lifetime;
-
-};
+using Loader = MTP::AbstractDedicatedLoader;
 
 class Checker : public base::has_weak_ptr {
 public:
@@ -212,31 +164,6 @@ private:
 
 };
 
-class MtpWeak : private QObject, private base::Subscriber {
-public:
-	MtpWeak(QPointer<MTP::Instance> instance);
-
-	template <typename T>
-	void send(
-		const T &request,
-		Fn<void(const typename T::ResponseType &result)> done,
-		Fn<void(const RPCError &error)> fail,
-		MTP::ShiftedDcId dcId = 0);
-
-	bool valid() const;
-	QPointer<MTP::Instance> instance() const;
-
-	~MtpWeak();
-
-private:
-	void die();
-	bool removeRequest(mtpRequestId requestId);
-
-	QPointer<MTP::Instance> _instance;
-	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
-
-};
-
 class MtpChecker : public Checker {
 public:
 	MtpChecker(QPointer<MTP::Instance> instance, bool testing);
@@ -244,23 +171,11 @@ public:
 	void start() override;
 
 private:
-	struct FileLocation {
-		QString username;
-		int32 postId = 0;
-	};
-	struct ParsedFile {
-		QString name;
-		int32 size = 0;
-		MTP::DcId dcId = 0;
-		MTPInputFileLocation location;
-	};
+	using FileLocation = MTP::DedicatedLoader::Location;
 
 	using Checker::fail;
 	Fn<void(const RPCError &error)> failHandler();
 
-	void resolveChannel(
-		const QString &username,
-		Fn<void(const MTPInputChannel &channel)> callback);
 	void gotMessage(const MTPmessages_Messages &result);
 	std::optional<FileLocation> parseMessage(
 		const MTPmessages_Messages &result) const;
@@ -268,42 +183,8 @@ private:
 	FileLocation validateLatestLocation(
 		uint64 availableVersion,
 		const FileLocation &location) const;
-	void gotFile(const MTPmessages_Messages &result);
-	std::optional<ParsedFile> parseFile(
-		const MTPmessages_Messages &result) const;
 
-	MtpWeak _mtp;
-
-};
-
-class MtpLoader : public Loader {
-public:
-	MtpLoader(
-		QPointer<MTP::Instance> instance,
-		const QString &name,
-		int32 size,
-		MTP::DcId dcId,
-		const MTPInputFileLocation &location);
-
-private:
-	struct Request {
-		int offset = 0;
-		QByteArray bytes;
-	};
-	void startLoading() override;
-	void sendRequest();
-	void gotPart(int offset, const MTPupload_File &result);
-	Fn<void(const RPCError &)> failHandler();
-
-	static constexpr auto kRequestsCount = 2;
-	static constexpr auto kNextRequestDelay = TimeMs(20);
-
-	std::deque<Request> _requests;
-	int32 _size = 0;
-	int _offset = 0;
-	MTP::DcId _dcId = 0;
-	MTPInputFileLocation _location;
-	MtpWeak _mtp;
+	MTP::WeakInstance _mtp;
 
 };
 
@@ -316,12 +197,16 @@ std::shared_ptr<Updater> GetUpdaterInstance() {
 	return result;
 }
 
+QString UpdatesFolder() {
+	return cWorkingDir() + qsl("tupdates");
+}
+
 void ClearAll() {
-	psDeleteDir(cWorkingDir() + qsl("tupdates"));
+	psDeleteDir(UpdatesFolder());
 }
 
 QString FindUpdateFile() {
-	QDir updates(cWorkingDir() + "tupdates");
+	QDir updates(UpdatesFolder());
 	if (!updates.exists()) {
 		return QString();
 	}
@@ -594,24 +479,6 @@ bool UnpackUpdate(const QString &filepath) {
 	return true;
 }
 
-std::optional<MTPInputChannel> ExtractChannel(
-		const MTPcontacts_ResolvedPeer &result) {
-	const auto &data = result.c_contacts_resolvedPeer();
-	if (const auto peer = peerFromMTP(data.vpeer)) {
-		for (const auto &chat : data.vchats.v) {
-			if (chat.type() == mtpc_channel) {
-				const auto &channel = chat.c_channel();
-				if (peer == peerFromChannel(channel.vid)) {
-					return MTP_inputChannel(
-						channel.vid,
-						channel.vaccess_hash);
-				}
-			}
-		}
-	}
-	return std::nullopt;
-}
-
 template <typename Callback>
 bool ParseCommonMap(
 		const QByteArray &json,
@@ -712,156 +579,6 @@ bool ParseCommonMap(
 		return false;
 	}
 	return true;
-}
-
-std::optional<MTPMessage> GetMessagesElement(
-		const MTPmessages_Messages &list) {
-	const auto get = [](auto &&data) -> std::optional<MTPMessage> {
-		return data.vmessages.v.isEmpty()
-			? std::nullopt
-			: base::make_optional(data.vmessages.v[0]);
-	};
-	switch (list.type()) {
-	case mtpc_messages_messages:
-		return get(list.c_messages_messages());
-	case mtpc_messages_messagesSlice:
-		return get(list.c_messages_messagesSlice());
-	case mtpc_messages_channelMessages:
-		return get(list.c_messages_channelMessages());
-	case mtpc_messages_messagesNotModified:
-		return std::nullopt;
-	default: Unexpected("Type of messages.Messages (GetMessagesElement)");
-	}
-}
-
-Loader::Loader(const QString &filename, int chunkSize)
-: _filename(filename)
-, _chunkSize(chunkSize) {
-}
-
-void Loader::start() {
-	if (!validateOutput()
-		|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
-		QFile(_filepath).remove();
-		threadSafeFailed();
-		return;
-	}
-
-	LOG(("Update Info: Starting loading '%1' from %2 offset."
-		).arg(_filename
-		).arg(alreadySize()));
-	startLoading();
-}
-
-int Loader::alreadySize() const {
-	QMutexLocker lock(&_sizesMutex);
-	return _alreadySize;
-}
-
-int Loader::totalSize() const {
-	QMutexLocker lock(&_sizesMutex);
-	return _totalSize;
-}
-
-rpl::producer<QString> Loader::ready() const {
-	return _ready.events();
-}
-
-rpl::producer<Progress> Loader::progress() const {
-	return _progress.events();
-}
-
-rpl::producer<> Loader::failed() const {
-	return _failed.events();
-}
-
-bool Loader::validateOutput() {
-	if (_filename.isEmpty()) {
-		return false;
-	}
-	const auto folder = cWorkingDir() + qsl("tupdates/");
-	_filepath = folder + _filename;
-
-	QFileInfo info(_filepath);
-	QDir dir(folder);
-	if (dir.exists()) {
-		const auto all = dir.entryInfoList(QDir::Files);
-		for (auto i = all.begin(), e = all.end(); i != e; ++i) {
-			if (i->absoluteFilePath() != info.absoluteFilePath()) {
-				QFile::remove(i->absoluteFilePath());
-			}
-		}
-	} else {
-		dir.mkdir(dir.absolutePath());
-	}
-	_output.setFileName(_filepath);
-
-	if (!info.exists()) {
-		return true;
-	}
-	const auto fullSize = info.size();
-	if (fullSize < _chunkSize || fullSize > kMaxUpdateSize) {
-		return _output.remove();
-	}
-	const auto goodSize = int((fullSize % _chunkSize)
-		? (fullSize - (fullSize % _chunkSize))
-		: fullSize);
-	if (_output.resize(goodSize)) {
-		_alreadySize = goodSize;
-		return true;
-	}
-	return false;
-}
-
-void Loader::threadSafeProgress(Progress progress) {
-	crl::on_main(this, [=] {
-		_progress.fire_copy(progress);
-	});
-}
-
-void Loader::threadSafeReady() {
-	crl::on_main(this, [=] {
-		_ready.fire_copy(_filepath);
-	});
-}
-
-void Loader::threadSafeFailed() {
-	crl::on_main(this, [=] {
-		_failed.fire({});
-	});
-}
-
-void Loader::writeChunk(bytes::const_span data, int totalSize) {
-	const auto size = data.size();
-	if (size > 0) {
-		const auto written = _output.write(QByteArray::fromRawData(
-			reinterpret_cast<const char*>(data.data()),
-			size));
-		if (written != size) {
-			threadSafeFailed();
-			return;
-		}
-	}
-
-	const auto progress = [&] {
-		QMutexLocker lock(&_sizesMutex);
-		if (!_totalSize) {
-			_totalSize = totalSize;
-		}
-		_alreadySize += size;
-		return Progress { _alreadySize, _totalSize };
-	}();
-
-	if (progress.size > 0 && progress.already >= progress.size) {
-		_output.close();
-		threadSafeReady();
-	} else {
-		threadSafeProgress(progress);
-	}
-}
-
-rpl::lifetime &Loader::lifetime() {
-	return _lifetime;
 }
 
 Checker::Checker(bool testing) : _testing(testing) {
@@ -1037,7 +754,7 @@ HttpChecker::~HttpChecker() {
 }
 
 HttpLoader::HttpLoader(const QString &url)
-: Loader(ExtractFilename(url), kChunkSize)
+: Loader(UpdatesFolder() + '/' + ExtractFilename(url), kChunkSize)
 , _url(url) {
 }
 
@@ -1159,96 +876,6 @@ void HttpLoaderActor::partFailed(QNetworkReply::NetworkError e) {
 	_parent->threadSafeFailed();
 }
 
-MtpWeak::MtpWeak(QPointer<MTP::Instance> instance)
-: _instance(instance) {
-	if (!valid()) {
-		return;
-	}
-
-	connect(_instance, &QObject::destroyed, this, [=] {
-		_instance = nullptr;
-		die();
-	});
-	subscribe(Messenger::Instance().authSessionChanged(), [=] {
-		if (!AuthSession::Exists()) {
-			die();
-		}
-	});
-}
-
-bool MtpWeak::valid() const {
-	return (_instance != nullptr) && AuthSession::Exists();
-}
-
-QPointer<MTP::Instance> MtpWeak::instance() const {
-	return _instance;
-}
-
-void MtpWeak::die() {
-	const auto instance = _instance.data();
-	for (const auto &[requestId, fail] : base::take(_requests)) {
-		if (instance) {
-			instance->cancel(requestId);
-		}
-		fail(MTP::internal::rpcClientError("UNAVAILABLE"));
-	}
-}
-
-template <typename T>
-void MtpWeak::send(
-		const T &request,
-		Fn<void(const typename T::ResponseType &result)> done,
-		Fn<void(const RPCError &error)> fail,
-		MTP::ShiftedDcId dcId) {
-	using Response = typename T::ResponseType;
-	if (!valid()) {
-		InvokeQueued(this, [=] {
-			fail(MTP::internal::rpcClientError("UNAVAILABLE"));
-		});
-		return;
-	}
-	const auto onDone = crl::guard((QObject*)this, [=](
-			const Response &result,
-			mtpRequestId requestId) {
-		if (removeRequest(requestId)) {
-			done(result);
-		}
-	});
-	const auto onFail = crl::guard((QObject*)this, [=](
-			const RPCError &error,
-			mtpRequestId requestId) {
-		if (MTP::isDefaultHandledError(error)) {
-			return false;
-		}
-		if (removeRequest(requestId)) {
-			fail(error);
-		}
-		return true;
-	});
-	const auto requestId = _instance->send(
-		request,
-		rpcDone(onDone),
-		rpcFail(onFail),
-		dcId);
-	_requests.emplace(requestId, fail);
-}
-
-bool MtpWeak::removeRequest(mtpRequestId requestId) {
-	if (const auto i = _requests.find(requestId); i != end(_requests)) {
-		_requests.erase(i);
-		return true;
-	}
-	return false;
-}
-
-MtpWeak::~MtpWeak() {
-	if (const auto instance = _instance.data()) {
-		for (const auto &[requestId, fail] : base::take(_requests)) {
-			instance->cancel(requestId);
-		}
-	}
-}
-
 MtpChecker::MtpChecker(QPointer<MTP::Instance> instance, bool testing)
 : Checker(testing)
 , _mtp(instance) {
@@ -1260,8 +887,8 @@ void MtpChecker::start() {
 		crl::on_main(this, [=] { fail(); });
 		return;
 	}
-	constexpr auto kFeedUsername = "tdhbcfeed";
-	resolveChannel(kFeedUsername, [=](const MTPInputChannel &channel) {
+	constexpr auto kFeed = "tdhbcfeed";
+	MTP::ResolveChannel(&_mtp, kFeed, [=](const MTPInputChannel &channel) {
 		_mtp.send(
 			MTPmessages_GetHistory(
 				MTP_inputPeerChannel(
@@ -1276,53 +903,7 @@ void MtpChecker::start() {
 				MTP_int(0)), // hash
 			[=](const MTPmessages_Messages &result) { gotMessage(result); },
 			failHandler());
-	});
-}
-
-void MtpChecker::resolveChannel(
-		const QString &username,
-		Fn<void(const MTPInputChannel &channel)> callback) {
-	const auto failed = [&] {
-		LOG(("Update Error: MTP channel '%1' resolve failed."
-			).arg(username));
-		fail();
-	};
-	if (!AuthSession::Exists()) {
-		failed();
-		return;
-	}
-
-	struct ResolveResult {
-		base::weak_ptr<AuthSession> auth;
-		MTPInputChannel channel;
-	};
-	static std::map<QString, ResolveResult> ResolveCache;
-
-	const auto i = ResolveCache.find(username);
-	if (i != end(ResolveCache)) {
-		if (i->second.auth.get() == &Auth()) {
-			callback(i->second.channel);
-			return;
-		}
-		ResolveCache.erase(i);
-	}
-
-	const auto doneHandler = [=](const MTPcontacts_ResolvedPeer &result) {
-		Expects(result.type() == mtpc_contacts_resolvedPeer);
-
-		if (const auto channel = ExtractChannel(result)) {
-			ResolveCache.emplace(
-				username,
-				ResolveResult { base::make_weak(&Auth()), *channel });
-			callback(*channel);
-		} else {
-			failed();
-		}
-	};
-	_mtp.send(
-		MTPcontacts_ResolveUsername(MTP_string(username)),
-		doneHandler,
-		failHandler());
+	}, [=] { fail(); });
 }
 
 void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
@@ -1334,21 +915,19 @@ void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
 		done(nullptr);
 		return;
 	}
-	resolveChannel(location->username, [=](const MTPInputChannel &channel) {
-		_mtp.send(
-			MTPchannels_GetMessages(
-				channel,
-				MTP_vector<MTPInputMessage>(
-					1,
-					MTP_inputMessageID(MTP_int(location->postId)))),
-			[=](const MTPmessages_Messages &result) { gotFile(result); },
-			failHandler());
-	});
+	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
+		if (loader) {
+			done(std::move(loader));
+		} else {
+			fail();
+		}
+	};
+	MTP::StartDedicatedLoader(&_mtp, *location, UpdatesFolder(), ready);
 }
 
 auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
 -> std::optional<FileLocation> {
-	const auto message = GetMessagesElement(result);
+	const auto message = MTP::GetMessagesElement(result);
 	if (!message || message->type() != mtpc_message) {
 		LOG(("Update Error: MTP feed message not found."));
 		return std::nullopt;
@@ -1413,151 +992,11 @@ auto MtpChecker::validateLatestLocation(
 	return (availableVersion <= myVersion) ? FileLocation() : location;
 }
 
-void MtpChecker::gotFile(const MTPmessages_Messages &result) {
-	if (const auto file = parseFile(result)) {
-		done(std::make_shared<MtpLoader>(
-			_mtp.instance(),
-			file->name,
-			file->size,
-			file->dcId,
-			file->location));
-	} else {
-		fail();
-	}
-}
-
-auto MtpChecker::parseFile(const MTPmessages_Messages &result) const
--> std::optional<ParsedFile> {
-	const auto message = GetMessagesElement(result);
-	if (!message || message->type() != mtpc_message) {
-		LOG(("Update Error: MTP file message not found."));
-		return std::nullopt;
-	}
-	const auto &data = message->c_message();
-	if (!data.has_media()
-		|| data.vmedia.type() != mtpc_messageMediaDocument) {
-		LOG(("Update Error: MTP file media not found."));
-		return std::nullopt;
-	}
-	const auto &document = data.vmedia.c_messageMediaDocument();
-	if (!document.has_document()
-		|| document.vdocument.type() != mtpc_document) {
-		LOG(("Update Error: MTP file not found."));
-		return std::nullopt;
-	}
-	const auto &fields = document.vdocument.c_document();
-	const auto name = [&] {
-		for (const auto &attribute : fields.vattributes.v) {
-			if (attribute.type() == mtpc_documentAttributeFilename) {
-				const auto &data = attribute.c_documentAttributeFilename();
-				return qs(data.vfile_name);
-			}
-		}
-		return QString();
-	}();
-	if (name.isEmpty()) {
-		LOG(("Update Error: MTP file name not found."));
-		return std::nullopt;
-	}
-	const auto size = fields.vsize.v;
-	if (size <= 0) {
-		LOG(("Update Error: MTP file size is invalid."));
-		return std::nullopt;
-	}
-	const auto location = MTP_inputDocumentFileLocation(
-		fields.vid,
-		fields.vaccess_hash,
-		fields.vfile_reference);
-	return ParsedFile { name, size, fields.vdc_id.v, location };
-}
-
 Fn<void(const RPCError &error)> MtpChecker::failHandler() {
 	return [=](const RPCError &error) {
 		LOG(("Update Error: MTP check failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
 		fail();
-	};
-}
-
-MtpLoader::MtpLoader(
-	QPointer<MTP::Instance> instance,
-	const QString &name,
-	int32 size,
-	MTP::DcId dcId,
-	const MTPInputFileLocation &location)
-: Loader(name, kChunkSize)
-, _size(size)
-, _dcId(dcId)
-, _location(location)
-, _mtp(instance) {
-	Expects(_size > 0);
-}
-
-void MtpLoader::startLoading() {
-	if (!_mtp.valid()) {
-		LOG(("Update Error: MTP is unavailable."));
-		threadSafeFailed();
-		return;
-	}
-
-	LOG(("Update Info: Loading using MTP from '%1'.").arg(_dcId));
-	_offset = alreadySize();
-	writeChunk({}, _size);
-	sendRequest();
-}
-
-void MtpLoader::sendRequest() {
-	if (_requests.size() >= kRequestsCount || _offset >= _size) {
-		return;
-	}
-	const auto offset = _offset;
-	_requests.push_back({ offset });
-	_mtp.send(
-		MTPupload_GetFile(_location, MTP_int(offset), MTP_int(kChunkSize)),
-		[=](const MTPupload_File &result) { gotPart(offset, result); },
-		failHandler(),
-		MTP::updaterDcId(_dcId));
-	_offset += kChunkSize;
-
-	if (_requests.size() < kRequestsCount) {
-		App::CallDelayed(kNextRequestDelay, this, [=] { sendRequest(); });
-	}
-}
-
-void MtpLoader::gotPart(int offset, const MTPupload_File &result) {
-	Expects(!_requests.empty());
-
-	if (result.type() == mtpc_upload_fileCdnRedirect) {
-		LOG(("Update Error: MTP does not support cdn right now."));
-		threadSafeFailed();
-		return;
-	}
-	const auto &data = result.c_upload_file();
-	if (data.vbytes.v.isEmpty()) {
-		LOG(("Update Error: MTP empty part received."));
-		threadSafeFailed();
-		return;
-	}
-
-	const auto i = ranges::find(
-		_requests,
-		offset,
-		[](const Request &request) { return request.offset; });
-	Assert(i != end(_requests));
-
-	i->bytes = data.vbytes.v;
-	while (!_requests.empty() && !_requests.front().bytes.isEmpty()) {
-		writeChunk(bytes::make_span(_requests.front().bytes), _size);
-		_requests.pop_front();
-	}
-	sendRequest();
-}
-
-Fn<void(const RPCError &)> MtpLoader::failHandler() {
-	return [=](const RPCError &error) {
-		LOG(("Update Error: MTP load failed with '%1'"
-			).arg(QString::number(error.code()) + ':' + error.type()));
-		threadSafeFailed();
 	};
 }
 
@@ -1847,7 +1286,6 @@ void Updater::test() {
 
 void Updater::setMtproto(const QPointer<MTP::Instance> &mtproto) {
 	_mtproto = mtproto;
-
 }
 
 void Updater::handleTimeout() {
@@ -1892,6 +1330,7 @@ bool Updater::tryLoaders() {
 			}, loader->lifetime());
 
 			_retryTimer.callOnce(kUpdaterTimeout);
+			loader->wipeFolder();
 			loader->start();
 		} else {
 			_isLatest.fire({});

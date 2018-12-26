@@ -463,6 +463,8 @@
 <(src_loc)/mtproto/dcenter.h
 <(src_loc)/mtproto/dc_options.cpp
 <(src_loc)/mtproto/dc_options.h
+<(src_loc)/mtproto/dedicated_file_loader.cpp
+<(src_loc)/mtproto/dedicated_file_loader.h
 <(src_loc)/mtproto/facade.cpp
 <(src_loc)/mtproto/facade.h
 <(src_loc)/mtproto/mtp_instance.cpp

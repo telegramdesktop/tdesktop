@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/dedicated_file_loader.h"
+
 namespace MTP {
 class Instance;
 } // namespace MTP
@@ -25,10 +27,7 @@ public:
 		Download,
 		Ready,
 	};
-	struct Progress {
-		int64 already;
-		int64 size;
-	};
+	using Progress = MTP::AbstractDedicatedLoader::Progress;
 
 	UpdateChecker();
 

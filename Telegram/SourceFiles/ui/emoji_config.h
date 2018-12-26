@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace Emoji {
+namespace internal {
+
+[[nodiscard]] QString SetDataPath(int id);
+
+} // namespace internal
 
 constexpr auto kRecentLimit = 42;
 
