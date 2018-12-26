@@ -30,10 +30,10 @@ constexpr auto kCacheVersion = uint32(3);
 constexpr auto kMaxId = uint32(1 << 8);
 
 const auto kSets = {
-	Set{ 0, 0, "Mac" },
-	Set{ 1, 205, "Android" },
-	Set{ 2, 206, "Twemoji" },
-	Set{ 3, 237, "EmojiOne" },
+	Set{ 0,   0,         0, "Mac" },
+	Set{ 1, 205, 7'232'542, "Android" },
+	Set{ 2, 206, 5'038'738, "Twemoji" },
+	Set{ 3, 238, 6'992'260, "EmojiOne" },
 };
 
 // Right now we can't allow users of Ui::Emoji to create custom sizes.
@@ -550,6 +550,27 @@ bool SwitchToSet(int id) {
 	OtherEmojiMap.clear();
 	Updates.fire({});
 	return true;
+}
+
+bool SetIsReady(int id) {
+	Expects(IsValidSetId(id));
+
+	if (!id) {
+		return true;
+	}
+	const auto folder = SetDataPath(id) + '/';
+	auto names = ranges::view::ints(
+		0,
+		SpritesCount + 1
+	) | ranges::view::transform([](int index) {
+		return index
+			? "emoji_" + QString::number(index) + ".webp"
+			: QString("config.json");
+	});
+	const auto bad = ranges::find_if(names, [&](const QString &name) {
+		return !QFile(folder + name).exists();
+	});
+	return (bad == names.end());
 }
 
 rpl::producer<> Updated() {

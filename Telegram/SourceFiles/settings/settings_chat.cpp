@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "data/data_session.h"
+#include "chat_helpers/emoji_sets_manager.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "auth_session.h"
@@ -483,6 +484,16 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		st::settingsChatIconLeft
 	)->addClickHandler([] {
 		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
+	});
+
+	AddButton(
+		container,
+		lng_emoji_manage_sets,
+		st::settingsChatButton,
+		&st::settingsIconStickers,
+		st::settingsChatIconLeft
+	)->addClickHandler([] {
+		Ui::show(Box<Ui::Emoji::ManageSetsBox>());
 	});
 
 	AddSkip(container, st::settingsCheckboxesSkip);

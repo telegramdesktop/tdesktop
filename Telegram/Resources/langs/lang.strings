@@ -1034,6 +1034,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_category6" = "Objects";
 "lng_emoji_category7" = "Symbols & Flags";
 "lng_emoji_hide_panel" = "Click here to hide the emoji sidebar";
+"lng_emoji_manage_sets" = "Choose emoji set";
+"lng_emoji_set_available" = "Download {size}";
+"lng_emoji_set_ready" = "Ready";
+"lng_emoji_set_active" = "Active";
+"lng_emoji_set_loading" = "Downloading {progress}";
 
 "lng_recent_stickers" = "Frequently used";
 "lng_faved_stickers_add" = "Add to Favorites";
