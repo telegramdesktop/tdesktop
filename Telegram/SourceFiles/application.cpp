@@ -455,6 +455,30 @@ bool Application::nativeEventFilter(
 	return false;
 }
 
+void Application::activateWindowDelayed(not_null<QWidget*> widget) {
+	if (_delayedActivationsPaused) {
+		return;
+	} else if (std::exchange(_windowForDelayedActivation, widget.get())) {
+		return;
+	}
+	crl::on_main(this, [=] {
+		if (const auto widget = base::take(_windowForDelayedActivation)) {
+			if (!widget->isHidden()) {
+				widget->activateWindow();
+			}
+		}
+	});
+}
+
+void Application::pauseDelayedWindowActivations() {
+	_windowForDelayedActivation = nullptr;
+	_delayedActivationsPaused = true;
+}
+
+void Application::resumeDelayedWindowActivations() {
+	_delayedActivationsPaused = false;
+}
+
 void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);

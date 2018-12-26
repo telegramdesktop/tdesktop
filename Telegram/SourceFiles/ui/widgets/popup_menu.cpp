@@ -503,12 +503,8 @@ PopupMenu::~PopupMenu() {
 		delete submenu;
 	}
 	if (const auto parent = parentWidget()) {
-		if (qApp->focusWidget() != nullptr) {
-			crl::on_main(parent, [=] {
-				if (!parent->isHidden()) {
-					parent->activateWindow();
-				}
-			});
+		if (Core::App().focusWidget() != nullptr) {
+			Core::App().activateWindowDelayed(parent);
 		}
 	}
 	if (_destroyedCallback) {

@@ -29,6 +29,10 @@ public:
 	void postponeCall(FnMut<void()> &&callable);
 	bool notify(QObject *receiver, QEvent *e) override;
 
+	void activateWindowDelayed(not_null<QWidget*> widget);
+	void pauseDelayedWindowActivations();
+	void resumeDelayedWindowActivations();
+
 	~Application();
 
 signals:
@@ -73,6 +77,9 @@ private:
 	std::vector<int> _previousLoopNestingLevels;
 	std::vector<PostponedCall> _postponedCalls;
 
+	QPointer<QWidget> _windowForDelayedActivation;
+	bool _delayedActivationsPaused = false;
+
 	not_null<Core::Launcher*> _launcher;
 	std::unique_ptr<Messenger> _messengerInstance;
 
@@ -88,6 +95,16 @@ private:
 	std::unique_ptr<Core::UpdateChecker> _updateChecker;
 
 };
+
+namespace Core {
+
+inline Application &App() {
+	Expects(QCoreApplication::instance() != nullptr);
+
+	return *static_cast<Application*>(QCoreApplication::instance());
+}
+
+} // namespace Core
 
 namespace Sandbox {
 

@@ -112,13 +112,10 @@ ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	};
 }
 
-void ActivateWindowDelayed(not_null<Window::Controller*> controller) {
+void ActivateWindow(not_null<Window::Controller*> controller) {
 	const auto window = controller->window();
-	const auto weak = make_weak(window.get());
 	window->activateWindow();
-	crl::on_main(window, [=] {
-		window->activateWindow();
-	});
+	Core::App().activateWindowDelayed(window);
 }
 
 void InsertEmojiToField(not_null<Ui::InputField*> field, EmojiPtr emoji) {
@@ -353,11 +350,11 @@ HistoryWidget::HistoryWidget(
 
 	_attachDragDocument->setDroppedCallback([this](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::No);
-		ActivateWindowDelayed(this->controller());
+		ActivateWindow(this->controller());
 	});
 	_attachDragPhoto->setDroppedCallback([this](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::Yes);
-		ActivateWindowDelayed(this->controller());
+		ActivateWindow(this->controller());
 	});
 
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
@@ -1247,7 +1244,7 @@ void HistoryWidget::onRecordDone(
 		qint32 samples) {
 	if (!canWriteMessage() || result.isEmpty()) return;
 
-	ActivateWindowDelayed(controller());
+	ActivateWindow(controller());
 	const auto duration = samples / Media::Player::kDefaultFrequency;
 	auto options = ApiWrap::SendOptions(_history);
 	options.replyTo = replyToId();
@@ -4047,7 +4044,7 @@ bool HistoryWidget::confirmSendingFiles(
 		}
 	}));
 
-	ActivateWindowDelayed(controller());
+	ActivateWindow(controller());
 	const auto shown = Ui::show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 
@@ -4138,7 +4135,7 @@ bool HistoryWidget::confirmSendingFiles(
 void HistoryWidget::uploadFiles(
 		Storage::PreparedList &&list,
 		SendMediaType type) {
-	ActivateWindowDelayed(controller());
+	ActivateWindow(controller());
 
 	uploadFilesAfterConfirmation(
 		std::move(list),
