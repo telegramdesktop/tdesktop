@@ -417,12 +417,12 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	}
 
 	if (!inWebPage && isRound) {
-		auto mediaUnread = item->isMediaUnread();
+		auto mediaUnread = item->hasUnreadMediaFlag();
 		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		auto statusX = usex + paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
 		auto statusY = painty + painth - st::msgDateImgDelta - statusH + st::msgDateImgPadding.y();
-		if (item->isMediaUnread()) {
+		if (mediaUnread) {
 			statusW += st::mediaUnreadSkip + st::mediaUnreadSize;
 		}
 		App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);

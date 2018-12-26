@@ -2173,7 +2173,7 @@ void HistoryWidget::newUnreadMsg(
 			destroyUnreadBar();
 		}
 		if (App::wnd()->doWeReadServerHistory()) {
-			if (item->mentionsMe() && item->isMediaUnread()) {
+			if (item->isUnreadMention() && !item->isUnreadMedia()) {
 				Auth().api().markMediaRead(item);
 			}
 			Auth().api().readServerHistoryForce(history);

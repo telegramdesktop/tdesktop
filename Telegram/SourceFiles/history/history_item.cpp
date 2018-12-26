@@ -236,14 +236,31 @@ void HistoryItem::finishEditionToEmpty() {
 	_history->itemVanished(this);
 }
 
-bool HistoryItem::isMediaUnread() const {
-	if (!mentionsMe() && _history->peer->isChannel()) {
-		auto passed = unixtime() - date();
+bool HistoryItem::hasUnreadMediaFlag() const {
+	if (_history->peer->isChannel()) {
+		const auto passed = unixtime() - date();
 		if (passed >= Global::ChannelsReadMediaPeriod()) {
 			return false;
 		}
 	}
 	return _flags & MTPDmessage::Flag::f_media_unread;
+}
+
+bool HistoryItem::isUnreadMention() const {
+	return mentionsMe() && (_flags & MTPDmessage::Flag::f_media_unread);
+}
+
+bool HistoryItem::isUnreadMedia() const {
+	if (!hasUnreadMediaFlag()) {
+		return false;
+	} else if (const auto media = this->media()) {
+		if (const auto document = media->document()) {
+			if (document->isVoiceMessage() || document->isVideoMessage()) {
+				return (media->webpage() == nullptr);
+			}
+		}
+	}
+	return false;
 }
 
 void HistoryItem::markMediaRead() {

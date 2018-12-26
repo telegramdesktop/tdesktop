@@ -595,7 +595,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				if (item->hasViews()) {
 					App::main()->scheduleViewIncrement(item);
 				}
-				if (item->mentionsMe() && item->isMediaUnread()) {
+				if (item->isUnreadMention() && !item->isUnreadMedia()) {
 					readMentions.insert(item);
 					_widget->enqueueMessageHighlight(view);
 				}
@@ -641,7 +641,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					if (item->hasViews()) {
 						App::main()->scheduleViewIncrement(item);
 					}
-					if (item->mentionsMe() && item->isMediaUnread()) {
+					if (item->isUnreadMention() && !item->isUnreadMedia()) {
 						readMentions.insert(item);
 						_widget->enqueueMessageHighlight(view);
 					}

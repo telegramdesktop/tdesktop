@@ -4127,7 +4127,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for_const (auto &msgId, d.vmessages.v) {
 			if (auto item = App::histItemById(channel, msgId.v)) {
-				if (item->isMediaUnread()) {
+				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					Auth().data().requestItemRepaint(item);
 				}

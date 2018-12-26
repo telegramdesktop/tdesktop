@@ -555,8 +555,7 @@ void RowPainter::paint(
 		if (displayMentionBadge
 			&& unreadCount == 1
 			&& item
-			&& item->isMediaUnread()
-			&& item->mentionsMe()) {
+			&& item->isUnreadMention()) {
 			return false;
 		}
 		return (unreadCount > 0);

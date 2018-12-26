@@ -1032,7 +1032,7 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	if (messages) {
 		for (auto &message : *messages) {
 			if (auto item = addToHistory(message)) {
-				if (item->mentionsMe() && item->isMediaUnread()) {
+				if (item->isUnreadMention()) {
 					_unreadMentions.insert(item->id);
 					added = true;
 				}

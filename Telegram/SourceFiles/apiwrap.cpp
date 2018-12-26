@@ -1172,7 +1172,8 @@ void ApiWrap::markMediaRead(
 		QVector<MTPint>>();
 	markedIds.reserve(items.size());
 	for (const auto item : items) {
-		if (!item->isMediaUnread() || (item->out() && !item->mentionsMe())) {
+		if ((!item->isUnreadMedia() || item->out())
+			&& !item->isUnreadMention()) {
 			continue;
 		}
 		item->markMediaRead();
@@ -1201,7 +1202,8 @@ void ApiWrap::markMediaRead(
 }
 
 void ApiWrap::markMediaRead(not_null<HistoryItem*> item) {
-	if (!item->isMediaUnread() || (item->out() && !item->mentionsMe())) {
+	if ((!item->isUnreadMedia() || item->out())
+		&& !item->isUnreadMention()) {
 		return;
 	}
 	item->markMediaRead();
@@ -3290,7 +3292,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages.v) {
 			if (auto item = App::histItemById(NoChannel, msgId.v)) {
-				if (item->isMediaUnread()) {
+				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					_session->data().requestItemRepaint(item);
 

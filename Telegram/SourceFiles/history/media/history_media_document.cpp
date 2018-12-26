@@ -374,7 +374,9 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		auto wf_size = wf ? wf->size() : Media::Player::kWaveformSamplesCount;
 		auto availw = namewidth + st::msgWaveformSkip;
 		auto activew = qRound(availw * progress);
-		if (!outbg && !voice->_playback && _parent->data()->isMediaUnread()) {
+		if (!outbg
+			&& !voice->_playback
+			&& _parent->data()->hasUnreadMediaFlag()) {
 			activew = availw;
 		}
 		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
@@ -428,7 +430,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	p.setPen(status);
 	p.drawTextLeft(nameleft, statustop, width(), statusText);
 
-	if (_parent->data()->isMediaUnread()) {
+	if (_parent->data()->hasUnreadMediaFlag()) {
 		auto w = st::normalFont->width(statusText);
 		if (w + st::mediaUnreadSkip + st::mediaUnreadSize <= statuswidth) {
 			p.setPen(Qt::NoPen);

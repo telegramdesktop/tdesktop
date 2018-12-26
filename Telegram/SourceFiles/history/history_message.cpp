@@ -920,7 +920,7 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 }
 
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
-	if (IsServerMsgId(id) && mentionsMe() && isMediaUnread()) {
+	if (IsServerMsgId(id) && isUnreadMention()) {
 		if (history()->addToUnreadMentions(id, type)) {
 			Notify::peerUpdatedDelayed(
 				history()->peer,
@@ -930,7 +930,7 @@ void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
 }
 
 void HistoryMessage::eraseFromUnreadMentions() {
-	if (mentionsMe() && isMediaUnread()) {
+	if (isUnreadMention()) {
 		history()->eraseFromUnreadMentions(id);
 	}
 }
