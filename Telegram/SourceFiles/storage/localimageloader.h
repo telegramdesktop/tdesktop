@@ -163,12 +163,20 @@ struct SendingAlbum {
 	struct Item {
 		explicit Item(TaskId taskId) : taskId(taskId) {
 		}
+
 		TaskId taskId;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
 	};
 
 	SendingAlbum();
+
+	void fillMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		uint64 randomId);
+	void refreshMediaCaption(not_null<HistoryItem*> item);
+	void removeItem(not_null<HistoryItem*> item);
 
 	uint64 groupId = 0;
 	std::vector<Item> items;

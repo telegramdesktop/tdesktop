@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "media/media_audio.h"
+#include "history/history_item.h"
 #include "boxes/send_files_box.h"
 #include "media/media_clip_reader.h"
 #include "mainwidget.h"
@@ -23,6 +24,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kThumbnailQuality = 87;
+
+auto FindAlbumItem(
+		std::vector<SendingAlbum::Item> &items,
+		not_null<HistoryItem*> item) {
+	const auto result = ranges::find(
+		items,
+		item->fullId(),
+		&SendingAlbum::Item::msgId);
+
+	Ensures(result != end(items));
+	return result;
+}
+
+MTPInputSingleMedia PrepareAlbumItemMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		uint64 randomId) {
+	auto caption = item->originalText();
+	TextUtilities::Trim(caption);
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		caption.entities,
+		TextUtilities::ConvertOption::SkipLocal);
+	const auto flags = !sentEntities.v.isEmpty()
+		? MTPDinputSingleMedia::Flag::f_entities
+		: MTPDinputSingleMedia::Flag(0);
+
+	return MTP_inputSingleMedia(
+		MTP_flags(flags),
+		media,
+		MTP_long(randomId),
+		MTP_string(caption.text),
+		sentEntities);
+}
+
 
 } // namespace
 
@@ -239,6 +274,44 @@ void TaskQueueWorker::onTaskAdded() {
 }
 
 SendingAlbum::SendingAlbum() : groupId(rand_value<uint64>()) {
+}
+
+void SendingAlbum::fillMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		uint64 randomId) {
+	const auto i = FindAlbumItem(items, item);
+	Assert(!i->media);
+
+	i->media = PrepareAlbumItemMedia(item, media, randomId);
+}
+
+void SendingAlbum::refreshMediaCaption(not_null<HistoryItem*> item) {
+	const auto i = FindAlbumItem(items, item);
+	if (!i->media) {
+		return;
+	}
+	i->media = i->media->match([&](const MTPDinputSingleMedia &data) {
+		return PrepareAlbumItemMedia(item, data.vmedia, data.vrandom_id.v);
+	});
+}
+
+void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
+	const auto localId = item->fullId();
+	const auto i = ranges::find(items, localId, &Item::msgId);
+	const auto moveCaption = (items.size() > 1) && (i == begin(items));
+	Assert(i != end(items));
+	items.erase(i);
+	if (moveCaption) {
+		const auto caption = item->originalText();
+		const auto firstId = items.front().msgId;
+		if (const auto first = App::histItemById(firstId)) {
+			// We don't need to finishEdition() here, because the whole
+			// album will be rebuilt after one item was removed from it.
+			first->setText(caption);
+			refreshMediaCaption(first);
+		}
+	}
 }
 
 FileLoadResult::FileLoadResult(

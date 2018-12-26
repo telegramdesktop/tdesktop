@@ -564,7 +564,6 @@ int Options::findField(not_null<Ui::InputField*> field) const {
 		&Option::field) - begin(_list);
 
 	Ensures(result >= 0 && result < _list.size());
-
 	return result;
 }
 

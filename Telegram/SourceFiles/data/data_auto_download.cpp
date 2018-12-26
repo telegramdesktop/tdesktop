@@ -173,7 +173,6 @@ const Set &Full::setOrDefault(Source source, Type type) const {
 	const auto &result = my.hasValue(type) ? my : Defaults().set(source);
 
 	Ensures(result.hasValue(type));
-
 	return result;
 }
 
