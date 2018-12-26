@@ -103,10 +103,13 @@ Application::Application(
 		char **argv)
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId())
-, _launcher(launcher)
-, _updateChecker(Core::UpdaterDisabled()
-	? nullptr
-	: std::make_unique<Core::UpdateChecker>()) {
+, _launcher(launcher) {
+}
+
+int Application::execute() {
+	if (!Core::UpdaterDisabled()) {
+		_updateChecker = std::make_unique<Core::UpdateChecker>();
+	}
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -134,6 +137,8 @@ Application::Application(
         LOG(("Connecting local socket to %1...").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
 	}
+
+	return exec();
 }
 
 Application::~Application() = default;

@@ -243,11 +243,10 @@ void Launcher::processArguments() {
 }
 
 int Launcher::executeApplication() {
+	Application application(this, _argc, _argv);
 	MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
-
-	Application app(this, _argc, _argv);
-	return app.exec();
+	return application.execute();
 }
 
 } // namespace Core

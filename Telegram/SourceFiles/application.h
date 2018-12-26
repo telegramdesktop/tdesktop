@@ -21,7 +21,7 @@ class Application : public QApplication, private QAbstractNativeEventFilter {
 public:
 	Application(not_null<Core::Launcher*> launcher, int &argc, char **argv);
 
-	bool event(QEvent *e) override;
+	int execute();
 
 	void createMessenger();
 	void refreshGlobalProxy();
@@ -48,6 +48,9 @@ public slots:
 
 	void startApplication(); // will be done in exec()
 	void closeApplication(); // will be done in aboutToQuit()
+
+protected:
+	bool event(QEvent *e) override;
 
 private:
 	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
