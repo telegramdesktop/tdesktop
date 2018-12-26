@@ -603,7 +603,8 @@ bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 bool HistoryMessage::allowsEdit(TimeId now) const {
 	return canStopPoll()
 		&& !isTooOldForEdit(now)
-		&& (!_media || _media->allowsEdit());
+		&& (!_media || _media->allowsEdit())
+		&& !isUnsupportedMessage();
 }
 
 bool HistoryMessage::uploading() const {
