@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mime-info [
   <!ELEMENT mime-info (mime-type)+>
-  <!ATTLIST mime-info xmlns CDATA #FIXED "http://www.freedesktop.org/standards/shared-mime-info">
+  <!ATTLIST mime-info xmlns CDATA #FIXED "https://www.freedesktop.org/standards/shared-mime-info">
 
   <!ELEMENT mime-type (comment+, (acronym,expanded-acronym)? , (generic-icon? | glob | magic | treemagic | root-XML | alias | sub-class-of)*)>
   <!ATTLIST mime-type type CDATA #REQUIRED>
@@ -58,7 +58,7 @@
   <!ELEMENT sub-class-of EMPTY>
   <!ATTLIST sub-class-of type CDATA #REQUIRED>
 ]>
-<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+<mime-info xmlns="https://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="application/andrew-inset">
     <comment>ATK inset</comment>
     <comment xml:lang="ar">شكل ATK</comment>
@@ -372,7 +372,7 @@
     <alias type="text/mathml"/>
     <sub-class-of type="application/xml"/>
     <glob pattern="*.mml"/>
-    <root-XML namespaceURI="http://www.w3.org/1998/Math/MathML" localName="math"/>
+    <root-XML namespaceURI="https://www.w3.org/1998/Math/MathML" localName="math"/>
   </mime-type>
   <mime-type type="application/mbox">
     <comment>mailbox file</comment>
@@ -468,7 +468,7 @@
       <match value="&lt;metalink version=&quot;3.0&quot;" type="string" offset="0:256"/>
     </magic>
     <glob pattern="*.metalink"/>
-    <root-XML namespaceURI="http://www.metalinker.org/" localName="metalink"/>
+    <root-XML namespaceURI="https://www.metalinker.org/" localName="metalink"/>
   </mime-type>
   <mime-type type="application/metalink4+xml">
     <comment>Metalink file</comment>
@@ -1665,9 +1665,9 @@
     <magic priority="55">
       <match value="&lt;smil" type="string" offset="0:256"/>
     </magic>
-    <root-XML namespaceURI="http://www.w3.org/2001/SMIL20/Language" localName="smil"/>
-    <root-XML namespaceURI="http://www.w3.org/2005/SMIL21/Language" localName="smil"/>
-    <root-XML namespaceURI="http://www.w3.org/ns/SMIL" localName="smil"/>
+    <root-XML namespaceURI="https://www.w3.org/2001/SMIL20/Language" localName="smil"/>
+    <root-XML namespaceURI="https://www.w3.org/2005/SMIL21/Language" localName="smil"/>
+    <root-XML namespaceURI="https://www.w3.org/ns/SMIL" localName="smil"/>
   </mime-type>
   <mime-type type="application/vnd.ms-wpl">
     <comment>WPL playlist</comment>
@@ -5863,7 +5863,7 @@
     <glob pattern="*.abw.CRASHED"/>
     <glob pattern="*.abw.gz"/>
     <glob pattern="*.zabw"/>
-    <root-XML namespaceURI="http://www.abisource.com/awml.dtd" localName="abiword"/>
+    <root-XML namespaceURI="https://www.abisource.com/awml.dtd" localName="abiword"/>
   </mime-type>
   <mime-type type="application/x-cue">
     <comment>CD image cuesheet</comment>
@@ -8252,7 +8252,7 @@
     <magic priority="50">
       <match value="&lt;dia:" type="string" offset="5:100"/>
     </magic>
-    <root-XML namespaceURI="http://www.lysator.liu.se/~alla/dia/" localName="diagram"/>
+    <root-XML namespaceURI="https://www.lysator.liu.se/~alla/dia/" localName="diagram"/>
   </mime-type>
   <mime-type type="application/x-dia-shape">
     <comment>Dia shape</comment>
@@ -18096,7 +18096,7 @@
     <sub-class-of type="application/xml"/>
     <generic-icon name="text-html"/>
     <glob pattern="*.xhtml"/>
-    <root-XML namespaceURI='http://www.w3.org/1999/xhtml' localName='html'/>
+    <root-XML namespaceURI='https://www.w3.org/1999/xhtml' localName='html'/>
   </mime-type>
   <mime-type type="application/zip">
     <comment>Zip archive</comment>
@@ -22542,7 +22542,7 @@
       <match value="&lt;svg" type="string" offset="0:256"/>
     </magic>
     <glob pattern="*.svg"/>
-    <root-XML namespaceURI="http://www.w3.org/2000/svg" localName="svg"/>
+    <root-XML namespaceURI="https://www.w3.org/2000/svg" localName="svg"/>
   </mime-type>
   <mime-type type="image/svg+xml-compressed">
     <comment>compressed SVG image</comment>
@@ -26910,7 +26910,7 @@
     <glob pattern="*.rdf"/>
     <glob pattern="*.rdfs"/>
     <glob pattern="*.owl"/>
-    <root-XML namespaceURI="http://www.w3.org/1999/02/22-rdf-syntax-ns#" localName="RDF"/>
+    <root-XML namespaceURI="https://www.w3.org/1999/02/22-rdf-syntax-ns#" localName="RDF"/>
   </mime-type>
   <mime-type type="text/rfc822-headers">
     <comment>email headers</comment>
@@ -27115,7 +27115,7 @@
     <magic priority="70">
       <match value="&lt;feed " type="string" offset="0:256"/>
     </magic>
-    <root-XML namespaceURI="http://www.w3.org/2005/Atom" localName="feed"/>
+    <root-XML namespaceURI="https://www.w3.org/2005/Atom" localName="feed"/>
   </mime-type>
   <mime-type type="text/x-opml+xml">
     <comment>OPML syndication feed</comment>
@@ -30965,8 +30965,8 @@
     <expanded-acronym>XML Metadata Interchange</expanded-acronym>
     <sub-class-of type="application/xml"/>
     <glob pattern="*.xmi"/>
-    <root-XML namespaceURI="http://schema.omg.org/spec/XMI/2.0" localName="XMI"/>
-    <root-XML namespaceURI="http://schema.omg.org/spec/XMI/2.1" localName="XMI"/>
+    <root-XML namespaceURI="https://schema.omg.org/spec/XMI/2.0" localName="XMI"/>
+    <root-XML namespaceURI="https://schema.omg.org/spec/XMI/2.1" localName="XMI"/>
   </mime-type>
   <mime-type type="text/x-xslfo">
     <comment>XSL FO file</comment>
@@ -31017,7 +31017,7 @@
     <sub-class-of type="application/xml"/>
     <glob pattern="*.fo"/>
     <glob pattern="*.xslfo"/>
-    <root-XML namespaceURI="http://www.w3.org/1999/XSL/Format" localName="root"/>
+    <root-XML namespaceURI="https://www.w3.org/1999/XSL/Format" localName="root"/>
   </mime-type>
   <mime-type type="text/x-iptables">
     <comment>iptables configuration file</comment>
@@ -31140,7 +31140,7 @@
     </magic>
     <glob pattern="*.xsl"/>
     <glob pattern="*.xslt"/>
-    <root-XML namespaceURI="http://www.w3.org/1999/XSL/Transform" localName="stylesheet"/>
+    <root-XML namespaceURI="https://www.w3.org/1999/XSL/Transform" localName="stylesheet"/>
     <sub-class-of type="application/xml"/>
   </mime-type>
   <mime-type type="text/xmcd">
@@ -32630,7 +32630,7 @@
     <expanded-acronym>XML User interface markup Language</expanded-acronym>
     <sub-class-of type="application/xml"/>
     <generic-icon name="x-office-document"/>
-    <root-XML namespaceURI="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" localName="window"/>
+    <root-XML namespaceURI="https://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" localName="window"/>
     <glob pattern="*.xul"/>
   </mime-type>
   <mime-type type="application/x-xpinstall">

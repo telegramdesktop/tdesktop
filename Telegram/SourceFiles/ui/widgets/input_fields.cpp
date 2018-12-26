@@ -2361,7 +2361,7 @@ TextWithTags InputField::getTextWithAppliedMarkdown() const {
 	const auto &originalTags = _lastTextWithTags.tags;
 
 	// Ignore tags that partially intersect some http-links.
-	// This will allow sending http://test.com/__test__/test correctly.
+	// This will allow sending https://test.com/__test__/test correctly.
 	const auto links = TextUtilities::ParseEntities(
 		originalText,
 		0).entities;
