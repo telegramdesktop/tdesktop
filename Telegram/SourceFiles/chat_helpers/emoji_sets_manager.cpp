@@ -108,16 +108,29 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
+	void onStateChanged(State was, StateChangeSource source) override;
+
 private:
+	[[nodiscard]] bool showOver() const;
+	[[nodiscard]] bool showOver(State state) const;
 	void setupContent(const Set &set);
 	void setupCheck();
 	void setupLabels(const Set &set);
+	void setupAnimation();
+	void updateAnimation(TimeMs ms);
 	void setupHandler();
 	void load();
+
+	void step_radial(TimeMs ms, bool timer);
+
+	[[nodiscard]] QRect rightPartRect(QSize size) const;
+	[[nodiscard]] QRect radialRect() const;
+	[[nodiscard]] QRect checkRect() const;
 
 	int _id = 0;
 	bool _switching = false;
 	rpl::variable<SetState> _state;
+	Ui::FlatLabel *_status = nullptr;
 	std::unique_ptr<Ui::RadialAnimation> _loading;
 
 };
@@ -331,15 +344,64 @@ Row::Row(QWidget *widget, const Set &set)
 void Row::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (isDisabled()) {
-		return;
-	}
-	const auto over = isOver() || isDown();
+	const auto over = showOver();
 	const auto bg = over ? st::windowBgOver : st::windowBg;
 	p.fillRect(rect(), bg);
 
 	const auto ms = getms();
 	paintRipple(p, 0, 0, ms);
+
+	updateAnimation(ms);
+	if (_loading) {
+		_loading->draw(
+			p,
+			radialRect(),
+			st::manageEmojiRadialThickness,
+			over ? st::windowSubTextFgOver : st::windowSubTextFg);
+	}
+}
+
+QRect Row::rightPartRect(QSize size) const {
+	const auto x = width()
+		- (st::contactsPadding.right()
+			+ st::contactsCheckPosition.x()
+			+ st::manageEmojiCheck.width)
+		+ (st::manageEmojiCheck.width / 2);
+	const auto y = st::contactsPadding.top()
+		+ (st::contactsPhotoSize - st::manageEmojiCheck.height) / 2
+		+ (st::manageEmojiCheck.height / 2);
+	return QRect(
+		QPoint(x, y) - QPoint(size.width() / 2, size.height() / 2),
+		size);
+}
+
+QRect Row::radialRect() const {
+	return rightPartRect(st::manageEmojiRadialSize);
+}
+
+QRect Row::checkRect() const {
+	return rightPartRect(QSize(
+		st::manageEmojiCheck.width,
+		st::manageEmojiCheck.height));
+}
+
+bool Row::showOver(State state) const {
+	return (!(state & StateFlag::Disabled))
+		&& (state & (StateFlag::Over | StateFlag::Down));
+}
+
+bool Row::showOver() const {
+	return showOver(state());
+}
+
+void Row::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+	const auto over = showOver();
+	if (over != showOver(was)) {
+		_status->setTextColorOverride(over
+			? std::make_optional(st::windowSubTextFgOver->c)
+			: std::nullopt);
+	}
 }
 
 void Row::setupContent(const Set &set) {
@@ -362,6 +424,7 @@ void Row::setupContent(const Set &set) {
 
 	setupCheck();
 	setupLabels(set);
+	setupAnimation();
 
 	resize(width(), st::defaultPeerList.item.height);
 }
@@ -410,19 +473,14 @@ void Row::setupCheck() {
 			st::manageEmojiCheck));
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		const auto checkx = size.width()
-			- (st::contactsPadding.right()
-				+ st::contactsCheckPosition.x()
-				+ check->width());
-		const auto checky = st::contactsPadding.top()
-			+ (st::contactsPhotoSize - check->height()) / 2;
-		check->moveToLeft(checkx, checky);
+		const auto rect = checkRect();
+		check->moveToLeft(rect.x(), rect.y());
 	}, check->lifetime());
 
 	check->toggleOn(_state.value(
 	) | rpl::map(
 		_1 == Active()
-	) | rpl::distinct_until_changed());
+	));
 
 	check->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
@@ -436,11 +494,11 @@ void Row::setupLabels(const Set &set) {
 		Ui::FlatLabel::InitType::Simple,
 		st::localStorageRowTitle);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto status = Ui::CreateChild<Ui::FlatLabel>(
+	_status = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		_state.value() | rpl::map(StateDescription),
 		st::localStorageRowSize);
-	status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -450,8 +508,44 @@ void Row::setupLabels(const Set &set) {
 		const auto statusy = st::contactsPadding.top()
 			+ st::contactsStatusTop;
 		name->moveToLeft(left, namey);
-		status->moveToLeft(left, statusy);
+		_status->moveToLeft(left, statusy);
 	}, name->lifetime());
+}
+
+void Row::step_radial(TimeMs ms, bool timer) {
+	if (timer && !anim::Disabled()) {
+		update();
+	}
+}
+
+void Row::setupAnimation() {
+	_state.value(
+	) | rpl::start_with_next([=](const SetState &state) {
+		update();
+	}, lifetime());
+}
+
+void Row::updateAnimation(TimeMs ms) {
+	const auto state = _state.current();
+	if (const auto loading = base::get_if<Loading>(&state)) {
+		const auto progress = (loading->size > 0)
+			? (loading->already / float64(loading->size))
+			: 0.;
+		if (!_loading) {
+			_loading = std::make_unique<Ui::RadialAnimation>(
+				animation(this, &Row::step_radial));
+			_loading->start(progress);
+		} else {
+			_loading->update(progress, false, getms());
+		}
+	} else if (_loading) {
+		_loading->update(state.is<Failed>() ? 0. : 1., true, getms());
+	} else {
+		_loading = nullptr;
+	}
+	if (_loading && !_loading->animating()) {
+		_loading = nullptr;
+	}
 }
 
 } // namespace

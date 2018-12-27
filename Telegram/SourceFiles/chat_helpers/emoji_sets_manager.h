@@ -19,8 +19,6 @@ public:
 protected:
 	void prepare() override;
 
-private:
-
 };
 
 } // namespace Emoji

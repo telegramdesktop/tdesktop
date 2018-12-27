@@ -805,10 +805,19 @@ void FlatLabel::setOpacity(float64 o) {
 	update();
 }
 
+void FlatLabel::setTextColorOverride(std::optional<QColor> color) {
+	_textColorOverride = color;
+	update();
+}
+
 void FlatLabel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setOpacity(_opacity);
-	p.setPen(_st.textFg);
+	if (_textColorOverride) {
+		p.setPen(*_textColorOverride);
+	} else {
+		p.setPen(_st.textFg);
+	}
 	p.setTextPalette(_st.palette);
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
