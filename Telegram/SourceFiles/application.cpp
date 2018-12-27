@@ -416,12 +416,11 @@ void Application::postponeCall(FnMut<void()> &&callable) {
 	});
 }
 
-bool Application::notify(QObject *receiver, QEvent *e) {
-	if (QThread::currentThreadId() != _mainThreadId) {
-		return QApplication::notify(receiver, e);
-	}
+void Application::incrementEventNestingLevel() {
 	++_eventNestingLevel;
-	const auto result = QApplication::notify(receiver, e);
+}
+
+void Application::decrementEventNestingLevel() {
 	if (_eventNestingLevel == _loopNestingLevel) {
 		_loopNestingLevel = _previousLoopNestingLevels.back();
 		_previousLoopNestingLevels.pop_back();
@@ -429,7 +428,22 @@ bool Application::notify(QObject *receiver, QEvent *e) {
 	const auto processTillLevel = _eventNestingLevel - 1;
 	processPostponedCalls(processTillLevel);
 	_eventNestingLevel = processTillLevel;
-	return result;
+}
+
+void Application::registerEnterFromEventLoop() {
+	if (_eventNestingLevel > _loopNestingLevel) {
+		_previousLoopNestingLevels.push_back(_loopNestingLevel);
+		_loopNestingLevel = _eventNestingLevel;
+	}
+}
+
+bool Application::notify(QObject *receiver, QEvent *e) {
+	if (QThread::currentThreadId() != _mainThreadId) {
+		return QApplication::notify(receiver, e);
+	}
+
+	const auto wrap = createEventNestingLevel();
+	return QApplication::notify(receiver, e);
 }
 
 void Application::processPostponedCalls(int level) {
@@ -448,10 +462,7 @@ bool Application::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
 		long *result) {
-	if (_eventNestingLevel > _loopNestingLevel) {
-		_previousLoopNestingLevels.push_back(_loopNestingLevel);
-		_loopNestingLevel = _eventNestingLevel;
-	}
+	registerEnterFromEventLoop();
 	return false;
 }
 

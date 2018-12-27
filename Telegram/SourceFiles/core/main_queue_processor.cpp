@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/main_queue_processor.h"
 
+#include "application.h"
+
 namespace Core {
 namespace {
 
@@ -38,15 +40,6 @@ void ProcessorEvent::process() {
 	_callable(_argument);
 }
 
-void ProcessMainQueue(void (*callable)(void*), void *argument) {
-	QMutexLocker lock(&ProcessorMutex);
-
-	if (ProcessorInstance) {
-		const auto event = new ProcessorEvent(callable, argument);
-		QCoreApplication::postEvent(ProcessorInstance, event);
-	}
-}
-
 void ProcessObservables() {
 	Global::RefHandleObservables().call();
 }
@@ -55,7 +48,20 @@ void ProcessObservables() {
 
 MainQueueProcessor::MainQueueProcessor() {
 	acquire();
-	crl::init_main_queue(ProcessMainQueue);
+
+	crl::init_main_queue([](void (*callable)(void*), void *argument) {
+		QMutexLocker lock(&ProcessorMutex);
+
+		if (ProcessorInstance) {
+			const auto event = new ProcessorEvent(callable, argument);
+			QCoreApplication::postEvent(ProcessorInstance, event);
+		}
+	});
+	crl::wrap_main_queue([](void (*callable)(void*), void *argument) {
+		App().registerEnterFromEventLoop();
+		const auto wrap = App().createEventNestingLevel();
+		callable(argument);
+	});
 
 	base::InitObservables(ProcessObservables);
 }

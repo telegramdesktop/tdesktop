@@ -28,6 +28,11 @@ public:
 
 	void postponeCall(FnMut<void()> &&callable);
 	bool notify(QObject *receiver, QEvent *e) override;
+	void registerEnterFromEventLoop();
+	auto createEventNestingLevel() {
+		incrementEventNestingLevel();
+		return gsl::finally([=] { decrementEventNestingLevel(); });
+	}
 
 	void activateWindowDelayed(not_null<QWidget*> widget);
 	void pauseDelayedWindowActivations();
@@ -65,6 +70,8 @@ private:
 		FnMut<void()> callable;
 	};
 
+	void incrementEventNestingLevel();
+	void decrementEventNestingLevel();
 	bool nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
