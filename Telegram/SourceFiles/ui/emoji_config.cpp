@@ -153,7 +153,22 @@ int ReadCurrentSetId() {
 		: 0;
 }
 
-void ClearCurrentSetId() {
+void SwitchToSetPrepared(int id, std::shared_ptr<UniversalImages> images) {
+	auto setting = QFile(CurrentSettingPath());
+	if (!id) {
+		setting.remove();
+	} else if (setting.open(QIODevice::WriteOnly)) {
+		auto stream = QDataStream(&setting);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(id);
+	}
+	Universal = std::move(images);
+	MainEmojiMap.clear();
+	OtherEmojiMap.clear();
+	Updates.fire({});
+}
+
+void ClearCurrentSetIdSync() {
 	Expects(Universal != nullptr);
 
 	const auto id = Universal->id();
@@ -161,7 +176,11 @@ void ClearCurrentSetId() {
 		return;
 	}
 	QDir(internal::SetDataPath(id)).removeRecursively();
-	SwitchToSet(0);
+
+	const auto newId = 0;
+	auto universal = std::make_shared<UniversalImages>(newId);
+	universal->ensureLoaded();
+	SwitchToSetPrepared(newId, std::move(universal));
 }
 
 void SaveToFile(int id, const QImage &image, int size, int index) {
@@ -531,29 +550,26 @@ int CurrentSetId() {
 	return Universal->id();
 }
 
-bool SwitchToSet(int id) {
+void SwitchToSet(int id, Fn<void(bool)> callback) {
 	Expects(IsValidSetId(id));
 
 	if (Universal && Universal->id() == id) {
-		return true;
+		callback(true);
+		return;
 	}
-	auto universal = std::make_shared<UniversalImages>(id);
-	if (!universal->ensureLoaded()) {
-		return false;
-	}
-	auto setting = QFile(CurrentSettingPath());
-	if (!id) {
-		setting.remove();
-	} else if (setting.open(QIODevice::WriteOnly)) {
-		auto stream = QDataStream(&setting);
-		stream.setVersion(QDataStream::Qt_5_1);
-		stream << qint32(id);
-	}
-	Universal = std::move(universal);
-	MainEmojiMap.clear();
-	OtherEmojiMap.clear();
-	Updates.fire({});
-	return true;
+	crl::async([=] {
+		auto universal = std::make_shared<UniversalImages>(id);
+		if (!universal->ensureLoaded()) {
+			crl::on_main([=] {
+				callback(false);
+			});
+		} else {
+			crl::on_main([=, universal = std::move(universal)]() mutable {
+				SwitchToSetPrepared(id, std::move(universal));
+				callback(true);
+			});
+		}
+	});
 }
 
 bool SetIsReady(int id) {
@@ -903,7 +919,7 @@ void Instance::checkUniversalImages() {
 		_sprites.clear();
 	}
 	if (!Universal->ensureLoaded() && Universal->id() != 0) {
-		ClearCurrentSetId();
+		ClearCurrentSetIdSync();
 	}
 }
 

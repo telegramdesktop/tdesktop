@@ -32,9 +32,11 @@ struct Set {
 	QString name;
 };
 
+// Thread safe, callback is called on main thread.
+void SwitchToSet(int id, Fn<void(bool)> callback);
+
 std::vector<Set> Sets();
 int CurrentSetId();
-bool SwitchToSet(int id);
 bool SetIsReady(int id);
 rpl::producer<> Updated();
 

@@ -75,14 +75,12 @@ public:
 	int id() const;
 
 	rpl::producer<SetState> state() const;
+	void destroy();
 
 private:
 	void setImplementation(std::unique_ptr<MTP::DedicatedLoader> loader);
 	void unpack(const QString &path);
 	void finalize(const QString &path);
-	bool goodName(const QString &name) const;
-	bool writeCurrentFile(zlib::FileToRead &zip, const QString name) const;
-	void destroy();
 	void fail();
 
 	int _id = 0;
@@ -118,13 +116,19 @@ private:
 	void load();
 
 	int _id = 0;
+	bool _switching = false;
 	rpl::variable<SetState> _state;
 	std::unique_ptr<Ui::RadialAnimation> _loading;
 
 };
 
-QPointer<Loader> GlobalLoader;
+base::unique_qptr<Loader> GlobalLoader;
 rpl::event_stream<Loader*> GlobalLoaderValues;
+
+void SetGlobalLoader(base::unique_qptr<Loader> loader) {
+	GlobalLoader = std::move(loader);
+	GlobalLoaderValues.fire(GlobalLoader.get());
+}
 
 int GetDownloadSize(int id) {
 	const auto sets = Sets();
@@ -170,6 +174,50 @@ QByteArray ReadFinalFile(const QString &path) {
 		return QByteArray();
 	}
 	return file.readAll();
+}
+
+bool ExtractZipFile(zlib::FileToRead &zip, const QString path) {
+	constexpr auto kMaxSize = 10 * 1024 * 1024;
+	const auto content = zip.readCurrentFileContent(kMaxSize);
+	if (content.isEmpty() || zip.error() != UNZ_OK) {
+		return false;
+	}
+	auto file = QFile(path);
+	return file.open(QIODevice::WriteOnly)
+		&& (file.write(content) == content.size());
+}
+
+bool GoodSetPartName(const QString &name) {
+	return (name == qstr("config.json"))
+		|| (name.startsWith(qstr("emoji_"))
+			&& name.endsWith(qstr(".webp")));
+}
+
+bool UnpackSet(const QString &path, const QString &folder) {
+	const auto bytes = ReadFinalFile(path);
+	if (bytes.isEmpty()) {
+		return false;
+	}
+
+	auto zip = zlib::FileToRead(bytes);
+	if (zip.goToFirstFile() != UNZ_OK) {
+		return false;
+	}
+	do {
+		const auto name = zip.getCurrentFileName();
+		const auto path = folder + '/' + name;
+		if (GoodSetPartName(name) && !ExtractZipFile(zip, path)) {
+			return false;
+		}
+
+		const auto jump = zip.goToNextFile();
+		if (jump == UNZ_END_OF_LIST_OF_FILE) {
+			break;
+		} else if (jump != UNZ_OK) {
+			return false;
+		}
+	} while (true);
+	return true;
 }
 
 Loader::Loader(QObject *parent, int id)
@@ -223,45 +271,27 @@ void Loader::setImplementation(
 }
 
 void Loader::unpack(const QString &path) {
-	const auto bytes = ReadFinalFile(path);
-	if (bytes.isEmpty()) {
-		return fail();
-	}
-
-	auto zip = zlib::FileToRead(bytes);
-	if (zip.goToFirstFile() != UNZ_OK) {
-		return fail();
-	}
-	do {
-		const auto name = zip.getCurrentFileName();
-		if (goodName(name) && !writeCurrentFile(zip, name)) {
-			return fail();
+	const auto folder = internal::SetDataPath(_id);
+	const auto weak = make_weak(this);
+	crl::async([=] {
+		if (UnpackSet(path, folder)) {
+			QFile(path).remove();
+			SwitchToSet(_id, crl::guard(weak, [=](bool success) {
+				if (success) {
+					destroy();
+				} else {
+					fail();
+				}
+			}));
+		} else {
+			crl::on_main(weak, [=] {
+				fail();
+			});
 		}
-
-		const auto jump = zip.goToNextFile();
-		if (jump == UNZ_END_OF_LIST_OF_FILE) {
-			break;
-		} else if (jump != UNZ_OK) {
-			return fail();
-		}
-	} while (true);
-
-	finalize(path);
-}
-
-bool Loader::goodName(const QString &name) const {
-	return (name == qstr("config.json"))
-		|| (name.startsWith(qstr("emoji_"))
-			&& name.endsWith(qstr(".webp")));
+	});
 }
 
 void Loader::finalize(const QString &path) {
-	QFile(path).remove();
-	if (!SwitchToSet(_id)) {
-		fail();
-	} else {
-		destroy();
-	}
 }
 
 void Loader::fail() {
@@ -269,22 +299,9 @@ void Loader::fail() {
 }
 
 void Loader::destroy() {
-	GlobalLoaderValues.fire(nullptr);
-	delete this;
-}
+	Expects(GlobalLoader == this);
 
-bool Loader::writeCurrentFile(
-		zlib::FileToRead &zip,
-		const QString name) const {
-	constexpr auto kMaxSize = 10 * 1024 * 1024;
-	const auto content = zip.readCurrentFileContent(kMaxSize);
-	if (content.isEmpty() || zip.error() != UNZ_OK) {
-		return false;
-	}
-	const auto folder = internal::SetDataPath(_id) + '/';
-	auto file = QFile(folder + name);
-	return file.open(QIODevice::WriteOnly)
-		&& (file.write(content) == content.size());
+	SetGlobalLoader(nullptr);
 }
 
 Inner::Inner(QWidget *parent) : RpWidget(parent) {
@@ -327,7 +344,7 @@ void Row::paintEvent(QPaintEvent *e) {
 
 void Row::setupContent(const Set &set) {
 	_state = GlobalLoaderValues.events_starting_with(
-		GlobalLoader.data()
+		GlobalLoader.get()
 	) | rpl::map([=](Loader *loader) {
 		return (loader && loader->id() == _id)
 			? loader->state()
@@ -353,20 +370,21 @@ void Row::setupHandler() {
 	clicks(
 	) | rpl::filter([=] {
 		const auto &state = _state.current();
-		return state.is<Ready>() || state.is<Available>();
+		return !_switching && (state.is<Ready>() || state.is<Available>());
 	}) | rpl::start_with_next([=] {
 		if (_state.current().is<Available>()) {
 			load();
 			return;
 		}
-		const auto delay = st::defaultRippleAnimation.hideDuration;
-		App::CallDelayed(delay, this, [=] {
-			if (!SwitchToSet(_id)) {
+		_switching = true;
+		SwitchToSet(_id, crl::guard(this, [=](bool success) {
+			_switching = false;
+			if (!success) {
 				load();
-			} else {
-				delete GlobalLoader;
+			} else if (GlobalLoader && GlobalLoader->id() == _id) {
+				GlobalLoader->destroy();
 			}
-		});
+		}));
 	}, lifetime());
 
 	_state.value(
@@ -379,8 +397,7 @@ void Row::setupHandler() {
 }
 
 void Row::load() {
-	GlobalLoader = Ui::CreateChild<Loader>(App::main(), _id);
-	GlobalLoaderValues.fire(GlobalLoader.data());
+	SetGlobalLoader(base::make_unique_q<Loader>(App::main(), _id));
 }
 
 void Row::setupCheck() {
