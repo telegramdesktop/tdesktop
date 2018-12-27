@@ -19,31 +19,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1003011,
-		"- Added a new night theme.\n"
-
-		"- You can now assign custom themes "
-		"as night and day themes to quickly switch between them."
-	},
-	{
-		1003015,
-		"- Improved local caching "
-		"for images and GIF animations.\n"
-
-		"- Control how much disk space is used by the cache "
-		"and for how long the cached files are stored."
-	},
-	{
-		1003017,
-		"- Fully redisigned Settings section.\n"
-
-		"- New theme selector in Chat Settings.\n"
-		"- New settings: Peer-to-Peer settings for calls, "
-		"disable animations for low performance computers.\n"
-
-		"- Various other improvements."
-	},
-	{
 		1004004,
 		"- Interface scaling for large screens, up to 300% "
 		"(up to 150% for macOS retina screens).\n"
@@ -71,6 +46,14 @@ std::map<int, const char*> BetaLogs() {
 		"- Switch off the 'Count unread messages' option "
 		"in Settings > Notifications if you want to see "
 		"the unread chats count in the badge instead."
+	},
+	{
+		1005005,
+		"- Support for auto-download of files and music.\n"
+
+		"- Improved auto-download settings.\n"
+
+		"- Bug fixes and other minor improvements."
 	}
 	};
 }
