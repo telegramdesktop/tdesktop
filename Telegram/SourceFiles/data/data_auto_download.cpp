@@ -17,7 +17,7 @@ namespace Data {
 namespace AutoDownload {
 namespace {
 
-constexpr auto kDefaultMaxSize = 2 * 1024 * 1024;
+constexpr auto kDefaultMaxSize = 8 * 1024 * 1024;
 constexpr auto kVersion = char(1);
 
 template <typename Enum>
