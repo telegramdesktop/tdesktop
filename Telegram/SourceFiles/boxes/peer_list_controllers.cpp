@@ -563,7 +563,7 @@ void AddParticipantsBoxController::Start(
 		bool justCreated) {
 	auto initBox = [channel, justCreated](not_null<PeerListBox*> box) {
 		auto subscription = std::make_shared<rpl::lifetime>();
-		box->addButton(langFactory(lng_participant_invite), [=, subscription] {
+		box->addButton(langFactory(lng_participant_invite), [=, copy = subscription] {
 			if (InviteSelectedUsers(box, channel)) {
 				if (channel->isMegagroup()) {
 					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
