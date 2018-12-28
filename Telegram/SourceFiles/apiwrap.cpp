@@ -56,9 +56,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kReloadChannelMembersTimeout = 1000; // 1 second wait before reload members in channel after adding
-constexpr auto kSaveCloudDraftTimeout = 1000; // save draft to the cloud with 1 sec extra delay
-constexpr auto kSaveDraftBeforeQuitTimeout = 1500; // give the app 1.5 secs to save drafts to cloud when quitting
+// 1 second wait before reload members in channel after adding.
+constexpr auto kReloadChannelMembersTimeout = 1000;
+
+// Save draft to the cloud with 1 sec extra delay.
+constexpr auto kSaveCloudDraftTimeout = 1000;
+
+// Give the app 1.5 secs to save drafts to cloud when quitting.
+constexpr auto kSaveDraftBeforeQuitTimeout = 1500;
+
+// Max users in one super group invite request.
+constexpr auto kMaxUsersPerInvite = 100;
+
+// How many messages from chat history server should forward to user,
+// that was added to this chat.
+constexpr auto kForwardMessagesOnAdd = 100;
+
 constexpr auto kProxyPromotionInterval = TimeId(60 * 60);
 constexpr auto kProxyPromotionMinDelay = TimeId(10);
 constexpr auto kSmallDelayMs = 5;
@@ -3565,6 +3578,57 @@ void ApiWrap::checkForUnreadMentions(
 	}
 }
 
+void ApiWrap::addChatParticipants(
+		not_null<PeerData*> peer,
+		const std::vector<not_null<UserData*>> &users) {
+	if (const auto chat = peer->asChat()) {
+		for (const auto user : users) {
+			request(MTPmessages_AddChatUser(
+				chat->inputChat,
+				user->inputUser,
+				MTP_int(kForwardMessagesOnAdd)
+			)).done([=](const MTPUpdates &result) {
+				applyUpdates(result);
+			}).fail([=](const RPCError &error) {
+				ShowAddParticipantsError(error.type(), peer, { 1, user });
+			}).afterDelay(TimeMs(5)).send();
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		const auto bot = ranges::find_if(users, [](not_null<UserData*> user) {
+			return user->botInfo != nullptr;
+		});
+		if (!peer->isMegagroup() && bot != end(users)) {
+			ShowAddParticipantsError("USER_BOT", peer, users);
+			return;
+		}
+		auto list = QVector<MTPInputUser>();
+		list.reserve(qMin(int(users.size()), int(kMaxUsersPerInvite)));
+		const auto send = [&] {
+			request(MTPchannels_InviteToChannel(
+				channel->inputChannel,
+				MTP_vector<MTPInputUser>(list)
+			)).done([=](const MTPUpdates &result) {
+				applyUpdates(result);
+				requestParticipantsCountDelayed(channel);
+			}).fail([=](const RPCError &error) {
+				ShowAddParticipantsError(error.type(), peer, users);
+			}).afterDelay(TimeMs(5)).send();
+		};
+		for (const auto user : users) {
+			list.push_back(user->inputUser);
+			if (list.size() == kMaxUsersPerInvite) {
+				send();
+				list.clear();
+			}
+		}
+		if (!list.empty()) {
+			send();
+		}
+	} else {
+		Unexpected("User in ApiWrap::addChatParticipants.");
+	}
+}
+
 void ApiWrap::cancelEditChatAdmins(not_null<ChatData*> chat) {
 	_chatAdminsEnabledRequests.take(
 		chat
@@ -4556,26 +4620,36 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	}
 }
 
-void ApiWrap::sendBotStart(not_null<UserData*> bot) {
+void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 	Expects(bot->botInfo != nullptr);
+	Expects(chat == nullptr || !bot->botInfo->startGroupToken.isEmpty());
 
-	const auto token = bot->botInfo->startToken;
+	if (chat && chat->isChannel() && !chat->isMegagroup()) {
+		ShowAddParticipantsError("USER_BOT", chat, { 1, bot });
+		return;
+	}
+
+	auto &info = bot->botInfo;
+	auto &token = chat ? info->startGroupToken : info->startToken;
 	if (token.isEmpty()) {
 		auto message = ApiWrap::MessageToSend(App::history(bot));
 		message.textWithTags = { qsl("/start"), TextWithTags::Tags() };
 		sendMessage(std::move(message));
-	} else {
-		bot->botInfo->startToken = QString();
-		const auto randomId = rand_value<uint64>();
-		request(MTPmessages_StartBot(
-			bot->inputUser,
-			MTP_inputPeerEmpty(),
-			MTP_long(randomId),
-			MTP_string(token)
-		)).done([=](const MTPUpdates &result) {
-			applyUpdates(result);
-		}).send();
+		return;
 	}
+	const auto randomId = rand_value<uint64>();
+	request(MTPmessages_StartBot(
+		bot->inputUser,
+		chat ? chat->input : MTP_inputPeerEmpty(),
+		MTP_long(randomId),
+		MTP_string(base::take(token))
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		if (chat) {
+			ShowAddParticipantsError(error.type(), chat, { 1, bot });
+		}
+	}).send();
 }
 
 void ApiWrap::sendInlineResult(

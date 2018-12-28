@@ -38,6 +38,10 @@ enum class PeerFloodType {
 	InviteChannel,
 };
 QString PeerFloodErrorText(PeerFloodType type);
+void ShowAddParticipantsError(
+	const QString &error,
+	not_null<PeerData*> chat,
+	const std::vector<not_null<UserData*>> &users);
 
 class AddContactBox : public BoxContent, public RPCSender {
 public:

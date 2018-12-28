@@ -71,30 +71,32 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 }
 
 void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
-	if (auto &info = bot->botInfo) {
-		if (!info->startGroupToken.isEmpty()) {
-			MTP::send(
-				MTPmessages_StartBot(
-					bot->inputUser,
-					chat->input,
-					MTP_long(rand_value<uint64>()),
-					MTP_string(info->startGroupToken)),
-				App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-				App::main()->rpcFail(
-					&MainWidget::addParticipantFail,
-					{ bot, chat }));
-		} else {
-			App::main()->addParticipants(
-				chat,
-				{ 1, bot });
-		}
+	if (bot->botInfo && !bot->botInfo->startGroupToken.isEmpty()) {
+		Auth().api().sendBotStart(bot, chat);
 	} else {
-		App::main()->addParticipants(
-			chat,
-			{ 1, bot });
+		Auth().api().addChatParticipants(chat, { 1, bot });
 	}
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+}
+
+bool InviteSelectedUsers(
+		not_null<PeerListBox*> box,
+		not_null<PeerData*> chat) {
+	const auto rows = box->peerListCollectSelectedRows();
+	const auto users = ranges::view::all(
+		rows
+	) | ranges::view::transform([](not_null<PeerData*> peer) {
+		Expects(peer->isUser());
+		Expects(!peer->isSelf());
+
+		return not_null<UserData*>(peer->asUser());
+	}) | ranges::to_vector;
+	if (users.empty()) {
+		return false;
+	}
+	Auth().api().addChatParticipants(chat, users);
+	return true;
 }
 
 } // namespace
@@ -544,18 +546,9 @@ void AddParticipantsBoxController::updateTitle() {
 }
 
 void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
-	auto initBox = [chat](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_participant_invite), [box, chat] {
-			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					Assert(user != nullptr);
-					Assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				App::main()->addParticipants(chat, users);
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_participant_invite), [=] {
+			if (InviteSelectedUsers(box, chat)) {
 				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
 			}
 		});
@@ -570,17 +563,8 @@ void AddParticipantsBoxController::Start(
 		bool justCreated) {
 	auto initBox = [channel, justCreated](not_null<PeerListBox*> box) {
 		auto subscription = std::make_shared<rpl::lifetime>();
-		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
-			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					Assert(user != nullptr);
-					Assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				App::main()->addParticipants(channel, users);
+		box->addButton(langFactory(lng_participant_invite), [=, subscription] {
+			if (InviteSelectedUsers(box, channel)) {
 				if (channel->isMegagroup()) {
 					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
 				} else {
@@ -830,7 +814,7 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 }
 
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
-	if (auto megagroup = chat->asMegagroup()) {
+	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
 			Ui::show(
 				Box<InformBox>(lang(lng_error_cant_add_member)),

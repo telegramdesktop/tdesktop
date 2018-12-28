@@ -26,8 +26,6 @@ enum {
 
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MaxUsersPerInvite = 100, // max users in one super group invite request
-
 	MTPChannelGetDifferenceLimit = 100,
 
 	MaxSelectedItems = 100,
@@ -273,8 +271,6 @@ enum {
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
 	SendViewsTimeout = 1000, // send views each second
-
-	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
 
 inline const QRegularExpression &cRussianLetters() {

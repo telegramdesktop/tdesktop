@@ -260,6 +260,9 @@ public:
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
 		Fn<void()> callbackNotModified = nullptr);
+	void addChatParticipants(
+		not_null<PeerData*> peer,
+		const std::vector<not_null<UserData*>> &users);
 
 	struct SendOptions {
 		SendOptions(not_null<History*> history);
@@ -329,7 +332,7 @@ public:
 		bool handleSupportSwitch = false;
 	};
 	void sendMessage(MessageToSend &&message);
-	void sendBotStart(not_null<UserData*> bot);
+	void sendBotStart(not_null<UserData*> bot, PeerData *chat = nullptr);
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,

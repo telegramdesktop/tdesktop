@@ -16,7 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/edit_participant_box.h"
 #include "core/file_utilities.h"
+#include "profile/profile_channel_controllers.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -65,6 +67,77 @@ QString PeerFloodErrorText(PeerFloodType type) {
 		return lng_cant_invite_not_contact(lt_more_info, link);
 	}
 	return lng_cant_send_to_not_contact(lt_more_info, link);
+}
+
+void ShowAddParticipantsError(
+		const QString &error,
+		not_null<PeerData*> chat,
+		const std::vector<not_null<UserData*>> &users) {
+	if (error == qstr("USER_BOT")) {
+		const auto channel = chat->asChannel();
+		if ((users.size() == 1)
+			&& (users.front()->botInfo != nullptr)
+			&& channel
+			&& !channel->isMegagroup()
+			&& channel->canAddAdmins()) {
+			const auto makeAdmin = [=] {
+				const auto user = users.front();
+				const auto weak = std::make_shared<QPointer<EditAdminBox>>();
+				const auto close = [=] {
+					if (*weak) {
+						(*weak)->closeBox();
+					}
+				};
+				const auto saveCallback = Profile::SaveAdminCallback(
+					channel,
+					user,
+					[=](auto&&...) { close(); },
+					close);
+				auto box = Box<EditAdminBox>(
+					channel,
+					user,
+					MTP_channelAdminRights(MTP_flags(0)));
+				box->setSaveCallback(saveCallback);
+				*weak = Ui::show(std::move(box));
+			};
+			Ui::show(
+				Box<ConfirmBox>(
+					lang(lng_cant_invite_offer_admin),
+					lang(lng_cant_invite_make_admin),
+					lang(lng_cancel),
+					makeAdmin),
+				LayerOption::KeepOther);
+			return;
+		}
+	}
+	const auto bot = ranges::find_if(users, [](not_null<UserData*> user) {
+		return user->botInfo != nullptr;
+	});
+	const auto hasBot = (bot != end(users));
+	const auto text = [&] {
+		if (error == qstr("USER_BOT")) {
+			return lang(lng_cant_invite_bot_to_channel);
+		} else if (error == qstr("USER_LEFT_CHAT")) {
+			// Trying to return a user who has left.
+		} else if (error == qstr("USER_KICKED")) {
+			// Trying to return a user who was kicked by admin.
+			return lang(lng_cant_invite_banned);
+		} else if (error == qstr("USER_PRIVACY_RESTRICTED")) {
+			return lang(lng_cant_invite_privacy);
+		} else if (error == qstr("USER_NOT_MUTUAL_CONTACT")) {
+			// Trying to return user who does not have me in contacts.
+			return lang(lng_failed_add_not_mutual);
+		} else if (error == qstr("USER_ALREADY_PARTICIPANT") && hasBot) {
+			return lang(lng_bot_already_in_group);
+		} else if (error == qstr("PEER_FLOOD")) {
+			const auto isGroup = (chat->isChat() || chat->isMegagroup());
+			return PeerFloodErrorText(isGroup
+				? PeerFloodType::InviteGroup
+				: PeerFloodType::InviteChannel);
+		}
+		return lang(lng_failed_add_participant);
+	}();
+	Ui::show(Box<InformBox>(text), LayerOption::KeepOther);
 }
 
 class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {

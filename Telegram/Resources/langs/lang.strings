@@ -1090,7 +1090,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
 "lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";
 "lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of their privacy settings.";
+"lng_cant_invite_bot_to_channel" = "Sorry, bots can only be added to channels as administrators.";
 "lng_cant_do_this" = "Sorry, this action is unavailable.";
+"lng_cant_invite_offer_admin" = "Bots can only be added as administrators.";
+"lng_cant_invite_make_admin" = "Make admin";
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message...";

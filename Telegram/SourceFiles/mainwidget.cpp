@@ -908,91 +908,6 @@ void MainWidget::deleteAndExit(ChatData *chat) {
 		rpcFail(&MainWidget::leaveChatFailed, peer));
 }
 
-void MainWidget::addParticipants(
-		not_null<PeerData*> chatOrChannel,
-		const std::vector<not_null<UserData*>> &users) {
-	if (auto chat = chatOrChannel->asChat()) {
-		for_const (auto user, users) {
-			MTP::send(
-				MTPmessages_AddChatUser(
-					chat->inputChat,
-					user->inputUser,
-					MTP_int(ForwardOnAdd)),
-				rpcDone(&MainWidget::sentUpdatesReceived),
-				rpcFail(&MainWidget::addParticipantFail, { user, chat }),
-				0,
-				5);
-		}
-	} else if (auto channel = chatOrChannel->asChannel()) {
-		QVector<MTPInputUser> inputUsers;
-		inputUsers.reserve(qMin(int(users.size()), int(MaxUsersPerInvite)));
-		for (auto i = users.cbegin(), e = users.cend(); i != e; ++i) {
-			inputUsers.push_back((*i)->inputUser);
-			if (inputUsers.size() == MaxUsersPerInvite) {
-				MTP::send(
-					MTPchannels_InviteToChannel(
-						channel->inputChannel,
-						MTP_vector<MTPInputUser>(inputUsers)),
-					rpcDone(&MainWidget::inviteToChannelDone, { channel }),
-					rpcFail(&MainWidget::addParticipantsFail, { channel }),
-					0,
-					5);
-				inputUsers.clear();
-			}
-		}
-		if (!inputUsers.isEmpty()) {
-			MTP::send(
-				MTPchannels_InviteToChannel(
-					channel->inputChannel,
-					MTP_vector<MTPInputUser>(inputUsers)),
-				rpcDone(&MainWidget::inviteToChannelDone, { channel }),
-				rpcFail(&MainWidget::addParticipantsFail, { channel }),
-				0,
-				5);
-		}
-	}
-}
-
-bool MainWidget::addParticipantFail(UserAndPeer data, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	QString text = lang(lng_failed_add_participant);
-	if (error.type() == qstr("USER_LEFT_CHAT")) { // trying to return a user who has left
-	} else if (error.type() == qstr("USER_KICKED")) { // trying to return a user who was kicked by admin
-		text = lang(lng_cant_invite_banned);
-	} else if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-		text = lang(lng_cant_invite_privacy);
-	} else if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) { // trying to return user who does not have me in contacts
-		text = lang(lng_failed_add_not_mutual);
-	} else if (error.type() == qstr("USER_ALREADY_PARTICIPANT") && data.user->botInfo) {
-		text = lang(lng_bot_already_in_group);
-	} else if (error.type() == qstr("PEER_FLOOD")) {
-		text = PeerFloodErrorText((data.peer->isChat() || data.peer->isMegagroup()) ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel);
-	}
-	Ui::show(Box<InformBox>(text));
-	return false;
-}
-
-bool MainWidget::addParticipantsFail(
-		not_null<ChannelData*> channel,
-		const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	QString text = lang(lng_failed_add_participant);
-	if (error.type() == qstr("USER_LEFT_CHAT")) { // trying to return banned user to his group
-	} else if (error.type() == qstr("USER_KICKED")) { // trying to return a user who was kicked by admin
-		text = lang(lng_cant_invite_banned);
-	} else if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-		text = lang(channel->isMegagroup() ? lng_cant_invite_privacy : lng_cant_invite_privacy_channel);
-	} else if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) { // trying to return user who does not have me in contacts
-		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
-	} else if (error.type() == qstr("PEER_FLOOD")) {
-		text = PeerFloodErrorText(PeerFloodType::InviteGroup);
-	}
-	Ui::show(Box<InformBox>(text));
-	return false;
-}
-
 bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
@@ -2316,13 +2231,6 @@ bool MainWidget::deleteChannelFailed(const RPCError &error) {
 	//}
 
 	return true;
-}
-
-void MainWidget::inviteToChannelDone(
-		not_null<ChannelData*> channel,
-		const MTPUpdates &updates) {
-	sentUpdatesReceived(updates);
-	Auth().api().requestParticipantsCountDelayed(channel);
 }
 
 void MainWidget::historyToDown(History *history) {

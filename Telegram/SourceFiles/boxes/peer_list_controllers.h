@@ -192,6 +192,7 @@ private:
 	bool isAlreadyIn(not_null<UserData*> user) const;
 	int fullCount() const;
 	void updateTitle();
+	bool inviteSelectedUsers(not_null<PeerData*> chat) const;
 
 	PeerData *_peer = nullptr;
 	base::flat_set<not_null<UserData*>> _alreadyIn;
