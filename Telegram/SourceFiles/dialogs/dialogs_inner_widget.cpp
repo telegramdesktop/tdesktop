@@ -2319,12 +2319,10 @@ void DialogsInner::scrollToEntry(const Dialogs::RowDescriptor &entry) {
 			fromY = dialogsOffset() + row->pos() * st::dialogsRowHeight;
 		}
 	} else if (_state == State::Filtered) {
-		if (entry.fullId.msg) {
-			for (int32 i = 0, c = _searchResults.size(); i < c; ++i) {
-				if (_searchResults[i]->item()->fullId() == entry.fullId) {
-					fromY = searchedOffset() + i * st::dialogsRowHeight;
-					break;
-				}
+		for (int32 i = 0, c = _searchResults.size(); i < c; ++i) {
+			if (isSearchResultActive(_searchResults[i].get(), entry)) {
+				fromY = searchedOffset() + i * st::dialogsRowHeight;
+				break;
 			}
 		}
 		if (fromY < 0) {
