@@ -215,7 +215,7 @@ void ShareBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_select->setQueryChangedCallback([=](const QString &query) {
-		onFilterUpdate(query);
+		applyFilterUpdate(query);
 	});
 	_select->setItemRemovedCallback([=](uint64 itemId) {
 		if (const auto peer = App::peerLoaded(itemId)) {
@@ -403,7 +403,7 @@ void ShareBox::createButtons() {
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 }
 
-void ShareBox::onFilterUpdate(const QString &query) {
+void ShareBox::applyFilterUpdate(const QString &query) {
 	onScrollToY(0);
 	_inner->updateFilter(query);
 }

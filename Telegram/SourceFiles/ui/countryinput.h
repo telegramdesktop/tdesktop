@@ -77,11 +77,9 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onSubmit();
-
 private:
-	void onFilterUpdate(const QString &query);
+	void submit();
+	void applyFilterUpdate(const QString &query);
 
 	Type _type = Type::Phones;
 	object_ptr<Ui::MultiSelect> _select;

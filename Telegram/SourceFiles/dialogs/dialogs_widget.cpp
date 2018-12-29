@@ -165,13 +165,20 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(_inner, SIGNAL(cancelSearchInChat()), this, SLOT(onCancelSearchInChat()));
 	subscribe(_inner->searchFromUserChanged, [this](UserData *user) {
 		setSearchInChat(_searchInChat, user);
-		onFilterUpdate(true);
+		applyFilterUpdate(true);
 	});
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
-	connect(_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
-	connect(_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
+	connect(_filter, &Ui::FlatInput::cancelled, [=] {
+		onCancel();
+	});
+	connect(_filter, &Ui::FlatInput::changed, [=] {
+		applyFilterUpdate();
+	});
+	connect(
+		_filter,
+		&Ui::FlatInput::cursorPositionChanged,
+		[=](int from, int to) { onFilterCursorMoved(from, to); });
 
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
@@ -395,7 +402,7 @@ void DialogsWidget::animationCallback() {
 		updateJumpToDateVisibility(true);
 		updateSearchFromVisibility(true);
 
-		onFilterUpdate();
+		applyFilterUpdate();
 		if (App::wnd()) App::wnd()->setInnerFocus();
 	}
 }
@@ -442,12 +449,22 @@ void DialogsWidget::dialogsReceived(
 	if (!_dialogsRequestId) {
 		refreshLoadMoreButton();
 	}
+	refreshSupportFilteredResults();
 
 	Auth().data().moreChatsLoaded().notify();
 	if (_dialogsFull && _pinnedDialogsReceived) {
 		Auth().data().allChatsLoaded().set(true);
 	}
 	Auth().api().requestContacts();
+}
+
+void DialogsWidget::refreshSupportFilteredResults() {
+	if (!Auth().supportMode()) {
+		return;
+	}
+	const auto top = _scroll->scrollTop();
+	applyFilterUpdate(true);
+	_scroll->scrollToY(top);
 }
 
 void DialogsWidget::updateDialogsOffset(
@@ -741,7 +758,7 @@ void DialogsWidget::searchMessages(
 		}
 		_filter->setText(query);
 		_filter->updatePlaceholder();
-		onFilterUpdate(true);
+		applyFilterUpdate(true);
 		_searchTimer.stop();
 		onSearchMessages();
 
@@ -1115,11 +1132,11 @@ void DialogsWidget::onListScroll() {
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 }
 
-void DialogsWidget::onFilterUpdate(bool force) {
+void DialogsWidget::applyFilterUpdate(bool force) {
 	if (_a_show.animating() && !force) return;
 
 	auto filterText = _filter->getLastText();
-	_inner->onFilterUpdate(filterText, force);
+	_inner->applyFilterUpdate(filterText, force);
 	if (filterText.isEmpty() && !_searchFromUser) {
 		clearSearchCache();
 	}
@@ -1146,7 +1163,7 @@ void DialogsWidget::onFilterUpdate(bool force) {
 void DialogsWidget::searchInChat(Dialogs::Key chat) {
 	onCancelSearch();
 	setSearchInChat(chat);
-	onFilterUpdate(true);
+	applyFilterUpdate(true);
 }
 
 void DialogsWidget::setSearchInChat(Dialogs::Key chat, UserData *from) {
@@ -1202,7 +1219,7 @@ void DialogsWidget::showSearchFrom() {
 			crl::guard(this, [=](not_null<UserData*> user) {
 				Ui::hideLayer();
 				setSearchInChat(chat, user);
-				onFilterUpdate(true);
+				applyFilterUpdate(true);
 			}),
 			crl::guard(this, [=] { _filter->setFocus(); }));
 	}
@@ -1239,7 +1256,7 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 				r = t.mid(0, start + 1) + tag + ' ' + t.mid(cur);
 				_filter->setText(r);
 				_filter->setCursorPosition(start + 1 + tag.size() + 1);
-				onFilterUpdate(true);
+				applyFilterUpdate(true);
 				return;
 			}
 			break;
@@ -1248,7 +1265,7 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 	}
 	_filter->setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
 	_filter->setCursorPosition(cur + 1 + tag.size() + 1);
-	onFilterUpdate(true);
+	applyFilterUpdate(true);
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
@@ -1451,7 +1468,7 @@ void DialogsWidget::scrollToEntry(const Dialogs::RowDescriptor &entry) {
 
 void DialogsWidget::removeDialog(Dialogs::Key key) {
 	_inner->removeDialog(key);
-	onFilterUpdate();
+	applyFilterUpdate(true);
 }
 
 Dialogs::IndexedList *DialogsWidget::contactsList() {
@@ -1488,7 +1505,7 @@ bool DialogsWidget::onCancelSearch() {
 	_inner->clearFilter();
 	_filter->clear();
 	_filter->updatePlaceholder();
-	onFilterUpdate();
+	applyFilterUpdate();
 	return clearing;
 }
 
@@ -1512,7 +1529,7 @@ void DialogsWidget::onCancelSearchInChat() {
 	_inner->clearFilter();
 	_filter->clear();
 	_filter->updatePlaceholder();
-	onFilterUpdate();
+	applyFilterUpdate();
 	if (!Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 		emit cancelled();
 	}

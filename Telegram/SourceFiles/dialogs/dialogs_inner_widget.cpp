@@ -1598,7 +1598,7 @@ void DialogsInner::handlePeerNameChange(
 	update();
 }
 
-void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
+void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 	const auto mentionsSearch = (newFilter == qstr("@"));
 	const auto words = mentionsSearch
 		? QStringList(newFilter)

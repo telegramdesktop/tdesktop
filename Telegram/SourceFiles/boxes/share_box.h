@@ -60,7 +60,7 @@ private:
 
 	void scrollTo(Ui::ScrollToRequest request);
 	void needSearchByUsername();
-	void onFilterUpdate(const QString &query);
+	void applyFilterUpdate(const QString &query);
 	void selectedChanged();
 	void createButtons();
 	int getTopScrollSkip() const;

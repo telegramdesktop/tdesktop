@@ -88,7 +88,7 @@ public:
 
 	void searchInChat(Dialogs::Key key, UserData *from);
 
-	void onFilterUpdate(QString newFilter, bool force = false);
+	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
 
 	PeerData *updateFromParentDrag(QPoint globalPosition);

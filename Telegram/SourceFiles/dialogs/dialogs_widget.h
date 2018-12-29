@@ -100,7 +100,6 @@ public slots:
 	void onCancel();
 	void onListScroll();
 	void activate();
-	void onFilterUpdate(bool force = false);
 	bool onCancelSearch();
 	void onCancelSearchInChat();
 
@@ -162,6 +161,8 @@ private:
 	void updateForwardBar();
 	void checkUpdateStatus();
 
+	void applyFilterUpdate(bool force = false);
+	void refreshSupportFilteredResults();
 	bool loadingBlockedByDate() const;
 	void refreshLoadMoreButton();
 
