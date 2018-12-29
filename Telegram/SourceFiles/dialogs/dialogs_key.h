@@ -85,7 +85,8 @@ struct RowDescriptor {
 };
 
 inline bool operator==(const RowDescriptor &a, const RowDescriptor &b) {
-	return (a.key == b.key) && (a.fullId == b.fullId);
+	return (a.key == b.key)
+		&& ((a.fullId == b.fullId) || (!a.fullId.msg && !b.fullId.msg));
 }
 
 inline bool operator!=(const RowDescriptor &a, const RowDescriptor &b) {

@@ -165,6 +165,7 @@ private:
 	void refreshSupportFilteredResults();
 	bool loadingBlockedByDate() const;
 	void refreshLoadMoreButton();
+	void loadMoreBlockedByDateChats();
 
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);

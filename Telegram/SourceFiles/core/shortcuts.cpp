@@ -26,6 +26,8 @@ const auto AutoRepeatCommands = base::flat_set<Command>{
 	Command::MediaNext,
 	Command::ChatPrevious,
 	Command::ChatNext,
+	Command::ChatFirst,
+	Command::ChatLast,
 };
 
 const auto MediaCommands = base::flat_set<Command>{
@@ -363,7 +365,7 @@ void Manager::set(const QString &keys, Command command) {
 		nullptr,
 		nullptr,
 		Qt::ApplicationShortcut);
-	if (AutoRepeatCommands.contains(command)) {
+	if (!AutoRepeatCommands.contains(command)) {
 		shortcut->setAutoRepeat(false);
 	}
 	const auto isMediaShortcut = MediaCommands.contains(command);

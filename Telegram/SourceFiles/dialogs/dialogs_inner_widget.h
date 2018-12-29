@@ -93,9 +93,8 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPosition);
 
-	void setLoadMoreCallback(Fn<void()> callback) {
-		_loadMoreCallback = std::move(callback);
-	}
+	void setLoadMoreCallback(Fn<void()> callback);
+	[[nodiscard]] rpl::producer<> listBottomReached() const;
 
 	base::Observable<UserData*> searchFromUserChanged;
 
@@ -140,6 +139,13 @@ private:
 	using HashtagResults = std::vector<std::unique_ptr<HashtagResult>>;
 	struct PeerSearchResult;
 	using PeerSearchResults = std::vector<std::unique_ptr<PeerSearchResult>>;
+
+	enum class JumpSkip {
+		PreviousOrBegin,
+		NextOrEnd,
+		PreviousOrOriginal,
+		NextOrOriginal,
+	};
 
 	struct ChosenRow {
 		Dialogs::Key key;
@@ -189,7 +195,7 @@ private:
 	void setupShortcuts();
 	Dialogs::RowDescriptor computeJump(
 		const Dialogs::RowDescriptor &to,
-		int skipDirection);
+		JumpSkip skip);
 	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
 
 	Dialogs::RowDescriptor chatListEntryBefore(
@@ -365,6 +371,7 @@ private:
 	Dialogs::Key _menuKey;
 
 	Fn<void()> _loadMoreCallback;
+	rpl::event_stream<> _listBottomReached;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

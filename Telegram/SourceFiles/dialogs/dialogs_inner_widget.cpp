@@ -1758,6 +1758,14 @@ PeerData *DialogsInner::updateFromParentDrag(QPoint globalPosition) {
 	return nullptr;
 }
 
+void DialogsInner::setLoadMoreCallback(Fn<void()> callback) {
+	_loadMoreCallback = std::move(callback);
+}
+
+rpl::producer<> DialogsInner::listBottomReached() const {
+	return _listBottomReached.events();
+}
+
 void DialogsInner::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
@@ -2803,21 +2811,40 @@ void DialogsInner::setupShortcuts() {
 			return;
 		}
 		const auto row = _controller->activeChatEntryCurrent();
+		// Those should be computed before the call to request->handle.
+		const auto previous = row.key
+			? computeJump(
+				chatListEntryBefore(row),
+				JumpSkip::PreviousOrBegin)
+			: row;
+		const auto next = row.key
+			? computeJump(
+				chatListEntryAfter(row),
+				JumpSkip::NextOrEnd)
+			: row;
+		const auto first = [&] {
+			const auto to = chatListEntryFirst();
+			const auto jump = computeJump(to, JumpSkip::NextOrOriginal);
+			return (to == row || jump == row || to == previous) ? to : jump;
+		}();
+		const auto last = [&] {
+			const auto to = chatListEntryLast();
+			const auto jump = computeJump(to, JumpSkip::PreviousOrOriginal);
+			return (to == row || jump == row || to == next) ? to : jump;
+		}();
 		if (row.key) {
-			const auto prev = computeJump(chatListEntryBefore(row), -1);
-			const auto next = computeJump(chatListEntryAfter(row), 1);
 			request->check(Command::ChatPrevious) && request->handle([=] {
-				return jumpToDialogRow(prev);
+				return jumpToDialogRow(previous);
 			});
 			request->check(Command::ChatNext) && request->handle([=] {
 				return jumpToDialogRow(next);
 			});
 		}
 		request->check(Command::ChatFirst) && request->handle([=] {
-			return jumpToDialogRow(computeJump(chatListEntryFirst(), 1));
+			return jumpToDialogRow(first);
 		});
 		request->check(Command::ChatLast) && request->handle([=] {
-			return jumpToDialogRow(computeJump(chatListEntryLast(), -1));
+			return jumpToDialogRow(last);
 		});
 		if (Auth().supportMode() && row.key.history()) {
 			request->check(
@@ -2832,21 +2859,35 @@ void DialogsInner::setupShortcuts() {
 
 Dialogs::RowDescriptor DialogsInner::computeJump(
 		const Dialogs::RowDescriptor &to,
-		int skipDirection) {
+		JumpSkip skip) {
 	auto result = to;
-	if (Auth().supportMode()) {
-		while (result.key
-			&& !result.key.entry()->chatListUnreadCount()
+	if (Auth().supportMode() && result.key) {
+		const auto down = (skip == JumpSkip::NextOrEnd)
+			|| (skip == JumpSkip::NextOrOriginal);
+		while (!result.key.entry()->chatListUnreadCount()
 			&& !result.key.entry()->chatListUnreadMark()) {
-			result = (skipDirection > 0)
+			const auto next = down
 				? chatListEntryAfter(result)
 				: chatListEntryBefore(result);
+			if (next.key) {
+				result = next;
+			} else {
+				if (skip == JumpSkip::PreviousOrOriginal
+					|| skip == JumpSkip::NextOrOriginal) {
+					result = to;
+				}
+				break;
+			}
 		}
 	}
 	return result;
 }
 
 bool DialogsInner::jumpToDialogRow(const Dialogs::RowDescriptor &to) {
+	if (to == chatListEntryLast()) {
+		_listBottomReached.fire({});
+	}
+
 	if (const auto history = to.key.history()) {
 		Ui::showPeerHistory(
 			history,

@@ -226,6 +226,10 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 			loadDialogs();
 		}
 	});
+	_inner->listBottomReached(
+	) | rpl::start_with_next([=] {
+		loadMoreBlockedByDateChats();
+	}, lifetime());
 
 	_filter->setFocusPolicy(Qt::StrongFocus);
 	_filter->customUpDown(true);
@@ -530,20 +534,24 @@ void DialogsWidget::refreshLoadMoreButton() {
 			st::dialogsLoadMore,
 			st::dialogsLoadMore);
 		_loadMoreChats->addClickHandler([=] {
-			if (_loadMoreChats->isDisabled()) {
-				return;
-			}
-			const auto max = Auth().settings().supportChatsTimeSlice();
-			_dialogsLoadTill = _dialogsOffsetDate
-				? (_dialogsOffsetDate - max)
-				: (unixtime() - max);
-			loadDialogs();
+			loadMoreBlockedByDateChats();
 		});
 		updateControlsGeometry();
 	}
 	const auto loading = !loadingBlockedByDate();
 	_loadMoreChats->setDisabled(loading);
 	_loadMoreChats->setText(loading ? "Loading..." : "Load more");
+}
+
+void DialogsWidget::loadMoreBlockedByDateChats() {
+	if (!_loadMoreChats || _loadMoreChats->isDisabled()) {
+		return;
+	}
+	const auto max = Auth().settings().supportChatsTimeSlice();
+	_dialogsLoadTill = _dialogsOffsetDate
+		? (_dialogsOffsetDate - max)
+		: (unixtime() - max);
+	loadDialogs();
 }
 
 void DialogsWidget::pinnedDialogsReceived(
