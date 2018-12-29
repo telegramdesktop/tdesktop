@@ -310,6 +310,12 @@ void Manager::fillDefaults() {
 	set(qsl("f5"), Command::SupportReloadTemplates);
 	set(qsl("ctrl+delete"), Command::SupportToggleMuted);
 	set(qsl("ctrl+insert"), Command::SupportScrollToCurrent);
+
+	set(qsl("ctrl+1"), Command::ChatPinned1);
+	set(qsl("ctrl+2"), Command::ChatPinned2);
+	set(qsl("ctrl+3"), Command::ChatPinned3);
+	set(qsl("ctrl+4"), Command::ChatPinned4);
+	set(qsl("ctrl+5"), Command::ChatPinned5);
 }
 
 void Manager::writeDefaultFile() {

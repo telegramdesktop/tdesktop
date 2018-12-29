@@ -2844,6 +2844,25 @@ void DialogsInner::setupShortcuts() {
 		request->check(Command::ChatLast) && request->handle([=] {
 			return jumpToDialogRow(last);
 		});
+
+		static const auto kPinned = {
+			Command::ChatPinned1,
+			Command::ChatPinned2,
+			Command::ChatPinned3,
+			Command::ChatPinned4,
+			Command::ChatPinned5,
+		};
+		auto &&pinned = ranges::view::zip(kPinned, ranges::view::ints(0));
+		for (const auto [command, index] : pinned) {
+			request->check(command) && request->handle([=, index = index] {
+				const auto count = shownPinnedCount();
+				if (index >= count) {
+					return false;
+				}
+				const auto row = *(shownDialogs()->cbegin() + index);
+				return jumpToDialogRow({ row->key(), FullMsgId() });
+			});
+		}
 		if (Auth().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent
