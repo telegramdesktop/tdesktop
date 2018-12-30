@@ -1725,7 +1725,7 @@ void History::outboxRead(MsgId upTo) {
 	if (const auto last = lastMessage()) {
 		if (last->out() && IsServerMsgId(last->id) && last->id <= upTo) {
 			if (const auto main = App::main()) {
-				main->repaintDialogRow(this, last->id);
+				main->repaintDialogRow({ this, last->fullId() });
 			}
 		}
 	}

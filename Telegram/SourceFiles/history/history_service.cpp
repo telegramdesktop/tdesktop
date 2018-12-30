@@ -691,7 +691,7 @@ void HistoryService::updateDependentText() {
 	}
 	if (const auto main = App::main()) {
 		// #TODO feeds search results
-		main->repaintDialogRow(history(), id);
+		main->repaintDialogRow({ history(), fullId() });
 	}
 	App::historyUpdateDependent(this);
 }

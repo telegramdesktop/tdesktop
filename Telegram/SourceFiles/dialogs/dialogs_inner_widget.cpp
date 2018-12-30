@@ -1346,13 +1346,8 @@ void DialogsInner::repaintDialogRow(
 	}
 }
 
-void DialogsInner::repaintDialogRow(
-		not_null<History*> history,
-		MsgId messageId) {
-	updateDialogRow({
-		history,
-		FullMsgId(history->channelId(), messageId)
-	});
+void DialogsInner::repaintDialogRow(Dialogs::RowDescriptor row) {
+	updateDialogRow(row);
 }
 
 void DialogsInner::updateSearchResult(not_null<PeerData*> peer) {
@@ -1439,8 +1434,7 @@ void DialogsInner::updateDialogRow(
 			const auto add = searchedOffset();
 			auto index = 0;
 			for (const auto &result : _searchResults) {
-				auto item = result->item();
-				if (item->fullId() == row.fullId) {
+				if (isSearchResultActive(result.get(), row)) {
 					updateRow(add + index * st::dialogsRowHeight);
 					break;
 				}

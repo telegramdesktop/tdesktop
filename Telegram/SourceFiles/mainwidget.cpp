@@ -2209,10 +2209,8 @@ void MainWidget::repaintDialogRow(
 	_dialogs->repaintDialogRow(list, row);
 }
 
-void MainWidget::repaintDialogRow(
-		not_null<History*> history,
-		MsgId messageId) {
-	_dialogs->repaintDialogRow(history, messageId);
+void MainWidget::repaintDialogRow(Dialogs::RowDescriptor row) {
+	_dialogs->repaintDialogRow(row);
 }
 
 void MainWidget::windowShown() {

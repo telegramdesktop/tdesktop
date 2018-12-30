@@ -73,6 +73,7 @@ void Entry::updateChatListSortPosition() {
 	if (Auth().supportMode()
 		&& _sortKeyInChatList != 0
 		&& Auth().settings().supportFixChatsOrder()) {
+		updateChatListEntry();
 		return;
 	}
 	_sortKeyInChatList = useProxyPromotion()
@@ -198,6 +199,10 @@ void Entry::updateChatListEntry() const {
 					Mode::Important,
 					mainChatListLink(Mode::Important));
 			}
+		}
+		if (Auth().supportMode()
+			&& !Auth().settings().supportAllSearchResults()) {
+			main->repaintDialogRow({ _key, FullMsgId() });
 		}
 	}
 }

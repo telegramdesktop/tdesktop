@@ -319,10 +319,8 @@ void DialogsWidget::repaintDialogRow(
 	_inner->repaintDialogRow(list, row);
 }
 
-void DialogsWidget::repaintDialogRow(
-		not_null<History*> history,
-		MsgId messageId) {
-	_inner->repaintDialogRow(history, messageId);
+void DialogsWidget::repaintDialogRow(Dialogs::RowDescriptor row) {
+	_inner->repaintDialogRow(row);
 }
 
 void DialogsWidget::dialogsToUp() {
