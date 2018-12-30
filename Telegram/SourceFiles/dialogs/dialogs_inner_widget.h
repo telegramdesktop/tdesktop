@@ -222,8 +222,9 @@ private:
 	void updateSearchResult(not_null<PeerData*> peer);
 	void updateDialogRow(
 		Dialogs::RowDescriptor row,
-		QRect updateRect,
+		QRect updateRect = QRect(),
 		UpdateRowSections sections = UpdateRowSection::All);
+	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
 
 	int dialogsOffset() const;
 	int proxyPromotedCount() const;
@@ -368,7 +369,7 @@ private:
 	UserData *_searchFromUser = nullptr;
 	Text _searchInChatText;
 	Text _searchFromUserText;
-	Dialogs::Key _menuKey;
+	Dialogs::RowDescriptor _menuRow;
 
 	Fn<void()> _loadMoreCallback;
 	rpl::event_stream<> _listBottomReached;

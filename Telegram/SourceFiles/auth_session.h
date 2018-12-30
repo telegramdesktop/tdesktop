@@ -103,6 +103,9 @@ public:
 	void setSupportChatsTimeSlice(int slice);
 	int supportChatsTimeSlice() const;
 	rpl::producer<int> supportChatsTimeSliceValue() const;
+	void setSupportAllSearchResults(bool all);
+	bool supportAllSearchResults() const;
+	rpl::producer<bool> supportAllSearchResultsValue() const;
 
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
@@ -252,6 +255,7 @@ private:
 		bool supportTemplatesAutocomplete = true;
 		rpl::variable<int> supportChatsTimeSlice
 			= kDefaultSupportChatsLimitSlice;
+		rpl::variable<bool> supportAllSearchResults = false;
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;

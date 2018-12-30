@@ -237,7 +237,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
 	setupConnectingWidget();
-	setupSupportLoadingLimit();
+	setupSupportMode();
 }
 
 void DialogsWidget::setupConnectingWidget() {
@@ -246,14 +246,27 @@ void DialogsWidget::setupConnectingWidget() {
 		Window::AdaptiveIsOneColumn());
 }
 
-void DialogsWidget::setupSupportLoadingLimit() {
+void DialogsWidget::setupSupportMode() {
 	if (!Auth().supportMode()) {
 		return;
 	}
+
 	Auth().settings().supportChatsTimeSliceValue(
 	) | rpl::start_with_next([=](int seconds) {
 		_dialogsLoadTill = seconds ? std::max(unixtime() - seconds, 0) : 0;
 		refreshLoadMoreButton();
+	}, lifetime());
+
+	Auth().settings().supportAllSearchResultsValue(
+	) | rpl::filter([=] {
+		return !_searchQuery.isEmpty();
+	}) | rpl::start_with_next([=] {
+		_searchTimer.stop();
+		_searchCache.clear();
+		_searchQueries.clear();
+		_searchQuery = QString();
+		_scroll->scrollToY(0);
+		onSearchMessages();
 	}, lifetime());
 }
 
@@ -1474,7 +1487,6 @@ void DialogsWidget::scrollToEntry(const Dialogs::RowDescriptor &entry) {
 
 void DialogsWidget::removeDialog(Dialogs::Key key) {
 	_inner->removeDialog(key);
-	applyFilterUpdate(true);
 }
 
 Dialogs::IndexedList *DialogsWidget::contactsList() {

@@ -91,6 +91,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.countUnreadMessages ? 1 : 0);
 		stream << qint32(_variables.exeLaunchWarning ? 1 : 0);
 		stream << autoDownload;
+		stream << qint32(_variables.supportAllSearchResults.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -126,6 +127,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 countUnreadMessages = _variables.countUnreadMessages ? 1 : 0;
 	qint32 exeLaunchWarning = _variables.exeLaunchWarning ? 1 : 0;
 	QByteArray autoDownload;
+	qint32 supportAllSearchResults = _variables.supportAllSearchResults.current() ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -202,6 +204,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	if (!stream.atEnd()) {
 		stream >> autoDownload;
 	}
+	if (!stream.atEnd()) {
+		stream >> supportAllSearchResults;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -270,6 +275,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.includeMutedCounter = (includeMutedCounter == 1);
 	_variables.countUnreadMessages = (countUnreadMessages == 1);
 	_variables.exeLaunchWarning = (exeLaunchWarning == 1);
+	_variables.supportAllSearchResults = (supportAllSearchResults == 1);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
@@ -282,6 +288,18 @@ int AuthSessionSettings::supportChatsTimeSlice() const {
 
 rpl::producer<int> AuthSessionSettings::supportChatsTimeSliceValue() const {
 	return _variables.supportChatsTimeSlice.value();
+}
+
+void AuthSessionSettings::setSupportAllSearchResults(bool all) {
+	_variables.supportAllSearchResults = all;
+}
+
+bool AuthSessionSettings::supportAllSearchResults() const {
+	return _variables.supportAllSearchResults.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::supportAllSearchResultsValue() const {
+	return _variables.supportAllSearchResults.value();
 }
 
 void AuthSessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {

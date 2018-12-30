@@ -146,9 +146,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	}));
 	Auth().data().feedUpdated(
 	) | rpl::start_with_next([=](const Data::FeedUpdate &update) {
-		updateDialogRow(
-			Dialogs::RowDescriptor(update.feed, FullMsgId()),
-			QRect(0, 0, getFullWidth(), st::dialogsRowHeight));
+		updateDialogRow({ update.feed, FullMsgId() });
 	}, lifetime());
 
 	_controller->activeChatEntryValue(
@@ -156,9 +154,8 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	) | rpl::start_with_next([=](
 			Dialogs::RowDescriptor previous,
 			Dialogs::RowDescriptor next) {
-		const auto rect = QRect(0, 0, getFullWidth(), st::dialogsRowHeight);
-		updateDialogRow(previous, rect);
-		updateDialogRow(next, rect);
+		updateDialogRow(previous);
+		updateDialogRow(next);
 	}, lifetime());
 	refresh();
 
@@ -237,8 +234,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 		auto otherStart = rows->size() * st::dialogsRowHeight;
 		const auto active = activeEntry.key;
-		const auto selected = _menuKey
-			? _menuKey
+		const auto selected = _menuRow.key
+			? _menuRow.key
 			: (isPressed()
 				? (_pressed
 					? _pressed->key()
@@ -383,8 +380,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					const auto key = row->key();
 					const auto active = (activeEntry.key == key)
 						&& !activeEntry.fullId;
-					const auto selected = _menuKey
-						? (key == _menuKey)
+					const auto selected = _menuRow.key
+						? (key == _menuRow.key)
 						: (from == (isPressed()
 							? _filteredPressed
 							: _filteredSelected));
@@ -480,9 +477,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				for (; from < to; ++from) {
 					const auto &result = _searchResults[from];
 					const auto active = isSearchResultActive(result.get(), activeEntry);
-					const auto selected = (from == (isPressed()
-						? _searchedPressed
-						: _searchedSelected));
+					const auto selected = _menuRow.key
+						? isSearchResultActive(result.get(), _menuRow)
+						: (from == (isPressed()
+							? _searchedPressed
+							: _searchedSelected));
 					Dialogs::Layout::RowPainter::paint(
 						p,
 						result.get(),
@@ -1277,8 +1276,8 @@ void DialogsInner::createDialog(Dialogs::Key key) {
 }
 
 void DialogsInner::removeDialog(Dialogs::Key key) {
-	if (key == _menuKey && _menu) {
-		InvokeQueued(this, [this] { _menu = nullptr; });
+	if (key == _menuRow.key && _menu) {
+		InvokeQueued(this, [=] { _menu = nullptr; });
 	}
 	if (_selected && _selected->key() == key) {
 		_selected = nullptr;
@@ -1303,6 +1302,15 @@ void DialogsInner::removeDialog(Dialogs::Key key) {
 		if (!_contactsNoDialogs->contains(key)) {
 			_contactsNoDialogs->addByName(key);
 		}
+	}
+	const auto i = ranges::find(_filterResults, key, &Dialogs::Row::key);
+	if (i != _filterResults.end()) {
+		if (_filteredSelected == (i - _filterResults.begin())
+			&& (i + 1) == _filterResults.end()) {
+			_filteredSelected = -1;
+		}
+		_filterResults.erase(i);
+		refresh();
 	}
 
 	emit App::main()->dialogsUpdated();
@@ -1341,11 +1349,10 @@ void DialogsInner::repaintDialogRow(
 void DialogsInner::repaintDialogRow(
 		not_null<History*> history,
 		MsgId messageId) {
-	updateDialogRow(
-		Dialogs::RowDescriptor(
-			history,
-			FullMsgId(history->channelId(), messageId)),
-		QRect(0, 0, getFullWidth(), st::dialogsRowHeight));
+	updateDialogRow({
+		history,
+		FullMsgId(history->channelId(), messageId)
+	});
 }
 
 void DialogsInner::updateSearchResult(not_null<PeerData*> peer) {
@@ -1367,6 +1374,9 @@ void DialogsInner::updateDialogRow(
 		Dialogs::RowDescriptor row,
 		QRect updateRect,
 		UpdateRowSections sections) {
+	if (updateRect.isEmpty()) {
+		updateRect = QRect(0, 0, getFullWidth(), st::dialogsRowHeight);
+	}
 	if (IsServerMsgId(-row.fullId.msg)) {
 		if (const auto peer = row.key.peer()) {
 			if (const auto from = peer->migrateFrom()) {
@@ -1515,6 +1525,15 @@ void DialogsInner::clearSelection() {
 	}
 }
 
+void DialogsInner::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
+	const auto all = Auth().settings().supportAllSearchResults();
+	const auto text = all ? "Only one from chat" : "Show all messages";
+	menu->addAction(text, [=] {
+		Auth().settings().setSupportAllSearchResults(!all);
+		Auth().saveSettingsDelayed();
+	});
+}
+
 void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = nullptr;
 
@@ -1522,27 +1541,35 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		selectByMouse(e->globalPos());
 	}
 
-	const auto key = [&]() -> Dialogs::Key {
+	const auto row = [&]() -> Dialogs::RowDescriptor {
 		if (_state == State::Default) {
 			if (_selected) {
-				return _selected->key();
+				return { _selected->key(), FullMsgId() };
 			}
 		} else if (_state == State::Filtered) {
 			if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
-				return _filterResults[_filteredSelected]->key();
+				return { _filterResults[_filteredSelected]->key(), FullMsgId() };
+			} else if (Auth().supportMode()
+				&& base::in_range(_searchedSelected, 0, _searchResults.size())) {
+				return {
+					_searchResults[_searchedSelected]->item()->history(),
+					_searchResults[_searchedSelected]->item()->fullId()
+				};
 			}
 		}
-		return Dialogs::Key();
+		return Dialogs::RowDescriptor();
 	}();
-	if (!key) return;
+	if (!row.key) return;
 
-	_menuKey = key;
+	_menuRow = row;
 	if (_pressButton != Qt::LeftButton) {
 		mousePressReleased(e->globalPos(), _pressButton);
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-	if (const auto history = key.history()) {
+	if (Auth().supportMode() && row.fullId) {
+		fillSupportSearchMenu(_menu.get());
+	} else if (const auto history = row.key.history()) {
 		Window::FillPeerMenu(
 			_controller,
 			history->peer,
@@ -1550,7 +1577,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 				return _menu->addAction(text, std::move(callback));
 			},
 			Window::PeerMenuSource::ChatsList);
-	} else if (const auto feed = key.feed()) {
+	} else if (const auto feed = row.key.feed()) {
 		Window::FillFeedMenu(
 			_controller,
 			feed,
@@ -1559,9 +1586,9 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 			},
 			Window::PeerMenuSource::ChatsList);
 	}
-	connect(_menu.get(), &QObject::destroyed, [this] {
-		if (_menuKey) {
-			updateSelectedRow(base::take(_menuKey));
+	connect(_menu.get(), &QObject::destroyed, [=] {
+		if (_menuRow.key) {
+			updateDialogRow(base::take(_menuRow));
 		}
 		const auto globalPosition = QCursor::pos();
 		if (rect().contains(mapFromGlobal(globalPosition))) {
@@ -1868,7 +1895,7 @@ void DialogsInner::addAllSavedPeers() {
 
 bool DialogsInner::uniqueSearchResults() const {
 	return Auth().supportMode()
-		&& _filter.startsWith('#')
+		&& !Auth().settings().supportAllSearchResults()
 		&& !_searchInChat;
 }
 
