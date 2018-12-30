@@ -453,22 +453,12 @@ void DialogsWidget::dialogsReceived(
 	if (!_dialogsRequestId) {
 		refreshLoadMoreButton();
 	}
-	refreshSupportFilteredResults();
 
 	Auth().data().moreChatsLoaded().notify();
 	if (_dialogsFull && _pinnedDialogsReceived) {
 		Auth().data().allChatsLoaded().set(true);
 	}
 	Auth().api().requestContacts();
-}
-
-void DialogsWidget::refreshSupportFilteredResults() {
-	if (!Auth().supportMode()) {
-		return;
-	}
-	const auto top = _scroll->scrollTop();
-	applyFilterUpdate(true);
-	_scroll->scrollToY(top);
 }
 
 void DialogsWidget::updateDialogsOffset(
@@ -544,7 +534,9 @@ void DialogsWidget::refreshLoadMoreButton() {
 }
 
 void DialogsWidget::loadMoreBlockedByDateChats() {
-	if (!_loadMoreChats || _loadMoreChats->isDisabled()) {
+	if (!_loadMoreChats
+		|| _loadMoreChats->isDisabled()
+		|| _loadMoreChats->isHidden()) {
 		return;
 	}
 	const auto max = Auth().settings().supportChatsTimeSlice();
@@ -1141,7 +1133,9 @@ void DialogsWidget::onListScroll() {
 }
 
 void DialogsWidget::applyFilterUpdate(bool force) {
-	if (_a_show.animating() && !force) return;
+	if (_a_show.animating() && !force) {
+		return;
+	}
 
 	auto filterText = _filter->getLastText();
 	_inner->applyFilterUpdate(filterText, force);
@@ -1149,6 +1143,10 @@ void DialogsWidget::applyFilterUpdate(bool force) {
 		clearSearchCache();
 	}
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
+	if (_loadMoreChats) {
+		_loadMoreChats->setVisible(filterText.isEmpty());
+		updateControlsGeometry();
+	}
 	updateJumpToDateVisibility();
 
 	if (filterText.isEmpty()) {
@@ -1345,7 +1343,7 @@ void DialogsWidget::updateControlsGeometry() {
 	auto newScrollTop = _scroll->scrollTop() + addToScroll;
 	auto scrollHeight = height() - scrollTop;
 	const auto putBottomButton = [&](object_ptr<BottomButton> &button) {
-		if (button) {
+		if (button && !button->isHidden()) {
 			const auto buttonHeight = button->height();
 			scrollHeight -= buttonHeight;
 			button->setGeometry(

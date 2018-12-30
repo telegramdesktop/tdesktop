@@ -162,7 +162,6 @@ private:
 	void checkUpdateStatus();
 
 	void applyFilterUpdate(bool force = false);
-	void refreshSupportFilteredResults();
 	bool loadingBlockedByDate() const;
 	void refreshLoadMoreButton();
 	void loadMoreBlockedByDateChats();
