@@ -541,7 +541,7 @@ void ClearIrrelevantCache() {
 }
 
 std::vector<Set> Sets() {
-	return kSets;
+	return kSets | ranges::to_vector;
 }
 
 int CurrentSetId() {
