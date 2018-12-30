@@ -37,6 +37,8 @@ enum class Command {
 	SupportReloadTemplates,
 	SupportToggleMuted,
 	SupportScrollToCurrent,
+	SupportHistoryBack,
+	SupportHistoryForward,
 };
 
 [[nodiscard]] FnMut<bool()> RequestHandler(Command command);

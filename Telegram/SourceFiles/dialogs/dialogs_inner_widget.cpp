@@ -2921,25 +2921,12 @@ Dialogs::RowDescriptor DialogsInner::computeJump(
 	return result;
 }
 
-bool DialogsInner::jumpToDialogRow(const Dialogs::RowDescriptor &to) {
+bool DialogsInner::jumpToDialogRow(Dialogs::RowDescriptor to) {
 	if (to == chatListEntryLast()) {
 		_listBottomReached.fire({});
 	}
-
-	if (const auto history = to.key.history()) {
-		Ui::showPeerHistory(
-			history,
-			(uniqueSearchResults()
-				? ShowAtUnreadMsgId
-				: to.fullId.msg));
-		return true;
-	} else if (const auto feed = to.key.feed()) {
-		if (const auto item = App::histItemById(to.fullId)) {
-			_controller->showSection(
-				HistoryFeed::Memento(feed, item->position()));
-		} else {
-			_controller->showSection(HistoryFeed::Memento(feed));
-		}
+	if (uniqueSearchResults()) {
+		to.fullId = FullMsgId();
 	}
-	return false;
+	return _controller->jumpToChatListEntry(to);
 }

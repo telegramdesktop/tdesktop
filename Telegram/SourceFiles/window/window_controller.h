@@ -149,6 +149,7 @@ public:
 	rpl::producer<Dialogs::Key> activeChatChanges() const;
 	rpl::producer<Dialogs::RowDescriptor> activeChatEntryValue() const;
 	rpl::producer<Dialogs::Key> activeChatValue() const;
+	bool jumpToChatListEntry(Dialogs::RowDescriptor row);
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -259,6 +260,8 @@ public:
 	~Controller();
 
 private:
+	void initSupportMode();
+
 	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;
 	int countDialogsWidthFromRatio(int bodyWidth) const;
@@ -272,6 +275,9 @@ private:
 		int thirdWidth,
 		int bodyWidth) const;
 
+	void pushToChatEntryHistory(Dialogs::RowDescriptor row);
+	bool chatEntryHistoryMove(int steps);
+
 	not_null<MainWindow*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
@@ -283,6 +289,8 @@ private:
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
+	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
+	int _chatEntryHistoryPosition = -1;
 
 	std::unique_ptr<RoundController> _roundVideo;
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;

@@ -196,7 +196,7 @@ private:
 	Dialogs::RowDescriptor computeJump(
 		const Dialogs::RowDescriptor &to,
 		JumpSkip skip);
-	bool jumpToDialogRow(const Dialogs::RowDescriptor &to);
+	bool jumpToDialogRow(Dialogs::RowDescriptor to);
 
 	Dialogs::RowDescriptor chatListEntryBefore(
 		const Dialogs::RowDescriptor &which) const;

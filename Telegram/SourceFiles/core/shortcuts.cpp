@@ -43,6 +43,8 @@ const auto SupportCommands = base::flat_set<Command>{
 	Command::SupportReloadTemplates,
 	Command::SupportToggleMuted,
 	Command::SupportScrollToCurrent,
+	Command::SupportHistoryBack,
+	Command::SupportHistoryForward,
 };
 
 const auto CommandByName = base::flat_map<QString, Command>{
@@ -310,6 +312,8 @@ void Manager::fillDefaults() {
 	set(qsl("f5"), Command::SupportReloadTemplates);
 	set(qsl("ctrl+delete"), Command::SupportToggleMuted);
 	set(qsl("ctrl+insert"), Command::SupportScrollToCurrent);
+	set(qsl("ctrl+shift+x"), Command::SupportHistoryBack);
+	set(qsl("ctrl+shift+c"), Command::SupportHistoryForward);
 
 	set(qsl("ctrl+1"), Command::ChatPinned1);
 	set(qsl("ctrl+2"), Command::ChatPinned2);
