@@ -495,16 +495,8 @@ void CalendarBox::setMaxDate(QDate date) {
 }
 
 void CalendarBox::prepare() {
-	_previous->setClickedCallback([this] {
-		if (isPreviousEnabled()) {
-			_context->skipMonth(-1);
-		}
-	});
-	_next->setClickedCallback([this] {
-		if (isNextEnabled()) {
-			_context->skipMonth(1);
-		}
-	});
+	_previous->setClickedCallback([this] { goPreviousMonth(); });
+	_next->setClickedCallback([this] { goNextMonth(); });
 
 //	_inner = setInnerWidget(object_ptr<Inner>(this, _context.get()), st::calendarScroll, st::calendarTitleHeight);
 	_inner->setDateChosenCallback(std::move(_callback));
@@ -528,6 +520,18 @@ bool CalendarBox::isNextEnabled() const {
 	return (_context->maxDayIndex() >= _context->daysCount());
 }
 
+void CalendarBox::goPreviousMonth() {
+	if (isPreviousEnabled()) {
+		_context->skipMonth(-1);
+	}
+}
+
+void CalendarBox::goNextMonth() {
+	if (isNextEnabled()) {
+		_context->skipMonth(1);
+	}
+}
+
 void CalendarBox::monthChanged(QDate month) {
 	setDimensions(_st.width, st::calendarTitleHeight + _inner->countHeight());
 	auto previousEnabled = isPreviousEnabled();
@@ -546,6 +550,16 @@ void CalendarBox::resizeEvent(QResizeEvent *e) {
 	_title->setGeometryToLeft(_previous->width(), 0, width() - _previous->width() - _next->width(), st::calendarTitleHeight);
 	_inner->setGeometryToLeft(0, st::calendarTitleHeight, width(), height() - st::calendarTitleHeight);
 	BoxContent::resizeEvent(e);
+}
+
+void CalendarBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape) {
+		e->ignore();
+	} else if (e->key() == Qt::Key_Left) {
+		goPreviousMonth();
+	} else if (e->key() == Qt::Key_Right) {
+		goNextMonth();
+	}
 }
 
 CalendarBox::~CalendarBox() = default;
