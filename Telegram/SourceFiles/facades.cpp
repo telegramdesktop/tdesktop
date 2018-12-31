@@ -661,6 +661,11 @@ struct Data {
 	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
 
+	QString CallOutputDeviceID = qsl("default");
+	QString CallInputDeviceID = qsl("default");
+	int CallOutputVolume = 100;
+	int CallInputVolume = 100;
+	bool CallAudioDuckingEnabled = true;
 };
 
 } // namespace internal
@@ -789,6 +794,12 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
+	
+DefineVar(Global, QString, CallOutputDeviceID);
+DefineVar(Global, QString, CallInputDeviceID);
+DefineVar(Global, int, CallOutputVolume);
+DefineVar(Global, int, CallInputVolume);
+DefineVar(Global, bool, CallAudioDuckingEnabled);
 
 rpl::producer<bool> ReplaceEmojiValue() {
 	return rpl::single(

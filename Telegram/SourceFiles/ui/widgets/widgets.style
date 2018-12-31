@@ -1197,3 +1197,21 @@ InfoTopBar {
 	highlightBg: color;
 	highlightDuration: int;
 }
+
+LevelMeter {
+    height: pixels;
+	lineWidth: pixels;
+	lineSpacing: pixels;
+	lineCount: int;
+	activeFg: color;
+	inactiveFg: color;
+}
+
+defaultLevelMeter: LevelMeter {
+    height: 18px;
+	lineWidth: 3px;
+	lineSpacing: 5px;
+	lineCount: 44;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
+}
