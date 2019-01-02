@@ -1637,6 +1637,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 				if (const auto document = media ? media->getDocument() : nullptr) {
 					if (document->sticker()) {
+						if (document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+							_menu->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
+								showStickerPackInfo(document);
+							});
+							_menu->addAction(lang(Stickers::IsFaved(document) ? lng_faved_stickers_remove : lng_faved_stickers_add), [=] {
+								Auth().api().toggleFavedSticker(
+									document,
+									itemId,
+									!Stickers::IsFaved(document));
+							});
+						}
 						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 							saveDocumentToFile(itemId, document);
 						}));
