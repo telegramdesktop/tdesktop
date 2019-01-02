@@ -72,9 +72,15 @@ void RadialAnimation::step(TimeMs ms) {
 	_animation.step(ms);
 }
 
-void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, style::color color) {
+void RadialAnimation::draw(
+		Painter &p,
+		const QRect &inner,
+		int32 thickness,
+		style::color color) {
+	const auto state = computeState();
+
 	auto o = p.opacity();
-	p.setOpacity(o * _opacity);
+	p.setOpacity(o * state.shown);
 
 	auto pen = color->p;
 	auto was = p.pen();
@@ -82,22 +88,25 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, styl
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 
-	auto len = MinArcLength + qRound(a_arcEnd.current());
-	auto from = QuarterArcLength
-		- len
-		- (anim::Disabled() ? 0 : qRound(a_arcStart.current()));
-	if (rtl()) {
-		from = QuarterArcLength - (from - QuarterArcLength) - len;
-		if (from < 0) from += FullArcLength;
-	}
-
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawArc(inner, from, len);
+		p.drawArc(inner, state.arcFrom, state.arcLength);
 	}
 
 	p.setPen(was);
 	p.setOpacity(o);
+}
+
+RadialState RadialAnimation::computeState() {
+	auto length = MinArcLength + qRound(a_arcEnd.current());
+	auto from = QuarterArcLength
+		- length
+		- (anim::Disabled() ? 0 : qRound(a_arcStart.current()));
+	if (rtl()) {
+		from = QuarterArcLength - (from - QuarterArcLength) - length;
+		if (from < 0) from += FullArcLength;
+	}
+	return { _opacity, from, length };
 }
 
 InfiniteRadialAnimation::InfiniteRadialAnimation(
@@ -186,7 +195,7 @@ void InfiniteRadialAnimation::draw(
 	p.setOpacity(o);
 }
 
-auto InfiniteRadialAnimation::computeState() -> State {
+RadialState InfiniteRadialAnimation::computeState() {
 	const auto now = getms();
 	const auto linear = int(((now * FullArcLength) / _st.linearPeriod)
 		% FullArcLength);

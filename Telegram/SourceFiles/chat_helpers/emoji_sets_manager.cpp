@@ -113,24 +113,26 @@ protected:
 private:
 	[[nodiscard]] bool showOver() const;
 	[[nodiscard]] bool showOver(State state) const;
+	void updateStatusColorOverride();
 	void setupContent(const Set &set);
-	void setupCheck();
 	void setupLabels(const Set &set);
+	void setupPreview(const Set &set);
 	void setupAnimation();
+	void paintPreview(Painter &p) const;
+	void paintRadio(Painter &p, TimeMs ms);
 	void updateAnimation(TimeMs ms);
 	void setupHandler();
 	void load();
 
 	void step_radial(TimeMs ms, bool timer);
 
-	[[nodiscard]] QRect rightPartRect(QSize size) const;
-	[[nodiscard]] QRect radialRect() const;
-	[[nodiscard]] QRect checkRect() const;
-
 	int _id = 0;
 	bool _switching = false;
 	rpl::variable<SetState> _state;
 	Ui::FlatLabel *_status = nullptr;
+	std::array<QPixmap, 4> _preview;
+	Animation _toggled;
+	Animation _active;
 	std::unique_ptr<Ui::RadialAnimation> _loading;
 
 };
@@ -166,13 +168,18 @@ SetState ComputeState(int id) {
 
 QString StateDescription(const SetState &state) {
 	return state.match([](const Available &data) {
-		return lng_emoji_set_available(lt_size, formatSizeText(data.size));
+		return formatSizeText(data.size);
 	}, [](const Ready &data) -> QString {
 		return lang(lng_emoji_set_ready);
 	}, [](const Active &data) -> QString {
 		return lang(lng_emoji_set_active);
 	}, [](const Loading &data) {
+		const auto percent = (data.size > 0)
+			? snap((data.already * 100) / float64(data.size), 0., 100.)
+			: 0.;
 		return lng_emoji_set_loading(
+			lt_percent,
+			QString::number(int(std::round(percent))) + '%',
 			lt_progress,
 			formatDownloadText(data.already, data.size));
 	}, [](const Failed &data) {
@@ -351,38 +358,94 @@ void Row::paintEvent(QPaintEvent *e) {
 	const auto ms = getms();
 	paintRipple(p, 0, 0, ms);
 
-	updateAnimation(ms);
-	if (_loading) {
-		_loading->draw(
-			p,
-			radialRect(),
-			st::manageEmojiRadialThickness,
-			over ? st::windowSubTextFgOver : st::windowSubTextFg);
+	paintPreview(p);
+	paintRadio(p, ms);
+}
+
+void Row::paintPreview(Painter &p) const {
+	const auto x = st::manageEmojiPreviewPadding.left();
+	const auto y = st::manageEmojiPreviewPadding.top();
+	const auto width = st::manageEmojiPreviewWidth;
+	const auto height = st::manageEmojiPreviewWidth;
+	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0));
+	for (const auto &[pixmap, index] : preview) {
+		const auto row = (index / 2);
+		const auto column = (index % 2);
+		const auto left = x + (column ? width - st::manageEmojiPreview : 0);
+		const auto top = y + (row ? height - st::manageEmojiPreview : 0);
+		p.drawPixmap(left, top, pixmap);
 	}
 }
 
-QRect Row::rightPartRect(QSize size) const {
-	const auto x = width()
-		- (st::contactsPadding.right()
-			+ st::contactsCheckPosition.x()
-			+ st::manageEmojiCheck.width)
-		+ (st::manageEmojiCheck.width / 2);
-	const auto y = st::contactsPadding.top()
-		+ (st::contactsPhotoSize - st::manageEmojiCheck.height) / 2
-		+ (st::manageEmojiCheck.height / 2);
-	return QRect(
-		QPoint(x, y) - QPoint(size.width() / 2, size.height() / 2),
-		size);
-}
+void Row::paintRadio(Painter &p, TimeMs ms) {
+	updateAnimation(ms);
 
-QRect Row::radialRect() const {
-	return rightPartRect(st::manageEmojiRadialSize);
-}
+	const auto loading = _loading
+		? _loading->computeState()
+		: Ui::RadialState{ 0., 0, FullArcLength };
+	const auto isToggledSet = _state.current().is<Active>();
+	const auto isActiveSet = isToggledSet || _state.current().is<Loading>();
+	const auto toggled = _toggled.current(ms, isToggledSet ? 1. : 0.);
+	const auto active = _active.current(ms, isActiveSet ? 1. : 0.);
+	const auto _st = &st::defaultRadio;
 
-QRect Row::checkRect() const {
-	return rightPartRect(QSize(
-		st::manageEmojiCheck.width,
-		st::manageEmojiCheck.height));
+	PainterHighQualityEnabler hq(p);
+
+	const auto left = width()
+		- st::manageEmojiMarginRight
+		- _st->diameter
+		- _st->thickness;
+	const auto top = (height() - _st->diameter - _st->thickness) / 2;
+	const auto outerWidth = width();
+
+	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, active);
+	pen.setWidth(_st->thickness);
+	pen.setCapStyle(Qt::RoundCap);
+	p.setPen(pen);
+	p.setBrush(_st->bg);
+	const auto rect = rtlrect(QRectF(
+		left,
+		top,
+		_st->diameter,
+		_st->diameter
+	).marginsRemoved(QMarginsF(
+		_st->thickness / 2.,
+		_st->thickness / 2.,
+		_st->thickness / 2.,
+		_st->thickness / 2.
+	)), outerWidth);
+	if (loading.shown > 0 && anim::Disabled()) {
+		anim::DrawStaticLoading(
+			p,
+			rect,
+			_st->thickness,
+			pen.color(),
+			_st->bg);
+	} else if (loading.arcLength < FullArcLength) {
+		p.drawArc(rect, loading.arcFrom, loading.arcLength);
+	} else {
+		p.drawEllipse(rect);
+	}
+
+	if (toggled > 0 && (!_loading || !anim::Disabled())) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(anim::brush(_st->untoggledFg, _st->toggledFg, toggled));
+
+		const auto skip0 = _st->diameter / 2.;
+		const auto skip1 = _st->skip / 10.;
+		const auto checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
+		p.drawEllipse(rtlrect(QRectF(
+			left,
+			top,
+			_st->diameter,
+			_st->diameter
+		).marginsRemoved(QMarginsF(
+			checkSkip,
+			checkSkip,
+			checkSkip,
+			checkSkip
+		)), outerWidth));
+	}
 }
 
 bool Row::showOver(State state) const {
@@ -396,11 +459,22 @@ bool Row::showOver() const {
 
 void Row::onStateChanged(State was, StateChangeSource source) {
 	RippleButton::onStateChanged(was, source);
+	if (showOver() != showOver(was)) {
+		updateStatusColorOverride();
+	}
+}
+
+void Row::updateStatusColorOverride() {
+	const auto isToggledSet = _state.current().is<Active>();
+	const auto toggled = _toggled.current(isToggledSet ? 1. : 0.);
 	const auto over = showOver();
-	if (over != showOver(was)) {
-		_status->setTextColorOverride(over
-			? std::make_optional(st::windowSubTextFgOver->c)
-			: std::nullopt);
+	if (toggled == 0. && !over) {
+		_status->setTextColorOverride(std::nullopt);
+	} else {
+		_status->setTextColorOverride(anim::color(
+			over ? st::contactsStatusFgOver : st::contactsStatusFg,
+			st::contactsStatusFgOnline,
+			toggled));
 	}
 }
 
@@ -422,11 +496,14 @@ void Row::setupContent(const Set &set) {
 		return !_state.current().is<Failed>() || !state.is<Available>();
 	});
 
-	setupCheck();
 	setupLabels(set);
+	setupPreview(set);
 	setupAnimation();
 
-	resize(width(), st::defaultPeerList.item.height);
+	const auto height = st::manageEmojiPreviewPadding.top()
+		+ st::manageEmojiPreviewHeight
+		+ st::manageEmojiPreviewPadding.bottom();
+	resize(width(), height);
 }
 
 void Row::setupHandler() {
@@ -463,28 +540,6 @@ void Row::load() {
 	SetGlobalLoader(base::make_unique_q<Loader>(App::main(), _id));
 }
 
-void Row::setupCheck() {
-	using namespace rpl::mappers;
-
-	const auto check = Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
-		this,
-		object_ptr<Ui::IconButton>(
-			this,
-			st::manageEmojiCheck));
-	sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		const auto rect = checkRect();
-		check->moveToLeft(rect.x(), rect.y());
-	}, check->lifetime());
-
-	check->toggleOn(_state.value(
-	) | rpl::map(
-		_1 == Active()
-	));
-
-	check->setAttribute(Qt::WA_TransparentForMouseEvents);
-}
-
 void Row::setupLabels(const Set &set) {
 	using namespace rpl::mappers;
 
@@ -502,14 +557,29 @@ void Row::setupLabels(const Set &set) {
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		const auto left = st::contactsPadding.left();
-		const auto namey = st::contactsPadding.top()
-			+ st::contactsNameTop;
-		const auto statusy = st::contactsPadding.top()
-			+ st::contactsStatusTop;
+		const auto left = st::manageEmojiPreviewPadding.left()
+			+ st::manageEmojiPreviewWidth
+			+ st::manageEmojiPreviewPadding.right();
+		const auto namey = st::manageEmojiPreviewPadding.top()
+			+ st::manageEmojiNameTop;
+		const auto statusy = st::manageEmojiPreviewPadding.top()
+			+ st::manageEmojiStatusTop;
 		name->moveToLeft(left, namey);
 		_status->moveToLeft(left, statusy);
 	}, name->lifetime());
+}
+
+void Row::setupPreview(const Set &set) {
+	const auto size = st::manageEmojiPreview * cIntRetinaFactor();
+	const auto original = QImage(set.previewPath);
+	const auto full = original.height();
+	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0));
+	for (auto &&[pixmap, index] : preview) {
+		pixmap = App::pixmapFromImageInPlace(original.copy(
+			{ full * index, 0, full, full }
+		).scaledToWidth(size, Qt::SmoothTransformation));
+		pixmap.setDevicePixelRatio(cRetinaFactor());
+	}
 }
 
 void Row::step_radial(TimeMs ms, bool timer) {
@@ -519,10 +589,40 @@ void Row::step_radial(TimeMs ms, bool timer) {
 }
 
 void Row::setupAnimation() {
+	using namespace rpl::mappers;
+
 	_state.value(
 	) | rpl::start_with_next([=](const SetState &state) {
 		update();
 	}, lifetime());
+
+	_state.value(
+	) | rpl::map(
+		_1 == Active()
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool toggled) {
+		_toggled.start(
+			[=] { updateStatusColorOverride(); update(); },
+			toggled ? 0. : 1.,
+			toggled ? 1. : 0.,
+			st::defaultRadio.duration);
+	}, lifetime());
+
+	_state.value(
+	) | rpl::map([](const SetState &state) {
+		return state.is<Loading>() || state.is<Active>();
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool active) {
+		_active.start(
+			[=] { update(); },
+			active ? 0. : 1.,
+			active ? 1. : 0.,
+			st::defaultRadio.duration);
+	}, lifetime());
+
+	_toggled.finish();
+	_active.finish();
+	updateStatusColorOverride();
 }
 
 void Row::updateAnimation(TimeMs ms) {

@@ -347,7 +347,7 @@ void ProxyRow::paintCheck(Painter &p, TimeMs ms) {
 	}
 	const auto loading = _progress
 		? _progress->computeState()
-		: Ui::InfiniteRadialAnimation::State{ 0., 0, FullArcLength };
+		: Ui::RadialState{ 0., 0, FullArcLength };
 	const auto toggled = _toggled.current(ms, _view.selected ? 1. : 0.)
 		* (1. - loading.shown);
 	const auto _st = &st::defaultRadio;
@@ -361,6 +361,7 @@ void ProxyRow::paintCheck(Painter &p, TimeMs ms) {
 
 	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, toggled * set);
 	pen.setWidth(_st->thickness);
+	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.setBrush(_st->bg);
 	const auto rect = rtlrect(QRectF(left, top, _st->diameter, _st->diameter).marginsRemoved(QMarginsF(_st->thickness / 2., _st->thickness / 2., _st->thickness / 2., _st->thickness / 2.)), outerWidth);

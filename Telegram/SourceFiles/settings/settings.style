@@ -58,6 +58,7 @@ settingsIconLanguage: icon {{ "settings_language", menuIconFg }};
 settingsIconInterfaceScale: icon {{ "settings_interface_scale", menuIconFg }};
 settingsIconFaq: icon {{ "settings_faq", menuIconFg }};
 settingsIconStickers: icon {{ "settings_stickers", menuIconFg }};
+settingsIconEmoji: icon {{ "settings_emoji", menuIconFg }};
 settingsIconThemes: icon {{ "settings_themes", menuIconFg }};
 settingsIconCalls: icon {{ "settings_phone_number", menuIconFg }};
 

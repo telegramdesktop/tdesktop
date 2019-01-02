@@ -266,10 +266,10 @@ autocompleteRowTitle: semiboldTextStyle;
 autocompleteRowKeys: defaultTextStyle;
 autocompleteRowAnswer: defaultTextStyle;
 
-manageEmojiCheck: IconButton(defaultIconButton) {
-	width: 18px;
-	height: 13px;
-	icon: stickersFeaturedInstalled;
-}
-manageEmojiRadialSize: size(20px, 20px);
-manageEmojiRadialThickness: 2px;
+manageEmojiPreview: 22px;
+manageEmojiPreviewWidth: 48px;
+manageEmojiPreviewHeight: 48px;
+manageEmojiPreviewPadding: margins(23px, 9px, 19px, 9px);
+manageEmojiMarginRight: 21px;
+manageEmojiNameTop: 3px;
+manageEmojiStatusTop: 25px;

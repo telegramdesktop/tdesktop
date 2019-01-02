@@ -196,7 +196,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	const auto over = isOver();
 	const auto loadingState = _loading
 		? _loading->computeState()
-		: Ui::InfiniteRadialAnimation::State{ 0., 0, FullArcLength };
+		: Ui::RadialState{ 0., 0, FullArcLength };
 	if (loadingState.shown < 1.) {
 		p.setOpacity(1. - loadingState.shown);
 

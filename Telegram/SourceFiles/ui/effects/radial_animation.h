@@ -13,6 +13,12 @@ struct InfiniteRadialAnimation;
 
 namespace Ui {
 
+struct RadialState {
+	float64 shown = 0.;
+	int arcFrom = 0;
+	int arcLength = FullArcLength;
+};
+
 class RadialAnimation {
 public:
 	RadialAnimation(AnimationCallbacks &&callbacks);
@@ -33,7 +39,13 @@ public:
 		step(getms());
 	}
 
-	void draw(Painter &p, const QRect &inner, int32 thickness, style::color color);
+	void draw(
+		Painter &p,
+		const QRect &inner,
+		int32 thickness,
+		style::color color);
+
+	RadialState computeState();
 
 private:
 	TimeMs _firstStart = 0;
@@ -49,11 +61,6 @@ private:
 
 class InfiniteRadialAnimation {
 public:
-	struct State {
-		float64 shown = 0.;
-		int arcFrom = 0;
-		int arcLength = FullArcLength;
-	};
 	InfiniteRadialAnimation(
 		AnimationCallbacks &&callbacks,
 		const style::InfiniteRadialAnimation &st);
@@ -80,7 +87,7 @@ public:
 		QSize size,
 		int outerWidth);
 
-	State computeState();
+	RadialState computeState();
 
 private:
 	const style::InfiniteRadialAnimation &_st;

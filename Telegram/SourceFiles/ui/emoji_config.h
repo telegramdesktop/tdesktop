@@ -30,6 +30,7 @@ struct Set {
 	int postId = 0;
 	int size = 0;
 	QString name;
+	QString previewPath;
 };
 
 // Thread safe, callback is called on main thread.

@@ -676,6 +676,7 @@ private:
 		, updateCallback(std::move(updateCallback)) {
 		}
 		void step(float64 ms, bool timer) {
+			const auto callback = updateCallback;
 			const auto dt = (ms >= duration || anim::Disabled())
 				? 1.
 				: (ms / duration);
@@ -686,7 +687,7 @@ private:
 			} else {
 				value.update(dt, transition);
 			}
-			updateCallback();
+			callback();
 		}
 
 		anim::value value;

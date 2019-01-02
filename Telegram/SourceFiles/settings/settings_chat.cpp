@@ -490,7 +490,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		container,
 		lng_emoji_manage_sets,
 		st::settingsChatButton,
-		&st::settingsIconStickers,
+		&st::settingsIconEmoji,
 		st::settingsChatIconLeft
 	)->addClickHandler([] {
 		Ui::show(Box<Ui::Emoji::ManageSetsBox>());

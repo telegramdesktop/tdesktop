@@ -30,10 +30,10 @@ constexpr auto kCacheVersion = uint32(3);
 constexpr auto kMaxId = uint32(1 << 8);
 
 const auto kSets = {
-	Set{ 0,   0,         0, "Mac" },
-	Set{ 1, 205, 7'232'542, "Android" },
-	Set{ 2, 206, 5'038'738, "Twemoji" },
-	Set{ 3, 238, 6'992'260, "EmojiOne" },
+	Set{ 0,   0,         0, "Mac",      ":/gui/emoji/set0_preview.webp" },
+	Set{ 1, 246, 7'336'383, "Android",  ":/gui/emoji/set1_preview.webp" },
+	Set{ 2, 206, 5'038'738, "Twemoji",  ":/gui/emoji/set2_preview.webp" },
+	Set{ 3, 238, 6'992'260, "EmojiOne", ":/gui/emoji/set3_preview.webp" },
 };
 
 // Right now we can't allow users of Ui::Emoji to create custom sizes.
