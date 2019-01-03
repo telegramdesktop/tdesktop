@@ -47,6 +47,8 @@ public:
 	HistoryMedia(not_null<Element*> parent) : _parent(parent) {
 	}
 
+	not_null<History*> history() const;
+
 	virtual TextWithEntities selectedText(TextSelection selection) const {
 		return TextWithEntities();
 	}

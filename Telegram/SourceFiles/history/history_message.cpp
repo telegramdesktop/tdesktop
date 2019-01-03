@@ -90,10 +90,11 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		MessageIdsList msgIds;
 		base::flat_set<mtpRequestId> requests;
 	};
+	const auto history = item->history();
 	const auto data = std::make_shared<ShareData>(
-		item->history()->peer,
-		Auth().data().itemOrItsGroup(item));
-	const auto isGroup = (Auth().data().groups().find(item) != nullptr);
+		history->peer,
+		history->owner().itemOrItsGroup(item));
+	const auto isGroup = (history->owner().groups().find(item) != nullptr);
 	const auto isGame = item->getMessageBot()
 		&& item->media()
 		&& (item->media()->game() != nullptr);
@@ -127,7 +128,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
-		auto items = Auth().data().idsToItems(data->msgIds);
+		auto items = history->owner().idsToItems(data->msgIds);
 		if (items.empty() || result.empty()) {
 			return;
 		}
@@ -153,8 +154,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			return;
 		}
 
-		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
-			Auth().api().applyUpdates(updates);
+		auto doneCallback = [=](const MTPUpdates &updates, mtpRequestId requestId) {
+			history->session().api().applyUpdates(updates);
 			data->requests.remove(requestId);
 			if (data->requests.empty()) {
 				Ui::Toast::Show(lang(lng_share_done));
@@ -189,7 +190,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 				auto message = ApiWrap::MessageToSend(history);
 				message.textWithTags = comment;
 				message.clearDraft = false;
-				Auth().api().sendMessage(std::move(message));
+				history->session().api().sendMessage(std::move(message));
 			}
 			auto request = MTPmessages_ForwardMessages(
 				MTP_flags(sendFlags),
@@ -577,7 +578,7 @@ void HistoryMessage::applyGroupAdminChanges(
 		} else {
 			_flags &= ~MTPDmessage_ClientFlag::f_has_admin_badge;
 		}
-		Auth().data().requestItemResize(this);
+		history()->owner().requestItemResize(this);
 	}
 }
 
@@ -653,7 +654,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this)) {
-			Auth().api().requestMessageData(
+			history()->session().api().requestMessageData(
 				history()->peer->asChannel(),
 				reply->replyToMsgId,
 				HistoryDependentItemCallback(fullId()));
@@ -719,12 +720,12 @@ void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 }
 
 void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
-	const auto wasGrouped = Auth().data().groups().isGrouped(this);
+	const auto wasGrouped = history()->owner().groups().isGrouped(this);
 	refreshMedia(media);
 	if (wasGrouped) {
-		Auth().data().groups().refreshMessage(this);
+		history()->owner().groups().refreshMessage(this);
 	} else {
-		Auth().data().requestItemViewRefresh(this);
+		history()->owner().requestItemViewRefresh(this);
 	}
 }
 
@@ -789,7 +790,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vphoto.match([&](const MTPDphoto &photo) -> Result {
 			return std::make_unique<Data::MediaPhoto>(
 				item,
-				Auth().data().photo(photo));
+				item->history()->owner().photo(photo));
 		}, [](const MTPDphotoEmpty &) -> Result {
 			return nullptr;
 		});
@@ -809,7 +810,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return document.match([&](const MTPDdocument &document) -> Result {
 			return std::make_unique<Data::MediaFile>(
 				item,
-				Auth().data().document(document));
+				item->history()->owner().document(document));
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -819,11 +820,11 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		}, [&](const MTPDwebPagePending &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				Auth().data().webpage(webpage));
+				item->history()->owner().webpage(webpage));
 		}, [&](const MTPDwebPage &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				Auth().data().webpage(webpage));
+				item->history()->owner().webpage(webpage));
 		}, [](const MTPDwebPageNotModified &) -> Result {
 			LOG(("API Error: "
 				"webPageNotModified is unexpected in message media."));
@@ -833,14 +834,14 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vgame.match([&](const MTPDgame &game) {
 			return std::make_unique<Data::MediaGame>(
 				item,
-				Auth().data().game(game));
+				item->history()->owner().game(game));
 		});
 	}, [&](const MTPDmessageMediaInvoice &media) -> Result {
 		return std::make_unique<Data::MediaInvoice>(item, media);
 	}, [&](const MTPDmessageMediaPoll &media) -> Result {
 		return std::make_unique<Data::MediaPoll>(
 			item,
-			Auth().data().poll(media));
+			item->history()->owner().poll(media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
@@ -917,7 +918,7 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 			refreshSentMedia(media);
 		}
 	}
-	Auth().data().requestItemResize(this);
+	history()->owner().requestItemResize(this);
 }
 
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
@@ -995,7 +996,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			if (Has<HistoryMessageReplyMarkup>()) {
 				RemoveComponents(HistoryMessageReplyMarkup::Bit());
 			}
-			Auth().data().requestItemResize(this);
+			history()->owner().requestItemResize(this);
 			Notify::replyMarkupUpdated(this);
 		}
 		return;
@@ -1014,7 +1015,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			changed = true;
 		}
 		if (changed) {
-			Auth().data().requestItemResize(this);
+			history()->owner().requestItemResize(this);
 			Notify::replyMarkupUpdated(this);
 		}
 	} else {
@@ -1025,7 +1026,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 			AddComponents(HistoryMessageReplyMarkup::Bit());
 		}
 		Get<HistoryMessageReplyMarkup>()->create(*markup);
-		Auth().data().requestItemResize(this);
+		history()->owner().requestItemResize(this);
 		Notify::replyMarkupUpdated(this);
 	}
 }
@@ -1065,17 +1066,17 @@ void HistoryMessage::setViewsCount(int32 count) {
 		? 0
 		: st::msgDateFont->width(views->_viewsText);
 	if (was == views->_viewsWidth) {
-		Auth().data().requestItemRepaint(this);
+		history()->owner().requestItemRepaint(this);
 	} else {
-		Auth().data().requestItemResize(this);
+		history()->owner().requestItemResize(this);
 	}
 }
 
 void HistoryMessage::setRealId(MsgId newId) {
 	HistoryItem::setRealId(newId);
 
-	Auth().data().groups().refreshMessage(this);
-	Auth().data().requestItemResize(this);
+	history()->owner().groups().refreshMessage(this);
+	history()->owner().requestItemResize(this);
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		if (reply->replyToLink()) {
 			reply->setReplyToLinkFrom(this);

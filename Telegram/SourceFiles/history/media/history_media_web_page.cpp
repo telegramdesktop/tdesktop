@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_web_page.h"
 
 #include "layout.h"
-#include "auth_session.h"
 #include "core/click_handler_types.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/media/history_media_common.h"
@@ -76,7 +76,7 @@ HistoryWebPage::HistoryWebPage(
 , _data(data)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft) {
-	Auth().data().registerWebPageView(_data, _parent);
+	history()->owner().registerWebPageView(_data, _parent);
 }
 
 QSize HistoryWebPage::countOptimalSize() {
@@ -694,5 +694,5 @@ int HistoryWebPage::bottomInfoPadding() const {
 }
 
 HistoryWebPage::~HistoryWebPage() {
-	Auth().data().unregisterWebPageView(_data, _parent);
+	history()->owner().unregisterWebPageView(_data, _parent);
 }

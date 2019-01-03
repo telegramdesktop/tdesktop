@@ -735,19 +735,20 @@ void Messenger::authSessionCreate(const MTPUser &user) {
 void Messenger::authSessionDestroy() {
 	unlockTerms();
 
-	_authSession.reset();
+	_authSession = nullptr;
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
 	_private->authSessionUserSerialized = {};
 	authSessionChanged().notify(true);
+	Notify::unreadCounterUpdated();
 }
 
 int Messenger::unreadBadge() const {
-	return _authSession ? App::histories().unreadBadge() : 0;
+	return _authSession ? _authSession->data().unreadBadge() : 0;
 }
 
 bool Messenger::unreadBadgeMuted() const {
-	return _authSession ? App::histories().unreadBadgeMuted() : false;
+	return _authSession ? _authSession->data().unreadBadgeMuted() : false;
 }
 
 void Messenger::setInternalLinkDomain(const QString &domain) const {
@@ -902,7 +903,6 @@ Messenger::~Messenger() {
 	_mediaView.reset();
 
 	// Some MTP requests can be cancelled from data clearing.
-	App::clearHistories();
 	authSessionDestroy();
 
 	// The langpack manager should be destroyed before MTProto instance,
@@ -1000,16 +1000,14 @@ void Messenger::loggedOut() {
 	Media::Player::mixer()->stopAndClear();
 	Global::SetVoiceMsgPlaybackDoubled(false);
 	Media::Player::mixer()->setVoicePlaybackDoubled(false);
-	if (const auto w = getActiveWindow()) {
-		w->tempDirDelete(Local::ClearManagerAll);
-		w->setupIntro();
+	if (const auto window = getActiveWindow()) {
+		window->tempDirDelete(Local::ClearManagerAll);
+		window->setupIntro();
 	}
-	App::histories().clear();
 	if (const auto session = authSession()) {
-		session->data().cache().close();
-		session->data().cache().clear();
+		session->data().clearLocalStorage();
+		authSessionDestroy();
 	}
-	authSessionDestroy();
 	if (_mediaView) {
 		hideMediaView();
 		_mediaView->clearData();

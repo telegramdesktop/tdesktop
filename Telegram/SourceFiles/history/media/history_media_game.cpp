@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "auth_session.h"
 #include "history/history_item_components.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/media/history_media_common.h"
@@ -40,7 +40,7 @@ HistoryGame::HistoryGame(
 			consumed,
 			Ui::ItemTextOptions(parent->data()));
 	}
-	Auth().data().registerGameView(_data, _parent);
+	history()->owner().registerGameView(_data, _parent);
 }
 
 QSize HistoryGame::countOptimalSize() {
@@ -428,10 +428,10 @@ void HistoryGame::parentTextUpdated() {
 		} else {
 			_description = Text(st::msgMinWidth - st::webPageLeft);
 		}
-		Auth().data().requestViewResize(_parent);
+		history()->owner().requestViewResize(_parent);
 	}
 }
 
 HistoryGame::~HistoryGame() {
-	Auth().data().unregisterGameView(_data, _parent);
+	history()->owner().unregisterGameView(_data, _parent);
 }

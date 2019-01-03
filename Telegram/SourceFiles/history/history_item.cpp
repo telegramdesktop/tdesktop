@@ -172,12 +172,12 @@ TimeId HistoryItem::date() const {
 }
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
-	Auth().data().requestItemViewRefresh(this);
+	_history->owner().requestItemViewRefresh(this);
 	invalidateChatsListEntry();
-	if (const auto group = Auth().data().groups().find(this)) {
+	if (const auto group = _history->owner().groups().find(this)) {
 		const auto leader = group->items.back();
 		if (leader != this) {
-			Auth().data().requestItemViewRefresh(leader);
+			_history->owner().requestItemViewRefresh(leader);
 			leader->invalidateChatsListEntry();
 		}
 	}
@@ -195,7 +195,7 @@ void HistoryItem::setGroupId(MessageGroupId groupId) {
 	Expects(!_groupId);
 
 	_groupId = groupId;
-	Auth().data().groups().registerMessage(this);
+	_history->owner().groups().registerMessage(this);
 }
 
 HistoryMessageReplyMarkup *HistoryItem::inlineReplyMarkup() {
@@ -305,7 +305,7 @@ void HistoryItem::addLogEntryOriginal(
 	Expects(isLogEntry());
 
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());
-	Get<HistoryMessageLogEntryOriginal>()->page = Auth().data().webpage(
+	Get<HistoryMessageLogEntryOriginal>()->page = _history->owner().webpage(
 		localId,
 		label,
 		content);
@@ -330,7 +330,6 @@ UserData *HistoryItem::getMessageBot() const {
 };
 
 void HistoryItem::destroy() {
-	const auto history = this->history();
 	if (isLogEntry()) {
 		Assert(!mainView());
 	} else {
@@ -338,13 +337,13 @@ void HistoryItem::destroy() {
 		eraseFromUnreadMentions();
 		if (IsServerMsgId(id)) {
 			if (const auto types = sharedMediaTypes()) {
-				Auth().storage().remove(Storage::SharedMediaRemoveOne(
-					history->peer->id,
+				_history->session().storage().remove(Storage::SharedMediaRemoveOne(
+					_history->peer->id,
 					types,
 					id));
 			}
 		} else {
-			Auth().api().cancelLocalItem(this);
+			_history->session().api().cancelLocalItem(this);
 		}
 		_history->itemRemoved(this);
 	}
@@ -353,14 +352,14 @@ void HistoryItem::destroy() {
 
 void HistoryItem::refreshMainView() {
 	if (const auto view = mainView()) {
-		Auth().data().notifyHistoryChangeDelayed(_history);
+		_history->owner().notifyHistoryChangeDelayed(_history);
 		view->refreshInBlock();
 	}
 }
 
 void HistoryItem::removeMainView() {
 	if (const auto view = mainView()) {
-		Auth().data().notifyHistoryChangeDelayed(_history);
+		_history->owner().notifyHistoryChangeDelayed(_history);
 		view->removeFromBlock();
 	}
 }
@@ -378,14 +377,14 @@ void HistoryItem::indexAsNewItem() {
 		addToUnreadMentions(UnreadMentionType::New);
 		CrashReports::ClearAnnotation("addToUnreadMentions");
 		if (const auto types = sharedMediaTypes()) {
-			Auth().storage().add(Storage::SharedMediaAddNew(
+			_history->session().storage().add(Storage::SharedMediaAddNew(
 				history()->peer->id,
 				types,
 				id));
 		}
 		if (const auto channel = history()->peer->asChannel()) {
 			if (const auto feed = channel->feed()) {
-				Auth().storage().add(Storage::FeedMessagesAddNew(
+				_history->session().storage().add(Storage::FeedMessagesAddNew(
 					feed->id(),
 					position()));
 			}
@@ -409,8 +408,8 @@ void HistoryItem::setRealId(MsgId newId) {
 		}
 	}
 
-	Auth().data().notifyItemIdChange({ this, oldId });
-	Auth().data().requestItemRepaint(this);
+	_history->owner().notifyItemIdChange({ this, oldId });
+	_history->owner().requestItemRepaint(this);
 }
 
 bool HistoryItem::isPinned() const {
@@ -749,10 +748,10 @@ void HistoryItem::drawInDialog(
 }
 
 HistoryItem::~HistoryItem() {
-	Auth().data().notifyItemRemoved(this);
+	_history->owner().notifyItemRemoved(this);
 	App::historyUnregItem(this);
 	if (id < 0 && !App::quitting()) {
-		Auth().uploader().cancel(fullId());
+		_history->session().uploader().cancel(fullId());
 	}
 }
 

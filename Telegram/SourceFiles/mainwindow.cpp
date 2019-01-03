@@ -142,13 +142,9 @@ void MainWindow::firstShow() {
 void MainWindow::clearWidgetsHook() {
 	Expects(_passcodeLock == nullptr || !Global::LocalPasscode());
 
-	auto wasMain = (_main != nullptr);
 	_main.destroy();
 	_passcodeLock.destroy();
 	_intro.destroy();
-	if (wasMain) {
-		App::clearHistories();
-	}
 }
 
 QPixmap MainWindow::grabInner() {

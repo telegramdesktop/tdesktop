@@ -27,6 +27,7 @@ class AuthSession;
 
 namespace Data {
 struct Draft;
+class Session;
 } // namespace Data
 
 namespace Dialogs {
@@ -48,91 +49,21 @@ enum NewMessageType : char {
 	NewMessageExisting,
 };
 
-class Histories {
-public:
-	Histories();
-
-	void registerSendAction(
-		not_null<History*> history,
-		not_null<UserData*> user,
-		const MTPSendMessageAction &action,
-		TimeId when);
-	void step_typings(TimeMs ms, bool timer);
-
-	History *find(PeerId peerId) const;
-	not_null<History*> findOrInsert(PeerId peerId);
-
-	void clear();
-	void remove(const PeerId &peer);
-
-	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
-
-	// When typing in this history started.
-	typedef QMap<History*, TimeMs> TypingHistories;
-	TypingHistories typing;
-	BasicAnimation _a_typings;
-
-	int unreadBadge() const;
-	bool unreadBadgeMuted() const;
-	int unreadBadgeIgnoreOne(History *history) const;
-	bool unreadBadgeMutedIgnoreOne(History *history) const;
-	int unreadOnlyMutedBadge() const;
-
-	void unreadIncrement(int count, bool muted);
-	void unreadMuteChanged(int count, bool muted);
-	void unreadEntriesChanged(
-		int withUnreadDelta,
-		int mutedWithUnreadDelta);
-
-	struct SendActionAnimationUpdate {
-		History *history;
-		int width;
-		int height;
-		bool textUpdated;
-	};
-	base::Observable<SendActionAnimationUpdate> &sendActionAnimationUpdated() {
-		return _sendActionAnimationUpdated;
-	}
-	void selfDestructIn(not_null<HistoryItem*> item, TimeMs delay);
-
-private:
-	void checkSelfDestructItems();
-	int computeUnreadBadge(
-		int full,
-		int muted,
-		int entriesFull,
-		int entriesMuted) const;
-	bool computeUnreadBadgeMuted(
-		int full,
-		int muted,
-		int entriesFull,
-		int entriesMuted) const;
-
-	std::unordered_map<PeerId, std::unique_ptr<History>> _map;
-
-	int _unreadFull = 0;
-	int _unreadMuted = 0;
-	int _unreadEntriesFull = 0;
-	int _unreadEntriesMuted = 0;
-	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
-
-	base::Timer _selfDestructTimer;
-	std::vector<FullMsgId> _selfDestructItems;
-
-};
-
 enum class UnreadMentionType {
 	New, // when new message is added to history
 	Existing, // when some messages slice was received
 };
 
-class History : public Dialogs::Entry {
+class History final : public Dialogs::Entry {
 public:
 	using Element = HistoryView::Element;
 
-	History(const PeerId &peerId);
+	History(not_null<Data::Session*> owner, const PeerId &peerId);
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
+
+	Data::Session &owner() const;
+	AuthSession &session() const;
 
 	ChannelId channelId() const;
 	bool isChannel() const;
@@ -501,6 +432,7 @@ private:
 
 	void viewReplaced(not_null<const Element*> was, Element *now);
 
+	not_null<Data::Session*> _owner;
 	Flags _flags = 0;
 	bool _mute = false;
 	int _width = 0;

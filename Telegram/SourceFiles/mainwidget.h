@@ -24,6 +24,10 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
+namespace Data {
+struct WallPaper;
+} // namespace Data
+
 namespace Dialogs {
 struct RowDescriptor;
 class Row;
@@ -222,7 +226,7 @@ public:
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
 	void updateScrollColors();
 
-	void setChatBackground(const App::WallPaper &wp);
+	void setChatBackground(const Data::WallPaper &background);
 	bool chatBackgroundLoading();
 	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
@@ -547,7 +551,7 @@ private:
 	ViewsIncrementByRequest _viewsIncrementByRequest;
 	SingleTimer _viewsIncrementTimer;
 
-	std::unique_ptr<App::WallPaper> _background;
+	std::unique_ptr<Data::WallPaper> _background;
 
 	bool _firstColumnResizing = false;
 	int _firstColumnResizingShift = 0;

@@ -92,10 +92,19 @@ void PeerClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-PeerData::PeerData(const PeerId &id)
+PeerData::PeerData(not_null<Data::Session*> owner, PeerId id)
 : id(id)
+, _owner(owner)
 , _userpicEmpty(createEmptyUserpic()) {
 	nameText.setText(st::msgNameStyle, QString(), Ui::NameTextOptions());
+}
+
+Data::Session &PeerData::owner() const {
+	return *_owner;
+}
+
+AuthSession &PeerData::session() const {
+	return _owner->session();
 }
 
 void PeerData::updateNameDelayed(
@@ -173,7 +182,7 @@ void PeerData::setUserpic(
 
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	const auto photoId = data.match([&](const MTPDphoto &data) {
-		const auto photo = Auth().data().photo(data);
+		const auto photo = owner().photo(data);
 		photo->peer = this;
 		return photo->id;
 	}, [](const MTPDphotoEmpty &data) {
@@ -322,7 +331,7 @@ void PeerData::setUserpicChecked(
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 		if (const auto channel = asChannel()) {
 			if (const auto feed = channel->feed()) {
-				Auth().data().notifyFeedUpdated(
+				owner().notifyFeedUpdated(
 					feed,
 					Data::FeedUpdateFlag::ChannelPhoto);
 			}
@@ -417,9 +426,13 @@ const Text &BotCommand::descriptionText() const {
 	return _descriptionText;
 }
 
+UserData::UserData(not_null<Data::Session*> owner, PeerId id)
+: PeerData(owner, id) {
+}
+
 bool UserData::canShareThisContact() const {
 	return canShareThisContactFast()
-		|| !Auth().data().findContactPhone(peerToUser(id)).isEmpty();
+		|| !owner().findContactPhone(peerToUser(id)).isEmpty();
 }
 
 void UserData::setContactStatus(ContactStatus status) {
@@ -621,6 +634,11 @@ bool UserData::hasCalls() const {
 		&& (callsStatus() != CallsStatus::Unknown);
 }
 
+ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
+: PeerData(owner, id)
+, inputChat(MTP_int(bareId())) {
+}
+
 void ChatData::setPhoto(const MTPChatPhoto &photo) {
 	setPhoto(userpicPhotoId(), photo);
 }
@@ -658,8 +676,8 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 	}
 }
 
-ChannelData::ChannelData(const PeerId &id)
-: PeerData(id)
+ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
+: PeerData(owner, id)
 , inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
 	Data::PeerFlagValue(
 		this,
@@ -699,10 +717,10 @@ void PeerData::updateFull() {
 }
 
 void PeerData::updateFullForced() {
-	Auth().api().requestFullPeer(this);
+	session().api().requestFullPeer(this);
 	if (auto channel = asChannel()) {
 		if (!channel->amCreator() && !channel->inviter) {
-			Auth().api().requestSelfParticipant(channel);
+			session().api().requestSelfParticipant(channel);
 		}
 	}
 }
@@ -874,7 +892,7 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 					}
 				}
 				flags |= Notify::PeerUpdate::Flag::MembersChanged;
-				Auth().data().removeMegagroupParticipant(this, user);
+				owner().removeMegagroupParticipant(this, user);
 			}
 		}
 		Data::ChannelAdminChanges(this).feed(peerToUser(user->id), false);
@@ -907,9 +925,6 @@ void ChannelData::setRestrictionReason(const QString &text) {
 void ChannelData::setAvailableMinId(MsgId availableMinId) {
 	if (_availableMinId != availableMinId) {
 		_availableMinId = availableMinId;
-		if (auto history = App::historyLoaded(this)) {
-			history->clearUpTill(availableMinId);
-		}
 		if (pinnedMessageId() <= _availableMinId) {
 			clearPinnedMessage();
 		}
@@ -1075,7 +1090,7 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 	}
 	_adminRights.set(rights.c_channelAdminRights().vflags.v);
 	if (isMegagroup()) {
-		const auto self = Auth().user();
+		const auto self = session().user();
 		if (hasAdminRights()) {
 			if (!amCreator()) {
 				auto me = MegagroupInfo::Admin { rights };
@@ -1088,7 +1103,7 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 		}
 
 		auto amAdmin = hasAdminRights() || amCreator();
-		Data::ChannelAdminChanges(this).feed(Auth().userId(), amAdmin);
+		Data::ChannelAdminChanges(this).feed(session().userId(), amAdmin);
 	}
 	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
@@ -1101,14 +1116,14 @@ void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
 	_restrictedUntill = rights.c_channelBannedRights().vuntil_date.v;
 	_restrictions.set(rights.c_channelBannedRights().vflags.v);
 	if (isMegagroup()) {
-		const auto self = Auth().user();
+		const auto self = session().user();
 		if (hasRestrictions()) {
 			if (!amCreator()) {
 				auto me = MegagroupInfo::Restricted { rights };
 				mgInfo->lastRestricted.emplace(self, me);
 			}
 			mgInfo->lastAdmins.remove(self);
-			Data::ChannelAdminChanges(this).feed(Auth().userId(), false);
+			Data::ChannelAdminChanges(this).feed(session().userId(), false);
 		} else {
 			mgInfo->lastRestricted.remove(self);
 		}

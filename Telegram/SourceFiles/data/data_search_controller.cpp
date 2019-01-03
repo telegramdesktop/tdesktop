@@ -149,8 +149,8 @@ SearchResult ParseSearchResult(
 
 	auto addType = NewMessageExisting;
 	result.messageIds.reserve(messages->size());
-	for (auto &message : *messages) {
-		if (auto item = App::histories().addNewMessage(message, addType)) {
+	for (const auto &message : *messages) {
+		if (auto item = Auth().data().addNewMessage(message, addType)) {
 			auto itemId = item->id;
 			if ((type == Storage::SharedMediaType::kCount)
 				|| item->sharedMediaTypes().test(type)) {

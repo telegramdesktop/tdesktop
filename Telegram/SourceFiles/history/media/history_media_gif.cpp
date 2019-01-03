@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "mainwindow.h"
-#include "auth_session.h"
 #include "media/media_audio.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_round_controller.h"
@@ -18,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "window/window_controller.h"
@@ -779,7 +779,7 @@ void HistoryGif::parentTextUpdated() {
 	_caption = (_parent->media() == this)
 		? createCaption(_parent->data())
 		: Text();
-	Auth().data().requestViewResize(_parent);
+	history()->owner().requestViewResize(_parent);
 }
 
 int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
@@ -836,7 +836,7 @@ void HistoryGif::clipCallback(Media::Clip::Notification notification) {
 		auto stopped = false;
 		if (reader->autoPausedGif()) {
 			auto amVisible = false;
-			Auth().data().queryItemVisibility().notify(
+			history()->owner().queryItemVisibility().notify(
 				{ _parent->data(), &amVisible },
 				true);
 			if (!amVisible) { // Stop animation if it is not visible.
@@ -845,13 +845,13 @@ void HistoryGif::clipCallback(Media::Clip::Notification notification) {
 			}
 		}
 		if (!stopped) {
-			Auth().data().requestViewResize(_parent);
+			history()->owner().requestViewResize(_parent);
 		}
 	} break;
 
 	case NotificationRepaint: {
 		if (!reader->currentDisplayed()) {
-			Auth().data().requestViewRepaint(_parent);
+			history()->owner().requestViewRepaint(_parent);
 		}
 	} break;
 	}
@@ -868,7 +868,7 @@ void HistoryGif::playAnimation(bool autoplay) {
 		stopAnimation();
 	} else if (_data->loaded(DocumentData::FilePathResolveChecked)) {
 		if (!cAutoPlayGif()) {
-			Auth().data().stopAutoplayAnimations();
+			history()->owner().stopAutoplayAnimations();
 		}
 		setClipReader(Media::Clip::MakeReader(
 			_data,
@@ -884,18 +884,18 @@ void HistoryGif::playAnimation(bool autoplay) {
 void HistoryGif::stopAnimation() {
 	if (_gif) {
 		clearClipReader();
-		Auth().data().requestViewResize(_parent);
+		history()->owner().requestViewResize(_parent);
 		_data->unload();
 	}
 }
 
 void HistoryGif::setClipReader(Media::Clip::ReaderPointer gif) {
 	if (_gif) {
-		Auth().data().unregisterAutoplayAnimation(_gif.get());
+		history()->owner().unregisterAutoplayAnimation(_gif.get());
 	}
 	_gif = std::move(gif);
 	if (_gif) {
-		Auth().data().registerAutoplayAnimation(_gif.get(), _parent);
+		history()->owner().registerAutoplayAnimation(_gif.get(), _parent);
 	}
 }
 

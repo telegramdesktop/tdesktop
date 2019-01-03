@@ -17,7 +17,6 @@ class MainWindow;
 class MainWidget;
 class HistoryItem;
 class History;
-class Histories;
 namespace HistoryView {
 class Element;
 } // namespace HistoryView
@@ -90,68 +89,31 @@ namespace App {
 
 	ImagePtr image(const MTPPhotoSize &size);
 
-	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
-	inline UserData *user(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
-		return asUser(peer(id, restriction));
-	}
-	inline ChatData *chat(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
-		return asChat(peer(id, restriction));
-	}
-	inline ChannelData *channel(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
-		return asChannel(peer(id, restriction));
-	}
-	inline UserData *user(UserId userId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
-		return asUser(peer(peerFromUser(userId), restriction));
-	}
-	inline ChatData *chat(ChatId chatId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
-		return asChat(peer(peerFromChat(chatId), restriction));
-	}
-	inline ChannelData *channel(ChannelId channelId, PeerData::LoadedStatus restriction = PeerData::NotLoaded) {
-		return asChannel(peer(peerFromChannel(channelId), restriction));
-	}
-	inline PeerData *peerLoaded(const PeerId &id) {
-		return peer(id, PeerData::FullLoaded);
-	}
-	inline UserData *userLoaded(const PeerId &id) {
-		return user(id, PeerData::FullLoaded);
-	}
-	inline ChatData *chatLoaded(const PeerId &id) {
-		return chat(id, PeerData::FullLoaded);
-	}
-	inline ChannelData *channelLoaded(const PeerId &id) {
-		return channel(id, PeerData::FullLoaded);
-	}
-	inline UserData *userLoaded(UserId userId) {
-		return user(userId, PeerData::FullLoaded);
-	}
-	inline ChatData *chatLoaded(ChatId chatId) {
-		return chat(chatId, PeerData::FullLoaded);
-	}
-	inline ChannelData *channelLoaded(ChannelId channelId) {
-		return channel(channelId, PeerData::FullLoaded);
-	}
-	void enumerateUsers(Fn<void(not_null<UserData*>)> action);
-	void enumerateGroups(Fn<void(not_null<PeerData*>)> action);
-	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action);
+	[[nodiscard]] not_null<PeerData*> peer(PeerId id);
+	[[nodiscard]] not_null<UserData*> user(UserId userId);
+	[[nodiscard]] not_null<ChatData*> chat(ChatId chatId);
+	[[nodiscard]] not_null<ChannelData*> channel(ChannelId channelId);
+	[[nodiscard]] PeerData *peerLoaded(PeerId id);
+	[[nodiscard]] UserData *userLoaded(UserId userId);
+	[[nodiscard]] ChatData *chatLoaded(ChatId chatId);
+	[[nodiscard]] 	ChannelData *channelLoaded(ChannelId channelId);
 
-	PeerData *peerByName(const QString &username);
-	QString peerName(const PeerData *peer, bool forDialogs = false);
+	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
 
-	Histories &histories();
-	not_null<History*> history(const PeerId &peer);
-	History *historyLoaded(const PeerId &peer);
-	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
-	inline not_null<History*> history(const PeerData *peer) {
+	[[nodiscard]] not_null<History*> history(PeerId peer);
+	[[nodiscard]] History *historyLoaded(PeerId peer);
+	[[nodiscard]] HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
+	[[nodiscard]] inline not_null<History*> history(const PeerData *peer) {
 		Assert(peer != nullptr);
 		return history(peer->id);
 	}
-	inline History *historyLoaded(const PeerData *peer) {
+	[[nodiscard]] inline History *historyLoaded(const PeerData *peer) {
 		return peer ? historyLoaded(peer->id) : nullptr;
 	}
-	inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
+	[[nodiscard]] inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
 		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
 	}
-	inline HistoryItem *histItemById(const FullMsgId &msgId) {
+	[[nodiscard]] inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}
 	void historyRegItem(not_null<HistoryItem*> item);
@@ -182,8 +144,6 @@ namespace App {
 	void clearMousedItems();
 
 	const style::font &monofont();
-
-	void clearHistories();
 
 	void initMedia();
 	void deinitMedia();
@@ -221,15 +181,5 @@ namespace App {
 	inline void roundRect(Painter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);
 	}
-
-	struct WallPaper {
-		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {
-		}
-		int32 id;
-		ImagePtr thumb;
-		ImagePtr full;
-	};
-	typedef QList<WallPaper> WallPapers;
-	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };

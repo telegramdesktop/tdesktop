@@ -193,7 +193,7 @@ HistoryPoll::HistoryPoll(
 : HistoryMedia(parent)
 , _poll(poll)
 , _question(st::msgMinWidth / 2) {
-	Auth().data().registerPollView(_poll, _parent);
+	history()->owner().registerPollView(_poll, _parent);
 }
 
 QSize HistoryPoll::countOptimalSize() {
@@ -371,7 +371,7 @@ ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
 	const auto option = answer.option;
 	const auto itemId = _parent->data()->fullId();
 	return std::make_shared<LambdaClickHandler>([=] {
-		Auth().api().sendPollVotes(itemId, { option });
+		history()->session().api().sendPollVotes(itemId, { option });
 	});
 }
 
@@ -563,7 +563,7 @@ void HistoryPoll::resetAnswersAnimation() const {
 
 void HistoryPoll::step_radial(TimeMs ms, bool timer) {
 	if (timer && !anim::Disabled()) {
-		Auth().data().requestViewRepaint(_parent);
+		history()->owner().requestViewRepaint(_parent);
 	}
 }
 
@@ -806,7 +806,7 @@ void HistoryPoll::startAnswersAnimation() const {
 		data.opacity.start(can ? 0. : 1.);
 	}
 	_answersAnimation->progress.start(
-		[=] { Auth().data().requestViewRepaint(_parent); },
+		[=] { history()->owner().requestViewRepaint(_parent); },
 		0.,
 		1.,
 		st::historyPollDuration);
@@ -883,7 +883,7 @@ void HistoryPoll::toggleRipple(Answer &answer, bool pressed) {
 					? st::historyPollRippleOut
 					: st::historyPollRippleIn),
 				std::move(mask),
-				[=] { Auth().data().requestViewRepaint(_parent); });
+				[=] { history()->owner().requestViewRepaint(_parent); });
 		}
 		const auto top = countAnswerTop(answer, innerWidth);
 		answer.ripple->add(_lastLinkPoint - QPoint(0, top));
@@ -895,5 +895,5 @@ void HistoryPoll::toggleRipple(Answer &answer, bool pressed) {
 }
 
 HistoryPoll::~HistoryPoll() {
-	Auth().data().unregisterPollView(_poll, _parent);
+	history()->owner().unregisterPollView(_poll, _parent);
 }

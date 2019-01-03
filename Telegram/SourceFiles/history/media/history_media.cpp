@@ -25,6 +25,10 @@ Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const {
 	return {};
 }
 
+not_null<History*> HistoryMedia::history() const {
+	return _parent->history();
+}
+
 bool HistoryMedia::isDisplayed() const {
 	return true;
 }

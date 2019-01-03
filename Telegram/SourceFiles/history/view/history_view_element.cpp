@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
 #include "lang/lang_keys.h"
-#include "auth_session.h"
 #include "layout.h"
 #include "styles/style_history.h"
 
@@ -139,10 +138,10 @@ Element::Element(
 , _data(data)
 , _dateTime(ItemDateTime(data))
 , _context(delegate->elementContext()) {
-	Auth().data().registerItemView(this);
+	history()->owner().registerItemView(this);
 	refreshMedia();
 	if (_context == Context::History) {
-		_data->_history->setHasPendingResizedItems();
+		history()->setHasPendingResizedItems();
 	}
 }
 
@@ -152,6 +151,10 @@ not_null<ElementDelegate*> Element::delegate() const {
 
 not_null<HistoryItem*> Element::data() const {
 	return _data;
+}
+
+not_null<History*> Element::history() const {
+	return _data->history();
 }
 
 QDateTime Element::dateTime() const {
@@ -260,7 +263,7 @@ void Element::refreshMedia() {
 	const auto item = data();
 	const auto media = item->media();
 	if (media && media->canBeGrouped()) {
-		if (const auto group = Auth().data().groups().find(item)) {
+		if (const auto group = history()->owner().groups().find(item)) {
 			if (group->items.back() != item) {
 				_media = nullptr;
 				_flags |= Flag::HiddenByGroup;
@@ -269,7 +272,7 @@ void Element::refreshMedia() {
 					this,
 					group->items);
 				if (!pendingResize()) {
-					Auth().data().requestViewResize(this);
+					history()->owner().requestViewResize(this);
 				}
 			}
 			return;
@@ -324,7 +327,7 @@ void Element::destroyUnreadBar() {
 		return;
 	}
 	RemoveComponents(UnreadBar::Bit());
-	Auth().data().requestViewResize(this);
+	history()->owner().requestViewResize(this);
 	if (data()->mainView() == this) {
 		recountAttachToPreviousInBlocks();
 	}
@@ -341,9 +344,9 @@ void Element::setUnreadBarCount(int count) {
 		if (data()->mainView() == this) {
 			recountAttachToPreviousInBlocks();
 		}
-		Auth().data().requestViewResize(this);
+		history()->owner().requestViewResize(this);
 	} else {
-		Auth().data().requestViewRepaint(this);
+		history()->owner().requestViewRepaint(this);
 	}
 }
 
@@ -608,7 +611,7 @@ void Element::clickHandlerActiveChanged(
 		}
 	}
 	App::hoveredLinkItem(active ? this : nullptr);
-	Auth().data().requestViewRepaint(this);
+	history()->owner().requestViewRepaint(this);
 	if (const auto media = this->media()) {
 		media->clickHandlerActiveChanged(handler, active);
 	}
@@ -623,7 +626,7 @@ void Element::clickHandlerPressedChanged(
 		}
 	}
 	App::pressedLinkItem(pressed ? this : nullptr);
-	Auth().data().requestViewRepaint(this);
+	history()->owner().requestViewRepaint(this);
 	if (const auto media = this->media()) {
 		media->clickHandlerPressedChanged(handler, pressed);
 	}
@@ -634,9 +637,9 @@ Element::~Element() {
 		_data->clearMainView();
 	}
 	if (_context == Context::History) {
-		Auth().data().notifyViewRemoved(this);
+		history()->owner().notifyViewRemoved(this);
 	}
-	Auth().data().unregisterItemView(this);
+	history()->owner().unregisterItemView(this);
 }
 
 } // namespace HistoryView

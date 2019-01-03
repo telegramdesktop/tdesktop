@@ -246,7 +246,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		if (auto channel = history()->peer->asMegagroup()) {
 			auto &users = action.c_messageActionChatAddUser().vusers;
 			for_const (auto &item, users.v) {
-				if (item.v == Auth().userId()) {
+				if (item.v == history()->session().userId()) {
 					channel->mgInfo->joinedMessageFound = true;
 					break;
 				}
@@ -266,7 +266,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			_media = std::make_unique<Data::MediaPhoto>(
 				this,
 				history()->peer,
-				Auth().data().photo(photo.c_photo()));
+				history()->owner().photo(photo.c_photo()));
 		}
 	} break;
 
@@ -321,7 +321,7 @@ bool HistoryService::updateDependent(bool force) {
 		updateDependentText();
 	}
 	if (force && gotDependencyItem) {
-		Auth().notifications().checkDelayed();
+		history()->session().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }
@@ -539,10 +539,10 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 }
 
 void HistoryService::markMediaAsReadHook() {
-	if (auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
+	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
 		if (!selfdestruct->destructAt) {
 			selfdestruct->destructAt = getms(true) + selfdestruct->timeToLive;
-			App::histories().selfDestructIn(this, selfdestruct->timeToLive);
+			history()->owner().selfDestructIn(this, selfdestruct->timeToLive);
 		}
 	}
 }
@@ -626,7 +626,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		if (auto dependent = GetDependentData()) {
 			dependent->msgId = message.vreply_to_msg_id.v;
 			if (!updateDependent()) {
-				Auth().api().requestMessageData(
+				history()->session().api().requestMessageData(
 					history()->peer->asChannel(),
 					dependent->msgId,
 					HistoryDependentItemCallback(fullId()));
@@ -656,7 +656,7 @@ void HistoryService::removeMedia() {
 	_media.reset();
 	_textWidth = -1;
 	_textHeight = 0;
-	Auth().data().requestItemResize(this);
+	history()->owner().requestItemResize(this);
 }
 
 Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
@@ -679,7 +679,7 @@ void HistoryService::updateDependentText() {
 	}
 
 	setServiceText(text);
-	Auth().data().requestItemResize(this);
+	history()->owner().requestItemResize(this);
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
 	}
@@ -712,7 +712,7 @@ HistoryService::~HistoryService() {
 HistoryService::PreparedText GenerateJoinedText(
 		not_null<History*> history,
 		not_null<UserData*> inviter) {
-	if (inviter->id != Auth().userPeerId()) {
+	if (inviter->id != history->session().userPeerId()) {
 		auto result = HistoryService::PreparedText{};
 		result.links.push_back(inviter->createOpenLink());
 		result.text = (history->isMegagroup()
@@ -720,7 +720,7 @@ HistoryService::PreparedText GenerateJoinedText(
 			: lng_action_add_you)(lt_from, textcmdLink(1, inviter->name));
 		return result;
 	} else if (history->isMegagroup()) {
-		auto self = App::user(Auth().userPeerId());
+		auto self = history->session().user();
 		auto result = HistoryService::PreparedText{};
 		result.links.push_back(self->createOpenLink());
 		result.text = lng_action_user_joined(

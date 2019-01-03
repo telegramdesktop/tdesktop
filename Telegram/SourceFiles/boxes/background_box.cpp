@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
 #include "auth_session.h"
+#include "data/data_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
 
@@ -53,18 +54,20 @@ BackgroundBox::BackgroundBox(QWidget*) {
 void BackgroundBox::prepare() {
 	setTitle(langFactory(lng_backgrounds_header));
 
-	addButton(langFactory(lng_close), [this] { closeBox(); });
+	addButton(langFactory(lng_close), [=] { closeBox(); });
 
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_inner = setInnerWidget(object_ptr<Inner>(this), st::backgroundScroll);
-	_inner->setBackgroundChosenCallback([this](int index) { backgroundChosen(index); });
+	_inner->setBackgroundChosenCallback([=](int index) {
+		backgroundChosen(index);
+	});
 }
 
 void BackgroundBox::backgroundChosen(int index) {
-	if (index >= 0 && index < App::cServerBackgrounds().size()) {
-		auto &paper = App::cServerBackgrounds()[index];
-		if (App::main()) App::main()->setChatBackground(paper);
+	if (index >= 0 && index < Auth().data().wallpapersCount()) {
+		const auto &paper = Auth().data().wallpaper(index);
+		App::main()->setChatBackground(paper);
 
 		using Update = Window::Theme::BackgroundUpdate;
 		Window::Theme::Background()->notify(Update(Update::Type::Start, !paper.id));
@@ -75,7 +78,7 @@ void BackgroundBox::backgroundChosen(int index) {
 BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
-	if (App::cServerBackgrounds().isEmpty()) {
+	if (!Auth().data().wallpapersCount()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&Inner::gotWallpapers));
 	} else {
@@ -92,65 +95,12 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 }
 
 void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
-	App::WallPapers wallpapers;
-
-	auto oldBackground = Images::Create(qsl(":/gui/art/bg_initial.jpg"), "JPG");
-	wallpapers.push_back(App::WallPaper(Window::Theme::kInitialBackground, oldBackground, oldBackground));
-	auto &v = result.v;
-	for_const (auto &w, v) {
-		switch (w.type()) {
-		case mtpc_wallPaper: {
-			auto &d = w.c_wallPaper();
-			auto &sizes = d.vsizes.v;
-			const MTPPhotoSize *thumb = 0, *full = 0;
-			int32 thumbLevel = -1, fullLevel = -1;
-			for (QVector<MTPPhotoSize>::const_iterator j = sizes.cbegin(), e = sizes.cend(); j != e; ++j) {
-				char size = 0;
-				int32 w = 0, h = 0;
-				switch (j->type()) {
-				case mtpc_photoSize: {
-					auto &s = j->c_photoSize().vtype.v;
-					if (s.size()) size = s[0];
-					w = j->c_photoSize().vw.v;
-					h = j->c_photoSize().vh.v;
-				} break;
-
-				case mtpc_photoCachedSize: {
-					auto &s = j->c_photoCachedSize().vtype.v;
-					if (s.size()) size = s[0];
-					w = j->c_photoCachedSize().vw.v;
-					h = j->c_photoCachedSize().vh.v;
-				} break;
-				}
-				if (!size || !w || !h) continue;
-
-				int32 newThumbLevel = qAbs((st::backgroundSize.width() * cIntRetinaFactor()) - w), newFullLevel = qAbs(2560 - w);
-				if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
-					thumbLevel = newThumbLevel;
-					thumb = &(*j);
-				}
-				if (fullLevel < 0 || newFullLevel < fullLevel) {
-					fullLevel = newFullLevel;
-					full = &(*j);
-				}
-			}
-			if (thumb && full && full->type() != mtpc_photoSizeEmpty) {
-				wallpapers.push_back(App::WallPaper(d.vid.v ? d.vid.v : INT_MAX, App::image(*thumb), App::image(*full)));
-			}
-		} break;
-
-		case mtpc_wallPaperSolid: {
-			auto &d = w.c_wallPaperSolid();
-		} break;
-		}
-	}
-
-	App::cSetServerBackgrounds(wallpapers);
+	Auth().data().setWallpapers(result.v);
 	updateWallpapers();
 }
 
 void BackgroundBox::Inner::updateWallpapers() {
-	_bgCount = App::cServerBackgrounds().size();
+	_bgCount = Auth().data().wallpapersCount();
 	_rows = _bgCount / BackgroundsInRow;
 	if (_bgCount % BackgroundsInRow) ++_rows;
 
@@ -158,7 +108,7 @@ void BackgroundBox::Inner::updateWallpapers() {
 	for (int i = 0; i < BackgroundsInRow * 3; ++i) {
 		if (i >= _bgCount) break;
 
-		App::cServerBackgrounds()[i].thumb->load(Data::FileOrigin());
+		Auth().data().wallpaper(i).thumb->load(Data::FileOrigin());
 	}
 }
 
@@ -173,7 +123,7 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 				int index = i * BackgroundsInRow + j;
 				if (index >= _bgCount) break;
 
-				const auto &paper = App::cServerBackgrounds()[index];
+				const auto &paper = Auth().data().wallpaper(index);
 				paper.thumb->load(Data::FileOrigin());
 
 				int x = st::backgroundPadding + j * (st::backgroundSize.width() + st::backgroundPadding);

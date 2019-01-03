@@ -282,6 +282,12 @@ Helper::Helper(not_null<AuthSession*> session)
 	}).send();
 }
 
+std::unique_ptr<Helper> Helper::Create(not_null<AuthSession*> session) {
+	//return std::make_unique<Helper>(session); AssertIsDebug();
+	const auto valid = session->user()->phone().startsWith(qstr("424"));
+	return valid ? std::make_unique<Helper>(session) : nullptr;
+}
+
 void Helper::registerWindow(not_null<Window::Controller*> controller) {
 	controller->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {

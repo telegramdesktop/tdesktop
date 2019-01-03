@@ -121,6 +121,7 @@ public:
 
 	not_null<ElementDelegate*> delegate() const;
 	not_null<HistoryItem*> data() const;
+	not_null<History*> history() const;
 	HistoryMedia *media() const;
 	Context context() const;
 	void refreshDataId();

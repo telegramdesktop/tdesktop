@@ -345,7 +345,6 @@ public:
 private:
 	static constexpr auto kDefaultSaveDelay = TimeMs(1000);
 
-	const not_null<UserData*> _user;
 	AuthSessionSettings _settings;
 	base::Timer _saveDataTimer;
 
@@ -359,8 +358,9 @@ private:
 	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 
-	// _data depends on _downloader / _uploader, including destructor.
+	// _data depends on _downloader / _uploader / _notifications.
 	const std::unique_ptr<Data::Session> _data;
+	const not_null<UserData*> _user;
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;

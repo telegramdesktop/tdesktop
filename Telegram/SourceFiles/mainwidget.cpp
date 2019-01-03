@@ -1420,8 +1420,8 @@ void MainWidget::updateScrollColors() {
 	_history->updateScrollColors();
 }
 
-void MainWidget::setChatBackground(const App::WallPaper &wp) {
-	_background = std::make_unique<App::WallPaper>(wp);
+void MainWidget::setChatBackground(const Data::WallPaper &background) {
+	_background = std::make_unique<Data::WallPaper>(background);
 	_background->full->loadEvenCancelled(Data::FileOrigin());
 	checkChatBackground();
 }
@@ -1450,7 +1450,7 @@ void MainWidget::checkChatBackground() {
 				Window::Theme::Background()->setImage(_background->id, _background->full->pix(Data::FileOrigin()).toImage());
 			}
 			_background = nullptr;
-			QTimer::singleShot(0, this, SLOT(update()));
+			crl::on_main(this, [=] { update(); });
 		}
 	}
 }
@@ -1730,9 +1730,9 @@ void MainWidget::ui_showPeerHistory(
 					animationParams);
 			} else {
 				_history->show();
-				if (App::wnd()) {
-					QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
-				}
+				crl::on_main(App::wnd(), [] {
+					App::wnd()->setInnerFocus();
+				});
 			}
 		}
 	}
@@ -2073,9 +2073,9 @@ void MainWidget::showBackFromStack(
 	if (selectingPeer()) return;
 	if (_stack.empty()) {
 		_controller->clearSectionStack(params);
-		if (App::wnd()) {
-			QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
-		}
+		crl::on_main(App::wnd(), [] {
+			App::wnd()->setInnerFocus();
+		});
 		return;
 	}
 	auto item = std::move(_stack.back());
@@ -3256,8 +3256,7 @@ void MainWidget::openPeerByName(
 		FullMsgId clickFromMessageId) {
 	Messenger::Instance().hideMediaView();
 
-	PeerData *peer = App::peerByName(username);
-	if (peer) {
+	if (const auto peer = Auth().data().peerByUsername(username)) {
 		if (msgId == ShowAtGameShareMsgId) {
 			if (peer->isUser() && peer->asUser()->botInfo && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->shareGameShortName = startToken;
@@ -3716,8 +3715,11 @@ bool fwdInfoDataLoaded(const MTPMessageFwdHeader &header) {
 		if (!App::channelLoaded(peerFromChannel(info.vchannel_id))) {
 			return false;
 		}
-		if (info.has_from_id() && !App::user(peerFromUser(info.vfrom_id), PeerData::MinimalLoaded)) {
-			return false;
+		if (info.has_from_id()) {
+			const auto from = App::user(peerFromUser(info.vfrom_id));
+			if (from->loadedStatus == PeerData::NotLoaded) {
+				return false;
+			}
 		}
 	} else {
 		if (info.has_from_id() && !App::userLoaded(peerFromUser(info.vfrom_id))) {
@@ -4188,7 +4190,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			const auto when = requestingDifference() ? 0 : unixtime();
-			App::histories().registerSendAction(history, user, d.vaction, when);
+			Auth().data().registerSendAction(history, user, d.vaction, when);
 		}
 	} break;
 
@@ -4207,7 +4209,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			: App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			const auto when = requestingDifference() ? 0 : unixtime();
-			App::histories().registerSendAction(history, user, d.vaction, when);
+			Auth().data().registerSendAction(history, user, d.vaction, when);
 		}
 	} break;
 
@@ -4505,8 +4507,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannelAvailableMessages: {
 		auto &d = update.c_updateChannelAvailableMessages();
-		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
+		if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			channel->setAvailableMinId(d.vavailable_min_id.v);
+			if (const auto history = App::historyLoaded(channel)) {
+				history->clearUpTill(d.vavailable_min_id.v);
+			}
 		}
 	} break;
 

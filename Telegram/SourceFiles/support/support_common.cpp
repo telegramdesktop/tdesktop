@@ -11,18 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Support {
 
-bool ValidateAccount(const MTPUser &self) {
-	//return true; AssertIsDebug();
-	return self.match([](const MTPDuser &data) {
-		DEBUG_LOG(("ValidateAccount: %1 %2"
-			).arg(Logs::b(data.has_phone())
-			).arg(data.has_phone() ? qs(data.vphone) : QString()));
-		return data.has_phone() && qs(data.vphone).startsWith(qstr("424"));
-	}, [](const MTPDuserEmpty &data) {
-		return false;
-	});
-}
-
 bool HandleSwitch(Qt::KeyboardModifiers modifiers) {
 	return !(modifiers & Qt::ShiftModifier)
 		|| (!(modifiers & Qt::ControlModifier)

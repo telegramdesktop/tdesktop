@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_abstract_structure.h"
 #include "data/data_drafts.h"
+#include "data/data_session.h"
 #include "dialogs/dialogs_list.h"
 #include "styles/style_dialogs.h"
 #include "storage/localstorage.h"
@@ -796,7 +797,7 @@ void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected
 	if (!mutedHidden) {
 		return;
 	}
-	if (const auto unread = App::histories().unreadOnlyMutedBadge()) {
+	if (const auto unread = Auth().data().unreadOnlyMutedBadge()) {
 		const auto unreadRight = fullWidth - st::dialogsPadding.x();
 		UnreadBadgeStyle st;
 		st.muted = true;

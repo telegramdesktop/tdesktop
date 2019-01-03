@@ -100,7 +100,7 @@ Controller::Controller(
 , _widget(widget)
 , _key(memento->key())
 , _migrated(memento->migratedPeerId()
-	? App::peer(memento->migratedPeerId())
+	? App::peer(memento->migratedPeerId()).get()
 	: nullptr)
 , _section(memento->section()) {
 	updateSearchControllers(memento);

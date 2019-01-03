@@ -91,10 +91,12 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 	subscribe(Auth().data().contactsLoaded(), [this](bool) { refresh(); });
+
 	Auth().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
+
 	Auth().data().itemRepaintRequest(
 	) | rpl::start_with_next([=](auto item) {
 		const auto history = item->history();
@@ -107,13 +109,21 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			}
 		}
 	}, lifetime());
-	subscribe(App::histories().sendActionAnimationUpdated(), [this](const Histories::SendActionAnimationUpdate &update) {
-		auto updateRect = Dialogs::Layout::RowPainter::sendActionAnimationRect(update.width, update.height, getFullWidth(), update.textUpdated);
+
+	Auth().data().sendActionAnimationUpdated(
+	) | rpl::start_with_next([=](
+			const Data::Session::SendActionAnimationUpdate &update) {
+		using RowPainter = Dialogs::Layout::RowPainter;
+		const auto updateRect = RowPainter::sendActionAnimationRect(
+			update.width,
+			update.height,
+			getFullWidth(),
+			update.textUpdated);
 		updateDialogRow(
 			Dialogs::RowDescriptor(update.history, FullMsgId()),
 			updateRect,
 			UpdateRowSection::Default | UpdateRowSection::Filtered);
-	});
+	}, lifetime());
 
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
@@ -1915,13 +1925,13 @@ bool DialogsInner::searchReceived(
 
 	auto unknownUnreadCounts = std::vector<not_null<History*>>();
 	TimeId lastDateFound = 0;
-	for_const (auto message, messages) {
+	for (const auto &message : messages) {
 		auto msgId = IdFromMessage(message);
 		auto peerId = PeerFromMessage(message);
 		auto lastDate = DateFromMessage(message);
 		if (const auto peer = App::peerLoaded(peerId)) {
 			if (lastDate) {
-				const auto item = App::histories().addNewMessage(
+				const auto item = Auth().data().addNewMessage(
 					message,
 					NewMessageExisting);
 				const auto history = item->history();

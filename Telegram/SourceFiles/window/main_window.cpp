@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "core/click_handler_types.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 #include "mediaview.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -428,7 +429,7 @@ void MainWindow::updateUnreadCounter() {
 	if (!Global::started() || App::quitting()) return;
 
 	const auto counter = AuthSession::Exists()
-		? App::histories().unreadBadge()
+		? Auth().data().unreadBadge()
 		: 0;
 	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");
 

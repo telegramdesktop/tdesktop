@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_photo.h"
 
 #include "layout.h"
-#include "auth_session.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/media/history_media_common.h"
@@ -526,5 +526,5 @@ void HistoryPhoto::parentTextUpdated() {
 	_caption = (_parent->media() == this)
 		? createCaption(_parent->data())
 		: Text();
-	Auth().data().requestViewResize(_parent);
+	history()->owner().requestViewResize(_parent);
 }

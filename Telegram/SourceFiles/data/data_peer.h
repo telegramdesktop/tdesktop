@@ -16,6 +16,7 @@ namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
 
+class AuthSession;
 class PeerData;
 class UserData;
 class ChatData;
@@ -24,6 +25,7 @@ class ChannelData;
 namespace Data {
 
 class Feed;
+class Session;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -47,12 +49,15 @@ private:
 
 class PeerData {
 protected:
-	PeerData(const PeerId &id);
+	PeerData(not_null<Data::Session*> owner, PeerId id);
 	PeerData(const PeerData &other) = delete;
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
 	virtual ~PeerData();
+
+	Data::Session &owner() const;
+	AuthSession &session() const;
 
 	bool isUser() const {
 		return peerIsUser(id);
@@ -239,6 +244,8 @@ private:
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
+	not_null<Data::Session*> _owner;
+
 	ImagePtr _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
@@ -320,8 +327,7 @@ public:
 		MTPDuserFull::Flags,
 		kEssentialFullFlags.value()>;
 
-	UserData(const PeerId &id) : PeerData(id) {
-	}
+	UserData(not_null<Data::Session*> owner, PeerId id);
 	void setPhoto(const MTPUserProfilePhoto &photo);
 
 	void setName(
@@ -503,10 +509,8 @@ public:
 		MTPDchat::Flags,
 		kEssentialFlags>;
 
-	ChatData(const PeerId &id)
-	: PeerData(id)
-	, inputChat(MTP_int(bareId())) {
-	}
+	ChatData(not_null<Data::Session*> owner, PeerId id);
+
 	void setPhoto(const MTPChatPhoto &photo);
 	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
 
@@ -753,7 +757,7 @@ public:
 		MTPDchannelFull::Flags,
 		kEssentialFullFlags>;
 
-	ChannelData(const PeerId &id);
+	ChannelData(not_null<Data::Session*> owner, PeerId id);
 
 	void setPhoto(const MTPChatPhoto &photo);
 	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);

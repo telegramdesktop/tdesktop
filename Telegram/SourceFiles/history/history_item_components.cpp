@@ -11,12 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/media/history_media_document.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
-#include "auth_session.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "styles/style_widgets.h"
@@ -165,7 +165,7 @@ bool HistoryMessageReply::updateData(
 		replyToMsgId = 0;
 	}
 	if (force) {
-		Auth().data().requestItemResize(holder);
+		holder->history()->owner().requestItemResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
 }
@@ -228,7 +228,7 @@ void HistoryMessageReply::itemRemoved(
 		HistoryItem *removed) {
 	if (replyToMsg == removed) {
 		clearData(holder);
-		Auth().data().requestItemResize(holder);
+		holder->history()->owner().requestItemResize(holder);
 	}
 }
 

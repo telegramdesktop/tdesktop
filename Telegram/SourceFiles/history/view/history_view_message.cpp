@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
-#include "auth_session.h"
 #include "layout.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -57,7 +56,7 @@ const style::TextStyle &KeyboardStyle::textStyle() const {
 }
 
 void KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
-	Auth().data().requestItemRepaint(item);
+	item->history()->owner().requestItemRepaint(item);
 }
 
 int KeyboardStyle::buttonRadius() const {

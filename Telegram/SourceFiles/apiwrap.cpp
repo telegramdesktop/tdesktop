@@ -629,7 +629,7 @@ void ApiWrap::requestContacts() {
 
 			const auto userId = contact.c_contact().vuser_id.v;
 			if (userId == _session->userId()) {
-				Auth().user()->setContactStatus(
+				_session->user()->setContactStatus(
 					UserData::ContactStatus::Contact);
 			}
 		}
@@ -1026,6 +1026,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		channel->setKickedCount(f.has_kicked_count() ? f.vkicked_count.v : 0);
 		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		if (const auto history = App::historyLoaded(channel->id)) {
+			history->clearUpTill(f.vavailable_min_id.v);
 			history->applyDialogFields(
 				f.vunread_count.v,
 				f.vread_inbox_max_id.v,
@@ -1546,7 +1547,7 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 			channel->inviter = _session->userId();
 			channel->inviteDate = channel->date;
 			if (channel->mgInfo) {
-				channel->mgInfo->creator = Auth().user();
+				channel->mgInfo->creator = _session->user();
 			}
 		} break;
 		case mtpc_channelParticipantAdmin: {
@@ -2144,7 +2145,7 @@ void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
 	}
 
 	auto now = unixtime();
-	App::enumerateUsers([&](UserData *user) {
+	_session->data().enumerateUsers([&](UserData *user) {
 		if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
 			return;
 		}
@@ -2276,7 +2277,7 @@ void ApiWrap::saveDraftsToCloud() {
 		if (cloudDraft && cloudDraft->saveRequestId) {
 			request(base::take(cloudDraft->saveRequestId)).cancel();
 		}
-		if (!Auth().supportMode()) {
+		if (!_session->supportMode()) {
 			cloudDraft = history->createCloudDraft(localDraft);
 		} else if (!cloudDraft) {
 			cloudDraft = history->createCloudDraft(nullptr);
@@ -2793,7 +2794,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	}
 
 	for (const auto [position, index] : indices) {
-		const auto item = App::histories().addNewMessage(
+		const auto item = _session->data().addNewMessage(
 			v->at(index),
 			NewMessageExisting);
 		if (item) {
@@ -3230,7 +3231,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 		const auto peerUserId = d.is_out()
 			? d.vuser_id
 			: MTP_int(_session->userId());
-		App::histories().addNewMessage(
+		_session->data().addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
 				d.vid,
@@ -3254,7 +3255,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 	case mtpc_updateShortChatMessage: {
 		auto &d = updates.c_updateShortChatMessage();
 		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
-		App::histories().addNewMessage(
+		_session->data().addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
 				d.vid,
@@ -3296,7 +3297,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			}
 		}
 		if (needToAdd) {
-			App::histories().addNewMessage(d.vmessage, NewMessageUnread);
+			_session->data().addNewMessage(d.vmessage, NewMessageUnread);
 		}
 	} break;
 
@@ -3354,7 +3355,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			}
 		}
 		if (needToAdd) {
-			App::histories().addNewMessage(d.vmessage, NewMessageUnread);
+			_session->data().addNewMessage(d.vmessage, NewMessageUnread);
 		}
 	} break;
 
@@ -3521,7 +3522,7 @@ void ApiWrap::requestMessageAfterDate(
 	//	App::feedUsers(data.vusers);
 	//	App::feedChats(data.vchats);
 	//	for (const auto &msg : messages) {
-	//		if (const auto item = App::histories().addNewMessage(msg, type)) {
+	//		if (const auto item = _session->data().addNewMessage(msg, type)) {
 	//			if (item->date() >= offsetDate || true) {
 	//				callback(item->position());
 	//				return;
@@ -4060,7 +4061,7 @@ void ApiWrap::userPhotosDone(
 //	if (!messages.empty()) {
 //		ids.reserve(messages.size());
 //		for (const auto &msg : messages) {
-//			if (const auto item = App::histories().addNewMessage(msg, type)) {
+//			if (const auto item = _session->data().addNewMessage(msg, type)) {
 //				const auto position = item->position();
 //				if (tooLargePosition(position)) {
 //					accumulateTill(noSkipRange.till, position);
@@ -5126,7 +5127,7 @@ void ApiWrap::photoUploadReady(
 }
 
 void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
-	const auto self = Auth().user();
+	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
 		request(MTPphotos_UpdateProfilePhoto(
 			MTP_inputPhotoEmpty()
@@ -5226,7 +5227,7 @@ void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
 		_saveBioRequestId = 0;
 
 		App::feedUsers(MTP_vector<MTPUser>(1, result));
-		Auth().user()->setAbout(_saveBioText);
+		_session->user()->setAbout(_saveBioText);
 		if (_saveBioDone) {
 			_saveBioDone();
 		}

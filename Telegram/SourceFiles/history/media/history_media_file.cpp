@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "auth_session.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "styles/style_history.h"
@@ -27,13 +27,13 @@ void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool 
 }
 
 void HistoryFileMedia::thumbAnimationCallback() {
-	Auth().data().requestViewRepaint(_parent);
+	history()->owner().requestViewRepaint(_parent);
 }
 
 void HistoryFileMedia::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) {
-	Auth().data().requestViewRepaint(_parent);
+	history()->owner().requestViewRepaint(_parent);
 }
 
 void HistoryFileMedia::setLinks(
@@ -76,7 +76,7 @@ void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 	};
 	if (timer) {
 		if (!anim::Disabled() || updateRadial()) {
-			Auth().data().requestViewRepaint(_parent);
+			history()->owner().requestViewRepaint(_parent);
 		}
 	} else {
 		updateRadial();

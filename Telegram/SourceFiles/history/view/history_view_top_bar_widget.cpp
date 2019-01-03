@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
 #include "data/data_feed.h"
+#include "data/data_session.h"
 #include "support/support_helper.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -96,13 +97,14 @@ TopBarWidget::TopBarWidget(
 	if (Adaptive::OneColumn()) {
 		createUnreadBadge();
 	}
-	subscribe(
-		App::histories().sendActionAnimationUpdated(),
-		[this](const Histories::SendActionAnimationUpdate &update) {
-			if (update.history == _activeChat.history()) {
-				this->update();
-			}
-		});
+	Auth().data().sendActionAnimationUpdated(
+	) | rpl::start_with_next([=](
+			const Data::Session::SendActionAnimationUpdate &update) {
+		if (update.history == _activeChat.history()) {
+			this->update();
+		}
+	}, lifetime());
+
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto flags = UpdateFlag::UserHasCalls
 		| UpdateFlag::UserOnlineChanged
@@ -696,8 +698,8 @@ void TopBarWidget::updateUnreadBadge() {
 	if (!_unreadBadge) return;
 
 	const auto history = _activeChat.history();
-	const auto active = !App::histories().unreadBadgeMutedIgnoreOne(history);
-	const auto counter = App::histories().unreadBadgeIgnoreOne(history);
+	const auto active = !Auth().data().unreadBadgeMutedIgnoreOne(history);
+	const auto counter = Auth().data().unreadBadgeIgnoreOne(history);
 	const auto text = [&] {
 		if (!counter) {
 			return QString();

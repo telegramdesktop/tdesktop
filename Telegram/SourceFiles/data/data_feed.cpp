@@ -369,15 +369,15 @@ void Feed::changedInChatListHook(Dialogs::Mode list, bool added) {
 		const auto nonMutedCount = count - mutedCount;
 		const auto mutedDelta = added ? mutedCount : -mutedCount;
 		const auto nonMutedDelta = added ? nonMutedCount : -nonMutedCount;
-		App::histories().unreadIncrement(nonMutedDelta, false);
-		App::histories().unreadIncrement(mutedDelta, true);
+		Auth().data().unreadIncrement(nonMutedDelta, false);
+		Auth().data().unreadIncrement(mutedDelta, true);
 
 		const auto fullMuted = (nonMutedCount == 0);
 		const auto entriesWithUnreadDelta = added ? 1 : -1;
 		const auto mutedEntriesWithUnreadDelta = fullMuted
 			? entriesWithUnreadDelta
 			: 0;
-		App::histories().unreadEntriesChanged(
+		Auth().data().unreadEntriesChanged(
 			entriesWithUnreadDelta,
 			mutedEntriesWithUnreadDelta);
 	}
@@ -402,11 +402,11 @@ void Feed::updateUnreadCounts(PerformUpdate &&performUpdate) {
 		const auto nowFullMuted = (nowUnreadMutedCount > 0)
 			&& (nowUnreadCount == nowUnreadMutedCount);
 
-		App::histories().unreadIncrement(
+		Auth().data().unreadIncrement(
 			(nowUnreadCount - nowUnreadMutedCount)
 			- (wasUnreadCount - wasUnreadMutedCount),
 			false);
-		App::histories().unreadIncrement(
+		Auth().data().unreadIncrement(
 			nowUnreadMutedCount - wasUnreadMutedCount,
 			true);
 
@@ -420,7 +420,7 @@ void Feed::updateUnreadCounts(PerformUpdate &&performUpdate) {
 			: (wasFullMuted && !nowFullMuted)
 			? -1
 			: 0;
-		App::histories().unreadEntriesChanged(
+		Auth().data().unreadEntriesChanged(
 			entriesDelta,
 			mutedEntriesDelta);
 	}

@@ -50,13 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 	App::LaunchState _launchState = App::Launched;
 
-	std::unordered_map<PeerId, std::unique_ptr<PeerData>> peersData;
-
 	using DependentItemsSet = OrderedSet<HistoryItem*>;
 	using DependentItems = QMap<HistoryItem*, DependentItemsSet>;
 	DependentItems dependentItems;
-
-	Histories histories;
 
 	using MsgsData = QHash<MsgId, HistoryItem*>;
 	MsgsData msgsData;
@@ -131,468 +127,20 @@ namespace App {
 		return nullptr;
 	}
 
-	namespace {
-		// we should get a full restriction in "{fulltype}: {reason}" format and we
-		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction
-		QString extractRestrictionReason(const QString &fullRestriction) {
-			int fullTypeEnd = fullRestriction.indexOf(':');
-			if (fullTypeEnd <= 0) {
-				return QString();
-			}
-
-			// {fulltype} is in "{type}-{tag}-{tag}-{tag}" format
-			// if we find "all" tag we return the restriction string
-			auto typeTags = fullRestriction.mid(0, fullTypeEnd).split('-').mid(1);
-#ifndef OS_MAC_STORE
-			auto restrictionApplies = typeTags.contains(qsl("all"));
-#else // OS_MAC_STORE
-			auto restrictionApplies = typeTags.contains(qsl("all")) || typeTags.contains(qsl("ios"));
-#endif // OS_MAC_STORE
-			if (restrictionApplies) {
-				return fullRestriction.midRef(fullTypeEnd + 1).trimmed().toString();
-			}
-			return QString();
-		}
-	}
-
 	UserData *feedUser(const MTPUser &user) {
-		UserData *data = nullptr;
-		bool minimal = false;
-		const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
-
-		Notify::PeerUpdate update;
-		using UpdateFlag = Notify::PeerUpdate::Flag;
-
-		switch (user.type()) {
-		case mtpc_userEmpty: {
-			auto &d = user.c_userEmpty();
-
-			auto peer = peerFromUser(d.vid.v);
-			data = App::user(peer);
-			auto canShareThisContact = data->canShareThisContactFast();
-
-			data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
-			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
-			data->setName(lang(lng_deleted), QString(), QString(), QString());
-			data->setPhoto(MTP_userProfilePhotoEmpty());
-			//data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
-			data->setFlags(MTPDuser::Flag::f_deleted);
-			if (!data->phone().isEmpty()) {
-				data->setPhone(QString());
-				update.flags |= UpdateFlag::UserPhoneChanged;
-			}
-			data->setBotInfoVersion(-1);
-			status = &emptyStatus;
-			data->setContactStatus(UserData::ContactStatus::PhoneUnknown);
-
-			if (canShareThisContact != data->canShareThisContactFast()) {
-				update.flags |= UpdateFlag::UserCanShareContact;
-			}
-		} break;
-		case mtpc_user: {
-			auto &d = user.c_user();
-			minimal = d.is_min();
-
-			auto peer = peerFromUser(d.vid.v);
-			data = App::user(peer);
-			auto canShareThisContact = data->canShareThisContactFast();
-			if (minimal) {
-				auto mask = 0
-					//| MTPDuser_ClientFlag::f_inaccessible
-					| MTPDuser::Flag::f_deleted;
-				data->setFlags((data->flags() & ~mask) | (d.vflags.v & mask));
-			} else {
-				data->setFlags(d.vflags.v);
-				if (d.is_self()) {
-					data->input = MTP_inputPeerSelf();
-					data->inputUser = MTP_inputUserSelf();
-				} else if (!d.has_access_hash()) {
-					data->input = MTP_inputPeerUser(d.vid, MTP_long(data->accessHash()));
-					data->inputUser = MTP_inputUser(d.vid, MTP_long(data->accessHash()));
-				} else {
-					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
-					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
-				}
-				if (d.is_restricted()) {
-					data->setRestrictionReason(extractRestrictionReason(qs(d.vrestriction_reason)));
-				} else {
-					data->setRestrictionReason(QString());
-				}
-			}
-			if (d.is_deleted()) {
-				if (!data->phone().isEmpty()) {
-					data->setPhone(QString());
-					update.flags |= UpdateFlag::UserPhoneChanged;
-				}
-				data->setName(lang(lng_deleted), QString(), QString(), QString());
-				data->setPhoto(MTP_userProfilePhotoEmpty());
-				status = &emptyStatus;
-			} else {
-				// apply first_name and last_name from minimal user only if we don't have
-				// local values for first name and last name already, otherwise skip
-				bool noLocalName = data->firstName.isEmpty() && data->lastName.isEmpty();
-				QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? TextUtilities::SingleLine(qs(d.vfirst_name)) : QString()) : data->firstName;
-				QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? TextUtilities::SingleLine(qs(d.vlast_name)) : QString()) : data->lastName;
-
-				QString phone = minimal ? data->phone() : (d.has_phone() ? qs(d.vphone) : QString());
-				QString uname = minimal ? data->username : (d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString());
-
-				bool phoneChanged = (data->phone() != phone);
-				if (phoneChanged) {
-					data->setPhone(phone);
-					update.flags |= UpdateFlag::UserPhoneChanged;
-				}
-				bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
-
-				bool showPhone = !isServiceUser(data->id)
-					&& !d.is_self()
-					&& !d.is_contact()
-					&& !d.is_mutual_contact();
-				bool showPhoneChanged = !isServiceUser(data->id)
-					&& !d.is_self()
-					&& ((showPhone
-						&& data->contactStatus() == UserData::ContactStatus::Contact)
-						|| (!showPhone
-							&& data->contactStatus() == UserData::ContactStatus::CanAdd));
-				if (minimal) {
-					showPhoneChanged = false;
-					showPhone = !isServiceUser(data->id)
-						&& (data->id != Auth().userPeerId())
-						&& (data->contactStatus() == UserData::ContactStatus::CanAdd);
-				}
-
-				// see also Local::readPeer
-
-				const auto pname = (showPhoneChanged || phoneChanged || nameChanged)
-					? ((showPhone && !phone.isEmpty())
-						? formatPhone(phone)
-						: QString())
-					: data->nameOrPhone;
-
-				if (!minimal && d.is_self() && uname != data->username) {
-					CrashReports::SetAnnotation("Username", uname);
-				}
-				data->setName(fname, lname, pname, uname);
-				if (d.has_photo()) {
-					data->setPhoto(d.vphoto);
-				} else {
-					data->setPhoto(MTP_userProfilePhotoEmpty());
-				}
-				if (d.has_access_hash()) {
-					data->setAccessHash(d.vaccess_hash.v);
-				}
-				status = d.has_status() ? &d.vstatus : &emptyStatus;
-			}
-			if (!minimal) {
-				if (d.has_bot_info_version()) {
-					data->setBotInfoVersion(d.vbot_info_version.v);
-					data->botInfo->readsAllHistory = d.is_bot_chat_history();
-					if (data->botInfo->cantJoinGroups != d.is_bot_nochats()) {
-						data->botInfo->cantJoinGroups = d.is_bot_nochats();
-						update.flags |= UpdateFlag::BotCanAddToGroups;
-					}
-					data->botInfo->inlinePlaceholder = d.has_bot_inline_placeholder() ? '_' + qs(d.vbot_inline_placeholder) : QString();
-				} else {
-					data->setBotInfoVersion(-1);
-				}
-				data->setContactStatus((d.is_contact() || d.is_mutual_contact())
-					? UserData::ContactStatus::Contact
-					: data->phone().isEmpty()
-					? UserData::ContactStatus::PhoneUnknown
-					: UserData::ContactStatus::CanAdd);
-			}
-
-			if (canShareThisContact != data->canShareThisContactFast()) {
-				update.flags |= UpdateFlag::UserCanShareContact;
-			}
-		} break;
-		}
-
-		if (!data) {
-			return nullptr;
-		}
-
-		if (minimal) {
-			if (data->loadedStatus == PeerData::NotLoaded) {
-				data->loadedStatus = PeerData::MinimalLoaded;
-			}
-		} else if (data->loadedStatus != PeerData::FullLoaded
-			&& (!data->isSelf() || !data->phone().isEmpty())) {
-			data->loadedStatus = PeerData::FullLoaded;
-		}
-
-		if (status && !minimal) {
-			const auto oldOnlineTill = data->onlineTill;
-			const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
-				*status,
-				oldOnlineTill);
-			if (oldOnlineTill != newOnlineTill) {
-				data->onlineTill = newOnlineTill;
-				update.flags |= UpdateFlag::UserOnlineChanged;
-			}
-		}
-
-		if (data->contactStatus() == UserData::ContactStatus::PhoneUnknown
-			&& !data->phone().isEmpty()
-			&& !data->isSelf()) {
-			data->setContactStatus(UserData::ContactStatus::CanAdd);
-		}
-		if (App::main()) {
-			if (update.flags) {
-				update.peer = data;
-				Notify::peerUpdatedDelayed(update);
-			}
-		}
-		return data;
+		return Auth().data().user(user);
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
-        UserData *result = nullptr;
-		for_const (auto &user, users.v) {
-			if (auto feededUser = feedUser(user)) {
-				result = feededUser;
-			}
-		}
-
-		return result;
+		return Auth().data().processUsers(users);
 	}
 
 	PeerData *feedChat(const MTPChat &chat) {
-		PeerData *data = nullptr;
-		bool minimal = false;
-
-		Notify::PeerUpdate update;
-		using UpdateFlag = Notify::PeerUpdate::Flag;
-
-		switch (chat.type()) {
-		case mtpc_chat: {
-			auto &d(chat.c_chat());
-
-			data = App::chat(peerFromChat(d.vid.v));
-			auto cdata = data->asChat();
-			auto canEdit = cdata->canEdit();
-
-			if (cdata->version < d.vversion.v) {
-				cdata->version = d.vversion.v;
-				cdata->invalidateParticipants();
-			}
-
-			data->input = MTP_inputPeerChat(d.vid);
-			cdata->setName(qs(d.vtitle));
-			cdata->setPhoto(d.vphoto);
-			cdata->date = d.vdate.v;
-
-			if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
-				auto &c = d.vmigrated_to.c_inputChannel();
-				auto channel = App::channel(peerFromChannel(c.vchannel_id));
-				channel->addFlags(MTPDchannel::Flag::f_megagroup);
-				if (!channel->access) {
-					channel->input = MTP_inputPeerChannel(c.vchannel_id, c.vaccess_hash);
-					channel->inputChannel = d.vmigrated_to;
-					channel->access = d.vmigrated_to.c_inputChannel().vaccess_hash.v;
-				}
-				bool updatedTo = (cdata->migrateToPtr != channel), updatedFrom = (channel->mgInfo->migrateFromPtr != cdata);
-				if (updatedTo) {
-					cdata->migrateToPtr = channel;
-				}
-				if (updatedFrom) {
-					channel->mgInfo->migrateFromPtr = cdata;
-					if (auto h = App::historyLoaded(cdata->id)) {
-						if (auto hto = App::historyLoaded(channel->id)) {
-							if (!h->isEmpty()) {
-								h->unloadBlocks();
-							}
-							if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
-								App::main()->removeDialog(h);
-							}
-						}
-					}
-					Notify::migrateUpdated(channel);
-					update.flags |= UpdateFlag::MigrationChanged;
-				}
-				if (updatedTo) {
-					Notify::migrateUpdated(cdata);
-					update.flags |= UpdateFlag::MigrationChanged;
-				}
-			}
-
-			if (!(cdata->flags() & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
-				cdata->invalidateParticipants();
-			}
-			cdata->setFlags(d.vflags.v);
-
-			cdata->count = d.vparticipants_count.v;
-			if (canEdit != cdata->canEdit()) {
-				update.flags |= UpdateFlag::ChatCanEdit;
-			}
-		} break;
-		case mtpc_chatForbidden: {
-			auto &d(chat.c_chatForbidden());
-
-			data = App::chat(peerFromChat(d.vid.v));
-			auto cdata = data->asChat();
-			auto canEdit = cdata->canEdit();
-
-			data->input = MTP_inputPeerChat(d.vid);
-			cdata->setName(qs(d.vtitle));
-			cdata->setPhoto(MTP_chatPhotoEmpty());
-			cdata->date = 0;
-			cdata->count = -1;
-			cdata->invalidateParticipants();
-			cdata->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
-			if (canEdit != cdata->canEdit()) {
-				update.flags |= UpdateFlag::ChatCanEdit;
-			}
-		} break;
-		case mtpc_channel: {
-			const auto &d = chat.c_channel();
-
-			const auto peerId = peerFromChannel(d.vid.v);
-			minimal = d.is_min();
-			if (minimal) {
-				data = App::channelLoaded(peerId);
-				if (!data) {
-					// Can't apply minimal to a not loaded channel.
-					// Need to make getDifference.
-					return nullptr;
-				}
-			} else {
-				data = App::channel(peerId);
-				const auto accessHash = d.has_access_hash()
-					? d.vaccess_hash
-					: MTP_long(0);
-				data->input = MTP_inputPeerChannel(d.vid, accessHash);
-			}
-
-			const auto cdata = data->asChannel();
-			const auto wasInChannel = cdata->amIn();
-			const auto canViewAdmins = cdata->canViewAdmins();
-			const auto canViewMembers = cdata->canViewMembers();
-			const auto canAddMembers = cdata->canAddMembers();
-
-			if (d.has_participants_count()) {
-				cdata->setMembersCount(d.vparticipants_count.v);
-			}
-			if (minimal) {
-				auto mask = 0
-					| MTPDchannel::Flag::f_broadcast
-					| MTPDchannel::Flag::f_verified
-					| MTPDchannel::Flag::f_megagroup
-					| MTPDchannel::Flag::f_democracy
-					| MTPDchannel_ClientFlag::f_forbidden;
-				cdata->setFlags((cdata->flags() & ~mask) | (d.vflags.v & mask));
-			} else {
-				if (d.has_admin_rights()) {
-					cdata->setAdminRights(d.vadmin_rights);
-				} else if (cdata->hasAdminRights()) {
-					cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
-				}
-				if (d.has_banned_rights()) {
-					cdata->setRestrictedRights(d.vbanned_rights);
-				} else if (cdata->hasRestrictions()) {
-					cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
-				}
-				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
-				cdata->access = d.vaccess_hash.v;
-				cdata->date = d.vdate.v;
-				if (cdata->version < d.vversion.v) {
-					cdata->version = d.vversion.v;
-				}
-				if (d.is_restricted()) {
-					cdata->setRestrictionReason(extractRestrictionReason(qs(d.vrestriction_reason)));
-				} else {
-					cdata->setRestrictionReason(QString());
-				}
-				cdata->setFlags(d.vflags.v);
-				//if (d.has_feed_id()) { // #feed
-				//	cdata->setFeed(Auth().data().feed(d.vfeed_id.v));
-				//} else {
-				//	cdata->clearFeed();
-				//}
-			}
-
-			QString uname = d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString();
-			cdata->setName(qs(d.vtitle), uname);
-
-			cdata->setPhoto(d.vphoto);
-
-			if (wasInChannel != cdata->amIn()) {
-				update.flags |= UpdateFlag::ChannelAmIn;
-			}
-			if (canViewAdmins != cdata->canViewAdmins()
-				|| canViewMembers != cdata->canViewMembers()
-				|| canAddMembers != cdata->canAddMembers()) {
-				update.flags |= UpdateFlag::ChannelRightsChanged;
-			}
-		} break;
-		case mtpc_channelForbidden: {
-			auto &d(chat.c_channelForbidden());
-
-			auto peerId = peerFromChannel(d.vid.v);
-			data = App::channel(peerId);
-			data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
-
-			auto cdata = data->asChannel();
-			auto wasInChannel = cdata->amIn();
-			auto canViewAdmins = cdata->canViewAdmins();
-			auto canViewMembers = cdata->canViewMembers();
-			auto canAddMembers = cdata->canAddMembers();
-
-			cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
-
-			auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
-			cdata->setFlags((cdata->flags() & ~mask) | (mtpCastFlags(d.vflags) & mask) | MTPDchannel_ClientFlag::f_forbidden);
-
-			if (cdata->hasAdminRights()) {
-				cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
-			}
-			if (cdata->hasRestrictions()) {
-				cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
-			}
-
-			cdata->setName(qs(d.vtitle), QString());
-
-			cdata->access = d.vaccess_hash.v;
-			cdata->setPhoto(MTP_chatPhotoEmpty());
-			cdata->date = 0;
-			cdata->setMembersCount(0);
-
-			if (wasInChannel != cdata->amIn()) {
-				update.flags |= UpdateFlag::ChannelAmIn;
-			}
-			if (canViewAdmins != cdata->canViewAdmins()
-				|| canViewMembers != cdata->canViewMembers()
-				|| canAddMembers != cdata->canAddMembers()) {
-				update.flags |= UpdateFlag::ChannelRightsChanged;
-			}
-		} break;
-		}
-		if (!data) {
-			return nullptr;
-		}
-
-		if (minimal) {
-			if (data->loadedStatus == PeerData::NotLoaded) {
-				data->loadedStatus = PeerData::MinimalLoaded;
-			}
-		} else if (data->loadedStatus != PeerData::FullLoaded) {
-			data->loadedStatus = PeerData::FullLoaded;
-		}
-		if (update.flags) {
-			update.peer = data;
-			Notify::peerUpdatedDelayed(update);
-		}
-		return data;
+		return Auth().data().chat(chat);
 	}
 
 	PeerData *feedChats(const MTPVector<MTPChat> &chats) {
-		PeerData *result = nullptr;
-		for_const (auto &chat, chats.v) {
-			if (auto feededChat = feedChat(chat)) {
-				result = feededChat;
-			}
-		}
-		return result;
+		return Auth().data().processChats(chats);
 	}
 
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos) {
@@ -934,7 +482,7 @@ namespace App {
 			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 		}
 		for (const auto [position, index] : indices) {
-			histories().addNewMessage(msgs[index], type);
+			Auth().data().addNewMessage(msgs[index], type);
 		}
 	}
 
@@ -1088,95 +636,41 @@ namespace App {
 		}
 	}
 
-	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
-		if (!id) {
-			return nullptr;
-		}
-
-		auto i = peersData.find(id);
-		if (i == peersData.cend()) {
-			auto newData = [&]() -> std::unique_ptr<PeerData> {
-				if (peerIsUser(id)) {
-					return std::make_unique<UserData>(id);
-				} else if (peerIsChat(id)) {
-					return std::make_unique<ChatData>(id);
-				} else if (peerIsChannel(id)) {
-					return std::make_unique<ChannelData>(id);
-				}
-				Unexpected("Peer id type.");
-			}();
-
-			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
-			i = peersData.emplace(id, std::move(newData)).first;
-		}
-		switch (restriction) {
-		case PeerData::MinimalLoaded: {
-			if (i->second->loadedStatus == PeerData::NotLoaded) {
-				return nullptr;
-			}
-		} break;
-		case PeerData::FullLoaded: {
-			if (i->second->loadedStatus != PeerData::FullLoaded) {
-				return nullptr;
-			}
-		} break;
-		}
-		return i->second.get();
+	not_null<PeerData*> peer(PeerId id) {
+		return Auth().data().peer(id);
 	}
-
-	void enumerateUsers(Fn<void(not_null<UserData*>)> action) {
-		for (const auto &[peerId, peer] : peersData) {
-			if (const auto user = peer->asUser()) {
-				action(user);
-			}
-		}
+	not_null<UserData*> user(UserId id) {
+		return Auth().data().user(id);
 	}
-
-	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) {
-		for (const auto &[peerId, peer] : peersData) {
-			if (peer->isChat() || peer->isMegagroup()) {
-				action(peer.get());
-			}
-		}
+	not_null<ChatData*> chat(ChatId id) {
+		return Auth().data().chat(id);
 	}
-
-	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) {
-		for (const auto &[peerId, peer] : peersData) {
-			if (const auto channel = peer->asChannel()) {
-				if (!channel->isMegagroup()) {
-					action(channel);
-				}
-			}
-		}
+	not_null<ChannelData*> channel(ChannelId id) {
+		return Auth().data().channel(id);
 	}
-
-	PeerData *peerByName(const QString &username) {
-		const auto uname = username.trimmed();
-		for (const auto &[peerId, peer] : peersData) {
-			if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
-				return peer.get();
-			}
-		}
-		return nullptr;
+	PeerData *peerLoaded(PeerId id) {
+		return Auth().data().peerLoaded(id);
+	}
+	UserData *userLoaded(UserId id) {
+		return Auth().data().userLoaded(id);
+	}
+	ChatData *chatLoaded(ChatId id) {
+		return Auth().data().chatLoaded(id);
+	}
+	ChannelData *channelLoaded(ChannelId id) {
+		return Auth().data().channelLoaded(id);
 	}
 
 	QString peerName(const PeerData *peer, bool forDialogs) {
 		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : lang(lng_deleted);
 	}
 
-	Histories &histories() {
-		return ::histories;
+	not_null<History*> history(PeerId peer) {
+		return Auth().data().history(peer);
 	}
 
-	not_null<History*> history(const PeerId &peer) {
-		return ::histories.findOrInsert(peer);
-	}
-
-	History *historyLoaded(const PeerId &peer) {
-		if (!peer) {
-			return nullptr;
-		}
-		return ::histories.find(peer);
+	History *historyLoaded(PeerId peer) {
+		return Auth().data().historyLoaded(peer);
 	}
 
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
@@ -1224,7 +718,7 @@ namespace App {
 				dependent->dependencyItemRemoved(item);
 			}
 		}
-		Auth().notifications().clearFromItem(item);
+		item->history()->session().notifications().clearFromItem(item);
 	}
 
 	void historyUpdateDependent(not_null<HistoryItem*> item) {
@@ -1261,12 +755,6 @@ namespace App {
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
-
-		peersData.clear();
-
-		if (AuthSession::Exists()) {
-			Auth().api().clearWebPageRequests();
-		}
 		cSetRecentStickers(RecentStickerPack());
 		cSetReportSpamStatuses(ReportSpamStatuses());
 	}
@@ -1442,21 +930,6 @@ namespace App {
 				HistoryView::serviceColorsUpdated();
 			}
 		});
-	}
-
-	void clearHistories() {
-		ClickHandler::clearActive();
-		ClickHandler::unpressed();
-
-		if (AuthSession::Exists()) {
-			// Clear notifications to prevent any showNotification() calls while destroying items.
-			Auth().notifications().clearAllFast();
-		}
-
-		histories().clear();
-
-		Images::ClearRemote();
-		cSetServerBackgrounds(WallPapers());
 	}
 
 	void deinitMedia() {
@@ -1771,7 +1244,5 @@ namespace App {
 		}
 		roundRect(p, x, y, w, h, bg, i.value(), nullptr, parts);
 	}
-
-	WallPapers gServerBackgrounds;
 
 }

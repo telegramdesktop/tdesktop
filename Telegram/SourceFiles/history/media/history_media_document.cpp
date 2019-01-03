@@ -9,11 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "auth_session.h"
 #include "storage/localstorage.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/media/history_media_common.h"
@@ -547,7 +547,7 @@ void HistoryDocument::updatePressed(QPoint point) {
 				nameright = st::msgFilePadding.left();
 			}
 			voice->setSeekingCurrent(snap((point.x() - nameleft) / float64(width() - nameleft - nameright), 0., 1.));
-			Auth().data().requestViewRepaint(_parent);
+			history()->owner().requestViewRepaint(_parent);
 		}
 	}
 }
@@ -695,7 +695,7 @@ void HistoryDocument::step_voiceProgress(float64 ms, bool timer) {
 				voice->_playback->a_progress.update(qMin(dt, 1.), anim::linear);
 			}
 			if (timer) {
-				Auth().data().requestViewRepaint(_parent);
+				history()->owner().requestViewRepaint(_parent);
 			}
 		}
 	}
@@ -753,7 +753,7 @@ void HistoryDocument::parentTextUpdated() {
 	} else {
 		RemoveComponents(HistoryDocumentCaptioned::Bit());
 	}
-	Auth().data().requestViewResize(_parent);
+	history()->owner().requestViewResize(_parent);
 }
 
 TextWithEntities HistoryDocument::getCaption() const {

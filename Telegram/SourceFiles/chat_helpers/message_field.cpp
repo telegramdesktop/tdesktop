@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
+#include "data/data_session.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_controller.h"
 #include "lang/lang_keys.h"
@@ -376,7 +377,7 @@ InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
 			auto username = text.midRef(inlineUsernameStart, inlineUsernameLength);
 			if (username != result.username) {
 				result.username = username.toString();
-				if (const auto peer = App::peerByName(result.username)) {
+				if (const auto peer = Auth().data().peerByUsername(result.username)) {
 					if (const auto user = peer->asUser()) {
 						result.bot = peer->asUser();
 					} else {
