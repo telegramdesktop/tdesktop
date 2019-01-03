@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDateTime>
 #include <QtCore/QRegularExpression>
 #include <QtGui/QImageReader>
+#include <range/v3/algorithm/max_element.hpp>
 #include <range/v3/view/all.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/to_container.hpp>
@@ -405,6 +406,43 @@ QString DocumentFolder(const Document &data) {
 	return "files";
 }
 
+Image ParseDocumentThumb(
+		const QVector<MTPPhotoSize> &thumbs,
+		const QString &documentPath) {
+	const auto area = [](const MTPPhotoSize &size) {
+		return size.match([](const MTPDphotoSizeEmpty &) {
+			return 0;
+		}, [](const MTPDphotoStrippedSize &) {
+			return 0;
+		}, [](const auto &data) {
+			return data.vw.v * data.vh.v;
+		});
+	};
+	const auto i = ranges::max_element(thumbs, ranges::less(), area);
+	if (i == thumbs.end()) {
+		return Image();
+	}
+	return i->match([](const MTPDphotoSizeEmpty &) {
+		return Image();
+	}, [](const MTPDphotoStrippedSize &) {
+		return Image();
+	}, [&](const auto &data) {
+		auto result = Image();
+		result.width = data.vw.v;
+		result.height = data.vh.v;
+		result.file.location = ParseLocation(data.vlocation);
+		if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
+			result.file.content = data.vbytes.v;
+			result.file.size = result.file.content.size();
+		} else {
+			result.file.content = QByteArray();
+			result.file.size = data.vsize.v;
+		}
+		result.file.suggestedPath = documentPath + "_thumb.jpg";
+		return result;
+	});
+}
+
 Document ParseDocument(
 		ParseMediaContext &context,
 		const MTPDocument &data,
@@ -423,30 +461,13 @@ Document ParseDocument(
 			data.vid,
 			data.vaccess_hash,
 			data.vfile_reference);
-		const auto path = result.file.suggestedPath = suggestedFolder
+		result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
 			+ CleanDocumentName(ComputeDocumentName(context, result, date));
 
-		result.thumb = data.vthumb.match([](const MTPDphotoSizeEmpty &) {
-			return Image();
-		}, [](const MTPDphotoStrippedSize &) {
-			// For now stripped images are used only in photos.
-			return Image();
-		}, [&](const auto &data) {
-			auto result = Image();
-			result.width = data.vw.v;
-			result.height = data.vh.v;
-			result.file.location = ParseLocation(data.vlocation);
-			if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
-				result.file.content = data.vbytes.v;
-				result.file.size = result.file.content.size();
-			} else {
-				result.file.content = QByteArray();
-				result.file.size = data.vsize.v;
-			}
-			result.file.suggestedPath = path + "_thumb.jpg";
-			return result;
-		});
+		result.thumb = ParseDocumentThumb(
+			data.vthumbs.v,
+			result.file.suggestedPath);
 	}, [&](const MTPDdocumentEmpty &data) {
 		result.id = data.vid.v;
 	});

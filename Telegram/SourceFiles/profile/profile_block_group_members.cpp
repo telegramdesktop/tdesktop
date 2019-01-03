@@ -67,11 +67,11 @@ void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
 	}
 	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
 	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
-	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_channelAdminRights(MTP_flags(0));
+	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_chatAdminRights(MTP_flags(0));
 	auto weak = std::make_shared<QPointer<EditAdminBox>>(nullptr);
 	auto box = Box<EditAdminBox>(megagroup, user, currentRights);
 	box->setSaveCallback(SaveAdminCallback(megagroup, user, [=](
-			const MTPChannelAdminRights &newRights) {
+			const MTPChatAdminRights &newRights) {
 		if (*weak) {
 			(*weak)->closeBox();
 		}
@@ -91,10 +91,10 @@ void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 	auto currentRightsIt = megagroup->mgInfo->lastRestricted.find(user);
 	auto currentRights = (currentRightsIt != megagroup->mgInfo->lastRestricted.end())
 		? currentRightsIt->second.rights
-		: MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+		: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
 	auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
-	box->setSaveCallback([megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+	box->setSaveCallback([megagroup, user](const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
 		Ui::hideLayer();
 		// #TODO use Auth().api().
 		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, oldRights, newRights](const MTPUpdates &result) {
@@ -110,14 +110,14 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	Assert(user != nullptr);
 
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
-	auto currentRestrictedRights = [&]() -> MTPChannelBannedRights {
+	auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
 		if (auto channel = peer()->asMegagroup()) {
 			auto it = channel->mgInfo->lastRestricted.find(user);
 			if (it != channel->mgInfo->lastRestricted.cend()) {
 				return it->second.rights;
 			}
 		}
-		return MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+		return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	}();
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, currentRestrictedRights, peer = peer()] {
 		Ui::hideLayer();
@@ -344,12 +344,13 @@ void GroupMembersWidget::refreshLimitReached() {
 void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
 	if (chat->participants.empty()) return;
 
+	// #TODO groups
 	const auto self = Auth().user();
-	if (chat->amAdmin() && !chat->admins.contains(self)) {
-		chat->admins.insert(self);
-	} else if (!chat->amAdmin() && chat->admins.contains(self)) {
-		chat->admins.remove(self);
-	}
+	//if (chat->amAdmin() && !chat->admins.contains(self)) {
+	//	chat->admins.insert(self);
+	//} else if (!chat->amAdmin() && chat->admins.contains(self)) {
+	//	chat->admins.remove(self);
+	//}
 }
 
 void GroupMembersWidget::sortMembers() {
@@ -418,12 +419,13 @@ void GroupMembersWidget::setItemFlags(Item *item, ChatData *chat) {
 	using AdminState = Item::AdminState;
 	auto user = getMember(item)->user();
 	auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
-	auto isAdmin = chat->adminsEnabled() && chat->admins.contains(user);
+	// #TODO groups
+	auto isAdmin = false;// chat->adminsEnabled() && chat->admins.contains(user);
 	auto adminState = isCreator ? AdminState::Creator : isAdmin ? AdminState::Admin : AdminState::None;
 	item->adminState = adminState;
 	if (item->peer->id == Auth().userPeerId()) {
 		item->hasRemoveLink = false;
-	} else if (chat->amCreator() || (chat->amAdmin() && (adminState == AdminState::None))) {
+	} else if (chat->amCreator() /*|| (chat->amAdmin() && (adminState == AdminState::None))*/) {
 		item->hasRemoveLink = true;
 	} else if (chat->invitedByMe.contains(user) && (adminState == AdminState::None)) {
 		item->hasRemoveLink = true;

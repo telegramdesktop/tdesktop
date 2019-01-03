@@ -76,13 +76,13 @@ inline auto AdminRightsValue(not_null<ChannelData*> channel) {
 
 inline auto AdminRightsValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelAdminRights::Flags mask) {
+		MTPDchatAdminRights::Flags mask) {
 	return FlagsValueWithMask(AdminRightsValue(channel), mask);
 }
 
 inline auto AdminRightValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelAdminRights::Flag flag) {
+		MTPDchatAdminRights::Flag flag) {
 	return SingleFlagValue(AdminRightsValue(channel), flag);
 }
 
@@ -92,13 +92,13 @@ inline auto RestrictionsValue(not_null<ChannelData*> channel) {
 
 inline auto RestrictionsValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelBannedRights::Flags mask) {
+		MTPDchatBannedRights::Flags mask) {
 	return FlagsValueWithMask(RestrictionsValue(channel), mask);
 }
 
 inline auto RestrictionValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelBannedRights::Flag flag) {
+		MTPDchatBannedRights::Flag flag) {
 	return SingleFlagValue(RestrictionsValue(channel), flag);
 }
 
@@ -141,10 +141,10 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 		PeerFlagsValue(channel, mask),
 		AdminRightValue(
 			channel,
-			MTPDchannelAdminRights::Flag::f_post_messages),
+			MTPDchatAdminRights::Flag::f_post_messages),
 		RestrictionValue(
 			channel,
-			MTPDchannelBannedRights::Flag::f_send_messages),
+			MTPDchatBannedRights::Flag::f_send_messages),
 		[](
 				MTPDchannel::Flags flags,
 				bool postMessagesRight,

@@ -117,6 +117,26 @@ QString ExtractRestrictionReason(const QString &restriction) {
 	return QString();
 }
 
+MTPPhotoSize FindDocumentThumb(const MTPDdocument &data) {
+	const auto area = [](const MTPPhotoSize &size) {
+		static constexpr auto kInvalid = std::numeric_limits<int>::max();
+		return size.match([](const MTPDphotoSizeEmpty &) {
+			return kInvalid;
+		}, [](const MTPDphotoStrippedSize &) {
+			return kInvalid;
+		}, [](const auto &data) {
+			return (data.vw.v >= 90 || data.vh.v >= 90)
+				? (data.vw.v * data.vh.v)
+				: kInvalid;
+		});
+	};
+	const auto &thumbs = data.vthumbs.v;
+	const auto i = ranges::max_element(thumbs, std::greater<>(), area);
+	return (i != thumbs.end())
+		? (*i)
+		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string("")));
+}
+
 } // namespace
 
 Session::Session(not_null<AuthSession*> session)
@@ -407,7 +427,8 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 
 	data.match([&](const MTPDchat &data) {
 		const auto chat = result->asChat();
-		const auto canEdit = chat->canEdit();
+		// #TODO groups
+		const auto canEdit = chat->canEditInformation();
 
 		if (chat->version < data.vversion.v) {
 			chat->version = data.vversion.v;
@@ -458,19 +479,22 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		}, [](const MTPDinputChannelEmpty &) {
 		});
 
-		if (!(chat->flags() & MTPDchat::Flag::f_admins_enabled)
-			&& (data.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
-			chat->invalidateParticipants();
-		}
+		// #TODO groups
+		//if (!(chat->flags() & MTPDchat::Flag::f_admins_enabled)
+		//	&& (data.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
+		//	chat->invalidateParticipants();
+		//}
 		chat->setFlags(data.vflags.v);
 
 		chat->count = data.vparticipants_count.v;
-		if (canEdit != chat->canEdit()) {
+		// #TODO groups
+		if (canEdit != chat->canEditInformation()) {
 			update.flags |= UpdateFlag::ChatCanEdit;
 		}
 	}, [&](const MTPDchatForbidden &data) {
 		const auto chat = result->asChat();
-		const auto canEdit = chat->canEdit();
+		// #TODO groups
+		const auto canEdit = chat->canEditInformation();
 
 		chat->input = MTP_inputPeerChat(data.vid);
 		chat->setName(qs(data.vtitle));
@@ -479,7 +503,8 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		chat->count = -1;
 		chat->invalidateParticipants();
 		chat->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
-		if (canEdit != chat->canEdit()) {
+		// #TODO groups
+		if (canEdit != chat->canEditInformation()) {
 			update.flags |= UpdateFlag::ChatCanEdit;
 		}
 	}, [&](const MTPDchannel &data) {
@@ -510,19 +535,18 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 				| MTPDchannel::Flag::f_broadcast
 				| MTPDchannel::Flag::f_verified
 				| MTPDchannel::Flag::f_megagroup
-				| MTPDchannel::Flag::f_democracy
 				| MTPDchannel_ClientFlag::f_forbidden;
 			channel->setFlags((channel->flags() & ~mask) | (data.vflags.v & mask));
 		} else {
 			if (data.has_admin_rights()) {
 				channel->setAdminRights(data.vadmin_rights);
 			} else if (channel->hasAdminRights()) {
-				channel->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
+				channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 			}
 			if (data.has_banned_rights()) {
 				channel->setRestrictedRights(data.vbanned_rights);
 			} else if (channel->hasRestrictions()) {
-				channel->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				channel->setRestrictedRights(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 			}
 			channel->inputChannel = MTP_inputChannel(data.vid, data.vaccess_hash);
 			channel->access = data.vaccess_hash.v;
@@ -572,10 +596,10 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		channel->setFlags((channel->flags() & ~mask) | (mtpCastFlags(data.vflags) & mask) | MTPDchannel_ClientFlag::f_forbidden);
 
 		if (channel->hasAdminRights()) {
-			channel->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
+			channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 		}
 		if (channel->hasRestrictions()) {
-			channel->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			channel->setRestrictedRights(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 
 		channel->setName(qs(data.vtitle), QString());
@@ -1992,6 +2016,7 @@ void Session::documentApplyFields(
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDdocument &data) {
+	const auto thumb = FindDocumentThumb(data);
 	documentApplyFields(
 		document,
 		data.vaccess_hash.v,
@@ -1999,10 +2024,10 @@ void Session::documentApplyFields(
 		data.vdate.v,
 		data.vattributes.v,
 		qs(data.vmime_type),
-		App::image(data.vthumb),
+		App::image(thumb),
 		data.vdc_id.v,
 		data.vsize.v,
-		StorageImageLocation::FromMTP(data.vthumb));
+		StorageImageLocation::FromMTP(thumb));
 }
 
 void Session::documentApplyFields(
@@ -3007,48 +3032,14 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data) {
 	});
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
-			const MTPPhotoSize *thumb = nullptr;
-			const MTPPhotoSize *full = nullptr;
-			auto thumbLevel = -1;
-			auto fullLevel = -1;
-			for (const auto &photoSize : paper.vsizes.v) {
-				auto size = char(0);
-				auto w = 0;
-				auto h = 0;
-				photoSize.match([](const MTPDphotoSizeEmpty &) {
-					LOG(("API Error: photoSizeEmpty in wallpapers."));
-				}, [](const MTPDphotoStrippedSize &) {
-					LOG(("API Error: photoStrippedSize in wallpapers."));
-				}, [&](const auto &photoSize) {
-					if (photoSize.vtype.v.size()) {
-						size = photoSize.vtype.v[0];
-					}
-					w = photoSize.vw.v;
-					h = photoSize.vh.v;
-				});
-				if (!size || !w || !h) {
-					continue;
-				}
-
-				const auto newThumbLevel = qAbs((st::backgroundSize.width() * cIntRetinaFactor()) - w);
-				const auto newFullLevel = qAbs(2560 - w);
-				if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
-					thumbLevel = newThumbLevel;
-					thumb = &photoSize;
-				}
-				if (fullLevel < 0 || newFullLevel < fullLevel) {
-					fullLevel = newFullLevel;
-					full = &photoSize;
-				}
-			}
-			if (thumb && full) {
+			const auto document = Auth().data().document(paper.vdocument);
+			if (document->thumb) {
 				_wallpapers.push_back({
-					paper.vid.v ? paper.vid.v : INT_MAX,
-					App::image(*thumb),
-					App::image(*full)
+					paper.vid.v ? int32(paper.vid.v) : INT_MAX,
+					document->thumb,
+					document->thumb,
 				});
 			}
-		}, [](const MTPDwallPaperSolid &) {
 		});
 	}
 }

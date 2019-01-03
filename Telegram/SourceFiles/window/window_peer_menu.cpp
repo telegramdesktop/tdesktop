@@ -354,7 +354,8 @@ void Filler::addUserActions(not_null<UserData*> user) {
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
-		if (chat->canEdit()) {
+		// #TODO groups
+		if (chat->canEditInformation()) {
 			_addAction(
 				lang(lng_manage_group_title),
 				[chat] { Ui::show(Box<EditPeerInfoBox>(chat)); });

@@ -1127,11 +1127,11 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 		}
 	}
 	_menu->addAction(lang(lng_context_restrict_user), [=] {
-		auto editRestrictions = [=](bool hasAdminRights, const MTPChannelBannedRights &currentRights) {
+		auto editRestrictions = [=](bool hasAdminRights, const MTPChatBannedRights &currentRights) {
 			auto weak = QPointer<InnerWidget>(this);
 			auto weakBox = std::make_shared<QPointer<EditRestrictedBox>>();
 			auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
-			box->setSaveCallback([user, weak, weakBox](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+			box->setSaveCallback([user, weak, weakBox](const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
 				if (weak) {
 					weak->restrictUser(user, oldRights, newRights);
 				}
@@ -1144,7 +1144,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				LayerOption::KeepOther);
 		};
 		if (base::contains(_admins, user)) {
-			editRestrictions(true, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			editRestrictions(true, MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		} else {
 			request(MTPchannels_GetParticipant(_channel->inputChannel, user->inputUser)).done([=](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
@@ -1158,13 +1158,13 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				} else {
 					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
 						|| (type == mtpc_channelParticipantCreator);
-					auto bannedRights = MTP_channelBannedRights(
+					auto bannedRights = MTP_chatBannedRights(
 						MTP_flags(0),
 						MTP_int(0));
 					editRestrictions(hasAdminRights, bannedRights);
 				}
 			}).fail([=](const RPCError &error) {
-				auto bannedRights = MTP_channelBannedRights(
+				auto bannedRights = MTP_chatBannedRights(
 					MTP_flags(0),
 					MTP_int(0));
 				editRestrictions(false, bannedRights);
@@ -1173,7 +1173,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 	});
 }
 
-void InnerWidget::restrictUser(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+void InnerWidget::restrictUser(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
 	auto weak = QPointer<InnerWidget>(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
@@ -1184,9 +1184,9 @@ void InnerWidget::restrictUser(not_null<UserData*> user, const MTPChannelBannedR
 	}));
 }
 
-void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChannelBannedRights &rights) {
-	Expects(rights.type() == mtpc_channelBannedRights);
-	if (rights.c_channelBannedRights().vflags.v) {
+void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights) {
+	Expects(rights.type() == mtpc_chatBannedRights);
+	if (rights.c_chatBannedRights().vflags.v) {
 		_admins.erase(std::remove(_admins.begin(), _admins.end(), user), _admins.end());
 		_adminsCanEdit.erase(std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user), _adminsCanEdit.end());
 	}

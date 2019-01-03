@@ -326,7 +326,7 @@ bool MediaPhoto::allowsEditCaption() const {
 
 QString MediaPhoto::errorTextForForward(
 		not_null<ChannelData*> channel) const {
-	if (channel->restricted(ChannelRestriction::f_send_media)) {
+	if (channel->restricted(ChatRestriction::f_send_media)) {
 		return lang(lng_restricted_send_media);
 	}
 	return QString();
@@ -652,20 +652,20 @@ bool MediaFile::forwardedBecomesUnread() const {
 QString MediaFile::errorTextForForward(
 		not_null<ChannelData*> channel) const {
 	if (const auto sticker = _document->sticker()) {
-		if (channel->restricted(ChannelRestriction::f_send_stickers)) {
+		if (channel->restricted(ChatRestriction::f_send_stickers)) {
 			return lang(lng_restricted_send_stickers);
 		}
 	} else if (_document->isAnimation()) {
 		if (_document->isVideoMessage()) {
-			if (channel->restricted(ChannelRestriction::f_send_media)) {
+			if (channel->restricted(ChatRestriction::f_send_media)) {
 				return lang(lng_restricted_send_media);
 			}
 		} else {
-			if (channel->restricted(ChannelRestriction::f_send_gifs)) {
+			if (channel->restricted(ChatRestriction::f_send_gifs)) {
 				return lang(lng_restricted_send_gifs);
 			}
 		}
-	} else if (channel->restricted(ChannelRestriction::f_send_media)) {
+	} else if (channel->restricted(ChatRestriction::f_send_media)) {
 		return lang(lng_restricted_send_media);
 	}
 	return QString();
@@ -1117,7 +1117,7 @@ TextWithEntities MediaGame::clipboardText() const {
 
 QString MediaGame::errorTextForForward(
 		not_null<ChannelData*> channel) const {
-	if (channel->restricted(ChannelRestriction::f_send_games)) {
+	if (channel->restricted(ChatRestriction::f_send_games)) {
 		return lang(lng_restricted_send_inline);
 	}
 	return QString();

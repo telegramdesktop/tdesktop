@@ -230,9 +230,10 @@ std::unique_ptr<PeerListRow> ChatMembersController::createRow(
 auto ChatMembersController::computeType(
 		not_null<UserData*> user) -> Type {
 	auto isCreator = (peerFromUser(_chat->creator) == user->id);
-	auto isAdmin = _chat->adminsEnabled()
-		&& _chat->admins.contains(user);
-	auto canRemove = [&] {
+	// #TODO groups
+	auto isAdmin = false;/* _chat->adminsEnabled()
+		&& _chat->admins.contains(user);*/
+	auto canRemove = false;/* [&] {
 		if (user->isSelf()) {
 			return false;
 		} else if (_chat->amCreator()) {
@@ -245,7 +246,7 @@ auto ChatMembersController::computeType(
 			return true;
 		}
 		return false;
-	}();
+	}();*/
 
 	auto result = Type();
 	result.rights = isCreator

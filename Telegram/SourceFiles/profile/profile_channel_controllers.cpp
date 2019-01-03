@@ -35,9 +35,9 @@ constexpr auto kSortByOnlineDelay = TimeMs(1000);
 void RemoveAdmin(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		const MTPChannelAdminRights &oldRights,
+		const MTPChatAdminRights &oldRights,
 		Fn<void()> onDone) {
-	const auto newRights = MTP_channelAdminRights(MTP_flags(0));
+	const auto newRights = MTP_chatAdminRights(MTP_flags(0));
 	auto done = [=](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
@@ -54,15 +54,15 @@ void RemoveAdmin(
 } // namespace
 
 Fn<void(
-	const MTPChannelAdminRights &oldRights,
-	const MTPChannelAdminRights &newRights)> SaveAdminCallback(
+	const MTPChatAdminRights &oldRights,
+	const MTPChatAdminRights &newRights)> SaveAdminCallback(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		Fn<void(const MTPChannelAdminRights &newRights)> onDone,
+		Fn<void(const MTPChatAdminRights &newRights)> onDone,
 		Fn<void()> onFail) {
 	return [=](
-			const MTPChannelAdminRights &oldRights,
-			const MTPChannelAdminRights &newRights) {
+			const MTPChatAdminRights &oldRights,
+			const MTPChatAdminRights &newRights) {
 		auto done = [=](const MTPUpdates &result) {
 			Auth().api().applyUpdates(result);
 			channel->applyEditAdmin(user, oldRights, newRights);
@@ -278,11 +278,11 @@ void ParticipantsBoxController::addNewItem() {
 		return;
 	}
 	auto weak = base::make_weak(this);
-	_addBox = Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantBoxController>(_channel, _role, [weak](not_null<UserData*> user, const MTPChannelAdminRights &rights) {
+	_addBox = Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantBoxController>(_channel, _role, [weak](not_null<UserData*> user, const MTPChatAdminRights &rights) {
 		if (const auto strong = weak.get()) {
 			strong->editAdminDone(user, rights);
 		}
-	}, [weak](not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+	}, [weak](not_null<UserData*> user, const MTPChatBannedRights &rights) {
 		if (const auto strong = weak.get()) {
 			strong->editRestrictedDone(user, rights);
 		}
@@ -688,7 +688,7 @@ bool ParticipantsBoxController::canEditAdmin(
 	} else if (!canEditAdminByRights(user)) {
 		return false;
 	}
-	return _channel->adminRights() & ChannelAdminRight::f_add_admins;
+	return _channel->adminRights() & ChatAdminRight::f_add_admins;
 }
 
 bool ParticipantsBoxController::canRestrictUser(
@@ -700,7 +700,7 @@ bool ParticipantsBoxController::canRestrictUser(
 	} else if (!canEditAdminByRights(user)) {
 		return false;
 	}
-	return _channel->adminRights() & ChannelAdminRight::f_ban_users;
+	return _channel->adminRights() & ChatAdminRight::f_ban_users;
 }
 
 base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
@@ -761,15 +761,15 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 	auto isCreator = (user == _additional.creator);
 	auto notAdmin = !isCreator && (it == _additional.adminRights.cend());
 	auto currentRights = isCreator
-		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
-		: notAdmin ? MTP_channelAdminRights(MTP_flags(0)) : it->second;
+		? MTP_chatAdminRights(MTP_flags(~MTPDchatAdminRights::Flag::f_add_admins | MTPDchatAdminRights::Flag::f_add_admins))
+		: notAdmin ? MTP_chatAdminRights(MTP_flags(0)) : it->second;
 	auto weak = base::make_weak(this);
 	auto box = Box<EditAdminBox>(_channel, user, currentRights);
 	auto canEdit = (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end());
 	auto canSave = notAdmin ? _channel->canAddAdmins() : canEdit;
 	if (canSave) {
 		box->setSaveCallback(SaveAdminCallback(_channel, user, [=](
-				const MTPChannelAdminRights &newRights) {
+				const MTPChatAdminRights &newRights) {
 			if (weak) {
 				weak->editAdminDone(user, newRights);
 			}
@@ -784,14 +784,14 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 
 void ParticipantsBoxController::editAdminDone(
 		not_null<UserData*> user,
-		const MTPChannelAdminRights &rights) {
+		const MTPChatAdminRights &rights) {
 	if (_editBox) {
 		_editBox->closeBox();
 	}
 	if (_addBox) {
 		_addBox->closeBox();
 	}
-	auto notAdmin = (rights.c_channelAdminRights().vflags.v == 0);
+	auto notAdmin = (rights.c_chatAdminRights().vflags.v == 0);
 	if (notAdmin) {
 		_additional.adminRights.erase(user);
 		_additional.adminPromotedBy.erase(user);
@@ -820,13 +820,13 @@ void ParticipantsBoxController::editAdminDone(
 void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 	auto it = _additional.restrictedRights.find(user);
 	auto restrictedRights = (it == _additional.restrictedRights.cend())
-		? MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
+		? MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 		: it->second;
 	auto weak = base::make_weak(this);
 	auto hasAdminRights = false;
 	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, restrictedRights);
 	if (_channel->canBanMembers()) {
-		box->setSaveCallback([megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+		box->setSaveCallback([megagroup = _channel.get(), user, weak](const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
 			MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, weak, oldRights, newRights](const MTPUpdates &result) {
 				Auth().api().applyUpdates(result);
 				megagroup->applyEditBanned(user, oldRights, newRights);
@@ -839,15 +839,15 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
-void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, const MTPChatBannedRights &rights) {
 	if (_editBox) {
 		_editBox->closeBox();
 	}
 	if (_addBox) {
 		_addBox->closeBox();
 	}
-	auto notBanned = (rights.c_channelBannedRights().vflags.v == 0);
-	auto fullBanned = rights.c_channelBannedRights().is_view_messages();
+	auto notBanned = (rights.c_chatBannedRights().vflags.v == 0);
+	auto fullBanned = rights.c_chatBannedRights().is_view_messages();
 	if (notBanned) {
 		_additional.kicked.erase(user);
 		_additional.restrictedRights.erase(user);
@@ -902,7 +902,7 @@ void ParticipantsBoxController::kickMemberSure(not_null<UserData*> user) {
 	}
 	auto alreadyIt = _additional.restrictedRights.find(user);
 	auto currentRights = (alreadyIt == _additional.restrictedRights.cend())
-		? MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
+		? MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 		: alreadyIt->second;
 
 	if (auto row = delegate()->peerListFindRow(user->id)) {
@@ -933,7 +933,7 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 	const auto weak = base::make_weak(this);
 	RemoveAdmin(_channel, user, oldRightsIt->second, [=] {
 		if (const auto strong = weak.get()) {
-			const auto newRights = MTP_channelAdminRights(MTP_flags(0));
+			const auto newRights = MTP_chatAdminRights(MTP_flags(0));
 			strong->editAdminDone(user, newRights);
 		}
 	});
@@ -1367,8 +1367,8 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 	auto weak = base::make_weak(this);
 	auto alreadyIt = _additional.adminRights.find(user);
 	auto currentRights = (_additional.creator == user)
-		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
-		: MTP_channelAdminRights(MTP_flags(0));
+		? MTP_chatAdminRights(MTP_flags(~MTPDchatAdminRights::Flag::f_add_admins | MTPDchatAdminRights::Flag::f_add_admins))
+		: MTP_chatAdminRights(MTP_flags(0));
 	if (alreadyIt != _additional.adminRights.end()) {
 		// The user is already an admin.
 		currentRights = alreadyIt->second;
@@ -1442,7 +1442,7 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 	auto box = Box<EditAdminBox>(_channel, user, currentRights);
 	if (!canNotEdit) {
 		box->setSaveCallback(SaveAdminCallback(_channel, user, [=](
-				const MTPChannelAdminRights &newRights) {
+				const MTPChatAdminRights &newRights) {
 			if (weak) {
 				weak->editAdminDone(user, newRights);
 			}
@@ -1457,13 +1457,13 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 
 void AddParticipantBoxController::editAdminDone(
 		not_null<UserData*> user,
-		const MTPChannelAdminRights &rights) {
+		const MTPChatAdminRights &rights) {
 	if (_editBox) _editBox->closeBox();
 	_additional.restrictedRights.erase(user);
 	_additional.restrictedBy.erase(user);
 	_additional.kicked.erase(user);
 	_additional.external.erase(user);
-	if (rights.c_channelAdminRights().vflags.v == 0) {
+	if (rights.c_chatAdminRights().vflags.v == 0) {
 		_additional.adminRights.erase(user);
 		_additional.adminPromotedBy.erase(user);
 		_additional.adminCanEdit.erase(user);
@@ -1493,7 +1493,7 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 	// Check restrictions.
 	auto weak = base::make_weak(this);
 	auto alreadyIt = _additional.restrictedRights.find(user);
-	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	auto currentRights = MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	auto hasAdminRights = false;
 	if (alreadyIt != _additional.restrictedRights.end()) {
 		// The user is already banned or restricted.
@@ -1520,7 +1520,7 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 
 	// Finally edit the restricted.
 	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
-	box->setSaveCallback([user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+	box->setSaveCallback([user, weak](const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
 		if (weak) {
 			weak->restrictUserSure(user, oldRights, newRights);
 		}
@@ -1528,7 +1528,7 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
-void AddParticipantBoxController::restrictUserSure(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+void AddParticipantBoxController::restrictUserSure(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
 	auto weak = base::make_weak(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
@@ -1541,18 +1541,18 @@ void AddParticipantBoxController::restrictUserSure(not_null<UserData*> user, con
 
 void AddParticipantBoxController::editRestrictedDone(
 		not_null<UserData*> user,
-		const MTPChannelBannedRights &rights) {
+		const MTPChatBannedRights &rights) {
 	if (_editBox) _editBox->closeBox();
 	_additional.adminRights.erase(user);
 	_additional.adminCanEdit.erase(user);
 	_additional.adminPromotedBy.erase(user);
-	if (rights.c_channelBannedRights().vflags.v == 0) {
+	if (rights.c_chatBannedRights().vflags.v == 0) {
 		_additional.restrictedRights.erase(user);
 		_additional.restrictedBy.erase(user);
 		_additional.kicked.erase(user);
 	} else {
 		_additional.restrictedRights[user] = rights;
-		if (rights.c_channelBannedRights().vflags.v & MTPDchannelBannedRights::Flag::f_view_messages) {
+		if (rights.c_chatBannedRights().vflags.v & MTPDchatBannedRights::Flag::f_view_messages) {
 			_additional.kicked.emplace(user);
 		} else {
 			_additional.kicked.erase(user);
@@ -1602,7 +1602,7 @@ void AddParticipantBoxController::kickUser(not_null<UserData*> user, bool sure) 
 		}), LayerOption::KeepOther);
 		return;
 	}
-	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	auto currentRights = MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	auto alreadyIt = _additional.restrictedRights.find(user);
 	if (alreadyIt != _additional.restrictedRights.end()) {
 		// The user is already banned or restricted.

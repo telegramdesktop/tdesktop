@@ -56,9 +56,9 @@ private:
 
 class EditAdminBox : public EditParticipantBox {
 public:
-	EditAdminBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, const MTPChannelAdminRights &rights);
+	EditAdminBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, const MTPChatAdminRights &rights);
 
-	void setSaveCallback(Fn<void(MTPChannelAdminRights, MTPChannelAdminRights)> callback) {
+	void setSaveCallback(Fn<void(MTPChatAdminRights, MTPChatAdminRights)> callback) {
 		_saveCallback = std::move(callback);
 	}
 
@@ -66,10 +66,10 @@ protected:
 	void prepare() override;
 
 private:
-	using Flag = MTPDchannelAdminRights::Flag;
-	using Flags = MTPDchannelAdminRights::Flags;
+	using Flag = MTPDchatAdminRights::Flag;
+	using Flags = MTPDchatAdminRights::Flags;
 
-	static MTPChannelAdminRights DefaultRights(not_null<ChannelData*> channel);
+	static MTPChatAdminRights DefaultRights(not_null<ChannelData*> channel);
 
 	bool canSave() const {
 		return !!_saveCallback;
@@ -77,9 +77,9 @@ private:
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void refreshAboutAddAdminsText();
 
-	const MTPChannelAdminRights _oldRights;
+	const MTPChatAdminRights _oldRights;
 	std::vector<std::pair<Flag, Flag>> _dependencies;
-	Fn<void(MTPChannelAdminRights, MTPChannelAdminRights)> _saveCallback;
+	Fn<void(MTPChatAdminRights, MTPChatAdminRights)> _saveCallback;
 
 	std::map<Flags, QPointer<Ui::Checkbox>> _checkboxes;
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
@@ -91,9 +91,9 @@ private:
 
 class EditRestrictedBox : public EditParticipantBox {
 public:
-	EditRestrictedBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights);
+	EditRestrictedBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights, const MTPChatBannedRights &rights);
 
-	void setSaveCallback(Fn<void(MTPChannelBannedRights, MTPChannelBannedRights)> callback) {
+	void setSaveCallback(Fn<void(MTPChatBannedRights, MTPChatBannedRights)> callback) {
 		_saveCallback = std::move(callback);
 	}
 
@@ -101,10 +101,10 @@ protected:
 	void prepare() override;
 
 private:
-	using Flag = MTPDchannelBannedRights::Flag;
-	using Flags = MTPDchannelBannedRights::Flags;
+	using Flag = MTPDchatBannedRights::Flag;
+	using Flags = MTPDchatBannedRights::Flags;
 
-	static MTPChannelBannedRights DefaultRights(not_null<ChannelData*> channel);
+	static MTPChatBannedRights DefaultRights(not_null<ChannelData*> channel);
 
 	bool canSave() const {
 		return !!_saveCallback;
@@ -120,10 +120,10 @@ private:
 	void createUntilVariants();
 	TimeId getRealUntilValue() const;
 
-	const MTPChannelBannedRights _oldRights;
+	const MTPChatBannedRights _oldRights;
 	TimeId _until = 0;
 	std::vector<std::pair<Flag, Flag>> _dependencies;
-	Fn<void(MTPChannelBannedRights, MTPChannelBannedRights)> _saveCallback;
+	Fn<void(MTPChatBannedRights, MTPChatBannedRights)> _saveCallback;
 
 	std::map<Flags, QPointer<Ui::Checkbox>> _checkboxes;
 

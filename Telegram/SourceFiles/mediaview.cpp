@@ -464,7 +464,7 @@ void MediaView::updateActions() {
 			return _userPhotosData && _fullIndex && _fullCount;
 		} else if (_photo && _photo->peer && _photo->peer->userpicPhotoId() == _photo->id) {
 			if (auto chat = _photo->peer->asChat()) {
-				return chat->canEdit();
+				return chat->canEditInformation();
 			} else if (auto channel = _photo->peer->asChannel()) {
 				return channel->canEditInformation();
 			}

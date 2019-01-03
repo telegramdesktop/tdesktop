@@ -64,7 +64,7 @@ QString SendDataCommon::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	if (const auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restricted(ChannelRestriction::f_send_messages)) {
+		if (megagroup->restricted(ChatRestriction::f_send_messages)) {
 			return lang(lng_restricted_send_message);
 		}
 	}
@@ -146,7 +146,7 @@ QString SendPhoto::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	if (const auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
+		if (megagroup->restricted(ChatRestriction::f_send_media)) {
 			return lang(lng_restricted_send_media);
 		}
 	}
@@ -181,12 +181,12 @@ QString SendFile::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	if (const auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
+		if (megagroup->restricted(ChatRestriction::f_send_media)) {
 			return lang(lng_restricted_send_media);
-		} else if (megagroup->restricted(ChannelRestriction::f_send_stickers)
+		} else if (megagroup->restricted(ChatRestriction::f_send_stickers)
 			&& (_document->sticker() != nullptr)) {
 			return lang(lng_restricted_send_stickers);
-		} else if (megagroup->restricted(ChannelRestriction::f_send_gifs)
+		} else if (megagroup->restricted(ChatRestriction::f_send_gifs)
 			&& _document->isAnimation()
 			&& !_document->isVideoMessage()) {
 			return lang(lng_restricted_send_gifs);
@@ -222,7 +222,7 @@ QString SendGame::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
 	if (auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restricted(ChannelRestriction::f_send_games)) {
+		if (megagroup->restricted(ChatRestriction::f_send_games)) {
 			return lang(lng_restricted_send_inline);
 		}
 	}

@@ -21,11 +21,11 @@ class Navigation;
 namespace Profile {
 
 Fn<void(
-	const MTPChannelAdminRights &oldRights,
-	const MTPChannelAdminRights &newRights)> SaveAdminCallback(
+	const MTPChatAdminRights &oldRights,
+	const MTPChatAdminRights &newRights)> SaveAdminCallback(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		Fn<void(const MTPChannelAdminRights &newRights)> onDone,
+		Fn<void(const MTPChatAdminRights &newRights)> onDone,
 		Fn<void()> onFail);
 
 // Viewing admins, banned or restricted users list with search.
@@ -48,10 +48,10 @@ public:
 		Role role);
 
 	struct Additional {
-		std::map<not_null<UserData*>, MTPChannelAdminRights> adminRights;
+		std::map<not_null<UserData*>, MTPChatAdminRights> adminRights;
 		std::set<not_null<UserData*>> adminCanEdit;
 		std::map<not_null<UserData*>, not_null<UserData*>> adminPromotedBy;
-		std::map<not_null<UserData*>, MTPChannelBannedRights> restrictedRights;
+		std::map<not_null<UserData*>, MTPChatBannedRights> restrictedRights;
 		std::set<not_null<UserData*>> kicked;
 		std::map<not_null<UserData*>, not_null<UserData*>> restrictedBy;
 		std::set<not_null<UserData*>> external;
@@ -122,11 +122,11 @@ private:
 	void showAdmin(not_null<UserData*> user);
 	void editAdminDone(
 		not_null<UserData*> user,
-		const MTPChannelAdminRights &rights);
+		const MTPChatAdminRights &rights);
 	void showRestricted(not_null<UserData*> user);
 	void editRestrictedDone(
 		not_null<UserData*> user,
-		const MTPChannelBannedRights &rights);
+		const MTPChatBannedRights &rights);
 	void removeKicked(not_null<PeerListRow*> row, not_null<UserData*> user);
 	void kickMember(not_null<UserData*> user);
 	void kickMemberSure(not_null<UserData*> user);
@@ -219,8 +219,8 @@ public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
 
-	using AdminDoneCallback = Fn<void(not_null<UserData*> user, const MTPChannelAdminRights &adminRights)>;
-	using BannedDoneCallback = Fn<void(not_null<UserData*> user, const MTPChannelBannedRights &bannedRights)>;
+	using AdminDoneCallback = Fn<void(not_null<UserData*> user, const MTPChatAdminRights &adminRights)>;
+	using BannedDoneCallback = Fn<void(not_null<UserData*> user, const MTPChatBannedRights &bannedRights)>;
 	AddParticipantBoxController(not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback);
 
 	void prepare() override;
@@ -238,11 +238,11 @@ private:
 	bool checkInfoLoaded(not_null<UserData*> user, Callback callback);
 
 	void showAdmin(not_null<UserData*> user, bool sure = false);
-	void editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights);
+	void editAdminDone(not_null<UserData*> user, const MTPChatAdminRights &rights);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
-	void editRestrictedDone(not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void editRestrictedDone(not_null<UserData*> user, const MTPChatBannedRights &rights);
 	void kickUser(not_null<UserData*> user, bool sure = false);
-	void restrictUserSure(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);
+	void restrictUserSure(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights);
 	bool appendRow(not_null<UserData*> user);
 	bool prependRow(not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;

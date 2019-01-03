@@ -154,8 +154,8 @@ private:
 	void copySelectedText();
 	TextWithEntities getSelectedText() const;
 	void suggestRestrictUser(not_null<UserData*> user);
-	void restrictUser(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);
-	void restrictUserDone(not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void restrictUser(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights);
+	void restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights);
 
 	void requestAdmins();
 	void checkPreloadMore();

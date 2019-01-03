@@ -1376,8 +1376,8 @@ void ApiWrap::applyLastParticipantsList(
 	channel->mgInfo->lastParticipantsStatus = MegagroupInfo::LastParticipantsUpToDate;
 
 	auto botStatus = channel->mgInfo->botStatus;
-	const auto emptyAdminRights = MTP_channelAdminRights(MTP_flags(0));
-	const auto emptyRestrictedRights = MTP_channelBannedRights(
+	const auto emptyAdminRights = MTP_chatAdminRights(MTP_flags(0));
+	const auto emptyRestrictedRights = MTP_chatBannedRights(
 		MTP_flags(0),
 		MTP_int(0));
 	for (const auto &p : list) {
@@ -1406,11 +1406,11 @@ void ApiWrap::applyLastParticipantsList(
 		}
 		if (!base::contains(channel->mgInfo->lastParticipants, user)) {
 			channel->mgInfo->lastParticipants.push_back(user);
-			if (adminRights.c_channelAdminRights().vflags.v) {
+			if (adminRights.c_chatAdminRights().vflags.v) {
 				channel->mgInfo->lastAdmins.emplace(
 					user,
 					MegagroupInfo::Admin{ adminRights, adminCanEdit });
-			} else if (restrictedRights.c_channelBannedRights().vflags.v != 0) {
+			} else if (restrictedRights.c_chatBannedRights().vflags.v != 0) {
 				channel->mgInfo->lastRestricted.emplace(
 					user,
 					MegagroupInfo::Restricted{ restrictedRights });
@@ -1552,7 +1552,9 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 		} break;
 		case mtpc_channelParticipantAdmin: {
 			auto &d = p.vparticipant.c_channelParticipantAdmin();
-			channel->inviter = d.vinviter_id.v;
+			channel->inviter = (d.is_self() && d.has_inviter_id())
+				? d.vinviter_id.v
+				: 0;
 			channel->inviteDate = d.vdate.v;
 		} break;
 		}
@@ -1582,7 +1584,7 @@ void ApiWrap::kickParticipant(
 void ApiWrap::kickParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		const MTPChannelBannedRights &currentRights) {
+		const MTPChatBannedRights &currentRights) {
 	const auto kick = KickRequest(channel, user);
 	if (_kickRequests.contains(kick)) return;
 
@@ -1614,7 +1616,7 @@ void ApiWrap::unblockParticipant(
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		user->inputUser,
-		MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
+		MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 
@@ -1947,36 +1949,26 @@ void ApiWrap::exportInviteLink(not_null<PeerData*> peer) {
 		return;
 	}
 
-	const auto sendRequest = [this, peer] {
-		const auto exportFail = [this, peer](const RPCError &error) {
+	const auto requestId = [&] {
+		return request(MTPmessages_ExportChatInvite(
+			peer->input
+		)).done([=](const MTPExportedChatInvite &result) {
 			_exportInviteRequests.erase(peer);
-		};
-		if (const auto chat = peer->asChat()) {
-			return request(MTPmessages_ExportChatInvite(
-				chat->inputChat
-			)).done([=](const MTPExportedChatInvite &result) {
-				_exportInviteRequests.erase(chat);
-				chat->setInviteLink(
-					(result.type() == mtpc_chatInviteExported
-						? qs(result.c_chatInviteExported().vlink)
-						: QString()));
-			}).fail(exportFail).send();
-		} else if (const auto channel = peer->asChannel()) {
-			return request(MTPchannels_ExportInvite(
-				channel->inputChannel
-			)).done([=](const MTPExportedChatInvite &result) {
-				_exportInviteRequests.erase(channel);
-				channel->setInviteLink(
-					(result.type() == mtpc_chatInviteExported
-						? qs(result.c_chatInviteExported().vlink)
-						: QString()));
-			}).fail(exportFail).send();
-		}
-		return 0;
-	};
-	if (const auto requestId = sendRequest()) {
-		_exportInviteRequests.emplace(peer, requestId);
-	}
+			const auto link = (result.type() == mtpc_chatInviteExported)
+				? qs(result.c_chatInviteExported().vlink)
+				: QString();
+			if (const auto chat = peer->asChat()) {
+				chat->setInviteLink(link);
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setInviteLink(link);
+			} else {
+				Unexpected("Peer in ApiWrap::exportInviteLink.");
+			}
+		}).fail([=](const RPCError &error) {
+			_exportInviteRequests.erase(peer);
+		}).send();
+	}();
+	_exportInviteRequests.emplace(peer, requestId);
 }
 
 void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
@@ -3653,17 +3645,18 @@ void ApiWrap::editChatAdmins(
 		_chatAdminsToSave.emplace(chat, std::move(admins));
 	}
 
-	auto requestId = request(MTPmessages_ToggleChatAdmins(chat->inputChat, MTP_bool(adminsEnabled))).done([this, chat](const MTPUpdates &updates) {
-		_chatAdminsEnabledRequests.remove(chat);
-		applyUpdates(updates);
-		saveChatAdmins(chat);
-	}).fail([this, chat](const RPCError &error) {
-		_chatAdminsEnabledRequests.remove(chat);
-		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
-			saveChatAdmins(chat);
-		}
-	}).send();
-	_chatAdminsEnabledRequests.emplace(chat, requestId);
+	// #TODO groups
+	//auto requestId = request(MTPmessages_ToggleChatAdmins(chat->inputChat, MTP_bool(adminsEnabled))).done([this, chat](const MTPUpdates &updates) {
+	//	_chatAdminsEnabledRequests.remove(chat);
+	//	applyUpdates(updates);
+	//	saveChatAdmins(chat);
+	//}).fail([this, chat](const RPCError &error) {
+	//	_chatAdminsEnabledRequests.remove(chat);
+	//	if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+	//		saveChatAdmins(chat);
+	//	}
+	//}).send();
+	//_chatAdminsEnabledRequests.emplace(chat, requestId);
 }
 
 void ApiWrap::saveChatAdmins(not_null<ChatData*> chat) {

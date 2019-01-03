@@ -96,7 +96,7 @@ void ShowAddParticipantsError(
 				auto box = Box<EditAdminBox>(
 					channel,
 					user,
-					MTP_channelAdminRights(MTP_flags(0)));
+					MTP_chatAdminRights(MTP_flags(0)));
 				box->setSaveCallback(saveCallback);
 				*weak = Ui::show(std::move(box));
 			};
@@ -642,9 +642,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 					Auth().api().uploadPeerPhoto(channel, std::move(image));
 				}
 				_createdChannel = channel;
-				_creationRequestId = request(
-					MTPchannels_ExportInvite(_createdChannel->inputChannel)
-				).done([this](const MTPExportedChatInvite &result) {
+				_creationRequestId = request(MTPmessages_ExportChatInvite(
+					_createdChannel->input
+				)).done([=](const MTPExportedChatInvite &result) {
 					_creationRequestId = 0;
 					if (result.type() == mtpc_chatInviteExported) {
 						auto link = qs(result.c_chatInviteExported().vlink);
@@ -1324,7 +1324,12 @@ void EditChannelBox::save() {
 	if (_sentTitle == _channel->name) {
 		saveDescription();
 	} else {
-		_saveTitleRequestId = MTP::send(MTPchannels_EditTitle(_channel->inputChannel, MTP_string(_sentTitle)), rpcDone(&EditChannelBox::onSaveTitleDone), rpcFail(&EditChannelBox::onSaveFail));
+		_saveTitleRequestId = MTP::send(
+			MTPchannels_EditTitle(
+				_channel->inputChannel,
+				MTP_string(_sentTitle)),
+			rpcDone(&EditChannelBox::onSaveTitleDone),
+			rpcFail(&EditChannelBox::onSaveFail));
 	}
 }
 
@@ -1338,7 +1343,12 @@ void EditChannelBox::saveDescription() {
 	if (_sentDescription == _channel->about()) {
 		saveSign();
 	} else {
-		_saveDescriptionRequestId = MTP::send(MTPchannels_EditAbout(_channel->inputChannel, MTP_string(_sentDescription)), rpcDone(&EditChannelBox::onSaveDescriptionDone), rpcFail(&EditChannelBox::onSaveFail));
+		_saveDescriptionRequestId = MTP::send(
+			MTPmessages_EditChatAbout(
+				_channel->input,
+				MTP_string(_sentDescription)),
+			rpcDone(&EditChannelBox::onSaveDescriptionDone),
+			rpcFail(&EditChannelBox::onSaveFail));
 	}
 }
 
@@ -1346,16 +1356,22 @@ void EditChannelBox::saveSign() {
 	if (!canEditSignatures() || _channel->addsSignature() == _sign->checked()) {
 		saveInvites();
 	} else {
-		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign->checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));
+		_saveSignRequestId = MTP::send(
+			MTPchannels_ToggleSignatures(
+				_channel->inputChannel,
+				MTP_bool(_sign->checked())),
+			rpcDone(&EditChannelBox::onSaveSignDone),
+			rpcFail(&EditChannelBox::onSaveFail));
 	}
 }
 
 void EditChannelBox::saveInvites() {
-	if (!canEditInvites() || _channel->anyoneCanAddMembers() == (_inviteGroup->value() == Invites::Everybody)) {
-		closeBox();
-	} else {
-		_saveInvitesRequestId = MTP::send(MTPchannels_ToggleInvites(_channel->inputChannel, MTP_bool(_inviteGroup->value() == Invites::Everybody)), rpcDone(&EditChannelBox::onSaveInvitesDone), rpcFail(&EditChannelBox::onSaveFail));
-	}
+	// #TODO groups
+	//if (!canEditInvites() || _channel->anyoneCanAddMembers() == (_inviteGroup->value() == Invites::Everybody)) {
+	//	closeBox();
+	//} else {
+	//	_saveInvitesRequestId = MTP::send(MTPchannels_ToggleInvites(_channel->inputChannel, MTP_bool(_inviteGroup->value() == Invites::Everybody)), rpcDone(&EditChannelBox::onSaveInvitesDone), rpcFail(&EditChannelBox::onSaveFail));
+	//}
 }
 
 bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {

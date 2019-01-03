@@ -495,16 +495,21 @@ private:
 
 };
 
+using ChatAdminRight = MTPDchatAdminRights::Flag;
+using ChatRestriction = MTPDchatBannedRights::Flag;
+using ChatAdminRights = MTPDchatAdminRights::Flags;
+using ChatRestrictions = MTPDchatBannedRights::Flags;
+
 class ChatData : public PeerData {
 public:
 	static constexpr auto kEssentialFlags = 0
 		| MTPDchat::Flag::f_creator
 		| MTPDchat::Flag::f_kicked
 		| MTPDchat::Flag::f_left
-		| MTPDchat::Flag::f_admins_enabled
-		| MTPDchat::Flag::f_admin
 		| MTPDchat::Flag::f_deactivated
-		| MTPDchat::Flag::f_migrated_to;
+		| MTPDchat::Flag::f_migrated_to
+		| MTPDchat::Flag::f_admin_rights
+		| MTPDchat::Flag::f_default_banned_rights;
 	using Flags = Data::Flags<
 		MTPDchat::Flags,
 		kEssentialFlags>;
@@ -552,11 +557,7 @@ public:
 	bool amIn() const {
 		return !isForbidden() && !haveLeft() && !wasKicked();
 	}
-	bool canEdit() const {
-		return !isDeactivated()
-			&& (amCreator()
-				|| (adminsEnabled() ? amAdmin() : amIn()));
-	}
+	bool canEditInformation() const;
 	bool canWrite() const {
 		// Duplicated in Data::CanWriteValue().
 		return !isDeactivated() && amIn();
@@ -567,14 +568,8 @@ public:
 	bool wasKicked() const {
 		return flags() & MTPDchat::Flag::f_kicked;
 	}
-	bool adminsEnabled() const {
-		return flags() & MTPDchat::Flag::f_admins_enabled;
-	}
 	bool amCreator() const {
 		return flags() & MTPDchat::Flag::f_creator;
-	}
-	bool amAdmin() const {
-		return (flags() & MTPDchat::Flag::f_admin) && adminsEnabled();
 	}
 	bool isDeactivated() const {
 		return flags() & MTPDchat::Flag::f_deactivated;
@@ -687,21 +682,21 @@ private:
 
 struct MegagroupInfo {
 	struct Admin {
-		explicit Admin(MTPChannelAdminRights rights)
+		explicit Admin(MTPChatAdminRights rights)
 		: rights(rights) {
 		}
-		Admin(MTPChannelAdminRights rights, bool canEdit)
+		Admin(MTPChatAdminRights rights, bool canEdit)
 		: rights(rights)
 		, canEdit(canEdit) {
 		}
-		MTPChannelAdminRights rights;
+		MTPChatAdminRights rights;
 		bool canEdit = false;
 	};
 	struct Restricted {
-		explicit Restricted(MTPChannelBannedRights rights)
+		explicit Restricted(MTPChatBannedRights rights)
 		: rights(rights) {
 		}
-		MTPChannelBannedRights rights;
+		MTPChatBannedRights rights;
 	};
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
@@ -728,11 +723,6 @@ struct MegagroupInfo {
 
 };
 
-using ChannelAdminRight = MTPDchannelAdminRights::Flag;
-using ChannelRestriction = MTPDchannelBannedRights::Flag;
-using ChannelAdminRights = MTPDchannelAdminRights::Flags;
-using ChannelRestrictions = MTPDchannelBannedRights::Flags;
-
 class ChannelData : public PeerData {
 public:
 	static constexpr auto kEssentialFlags = 0
@@ -742,7 +732,6 @@ public:
 		| MTPDchannel::Flag::f_verified
 		| MTPDchannel::Flag::f_megagroup
 		| MTPDchannel::Flag::f_restricted
-		| MTPDchannel::Flag::f_democracy
 		| MTPDchannel::Flag::f_signatures
 		| MTPDchannel::Flag::f_username;
 	using Flags = Data::Flags<
@@ -844,19 +833,19 @@ public:
 		return flags() & MTPDchannel::Flag::f_verified;
 	}
 
-	static MTPChannelBannedRights KickedRestrictedRights();
+	static MTPChatBannedRights KickedRestrictedRights();
 	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
 	static bool IsRestrictedForever(TimeId until) {
 		return !until || (until == kRestrictUntilForever);
 	}
 	void applyEditAdmin(
 		not_null<UserData*> user,
-		const MTPChannelAdminRights &oldRights,
-		const MTPChannelAdminRights &newRights);
+		const MTPChatAdminRights &oldRights,
+		const MTPChatAdminRights &newRights);
 	void applyEditBanned(
 		not_null<UserData*> user,
-		const MTPChannelBannedRights &oldRights,
-		const MTPChannelBannedRights &newRights);
+		const MTPChatBannedRights &oldRights,
+		const MTPChatBannedRights &newRights);
 
 	bool isGroupAdmin(not_null<UserData*> user) const;
 
@@ -889,10 +878,10 @@ public:
 		return flags() & MTPDchannel::Flag::f_creator;
 	}
 
-	using AdminRight = ChannelAdminRight;
-	using Restriction = ChannelRestriction;
-	using AdminRights = ChannelAdminRights;
-	using Restrictions = ChannelRestrictions;
+	using AdminRight = ChatAdminRight;
+	using Restriction = ChatRestriction;
+	using AdminRights = ChatAdminRights;
+	using Restrictions = ChatRestrictions;
 	using AdminRightFlags = Data::Flags<AdminRights>;
 	using RestrictionFlags = Data::Flags<Restrictions>;
 	auto adminRights() const {
@@ -901,7 +890,7 @@ public:
 	auto adminRightsValue() const {
 		return _adminRights.value();
 	}
-	void setAdminRights(const MTPChannelAdminRights &rights);
+	void setAdminRights(const MTPChatAdminRights &rights);
 	bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
@@ -917,7 +906,7 @@ public:
 	TimeId restrictedUntil() const {
 		return _restrictedUntill;
 	}
-	void setRestrictedRights(const MTPChannelBannedRights &rights);
+	void setRestrictedRights(const MTPChatBannedRights &rights);
 	bool hasRestrictions() const {
 		return (restrictions() != 0);
 	}
@@ -952,7 +941,7 @@ public:
 		return _inviteLink;
 	}
 	bool canHaveInviteLink() const {
-		return (adminRights() & AdminRight::f_invite_link)
+		return (adminRights() & AdminRight::f_invite_users)
 			|| amCreator();
 	}
 

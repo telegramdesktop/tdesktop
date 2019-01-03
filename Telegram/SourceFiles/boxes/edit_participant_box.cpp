@@ -202,26 +202,21 @@ void EditParticipantBox::resizeToContent() {
 	setDimensions(_inner->width(), qMin(_inner->height(), st::boxMaxListHeight));
 }
 
-EditAdminBox::EditAdminBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, const MTPChannelAdminRights &rights) : EditParticipantBox(nullptr, channel, user, (rights.c_channelAdminRights().vflags.v != 0))
+EditAdminBox::EditAdminBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, const MTPChatAdminRights &rights) : EditParticipantBox(nullptr, channel, user, (rights.c_chatAdminRights().vflags.v != 0))
 , _oldRights(rights) {
-	auto dependency = [this](Flag dependent, Flag dependency) {
-		_dependencies.push_back(std::make_pair(dependent, dependency));
-	};
-	dependency(Flag::f_invite_link, Flag::f_invite_users); // invite_link <-> invite_users
-	dependency(Flag::f_invite_users, Flag::f_invite_link);
 }
 
-MTPChannelAdminRights EditAdminBox::DefaultRights(not_null<ChannelData*> channel) {
+MTPChatAdminRights EditAdminBox::DefaultRights(not_null<ChannelData*> channel) {
 	auto defaultRights = channel->isMegagroup()
-		? (Flag::f_change_info | Flag::f_delete_messages | Flag::f_ban_users | Flag::f_invite_users | Flag::f_invite_link | Flag::f_pin_messages)
-		: (Flag::f_change_info | Flag::f_post_messages | Flag::f_edit_messages | Flag::f_delete_messages | Flag::f_invite_users | Flag::f_invite_link);
-	return MTP_channelAdminRights(MTP_flags(defaultRights));
+		? (Flag::f_change_info | Flag::f_delete_messages | Flag::f_ban_users | Flag::f_invite_users | Flag::f_pin_messages)
+		: (Flag::f_change_info | Flag::f_post_messages | Flag::f_edit_messages | Flag::f_delete_messages | Flag::f_invite_users);
+	return MTP_chatAdminRights(MTP_flags(defaultRights));
 }
 
 void EditAdminBox::prepare() {
 	EditParticipantBox::prepare();
 
-	auto hadRights = _oldRights.c_channelAdminRights().vflags.v;
+	auto hadRights = _oldRights.c_chatAdminRights().vflags.v;
 	setTitle(langFactory(hadRights ? lng_rights_edit_admin : lng_channel_add_admin));
 
 	addControl(object_ptr<BoxContentDivider>(this), QMargins());
@@ -231,7 +226,7 @@ void EditAdminBox::prepare() {
 	const auto filterByMyRights = canSave()
 		&& !hadRights
 		&& !channel()->amCreator();
-	const auto prepareFlags = prepareRights.c_channelAdminRights().vflags.v
+	const auto prepareFlags = prepareRights.c_chatAdminRights().vflags.v
 		& (filterByMyRights ? channel()->adminRights() : ~Flag(0));
 	auto addCheckbox = [&](Flags flags, const QString &text) {
 		const auto checked = (prepareFlags & flags) != 0;
@@ -256,7 +251,7 @@ void EditAdminBox::prepare() {
 		addCheckbox(Flag::f_change_info, lang(lng_rights_group_info));
 		addCheckbox(Flag::f_delete_messages, lang(lng_rights_group_delete));
 		addCheckbox(Flag::f_ban_users, lang(lng_rights_group_ban));
-		addCheckbox(Flag::f_invite_users | Flag::f_invite_link, lang(channel()->anyoneCanAddMembers() ? lng_rights_group_invite_link : lng_rights_group_invite));
+		addCheckbox(Flag::f_invite_users, lang(channel()->anyoneCanAddMembers() ? lng_rights_group_invite_link : lng_rights_group_invite));
 		addCheckbox(Flag::f_pin_messages, lang(lng_rights_group_pin));
 		addCheckbox(Flag::f_add_admins, lang(lng_rights_add_admins));
 	} else {
@@ -264,7 +259,7 @@ void EditAdminBox::prepare() {
 		addCheckbox(Flag::f_post_messages, lang(lng_rights_channel_post));
 		addCheckbox(Flag::f_edit_messages, lang(lng_rights_channel_edit));
 		addCheckbox(Flag::f_delete_messages, lang(lng_rights_channel_delete));
-		addCheckbox(Flag::f_invite_users | Flag::f_invite_link, lang(lng_rights_group_invite));
+		addCheckbox(Flag::f_invite_users, lang(lng_rights_group_invite));
 		addCheckbox(Flag::f_add_admins, lang(lng_rights_add_admins));
 	}
 
@@ -286,7 +281,7 @@ void EditAdminBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			}
-			auto newFlags = MTPDchannelAdminRights::Flags(0);
+			auto newFlags = MTPDchatAdminRights::Flags(0);
 			for (auto &&checkbox : _checkboxes) {
 				if (checkbox.second->checked()) {
 					newFlags |= checkbox.first;
@@ -298,7 +293,7 @@ void EditAdminBox::prepare() {
 				// Leave only rights that we have so we could save them.
 				newFlags &= channel()->adminRights();
 			}
-			_saveCallback(_oldRights, MTP_channelAdminRights(MTP_flags(newFlags)));
+			_saveCallback(_oldRights, MTP_chatAdminRights(MTP_flags(newFlags)));
 		});
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	} else {
@@ -332,7 +327,7 @@ void EditAdminBox::refreshAboutAddAdminsText() {
 	resizeToContent();
 }
 
-EditRestrictedBox::EditRestrictedBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
+EditRestrictedBox::EditRestrictedBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights, const MTPChatBannedRights &rights) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
 , _oldRights(rights) {
 	auto dependency = [this](Flag dependent, Flag dependency) {
 		_dependencies.push_back(std::make_pair(dependent, dependency));
@@ -357,11 +352,11 @@ void EditRestrictedBox::prepare() {
 	addControl(object_ptr<BoxContentDivider>(this), QMargins());
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_user_restrictions_header), Ui::FlatLabel::InitType::Simple, st::rightsHeaderLabel), st::rightsHeaderMargin);
 
-	auto prepareRights = (_oldRights.c_channelBannedRights().vflags.v ? _oldRights : DefaultRights(channel()));
-	_until = prepareRights.c_channelBannedRights().vuntil_date.v;
+	auto prepareRights = (_oldRights.c_chatBannedRights().vflags.v ? _oldRights : DefaultRights(channel()));
+	_until = prepareRights.c_chatBannedRights().vuntil_date.v;
 
 	auto addCheckbox = [&](Flags flags, const QString &text) {
-		auto checked = (prepareRights.c_channelBannedRights().vflags.v & flags) == 0;
+		auto checked = (prepareRights.c_chatBannedRights().vflags.v & flags) == 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle), st::rightsToggleMargin);
 		control->checkedChanges(
 		) | rpl::start_with_next([=](bool checked) {
@@ -391,7 +386,7 @@ void EditRestrictedBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			}
-			auto newFlags = MTPDchannelBannedRights::Flags(0);
+			auto newFlags = MTPDchatBannedRights::Flags(0);
 			for (auto &&checkbox : _checkboxes) {
 				if (checkbox.second->checked()) {
 					newFlags &= ~checkbox.first;
@@ -399,7 +394,7 @@ void EditRestrictedBox::prepare() {
 					newFlags |= checkbox.first;
 				}
 			}
-			_saveCallback(_oldRights, MTP_channelBannedRights(MTP_flags(newFlags), MTP_int(getRealUntilValue())));
+			_saveCallback(_oldRights, MTP_chatBannedRights(MTP_flags(newFlags), MTP_int(getRealUntilValue())));
 		});
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	} else {
@@ -418,9 +413,9 @@ void EditRestrictedBox::applyDependencies(QPointer<Ui::Checkbox> changed) {
 	ApplyDependencies(_checkboxes, _dependencies, changed);
 }
 
-MTPChannelBannedRights EditRestrictedBox::DefaultRights(not_null<ChannelData*> channel) {
+MTPChatBannedRights EditRestrictedBox::DefaultRights(not_null<ChannelData*> channel) {
 	auto defaultRights = Flag::f_send_messages | Flag::f_send_media | Flag::f_embed_links | Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_games | Flag::f_send_inline;
-	return MTP_channelBannedRights(MTP_flags(defaultRights), MTP_int(0));
+	return MTP_chatBannedRights(MTP_flags(defaultRights), MTP_int(0));
 }
 
 void EditRestrictedBox::showRestrictUntil() {
@@ -489,7 +484,7 @@ void EditRestrictedBox::createUntilVariants() {
 		}
 	};
 	auto addCurrentVariant = [this, addCustomVariant](TimeId from, TimeId to) {
-		auto oldUntil = _oldRights.c_channelBannedRights().vuntil_date.v;
+		auto oldUntil = _oldRights.c_chatBannedRights().vuntil_date.v;
 		if (oldUntil < _until) {
 			addCustomVariant(oldUntil, from, to);
 		}

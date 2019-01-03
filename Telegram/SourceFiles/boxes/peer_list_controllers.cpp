@@ -684,8 +684,9 @@ void EditChatAdminsBoxController::prepare() {
 }
 
 void EditChatAdminsBoxController::createAllAdminsCheckbox() {
+	// #TODO groups
 	auto labelWidth = st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right();
-	auto checkbox = object_ptr<LabeledCheckbox>(nullptr, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::defaultBoxCheckbox);
+	auto checkbox = object_ptr<LabeledCheckbox>(nullptr, lang(lng_chat_all_members_admins), /*!_chat->adminsEnabled()*/false, st::defaultBoxCheckbox);
 	checkbox->setLabelText(true, st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, labelWidth);
 	checkbox->setLabelText(false, st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, labelWidth);
 	_allAdmins = checkbox;
@@ -844,14 +845,15 @@ bool AddBotToGroupBoxController::needToCreateRow(not_null<PeerData*> peer) const
 			return false;
 		}
 		if (auto group = peer->asMegagroup()) {
-			if (group->restricted(ChannelRestriction::f_send_games)) {
+			if (group->restricted(ChatRestriction::f_send_games)) {
 				return false;
 			}
 		}
 		return true;
 	}
 	if (auto chat = peer->asChat()) {
-		if (chat->canEdit()) {
+		// #TODO groups
+		if (chat->canEditInformation()) {
 			return true;
 		}
 	} else if (auto group = peer->asMegagroup()) {

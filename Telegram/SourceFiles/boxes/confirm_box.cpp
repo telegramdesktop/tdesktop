@@ -621,7 +621,7 @@ void DeleteMessagesBox::deleteAndClear() {
 			Auth().api().kickParticipant(
 				_moderateInChannel,
 				_moderateFrom,
-				MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 		if (_reportSpam->checked()) {
 			MTP::send(

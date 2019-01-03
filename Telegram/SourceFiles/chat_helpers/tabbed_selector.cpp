@@ -672,8 +672,8 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 
 void TabbedSelector::checkRestrictedPeer() {
 	if (auto megagroup = _currentPeer ? _currentPeer->asMegagroup() : nullptr) {
-		auto restricted = (_currentTabType == SelectorTab::Stickers) ? megagroup->restricted(ChannelRestriction::f_send_stickers) :
-			(_currentTabType == SelectorTab::Gifs) ? megagroup->restricted(ChannelRestriction::f_send_gifs) : false;
+		auto restricted = (_currentTabType == SelectorTab::Stickers) ? megagroup->restricted(ChatRestriction::f_send_stickers) :
+			(_currentTabType == SelectorTab::Gifs) ? megagroup->restricted(ChatRestriction::f_send_gifs) : false;
 		if (restricted) {
 			if (!_restrictedLabel) {
 				auto text = (_currentTabType == SelectorTab::Stickers)

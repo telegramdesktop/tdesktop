@@ -563,7 +563,7 @@ bool MainWidget::sendPaths(PeerId peerId) {
 		Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
 		return false;
 	} else if (auto megagroup = peer->asMegagroup()) {
-		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
+		if (megagroup->restricted(ChatRestriction::f_send_media)) {
 			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
 			return false;
 		}
@@ -4225,9 +4225,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		App::feedParticipantDelete(update.c_updateChatParticipantDelete());
 	} break;
 
-	case mtpc_updateChatAdmins: {
-		App::feedChatAdmins(update.c_updateChatAdmins());
-	} break;
+		// #TODO groups new update
 
 	case mtpc_updateChatParticipantAdmin: {
 		App::feedParticipantAdmin(update.c_updateChatParticipantAdmin());

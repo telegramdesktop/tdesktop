@@ -43,7 +43,9 @@ struct FileReferenceAccumulator {
 	}
 	void push(const MTPDocument &data) {
 		data.match([&](const MTPDdocument &data) {
-			push(data.vthumb);
+			for (const auto &thumb : data.vthumbs.v) {
+				push(thumb);
+			}
 			result.emplace(
 				DocumentFileLocationId(data.vid.v),
 				data.vfile_reference.v);

@@ -74,7 +74,6 @@ namespace App {
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
-	void feedChatAdmins(const MTPDupdateChatAdmins &d);
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void updateEditedMessage(const MTPMessage &m);

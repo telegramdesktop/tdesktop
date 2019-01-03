@@ -237,7 +237,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 		if (auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
 		} else if (auto chat = _peer->asChat()) {
-			return chat->canEdit();
+			return chat->canEditInformation();
 		}
 		return false;
 	}();
@@ -1305,8 +1305,8 @@ void Controller::saveDescription() {
 		channel->setAbout(*_savingData.description);
 		continueSave();
 	};
-	request(MTPchannels_EditAbout(
-		channel->inputChannel,
+	request(MTPmessages_EditChatAbout(
+		channel->input,
 		MTP_string(*_savingData.description)
 	)).done([=](const MTPBool &result) {
 		successCallback();
@@ -1355,19 +1355,20 @@ void Controller::saveInvites() {
 		|| *_savingData.everyoneInvites == channel->anyoneCanAddMembers()) {
 		return continueSave();
 	}
-	request(MTPchannels_ToggleInvites(
-		channel->inputChannel,
-		MTP_bool(*_savingData.everyoneInvites)
-	)).done([this](const MTPUpdates &result) {
-		Auth().api().applyUpdates(result);
-		continueSave();
-	}).fail([this](const RPCError &error) {
-		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
-			continueSave();
-		} else {
-			cancelSave();
-		}
-	}).send();
+	// #TODO groups
+	//request(MTPchannels_ToggleInvites(
+	//	channel->inputChannel,
+	//	MTP_bool(*_savingData.everyoneInvites)
+	//)).done([this](const MTPUpdates &result) {
+	//	Auth().api().applyUpdates(result);
+	//	continueSave();
+	//}).fail([this](const RPCError &error) {
+	//	if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+	//		continueSave();
+	//	} else {
+	//		cancelSave();
+	//	}
+	//}).send();
 }
 
 void Controller::saveSignatures() {

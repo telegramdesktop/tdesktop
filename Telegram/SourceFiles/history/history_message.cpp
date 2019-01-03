@@ -54,7 +54,7 @@ MTPDmessage::Flags NewForwardedFlags(
 		if (dynamic_cast<Data::MediaWebPage*>(fwd->media())) {
 			// Drop web page if we're not allowed to send it.
 			if (channel->restricted(
-					ChannelRestriction::f_embed_links)) {
+					ChatRestriction::f_embed_links)) {
 				result &= ~MTPDmessage::Flag::f_media;
 			}
 		}
@@ -263,7 +263,7 @@ QString GetErrorTextForForward(
 				}
 			}
 		}
-		if (megagroup->restricted(ChannelRestriction::f_send_inline)
+		if (megagroup->restricted(ChatRestriction::f_send_inline)
 			&& HasInlineItems(items)) {
 			return lang(lng_restricted_send_inline);
 		}
@@ -431,7 +431,7 @@ HistoryMessage::HistoryMessage(
 	auto ignoreMedia = [&] {
 		if (mediaOriginal && mediaOriginal->webpage()) {
 			if (const auto channel = history->peer->asChannel()) {
-				if (channel->restricted(ChannelRestriction::f_embed_links)) {
+				if (channel->restricted(ChatRestriction::f_embed_links)) {
 					return true;
 				}
 			}

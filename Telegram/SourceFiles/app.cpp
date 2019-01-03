@@ -156,7 +156,8 @@ namespace App {
 		case mtpc_chatParticipants: {
 			const auto &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
-			auto canEdit = chat->canEdit();
+			// #TODO groups
+			auto canEdit = chat->canEditInformation();
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
 				auto &v = d.vparticipants.v;
@@ -166,7 +167,8 @@ namespace App {
 					: (chat->participants.begin()->second + 1);
 				chat->invitedByMe.clear();
 				chat->admins.clear();
-				chat->removeFlags(MTPDchat::Flag::f_admin);
+				// #TODO groups
+				//chat->removeFlags(MTPDchat::Flag::f_admin);
 				for (auto i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
@@ -197,7 +199,8 @@ namespace App {
 						if (i->type() == mtpc_chatParticipantAdmin) {
 							chat->admins.insert(user);
 							if (user->isSelf()) {
-								chat->addFlags(MTPDchat::Flag::f_admin);
+								// #TODO groups
+//								chat->addFlags(MTPDchat::Flag::f_admin);
 							}
 						}
 					} else {
@@ -232,7 +235,8 @@ namespace App {
 					}
 				}
 			}
-			if (canEdit != chat->canEdit()) {
+			// #TODO groups
+			if (canEdit != chat->canEditInformation()) {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 		} break;
@@ -284,7 +288,8 @@ namespace App {
 			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
-			auto canEdit = chat->canEdit();
+			// #TODO groups
+			auto canEdit = chat->canEditInformation();
 			const auto user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.empty()) {
@@ -299,7 +304,8 @@ namespace App {
 						chat->invitedByMe.remove(user);
 						chat->admins.remove(user);
 						if (user->isSelf()) {
-							chat->removeFlags(MTPDchat::Flag::f_admin);
+							// #TODO groups
+//							chat->removeFlags(MTPDchat::Flag::f_admin);
 						}
 
 						History *h = App::historyLoaded(chat->id);
@@ -325,36 +331,11 @@ namespace App {
 				chat->invalidateParticipants();
 				chat->count--;
 			}
-			if (canEdit != chat->canEdit()) {
+			// #TODO groups
+			if (canEdit != chat->canEditInformation()) {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
-		}
-	}
-
-	void feedChatAdmins(const MTPDupdateChatAdmins &d) {
-		auto chat = App::chat(d.vchat_id.v);
-		if (chat->version <= d.vversion.v) {
-			auto wasCanEdit = chat->canEdit();
-			auto badVersion = (chat->version + 1 < d.vversion.v);
-			chat->version = d.vversion.v;
-			if (mtpIsTrue(d.venabled)) {
-				chat->addFlags(MTPDchat::Flag::f_admins_enabled);
-			} else {
-				chat->removeFlags(MTPDchat::Flag::f_admins_enabled);
-			}
-			if (badVersion || mtpIsTrue(d.venabled)) {
-				chat->invalidateParticipants();
-				Auth().api().requestPeer(chat);
-			}
-			if (wasCanEdit != chat->canEdit()) {
-				Notify::peerUpdatedDelayed(
-					chat,
-					Notify::PeerUpdate::Flag::ChatCanEdit);
-			}
-			Notify::peerUpdatedDelayed(
-				chat,
-				Notify::PeerUpdate::Flag::AdminsChanged);
 		}
 	}
 
@@ -366,12 +347,14 @@ namespace App {
 			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
-			auto canEdit = chat->canEdit();
+			// #TODO groups
+			auto canEdit = chat->canEditInformation();
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
 					if (user->isSelf()) {
-						chat->addFlags(MTPDchat::Flag::f_admin);
+						// #TODO groups
+//						chat->addFlags(MTPDchat::Flag::f_admin);
 					}
 					if (chat->noParticipantInfo()) {
 						Auth().api().requestFullPeer(chat);
@@ -380,14 +363,15 @@ namespace App {
 					}
 				} else {
 					if (user->isSelf()) {
-						chat->removeFlags(MTPDchat::Flag::f_admin);
+						// #TODO groups
+						//chat->removeFlags(MTPDchat::Flag::f_admin);
 					}
 					chat->admins.remove(user);
 				}
 			} else {
 				chat->invalidateParticipants();
 			}
-			if (canEdit != chat->canEdit()) {
+			if (canEdit != chat->canEditInformation()) {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);

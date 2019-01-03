@@ -283,7 +283,7 @@ rpl::producer<bool> CanAddMemberValue(
 			chat,
 			Notify::PeerUpdate::Flag::ChatCanEdit
 		) | rpl::map([chat] {
-			return chat->canEdit();
+			return chat->canEditInformation(); // #TODO groups
 		});
 	} else if (auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(

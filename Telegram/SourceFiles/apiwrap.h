@@ -145,7 +145,7 @@ public:
 	void kickParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
-		const MTPChannelBannedRights &currentRights);
+		const MTPChatBannedRights &currentRights);
 	void unblockParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user);

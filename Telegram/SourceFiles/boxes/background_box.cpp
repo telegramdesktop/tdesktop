@@ -18,7 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
 
-class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
+class BackgroundBox::Inner
+	: public Ui::RpWidget
+	, private MTP::Sender
+	, private base::Subscriber {
 public:
 	Inner(QWidget *parent);
 
@@ -35,7 +38,6 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
-	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
 	void updateWallpapers();
 
 	Fn<void(int index)> _backgroundChosenCallback;
@@ -75,12 +77,21 @@ void BackgroundBox::backgroundChosen(int index) {
 	closeBox();
 }
 
-BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
-, _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
+BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
+, _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (!Auth().data().wallpapersCount()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
-		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&Inner::gotWallpapers));
+		request(MTPaccount_GetWallPapers(
+			MTP_int(0)
+		)).done([=](const MTPaccount_WallPapers &result) {
+			result.match([&](const MTPDaccount_wallPapers &data) {
+				Auth().data().setWallpapers(data.vwallpapers.v);
+				updateWallpapers();
+			}, [&](const MTPDaccount_wallPapersNotModified &) {
+				LOG(("API Error: account.wallPapersNotModified received."));
+			});
+		}).send();
 	} else {
 		updateWallpapers();
 	}
@@ -92,11 +103,6 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 		}
 	});
 	setMouseTracking(true);
-}
-
-void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
-	Auth().data().setWallpapers(result.v);
-	updateWallpapers();
 }
 
 void BackgroundBox::Inner::updateWallpapers() {

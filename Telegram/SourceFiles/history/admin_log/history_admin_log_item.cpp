@@ -151,17 +151,16 @@ const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags)
 	return withPrefix(plusFlags & ~minusFlags, '+') + withPrefix(minusFlags & ~plusFlags, kMinus);
 };
 
-auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntities &user, const MTPChannelAdminRights *newRights, const MTPChannelAdminRights *prevRights) {
-	using Flag = MTPDchannelAdminRights::Flag;
-	using Flags = MTPDchannelAdminRights::Flags;
+auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntities &user, const MTPChatAdminRights *newRights, const MTPChatAdminRights *prevRights) {
+	using Flag = MTPDchatAdminRights::Flag;
+	using Flags = MTPDchatAdminRights::Flags;
 
-	Expects(!newRights || newRights->type() == mtpc_channelAdminRights);
-	Expects(!prevRights || prevRights->type() == mtpc_channelAdminRights);
-	auto newFlags = newRights ? newRights->c_channelAdminRights().vflags.v : MTPDchannelAdminRights::Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_channelAdminRights().vflags.v : MTPDchannelAdminRights::Flags(0);
+	Expects(!newRights || newRights->type() == mtpc_chatAdminRights);
+	Expects(!prevRights || prevRights->type() == mtpc_chatAdminRights);
+	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
+	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
 	auto result = lng_admin_log_promoted__generic(lt_user, user);
 
-	auto inviteKey = Flag::f_invite_users | Flag::f_invite_link;
 	auto useInviteLinkPhrase = channel->isMegagroup() && channel->anyoneCanAddMembers();
 	auto invitePhrase = (useInviteLinkPhrase ? lng_admin_log_admin_invite_link : lng_admin_log_admin_invite_users);
 	static auto phraseMap = std::map<Flags, LangKey> {
@@ -170,11 +169,11 @@ auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntit
 		{ Flag::f_edit_messages, lng_admin_log_admin_edit_messages },
 		{ Flag::f_delete_messages, lng_admin_log_admin_delete_messages },
 		{ Flag::f_ban_users, lng_admin_log_admin_ban_users },
-		{ inviteKey, invitePhrase },
+		{ Flag::f_invite_users, invitePhrase },
 		{ Flag::f_pin_messages, lng_admin_log_admin_pin_messages },
 		{ Flag::f_add_admins, lng_admin_log_admin_add_admins },
 	};
-	phraseMap[inviteKey] = invitePhrase;
+	phraseMap[Flag::f_invite_users] = invitePhrase;
 
 	if (!channel->isMegagroup()) {
 		// Don't display "Ban users" changes in channels.
@@ -190,15 +189,15 @@ auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntit
 	return result;
 };
 
-auto GenerateBannedChangeText(const TextWithEntities &user, const MTPChannelBannedRights *newRights, const MTPChannelBannedRights *prevRights) {
-	using Flag = MTPDchannelBannedRights::Flag;
-	using Flags = MTPDchannelBannedRights::Flags;
+auto GenerateBannedChangeText(const TextWithEntities &user, const MTPChatBannedRights *newRights, const MTPChatBannedRights *prevRights) {
+	using Flag = MTPDchatBannedRights::Flag;
+	using Flags = MTPDchatBannedRights::Flags;
 
-	Expects(!newRights || newRights->type() == mtpc_channelBannedRights);
-	Expects(!prevRights || prevRights->type() == mtpc_channelBannedRights);
-	auto newFlags = newRights ? newRights->c_channelBannedRights().vflags.v : MTPDchannelBannedRights::Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_channelBannedRights().vflags.v : MTPDchannelBannedRights::Flags(0);
-	auto newUntil = newRights ? newRights->c_channelBannedRights().vuntil_date.v : TimeId(0);
+	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
+	Expects(!prevRights || prevRights->type() == mtpc_chatBannedRights);
+	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags.v : MTPDchatBannedRights::Flags(0);
+	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags.v : MTPDchatBannedRights::Flags(0);
+	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date.v : TimeId(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
 		return lng_admin_log_banned__generic(lt_user, user);
