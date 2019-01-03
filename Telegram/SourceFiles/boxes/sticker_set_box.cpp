@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "boxes/confirm_box.h"
 #include "apiwrap.h"
+#include "application.h"
 #include "storage/localstorage.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_boxes.h"
@@ -387,11 +388,12 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		_previewTimer.cancel();
 		const auto index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && !isMasksSet()) {
-			if (const auto main = App::main()) {
-				if (main->onSendSticker(_pack[index])) {
+			const auto sticker = _pack[index];
+			Core::App().postponeCall(crl::guard(App::main(), [=] {
+				if (App::main()->onSendSticker(sticker)) {
 					Ui::hideSettingsAndLayer();
 				}
-			}
+			}));
 		}
 	}
 }
