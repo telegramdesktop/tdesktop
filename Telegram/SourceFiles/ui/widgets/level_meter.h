@@ -16,10 +16,10 @@ class LevelMeter : public RpWidget {
 public:
 	LevelMeter(QWidget *parent, const style::LevelMeter& st);
 	void setValue(float value);
-	
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	
+
 private:
 	const style::LevelMeter &_st;
 	float _value=0.0f;

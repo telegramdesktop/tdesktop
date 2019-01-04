@@ -47,3 +47,4 @@ private:
 };
 
 } // namespace Settings
+

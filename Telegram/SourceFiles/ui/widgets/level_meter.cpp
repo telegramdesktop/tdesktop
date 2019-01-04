@@ -21,9 +21,9 @@ void LevelMeter::setValue(float value){
 void LevelMeter::paintEvent(QPaintEvent* event){
 	Painter p(this);
 	PainterHighQualityEnabler hq(p);
-	
+
 	p.setPen(Qt::NoPen);
-	
+
 	auto activeFg = _st.activeFg;
 	auto inactiveFg = _st.inactiveFg;
 	auto radius = _st.lineWidth / 2;

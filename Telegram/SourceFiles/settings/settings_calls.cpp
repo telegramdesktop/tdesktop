@@ -42,10 +42,10 @@ Calls::Calls(QWidget *parent, UserData *self)
 : Section(parent) {
 	setupContent();
 }
-	
+
 Calls::~Calls(){
 	if (needWriteSettings) {
-    	Local::writeUserSettings();
+		Local::writeUserSettings();
 	}
 }
 
@@ -72,7 +72,7 @@ void Calls::setupContent() {
 			}
 		}
 	}
-	
+
 	QString currentInputName;
 	if (Global::CallInputDeviceID() == qsl("default")) {
 		currentInputName = lang(lng_settings_call_device_default);
@@ -86,7 +86,7 @@ void Calls::setupContent() {
 			}
 		}
 	}
-	
+
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_settings_call_section_output);
 	const auto outputButton = AddButtonWithLabel(
@@ -119,7 +119,7 @@ void Calls::setupContent() {
 			}
 			Global::SetCallOutputDeviceID(QString::fromStdString(selectedDeviceID));
 			Local::writeUserSettings();
-			
+
 			::Calls::Call* currentCall = ::Calls::Current().currentCall();
 			if (currentCall) {
 				currentCall->setCurrentAudioDevice(false, selectedDeviceID);
@@ -193,7 +193,7 @@ void Calls::setupContent() {
 			}
 		}));
 	});
-	
+
 	const auto inputLabel = content->add(object_ptr<Ui::LabelSimple>(content, st::settingsAudioVolumeLabel), st::settingsAudioVolumeLabelPadding);
 	const auto inputSlider = content->add(object_ptr<Ui::MediaSlider>(content, st::settingsAudioVolumeSlider), st::settingsAudioVolumeSliderPadding);
 	auto updateInputLabel = [inputLabel](int value){
@@ -207,7 +207,7 @@ void Calls::setupContent() {
 		},
 		Global::CallInputVolume(),
 		[updateInputLabel, this](int value) {
-		  needWriteSettings = true;
+			needWriteSettings = true;
 			updateInputLabel(value);
 			Global::SetCallInputVolume(value);
 			::Calls::Call *currentCall = ::Calls::Current().currentCall();
@@ -237,7 +237,7 @@ void Calls::setupContent() {
 	AddDivider(content);
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_settings_call_section_other);
-	
+
 #ifdef Q_OS_MAC
 	AddButton(
 		content,
@@ -256,7 +256,7 @@ void Calls::setupContent() {
 		}
 	}, content->lifetime());
 #endif // Q_OS_MAC
-	
+
 	const auto systemSettingsButton=AddButton(content, lng_settings_call_open_system_prefs, st::settingsButton);
 	systemSettingsButton->addClickHandler([]{
 		if (!Platform::OpenSystemSettings(Platform::SystemSettingsType::Audio)) {
@@ -306,3 +306,4 @@ void Calls::stopTestingMicrophone(){
 }
 
 } // namespace Settings
+

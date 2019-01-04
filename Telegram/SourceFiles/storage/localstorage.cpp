@@ -1786,12 +1786,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		Global::SetVoiceMsgPlaybackDoubled(v == 2);
 	} break;
-			
+
 	case dbiCallSettings: {
 		QByteArray callSettings;
 		stream >> callSettings;
 		if(!_checkStreamStatus(stream)) return false;
-		
+
 		deserializeCallSettings(callSettings);
 	} break;
 
@@ -4816,7 +4816,7 @@ bool decrypt(const void *src, void *dst, uint32 len, const void *key128) {
 	MTP::aesDecryptLocal(src, dst, len, LocalKey, key128);
 	return true;
 }
-	
+
 QByteArray serializeCallSettings(){
 	QByteArray result=QByteArray();
 	uint32 size = 3*sizeof(qint32) + Serialize::stringSize(Global::CallOutputDeviceID()) + Serialize::stringSize(Global::CallInputDeviceID());
@@ -4839,7 +4839,7 @@ void deserializeCallSettings(QByteArray& settings){
 	qint32 outputVolume;
 	qint32 inputVolume;
 	qint32 duckingEnabled;
-	
+
 	stream >> outputDeviceID;
 	stream >> outputVolume;
 	stream >> inputDeviceID;

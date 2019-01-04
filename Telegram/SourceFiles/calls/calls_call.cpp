@@ -758,7 +758,7 @@ void Call::setState(State state) {
 		}
 	}
 }
-	
+
 void Call::setCurrentAudioDevice(bool input, std::string deviceID){
 	if (_controller) {
 		if (input) {

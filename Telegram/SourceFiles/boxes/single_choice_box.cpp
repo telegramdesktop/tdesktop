@@ -17,7 +17,7 @@ void SingleChoiceBox::prepare() {
 	setTitle(langFactory(_title));
 
 	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
-	
+
 	auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
 	auto y = st::boxOptionListPadding.top() + st::autolockButton.margin.top();
 	auto count = int(_optionTexts.size());
