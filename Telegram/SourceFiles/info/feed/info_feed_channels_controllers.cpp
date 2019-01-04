@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_feed.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"

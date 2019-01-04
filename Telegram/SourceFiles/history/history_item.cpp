@@ -18,8 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history.h"
 #include "media/media_clip_reader.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_history.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text_options.h"
 #include "storage/file_upload.h"
@@ -37,6 +35,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
 #include "data/data_feed.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 
 namespace {
 

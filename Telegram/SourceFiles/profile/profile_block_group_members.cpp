@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_channel_controllers.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
@@ -21,8 +24,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 namespace Profile {
+namespace {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
+
+} // namespace
+
+GroupMembersWidget::Member::Member(UserData *user) : Item(user) {
+}
+
+UserData *GroupMembersWidget::Member::user() const {
+	return static_cast<UserData*>(peer);
+}
 
 GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,

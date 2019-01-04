@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/countryinput.h"
 #include "auth_session.h"
+#include "data/data_user.h"
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/widgets/tooltip.h"
 #include "core/file_utilities.h"
+#include "data/data_user.h"
 
 namespace {
 

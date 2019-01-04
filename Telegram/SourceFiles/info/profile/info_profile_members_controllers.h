@@ -48,9 +48,7 @@ public:
 		int outerWidth,
 		bool selected) override;
 
-	not_null<UserData*> user() const {
-		return peer()->asUser();
-	}
+	not_null<UserData*> user() const;
 	bool canRemove() const {
 		return _type.canRemove;
 	}

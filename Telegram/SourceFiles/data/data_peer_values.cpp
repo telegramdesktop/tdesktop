@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 
 #include "lang/lang_keys.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 
 namespace Data {
 namespace {

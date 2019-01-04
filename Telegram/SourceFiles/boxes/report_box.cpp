@@ -8,14 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_box.h"
 
 #include "lang/lang_keys.h"
-#include "styles/style_boxes.h"
-#include "styles/style_profile.h"
+#include "data/data_peer.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
 #include "mainwindow.h"
+#include "styles/style_boxes.h"
+#include "styles/style_profile.h"
 
 namespace {
 

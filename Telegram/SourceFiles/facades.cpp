@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_clip_reader.h"
 #include "window/window_controller.h"
 #include "history/history_item_components.h"
+#include "data/data_peer.h"
+#include "data/data_user.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -236,6 +238,9 @@ void showPeerProfile(const PeerId &peer) {
 		}
 	}
 }
+void showPeerProfile(const PeerData *peer) {
+	showPeerProfile(peer->id);
+}
 
 void showPeerProfile(not_null<const History*> history) {
 	showPeerProfile(history->peer->id);
@@ -259,6 +264,10 @@ void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
 
 void showPeerHistory(not_null<const History*> history, MsgId msgId) {
 	showPeerHistory(history->peer->id, msgId);
+}
+
+void showPeerHistory(const PeerData *peer, MsgId msgId) {
+	showPeerHistory(peer->id, msgId);
 }
 
 PeerData *getPeerForMouseAction() {

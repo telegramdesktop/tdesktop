@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image.h"
+#include "data/data_file_origin.h"
 #include "platform/platform_specific.h"
 
 namespace {

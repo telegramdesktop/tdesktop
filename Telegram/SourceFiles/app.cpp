@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -700,6 +703,14 @@ namespace App {
 		return Auth().data().historyLoaded(peer);
 	}
 
+	not_null<History*> history(not_null<const PeerData*> peer) {
+		return history(peer->id);
+	}
+
+	History *historyLoaded(const PeerData *peer) {
+		return peer ? historyLoaded(peer->id) : nullptr;
+	}
+
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
 		if (!itemId) return nullptr;
 
@@ -711,6 +722,10 @@ namespace App {
 			return i.value();
 		}
 		return nullptr;
+	}
+
+	HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
+		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
 	}
 
 	void historyRegItem(not_null<HistoryItem*> item) {

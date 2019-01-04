@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_controller.h"
 #include "lang/lang_keys.h"

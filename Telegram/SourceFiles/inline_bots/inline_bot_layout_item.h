@@ -106,9 +106,7 @@ protected:
 	not_null<Context*> context() const {
 		return _context;
 	}
-	Data::FileOrigin fileOrigin() const {
-		return _context->inlineItemFileOrigin();
-	}
+	Data::FileOrigin fileOrigin() const;
 
 	Result *_result = nullptr;
 	DocumentData *_doc = nullptr;

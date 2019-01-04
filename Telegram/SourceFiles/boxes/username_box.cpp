@@ -14,9 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
-#include "styles/style_boxes.h"
 #include "messenger.h"
 #include "auth_session.h"
+#include "data/data_user.h"
+#include "styles/style_boxes.h"
 
 namespace {
 

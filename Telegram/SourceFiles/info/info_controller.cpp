@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/media/info_media_widget.h"
 #include "observer_peer.h"
+#include "data/data_peer.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "window/window_controller.h"
 
 namespace Info {
@@ -24,7 +27,7 @@ not_null<PeerData*> CorrectPeer(PeerId peerId) {
 	Expects(peerId != 0);
 
 	auto result = App::peer(peerId);
-	if (auto to = result->migrateTo()) {
+	if (const auto to = result->migrateTo()) {
 		return to;
 	}
 	return result;
@@ -79,6 +82,20 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 
 rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
 	return rpl::single(QString());
+}
+
+PeerId AbstractController::peerId() const {
+	if (const auto peer = key().peer()) {
+		return peer->id;
+	}
+	return PeerId(0);
+}
+
+PeerId AbstractController::migratedPeerId() const {
+	if (const auto peer = migrated()) {
+		return peer->id;
+	}
+	return PeerId(0);
 }
 
 void AbstractController::showSection(

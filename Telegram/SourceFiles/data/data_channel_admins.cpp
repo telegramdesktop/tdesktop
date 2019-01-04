@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel_admins.h"
 
 #include "history/history.h"
+#include "data/data_channel.h"
 
 namespace Data {
 

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
+#include "data/data_channel.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 

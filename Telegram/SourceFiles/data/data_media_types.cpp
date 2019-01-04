@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_web_page.h"
 #include "data/data_poll.h"
+#include "data/data_channel.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 

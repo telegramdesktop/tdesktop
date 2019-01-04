@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/file_download.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "storage/cache/storage_cache_database.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -318,7 +319,7 @@ void RemoteSource::loadLocal() {
 		return;
 	}
 
-	_loader = createLoader(std::nullopt, LoadFromLocalOnly, true);
+	_loader = createLoader(Data::FileOrigin(), LoadFromLocalOnly, true);
 	if (_loader) _loader->start();
 }
 

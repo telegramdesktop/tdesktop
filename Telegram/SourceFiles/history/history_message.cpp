@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_game.h"
 #include "data/data_media_types.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"

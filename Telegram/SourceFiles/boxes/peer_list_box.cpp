@@ -26,7 +26,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "storage/file_download.h"
 #include "data/data_peer_values.h"
+#include "data/data_chat.h"
 #include "window/themes/window_theme.h"
+
+auto PaintUserpicCallback(
+	not_null<PeerData*> peer,
+	bool respectSavedMessagesChat)
+-> Fn<void(Painter &p, int x, int y, int outerWidth, int size)> {
+	if (respectSavedMessagesChat && peer->isSelf()) {
+		return [](Painter &p, int x, int y, int outerWidth, int size) {
+			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+		};
+	}
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		peer->paintUserpicLeft(p, x, y, outerWidth, size);
+	};
+}
 
 PeerListBox::PeerListBox(
 	QWidget*,

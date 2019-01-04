@@ -10,13 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
-#include "styles/style_widgets.h"
 #include "mtproto/sender.h"
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
+#include "data/data_user.h"
 #include "apiwrap.h"
+#include "styles/style_info.h"
+#include "styles/style_widgets.h"
 
 namespace Info {
 namespace CommonGroups {

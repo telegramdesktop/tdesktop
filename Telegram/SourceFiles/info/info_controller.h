@@ -107,18 +107,8 @@ public:
 	virtual PeerData *migrated() const = 0;
 	virtual Section section() const = 0;
 
-	PeerId peerId() const {
-		if (const auto peer = key().peer()) {
-			return peer->id;
-		}
-		return PeerId(0);
-	}
-	PeerId migratedPeerId() const {
-		if (auto peer = migrated()) {
-			return peer->id;
-		}
-		return PeerId(0);
-	}
+	PeerId peerId() const;
+	PeerId migratedPeerId() const;
 	Data::Feed *feed() const {
 		return key().feed();
 	}

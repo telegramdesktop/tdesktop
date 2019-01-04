@@ -94,9 +94,7 @@ public:
 	QString fileName() const {
 		return _filename;
 	}
-	virtual Data::FileOrigin fileOrigin() const {
-		return Data::FileOrigin();
-	}
+	virtual Data::FileOrigin fileOrigin() const;
 	float64 currentProgress() const;
 	virtual int32 currentOffset(bool includeSkipped = false) const = 0;
 	int32 fullSize() const;
@@ -240,7 +238,7 @@ public:
 		rpcInvalidate();
 	}
 	void refreshFileReferenceFrom(
-		const Data::UpdatedFileReferences &data,
+		const Data::UpdatedFileReferences &updates,
 		int requestId,
 		const QByteArray &current);
 

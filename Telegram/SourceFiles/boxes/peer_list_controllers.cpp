@@ -7,18 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_controllers.h"
 
-#include "styles/style_boxes.h"
-#include "styles/style_profile.h"
 #include "boxes/confirm_box.h"
 #include "observer_peer.h"
 #include "ui/widgets/checkbox.h"
 #include "auth_session.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "styles/style_boxes.h"
+#include "styles/style_profile.h"
 
 namespace {
 

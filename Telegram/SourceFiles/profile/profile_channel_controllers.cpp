@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "history/history.h"

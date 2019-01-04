@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
+#include "data/data_peer.h"
+#include "auth_session.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
-#include "auth_session.h"
 
 namespace Profile {
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "base/timer.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_types.h"
-#include "data/data_peer.h"
 
 enum NewMessageType : char;
 enum class ImageRoundRadius;
@@ -102,16 +101,11 @@ namespace App {
 	[[nodiscard]] not_null<History*> history(PeerId peer);
 	[[nodiscard]] History *historyLoaded(PeerId peer);
 	[[nodiscard]] HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
-	[[nodiscard]] inline not_null<History*> history(const PeerData *peer) {
-		Assert(peer != nullptr);
-		return history(peer->id);
-	}
-	[[nodiscard]] inline History *historyLoaded(const PeerData *peer) {
-		return peer ? historyLoaded(peer->id) : nullptr;
-	}
-	[[nodiscard]] inline HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {
-		return histItemById(channel ? peerToChannel(channel->id) : 0, itemId);
-	}
+	[[nodiscard]] not_null<History*> history(not_null<const PeerData*> peer);
+	[[nodiscard]] History *historyLoaded(const PeerData *peer);
+	[[nodiscard]] HistoryItem *histItemById(
+		const ChannelData *channel,
+		MsgId itemId);
 	[[nodiscard]] inline HistoryItem *histItemById(const FullMsgId &msgId) {
 		return histItemById(msgId.channel, msgId.msg);
 	}

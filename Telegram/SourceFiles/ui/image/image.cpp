@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/media_active_cache.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "auth_session.h"
 
 using namespace Images;
@@ -747,6 +748,27 @@ QPixmap Image::pixBlurredColoredNoCache(
 	}
 
 	return App::pixmapFromImageInPlace(prepareColored(add, img));
+}
+
+void Image::automaticLoad(Data::FileOrigin origin, const HistoryItem *item) {
+	if (!loaded()) {
+		_source->automaticLoad(origin, item);
+	}
+}
+
+void Image::load(Data::FileOrigin origin, bool loadFirst, bool prior) {
+	if (!loaded()) {
+		_source->load(origin, loadFirst, prior);
+	}
+}
+
+void Image::loadEvenCancelled(
+		Data::FileOrigin origin,
+		bool loadFirst,
+		bool prior) {
+	if (!loaded()) {
+		_source->loadEvenCancelled(origin, loadFirst, prior);
+	}
 }
 
 std::optional<Storage::Cache::Key> Image::cacheKey() const {

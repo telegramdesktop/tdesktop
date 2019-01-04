@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 
 #include "auth_session.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "ui/image/image.h"
 
 namespace Serialize {

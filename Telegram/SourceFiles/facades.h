@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class BoxContent;
 
+namespace Data {
+struct FileOrigin;
+} // namespace Data
+
 namespace Dialogs {
 enum class Mode;
 } // namespace Dialogs
@@ -113,17 +117,13 @@ void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
 
 void showPeerProfile(const PeerId &peer);
-inline void showPeerProfile(const PeerData *peer) {
-	showPeerProfile(peer->id);
-}
+void showPeerProfile(const PeerData *peer);
 void showPeerProfile(not_null<const History*> history);
 
 void showPeerHistory(const PeerId &peer, MsgId msgId);
 void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 
-inline void showPeerHistory(const PeerData *peer, MsgId msgId) {
-	showPeerHistory(peer->id, msgId);
-}
+void showPeerHistory(const PeerData *peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
 inline void showChatsList() {
 	showPeerHistory(PeerId(0), 0);

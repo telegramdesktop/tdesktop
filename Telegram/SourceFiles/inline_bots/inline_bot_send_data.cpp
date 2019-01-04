@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
+#include "data/data_channel.h"
 
 namespace InlineBots {
 namespace internal {

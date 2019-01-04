@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/serialize_common.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "platform/platform_specific.h"
@@ -436,6 +437,14 @@ bool AuthSession::Exists() {
 
 base::Observable<void> &AuthSession::downloaderTaskFinished() {
 	return downloader().taskFinished();
+}
+
+UserId AuthSession::userId() const {
+	return _user->bareId();
+}
+
+PeerId AuthSession::userPeerId() const {
+	return _user->id;
 }
 
 bool AuthSession::validateSelf(const MTPUser &user) {

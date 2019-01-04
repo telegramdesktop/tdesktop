@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/combine.h>
 #include "data/data_photo.h"
 #include "data/data_peer_values.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"

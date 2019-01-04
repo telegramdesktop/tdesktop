@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/never.h>
 #include <rpl/merge.h>
-#include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "info/info_wrap_widget.h"
 #include "info/info_controller.h"
@@ -26,6 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "window/window_peer_menu.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
+#include "styles/style_info.h"
 
 namespace Info {
 

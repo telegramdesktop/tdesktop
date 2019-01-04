@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_top_bar.h"
 
-#include "styles/style_calls.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
@@ -15,11 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_panel.h"
-#include "styles/style_boxes.h"
+#include "data/data_user.h"
 #include "observer_peer.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "layout.h"
+#include "styles/style_calls.h"
+#include "styles/style_boxes.h"
 
 namespace Calls {
 namespace {

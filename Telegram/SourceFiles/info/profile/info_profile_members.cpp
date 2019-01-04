@@ -24,12 +24,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
-#include "styles/style_boxes.h"
-#include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "window/window_controller.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Profile {

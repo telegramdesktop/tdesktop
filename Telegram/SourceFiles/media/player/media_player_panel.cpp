@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"

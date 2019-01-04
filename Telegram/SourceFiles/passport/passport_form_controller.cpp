@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "core/click_handler_types.h"
@@ -1715,7 +1716,7 @@ void FormController::loadFile(File &file) {
 			file.id,
 			file.accessHash,
 			QByteArray(), // file_reference
-			std::nullopt, // origin
+			Data::FileOrigin(),
 			SecureFileLocation,
 			QString(),
 			file.size,

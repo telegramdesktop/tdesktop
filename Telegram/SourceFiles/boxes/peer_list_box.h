@@ -34,19 +34,10 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-inline auto PaintUserpicCallback(
+auto PaintUserpicCallback(
 	not_null<PeerData*> peer,
 	bool respectSavedMessagesChat)
-->Fn<void(Painter &p, int x, int y, int outerWidth, int size)> {
-	if (respectSavedMessagesChat && peer->isSelf()) {
-		return [](Painter &p, int x, int y, int outerWidth, int size) {
-			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
-		};
-	}
-	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
-		peer->paintUserpicLeft(p, x, y, outerWidth, size);
-	};
-}
+-> Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
 
 using PeerListRowId = uint64;
 class PeerListRow {

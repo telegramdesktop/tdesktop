@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
+#include "data/data_channel.h"
 #include "lang/lang_keys.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"

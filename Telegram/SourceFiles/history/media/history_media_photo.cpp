@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
+#include "data/data_file_origin.h"
 #include "styles/style_history.h"
 
 namespace {

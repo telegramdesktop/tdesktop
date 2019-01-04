@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "boxes/calendar_box.h"
 #include "data/data_peer_values.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -444,6 +446,10 @@ void EditRestrictedBox::setRestrictUntil(TimeId until) {
 	createUntilGroup();
 	createUntilVariants();
 	resizeToContent();
+}
+
+bool EditRestrictedBox::isUntilForever() const {
+	return ChannelData::IsRestrictedForever(_until);
 }
 
 void EditRestrictedBox::clearVariants() {

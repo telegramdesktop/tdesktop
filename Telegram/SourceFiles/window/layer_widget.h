@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "data/data_file_origin.h"
 
 namespace Window {
 

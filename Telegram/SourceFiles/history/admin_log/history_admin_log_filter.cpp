@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/admin_log/history_admin_log_filter.h"
 
-#include "styles/style_boxes.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
+#include "styles/style_boxes.h"
 
 namespace AdminLog {
 namespace {

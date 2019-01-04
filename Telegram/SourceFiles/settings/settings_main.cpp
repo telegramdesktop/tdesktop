@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_cover.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"

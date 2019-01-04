@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_peer.h"
 #include "core/click_handler_types.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_internal.h"
@@ -19,6 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace InlineBots {
 namespace Layout {
+namespace {
+
+NeverFreedPointer<DocumentItems> documentItemsMap;
+
+} // namespace
 
 void ItemBase::setPosition(int32 position) {
 	_position = position;
@@ -211,11 +217,9 @@ QString ItemBase::getResultThumbLetter() const {
 	return QString();
 }
 
-namespace {
-
-NeverFreedPointer<DocumentItems> documentItemsMap;
-
-} // namespace
+Data::FileOrigin ItemBase::fileOrigin() const {
+	return _context->inlineItemFileOrigin();
+}
 
 const DocumentItems *documentItems() {
 	return documentItemsMap.data();

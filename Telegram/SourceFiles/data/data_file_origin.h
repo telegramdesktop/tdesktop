@@ -60,12 +60,35 @@ struct FileOriginSavedGifs {
 	}
 };
 
-using FileOrigin = base::optional_variant<
-	FileOriginMessage,
-	FileOriginUserPhoto,
-	FileOriginPeerPhoto,
-	FileOriginStickerSet,
-	FileOriginSavedGifs>;
+struct FileOrigin {
+	using Variant = base::optional_variant<
+		FileOriginMessage,
+		FileOriginUserPhoto,
+		FileOriginPeerPhoto,
+		FileOriginStickerSet,
+		FileOriginSavedGifs>;
+
+	FileOrigin() = default;
+	FileOrigin(FileOriginMessage data) : data(data) {
+	}
+	FileOrigin(FileOriginUserPhoto data) : data(data) {
+	}
+	FileOrigin(FileOriginPeerPhoto data) : data(data) {
+	}
+	FileOrigin(FileOriginStickerSet data) : data(data) {
+	}
+	FileOrigin(FileOriginSavedGifs data) : data(data) {
+	}
+
+	explicit operator bool() const {
+		return data.has_value();
+	}
+	inline bool operator<(const FileOrigin &other) const {
+		return data < other.data;
+	}
+
+	Variant data;
+};
 
 // Volume_id, dc_id, local_id.
 struct SimpleFileLocationId {
@@ -84,7 +107,9 @@ using DocumentFileLocationId = uint64;
 using FileLocationId = base::variant<
 	SimpleFileLocationId,
 	DocumentFileLocationId>;
-using UpdatedFileReferences = std::map<FileLocationId, QByteArray>;
+struct UpdatedFileReferences {
+	std::map<FileLocationId, QByteArray> data;
+};
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);

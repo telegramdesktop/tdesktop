@@ -282,12 +282,8 @@ public:
 
 	static bool Exists();
 
-	UserId userId() const {
-		return _user->bareId();
-	}
-	PeerId userPeerId() const {
-		return _user->id;
-	}
+	UserId userId() const;
+	PeerId userPeerId() const;
 	not_null<UserData*> user() const {
 		return _user;
 	}

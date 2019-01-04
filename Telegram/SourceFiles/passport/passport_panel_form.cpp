@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
 #include "core/click_handler_types.h"
+#include "data/data_user.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"

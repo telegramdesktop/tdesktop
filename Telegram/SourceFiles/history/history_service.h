@@ -111,12 +111,8 @@ protected:
 
 	void setServiceText(const PreparedText &prepared);
 
-	QString fromLinkText() const {
-		return textcmdLink(1, _from->name);
-	};
-	ClickHandlerPtr fromLink() const {
-		return _from->createOpenLink();
-	};
+	QString fromLinkText() const;
+	ClickHandlerPtr fromLink() const;
 
 	void removeMedia();
 

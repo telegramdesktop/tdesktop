@@ -146,6 +146,10 @@
 <(src_loc)/data/data_abstract_structure.h
 <(src_loc)/data/data_auto_download.cpp
 <(src_loc)/data/data_auto_download.h
+<(src_loc)/data/data_chat.cpp
+<(src_loc)/data/data_chat.h
+<(src_loc)/data/data_channel.cpp
+<(src_loc)/data/data_channel.h
 <(src_loc)/data/data_channel_admins.cpp
 <(src_loc)/data/data_channel_admins.h
 <(src_loc)/data/data_document.cpp
@@ -178,6 +182,8 @@
 <(src_loc)/data/data_photo.h
 <(src_loc)/data/data_poll.cpp
 <(src_loc)/data/data_poll.h
+<(src_loc)/data/data_pts_waiter.cpp
+<(src_loc)/data/data_pts_waiter.h
 <(src_loc)/data/data_search_controller.cpp
 <(src_loc)/data/data_search_controller.h
 <(src_loc)/data/data_session.cpp
@@ -188,6 +194,8 @@
 <(src_loc)/data/data_sparse_ids.h
 <(src_loc)/data/data_types.cpp
 <(src_loc)/data/data_types.h
+<(src_loc)/data/data_user.cpp
+<(src_loc)/data/data_user.h
 <(src_loc)/data/data_user_photos.cpp
 <(src_loc)/data/data_user_photos.h
 <(src_loc)/data/data_web_page.cpp

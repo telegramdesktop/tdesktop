@@ -8,17 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 
 #include "data/data_document.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
+#include "auth_session.h"
+#include "chat_helpers/stickers.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
-#include "auth_session.h"
-#include "chat_helpers/stickers.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll) {

@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "boxes/confirm_box.h"
 #include "window/window_controller.h"
 #include "styles/style_info.h"
@@ -349,6 +351,10 @@ int MemberListRow::nameIconWidth() const {
 		: (_type.rights == Rights::Creator)
 		? st::infoMembersCreatorIcon.width()
 		: 0;
+}
+
+not_null<UserData*> MemberListRow::user() const {
+	return peer()->asUser();
 }
 
 void MemberListRow::paintNameIcon(

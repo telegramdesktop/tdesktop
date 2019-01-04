@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_round_controller.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "passport/passport_form_controller.h"
 #include "core/shortcuts.h"
 #include "boxes/calendar_box.h"

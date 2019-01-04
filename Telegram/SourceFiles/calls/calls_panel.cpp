@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_photo.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"

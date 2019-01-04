@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 
 namespace Dialogs {
 namespace Layout {

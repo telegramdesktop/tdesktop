@@ -82,6 +82,12 @@ class PeerData;
 class UserData;
 class ChatData;
 class ChannelData;
+class BotCommand;
+struct BotInfo;
+
+namespace Data {
+class Feed;
+} // namespace Data
 
 using UserId = int32;
 using ChatId = int32;

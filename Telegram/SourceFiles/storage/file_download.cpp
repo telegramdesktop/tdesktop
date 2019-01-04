@@ -168,6 +168,10 @@ void FileLoader::readImage(const QSize &shrinkBox) const {
 	}
 }
 
+Data::FileOrigin FileLoader::fileOrigin() const {
+	return Data::FileOrigin();
+}
+
 float64 FileLoader::currentProgress() const {
 	if (_finished) return 1.;
 	if (!fullSize()) return 0.;
@@ -592,19 +596,19 @@ Data::FileOrigin mtpFileLoader::fileOrigin() const {
 }
 
 void mtpFileLoader::refreshFileReferenceFrom(
-		const Data::UpdatedFileReferences &data,
+		const Data::UpdatedFileReferences &updates,
 		int requestId,
 		const QByteArray &current) {
 	const auto updated = [&] {
 		if (_location) {
-			const auto i = data.find(Data::SimpleFileLocationId(
+			const auto i = updates.data.find(Data::SimpleFileLocationId(
 				_location->volume(),
 				_location->dc(),
 				_location->local()));
-			return (i == end(data)) ? QByteArray() : i->second;
+			return (i == end(updates.data)) ? QByteArray() : i->second;
 		}
-		const auto i = data.find(_id);
-		return (i == end(data)) ? QByteArray() : i->second;
+		const auto i = updates.data.find(_id);
+		return (i == end(updates.data)) ? QByteArray() : i->second;
 	}();
 	if (updated.isEmpty() || updated == current) {
 		cancel(true);

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_specific.h"
 #include "messenger.h"
+#include "data/data_peer.h"
 #include "styles/style_window.h"
 
 namespace Window {

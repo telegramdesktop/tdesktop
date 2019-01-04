@@ -25,6 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 

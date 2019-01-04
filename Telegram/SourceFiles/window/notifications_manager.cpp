@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/feed/history_feed_section.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
 #include "mainwidget.h"

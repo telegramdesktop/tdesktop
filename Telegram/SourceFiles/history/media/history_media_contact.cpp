@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_media_types.h"
 #include "styles/style_history.h"
 

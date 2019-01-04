@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media.h"
 
+namespace Ui {
+class EmptyUserpic;
+} // namespace Ui
+
 class HistoryContact : public HistoryMedia {
 public:
 	HistoryContact(

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed.h"
 #include "data/data_media_types.h"
 #include "data/data_document.h"
+#include "data/data_peer.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {

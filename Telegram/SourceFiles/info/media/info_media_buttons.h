@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "styles/style_info.h"
 
 namespace Info {

@@ -17,6 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_search_controller.h"
 #include "data/data_channel_admins.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
 #include "core/tl_help.h"
 #include "core/core_cloud_password.h"
@@ -2604,7 +2607,7 @@ void ApiWrap::requestFileReference(
 
 	request(std::move(data)).done([=](const auto &result) {
 		const auto parsed = Data::GetFileReferences(result);
-		for (const auto &p : parsed) {
+		for (const auto &p : parsed.data) {
 			// Unpack here the parsed pair by hand to workaround a GCC bug.
 			// See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87122
 			const auto &origin = p.first;
@@ -2669,7 +2672,7 @@ void ApiWrap::refreshFileReference(
 	const auto fail = [&] {
 		handler(Data::UpdatedFileReferences());
 	};
-	origin.match([&](Data::FileOriginMessage data) {
+	origin.data.match([&](Data::FileOriginMessage data) {
 		if (const auto item = App::histItemById(data)) {
 			if (const auto channel = item->history()->peer->asChannel()) {
 				request(MTPchannels_GetMessages(

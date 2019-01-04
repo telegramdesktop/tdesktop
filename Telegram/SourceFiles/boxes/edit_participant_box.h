@@ -112,9 +112,7 @@ private:
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void showRestrictUntil();
 	void setRestrictUntil(TimeId until);
-	bool isUntilForever() {
-		return ChannelData::IsRestrictedForever(_until);
-	}
+	bool isUntilForever() const;
 	void clearVariants();
 	void createUntilGroup();
 	void createUntilVariants();

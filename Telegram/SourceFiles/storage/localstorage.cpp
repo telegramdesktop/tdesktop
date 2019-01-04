@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_clear_legacy.h"
 #include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
+#include "data/data_user.h"
 #include "boxes/send_files_box.h"
 #include "window/themes/window_theme.h"
 #include "ui/widgets/input_fields.h"

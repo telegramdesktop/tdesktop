@@ -24,6 +24,10 @@ enum class SendMediaType;
 struct FileLoadTo;
 class mtpFileLoader;
 
+namespace Data {
+struct UpdatedFileReferences;
+} // namespace Data
+
 namespace InlineBots {
 class Result;
 } // namespace InlineBots
@@ -407,10 +411,6 @@ private:
 		int32 hash = 0;
 		TimeMs received = 0;
 	};
-
-	using SimpleFileLocationId = Data::SimpleFileLocationId;
-	using DocumentFileLocationId = Data::DocumentFileLocationId;
-	using FileLocationId = Data::FileLocationId;
 
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();

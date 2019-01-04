@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/change_phone_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/username_box.h"
+#include "data/data_user.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_button.h"
 #include "lang/lang_keys.h"

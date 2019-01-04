@@ -74,11 +74,9 @@ private:
 	int getListTop() const override;
 
 	struct Member : public Item {
-		explicit Member(UserData *user) : Item(user) {
-		}
-		UserData *user() const {
-			return static_cast<UserData*>(peer);
-		}
+		explicit Member(UserData *user);
+		UserData *user() const;
+
 		TimeId onlineTextTill = 0;
 		TimeId onlineTill = 0;
 		TimeId onlineForSort = 0;

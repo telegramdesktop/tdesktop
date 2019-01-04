@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
 #include "media/player/media_player_float.h"
+#include "data/data_pts_waiter.h"
 
 struct HistoryMessageMarkupButton;
 class MainWindow;

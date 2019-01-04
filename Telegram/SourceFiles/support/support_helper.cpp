@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "data/data_drafts.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "boxes/abstract_box.h"
 #include "ui/toast/toast.h"

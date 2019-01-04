@@ -30,6 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h" // for lang(lng_deleted) in user name.
 #include "data/data_media_types.h"
 #include "data/data_feed.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
+#include "data/data_file_origin.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_web_page.h"

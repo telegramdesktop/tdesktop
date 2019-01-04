@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "data/data_user.h"
 #include "mainwidget.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"

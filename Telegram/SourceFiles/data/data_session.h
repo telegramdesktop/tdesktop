@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_groups.h"
+#include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection.h"
 #include "media/media_audio_track.h"
 #include "calls/calls_panel.h"
+#include "data/data_user.h"
 
 #ifdef slots
 #undef slots

@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
@@ -151,12 +153,17 @@ const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags)
 	return withPrefix(plusFlags & ~minusFlags, '+') + withPrefix(minusFlags & ~plusFlags, kMinus);
 };
 
-auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntities &user, const MTPChatAdminRights *newRights, const MTPChatAdminRights *prevRights) {
+TextWithEntities GenerateAdminChangeText(
+		not_null<ChannelData*> channel,
+		const TextWithEntities &user,
+		const MTPChatAdminRights *newRights,
+		const MTPChatAdminRights *prevRights) {
+	Expects(!newRights || newRights->type() == mtpc_chatAdminRights);
+	Expects(!prevRights || prevRights->type() == mtpc_chatAdminRights);
+
 	using Flag = MTPDchatAdminRights::Flag;
 	using Flags = MTPDchatAdminRights::Flags;
 
-	Expects(!newRights || newRights->type() == mtpc_chatAdminRights);
-	Expects(!prevRights || prevRights->type() == mtpc_chatAdminRights);
 	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
 	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
 	auto result = lng_admin_log_promoted__generic(lt_user, user);
@@ -189,12 +196,16 @@ auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntit
 	return result;
 };
 
-auto GenerateBannedChangeText(const TextWithEntities &user, const MTPChatBannedRights *newRights, const MTPChatBannedRights *prevRights) {
+TextWithEntities GenerateBannedChangeText(
+		const TextWithEntities &user,
+		const MTPChatBannedRights *newRights,
+		const MTPChatBannedRights *prevRights) {
+	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
+	Expects(!prevRights || prevRights->type() == mtpc_chatBannedRights);
+
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
-	Expects(!prevRights || prevRights->type() == mtpc_chatBannedRights);
 	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags.v : MTPDchatBannedRights::Flags(0);
 	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags.v : MTPDchatBannedRights::Flags(0);
 	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date.v : TimeId(0);

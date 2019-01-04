@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_layer_widget.h"
 #include "info/info_controller.h"
 #include "boxes/peer_list_box.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 
 namespace Info {
 

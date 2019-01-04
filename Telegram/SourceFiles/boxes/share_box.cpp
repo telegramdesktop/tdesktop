@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "boxes/peer_list_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "auth_session.h"
 #include "messenger.h"
 #include "styles/style_boxes.h"

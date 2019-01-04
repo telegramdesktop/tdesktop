@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_game.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
@@ -522,6 +524,14 @@ QString HistoryService::inReplyText() const {
 std::unique_ptr<HistoryView::Element> HistoryService::createView(
 		not_null<HistoryView::ElementDelegate*> delegate) {
 	return delegate->elementCreate(this);
+}
+
+QString HistoryService::fromLinkText() const {
+	return textcmdLink(1, _from->name);
+}
+
+ClickHandlerPtr HistoryService::fromLink() const {
+	return _from->createOpenLink();
 }
 
 void HistoryService::setServiceText(const PreparedText &prepared) {
