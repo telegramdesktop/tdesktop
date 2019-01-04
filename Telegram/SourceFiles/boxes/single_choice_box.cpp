@@ -22,8 +22,8 @@ void SingleChoiceBox::prepare() {
 	auto y = st::boxOptionListPadding.top() + st::autolockButton.margin.top();
 	auto count = int(_optionTexts.size());
 	_options.reserve(count);
-	int i=0;
-	for (auto text : _optionTexts) {
+	auto i = 0;
+	for (const auto &text : _optionTexts) {
 		_options.emplace_back(this, group, i, text, st::autolockButton);
 		_options.back()->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
@@ -36,3 +36,4 @@ void SingleChoiceBox::prepare() {
 
 	setDimensions(st::autolockWidth, st::boxOptionListPadding.top() + count * _options.back()->heightNoMargins() + (count - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
 }
+

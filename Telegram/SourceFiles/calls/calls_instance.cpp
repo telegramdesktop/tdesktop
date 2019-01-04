@@ -243,7 +243,7 @@ bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
 }
 
-Call* Instance::currentCall(){
+Call *Instance::currentCall() {
 	return _currentCall.get();
 }
 

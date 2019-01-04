@@ -27,8 +27,9 @@ protected:
 private:
 	LangKey _title;
 	std::vector<QString> _optionTexts;
-	int _initialSelection;
+	int _initialSelection = 0;
 	Fn<void(int)> _callback;
 	std::vector<object_ptr<Ui::Radiobutton>> _options;
 
 };
+

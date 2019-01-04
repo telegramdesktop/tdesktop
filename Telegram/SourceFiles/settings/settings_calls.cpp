@@ -44,13 +44,13 @@ Calls::Calls(QWidget *parent, UserData *self)
 }
 	
 Calls::~Calls(){
-	if(needWriteSettings){
+	if (needWriteSettings) {
     	Local::writeUserSettings();
 	}
 }
 
 void Calls::sectionSaveChanges(FnMut<void()> done){
-	if(micTester){
+	if (micTester) {
 		micTester.reset();
 	}
 	done();
@@ -60,28 +60,28 @@ void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	QString currentOutputName;
-	if(Global::CallOutputDeviceID()==qsl("default")){
-		currentOutputName=lang(lng_settings_call_device_default);
-	}else{
-    	std::vector<tgvoip::AudioOutputDevice> outputDevices=tgvoip::VoIPController::EnumerateAudioOutputs();
+	if (Global::CallOutputDeviceID() == qsl("default")) {
+		currentOutputName = lang(lng_settings_call_device_default);
+	} else {
+		std::vector<tgvoip::AudioOutputDevice> outputDevices = tgvoip::VoIPController::EnumerateAudioOutputs();
 		currentOutputName=Global::CallOutputDeviceID();
-    	for(tgvoip::AudioOutputDevice& dev:outputDevices){
-    		if(QString::fromUtf8(dev.id.c_str())==Global::CallOutputDeviceID()){
-    			currentOutputName=QString::fromUtf8(dev.displayName.c_str());
-    			break;
-    		}
-    	}
+		for (auto &dev : outputDevices) {
+			if (QString::fromUtf8(dev.id.c_str()) == Global::CallOutputDeviceID()) {
+				currentOutputName = QString::fromUtf8(dev.displayName.c_str());
+				break;
+			}
+		}
 	}
 	
 	QString currentInputName;
-	if(Global::CallInputDeviceID()==qsl("default")){
-		currentInputName=lang(lng_settings_call_device_default);
-	}else{
-		std::vector<tgvoip::AudioInputDevice> inputDevices=tgvoip::VoIPController::EnumerateAudioInputs();
-		currentInputName=Global::CallInputDeviceID();
-		for(tgvoip::AudioInputDevice& dev:inputDevices){
-			if(QString::fromUtf8(dev.id.c_str())==Global::CallInputDeviceID()){
-				currentInputName=QString::fromUtf8(dev.displayName.c_str());
+	if (Global::CallInputDeviceID() == qsl("default")) {
+		currentInputName = lang(lng_settings_call_device_default);
+	} else {
+		std::vector<tgvoip::AudioInputDevice> inputDevices = tgvoip::VoIPController::EnumerateAudioInputs();
+		currentInputName = Global::CallInputDeviceID();
+		for (auto &dev : inputDevices) {
+			if (QString::fromUtf8(dev.id.c_str()) == Global::CallInputDeviceID()) {
+				currentInputName = QString::fromUtf8(dev.displayName.c_str());
 				break;
 			}
 		}
@@ -90,66 +90,65 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_settings_call_section_output);
 	const auto outputButton = AddButtonWithLabel(
-		   content,
-		   lng_settings_call_output_device,
-		   rpl::single(currentOutputName) | rpl::then(outputNameStream.events()),
-		   st::settingsButton);
+		content,
+		lng_settings_call_output_device,
+		rpl::single(currentOutputName) | rpl::then(outputNameStream.events()),
+		st::settingsButton);
 	outputButton->addClickHandler([this] {
-		int selectedOption=0;
-		std::vector<tgvoip::AudioOutputDevice> devices=tgvoip::VoIPController::EnumerateAudioOutputs();
+		int selectedOption = 0;
+		std::vector<tgvoip::AudioOutputDevice> devices = tgvoip::VoIPController::EnumerateAudioOutputs();
 		std::vector<QString> options;
 		options.push_back(lang(lng_settings_call_device_default));
-		int i=1;
-		for(tgvoip::AudioOutputDevice& device:devices){
-			QString displayName=QString::fromUtf8(device.displayName.c_str());
+		int i = 1;
+		for (auto &device:devices) {
+			QString displayName = QString::fromUtf8(device.displayName.c_str());
 			options.push_back(displayName);
-			if(QString::fromUtf8(device.id.c_str())==Global::CallOutputDeviceID())
-				selectedOption=i;
+			if (QString::fromUtf8(device.id.c_str()) == Global::CallOutputDeviceID()) {
+				selectedOption = i;
+			}
 			i++;
 		}
 		Ui::show(Box<SingleChoiceBox>(lng_settings_call_output_device, options, selectedOption, [options, devices, this](int selectedOption){
-			QString name=options[selectedOption];
+			QString name = options[selectedOption];
 			outputNameStream.fire(std::move(name));
 			std::string selectedDeviceID;
-			if(selectedOption==0){
-				selectedDeviceID="default";
-			}else{
-				selectedDeviceID=devices[selectedOption-1].id;
+			if (selectedOption == 0) {
+				selectedDeviceID = "default";
+			} else {
+				selectedDeviceID = devices[selectedOption-1].id;
 			}
 			Global::SetCallOutputDeviceID(QString::fromStdString(selectedDeviceID));
 			Local::writeUserSettings();
 			
-			::Calls::Call* currentCall=::Calls::Current().currentCall();
-			if(currentCall){
+			::Calls::Call* currentCall = ::Calls::Current().currentCall();
+			if (currentCall) {
 				currentCall->setCurrentAudioDevice(false, selectedDeviceID);
 			}
 		}));
 	});
 
-	const auto outputLabel = content->add(object_ptr<Ui::LabelSimple>(content, st::settingsAudioVolumeLabel),
-									  st::settingsAudioVolumeLabelPadding);
-	const auto outputSlider = content->add(object_ptr<Ui::MediaSlider>(content, st::settingsAudioVolumeSlider),
-									   st::settingsAudioVolumeSliderPadding);
-	auto updateOutputLabel=[outputLabel](int value){
-		QString percent=QString::number(value);
+	const auto outputLabel = content->add(object_ptr<Ui::LabelSimple>(content, st::settingsAudioVolumeLabel), st::settingsAudioVolumeLabelPadding);
+	const auto outputSlider = content->add(object_ptr<Ui::MediaSlider>(content, st::settingsAudioVolumeSlider), st::settingsAudioVolumeSliderPadding);
+	auto updateOutputLabel = [outputLabel](int value){
+		QString percent = QString::number(value);
 		outputLabel->setText(lng_settings_call_output_volume(lt_percent, percent));
 	};
 	outputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
 	outputSlider->setPseudoDiscrete(
-							  201,
-							  [](int val){
-								  return val;
-							  },
-    							Global::CallOutputVolume(),
-							  [updateOutputLabel, this](int value) {
-								  needWriteSettings=true;
-								  updateOutputLabel(value);
-								  Global::SetCallOutputVolume(value);
-			::Calls::Call* currentCall=::Calls::Current().currentCall();
-			if(currentCall){
+		201,
+		[](int val){
+			return val;
+		},
+		Global::CallOutputVolume(),
+		[updateOutputLabel, this](int value) {
+			needWriteSettings = true;
+			updateOutputLabel(value);
+			Global::SetCallOutputVolume(value);
+			::Calls::Call* currentCall = ::Calls::Current().currentCall();
+			if (currentCall) {
 				currentCall->setAudioVolume(false, value/100.0f);
 			}
-							  });
+	});
 	updateOutputLabel(Global::CallOutputVolume());
 
 	AddSkip(content);
@@ -157,50 +156,48 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_settings_call_section_input);
 	const auto inputButton = AddButtonWithLabel(
-		   content,
-		   lng_settings_call_input_device,
-			rpl::single(currentInputName) | rpl::then(inputNameStream.events()),
-    	   st::settingsButton);
+		content,
+		lng_settings_call_input_device,
+		rpl::single(currentInputName) | rpl::then(inputNameStream.events()),
+		st::settingsButton);
 	inputButton->addClickHandler([this] {
-		int selectedOption=0;
-		std::vector<tgvoip::AudioInputDevice> devices=tgvoip::VoIPController::EnumerateAudioInputs();
+		int selectedOption = 0;
+		std::vector<tgvoip::AudioInputDevice> devices = tgvoip::VoIPController::EnumerateAudioInputs();
 		std::vector<QString> options;
 		options.push_back(lang(lng_settings_call_device_default));
-		int i=1;
-		for(tgvoip::AudioInputDevice& device:devices){
-			QString displayName=QString::fromUtf8(device.displayName.c_str());
+		int i = 1;
+		for (auto &device : devices) {
+			QString displayName = QString::fromUtf8(device.displayName.c_str());
 			options.push_back(displayName);
-			if(QString::fromUtf8(device.id.c_str())==Global::CallInputDeviceID())
-				selectedOption=i;
+			if(QString::fromUtf8(device.id.c_str()) == Global::CallInputDeviceID())
+				selectedOption = i;
 			i++;
 		}
 		Ui::show(Box<SingleChoiceBox>(lng_settings_call_input_device, options, selectedOption, [options, devices, this](int selectedOption){
 			QString name=options[selectedOption];
 			inputNameStream.fire(std::move(name));
 			std::string selectedDeviceID;
-			if(selectedOption==0){
-				selectedDeviceID="default";
-			}else{
-				selectedDeviceID=devices[selectedOption-1].id;
+			if (selectedOption == 0) {
+				selectedDeviceID = "default";
+			} else {
+				selectedDeviceID = devices[selectedOption - 1].id;
 			}
 			Global::SetCallInputDeviceID(QString::fromUtf8(selectedDeviceID.c_str()));
 			Local::writeUserSettings();
-			if(micTester){
+			if (micTester) {
 				stopTestingMicrophone();
 			}
-			::Calls::Call* currentCall=::Calls::Current().currentCall();
+			::Calls::Call* currentCall = ::Calls::Current().currentCall();
 			if(currentCall){
 				currentCall->setCurrentAudioDevice(true, selectedDeviceID);
 			}
 		}));
 	});
 	
-	const auto inputLabel = content->add(object_ptr<Ui::LabelSimple>(content, st::settingsAudioVolumeLabel),
-										  st::settingsAudioVolumeLabelPadding);
-	const auto inputSlider = content->add(object_ptr<Ui::MediaSlider>(content, st::settingsAudioVolumeSlider),
-										   st::settingsAudioVolumeSliderPadding);
-	auto updateInputLabel=[inputLabel](int value){
-		QString percent=QString::number(value);
+	const auto inputLabel = content->add(object_ptr<Ui::LabelSimple>(content, st::settingsAudioVolumeLabel), st::settingsAudioVolumeLabelPadding);
+	const auto inputSlider = content->add(object_ptr<Ui::MediaSlider>(content, st::settingsAudioVolumeSlider), st::settingsAudioVolumeSliderPadding);
+	auto updateInputLabel = [inputLabel](int value){
+		QString percent = QString::number(value);
 		inputLabel->setText(lng_settings_call_input_volume(lt_percent, percent));
 	};
 	inputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
@@ -208,27 +205,27 @@ void Calls::setupContent() {
 		[](int val){
 			return val;
 		},
-    	Global::CallInputVolume(),
+		Global::CallInputVolume(),
 		[updateInputLabel, this](int value) {
-		  needWriteSettings=true;
+		  needWriteSettings = true;
 			updateInputLabel(value);
 			Global::SetCallInputVolume(value);
-			::Calls::Call* currentCall=::Calls::Current().currentCall();
-			if(currentCall){
-				currentCall->setAudioVolume(true, value/100.0f);
+			::Calls::Call *currentCall = ::Calls::Current().currentCall();
+			if (currentCall) {
+				currentCall->setAudioVolume(true, value / 100.0f);
 			}
 		});
-    updateInputLabel(Global::CallInputVolume());
+	updateInputLabel(Global::CallInputVolume());
 
-    micTestButton=AddButton(content, rpl::single(lang(lng_settings_call_test_mic)) | rpl::then(micTestTextStream.events()), st::settingsButton);
+	micTestButton=AddButton(content, rpl::single(lang(lng_settings_call_test_mic)) | rpl::then(micTestTextStream.events()), st::settingsButton);
 
-    micTestLevel=content->add(object_ptr<Ui::LevelMeter>(content, st::defaultLevelMeter), st::settingsLevelMeterPadding);
-    micTestLevel->resize(QSize(0, st::defaultLevelMeter.height));
+	micTestLevel=content->add(object_ptr<Ui::LevelMeter>(content, st::defaultLevelMeter), st::settingsLevelMeterPadding);
+	micTestLevel->resize(QSize(0, st::defaultLevelMeter.height));
 
 	micTestButton->addClickHandler([this]{
-		if(!micTester){
+		if (!micTester) {
 			requestPermissionAndStartTestingMicrophone();
-		}else{
+		} else {
 			stopTestingMicrophone();
 		}
 	});
@@ -243,27 +240,28 @@ void Calls::setupContent() {
 	
 #ifdef Q_OS_MAC
 	AddButton(
-			  content,
-			  lng_settings_call_audio_ducking,
-			  st::settingsButton
-			  )->toggleOn(
-						  rpl::single(Global::CallAudioDuckingEnabled())
-						  )->toggledValue(
-	) | rpl::filter([](bool enabled) {
+		content,
+		lng_settings_call_audio_ducking,
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(Global::CallAudioDuckingEnabled())
+	)->toggledValue() | rpl::filter([](bool enabled) {
 		return (enabled != Global::CallAudioDuckingEnabled());
 	}) | rpl::start_with_next([](bool enabled) {
 		Global::SetCallAudioDuckingEnabled(enabled);
 		Local::writeUserSettings();
-			::Calls::Call* currentCall=::Calls::Current().currentCall();
-			if(currentCall){
-				currentCall->setAudioDuckingEnabled(enabled);
-			}
+		::Calls::Call *currentCall = ::Calls::Current().currentCall();
+		if (currentCall) {
+			currentCall->setAudioDuckingEnabled(enabled);
+		}
 	}, content->lifetime());
 #endif // Q_OS_MAC
 	
 	const auto systemSettingsButton=AddButton(content, lng_settings_call_open_system_prefs, st::settingsButton);
 	systemSettingsButton->addClickHandler([]{
-		Platform::OpenSystemSettings(Platform::SystemSettingsType::Audio);
+		if (!Platform::OpenSystemSettings(Platform::SystemSettingsType::Audio)) {
+			Ui::show(Box<InformBox>(lang(lng_linux_no_audio_prefs)));
+		}
 	});
 	AddSkip(content);
 
@@ -271,12 +269,12 @@ void Calls::setupContent() {
 }
 
 void Calls::requestPermissionAndStartTestingMicrophone(){
-	Platform::PermissionStatus status=Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
-	if (status==Platform::PermissionStatus::Granted) {
+	Platform::PermissionStatus status = Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
+	if (status == Platform::PermissionStatus::Granted) {
 		startTestingMicrophone();
-	} else if(status==Platform::PermissionStatus::CanRequest) {
+	} else if (status == Platform::PermissionStatus::CanRequest) {
 		Platform::RequestPermission(Platform::PermissionType::Microphone, crl::guard(this, [this](Platform::PermissionStatus status) {
-			if (status==Platform::PermissionStatus::Granted) {
+			if (status == Platform::PermissionStatus::Granted) {
 				crl::on_main(crl::guard(this, [this]{
 					startTestingMicrophone();
 				}));
@@ -293,8 +291,8 @@ void Calls::requestPermissionAndStartTestingMicrophone(){
 void Calls::startTestingMicrophone(){
 	micTestTextStream.fire(lang(lng_settings_call_stop_mic_test));
 	levelUpdateTimer.callEach(50);
-	micTester=std::make_unique<tgvoip::AudioInputTester>(Global::CallInputDeviceID().toStdString());
-	if(micTester->Failed()){
+	micTester = std::make_unique<tgvoip::AudioInputTester>(Global::CallInputDeviceID().toStdString());
+	if (micTester->Failed()) {
 		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
 		stopTestingMicrophone();
 	}

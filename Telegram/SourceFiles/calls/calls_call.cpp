@@ -760,26 +760,28 @@ void Call::setState(State state) {
 }
 	
 void Call::setCurrentAudioDevice(bool input, std::string deviceID){
-	if(_controller){
-		if(input)
+	if (_controller) {
+		if (input) {
 			_controller->SetCurrentAudioInput(deviceID);
-		else
+		} else {
 			_controller->SetCurrentAudioOutput(deviceID);
+		}
 	}
 }
 
 void Call::setAudioVolume(bool input, float level){
-	if(_controller){
-		if(input)
+	if (_controller) {
+		if(input) {
 			_controller->SetInputVolume(level);
-		else
+		} else {
 			_controller->SetOutputVolume(level);
+		}
 	}
 }
 
 void Call::setAudioDuckingEnabled(bool enabled){
 #ifdef Q_OS_MAC
-	if(_controller){
+	if (_controller) {
 		_controller->SetAudioOutputDuckingEnabled(enabled);
 	}
 #endif

@@ -9,12 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-LevelMeter::LevelMeter(QWidget* parent, const style::LevelMeter& st) : RpWidget(parent), _st(st){
+LevelMeter::LevelMeter(QWidget *parent, const style::LevelMeter &st) : RpWidget(parent), _st(st){
 
 }
 
 void LevelMeter::setValue(float value){
-	_value=value;
+	_value = value;
 	repaint();
 }
 
@@ -26,16 +26,16 @@ void LevelMeter::paintEvent(QPaintEvent* event){
 	
 	auto activeFg = _st.activeFg;
 	auto inactiveFg = _st.inactiveFg;
-	auto radius = _st.lineWidth/2;
+	auto radius = _st.lineWidth / 2;
 	QRect rect(0, 0, _st.lineWidth, height());
 	p.setBrush(activeFg);
-	for(int i=0;i<_st.lineCount;i++){
-		float valueAtLine=(float)(i+1)/_st.lineCount;
-		if(valueAtLine>_value){
+	for (auto i = 0; i < _st.lineCount; ++i) {
+		float valueAtLine = (float)(i + 1) / _st.lineCount;
+		if (valueAtLine > _value) {
 			p.setBrush(inactiveFg);
 		}
-		rect.moveLeft((_st.lineWidth+_st.lineSpacing)*i);
-    	p.drawRoundedRect(rect, radius, radius);
+		rect.moveLeft((_st.lineWidth + _st.lineSpacing) * i);
+		p.drawRoundedRect(rect, radius, radius);
 	}
 }
 

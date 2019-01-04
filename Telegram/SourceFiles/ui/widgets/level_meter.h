@@ -24,4 +24,5 @@ private:
 	const style::LevelMeter &_st;
 	float _value=0.0f;
 };
+
 } // namespace Ui

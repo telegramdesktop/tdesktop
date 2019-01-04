@@ -172,9 +172,6 @@ bool isBotTrusted(UserData *bot);
 
 bool encrypt(const void *src, void *dst, uint32 len, const void *key128);
 bool decrypt(const void *src, void *dst, uint32 len, const void *key128);
-	
-QByteArray serializeCallSettings();
-void deserializeCallSettings(QByteArray& settings);
 
 namespace internal {
 

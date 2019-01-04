@@ -2512,6 +2512,9 @@ void _writeMap(WriteMapWhen when) {
 
 } // namespace
 
+QByteArray serializeCallSettings();
+void deserializeCallSettings(QByteArray& settings);
+
 void finish() {
 	if (_manager) {
 		_writeMap(WriteMapWhen::Now);
