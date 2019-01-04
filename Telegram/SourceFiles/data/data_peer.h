@@ -199,9 +199,9 @@ public:
 
 	int nameVersion = 1;
 
-	// if this string is not empty we must not allow to open the
-	// conversation and we must show this string instead
-	virtual QString restrictionReason() const {
+	// If this string is not empty we must not allow to open the
+	// conversation and we must show this string instead.
+	virtual QString unavailableReason() const {
 		return QString();
 	}
 
@@ -467,10 +467,8 @@ public:
 
 	std::unique_ptr<BotInfo> botInfo;
 
-	QString restrictionReason() const override {
-		return _restrictionReason;
-	}
-	void setRestrictionReason(const QString &reason);
+	QString unavailableReason() const override;
+	void setUnavailableReason(const QString &reason);
 
 	int commonChatsCount() const {
 		return _commonChatsCount;
@@ -481,7 +479,7 @@ private:
 	Flags _flags;
 	FullFlags _fullFlags;
 
-	QString _restrictionReason;
+	QString _unavailableReason;
 	QString _about;
 	QString _phone;
 	ContactStatus _contactStatus = ContactStatus::PhoneUnknown;
@@ -991,10 +989,8 @@ public:
 		return _ptsWaiter.waitingForShortPoll();
 	}
 
-	QString restrictionReason() const override {
-		return _restrictionReason;
-	}
-	void setRestrictionReason(const QString &reason);
+	QString unavailableReason() const override;
+	void setUnavailableReason(const QString &reason);
 
 	MsgId availableMinId() const {
 		return _availableMinId;
@@ -1030,7 +1026,7 @@ private:
 	RestrictionFlags _restrictions;
 	TimeId _restrictedUntill;
 
-	QString _restrictionReason;
+	QString _unavailableReason;
 	QString _about;
 
 	QString _inviteLink;

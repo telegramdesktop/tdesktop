@@ -1593,10 +1593,10 @@ void MainWidget::ui_showPeerHistory(
 			peerId = peer->id;
 			if (showAtMsgId > 0) showAtMsgId = -showAtMsgId;
 		}
-		auto restriction = peer->restrictionReason();
-		if (!restriction.isEmpty()) {
+		const auto unavailable = peer->unavailableReason();
+		if (!unavailable.isEmpty()) {
 			if (params.activation != anim::activation::background) {
-				Ui::show(Box<InformBox>(restriction));
+				Ui::show(Box<InformBox>(unavailable));
 			}
 			return;
 		}

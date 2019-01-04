@@ -36,7 +36,7 @@ struct PeerUpdate {
 		NotificationsEnabled      = (1 << 4),
 		MigrationChanged          = (1 << 6),
 		ChatPinnedChanged         = (1 << 7),
-		RestrictionReasonChanged  = (1 << 8),
+		UnavailableReasonChanged  = (1 << 8),
 		UnreadViewChanged         = (1 << 9),
 		PinnedMessageChanged      = (1 << 10),
 

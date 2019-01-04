@@ -474,10 +474,16 @@ bool UserData::setAbout(const QString &newAbout) {
 	return true;
 }
 
-void UserData::setRestrictionReason(const QString &text) {
-	if (_restrictionReason != text) {
-		_restrictionReason = text;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::RestrictionReasonChanged);
+QString UserData::unavailableReason() const {
+	return _unavailableReason;
+}
+
+void UserData::setUnavailableReason(const QString &text) {
+	if (_unavailableReason != text) {
+		_unavailableReason = text;
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::UnavailableReasonChanged);
 	}
 }
 
@@ -924,10 +930,16 @@ bool ChannelData::isGroupAdmin(not_null<UserData*> user) const {
 	return false;
 }
 
-void ChannelData::setRestrictionReason(const QString &text) {
-	if (_restrictionReason != text) {
-		_restrictionReason = text;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::RestrictionReasonChanged);
+QString ChannelData::unavailableReason() const {
+	return _unavailableReason;
+}
+
+void ChannelData::setUnavailableReason(const QString &text) {
+	if (_unavailableReason != text) {
+		_unavailableReason = text;
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::UnavailableReasonChanged);
 	}
 }
 

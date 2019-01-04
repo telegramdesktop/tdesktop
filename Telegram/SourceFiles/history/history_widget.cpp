@@ -406,7 +406,7 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::UnreadMentionsChanged
 		| UpdateFlag::UnreadViewChanged
 		| UpdateFlag::MigrationChanged
-		| UpdateFlag::RestrictionReasonChanged
+		| UpdateFlag::UnavailableReasonChanged
 		| UpdateFlag::PinnedMessageChanged
 		| UpdateFlag::UserIsBlocked
 		| UpdateFlag::AdminsChanged
@@ -436,11 +436,11 @@ HistoryWidget::HistoryWidget(
 			if (update.flags & UpdateFlag::NotificationsEnabled) {
 				updateNotifyControls();
 			}
-			if (update.flags & UpdateFlag::RestrictionReasonChanged) {
-				auto restriction = _peer->restrictionReason();
-				if (!restriction.isEmpty()) {
+			if (update.flags & UpdateFlag::UnavailableReasonChanged) {
+				const auto unavailable = _peer->unavailableReason();
+				if (!unavailable.isEmpty()) {
 					this->controller()->showBackFromStack();
-					Ui::show(Box<InformBox>(restriction));
+					Ui::show(Box<InformBox>(unavailable));
 					return;
 				}
 			}

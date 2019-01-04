@@ -96,7 +96,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
-QString ExtractRestrictionReason(const QString &restriction) {
+QString ExtractUnavailableReason(const QString &restriction) {
 	const auto fullEnd = restriction.indexOf(':');
 	if (fullEnd <= 0) {
 		return QString();
@@ -278,12 +278,9 @@ not_null<UserData*> Session::user(const MTPUser &data) {
 				result->input = MTP_inputPeerUser(data.vid, data.vaccess_hash);
 				result->inputUser = MTP_inputUser(data.vid, data.vaccess_hash);
 			}
-			if (data.is_restricted()) {
-				result->setRestrictionReason(
-					ExtractRestrictionReason(qs(data.vrestriction_reason)));
-			} else {
-				result->setRestrictionReason(QString());
-			}
+			result->setUnavailableReason(data.is_restricted()
+				? ExtractUnavailableReason(qs(data.vrestriction_reason))
+				: QString());
 		}
 		if (data.is_deleted()) {
 			if (!result->phone().isEmpty()) {
@@ -554,12 +551,9 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 			if (channel->version < data.vversion.v) {
 				channel->version = data.vversion.v;
 			}
-			if (data.is_restricted()) {
-				channel->setRestrictionReason(
-					ExtractRestrictionReason(qs(data.vrestriction_reason)));
-			} else {
-				channel->setRestrictionReason(QString());
-			}
+			channel->setUnavailableReason(data.is_restricted()
+				? ExtractUnavailableReason(qs(data.vrestriction_reason))
+				: QString());
 			channel->setFlags(data.vflags.v);
 			//if (data.has_feed_id()) { // #feed
 			//	channel->setFeed(feed(data.vfeed_id.v));
