@@ -546,3 +546,28 @@ bool PeerData::canWrite() const {
 				? asUser()->canWrite()
 				: false;
 }
+
+bool PeerData::amRestricted(ChatRestriction right) const {
+	const auto allowByAdminRights = [](auto right, auto chat) -> bool {
+		if (right == ChatRestriction::f_invite_users) {
+			return chat->adminRights() & ChatAdminRight::f_invite_users;
+		} else if (right == ChatRestriction::f_change_info) {
+			return chat->adminRights() & ChatAdminRight::f_change_info;
+		} else if (right == ChatRestriction::f_pin_messages) {
+			return chat->adminRights() & ChatAdminRight::f_pin_messages;
+		} else {
+			return chat->hasAdminRights();
+		}
+	};
+	if (const auto channel = asChannel()) {
+		return !channel->amCreator()
+			&& !allowByAdminRights(right, channel)
+			&& ((channel->restrictions() & right)
+				|| (channel->defaultRestrictions() & right));
+	} else if (const auto chat = asChat()) {
+		return !chat->amCreator()
+			&& !allowByAdminRights(right, chat)
+			&& (chat->defaultRestrictions() & right);
+	}
+	return false;
+}

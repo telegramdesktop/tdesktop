@@ -405,7 +405,7 @@ HistoryWidget::HistoryWidget(
 		}
 	});
 	using UpdateFlag = Notify::PeerUpdate::Flag;
-	auto changes = UpdateFlag::ChannelRightsChanged
+	auto changes = UpdateFlag::RightsChanged
 		| UpdateFlag::UnreadMentionsChanged
 		| UpdateFlag::UnreadViewChanged
 		| UpdateFlag::MigrationChanged
@@ -420,7 +420,7 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::ChannelPromotedChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
-			if (update.flags & UpdateFlag::ChannelRightsChanged) {
+			if (update.flags & UpdateFlag::RightsChanged) {
 				checkPreview();
 			}
 			if (update.flags & UpdateFlag::UnreadMentionsChanged) {
@@ -1934,11 +1934,7 @@ bool HistoryWidget::canWriteMessage() const {
 }
 
 bool HistoryWidget::isRestrictedWrite() const {
-	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		return megagroup->restricted(
-			ChatRestriction::f_send_messages);
-	}
-	return false;
+	return _peer && _peer->amRestricted(ChatRestriction::f_send_messages);
 }
 
 void HistoryWidget::updateControlsVisibility() {
@@ -3034,12 +3030,11 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 }
 
 void HistoryWidget::chooseAttach() {
-	if (!_peer || !_peer->canWrite()) return;
-	if (auto megagroup = _peer->asMegagroup()) {
-		if (megagroup->restricted(ChatRestriction::f_send_media)) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
-			return;
-		}
+	if (!_peer || !_peer->canWrite()) {
+		return;
+	} else if (_peer->amRestricted(ChatRestriction::f_send_media)) {
+		Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+		return;
 	}
 
 	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
@@ -3142,14 +3137,11 @@ void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from 
 }
 
 void HistoryWidget::recordStartCallback() {
-	if (!Media::Capture::instance()->available()) {
+	if (_peer && _peer->amRestricted(ChatRestriction::f_send_media)) {
+		Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
 		return;
-	}
-	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChatRestriction::f_send_media)) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
-			return;
-		}
+	} else if (!Media::Capture::instance()->available()) {
+		return;
 	}
 
 	emit Media::Capture::instance()->start();
@@ -3940,12 +3932,9 @@ void HistoryWidget::updateFieldPlaceholder() {
 bool HistoryWidget::showSendingFilesError(
 		const Storage::PreparedList &list) const {
 	const auto text = [&] {
-		if (const auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-			if (megagroup->restricted(ChatRestriction::f_send_media)) {
-				return lang(lng_restricted_send_media);
-			}
-		}
-		if (!canWriteMessage()) {
+		if (_peer && _peer->amRestricted(ChatRestriction::f_send_media)) {
+			return lang(lng_restricted_send_media);
+		} else if (!canWriteMessage()) {
 			return lang(lng_forward_send_files_cant);
 		}
 		using Error = Storage::PreparedList::Error;
@@ -5379,13 +5368,11 @@ void HistoryWidget::destroyPinnedBar() {
 bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		TextWithEntities caption) {
-	if (const auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChatRestriction::f_send_stickers)) {
-			Ui::show(
-				Box<InformBox>(lang(lng_restricted_send_stickers)),
-				LayerOption::KeepOther);
-			return false;
-		}
+	if (_peer && _peer->amRestricted(ChatRestriction::f_send_stickers)) {
+		Ui::show(
+			Box<InformBox>(lang(lng_restricted_send_stickers)),
+			LayerOption::KeepOther);
+		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
 	}
@@ -5415,13 +5402,11 @@ bool HistoryWidget::sendExistingDocument(
 bool HistoryWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		TextWithEntities caption) {
-	if (const auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChatRestriction::f_send_media)) {
-			Ui::show(
-				Box<InformBox>(lang(lng_restricted_send_media)),
-				LayerOption::KeepOther);
-			return false;
-		}
+	if (_peer && _peer->amRestricted(ChatRestriction::f_send_media)) {
+		Ui::show(
+			Box<InformBox>(lang(lng_restricted_send_media)),
+			LayerOption::KeepOther);
+		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
 	}
@@ -5862,12 +5847,7 @@ void HistoryWidget::previewCancel() {
 
 void HistoryWidget::checkPreview() {
 	auto previewRestricted = [this] {
-		if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-			if (megagroup->restricted(ChatRestriction::f_embed_links)) {
-				return true;
-			}
-		}
-		return false;
+		return _peer && _peer->amRestricted(ChatRestriction::f_embed_links);
 	};
 	if (_previewCancelled || previewRestricted()) {
 		previewCancel();

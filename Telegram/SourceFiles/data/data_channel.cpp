@@ -318,21 +318,17 @@ bool ChannelData::hiddenPreHistory() const {
 }
 
 bool ChannelData::canAddMembers() const {
-	return (adminRights() & AdminRight::f_invite_users)
-		|| amCreator()
-		|| (anyoneCanAddMembers()
-			&& amIn()
-			&& !hasRestrictions());
+	return !amRestricted(ChatRestriction::f_invite_users);
 }
 
 bool ChannelData::canAddAdmins() const {
-	return (adminRights() & AdminRight::f_add_admins)
-		|| amCreator();
+	return amCreator()
+		|| (adminRights() & AdminRight::f_add_admins);
 }
 
 bool ChannelData::canPublish() const {
-	return (adminRights() & AdminRight::f_post_messages)
-		|| amCreator();
+	return amCreator()
+		|| (adminRights() & AdminRight::f_post_messages);
 }
 
 bool ChannelData::canWrite() const {
@@ -340,7 +336,7 @@ bool ChannelData::canWrite() const {
 	return amIn()
 		&& (canPublish()
 			|| (!isBroadcast()
-				&& !restricted(Restriction::f_send_messages)));
+				&& !amRestricted(Restriction::f_send_messages)));
 }
 
 bool ChannelData::canViewMembers() const {
@@ -357,12 +353,7 @@ bool ChannelData::canViewBanned() const {
 }
 
 bool ChannelData::canEditInformation() const {
-	return (adminRights() & AdminRight::f_change_info)
-		|| amCreator();
-}
-
-bool ChannelData::canEditInvites() const {
-	return canEditInformation();
+	return !amRestricted(Restriction::f_change_info);
 }
 
 bool ChannelData::canEditSignatures() const {
@@ -375,13 +366,11 @@ bool ChannelData::canEditPreHistoryHidden() const {
 
 bool ChannelData::canEditUsername() const {
 	return amCreator()
-		&& (fullFlags()
-			& MTPDchannelFull::Flag::f_can_set_username);
+		&& (fullFlags() & MTPDchannelFull::Flag::f_can_set_username);
 }
 
 bool ChannelData::canEditStickers() const {
-	return (fullFlags()
-		& MTPDchannelFull::Flag::f_can_set_stickers);
+	return (fullFlags() & MTPDchannelFull::Flag::f_can_set_stickers);
 }
 
 bool ChannelData::canDelete() const {
@@ -447,15 +436,15 @@ void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 		auto amAdmin = hasAdminRights() || amCreator();
 		Data::ChannelAdminChanges(this).feed(session().userId(), amAdmin);
 	}
-	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
 
-void ChannelData::setRestrictedRights(const MTPChatBannedRights &rights) {
+void ChannelData::setRestrictions(const MTPChatBannedRights &rights) {
 	if (rights.c_chatBannedRights().vflags.v == restrictions()
-		&& rights.c_chatBannedRights().vuntil_date.v == _restrictedUntill) {
+		&& rights.c_chatBannedRights().vuntil_date.v == _restrictedUntil) {
 		return;
 	}
-	_restrictedUntill = rights.c_chatBannedRights().vuntil_date.v;
+	_restrictedUntil = rights.c_chatBannedRights().vuntil_date.v;
 	_restrictions.set(rights.c_chatBannedRights().vflags.v);
 	if (isMegagroup()) {
 		const auto self = session().user();
@@ -470,5 +459,13 @@ void ChannelData::setRestrictedRights(const MTPChatBannedRights &rights) {
 			mgInfo->lastRestricted.remove(self);
 		}
 	}
-	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
+}
+
+void ChannelData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
+	if (rights.c_chatBannedRights().vflags.v == defaultRestrictions()) {
+		return;
+	}
+	_defaultRestrictions.set(rights.c_chatBannedRights().vflags.v);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged);
 }

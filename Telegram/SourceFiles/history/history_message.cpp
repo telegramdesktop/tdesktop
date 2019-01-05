@@ -52,16 +52,14 @@ MTPDmessage::Flags NewForwardedFlags(
 	if (fwd->Has<HistoryMessageVia>()) {
 		result |= MTPDmessage::Flag::f_via_bot_id;
 	}
-	if (const auto channel = peer->asChannel()) {
-		if (dynamic_cast<Data::MediaWebPage*>(fwd->media())) {
+	if (const auto media = fwd->media()) {
+		if (dynamic_cast<Data::MediaWebPage*>(media)) {
 			// Drop web page if we're not allowed to send it.
-			if (channel->restricted(
-					ChatRestriction::f_embed_links)) {
+			if (peer->amRestricted(ChatRestriction::f_embed_links)) {
 				result &= ~MTPDmessage::Flag::f_media;
 			}
 		}
-	} else if (const auto media = fwd->media()) {
-		if (media->forwardedBecomesUnread()) {
+		if (!peer->isChannel() && media->forwardedBecomesUnread()) {
 			result |= MTPDmessage::Flag::f_media_unread;
 		}
 	}
@@ -256,19 +254,17 @@ QString GetErrorTextForForward(
 		return lang(lng_forward_cant);
 	}
 
-	if (auto megagroup = peer->asMegagroup()) {
-		for (const auto item : items) {
-			if (const auto media = item->media()) {
-				const auto error = media->errorTextForForward(megagroup);
-				if (!error.isEmpty() && error != qstr("skip")) {
-					return error;
-				}
+	for (const auto item : items) {
+		if (const auto media = item->media()) {
+			const auto error = media->errorTextForForward(peer);
+			if (!error.isEmpty() && error != qstr("skip")) {
+				return error;
 			}
 		}
-		if (megagroup->restricted(ChatRestriction::f_send_inline)
-			&& HasInlineItems(items)) {
-			return lang(lng_restricted_send_inline);
-		}
+	}
+	if (peer->amRestricted(ChatRestriction::f_send_inline)
+		&& HasInlineItems(items)) {
+		return lang(lng_restricted_send_inline);
 	}
 	return QString();
 }
@@ -385,6 +381,8 @@ HistoryMessage::HistoryMessage(
 		NewForwardedFlags(history->peer, from, original) | flags,
 		date,
 		from) {
+	const auto peer = history->peer;
+
 	CreateConfig config;
 
 	if (original->Has<HistoryMessageForwarded>() || !original->history()->peer->isSelf()) {
@@ -397,7 +395,7 @@ HistoryMessage::HistoryMessage(
 			config.originalId = original->idOriginal();
 		}
 	}
-	if (history->peer->isSelf()) {
+	if (peer->isSelf()) {
 		//
 		// iOS app sends you to the original post if we forward a forward from channel.
 		// But server returns not the original post but the forward in saved_from_...
@@ -430,12 +428,10 @@ HistoryMessage::HistoryMessage(
 
 	createComponents(config);
 
-	auto ignoreMedia = [&] {
+	const auto ignoreMedia = [&] {
 		if (mediaOriginal && mediaOriginal->webpage()) {
-			if (const auto channel = history->peer->asChannel()) {
-				if (channel->restricted(ChatRestriction::f_embed_links)) {
-					return true;
-				}
+			if (peer->amRestricted(ChatRestriction::f_embed_links)) {
+				return true;
 			}
 		}
 		return false;

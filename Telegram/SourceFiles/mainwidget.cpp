@@ -565,11 +565,9 @@ bool MainWidget::sendPaths(PeerId peerId) {
 	if (!peer->canWrite()) {
 		Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
 		return false;
-	} else if (auto megagroup = peer->asMegagroup()) {
-		if (megagroup->restricted(ChatRestriction::f_send_media)) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
-			return false;
-		}
+	} else if (peer->amRestricted(ChatRestriction::f_send_media)) {
+		Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+		return false;
 	}
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 	return _history->confirmSendingFiles(cSendPaths());

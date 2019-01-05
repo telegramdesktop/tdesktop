@@ -665,7 +665,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_manage_admins" = "Manage administrators";
 "lng_profile_manage_blocklist" = "Manage banned users";
 "lng_profile_manage_restrictedlist" = "Manage restricted users";
-"lng_profile_recent_actions" = "Recent actions";
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_participants_section" = "Members";
@@ -1297,9 +1296,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";
 "lng_edit_sign_messages" = "Sign messages";
-"lng_edit_group_who_invites" = "Who can add members";
-"lng_edit_group_invites_everybody" = "All members";
-"lng_edit_group_invites_only_admins" = "Only admins";
 "lng_edit_group" = "Edit group";
 "lng_edit_self_title" = "Edit your name";
 "lng_confirm_contact_data" = "New Contact";

@@ -100,7 +100,6 @@ private:
 
 	void descriptionResized();
 	void updateMaxHeight();
-	void updateSelected(const QPoint &cursorGlobalPosition);
 
 	CreatingGroupType _creating;
 	bool _fromTypeChoose = false;
@@ -138,7 +137,6 @@ private:
 	};
 	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	void showAddContactsToChannelBox() const;
 	void handleChange();
 	void check();
 	void save();

@@ -428,8 +428,8 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 
 	data.match([&](const MTPDchat &data) {
 		const auto chat = result->asChat();
-		// #TODO groups
-		const auto canEdit = chat->canEditInformation();
+
+		const auto canAddMembers = chat->canAddMembers();
 
 		if (chat->version < data.vversion.v) {
 			chat->version = data.vversion.v;
@@ -440,6 +440,13 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		chat->setName(qs(data.vtitle));
 		chat->setPhoto(data.vphoto);
 		chat->date = data.vdate.v;
+
+		chat->setAdminRights(data.has_admin_rights()
+			? data.vadmin_rights
+			: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0))));
+		chat->setDefaultRestrictions(data.has_default_banned_rights()
+			? data.vdefault_banned_rights
+			: MTPChatBannedRights(MTP_chatBannedRights(MTP_flags(0), MTP_int(0))));
 
 		const auto &migratedTo = data.has_migrated_to()
 			? data.vmigrated_to
@@ -480,22 +487,16 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		}, [](const MTPDinputChannelEmpty &) {
 		});
 
-		// #TODO groups
-		//if (!(chat->flags() & MTPDchat::Flag::f_admins_enabled)
-		//	&& (data.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
-		//	chat->invalidateParticipants();
-		//}
 		chat->setFlags(data.vflags.v);
-
 		chat->count = data.vparticipants_count.v;
-		// #TODO groups
-		if (canEdit != chat->canEditInformation()) {
-			update.flags |= UpdateFlag::ChatCanEdit;
+
+		if (canAddMembers != chat->canAddMembers()) {
+			update.flags |= UpdateFlag::RightsChanged;
 		}
 	}, [&](const MTPDchatForbidden &data) {
 		const auto chat = result->asChat();
-		// #TODO groups
-		const auto canEdit = chat->canEditInformation();
+
+		const auto canAddMembers = chat->canAddMembers();
 
 		chat->input = MTP_inputPeerChat(data.vid);
 		chat->setName(qs(data.vtitle));
@@ -504,9 +505,12 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		chat->count = -1;
 		chat->invalidateParticipants();
 		chat->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
-		// #TODO groups
-		if (canEdit != chat->canEditInformation()) {
-			update.flags |= UpdateFlag::ChatCanEdit;
+		chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		chat->setDefaultRestrictions(
+			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+
+		if (canAddMembers != chat->canAddMembers()) {
+			update.flags |= UpdateFlag::RightsChanged;
 		}
 	}, [&](const MTPDchannel &data) {
 		const auto channel = result->asChannel();
@@ -545,9 +549,9 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 				channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 			}
 			if (data.has_banned_rights()) {
-				channel->setRestrictedRights(data.vbanned_rights);
+				channel->setRestrictions(data.vbanned_rights);
 			} else if (channel->hasRestrictions()) {
-				channel->setRestrictedRights(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+				channel->setRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 			}
 			channel->inputChannel = MTP_inputChannel(data.vid, data.vaccess_hash);
 			channel->access = data.vaccess_hash.v;
@@ -577,7 +581,7 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		if (canViewAdmins != channel->canViewAdmins()
 			|| canViewMembers != channel->canViewMembers()
 			|| canAddMembers != channel->canAddMembers()) {
-			update.flags |= UpdateFlag::ChannelRightsChanged;
+			update.flags |= UpdateFlag::RightsChanged;
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
@@ -597,7 +601,7 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 			channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 		}
 		if (channel->hasRestrictions()) {
-			channel->setRestrictedRights(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+			channel->setRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 
 		channel->setName(qs(data.vtitle), QString());
@@ -613,7 +617,7 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		if (canViewAdmins != channel->canViewAdmins()
 			|| canViewMembers != channel->canViewMembers()
 			|| canAddMembers != channel->canAddMembers()) {
-			update.flags |= UpdateFlag::ChannelRightsChanged;
+			update.flags |= UpdateFlag::RightsChanged;
 		}
 	}, [](const MTPDchatEmpty &) {
 	});

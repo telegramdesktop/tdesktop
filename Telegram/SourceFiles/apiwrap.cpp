@@ -1061,7 +1061,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 
 		if (canViewAdmins != channel->canViewAdmins()
 			|| canViewMembers != channel->canViewMembers()) {
-			Notify::peerUpdatedDelayed(channel, UpdateFlag::ChannelRightsChanged);
+			Notify::peerUpdatedDelayed(channel, UpdateFlag::RightsChanged);
 		}
 
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);

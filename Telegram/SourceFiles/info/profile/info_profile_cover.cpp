@@ -285,14 +285,14 @@ void Cover::initViewers() {
 		_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged
 	) | rpl::start_with_next(
-		[this] { refreshStatusText(); },
+		[=] { refreshStatusText(); },
 		lifetime());
 	if (!_peer->isUser()) {
 		Notify::PeerUpdateValue(
 			_peer,
-			Flag::ChannelRightsChanged | Flag::ChatCanEdit
+			Flag::RightsChanged
 		) | rpl::start_with_next(
-			[this] { refreshUploadPhotoOverlay(); },
+			[=] { refreshUploadPhotoOverlay(); },
 			lifetime());
 	} else if (_peer->isSelf()) {
 		refreshUploadPhotoOverlay();
@@ -300,7 +300,7 @@ void Cover::initViewers() {
 	VerifiedValue(
 		_peer
 	) | rpl::start_with_next(
-		[this](bool verified) { setVerified(verified); },
+		[=](bool verified) { setVerified(verified); },
 		lifetime());
 }
 

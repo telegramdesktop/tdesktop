@@ -61,10 +61,6 @@ private:
 		Public,
 		Private,
 	};
-	enum class Invites {
-		Everyone,
-		OnlyAdmins,
-	};
 	enum class HistoryVisibility {
 		Visible,
 		Hidden,
@@ -93,7 +89,6 @@ private:
 		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility;
 		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
 
-		std::shared_ptr<Ui::RadioenumGroup<Invites>> invites;
 		Ui::Checkbox *signatures = nullptr;
 	};
 	struct Saving {
@@ -102,7 +97,6 @@ private:
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> signatures;
-		std::optional<bool> everyoneInvites;
 	};
 
 	Fn<QString()> computeTitle() const;
@@ -116,7 +110,6 @@ private:
 	object_ptr<Ui::RpWidget> createInviteLinkEdit();
 	object_ptr<Ui::RpWidget> createHistoryVisibilityEdit();
 	object_ptr<Ui::RpWidget> createSignaturesEdit();
-	object_ptr<Ui::RpWidget> createInvitesEdit();
 	object_ptr<Ui::RpWidget> createStickersEdit();
 	object_ptr<Ui::RpWidget> createManageAdminsButton();
 	object_ptr<Ui::RpWidget> createUpgradeButton();
@@ -153,7 +146,6 @@ private:
 	bool validateTitle(Saving &to) const;
 	bool validateDescription(Saving &to) const;
 	bool validateHistoryVisibility(Saving &to) const;
-	bool validateInvites(Saving &to) const;
 	bool validateSignatures(Saving &to) const;
 
 	void save();
@@ -161,7 +153,6 @@ private:
 	void saveTitle();
 	void saveDescription();
 	void saveHistoryVisibility();
-	void saveInvites();
 	void saveSignatures();
 	void savePhoto();
 	void pushSaveStage(FnMut<void()> &&lambda);
@@ -218,7 +209,6 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createInviteLinkEdit());
 	_wrap->add(createHistoryVisibilityEdit());
 	_wrap->add(createSignaturesEdit());
-	_wrap->add(createInvitesEdit());
 	_wrap->add(createStickersEdit());
 	_wrap->add(createManageAdminsButton());
 	_wrap->add(createUpgradeButton());
@@ -917,57 +907,6 @@ object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
 	return std::move(result);
 }
 
-object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
-	Expects(_wrap != nullptr);
-
-	auto channel = _peer->asChannel();
-	if (!channel
-		|| !channel->canEditInvites()
-		|| !channel->isMegagroup()) {
-		return nullptr;
-	}
-
-	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
-
-	auto container = result->entity();
-	container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		Lang::Viewer(lng_edit_group_who_invites),
-		st::editPeerSectionLabel));
-
-	_controls.invites = std::make_shared<Ui::RadioenumGroup<Invites>>(
-		channel->anyoneCanAddMembers()
-			? Invites::Everyone
-			: Invites::OnlyAdmins);
-	auto addButton = [&](
-			Invites value,
-			LangKey textKey) {
-		container->add(object_ptr<Ui::FixedHeightWidget>(
-			container,
-			st::editPeerInvitesTopSkip + st::editPeerInvitesSkip));
-		container->add(object_ptr<Ui::Radioenum<Invites>>(
-			container,
-			_controls.invites,
-			value,
-			lang(textKey),
-			st::defaultBoxCheckbox));
-	};
-	addButton(
-		Invites::Everyone,
-		lng_edit_group_invites_everybody);
-	addButton(
-		Invites::OnlyAdmins,
-		lng_edit_group_invites_only_admins);
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInvitesSkip));
-
-	return std::move(result);
-}
-
 object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
@@ -1102,7 +1041,6 @@ std::optional<Controller::Saving> Controller::validate() const {
 		&& validateTitle(result)
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
-		&& validateInvites(result)
 		&& validateSignatures(result)) {
 		return result;
 	}
@@ -1158,15 +1096,6 @@ bool Controller::validateHistoryVisibility(Saving &to) const {
 	return true;
 }
 
-bool Controller::validateInvites(Saving &to) const {
-	if (!_controls.invites) {
-		return true;
-	}
-	to.everyoneInvites
-		= (_controls.invites->value() == Invites::Everyone);
-	return true;
-}
-
 bool Controller::validateSignatures(Saving &to) const {
 	if (!_controls.signatures) {
 		return true;
@@ -1187,7 +1116,6 @@ void Controller::save() {
 		pushSaveStage([this] { saveTitle(); });
 		pushSaveStage([this] { saveDescription(); });
 		pushSaveStage([this] { saveHistoryVisibility(); });
-		pushSaveStage([this] { saveInvites(); });
 		pushSaveStage([this] { saveSignatures(); });
 		pushSaveStage([this] { savePhoto(); });
 		continueSave();
@@ -1349,29 +1277,6 @@ void Controller::saveHistoryVisibility() {
 			cancelSave();
 		}
 	}).send();
-}
-
-void Controller::saveInvites() {
-	auto channel = _peer->asChannel();
-	if (!_savingData.everyoneInvites
-		|| !channel
-		|| *_savingData.everyoneInvites == channel->anyoneCanAddMembers()) {
-		return continueSave();
-	}
-	// #TODO groups
-	//request(MTPchannels_ToggleInvites(
-	//	channel->inputChannel,
-	//	MTP_bool(*_savingData.everyoneInvites)
-	//)).done([this](const MTPUpdates &result) {
-	//	Auth().api().applyUpdates(result);
-	//	continueSave();
-	//}).fail([this](const RPCError &error) {
-	//	if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
-	//		continueSave();
-	//	} else {
-	//		cancelSave();
-	//	}
-	//}).send();
 }
 
 void Controller::saveSignatures() {

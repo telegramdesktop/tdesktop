@@ -214,8 +214,8 @@ rpl::producer<int> AdminsCountValue(
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
 		channel,
-		Flag::AdminsChanged | Flag::ChannelRightsChanged
-	) | rpl::map([channel] {
+		Flag::AdminsChanged | Flag::RightsChanged
+	) | rpl::map([=] {
 		return channel->canViewAdmins()
 			? channel->adminsCount()
 			: 0;
@@ -227,8 +227,8 @@ rpl::producer<int> RestrictedCountValue(
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
 		channel,
-		Flag::BannedUsersChanged | Flag::ChannelRightsChanged
-	) | rpl::map([channel] {
+		Flag::BannedUsersChanged | Flag::RightsChanged
+	) | rpl::map([=] {
 		return channel->canViewBanned()
 			? channel->restrictedCount()
 			: 0;
@@ -240,8 +240,8 @@ rpl::producer<int> KickedCountValue(
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
 		channel,
-		Flag::BannedUsersChanged | Flag::ChannelRightsChanged
-	) | rpl::map([channel] {
+		Flag::BannedUsersChanged | Flag::RightsChanged
+	) | rpl::map([=] {
 		return channel->canViewBanned()
 			? channel->kickedCount()
 			: 0;
@@ -284,15 +284,15 @@ rpl::producer<bool> CanAddMemberValue(
 	if (auto chat = peer->asChat()) {
 		return Notify::PeerUpdateValue(
 			chat,
-			Notify::PeerUpdate::Flag::ChatCanEdit
-		) | rpl::map([chat] {
-			return chat->canEditInformation(); // #TODO groups
+			Notify::PeerUpdate::Flag::RightsChanged
+		) | rpl::map([=] {
+			return chat->canAddMembers();
 		});
 	} else if (auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
 			channel,
-			Notify::PeerUpdate::Flag::ChannelRightsChanged
-		) | rpl::map([channel] {
+			Notify::PeerUpdate::Flag::RightsChanged
+		) | rpl::map([=] {
 			return channel->canAddMembers();
 		});
 	}

@@ -100,6 +100,8 @@ public:
 	}
 
 	bool canWrite() const;
+	bool amRestricted(ChatRestriction right) const;
+
 	UserData *asUser();
 	const UserData *asUser() const;
 	ChatData *asChat();

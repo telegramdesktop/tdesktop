@@ -352,7 +352,7 @@ TabbedSelector::TabbedSelector(
 		subscribe(
 			Notify::PeerUpdated(),
 			Notify::PeerUpdatedHandler(
-				Notify::PeerUpdate::Flag::ChannelRightsChanged,
+				Notify::PeerUpdate::Flag::RightsChanged,
 				handleUpdate));
 
 		Auth().api().stickerSetInstalled(
@@ -672,9 +672,12 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 }
 
 void TabbedSelector::checkRestrictedPeer() {
-	if (auto megagroup = _currentPeer ? _currentPeer->asMegagroup() : nullptr) {
-		auto restricted = (_currentTabType == SelectorTab::Stickers) ? megagroup->restricted(ChatRestriction::f_send_stickers) :
-			(_currentTabType == SelectorTab::Gifs) ? megagroup->restricted(ChatRestriction::f_send_gifs) : false;
+	if (_currentPeer) {
+		const auto restricted = (_currentTabType == SelectorTab::Stickers)
+			? _currentPeer->amRestricted(ChatRestriction::f_send_stickers)
+			: (_currentTabType == SelectorTab::Gifs)
+			? _currentPeer->amRestricted(ChatRestriction::f_send_gifs)
+			: false;
 		if (restricted) {
 			if (!_restrictedLabel) {
 				auto text = (_currentTabType == SelectorTab::Stickers)

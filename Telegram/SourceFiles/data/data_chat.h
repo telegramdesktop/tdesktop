@@ -23,6 +23,13 @@ public:
 		MTPDchat::Flags,
 		kEssentialFlags>;
 
+	using AdminRight = ChatAdminRight;
+	using Restriction = ChatRestriction;
+	using AdminRights = ChatAdminRights;
+	using Restrictions = ChatRestrictions;
+	using AdminRightFlags = Data::Flags<AdminRights>;
+	using RestrictionFlags = Data::Flags<Restrictions>;
+
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
 	void setPhoto(const MTPChatPhoto &photo);
@@ -34,15 +41,6 @@ public:
 	bool noParticipantInfo() const {
 		return (count > 0 || amIn()) && participants.empty();
 	}
-
-	MTPint inputChat;
-
-	ChannelData *migrateToPtr = nullptr;
-
-	int count = 0;
-	TimeId date = 0;
-	int version = 0;
-	UserId creator = 0;
 
 	void setFlags(MTPDchat::Flags which) {
 		_flags.set(which);
@@ -60,16 +58,30 @@ public:
 		return _flags.value();
 	}
 
+	auto adminRights() const {
+		return _adminRights.current();
+	}
+	auto adminRightsValue() const {
+		return _adminRights.value();
+	}
+	void setAdminRights(const MTPChatAdminRights &rights);
+	bool hasAdminRights() const {
+		return (adminRights() != 0);
+	}
+
+	auto defaultRestrictions() const {
+		return _defaultRestrictions.current();
+	}
+	auto defaultRestrictionsValue() const {
+		return _defaultRestrictions.value();
+	}
+	void setDefaultRestrictions(const MTPChatBannedRights &rights);
+
 	bool isForbidden() const {
 		return flags() & MTPDchat_ClientFlag::f_forbidden;
 	}
 	bool amIn() const {
 		return !isForbidden() && !haveLeft() && !wasKicked();
-	}
-	bool canEditInformation() const;
-	bool canWrite() const {
-		// Duplicated in Data::CanWriteValue().
-		return !isDeactivated() && amIn();
 	}
 	bool haveLeft() const {
 		return flags() & MTPDchat::Flag::f_left;
@@ -86,6 +98,27 @@ public:
 	bool isMigrated() const {
 		return flags() & MTPDchat::Flag::f_migrated_to;
 	}
+
+	// Like in ChatData.
+	bool canWrite() const;
+	bool canEditInformation() const;
+	bool canAddMembers() const;
+
+	void setInviteLink(const QString &newInviteLink);
+	QString inviteLink() const {
+		return _inviteLink;
+	}
+
+	// Still public data members.
+	MTPint inputChat;
+
+	ChannelData *migrateToPtr = nullptr;
+
+	int count = 0;
+	TimeId date = 0;
+	int version = 0;
+	UserId creator = 0;
+
 	base::flat_map<not_null<UserData*>, int> participants;
 	base::flat_set<not_null<UserData*>> invitedByMe;
 	base::flat_set<not_null<UserData*>> admins;
@@ -94,15 +127,14 @@ public:
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 
-	void setInviteLink(const QString &newInviteLink);
-	QString inviteLink() const {
-		return _inviteLink;
-	}
-
 private:
+	[[nodiscard]] bool actionsUnavailable() const;
 	void flagsUpdated(MTPDchat::Flags diff);
 
 	Flags _flags;
 	QString _inviteLink;
+
+	RestrictionFlags _defaultRestrictions;
+	AdminRightFlags _adminRights;
 
 };

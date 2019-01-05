@@ -95,8 +95,7 @@ public:
 	virtual bool allowsEditCaption() const;
 	virtual bool allowsRevoke() const;
 	virtual bool forwardedBecomesUnread() const;
-	virtual QString errorTextForForward(
-		not_null<ChannelData*> channel) const;
+	virtual QString errorTextForForward(not_null<PeerData*> peer) const;
 
 	[[nodiscard]] virtual bool consumeMessageText(
 		const TextWithEntities &text);
@@ -142,8 +141,7 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
 	bool allowsEditCaption() const override;
-	QString errorTextForForward(
-		not_null<ChannelData*> channel) const override;
+	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -179,8 +177,7 @@ public:
 	TextWithEntities clipboardText() const override;
 	bool allowsEditCaption() const override;
 	bool forwardedBecomesUnread() const override;
-	QString errorTextForForward(
-		not_null<ChannelData*> channel) const override;
+	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -331,8 +328,7 @@ public:
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
-	QString errorTextForForward(
-		not_null<ChannelData*> channel) const override;
+	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool consumeMessageText(const TextWithEntities &text) override;
 	TextWithEntities consumedMessageText() const override;

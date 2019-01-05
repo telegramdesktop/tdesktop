@@ -222,7 +222,7 @@ bool Media::forwardedBecomesUnread() const {
 	return false;
 }
 
-QString Media::errorTextForForward(not_null<ChannelData*> channel) const {
+QString Media::errorTextForForward(not_null<PeerData*> peer) const {
 	return QString();
 }
 
@@ -325,9 +325,8 @@ bool MediaPhoto::allowsEditCaption() const {
 	return true;
 }
 
-QString MediaPhoto::errorTextForForward(
-		not_null<ChannelData*> channel) const {
-	if (channel->restricted(ChatRestriction::f_send_media)) {
+QString MediaPhoto::errorTextForForward(not_null<PeerData*> peer) const {
+	if (peer->amRestricted(ChatRestriction::f_send_media)) {
 		return lang(lng_restricted_send_media);
 	}
 	return QString();
@@ -650,23 +649,22 @@ bool MediaFile::forwardedBecomesUnread() const {
 		|| _document->isVideoMessage();
 }
 
-QString MediaFile::errorTextForForward(
-		not_null<ChannelData*> channel) const {
+QString MediaFile::errorTextForForward(not_null<PeerData*> peer) const {
 	if (const auto sticker = _document->sticker()) {
-		if (channel->restricted(ChatRestriction::f_send_stickers)) {
+		if (peer->amRestricted(ChatRestriction::f_send_stickers)) {
 			return lang(lng_restricted_send_stickers);
 		}
 	} else if (_document->isAnimation()) {
 		if (_document->isVideoMessage()) {
-			if (channel->restricted(ChatRestriction::f_send_media)) {
+			if (peer->amRestricted(ChatRestriction::f_send_media)) {
 				return lang(lng_restricted_send_media);
 			}
 		} else {
-			if (channel->restricted(ChatRestriction::f_send_gifs)) {
+			if (peer->amRestricted(ChatRestriction::f_send_gifs)) {
 				return lang(lng_restricted_send_gifs);
 			}
 		}
-	} else if (channel->restricted(ChatRestriction::f_send_media)) {
+	} else if (peer->amRestricted(ChatRestriction::f_send_media)) {
 		return lang(lng_restricted_send_media);
 	}
 	return QString();
@@ -1116,9 +1114,8 @@ TextWithEntities MediaGame::clipboardText() const {
 	return TextWithEntities();
 }
 
-QString MediaGame::errorTextForForward(
-		not_null<ChannelData*> channel) const {
-	if (channel->restricted(ChatRestriction::f_send_games)) {
+QString MediaGame::errorTextForForward(not_null<PeerData*> peer) const {
+	if (peer->amRestricted(ChatRestriction::f_send_games)) {
 		return lang(lng_restricted_send_inline);
 	}
 	return QString();

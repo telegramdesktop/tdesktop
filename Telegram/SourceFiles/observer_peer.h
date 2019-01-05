@@ -46,26 +46,23 @@ struct PeerUpdate {
 		AdminsChanged             = (1 << 13),
 		BannedUsersChanged        = (1 << 14),
 		UnreadMentionsChanged     = (1 << 15),
+		RightsChanged             = (1 << 16),
 
 		// For users
-		UserCanShareContact       = (1 << 16),
-		UserIsContact             = (1 << 17),
-		UserPhoneChanged          = (1 << 18),
-		UserIsBlocked             = (1 << 19),
-		BotCommandsChanged        = (1 << 20),
-		UserOnlineChanged         = (1 << 21),
-		BotCanAddToGroups         = (1 << 22),
-		UserCommonChatsChanged    = (1 << 23),
-		UserHasCalls              = (1 << 24),
-		UserOccupiedChanged       = (1 << 25),
-		UserSupportInfoChanged    = (1 << 26),
-
-		// For chats
-		ChatCanEdit               = (1 << 16),
+		UserCanShareContact       = (1 << 17),
+		UserIsContact             = (1 << 18),
+		UserPhoneChanged          = (1 << 19),
+		UserIsBlocked             = (1 << 20),
+		BotCommandsChanged        = (1 << 21),
+		UserOnlineChanged         = (1 << 22),
+		BotCanAddToGroups         = (1 << 23),
+		UserCommonChatsChanged    = (1 << 24),
+		UserHasCalls              = (1 << 25),
+		UserOccupiedChanged       = (1 << 26),
+		UserSupportInfoChanged    = (1 << 27),
 
 		// For channels
-		ChannelAmIn               = (1 << 16),
-		ChannelRightsChanged      = (1 << 17),
+		ChannelAmIn               = (1 << 17),
 		ChannelStickersChanged    = (1 << 18),
 		ChannelPromotedChanged    = (1 << 19),
 	};

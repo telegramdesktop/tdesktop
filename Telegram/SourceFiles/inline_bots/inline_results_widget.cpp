@@ -58,7 +58,7 @@ Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidge
 			update();
 		}
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelRightsChanged, [this](const Notify::PeerUpdate &update) {
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::RightsChanged, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _inlineQueryPeer) {
 			auto isRestricted = (_restrictedLabel != nullptr);
 			if (isRestricted != isRestrictedView()) {
@@ -80,8 +80,8 @@ void Inner::visibleTopBottomUpdated(
 }
 
 void Inner::checkRestrictedPeer() {
-	if (auto megagroup = _inlineQueryPeer ? _inlineQueryPeer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChatRestriction::f_send_inline)) {
+	if (_inlineQueryPeer) {
+		if (_inlineQueryPeer->amRestricted(ChatRestriction::f_send_inline)) {
 			if (!_restrictedLabel) {
 				_restrictedLabel.create(this, lang(lng_restricted_send_inline), Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
 				_restrictedLabel->show();

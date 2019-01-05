@@ -844,22 +844,15 @@ std::unique_ptr<ChatsListBoxController::Row> AddBotToGroupBoxController::createR
 
 bool AddBotToGroupBoxController::needToCreateRow(not_null<PeerData*> peer) const {
 	if (sharingBotGame()) {
-		if (!peer->canWrite()) {
+		if (!peer->canWrite()
+			|| peer->amRestricted(ChatRestriction::f_send_games)) {
 			return false;
-		}
-		if (auto group = peer->asMegagroup()) {
-			if (group->restricted(ChatRestriction::f_send_games)) {
-				return false;
-			}
 		}
 		return true;
 	}
-	if (auto chat = peer->asChat()) {
-		// #TODO groups
-		if (chat->canEditInformation()) {
-			return true;
-		}
-	} else if (auto group = peer->asMegagroup()) {
+	if (const auto chat = peer->asChat()) {
+		return chat->canAddMembers();
+	} else if (const auto group = peer->asMegagroup()) {
 		return group->canAddMembers();
 	}
 	return false;

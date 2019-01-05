@@ -22,12 +22,14 @@ struct MegagroupInfo {
 		MTPChatAdminRights rights;
 		bool canEdit = false;
 	};
+
 	struct Restricted {
 		explicit Restricted(MTPChatBannedRights rights)
 		: rights(rights) {
 		}
 		MTPChatBannedRights rights;
 	};
+
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
 	base::flat_map<not_null<UserData*>, Restricted> lastRestricted;
@@ -76,6 +78,13 @@ public:
 		MTPDchannelFull::Flags,
 		kEssentialFullFlags>;
 
+	using AdminRight = ChatAdminRight;
+	using Restriction = ChatRestriction;
+	using AdminRights = ChatAdminRights;
+	using Restrictions = ChatRestrictions;
+	using AdminRightFlags = Data::Flags<AdminRights>;
+	using RestrictionFlags = Data::Flags<Restrictions>;
+
 	ChannelData(not_null<Data::Session*> owner, PeerId id);
 
 	void setPhoto(const MTPChatPhoto &photo);
@@ -114,12 +123,6 @@ public:
 	auto fullFlagsValue() const {
 		return _fullFlags.value();
 	}
-
-	uint64 access = 0;
-
-	MTPinputChannel inputChannel;
-
-	QString username;
 
 	// Returns true if about text was changed.
 	bool setAbout(const QString &newAbout);
@@ -179,9 +182,6 @@ public:
 
 	bool isGroupAdmin(not_null<UserData*> user) const;
 
-	int32 date = 0;
-	int version = 0;
-	std::unique_ptr<MegagroupInfo> mgInfo;
 	bool lastParticipantsCountOutdated() const {
 		if (!mgInfo
 			|| !(mgInfo->lastParticipantsStatus
@@ -208,12 +208,6 @@ public:
 		return flags() & MTPDchannel::Flag::f_creator;
 	}
 
-	using AdminRight = ChatAdminRight;
-	using Restriction = ChatRestriction;
-	using AdminRights = ChatAdminRights;
-	using Restrictions = ChatRestrictions;
-	using AdminRightFlags = Data::Flags<AdminRights>;
-	using RestrictionFlags = Data::Flags<Restrictions>;
 	auto adminRights() const {
 		return _adminRights.current();
 	}
@@ -224,19 +218,17 @@ public:
 	bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
+
 	auto restrictions() const {
 		return _restrictions.current();
 	}
 	auto restrictionsValue() const {
 		return _restrictions.value();
 	}
-	bool restricted(Restriction right) const {
-		return restrictions() & right;
-	}
 	TimeId restrictedUntil() const {
-		return _restrictedUntill;
+		return _restrictedUntil;
 	}
-	void setRestrictedRights(const MTPChatBannedRights &rights);
+	void setRestrictions(const MTPChatBannedRights &rights);
 	bool hasRestrictions() const {
 		return (restrictions() != 0);
 	}
@@ -244,20 +236,30 @@ public:
 		return hasRestrictions()
 			&& (restrictedUntil() > now);
 	}
+
+	auto defaultRestrictions() const {
+		return _defaultRestrictions.current();
+	}
+	auto defaultRestrictionsValue() const {
+		return _defaultRestrictions.value();
+	}
+	void setDefaultRestrictions(const MTPChatBannedRights &rights);
+
+	// Like in ChatData.
+	bool canWrite() const;
+	bool canEditInformation() const;
+	bool canAddMembers() const;
+
 	bool canBanMembers() const;
 	bool canEditMessages() const;
 	bool canDeleteMessages() const;
 	bool anyoneCanAddMembers() const;
 	bool hiddenPreHistory() const;
-	bool canAddMembers() const;
 	bool canAddAdmins() const;
 	bool canPublish() const;
-	bool canWrite() const;
 	bool canViewMembers() const;
 	bool canViewAdmins() const;
 	bool canViewBanned() const;
-	bool canEditInformation() const;
-	bool canEditInvites() const;
 	bool canEditSignatures() const;
 	bool canEditPreHistoryHidden() const;
 	bool canEditUsername() const;
@@ -270,9 +272,6 @@ public:
 	QString inviteLink() const;
 	bool canHaveInviteLink() const;
 
-	UserId inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
-	TimeId inviteDate = 0;
-
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
 	}
@@ -283,15 +282,15 @@ public:
 		return _ptsWaiter.updateAndApply(this, pts, count);
 	}
 	bool ptsUpdateAndApply(
-			int32 pts,
-			int32 count,
-			const MTPUpdate &update) {
+		int32 pts,
+		int32 count,
+		const MTPUpdate &update) {
 		return _ptsWaiter.updateAndApply(this, pts, count, update);
 	}
 	bool ptsUpdateAndApply(
-			int32 pts,
-			int32 count,
-			const MTPUpdates &updates) {
+		int32 pts,
+		int32 count,
+		const MTPUpdates &updates) {
 		return _ptsWaiter.updateAndApply(this, pts, count, updates);
 	}
 	int32 pts() const {
@@ -331,6 +330,20 @@ public:
 		return _feed;
 	}
 
+	// Still public data members.
+	uint64 access = 0;
+
+	MTPinputChannel inputChannel;
+
+	QString username;
+
+	int32 date = 0;
+	int version = 0;
+	std::unique_ptr<MegagroupInfo> mgInfo;
+
+	UserId inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
+	TimeId inviteDate = 0;
+
 private:
 	void flagsUpdated(MTPDchannel::Flags diff);
 	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
@@ -349,9 +362,10 @@ private:
 	int _kickedCount = 0;
 	MsgId _availableMinId = 0;
 
+	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;
-	TimeId _restrictedUntill;
+	TimeId _restrictedUntil;
 
 	QString _unavailableReason;
 	QString _about;

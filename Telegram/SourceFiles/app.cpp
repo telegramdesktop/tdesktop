@@ -159,8 +159,6 @@ namespace App {
 		case mtpc_chatParticipants: {
 			const auto &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
-			// #TODO groups
-			auto canEdit = chat->canEditInformation();
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
 				auto &v = d.vparticipants.v;
@@ -238,10 +236,6 @@ namespace App {
 					}
 				}
 			}
-			// #TODO groups
-			if (canEdit != chat->canEditInformation()) {
-				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
-			}
 		} break;
 		}
 		Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged);
@@ -291,8 +285,6 @@ namespace App {
 			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
-			// #TODO groups
-			auto canEdit = chat->canEditInformation();
 			const auto user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.empty()) {
@@ -334,25 +326,19 @@ namespace App {
 				chat->invalidateParticipants();
 				chat->count--;
 			}
-			// #TODO groups
-			if (canEdit != chat->canEditInformation()) {
-				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
-			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
 		}
 	}
 
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d) {
-		ChatData *chat = App::chat(d.vchat_id.v);
+		const auto chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
 			Auth().api().requestPeer(chat);
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
-			// #TODO groups
-			auto canEdit = chat->canEditInformation();
-			UserData *user = App::userLoaded(d.vuser_id.v);
+			const auto user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
 					if (user->isSelf()) {
@@ -373,9 +359,6 @@ namespace App {
 				}
 			} else {
 				chat->invalidateParticipants();
-			}
-			if (canEdit != chat->canEditInformation()) {
-				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
 		}
