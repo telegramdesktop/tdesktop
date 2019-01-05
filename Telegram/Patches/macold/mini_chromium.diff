@@ -1,8 +1,8 @@
 diff --git a/build/common.gypi b/build/common.gypi
-index 1affc70..c0d2f6a 100644
+index 1affc70..0677e4b 100644
 --- a/build/common.gypi
 +++ b/build/common.gypi
-@@ -66,6 +66,11 @@
+@@ -66,6 +66,13 @@
            'conditions': [
              ['clang!=0', {
                'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',  # -std=c++11
@@ -10,11 +10,13 @@ index 1affc70..c0d2f6a 100644
 +              'OTHER_LDFLAGS': [
 +                '/usr/local/macold/lib/libc++.a',
 +                '/usr/local/macold/lib/libc++abi.a',
++                '-isysroot/',
++                '-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/',
 +              ],
  
                # Don't link in libarclite_macosx.a, see http://crbug.com/156530.
                'CLANG_LINK_OBJC_RUNTIME': 'NO',      # -fno-objc-link-runtime
-@@ -116,6 +121,9 @@
+@@ -116,6 +123,9 @@
            ],
  
          },

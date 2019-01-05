@@ -1,20 +1,12 @@
-## Build instructions for Xcode 9.0
+## Build instructions for Xcode 10.1
 
-**NB** These are outdated, please refer to [Building using Xcode][xcode] instructions.
-
-### Prepare folder
-
-Choose a folder for the future build, for example **/Users/user/TBuild**. It will be named ***BuildPath*** in the rest of this document. All commands will be launched from Terminal.
+**NB** These are used for OS X 10.6/10.7 build, after the [Building using Xcode][xcode] instructions.
 
 ### Download libraries
-
-Download [**xz-5.0.5**](http://tukaani.org/xz/xz-5.0.5.tar.gz) and unpack to ***BuildPath*/Libraries/xz-5.0.5**
 
 Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) and unpack to ***BuildPath*/Libraries/macold/libiconv-1.15**
 
 ### Clone source code and prepare libraries
-
-**Copy crt1.10.6.o from Xcode SDK path to /usr/local/lib**
 
 Go to ***BuildPath*** and run
 
@@ -22,22 +14,7 @@ Go to ***BuildPath*** and run
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
-    cd Libraries
-
-    cd xz-5.0.5
-    ./configure
-    make
-    sudo make install
-    cd ..
-
-    git clone https://github.com/Kitware/CMake
-    cd CMake
-    ./bootstrap
-    make -j4
-    sudo make install
-    cd ..
-
-    cd macold
+    cd Libraries/macold
 
     svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm
     cd llvm/projects
@@ -48,7 +25,7 @@ Go to ***BuildPath*** and run
     mkdir libcxxabi
     cd libcxxabi
 
-    cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DLIBCXX_ENABLE_SHARED:BOOL=NO -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLLVM_PATH=../llvm -DLIBCXXABI_LIBCXX_PATH=../llvm/projects/libcxx ../llvm/projects/libcxxabi/
+    LDFLAGS="-isysroot / -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/" cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DLIBCXX_ENABLE_SHARED:BOOL=NO -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLLVM_PATH=../llvm -DLIBCXXABI_LIBCXX_PATH=../llvm/projects/libcxx ../llvm/projects/libcxxabi/
     make -j4
     sudo make install
     cd ../
@@ -56,7 +33,7 @@ Go to ***BuildPath*** and run
     mkdir libcxx
     cd libcxx
 
-    cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLIBCXX_ENABLE_SHARED:BOOL=NO -DLIBCXX_CXX_ABI:STRING=libstdc++ -DLIBCXX_CXX_ABI_INCLUDE_PATHS="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/4.2.1/" -DLLVM_PATH=../llvm/ ../llvm/projects/libcxx/
+    LDFLAGS="-isysroot / -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/" cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLIBCXX_ENABLE_SHARED:BOOL=NO -DLIBCXX_CXX_ABI:STRING=libstdc++ -DLIBCXX_CXX_ABI_INCLUDE_PATHS="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/4.2.1/" -DLLVM_PATH=../llvm/ ../llvm/projects/libcxx/
     make -j4
     sudo make install
     cd ../
@@ -107,7 +84,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout openal-soft-1.19.1
     cd build
-    LDFLAGS='/usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a -isysroot /' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
+    LDFLAGS="/usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a -isysroot / -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/" cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
     make -j4
     sudo make install
     cd ../..
@@ -117,6 +94,7 @@ Go to ***BuildPath*** and run
     CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6 -nostdinc++" LDFLAGS="-mmacosx-version-min=10.6" ./configure --prefix=/usr/local/macold
     make -j4
     sudo make install
+    cd ..
 
     git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
@@ -152,13 +130,5 @@ Go to ***BuildPath*** and run
     make -j4
     sudo make install
     cd ..
-
-### Building the project
-
-Go to ***BuildPath*/tdesktop/Telegram** and run
-
-    gyp/refresh.sh
-
-Then launch Xcode, open ***BuildPath*/tdesktop/Telegram/Telegram.xcodeproj** and build for Debug / Release.
 
 [xcode]: building-xcode.md

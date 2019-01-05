@@ -106,6 +106,8 @@ else:
     cmakeConfigurations.append('Release')
 
 os.chdir(scriptPath)
+if sys.platform == 'darwin':
+    subprocess.call('mkdir -p ../../out', shell=True)
 for format in gypFormats:
     command = gypArguments[:]
     command.insert(0, gypScript)

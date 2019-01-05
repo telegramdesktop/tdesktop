@@ -15,8 +15,6 @@
       'common.gypi',
       'openssl.gypi',
       'qt.gypi',
-      'telegram_win.gypi',
-      'telegram_mac.gypi',
       'telegram_linux.gypi',
       'pch.gypi',
     ],

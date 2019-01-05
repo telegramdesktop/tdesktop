@@ -44,6 +44,7 @@
       'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
         '-isysroot', '/',
+        '-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/',
         '-lbase',
         '-lcrashpad_client',
         '-lcrashpad_util',
