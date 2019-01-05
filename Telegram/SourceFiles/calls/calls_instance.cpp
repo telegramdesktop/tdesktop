@@ -189,7 +189,8 @@ void Instance::refreshServerConfig() {
 		_serverConfigRequestId = 0;
 		_lastServerConfigUpdateTime = getms(true);
 
-		UpdateConfig(std::string(result.c_dataJSON().vdata.v));
+		const auto &json = result.c_dataJSON().vdata.v;
+		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([this](const RPCError &error) {
 		_serverConfigRequestId = 0;
 	}).send();

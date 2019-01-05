@@ -10,15 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/timer.h"
 
-namespace Calls{
+namespace Calls {
 	class Call;
 } // namespace Calls
 
-namespace Ui{
+namespace Ui {
 	class LevelMeter;
 }
 
-namespace tgvoip{
+namespace tgvoip {
 	class AudioInputTester;
 }
 
@@ -36,14 +36,14 @@ private:
 	void startTestingMicrophone();
 	void stopTestingMicrophone();
 
-	rpl::event_stream<QString> outputNameStream;
-	rpl::event_stream<QString> inputNameStream;
-	rpl::event_stream<QString> micTestTextStream;
-	bool needWriteSettings=false;
-	std::unique_ptr<tgvoip::AudioInputTester> micTester;
-	Button* micTestButton;
-	Ui::LevelMeter* micTestLevel;
-	base::Timer levelUpdateTimer;
+	rpl::event_stream<QString> _outputNameStream;
+	rpl::event_stream<QString> _inputNameStream;
+	rpl::event_stream<QString> _micTestTextStream;
+	bool _needWriteSettings = false;
+	std::unique_ptr<tgvoip::AudioInputTester> _micTester;
+	Button *_micTestButton = nullptr;
+	Ui::LevelMeter *_micTestLevel = nullptr;
+	base::Timer _levelUpdateTimer;
 };
 
 } // namespace Settings

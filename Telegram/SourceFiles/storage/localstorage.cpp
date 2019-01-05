@@ -887,6 +887,43 @@ void applyReadContext(ReadSettingsContext &&context) {
 	}
 }
 
+QByteArray serializeCallSettings(){
+	QByteArray result=QByteArray();
+	uint32 size = 3*sizeof(qint32) + Serialize::stringSize(Global::CallOutputDeviceID()) + Serialize::stringSize(Global::CallInputDeviceID());
+	result.reserve(size);
+	QDataStream stream(&result, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_1);
+	stream << Global::CallOutputDeviceID();
+	stream << qint32(Global::CallOutputVolume());
+	stream << Global::CallInputDeviceID();
+	stream << qint32(Global::CallInputVolume());
+	stream << qint32(Global::CallAudioDuckingEnabled() ? 1 : 0);
+	return result;
+}
+
+void deserializeCallSettings(QByteArray& settings){
+	QDataStream stream(&settings, QIODevice::ReadOnly);
+	stream.setVersion(QDataStream::Qt_5_1);
+	QString outputDeviceID;
+	QString inputDeviceID;
+	qint32 outputVolume;
+	qint32 inputVolume;
+	qint32 duckingEnabled;
+
+	stream >> outputDeviceID;
+	stream >> outputVolume;
+	stream >> inputDeviceID;
+	stream >> inputVolume;
+	stream >> duckingEnabled;
+	if(_checkStreamStatus(stream)){
+		Global::SetCallOutputDeviceID(outputDeviceID);
+		Global::SetCallOutputVolume(outputVolume);
+		Global::SetCallInputDeviceID(inputDeviceID);
+		Global::SetCallInputVolume(inputVolume);
+		Global::SetCallAudioDuckingEnabled(duckingEnabled);
+	}
+}
+
 bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSettingsContext &context) {
 	switch (blockId) {
 	case dbiDcOptionOldOld: {
@@ -2511,9 +2548,6 @@ void _writeMap(WriteMapWhen when) {
 }
 
 } // namespace
-
-QByteArray serializeCallSettings();
-void deserializeCallSettings(QByteArray& settings);
 
 void finish() {
 	if (_manager) {
@@ -4815,43 +4849,6 @@ bool decrypt(const void *src, void *dst, uint32 len, const void *key128) {
 	}
 	MTP::aesDecryptLocal(src, dst, len, LocalKey, key128);
 	return true;
-}
-
-QByteArray serializeCallSettings(){
-	QByteArray result=QByteArray();
-	uint32 size = 3*sizeof(qint32) + Serialize::stringSize(Global::CallOutputDeviceID()) + Serialize::stringSize(Global::CallInputDeviceID());
-	result.reserve(size);
-	QDataStream stream(&result, QIODevice::WriteOnly);
-	stream.setVersion(QDataStream::Qt_5_1);
-	stream << Global::CallOutputDeviceID();
-	stream << qint32(Global::CallOutputVolume());
-	stream << Global::CallInputDeviceID();
-	stream << qint32(Global::CallInputVolume());
-	stream << qint32(Global::CallAudioDuckingEnabled() ? 1 : 0);
-	return result;
-}
-
-void deserializeCallSettings(QByteArray& settings){
-	QDataStream stream(&settings, QIODevice::ReadOnly);
-	stream.setVersion(QDataStream::Qt_5_1);
-	QString outputDeviceID;
-	QString inputDeviceID;
-	qint32 outputVolume;
-	qint32 inputVolume;
-	qint32 duckingEnabled;
-
-	stream >> outputDeviceID;
-	stream >> outputVolume;
-	stream >> inputDeviceID;
-	stream >> inputVolume;
-	stream >> duckingEnabled;
-	if(_checkStreamStatus(stream)){
-		Global::SetCallOutputDeviceID(outputDeviceID);
-		Global::SetCallOutputVolume(outputVolume);
-		Global::SetCallInputDeviceID(inputDeviceID);
-		Global::SetCallInputVolume(inputVolume);
-		Global::SetCallAudioDuckingEnabled(duckingEnabled);
-	}
 }
 
 struct ClearManagerData {

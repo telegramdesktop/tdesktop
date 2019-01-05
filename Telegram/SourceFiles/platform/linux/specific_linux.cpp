@@ -489,23 +489,23 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 void OpenSystemSettingsForPermission(PermissionType type) {
 }
 
-bool OpenSystemSettings(SystemSettingsType type){
-	if(type==SystemSettingsType::Audio){
+bool OpenSystemSettings(SystemSettingsType type) {
+	if (type == SystemSettingsType::Audio) {
 		bool succeeded = false;
-		if(DesktopEnvironment::IsUnity()){
+		if (DesktopEnvironment::IsUnity()) {
 			succeeded |= QProcess::startDetached(qsl("unity-control-center sound"));
-		}else if(DesktopEnvironment::IsKDE()){
+		} else if (DesktopEnvironment::IsKDE()) {
 			succeeded |= QProcess::startDetached(qsl("kcmshell5 kcm_pulseaudio"));
-			if(!succeeded){
+			if (!succeeded) {
 				succeeded |= QProcess::startDetached(qsl("kcmshell4 phonon"));
 			}
-		}else if(DesktopEnvironment::IsGnome()){
+		} else if (DesktopEnvironment::IsGnome()) {
 			succeeded |= QProcess::startDetached(qsl("gnome-control-center sound"));
 		}
-		if(!succeeded){
+		if (!succeeded) {
 			succeeded |= QProcess::startDetached(qsl("pavucontrol"));
 		}
-		if(!succeeded){
+		if (!succeeded) {
 			succeeded |= QProcess::startDetached(qsl("alsamixergui"));
 		}
 		return succeeded;
