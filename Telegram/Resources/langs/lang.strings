@@ -331,6 +331,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
+"lng_settings_section_call_settings" = "Calls Settings";
+"lng_settings_call_section_output" = "Speakers and headphones";
+"lng_settings_call_section_input" = "Microphone";
+"lng_settings_call_input_device" = "Input device";
+"lng_settings_call_output_device" = "Output device";
+"lng_settings_call_input_volume" = "Input volume: {percent}%";
+"lng_settings_call_output_volume" = "Output volume: {percent}%";
+"lng_settings_call_test_mic" = "Test microphone";
+"lng_settings_call_stop_mic_test" = "Stop test";
+"lng_settings_call_section_other" = "Other settings";
+"lng_settings_call_open_system_prefs" = "Open system sound preferences";
+"lng_settings_call_device_default" = "Default";
+"lng_settings_call_audio_ducking" = "Mute other sounds during calls";
+
 "lng_settings_language" = "Language";
 "lng_settings_default_scale" = "Default interface scale";
 "lng_settings_connection_type" = "Connection type";
@@ -1871,6 +1885,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_linux_menu_undo" = "Undo";
 "lng_linux_menu_redo" = "Redo";
+
+"lng_linux_no_audio_prefs" = "You don't have any audio configuration applications installed.";
 
 // Mac specific
 

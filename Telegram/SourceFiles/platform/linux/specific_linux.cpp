@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/file_utilities_linux.h"
 #include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
@@ -486,6 +487,30 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 }
 
 void OpenSystemSettingsForPermission(PermissionType type) {
+}
+
+bool OpenSystemSettings(SystemSettingsType type) {
+	if (type == SystemSettingsType::Audio) {
+		bool succeeded = false;
+		if (DesktopEnvironment::IsUnity()) {
+			succeeded |= QProcess::startDetached(qsl("unity-control-center sound"));
+		} else if (DesktopEnvironment::IsKDE()) {
+			succeeded |= QProcess::startDetached(qsl("kcmshell5 kcm_pulseaudio"));
+			if (!succeeded) {
+				succeeded |= QProcess::startDetached(qsl("kcmshell4 phonon"));
+			}
+		} else if (DesktopEnvironment::IsGnome()) {
+			succeeded |= QProcess::startDetached(qsl("gnome-control-center sound"));
+		}
+		if (!succeeded) {
+			succeeded |= QProcess::startDetached(qsl("pavucontrol"));
+		}
+		if (!succeeded) {
+			succeeded |= QProcess::startDetached(qsl("alsamixergui"));
+		}
+		return succeeded;
+	}
+	return true;
 }
 
 namespace ThirdParty {

@@ -332,6 +332,15 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 #endif // OS_MAC_OLD
 }
 
+bool OpenSystemSettings(SystemSettingsType type) {
+	switch (type) {
+		case SystemSettingsType::Audio:
+			[[NSWorkspace sharedWorkspace] openFile:@"/System/Library/PreferencePanes/Sound.prefPane"];
+			break;
+	}
+	return true;
+}
+
 } // namespace Platform
 
 void psNewVersion() {

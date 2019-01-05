@@ -657,6 +657,13 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 	}
 }
 
+bool OpenSystemSettings(SystemSettingsType type) {
+	if (type == SystemSettingsType::Audio) {
+		WinExec("control.exe mmsys.cpl", SW_SHOW);
+	}
+	return true;
+}
+
 } // namespace Platform
 
 void psNewVersion() {

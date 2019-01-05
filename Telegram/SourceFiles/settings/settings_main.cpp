@@ -88,6 +88,10 @@ void SetupSections(
 		Type::Chat,
 		&st::settingsIconChat);
 	addSection(
+		lng_settings_section_call_settings,
+		Type::Calls,
+		&st::settingsIconCalls);
+	addSection(
 		lng_settings_advanced,
 		Type::Advanced,
 		&st::settingsIconGeneral);

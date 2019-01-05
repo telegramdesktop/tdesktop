@@ -189,53 +189,8 @@ void Instance::refreshServerConfig() {
 		_serverConfigRequestId = 0;
 		_lastServerConfigUpdateTime = getms(true);
 
-		auto configUpdate = std::map<std::string, std::string>();
-		auto bytes = bytes::make_span(result.c_dataJSON().vdata.v);
-		auto error = QJsonParseError { 0, QJsonParseError::NoError };
-		auto document = QJsonDocument::fromJson(QByteArray::fromRawData(reinterpret_cast<const char*>(bytes.data()), bytes.size()), &error);
-		if (error.error != QJsonParseError::NoError) {
-			LOG(("API Error: Failed to parse call config JSON, error: %1").arg(error.errorString()));
-			return;
-		} else if (!document.isObject()) {
-			LOG(("API Error: Not an object received in call config JSON."));
-			return;
-		}
-
-		auto parseValue = [](QJsonValueRef data) -> std::string {
-			switch (data.type()) {
-			case QJsonValue::String: return data.toString().toStdString();
-			case QJsonValue::Double: return QString::number(data.toDouble(), 'f').toStdString();
-			case QJsonValue::Bool: return data.toBool() ? "true" : "false";
-			case QJsonValue::Null: {
-				LOG(("API Warning: null field in call config JSON."));
-			} return "null";
-			case QJsonValue::Undefined: {
-				LOG(("API Warning: undefined field in call config JSON."));
-			} return "undefined";
-			case QJsonValue::Object:
-			case QJsonValue::Array: {
-				LOG(("API Warning: complex field in call config JSON."));
-				QJsonDocument serializer;
-				if (data.isArray()) {
-					serializer.setArray(data.toArray());
-				} else {
-					serializer.setObject(data.toObject());
-				}
-				auto byteArray = serializer.toJson(QJsonDocument::Compact);
-				return std::string(byteArray.constData(), byteArray.size());
-			} break;
-			}
-			Unexpected("Type in Json parse.");
-		};
-
-		auto object = document.object();
-		for (auto i = object.begin(), e = object.end(); i != e; ++i) {
-			auto key = i.key().toStdString();
-			auto value = parseValue(i.value());
-			configUpdate[key] = value;
-		}
-
-		UpdateConfig(configUpdate);
+		const auto &json = result.c_dataJSON().vdata.v;
+		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([this](const RPCError &error) {
 		_serverConfigRequestId = 0;
 	}).send();
@@ -287,6 +242,10 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 
 bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
+}
+
+Call *Instance::currentCall() {
+	return _currentCall.get();
 }
 
 void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {

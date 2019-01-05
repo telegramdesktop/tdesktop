@@ -539,6 +539,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 #endif // Q_OS_MAC
 	config.enableNS = true;
 	config.enableAGC = true;
+	config.enableVolumeControl = true;
 	config.initTimeout = Global::CallConnectTimeoutMs() / 1000;
 	config.recvTimeout = Global::CallPacketTimeoutMs() / 1000;
 	if (Logs::DebugEnabled()) {
@@ -587,6 +588,13 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		call.is_p2p_allowed(),
 		protocol.vmax_layer.v);
 	_controller->SetConfig(config);
+	_controller->SetCurrentAudioOutput(Global::CallOutputDeviceID().toStdString());
+	_controller->SetCurrentAudioInput(Global::CallInputDeviceID().toStdString());
+	_controller->SetOutputVolume(Global::CallOutputVolume()/100.0f);
+	_controller->SetInputVolume(Global::CallInputVolume()/100.0f);
+#ifdef Q_OS_MAC
+	_controller->SetAudioOutputDuckingEnabled(Global::CallAudioDuckingEnabled());
+#endif
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
 	_controller->SetCallbacks(callbacks);
 	if (Global::UseProxyForCalls()
@@ -751,6 +759,34 @@ void Call::setState(State state) {
 	}
 }
 
+void Call::setCurrentAudioDevice(bool input, std::string deviceID){
+	if (_controller) {
+		if (input) {
+			_controller->SetCurrentAudioInput(deviceID);
+		} else {
+			_controller->SetCurrentAudioOutput(deviceID);
+		}
+	}
+}
+
+void Call::setAudioVolume(bool input, float level){
+	if (_controller) {
+		if(input) {
+			_controller->SetInputVolume(level);
+		} else {
+			_controller->SetOutputVolume(level);
+		}
+	}
+}
+
+void Call::setAudioDuckingEnabled(bool enabled){
+#ifdef Q_OS_MAC
+	if (_controller) {
+		_controller->SetAudioOutputDuckingEnabled(enabled);
+	}
+#endif
+}
+
 void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	Expects(type != FinishType::None);
 
@@ -844,7 +880,7 @@ Call::~Call() {
 	destroyController();
 }
 
-void UpdateConfig(const std::map<std::string, std::string> &data) {
+void UpdateConfig(const std::string& data) {
 	tgvoip::ServerConfig::GetSharedInstance()->Update(data);
 }
 

@@ -59,6 +59,7 @@ settingsIconInterfaceScale: icon {{ "settings_interface_scale", menuIconFg }};
 settingsIconFaq: icon {{ "settings_faq", menuIconFg }};
 settingsIconStickers: icon {{ "settings_stickers", menuIconFg }};
 settingsIconThemes: icon {{ "settings_themes", menuIconFg }};
+settingsIconCalls: icon {{ "settings_phone_number", menuIconFg }};
 
 settingsSetPhotoSkip: 7px;
 
@@ -191,3 +192,13 @@ settingsThemeMinSkip: 4px;
 autoDownloadLimitButton: InfoProfileButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 0px);
 }
+settingsAudioVolumeSlider: MediaSlider(defaultContinuousSlider) {
+    seekSize: size(15px, 15px);
+}
+settingsAudioVolumeSliderPadding: margins(23px, 5px, 20px, 10px);
+settingsAudioVolumeLabel: LabelSimple(defaultLabelSimple) {
+    font: boxTextFont;
+    textFg: windowBoldFg;
+}
+settingsAudioVolumeLabelPadding: margins(22px, 11px, 22px, 11px);
+settingsLevelMeterPadding: margins(23px, 10px, 20px, 10px);

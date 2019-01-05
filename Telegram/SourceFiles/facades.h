@@ -323,6 +323,12 @@ DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
+	
+DeclareVar(QString, CallOutputDeviceID);
+DeclareVar(QString, CallInputDeviceID);
+DeclareVar(int, CallOutputVolume);
+DeclareVar(int, CallInputVolume);
+DeclareVar(bool, CallAudioDuckingEnabled);
 
 rpl::producer<bool> ReplaceEmojiValue();
 

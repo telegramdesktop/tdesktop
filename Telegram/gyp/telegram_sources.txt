@@ -62,6 +62,8 @@
 <(src_loc)/boxes/sessions_box.h
 <(src_loc)/boxes/share_box.cpp
 <(src_loc)/boxes/share_box.h
+<(src_loc)/boxes/single_choice_box.cpp
+<(src_loc)/boxes/single_choice_box.h
 <(src_loc)/boxes/sticker_set_box.cpp
 <(src_loc)/boxes/sticker_set_box.h
 <(src_loc)/boxes/stickers_box.cpp
@@ -576,6 +578,8 @@
 <(src_loc)/settings/settings_advanced.h
 <(src_loc)/settings/settings_chat.cpp
 <(src_loc)/settings/settings_chat.h
+<(src_loc)/settings/settings_calls.cpp
+<(src_loc)/settings/settings_calls.h
 <(src_loc)/settings/settings_codes.cpp
 <(src_loc)/settings/settings_codes.h
 <(src_loc)/settings/settings_common.cpp
@@ -688,6 +692,8 @@
 <(src_loc)/ui/widgets/input_fields.h
 <(src_loc)/ui/widgets/labels.cpp
 <(src_loc)/ui/widgets/labels.h
+<(src_loc)/ui/widgets/level_meter.cpp
+<(src_loc)/ui/widgets/level_meter.h
 <(src_loc)/ui/widgets/menu.cpp
 <(src_loc)/ui/widgets/menu.h
 <(src_loc)/ui/widgets/multi_select.cpp
