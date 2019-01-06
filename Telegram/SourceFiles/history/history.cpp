@@ -974,8 +974,8 @@ bool History::addToUnreadMentions(
 		: false;
 	if (allLoaded) {
 		if (type == UnreadMentionType::New) {
+			++*_unreadMentionsCount;
 			_unreadMentions.insert(msgId);
-			setUnreadMentionsCount(*_unreadMentionsCount + 1);
 			return true;
 		}
 	} else if (!_unreadMentions.empty() && type != UnreadMentionType::New) {
@@ -988,7 +988,7 @@ bool History::addToUnreadMentions(
 void History::eraseFromUnreadMentions(MsgId msgId) {
 	_unreadMentions.remove(msgId);
 	if (_unreadMentionsCount && *_unreadMentionsCount > 0) {
-		setUnreadMentionsCount(*_unreadMentionsCount - 1);
+		--*_unreadMentionsCount;
 	}
 	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
 }
