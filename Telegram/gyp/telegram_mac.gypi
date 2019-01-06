@@ -37,9 +37,6 @@
       },
     },
   }], [ 'build_macold', {
-    'defines': [
-      'OS_MAC_OLD',
-    ],
     'xcode_settings': {
       'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
