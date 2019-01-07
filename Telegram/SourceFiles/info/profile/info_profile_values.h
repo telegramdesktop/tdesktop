@@ -42,51 +42,31 @@ inline auto ToUpperValue() {
 	});
 }
 
-rpl::producer<TextWithEntities> NameValue(
-	not_null<PeerData*> peer);
-rpl::producer<TextWithEntities> PhoneValue(
-	not_null<UserData*> user);
-rpl::producer<TextWithEntities> BioValue(
-	not_null<UserData*> user);
-rpl::producer<TextWithEntities> UsernameValue(
-	not_null<UserData*> user);
-rpl::producer<TextWithEntities> AboutValue(
-	not_null<PeerData*> peer);
-rpl::producer<QString> LinkValue(
-	not_null<PeerData*> peer);
-rpl::producer<bool> NotificationsEnabledValue(
-	not_null<PeerData*> peer);
-rpl::producer<bool> IsContactValue(
-	not_null<UserData*> user);
-rpl::producer<bool> CanInviteBotToGroupValue(
-	not_null<UserData*> user);
-rpl::producer<bool> CanShareContactValue(
-	not_null<UserData*> user);
-rpl::producer<bool> CanAddContactValue(
-	not_null<UserData*> user);
-rpl::producer<bool> AmInChannelValue(
-	not_null<ChannelData*> channel);
-rpl::producer<int> MembersCountValue(
-	not_null<PeerData*> peer);
-rpl::producer<int> AdminsCountValue(
-	not_null<ChannelData*> channel);
-rpl::producer<int> RestrictedCountValue(
-	not_null<ChannelData*> channel);
-rpl::producer<int> KickedCountValue(
-	not_null<ChannelData*> channel);
+rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
+rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
+rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user);
+rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user);
+rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer);
+rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
+rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer);
+rpl::producer<bool> IsContactValue(not_null<UserData*> user);
+rpl::producer<bool> CanInviteBotToGroupValue(not_null<UserData*> user);
+rpl::producer<bool> CanShareContactValue(not_null<UserData*> user);
+rpl::producer<bool> CanAddContactValue(not_null<UserData*> user);
+rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel);
+rpl::producer<int> MembersCountValue(not_null<PeerData*> peer);
+rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer);
+rpl::producer<int> RestrictedCountValue(not_null<ChannelData*> channel);
+rpl::producer<int> KickedCountValue(not_null<ChannelData*> channel);
 rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
 	PeerData *migrated,
 	Storage::SharedMediaType type);
-rpl::producer<int> CommonGroupsCountValue(
-	not_null<UserData*> user);
-rpl::producer<bool> CanAddMemberValue(
-	not_null<PeerData*> peer);
-rpl::producer<bool> VerifiedValue(
-	not_null<PeerData*> peer);
+rpl::producer<int> CommonGroupsCountValue(not_null<UserData*> user);
+rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer);
+rpl::producer<bool> VerifiedValue(not_null<PeerData*> peer);
 
-rpl::producer<int> FeedChannelsCountValue(
-	not_null<Data::Feed*> feed);
+rpl::producer<int> FeedChannelsCountValue(not_null<Data::Feed*> feed);
 
 } // namespace Profile
 } // namespace Info

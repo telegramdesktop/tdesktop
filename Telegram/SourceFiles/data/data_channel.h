@@ -248,6 +248,7 @@ public:
 	// Like in ChatData.
 	bool canWrite() const;
 	bool canEditInformation() const;
+	bool canEditPermissions() const;
 	bool canAddMembers() const;
 
 	bool canBanMembers() const;

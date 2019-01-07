@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ManagePeerBox : public BoxContent {
 public:
-	ManagePeerBox(QWidget*, not_null<ChannelData*> channel);
+	ManagePeerBox(QWidget*, not_null<PeerData*> peer);
 
-	static bool Available(not_null<ChannelData*> channel);
+	static bool Available(not_null<PeerData*> peer);
 
 protected:
 	void prepare() override;
@@ -21,6 +21,6 @@ protected:
 private:
 	void setupContent();
 
-	not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 
 };

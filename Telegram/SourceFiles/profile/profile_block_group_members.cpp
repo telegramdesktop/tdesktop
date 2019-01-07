@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"
 #include "boxes/confirm_box.h"
-#include "boxes/edit_participant_box.h"
+#include "boxes/peers/edit_participant_box.h"
 #include "profile/profile_channel_controllers.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"

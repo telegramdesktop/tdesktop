@@ -102,6 +102,7 @@ public:
 	// Like in ChatData.
 	bool canWrite() const;
 	bool canEditInformation() const;
+	bool canEditPermissions() const;
 	bool canAddMembers() const;
 
 	void setInviteLink(const QString &newInviteLink);

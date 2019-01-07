@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "lang/lang_keys.h"
-#include "boxes/edit_participant_box.h"
+#include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"

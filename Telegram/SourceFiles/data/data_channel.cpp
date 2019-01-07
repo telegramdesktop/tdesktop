@@ -356,6 +356,10 @@ bool ChannelData::canEditInformation() const {
 	return !amRestricted(Restriction::f_change_info);
 }
 
+bool ChannelData::canEditPermissions() const {
+	return (hasAdminRights() || amCreator());
+}
+
 bool ChannelData::canEditSignatures() const {
 	return canEditInformation();
 }

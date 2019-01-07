@@ -1,5 +1,9 @@
+<(src_loc)/boxes/peers/edit_participant_box.cpp
+<(src_loc)/boxes/peers/edit_participant_box.h
 <(src_loc)/boxes/peers/edit_peer_info_box.cpp
 <(src_loc)/boxes/peers/edit_peer_info_box.h
+<(src_loc)/boxes/peers/edit_peer_permissions_box.cpp
+<(src_loc)/boxes/peers/edit_peer_permissions_box.h
 <(src_loc)/boxes/peers/manage_peer_box.cpp
 <(src_loc)/boxes/peers/manage_peer_box.h
 <(src_loc)/boxes/about_box.cpp
@@ -32,8 +36,6 @@
 <(src_loc)/boxes/edit_caption_box.h
 <(src_loc)/boxes/edit_color_box.cpp
 <(src_loc)/boxes/edit_color_box.h
-<(src_loc)/boxes/edit_participant_box.cpp
-<(src_loc)/boxes/edit_participant_box.h
 <(src_loc)/boxes/edit_privacy_box.cpp
 <(src_loc)/boxes/edit_privacy_box.h
 <(src_loc)/boxes/language_box.cpp

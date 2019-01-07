@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
-#include "boxes/edit_participant_box.h"
+#include "boxes/peers/edit_participant_box.h"
 #include "core/file_utilities.h"
 #include "profile/profile_channel_controllers.h"
 #include "chat_helpers/emoji_suggestions_widget.h"

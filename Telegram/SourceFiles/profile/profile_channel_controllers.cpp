@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_channel_controllers.h"
 
 #include "boxes/peer_list_controllers.h"
-#include "boxes/edit_participant_box.h"
+#include "boxes/peers/edit_participant_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "core/tl_help.h"

@@ -586,7 +586,7 @@ managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
 	style: semiboldTextStyle;
 }
-managePeerButtonLabelPosition: point(25px, 10px);
+managePeerButtonLabelPosition: point(25px, 11px);
 
 terminateSessionsButton: InfoProfileButton(infoBlockButton) {
 	padding: margins(23px, 12px, 23px, 10px);

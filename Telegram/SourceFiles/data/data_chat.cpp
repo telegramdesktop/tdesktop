@@ -48,6 +48,11 @@ bool ChatData::canEditInformation() const {
 		&& !amRestricted(ChatRestriction::f_change_info);
 }
 
+bool ChatData::canEditPermissions() const {
+	return !actionsUnavailable()
+		&& (amCreator() || hasAdminRights());
+}
+
 bool ChatData::canAddMembers() const {
 	return !actionsUnavailable()
 		&& !amRestricted(ChatRestriction::f_invite_users);

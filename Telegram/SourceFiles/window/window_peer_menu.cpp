@@ -357,11 +357,13 @@ void Filler::addUserActions(not_null<UserData*> user) {
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
-		// #TODO groups
-		if (chat->canEditInformation()) {
-			_addAction(
-				lang(lng_manage_group_title),
-				[chat] { Ui::show(Box<EditPeerInfoBox>(chat)); });
+		if (ManagePeerBox::Available(chat)) {
+			const auto text = lang(lng_manage_group_title);
+			_addAction(text, [=] {
+				Ui::show(Box<ManagePeerBox>(chat));
+			});
+		}
+		if (chat->canAddMembers()) {
 			_addAction(
 				lang(lng_profile_add_participant),
 				[chat] { AddChatMembers(chat); });
@@ -396,7 +398,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (ManagePeerBox::Available(channel)) {
-			auto text = lang(isGroup
+			const auto text = lang(isGroup
 				? lng_manage_group_title
 				: lng_manage_channel_title);
 			_addAction(text, [channel] {
