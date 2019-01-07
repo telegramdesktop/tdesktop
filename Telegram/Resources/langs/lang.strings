@@ -1037,6 +1037,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_manage_sets" = "Choose emoji set";
 "lng_emoji_set_ready" = "Downloaded";
 "lng_emoji_set_active" = "Current set";
+"lng_emoji_set_download" = "Download {size}";
 "lng_emoji_set_loading" = "{percent}, {progress}";
 
 "lng_recent_stickers" = "Frequently used";

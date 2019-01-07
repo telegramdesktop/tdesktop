@@ -168,7 +168,7 @@ SetState ComputeState(int id) {
 
 QString StateDescription(const SetState &state) {
 	return state.match([](const Available &data) {
-		return formatSizeText(data.size);
+		return lng_emoji_set_download(lt_size, formatSizeText(data.size));
 	}, [](const Ready &data) -> QString {
 		return lang(lng_emoji_set_ready);
 	}, [](const Active &data) -> QString {
