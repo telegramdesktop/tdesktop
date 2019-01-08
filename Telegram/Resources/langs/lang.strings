@@ -1572,10 +1572,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_participant_joined_channel" = "{from} joined the channel";
 "lng_admin_log_participant_left" = "{from} left the group";
 "lng_admin_log_participant_left_channel" = "{from} left the channel";
+"lng_admin_log_stopped_poll" = "{from} stopped poll:";
 "lng_admin_log_invited" = "invited {user}";
 "lng_admin_log_banned" = "banned {user}";
 "lng_admin_log_restricted" = "changed restrictions for {user} {until}";
 "lng_admin_log_promoted" = "changed privileges for {user}";
+"lng_admin_log_changed_default_permissions" = "changed default permissions";
 "lng_admin_log_changed_stickers_group" = "{from} changed the group's {sticker_set}";
 "lng_admin_log_changed_stickers_set" = "sticker set";
 "lng_admin_log_removed_stickers_group" = "{from} removed the group's sticker set";
@@ -1587,6 +1589,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_banned_send_media" = "Send media";
 "lng_admin_log_banned_send_stickers" = "Send stickers & GIFs";
 "lng_admin_log_banned_embed_links" = "Embed links";
+"lng_admin_log_banned_send_polls" = "Send polls";
 "lng_admin_log_admin_change_info" = "Change info";
 "lng_admin_log_admin_post_messages" = "Post messages";
 "lng_admin_log_admin_edit_messages" = "Edit messages";
