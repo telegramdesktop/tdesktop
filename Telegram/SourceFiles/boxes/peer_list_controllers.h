@@ -136,30 +136,6 @@ private:
 
 };
 
-class EditChatAdminsBoxController : public PeerListController, private base::Subscriber {
-public:
-	static void Start(not_null<ChatData*> chat);
-
-	EditChatAdminsBoxController(not_null<ChatData*> chat);
-
-	bool allAreAdmins() const;
-
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-
-private:
-	void createAllAdminsCheckbox();
-	void rebuildRows();
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
-
-	not_null<ChatData*> _chat;
-	int _adminsUpdatedSubscription = 0;
-
-	class LabeledCheckbox;
-	QPointer<LabeledCheckbox> _allAdmins;
-
-};
-
 class AddParticipantsBoxController : public ContactsBoxController {
 public:
 	static void Start(not_null<ChatData*> chat);

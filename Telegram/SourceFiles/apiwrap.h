@@ -99,8 +99,8 @@ public:
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 
-	void requestFullPeer(PeerData *peer);
-	void requestPeer(PeerData *peer);
+	void requestFullPeer(not_null<PeerData*> peer);
+	void requestPeer(not_null<PeerData*> peer);
 	void requestPeers(const QList<PeerData*> &peers);
 	void requestLastParticipants(not_null<ChannelData*> channel);
 	void requestBots(not_null<ChannelData*> channel);
@@ -138,8 +138,12 @@ public:
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
 		Fn<void(const MTPchannels_ChannelParticipants&)> callback);
-	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
-	void processFullPeer(UserData *user, const MTPUserFull &result);
+	void processFullPeer(
+		not_null<PeerData*> peer,
+		const MTPmessages_ChatFull &result);
+	void processFullPeer(
+		not_null<UserData*> user,
+		const MTPUserFull &result);
 
 	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
 	void markMediaRead(not_null<HistoryItem*> item);
@@ -435,8 +439,14 @@ private:
 		not_null<Data::Feed*> feed,
 		const MTPmessages_Dialogs &dialogs);
 
-	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
-	void gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req);
+	void gotChatFull(
+		not_null<PeerData*> peer,
+		const MTPmessages_ChatFull &result,
+		mtpRequestId req);
+	void gotUserFull(
+		not_null<UserData*> user,
+		const MTPUserFull &result,
+		mtpRequestId req);
 	void applyLastParticipantsList(
 		not_null<ChannelData*> channel,
 		int availableCount,

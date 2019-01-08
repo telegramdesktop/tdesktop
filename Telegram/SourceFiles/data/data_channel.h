@@ -124,12 +124,6 @@ public:
 		return _fullFlags.value();
 	}
 
-	// Returns true if about text was changed.
-	bool setAbout(const QString &newAbout);
-	const QString &about() const {
-		return _about;
-	}
-
 	int membersCount() const {
 		return _membersCount;
 	}
@@ -249,6 +243,8 @@ public:
 	bool canWrite() const;
 	bool canEditInformation() const;
 	bool canEditPermissions() const;
+	bool canEditUsername() const;
+	bool canEditPreHistoryHidden() const;
 	bool canAddMembers() const;
 
 	bool canBanMembers() const;
@@ -262,8 +258,6 @@ public:
 	bool canViewAdmins() const;
 	bool canViewBanned() const;
 	bool canEditSignatures() const;
-	bool canEditPreHistoryHidden() const;
-	bool canEditUsername() const;
 	bool canEditStickers() const;
 	bool canDelete() const;
 	bool canEditAdmin(not_null<UserData*> user) const;
@@ -346,9 +340,6 @@ public:
 	TimeId inviteDate = 0;
 
 private:
-	void flagsUpdated(MTPDchannel::Flags diff);
-	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
-
 	bool canEditLastAdmin(not_null<UserData*> user) const;
 	void setFeedPointer(Data::Feed *feed);
 
@@ -369,7 +360,6 @@ private:
 	TimeId _restrictedUntil;
 
 	QString _unavailableReason;
-	QString _about;
 
 	QString _inviteLink;
 	Data::Feed *_feed = nullptr;

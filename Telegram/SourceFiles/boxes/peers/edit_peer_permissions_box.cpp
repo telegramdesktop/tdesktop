@@ -189,7 +189,6 @@ auto ToPositiveNumberString() {
 
 ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 	using Flag = ChatRestriction;
-	using Flags = ChatRestrictions;
 	using Admin = ChatAdminRight;
 	using Admins = ChatAdminRights;
 
@@ -241,13 +240,13 @@ void EditPeerPermissionsBox::prepare() {
 	const auto restrictions = [&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->defaultRestrictions()
-				/*| disabledByAdminRights*/; // #TODO groups
+				| disabledByAdminRights; // #TODO groups
 		} else if (const auto channel = _peer->asChannel()) {
 			return (channel->defaultRestrictions()
-				/*| (channel->isPublic()
+				| (channel->isPublic()
 					? (Flag::f_change_info | Flag::f_pin_messages)
 					: Flags(0))
-				| disabledByAdminRights*/); // #TODO groups
+				| disabledByAdminRights); // #TODO groups
 		}
 		Unexpected("User in EditPeerPermissionsBox.");
 	}();

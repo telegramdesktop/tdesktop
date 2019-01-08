@@ -53,6 +53,15 @@ bool ChatData::canEditPermissions() const {
 		&& (amCreator() || hasAdminRights());
 }
 
+bool ChatData::canEditUsername() const {
+	return amCreator()
+		&& (fullFlags() & MTPDchatFull::Flag::f_can_set_username);
+}
+
+bool ChatData::canEditPreHistoryHidden() const {
+	return amCreator();
+}
+
 bool ChatData::canAddMembers() const {
 	return !actionsUnavailable()
 		&& !amRestricted(ChatRestriction::f_invite_users);

@@ -55,15 +55,6 @@ void ChannelData::setName(const QString &newName, const QString &newUsername) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
 }
 
-bool ChannelData::setAbout(const QString &newAbout) {
-	if (_about == newAbout) {
-		return false;
-	}
-	_about = newAbout;
-	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
-	return true;
-}
-
 void ChannelData::setInviteLink(const QString &newInviteLink) {
 	if (newInviteLink != _inviteLink) {
 		_inviteLink = newInviteLink;
@@ -365,7 +356,9 @@ bool ChannelData::canEditSignatures() const {
 }
 
 bool ChannelData::canEditPreHistoryHidden() const {
-	return canEditInformation();
+	return canEditInformation()
+		&& isMegagroup()
+		&& (!isPublic() || canEditUsername());
 }
 
 bool ChannelData::canEditUsername() const {

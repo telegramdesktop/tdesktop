@@ -119,27 +119,6 @@ private:
 
 };
 
-class ConvertToSupergroupBox : public BoxContent, public RPCSender {
-public:
-	ConvertToSupergroupBox(QWidget*, ChatData *chat);
-
-protected:
-	void prepare() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void convertToSupergroup();
-	void convertDone(const MTPUpdates &updates);
-	bool convertFail(const RPCError &error);
-
-	ChatData *_chat;
-	Text _text, _note;
-	int32 _textWidth, _textHeight;
-
-};
-
 class PinMessageBox : public BoxContent, public RPCSender {
 public:
 	PinMessageBox(QWidget*, not_null<PeerData*> peer, MsgId msgId);

@@ -40,13 +40,8 @@ UserData *GroupMembersWidget::Member::user() const {
 GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
 	PeerData *peer,
-	TitleVisibility titleVisibility,
 	const style::PeerListItem &st)
-: PeerListWidget(parent
-	, peer
-	, (titleVisibility == TitleVisibility::Visible) ? lang(lng_profile_participants_section) : QString()
-	, st
-	, lang(lng_profile_kick)) {
+: PeerListWidget(parent, peer, QString(), st, lang(lng_profile_kick)) {
 	_updateOnlineTimer.setSingleShot(true);
 	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));
 
@@ -203,83 +198,6 @@ void GroupMembersWidget::preloadMore() {
 	//}
 }
 
-int GroupMembersWidget::resizeGetHeight(int newWidth) {
-	if (_limitReachedInfo) {
-		int limitReachedInfoWidth = newWidth - getListLeft();
-		accumulate_min(limitReachedInfoWidth, st::profileBlockWideWidthMax);
-
-		_limitReachedInfo->resizeToWidth(limitReachedInfoWidth);
-		_limitReachedInfo->moveToLeft(getListLeft(), contentTop());
-	}
-	return PeerListWidget::resizeGetHeight(newWidth);
-}
-
-void GroupMembersWidget::paintContents(Painter &p) {
-	int left = getListLeft();
-	int top = getListTop();
-	int memberRowWidth = width() - left;
-	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
-	if (_limitReachedInfo) {
-		int infoTop = contentTop();
-		int infoHeight = top - infoTop - st::profileLimitReachedSkip;
-		paintOutlinedRect(p, left, infoTop, memberRowWidth, infoHeight);
-	}
-
-	_now = unixtime();
-	PeerListWidget::paintContents(p);
-}
-
-Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
-	Expects(selectedPeer->isUser());
-	if (emptyTitle()) {
-		return nullptr;
-	}
-	auto user = selectedPeer->asUser();
-	auto result = new Ui::PopupMenu(this);
-	result->addAction(lang(lng_context_view_profile), [selectedPeer] {
-		Ui::showPeerProfile(selectedPeer);
-	});
-	auto chat = peer()->asChat();
-	auto channel = peer()->asMegagroup();
-	for_const (auto item, items()) {
-		if (item->peer == selectedPeer) {
-			auto canRemoveAdmin = [item, chat, channel] {
-				if ((item->adminState == Item::AdminState::Admin) && !item->peer->isSelf()) {
-					if (chat) {
-						// Adding of admins from context menu of chat participants
-						// is not supported, so the removing is also disabled.
-						return false;//chat->amCreator();
-					} else if (channel) {
-						return channel->amCreator();
-					}
-				}
-				return false;
-			};
-			if (channel) {
-				if (channel->canEditAdmin(user)) {
-					auto label = lang((item->adminState != Item::AdminState::None) ? lng_context_edit_permissions : lng_context_promote_admin);
-					result->addAction(label, crl::guard(this, [this, user] {
-						editAdmin(user);
-					}));
-				}
-				if (channel->canRestrictUser(user)) {
-					result->addAction(lang(lng_context_restrict_user), crl::guard(this, [this, user] {
-						restrictUser(user);
-					}));
-					result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
-						removePeer(selectedPeer);
-					}));
-				}
-			} else if (item->hasRemoveLink) {
-				result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
-					removePeer(selectedPeer);
-				}));
-			}
-		}
-	}
-	return result;
-}
-
 void GroupMembersWidget::updateItemStatusText(Item *item) {
 	auto member = getMember(item);
 	auto user = member->user();
@@ -303,15 +221,6 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 	}
 }
 
-int GroupMembersWidget::getListTop() const {
-	int result = contentTop();
-	if (_limitReachedInfo) {
-		result += _limitReachedInfo->height();
-		result += st::profileLimitReachedSkip;
-	}
-	return result;
-}
-
 void GroupMembersWidget::refreshMembers() {
 	_now = unixtime();
 	if (auto chat = peer()->asChat()) {
@@ -320,7 +229,6 @@ void GroupMembersWidget::refreshMembers() {
 			Auth().api().requestFullPeer(chat);
 		}
 		fillChatMembers(chat);
-		refreshLimitReached();
 	} else if (auto megagroup = peer()->asMegagroup()) {
 		auto &megagroupInfo = megagroup->mgInfo;
 		if (megagroupInfo->lastParticipants.empty() || megagroup->lastParticipantsCountOutdated()) {
@@ -331,27 +239,6 @@ void GroupMembersWidget::refreshMembers() {
 	sortMembers();
 
 	refreshVisibility();
-}
-
-void GroupMembersWidget::refreshLimitReached() {
-	auto chat = peer()->asChat();
-	if (!chat) return;
-
-	bool limitReachedShown = (itemsCount() >= Global::ChatSizeMax()) && chat->amCreator() && !emptyTitle();
-	if (limitReachedShown && !_limitReachedInfo) {
-		_limitReachedInfo.create(this, st::profileLimitReachedLabel);
-		QString title = TextUtilities::EscapeForRichParsing(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
-		QString body = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_body));
-		QString link = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_learn_more));
-		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
-		_limitReachedInfo->setRichText(text);
-		_limitReachedInfo->setClickHandlerFilter([=](auto&&...) {
-			Ui::show(Box<ConvertToSupergroupBox>(peer()->asChat()));
-			return false;
-		});
-	} else if (!limitReachedShown && _limitReachedInfo) {
-		_limitReachedInfo.destroy();
-	}
 }
 
 void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {

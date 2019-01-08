@@ -224,6 +224,12 @@ public:
 		setPinnedMessageId(0);
 	}
 
+	// Returns true if about text was changed.
+	bool setAbout(const QString &newAbout);
+	const QString &about() const {
+		return _about;
+	}
+
 protected:
 	void updateNameDelayed(
 		const QString &newName,
@@ -259,5 +265,7 @@ private:
 
 	TimeMs _lastFullUpdate = 0;
 	MsgId _pinnedMessageId = 0;
+
+	QString _about;
 
 };

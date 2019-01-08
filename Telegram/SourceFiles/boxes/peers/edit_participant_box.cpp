@@ -291,20 +291,25 @@ void EditRestrictedBox::prepare() {
 		object_ptr<BoxContentDivider>(this),
 		st::rightsDividerMargin);
 
-	const auto prepareRights = _oldRights.c_chatBannedRights().vflags.v
+	const auto prepareRights = (_oldRights.c_chatBannedRights().vflags.v
 		? _oldRights
-		: Defaults(channel());
+		: Defaults(channel()));
+	const auto prepareFlags = prepareRights.c_chatBannedRights().vflags.v
+		| (channel()->defaultRestrictions()
+			| (channel()->isPublic()
+				? (Flag::f_change_info | Flag::f_pin_messages)
+				: Flags(0)));
 	const auto disabledFlags = canSave()
 		? (channel()->defaultRestrictions()
-			/*| (channel()->isPublic()
+			| (channel()->isPublic()
 				? (Flag::f_change_info | Flag::f_pin_messages)
-				: Flags(0))*/) // #TODO groups
+				: Flags(0))) // #TODO groups
 		: ~Flags(0);
 
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
 		lng_rights_user_restrictions_header,
-		prepareRights.c_chatBannedRights().vflags.v,
+		prepareFlags,
 		disabledFlags);
 	addControl(std::move(checkboxes), QMargins());
 
@@ -345,14 +350,7 @@ void EditRestrictedBox::prepare() {
 
 MTPChatBannedRights EditRestrictedBox::Defaults(
 		not_null<ChannelData*> channel) {
-	const auto defaultRights = Flag::f_send_messages
-		| Flag::f_send_media
-		| Flag::f_embed_links
-		| Flag::f_send_stickers
-		| Flag::f_send_gifs
-		| Flag::f_send_games
-		| Flag::f_send_inline;
-	return MTP_chatBannedRights(MTP_flags(defaultRights), MTP_int(0));
+	return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 }
 
 void EditRestrictedBox::showRestrictUntil() {

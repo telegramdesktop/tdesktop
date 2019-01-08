@@ -324,7 +324,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 void Members::addMember() {
 	if (const auto chat = _peer->asChat()) {
 		if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-			Ui::show(Box<ConvertToSupergroupBox>(chat));
+			// #TODO convert and add inside AddParticipantsBoxController?
 		} else {
 			AddParticipantsBoxController::Start(chat);
 		}

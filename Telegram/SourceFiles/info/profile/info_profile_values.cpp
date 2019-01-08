@@ -46,8 +46,8 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 
 auto PlainBioValue(not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
-			user,
-			Notify::PeerUpdate::Flag::AboutChanged
+		user,
+		Notify::PeerUpdate::Flag::AboutChanged
 	) | rpl::map([user] { return user->about(); });
 }
 
@@ -77,19 +77,16 @@ rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 }
 
 rpl::producer<QString> PlainAboutValue(not_null<PeerData*> peer) {
-	if (auto channel = peer->asChannel()) {
-		return Notify::PeerUpdateValue(
-				channel,
-				Notify::PeerUpdate::Flag::AboutChanged
-		) | rpl::map([channel] { return channel->about(); });
-	} else if (auto user = peer->asUser()) {
-		if (user->botInfo) {
-			return PlainBioValue(user);
+	if (const auto user = peer->asUser()) {
+		if (!user->botInfo) {
+			return rpl::single(QString());
 		}
 	}
-	return rpl::single(QString());
+	return Notify::PeerUpdateValue(
+		peer,
+		Notify::PeerUpdate::Flag::AboutChanged
+	) | rpl::map([=] { return peer->about(); });
 }
-
 
 rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	auto flags = TextParseLinks
@@ -160,9 +157,9 @@ rpl::producer<bool> CanShareContactValue(not_null<UserData*> user) {
 rpl::producer<bool> CanAddContactValue(not_null<UserData*> user) {
 	using namespace rpl::mappers;
 	return rpl::combine(
-			IsContactValue(user),
-			CanShareContactValue(user),
-			!_1 && _2);
+		IsContactValue(user),
+		CanShareContactValue(user),
+		!_1 && _2);
 }
 
 rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel) {
@@ -177,7 +174,7 @@ rpl::producer<int> MembersCountValue(not_null<PeerData*> peer) {
 	if (const auto chat = peer->asChat()) {
 		return Notify::PeerUpdateValue(
 			peer,
-			Notify::PeerUpdate::Flag::MembersChanged
+			Flag::MembersChanged
 		) | rpl::map([chat] {
 			return chat->amIn()
 				? std::max(chat->count, int(chat->participants.size()))
@@ -185,8 +182,8 @@ rpl::producer<int> MembersCountValue(not_null<PeerData*> peer) {
 		});
 	} else if (const auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
-				channel,
-				Notify::PeerUpdate::Flag::MembersChanged
+			channel,
+			Flag::MembersChanged
 		) | rpl::map([channel] {
 			return channel->membersCount();
 		});

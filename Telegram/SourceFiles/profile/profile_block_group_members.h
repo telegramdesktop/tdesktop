@@ -24,25 +24,13 @@ class GroupMembersWidget : public PeerListWidget {
 	Q_OBJECT
 
 public:
-	enum class TitleVisibility {
-		Visible,
-		Hidden,
-	};
-	GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible, const style::PeerListItem &st = st::profileMemberItem);
+	GroupMembersWidget(QWidget *parent, PeerData *peer, const style::PeerListItem &st);
 
 	int onlineCount() const {
 		return _onlineCount;
 	}
 
 	~GroupMembersWidget();
-
-protected:
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
-
-	void paintContents(Painter &p) override;
-
-	Ui::PopupMenu *fillPeerMenu(PeerData *peer) override;
 
 signals:
 	void onlineCountUpdated(int onlineCount);
@@ -63,15 +51,9 @@ private:
 	void sortMembers();
 	void updateOnlineCount();
 	void checkSelfAdmin(ChatData *chat);
-	void refreshLimitReached();
-
 	void preloadMore();
 
-	bool limitReachedHook(const ClickHandlerPtr &handler, Qt::MouseButton button);
-
 	void refreshUserOnline(UserData *user);
-
-	int getListTop() const override;
 
 	struct Member : public Item {
 		explicit Member(UserData *user);
@@ -92,8 +74,6 @@ private:
 	void setItemFlags(Item *item, ChatData *chat);
 	void setItemFlags(Item *item, ChannelData *megagroup);
 	bool addUsersToEnd(ChannelData *megagroup);
-
-	object_ptr<Ui::FlatLabel> _limitReachedInfo = { nullptr };
 
 	QMap<UserData*, Member*> _membersByUser;
 	bool _sortByOnline = false;

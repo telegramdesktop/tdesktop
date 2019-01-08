@@ -878,11 +878,13 @@ void ApiWrap::changeDialogUnreadMark(
 	)).send();
 }
 
-void ApiWrap::requestFullPeer(PeerData *peer) {
-	if (!peer || _fullPeerRequests.contains(peer)) return;
+void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
+	if (_fullPeerRequests.contains(peer)) {
+		return;
+	}
 
-	auto sendRequest = [this, peer] {
-		auto failHandler = [this, peer](const RPCError &error) {
+	const auto requestId = [&] {
+		const auto failHandler = [=](const RPCError &error) {
 			_fullPeerRequests.remove(peer);
 		};
 		if (const auto user = peer->asUser()) {
@@ -897,32 +899,41 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 		} else if (const auto chat = peer->asChat()) {
 			return request(MTPmessages_GetFullChat(
 				chat->inputChat
-			)).done([=](const MTPmessages_ChatFull &result, mtpRequestId requestId) {
+			)).done([=](
+					const MTPmessages_ChatFull &result,
+					mtpRequestId requestId) {
 				gotChatFull(peer, result, requestId);
 			}).fail(failHandler).send();
 		} else if (const auto channel = peer->asChannel()) {
 			return request(MTPchannels_GetFullChannel(
 				channel->inputChannel
-			)).done([=](const MTPmessages_ChatFull &result, mtpRequestId requestId) {
+			)).done([=](
+					const MTPmessages_ChatFull &result,
+					mtpRequestId requestId) {
 				gotChatFull(peer, result, requestId);
 			}).fail(failHandler).send();
 		}
-		return 0;
-	};
-	if (auto requestId = sendRequest()) {
-		_fullPeerRequests.insert(peer, requestId);
-	}
+		Unexpected("Peer type in requestFullPeer.");
+	}();
+	_fullPeerRequests.insert(peer, requestId);
 }
 
-void ApiWrap::processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result) {
+void ApiWrap::processFullPeer(
+		not_null<PeerData*> peer,
+		const MTPmessages_ChatFull &result) {
 	gotChatFull(peer, result, mtpRequestId(0));
 }
 
-void ApiWrap::processFullPeer(UserData *user, const MTPUserFull &result) {
+void ApiWrap::processFullPeer(
+		not_null<UserData*> user,
+		const MTPUserFull &result) {
 	gotUserFull(user, result, mtpRequestId(0));
 }
 
-void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req) {
+void ApiWrap::gotChatFull(
+		not_null<PeerData*> peer,
+		const MTPmessages_ChatFull &result,
+		mtpRequestId req) {
 	auto &d = result.c_messages_chatFull();
 	auto &vc = d.vchats.v;
 	auto badVersion = false;
@@ -940,9 +951,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	App::feedChats(d.vchats);
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
-	if (auto chat = peer->asChat()) {
+	if (const auto chat = peer->asChat()) {
 		if (d.vfull_chat.type() != mtpc_chatFull) {
-			LOG(("MTP Error: bad type in gotChatFull for chat: %1").arg(d.vfull_chat.type()));
+			LOG(("MTP Error: bad type in gotChatFull for chat: %1"
+				).arg(d.vfull_chat.type()));
 			return;
 		}
 		auto &f = d.vfull_chat.c_chatFull();
@@ -957,6 +969,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				});
 			}
 		}
+		chat->setFullFlags(f.vflags.v);
 		chat->setUserpicPhoto(f.has_chat_photo()
 			? f.vchat_photo
 			: MTPPhoto(MTP_photoEmpty(MTP_long(0))));
@@ -971,10 +984,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		chat->fullUpdated();
 
-		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
-	} else if (auto channel = peer->asChannel()) {
+		notifySettingReceived(
+			MTP_inputNotifyPeer(peer->input),
+			f.vnotify_settings);
+	} else if (const auto channel = peer->asChannel()) {
 		if (d.vfull_chat.type() != mtpc_channelFull) {
-			LOG(("MTP Error: bad type in gotChatFull for channel: %1").arg(d.vfull_chat.type()));
+			LOG(("MTP Error: bad type in gotChatFull for channel: %1"
+				).arg(d.vfull_chat.type()));
 			return;
 		}
 		auto &f = d.vfull_chat.c_channelFull();
@@ -1084,8 +1100,11 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	fullPeerUpdated().notify(peer);
 }
 
-void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req) {
-	auto &d = result.c_userFull();
+void ApiWrap::gotUserFull(
+		not_null<UserData*> user,
+		const MTPUserFull &result,
+		mtpRequestId req) {
+	const auto &d = result.c_userFull();
 
 	if (user == _session->user() && !_session->validateSelf(d.vuser)) {
 		constexpr auto kRequestUserAgainTimeout = TimeMs(10000);
@@ -1129,17 +1148,19 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 	fullPeerUpdated().notify(user);
 }
 
-void ApiWrap::requestPeer(PeerData *peer) {
-	if (!peer || _fullPeerRequests.contains(peer) || _peerRequests.contains(peer)) return;
+void ApiWrap::requestPeer(not_null<PeerData*> peer) {
+	if (_fullPeerRequests.contains(peer) || _peerRequests.contains(peer)) {
+		return;
+	}
 
-	auto sendRequest = [this, peer] {
-		auto failHandler = [this, peer](const RPCError &error) {
+	const auto requestId = [&] {
+		const auto failHandler = [=](const RPCError &error) {
 			_peerRequests.remove(peer);
 		};
-		auto chatHandler = [this, peer](const MTPmessages_Chats &result) {
+		const auto chatHandler = [=](const MTPmessages_Chats &result) {
 			_peerRequests.remove(peer);
 
-			if (auto chats = Api::getChatsFromMessagesChats(result)) {
+			if (const auto chats = Api::getChatsFromMessagesChats(result)) {
 				auto &v = chats->v;
 				bool badVersion = false;
 				if (const auto chat = peer->asChat()) {
@@ -1151,12 +1172,12 @@ void ApiWrap::requestPeer(PeerData *peer) {
 						&& (v[0].type() == mtpc_channel)
 						&& (v[0].c_channel().vversion.v < channel->version);
 				}
-				auto chat = App::feedChats(*chats);
+				const auto chat = App::feedChats(*chats);
 				if (chat == peer) {
 					if (badVersion) {
-						if (auto chat = peer->asChat()) {
+						if (const auto chat = peer->asChat()) {
 							chat->version = v[0].c_chat().vversion.v;
-						} else if (auto channel = peer->asChannel()) {
+						} else if (const auto channel = peer->asChannel()) {
 							channel->version = v[0].c_channel().vversion.v;
 						}
 						requestPeer(peer);
@@ -1164,21 +1185,25 @@ void ApiWrap::requestPeer(PeerData *peer) {
 				}
 			}
 		};
-		if (auto user = peer->asUser()) {
-			return request(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, user->inputUser))).done([this, user](const MTPVector<MTPUser> &result) {
+		if (const auto user = peer->asUser()) {
+			return request(MTPusers_GetUsers(
+				MTP_vector<MTPInputUser>(1, user->inputUser)
+			)).done([=](const MTPVector<MTPUser> &result) {
 				_peerRequests.remove(user);
 				App::feedUsers(result);
 			}).fail(failHandler).send();
-		} else if (auto chat = peer->asChat()) {
-			return request(MTPmessages_GetChats(MTP_vector<MTPint>(1, chat->inputChat))).done(chatHandler).fail(failHandler).send();
-		} else if (auto channel = peer->asChannel()) {
-			return request(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(1, channel->inputChannel))).done(chatHandler).fail(failHandler).send();
+		} else if (const auto chat = peer->asChat()) {
+			return request(MTPmessages_GetChats(
+				MTP_vector<MTPint>(1, chat->inputChat)
+			)).done(chatHandler).fail(failHandler).send();
+		} else if (const auto channel = peer->asChannel()) {
+			return request(MTPchannels_GetChannels(
+				MTP_vector<MTPInputChannel>(1, channel->inputChannel)
+			)).done(chatHandler).fail(failHandler).send();
 		}
-		return 0;
-	};
-	if (auto requestId = sendRequest()) {
-		_peerRequests.insert(peer, requestId);
-	}
+		Unexpected("Peer type in requestPeer.");
+	}();
+	_peerRequests.insert(peer, requestId);
 }
 
 void ApiWrap::markMediaRead(
@@ -1629,7 +1654,7 @@ void ApiWrap::unblockParticipant(
 		} else {
 			channel->updateFullForced();
 		}
-	}).fail([this, kick](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		_kickRequests.remove(kick);
 	}).send();
 

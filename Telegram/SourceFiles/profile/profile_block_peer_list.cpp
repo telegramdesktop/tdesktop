@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_block_peer_list.h"
 
 #include "ui/effects/ripple_animation.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
 #include "data/data_peer.h"
 #include "auth_session.h"
@@ -60,7 +59,7 @@ void PeerListWidget::paintContents(Painter &p) {
 	auto to = ceilclamp(_visibleBottom - top, _st.height, 0, _items.size());
 	for (auto i = from; i < to; ++i) {
 		auto y = top + i * _st.height;
-		auto selected = (_menuRowIndex >= 0) ? (i == _menuRowIndex) : (_pressed >= 0) ? (i == _pressed) : (i == _selected);
+		auto selected = (_pressed >= 0) ? (i == _pressed) : (i == _selected);
 		auto selectedRemove = selected && _selectedRemove;
 		if (_pressed >= 0 && !_pressedRemove) {
 			selectedRemove = false;
@@ -180,46 +179,6 @@ void PeerListWidget::mousePressReleased(Qt::MouseButton button) {
 	}
 	setCursor(_selectedRemove ? style::cur_pointer : style::cur_default);
 	repaintSelectedRow();
-}
-
-void PeerListWidget::contextMenuEvent(QContextMenuEvent *e) {
-	if (_menu) {
-		_menu->deleteLater();
-		_menu = nullptr;
-	}
-	if (_menuRowIndex >= 0) {
-		repaintRow(_menuRowIndex);
-		_menuRowIndex = -1;
-	}
-
-	if (e->reason() == QContextMenuEvent::Mouse) {
-		_mousePosition = e->globalPos();
-		updateSelection();
-	}
-
-	_menuRowIndex = _selected;
-	if (_pressButton != Qt::LeftButton) {
-		mousePressReleased(_pressButton);
-	}
-
-	if (_selected < 0 || _selected >= _items.size()) {
-		return;
-	}
-
-	_menu = fillPeerMenu(_items[_selected]->peer);
-	if (_menu) {
-		_menu->setDestroyedCallback(crl::guard(this, [this, menu = _menu] {
-			if (_menu == menu) {
-				_menu = nullptr;
-			}
-			repaintRow(_menuRowIndex);
-			_menuRowIndex = -1;
-			_mousePosition = QCursor::pos();
-			updateSelection();
-		}));
-		_menu->popup(e->globalPos());
-		e->accept();
-	}
 }
 
 void PeerListWidget::enterEventHook(QEvent *e) {

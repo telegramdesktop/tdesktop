@@ -109,7 +109,7 @@ History *FindWastedPin() {
 
 void AddChatMembers(not_null<ChatData*> chat) {
 	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-		Ui::show(Box<ConvertToSupergroupBox>(chat));
+		// #TODO convert and add inside AddParticipantsBoxController?
 	} else {
 		AddParticipantsBoxController::Start(chat);
 	}
@@ -122,7 +122,7 @@ bool PinnedLimitReached(Dialogs::Key key) {
 		return false;
 	}
 	// Some old chat, that was converted, maybe is still pinned.
-	if (auto wasted = FindWastedPin()) {
+	if (const auto wasted = FindWastedPin()) {
 		Auth().data().setPinnedDialog(wasted, false);
 		Auth().data().setPinnedDialog(key, true);
 		Auth().api().savePinnedOrder();

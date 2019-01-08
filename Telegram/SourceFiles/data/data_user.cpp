@@ -82,15 +82,6 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	}
 }
 
-bool UserData::setAbout(const QString &newAbout) {
-	if (_about == newAbout) {
-		return false;
-	}
-	_about = newAbout;
-	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
-	return true;
-}
-
 QString UserData::unavailableReason() const {
 	return _unavailableReason;
 }

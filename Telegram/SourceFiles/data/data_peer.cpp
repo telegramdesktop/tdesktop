@@ -381,6 +381,15 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 	}
 }
 
+bool PeerData::setAbout(const QString &newAbout) {
+	if (_about == newAbout) {
+		return false;
+	}
+	_about = newAbout;
+	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
+	return true;
+}
+
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();

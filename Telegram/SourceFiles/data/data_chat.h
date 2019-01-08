@@ -23,6 +23,12 @@ public:
 		MTPDchat::Flags,
 		kEssentialFlags>;
 
+	static constexpr auto kEssentialFullFlags = 0
+		| MTPDchatFull::Flag::f_can_set_username;
+	using FullFlags = Data::Flags<
+		MTPDchatFull::Flags,
+		kEssentialFullFlags>;
+
 	using AdminRight = ChatAdminRight;
 	using Restriction = ChatRestriction;
 	using AdminRights = ChatAdminRights;
@@ -56,6 +62,22 @@ public:
 	}
 	auto flagsValue() const {
 		return _flags.value();
+	}
+
+	void setFullFlags(MTPDchatFull::Flags which) {
+		_fullFlags.set(which);
+	}
+	void addFullFlags(MTPDchatFull::Flags which) {
+		_fullFlags.add(which);
+	}
+	void removeFullFlags(MTPDchatFull::Flags which) {
+		_fullFlags.remove(which);
+	}
+	auto fullFlags() const {
+		return _fullFlags.current();
+	}
+	auto fullFlagsValue() const {
+		return _fullFlags.value();
 	}
 
 	auto adminRights() const {
@@ -103,6 +125,8 @@ public:
 	bool canWrite() const;
 	bool canEditInformation() const;
 	bool canEditPermissions() const;
+	bool canEditUsername() const;
+	bool canEditPreHistoryHidden() const;
 	bool canAddMembers() const;
 
 	void setInviteLink(const QString &newInviteLink);
@@ -130,9 +154,9 @@ public:
 
 private:
 	[[nodiscard]] bool actionsUnavailable() const;
-	void flagsUpdated(MTPDchat::Flags diff);
 
 	Flags _flags;
+	FullFlags _fullFlags;
 	QString _inviteLink;
 
 	RestrictionFlags _defaultRestrictions;

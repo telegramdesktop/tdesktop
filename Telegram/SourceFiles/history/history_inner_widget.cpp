@@ -2738,8 +2738,8 @@ int HistoryInner::itemTop(const Element *view) const {
 }
 
 void HistoryInner::notifyIsBotChanged() {
-	const auto newinfo = (_history && _history->peer->isUser())
-		? _history->peer->asUser()->botInfo.get()
+	const auto newinfo = (_peer && _peer->isUser())
+		? _peer->asUser()->botInfo.get()
 		: nullptr;
 	if ((!newinfo && !_botAbout)
 		|| (newinfo && _botAbout && _botAbout->info == newinfo)) {

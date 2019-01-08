@@ -3875,14 +3875,15 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	case mtpc_updateShortChatMessage: {
 		auto &d = updates.c_updateShortChatMessage();
 		bool noFrom = !App::userLoaded(d.vfrom_id.v);
-		if (!App::chatLoaded(d.vchat_id.v)
+		const auto chat = App::chatLoaded(d.vchat_id.v);
+		if (!chat
 			|| noFrom
 			|| (d.has_via_bot_id() && !App::userLoaded(d.vvia_bot_id.v))
 			|| (d.has_entities() && !mentionUsersLoaded(d.ventities))
 			|| (d.has_fwd_from() && !fwdInfoDataLoaded(d.vfwd_from))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-			if (noFrom) {
-				Auth().api().requestFullPeer(App::chatLoaded(d.vchat_id.v));
+			if (chat && noFrom) {
+				Auth().api().requestFullPeer(chat);
 			}
 			return getDifference();
 		}
@@ -4240,8 +4241,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					Auth().api().requestPeer(chat);
 				}
 			} else if (const auto channel = peer->asChannel()) {
-				channel->setDefaultRestrictions(
-					data.vdefault_banned_rights);
+				if (data.vversion.v == channel->version + 1) {
+					channel->setDefaultRestrictions(
+						data.vdefault_banned_rights);
+				} else {
+					channel->version = data.vversion.v;
+					Auth().api().requestPeer(channel);
+				}
 			} else {
 				LOG(("API Error: "
 					"User received in updateChatDefaultBannedRights."));

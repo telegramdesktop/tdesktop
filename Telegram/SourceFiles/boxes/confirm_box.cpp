@@ -366,65 +366,6 @@ void MaxInviteBox::resizeEvent(QResizeEvent *e) {
 	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - st::boxPadding.right(), 2 * st::boxTextFont->height);
 }
 
-ConvertToSupergroupBox::ConvertToSupergroupBox(QWidget*, ChatData *chat)
-: _chat(chat)
-, _text(100)
-, _note(100) {
-}
-
-void ConvertToSupergroupBox::prepare() {
-	QStringList text;
-	text.push_back(lang(lng_profile_convert_feature1));
-	text.push_back(lang(lng_profile_convert_feature2));
-	text.push_back(lang(lng_profile_convert_feature3));
-	text.push_back(lang(lng_profile_convert_feature4));
-
-	setTitle(langFactory(lng_profile_convert_title));
-
-	addButton(langFactory(lng_profile_convert_confirm), [this] { convertToSupergroup(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
-
-	_text.setText(st::boxLabelStyle, text.join('\n'), _confirmBoxTextOptions);
-	_note.setText(st::boxLabelStyle, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
-	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
-	_textHeight = _text.countHeight(_textWidth);
-	setDimensions(st::boxWideWidth, _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth));
-}
-
-void ConvertToSupergroupBox::convertToSupergroup() {
-	MTP::send(MTPmessages_MigrateChat(_chat->inputChat), rpcDone(&ConvertToSupergroupBox::convertDone), rpcFail(&ConvertToSupergroupBox::convertFail));
-}
-
-void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
-	Ui::hideLayer();
-	ConvertToSupergroupDone(updates);
-}
-
-bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-	Ui::hideLayer();
-	return true;
-}
-
-void ConvertToSupergroupBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		convertToSupergroup();
-	} else {
-		BoxContent::keyPressEvent(e);
-	}
-}
-
-void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
-
-	Painter p(this);
-
-	// draw box title / text
-	p.setPen(st::boxTextFg);
-	_text.drawLeft(p, st::boxPadding.left(), 0, _textWidth, width());
-	_note.drawLeft(p, st::boxPadding.left(), _textHeight + st::boxPadding.bottom(), _textWidth, width());
-}
-
 PinMessageBox::PinMessageBox(
 	QWidget*,
 	not_null<PeerData*> peer,

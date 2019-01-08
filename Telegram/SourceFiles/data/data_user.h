@@ -195,11 +195,6 @@ public:
 	bool hasCalls() const;
 	void setCallsStatus(CallsStatus callsStatus);
 
-	bool setAbout(const QString &newAbout);
-	const QString &about() const {
-		return _about;
-	}
-
 	std::unique_ptr<BotInfo> botInfo;
 
 	QString unavailableReason() const override;
@@ -215,7 +210,6 @@ private:
 	FullFlags _fullFlags;
 
 	QString _unavailableReason;
-	QString _about;
 	QString _phone;
 	ContactStatus _contactStatus = ContactStatus::PhoneUnknown;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
