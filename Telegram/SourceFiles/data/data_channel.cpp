@@ -357,7 +357,7 @@ bool ChannelData::canEditInformation() const {
 }
 
 bool ChannelData::canEditPermissions() const {
-	return (hasAdminRights() || amCreator());
+	return isMegagroup() && (hasAdminRights() || amCreator());
 }
 
 bool ChannelData::canEditSignatures() const {

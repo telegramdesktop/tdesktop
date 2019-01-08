@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "base/unique_qptr.h"
 
 namespace Ui {
 class FlatLabel;
@@ -30,8 +31,6 @@ public:
 protected:
 	void prepare() override;
 
-	void resizeToContent();
-
 	not_null<UserData*> user() const {
 		return _user;
 	}
@@ -40,9 +39,7 @@ protected:
 	}
 
 	template <typename Widget>
-	QPointer<Widget> addControl(object_ptr<Widget> widget, QMargins margin);
-
-	void removeControl(QPointer<TWidget> widget);
+	Widget *addControl(object_ptr<Widget> widget, QMargins margin = {});
 
 	bool hasAdminRights() const {
 		return _hasAdminRights;
@@ -134,7 +131,7 @@ private:
 	Fn<void(MTPChatBannedRights, MTPChatBannedRights)> _saveCallback;
 
 	std::shared_ptr<Ui::RadiobuttonGroup> _untilGroup;
-	QVector<QPointer<Ui::Radiobutton>> _untilVariants;
+	std::vector<base::unique_qptr<Ui::Radiobutton>> _untilVariants;
 	QPointer<CalendarBox> _restrictUntilBox;
 
 	static constexpr auto kUntilOneDay = -1;

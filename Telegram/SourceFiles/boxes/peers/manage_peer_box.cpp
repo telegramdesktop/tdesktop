@@ -15,13 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "window/window_controller.h"
-#include "mainwindow.h"
 #include "profile/profile_channel_controllers.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "mainwindow.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -39,51 +41,33 @@ auto ToPositiveNumberString() {
 	});
 }
 
-template <typename Callback>
 Info::Profile::Button *AddButton(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
-		Callback callback,
+		Fn<void()> callback,
 		const style::icon &icon) {
-	auto button = parent->add(
-		object_ptr<Info::Profile::Button>(
-			parent,
-			std::move(text),
-			st::managePeerButton));
-	button->addClickHandler(std::forward<Callback>(callback));
-	Ui::CreateChild<Info::Profile::FloatingIcon>(
-		button,
-		icon,
-		st::managePeerButtonIconPosition);
-	return button;
+	return ManagePeerBox::CreateButton(
+		parent,
+		std::move(text),
+		rpl::single(QString()),
+		std::move(callback),
+		st::managePeerButton,
+		icon);
 }
 
-template <typename Callback>
 void AddButtonWithCount(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&count,
-		Callback callback,
+		Fn<void()> callback,
 		const style::icon &icon) {
-	auto button = AddButton(
+	ManagePeerBox::CreateButton(
 		parent,
 		std::move(text),
-		std::forward<Callback>(callback),
-		icon);
-	auto label = Ui::CreateChild<Ui::FlatLabel>(
-		button,
 		std::move(count),
-		st::managePeerButtonLabel);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	rpl::combine(
-		button->widthValue(),
-		label->widthValue()
-	) | rpl::start_with_next([label](int outerWidth, int width) {
-		label->moveToRight(
-			st::managePeerButtonLabelPosition.x(),
-			st::managePeerButtonLabelPosition.y(),
-			outerWidth);
-	}, label->lifetime());
+		std::move(callback),
+		st::managePeerButton,
+		icon);
 }
 
 bool HasRecentActions(not_null<ChannelData*> channel) {
@@ -112,6 +96,24 @@ bool HasEditInfoBox(not_null<PeerData*> peer) {
 	return false;
 }
 
+void ShowEditPermissions(not_null<PeerData*> peer) {
+	const auto box = Ui::show(
+		Box<EditPeerPermissionsBox>(peer),
+		LayerOption::KeepOther);
+	box->saveEvents(
+	) | rpl::start_with_next([=](MTPDchatBannedRights::Flags restrictions) {
+		const auto callback = crl::guard(box, [=](bool success) {
+			if (success) {
+				box->closeBox();
+			}
+		});
+		Auth().api().saveDefaultRestrictions(
+			peer,
+			MTP_chatBannedRights(MTP_flags(restrictions), MTP_int(0)),
+			callback);
+	}, box->lifetime());
+}
+
 void FillManageChatBox(
 		not_null<Window::Navigation*> navigation,
 		not_null<ChatData*> chat,
@@ -122,6 +124,13 @@ void FillManageChatBox(
 			Lang::Viewer(lng_manage_group_info),
 			[=] { Ui::show(Box<EditPeerInfoBox>(chat)); },
 			st::infoIconInformation);
+	}
+	if (chat->canEditPermissions()) {
+		AddButton(
+			content,
+			Lang::Viewer(lng_manage_peer_permissions),
+			[=] { ShowEditPermissions(chat); },
+			st::infoIconPermissions);
 	}
 	if (chat->amIn()) {
 		AddButtonWithCount(
@@ -174,6 +183,13 @@ void FillManageChannelBox(
 			[=] { ShowRecentActions(navigation, channel); },
 			st::infoIconRecentActions);
 	}
+	if (channel->canEditPermissions()) {
+		AddButton(
+			content,
+			Lang::Viewer(lng_manage_peer_permissions),
+			[=] { ShowEditPermissions(channel); },
+			st::infoIconPermissions);
+	}
 	if (channel->canViewAdmins()) {
 		AddButtonWithCount(
 			content,
@@ -201,6 +217,20 @@ void FillManageChannelBox(
 					ParticipantsBoxController::Role::Members);
 			},
 			st::infoIconMembers);
+	}
+	if (!channel->isMegagroup()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_removed_users),
+			Info::Profile::KickedCountValue(channel)
+			| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					channel,
+					ParticipantsBoxController::Role::Kicked);
+			},
+			st::infoIconBlacklist);
 	}
 }
 
@@ -234,6 +264,42 @@ bool ManagePeerBox::Available(not_null<PeerData*> peer) {
 	} else {
 		return false;
 	}
+}
+
+Info::Profile::Button *ManagePeerBox::CreateButton(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<QString> &&count,
+		Fn<void()> callback,
+		const style::InfoProfileCountButton &st,
+		const style::icon &icon) {
+	const auto button = parent->add(
+		object_ptr<Info::Profile::Button>(
+			parent,
+			std::move(text),
+			st.button));
+	button->addClickHandler(callback);
+	Ui::CreateChild<Info::Profile::FloatingIcon>(
+		button,
+		icon,
+		st.iconPosition);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		std::move(count),
+		st.label);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	rpl::combine(
+		button->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([=, &st](int outerWidth, int width) {
+		label->moveToRight(
+			st.labelPosition.x(),
+			st.labelPosition.y(),
+			outerWidth);
+	}, label->lifetime());
+
+	return button;
 }
 
 void ManagePeerBox::prepare() {

@@ -362,6 +362,7 @@ infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg }};
 infoIconAdministrators: icon {{ "info_administrators", infoIconFg }};
 infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
 infoIconRestrictedUsers: icon {{ "info_restricted_users", infoIconFg }};
+infoIconPermissions: icon {{ "info_permissions", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
@@ -578,15 +579,23 @@ infoChannelsList: PeerList(infoCommonGroupsList) {
 	}
 }
 
-managePeerButton: InfoProfileButton(infoProfileButton) {
-	padding: margins(76px, 12px, 76px, 10px);
+managePeerButton: InfoProfileCountButton {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(76px, 12px, 76px, 10px);
+	}
+	iconPosition: point(20px, 5px);
+	label: FlatLabel(defaultFlatLabel) {
+		textFg: windowActiveTextFg;
+		style: semiboldTextStyle;
+	}
+	labelPosition: point(25px, 12px);
 }
-managePeerButtonIconPosition: point(20px, 5px);
-managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
-	textFg: windowActiveTextFg;
-	style: semiboldTextStyle;
+peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(67px, 12px, 67px, 10px);
+	}
+	iconPosition: point(24px, 5px);
 }
-managePeerButtonLabelPosition: point(25px, 11px);
 
 terminateSessionsButton: InfoProfileButton(infoBlockButton) {
 	padding: margins(23px, 12px, 23px, 10px);

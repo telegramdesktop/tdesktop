@@ -4226,7 +4226,28 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		App::feedParticipantDelete(update.c_updateChatParticipantDelete());
 	} break;
 
-		// #TODO groups new update
+	case mtpc_updateChatDefaultBannedRights: {
+		const auto &data = update.c_updateChatDefaultBannedRights();
+		const auto peerId = peerFromMTP(data.vpeer);
+		if (const auto peer = Auth().data().peerLoaded(peerId)) {
+			if (const auto chat = peer->asChat()) {
+				if (data.vversion.v == chat->version + 1) {
+					chat->setDefaultRestrictions(
+						data.vdefault_banned_rights);
+				} else {
+					chat->version = data.vversion.v;
+					chat->invalidateParticipants();
+					Auth().api().requestPeer(chat);
+				}
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setDefaultRestrictions(
+					data.vdefault_banned_rights);
+			} else {
+				LOG(("API Error: "
+					"User received in updateChatDefaultBannedRights."));
+			}
+		}
+	} break;
 
 	case mtpc_updateChatParticipantAdmin: {
 		App::feedParticipantAdmin(update.c_updateChatParticipantAdmin());

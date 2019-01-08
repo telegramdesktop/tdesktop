@@ -1636,6 +1636,39 @@ void ApiWrap::unblockParticipant(
 	_kickRequests.emplace(kick, requestId);
 }
 
+void ApiWrap::saveDefaultRestrictions(
+		not_null<PeerData*> peer,
+		const MTPChatBannedRights &rights,
+		Fn<void(bool)> callback) {
+	if (_defaultRestrictionsRequests.contains(peer)) {
+		return;
+	}
+	const auto requestId = request(MTPmessages_EditChatDefaultBannedRights(
+		peer->input,
+		rights
+	)).done([=](const MTPUpdates &result) {
+		_defaultRestrictionsRequests.erase(peer);
+		applyUpdates(result);
+		if (callback) {
+			callback(true);
+		}
+	}).fail([=](const RPCError &error) {
+		_defaultRestrictionsRequests.erase(peer);
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			if (const auto chat = peer->asChat()) {
+				chat->setDefaultRestrictions(rights);
+				if (callback) {
+					callback(true);
+				}
+				return;
+			}
+		}
+		if (callback) {
+			callback(false);
+		}
+	}).send();
+}
+
 void ApiWrap::deleteAllFromUser(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from) {

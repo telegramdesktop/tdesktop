@@ -446,7 +446,8 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 			: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0))));
 		chat->setDefaultRestrictions(data.has_default_banned_rights()
 			? data.vdefault_banned_rights
-			: MTPChatBannedRights(MTP_chatBannedRights(MTP_flags(0), MTP_int(0))));
+			: MTPChatBannedRights(
+				MTP_chatBannedRights(MTP_flags(0), MTP_int(0))));
 
 		const auto &migratedTo = data.has_migrated_to()
 			? data.vmigrated_to
@@ -535,6 +536,10 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		if (data.has_participants_count()) {
 			channel->setMembersCount(data.vparticipants_count.v);
 		}
+		channel->setDefaultRestrictions(data.has_default_banned_rights()
+			? data.vdefault_banned_rights
+			: MTPChatBannedRights(
+				MTP_chatBannedRights(MTP_flags(0), MTP_int(0))));
 		if (minimal) {
 			auto mask = 0
 				| MTPDchannel::Flag::f_broadcast

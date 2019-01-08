@@ -103,10 +103,13 @@ public:
 	void clearButtons() {
 		getDelegate()->clearButtons();
 	}
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
-	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
-	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) {
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback = nullptr);
+	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback = nullptr);
+	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback = nullptr) {
 		return getDelegate()->addTopButton(st, std::move(clickCallback));
+	}
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, const style::RoundButton &st) {
+		return getDelegate()->addButton(std::move(textFactory), nullptr, st);
 	}
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 		return getDelegate()->addButton(std::move(textFactory), std::move(clickCallback), st);

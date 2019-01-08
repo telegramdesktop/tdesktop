@@ -699,7 +699,8 @@ rightsToggle: Toggle(defaultToggle) {
 	duration: 120;
 }
 rightsDividerHeight: 10px;
-rightsHeaderMargin: margins(23px, 20px, 23px, 8px);
+rightsDividerMargin: margins(0px, 0px, 0px, 20px);
+rightsHeaderMargin: margins(23px, 0px, 23px, 8px);
 rightsToggleMargin: margins(23px, 8px, 23px, 8px);
 rightsAboutMargin: margins(23px, 8px, 23px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
@@ -722,7 +723,7 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	}
 	textFg: windowActiveTextFg;
 }
-rightsUntilMargin: margins(0px, 8px, 0px, 0px);
+rightsUntilMargin: margins(0px, 8px, 0px, 20px);
 
 mutePhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);

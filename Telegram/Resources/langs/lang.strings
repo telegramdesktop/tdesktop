@@ -789,6 +789,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_administrators" = "Administrators";
 "lng_manage_peer_banned_users" = "Banned users";
 "lng_manage_peer_restricted_users" = "Restricted users";
+"lng_manage_peer_exceptions" = "Exceptions";
+"lng_manage_peer_removed_users" = "Removed users";
+"lng_manage_peer_permissions" = "Permissions";
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";
 "lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";
@@ -1472,7 +1475,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
 "lng_rights_about_admin_cant_edit" = "You cannot edit rights of this admin.";
 "lng_rights_user_restrictions" = "User restrictions";
-"lng_rights_user_restrictions_header" = "What can this user do?";
+"lng_rights_user_restrictions_header" = "What can this member do?";
+"lng_rights_default_restrictions_header" = "What can members of this group do?";
 
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";
@@ -1490,6 +1494,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_chat_send_media" = "Send media";
 "lng_rights_chat_send_stickers" = "Send stickers & GIFs";
 "lng_rights_chat_send_links" = "Embed links";
+"lng_rights_chat_send_polls" = "Send polls";
+"lng_rights_chat_add_members" = "Add members";
 "lng_rights_chat_banned_until_header" = "Restricted until";
 "lng_rights_chat_banned_forever" = "Forever";
 "lng_rights_chat_banned_day#one" = "For {count} day";
@@ -1586,7 +1592,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_edit_messages" = "Edit messages";
 "lng_admin_log_admin_delete_messages" = "Delete messages";
 "lng_admin_log_admin_ban_users" = "Ban users";
-"lng_admin_log_admin_invite_users" = "Add users";
+"lng_admin_log_admin_invite_users" = "Add members";
 "lng_admin_log_admin_invite_link" = "Invite users via link";
 "lng_admin_log_admin_pin_messages" = "Pin messages";
 "lng_admin_log_admin_add_admins" = "Add new admins";

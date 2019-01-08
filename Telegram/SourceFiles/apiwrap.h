@@ -156,6 +156,10 @@ public:
 	void deleteAllFromUser(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from);
+	void saveDefaultRestrictions(
+		not_null<PeerData*> peer,
+		const MTPChatBannedRights &rights,
+		Fn<void(bool)> callback = nullptr);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -609,6 +613,10 @@ private:
 		not_null<ChannelData*>,
 		not_null<UserData*>>;
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
+
+	base::flat_map<
+		not_null<PeerData*>,
+		mtpRequestId> _defaultRestrictionsRequests;
 
 	QMap<ChannelData*, mtpRequestId> _selfParticipantRequests;
 

@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participant_box.h"
 
 #include "lang/lang_keys.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -28,7 +30,7 @@ constexpr auto kSecondsInWeek = 7 * kSecondsInDay;
 
 } // namespace
 
-class EditParticipantBox::Inner : public TWidget {
+class EditParticipantBox::Inner : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
@@ -37,27 +39,19 @@ public:
 		bool hasAdminRights);
 
 	template <typename Widget>
-	QPointer<Widget> addControl(object_ptr<Widget> widget, QMargins margin);
-
-	void removeControl(QPointer<TWidget> widget);
+	Widget *addControl(object_ptr<Widget> widget, QMargins margin);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void doAddControl(object_ptr<TWidget> widget, QMargins margin);
-
 	not_null<ChannelData*> _channel;
 	not_null<UserData*> _user;
 	object_ptr<Ui::UserpicButton> _userPhoto;
 	Text _userName;
 	bool _hasAdminRights = false;
-	struct Control {
-		object_ptr<TWidget> widget;
-		QMargins margin;
-	};
-	std::vector<Control> _rows;
+	object_ptr<Ui::VerticalLayout> _rows;
 
 };
 
@@ -66,7 +60,7 @@ EditParticipantBox::Inner::Inner(
 	not_null<ChannelData*> channel,
 	not_null<UserData*> user,
 	bool hasAdminRights)
-: TWidget(parent)
+: RpWidget(parent)
 , _channel(channel)
 , _user(user)
 , _userPhoto(
@@ -74,7 +68,13 @@ EditParticipantBox::Inner::Inner(
 	_user,
 	Ui::UserpicButton::Role::Custom,
 	st::rightsPhotoButton)
-, _hasAdminRights(hasAdminRights) {
+, _hasAdminRights(hasAdminRights)
+, _rows(this) {
+	_rows->heightValue(
+	) | rpl::start_with_next([=] {
+		resizeToWidth(width());
+	}, lifetime());
+
 	_userPhoto->setPointerCursor(false);
 	_userName.setText(
 		st::rightsNameStyle,
@@ -82,44 +82,23 @@ EditParticipantBox::Inner::Inner(
 		Ui::NameTextOptions());
 }
 
-void EditParticipantBox::Inner::removeControl(QPointer<TWidget> widget) {
-	auto row = ranges::find(_rows, widget, &Control::widget);
-	Assert(row != _rows.end());
-	row->widget.destroy();
-	_rows.erase(row);
-}
-
 template <typename Widget>
-QPointer<Widget> EditParticipantBox::Inner::addControl(
+Widget *EditParticipantBox::Inner::addControl(
 		object_ptr<Widget> widget,
 		QMargins margin) {
-	doAddControl(std::move(widget), margin);
-	return static_cast<Widget*>(_rows.back().widget.data());
-}
-
-void EditParticipantBox::Inner::doAddControl(
-		object_ptr<TWidget> widget,
-		QMargins margin) {
-	widget->setParent(this);
-	_rows.push_back({ std::move(widget), margin });
-	_rows.back().widget->show();
+	return _rows->add(std::move(widget), margin);
 }
 
 int EditParticipantBox::Inner::resizeGetHeight(int newWidth) {
 	_userPhoto->moveToLeft(
 		st::rightsPhotoMargin.left(),
 		st::rightsPhotoMargin.top());
-	auto newHeight = st::rightsPhotoMargin.top()
+	const auto rowsTop = st::rightsPhotoMargin.top()
 		+ st::rightsPhotoButton.size.height()
 		+ st::rightsPhotoMargin.bottom();
-	for (auto &&row : _rows) {
-		auto rowWidth = newWidth - row.margin.left() - row.margin.right();
-		newHeight += row.margin.top();
-		row.widget->resizeToNaturalWidth(rowWidth);
-		row.widget->moveToLeft(row.margin.left(), newHeight);
-		newHeight += row.widget->heightNoMargins() + row.margin.bottom();
-	}
-	return newHeight;
+	_rows->resizeToWidth(newWidth);
+	_rows->moveToLeft(0, rowsTop, newWidth);
+	return rowsTop + _rows->heightNoMargins();
 }
 
 void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
@@ -173,28 +152,16 @@ void EditParticipantBox::prepare() {
 		_channel,
 		_user,
 		hasAdminRights()));
+	setDimensionsToContent(st::boxWideWidth, _inner);
 }
 
 template <typename Widget>
-QPointer<Widget> EditParticipantBox::addControl(
+Widget *EditParticipantBox::addControl(
 		object_ptr<Widget> widget,
 		QMargins margin) {
 	Expects(_inner != nullptr);
 
 	return _inner->addControl(std::move(widget), margin);
-}
-
-void EditParticipantBox::removeControl(QPointer<TWidget> widget) {
-	Expects(_inner != nullptr);
-
-	return _inner->removeControl(widget);
-}
-
-void EditParticipantBox::resizeToContent() {
-	_inner->resizeToWidth(st::boxWideWidth);
-	setDimensions(
-		_inner->width(),
-		qMin(_inner->height(), st::boxMaxListHeight));
 }
 
 EditAdminBox::EditAdminBox(
@@ -235,7 +202,9 @@ void EditAdminBox::prepare() {
 		? lng_rights_edit_admin
 		: lng_channel_add_admin));
 
-	addControl(object_ptr<BoxContentDivider>(this), QMargins());
+	addControl(
+		object_ptr<BoxContentDivider>(this),
+		st::rightsDividerMargin);
 
 	const auto prepareRights = hadRights ? _oldRights : Defaults(channel());
 	const auto filterByMyRights = canSave()
@@ -290,8 +259,6 @@ void EditAdminBox::prepare() {
 	} else {
 		addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 	}
-
-	resizeToContent();
 }
 
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {
@@ -303,7 +270,6 @@ void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {
 		}
 		return lang(lng_rights_about_add_admins_no);
 	}());
-	resizeToContent();
 }
 
 EditRestrictedBox::EditRestrictedBox(
@@ -321,14 +287,21 @@ void EditRestrictedBox::prepare() {
 
 	setTitle(langFactory(lng_rights_user_restrictions));
 
-	addControl(object_ptr<BoxContentDivider>(this), QMargins());
+	addControl(
+		object_ptr<BoxContentDivider>(this),
+		st::rightsDividerMargin);
 
 	const auto prepareRights = _oldRights.c_chatBannedRights().vflags.v
 		? _oldRights
 		: Defaults(channel());
-	const auto disabledFlags = canSave() ? Flags(0) : ~Flags(0);
+	const auto disabledFlags = canSave()
+		? (channel()->defaultRestrictions()
+			/*| (channel()->isPublic()
+				? (Flag::f_change_info | Flag::f_pin_messages)
+				: Flags(0))*/) // #TODO groups
+		: ~Flags(0);
 
-	auto [checkboxes, getChecked, changes] = CreateEditRestrictions(
+	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
 		lng_rights_user_restrictions_header,
 		prepareRights.c_chatBannedRights().vflags.v,
@@ -353,7 +326,7 @@ void EditRestrictedBox::prepare() {
 	//		st::boxLinkButton));
 
 	if (canSave()) {
-		addButton(langFactory(lng_settings_save), [=, value = getChecked] {
+		const auto save = [=, value = getRestrictions] {
 			if (!_saveCallback) {
 				return;
 			}
@@ -362,13 +335,12 @@ void EditRestrictedBox::prepare() {
 				MTP_chatBannedRights(
 					MTP_flags(value()),
 					MTP_int(getRealUntilValue())));
-		});
+		};
+		addButton(langFactory(lng_settings_save), save);
 		addButton(langFactory(lng_cancel), [=] { closeBox(); });
 	} else {
 		addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 	}
-
-	resizeToContent();
 }
 
 MTPChatBannedRights EditRestrictedBox::Defaults(
@@ -411,20 +383,13 @@ void EditRestrictedBox::setRestrictUntil(TimeId until) {
 	if (_restrictUntilBox) {
 		_restrictUntilBox->closeBox();
 	}
-	clearVariants();
+	_untilVariants.clear();
 	createUntilGroup();
 	createUntilVariants();
-	resizeToContent();
 }
 
 bool EditRestrictedBox::isUntilForever() const {
 	return ChannelData::IsRestrictedForever(_until);
-}
-
-void EditRestrictedBox::clearVariants() {
-	for (auto &&widget : base::take(_untilVariants)) {
-		removeControl(widget.data());
-	}
 }
 
 void EditRestrictedBox::createUntilGroup() {
@@ -445,14 +410,15 @@ void EditRestrictedBox::createUntilVariants() {
 		if (!canSave() && _untilGroup->value() != value) {
 			return;
 		}
-		_untilVariants.push_back(addControl(
-			object_ptr<Ui::Radiobutton>(
-				this,
-				_untilGroup,
-				value,
-				text,
-				st::defaultBoxCheckbox),
-			st::rightsToggleMargin));
+		_untilVariants.push_back(base::unique_qptr<Ui::Radiobutton>(
+			addControl(
+				object_ptr<Ui::Radiobutton>(
+					this,
+					_untilGroup,
+					value,
+					text,
+					st::defaultBoxCheckbox),
+				st::rightsToggleMargin)));
 		if (!canSave()) {
 			_untilVariants.back()->setDisabled(true);
 		}
