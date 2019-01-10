@@ -23,7 +23,7 @@ class Navigation;
 Fn<void(
 	const MTPChatAdminRights &oldRights,
 	const MTPChatAdminRights &newRights)> SaveAdminCallback(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(const MTPChatAdminRights &newRights)> onDone,
 		Fn<void()> onFail);
@@ -31,7 +31,7 @@ Fn<void(
 Fn<void(
 	const MTPChatBannedRights &oldRights,
 	const MTPChatBannedRights &newRights)> SaveRestrictedCallback(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(const MTPChatBannedRights &newRights)> onDone,
 		Fn<void()> onFail);
@@ -187,6 +187,7 @@ private:
 	void rebuildChatRows(not_null<ChatData*> chat);
 	void rebuildChatParticipants(not_null<ChatData*> chat);
 	void rebuildChatAdmins(not_null<ChatData*> chat);
+	void chatListReady();
 	void rebuildRowTypes();
 
 	void addNewItem();

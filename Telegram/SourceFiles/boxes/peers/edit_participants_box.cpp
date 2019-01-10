@@ -37,7 +37,8 @@ void RemoveAdmin(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user,
 		const MTPChatAdminRights &oldRights,
-		Fn<void()> onDone) {
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
 	const auto newRights = MTP_chatAdminRights(MTP_flags(0));
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
@@ -46,22 +47,102 @@ void RemoveAdmin(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
-		onDone();
+		if (const auto done = onDone) {
+			done();
+		}
+	}).fail([=](const RPCError &error) {
+		if (const auto fail = onFail) {
+			fail();
+		}
 	}).send();
 }
 
-void EditChatAdmin(
+void SaveChatAdmin(
 		not_null<ChatData*> chat,
 		not_null<UserData*> user,
 		bool isAdmin,
-		Fn<void()> onDone) {
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
 	chat->session().api().request(MTPmessages_EditChatAdmin(
 		chat->inputChat,
 		user->inputUser,
 		MTP_bool(isAdmin)
 	)).done([=](const MTPBool &result) {
 		chat->applyEditAdmin(user, isAdmin);
-		onDone();
+		if (const auto done = onDone) {
+			done();
+		}
+	}).fail([=](const RPCError &error) {
+		if (const auto fail = onFail) {
+			fail();
+		}
+	}).send();
+}
+
+void SaveChannelAdmin(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		const MTPChatAdminRights &oldRights,
+		const MTPChatAdminRights &newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	channel->session().api().request(MTPchannels_EditAdmin(
+		channel->inputChannel,
+		user->inputUser,
+		newRights
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		channel->applyEditAdmin(user, oldRights, newRights);
+		if (const auto done = onDone) {
+			done();
+		}
+	}).fail([=](const RPCError &error) {
+		if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
+			Ui::show(
+				Box<InformBox>(PeerFloodErrorText(
+					channel->isMegagroup()
+					? PeerFloodType::InviteGroup
+					: PeerFloodType::InviteChannel)),
+				LayerOption::KeepOther);
+		} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
+			Ui::show(
+				Box<InformBox>(lang(lng_error_cant_add_bot)),
+				LayerOption::KeepOther);
+		} else if (error.type() == qstr("ADMINS_TOO_MUCH")) {
+			Ui::show(
+				Box<InformBox>(lang(channel->isMegagroup()
+					? lng_error_admin_limit
+					: lng_error_admin_limit_channel)),
+				LayerOption::KeepOther);
+		}
+		if (const auto fail = onFail) {
+			fail();
+		}
+	}).send();
+}
+
+void SaveChannelRestriction(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		const MTPChatBannedRights &oldRights,
+		const MTPChatBannedRights &newRights,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	channel->session().api().request(MTPchannels_EditBanned(
+		channel->inputChannel,
+		user->inputUser,
+		newRights
+	)).done([=](const MTPUpdates &result) {
+		const auto done = onDone;
+		channel->session().api().applyUpdates(result);
+		channel->applyEditBanned(user, oldRights, newRights);
+		if (const auto done = onDone) {
+			done();
+		}
+	}).fail([=](const RPCError &error) {
+		if (const auto fail = onFail) {
+			fail();
+		}
 	}).send();
 }
 
@@ -70,82 +151,75 @@ void EditChatAdmin(
 Fn<void(
 	const MTPChatAdminRights &oldRights,
 	const MTPChatAdminRights &newRights)> SaveAdminCallback(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(const MTPChatAdminRights &newRights)> onDone,
 		Fn<void()> onFail) {
 	return [=](
 			const MTPChatAdminRights &oldRights,
 			const MTPChatAdminRights &newRights) {
-		auto done = [=](const MTPUpdates &result) {
-			channel->session().api().applyUpdates(result);
-			channel->applyEditAdmin(user, oldRights, newRights);
-			onDone(newRights);
-		};
-		auto fail = [=](const RPCError &error) {
-			if (MTP::isDefaultHandledError(error)) {
-				return false;
+		const auto done = [=] { onDone(newRights); };
+		if (const auto chat = peer->asChat()) {
+			const auto saveChatAdmin = [&](bool isAdmin) {
+				SaveChatAdmin(chat, user, isAdmin, done, onFail);
+			};
+			const auto flags = newRights.match([](
+					const MTPDchatAdminRights &data) {
+				return data.vflags.v;
+			});
+			if (flags == ChatData::DefaultAdminRights()) {
+				saveChatAdmin(true);
+			} else if (!flags) {
+				saveChatAdmin(false);
+			} else {
+				// #TODO groups autoconv
 			}
-			if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
-				Ui::show(
-					Box<InformBox>(PeerFloodErrorText(
-						channel->isMegagroup()
-						? PeerFloodType::InviteGroup
-						: PeerFloodType::InviteChannel)),
-					LayerOption::KeepOther);
-			} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
-				Ui::show(
-					Box<InformBox>(lang(lng_error_cant_add_bot)),
-					LayerOption::KeepOther);
-			} else if (error.type() == qstr("ADMINS_TOO_MUCH")) {
-				Ui::show(
-					Box<InformBox>(lang(channel->isMegagroup()
-						? lng_error_admin_limit
-						: lng_error_admin_limit_channel)),
-					LayerOption::KeepOther);
-			}
-			onFail();
-			return true;
-		};
-		MTP::send(
-			MTPchannels_EditAdmin(
-				channel->inputChannel,
-				user->inputUser,
-				newRights),
-			rpcDone(std::move(done)),
-			rpcFail(std::move(fail)));
+		} else if (const auto channel = peer->asChannel()) {
+			SaveChannelAdmin(
+				channel,
+				user,
+				oldRights,
+				newRights,
+				done,
+				onFail);
+		} else {
+			Unexpected("Peer in SaveAdminCallback.");
+		}
 	};
 }
 
 Fn<void(
 	const MTPChatBannedRights &oldRights,
 	const MTPChatBannedRights &newRights)> SaveRestrictedCallback(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(const MTPChatBannedRights &newRights)> onDone,
 		Fn<void()> onFail) {
 	return [=](
 			const MTPChatBannedRights &oldRights,
 			const MTPChatBannedRights &newRights) {
-		auto done = [=](const MTPUpdates &result) {
-			channel->session().api().applyUpdates(result);
-			channel->applyEditBanned(user, oldRights, newRights);
-			onDone(newRights);
-		};
-		auto fail = [=](const RPCError &error) {
-			if (MTP::isDefaultHandledError(error)) {
-				return false;
+		const auto done = [=] { onDone(newRights); };
+		if (const auto chat = peer->asChat()) {
+			const auto flags = newRights.match([](
+					const MTPDchatBannedRights &data) {
+				return data.vflags.v;
+			});
+			if (!flags) {
+				done();
+			} else {
+				// #TODO groups autoconv
 			}
-			onFail();
-			return true;
-		};
-		MTP::send(
-			MTPchannels_EditBanned(
-				channel->inputChannel,
-				user->inputUser,
-				newRights),
-			rpcDone(std::move(done)),
-			rpcFail(std::move(fail)));
+		} else if (const auto channel = peer->asChannel()) {
+			SaveChannelRestriction(
+				channel,
+				user,
+				oldRights,
+				newRights,
+				done,
+				onFail);
+		} else {
+			Unexpected("Peer in SaveAdminCallback.");
+		}
 	};
 }
 
@@ -154,13 +228,7 @@ ParticipantsAdditionalData::ParticipantsAdditionalData(
 	Role role)
 : _peer(peer)
 , _role(role) {
-	if (const auto chat = _peer->asChat()) {
-		_creator = chat->owner().userLoaded(chat->creator);
-	} else if (const auto channel = _peer->asChannel()) {
-		if (channel->mgInfo) {
-			_creator = channel->mgInfo->creator;
-		}
-	}
+	fillFromPeer();
 }
 
 bool ParticipantsAdditionalData::infoLoaded(not_null<UserData*> user) const {
@@ -294,6 +362,9 @@ void ParticipantsAdditionalData::fillFromPeer() {
 }
 
 void ParticipantsAdditionalData::fillFromChat(not_null<ChatData*> chat) {
+	if (const auto creator = chat->owner().userLoaded(chat->creator)) {
+		_creator = creator;
+	}
 	if (chat->participants.empty()) {
 		return;
 	}
@@ -404,6 +475,10 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 	const auto user = _peer->owner().userLoaded(data.vuser_id.v);
 	if (!user) {
 		return nullptr;
+	} else if (const auto chat = _peer->asChat()) {
+		// This can come from saveAdmin callback.
+		_admins.emplace(user);
+		return user;
 	}
 
 	_infoNotLoaded.erase(user);
@@ -434,6 +509,10 @@ UserData *ParticipantsAdditionalData::applyRegular(MTPint userId) {
 	const auto user = _peer->owner().userLoaded(userId.v);
 	if (!user) {
 		return nullptr;
+	} else if (const auto chat = _peer->asChat()) {
+		// This can come from saveAdmin or saveRestricted callback.
+		_admins.erase(user);
+		return user;
 	}
 
 	_infoNotLoaded.erase(user);
@@ -883,18 +962,16 @@ void ParticipantsBoxController::prepareChatRows(not_null<ChatData*> chat) {
 		UpdateFlag::MembersChanged
 		| UpdateFlag::AdminsChanged,
 		[=](const Notify::PeerUpdate &update) {
-			if (update.flags & UpdateFlag::MembersChanged) {
-				if (update.peer == chat) {
-					rebuildChatRows(chat);
-				}
-			} else if (update.flags & UpdateFlag::AdminsChanged) {
-				if (update.peer == chat) {
-					if (_role == Role::Members || _role == Role::Profile) {
-						rebuildRowTypes();
-					} else if (_role == Role::Admins) {
-						rebuildChatRows(chat);
-					}
-				}
+			if (update.peer != chat) {
+				return;
+			}
+			_additional.fillFromPeer();
+			if ((update.flags & UpdateFlag::MembersChanged)
+				|| (_role == Role::Admins)) {
+				rebuildChatRows(chat);
+			}
+			if (update.flags & UpdateFlag::AdminsChanged) {
+				rebuildRowTypes();
 			}
 		}));
 }
@@ -905,7 +982,7 @@ void ParticipantsBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 	case Role::Members: return rebuildChatParticipants(chat);
 	case Role::Admins: return rebuildChatAdmins(chat);
 	case Role::Restricted:
-	case Role::Kicked: return;
+	case Role::Kicked: return chatListReady();
 	}
 	Unexpected("Role in ParticipantsBoxController::rebuildChatRows");
 }
@@ -942,7 +1019,7 @@ void ParticipantsBoxController::rebuildChatParticipants(
 	_onlineSorter->sort();
 
 	delegate()->peerListRefreshRows();
-	setNonEmptyDescription();
+	chatListReady();
 }
 
 void ParticipantsBoxController::rebuildChatAdmins(
@@ -992,10 +1069,25 @@ void ParticipantsBoxController::rebuildChatAdmins(
 	}
 
 	delegate()->peerListRefreshRows();
-	setNonEmptyDescription();
+	chatListReady();
+}
+
+void ParticipantsBoxController::chatListReady() {
+	if (_allLoaded) {
+		return;
+	}
+	_allLoaded = true;
+	if (delegate()->peerListFullRowsCount() > 0) {
+		setNonEmptyDescription();
+	} else {
+		setDescriptionText(lang(lng_blocked_list_not_found));
+	}
 }
 
 void ParticipantsBoxController::rebuildRowTypes() {
+	if (_role != Role::Profile) {
+		return;
+	}
 	const auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count; ++i) {
 		const auto row = static_cast<Row*>(
@@ -1220,21 +1312,16 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	if (_additional.canAddOrEditAdmin(user)) {
-		if (chat) {
-			// #TODO groups autoconv
-		} else if (channel) {
-			const auto done = crl::guard(this, [=](
-					const MTPChatAdminRights &newRights) {
-				editAdminDone(user, newRights);
-			});
-			const auto fail = crl::guard(this, [=] {
-				if (_editBox) {
-					_editBox->closeBox();
-				}
-			});
-			box->setSaveCallback(
-				SaveAdminCallback(channel, user, done, fail));
-		}
+		const auto done = crl::guard(this, [=](
+				const MTPChatAdminRights &newRights) {
+			editAdminDone(user, newRights);
+		});
+		const auto fail = crl::guard(this, [=] {
+			if (_editBox) {
+				_editBox->closeBox();
+			}
+		});
+		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
@@ -1293,21 +1380,17 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	if (_additional.canRestrictUser(user)) {
-		if (chat) {
-			// #TODO groups autoconv
-		} else {
-			const auto done = crl::guard(this, [=](
-					const MTPChatBannedRights &newRights) {
-				editRestrictedDone(user, newRights);
-			});
-			const auto fail = crl::guard(this, [=] {
-				if (_editBox) {
-					_editBox->closeBox();
-				}
-			});
-			box->setSaveCallback(
-				SaveRestrictedCallback(channel, user, done, fail));
-		}
+		const auto done = crl::guard(this, [=](
+				const MTPChatBannedRights &newRights) {
+			editRestrictedDone(user, newRights);
+		});
+		const auto fail = crl::guard(this, [=] {
+			if (_editBox) {
+				_editBox->closeBox();
+			}
+		});
+		box->setSaveCallback(
+			SaveRestrictedCallback(_peer, user, done, fail));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
@@ -1415,9 +1498,9 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 		_editBox->closeBox();
 	}
 	if (const auto chat = _peer->asChat()) {
-		EditChatAdmin(chat, user, false, crl::guard(this, [=] {
+		SaveChatAdmin(chat, user, false, crl::guard(this, [=] {
 			editAdminDone(user, MTP_chatAdminRights(MTP_flags(0)));
-		}));
+		}), nullptr);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto adminRights = _additional.adminRights(user);
 		if (!adminRights) {
@@ -1425,7 +1508,7 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 		}
 		RemoveAdmin(channel, user, *adminRights, crl::guard(this, [=] {
 			editAdminDone(user, MTP_chatAdminRights(MTP_flags(0)));
-		}));
+		}), nullptr);
 	}
 }
 
@@ -1530,7 +1613,7 @@ void ParticipantsBoxController::recomputeTypeFor(
 	if (_role != Role::Profile) {
 		return;
 	}
-	if (auto row = delegate()->peerListFindRow(user->id)) {
+	if (const auto row = delegate()->peerListFindRow(user->id)) {
 		static_cast<Row*>(row)->setType(computeType(user));
 	}
 }

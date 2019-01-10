@@ -104,15 +104,15 @@ void ChatMembersController::prepare() {
 		| UpdateFlag::UserOnlineChanged
 		| UpdateFlag::AdminsChanged,
 		[this](const Notify::PeerUpdate &update) {
-			if (update.flags & UpdateFlag::MembersChanged) {
-				if (update.peer == _chat) {
+			if (update.peer == _chat) {
+				if (update.flags & UpdateFlag::MembersChanged) {
 					rebuildRows();
 				}
-			} else if (update.flags & UpdateFlag::AdminsChanged) {
-				if (update.peer == _chat) {
+				if (update.flags & UpdateFlag::AdminsChanged) {
 					rebuildRowTypes();
 				}
-			} else if (update.flags & UpdateFlag::UserOnlineChanged) {
+			}
+			if (update.flags & UpdateFlag::UserOnlineChanged) {
 				if (auto row = delegate()->peerListFindRow(
 					update.peer->id)) {
 					row->refreshStatus();

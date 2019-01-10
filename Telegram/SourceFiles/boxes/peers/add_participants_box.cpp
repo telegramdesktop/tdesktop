@@ -272,10 +272,11 @@ void AddSpecialBoxController::prepareChatRows(not_null<ChatData*> chat) {
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		UpdateFlag::MembersChanged,
+		UpdateFlag::MembersChanged | UpdateFlag::AdminsChanged,
 		[=](const Notify::PeerUpdate &update) {
-			if (update.flags & UpdateFlag::MembersChanged) {
-				if (update.peer == chat) {
+			if (update.peer == chat) {
+				_additional.fillFromPeer();
+				if (update.flags & UpdateFlag::MembersChanged) {
 					rebuildChatRows(chat);
 				}
 			}
@@ -505,21 +506,16 @@ void AddSpecialBoxController::showAdmin(
 		: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 	auto box = Box<EditAdminBox>(_peer, user, currentRights);
 	if (_additional.canAddOrEditAdmin(user)) {
-		if (chat) {
-			// #TODO groups autoconv
-		} else {
-			const auto done = crl::guard(this, [=](
-					const MTPChatAdminRights &newRights) {
-				editAdminDone(user, newRights);
-			});
-			const auto fail = crl::guard(this, [=] {
-				if (_editBox) {
-					_editBox->closeBox();
-				}
-			});
-			box->setSaveCallback(
-				SaveAdminCallback(channel, user, done, fail));
-		}
+		const auto done = crl::guard(this, [=](
+				const MTPChatAdminRights &newRights) {
+			editAdminDone(user, newRights);
+		});
+		const auto fail = crl::guard(this, [=] {
+			if (_editBox) {
+				_editBox->closeBox();
+			}
+		});
+		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
@@ -604,9 +600,7 @@ void AddSpecialBoxController::showRestricted(
 		user,
 		_additional.adminRights(user).has_value(),
 		currentRights);
-	if (chat) {
-		// #TODO groups autoconv
-	} else {
+	if (_additional.canRestrictUser(user)) {
 		const auto done = crl::guard(this, [=](
 				const MTPChatBannedRights &newRights) {
 			editRestrictedDone(user, newRights);
@@ -617,7 +611,7 @@ void AddSpecialBoxController::showRestricted(
 			}
 		});
 		box->setSaveCallback(
-			SaveRestrictedCallback(channel, user, done, fail));
+			SaveRestrictedCallback(_peer, user, done, fail));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }

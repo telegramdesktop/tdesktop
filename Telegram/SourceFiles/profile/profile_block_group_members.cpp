@@ -109,13 +109,14 @@ void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & UpdateFlag::MembersChanged) {
 		refreshMembers();
 		contentSizeUpdated();
-	} else if (update.flags & UpdateFlag::AdminsChanged) {
-		if (auto chat = peer()->asChat()) {
-			for_const (auto item, items()) {
+	}
+	if (update.flags & UpdateFlag::AdminsChanged) {
+		if (const auto chat = peer()->asChat()) {
+			for (const auto item : items()) {
 				setItemFlags(getMember(item), chat);
 			}
-		} else if (auto megagroup = peer()->asMegagroup()) {
-			for_const (auto item, items()) {
+		} else if (const auto megagroup = peer()->asMegagroup()) {
+			for (const auto item : items()) {
 				setItemFlags(getMember(item), megagroup);
 			}
 		}

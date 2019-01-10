@@ -198,7 +198,9 @@ rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 			chat,
 			Flag::AdminsChanged | Flag::RightsChanged
 		) | rpl::map([=] {
-			return int(chat->admins.size());
+			return chat->participants.empty()
+				? 0
+				: int(chat->admins.size() + 1); // + creator
 		});
 	} else if (const auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
