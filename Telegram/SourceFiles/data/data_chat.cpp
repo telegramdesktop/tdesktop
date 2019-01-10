@@ -37,15 +37,24 @@ bool ChatData::actionsUnavailable() const {
 	return isDeactivated() || !amIn();
 }
 
+auto ChatData::DefaultAdminRights() -> AdminRights {
+	using Flag = AdminRight;
+	return Flag::f_change_info
+		| Flag::f_delete_messages
+		| Flag::f_ban_users
+		| Flag::f_invite_users
+		| Flag::f_pin_messages;
+}
+
 bool ChatData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
 	return !actionsUnavailable()
-		&& !amRestricted(ChatRestriction::f_send_messages);
+		&& !amRestricted(Restriction::f_send_messages);
 }
 
 bool ChatData::canEditInformation() const {
 	return !actionsUnavailable()
-		&& !amRestricted(ChatRestriction::f_change_info);
+		&& !amRestricted(Restriction::f_change_info);
 }
 
 bool ChatData::canEditPermissions() const {
@@ -64,11 +73,43 @@ bool ChatData::canEditPreHistoryHidden() const {
 
 bool ChatData::canAddMembers() const {
 	return !actionsUnavailable()
-		&& !amRestricted(ChatRestriction::f_invite_users);
+		&& !amRestricted(Restriction::f_invite_users);
+}
+
+bool ChatData::canSendPolls() const {
+	return !actionsUnavailable()
+		&& !amRestricted(Restriction::f_send_polls);
+}
+
+bool ChatData::canAddAdmins() const {
+	return !actionsUnavailable()
+		&& amCreator();
+}
+
+bool ChatData::canBanMembers() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::f_ban_users);
+}
+
+bool ChatData::anyoneCanAddMembers() const {
+	return !(defaultRestrictions() & Restriction::f_invite_users);
 }
 
 void ChatData::setName(const QString &newName) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), QString());
+}
+
+void ChatData::applyEditAdmin(not_null<UserData*> user, bool isAdmin) {
+	auto flags = Notify::PeerUpdate::Flag::AdminsChanged
+		| Notify::PeerUpdate::Flag::None;
+	if (isAdmin) {
+		admins.emplace(user);
+	} else {
+		admins.remove(user);
+	}
+	Notify::peerUpdatedDelayed(
+		this,
+		Notify::PeerUpdate::Flag::AdminsChanged);
 }
 
 void ChatData::invalidateParticipants() {

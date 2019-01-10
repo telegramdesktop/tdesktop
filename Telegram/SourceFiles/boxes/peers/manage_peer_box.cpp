@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "window/window_controller.h"
-#include "profile/profile_channel_controllers.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
@@ -52,7 +52,7 @@ Info::Profile::Button *AddButton(
 		rpl::single(QString()),
 		std::move(callback),
 		st::managePeerButton,
-		icon);
+		&icon);
 }
 
 void AddButtonWithCount(
@@ -67,7 +67,7 @@ void AddButtonWithCount(
 		std::move(count),
 		std::move(callback),
 		st::managePeerButton,
-		icon);
+		&icon);
 }
 
 bool HasRecentActions(not_null<ChannelData*> channel) {
@@ -139,10 +139,10 @@ void FillManageChatBox(
 			Info::Profile::AdminsCountValue(chat)
 				| ToPositiveNumberString(),
 			[=] {
-				//ParticipantsBoxController::Start(
-				//	navigation,
-				//	channel,
-				//	ParticipantsBoxController::Role::Admins);
+				ParticipantsBoxController::Start(
+					navigation,
+					chat,
+					ParticipantsBoxController::Role::Admins);
 			},
 			st::infoIconAdministrators);
 		AddButtonWithCount(
@@ -151,10 +151,10 @@ void FillManageChatBox(
 			Info::Profile::MembersCountValue(chat)
 				| ToPositiveNumberString(),
 			[=] {
-				//ParticipantsBoxController::Start(
-				//	navigation,
-				//	channel,
-				//	ParticipantsBoxController::Role::Members);
+				ParticipantsBoxController::Start(
+					navigation,
+					chat,
+					ParticipantsBoxController::Role::Members);
 			},
 			st::infoIconMembers);
 	}
@@ -164,8 +164,6 @@ void FillManageChannelBox(
 		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
 		not_null<Ui::VerticalLayout*> content) {
-	using Profile::ParticipantsBoxController;
-
 	auto isGroup = channel->isMegagroup();
 	if (HasEditInfoBox(channel)) {
 		AddButton(
@@ -272,17 +270,19 @@ Info::Profile::Button *ManagePeerBox::CreateButton(
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
 		const style::InfoProfileCountButton &st,
-		const style::icon &icon) {
+		const style::icon *icon) {
 	const auto button = parent->add(
 		object_ptr<Info::Profile::Button>(
 			parent,
 			std::move(text),
 			st.button));
 	button->addClickHandler(callback);
-	Ui::CreateChild<Info::Profile::FloatingIcon>(
-		button,
-		icon,
-		st.iconPosition);
+	if (icon) {
+		Ui::CreateChild<Info::Profile::FloatingIcon>(
+			button,
+			*icon,
+			st.iconPosition);
+	}
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		std::move(count),

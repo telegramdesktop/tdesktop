@@ -25,26 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
-	if (!peer) {
-		return {};
-	}
-	if (auto chat = peer->asChat()) {
-		auto participants = (
-			chat->participants
-		) | ranges::view::transform([](auto &&pair) -> not_null<UserData*> {
-			return pair.first;
-		});
-		return { participants.begin(), participants.end() };
-	} else if (auto channel = peer->asChannel()) {
-		if (channel->isMegagroup()) {
-			auto &participants = channel->mgInfo->lastParticipants;
-			return { participants.cbegin(), participants.cend() };
-		}
-	}
-	return {};
-}
-
 void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	const auto history = App::historyLoaded(chat);
 	const auto randomId = rand_value<uint64>();
@@ -81,25 +61,6 @@ void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	}
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-}
-
-bool InviteSelectedUsers(
-		not_null<PeerListBox*> box,
-		not_null<PeerData*> chat) {
-	const auto rows = box->peerListCollectSelectedRows();
-	const auto users = ranges::view::all(
-		rows
-	) | ranges::view::transform([](not_null<PeerData*> peer) {
-		Expects(peer->isUser());
-		Expects(!peer->isSelf());
-
-		return not_null<UserData*>(peer->asUser());
-	}) | ranges::to_vector;
-	if (users.empty()) {
-		return false;
-	}
-	Auth().api().addChatParticipants(chat, users);
-	return true;
 }
 
 } // namespace
@@ -419,142 +380,6 @@ bool ContactsBoxController::appendRow(not_null<UserData*> user) {
 
 std::unique_ptr<PeerListRow> ContactsBoxController::createRow(not_null<UserData*> user) {
 	return std::make_unique<PeerListRow>(user);
-}
-
-AddParticipantsBoxController::AddParticipantsBoxController(PeerData *peer)
-: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
-, _peer(peer)
-, _alreadyIn(GetAlreadyInFromPeer(peer)) {
-}
-
-AddParticipantsBoxController::AddParticipantsBoxController(
-	not_null<ChannelData*> channel,
-	base::flat_set<not_null<UserData*>> &&alreadyIn)
-: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
-, _peer(channel)
-, _alreadyIn(std::move(alreadyIn)) {
-}
-
-void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	auto count = fullCount();
-	auto limit = (_peer && _peer->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax();
-	if (count < limit || row->checked()) {
-		delegate()->peerListSetRowChecked(row, !row->checked());
-		updateTitle();
-	} else if (auto channel = _peer ? _peer->asChannel() : nullptr) {
-		if (!_peer->isMegagroup()) {
-			Ui::show(
-				Box<MaxInviteBox>(_peer->asChannel()),
-				LayerOption::KeepOther);
-		}
-	} else if (count >= Global::ChatSizeMax() && count < Global::MegagroupSizeMax()) {
-		Ui::show(
-			Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())),
-			LayerOption::KeepOther);
-	}
-}
-
-void AddParticipantsBoxController::itemDeselectedHook(not_null<PeerData*> peer) {
-	updateTitle();
-}
-
-void AddParticipantsBoxController::prepareViewHook() {
-	updateTitle();
-}
-
-int AddParticipantsBoxController::alreadyInCount() const {
-	if (!_peer) {
-		return 1; // self
-	}
-	if (auto chat = _peer->asChat()) {
-		return qMax(chat->count, 1);
-	} else if (auto channel = _peer->asChannel()) {
-		return qMax(channel->membersCount(), int(_alreadyIn.size()));
-	}
-	Unexpected("User in AddParticipantsBoxController::alreadyInCount");
-}
-
-bool AddParticipantsBoxController::isAlreadyIn(not_null<UserData*> user) const {
-	if (!_peer) {
-		return false;
-	}
-	if (auto chat = _peer->asChat()) {
-		return chat->participants.contains(user);
-	} else if (auto channel = _peer->asChannel()) {
-		return _alreadyIn.contains(user)
-			|| (channel->isMegagroup() && base::contains(channel->mgInfo->lastParticipants, user));
-	}
-	Unexpected("User in AddParticipantsBoxController::isAlreadyIn");
-}
-
-int AddParticipantsBoxController::fullCount() const {
-	return alreadyInCount() + delegate()->peerListSelectedRowsCount();
-}
-
-std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(not_null<UserData*> user) {
-	if (user->isSelf()) {
-		return nullptr;
-	}
-	auto result = std::make_unique<PeerListRow>(user);
-	if (isAlreadyIn(user)) {
-		result->setDisabledState(PeerListRow::State::DisabledChecked);
-	}
-	return result;
-}
-
-void AddParticipantsBoxController::updateTitle() {
-	auto additional = (_peer && _peer->isChannel() && !_peer->isMegagroup())
-		? QString() :
-		QString("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
-	delegate()->peerListSetTitle(langFactory(lng_profile_add_participant));
-	delegate()->peerListSetAdditionalTitle([additional] { return additional; });
-}
-
-void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
-	auto initBox = [=](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_participant_invite), [=] {
-			if (InviteSelectedUsers(box, chat)) {
-				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
-			}
-		});
-		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
-	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(chat), std::move(initBox)));
-}
-
-void AddParticipantsBoxController::Start(
-		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn,
-		bool justCreated) {
-	auto initBox = [channel, justCreated](not_null<PeerListBox*> box) {
-		auto subscription = std::make_shared<rpl::lifetime>();
-		box->addButton(langFactory(lng_participant_invite), [=, copy = subscription] {
-			if (InviteSelectedUsers(box, channel)) {
-				if (channel->isMegagroup()) {
-					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
-				} else {
-					box->closeBox();
-				}
-			}
-		});
-		box->addButton(langFactory(justCreated ? lng_create_group_skip : lng_cancel), [box] { box->closeBox(); });
-		if (justCreated) {
-			box->boxClosing() | rpl::start_with_next([=] {
-				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
-			}, *subscription);
-		}
-	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
-}
-
-void AddParticipantsBoxController::Start(
-		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn) {
-	Start(channel, std::move(alreadyIn), false);
-}
-
-void AddParticipantsBoxController::Start(not_null<ChannelData*> channel) {
-	Start(channel, {}, true);
 }
 
 void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {

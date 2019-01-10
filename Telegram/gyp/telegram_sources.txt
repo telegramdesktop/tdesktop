@@ -1,5 +1,9 @@
+<(src_loc)/boxes/peers/add_participants_box.cpp
+<(src_loc)/boxes/peers/add_participants_box.h
 <(src_loc)/boxes/peers/edit_participant_box.cpp
 <(src_loc)/boxes/peers/edit_participant_box.h
+<(src_loc)/boxes/peers/edit_participants_box.cpp
+<(src_loc)/boxes/peers/edit_participants_box.h
 <(src_loc)/boxes/peers/edit_peer_info_box.cpp
 <(src_loc)/boxes/peers/edit_peer_info_box.h
 <(src_loc)/boxes/peers/edit_peer_permissions_box.cpp
@@ -584,8 +588,6 @@
 <(src_loc)/profile/profile_block_peer_list.h
 <(src_loc)/profile/profile_block_widget.cpp
 <(src_loc)/profile/profile_block_widget.h
-<(src_loc)/profile/profile_channel_controllers.cpp
-<(src_loc)/profile/profile_channel_controllers.h
 <(src_loc)/profile/profile_cover_drop_area.cpp
 <(src_loc)/profile/profile_cover_drop_area.h
 <(src_loc)/settings/settings_advanced.cpp

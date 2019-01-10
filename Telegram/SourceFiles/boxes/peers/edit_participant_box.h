@@ -24,7 +24,7 @@ class EditParticipantBox : public BoxContent {
 public:
 	EditParticipantBox(
 		QWidget*,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		bool hasAdminRights);
 
@@ -34,8 +34,8 @@ protected:
 	not_null<UserData*> user() const {
 		return _user;
 	}
-	not_null<ChannelData*> channel() const {
-		return _channel;
+	not_null<PeerData*> peer() const {
+		return _peer;
 	}
 
 	template <typename Widget>
@@ -46,7 +46,7 @@ protected:
 	}
 
 private:
-	not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 	not_null<UserData*> _user;
 	bool _hasAdminRights = false;
 
@@ -59,7 +59,7 @@ class EditAdminBox : public EditParticipantBox {
 public:
 	EditAdminBox(
 		QWidget*,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		const MTPChatAdminRights &rights);
 
@@ -75,7 +75,7 @@ private:
 	using Flag = MTPDchatAdminRights::Flag;
 	using Flags = MTPDchatAdminRights::Flags;
 
-	static MTPChatAdminRights Defaults(not_null<ChannelData*> channel);
+	static MTPChatAdminRights Defaults(not_null<PeerData*> peer);
 
 	bool canSave() const {
 		return !!_saveCallback;
@@ -96,7 +96,7 @@ class EditRestrictedBox : public EditParticipantBox {
 public:
 	EditRestrictedBox(
 		QWidget*,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		bool hasAdminRights,
 		const MTPChatBannedRights &rights);
@@ -113,7 +113,7 @@ private:
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	static MTPChatBannedRights Defaults(not_null<ChannelData*> channel);
+	static MTPChatBannedRights Defaults(not_null<PeerData*> peer);
 
 	bool canSave() const {
 		return !!_saveCallback;
@@ -121,7 +121,6 @@ private:
 	void showRestrictUntil();
 	void setRestrictUntil(TimeId until);
 	bool isUntilForever() const;
-	void clearVariants();
 	void createUntilGroup();
 	void createUntilVariants();
 	TimeId getRealUntilValue() const;

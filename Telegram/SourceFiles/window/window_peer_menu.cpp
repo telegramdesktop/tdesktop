@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
 #include "boxes/create_poll_box.h"
-#include "boxes/peer_list_controllers.h"
+#include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/manage_peer_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "ui/toast/toast.h"
@@ -368,7 +368,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 				lang(lng_profile_add_participant),
 				[chat] { AddChatMembers(chat); });
 		}
-		if (chat->canWrite()) {
+		if (chat->canSendPolls()) {
 			_addAction(
 				lang(lng_polls_create),
 				[=] { PeerMenuCreatePoll(chat); });
@@ -410,7 +410,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 				lang(lng_channel_add_members),
 				[channel] { PeerMenuAddChannelMembers(channel); });
 		}
-		if (channel->canWrite()) {
+		if (channel->canSendPolls()) {
 			_addAction(
 				lang(lng_polls_create),
 				[=] { PeerMenuCreatePoll(channel); });

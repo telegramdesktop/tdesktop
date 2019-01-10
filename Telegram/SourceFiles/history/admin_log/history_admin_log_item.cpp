@@ -213,7 +213,7 @@ QString GenerateBannedChangeText(
 		{ Flag::f_send_media, lng_admin_log_banned_send_media },
 		{ Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_inline | Flag::f_send_games, lng_admin_log_banned_send_stickers },
 		{ Flag::f_embed_links, lng_admin_log_banned_embed_links },
-		{ Flag::f_send_media, lng_admin_log_banned_send_polls },
+		{ Flag::f_send_polls, lng_admin_log_banned_send_polls },
 		{ Flag::f_change_info, lng_admin_log_admin_change_info },
 		{ Flag::f_invite_users, lng_admin_log_admin_invite_users },
 		{ Flag::f_pin_messages, lng_admin_log_admin_pin_messages },

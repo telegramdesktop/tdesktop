@@ -16,9 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_participant_box.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "core/file_utilities.h"
-#include "profile/profile_channel_controllers.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -91,7 +92,7 @@ void ShowAddParticipantsError(
 						(*weak)->closeBox();
 					}
 				};
-				const auto saveCallback = Profile::SaveAdminCallback(
+				const auto saveCallback = SaveAdminCallback(
 					channel,
 					user,
 					[=](auto&&...) { close(); },

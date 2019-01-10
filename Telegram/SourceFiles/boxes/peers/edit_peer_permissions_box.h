@@ -27,9 +27,7 @@ protected:
 	void prepare() override;
 
 private:
-	void addBannedButtons(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<ChannelData*> channel);
+	void addBannedButtons(not_null<Ui::VerticalLayout*> container);
 
 	not_null<PeerData*> _peer;
 	Ui::RoundButton *_save = nullptr;

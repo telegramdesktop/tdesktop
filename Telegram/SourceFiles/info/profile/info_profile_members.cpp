@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
-#include "boxes/peer_list_controllers.h"
+#include "boxes/peers/add_participants_box.h"
 #include "window/window_controller.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -323,11 +323,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 
 void Members::addMember() {
 	if (const auto chat = _peer->asChat()) {
-		if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-			// #TODO convert and add inside AddParticipantsBoxController?
-		} else {
-			AddParticipantsBoxController::Start(chat);
-		}
+		AddParticipantsBoxController::Start(chat);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto state = _listController->saveState();
 		const auto users = ranges::view::all(

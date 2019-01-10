@@ -121,13 +121,21 @@ public:
 		return flags() & MTPDchat::Flag::f_migrated_to;
 	}
 
-	// Like in ChatData.
+	static AdminRights DefaultAdminRights();
+
+	// Like in ChannelData.
 	bool canWrite() const;
 	bool canEditInformation() const;
 	bool canEditPermissions() const;
 	bool canEditUsername() const;
 	bool canEditPreHistoryHidden() const;
 	bool canAddMembers() const;
+	bool canAddAdmins() const;
+	bool canBanMembers() const;
+	bool canSendPolls() const;
+	bool anyoneCanAddMembers() const;
+
+	void applyEditAdmin(not_null<UserData*> user, bool isAdmin);
 
 	void setInviteLink(const QString &newInviteLink);
 	QString inviteLink() const {

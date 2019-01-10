@@ -389,6 +389,7 @@ public:
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
+	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peers/edit_participant_box.h"
-#include "profile/profile_channel_controllers.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
@@ -66,51 +66,6 @@ GroupMembersWidget::GroupMembersWidget(
 	});
 
 	refreshMembers();
-}
-
-void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
-	auto megagroup = peer()->asMegagroup();
-	if (!megagroup) {
-		return; // not supported
-	}
-	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
-	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
-	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_chatAdminRights(MTP_flags(0));
-	auto weak = std::make_shared<QPointer<EditAdminBox>>(nullptr);
-	auto box = Box<EditAdminBox>(megagroup, user, currentRights);
-	box->setSaveCallback(SaveAdminCallback(megagroup, user, [=](
-			const MTPChatAdminRights &newRights) {
-		if (*weak) {
-			(*weak)->closeBox();
-		}
-	}, [=] {
-		if (*weak) {
-			(*weak)->closeBox();
-		}
-	}));
-	*weak = Ui::show(std::move(box));
-}
-
-void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
-	auto megagroup = peer()->asMegagroup();
-	if (!megagroup) {
-		return; // not supported
-	}
-	auto currentRightsIt = megagroup->mgInfo->lastRestricted.find(user);
-	auto currentRights = (currentRightsIt != megagroup->mgInfo->lastRestricted.end())
-		? currentRightsIt->second.rights
-		: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
-	auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
-	auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
-	box->setSaveCallback([megagroup, user](const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
-		Ui::hideLayer();
-		// #TODO use Auth().api().
-		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, oldRights, newRights](const MTPUpdates &result) {
-			Auth().api().applyUpdates(result);
-			megagroup->applyEditBanned(user, oldRights, newRights);
-		}));
-	});
-	Ui::show(std::move(box));
 }
 
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {

@@ -105,12 +105,23 @@ void ChannelData::setKickedCount(int newKickedCount) {
 
 MTPChatBannedRights ChannelData::KickedRestrictedRights() {
 	using Flag = MTPDchatBannedRights::Flag;
-	auto flags = Flag::f_view_messages | Flag::f_send_messages | Flag::f_send_media | Flag::f_embed_links | Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_games | Flag::f_send_inline;
-	return MTP_chatBannedRights(MTP_flags(flags), MTP_int(std::numeric_limits<int32>::max()));
+	const auto flags = Flag::f_view_messages
+		| Flag::f_send_messages
+		| Flag::f_send_media
+		| Flag::f_embed_links
+		| Flag::f_send_stickers
+		| Flag::f_send_gifs
+		| Flag::f_send_games
+		| Flag::f_send_inline;
+	return MTP_chatBannedRights(
+		MTP_flags(flags),
+		MTP_int(std::numeric_limits<int32>::max()));
 }
 
-void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChatAdminRights &oldRights, const MTPChatAdminRights &newRights) {
-	auto flags = Notify::PeerUpdate::Flag::AdminsChanged | Notify::PeerUpdate::Flag::None;
+void ChannelData::applyEditAdmin(
+		not_null<UserData*> user,
+		const MTPChatAdminRights &oldRights,
+		const MTPChatAdminRights &newRights) {
 	if (mgInfo) {
 		// If rights are empty - still add participant? TODO check
 		if (!base::contains(mgInfo->lastParticipants, user)) {
@@ -167,7 +178,9 @@ void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChatAdminRig
 		setAdminsCount(adminsCount() + 1);
 		updateFullForced();
 	}
-	Notify::peerUpdatedDelayed(this, flags);
+	Notify::peerUpdatedDelayed(
+		this,
+		Notify::PeerUpdate::Flag::AdminsChanged);
 }
 
 void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
@@ -285,23 +298,22 @@ void ChannelData::setFeedPointer(Data::Feed *feed) {
 }
 
 bool ChannelData::canBanMembers() const {
-	return (adminRights() & AdminRight::f_ban_users)
-		|| amCreator();
+	return amCreator()
+		|| (adminRights() & AdminRight::f_ban_users);
 }
 
 bool ChannelData::canEditMessages() const {
-	return (adminRights() & AdminRight::f_edit_messages)
-		|| amCreator();
+	return amCreator()
+		|| (adminRights() & AdminRight::f_edit_messages);
 }
 
 bool ChannelData::canDeleteMessages() const {
-	return (adminRights() & AdminRight::f_delete_messages)
-		|| amCreator();
+	return amCreator()
+		|| (adminRights() & AdminRight::f_delete_messages);
 }
 
 bool ChannelData::anyoneCanAddMembers() const {
-	// #TODO groups
-	return false;// (flags() & MTPDchannel::Flag::f_democracy);
+	return !(defaultRestrictions() & Restriction::f_invite_users);
 }
 
 bool ChannelData::hiddenPreHistory() const {
@@ -310,6 +322,10 @@ bool ChannelData::hiddenPreHistory() const {
 
 bool ChannelData::canAddMembers() const {
 	return !amRestricted(ChatRestriction::f_invite_users);
+}
+
+bool ChannelData::canSendPolls() const {
+	return canWrite() && !amRestricted(ChatRestriction::f_send_polls);
 }
 
 bool ChannelData::canAddAdmins() const {

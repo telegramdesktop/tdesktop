@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
-#include "profile/profile_channel_controllers.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/manage_peer_box.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
@@ -271,9 +271,7 @@ void EditPeerPermissionsBox::prepare() {
 
 	inner->add(std::move(checkboxes));
 
-	if (const auto channel = _peer->asChannel()) {
-		addBannedButtons(inner, channel);
-	}
+	addBannedButtons(inner);
 
 	_value = getRestrictions;
 	_save = addButton(langFactory(lng_settings_save));
@@ -283,41 +281,40 @@ void EditPeerPermissionsBox::prepare() {
 }
 
 void EditPeerPermissionsBox::addBannedButtons(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<ChannelData*> channel) {
-	using Profile::ParticipantsBoxController;
-
+		not_null<Ui::VerticalLayout*> container) {
 	container->add(
 		object_ptr<BoxContentDivider>(container),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
 	const auto navigation = App::wnd()->controller();
+	const auto channel = _peer->asChannel();
 	ManagePeerBox::CreateButton(
 		container,
 		Lang::Viewer(lng_manage_peer_exceptions),
-		Info::Profile::RestrictedCountValue(channel)
-		| ToPositiveNumberString(),
+		(channel
+			? Info::Profile::RestrictedCountValue(channel)
+			: rpl::single(0)) | ToPositiveNumberString(),
 		[=] {
 			ParticipantsBoxController::Start(
 				navigation,
-				channel,
+				_peer,
 				ParticipantsBoxController::Role::Restricted);
 		},
-		st::peerPermissionsButton,
-		st::infoIconRestrictedUsers);
-	ManagePeerBox::CreateButton(
-		container,
-		Lang::Viewer(lng_manage_peer_removed_users),
-		Info::Profile::KickedCountValue(channel)
-		| ToPositiveNumberString(),
-		[=] {
-			ParticipantsBoxController::Start(
-				navigation,
-				channel,
-				ParticipantsBoxController::Role::Kicked);
-		},
-		st::peerPermissionsButton,
-		st::infoIconBlacklist);
+		st::peerPermissionsButton);
+	if (channel) {
+		ManagePeerBox::CreateButton(
+			container,
+			Lang::Viewer(lng_manage_peer_removed_users),
+			Info::Profile::KickedCountValue(channel)
+			| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					_peer,
+					ParticipantsBoxController::Role::Kicked);
+			},
+			st::peerPermissionsButton);
+	}
 }
 
 template <typename Flags, typename FlagLabelPairs>

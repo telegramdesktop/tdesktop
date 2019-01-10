@@ -246,13 +246,14 @@ public:
 	bool canEditUsername() const;
 	bool canEditPreHistoryHidden() const;
 	bool canAddMembers() const;
-
+	bool canAddAdmins() const;
 	bool canBanMembers() const;
+	bool canSendPolls() const;
+	bool anyoneCanAddMembers() const;
+
 	bool canEditMessages() const;
 	bool canDeleteMessages() const;
-	bool anyoneCanAddMembers() const;
 	bool hiddenPreHistory() const;
-	bool canAddAdmins() const;
 	bool canPublish() const;
 	bool canViewMembers() const;
 	bool canViewAdmins() const;

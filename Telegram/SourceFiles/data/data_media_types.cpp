@@ -1253,6 +1253,13 @@ TextWithEntities MediaPoll::clipboardText() const {
 	return { text, EntitiesInText() };
 }
 
+QString MediaPoll::errorTextForForward(not_null<PeerData*> peer) const {
+	if (peer->amRestricted(ChatRestriction::f_send_polls)) {
+		return lang(lng_restricted_send_polls);
+	}
+	return QString();
+}
+
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }

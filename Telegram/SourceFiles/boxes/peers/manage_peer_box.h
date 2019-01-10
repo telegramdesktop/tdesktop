@@ -35,7 +35,7 @@ public:
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
 		const style::InfoProfileCountButton &st,
-		const style::icon &icon);
+		const style::icon *icon = nullptr);
 
 protected:
 	void prepare() override;

@@ -811,6 +811,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_thanks" = "Thank you! Your report will be reviewed by our team very soon.";
 
 "lng_channel_add_members" = "Add members";
+"lng_channel_add_users" = "Add users";
 "lng_channel_add_banned" = "Ban user";
 "lng_channel_add_restricted" = "Restrict user";
 "lng_channel_admins" = "Administrators";
@@ -1510,6 +1511,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";
 "lng_restricted_send_gifs" = "The admins of this group restricted you from posting GIFs here.";
 "lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
+"lng_restricted_send_polls" = "The admins of this group restricted you from posting polls here.";
 
 "lng_restricted_list_title" = "Restricted users";
 "lng_banned_list_title" = "Banned users";

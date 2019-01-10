@@ -66,7 +66,7 @@ inline int32 CountHash(IntRange &&range) {
 
 } // namespace Api
 
-class ApiWrap : private MTP::Sender, private base::Subscriber {
+class ApiWrap : public MTP::Sender, private base::Subscriber {
 public:
 	ApiWrap(not_null<AuthSession*> session);
 
@@ -221,12 +221,9 @@ public:
 	void jumpToDate(Dialogs::Key chat, const QDate &date);
 
 	void preloadEnoughUnreadMentions(not_null<History*> history);
-	void checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel = nullptr);
-
-	void editChatAdmins(
-		not_null<ChatData*> chat,
-		bool adminsEnabled,
-		base::flat_set<not_null<UserData*>> &&admins);
+	void checkForUnreadMentions(
+		const base::flat_set<MsgId> &possiblyReadMentions,
+		ChannelData *channel = nullptr);
 
 	using SliceType = Data::LoadDirection;
 	void requestSharedMedia(
@@ -490,9 +487,6 @@ private:
 	void requestSavedGifs(TimeId now);
 	void readFeaturedSets();
 
-	void cancelEditChatAdmins(not_null<ChatData*> chat);
-	void saveChatAdmins(not_null<ChatData*> chat);
-	void sendSaveChatAdminsRequests(not_null<ChatData*> chat);
 	void refreshChannelAdmins(
 		not_null<ChannelData*> channel,
 		const QVector<MTPChannelParticipant> &participants);
@@ -672,16 +666,6 @@ private:
 		std::vector<Fn<void()>>> _dialogRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
-
-	base::flat_map<
-		not_null<ChatData*>,
-		mtpRequestId> _chatAdminsEnabledRequests;
-	base::flat_map<
-		not_null<ChatData*>,
-		base::flat_set<not_null<UserData*>>> _chatAdminsToSave;
-	base::flat_map<
-		not_null<ChatData*>,
-		base::flat_set<mtpRequestId>> _chatAdminsSaveRequests;
 
 	base::flat_map<std::tuple<
 		not_null<PeerData*>,

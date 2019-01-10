@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_user.h"
 #include "styles/style_boxes.h"
 
@@ -34,7 +35,7 @@ class EditParticipantBox::Inner : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		bool hasAdminRights);
 
@@ -46,7 +47,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 	not_null<UserData*> _user;
 	object_ptr<Ui::UserpicButton> _userPhoto;
 	Text _userName;
@@ -57,11 +58,11 @@ private:
 
 EditParticipantBox::Inner::Inner(
 	QWidget *parent,
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	bool hasAdminRights)
 : RpWidget(parent)
-, _channel(channel)
+, _peer(peer)
 , _user(user)
 , _userPhoto(
 	this,
@@ -138,10 +139,10 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 
 EditParticipantBox::EditParticipantBox(
 	QWidget*,
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	bool hasAdminRights)
-: _channel(channel)
+: _peer(peer)
 , _user(user)
 , _hasAdminRights(hasAdminRights) {
 }
@@ -149,7 +150,7 @@ EditParticipantBox::EditParticipantBox(
 void EditParticipantBox::prepare() {
 	_inner = setInnerWidget(object_ptr<Inner>(
 		this,
-		_channel,
+		_peer,
 		_user,
 		hasAdminRights()));
 	setDimensionsToContent(st::boxWideWidth, _inner);
@@ -166,19 +167,21 @@ Widget *EditParticipantBox::addControl(
 
 EditAdminBox::EditAdminBox(
 	QWidget*,
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	const MTPChatAdminRights &rights)
 : EditParticipantBox(
 	nullptr,
-	channel,
+	peer,
 	user,
 	(rights.c_chatAdminRights().vflags.v != 0))
 , _oldRights(rights) {
 }
 
-MTPChatAdminRights EditAdminBox::Defaults(not_null<ChannelData*> channel) {
-	const auto defaultRights = channel->isMegagroup()
+MTPChatAdminRights EditAdminBox::Defaults(not_null<PeerData*> peer) {
+	const auto defaultRights = peer->isChat()
+		? ChatData::DefaultAdminRights()
+		: peer->isMegagroup()
 		? (Flag::f_change_info
 			| Flag::f_delete_messages
 			| Flag::f_ban_users
@@ -206,26 +209,32 @@ void EditAdminBox::prepare() {
 		object_ptr<BoxContentDivider>(this),
 		st::rightsDividerMargin);
 
-	const auto prepareRights = hadRights ? _oldRights : Defaults(channel());
+	const auto chat = peer()->asChat();
+	const auto channel = peer()->asChannel();
+	const auto prepareRights = hadRights ? _oldRights : Defaults(peer());
 	const auto filterByMyRights = canSave()
 		&& !hadRights
-		&& !channel()->amCreator();
+		&& channel
+		&& !channel->amCreator();
 	const auto prepareFlags = prepareRights.c_chatAdminRights().vflags.v
-		& (filterByMyRights ? channel()->adminRights() : ~Flag(0));
+		& (filterByMyRights ? channel->adminRights() : ~Flag(0));
 
 	const auto disabledFlags = canSave()
-		? (channel()->amCreator()
+		? ((!channel || channel->amCreator())
 			? Flags(0)
-			: ~channel()->adminRights())
+			: ~channel->adminRights())
 		: ~Flags(0);
 
+	const auto anyoneCanAddMembers = chat
+		? chat->anyoneCanAddMembers()
+		: channel->anyoneCanAddMembers();
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
 		this,
 		lng_rights_edit_admin_header,
 		prepareFlags,
 		disabledFlags,
-		channel()->isMegagroup(),
-		channel()->anyoneCanAddMembers());
+		peer()->isChat() || peer()->isMegagroup(),
+		anyoneCanAddMembers);
 	addControl(std::move(checkboxes), QMargins());
 
 	_aboutAddAdmins = addControl(
@@ -248,9 +257,9 @@ void EditAdminBox::prepare() {
 				return;
 			}
 			const auto newFlags = value()
-				& (channel()->amCreator()
+				& ((!channel || channel->amCreator())
 					? ~Flags(0)
-					: channel()->adminRights());
+					: channel->adminRights());
 			_saveCallback(
 				_oldRights,
 				MTP_chatAdminRights(MTP_flags(newFlags)));
@@ -274,11 +283,11 @@ void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {
 
 EditRestrictedBox::EditRestrictedBox(
 	QWidget*,
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	not_null<UserData*> user,
 	bool hasAdminRights,
 	const MTPChatBannedRights &rights)
-: EditParticipantBox(nullptr, channel, user, hasAdminRights)
+: EditParticipantBox(nullptr, peer, user, hasAdminRights)
 , _oldRights(rights) {
 }
 
@@ -291,19 +300,24 @@ void EditRestrictedBox::prepare() {
 		object_ptr<BoxContentDivider>(this),
 		st::rightsDividerMargin);
 
+	const auto chat = peer()->asChat();
+	const auto channel = peer()->asChannel();
+	const auto defaultRestrictions = chat
+		? chat->defaultRestrictions()
+		: channel->defaultRestrictions();
 	const auto prepareRights = (_oldRights.c_chatBannedRights().vflags.v
 		? _oldRights
-		: Defaults(channel()));
+		: Defaults(peer()));
 	const auto prepareFlags = prepareRights.c_chatBannedRights().vflags.v
-		| (channel()->defaultRestrictions()
-			| (channel()->isPublic()
-				? (Flag::f_change_info | Flag::f_pin_messages)
-				: Flags(0)));
+		| defaultRestrictions
+		| ((channel && channel->isPublic())
+			? (Flag::f_change_info | Flag::f_pin_messages)
+			: Flags(0));
 	const auto disabledFlags = canSave()
-		? (channel()->defaultRestrictions()
-			| (channel()->isPublic()
+		? (defaultRestrictions
+			| ((channel && channel->isPublic())
 				? (Flag::f_change_info | Flag::f_pin_messages)
-				: Flags(0))) // #TODO groups
+				: Flags(0)))
 		: ~Flags(0);
 
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
@@ -348,8 +362,7 @@ void EditRestrictedBox::prepare() {
 	}
 }
 
-MTPChatBannedRights EditRestrictedBox::Defaults(
-		not_null<ChannelData*> channel) {
+MTPChatBannedRights EditRestrictedBox::Defaults(not_null<PeerData*> peer) {
 	return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 }
 

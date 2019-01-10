@@ -19,10 +19,6 @@ struct ScrollToRequest;
 class AbstractButton;
 } // namespace Ui
 
-namespace Profile {
-class ParticipantsBoxController;
-} // namespace Profile
-
 namespace Info {
 
 class Controller;

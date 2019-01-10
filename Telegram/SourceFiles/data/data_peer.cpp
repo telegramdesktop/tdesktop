@@ -435,14 +435,15 @@ void PeerData::fillNames() {
 PeerData::~PeerData() = default;
 
 void PeerData::updateFull() {
-	if (!_lastFullUpdate || getms(true) > _lastFullUpdate + kUpdateFullPeerTimeout) {
+	if (!_lastFullUpdate
+		|| getms(true) > _lastFullUpdate + kUpdateFullPeerTimeout) {
 		updateFullForced();
 	}
 }
 
 void PeerData::updateFullForced() {
 	session().api().requestFullPeer(this);
-	if (auto channel = asChannel()) {
+	if (const auto channel = asChannel()) {
 		if (!channel->amCreator() && !channel->inviter) {
 			session().api().requestSelfParticipant(channel);
 		}

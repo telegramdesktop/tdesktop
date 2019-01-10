@@ -9,13 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "base/weak_ptr.h"
-#include "profile/profile_channel_controllers.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "ui/widgets/popup_menu.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "boxes/confirm_box.h"
@@ -378,17 +379,15 @@ void MemberListRow::paintNameIcon(
 std::unique_ptr<PeerListController> CreateMembersController(
 		not_null<Window::Navigation*> navigation,
 		not_null<PeerData*> peer) {
-	if (auto chat = peer->asChat()) {
+	if (const auto chat = peer->asChat()) {
 		return std::make_unique<ChatMembersController>(
 			navigation,
 			chat);
-	} else if (auto channel = peer->asChannel()) {
-		using ChannelMembersController
-			= ::Profile::ParticipantsBoxController;
-		return std::make_unique<ChannelMembersController>(
+	} else if (const auto channel = peer->asChannel()) {
+		return std::make_unique<ParticipantsBoxController>(
 			navigation,
 			channel,
-			ChannelMembersController::Role::Profile);
+			ParticipantsBoxController::Role::Profile);
 	}
 	Unexpected("Peer type in CreateMembersController()");
 }

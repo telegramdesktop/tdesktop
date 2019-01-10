@@ -136,45 +136,6 @@ private:
 
 };
 
-class AddParticipantsBoxController : public ContactsBoxController {
-public:
-	static void Start(not_null<ChatData*> chat);
-	static void Start(not_null<ChannelData*> channel);
-	static void Start(
-		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn);
-
-	AddParticipantsBoxController(PeerData *peer);
-	AddParticipantsBoxController(
-		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn);
-
-	using ContactsBoxController::ContactsBoxController;
-
-	void rowClicked(not_null<PeerListRow*> row) override;
-	void itemDeselectedHook(not_null<PeerData*> peer) override;
-
-protected:
-	void prepareViewHook() override;
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) override;
-
-private:
-	static void Start(
-		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn,
-		bool justCreated);
-
-	int alreadyInCount() const;
-	bool isAlreadyIn(not_null<UserData*> user) const;
-	int fullCount() const;
-	void updateTitle();
-	bool inviteSelectedUsers(not_null<PeerData*> chat) const;
-
-	PeerData *_peer = nullptr;
-	base::flat_set<not_null<UserData*>> _alreadyIn;
-
-};
-
 class AddBotToGroupBoxController
 	: public ChatsListBoxController
 	, public base::has_weak_ptr {

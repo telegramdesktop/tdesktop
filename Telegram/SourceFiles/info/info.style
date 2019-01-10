@@ -361,7 +361,6 @@ infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
 infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg }};
 infoIconAdministrators: icon {{ "info_administrators", infoIconFg }};
 infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
-infoIconRestrictedUsers: icon {{ "info_restricted_users", infoIconFg }};
 infoIconPermissions: icon {{ "info_permissions", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
@@ -592,7 +591,7 @@ managePeerButton: InfoProfileCountButton {
 }
 peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
 	button: InfoProfileButton(infoProfileButton) {
-		padding: margins(67px, 12px, 67px, 10px);
+		padding: margins(24px, 12px, 24px, 10px);
 	}
 	iconPosition: point(24px, 5px);
 }
