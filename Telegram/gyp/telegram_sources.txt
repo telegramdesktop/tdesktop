@@ -142,7 +142,6 @@
 <(src_loc)/core/shortcuts.h
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
-<(src_loc)/core/tl_help.h
 <(src_loc)/core/update_checker.cpp
 <(src_loc)/core/update_checker.h
 <(src_loc)/core/utils.cpp

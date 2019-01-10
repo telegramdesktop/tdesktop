@@ -31,8 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "core/file_utilities.h"
-#include "core/tl_help.h"
-#include "base/overload.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
@@ -388,20 +386,22 @@ void InnerWidget::requestAdmins() {
 		MTP_int(kMaxChannelAdmins),
 		MTP_int(participantsHash)
 	)).done([this](const MTPchannels_ChannelParticipants &result) {
-		auto readCanEdit = base::overload([](const MTPDchannelParticipantAdmin &v) {
-			return v.is_can_edit();
-		}, [](auto &&) {
-			return false;
-		});
 		Auth().api().parseChannelParticipants(_channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto filtered = (
 				list
 			) | ranges::view::transform([&](const MTPChannelParticipant &p) {
-				return std::make_pair(
-					TLHelp::ReadChannelParticipantUserId(p),
-					TLHelp::VisitChannelParticipant(p, readCanEdit));
+				const auto userId = p.match([](const auto &data) {
+					return data.vuser_id.v;
+				});
+				const auto canEdit = p.match([](
+						const MTPDchannelParticipantAdmin &data) {
+					return data.is_can_edit();
+				}, [](const auto &) {
+					return false;
+				});
+				return std::make_pair(userId, canEdit);
 			}) | ranges::view::transform([&](auto &&pair) {
 				return std::make_pair(
 					App::userLoaded(pair.first),

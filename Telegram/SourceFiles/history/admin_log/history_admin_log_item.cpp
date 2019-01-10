@@ -17,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
-#include "core/tl_help.h"
-#include "base/overload.h"
 #include "messenger.h"
 #include "auth_session.h"
 
@@ -278,9 +276,8 @@ auto GenerateParticipantChangeTextInner(
 		not_null<ChannelData*> channel,
 		const MTPChannelParticipant &participant,
 		const MTPChannelParticipant *oldParticipant) {
-	auto oldType = oldParticipant ? oldParticipant->type() : 0;
-
-	auto readResult = base::overload([&](const MTPDchannelParticipantCreator &data) {
+	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
+	return participant.match([&](const MTPDchannelParticipantCreator &data) {
 		// No valid string here :(
 		return lng_admin_log_invited__generic(
 			lt_user,
@@ -318,8 +315,6 @@ auto GenerateParticipantChangeTextInner(
 		}
 		return lng_admin_log_invited__generic(lt_user, user);
 	});
-
-	return TLHelp::VisitChannelParticipant(participant, readResult);
 }
 
 TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, const MTPChannelParticipant &participant, const MTPChannelParticipant *oldParticipant = nullptr) {

@@ -21,10 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
-#include "core/tl_help.h"
 #include "core/core_cloud_password.h"
 #include "base/openssl_help.h"
-#include "base/overload.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "application.h"
@@ -1377,16 +1375,15 @@ void ApiWrap::requestAdmins(not_null<ChannelData*> channel) {
 		MTP_int(participantsHash)
 	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
 		_adminsRequests.remove(channel);
-		TLHelp::VisitChannelParticipants(result, base::overload([&](
-				const MTPDchannels_channelParticipants &data) {
+		result.match([&](const MTPDchannels_channelParticipants &data) {
 			App::feedUsers(data.vusers);
 			applyAdminsList(
 				channel,
 				data.vcount.v,
 				data.vparticipants.v);
-		}, [&](mtpTypeId) {
+		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 			LOG(("API Error: channels.channelParticipantsNotModified received!"));
-		}));
+		});
 	}).fail([this, channel](const RPCError &error) {
 		_adminsRequests.remove(channel);
 	}).send();
@@ -1409,7 +1406,9 @@ void ApiWrap::applyLastParticipantsList(
 		MTP_flags(0),
 		MTP_int(0));
 	for (const auto &p : list) {
-		const auto userId = TLHelp::ReadChannelParticipantUserId(p);
+		const auto userId = p.match([](const auto &data) {
+			return data.vuser_id.v;
+		});
 		const auto adminCanEdit = (p.type() == mtpc_channelParticipantAdmin)
 			? p.c_channelParticipantAdmin().is_can_edit()
 			: false;
@@ -1483,7 +1482,9 @@ void ApiWrap::applyBotsList(
 	auto botStatus = channel->mgInfo->botStatus;
 	auto keyboardBotFound = !history || !history->lastKeyboardFrom;
 	for (const auto &p : list) {
-		const auto userId = TLHelp::ReadChannelParticipantUserId(p);
+		const auto userId = p.match([](const auto &data) {
+			return data.vuser_id.v;
+		});
 		if (!userId) {
 			continue;
 		}
@@ -1518,7 +1519,7 @@ void ApiWrap::applyAdminsList(
 	auto admins = ranges::make_iterator_range(
 		list.begin(), list.end()
 	) | ranges::view::transform([](const MTPChannelParticipant &p) {
-		return TLHelp::ReadChannelParticipantUserId(p);
+		return p.match([](const auto &data) { return data.vuser_id.v; });
 	});
 	auto adding = base::flat_set<UserId>{ admins.begin(), admins.end() };
 	if (channel->mgInfo->creator) {
@@ -3224,8 +3225,7 @@ void ApiWrap::parseChannelParticipants(
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
 		Fn<void()> callbackNotModified) {
-	TLHelp::VisitChannelParticipants(result, base::overload([&](
-			const MTPDchannels_channelParticipants &data) {
+	result.match([&](const MTPDchannels_channelParticipants &data) {
 		App::feedUsers(data.vusers);
 		if (channel->mgInfo) {
 			refreshChannelAdmins(channel, data.vparticipants.v);
@@ -3233,21 +3233,24 @@ void ApiWrap::parseChannelParticipants(
 		if (callbackList) {
 			callbackList(data.vcount.v, data.vparticipants.v);
 		}
-	}, [&](mtpTypeId) {
+	}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 		if (callbackNotModified) {
 			callbackNotModified();
 		} else {
-			LOG(("API Error: channels.channelParticipantsNotModified received!"));
+			LOG(("API Error: "
+				"channels.channelParticipantsNotModified received!"));
 		}
-	}));
+	});
 }
 
 void ApiWrap::refreshChannelAdmins(
 		not_null<ChannelData*> channel,
 		const QVector<MTPChannelParticipant> &participants) {
 	Data::ChannelAdminChanges changes(channel);
-	for (auto &p : participants) {
-		const auto userId = TLHelp::ReadChannelParticipantUserId(p);
+	for (const auto &p : participants) {
+		const auto userId = p.match([](const auto &data) {
+			return data.vuser_id.v;
+		});
 		const auto isAdmin = (p.type() == mtpc_channelParticipantAdmin)
 			|| (p.type() == mtpc_channelParticipantCreator);
 		changes.feed(userId, isAdmin);

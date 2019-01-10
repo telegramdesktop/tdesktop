@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/manage_peer_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "ui/toast/toast.h"
-#include "core/tl_help.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -698,14 +697,16 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 			LayerOption::KeepOther);
 		return;
 	}
-	auto callback = [channel](const MTPchannels_ChannelParticipants &result) {
+	auto callback = [=](const MTPchannels_ChannelParticipants &result) {
 		Auth().api().parseChannelParticipants(channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto already = (
 				list
-			) | ranges::view::transform([&](auto &&p) {
-				return TLHelp::ReadChannelParticipantUserId(p);
+			) | ranges::view::transform([](const MTPChannelParticipant &p) {
+				return p.match([](const auto &data) {
+					return data.vuser_id.v;
+				});
 			}) | ranges::view::transform([](UserId userId) {
 				return App::userLoaded(userId);
 			}) | ranges::view::filter([](UserData *user) {

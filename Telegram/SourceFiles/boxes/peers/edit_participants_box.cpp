@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
-#include "core/tl_help.h"
-#include "base/overload.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -1705,8 +1703,7 @@ void ParticipantsBoxSearchController::searchDone(
 	}
 
 	_requestId = 0;
-	TLHelp::VisitChannelParticipants(result, base::overload([&](
-			const MTPDchannels_channelParticipants &data) {
+	result.match([&](const MTPDchannels_channelParticipants &data) {
 		auto &list = data.vparticipants.v;
 		if (list.size() < requestedCount) {
 			// We want cache to have full information about a query with small
@@ -1726,9 +1723,9 @@ void ParticipantsBoxSearchController::searchDone(
 			}
 		}
 		_offset += list.size();
-	}, [&](mtpTypeId type) {
+	}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 		_allLoaded = true;
-	}));
+	});
 
 	delegate()->peerListSearchRefreshRows();
 }
