@@ -59,7 +59,6 @@ class AddSpecialBoxController
 	, public base::has_weak_ptr {
 public:
 	using Role = ParticipantsBoxController::Role;
-	using Additional = ParticipantsBoxController::Additional;
 
 	using AdminDoneCallback = Fn<void(
 		not_null<UserData*> user,
@@ -79,13 +78,6 @@ public:
 
 	std::unique_ptr<PeerListRow> createSearchRow(
 		not_null<PeerData*> peer) override;
-
-	// Callback(not_null<UserData*>)
-	template <typename Callback>
-	static void HandleParticipant(
-		const MTPChannelParticipant &participant,
-		not_null<Additional*> additional,
-		Callback callback);
 
 private:
 	template <typename Callback>
@@ -116,7 +108,7 @@ private:
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
 	bool _allLoaded = false;
-	Additional _additional;
+	ParticipantsAdditionalData _additional;
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
 	QPointer<BoxContent> _editBox;
 	AdminDoneCallback _adminDoneCallback;
@@ -130,11 +122,10 @@ class AddSpecialBoxSearchController
 	, private MTP::Sender {
 public:
 	using Role = ParticipantsBoxController::Role;
-	using Additional = ParticipantsBoxController::Additional;
 
 	AddSpecialBoxSearchController(
 		not_null<PeerData*> peer,
-		not_null<Additional*> additional);
+		not_null<ParticipantsAdditionalData*> additional);
 
 	void searchQuery(const QString &query) override;
 	bool isLoading() override;
@@ -166,7 +157,7 @@ private:
 	void requestGlobal();
 
 	not_null<PeerData*> _peer;
-	not_null<Additional*> _additional;
+	not_null<ParticipantsAdditionalData*> _additional;
 
 	base::Timer _timer;
 	QString _query;

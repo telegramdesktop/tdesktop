@@ -60,25 +60,25 @@ protected:
 public:
 	virtual ~PeerData();
 
-	Data::Session &owner() const;
-	AuthSession &session() const;
+	[[nodiscard]] Data::Session &owner() const;
+	[[nodiscard]] AuthSession &session() const;
 
-	bool isUser() const {
+	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
 	}
-	bool isChat() const {
+	[[nodiscard]] bool isChat() const {
 		return peerIsChat(id);
 	}
-	bool isChannel() const {
+	[[nodiscard]] bool isChannel() const {
 		return peerIsChannel(id);
 	}
-	bool isSelf() const {
+	[[nodiscard]] bool isSelf() const {
 		return (input.type() == mtpc_inputPeerSelf);
 	}
-	bool isVerified() const;
-	bool isMegagroup() const;
+	[[nodiscard]] bool isVerified() const;
+	[[nodiscard]] bool isMegagroup() const;
 
-	std::optional<TimeId> notifyMuteUntil() const {
+	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
 		return _notify.muteUntil();
 	}
 	bool notifyChange(const MTPPeerNotifySettings &settings) {
@@ -89,65 +89,53 @@ public:
 			std::optional<bool> silentPosts) {
 		return _notify.change(muteForSeconds, silentPosts);
 	}
-	bool notifySettingsUnknown() const {
+	[[nodiscard]] bool notifySettingsUnknown() const {
 		return _notify.settingsUnknown();
 	}
-	std::optional<bool> notifySilentPosts() const {
+	[[nodiscard]] std::optional<bool> notifySilentPosts() const {
 		return _notify.silentPosts();
 	}
-	MTPinputPeerNotifySettings notifySerialize() const {
+	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const {
 		return _notify.serialize();
 	}
 
-	bool canWrite() const;
-	bool amRestricted(ChatRestriction right) const;
+	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool amRestricted(ChatRestriction right) const;
 
-	UserData *asUser();
-	const UserData *asUser() const;
-	ChatData *asChat();
-	const ChatData *asChat() const;
-	ChannelData *asChannel();
-	const ChannelData *asChannel() const;
-	ChannelData *asMegagroup();
-	const ChannelData *asMegagroup() const;
+	[[nodiscard]] UserData *asUser();
+	[[nodiscard]] const UserData *asUser() const;
+	[[nodiscard]] ChatData *asChat();
+	[[nodiscard]] const ChatData *asChat() const;
+	[[nodiscard]] ChannelData *asChannel();
+	[[nodiscard]] const ChannelData *asChannel() const;
+	[[nodiscard]] ChannelData *asMegagroup();
+	[[nodiscard]] const ChannelData *asMegagroup() const;
 
-	ChatData *migrateFrom() const;
-	ChannelData *migrateTo() const;
-	Data::Feed *feed() const;
+	[[nodiscard]] ChatData *migrateFrom() const;
+	[[nodiscard]] ChannelData *migrateTo() const;
+	[[nodiscard]] Data::Feed *feed() const;
 
 	void updateFull();
 	void updateFullForced();
 	void fullUpdated();
-	bool wasFullUpdated() const {
+	[[nodiscard]] bool wasFullUpdated() const {
 		return (_lastFullUpdate != 0);
 	}
 
-	const Text &dialogName() const;
-	const QString &shortName() const;
-	QString userName() const;
+	[[nodiscard]] const Text &dialogName() const;
+	[[nodiscard]] const QString &shortName() const;
+	[[nodiscard]] QString userName() const;
 
-	const PeerId id;
-	int32 bareId() const {
+	[[nodiscard]] int32 bareId() const {
 		return int32(uint32(id & 0xFFFFFFFFULL));
 	}
 
-	QString name;
-	Text nameText;
-
-	const base::flat_set<QString> &nameWords() const {
+	[[nodiscard]] const base::flat_set<QString> &nameWords() const {
 		return _nameWords;
 	}
-	const base::flat_set<QChar> &nameFirstLetters() const {
+	[[nodiscard]] const base::flat_set<QChar> &nameFirstLetters() const {
 		return _nameFirstLetters;
 	}
-
-	enum LoadedStatus {
-		NotLoaded = 0x00,
-		MinimalLoaded = 0x01,
-		FullLoaded = 0x02,
-	};
-	LoadedStatus loadedStatus = NotLoaded;
-	MTPinputPeer input;
 
 	void setUserpic(
 		PhotoId photoId,
@@ -178,45 +166,43 @@ public:
 		int y,
 		int size) const;
 	void loadUserpic(bool loadFirst = false, bool prior = true);
-	bool userpicLoaded() const;
-	bool useEmptyUserpic() const;
-	StorageKey userpicUniqueKey() const;
+	[[nodiscard]] bool userpicLoaded() const;
+	[[nodiscard]] bool useEmptyUserpic() const;
+	[[nodiscard]] StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
 	void saveUserpicRounded(const QString &path, int size) const;
-	QPixmap genUserpic(int size) const;
-	QPixmap genUserpicRounded(int size) const;
-	StorageImageLocation userpicLocation() const {
+	[[nodiscard]] QPixmap genUserpic(int size) const;
+	[[nodiscard]] QPixmap genUserpicRounded(int size) const;
+	[[nodiscard]] StorageImageLocation userpicLocation() const {
 		return _userpicLocation;
 	}
-	bool userpicPhotoUnknown() const {
+	[[nodiscard]] bool userpicPhotoUnknown() const {
 		return (_userpicPhotoId == kUnknownPhotoId);
 	}
-	PhotoId userpicPhotoId() const {
+	[[nodiscard]] PhotoId userpicPhotoId() const {
 		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
 	}
-	Data::FileOrigin userpicOrigin() const;
-	Data::FileOrigin userpicPhotoOrigin() const;
-
-	int nameVersion = 1;
+	[[nodiscard]] Data::FileOrigin userpicOrigin() const;
+	[[nodiscard]] Data::FileOrigin userpicPhotoOrigin() const;
 
 	// If this string is not empty we must not allow to open the
 	// conversation and we must show this string instead.
-	virtual QString unavailableReason() const {
+	[[nodiscard]] virtual QString unavailableReason() const {
 		return QString();
 	}
 
-	ClickHandlerPtr createOpenLink();
-	const ClickHandlerPtr &openLink() {
+	[[nodiscard]] ClickHandlerPtr createOpenLink();
+	[[nodiscard]] const ClickHandlerPtr &openLink() {
 		if (!_openLink) {
 			_openLink = createOpenLink();
 		}
 		return _openLink;
 	}
 
-	ImagePtr currentUserpic() const;
+	[[nodiscard]] ImagePtr currentUserpic() const;
 
-	bool canPinMessages() const;
-	MsgId pinnedMessageId() const {
+	[[nodiscard]] bool canPinMessages() const;
+	[[nodiscard]] MsgId pinnedMessageId() const {
 		return _pinnedMessageId;
 	}
 	void setPinnedMessageId(MsgId messageId);
@@ -229,6 +215,20 @@ public:
 	const QString &about() const {
 		return _about;
 	}
+
+	enum LoadedStatus {
+		NotLoaded = 0x00,
+		MinimalLoaded = 0x01,
+		FullLoaded = 0x02,
+	};
+
+	const PeerId id;
+	QString name;
+	Text nameText;
+	LoadedStatus loadedStatus = NotLoaded;
+	MTPinputPeer input;
+
+	int nameVersion = 1;
 
 protected:
 	void updateNameDelayed(

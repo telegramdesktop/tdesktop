@@ -87,7 +87,7 @@ void ShowAddParticipantsError(
 			const auto makeAdmin = [=] {
 				const auto user = users.front();
 				const auto weak = std::make_shared<QPointer<EditAdminBox>>();
-				const auto close = [=] {
+				const auto close = [=](auto&&...) {
 					if (*weak) {
 						(*weak)->closeBox();
 					}
@@ -95,7 +95,7 @@ void ShowAddParticipantsError(
 				const auto saveCallback = SaveAdminCallback(
 					channel,
 					user,
-					[=](auto&&...) { close(); },
+					close,
 					close);
 				auto box = Box<EditAdminBox>(
 					channel,

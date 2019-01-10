@@ -62,7 +62,7 @@ bool InviteSelectedUsers(
 	if (users.empty()) {
 		return false;
 	}
-	Auth().api().addChatParticipants(chat, users);
+	chat->session().api().addChatParticipants(chat, users);
 	return true;
 }
 
@@ -167,7 +167,11 @@ void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
 		});
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(chat), std::move(initBox)));
+	Ui::show(
+		Box<PeerListBox>(
+			std::make_unique<AddParticipantsBoxController>(chat),
+			std::move(initBox)),
+		LayerOption::KeepOther);
 }
 
 void AddParticipantsBoxController::Start(
@@ -192,7 +196,13 @@ void AddParticipantsBoxController::Start(
 			}, *subscription);
 		}
 	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
+	Ui::show(
+		Box<PeerListBox>(
+			std::make_unique<AddParticipantsBoxController>(
+				channel,
+				std::move(alreadyIn)),
+			std::move(initBox)),
+		LayerOption::KeepOther);
 }
 
 void AddParticipantsBoxController::Start(
@@ -215,9 +225,9 @@ AddSpecialBoxController::AddSpecialBoxController(
 	&_additional))
 , _peer(peer)
 , _role(role)
+, _additional(peer, Role::Members)
 , _adminDoneCallback(std::move(adminDoneCallback))
 , _bannedDoneCallback(std::move(bannedDoneCallback)) {
-	_additional.fillCreator(_peer);
 }
 
 std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(not_null<PeerData*> peer) {
@@ -305,6 +315,7 @@ void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 	_onlineSorter->sort();
 
 	delegate()->peerListRefreshRows();
+	setDescriptionText(QString());
 }
 
 void AddSpecialBoxController::loadMoreRows() {
@@ -329,17 +340,16 @@ void AddSpecialBoxController::loadMoreRows() {
 		MTP_int(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		_loadRequestId = 0;
-
-		Auth().api().parseChannelParticipants(channel, result, [&](
+		auto &session = channel->session();
+		session.api().parseChannelParticipants(channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
-			for (auto &participant : list) {
-				HandleParticipant(
-					participant,
-					&_additional,
-					[&](auto user) { appendRow(user); });
+			for (const auto &data : list) {
+				if (const auto user = _additional.applyParticipant(data)) {
+					appendRow(user);
+				}
 			}
-			if (auto size = list.size()) {
+			if (const auto size = list.size()) {
 				_offset += size;
 			} else {
 				// To be sure - wait for a whole empty result list.
@@ -372,9 +382,7 @@ template <typename Callback>
 bool AddSpecialBoxController::checkInfoLoaded(
 		not_null<UserData*> user,
 		Callback callback) {
-	if (_peer->isChat()
-		|| (_additional.infoNotLoaded.find(user)
-			== _additional.infoNotLoaded.end())) {
+	if (_additional.infoLoaded(user)) {
 		return true;
 	}
 
@@ -388,15 +396,10 @@ bool AddSpecialBoxController::checkInfoLoaded(
 
 		const auto &participant = result.c_channels_channelParticipant();
 		App::feedUsers(participant.vusers);
-		HandleParticipant(
-			participant.vparticipant,
-			&_additional,
-			[](not_null<UserData*>) {});
-		_additional.infoNotLoaded.erase(user);
+		_additional.applyParticipant(participant.vparticipant);
 		callback();
-	}).fail([this, user, callback](const RPCError &error) {
-		_additional.infoNotLoaded.erase(user);
-		_additional.external.emplace(user);
+	}).fail([=](const RPCError &error) {
+		_additional.setExternal(user);
 		callback();
 	}).send();
 	return false;
@@ -416,6 +419,9 @@ void AddSpecialBoxController::showAdmin(
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
+	const auto showAdminSure = crl::guard(this, [=] {
+		showAdmin(user, true);
+	});
 
 	// Check restrictions.
 	const auto canAddMembers = chat
@@ -424,24 +430,19 @@ void AddSpecialBoxController::showAdmin(
 	const auto canBanMembers = chat
 		? chat->canBanMembers()
 		: channel->canBanMembers();
-	const auto weak = base::make_weak(this);
-	const auto alreadyIt = _additional.adminRights.find(user);
-	auto currentRights = (_additional.creator == user)
-		? MTP_chatAdminRights(MTP_flags(~MTPDchatAdminRights::Flag::f_add_admins | MTPDchatAdminRights::Flag::f_add_admins))
-		: MTP_chatAdminRights(MTP_flags(0));
-	if (alreadyIt != _additional.adminRights.end()) {
+	const auto adminRights = _additional.adminRights(user);
+	if (adminRights.has_value()) {
 		// The user is already an admin.
-		currentRights = alreadyIt->second;
-	} else if (_additional.kicked.find(user) != _additional.kicked.end()) {
+	} else if (_additional.isKicked(user)) {
 		// The user is banned.
 		if (canAddMembers) {
 			if (canBanMembers) {
 				if (!sure) {
-					_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] {
-						if (weak) {
-							weak->showAdmin(user, true);
-						}
-					}), LayerOption::KeepOther);
+					_editBox = Ui::show(
+						Box<ConfirmBox>(
+							lang(lng_sure_add_admin_unban),
+							showAdminSure),
+						LayerOption::KeepOther);
 					return;
 				}
 			} else {
@@ -456,15 +457,15 @@ void AddSpecialBoxController::showAdmin(
 				LayerOption::KeepOther);
 			return;
 		}
-	} else if (_additional.restrictedRights.find(user) != _additional.restrictedRights.end()) {
+	} else if (_additional.restrictedRights(user).has_value()) {
 		// The user is restricted.
 		if (canBanMembers) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] {
-					if (weak) {
-						weak->showAdmin(user, true);
-					}
-				}), LayerOption::KeepOther);
+				_editBox = Ui::show(
+					Box<ConfirmBox>(
+						lang(lng_sure_add_admin_unban),
+						showAdminSure),
+					LayerOption::KeepOther);
 				return;
 			}
 		} else {
@@ -473,7 +474,7 @@ void AddSpecialBoxController::showAdmin(
 				LayerOption::KeepOther);
 			return;
 		}
-	} else if (_additional.external.find(user) != _additional.external.end()) {
+	} else if (_additional.isExternal(user)) {
 		// The user is not in the group yet.
 		if (canAddMembers) {
 			if (!sure) {
@@ -481,11 +482,11 @@ void AddSpecialBoxController::showAdmin(
 					((_peer->isChat() || _peer->isMegagroup())
 						? lng_sure_add_admin_invite
 						: lng_sure_add_admin_invite_channel));
-				_editBox = Ui::show(Box<ConfirmBox>(text, [=] {
-					if (weak) {
-						weak->showAdmin(user, true);
-					}
-				}), LayerOption::KeepOther);
+				_editBox = Ui::show(
+					Box<ConfirmBox>(
+						text,
+						showAdminSure),
+					LayerOption::KeepOther);
 				return;
 			}
 		} else {
@@ -497,24 +498,29 @@ void AddSpecialBoxController::showAdmin(
 	}
 
 	// Finally show the admin.
-	auto canNotEdit = (_additional.creator == user)
-		|| ((alreadyIt != _additional.adminRights.end())
-			&& (_additional.adminCanEdit.find(user) == _additional.adminCanEdit.end()));
+	const auto currentRights = _additional.isCreator(user)
+		? MTPChatAdminRights(MTP_chatAdminRights(
+			MTP_flags(~MTPDchatAdminRights::Flag::f_add_admins
+				| MTPDchatAdminRights::Flag::f_add_admins)))
+		: adminRights
+		? *adminRights
+		: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 	auto box = Box<EditAdminBox>(_peer, user, currentRights);
-	if (!canNotEdit) {
+	if (_additional.canAddOrEditAdmin(user)) {
 		if (chat) {
 			// #TODO groups autoconv
 		} else {
-			box->setSaveCallback(SaveAdminCallback(channel, user, [=](
+			const auto done = crl::guard(this, [=](
 					const MTPChatAdminRights &newRights) {
-				if (weak) {
-					weak->editAdminDone(user, newRights);
+				editAdminDone(user, newRights);
+			});
+			const auto fail = crl::guard(this, [=] {
+				if (_editBox) {
+					_editBox->closeBox();
 				}
-			}, [=] {
-				if (weak && weak->_editBox) {
-					weak->_editBox->closeBox();
-				}
-			}));
+			});
+			box->setSaveCallback(
+				SaveAdminCallback(channel, user, done, fail));
 		}
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
@@ -524,24 +530,26 @@ void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &rights) {
 	if (_editBox) _editBox->closeBox();
-	_additional.restrictedRights.erase(user);
-	_additional.restrictedBy.erase(user);
-	_additional.kicked.erase(user);
-	_additional.external.erase(user);
+
+	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags.v == 0) {
-		_additional.adminRights.erase(user);
-		_additional.adminPromotedBy.erase(user);
-		_additional.adminCanEdit.erase(user);
+		_additional.applyParticipant(MTP_channelParticipant(
+			MTP_int(user->bareId()),
+			MTP_int(date)));
 	} else {
-		_additional.adminRights[user] = rights;
-		_additional.adminCanEdit.emplace(user);
-		auto it = _additional.adminPromotedBy.find(user);
-		if (it == _additional.adminPromotedBy.end()) {
-			_additional.adminPromotedBy.emplace(user, Auth().user());
-		}
+		const auto alreadyPromotedBy = _additional.adminPromotedBy(user);
+		_additional.applyParticipant(MTP_channelParticipantAdmin(
+			MTP_flags(MTPDchannelParticipantAdmin::Flag::f_can_edit),
+			MTP_int(user->bareId()),
+			MTPint(), // inviter_id
+			MTP_int(alreadyPromotedBy
+				? alreadyPromotedBy->bareId()
+				: user->session().userId()),
+			MTP_int(date),
+			rights));
 	}
-	if (_adminDoneCallback) {
-		_adminDoneCallback(user, rights);
+	if (const auto callback = _adminDoneCallback) {
+		callback(user, rights);
 	}
 }
 
@@ -559,25 +567,24 @@ void AddSpecialBoxController::showRestricted(
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
+	const auto showRestrictedSure = crl::guard(this, [=] {
+		showRestricted(user, true);
+	});
 
 	// Check restrictions.
-	const auto weak = base::make_weak(this);
-	const auto alreadyIt = _additional.restrictedRights.find(user);
-	auto currentRights = MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
-	auto hasAdminRights = false;
-	if (alreadyIt != _additional.restrictedRights.end()) {
+	const auto restrictedRights = _additional.restrictedRights(user);
+	if (restrictedRights.has_value()) {
 		// The user is already banned or restricted.
-		currentRights = alreadyIt->second;
-	} else if (_additional.adminRights.find(user) != _additional.adminRights.end() || _additional.creator == user) {
+	} else if (_additional.adminRights(user).has_value()
+		|| _additional.isCreator(user)) {
 		// The user is an admin or creator.
-		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
-			hasAdminRights = true;
+		if (_additional.canEditAdmin(user)) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] {
-					if (weak) {
-						weak->showRestricted(user, true);
-					}
-				}), LayerOption::KeepOther);
+				_editBox = Ui::show(
+					Box<ConfirmBox>(
+						lang(lng_sure_ban_admin),
+						showRestrictedSure),
+					LayerOption::KeepOther);
 				return;
 			}
 		} else {
@@ -589,20 +596,30 @@ void AddSpecialBoxController::showRestricted(
 	}
 
 	// Finally edit the restricted.
-	auto box = Box<EditRestrictedBox>(_peer, user, hasAdminRights, currentRights);
+	const auto currentRights = restrictedRights
+		? *restrictedRights
+		: MTPChatBannedRights(MTP_chatBannedRights(
+			MTP_flags(0),
+			MTP_int(0)));
+	auto box = Box<EditRestrictedBox>(
+		_peer,
+		user,
+		_additional.adminRights(user).has_value(),
+		currentRights);
 	if (chat) {
 		// #TODO groups autoconv
 	} else {
-		box->setSaveCallback(SaveRestrictedCallback(channel, user, [=](
+		const auto done = crl::guard(this, [=](
 				const MTPChatBannedRights &newRights) {
-			if (const auto strong = weak.get()) {
-				strong->editRestrictedDone(user, newRights);
+			editRestrictedDone(user, newRights);
+		});
+		const auto fail = crl::guard(this, [=] {
+			if (_editBox) {
+				_editBox->closeBox();
 			}
-		}, [=] {
-			if (weak && weak->_editBox) {
-				weak->_editBox->closeBox();
-			}
-		}));
+		});
+		box->setSaveCallback(
+			SaveRestrictedCallback(channel, user, done, fail));
 	}
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
@@ -611,24 +628,28 @@ void AddSpecialBoxController::editRestrictedDone(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights) {
 	if (_editBox) _editBox->closeBox();
-	_additional.adminRights.erase(user);
-	_additional.adminCanEdit.erase(user);
-	_additional.adminPromotedBy.erase(user);
+
+	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags.v == 0) {
-		_additional.restrictedRights.erase(user);
-		_additional.restrictedBy.erase(user);
-		_additional.kicked.erase(user);
+		_additional.applyParticipant(MTP_channelParticipant(
+			MTP_int(user->bareId()),
+			MTP_int(date)));
 	} else {
-		_additional.restrictedRights[user] = rights;
-		if (rights.c_chatBannedRights().vflags.v & MTPDchatBannedRights::Flag::f_view_messages) {
-			_additional.kicked.emplace(user);
-		} else {
-			_additional.kicked.erase(user);
-		}
-		_additional.restrictedBy.emplace(user, Auth().user());
+		const auto kicked = rights.c_chatBannedRights().is_view_messages();
+		const auto alreadyRestrictedBy = _additional.restrictedBy(user);
+		_additional.applyParticipant(MTP_channelParticipantBanned(
+			MTP_flags(kicked
+				? MTPDchannelParticipantBanned::Flag::f_left
+				: MTPDchannelParticipantBanned::Flag(0)),
+			MTP_int(user->bareId()),
+			MTP_int(alreadyRestrictedBy
+				? alreadyRestrictedBy->bareId()
+				: user->session().userId()),
+			MTP_int(date),
+			rights));
 	}
-	if (_bannedDoneCallback) {
-		_bannedDoneCallback(user, rights);
+	if (const auto callback = _bannedDoneCallback) {
+		callback(user, rights);
 	}
 }
 
@@ -639,17 +660,21 @@ void AddSpecialBoxController::kickUser(
 		return;
 	}
 
+	const auto kickUserSure = crl::guard(this, [=] {
+		kickUser(user, true);
+	});
+
 	// Check restrictions.
-	auto weak = base::make_weak(this);
-	if (_additional.adminRights.find(user) != _additional.adminRights.end() || _additional.creator == user) {
+	if (_additional.adminRights(user).has_value()
+		|| _additional.isCreator(user)) {
 		// The user is an admin or creator.
-		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
+		if (_additional.canEditAdmin(user)) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] {
-					if (weak) {
-						weak->kickUser(user, true);
-					}
-				}), LayerOption::KeepOther);
+				_editBox = Ui::show(
+					Box<ConfirmBox>(
+						lang(lng_sure_ban_admin),
+						kickUserSure),
+					LayerOption::KeepOther);
 				return;
 			}
 		} else {
@@ -665,25 +690,22 @@ void AddSpecialBoxController::kickUser(
 		const auto text = ((_peer->isChat() || _peer->isMegagroup())
 			? lng_sure_ban_user_group
 			: lng_sure_ban_user_channel)(lt_user, App::peerName(user));
-		_editBox = Ui::show(Box<ConfirmBox>(text, [=] {
-			if (weak) {
-				weak->kickUser(user, true);
-			}
-		}), LayerOption::KeepOther);
+		_editBox = Ui::show(
+			Box<ConfirmBox>(text, kickUserSure),
+			LayerOption::KeepOther);
 		return;
 	}
-	auto currentRights = MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
-	auto alreadyIt = _additional.restrictedRights.find(user);
-	if (alreadyIt != _additional.restrictedRights.end()) {
-		// The user is already banned or restricted.
-		currentRights = alreadyIt->second;
-	}
+	const auto restrictedRights = _additional.restrictedRights(user);
+	const auto currentRights = restrictedRights
+		? *restrictedRights
+		: MTPChatBannedRights(MTP_chatBannedRights(
+			MTP_flags(0),
+			MTP_int(0)));
+	auto &session = _peer->session();
 	if (const auto chat = _peer->asChat()) {
-		// #TODO groups
+		session.api().kickParticipant(chat, user);
 	} else if (const auto channel = _peer->asChannel()) {
-		const auto callback = SaveRestrictedCallback(channel, user, [](
-			const MTPChatBannedRights &newRights) {}, [] {});
-		callback(currentRights, ChannelData::KickedRestrictedRights());
+		session.api().kickParticipant(channel, user, currentRights);
 	}
 }
 
@@ -708,90 +730,9 @@ std::unique_ptr<PeerListRow> AddSpecialBoxController::createRow(
 	return std::make_unique<PeerListRow>(user);
 }
 
-template <typename Callback>
-void AddSpecialBoxController::HandleParticipant(
-		const MTPChannelParticipant &participant,
-		not_null<Additional*> additional,
-		Callback callback) {
-	switch (participant.type()) {
-	case mtpc_channelParticipantAdmin: {
-		auto &admin = participant.c_channelParticipantAdmin();
-		if (auto user = App::userLoaded(admin.vuser_id.v)) {
-			additional->infoNotLoaded.erase(user);
-			additional->restrictedRights.erase(user);
-			additional->kicked.erase(user);
-			additional->restrictedBy.erase(user);
-			additional->adminRights[user] = admin.vadmin_rights;
-			if (admin.is_can_edit()) {
-				additional->adminCanEdit.emplace(user);
-			} else {
-				additional->adminCanEdit.erase(user);
-			}
-			if (auto promoted = App::userLoaded(admin.vpromoted_by.v)) {
-				auto it = additional->adminPromotedBy.find(user);
-				if (it == additional->adminPromotedBy.end()) {
-					additional->adminPromotedBy.emplace(user, promoted);
-				} else {
-					it->second = promoted;
-				}
-			} else {
-				LOG(("API Error: No user %1 for admin promoted by.").arg(admin.vpromoted_by.v));
-			}
-			callback(user);
-		}
-	} break;
-	case mtpc_channelParticipantCreator: {
-		auto &creator = participant.c_channelParticipantCreator();
-		if (auto user = App::userLoaded(creator.vuser_id.v)) {
-			additional->infoNotLoaded.erase(user);
-			additional->creator = user;
-			callback(user);
-		}
-	} break;
-	case mtpc_channelParticipantBanned: {
-		auto &banned = participant.c_channelParticipantBanned();
-		if (auto user = App::userLoaded(banned.vuser_id.v)) {
-			additional->infoNotLoaded.erase(user);
-			additional->adminRights.erase(user);
-			additional->adminCanEdit.erase(user);
-			additional->adminPromotedBy.erase(user);
-			if (banned.is_left()) {
-				additional->kicked.emplace(user);
-			} else {
-				additional->kicked.erase(user);
-			}
-			additional->restrictedRights[user] = banned.vbanned_rights;
-			if (auto kickedby = App::userLoaded(banned.vkicked_by.v)) {
-				auto it = additional->restrictedBy.find(user);
-				if (it == additional->restrictedBy.end()) {
-					additional->restrictedBy.emplace(user, kickedby);
-				} else {
-					it->second = kickedby;
-				}
-			}
-			callback(user);
-		}
-	} break;
-	case mtpc_channelParticipant: {
-		auto &data = participant.c_channelParticipant();
-		if (auto user = App::userLoaded(data.vuser_id.v)) {
-			additional->infoNotLoaded.erase(user);
-			additional->adminRights.erase(user);
-			additional->adminCanEdit.erase(user);
-			additional->adminPromotedBy.erase(user);
-			additional->restrictedRights.erase(user);
-			additional->kicked.erase(user);
-			additional->restrictedBy.erase(user);
-			callback(user);
-		}
-	} break;
-	default: Unexpected("Participant type in AddSpecialBoxController::HandleParticipant()");
-	}
-}
-
 AddSpecialBoxSearchController::AddSpecialBoxSearchController(
 	not_null<PeerData*> peer,
-	not_null<Additional*> additional)
+	not_null<ParticipantsAdditionalData*> additional)
 : _peer(peer)
 , _additional(additional)
 , _timer([=] { searchOnServer(); }) {
@@ -914,7 +855,8 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 	const auto channel = _peer->asChannel();
 	auto query = _query;
 	if (requestId) {
-		Auth().api().parseChannelParticipants(channel, result, [&](auto&&...) {
+		auto &session = channel->session();
+		session.api().parseChannelParticipants(channel, result, [&](auto&&...) {
 			auto it = _participantsQueries.find(requestId);
 			if (it != _participantsQueries.cend()) {
 				query = it->second.text;
@@ -945,14 +887,10 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 				loadMoreRows();
 			}
 		}
-		auto addUser = [&](auto user) {
-			delegate()->peerListSearchAddRow(user);
-		};
-		for (auto &participant : list) {
-			AddSpecialBoxController::HandleParticipant(
-				participant,
-				_additional,
-				addUser);
+		for (const auto &data : list) {
+			if (const auto user = _additional->applyParticipant(data)) {
+				delegate()->peerListSearchAddRow(user);
+			}
 		}
 		_offset += list.size();
 	}, [&](mtpTypeId type) {
@@ -984,7 +922,9 @@ void AddSpecialBoxSearchController::requestGlobal() {
 	_globalQueries.emplace(_requestId, _query);
 }
 
-void AddSpecialBoxSearchController::searchGlobalDone(mtpRequestId requestId, const MTPcontacts_Found &result) {
+void AddSpecialBoxSearchController::searchGlobalDone(
+		mtpRequestId requestId,
+		const MTPcontacts_Found &result) {
 	Expects(result.type() == mtpc_contacts_found);
 
 	auto &found = result.c_contacts_found();
@@ -1001,20 +941,11 @@ void AddSpecialBoxSearchController::searchGlobalDone(mtpRequestId requestId, con
 	}
 
 	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
-		const auto contains = [](const auto &map, const auto &value) {
-			return map.find(value) != map.end();
-		};
 		for (const auto &mtpPeer : list.v) {
 			const auto peerId = peerFromMTP(mtpPeer);
 			if (const auto peer = App::peerLoaded(peerId)) {
 				if (const auto user = peer->asUser()) {
-					if (_additional->creator != user
-						&& !contains(_additional->adminRights, user)
-						&& !contains(_additional->restrictedRights, user)
-						&& !contains(_additional->external, user)
-						&& !contains(_additional->kicked, user)) {
-						_additional->infoNotLoaded.emplace(user);
-					}
+					_additional->checkForLoaded(user);
 					delegate()->peerListSearchAddRow(user);
 				}
 			}
