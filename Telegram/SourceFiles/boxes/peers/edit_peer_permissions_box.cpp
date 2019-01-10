@@ -240,13 +240,13 @@ void EditPeerPermissionsBox::prepare() {
 	const auto restrictions = [&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->defaultRestrictions()
-				| disabledByAdminRights; // #TODO groups
+				| disabledByAdminRights;
 		} else if (const auto channel = _peer->asChannel()) {
-			return (channel->defaultRestrictions()
+			return channel->defaultRestrictions()
 				| (channel->isPublic()
 					? (Flag::f_change_info | Flag::f_pin_messages)
 					: Flags(0))
-				| disabledByAdminRights); // #TODO groups
+				| disabledByAdminRights;
 		}
 		Unexpected("User in EditPeerPermissionsBox.");
 	}();

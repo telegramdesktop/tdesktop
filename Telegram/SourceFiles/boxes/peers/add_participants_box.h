@@ -152,7 +152,7 @@ private:
 		mtpRequestId requestId,
 		const MTPcontacts_Found &result);
 	void requestParticipants();
-	void addChatMembers();
+	void addChatMembers(not_null<ChatData*> chat);
 	void addChatsContacts();
 	void requestGlobal();
 

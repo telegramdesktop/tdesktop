@@ -791,12 +791,7 @@ bool AddSpecialBoxSearchController::loadMoreRows() {
 			requestGlobal();
 		}
 	} else if (const auto chat = _peer->asChat()) {
-		if (chat->participants.empty()) {
-			return true;
-		} else {
-			addChatMembers();
-			_participantsLoaded = true;
-		}
+		addChatMembers(chat);
 	} else if (!isLoading()) {
 		requestParticipants();
 	}
@@ -951,26 +946,79 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 	}
 }
 
-void AddSpecialBoxSearchController::addChatMembers() {
-	// #TODO groups
+void AddSpecialBoxSearchController::addChatMembers(
+		not_null<ChatData*> chat) {
+	if (chat->participants.empty()) {
+		return;
+	}
+	_participantsLoaded = true;
+
+	const auto wordList = TextUtilities::PrepareSearchWords(_query);
+	if (wordList.empty()) {
+		return;
+	}
+	const auto allWordsAreFound = [&](
+			const base::flat_set<QString> &nameWords) {
+		const auto hasNamePartStartingWith = [&](const QString &word) {
+			for (const auto &nameWord : nameWords) {
+				if (nameWord.startsWith(word)) {
+					return true;
+				}
+			}
+			return false;
+		};
+
+		for (const auto &word : wordList) {
+			if (!hasNamePartStartingWith(word)) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	for (const auto [user, v] : chat->participants) {
+		if (allWordsAreFound(user->nameWords())) {
+			delegate()->peerListSearchAddRow(user);
+		}
+	}
+	delegate()->peerListSearchRefreshRows();
 }
 
 void AddSpecialBoxSearchController::addChatsContacts() {
 	_chatsContactsAdded = true;
 
-	auto wordList = TextUtilities::PrepareSearchWords(_query);
+	const auto wordList = TextUtilities::PrepareSearchWords(_query);
 	if (wordList.empty()) {
 		return;
 	}
+	const auto allWordsAreFound = [&](
+			const base::flat_set<QString> &nameWords) {
+		const auto hasNamePartStartingWith = [&](const QString &word) {
+			for (const auto &nameWord : nameWords) {
+				if (nameWord.startsWith(word)) {
+					return true;
+				}
+			}
+			return false;
+		};
 
-	auto getSmallestIndex = [&](Dialogs::IndexedList *list) -> const Dialogs::List* {
+		for (const auto &word : wordList) {
+			if (!hasNamePartStartingWith(word)) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	const auto getSmallestIndex = [&](
+			Dialogs::IndexedList *list) -> const Dialogs::List* {
 		if (list->isEmpty()) {
 			return nullptr;
 		}
 
 		auto result = (const Dialogs::List*)nullptr;
-		for_const (auto &word, wordList) {
-			auto found = list->filtered(word[0]);
+		for (const auto &word : wordList) {
+			const auto found = list->filtered(word[0]);
 			if (found->isEmpty()) {
 				return nullptr;
 			}
@@ -980,27 +1028,10 @@ void AddSpecialBoxSearchController::addChatsContacts() {
 		}
 		return result;
 	};
-	auto dialogsIndex = getSmallestIndex(App::main()->dialogsList());
-	auto contactsIndex = getSmallestIndex(App::main()->contactsNoDialogsList());
+	const auto dialogsIndex = getSmallestIndex(App::main()->dialogsList());
+	const auto contactsIndex = getSmallestIndex(App::main()->contactsNoDialogsList());
 
-	auto allWordsAreFound = [&](const base::flat_set<QString> &nameWords) {
-		auto hasNamePartStartingWith = [&](const QString &word) {
-			for (auto &nameWord : nameWords) {
-				if (nameWord.startsWith(word)) {
-					return true;
-				}
-			}
-			return false;
-		};
-
-		for_const (auto &word, wordList) {
-			if (!hasNamePartStartingWith(word)) {
-				return false;
-			}
-		}
-		return true;
-	};
-	auto filterAndAppend = [&](const Dialogs::List *list) {
+	const auto filterAndAppend = [&](const Dialogs::List *list) {
 		if (!list) {
 			return;
 		}

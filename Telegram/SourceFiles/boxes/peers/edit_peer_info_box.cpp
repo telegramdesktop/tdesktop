@@ -1109,7 +1109,7 @@ void Controller::saveUsername() {
 	if (!_savingData.username || *_savingData.username == username) {
 		return continueSave();
 	} else if (!channel) {
-		// #TODO groups convert and save.
+		// #TODO groups autoconv
 		return continueSave();
 	}
 
@@ -1226,7 +1226,7 @@ void Controller::saveHistoryVisibility() {
 		|| *_savingData.hiddenPreHistory == hidden) {
 		return continueSave();
 	} else if (!channel) {
-		// #TODO groups convert and save.
+		// #TODO groups autoconv
 		return continueSave();
 	}
 	request(MTPchannels_TogglePreHistoryHidden(
