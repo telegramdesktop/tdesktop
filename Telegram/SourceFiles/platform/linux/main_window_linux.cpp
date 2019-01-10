@@ -92,6 +92,8 @@ QImage _trayIconImageGen() {
 			}
 		}
 		_trayIconImage = _trayIconImageBack;
+		_trayIconMuted = muted;
+		_trayIconCount = counterSlice;
 		if (counter > 0) {
 			QPainter p(&_trayIconImage);
 			int32 layerSize = -16;
@@ -116,7 +118,7 @@ QString _trayIconImageFile() {
 	const auto muted = Messenger::Instance().unreadBadgeMuted();
 	const auto counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
 
-	QString name = cWorkingDir() + qsl("tdata/ticons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
+	QString name = cWorkingDir() + qsl("tdata/ticons/icon%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
 	QFileInfo info(name);
 	if (info.exists()) return name;
 

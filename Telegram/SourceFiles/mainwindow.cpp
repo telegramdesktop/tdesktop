@@ -836,6 +836,8 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 	if (layer) {
 		if (size != 16 && size != 20 && size != 24) size = 32;
 
+		// platform/linux/main_window_linux depends on count used the same
+		// way for all the same (count % 1000) values.
 		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
 		QImage result(size, size, QImage::Format_ARGB32);
 		int32 cntSize = cnt.size();
