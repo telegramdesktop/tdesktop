@@ -297,7 +297,8 @@ std::vector<QImage> LoadSprites(int id) {
 	) | ranges::view::transform([&](int index) {
 		return base + QString::number(index + 1) + ".webp";
 	}) | ranges::view::transform([](const QString &path) {
-		return QImage(path, "WEBP");
+		return QImage(path, "WEBP").convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
 	}) | ranges::to_vector;
 }
 
@@ -383,14 +384,26 @@ void UniversalImages::draw(
 		int y) const {
 	Expects(emoji->sprite() < _sprites.size());
 
-	const auto factored = (size / p.device()->devicePixelRatio());
 	const auto large = kUniversalSize;
-
-	PainterHighQualityEnabler hq(p);
-	p.drawImage(
-		QRect(x, y, factored, factored),
-		_sprites[emoji->sprite()],
-		QRect(emoji->column() * large, emoji->row() * large, large, large));
+	const auto &original = _sprites[emoji->sprite()];
+	const auto data = original.bits();
+	const auto stride = original.bytesPerLine();
+	const auto format = original.format();
+	const auto row = emoji->row();
+	const auto column = emoji->column();
+	auto single = QImage(
+		data + (row * kImagesPerRow * large + column) * large * 4,
+		large,
+		large,
+		stride,
+		format
+	).scaled(
+		size,
+		size,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	single.setDevicePixelRatio(p.device()->devicePixelRatio());
+	p.drawImage(x, y, single);
 }
 
 QImage UniversalImages::generate(int size, int index) const {
@@ -410,7 +423,6 @@ QImage UniversalImages::generate(int size, int index) const {
 	result.fill(Qt::transparent);
 	{
 		QPainter p(&result);
-		PainterHighQualityEnabler hq(p);
 		for (auto y = 0; y != rows; ++y) {
 			for (auto x = 0; x != kImagesPerRow; ++x) {
 				const auto single = QImage(
