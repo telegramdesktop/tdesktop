@@ -652,14 +652,24 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 }
 
 void OpenSystemSettingsForPermission(PermissionType type) {
-	if (type==PermissionType::Microphone) {
-		ShellExecute(NULL, L"open", L"ms-settings:privacy-microphone", NULL, NULL, SW_SHOWDEFAULT);
+	if (type == PermissionType::Microphone) {
+		crl::on_main([] {
+			ShellExecute(
+				nullptr,
+				L"open",
+				L"ms-settings:privacy-microphone",
+				nullptr,
+				nullptr,
+				SW_SHOWDEFAULT);
+		});
 	}
 }
 
 bool OpenSystemSettings(SystemSettingsType type) {
 	if (type == SystemSettingsType::Audio) {
-		WinExec("control.exe mmsys.cpl", SW_SHOW);
+		crl::on_main([] {
+			WinExec("control.exe mmsys.cpl", SW_SHOW);
+		});
 	}
 	return true;
 }

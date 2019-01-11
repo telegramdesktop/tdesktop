@@ -13,27 +13,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "styles/style_boxes.h"
 
+SingleChoiceBox::SingleChoiceBox(
+	QWidget*,
+	LangKey title,
+	const std::vector<QString> &optionTexts,
+	int initialSelection,
+	Fn<void(int)> callback)
+: _title(title)
+, _optionTexts(optionTexts)
+, _initialSelection(initialSelection)
+, _callback(callback) {
+}
+
 void SingleChoiceBox::prepare() {
 	setTitle(langFactory(_title));
 
-	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 
-	auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
-	auto y = st::boxOptionListPadding.top() + st::autolockButton.margin.top();
-	auto count = int(_optionTexts.size());
-	_options.reserve(count);
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
+	auto y = st::boxOptionListPadding.top()
+		+ st::autolockButton.margin.top();
+	_options.reserve(_optionTexts.size());
 	auto i = 0;
 	for (const auto &text : _optionTexts) {
 		_options.emplace_back(this, group, i, text, st::autolockButton);
-		_options.back()->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
+		_options.back()->moveToLeft(
+			st::boxPadding.left() + st::boxOptionListPadding.left(),
+			y);
 		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
 		i++;
 	}
-	group->setChangedCallback([this](int value) {
+	group->setChangedCallback([=](int value) {
+		const auto weak = make_weak(this);
 		_callback(value);
-		closeBox();
+		if (weak) {
+			closeBox();
+		}
 	});
 
-	setDimensions(st::autolockWidth, st::boxOptionListPadding.top() + count * _options.back()->heightNoMargins() + (count - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
+	const auto height = y
+		- st::boxOptionListSkip
+		+ st::boxOptionListPadding.bottom()
+		+ st::boxPadding.bottom();
+	setDimensions(st::autolockWidth, height);
 }
 

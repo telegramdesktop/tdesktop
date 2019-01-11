@@ -334,9 +334,9 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 
 bool OpenSystemSettings(SystemSettingsType type) {
 	switch (type) {
-		case SystemSettingsType::Audio:
-			[[NSWorkspace sharedWorkspace] openFile:@"/System/Library/PreferencePanes/Sound.prefPane"];
-			break;
+	case SystemSettingsType::Audio:
+		[[NSWorkspace sharedWorkspace] openFile:@"/System/Library/PreferencePanes/Sound.prefPane"];
+		break;
 	}
 	return true;
 }

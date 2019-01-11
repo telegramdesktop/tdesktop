@@ -603,11 +603,11 @@ void RadiobuttonGroup::setValue(int value) {
 	}
 	_hasValue = true;
 	_value = value;
-	for (auto button : _buttons) {
+	for (const auto button : _buttons) {
 		button->handleNewGroupValue(_value);
 	}
-	if (_changedCallback) {
-		_changedCallback(_value);
+	if (const auto callback = _changedCallback) {
+		callback(_value);
 	}
 }
 

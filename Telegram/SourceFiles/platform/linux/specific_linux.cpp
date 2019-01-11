@@ -491,24 +491,23 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 
 bool OpenSystemSettings(SystemSettingsType type) {
 	if (type == SystemSettingsType::Audio) {
-		bool succeeded = false;
+		auto options = std::vector<QString>();
+		const auto add = [&](const char *option) {
+			options.emplace_back(option);
+		};
 		if (DesktopEnvironment::IsUnity()) {
-			succeeded |= QProcess::startDetached(qsl("unity-control-center sound"));
+			add("unity-control-center sound");
 		} else if (DesktopEnvironment::IsKDE()) {
-			succeeded |= QProcess::startDetached(qsl("kcmshell5 kcm_pulseaudio"));
-			if (!succeeded) {
-				succeeded |= QProcess::startDetached(qsl("kcmshell4 phonon"));
-			}
+			add("kcmshell5 kcm_pulseaudio");
+			add("kcmshell4 phonon");
 		} else if (DesktopEnvironment::IsGnome()) {
-			succeeded |= QProcess::startDetached(qsl("gnome-control-center sound"));
+			add("gnome-control-center sound");
 		}
-		if (!succeeded) {
-			succeeded |= QProcess::startDetached(qsl("pavucontrol"));
-		}
-		if (!succeeded) {
-			succeeded |= QProcess::startDetached(qsl("alsamixergui"));
-		}
-		return succeeded;
+		add("pavucontrol");
+		add("alsamixergui");
+		return ranges::find_if(options, [](const QString &command) {
+			return QProcess::startDetached(command);
+		}) != end(options);
 	}
 	return true;
 }

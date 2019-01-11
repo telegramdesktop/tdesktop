@@ -18,8 +18,12 @@ class Radiobutton;
 
 class SingleChoiceBox : public BoxContent {
 public:
-	SingleChoiceBox(QWidget*, LangKey title, std::vector<QString> optionTexts, int initialSelection, Fn<void(int)> callback) : _title(title), _optionTexts(optionTexts), _initialSelection(initialSelection), _callback(callback) {
-	}
+	SingleChoiceBox(
+		QWidget*,
+		LangKey title,
+		const std::vector<QString> &optionTexts,
+		int initialSelection,
+		Fn<void(int)> callback);
 
 protected:
 	void prepare() override;

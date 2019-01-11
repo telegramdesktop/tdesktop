@@ -15,6 +15,7 @@ namespace Ui {
 class LevelMeter : public RpWidget {
 public:
 	LevelMeter(QWidget *parent, const style::LevelMeter& st);
+
 	void setValue(float value);
 
 protected:
@@ -22,7 +23,8 @@ protected:
 
 private:
 	const style::LevelMeter &_st;
-	float _value=0.0f;
+	float _value = 0.0f;
+
 };
 
 } // namespace Ui

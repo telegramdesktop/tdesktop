@@ -41,7 +41,6 @@ private:
 	rpl::event_stream<QString> _micTestTextStream;
 	bool _needWriteSettings = false;
 	std::unique_ptr<tgvoip::AudioInputTester> _micTester;
-	Button *_micTestButton = nullptr;
 	Ui::LevelMeter *_micTestLevel = nullptr;
 	base::Timer _levelUpdateTimer;
 };
