@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/layer_widget.h"
+#include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 
 namespace style {
 struct RoundButton;
+struct IconButton;
 struct ScrollArea;
 } // namespace style
 
@@ -35,6 +37,7 @@ public:
 	virtual void clearButtons() = 0;
 	virtual QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
 	virtual QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) = 0;
 	virtual void updateButtonsPositions() = 0;
 
 	virtual void showBox(
@@ -102,6 +105,9 @@ public:
 	}
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
 	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
+	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) {
+		return getDelegate()->addTopButton(st, std::move(clickCallback));
+	}
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 		return getDelegate()->addButton(std::move(textFactory), std::move(clickCallback), st);
 	}
@@ -251,6 +257,7 @@ public:
 	void clearButtons() override;
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
 	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) override;
 	void updateButtonsPositions() override;
 	QPointer<QWidget> outerContainer() override;
 
@@ -319,6 +326,7 @@ private:
 
 	std::vector<object_ptr<Ui::RoundButton>> _buttons;
 	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
+	base::unique_qptr<Ui::IconButton> _topButton = { nullptr };
 
 };
 

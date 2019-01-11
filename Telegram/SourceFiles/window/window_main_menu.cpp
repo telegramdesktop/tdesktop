@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "support/support_templates.h"
+#include "settings/settings_common.h"
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"
@@ -27,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_settings.h"
+#include "styles/style_boxes.h"
 
 namespace Window {
 namespace {
@@ -193,7 +196,14 @@ void MainMenu::refreshMenu() {
 		if (Global::PhoneCallsEnabled()) {
 			_menu->addAction(lang(lng_menu_calls), [] {
 				Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](not_null<PeerListBox*> box) {
-					box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+					box->addButton(langFactory(lng_close), [=] {
+						box->closeBox();
+					});
+					box->addTopButton(st::callSettingsButton, [=] {
+						App::wnd()->controller()->showSettings(
+							Settings::Type::Calls,
+							Window::SectionShow(anim::type::instant));
+					});
 				}));
 			}, &st::mainMenuCalls, &st::mainMenuCallsOver);
 		}

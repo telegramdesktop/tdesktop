@@ -436,9 +436,30 @@ void SetupPerformance(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
+void SetupSystemIntegration(
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	AddDivider(container);
+	AddSkip(container);
+	AddSubsectionTitle(container, lng_settings_system_integration);
+	AddButton(
+		container,
+		lng_settings_section_call_settings,
+		st::settingsButton
+	)->addClickHandler([=] {
+		showOther(Type::Calls);
+	});
+	SetupTray(container);
+	AddSkip(container);
+}
+
 Advanced::Advanced(QWidget *parent, UserData *self)
 : Section(parent) {
 	setupContent();
+}
+
+rpl::producer<Type> Advanced::sectionShowOther() {
+	return _showOther.events();
 }
 
 void Advanced::setupContent() {
@@ -473,18 +494,16 @@ void Advanced::setupContent() {
 	}
 	SetupDataStorage(content);
 	SetupAutoDownload(content);
-	if (HasTray()) {
-		addDivider();
-		AddSkip(content);
-		AddSubsectionTitle(content, lng_settings_system_integration);
-		SetupTray(content);
-		AddSkip(content);
-	}
-	addDivider();
+	SetupSystemIntegration(content, [=](Type type) {
+		_showOther.fire_copy(type);
+	});
+
+	AddDivider(content);
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_settings_performance);
 	SetupPerformance(content);
 	AddSkip(content);
+
 	if (cAutoUpdate()) {
 		addUpdate();
 	}

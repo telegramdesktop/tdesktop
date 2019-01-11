@@ -378,10 +378,13 @@ void AbstractBox::updateButtonsPositions() {
 		if (_leftButton) {
 			_leftButton->moveToLeft(right, top);
 		}
-		for_const (auto &button, _buttons) {
+		for (const auto &button : _buttons) {
 			button->moveToRight(right, top);
 			right += button->width() + padding.left();
 		}
+	}
+	if (_topButton) {
+		_topButton->moveToRight(0, 0);
 	}
 }
 
@@ -403,6 +406,7 @@ void AbstractBox::clearButtons() {
 		button.destroy();
 	}
 	_leftButton.destroy();
+	_topButton = nullptr;
 }
 
 QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
@@ -417,6 +421,15 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<v
 QPointer<Ui::RoundButton> AbstractBox::addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(textFactory), st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
+	result->setClickedCallback(std::move(clickCallback));
+	result->show();
+	updateButtonsPositions();
+	return result;
+}
+
+QPointer<Ui::IconButton> AbstractBox::addTopButton(const style::IconButton &st, Fn<void()> clickCallback) {
+	_topButton = base::make_unique_q<Ui::IconButton>(this, st);
+	auto result = QPointer<Ui::IconButton>(_topButton.get());
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
 	updateButtonsPositions();

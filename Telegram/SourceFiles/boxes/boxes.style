@@ -896,3 +896,16 @@ createPollWarning: FlatLabel(defaultFlatLabel) {
 	}
 }
 createPollWarningPosition: point(16px, 6px);
+
+callSettingsButton: IconButton {
+	width: 50px;
+	height: boxLayerTitleHeight;
+	icon: icon {{ "menu_settings", boxTitleCloseFg }};
+	iconOver: icon {{ "menu_settings", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+	rippleAreaSize: 44px;
+	rippleAreaPosition: point(0px, 6px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}

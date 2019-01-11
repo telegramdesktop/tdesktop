@@ -23,8 +23,12 @@ class Advanced : public Section {
 public:
 	explicit Advanced(QWidget *parent, UserData *self = nullptr);
 
+	rpl::producer<Type> sectionShowOther() override;
+
 private:
 	void setupContent();
+
+	rpl::event_stream<Type> _showOther;
 
 };
 
