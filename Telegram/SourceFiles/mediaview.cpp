@@ -1654,8 +1654,8 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
 			_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
 			if (_docExtWidth > extmaxw) {
-				_docExt = st::mediaviewFileNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
-				_docExtWidth = st::mediaviewFileNameFont->width(_docExt);
+				_docExt = st::mediaviewFileExtFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+				_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
 			}
 		} else {
 			_doc->thumb->load(fileOrigin());
