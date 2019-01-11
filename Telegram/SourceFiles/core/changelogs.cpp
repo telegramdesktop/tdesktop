@@ -54,6 +54,14 @@ std::map<int, const char*> BetaLogs() {
 		"- Improved auto-download settings.\n"
 
 		"- Bug fixes and other minor improvements."
+	},
+	{
+		1005007,
+		"- Choose the emoji set you would like to use "
+		"in Settings > Chat Settings.\n"
+
+		"- Choose input and output devices for Telegram Calls "
+		"in Settings > Adavanced > Call Settings."
 	}
 	};
 }

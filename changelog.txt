@@ -1,3 +1,8 @@
+1.5.7 beta (11.01.19)
+
+- Choose the emoji set you would like to use in Settings > Chat Settings.
+- Choose input and output devices for Telegram Calls in Settings > Adavanced > Call Settings.
+
 1.5.6 beta (27.12.18)
 
 - Fix crash on macOS.
