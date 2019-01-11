@@ -476,10 +476,16 @@ void Generator::paintComposeArea() {
 	auto right = st::historySendRight + st::historySendSize.width();
 	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()));
 
+	const auto emojiIconLeft = (st::historyAttachEmoji.iconPosition.x() < 0)
+		? ((st::historyAttachEmoji.width - st::historyAttachEmoji.icon.width()) / 2)
+		: st::historyAttachEmoji.iconPosition.x();
+	const auto emojiIconTop = (st::historyAttachEmoji.iconPosition.y() < 0)
+		? ((st::historyAttachEmoji.height - st::historyAttachEmoji.icon.height()) / 2)
+		: st::historyAttachEmoji.iconPosition.y();
 	right += st::historyAttachEmoji.width;
 	auto attachEmojiLeft = _composeArea.x() + _composeArea.width() - right;
 	_p->fillRect(attachEmojiLeft, controlsTop, st::historyAttachEmoji.width, st::historyAttachEmoji.height, st::historyComposeAreaBg[_palette]);
-	st::historyAttachEmoji.icon[_palette].paint(*_p, attachEmojiLeft + st::historyAttachEmoji.iconPosition.x(), controlsTop + st::historyAttachEmoji.iconPosition.y(), _rect.width());
+	st::historyAttachEmoji.icon[_palette].paint(*_p, attachEmojiLeft + emojiIconLeft, controlsTop + emojiIconTop, _rect.width());
 
 	auto pen = st::historyEmojiCircleFg[_palette]->p;
 	pen.setWidth(st::historyEmojiCircleLine);
