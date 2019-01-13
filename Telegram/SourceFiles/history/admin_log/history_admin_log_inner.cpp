@@ -411,9 +411,9 @@ void InnerWidget::requestAdmins() {
 			});
 
 			for (auto [user, canEdit] : filtered) {
-				_admins.push_back(user);
+				_admins.emplace_back(user);
 				if (canEdit) {
-					_adminsCanEdit.push_back(user);
+					_adminsCanEdit.emplace_back(user);
 				}
 			}
 		});
@@ -530,8 +530,13 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setAdminsCanEdit(std::move(_adminsCanEdit));
 	memento->setSearchQuery(std::move(_searchQuery));
 	if (!_filterChanged) {
-		memento->setItems(std::move(_items), std::move(_itemsByIds), _upLoaded, _downLoaded);
-		memento->setIdManager(std::move(_idManager));
+		memento->setItems(
+			base::take(_items),
+			base::take(_eventIds),
+			_upLoaded,
+			_downLoaded);
+		memento->setIdManager(base::take(_idManager));
+		base::take(_itemsByData);
 	}
 	_upLoaded = _downLoaded = true; // Don't load or handle anything anymore.
 }
@@ -540,8 +545,9 @@ void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
 	for (auto &item : _items) {
 		item.refreshView(this);
+		_itemsByData.emplace(item->data(), item.get());
 	}
-	_itemsByIds = memento->takeItemsByIds();
+	_eventIds = memento->takeEventIds();
 	if (auto manager = memento->takeIdManager()) {
 		_idManager = std::move(manager);
 	}
@@ -614,38 +620,40 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 	// When loading items down we add them to a new vector and copy _items after them.
 	auto newItemsForDownDirection = std::vector<OwnedItem>();
 	auto oldItemsCount = _items.size();
-	auto &addToItems = (direction == Direction::Up) ? _items : newItemsForDownDirection;
+	auto &addToItems = (direction == Direction::Up)
+		? _items
+		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
-	for_const (auto &event, events) {
-		Assert(event.type() == mtpc_channelAdminLogEvent);
-		const auto &data = event.c_channelAdminLogEvent();
-		const auto id = data.vid.v;
-		if (_itemsByIds.find(id) != _itemsByIds.cend()) {
-			continue;
-		}
-
-		auto count = 0;
-		const auto addOne = [&](OwnedItem item) {
-			_itemsByIds.emplace(id, item.get());
-			_itemsByData.emplace(item->data(), item.get());
-			addToItems.push_back(std::move(item));
-			++count;
-		};
-		GenerateItems(
-			this,
-			_history,
-			_idManager.get(),
-			data,
-			addOne);
-		if (count > 1) {
-			// Reverse the inner order of the added messages, because we load events
-			// from bottom to top but inside one event they go from top to bottom.
-			auto full = addToItems.size();
-			auto from = full - count;
-			for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
-				std::swap(addToItems[from + i], addToItems[full - i - 1]);
+	for (const auto &event : events) {
+		event.match([&](const MTPDchannelAdminLogEvent &data) {
+			const auto id = data.vid.v;
+			if (_eventIds.find(id) != _eventIds.end()) {
+				return;
 			}
-		}
+
+			auto count = 0;
+			const auto addOne = [&](OwnedItem item) {
+				_eventIds.emplace(id);
+				_itemsByData.emplace(item->data(), item.get());
+				addToItems.push_back(std::move(item));
+				++count;
+			};
+			GenerateItems(
+				this,
+				_history,
+				_idManager.get(),
+				data,
+				addOne);
+			if (count > 1) {
+				// Reverse the inner order of the added messages, because we load events
+				// from bottom to top but inside one event they go from top to bottom.
+				auto full = addToItems.size();
+				auto from = full - count;
+				for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
+					std::swap(addToItems[from + i], addToItems[full - i - 1]);
+				}
+			}
+		});
 	}
 	auto newItemsCount = _items.size() + ((direction == Direction::Up) ? 0 : newItemsForDownDirection.size());
 	if (newItemsCount != oldItemsCount) {
@@ -662,11 +670,11 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 }
 
 void InnerWidget::updateMinMaxIds() {
-	if (_itemsByIds.empty() || _filterChanged) {
+	if (_eventIds.empty() || _filterChanged) {
 		_maxId = _minId = 0;
 	} else {
-		_maxId = (--_itemsByIds.end())->first;
-		_minId = _itemsByIds.begin()->first;
+		_maxId = *_eventIds.rbegin();
+		_minId = *_eventIds.begin();
 		if (_minId == 1) {
 			_upLoaded = true;
 		}
@@ -836,7 +844,8 @@ void InnerWidget::clearAfterFilterChange() {
 	_selectedText = TextSelection();
 	_filterChanged = false;
 	_items.clear();
-	_itemsByIds.clear();
+	_eventIds.clear();
+	_itemsByData.clear();
 	_idManager = nullptr;
 	_idManager = _history->adminLogIdManager();
 	updateEmptyText();
@@ -1133,7 +1142,9 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 			auto weak = QPointer<InnerWidget>(this);
 			auto weakBox = std::make_shared<QPointer<EditRestrictedBox>>();
 			auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
-			box->setSaveCallback([user, weak, weakBox](const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
+			box->setSaveCallback([=](
+					const MTPChatBannedRights &oldRights,
+					const MTPChatBannedRights &newRights) {
 				if (weak) {
 					weak->restrictUser(user, oldRights, newRights);
 				}
@@ -1148,7 +1159,10 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 		if (base::contains(_admins, user)) {
 			editRestrictions(true, MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		} else {
-			request(MTPchannels_GetParticipant(_channel->inputChannel, user->inputUser)).done([=](const MTPchannels_ChannelParticipant &result) {
+			request(MTPchannels_GetParticipant(
+				_channel->inputChannel,
+				user->inputUser
+			)).done([=](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
 
 				auto &participant = result.c_channels_channelParticipant();

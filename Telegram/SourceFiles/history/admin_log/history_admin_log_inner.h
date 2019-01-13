@@ -190,7 +190,7 @@ private:
 	// for each found userpic (from the top to the bottom) using enumerateItems() method.
 	//
 	// Method has "bool (*Method)(not_null<Element*> view, int userpicTop)" signature
-	// if it returns false the enumeration stops immidiately.
+	// if it returns false the enumeration stops immediately.
 	template <typename Method>
 	void enumerateUserpics(Method method);
 
@@ -198,7 +198,7 @@ private:
 	// for each found date element (from the bottom to the top) using enumerateItems() method.
 	//
 	// Method has "bool (*Method)(not_null<HistoryItem*> item, int itemtop, int dateTop)" signature
-	// if it returns false the enumeration stops immidiately.
+	// if it returns false the enumeration stops immediately.
 	template <typename Method>
 	void enumerateDates(Method method);
 
@@ -206,8 +206,8 @@ private:
 	not_null<ChannelData*> _channel;
 	not_null<History*> _history;
 	std::vector<OwnedItem> _items;
-	std::map<uint64, not_null<Element*>> _itemsByIds;
-	std::map<not_null<HistoryItem*>, not_null<Element*>, std::less<>> _itemsByData;
+	std::set<uint64> _eventIds;
+	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
