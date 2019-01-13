@@ -956,7 +956,14 @@ void Instance::Private::clearCallbacks(mtpRequestId requestId, int32 errorCode) 
 			"Request: %1, error code: %2"
 			).arg(requestId
 			).arg(errorCode));
-		rpcErrorOccured(requestId, h, internal::rpcClientError("CLEAR_CALLBACK", QString("did not handle request %1, error code %2").arg(requestId).arg(errorCode)));
+		rpcErrorOccured(
+			requestId,
+			h,
+			RPCError::Local(
+				"CLEAR_CALLBACK",
+				QString("did not handle request %1, error code %2"
+				).arg(requestId
+				).arg(errorCode)));
 	}
 }
 
@@ -1017,14 +1024,13 @@ void Instance::Private::execCallback(
 		}
 	}
 	if (h.onDone || h.onFail) {
-		const auto handleError = [&](const MTPRpcError &error) {
-			const auto wrapped = RPCError(error);
+		const auto handleError = [&](const RPCError &error) {
 			DEBUG_LOG(("RPC Info: "
 				"error received, code %1, type %2, description: %3"
-				).arg(wrapped.code()
-				).arg(wrapped.type()
-				).arg(wrapped.description()));
-			if (rpcErrorOccured(requestId, h, wrapped)) {
+				).arg(error.code()
+				).arg(error.type()
+				).arg(error.description()));
+			if (rpcErrorOccured(requestId, h, error)) {
 				unregisterRequest(requestId);
 			} else {
 				QMutexLocker locker(&_parserMapLock);
@@ -1045,7 +1051,7 @@ void Instance::Private::execCallback(
 				unregisterRequest(requestId);
 			}
 		} catch (Exception &e) {
-			handleError(internal::rpcClientError(
+			handleError(RPCError::Local(
 				"RESPONSE_PARSE_FAILED",
 				QString("exception text: ") + e.what()));
 		}
@@ -1103,7 +1109,10 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 		//
 		// Don't log out on export/import problems, perhaps this is a server side error.
 		//
-		//RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find import request in requestsByDC, request %1").arg(requestId)));
+		//const auto error = RPCError::Local(
+		//	"AUTH_IMPORT_FAIL",
+		//	QString("did not find import request in requestsByDC, "
+		//		"request %1").arg(requestId));
 		//if (_globalHandler.onFail && hasAuthorization()) {
 		//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
 		//}
@@ -1156,7 +1165,10 @@ void Instance::Private::exportDone(const MTPauth_ExportedAuthorization &result, 
 		//
 		// Don't log out on export/import problems, perhaps this is a server side error.
 		//
-		//RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find target dcWithShift, request %1").arg(requestId)));
+		//const auto error = RPCError::Local(
+		//	"AUTH_IMPORT_FAIL",
+		//	QString("did not find target dcWithShift, request %1"
+		//	).arg(requestId));
 		//if (_globalHandler.onFail && hasAuthorization()) {
 		//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
 		//}

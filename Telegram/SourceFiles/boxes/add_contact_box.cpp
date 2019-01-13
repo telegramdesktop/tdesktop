@@ -608,8 +608,7 @@ void GroupInfoBox::submit() {
 		};
 		Ui::show(
 			Box<PeerListBox>(
-				std::make_unique<AddParticipantsBoxController>(
-					nullptr),
+				std::make_unique<AddParticipantsBoxController>(),
 				std::move(initBox)),
 			LayerOption::KeepOther);
 	}

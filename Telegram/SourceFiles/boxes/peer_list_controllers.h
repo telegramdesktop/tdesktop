@@ -114,9 +114,13 @@ private:
 
 };
 
-class ContactsBoxController : public PeerListController, protected base::Subscriber {
+class ContactsBoxController
+	: public PeerListController
+	, protected base::Subscriber {
 public:
-	ContactsBoxController(std::unique_ptr<PeerListSearchController> searchController = std::make_unique<PeerListGlobalSearchController>());
+	ContactsBoxController(
+		std::unique_ptr<PeerListSearchController> searchController
+		= std::make_unique<PeerListGlobalSearchController>());
 
 	void prepare() override final;
 	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;

@@ -18,9 +18,10 @@ public:
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn);
 
-	AddParticipantsBoxController(PeerData *peer);
+	AddParticipantsBoxController();
+	AddParticipantsBoxController(not_null<PeerData*> peer);
 	AddParticipantsBoxController(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		base::flat_set<not_null<UserData*>> &&alreadyIn);
 
 	using ContactsBoxController::ContactsBoxController;
@@ -39,11 +40,12 @@ private:
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated);
 
+	bool inviteSelectedUsers(not_null<PeerListBox*> box) const;
+	void subscribeToMigration();
 	int alreadyInCount() const;
 	bool isAlreadyIn(not_null<UserData*> user) const;
 	int fullCount() const;
 	void updateTitle();
-	bool inviteSelectedUsers(not_null<PeerData*> chat) const;
 
 	PeerData *_peer = nullptr;
 	base::flat_set<not_null<UserData*>> _alreadyIn;
@@ -103,6 +105,9 @@ private:
 	bool prependRow(not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
+	void subscribeToMigration();
+	void migrate(not_null<ChannelData*> channel);
+
 	not_null<PeerData*> _peer;
 	Role _role = Role::Admins;
 	int _offset = 0;
@@ -119,7 +124,8 @@ private:
 // Finds chat/channel members, then contacts, then global search results.
 class AddSpecialBoxSearchController
 	: public PeerListSearchController
-	, private MTP::Sender {
+	, private MTP::Sender
+	, private base::Subscriber {
 public:
 	using Role = ParticipantsBoxController::Role;
 
@@ -155,6 +161,8 @@ private:
 	void addChatMembers(not_null<ChatData*> chat);
 	void addChatsContacts();
 	void requestGlobal();
+
+	void subscribeToMigration();
 
 	not_null<PeerData*> _peer;
 	not_null<ParticipantsAdditionalData*> _additional;

@@ -110,6 +110,10 @@ public:
 	[[nodiscard]] const ChannelData *asChannel() const;
 	[[nodiscard]] ChannelData *asMegagroup();
 	[[nodiscard]] const ChannelData *asMegagroup() const;
+	[[nodiscard]] ChatData *asChatNotMigrated();
+	[[nodiscard]] const ChatData *asChatNotMigrated() const;
+	[[nodiscard]] ChannelData *asChannelOrMigrated();
+	[[nodiscard]] const ChannelData *asChannelOrMigrated() const;
 
 	[[nodiscard]] ChatData *migrateFrom() const;
 	[[nodiscard]] ChannelData *migrateTo() const;

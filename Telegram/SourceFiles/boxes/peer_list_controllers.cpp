@@ -307,7 +307,9 @@ bool ChatsListBoxController::appendRow(not_null<History*> history) {
 	return false;
 }
 
-ContactsBoxController::ContactsBoxController(std::unique_ptr<PeerListSearchController> searchController) : PeerListController(std::move(searchController)) {
+ContactsBoxController::ContactsBoxController(
+	std::unique_ptr<PeerListSearchController> searchController)
+: PeerListController(std::move(searchController)) {
 }
 
 void ContactsBoxController::prepare() {

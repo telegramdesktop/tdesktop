@@ -1109,8 +1109,17 @@ void Controller::saveUsername() {
 	if (!_savingData.username || *_savingData.username == username) {
 		return continueSave();
 	} else if (!channel) {
-		// #TODO groups autoconv
-		return continueSave();
+		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
+			if (_peer->asChannel() == channel) {
+				saveUsername();
+			} else {
+				cancelSave();
+			}
+		};
+		_peer->session().api().migrateChat(
+			_peer->asChat(),
+			crl::guard(this, saveForChannel));
+		return;
 	}
 
 	request(MTPchannels_UpdateUsername(
@@ -1122,7 +1131,7 @@ void Controller::saveUsername() {
 			*_savingData.username);
 		continueSave();
 	}).fail([=](const RPCError &error) {
-		const auto type = error.type();
+		const auto &type = error.type();
 		if (type == qstr("USERNAME_NOT_MODIFIED")) {
 			channel->setName(
 				TextUtilities::SingleLine(channel->name),
@@ -1156,7 +1165,7 @@ void Controller::saveTitle() {
 		continueSave();
 	};
 	const auto onFail = [=](const RPCError &error) {
-		const auto type = error.type();
+		const auto &type = error.type();
 		if (type == qstr("CHAT_NOT_MODIFIED")
 			|| type == qstr("CHAT_TITLE_NOT_MODIFIED")) {
 			if (const auto channel = _peer->asChannel()) {
@@ -1209,7 +1218,7 @@ void Controller::saveDescription() {
 	)).done([=](const MTPBool &result) {
 		successCallback();
 	}).fail([=](const RPCError &error) {
-		auto type = error.type();
+		const auto &type = error.type();
 		if (type == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
 			successCallback();
 			return;
@@ -1226,8 +1235,17 @@ void Controller::saveHistoryVisibility() {
 		|| *_savingData.hiddenPreHistory == hidden) {
 		return continueSave();
 	} else if (!channel) {
-		// #TODO groups autoconv
-		return continueSave();
+		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
+			if (_peer->asChannel() == channel) {
+				saveHistoryVisibility();
+			} else {
+				cancelSave();
+			}
+		};
+		_peer->session().api().migrateChat(
+			_peer->asChat(),
+			crl::guard(this, saveForChannel));
+		return;
 	}
 	request(MTPchannels_TogglePreHistoryHidden(
 		channel->inputChannel,

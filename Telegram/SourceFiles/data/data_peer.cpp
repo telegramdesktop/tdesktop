@@ -489,6 +489,34 @@ const ChannelData *PeerData::asMegagroup() const {
 		: nullptr;
 }
 
+ChatData *PeerData::asChatNotMigrated() {
+	if (const auto chat = asChat()) {
+		return chat->migrateTo() ? nullptr : chat;
+	}
+	return nullptr;
+}
+
+const ChatData *PeerData::asChatNotMigrated() const {
+	if (const auto chat = asChat()) {
+		return chat->migrateTo() ? nullptr : chat;
+	}
+	return nullptr;
+}
+
+ChannelData *PeerData::asChannelOrMigrated() {
+	if (const auto channel = asChannel()) {
+		return channel;
+	}
+	return migrateTo();
+}
+
+const ChannelData *PeerData::asChannelOrMigrated() const {
+	if (const auto channel = asChannel()) {
+		return channel;
+	}
+	return migrateTo();
+}
+
 ChatData *PeerData::migrateFrom() const {
 	if (const auto megagroup = asMegagroup()) {
 		return megagroup->amIn()

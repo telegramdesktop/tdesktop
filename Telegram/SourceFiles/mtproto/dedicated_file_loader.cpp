@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/dedicated_file_loader.h"
 
-#include "mtproto/session.h"
 #include "auth_session.h"
 #include "messenger.h"
 
@@ -110,7 +109,9 @@ void WeakInstance::die() {
 		if (instance) {
 			instance->cancel(requestId);
 		}
-		fail(MTP::internal::rpcClientError("UNAVAILABLE"));
+		fail(RPCError::Local(
+			"UNAVAILABLE",
+			"MTP instance is not available."));
 	}
 }
 
@@ -125,7 +126,9 @@ bool WeakInstance::removeRequest(mtpRequestId requestId) {
 void WeakInstance::reportUnavailable(
 		Fn<void(const RPCError &error)> callback) {
 	InvokeQueued(this, [=] {
-		callback(MTP::internal::rpcClientError("UNAVAILABLE"));
+		callback(RPCError::Local(
+			"UNAVAILABLE",
+			"MTP instance is not available."));
 	});
 }
 

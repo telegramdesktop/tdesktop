@@ -303,6 +303,10 @@ public:
 		std::unique_ptr<SavedStateBase> state) {
 	}
 
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 protected:
 	not_null<PeerListSearchDelegate*> delegate() const {
 		return _delegate;
@@ -310,6 +314,7 @@ protected:
 
 private:
 	PeerListSearchDelegate *_delegate = nullptr;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -320,7 +325,8 @@ public:
 	};
 
 	// Search works only with RowId == peer->id.
-	PeerListController(std::unique_ptr<PeerListSearchController> searchController = nullptr);
+	PeerListController(
+		std::unique_ptr<PeerListSearchController> searchController = {});
 
 	void setDelegate(not_null<PeerListDelegate*> delegate) {
 		_delegate = delegate;

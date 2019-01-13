@@ -32,10 +32,21 @@ public:
 		TimeoutError
 	};
 
-private:
+	static RPCError Local(const QString &type, const QString &description) {
+		return MTP_rpc_error(
+			MTP_int(0),
+			MTP_bytes(
+			("CLIENT_"
+				+ type
+				+ (description.length()
+					? (": " + description)
+					: QString())).toUtf8()));
+	}
 
+private:
 	int32 _code;
 	QString _type, _description;
+
 };
 
 namespace MTP {

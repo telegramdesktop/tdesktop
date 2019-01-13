@@ -402,7 +402,5 @@ inline not_null<QReadWriteLock*> SessionData::keyMutex() const {
 	return _owner->keyMutex();
 }
 
-MTPrpcError rpcClientError(const QString &type, const QString &description = QString());
-
 } // namespace internal
 } // namespace MTP

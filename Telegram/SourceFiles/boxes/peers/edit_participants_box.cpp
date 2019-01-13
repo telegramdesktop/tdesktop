@@ -142,7 +142,16 @@ Fn<void(
 			const MTPChatAdminRights &oldRights,
 			const MTPChatAdminRights &newRights) {
 		const auto done = [=] { onDone(newRights); };
-		if (const auto chat = peer->asChat()) {
+		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
+			SaveChannelAdmin(
+				channel,
+				user,
+				oldRights,
+				newRights,
+				done,
+				onFail);
+		};
+		if (const auto chat = peer->asChatNotMigrated()) {
 			const auto saveChatAdmin = [&](bool isAdmin) {
 				SaveChatAdmin(chat, user, isAdmin, done, onFail);
 			};
@@ -155,16 +164,10 @@ Fn<void(
 			} else if (!flags) {
 				saveChatAdmin(false);
 			} else {
-				// #TODO groups autoconv
+				peer->session().api().migrateChat(chat, saveForChannel);
 			}
-		} else if (const auto channel = peer->asChannel()) {
-			SaveChannelAdmin(
-				channel,
-				user,
-				oldRights,
-				newRights,
-				done,
-				onFail);
+		} else if (const auto channel = peer->asChannelOrMigrated()) {
+			saveForChannel(channel);
 		} else {
 			Unexpected("Peer in SaveAdminCallback.");
 		}
@@ -182,17 +185,7 @@ Fn<void(
 			const MTPChatBannedRights &oldRights,
 			const MTPChatBannedRights &newRights) {
 		const auto done = [=] { onDone(newRights); };
-		if (const auto chat = peer->asChat()) {
-			const auto flags = newRights.match([](
-					const MTPDchatBannedRights &data) {
-				return data.vflags.v;
-			});
-			if (!flags) {
-				done();
-			} else {
-				// #TODO groups autoconv
-			}
-		} else if (const auto channel = peer->asChannel()) {
+		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelRestriction(
 				channel,
 				user,
@@ -200,10 +193,49 @@ Fn<void(
 				newRights,
 				done,
 				onFail);
+		};
+		if (const auto chat = peer->asChatNotMigrated()) {
+			const auto flags = newRights.match([](
+					const MTPDchatBannedRights &data) {
+				return data.vflags.v;
+			});
+			if (!flags) {
+				done();
+			} else {
+				peer->session().api().migrateChat(chat, saveForChannel);
+			}
+		} else if (const auto channel = peer->asChannelOrMigrated()) {
+			saveForChannel(channel);
 		} else {
 			Unexpected("Peer in SaveAdminCallback.");
 		}
 	};
+}
+
+void SubscribeToMigration(
+		not_null<PeerData*> peer,
+		rpl::lifetime &lifetime,
+		Fn<void(not_null<ChannelData*>)> migrate) {
+	if (const auto chat = peer->asChat()) {
+		if (const auto channel = peer->migrateTo()) {
+			migrate(channel);
+		} else if (!chat->isDeactivated()) {
+			const auto alive = lifetime.make_state<base::Subscription>();
+			const auto handler = [=](const Notify::PeerUpdate &update) {
+				if (update.peer == peer) {
+					if (const auto channel = peer->migrateTo()) {
+						const auto onstack = base::duplicate(migrate);
+						*alive = base::Subscription();
+						onstack(channel);
+					}
+				}
+			};
+			*alive = Notify::PeerUpdated().add_subscription(
+				Notify::PeerUpdatedHandler(
+					Notify::PeerUpdate::Flag::MigrationChanged,
+					handler));
+		}
+	}
 }
 
 ParticipantsAdditionalData::ParticipantsAdditionalData(
@@ -214,7 +246,8 @@ ParticipantsAdditionalData::ParticipantsAdditionalData(
 	fillFromPeer();
 }
 
-bool ParticipantsAdditionalData::infoLoaded(not_null<UserData*> user) const {
+bool ParticipantsAdditionalData::infoLoaded(
+		not_null<UserData*> user) const {
 	return _peer->isChat()
 		|| (_infoNotLoaded.find(user) == end(_infoNotLoaded));
 }
@@ -286,7 +319,8 @@ bool ParticipantsAdditionalData::isCreator(not_null<UserData*> user) const {
 	return (_creator == user);
 }
 
-bool ParticipantsAdditionalData::isExternal(not_null<UserData*> user) const {
+bool ParticipantsAdditionalData::isExternal(
+		not_null<UserData*> user) const {
 	return _peer->isChat()
 		? !_members.contains(user)
 		: _external.find(user) != end(_external);
@@ -531,6 +565,23 @@ UserData *ParticipantsAdditionalData::applyBanned(
 	return user;
 }
 
+void ParticipantsAdditionalData::migrate(not_null<ChannelData*> channel) {
+	_peer = channel;
+	fillFromChannel(channel);
+
+	for (const auto user : _admins) {
+		_adminRights.emplace(
+			user,
+			MTP_chatAdminRights(MTP_flags(ChatData::DefaultAdminRights())));
+		if (channel->amCreator()) {
+			_adminCanEdit.emplace(user);
+		}
+		if (_creator) {
+			_adminPromotedBy.emplace(user, _creator);
+		}
+	}
+}
+
 ParticipantsOnlineSorter::ParticipantsOnlineSorter(
 	not_null<PeerData*> peer,
 	not_null<PeerListDelegate*> delegate)
@@ -608,6 +659,7 @@ ParticipantsBoxController::ParticipantsBoxController(
 , _peer(peer)
 , _role(role)
 , _additional(peer, _role) {
+	subscribeToMigration();
 	if (_role == Role::Profile) {
 		setupListChangeViewers();
 	}
@@ -1183,13 +1235,14 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 	}
 	const auto info = megagroup->mgInfo.get();
 	//
-	// channelFull and channels_channelParticipants members count is desynced
+	// channelFull and channels_channelParticipants members count desynced
 	// so we almost always have LastParticipantsCountOutdated that is set
 	// inside setMembersCount() and so we almost never use lastParticipants.
 	//
 	// => disable this check temporarily.
 	//
-	//if (info->lastParticipantsStatus != MegagroupInfo::LastParticipantsUpToDate) {
+	//if (info->lastParticipantsStatus
+	//	!= MegagroupInfo::LastParticipantsUpToDate) {
 	//	_channel->updateFull();
 	//	return false;
 	//}
@@ -1227,7 +1280,8 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-void ParticipantsBoxController::rowActionClicked(not_null<PeerListRow*> row) {
+void ParticipantsBoxController::rowActionClicked(
+		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
 	const auto user = row->peer()->asUser();
@@ -1599,7 +1653,8 @@ void ParticipantsBoxController::recomputeTypeFor(
 	}
 }
 
-void ParticipantsBoxController::refreshCustomStatus(not_null<PeerListRow*> row) const {
+void ParticipantsBoxController::refreshCustomStatus(
+		not_null<PeerListRow*> row) const {
 	const auto user = row->peer()->asUser();
 	if (_role == Role::Admins) {
 		if (const auto by = _additional.adminPromotedBy(user)) {
@@ -1621,6 +1676,18 @@ void ParticipantsBoxController::refreshCustomStatus(not_null<PeerListRow*> row) 
 			lt_user,
 			by ? App::peerName(by) : "Unknown"));
 	}
+}
+
+void ParticipantsBoxController::subscribeToMigration() {
+	SubscribeToMigration(
+		_peer,
+		lifetime(),
+		[=](not_null<ChannelData*> channel) { migrate(channel); });
+}
+
+void ParticipantsBoxController::migrate(not_null<ChannelData*> channel) {
+	_peer = channel;
+	_additional.migrate(channel);
 }
 
 ParticipantsBoxSearchController::ParticipantsBoxSearchController(
@@ -1686,10 +1753,13 @@ bool ParticipantsBoxSearchController::isLoading() {
 }
 
 bool ParticipantsBoxSearchController::searchInCache() {
-	auto it = _cache.find(_query);
-	if (it != _cache.cend()) {
+	const auto i = _cache.find(_query);
+	if (i != _cache.cend()) {
 		_requestId = 0;
-		searchDone(_requestId, it->second.result, it->second.requestedCount);
+		searchDone(
+			_requestId,
+			i->second.result,
+			i->second.requestedCount);
 		return true;
 	}
 	return false;
@@ -1706,11 +1776,14 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 		switch (_role) {
 		case Role::Admins: // Search for members, appoint as admin on found.
 		case Role::Profile:
-		case Role::Members: return MTP_channelParticipantsSearch(MTP_string(_query));
-		case Role::Restricted: return MTP_channelParticipantsBanned(MTP_string(_query));
-		case Role::Kicked: return MTP_channelParticipantsKicked(MTP_string(_query));
+		case Role::Members:
+			return MTP_channelParticipantsSearch(MTP_string(_query));
+		case Role::Restricted:
+			return MTP_channelParticipantsBanned(MTP_string(_query));
+		case Role::Kicked:
+			return MTP_channelParticipantsKicked(MTP_string(_query));
 		}
-		Unexpected("Role in ParticipantsBoxSearchController::loadMoreRows()");
+		Unexpected("Role in ParticipantsBoxSearchController.");
 	}();
 
 	// For search we request a lot of rows from the first query.
@@ -1725,9 +1798,11 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 		MTP_int(_offset),
 		MTP_int(perPage),
 		MTP_int(participantsHash)
-	)).done([this, perPage](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
+	)).done([=](
+			const MTPchannels_ChannelParticipants &result,
+			mtpRequestId requestId) {
 		searchDone(requestId, result, perPage);
-	}).fail([this](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const RPCError &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_allLoaded = true;
@@ -1748,7 +1823,7 @@ void ParticipantsBoxSearchController::searchDone(
 		int requestedCount) {
 	auto query = _query;
 	if (requestId) {
-		_channel->session().api().parseChannelParticipants(_channel, result, [&](auto&&...) {
+		const auto addToCache = [&](auto&&...) {
 			auto it = _queries.find(requestId);
 			if (it != _queries.cend()) {
 				query = it->second.text;
@@ -1759,20 +1834,23 @@ void ParticipantsBoxSearchController::searchDone(
 				}
 				_queries.erase(it);
 			}
-		});
+		};
+		_channel->session().api().parseChannelParticipants(
+			_channel,
+			result,
+			addToCache);
 	}
-
 	if (_requestId != requestId) {
 		return;
 	}
 
 	_requestId = 0;
 	result.match([&](const MTPDchannels_channelParticipants &data) {
-		auto &list = data.vparticipants.v;
+		const auto &list = data.vparticipants.v;
 		if (list.size() < requestedCount) {
-			// We want cache to have full information about a query with small
-			// results count (if we don't need the second request). So we don't
-			// wait for an empty results list unlike the non-search peer list.
+			// We want cache to have full information about a query with
+			// small results count (that we don't need the second request).
+			// So we don't wait for empty list unlike the non-search case.
 			_allLoaded = true;
 		}
 		const auto overrideRole = (_role == Role::Admins)

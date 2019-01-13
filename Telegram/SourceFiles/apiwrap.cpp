@@ -1168,6 +1168,69 @@ void ApiWrap::requestPeer(not_null<PeerData*> peer) {
 	_peerRequests.insert(peer, requestId);
 }
 
+void ApiWrap::migrateChat(
+		not_null<ChatData*> chat,
+		FnMut<void(not_null<ChannelData*>)> done,
+		FnMut<void(const RPCError &)> fail) {
+	const auto callback = [&] {
+		return MigrateCallbacks{ std::move(done), std::move(fail) };
+	};
+	const auto i = _migrateCallbacks.find(chat);
+	if (i != end(_migrateCallbacks)) {
+		i->second.push_back(callback());
+		return;
+	} else if (const auto channel = chat->migrateTo()) {
+		Notify::peerUpdatedDelayed(
+			chat,
+			Notify::PeerUpdate::Flag::MigrationChanged);
+		crl::on_main([=, done = std::move(done)]() mutable {
+			Notify::peerUpdatedSendDelayed();
+			done(channel);
+		});
+	} else if (chat->isDeactivated()) {
+		crl::on_main([fail = std::move(fail)]() mutable {
+			fail(RPCError::Local(
+				"BAD_MIGRATION",
+				"Chat is already deactivated"));
+		});
+		return;
+	} else if (!chat->amCreator()) {
+		crl::on_main([fail = std::move(fail)]() mutable {
+			fail(RPCError::Local(
+				"BAD_MIGRATION",
+				"Current user is not the creator of that chat"));
+		});
+		return;
+	}
+
+	_migrateCallbacks.emplace(chat).first->second.push_back(callback());
+	request(MTPmessages_MigrateChat(
+		chat->inputChat
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+		Notify::peerUpdatedSendDelayed();
+
+		const auto channel = chat->migrateTo();
+		if (auto handlers = _migrateCallbacks.take(chat)) {
+			for (auto &handler : *handlers) {
+				if (channel) {
+					handler.done(channel);
+				} else {
+					handler.fail(RPCError::Local(
+						"MIGRATION_FAIL",
+						"No channel"));
+				}
+			}
+		}
+	}).fail([=](const RPCError &error) {
+		if (auto handlers = _migrateCallbacks.take(chat)) {
+			for (auto &handler : *handlers) {
+				handler.fail(error);
+			}
+		}
+	}).send();
+}
+
 void ApiWrap::markMediaRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
 	auto markedIds = QVector<MTPint>();

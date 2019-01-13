@@ -318,12 +318,15 @@ int PeerListBox::peerListSelectedRowsCount() {
 	return _select ? _select->entity()->getItemsCount() : 0;
 }
 
-std::vector<not_null<PeerData*>> PeerListBox::peerListCollectSelectedRows() {
-	auto result = std::vector<not_null<PeerData*>> {};
-	auto items = _select ? _select->entity()->getItems() : QVector<uint64> {};
+auto PeerListBox::peerListCollectSelectedRows()
+-> std::vector<not_null<PeerData*>> {
+	auto result = std::vector<not_null<PeerData*>>();
+	auto items = _select
+		? _select->entity()->getItems()
+		: QVector<uint64>();
 	if (!items.empty()) {
 		result.reserve(items.size());
-		for_const (auto itemId, items) {
+		for (const auto itemId : items) {
 			result.push_back(App::peer(itemId));
 		}
 	}

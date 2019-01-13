@@ -156,8 +156,11 @@ void Session::createDcData() {
 	connect(dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
 }
 
-bool Session::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
-	return _instance->rpcErrorOccured(requestId, onFail, err);
+bool Session::rpcErrorOccured(
+		mtpRequestId requestId,
+		const RPCFailHandlerPtr &onFail,
+		const RPCError &error) { // return true if need to clean request data
+	return _instance->rpcErrorOccured(requestId, onFail, error);
 }
 
 void Session::restart() {
@@ -616,10 +619,6 @@ void Session::tryToReceive() {
 
 Session::~Session() {
 	Assert(_connection == nullptr);
-}
-
-MTPrpcError rpcClientError(const QString &type, const QString &description) {
-	return MTP_rpc_error(MTP_int(0), MTP_string(("CLIENT_" + type + (description.length() ? (": " + description) : "")).toUtf8().constData()));
 }
 
 } // namespace internal

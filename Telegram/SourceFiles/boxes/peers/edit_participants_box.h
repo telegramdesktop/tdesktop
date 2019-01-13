@@ -36,6 +36,11 @@ Fn<void(
 		Fn<void(const MTPChatBannedRights &newRights)> onDone,
 		Fn<void()> onFail);
 
+void SubscribeToMigration(
+	not_null<PeerData*> peer,
+	rpl::lifetime &lifetime,
+	Fn<void(not_null<ChannelData*>)> migrate);
+
 enum class ParticipantsRole {
 	Profile,
 	Members,
@@ -91,6 +96,8 @@ public:
 	[[nodiscard]] bool isKicked(not_null<UserData*> user) const;
 	[[nodiscard]] UserData *adminPromotedBy(not_null<UserData*> user) const;
 	[[nodiscard]] UserData *restrictedBy(not_null<UserData*> user) const;
+
+	void migrate(not_null<ChannelData*> channel);
 
 private:
 	UserData *applyCreator(const MTPDchannelParticipantCreator &data);
@@ -215,6 +222,9 @@ private:
 	bool feedMegagroupLastParticipants();
 	Type computeType(not_null<UserData*> user) const;
 	void recomputeTypeFor(not_null<UserData*> user);
+
+	void subscribeToMigration();
+	void migrate(not_null<ChannelData*> channel);
 
 	not_null<Window::Navigation*> _navigation;
 	not_null<PeerData*> _peer;

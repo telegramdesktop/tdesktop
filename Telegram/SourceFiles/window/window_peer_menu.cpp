@@ -107,11 +107,7 @@ History *FindWastedPin() {
 }
 
 void AddChatMembers(not_null<ChatData*> chat) {
-	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-		// #TODO convert and add inside AddParticipantsBoxController?
-	} else {
-		AddParticipantsBoxController::Start(chat);
-	}
+	AddParticipantsBoxController::Start(chat);
 }
 
 bool PinnedLimitReached(Dialogs::Key key) {
