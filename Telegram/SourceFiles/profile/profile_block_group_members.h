@@ -44,11 +44,11 @@ private:
 
 	void removePeer(PeerData *selectedPeer);
 	void refreshMembers();
-	void fillChatMembers(ChatData *chat);
-	void fillMegagroupMembers(ChannelData *megagroup);
+	void fillChatMembers(not_null<ChatData*> chat);
+	void fillMegagroupMembers(not_null<ChannelData*> megagroup);
 	void sortMembers();
 	void updateOnlineCount();
-	void checkSelfAdmin(ChatData *chat);
+	void checkSelfAdmin(not_null<ChatData*> chat);
 	void preloadMore();
 
 	void refreshUserOnline(UserData *user);
@@ -66,12 +66,14 @@ private:
 	}
 
 	void updateItemStatusText(Item *item);
-	Member *computeMember(UserData *user);
-	Member *addUser(ChatData *chat, UserData *user);
-	Member *addUser(ChannelData *megagroup, UserData *user);
-	void setItemFlags(Item *item, ChatData *chat);
-	void setItemFlags(Item *item, ChannelData *megagroup);
-	bool addUsersToEnd(ChannelData *megagroup);
+	not_null<Member*> computeMember(not_null<UserData*> user);
+	not_null<Member*> addUser(not_null<ChatData*> chat, not_null<UserData*> user);
+	not_null<Member*> addUser(not_null<ChannelData*> megagroup, not_null<UserData*> user);
+	void setItemFlags(not_null<Item*> item, not_null<ChatData*> chat);
+	void setItemFlags(
+		not_null<Item*> item,
+		not_null<ChannelData*> megagroup);
+	bool addUsersToEnd(not_null<ChannelData*> megagroup);
 
 	QMap<UserData*, Member*> _membersByUser;
 	bool _sortByOnline = false;

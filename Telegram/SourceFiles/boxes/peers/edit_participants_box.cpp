@@ -47,13 +47,9 @@ void RemoveAdmin(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
-		if (const auto done = onDone) {
-			done();
-		}
+		onDone();
 	}).fail([=](const RPCError &error) {
-		if (const auto fail = onFail) {
-			fail();
-		}
+		onFail();
 	}).send();
 }
 
@@ -69,13 +65,9 @@ void SaveChatAdmin(
 		MTP_bool(isAdmin)
 	)).done([=](const MTPBool &result) {
 		chat->applyEditAdmin(user, isAdmin);
-		if (const auto done = onDone) {
-			done();
-		}
+		onDone();
 	}).fail([=](const RPCError &error) {
-		if (const auto fail = onFail) {
-			fail();
-		}
+		onFail();
 	}).send();
 }
 
@@ -93,9 +85,7 @@ void SaveChannelAdmin(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
-		if (const auto done = onDone) {
-			done();
-		}
+		onDone();
 	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
 			Ui::show(
@@ -115,9 +105,7 @@ void SaveChannelAdmin(
 					: lng_error_admin_limit_channel)),
 				LayerOption::KeepOther);
 		}
-		if (const auto fail = onFail) {
-			fail();
-		}
+		onFail();
 	}).send();
 }
 
@@ -133,16 +121,11 @@ void SaveChannelRestriction(
 		user->inputUser,
 		newRights
 	)).done([=](const MTPUpdates &result) {
-		const auto done = onDone;
 		channel->session().api().applyUpdates(result);
 		channel->applyEditBanned(user, oldRights, newRights);
-		if (const auto done = onDone) {
-			done();
-		}
+		onDone();
 	}).fail([=](const RPCError &error) {
-		if (const auto fail = onFail) {
-			fail();
-		}
+		onFail();
 	}).send();
 }
 
@@ -368,12 +351,7 @@ void ParticipantsAdditionalData::fillFromChat(not_null<ChatData*> chat) {
 	if (chat->participants.empty()) {
 		return;
 	}
-	const auto keys = ranges::view::all(
-		chat->participants
-	) | ranges::view::transform([](auto &&pair) {
-		return pair.first;
-	});
-	_members = { keys.begin(), keys.end() };
+	_members = chat->participants;
 	_admins = chat->admins;
 }
 
@@ -794,7 +772,7 @@ void ParticipantsBoxController::addNewParticipants() {
 		auto already = std::vector<not_null<UserData*>>();
 		already.reserve(count);
 		for (auto i = 0; i != count; ++i) {
-			already.push_back(
+			already.emplace_back(
 				delegate()->peerListRowAt(i)->peer()->asUser());
 		}
 		AddParticipantsBoxController::Start(
@@ -805,16 +783,18 @@ void ParticipantsBoxController::addNewParticipants() {
 	}
 }
 
-void ParticipantsBoxController::peerListSearchAddRow(not_null<PeerData*> peer) {
+void ParticipantsBoxController::peerListSearchAddRow(
+		not_null<PeerData*> peer) {
 	PeerListController::peerListSearchAddRow(peer);
-	if (_role == Role::Restricted && delegate()->peerListFullRowsCount() > 0) {
+	if (_role == Role::Restricted
+		&& delegate()->peerListFullRowsCount() > 0) {
 		setDescriptionText(QString());
 	}
 }
 
 std::unique_ptr<PeerListRow> ParticipantsBoxController::createSearchRow(
 		not_null<PeerData*> peer) {
-	if (auto user = peer->asUser()) {
+	if (const auto user = peer->asUser()) {
 		return createRow(user);
 	}
 	return nullptr;
@@ -822,13 +802,14 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createSearchRow(
 
 std::unique_ptr<PeerListRow> ParticipantsBoxController::createRestoredRow(
 		not_null<PeerData*> peer) {
-	if (auto user = peer->asUser()) {
+	if (const auto user = peer->asUser()) {
 		return createRow(user);
 	}
 	return nullptr;
 }
 
-std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() const {
+auto ParticipantsBoxController::saveState() const
+-> std::unique_ptr<PeerListState> {
 	Expects(_role == Role::Profile);
 
 	auto result = PeerListController::saveState();
@@ -837,14 +818,19 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() const {
 	my->offset = _offset;
 	my->allLoaded = _allLoaded;
 	my->wasLoading = (_loadRequestId != 0);
-	if (auto search = searchController()) {
+	if (const auto search = searchController()) {
 		my->searchState = search->saveState();
 	}
 
-	if (_peer->isMegagroup()) {
-		const auto channel = _peer->asChannel();
-
-		auto weak = result.get();
+	const auto weak = result.get();
+	if (const auto chat = _peer->asChat()) {
+		Notify::PeerUpdateViewer(
+			chat,
+			Notify::PeerUpdate::Flag::MembersChanged
+		) | rpl::start_with_next([=](const Notify::PeerUpdate &) {
+			weak->controllerState = nullptr;
+		}, my->lifetime);
+	} else if (const auto channel = _peer->asMegagroup()) {
 		channel->owner().megagroupParticipantAdded(
 			channel
 		) | rpl::start_with_next([=](not_null<UserData*> user) {
@@ -855,7 +841,7 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() const {
 			}
 			auto pos = ranges::find(weak->list, user);
 			if (pos == weak->list.cend()) {
-				weak->list.push_back(user);
+				weak->list.emplace_back(user);
 			}
 			ranges::stable_partition(
 				weak->list,
@@ -884,15 +870,15 @@ void ParticipantsBoxController::restoreState(
 	auto typeErasedState = state
 		? state->controllerState.get()
 		: nullptr;
-	if (auto my = dynamic_cast<SavedState*>(typeErasedState)) {
-		if (auto requestId = base::take(_loadRequestId)) {
+	if (const auto my = dynamic_cast<SavedState*>(typeErasedState)) {
+		if (const auto requestId = base::take(_loadRequestId)) {
 			request(requestId).cancel();
 		}
 
 		_additional = std::move(my->additional);
 		_offset = my->offset;
 		_allLoaded = my->allLoaded;
-		if (auto search = searchController()) {
+		if (const auto search = searchController()) {
 			search->restoreState(std::move(my->searchState));
 		}
 		if (my->wasLoading) {
@@ -989,13 +975,8 @@ void ParticipantsBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 
 void ParticipantsBoxController::rebuildChatParticipants(
 		not_null<ChatData*> chat) {
-	if (chat->participants.empty()) {
-		// We get such updates often
-		// (when participants list was invalidated).
-		//while (delegate()->peerListFullRowsCount() > 0) {
-		//	delegate()->peerListRemoveRow(
-		//		delegate()->peerListRowAt(0));
-		//}
+	if (chat->noParticipantInfo()) {
+		chat->updateFullForced();
 		return;
 	}
 
@@ -1011,7 +992,7 @@ void ParticipantsBoxController::rebuildChatParticipants(
 			--count;
 		}
 	}
-	for (const auto [user, v] : participants) {
+	for (const auto user : participants) {
 		if (auto row = createRow(user)) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
@@ -1036,7 +1017,7 @@ void ParticipantsBoxController::rebuildChatAdmins(
 
 	auto list = ranges::view::all(chat->admins) | ranges::to_vector;
 	if (const auto creator = chat->owner().userLoaded(chat->creator)) {
-		list.push_back(creator);
+		list.emplace_back(creator);
 	}
 	ranges::sort(list, [](not_null<UserData*> a, not_null<UserData*> b) {
 		return (a->name.compare(b->name, Qt::CaseInsensitive) < 0);

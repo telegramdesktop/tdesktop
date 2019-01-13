@@ -179,13 +179,13 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 
 void GroupMembersWidget::refreshMembers() {
 	_now = unixtime();
-	if (auto chat = peer()->asChat()) {
+	if (const auto chat = peer()->asChat()) {
 		checkSelfAdmin(chat);
 		if (chat->noParticipantInfo()) {
 			Auth().api().requestFullPeer(chat);
 		}
 		fillChatMembers(chat);
-	} else if (auto megagroup = peer()->asMegagroup()) {
+	} else if (const auto megagroup = peer()->asMegagroup()) {
 		auto &megagroupInfo = megagroup->mgInfo;
 		if (megagroupInfo->lastParticipants.empty() || megagroup->lastParticipantsCountOutdated()) {
 			Auth().api().requestLastParticipants(megagroup);
@@ -197,11 +197,12 @@ void GroupMembersWidget::refreshMembers() {
 	refreshVisibility();
 }
 
-void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
-	if (chat->participants.empty()) return;
+void GroupMembersWidget::checkSelfAdmin(not_null<ChatData*> chat) {
+	if (chat->participants.empty()) {
+		return;
+	}
 
-	// #TODO groups
-	const auto self = Auth().user();
+	const auto self = chat->session().user();
 	//if (chat->amAdmin() && !chat->admins.contains(self)) {
 	//	chat->admins.insert(self);
 	//} else if (!chat->amAdmin() && chat->admins.contains(self)) {
@@ -246,74 +247,95 @@ void GroupMembersWidget::updateOnlineCount() {
 	}
 }
 
-GroupMembersWidget::Member *GroupMembersWidget::addUser(ChatData *chat, UserData *user) {
-	auto member = computeMember(user);
+auto GroupMembersWidget::addUser(
+	not_null<ChatData*> chat,
+	not_null<UserData*> user)
+-> not_null<Member*> {
+	const auto member = computeMember(user);
 	setItemFlags(member, chat);
 	addItem(member);
 	return member;
 }
 
-void GroupMembersWidget::fillChatMembers(ChatData *chat) {
-	if (chat->participants.empty()) return;
+void GroupMembersWidget::fillChatMembers(not_null<ChatData*> chat) {
+	if (chat->participants.empty()) {
+		return;
+	}
 
 	clearItems();
-	if (!chat->amIn()) return;
+	if (!chat->amIn()) {
+		return;
+	}
 
 	_sortByOnline = true;
 
 	reserveItemsForSize(chat->participants.size());
-	addUser(chat, Auth().user())->onlineForSort
+	addUser(chat, chat->session().user())->onlineForSort
 		= std::numeric_limits<TimeId>::max();
-	for (const auto &[user, v] : chat->participants) {
+	for (const auto user : chat->participants) {
 		if (!user->isSelf()) {
 			addUser(chat, user);
 		}
 	}
 }
 
-void GroupMembersWidget::setItemFlags(Item *item, ChatData *chat) {
+void GroupMembersWidget::setItemFlags(
+		not_null<Item*> item,
+		not_null<ChatData*> chat) {
 	using AdminState = Item::AdminState;
-	auto user = getMember(item)->user();
-	auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
-	// #TODO groups
-	auto isAdmin = false;// chat->adminsEnabled() && chat->admins.contains(user);
-	auto adminState = isCreator ? AdminState::Creator : isAdmin ? AdminState::Admin : AdminState::None;
+	const auto user = getMember(item)->user();
+	const auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
+	const auto isAdmin = chat->hasAdminRights();
+	const auto adminState = isCreator
+		? AdminState::Creator
+		: isAdmin
+		? AdminState::Admin
+		: AdminState::None;
 	item->adminState = adminState;
-	if (item->peer->id == Auth().userPeerId()) {
+	if (item->peer->id == chat->session().userPeerId()) {
 		item->hasRemoveLink = false;
-	} else if (chat->amCreator() /*|| (chat->amAdmin() && (adminState == AdminState::None))*/) {
+	} else if (chat->amCreator()
+		|| ((chat->adminRights() & ChatAdminRight::f_ban_users)
+			&& (adminState == AdminState::None))) {
 		item->hasRemoveLink = true;
-	} else if (chat->invitedByMe.contains(user) && (adminState == AdminState::None)) {
+	} else if (chat->invitedByMe.contains(user)
+		&& (adminState == AdminState::None)) {
 		item->hasRemoveLink = true;
 	} else {
 		item->hasRemoveLink = false;
 	}
 }
 
-GroupMembersWidget::Member *GroupMembersWidget::addUser(ChannelData *megagroup, UserData *user) {
-	auto member = computeMember(user);
+auto GroupMembersWidget::addUser(
+	not_null<ChannelData*> megagroup,
+	not_null<UserData*> user)
+-> not_null<Member*> {
+	const auto member = computeMember(user);
 	setItemFlags(member, megagroup);
 	addItem(member);
 	return member;
 }
 
-void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
-	Assert(megagroup->mgInfo != nullptr);
-	if (megagroup->mgInfo->lastParticipants.empty()) return;
+void GroupMembersWidget::fillMegagroupMembers(
+		not_null<ChannelData*> megagroup) {
+	Expects(megagroup->mgInfo != nullptr);
 
-	if (!megagroup->canViewMembers()) {
+	if (megagroup->mgInfo->lastParticipants.empty()) {
+		return;
+	} else if (!megagroup->canViewMembers()) {
 		clearItems();
 		return;
 	}
 
-	_sortByOnline = (megagroup->membersCount() > 0 && megagroup->membersCount() <= Global::ChatSizeMax());
+	_sortByOnline = (megagroup->membersCount() > 0)
+		&& (megagroup->membersCount() <= Global::ChatSizeMax());
 
 	auto &membersList = megagroup->mgInfo->lastParticipants;
 	if (_sortByOnline) {
 		clearItems();
 		reserveItemsForSize(membersList.size());
 		if (megagroup->amIn()) {
-			addUser(megagroup, Auth().user())->onlineForSort
+			addUser(megagroup, megagroup->session().user())->onlineForSort
 				= std::numeric_limits<TimeId>::max();
 		}
 	} else if (membersList.size() >= itemsCount()) {
@@ -325,14 +347,14 @@ void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 		clearItems();
 		reserveItemsForSize(membersList.size());
 	}
-	for_const (auto user, membersList) {
+	for (const auto user : membersList) {
 		if (!_sortByOnline || !user->isSelf()) {
 			addUser(megagroup, user);
 		}
 	}
 }
 
-bool GroupMembersWidget::addUsersToEnd(ChannelData *megagroup) {
+bool GroupMembersWidget::addUsersToEnd(not_null<ChannelData*> megagroup) {
 	auto &membersList = megagroup->mgInfo->lastParticipants;
 	auto &itemsList = items();
 	for (int i = 0, count = itemsList.size(); i < count; ++i) {
@@ -347,7 +369,9 @@ bool GroupMembersWidget::addUsersToEnd(ChannelData *megagroup) {
 	return true;
 }
 
-void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
+void GroupMembersWidget::setItemFlags(
+		not_null<Item*> item,
+		not_null<ChannelData*> megagroup) {
 	using AdminState = Item::AdminState;
 	auto amCreator = item->peer->isSelf() && megagroup->amCreator();
 	auto amAdmin = item->peer->isSelf() && megagroup->hasAdminRights();
@@ -355,7 +379,11 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	auto isAdmin = (adminIt != megagroup->mgInfo->lastAdmins.cend());
 	auto isCreator = megagroup->mgInfo->creator == item->peer;
 	auto adminCanEdit = isAdmin && adminIt->second.canEdit;
-	auto adminState = (amCreator || isCreator) ? AdminState::Creator : (amAdmin || isAdmin) ? AdminState::Admin : AdminState::None;
+	auto adminState = (amCreator || isCreator)
+		? AdminState::Creator
+		: (amAdmin || isAdmin)
+		? AdminState::Admin
+		: AdminState::None;
 	if (item->adminState != adminState) {
 		item->adminState = adminState;
 		auto user = item->peer->asUser();
@@ -375,7 +403,8 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	}
 }
 
-GroupMembersWidget::Member *GroupMembersWidget::computeMember(UserData *user) {
+auto GroupMembersWidget::computeMember(not_null<UserData*> user)
+-> not_null<Member*> {
 	auto it = _membersByUser.constFind(user);
 	if (it == _membersByUser.cend()) {
 		auto member = new Member(user);

@@ -506,8 +506,9 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	}
 	if (!out()) {
 		if (const auto chat = peer->asChat()) {
-			// #TODO groups
-			if (!chat->amCreator()/* && (!chat->amAdmin() || !chat->adminsEnabled())*/) {
+			if (!chat->amCreator()
+				&& !(chat->adminRights()
+					& ChatAdminRight::f_delete_messages)) {
 				return false;
 			}
 		} else if (peer->isUser()) {

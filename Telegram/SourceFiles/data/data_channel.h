@@ -326,6 +326,19 @@ public:
 		return _feed;
 	}
 
+	enum class UpdateStatus {
+		Good,
+		TooOld,
+		Skipped,
+	};
+	int version() const {
+		return _version;
+	}
+	void setVersion(int version) {
+		_version = version;
+	}
+	UpdateStatus applyUpdateVersion(int version);
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -334,7 +347,6 @@ public:
 	QString username;
 
 	int32 date = 0;
-	int version = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
 
 	UserId inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
@@ -354,6 +366,7 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	MsgId _availableMinId = 0;
+	int _version = 0;
 
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
@@ -368,3 +381,11 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+namespace Data {
+
+void ApplyChannelUpdate(
+	not_null<ChannelData*> channel,
+	const MTPDupdateChatDefaultBannedRights &update);
+
+} // namespace Data

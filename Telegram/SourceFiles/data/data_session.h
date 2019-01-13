@@ -103,6 +103,8 @@ public:
 	UserData *processUsers(const MTPVector<MTPUser> &data);
 	PeerData *processChats(const MTPVector<MTPChat> &data);
 
+	void applyMaximumChatVersions(const MTPVector<MTPChat> &data);
+
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
 	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
@@ -270,6 +272,13 @@ public:
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;
 
+	void applyUpdate(const MTPDupdateMessagePoll &update);
+	void applyUpdate(const MTPDupdateChatParticipants &update);
+	void applyUpdate(const MTPDupdateChatParticipantAdd &update);
+	void applyUpdate(const MTPDupdateChatParticipantDelete &update);
+	void applyUpdate(const MTPDupdateChatParticipantAdmin &update);
+	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
+
 	int pinnedDialogsCount() const;
 	const std::deque<Dialogs::Key> &pinnedDialogsOrder() const;
 	void setPinnedDialog(const Dialogs::Key &key, bool pinned);
@@ -403,7 +412,6 @@ public:
 	not_null<PollData*> poll(PollId id);
 	not_null<PollData*> poll(const MTPPoll &data);
 	not_null<PollData*> poll(const MTPDmessageMediaPoll &data);
-	void applyPollUpdate(const MTPDupdateMessagePoll &update);
 
 	not_null<LocationData*> location(const LocationCoords &coords);
 

@@ -1183,26 +1183,27 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : 
 
 	request(MTPchannels_GetAdminedPublicChannels(
 	)).done([=](const MTPmessages_Chats &result) {
-		if (auto chats = Api::getChatsFromMessagesChats(result)) {
-			for_const (auto &chat, chats->v) {
-				if (auto peer = App::feedChat(chat)) {
-					if (!peer->isChannel() || peer->userName().isEmpty()) {
-						continue;
-					}
-
-					auto row = ChatRow(peer);
-					row.peer = peer;
-					row.name.setText(
-						st::contactsNameStyle,
-						peer->name,
-						Ui::NameTextOptions());
-					row.status.setText(
-						st::defaultTextStyle,
-						Messenger::Instance().createInternalLink(
-							textcmdLink(1, peer->userName())),
-						Ui::DialogTextOptions());
-					_rows.push_back(std::move(row));
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats.v;
+		});
+		for (const auto &chat : chats) {
+			if (const auto peer = App::feedChat(chat)) {
+				if (!peer->isChannel() || peer->userName().isEmpty()) {
+					continue;
 				}
+
+				auto row = ChatRow(peer);
+				row.peer = peer;
+				row.name.setText(
+					st::contactsNameStyle,
+					peer->name,
+					Ui::NameTextOptions());
+				row.status.setText(
+					st::defaultTextStyle,
+					Messenger::Instance().createInternalLink(
+						textcmdLink(1, peer->userName())),
+					Ui::DialogTextOptions());
+				_rows.push_back(std::move(row));
 			}
 		}
 		resize(width(), _rows.size() * _rowHeight);

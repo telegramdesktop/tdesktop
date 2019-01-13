@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 
 namespace {
 
@@ -482,3 +483,28 @@ void ChannelData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
 	_defaultRestrictions.set(rights.c_chatBannedRights().vflags.v);
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged);
 }
+
+auto ChannelData::applyUpdateVersion(int version) -> UpdateStatus {
+	if (_version > version) {
+		return UpdateStatus::TooOld;
+	} else if (_version + 1 < version) {
+		session().api().requestPeer(this);
+		return UpdateStatus::Skipped;
+	}
+	setVersion(version);
+	return UpdateStatus::Good;
+}
+
+namespace Data {
+
+void ApplyChannelUpdate(
+		not_null<ChannelData*> channel,
+		const MTPDupdateChatDefaultBannedRights &update) {
+	if (channel->applyUpdateVersion(update.vversion.v)
+		!= ChannelData::UpdateStatus::Good) {
+		return;
+	}
+	channel->setDefaultRestrictions(update.vdefault_banned_rights);
+}
+
+} // namespace Data

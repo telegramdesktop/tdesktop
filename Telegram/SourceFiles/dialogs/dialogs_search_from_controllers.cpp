@@ -96,7 +96,7 @@ void ChatSearchFromController::rebuildRows() {
 	if (_chat->noParticipantInfo()) {
 		Auth().api().requestFullPeer(_chat);
 	} else if (!_chat->participants.empty()) {
-		for (const auto [user, version] : _chat->participants) {
+		for (const auto user : _chat->participants) {
 			ordered.insertMulti(byOnline(user), user);
 		}
 	}

@@ -30,12 +30,7 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 		return {};
 	}
 	if (const auto chat = peer->asChat()) {
-		const auto participants = (
-			chat->participants
-		) | ranges::view::transform([](auto &&pair) -> not_null<UserData*> {
-			return pair.first;
-		});
-		return { participants.begin(), participants.end() };
+		return chat->participants;
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->isMegagroup()) {
 			const auto &participants = channel->mgInfo->lastParticipants;
@@ -306,7 +301,7 @@ void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 			--count;
 		}
 	}
-	for (const auto [user, v] : participants) {
+	for (const auto user : participants) {
 		if (auto row = createRow(user)) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
@@ -976,7 +971,7 @@ void AddSpecialBoxSearchController::addChatMembers(
 		return true;
 	};
 
-	for (const auto [user, v] : chat->participants) {
+	for (const auto user : chat->participants) {
 		if (allWordsAreFound(user->nameWords())) {
 			delegate()->peerListSearchAddRow(user);
 		}

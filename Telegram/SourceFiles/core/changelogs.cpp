@@ -157,7 +157,7 @@ void Changelogs::addLocalLog(const QString &text) {
 };
 
 void Changelogs::addBetaLogs() {
-	for (const auto[version, changes] : BetaLogs()) {
+	for (const auto [version, changes] : BetaLogs()) {
 		addBetaLog(version, changes);
 	}
 }

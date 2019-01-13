@@ -411,7 +411,9 @@ template <typename Flags>
 class MTPflags {
 public:
 	Flags v = 0;
-	static_assert(sizeof(Flags) == sizeof(int32), "MTPflags are allowed only wrapping int32 flag types!");
+	static_assert(
+		sizeof(Flags) == sizeof(int32),
+		"MTPflags are allowed only wrapping int32 flag types!");
 
 	MTPflags() = default;
 	MTPflags(internal::ZeroFlagsHelper helper) {

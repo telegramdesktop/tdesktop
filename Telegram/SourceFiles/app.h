@@ -70,10 +70,6 @@ namespace App {
 	PeerData *feedChat(const MTPChat &chat);
 	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos);
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
-	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void updateEditedMessage(const MTPMessage &m);
 	void addSavedGif(DocumentData *doc);

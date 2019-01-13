@@ -4182,7 +4182,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateMessagePoll: {
-		Auth().data().applyPollUpdate(update.c_updateMessagePoll());
+		Auth().data().applyUpdate(update.c_updateMessagePoll());
 	} break;
 
 	case mtpc_updateUserTyping: {
@@ -4216,47 +4216,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChatParticipants: {
-		App::feedParticipants(update.c_updateChatParticipants().vparticipants, true);
+		Auth().data().applyUpdate(update.c_updateChatParticipants());
 	} break;
 
 	case mtpc_updateChatParticipantAdd: {
-		App::feedParticipantAdd(update.c_updateChatParticipantAdd());
+		Auth().data().applyUpdate(update.c_updateChatParticipantAdd());
 	} break;
 
 	case mtpc_updateChatParticipantDelete: {
-		App::feedParticipantDelete(update.c_updateChatParticipantDelete());
-	} break;
-
-	case mtpc_updateChatDefaultBannedRights: {
-		const auto &data = update.c_updateChatDefaultBannedRights();
-		const auto peerId = peerFromMTP(data.vpeer);
-		if (const auto peer = Auth().data().peerLoaded(peerId)) {
-			if (const auto chat = peer->asChat()) {
-				if (data.vversion.v == chat->version + 1) {
-					chat->setDefaultRestrictions(
-						data.vdefault_banned_rights);
-				} else {
-					chat->version = data.vversion.v;
-					chat->invalidateParticipants();
-					Auth().api().requestPeer(chat);
-				}
-			} else if (const auto channel = peer->asChannel()) {
-				if (data.vversion.v == channel->version + 1) {
-					channel->setDefaultRestrictions(
-						data.vdefault_banned_rights);
-				} else {
-					channel->version = data.vversion.v;
-					Auth().api().requestPeer(channel);
-				}
-			} else {
-				LOG(("API Error: "
-					"User received in updateChatDefaultBannedRights."));
-			}
-		}
+		Auth().data().applyUpdate(update.c_updateChatParticipantDelete());
 	} break;
 
 	case mtpc_updateChatParticipantAdmin: {
-		App::feedParticipantAdmin(update.c_updateChatParticipantAdmin());
+		Auth().data().applyUpdate(update.c_updateChatParticipantAdmin());
+	} break;
+
+	case mtpc_updateChatDefaultBannedRights: {
+		Auth().data().applyUpdate(update.c_updateChatDefaultBannedRights());
 	} break;
 
 	case mtpc_updateUserStatus: {

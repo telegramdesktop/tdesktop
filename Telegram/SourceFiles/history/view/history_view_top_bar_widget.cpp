@@ -758,7 +758,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			const auto self = Auth().user();
 			auto online = 0;
 			auto onlyMe = true;
-			for (const auto [user, v] : chat->participants) {
+			for (const auto user : chat->participants) {
 				if (user->onlineTill > now) {
 					++online;
 					if (onlyMe && user != self) onlyMe = false;
@@ -826,7 +826,7 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 	if (const auto user = _activeChat.peer()->asUser()) {
 		handleUser(user);
 	} else if (auto chat = _activeChat.peer()->asChat()) {
-		for (const auto [user, v] : chat->participants) {
+		for (const auto user : chat->participants) {
 			handleUser(user);
 		}
 	} else if (_activeChat.peer()->isChannel()) {

@@ -47,14 +47,6 @@ struct CloudPasswordState;
 
 namespace Api {
 
-inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
-	switch (chats.type()) {
-	case mtpc_messages_chats: return &chats.c_messages_chats().vchats;
-	case mtpc_messages_chatsSlice: return &chats.c_messages_chatsSlice().vchats;
-	}
-	return nullptr;
-}
-
 template <typename IntRange>
 inline int32 CountHash(IntRange &&range) {
 	uint32 acc = 0;

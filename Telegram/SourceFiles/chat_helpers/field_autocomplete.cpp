@@ -194,7 +194,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			if (_chat->noParticipantInfo()) {
 				Auth().api().requestFullPeer(_chat);
 			} else if (!_chat->participants.empty()) {
-				for (const auto [user, v] : _chat->participants) {
+				for (const auto user : _chat->participants) {
 					if (user->isInaccessible()) continue;
 					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
@@ -253,7 +253,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			if (_chat->noParticipantInfo()) {
 				Auth().api().requestFullPeer(_chat);
 			} else if (!_chat->participants.empty()) {
-				for (const auto [user, version] : _chat->participants) {
+				for (const auto user : _chat->participants) {
 					if (!user->botInfo) continue;
 					if (!user->botInfo->inited) {
 						Auth().api().requestFullPeer(user);

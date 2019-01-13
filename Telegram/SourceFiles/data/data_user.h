@@ -122,6 +122,9 @@ public:
 	bool isBotInlineGeo() const {
 		return flags() & MTPDuser::Flag::f_bot_inline_geo;
 	}
+	bool isBot() const {
+		return botInfo != nullptr;
+	}
 	bool isInaccessible() const {
 		constexpr auto inaccessible = 0
 			| MTPDuser::Flag::f_deleted;

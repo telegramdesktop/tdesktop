@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_chat.h"
 
+#include "data/data_user.h"
+#include "data/data_session.h"
+#include "history/history.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "observer_peer.h"
 
 namespace {
@@ -113,10 +118,10 @@ void ChatData::applyEditAdmin(not_null<UserData*> user, bool isAdmin) {
 }
 
 void ChatData::invalidateParticipants() {
-	// #TODO groups
 	participants.clear();
 	admins.clear();
-	//removeFlags(MTPDchat::Flag::f_admin);
+	setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+	//setDefaultRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 	invitedByMe.clear();
 	botStatus = 0;
 	Notify::peerUpdatedDelayed(
@@ -150,3 +155,242 @@ void ChatData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
 	_defaultRestrictions.set(rights.c_chatBannedRights().vflags.v);
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged);
 }
+
+void ChatData::refreshBotStatus() {
+	if (participants.empty()) {
+		botStatus = 0;
+	} else {
+		const auto bot = ranges::find_if(participants, &UserData::isBot);
+		botStatus = (bot == end(participants)) ? -1 : 2;
+	}
+}
+
+auto ChatData::applyUpdateVersion(int version) -> UpdateStatus {
+	if (_version > version) {
+		return UpdateStatus::TooOld;
+	} else if (_version + 1 < version) {
+		invalidateParticipants();
+		session().api().requestPeer(this);
+		return UpdateStatus::Skipped;
+	}
+	setVersion(version);
+	return UpdateStatus::Good;
+}
+
+namespace Data {
+
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipants &update) {
+	ApplyChatParticipants(chat, update.vparticipants);
+}
+
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantAdd &update) {
+	if (chat->applyUpdateVersion(update.vversion.v)
+		!= ChatData::UpdateStatus::Good) {
+		return;
+	} else if (chat->count < 0) {
+		return;
+	}
+	const auto user = chat->owner().userLoaded(update.vuser_id.v);
+	if (!user
+		|| (!chat->participants.empty()
+			&& chat->participants.contains(user))) {
+		chat->invalidateParticipants();
+		++chat->count;
+		return;
+	}
+	if (chat->participants.empty()) {
+		if (chat->count > 0) { // If the count is known.
+			++chat->count;
+		}
+		chat->botStatus = 0;
+	} else {
+		chat->participants.emplace(user);
+		if (update.vinviter_id.v == chat->session().userId()) {
+			chat->invitedByMe.insert(user);
+		} else {
+			chat->invitedByMe.remove(user);
+		}
+		++chat->count;
+		if (user->isBot()) {
+			chat->botStatus = 2;
+			if (!user->botInfo->inited) {
+				chat->session().api().requestFullPeer(user);
+			}
+		}
+	}
+	Notify::peerUpdatedDelayed(
+		chat,
+		Notify::PeerUpdate::Flag::MembersChanged);
+}
+
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantDelete &update) {
+	if (chat->applyUpdateVersion(update.vversion.v)
+		!= ChatData::UpdateStatus::Good) {
+		return;
+	} else if (chat->count <= 0) {
+		return;
+	}
+	const auto user = chat->owner().userLoaded(update.vuser_id.v);
+	if (!user
+		|| (!chat->participants.empty()
+			&& !chat->participants.contains(user))) {
+		chat->invalidateParticipants();
+		--chat->count;
+		return;
+	}
+	if (chat->participants.empty()) {
+		if (chat->count > 0) {
+			chat->count--;
+		}
+		chat->botStatus = 0;
+	} else {
+		chat->participants.erase(user);
+		chat->count--;
+		chat->invitedByMe.remove(user);
+		chat->admins.remove(user);
+		if (user->isSelf()) {
+			chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		}
+		if (const auto history = chat->owner().historyLoaded(chat)) {
+			if (history->lastKeyboardFrom == user->id) {
+				history->clearLastKeyboard();
+			}
+		}
+		if (chat->botStatus > 0 && user->botInfo) {
+			chat->refreshBotStatus();
+		}
+	}
+	Notify::peerUpdatedDelayed(
+		chat,
+		Notify::PeerUpdate::Flag::MembersChanged);
+}
+
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantAdmin &update) {
+	if (chat->applyUpdateVersion(update.vversion.v)
+		!= ChatData::UpdateStatus::Good) {
+		return;
+	}
+
+	const auto user = chat->owner().userLoaded(update.vuser_id.v);
+	if (!user) {
+		chat->invalidateParticipants();
+		return;
+	}
+	if (user->isSelf()) {
+		chat->setAdminRights(MTP_chatAdminRights(mtpIsTrue(update.vis_admin)
+			? MTP_flags(ChatData::DefaultAdminRights())
+			: MTP_flags(0)));
+	}
+	if (mtpIsTrue(update.vis_admin)) {
+		if (chat->noParticipantInfo()) {
+			chat->session().api().requestFullPeer(chat);
+		} else {
+			chat->admins.emplace(user);
+		}
+	} else {
+		chat->admins.erase(user);
+	}
+	Notify::peerUpdatedDelayed(
+		chat,
+		Notify::PeerUpdate::Flag::AdminsChanged);
+}
+
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatDefaultBannedRights &update) {
+	if (chat->applyUpdateVersion(update.vversion.v)
+		!= ChatData::UpdateStatus::Good) {
+		return;
+	}
+	chat->setDefaultRestrictions(update.vdefault_banned_rights);
+}
+
+void ApplyChatParticipants(
+		not_null<ChatData*> chat,
+		const MTPChatParticipants &participants) {
+	participants.match([&](const MTPDchatParticipantsForbidden &data) {
+		if (data.has_self_participant()) {
+			// data.vself_participant.
+		}
+		chat->count = -1;
+		chat->invalidateParticipants();
+	}, [&](const MTPDchatParticipants &data) {
+		const auto status = chat->applyUpdateVersion(data.vversion.v);
+		if (status == ChatData::UpdateStatus::TooOld) {
+			return;
+		}
+		// Even if we skipped some updates, we got current participants
+		// and we've requested peer from API to have current rights.
+		chat->setVersion(data.vversion.v);
+
+		const auto &list = data.vparticipants.v;
+		chat->count = list.size();
+		chat->participants.clear();
+		chat->invitedByMe.clear();
+		chat->admins.clear();
+		chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		const auto selfUserId = chat->session().userId();
+		for (const auto &participant : list) {
+			const auto userId = participant.match([&](const auto &data) {
+				return data.vuser_id.v;
+			});
+			const auto user = chat->owner().userLoaded(userId);
+			if (!user) {
+				chat->invalidateParticipants();
+				break;
+			}
+
+			chat->participants.emplace(user);
+
+			const auto inviterId = participant.match([&](
+					const MTPDchatParticipantCreator &data) {
+				return 0;
+			}, [&](const auto &data) {
+				return data.vinviter_id.v;
+			});
+			if (inviterId == selfUserId) {
+				chat->invitedByMe.insert(user);
+			}
+
+			participant.match([&](const MTPDchatParticipantCreator &data) {
+				chat->creator = userId;
+			}, [&](const MTPDchatParticipantAdmin &data) {
+				chat->admins.emplace(user);
+				if (user->isSelf()) {
+					chat->setAdminRights(MTP_chatAdminRights(
+						MTP_flags(ChatData::DefaultAdminRights())));
+				}
+			}, [](const MTPDchatParticipant &) {
+			});
+		}
+		if (chat->participants.empty()) {
+			return;
+		}
+		if (const auto history = chat->owner().historyLoaded(chat)) {
+			if (history->lastKeyboardFrom) {
+				const auto i = ranges::find(
+					chat->participants,
+					history->lastKeyboardFrom,
+					&UserData::id);
+				if (i == end(chat->participants)) {
+					history->clearLastKeyboard();
+				}
+			}
+		}
+		chat->refreshBotStatus();
+		Notify::peerUpdatedDelayed(
+			chat,
+			Notify::PeerUpdate::Flag::MembersChanged
+			| Notify::PeerUpdate::Flag::AdminsChanged);
+	});
+}
+
+} // namespace Data

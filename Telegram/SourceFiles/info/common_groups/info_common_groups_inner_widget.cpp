@@ -97,21 +97,21 @@ void ListController::loadMoreRows() {
 		_preloadRequestId = 0;
 		_preloadGroupId = 0;
 		_allLoaded = true;
-		if (auto chats = Api::getChatsFromMessagesChats(result)) {
-			auto &list = chats->v;
-			if (!list.empty()) {
-				for_const (auto &chatData, list) {
-					if (auto chat = App::feedChat(chatData)) {
-						if (!chat->migrateTo()) {
-							delegate()->peerListAppendRow(
-								createRow(chat));
-						}
-						_preloadGroupId = chat->bareId();
-						_allLoaded = false;
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats.v;
+		});
+		if (!chats.empty()) {
+			for (const auto &chatData : chats) {
+				if (const auto chat = App::feedChat(chatData)) {
+					if (!chat->migrateTo()) {
+						delegate()->peerListAppendRow(
+							createRow(chat));
 					}
+					_preloadGroupId = chat->bareId();
+					_allLoaded = false;
 				}
-				delegate()->peerListRefreshRows();
 			}
+			delegate()->peerListRefreshRows();
 		}
 		auto fullCount = delegate()->peerListFullRowsCount();
 		if (fullCount > kCommonGroupsSearchAfter) {

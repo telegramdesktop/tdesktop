@@ -141,6 +141,20 @@ public:
 	QString inviteLink() const {
 		return _inviteLink;
 	}
+	void refreshBotStatus();
+
+	enum class UpdateStatus {
+		Good,
+		TooOld,
+		Skipped,
+	};
+	int version() const {
+		return _version;
+	}
+	void setVersion(int version) {
+		_version = version;
+	}
+	UpdateStatus applyUpdateVersion(int version);
 
 	// Still public data members.
 	MTPint inputChat;
@@ -149,10 +163,9 @@ public:
 
 	int count = 0;
 	TimeId date = 0;
-	int version = 0;
 	UserId creator = 0;
 
-	base::flat_map<not_null<UserData*>, int> participants;
+	base::flat_set<not_null<UserData*>> participants;
 	base::flat_set<not_null<UserData*>> invitedByMe;
 	base::flat_set<not_null<UserData*>> admins;
 	std::deque<not_null<UserData*>> lastAuthors;
@@ -169,5 +182,30 @@ private:
 
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
+	int _version = 0;
 
 };
+
+namespace Data {
+
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const MTPDupdateChatParticipants &update);
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const MTPDupdateChatParticipantAdd &update);
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const MTPDupdateChatParticipantDelete &update);
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const MTPDupdateChatParticipantAdmin &update);
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const MTPDupdateChatDefaultBannedRights &update);
+
+void ApplyChatParticipants(
+	not_null<ChatData*> chat,
+	const MTPChatParticipants &participants);
+
+} // namespace Data

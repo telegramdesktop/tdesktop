@@ -126,7 +126,7 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 			<< chat->name
 			<< qint32(chat->count)
 			<< qint32(chat->date)
-			<< qint32(chat->version)
+			<< qint32(chat->version())
 			<< qint32(chat->creator)
 			<< qint32(0)
 			<< quint32(chat->flags())
@@ -136,7 +136,7 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 			<< channel->name
 			<< quint64(channel->access)
 			<< qint32(channel->date)
-			<< qint32(channel->version)
+			<< qint32(channel->version())
 			<< qint32(0)
 			<< quint32(channel->flags())
 			<< channel->inviteLink();
@@ -226,7 +226,11 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 			chat->setName(name);
 			chat->count = count;
 			chat->date = date;
-			chat->version = version;
+
+			// We don't save participants, admin status and banned rights.
+			// So we don't restore the version field, info is still unknown.
+			chat->setVersion(0);
+
 			chat->creator = creator;
 			chat->setFlags(MTPDchat::Flags::from_raw(flags));
 			chat->setInviteLink(inviteLink);
@@ -247,7 +251,11 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 			channel->setName(name, QString());
 			channel->access = access;
 			channel->date = date;
-			channel->version = version;
+
+			// We don't save participants, admin status and banned rights.
+			// So we don't restore the version field, info is still unknown.
+			channel->setVersion(0);
+
 			channel->setFlags(MTPDchannel::Flags::from_raw(flags));
 			channel->setInviteLink(inviteLink);
 

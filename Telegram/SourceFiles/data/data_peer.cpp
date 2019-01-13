@@ -350,10 +350,9 @@ bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
 		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
 	} else if (const auto chat = asChat()) {
-		// #TODO groups
 		return !chat->isDeactivated()
-			/*&& ((chat->adminRights() & ChatAdminRight::f_pin_messages)
-				|| chat->amCreator())*/;
+			&& ((chat->adminRights() & ChatAdminRight::f_pin_messages)
+				|| chat->amCreator());
 	} else if (const auto channel = asChannel()) {
 		if (channel->isMegagroup()) {
 			return (channel->adminRights() & ChatAdminRight::f_pin_messages)

@@ -395,7 +395,7 @@ void ApiWrap::importChatInvite(const QString &hash) {
 				"(MainWidget::inviteImportDone)").arg(result.type()));
 		});
 	}).fail([=](const RPCError &error) {
-		const auto type = error.type();
+		const auto &type = error.type();
 		if (type == qstr("CHANNELS_TOO_MUCH")) {
 			Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
 		} else if (error.code() == 400) {
@@ -416,7 +416,7 @@ void ApiWrap::savePinnedOrder() {
 	const auto &order = _session->data().pinnedDialogsOrder();
 	auto peers = QVector<MTPInputDialogPeer>();
 	peers.reserve(order.size());
-	for (const auto pinned : base::reversed(order)) {
+	for (const auto &pinned : base::reversed(order)) {
 		if (const auto history = pinned.history()) {
 			peers.push_back(MTP_inputDialogPeer(history->peer->input));
 		} else if (const auto feed = pinned.feed()) {
@@ -510,7 +510,9 @@ ApiWrap::MessageDataRequests *ApiWrap::messageDataRequests(ChannelData *channel,
 	if (channel) {
 		auto i = _channelMessageDataRequests.find(channel);
 		if (i == _channelMessageDataRequests.cend()) {
-			if (onlyExisting) return 0;
+			if (onlyExisting) {
+				return nullptr;
+			}
 			i = _channelMessageDataRequests.insert(channel, MessageDataRequests());
 		}
 		return &i.value();
@@ -694,7 +696,7 @@ void ApiWrap::requestDialogEntry(
 	}
 	const auto finalize = [=] {
 		if (const auto callbacks = _dialogRequests.take(history)) {
-			for (const auto callback : *callbacks) {
+			for (const auto &callback : *callbacks) {
 				callback();
 			}
 		}
@@ -731,7 +733,7 @@ void ApiWrap::requestDialogEntries(
 	const auto finalize = [=](std::vector<not_null<History*>> histories) {
 		for (const auto history : histories) {
 			if (const auto callbacks = _dialogRequests.take(history)) {
-				for (const auto callback : *callbacks) {
+				for (const auto &callback : *callbacks) {
 					callback();
 				}
 			}
@@ -846,7 +848,7 @@ void ApiWrap::applyFeedDialogs(
 				if (peerIsChannel(peerId)) {
 					const auto history = App::history(peerId);
 					history->applyDialog(dialog.c_dialog());
-					channels.push_back(history->peer->asChannel());
+					channels.emplace_back(history->peer->asChannel());
 				} else {
 					LOG(("API Error: "
 						"Unexpected non-channel in feed dialogs list."));
@@ -932,18 +934,8 @@ void ApiWrap::gotChatFull(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result,
 		mtpRequestId req) {
-	auto &d = result.c_messages_chatFull();
-	auto &vc = d.vchats.v;
-	auto badVersion = false;
-	if (const auto chat = peer->asChat()) {
-		badVersion = !vc.isEmpty()
-			&& (vc[0].type() == mtpc_chat)
-			&& (vc[0].c_chat().vversion.v < chat->version);
-	} else if (const auto channel = peer->asChannel()) {
-		badVersion = !vc.isEmpty()
-			&& (vc[0].type() == mtpc_channel)
-			&& (vc[0].c_channel().vversion.v < channel->version);
-	}
+	const auto &d = result.c_messages_chatFull();
+	_session->data().applyMaximumChatVersions(d.vchats);
 
 	App::feedUsers(d.vusers);
 	App::feedChats(d.vchats);
@@ -956,7 +948,7 @@ void ApiWrap::gotChatFull(
 			return;
 		}
 		auto &f = d.vfull_chat.c_chatFull();
-		App::feedParticipants(f.vparticipants, false);
+		Data::ApplyChatParticipants(chat, f.vparticipants);
 		if (f.has_bot_info()) {
 			for (const auto &item : f.vbot_info.v) {
 				item.match([&](const MTPDbotInfo &data) {
@@ -1087,14 +1079,6 @@ void ApiWrap::gotChatFull(
 			_fullPeerRequests.erase(i);
 		}
 	}
-	if (badVersion) {
-		if (const auto chat = peer->asChat()) {
-			chat->version = vc[0].c_chat().vversion.v;
-		} else if (const auto channel = peer->asChannel()) {
-			channel->version = vc[0].c_channel().vversion.v;
-		}
-		requestPeer(peer);
-	}
 	fullPeerUpdated().notify(peer);
 }
 
@@ -1157,31 +1141,11 @@ void ApiWrap::requestPeer(not_null<PeerData*> peer) {
 		};
 		const auto chatHandler = [=](const MTPmessages_Chats &result) {
 			_peerRequests.remove(peer);
-
-			if (const auto chats = Api::getChatsFromMessagesChats(result)) {
-				auto &v = chats->v;
-				bool badVersion = false;
-				if (const auto chat = peer->asChat()) {
-					badVersion = !v.isEmpty()
-						&& (v[0].type() == mtpc_chat)
-						&& (v[0].c_chat().vversion.v < chat->version);
-				} else if (const auto channel = peer->asChannel()) {
-					badVersion = !v.isEmpty()
-						&& (v[0].type() == mtpc_channel)
-						&& (v[0].c_channel().vversion.v < channel->version);
-				}
-				const auto chat = App::feedChats(*chats);
-				if (chat == peer) {
-					if (badVersion) {
-						if (const auto chat = peer->asChat()) {
-							chat->version = v[0].c_chat().vversion.v;
-						} else if (const auto channel = peer->asChannel()) {
-							channel->version = v[0].c_channel().vversion.v;
-						}
-						requestPeer(peer);
-					}
-				}
-			}
+			const auto &chats = result.match([](const auto &data) {
+				return data.vchats;
+			});
+			_session->data().applyMaximumChatVersions(chats);
+			App::feedChats(chats);
 		};
 		if (const auto user = peer->asUser()) {
 			return request(MTPusers_GetUsers(
@@ -1272,36 +1236,47 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 	chats.reserve(peers.size());
 	channels.reserve(peers.size());
 	users.reserve(peers.size());
-	for (QList<PeerData*>::const_iterator i = peers.cbegin(), e = peers.cend(); i != e; ++i) {
-		if (!*i || _fullPeerRequests.contains(*i) || _peerRequests.contains(*i)) continue;
-		if ((*i)->isUser()) {
-			users.push_back((*i)->asUser()->inputUser);
-		} else if ((*i)->isChat()) {
-			chats.push_back((*i)->asChat()->inputChat);
-		} else if ((*i)->isChannel()) {
-			channels.push_back((*i)->asChannel()->inputChannel);
+	for (const auto peer : peers) {
+		if (!peer
+			|| _fullPeerRequests.contains(peer)
+			|| _peerRequests.contains(peer)) {
+			continue;
+		}
+		if (const auto user = peer->asUser()) {
+			users.push_back(user->inputUser);
+		} else if (const auto chat = peer->asChat()) {
+			chats.push_back(chat->inputChat);
+		} else if (const auto channel = peer->asChannel()) {
+			channels.push_back(channel->inputChannel);
 		}
 	}
-	auto handleChats = [=](const MTPmessages_Chats &result) {
-		if (auto chats = Api::getChatsFromMessagesChats(result)) {
-			App::feedChats(*chats);
-		}
+	const auto handleChats = [=](const MTPmessages_Chats &result) {
+		App::feedChats(result.match([](const auto &data) {
+			return data.vchats;
+		}));
 	};
 	if (!chats.isEmpty()) {
-		request(MTPmessages_GetChats(MTP_vector<MTPint>(chats))).done(handleChats).send();
+		request(MTPmessages_GetChats(
+			MTP_vector<MTPint>(chats)
+		)).done(handleChats).send();
 	}
 	if (!channels.isEmpty()) {
-		request(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(channels))).done(handleChats).send();
+		request(MTPchannels_GetChannels(
+			MTP_vector<MTPInputChannel>(channels)
+		)).done(handleChats).send();
 	}
 	if (!users.isEmpty()) {
-		request(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users))).done([=](const MTPVector<MTPUser> &result) {
+		request(MTPusers_GetUsers(
+			MTP_vector<MTPInputUser>(users)
+		)).done([=](const MTPVector<MTPUser> &result) {
 			App::feedUsers(result);
 		}).send();
 	}
 }
 
 void ApiWrap::requestLastParticipants(not_null<ChannelData*> channel) {
-	if (!channel->isMegagroup() || _participantsRequests.contains(channel)) {
+	if (!channel->isMegagroup()
+		|| _participantsRequests.contains(channel)) {
 		return;
 	}
 
@@ -1313,7 +1288,7 @@ void ApiWrap::requestLastParticipants(not_null<ChannelData*> channel) {
 		MTP_int(offset),
 		MTP_int(Global::ChatSizeMax()),
 		MTP_int(participantsHash)
-	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
+	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		_participantsRequests.remove(channel);
 		parseChannelParticipants(channel, result, [&](
 				int availableCount,
@@ -4357,7 +4332,7 @@ void ApiWrap::sendFiles(
 		_sendingAlbums.emplace(album->groupId, album);
 		album->items.reserve(tasks.size());
 		for (const auto &task : tasks) {
-			album->items.push_back(SendingAlbum::Item(task->id()));
+			album->items.emplace_back(task->id());
 		}
 	}
 	_fileLoader->addTasks(std::move(tasks));

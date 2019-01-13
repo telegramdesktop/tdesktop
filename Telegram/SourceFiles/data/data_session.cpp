@@ -430,9 +430,8 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 		const auto chat = result->asChat();
 
 		const auto canAddMembers = chat->canAddMembers();
-
-		if (chat->version < data.vversion.v) {
-			chat->version = data.vversion.v;
+		if (chat->version() < data.vversion.v) {
+			chat->setVersion(data.vversion.v);
 			chat->invalidateParticipants();
 		}
 
@@ -561,8 +560,8 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 			channel->inputChannel = MTP_inputChannel(data.vid, data.vaccess_hash);
 			channel->access = data.vaccess_hash.v;
 			channel->date = data.vdate.v;
-			if (channel->version < data.vversion.v) {
-				channel->version = data.vversion.v;
+			if (channel->version() < data.vversion.v) {
+				channel->setVersion(data.vversion.v);
 			}
 			channel->setUnavailableReason(data.is_restricted()
 				? ExtractUnavailableReason(qs(data.vrestriction_reason))
@@ -655,6 +654,25 @@ PeerData *Session::processChats(const MTPVector<MTPChat> &data) {
 		result = this->chat(chat);
 	}
 	return result;
+}
+
+void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
+	for (const auto &chat : data.v) {
+		chat.match([&](const MTPDchat &data) {
+			if (const auto chat = chatLoaded(data.vid.v)) {
+				if (data.vversion.v < chat->version()) {
+					chat->setVersion(data.vversion.v);
+				}
+			}
+		}, [&](const MTPDchannel &data) {
+			if (const auto channel = channelLoaded(data.vid.v)) {
+				if (data.vversion.v < channel->version()) {
+					channel->setVersion(data.vversion.v);
+				}
+			}
+		}, [](const auto &) {
+		});
+	}
 }
 
 PeerData *Session::peerByUsername(const QString &username) const {
@@ -2372,7 +2390,7 @@ not_null<PollData*> Session::poll(const MTPDmessageMediaPoll &data) {
 	return result;
 }
 
-void Session::applyPollUpdate(const MTPDupdateMessagePoll &update) {
+void Session::applyUpdate(const MTPDupdateMessagePoll &update) {
 	const auto updated = [&] {
 		const auto i = _polls.find(update.vpoll_id.v);
 		return (i == end(_polls))
@@ -2383,6 +2401,51 @@ void Session::applyPollUpdate(const MTPDupdateMessagePoll &update) {
 	}();
 	if (updated && updated->applyResults(update.vresults)) {
 		notifyPollUpdateDelayed(updated);
+	}
+}
+
+void Session::applyUpdate(const MTPDupdateChatParticipants &update) {
+	const auto chatId = update.vparticipants.match([](const auto &update) {
+		return update.vchat_id.v;
+	});
+	if (const auto chat = chatLoaded(chatId)) {
+		ApplyChatUpdate(chat, update);
+		for (const auto user : chat->participants) {
+			if (user->botInfo && !user->botInfo->inited) {
+				_session->api().requestFullPeer(user);
+			}
+		}
+	}
+}
+
+void Session::applyUpdate(const MTPDupdateChatParticipantAdd &update) {
+	if (const auto chat = chatLoaded(update.vchat_id.v)) {
+		ApplyChatUpdate(chat, update);
+	}
+}
+
+void Session::applyUpdate(const MTPDupdateChatParticipantDelete &update) {
+	if (const auto chat = chatLoaded(update.vchat_id.v)) {
+		ApplyChatUpdate(chat, update);
+	}
+}
+
+void Session::applyUpdate(const MTPDupdateChatParticipantAdmin &update) {
+	if (const auto chat = chatLoaded(update.vchat_id.v)) {
+		ApplyChatUpdate(chat, update);
+	}
+}
+
+void Session::applyUpdate(const MTPDupdateChatDefaultBannedRights &update) {
+	if (const auto peer = peerLoaded(peerFromMTP(update.vpeer))) {
+		if (const auto chat = peer->asChat()) {
+			ApplyChatUpdate(chat, update);
+		} else if (const auto channel = peer->asChannel()) {
+			ApplyChannelUpdate(channel, update);
+		} else {
+			LOG(("API Error: "
+				"User received in updateChatDefaultBannedRights."));
+		}
 	}
 }
 
