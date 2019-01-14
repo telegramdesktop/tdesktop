@@ -29,6 +29,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+// How many messages from chat history server should forward to user,
+// that was added to this chat.
+constexpr auto kForwardMessagesOnAdd = 100;
+
 constexpr auto kParticipantsFirstPageCount = 16;
 constexpr auto kParticipantsPerPage = 200;
 constexpr auto kSortByOnlineDelay = TimeMs(1000);
@@ -47,9 +51,35 @@ void RemoveAdmin(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
-		onDone();
+		if (onDone) {
+			onDone();
+		}
 	}).fail([=](const RPCError &error) {
-		onFail();
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+}
+
+void AddChatParticipant(
+		not_null<ChatData*> chat,
+		not_null<UserData*> user,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	chat->session().api().request(MTPmessages_AddChatUser(
+		chat->inputChat,
+		user->inputUser,
+		MTP_int(kForwardMessagesOnAdd)
+	)).done([=](const MTPUpdates &result) {
+		chat->session().api().applyUpdates(result);
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=](const RPCError &error) {
+		ShowAddParticipantsError(error.type(), chat, { 1, user });
+		if (onFail) {
+			onFail();
+		}
 	}).send();
 }
 
@@ -58,16 +88,28 @@ void SaveChatAdmin(
 		not_null<UserData*> user,
 		bool isAdmin,
 		Fn<void()> onDone,
-		Fn<void()> onFail) {
+		Fn<void()> onFail,
+		bool retryOnNotParticipant = true) {
 	chat->session().api().request(MTPmessages_EditChatAdmin(
 		chat->inputChat,
 		user->inputUser,
 		MTP_bool(isAdmin)
 	)).done([=](const MTPBool &result) {
 		chat->applyEditAdmin(user, isAdmin);
-		onDone();
+		if (onDone) {
+			onDone();
+		}
 	}).fail([=](const RPCError &error) {
-		onFail();
+		const auto &type = error.type();
+		if (retryOnNotParticipant
+			&& isAdmin
+			&& (type == qstr("USER_NOT_PARTICIPANT"))) {
+			AddChatParticipant(chat, user, [=] {
+				SaveChatAdmin(chat, user, isAdmin, onDone, onFail, false);
+			}, onFail);
+		} else if (onFail) {
+			onFail();
+		}
 	}).send();
 }
 

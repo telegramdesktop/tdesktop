@@ -173,6 +173,7 @@ private:
 	int _offset = 0;
 	bool _participantsLoaded = false;
 	bool _chatsContactsAdded = false;
+	bool _chatMembersAdded = false;
 	bool _globalLoaded = false;
 	std::map<QString, CacheEntry> _participantsCache;
 	std::map<mtpRequestId, Query> _participantsQueries;

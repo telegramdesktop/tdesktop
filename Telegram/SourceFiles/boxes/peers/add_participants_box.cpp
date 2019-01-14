@@ -776,6 +776,7 @@ void AddSpecialBoxSearchController::searchQuery(const QString &query) {
 		_requestId = 0;
 		_participantsLoaded = false;
 		_chatsContactsAdded = false;
+		_chatMembersAdded = false;
 		_globalLoaded = false;
 		if (!_query.isEmpty() && !searchParticipantsInCache()) {
 			_timer.callOnce(AutoSearchTimeout);
@@ -825,7 +826,7 @@ bool AddSpecialBoxSearchController::loadMoreRows() {
 	if (_globalLoaded) {
 		return true;
 	}
-	if (_participantsLoaded) {
+	if (_participantsLoaded || _chatMembersAdded) {
 		if (!_chatsContactsAdded) {
 			addChatsContacts();
 		}
@@ -833,7 +834,9 @@ bool AddSpecialBoxSearchController::loadMoreRows() {
 			requestGlobal();
 		}
 	} else if (const auto chat = _peer->asChat()) {
-		addChatMembers(chat);
+		if (!_chatMembersAdded) {
+			addChatMembers(chat);
+		}
 	} else if (!isLoading()) {
 		requestParticipants();
 	}
@@ -997,6 +1000,7 @@ void AddSpecialBoxSearchController::addChatMembers(
 		return;
 	}
 
+	_chatMembersAdded = true;
 	const auto wordList = TextUtilities::PrepareSearchWords(_query);
 	if (wordList.empty()) {
 		return;
@@ -1030,7 +1034,6 @@ void AddSpecialBoxSearchController::addChatMembers(
 
 void AddSpecialBoxSearchController::addChatsContacts() {
 	_chatsContactsAdded = true;
-
 	const auto wordList = TextUtilities::PrepareSearchWords(_query);
 	if (wordList.empty()) {
 		return;
