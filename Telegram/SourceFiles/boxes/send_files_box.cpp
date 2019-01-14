@@ -677,7 +677,7 @@ void SingleMediaPreview::preparePreview(
 void SingleMediaPreview::prepareAnimatedPreview(
 		const QString &animatedPreviewPath) {
 	if (!animatedPreviewPath.isEmpty()) {
-		auto callback = [this](Media::Clip::Notification notification) {
+		auto callback = [=](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		};
 		_gifPreview = Media::Clip::MakeReader(
@@ -1357,7 +1357,7 @@ void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
 		std::move(desiredPreviewHeight),
 		_footerHeight.value(),
 		_titleHeight + _1 + _2
-	) | rpl::start_with_next([this](int height) {
+	) | rpl::start_with_next([=](int height) {
 		setDimensions(
 			st::boxWideWidth,
 			std::min(st::sendMediaPreviewHeightMax, height));
@@ -1435,8 +1435,8 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	_send = addButton(langFactory(lng_send_button), [this] { send(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	_send = addButton(langFactory(lng_send_button), [=] { send(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
 	preparePreview();
@@ -1472,7 +1472,7 @@ void SendFilesBox::initSendWay() {
 			: SendFilesWay::Photos;
 	}();
 	_sendWay = std::make_shared<Ui::RadioenumGroup<SendFilesWay>>(value);
-	_sendWay->setChangedCallback([this](SendFilesWay value) {
+	_sendWay->setChangedCallback([=](SendFilesWay value) {
 		updateCaptionPlaceholder();
 		applyAlbumOrder();
 		if (_albumPreview) {
@@ -1483,7 +1483,10 @@ void SendFilesBox::initSendWay() {
 }
 
 void SendFilesBox::updateCaptionPlaceholder() {
-	_caption->setPlaceholder(FieldPlaceholder(_list, _sendWay->value()));
+	if (_caption) {
+		const auto sendWay = _sendWay->value();
+		_caption->setPlaceholder(FieldPlaceholder(_list, sendWay));
+	}
 }
 
 void SendFilesBox::refreshAlbumMediaCount() {
@@ -1814,11 +1817,13 @@ void SendFilesBox::updateControlsGeometry() {
 			bottom - _caption->height());
 		bottom -= st::boxPhotoCaptionSkip + _caption->height();
 
-		_emojiToggle->moveToLeft(
-			(st::boxPhotoPadding.left()
-				+ st::sendMediaPreviewSize
-				- _emojiToggle->width()),
-			_caption->y() + st::boxAttachEmojiTop);
+		if (_emojiToggle) {
+			_emojiToggle->moveToLeft(
+				(st::boxPhotoPadding.left()
+					+ st::sendMediaPreviewSize
+					- _emojiToggle->width()),
+				_caption->y() + st::boxAttachEmojiTop);
+		}
 	}
 	const auto pointers = {
 		_sendAlbum.data(),
