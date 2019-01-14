@@ -321,10 +321,6 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, 
 	return false;
 }
 
-void migrateUpdated(PeerData *peer) {
-	if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
-}
-
 void historyMuteUpdated(History *history) {
 	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
 }

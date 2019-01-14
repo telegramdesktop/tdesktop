@@ -117,6 +117,8 @@ public:
 
 	[[nodiscard]] ChatData *migrateFrom() const;
 	[[nodiscard]] ChannelData *migrateTo() const;
+	[[nodiscard]] not_null<PeerData*> migrateToOrMe();
+	[[nodiscard]] not_null<const PeerData*> migrateToOrMe() const;
 	[[nodiscard]] Data::Feed *feed() const;
 
 	void updateFull();

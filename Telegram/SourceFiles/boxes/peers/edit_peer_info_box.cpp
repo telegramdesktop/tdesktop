@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "data/data_peer.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -114,6 +115,7 @@ private:
 	object_ptr<Ui::RpWidget> createDeleteButton();
 
 	QString inviteLinkText() const;
+	void observeInviteLink();
 
 	void submitTitle();
 	void submitDescription();
@@ -157,6 +159,9 @@ private:
 	void continueSave();
 	void cancelSave();
 
+	void subscribeToMigration();
+	void migrate(not_null<ChannelData*> channel);
+
 	not_null<BoxContent*> _box;
 	not_null<PeerData*> _peer;
 	bool _isGroup = false;
@@ -171,6 +176,8 @@ private:
 	std::deque<FnMut<void()>> _saveStagesQueue;
 	Saving _savingData;
 
+	rpl::lifetime _lifetime;
+
 };
 
 Controller::Controller(
@@ -179,7 +186,7 @@ Controller::Controller(
 : _box(box)
 , _peer(peer)
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
-, _checkUsernameTimer([this] { checkUsernameAvailability(); }) {
+, _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
 	_box->setTitle(computeTitle());
 	_box->addButton(langFactory(lng_settings_save), [this] {
 		save();
@@ -187,6 +194,21 @@ Controller::Controller(
 	_box->addButton(langFactory(lng_cancel), [this] {
 		_box->closeBox();
 	});
+	subscribeToMigration();
+	_peer->updateFull();
+}
+
+void Controller::subscribeToMigration() {
+	SubscribeToMigration(
+		_peer,
+		_lifetime,
+		[=](not_null<ChannelData*> channel) { migrate(channel); });
+}
+
+void Controller::migrate(not_null<ChannelData*> channel) {
+	_peer = channel;
+	observeInviteLink();
+	_peer->updateFull();
 }
 
 Fn<QString()> Controller::computeTitle() const {
@@ -222,10 +244,10 @@ void Controller::setFocus() {
 object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	Expects(_wrap != nullptr);
 
-	auto canEdit = [&] {
-		if (auto channel = _peer->asChannel()) {
+	const auto canEdit = [&] {
+		if (const auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
-		} else if (auto chat = _peer->asChat()) {
+		} else if (const auto chat = _peer->asChat()) {
 			return chat->canEditInformation();
 		}
 		return false;
@@ -516,7 +538,7 @@ void Controller::checkUsernameAvailability() {
 	if (_checkUsernameRequestId) {
 		request(_checkUsernameRequestId).cancel();
 	}
-	const auto channel = _peer->asChannel();
+	const auto channel = _peer->migrateToOrMe()->asChannel();
 	const auto username = channel ? channel->username : QString();
 	_checkUsernameRequestId = request(MTPchannels_CheckUsername(
 		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
@@ -534,7 +556,7 @@ void Controller::checkUsernameAvailability() {
 		}
 	}).fail([=](const RPCError &error) {
 		_checkUsernameRequestId = 0;
-		auto type = error.type();
+		const auto &type = error.type();
 		_usernameState = UsernameState::Normal;
 		if (type == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
 			_usernameState = UsernameState::NotAvailable;
@@ -643,10 +665,10 @@ void Controller::revokeInviteLink() {
 void Controller::exportInviteLink(const QString &confirmation) {
 	auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
 	auto callback = crl::guard(this, [=] {
-		if (auto strong = *boxPointer) {
+		if (const auto strong = *boxPointer) {
 			strong->closeBox();
 		}
-		Auth().api().exportInviteLink(_peer);
+		Auth().api().exportInviteLink(_peer->migrateToOrMe());
 	});
 	auto box = Box<ConfirmBox>(
 		confirmation,
@@ -656,12 +678,11 @@ void Controller::exportInviteLink(const QString &confirmation) {
 
 bool Controller::canEditInviteLink() const {
 	if (const auto channel = _peer->asChannel()) {
-		if (channel->canEditUsername()) {
-			return true;
-		}
-		return (!channel->isPublic() && channel->canAddMembers());
+		return channel->amCreator()
+			|| (channel->adminRights() & ChatAdminRight::f_invite_users);
 	} else if (const auto chat = _peer->asChat()) {
-		return chat->amCreator() || !chat->inviteLink().isEmpty();
+		return chat->amCreator()
+			|| (chat->adminRights() & ChatAdminRight::f_invite_users);
 	}
 	return false;
 }
@@ -678,6 +699,18 @@ QString Controller::inviteLinkText() const {
 		return chat->inviteLink();
 	}
 	return QString();
+}
+
+void Controller::observeInviteLink() {
+	if (!_controls.editInviteLinkWrap) {
+		return;
+	}
+	Notify::PeerUpdateValue(
+		_peer,
+		Notify::PeerUpdate::Flag::InviteLinkChanged
+	) | rpl::start_with_next([=] {
+		refreshEditInviteLink();
+	}, _controls.editInviteLinkWrap->lifetime());
 }
 
 object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
@@ -721,14 +754,9 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 		container,
 		lang(lng_group_invite_create_new),
 		st::editPeerInviteLinkButton)
-	)->addClickHandler([this] { revokeInviteLink(); });
+	)->addClickHandler([=] { revokeInviteLink(); });
 
-	Notify::PeerUpdateValue(
-		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged
-	) | rpl::start_with_next([this] {
-		refreshEditInviteLink();
-	}, _controls.editInviteLinkWrap->lifetime());
+	observeInviteLink();
 
 	return std::move(result);
 }
@@ -788,12 +816,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 	});
 	_controls.createInviteLinkWrap = result.data();
 
-	Notify::PeerUpdateValue(
-		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged
-	) | rpl::start_with_next([this] {
-		refreshCreateInviteLink();
-	}, _controls.createInviteLinkWrap->lifetime());
+	observeInviteLink();
 
 	return std::move(result);
 }
@@ -865,7 +888,9 @@ object_ptr<Ui::RpWidget> Controller::createHistoryVisibilityEdit() {
 	addButton(
 		HistoryVisibility::Hidden,
 		lng_manage_history_visibility_hidden,
-		lng_manage_history_visibility_hidden_about);
+		(_peer->isChat()
+			? lng_manage_history_visibility_hidden_legacy
+			: lng_manage_history_visibility_hidden_about));
 
 	refreshHistoryVisibility();
 
@@ -1258,7 +1283,7 @@ void Controller::saveHistoryVisibility() {
 
 		Auth().api().applyUpdates(result);
 		continueSave();
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
 			continueSave();
 		} else {
@@ -1340,7 +1365,7 @@ void Controller::deleteChannel() {
 EditPeerInfoBox::EditPeerInfoBox(
 	QWidget*,
 	not_null<PeerData*> peer)
-: _peer(peer) {
+: _peer(peer->migrateToOrMe()) {
 }
 
 void EditPeerInfoBox::prepare() {

@@ -289,6 +289,7 @@ private:
 	int countPinnedIndex(Dialogs::Row *ofRow);
 	void savePinnedOrder();
 	void step_pinnedShifting(TimeMs ms, bool timer);
+	void handleChatMigration(not_null<ChatData*> chat);
 
 	not_null<Window::Controller*> _controller;
 

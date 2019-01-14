@@ -10,7 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_pts_waiter.h"
 
-struct MegagroupInfo {
+class MegagroupInfo {
+public:
 	struct Admin {
 		explicit Admin(MTPChatAdminRights rights)
 		: rights(rights) {
@@ -29,6 +30,9 @@ struct MegagroupInfo {
 		}
 		MTPChatBannedRights rights;
 	};
+
+	ChatData *getMigrateFromChat() const;
+	void setMigrateFromChat(ChatData *chat);
 
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
@@ -51,7 +55,8 @@ struct MegagroupInfo {
 	mutable int lastParticipantsStatus = LastParticipantsUpToDate;
 	int lastParticipantsCount = 0;
 
-	ChatData *migrateFromPtr = nullptr;
+private:
+	ChatData *_migratedFrom = nullptr;
 
 };
 
@@ -60,6 +65,7 @@ public:
 	static constexpr auto kEssentialFlags = 0
 		| MTPDchannel::Flag::f_creator
 		| MTPDchannel::Flag::f_left
+		| MTPDchannel_ClientFlag::f_forbidden
 		| MTPDchannel::Flag::f_broadcast
 		| MTPDchannel::Flag::f_verified
 		| MTPDchannel::Flag::f_megagroup
@@ -339,6 +345,9 @@ public:
 	}
 	UpdateStatus applyUpdateVersion(int version);
 
+	ChatData *getMigrateFromChat() const;
+	void setMigrateFromChat(ChatData *chat);
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -383,6 +392,10 @@ private:
 };
 
 namespace Data {
+
+void ApplyMigration(
+	not_null<ChatData*> chat,
+	not_null<ChannelData*> channel);
 
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,

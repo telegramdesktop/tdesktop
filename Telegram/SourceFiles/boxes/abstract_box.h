@@ -348,3 +348,45 @@ enum CreatingGroupType {
 	CreatingGroupGroup,
 	CreatingGroupChannel,
 };
+
+class BoxPointer {
+public:
+	BoxPointer() = default;
+	BoxPointer(const BoxPointer &other) = default;
+	BoxPointer(BoxPointer &&other) : _value(base::take(other._value)) {
+	}
+	BoxPointer &operator=(const BoxPointer &other) {
+		if (_value != other._value) {
+			destroy();
+			_value = other._value;
+		}
+		return *this;
+	}
+	BoxPointer &operator=(BoxPointer &&other) {
+		if (_value != other._value) {
+			destroy();
+			_value = base::take(other._value);
+		}
+		return *this;
+	}
+	BoxPointer &operator=(BoxContent *other) {
+		if (_value != other) {
+			destroy();
+			_value = other;
+		}
+		return *this;
+	}
+	~BoxPointer() {
+		destroy();
+	}
+
+private:
+	void destroy() {
+		if (const auto value = base::take(_value)) {
+			value->closeBox();
+		}
+	}
+
+	QPointer<BoxContent> _value;
+
+};

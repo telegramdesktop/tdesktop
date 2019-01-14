@@ -802,6 +802,7 @@ void ParticipantsBoxController::addNewItem() {
 	const auto initBox = [](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
 	};
+
 	_addBox = Ui::show(
 		Box<PeerListBox>(
 			std::make_unique<AddSpecialBoxController>(
@@ -1352,9 +1353,7 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 			editAdminDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			if (_editBox) {
-				_editBox->closeBox();
-			}
+			_editBox = nullptr;
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
@@ -1364,12 +1363,9 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 void ParticipantsBoxController::editAdminDone(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &rights) {
-	if (_editBox) {
-		_editBox->closeBox();
-	}
-	if (_addBox) {
-		_addBox->closeBox();
-	}
+	_addBox = nullptr;
+	_editBox = nullptr;
+
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags.v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
@@ -1420,9 +1416,7 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 			editRestrictedDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			if (_editBox) {
-				_editBox->closeBox();
-			}
+			_editBox = nullptr;
 		});
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
@@ -1433,12 +1427,9 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 void ParticipantsBoxController::editRestrictedDone(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights) {
-	if (_editBox) {
-		_editBox->closeBox();
-	}
-	if (_addBox) {
-		_addBox->closeBox();
-	}
+	_addBox = nullptr;
+	_editBox = nullptr;
+
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags.v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
@@ -1495,9 +1486,8 @@ void ParticipantsBoxController::kickMember(not_null<UserData*> user) {
 }
 
 void ParticipantsBoxController::kickMemberSure(not_null<UserData*> user) {
-	if (_editBox) {
-		_editBox->closeBox();
-	}
+	_editBox = nullptr;
+
 	const auto restrictedRights = _additional.restrictedRights(user);
 	const auto currentRights = restrictedRights
 		? *restrictedRights
@@ -1529,9 +1519,8 @@ void ParticipantsBoxController::removeAdmin(not_null<UserData*> user) {
 }
 
 void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
-	if (_editBox) {
-		_editBox->closeBox();
-	}
+	_editBox = nullptr;
+
 	if (const auto chat = _peer->asChat()) {
 		SaveChatAdmin(chat, user, false, crl::guard(this, [=] {
 			editAdminDone(user, MTP_chatAdminRights(MTP_flags(0)));

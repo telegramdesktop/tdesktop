@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "messenger.h"
-#include "mainwidget.h" // for main()->removeDialog
 #include "core/crash_reports.h" // for CrashReports::SetAnnotation
 #include "ui/image/image.h"
 #include "export/export_controller.h"
@@ -455,35 +454,13 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 			const auto channel = this->channel(input.vchannel_id.v);
 			channel->addFlags(MTPDchannel::Flag::f_megagroup);
 			if (!channel->access) {
-				channel->input = MTP_inputPeerChannel(input.vchannel_id, input.vaccess_hash);
-				channel->inputChannel = data.vmigrated_to;
+				channel->input = MTP_inputPeerChannel(
+					input.vchannel_id,
+					input.vaccess_hash);
+				channel->inputChannel = migratedTo;
 				channel->access = input.vaccess_hash.v;
 			}
-			const auto updatedTo = (chat->migrateToPtr != channel);
-			const auto updatedFrom = (channel->mgInfo->migrateFromPtr != chat);
-			if (updatedTo) {
-				chat->migrateToPtr = channel;
-			}
-			if (updatedFrom) {
-				channel->mgInfo->migrateFromPtr = chat;
-				if (const auto h = historyLoaded(chat->id)) {
-					if (const auto hto = historyLoaded(channel->id)) {
-						if (!h->isEmpty()) {
-							h->unloadBlocks();
-						}
-						if (hto->inChatList(Dialogs::Mode::All)
-							&& h->inChatList(Dialogs::Mode::All)) {
-							App::main()->removeDialog(h);
-						}
-					}
-				}
-				Notify::migrateUpdated(channel);
-				update.flags |= UpdateFlag::MigrationChanged;
-			}
-			if (updatedTo) {
-				Notify::migrateUpdated(chat);
-				update.flags |= UpdateFlag::MigrationChanged;
-			}
+			ApplyMigration(chat, channel);
 		}, [](const MTPDinputChannelEmpty &) {
 		});
 

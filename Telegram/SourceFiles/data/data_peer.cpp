@@ -520,7 +520,7 @@ const ChannelData *PeerData::asChannelOrMigrated() const {
 ChatData *PeerData::migrateFrom() const {
 	if (const auto megagroup = asMegagroup()) {
 		return megagroup->amIn()
-			? megagroup->mgInfo->migrateFromPtr
+			? megagroup->getMigrateFromChat()
 			: nullptr;
 	}
 	return nullptr;
@@ -528,11 +528,25 @@ ChatData *PeerData::migrateFrom() const {
 
 ChannelData *PeerData::migrateTo() const {
 	if (const auto chat = asChat()) {
-		if (const auto migrateTo = chat->migrateToPtr) {
-			return migrateTo->amIn() ? migrateTo : nullptr;
+		if (const auto result = chat->getMigrateToChannel()) {
+			return result->amIn() ? result : nullptr;
 		}
 	}
 	return nullptr;
+}
+
+not_null<PeerData*> PeerData::migrateToOrMe() {
+	if (const auto channel = migrateTo()) {
+		return channel;
+	}
+	return this;
+}
+
+not_null<const PeerData*> PeerData::migrateToOrMe() const {
+	if (const auto channel = migrateTo()) {
+		return channel;
+	}
+	return this;
 }
 
 Data::Feed *PeerData::feed() const {

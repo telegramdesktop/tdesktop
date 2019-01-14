@@ -621,10 +621,6 @@ void MainWidget::notify_userIsBotChanged(UserData *bot) {
 	_history->notify_userIsBotChanged(bot);
 }
 
-void MainWidget::notify_migrateUpdated(PeerData *peer) {
-	_history->notify_migrateUpdated(peer);
-}
-
 void MainWidget::notify_historyMuteUpdated(History *history) {
 	_dialogs->notify_historyMuteUpdated(history);
 }
@@ -874,7 +870,7 @@ void MainWidget::deleteConversation(
 		removeDialog(history);
 		if (const auto channel = peer->asMegagroup()) {
 			channel->addFlags(MTPDchannel::Flag::f_left);
-			if (const auto from = channel->mgInfo->migrateFromPtr) {
+			if (const auto from = channel->getMigrateFromChat()) {
 				if (const auto migrated = App::historyLoaded(from)) {
 					migrated->updateChatListExistence();
 				}
@@ -2832,15 +2828,17 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 void MainWidget::feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
 		bool skipMessageIds) {
-	for_const (auto &update, updates.v) {
-		if (skipMessageIds && update.type() == mtpc_updateMessageID) continue;
+	for (const auto &update : updates.v) {
+		if (skipMessageIds && update.type() == mtpc_updateMessageID) {
+			continue;
+		}
 		feedUpdate(update);
 	}
 	Auth().data().sendHistoryChangeNotifications();
 }
 
 void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
-	for_const (auto &update, updates.v) {
+	for (const auto &update : updates.v) {
 		if (update.type() == mtpc_updateMessageID) {
 			feedUpdate(update);
 		}

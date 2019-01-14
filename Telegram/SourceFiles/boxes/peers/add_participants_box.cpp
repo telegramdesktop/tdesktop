@@ -86,11 +86,8 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		}
 	} else if (count >= Global::ChatSizeMax()
 		&& count < Global::MegagroupSizeMax()) {
-		// #TODO groups new error about "after creating"
 		Ui::show(
-			Box<InformBox>(lng_profile_add_more_after_upgrade(
-				lt_count,
-				Global::MegagroupSizeMax())),
+			Box<InformBox>(lang(lng_profile_add_more_after_create)),
 			LayerOption::KeepOther);
 	}
 }
@@ -454,11 +451,7 @@ void AddSpecialBoxController::showAdmin(
 	if (!checkInfoLoaded(user, [=] { showAdmin(user); })) {
 		return;
 	}
-
-	if (sure && _editBox) {
-		// Close the confirmation box.
-		_editBox->closeBox();
-	}
+	_editBox = nullptr;
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
@@ -555,9 +548,7 @@ void AddSpecialBoxController::showAdmin(
 			editAdminDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			if (_editBox) {
-				_editBox->closeBox();
-			}
+			_editBox = nullptr;
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
@@ -567,7 +558,7 @@ void AddSpecialBoxController::showAdmin(
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &rights) {
-	if (_editBox) _editBox->closeBox();
+	_editBox = nullptr;
 
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags.v == 0) {
@@ -597,11 +588,7 @@ void AddSpecialBoxController::showRestricted(
 	if (!checkInfoLoaded(user, [=] { showRestricted(user); })) {
 		return;
 	}
-
-	if (sure && _editBox) {
-		// Close the confirmation box.
-		_editBox->closeBox();
-	}
+	_editBox = nullptr;
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
@@ -650,9 +637,7 @@ void AddSpecialBoxController::showRestricted(
 			editRestrictedDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			if (_editBox) {
-				_editBox->closeBox();
-			}
+			_editBox = nullptr;
 		});
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
@@ -663,7 +648,7 @@ void AddSpecialBoxController::showRestricted(
 void AddSpecialBoxController::editRestrictedDone(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights) {
-	if (_editBox) _editBox->closeBox();
+	_editBox = nullptr;
 
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags.v == 0) {
@@ -731,6 +716,8 @@ void AddSpecialBoxController::kickUser(
 			LayerOption::KeepOther);
 		return;
 	}
+
+	_editBox = nullptr;
 	const auto restrictedRights = _additional.restrictedRights(user);
 	const auto currentRights = restrictedRights
 		? *restrictedRights

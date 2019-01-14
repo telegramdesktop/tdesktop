@@ -139,8 +139,9 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		| UpdateFlag::NameChanged
 		| UpdateFlag::PhotoChanged
 		| UpdateFlag::UserIsContact
-		| UpdateFlag::UserOccupiedChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
+		| UpdateFlag::UserOccupiedChanged
+		| UpdateFlag::MigrationChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [=](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::ChatPinnedChanged) {
 			stopReorderPinned();
 		}
@@ -154,6 +155,11 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		if (update.flags & UpdateFlag::UserIsContact) {
 			if (const auto user = update.peer->asUser()) {
 				userIsContactUpdated(user);
+			}
+		}
+		if (update.flags & UpdateFlag::MigrationChanged) {
+			if (const auto chat = update.peer->asChat()) {
+				handleChatMigration(chat);
 			}
 		}
 	}));
@@ -173,6 +179,22 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	refresh();
 
 	setupShortcuts();
+}
+
+void DialogsInner::handleChatMigration(not_null<ChatData*> chat) {
+	const auto channel = chat->migrateTo();
+	if (!channel) {
+		return;
+	}
+
+	if (const auto from = chat->owner().historyLoaded(chat)) {
+		if (const auto to = chat->owner().historyLoaded(channel)) {
+			if (to->inChatList(Dialogs::Mode::All)
+				&& from->inChatList(Dialogs::Mode::All)) {
+				removeDialog(from);
+			}
+		}
+	}
 }
 
 int DialogsInner::dialogsOffset() const {

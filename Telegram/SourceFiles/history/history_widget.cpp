@@ -430,11 +430,7 @@ HistoryWidget::HistoryWidget(
 				unreadCountUpdated();
 			}
 			if (update.flags & UpdateFlag::MigrationChanged) {
-				if (auto channel = _peer->migrateTo()) {
-					Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-					Auth().api().requestParticipantsCountDelayed(channel);
-					return;
-				}
+				handlePeerMigration();
 			}
 			if (update.flags & UpdateFlag::NotificationsEnabled) {
 				updateNotifyControls();
@@ -1338,27 +1334,6 @@ void HistoryWidget::notify_userIsBotChanged(UserData *user) {
 	}
 }
 
-void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
-	if (_peer) {
-		if (_peer == peer) {
-			if (peer->migrateTo()) {
-				showHistory(peer->migrateTo()->id, (_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId, true);
-			} else if ((_migrated ? _migrated->peer.get() : nullptr) != peer->migrateFrom()) {
-				auto migrated = _history->migrateFrom();
-				if (_migrated || (migrated && migrated->unreadCount() > 0)) {
-					showHistory(peer->id, peer->migrateFrom() ? _showAtMsgId : ((_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) ? ShowAtUnreadMsgId : _showAtMsgId), true);
-				} else {
-					_migrated = migrated;
-					_list->notifyMigrateUpdated();
-					updateHistoryGeometry();
-				}
-			}
-		} else if (_migrated && _migrated->peer == peer && peer->migrateTo() != _peer) {
-			showHistory(_peer->id, _showAtMsgId, true);
-		}
-	}
-}
-
 void HistoryWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
@@ -1516,7 +1491,10 @@ void HistoryWidget::applyCloudDraft(History *history) {
 	}
 }
 
-void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool reload) {
+void HistoryWidget::showHistory(
+		const PeerId &peerId,
+		MsgId showAtMsgId,
+		bool reload) {
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
 
@@ -1671,6 +1649,11 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		_history = App::history(_peer);
 		_migrated = _history->migrateFrom();
+		if (_migrated
+			&& !_migrated->isEmpty()
+			&& (!_history->loadedAtTop() || !_migrated->loadedAtBottom())) {
+			_migrated->unloadBlocks();
+		}
 
 		_topBar->setActiveChat(_history);
 		updateTopBarSelection();
@@ -5170,6 +5153,35 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		chooseAttach();
 	} else {
 		e->ignore();
+	}
+}
+
+void HistoryWidget::handlePeerMigration() {
+	const auto current = _peer->migrateToOrMe();
+	const auto chat = current->migrateFrom();
+	if (!chat) {
+		return;
+	}
+	const auto channel = current->asChannel();
+	Assert(channel != nullptr);
+
+	if (_peer != channel) {
+		showHistory(
+			channel->id,
+			(_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId);
+		channel->session().api().requestParticipantsCountDelayed(channel);
+	} else {
+		_migrated = _history->migrateFrom();
+		_list->notifyMigrateUpdated();
+		updateHistoryGeometry();
+	}
+	const auto from = chat->owner().historyLoaded(chat);
+	const auto to = channel->owner().historyLoaded(channel);
+	if (from
+		&& to
+		&& !from->isEmpty()
+		&& (!from->loadedAtBottom() || !to->loadedAtTop())) {
+		from->unloadBlocks();
 	}
 }
 

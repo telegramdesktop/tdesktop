@@ -886,6 +886,7 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 	const auto requestId = [&] {
 		const auto failHandler = [=](const RPCError &error) {
 			_fullPeerRequests.remove(peer);
+			migrateFail(peer, error);
 		};
 		if (const auto user = peer->asUser()) {
 			if (_session->supportMode()) {
@@ -911,6 +912,7 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 					const MTPmessages_ChatFull &result,
 					mtpRequestId requestId) {
 				gotChatFull(peer, result, requestId);
+				migrateDone(channel, channel);
 			}).fail(failHandler).send();
 		}
 		Unexpected("Peer type in requestFullPeer.");
@@ -993,40 +995,18 @@ void ApiWrap::gotChatFull(
 		channel->setUserpicPhoto(f.vchat_photo);
 		if (f.has_migrated_from_chat_id()) {
 			channel->addFlags(MTPDchannel::Flag::f_megagroup);
-			auto cfrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
-			bool updatedTo = (cfrom->migrateToPtr != channel), updatedFrom = (channel->mgInfo->migrateFromPtr != cfrom);
-			if (updatedTo) {
-				cfrom->migrateToPtr = channel;
-			}
-			if (updatedFrom) {
-				channel->mgInfo->migrateFromPtr = cfrom;
-				if (auto h = App::historyLoaded(cfrom->id)) {
-					if (auto hto = App::historyLoaded(channel->id)) {
-						if (!h->isEmpty()) {
-							h->unloadBlocks();
-						}
-						if (hto->inChatList(Dialogs::Mode::All) && h->inChatList(Dialogs::Mode::All)) {
-							App::main()->removeDialog(h);
-						}
-					}
-				}
-				Notify::migrateUpdated(channel);
-			}
-			if (updatedTo) {
-				Notify::migrateUpdated(cfrom);
-			}
+			const auto chat = channel->owner().chat(
+				peerFromChat(f.vmigrated_from_chat_id));
+			Data::ApplyMigration(chat, channel);
 		}
-		auto &v = f.vbot_info.v;
-		for_const (auto &item, v) {
-			switch (item.type()) {
-			case mtpc_botInfo: {
-				auto &b = item.c_botInfo();
-				if (auto user = App::userLoaded(b.vuser_id.v)) {
+		for (const auto &item : f.vbot_info.v) {
+			auto &owner = channel->owner();
+			item.match([&](const MTPDbotInfo &info) {
+				if (const auto user = owner.userLoaded(info.vuser_id.v)) {
 					user->setBotInfo(item);
 					fullPeerUpdated().notify(user);
 				}
-			} break;
-			}
+			});
 		}
 		channel->setAbout(qs(f.vabout));
 		channel->setMembersCount(f.has_participants_count() ? f.vparticipants_count.v : 0);
@@ -1179,56 +1159,81 @@ void ApiWrap::migrateChat(
 	if (i != end(_migrateCallbacks)) {
 		i->second.push_back(callback());
 		return;
-	} else if (const auto channel = chat->migrateTo()) {
+	}
+	_migrateCallbacks.emplace(chat).first->second.push_back(callback());
+	if (const auto channel = chat->migrateTo()) {
 		Notify::peerUpdatedDelayed(
 			chat,
 			Notify::PeerUpdate::Flag::MigrationChanged);
-		crl::on_main([=, done = std::move(done)]() mutable {
-			Notify::peerUpdatedSendDelayed();
-			done(channel);
+		crl::on_main([=] {
+			migrateDone(chat, channel);
 		});
 	} else if (chat->isDeactivated()) {
-		crl::on_main([fail = std::move(fail)]() mutable {
-			fail(RPCError::Local(
-				"BAD_MIGRATION",
-				"Chat is already deactivated"));
+		crl::on_main([=] {
+			migrateFail(
+				chat,
+				RPCError::Local(
+					"BAD_MIGRATION",
+					"Chat is already deactivated"));
 		});
 		return;
 	} else if (!chat->amCreator()) {
-		crl::on_main([fail = std::move(fail)]() mutable {
-			fail(RPCError::Local(
-				"BAD_MIGRATION",
-				"Current user is not the creator of that chat"));
+		crl::on_main([=] {
+			migrateFail(
+				chat,
+				RPCError::Local(
+					"BAD_MIGRATION",
+					"Current user is not the creator of that chat"));
 		});
 		return;
 	}
 
-	_migrateCallbacks.emplace(chat).first->second.push_back(callback());
 	request(MTPmessages_MigrateChat(
 		chat->inputChat
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 		Notify::peerUpdatedSendDelayed();
 
-		const auto channel = chat->migrateTo();
-		if (auto handlers = _migrateCallbacks.take(chat)) {
-			for (auto &handler : *handlers) {
-				if (channel) {
-					handler.done(channel);
-				} else {
-					handler.fail(RPCError::Local(
-						"MIGRATION_FAIL",
-						"No channel"));
-				}
+		if (const auto channel = chat->migrateTo()) {
+			if (auto handlers = _migrateCallbacks.take(chat)) {
+				_migrateCallbacks.emplace(channel, std::move(*handlers));
 			}
+			requestFullPeer(channel);
+		} else {
+			migrateFail(
+				chat,
+				RPCError::Local("MIGRATION_FAIL", "No channel"));
 		}
 	}).fail([=](const RPCError &error) {
-		if (auto handlers = _migrateCallbacks.take(chat)) {
-			for (auto &handler : *handlers) {
+		migrateFail(chat, error);
+	}).send();
+}
+
+void ApiWrap::migrateDone(
+		not_null<PeerData*> peer,
+		not_null<ChannelData*> channel) {
+	Notify::peerUpdatedSendDelayed();
+	if (auto handlers = _migrateCallbacks.take(peer)) {
+		for (auto &handler : *handlers) {
+			if (handler.done) {
+				handler.done(channel);
+			}
+		}
+	}
+}
+
+void ApiWrap::migrateFail(not_null<PeerData*> peer, const RPCError &error) {
+	const auto &type = error.type();
+	if (type == qstr("CHANNELS_TOO_MUCH")) {
+		Ui::show(Box<InformBox>(lang(lng_migrate_error)));
+	}
+	if (auto handlers = _migrateCallbacks.take(peer)) {
+		for (auto &handler : *handlers) {
+			if (handler.fail) {
 				handler.fail(error);
 			}
 		}
-	}).send();
+	}
 }
 
 void ApiWrap::markMediaRead(
@@ -5059,6 +5064,7 @@ void ApiWrap::requestSupportContact(FnMut<void(const MTPUser &)> callback) {
 }
 
 void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
+	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(peer->id, std::move(image));
 
 	const auto fakeId = FullMsgId(peerToChannel(peer->id), clientMsgId());

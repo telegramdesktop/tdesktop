@@ -107,8 +107,8 @@ void ShowEditPermissions(not_null<PeerData*> peer) {
 				box->closeBox();
 			}
 		});
-		Auth().api().saveDefaultRestrictions(
-			peer,
+		peer->session().api().saveDefaultRestrictions(
+			peer->migrateToOrMe(),
 			MTP_chatBannedRights(MTP_flags(restrictions), MTP_int(0)),
 			callback);
 	}, box->lifetime());

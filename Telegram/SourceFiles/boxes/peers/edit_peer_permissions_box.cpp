@@ -215,10 +215,40 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 
 } // namespace
 
+ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
+	using Flag = ChatAdminRight;
+	using Restriction = ChatRestriction;
+
+	const auto restrictions = [&] {
+		if (const auto chat = peer->asChat()) {
+			return chat->defaultRestrictions();
+		} else if (const auto channel = peer->asChannel()) {
+			return channel->defaultRestrictions();
+		}
+		Unexpected("User in DisabledByDefaultRestrictions.");
+	}();
+	return Flag(0)
+		| ((restrictions & Restriction::f_pin_messages)
+			? Flag(0)
+			: Flag::f_pin_messages)
+		//
+		// We allow to edit 'invite_users' admin right no matter what
+		// is chosen in default permissions for 'invite_users', because
+		// if everyone can 'invite_users' it handles invite link for admins.
+		//
+		//| ((restrictions & Restriction::f_invite_users)
+		//	? Flag(0)
+		//	: Flag::f_invite_users)
+		//
+		| ((restrictions & Restriction::f_change_info)
+			? Flag(0)
+			: Flag::f_change_info);
+}
+
 EditPeerPermissionsBox::EditPeerPermissionsBox(
 	QWidget*,
 	not_null<PeerData*> peer)
-: _peer(peer) {
+: _peer(peer->migrateToOrMe()) {
 }
 
 auto EditPeerPermissionsBox::saveEvents() const
@@ -282,12 +312,18 @@ void EditPeerPermissionsBox::prepare() {
 
 void EditPeerPermissionsBox::addBannedButtons(
 		not_null<Ui::VerticalLayout*> container) {
+	if (const auto chat = _peer->asChat()) {
+		if (!chat->amCreator()) {
+			return;
+		}
+	}
+	const auto channel = _peer->asChannel();
+
 	container->add(
 		object_ptr<BoxContentDivider>(container),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
 	const auto navigation = App::wnd()->controller();
-	const auto channel = _peer->asChannel();
 	ManagePeerBox::CreateButton(
 		container,
 		Lang::Viewer(lng_manage_peer_exceptions),

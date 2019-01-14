@@ -234,8 +234,8 @@ private:
 	bool _allLoaded = false;
 	ParticipantsAdditionalData _additional;
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
-	QPointer<BoxContent> _editBox;
-	QPointer<PeerListBox> _addBox;
+	BoxPointer _editBox;
+	BoxPointer _addBox;
 
 };
 

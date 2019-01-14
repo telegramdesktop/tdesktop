@@ -288,7 +288,6 @@ public:
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *user);
-	void notify_migrateUpdated(PeerData *peer);
 
 	~HistoryWidget();
 
@@ -502,6 +501,8 @@ private:
 	void setupShortcuts();
 	bool showNextChat();
 	bool showPreviousChat();
+
+	void handlePeerMigration();
 
 	MsgId _replyToId = 0;
 	Text _replyToName;

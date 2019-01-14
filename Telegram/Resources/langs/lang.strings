@@ -128,6 +128,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
 "lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining this one.";
+"lng_migrate_error" = "This action will convert the group to a supergroup. Unfortunately, you are a member of too many supergroups and channels. Please leave some of the channels or groups you don't need before proceeding.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
 "lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
 "lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
@@ -797,6 +798,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";
 "lng_manage_history_visibility_hidden" = "Hidden";
 "lng_manage_history_visibility_hidden_about" = "New members won't see earlier messages.";
+"lng_manage_history_visibility_hidden_legacy" = "New members won't see more than 100 previous messages.";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";
@@ -957,8 +959,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_convert_feature4" = "— Creator can set a public link for the group";
 "lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
 "lng_profile_convert_confirm" = "Convert";
-"lng_profile_add_more_after_upgrade#one" = "You will be able to add up to {count} member after you upgrade your group to a supergroup.";
-"lng_profile_add_more_after_upgrade#other" = "You will be able to add up to {count} members after you upgrade your group to a supergroup.";
+"lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";

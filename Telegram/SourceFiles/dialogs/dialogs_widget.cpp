@@ -310,7 +310,7 @@ void DialogsWidget::createDialog(Dialogs::Key key) {
 		if (const auto migrated = App::historyLoaded(
 				history->peer->migrateFrom())) {
 			if (migrated->inChatList(Dialogs::Mode::All)) {
-				removeDialog(migrated);
+				_inner->removeDialog(migrated);
 			}
 		}
 	}

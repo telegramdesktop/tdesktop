@@ -212,17 +212,20 @@ void EditAdminBox::prepare() {
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
 	const auto prepareRights = hadRights ? _oldRights : Defaults(peer());
+	const auto disabledByDefaults = DisabledByDefaultRestrictions(peer());
 	const auto filterByMyRights = canSave()
 		&& !hadRights
 		&& channel
 		&& !channel->amCreator();
-	const auto prepareFlags = prepareRights.c_chatAdminRights().vflags.v
-		& (filterByMyRights ? channel->adminRights() : ~Flag(0));
+	const auto prepareFlags = disabledByDefaults
+		| (prepareRights.c_chatAdminRights().vflags.v
+			& (filterByMyRights ? channel->adminRights() : ~Flag(0)));
 
 	const auto disabledFlags = canSave()
-		? ((!channel || channel->amCreator())
-			? Flags(0)
-			: ~channel->adminRights())
+		? (disabledByDefaults
+			| ((!channel || channel->amCreator())
+				? Flags(0)
+				: ~channel->adminRights()))
 		: ~Flags(0);
 
 	const auto anyoneCanAddMembers = chat

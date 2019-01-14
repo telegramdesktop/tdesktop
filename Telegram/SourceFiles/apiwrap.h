@@ -587,6 +587,11 @@ private:
 
 	void setSelfDestructDays(int days);
 
+	void migrateDone(
+		not_null<PeerData*> peer,
+		not_null<ChannelData*> channel);
+	void migrateFail(not_null<PeerData*> peer, const RPCError &error);
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -737,7 +742,7 @@ private:
 		FnMut<void(const RPCError&)> fail;
 	};
 	base::flat_map<
-		not_null<ChatData*>,
+		not_null<PeerData*>,
 		std::vector<MigrateCallbacks>> _migrateCallbacks;
 
 	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;

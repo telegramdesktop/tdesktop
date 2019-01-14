@@ -149,8 +149,6 @@ void replyMarkupUpdated(const HistoryItem *item);
 void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot = nullptr, MsgId samePeerReplyTo = 0);
 
-void migrateUpdated(PeerData *peer);
-
 void historyMuteUpdated(History *history);
 void unreadCounterUpdated();
 
@@ -323,7 +321,7 @@ DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
-	
+
 DeclareVar(QString, CallOutputDeviceID);
 DeclareVar(QString, CallInputDeviceID);
 DeclareVar(int, CallOutputVolume);

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "auth_session.h"
@@ -64,7 +65,7 @@ bool ChatData::canEditInformation() const {
 
 bool ChatData::canEditPermissions() const {
 	return !actionsUnavailable()
-		&& (amCreator() || hasAdminRights());
+		&& (amCreator() || (adminRights() & AdminRight::f_ban_users));
 }
 
 bool ChatData::canEditUsername() const {
@@ -175,6 +176,19 @@ auto ChatData::applyUpdateVersion(int version) -> UpdateStatus {
 	}
 	setVersion(version);
 	return UpdateStatus::Good;
+}
+
+ChannelData *ChatData::getMigrateToChannel() const {
+	return _migratedTo;
+}
+
+void ChatData::setMigrateToChannel(ChannelData *channel) {
+	if (_migratedTo != channel) {
+		_migratedTo = channel;
+		if (channel->amIn()) {
+			Notify::peerUpdatedDelayed(this, UpdateFlag::MigrationChanged);
+		}
+	}
 }
 
 namespace Data {

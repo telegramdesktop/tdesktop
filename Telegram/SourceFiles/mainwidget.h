@@ -290,7 +290,6 @@ public:
 	void notify_inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop);
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *bot);
-	void notify_migrateUpdated(PeerData *peer);
 	void notify_historyMuteUpdated(History *history);
 
 	~MainWidget();

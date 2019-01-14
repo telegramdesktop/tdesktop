@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel_admins.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "observer_peer.h"
@@ -22,19 +23,38 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 } // namespace
 
+ChatData *MegagroupInfo::getMigrateFromChat() const {
+	return _migratedFrom;
+}
+
+void MegagroupInfo::setMigrateFromChat(ChatData *chat) {
+	_migratedFrom = chat;
+}
+
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
 	Data::PeerFlagValue(
 		this,
 		MTPDchannel::Flag::f_megagroup
-	) | rpl::start_with_next([this](bool megagroup) {
+	) | rpl::start_with_next([=](bool megagroup) {
 		if (megagroup) {
 			if (!mgInfo) {
 				mgInfo = std::make_unique<MegagroupInfo>();
 			}
 		} else if (mgInfo) {
 			mgInfo = nullptr;
+		}
+	}, _lifetime);
+
+	Data::PeerFlagsValue(
+		this,
+		MTPDchannel::Flag::f_left | MTPDchannel_ClientFlag::f_forbidden
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=] {
+		if (const auto chat = getMigrateFromChat()) {
+			Notify::peerUpdatedDelayed(chat, UpdateFlag::MigrationChanged);
+			Notify::peerUpdatedDelayed(this, UpdateFlag::MigrationChanged);
 		}
 	}, _lifetime);
 }
@@ -365,7 +385,8 @@ bool ChannelData::canEditInformation() const {
 }
 
 bool ChannelData::canEditPermissions() const {
-	return isMegagroup() && (hasAdminRights() || amCreator());
+	return isMegagroup()
+		&& ((adminRights() & AdminRight::f_ban_users) || amCreator());
 }
 
 bool ChannelData::canEditSignatures() const {
@@ -495,7 +516,35 @@ auto ChannelData::applyUpdateVersion(int version) -> UpdateStatus {
 	return UpdateStatus::Good;
 }
 
+ChatData *ChannelData::getMigrateFromChat() const {
+	if (const auto info = mgInfo.get()) {
+		return info->getMigrateFromChat();
+	}
+	return nullptr;
+}
+
+void ChannelData::setMigrateFromChat(ChatData *chat) {
+	Expects(mgInfo != nullptr);
+
+	const auto info = mgInfo.get();
+	if (chat != info->getMigrateFromChat()) {
+		info->setMigrateFromChat(chat);
+		if (amIn()) {
+			Notify::peerUpdatedDelayed(this, UpdateFlag::MigrationChanged);
+		}
+	}
+}
+
 namespace Data {
+
+void ApplyMigration(
+		not_null<ChatData*> chat,
+		not_null<ChannelData*> channel) {
+	Expects(channel->isMegagroup());
+
+	chat->setMigrateToChannel(channel);
+	channel->setMigrateFromChat(chat);
+}
 
 void ApplyChannelUpdate(
 		not_null<ChannelData*> channel,

@@ -156,10 +156,11 @@ public:
 	}
 	UpdateStatus applyUpdateVersion(int version);
 
+	ChannelData *getMigrateToChannel() const;
+	void setMigrateToChannel(ChannelData *channel);
+
 	// Still public data members.
 	MTPint inputChat;
-
-	ChannelData *migrateToPtr = nullptr;
 
 	int count = 0;
 	TimeId date = 0;
@@ -183,6 +184,8 @@ private:
 	RestrictionFlags _defaultRestrictions;
 	AdminRightFlags _adminRights;
 	int _version = 0;
+
+	ChannelData *_migratedTo = nullptr;
 
 };
 
