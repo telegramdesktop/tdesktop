@@ -439,14 +439,16 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		LayerOption::KeepOther);
 }
 
-std::unique_ptr<ChatsListBoxController::Row> AddBotToGroupBoxController::createRow(not_null<History*> history) {
+auto AddBotToGroupBoxController::createRow(not_null<History*> history)
+-> std::unique_ptr<ChatsListBoxController::Row> {
 	if (!needToCreateRow(history->peer)) {
 		return nullptr;
 	}
 	return std::make_unique<Row>(history);
 }
 
-bool AddBotToGroupBoxController::needToCreateRow(not_null<PeerData*> peer) const {
+bool AddBotToGroupBoxController::needToCreateRow(
+		not_null<PeerData*> peer) const {
 	if (sharingBotGame()) {
 		if (!peer->canWrite()
 			|| peer->amRestricted(ChatRestriction::f_send_games)) {

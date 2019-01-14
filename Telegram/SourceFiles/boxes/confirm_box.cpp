@@ -31,37 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "observer_peer.h"
 
-namespace {
-
-void ConvertToSupergroupDone(const MTPUpdates &updates) {
-	Auth().api().applyUpdates(updates);
-
-	auto handleChats = [](const MTPVector<MTPChat> &chats) {
-		for (const auto &chat : chats.v) {
-			if (chat.type() == mtpc_channel) {
-				const auto channel = App::channel(chat.c_channel().vid.v);
-				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-				Auth().api().requestParticipantsCountDelayed(channel);
-			}
-		}
-	};
-
-	switch (updates.type()) {
-	case mtpc_updates:
-		handleChats(updates.c_updates().vchats);
-		break;
-	case mtpc_updatesCombined:
-		handleChats(updates.c_updatesCombined().vchats);
-		break;
-	default:
-		LOG(("API Error: unexpected update cons %1 "
-			"(ConvertToSupergroupBox::convertDone)").arg(updates.type()));
-		break;
-	}
-}
-
-} // namespace
-
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -69,7 +38,11 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(
+	QWidget*,
+	const QString &text,
+	FnMut<void()> confirmedCallback,
+	FnMut<void()> cancelledCallback)
 : _confirmText(lang(lng_box_ok))
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
@@ -79,7 +52,12 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, FnMut<void()> confirmedCal
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(
+	QWidget*,
+	const QString &text,
+	const QString &confirmText,
+	FnMut<void()> confirmedCallback,
+	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
@@ -89,7 +67,12 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const TextWithEntities &text, const QString &confirmText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(
+	QWidget*,
+	const TextWithEntities &text,
+	const QString &confirmText,
+	FnMut<void()> confirmedCallback,
+	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
@@ -99,7 +82,13 @@ ConfirmBox::ConfirmBox(QWidget*, const TextWithEntities &text, const QString &co
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(
+	QWidget*,
+	const QString &text,
+	const QString &confirmText,
+	const style::RoundButton &confirmStyle,
+	FnMut<void()> confirmedCallback,
+	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(confirmStyle)
@@ -109,7 +98,13 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(
+	QWidget*,
+	const QString &text,
+	const QString &confirmText,
+	const QString &cancelText,
+	FnMut<void()> confirmedCallback,
+	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
@@ -119,7 +114,14 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(
+	QWidget*,
+	const QString &text,
+	const QString &confirmText,
+	const style::RoundButton &confirmStyle,
+	const QString &cancelText,
+	FnMut<void()> confirmedCallback,
+	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
@@ -129,7 +131,11 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, Fn<void()> closedCallback)
+ConfirmBox::ConfirmBox(
+	const InformBoxTag &,
+	const QString &text,
+	const QString &doneText,
+	Fn<void()> closedCallback)
 : _confirmText(doneText)
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
@@ -139,7 +145,11 @@ ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString 
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const InformBoxTag &, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback)
+ConfirmBox::ConfirmBox(
+	const InformBoxTag &,
+	const TextWithEntities &text,
+	const QString &doneText,
+	Fn<void()> closedCallback)
 : _confirmText(doneText)
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
@@ -149,8 +159,9 @@ ConfirmBox::ConfirmBox(const InformBoxTag &, const TextWithEntities &text, const
 	init(text);
 }
 
-FnMut<void()> ConfirmBox::generateInformCallback(Fn<void()> closedCallback) {
-	return crl::guard(this, [this, closedCallback] {
+FnMut<void()> ConfirmBox::generateInformCallback(
+		Fn<void()> closedCallback) {
+	return crl::guard(this, [=] {
 		closeBox();
 		if (closedCallback) {
 			closedCallback();
@@ -159,7 +170,10 @@ FnMut<void()> ConfirmBox::generateInformCallback(Fn<void()> closedCallback) {
 }
 
 void ConfirmBox::init(const QString &text) {
-	_text.setText(st::boxLabelStyle, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
+	_text.setText(
+		st::boxLabelStyle,
+		text,
+		_informative ? _confirmBoxTextOptions : _textPlainOptions);
 }
 
 void ConfirmBox::init(const TextWithEntities &text) {
@@ -167,9 +181,14 @@ void ConfirmBox::init(const TextWithEntities &text) {
 }
 
 void ConfirmBox::prepare() {
-	addButton([this] { return _confirmText; }, [this] { confirmed(); }, _confirmStyle);
+	addButton(
+		[=] { return _confirmText; },
+		[=] { confirmed(); },
+		_confirmStyle);
 	if (!_informative) {
-		addButton([this] { return _cancelText; }, [this] { _cancelled = true; closeBox(); });
+		addButton(
+			[=] { return _cancelText; },
+			[=] { _cancelled = true; closeBox(); });
 	}
 
 	boxClosing() | rpl::start_with_next([=] {
@@ -321,7 +340,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
 		if (_channel->inviteLink().isEmpty()) {
-			Auth().api().exportInviteLink(_channel);
+			_channel->session().api().exportInviteLink(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(lang(lng_create_channel_link_copied));
@@ -423,7 +442,7 @@ void PinMessageBox::pinMessage() {
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
-	Auth().api().applyUpdates(updates);
+	_peer->session().api().applyUpdates(updates);
 	Ui::hideLayer();
 }
 
@@ -562,20 +581,21 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 void DeleteMessagesBox::deleteAndClear() {
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
-			Auth().api().kickParticipant(
+			_moderateInChannel->session().api().kickParticipant(
 				_moderateInChannel,
 				_moderateFrom,
 				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 		if (_reportSpam->checked()) {
-			MTP::send(
+			_moderateInChannel->session().api().request(
 				MTPchannels_ReportSpam(
 					_moderateInChannel->inputChannel,
 					_moderateFrom->inputUser,
-					MTP_vector<MTPint>(1, MTP_int(_ids[0].msg))));
+					MTP_vector<MTPint>(1, MTP_int(_ids[0].msg)))
+			).send();
 		}
 		if (_deleteAll && _deleteAll->checked()) {
-			Auth().api().deleteAllFromUser(
+			_moderateInChannel->session().api().deleteAllFromUser(
 				_moderateInChannel,
 				_moderateFrom);
 		}
@@ -596,7 +616,7 @@ void DeleteMessagesBox::deleteAndClear() {
 			if (wasOnServer) {
 				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
 			} else if (wasLast && !history->lastMessageKnown()) {
-				Auth().api().requestDialogEntry(history);
+				history->session().api().requestDialogEntry(history);
 			}
 		}
 	}

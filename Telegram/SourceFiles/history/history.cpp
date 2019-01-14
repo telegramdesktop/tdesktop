@@ -1047,16 +1047,23 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionChatMigrateTo: {
-		if (auto chat = peer->asChat()) {
+		if (const auto chat = peer->asChat()) {
 			chat->addFlags(MTPDchat::Flag::f_deactivated);
+			const auto &d = action.c_messageActionChatMigrateTo();
+			if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
+				Data::ApplyMigration(chat, channel);
+			}
 		}
-		//auto &d = action.c_messageActionChatMigrateTo();
-		//auto channel = App::channelLoaded(d.vchannel_id.v);
 	} break;
 
 	case mtpc_messageActionChannelMigrateFrom: {
-		//auto &d = action.c_messageActionChannelMigrateFrom();
-		//auto chat = App::chatLoaded(d.vchat_id.v);
+		if (const auto channel = peer->asChannel()) {
+			channel->addFlags(MTPDchannel::Flag::f_megagroup);
+			const auto &d = action.c_messageActionChannelMigrateFrom();
+			if (const auto chat = App::chatLoaded(d.vchat_id.v)) {
+				Data::ApplyMigration(chat, channel);
+			}
+		}
 	} break;
 
 	case mtpc_messageActionPinMessage: {

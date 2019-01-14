@@ -262,11 +262,12 @@ QString GetErrorTextForForward(
 			}
 		}
 	}
-	if (peer->amRestricted(ChatRestriction::f_send_inline)
-		&& HasInlineItems(items)) {
-		return lang(lng_restricted_send_inline);
-	}
-	return QString();
+	const auto errorKey = Data::RestrictionErrorKey(
+		peer,
+		ChatRestriction::f_send_inline);
+	return (errorKey && HasInlineItems(items))
+		? lang(*errorKey)
+		: QString();
 }
 
 struct HistoryMessage::CreateConfig {

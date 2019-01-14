@@ -23,6 +23,7 @@ struct SendingAlbum;
 enum class SendMediaType;
 enum class CompressConfirm;
 class MessageLinksParser;
+enum LangKey : int;
 
 namespace InlineBots {
 namespace Layout {
@@ -472,7 +473,7 @@ private:
 	void checkTabbedSelectorToggleTooltip();
 
 	bool canWriteMessage() const;
-	bool isRestrictedWrite() const;
+	std::optional<LangKey> writeRestrictionKey() const;
 	void orderWidgets();
 
 	void clearInlineBot();
@@ -543,10 +544,14 @@ private:
 		not_null<UserData*> bot);
 
 	void drawField(Painter &p, const QRect &rect);
-	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
+	void paintEditHeader(
+		Painter &p,
+		const QRect &rect,
+		int left,
+		int top) const;
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
-	void drawRestrictedWrite(Painter &p);
+	void drawRestrictedWrite(Painter &p, const QString &error);
 	bool paintShowAnimationFrame(TimeMs ms);
 
 	void updateMouseTracking();

@@ -673,21 +673,20 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 
 void TabbedSelector::checkRestrictedPeer() {
 	if (_currentPeer) {
-		const auto restricted = (_currentTabType == SelectorTab::Stickers)
-			? _currentPeer->amRestricted(ChatRestriction::f_send_stickers)
+		const auto errorKey = (_currentTabType == SelectorTab::Stickers)
+			? Data::RestrictionErrorKey(
+				_currentPeer,
+				ChatRestriction::f_send_stickers)
 			: (_currentTabType == SelectorTab::Gifs)
-			? _currentPeer->amRestricted(ChatRestriction::f_send_gifs)
-			: false;
-		if (restricted) {
+			? Data::RestrictionErrorKey(
+				_currentPeer,
+				ChatRestriction::f_send_gifs)
+			: std::nullopt;
+		if (errorKey) {
 			if (!_restrictedLabel) {
-				auto text = (_currentTabType == SelectorTab::Stickers)
-					? lang(lng_restricted_send_stickers)
-					: (_currentTabType == SelectorTab::Gifs)
-					? lang(lng_restricted_send_gifs)
-					: QString();
 				_restrictedLabel.create(
 					this,
-					text,
+					lang(*errorKey),
 					Ui::FlatLabel::InitType::Simple,
 					st::stickersRestrictedLabel);
 				_restrictedLabel->show();

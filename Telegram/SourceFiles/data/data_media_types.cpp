@@ -326,10 +326,10 @@ bool MediaPhoto::allowsEditCaption() const {
 }
 
 QString MediaPhoto::errorTextForForward(not_null<PeerData*> peer) const {
-	if (peer->amRestricted(ChatRestriction::f_send_media)) {
-		return lang(lng_restricted_send_media);
-	}
-	return QString();
+	const auto errorKey = Data::RestrictionErrorKey(
+		peer,
+		ChatRestriction::f_send_media);
+	return errorKey ? lang(*errorKey) : QString();
 }
 
 bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
@@ -651,21 +651,29 @@ bool MediaFile::forwardedBecomesUnread() const {
 
 QString MediaFile::errorTextForForward(not_null<PeerData*> peer) const {
 	if (const auto sticker = _document->sticker()) {
-		if (peer->amRestricted(ChatRestriction::f_send_stickers)) {
-			return lang(lng_restricted_send_stickers);
+		if (const auto key = Data::RestrictionErrorKey(
+				peer,
+				ChatRestriction::f_send_stickers)) {
+			return lang(*key);
 		}
 	} else if (_document->isAnimation()) {
 		if (_document->isVideoMessage()) {
-			if (peer->amRestricted(ChatRestriction::f_send_media)) {
-				return lang(lng_restricted_send_media);
+			if (const auto key = Data::RestrictionErrorKey(
+					peer,
+					ChatRestriction::f_send_media)) {
+				return lang(*key);
 			}
 		} else {
-			if (peer->amRestricted(ChatRestriction::f_send_gifs)) {
-				return lang(lng_restricted_send_gifs);
+			if (const auto key = Data::RestrictionErrorKey(
+					peer,
+					ChatRestriction::f_send_gifs)) {
+				return lang(*key);
 			}
 		}
-	} else if (peer->amRestricted(ChatRestriction::f_send_media)) {
-		return lang(lng_restricted_send_media);
+	} else if (const auto key = Data::RestrictionErrorKey(
+			peer,
+			ChatRestriction::f_send_media)) {
+		return lang(*key);
 	}
 	return QString();
 }
@@ -1115,10 +1123,10 @@ TextWithEntities MediaGame::clipboardText() const {
 }
 
 QString MediaGame::errorTextForForward(not_null<PeerData*> peer) const {
-	if (peer->amRestricted(ChatRestriction::f_send_games)) {
-		return lang(lng_restricted_send_inline);
-	}
-	return QString();
+	const auto errorKey = Data::RestrictionErrorKey(
+		peer,
+		ChatRestriction::f_send_games);
+	return errorKey ? lang(*errorKey) : QString();
 }
 
 bool MediaGame::consumeMessageText(const TextWithEntities &text) {
@@ -1254,10 +1262,10 @@ TextWithEntities MediaPoll::clipboardText() const {
 }
 
 QString MediaPoll::errorTextForForward(not_null<PeerData*> peer) const {
-	if (peer->amRestricted(ChatRestriction::f_send_polls)) {
-		return lang(lng_restricted_send_polls);
-	}
-	return QString();
+	const auto errorKey = Data::RestrictionErrorKey(
+		peer,
+		ChatRestriction::f_send_polls);
+	return errorKey ? lang(*errorKey) : QString();
 }
 
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {

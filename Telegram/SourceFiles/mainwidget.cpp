@@ -565,8 +565,10 @@ bool MainWidget::sendPaths(PeerId peerId) {
 	if (!peer->canWrite()) {
 		Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
 		return false;
-	} else if (peer->amRestricted(ChatRestriction::f_send_media)) {
-		Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+	} else if (const auto key = Data::RestrictionErrorKey(
+			peer,
+			ChatRestriction::f_send_media)) {
+		Ui::show(Box<InformBox>(lang(*key)));
 		return false;
 	}
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);

@@ -598,7 +598,9 @@ bool PeerData::canWrite() const {
 				: false;
 }
 
-bool PeerData::amRestricted(ChatRestriction right) const {
+Data::RestrictionCheckResult PeerData::amRestricted(
+		ChatRestriction right) const {
+	using Result = Data::RestrictionCheckResult;
 	const auto allowByAdminRights = [](auto right, auto chat) -> bool {
 		if (right == ChatRestriction::f_invite_users) {
 			return chat->adminRights() & ChatAdminRight::f_invite_users;
@@ -611,14 +613,61 @@ bool PeerData::amRestricted(ChatRestriction right) const {
 		}
 	};
 	if (const auto channel = asChannel()) {
-		return !channel->amCreator()
-			&& !allowByAdminRights(right, channel)
-			&& ((channel->restrictions() & right)
-				|| (channel->defaultRestrictions() & right));
+		return (channel->amCreator() || allowByAdminRights(right, channel))
+			? Result::Allowed()
+			: (channel->defaultRestrictions() & right)
+			? Result::WithEveryone()
+			: (channel->restrictions() & right)
+			? Result::Explicit()
+			: Result::Allowed();
 	} else if (const auto chat = asChat()) {
-		return !chat->amCreator()
-			&& !allowByAdminRights(right, chat)
-			&& (chat->defaultRestrictions() & right);
+		return (chat->amCreator() || allowByAdminRights(right, chat))
+			? Result::Allowed()
+			: (chat->defaultRestrictions() & right)
+			? Result::WithEveryone()
+			: Result::Allowed();
 	}
-	return false;
+	return Result::Allowed();
 }
+
+namespace Data {
+
+std::optional<LangKey> RestrictionErrorKey(
+		not_null<PeerData*> peer,
+		ChatRestriction restriction) {
+	using Flag = ChatRestriction;
+	if (const auto restricted = peer->amRestricted(restriction)) {
+		const auto all = restricted.isWithEveryone();
+		switch (restriction) {
+		case Flag::f_send_polls:
+			return all
+				? lng_restricted_send_polls_all
+				: lng_restricted_send_polls;
+		case Flag::f_send_messages:
+			return all
+				? lng_restricted_send_message_all
+				: lng_restricted_send_message;
+		case Flag::f_send_media:
+			return all
+				? lng_restricted_send_media_all
+				: lng_restricted_send_media;
+		case Flag::f_send_stickers:
+			return all
+				? lng_restricted_send_stickers_all
+				: lng_restricted_send_stickers;
+		case Flag::f_send_gifs:
+			return all
+				? lng_restricted_send_gifs_all
+				: lng_restricted_send_gifs;
+		case Flag::f_send_inline:
+		case Flag::f_send_games:
+			return all
+				? lng_restricted_send_inline_all
+				: lng_restricted_send_inline;
+		}
+		Unexpected("Restriction in Data::RestrictionErrorKey.");
+	}
+	return std::nullopt;
+}
+
+} // namespace Data

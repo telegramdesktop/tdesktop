@@ -81,9 +81,12 @@ void Inner::visibleTopBottomUpdated(
 
 void Inner::checkRestrictedPeer() {
 	if (_inlineQueryPeer) {
-		if (_inlineQueryPeer->amRestricted(ChatRestriction::f_send_inline)) {
+		const auto errorKey = Data::RestrictionErrorKey(
+			_inlineQueryPeer,
+			ChatRestriction::f_send_inline);
+		if (errorKey) {
 			if (!_restrictedLabel) {
-				_restrictedLabel.create(this, lang(lng_restricted_send_inline), Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
+				_restrictedLabel.create(this, lang(*errorKey), Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				_restrictedLabel->move(st::inlineResultsLeft - st::buttonRadius, st::stickerPanPadding);
 				if (_switchPmButton) {

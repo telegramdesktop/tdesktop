@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
 
+enum LangKey : int;
+
 namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
@@ -36,6 +38,51 @@ using ChatAdminRight = MTPDchatAdminRights::Flag;
 using ChatRestriction = MTPDchatBannedRights::Flag;
 using ChatAdminRights = MTPDchatAdminRights::Flags;
 using ChatRestrictions = MTPDchatBannedRights::Flags;
+
+namespace Data {
+
+class RestrictionCheckResult {
+public:
+	[[nodiscard]] static RestrictionCheckResult Allowed() {
+		return { 0 };
+	}
+	[[nodiscard]] static RestrictionCheckResult WithEveryone() {
+		return { 1 };
+	}
+	[[nodiscard]] static RestrictionCheckResult Explicit() {
+		return { 2 };
+	}
+
+	explicit operator bool() const {
+		return (_value != 0);
+	}
+
+	bool operator==(const RestrictionCheckResult &other) const {
+		return (_value == other._value);
+	}
+	bool operator!=(const RestrictionCheckResult &other) const {
+		return !(*this == other);
+	}
+
+	[[nodiscard]] bool isAllowed() const {
+		return (*this == Allowed());
+	}
+	[[nodiscard]] bool isWithEveryone() const {
+		return (*this == WithEveryone());
+	}
+	[[nodiscard]] bool isExplicit() const {
+		return (*this == Explicit());
+	}
+
+private:
+	RestrictionCheckResult(int value) : _value(value) {
+	}
+
+	int _value = 0;
+
+};
+
+} // namespace Data
 
 class PeerClickHandler : public ClickHandler {
 public:
@@ -100,7 +147,8 @@ public:
 	}
 
 	[[nodiscard]] bool canWrite() const;
-	[[nodiscard]] bool amRestricted(ChatRestriction right) const;
+	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
+		ChatRestriction right) const;
 
 	[[nodiscard]] UserData *asUser();
 	[[nodiscard]] const UserData *asUser() const;
@@ -275,3 +323,11 @@ private:
 	QString _about;
 
 };
+
+namespace Data {
+
+std::optional<LangKey> RestrictionErrorKey(
+	not_null<PeerData*> peer,
+	ChatRestriction restriction);
+
+} // namespace Data

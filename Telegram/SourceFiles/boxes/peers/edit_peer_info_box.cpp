@@ -668,7 +668,7 @@ void Controller::exportInviteLink(const QString &confirmation) {
 		if (const auto strong = *boxPointer) {
 			strong->closeBox();
 		}
-		Auth().api().exportInviteLink(_peer->migrateToOrMe());
+		_peer->session().api().exportInviteLink(_peer->migrateToOrMe());
 	});
 	auto box = Box<ConfirmBox>(
 		confirmation,
@@ -1186,7 +1186,7 @@ void Controller::saveTitle() {
 	}
 
 	const auto onDone = [=](const MTPUpdates &result) {
-		Auth().api().applyUpdates(result);
+		_peer->session().api().applyUpdates(result);
 		continueSave();
 	};
 	const auto onFail = [=](const RPCError &error) {
@@ -1281,7 +1281,7 @@ void Controller::saveHistoryVisibility() {
 		// So after saving we need to update it manually.
 		channel->updateFullForced();
 
-		Auth().api().applyUpdates(result);
+		channel->session().api().applyUpdates(result);
 		continueSave();
 	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
@@ -1302,10 +1302,10 @@ void Controller::saveSignatures() {
 	request(MTPchannels_ToggleSignatures(
 		channel->inputChannel,
 		MTP_bool(*_savingData.signatures)
-	)).done([this](const MTPUpdates &result) {
-		Auth().api().applyUpdates(result);
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
 		continueSave();
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
 			continueSave();
 		} else {
@@ -1319,7 +1319,7 @@ void Controller::savePhoto() {
 		? _controls.photo->takeResultImage()
 		: QImage();
 	if (!image.isNull()) {
-		Auth().api().uploadPeerPhoto(_peer, std::move(image));
+		_peer->session().api().uploadPeerPhoto(_peer, std::move(image));
 	}
 	_box->closeBox();
 }

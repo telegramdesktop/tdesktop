@@ -354,7 +354,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	}();
 	if (user) {
 		if (user->contactStatus() == UserData::ContactStatus::Contact
-			|| Auth().supportMode()) {
+			|| user->session().supportMode()) {
 			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
 		}
 		Ui::hideLayer();
@@ -539,7 +539,9 @@ void GroupInfoBox::createGroup(
 			}
 			| [&](not_null<ChatData*> chat) {
 				if (!image.isNull()) {
-					Auth().api().uploadPeerPhoto(chat, std::move(image));
+					chat->session().api().uploadPeerPhoto(
+						chat,
+						std::move(image));
 				}
 				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 			};
@@ -617,7 +619,11 @@ void GroupInfoBox::submit() {
 void GroupInfoBox::createChannel(const QString &title, const QString &description) {
 	bool mega = false;
 	auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
-	_creationRequestId = request(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description))).done([this](const MTPUpdates &result) {
+	_creationRequestId = request(MTPchannels_CreateChannel(
+		MTP_flags(flags),
+		MTP_string(title),
+		MTP_string(description)
+	)).done([=](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 
 		auto success = base::make_optional(&result)
@@ -639,10 +645,12 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			| [](auto chats) {
 				return App::channel(chats->front().c_channel().vid.v);
 			}
-			| [this](not_null<ChannelData*> channel) {
+			| [&](not_null<ChannelData*> channel) {
 				auto image = _photo->takeResultImage();
 				if (!image.isNull()) {
-					Auth().api().uploadPeerPhoto(channel, std::move(image));
+					channel->session().api().uploadPeerPhoto(
+						channel,
+						std::move(image));
 				}
 				_createdChannel = channel;
 				_creationRequestId = request(MTPmessages_ExportChatInvite(
@@ -825,7 +833,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		if (_channel->inviteLink().isEmpty()) {
-			Auth().api().exportInviteLink(_channel);
+			_channel->session().api().exportInviteLink(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(lang(lng_create_channel_link_copied));

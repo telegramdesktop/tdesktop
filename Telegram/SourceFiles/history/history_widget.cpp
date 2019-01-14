@@ -1916,8 +1916,10 @@ bool HistoryWidget::canWriteMessage() const {
 	return true;
 }
 
-bool HistoryWidget::isRestrictedWrite() const {
-	return _peer && _peer->amRestricted(ChatRestriction::f_send_messages);
+std::optional<LangKey> HistoryWidget::writeRestrictionKey() const {
+	return _peer
+		? Data::RestrictionErrorKey(_peer, ChatRestriction::f_send_messages)
+		: std::nullopt;
 }
 
 void HistoryWidget::updateControlsVisibility() {
@@ -3015,8 +3017,10 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 void HistoryWidget::chooseAttach() {
 	if (!_peer || !_peer->canWrite()) {
 		return;
-	} else if (_peer->amRestricted(ChatRestriction::f_send_media)) {
-		Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+	} else if (const auto key = Data::RestrictionErrorKey(
+			_peer,
+			ChatRestriction::f_send_media)) {
+		Ui::show(Box<InformBox>(lang(*key)));
 		return;
 	}
 
@@ -3120,8 +3124,11 @@ void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from 
 }
 
 void HistoryWidget::recordStartCallback() {
-	if (_peer && _peer->amRestricted(ChatRestriction::f_send_media)) {
-		Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+	const auto errorKey = _peer
+		? Data::RestrictionErrorKey(_peer, ChatRestriction::f_send_media)
+		: std::nullopt;
+	if (errorKey) {
+		Ui::show(Box<InformBox>(lang(*errorKey)));
 		return;
 	} else if (!Media::Capture::instance()->available()) {
 		return;
@@ -3915,8 +3922,13 @@ void HistoryWidget::updateFieldPlaceholder() {
 bool HistoryWidget::showSendingFilesError(
 		const Storage::PreparedList &list) const {
 	const auto text = [&] {
-		if (_peer && _peer->amRestricted(ChatRestriction::f_send_media)) {
-			return lang(lng_restricted_send_media);
+		const auto errorKey = _peer
+			? Data::RestrictionErrorKey(
+				_peer,
+				ChatRestriction::f_send_media)
+			: std::nullopt;
+		if (errorKey) {
+			return lang(*errorKey);
 		} else if (!canWriteMessage()) {
 			return lang(lng_forward_send_files_cant);
 		}
@@ -4745,7 +4757,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	} else {
 		if (editingMessage() || _canSendMessages) {
 			newScrollHeight -= (_field->height() + 2 * st::historySendPadding);
-		} else if (isRestrictedWrite()) {
+		} else if (writeRestrictionKey().has_value()) {
 			newScrollHeight -= _unblock->height();
 		}
 		if (_editMsgId || replyToId() || readyToForward() || (_previewData && _previewData->pendingTill >= 0)) {
@@ -5380,10 +5392,11 @@ void HistoryWidget::destroyPinnedBar() {
 bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		TextWithEntities caption) {
-	if (_peer && _peer->amRestricted(ChatRestriction::f_send_stickers)) {
-		Ui::show(
-			Box<InformBox>(lang(lng_restricted_send_stickers)),
-			LayerOption::KeepOther);
+	const auto errorKey = _peer
+		? Data::RestrictionErrorKey(_peer, ChatRestriction::f_send_stickers)
+		: std::nullopt;
+	if (errorKey) {
+		Ui::show(Box<InformBox>(lang(*errorKey)), LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
@@ -5414,10 +5427,11 @@ bool HistoryWidget::sendExistingDocument(
 bool HistoryWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		TextWithEntities caption) {
-	if (_peer && _peer->amRestricted(ChatRestriction::f_send_media)) {
-		Ui::show(
-			Box<InformBox>(lang(lng_restricted_send_media)),
-			LayerOption::KeepOther);
+	const auto errorKey = _peer
+		? Data::RestrictionErrorKey(_peer, ChatRestriction::f_send_media)
+		: std::nullopt;
+	if (errorKey) {
+		Ui::show(Box<InformBox>(lang(*errorKey)), LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
@@ -5858,10 +5872,10 @@ void HistoryWidget::previewCancel() {
 }
 
 void HistoryWidget::checkPreview() {
-	auto previewRestricted = [this] {
+	const auto previewRestricted = [&] {
 		return _peer && _peer->amRestricted(ChatRestriction::f_embed_links);
-	};
-	if (_previewCancelled || previewRestricted()) {
+	}();
+	if (_previewCancelled || previewRestricted) {
 		previewCancel();
 		return;
 	}
@@ -6399,13 +6413,13 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	}
 }
 
-void HistoryWidget::drawRestrictedWrite(Painter &p) {
+void HistoryWidget::drawRestrictedWrite(Painter &p, const QString &error) {
 	auto rect = myrtlrect(0, height() - _unblock->height(), width(), _unblock->height());
 	p.fillRect(rect, st::historyReplyBg);
 
 	p.setFont(st::normalFont);
 	p.setPen(st::windowSubTextFg);
-	p.drawText(rect.marginsRemoved(QMargins(st::historySendPadding, 0, st::historySendPadding, 0)), lang(lng_restricted_send_message), style::al_center);
+	p.drawText(rect.marginsRemoved(QMargins(st::historySendPadding, 0, st::historySendPadding, 0)), error, style::al_center);
 }
 
 void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int top) const {
@@ -6560,8 +6574,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			if (!_send->isHidden() && _recording) {
 				drawRecording(p, _send->recordActiveRatio());
 			}
-		} else if (isRestrictedWrite()) {
-			drawRestrictedWrite(p);
+		} else if (const auto errorKey = writeRestrictionKey()) {
+			drawRestrictedWrite(p, lang(*errorKey));
 		}
 		if (_aboutProxyPromotion) {
 			p.fillRect(_aboutProxyPromotion->geometry(), st::historyReplyBg);
