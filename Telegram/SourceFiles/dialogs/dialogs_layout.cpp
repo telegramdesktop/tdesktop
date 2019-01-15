@@ -377,7 +377,7 @@ void paintRow(
 		from->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {
 		p.setFont(st::msgNameFont);
-		auto text = entry->chatsListName(); // TODO feed name with emoji
+		auto text = entry->chatListName(); // TODO feed name with emoji
 		auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());
@@ -528,7 +528,7 @@ void RowPainter::paint(
 	const auto unreadCount = entry->chatListUnreadCount();
 	const auto unreadMark = entry->chatListUnreadMark();
 	const auto unreadMuted = entry->chatListMutedBadge();
-	const auto item = entry->chatsListItem();
+	const auto item = entry->chatListMessage();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
 		if (history && (!item || (!unreadCount && !unreadMark))) {
 			// Draw item, if there are unread messages.

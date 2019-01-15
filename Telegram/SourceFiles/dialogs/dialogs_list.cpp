@@ -114,15 +114,15 @@ Row *List::adjustByName(Key key) {
 	if (i == _rowByKey.cend()) return nullptr;
 
 	const auto row = i->second;
-	const auto name = key.entry()->chatsListName();
+	const auto name = key.entry()->chatListName();
 	auto change = row;
 	while (change->_prev
-		&& change->_prev->entry()->chatsListName().compare(name, Qt::CaseInsensitive) < 0) {
+		&& change->_prev->entry()->chatListName().compare(name, Qt::CaseInsensitive) < 0) {
 		change = change->_prev;
 	}
 	if (!insertBefore(row, change)) {
 		while (change->_next != _end
-			&& change->_next->entry()->chatsListName().compare(name, Qt::CaseInsensitive) < 0) {
+			&& change->_next->entry()->chatListName().compare(name, Qt::CaseInsensitive) < 0) {
 			change = change->_next;
 		}
 		insertAfter(row, change);
@@ -137,14 +137,14 @@ Row *List::addByName(Key key) {
 
 	const auto row = addToEnd(key);
 	auto change = row;
-	const auto name = key.entry()->chatsListName();
+	const auto name = key.entry()->chatListName();
 	while (change->_prev
-		&& change->_prev->entry()->chatsListName().compare(name, Qt::CaseInsensitive) > 0) {
+		&& change->_prev->entry()->chatListName().compare(name, Qt::CaseInsensitive) > 0) {
 		change = change->_prev;
 	}
 	if (!insertBefore(row, change)) {
 		while (change->_next != _end
-			&& change->_next->entry()->chatsListName().compare(name, Qt::CaseInsensitive) < 0) {
+			&& change->_next->entry()->chatListName().compare(name, Qt::CaseInsensitive) < 0) {
 			change = change->_next;
 		}
 		insertAfter(row, change);

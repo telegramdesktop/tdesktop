@@ -310,7 +310,7 @@ void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 
 	p.setPen(st::dialogsNameFg);
 	if (const auto feed = _activeChat.feed()) {
-		auto text = feed->chatsListName(); // TODO feed name emoji
+		auto text = feed->chatListName(); // TODO feed name emoji
 		auto textWidth = st::historySavedFont->width(text);
 		if (namewidth < textWidth) {
 			text = st::historySavedFont->elided(text, namewidth);

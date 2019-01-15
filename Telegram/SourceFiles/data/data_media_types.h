@@ -86,7 +86,7 @@ public:
 	virtual Image *replyPreview() const;
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
-	virtual QString chatsListText() const;
+	virtual QString chatListText() const;
 	virtual QString notificationText() const = 0;
 	virtual QString pinnedTextSubstring() const = 0;
 	virtual TextWithEntities clipboardText() const = 0;
@@ -136,7 +136,7 @@ public:
 	bool canBeGrouped() const override;
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
-	QString chatsListText() const override;
+	QString chatListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
@@ -171,7 +171,7 @@ public:
 	bool canBeGrouped() const override;
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
-	QString chatsListText() const override;
+	QString chatListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
@@ -233,7 +233,7 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	LocationData *location() const override;
-	QString chatsListText() const override;
+	QString chatListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
@@ -296,7 +296,7 @@ public:
 
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
-	QString chatsListText() const override;
+	QString chatListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;

@@ -102,7 +102,7 @@ void Entry::setChatListExistence(bool exists) {
 }
 
 TimeId Entry::adjustChatListTimeId() const {
-	return chatsListTimeId();
+	return chatListTimeId();
 }
 
 void Entry::changedInChatListHook(Dialogs::Mode list, bool added) {
@@ -135,13 +135,13 @@ PositionChange Entry::adjustByPosInChatList(
 	return { movedFrom, movedTo };
 }
 
-void Entry::setChatsListTimeId(TimeId date) {
-	if (_lastMessageTimeId && _lastMessageTimeId >= date) {
+void Entry::setChatListTimeId(TimeId date) {
+	if (_timeId && _timeId >= date) {
 		if (!inChatList(Dialogs::Mode::All)) {
 			return;
 		}
 	}
-	_lastMessageTimeId = date;
+	_timeId = date;
 	updateChatListSortPosition();
 }
 

@@ -196,7 +196,7 @@ public:
 	void deleteMessages(
 		not_null<PeerData*> peer,
 		const QVector<MTPint> &ids,
-		bool forEveryone);
+		bool revoke);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(
 		not_null<PeerData*> peer,

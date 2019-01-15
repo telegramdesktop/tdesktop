@@ -409,22 +409,13 @@ void ResolveChannel(
 
 std::optional<MTPMessage> GetMessagesElement(
 		const MTPmessages_Messages &list) {
-	const auto get = [](auto &&data) -> std::optional<MTPMessage> {
+	return list.match([&](const MTPDmessages_messagesNotModified &) {
+		return std::optional<MTPMessage>(std::nullopt);
+	}, [&](const auto &data) {
 		return data.vmessages.v.isEmpty()
 			? std::nullopt
-			: base::make_optional(data.vmessages.v[0]);
-	};
-	switch (list.type()) {
-	case mtpc_messages_messages:
-		return get(list.c_messages_messages());
-	case mtpc_messages_messagesSlice:
-		return get(list.c_messages_messagesSlice());
-	case mtpc_messages_channelMessages:
-		return get(list.c_messages_channelMessages());
-	case mtpc_messages_messagesNotModified:
-		return std::nullopt;
-	default: Unexpected("Type of messages.Messages (GetMessagesElement)");
-	}
+			: std::make_optional(data.vmessages.v[0]);
+	});
 }
 
 void StartDedicatedLoader(

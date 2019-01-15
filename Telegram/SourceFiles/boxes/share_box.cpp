@@ -966,7 +966,7 @@ void ShareBox::Inner::updateFilter(QString filter) {
 				if (toFilter) {
 					_filtered.reserve(toFilter->size());
 					for (const auto row : *toFilter) {
-						auto &nameWords = row->entry()->chatsListNameWords();
+						const auto &nameWords = row->entry()->chatListNameWords();
 						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterName = *fi;

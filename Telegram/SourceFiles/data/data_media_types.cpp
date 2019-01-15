@@ -187,7 +187,7 @@ bool Media::canBeGrouped() const {
 	return false;
 }
 
-QString Media::chatsListText() const {
+QString Media::chatListText() const {
 	auto result = notificationText();
 	return result.isEmpty()
 		? QString()
@@ -304,7 +304,7 @@ QString MediaPhoto::notificationText() const {
 	//return WithCaptionNotificationText(lang(lng_in_dlg_album), _caption);
 }
 
-QString MediaPhoto::chatsListText() const {
+QString MediaPhoto::chatListText() const {
 	return WithCaptionDialogsText(
 		lang(lng_in_dlg_photo),
 		parent()->originalText().text);
@@ -539,9 +539,9 @@ Image *MediaFile::replyPreview() const {
 	return _document->getReplyPreview(parent()->fullId());
 }
 
-QString MediaFile::chatsListText() const {
+QString MediaFile::chatListText() const {
 	if (const auto sticker = _document->sticker()) {
-		return Media::chatsListText();
+		return Media::chatListText();
 	}
 	const auto type = [&] {
 		if (_document->isVideoMessage()) {
@@ -861,7 +861,7 @@ LocationData *MediaLocation::location() const {
 	return _location;
 }
 
-QString MediaLocation::chatsListText() const {
+QString MediaLocation::chatListText() const {
 	return WithCaptionDialogsText(lang(lng_maps_point), _title);
 }
 
@@ -1032,7 +1032,7 @@ Image *MediaWebPage::replyPreview() const {
 	return nullptr;
 }
 
-QString MediaWebPage::chatsListText() const {
+QString MediaWebPage::chatListText() const {
 	return notificationText();
 }
 

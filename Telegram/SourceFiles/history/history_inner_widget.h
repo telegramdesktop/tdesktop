@@ -298,9 +298,8 @@ private:
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
 
-	// with migrated history we perhaps do not need to display first _history message
-	// (if last _migrated message and first _history message are both isGroupMigrate)
-	// or at least we don't need to display first _history date (just skip it by height)
+	// With migrated history we perhaps do not need to display
+	// the first _history message date (just skip it by height).
 	int _historySkipHeight = 0;
 
 	std::unique_ptr<BotAbout> _botAbout;

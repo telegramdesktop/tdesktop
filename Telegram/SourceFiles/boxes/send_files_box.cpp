@@ -1830,7 +1830,7 @@ void SendFilesBox::updateControlsGeometry() {
 		_sendPhotos.data(),
 		_sendFiles.data()
 	};
-	for (auto pointer : base::reversed(pointers)) {
+	for (const auto pointer : ranges::view::reverse(pointers)) {
 		if (pointer) {
 			pointer->moveToLeft(
 				st::boxPhotoPadding.left(),

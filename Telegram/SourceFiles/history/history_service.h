@@ -137,7 +137,10 @@ private:
 	void createFromMtp(const MTPDmessage &message);
 	void createFromMtp(const MTPDmessageService &message);
 	void setMessageByAction(const MTPmessageAction &action);
-	void setSelfDestruct(HistoryServiceSelfDestruct::Type type, int ttlSeconds);
+	void setSelfDestruct(
+		HistoryServiceSelfDestruct::Type type,
+		int ttlSeconds);
+	void applyAction(const MTPMessageAction &action);
 
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();

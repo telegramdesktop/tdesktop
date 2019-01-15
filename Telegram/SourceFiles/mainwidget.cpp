@@ -731,9 +731,7 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 		if (const auto item = App::histItemById(itemId)) {
 			const auto history = item->history();
 			item->destroy();
-			if (!history->lastMessageKnown()) {
-				Auth().api().requestDialogEntry(history);
-			}
+			history->requestChatListMessage();
 			Auth().data().sendHistoryChangeNotifications();
 		}
 		Auth().uploader().unpause();
@@ -831,7 +829,7 @@ void MainWidget::deleteHistoryPart(DeleteHistoryRequest request, const MTPmessag
 void MainWidget::deleteMessages(
 		not_null<PeerData*> peer,
 		const QVector<MTPint> &ids,
-		bool forEveryone) {
+		bool revoke) {
 	if (const auto channel = peer->asChannel()) {
 		MTP::send(
 			MTPchannels_DeleteMessages(
@@ -839,13 +837,10 @@ void MainWidget::deleteMessages(
 				MTP_vector<MTPint>(ids)),
 			rpcDone(&MainWidget::messagesAffected, peer));
 	} else {
-		auto flags = MTPmessages_DeleteMessages::Flags(0);
-		if (forEveryone) {
-			flags |= MTPmessages_DeleteMessages::Flag::f_revoke;
-		}
+		using Flag = MTPmessages_DeleteMessages::Flag;
 		MTP::send(
 			MTPmessages_DeleteMessages(
-				MTP_flags(flags),
+				MTP_flags(revoke ? Flag::f_revoke : Flag(0)),
 				MTP_vector<MTPint>(ids)),
 			rpcDone(&MainWidget::messagesAffected, peer));
 	}
@@ -1039,9 +1034,7 @@ void MainWidget::messagesAffected(
 	}
 
 	if (const auto history = App::historyLoaded(peer)) {
-		if (!history->lastMessageKnown()) {
-			Auth().api().requestDialogEntry(history);
-		}
+		history->requestChatListMessage();
 	}
 }
 
@@ -4003,9 +3996,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				if (existing && !local->mainView()) {
 					const auto history = local->history();
 					local->destroy();
-					if (!history->lastMessageKnown()) {
-						Auth().api().requestDialogEntry(history);
-					}
+					history->requestChatListMessage();
 				} else {
 					if (existing) {
 						existing->destroy();
@@ -4477,15 +4468,15 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				Auth().api().requestSelfParticipant(channel);
 			}
 			if (const auto feed = channel->feed()) {
-				if (!feed->lastMessageKnown()
-					|| !feed->unreadCountKnown()) {
-					Auth().api().requestDialogEntry(feed);
+				feed->requestChatListMessage();
+				if (!feed->unreadCountKnown()) {
+					feed->session().api().requestDialogEntry(feed);
 				}
 			} else if (channel->amIn()) {
 				const auto history = App::history(channel->id);
-				if (!history->lastMessageKnown()
-					|| !history->unreadCountKnown()) {
-					Auth().api().requestDialogEntry(history);
+				history->requestChatListMessage();
+				if (!history->unreadCountKnown()) {
+					history->session().api().requestDialogEntry(history);
 				}
 			}
 		}

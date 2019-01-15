@@ -36,12 +36,6 @@ inline constexpr D up_cast(T object) {
 	}
 }
 
-template <typename Container, typename T>
-inline bool contains(const Container &container, const T &value) {
-	auto end = std::end(container);
-	return std::find(std::begin(container), end, value) != end;
-}
-
 // We need a custom comparator for std::set<std::unique_ptr<T>>::find to work with pointers.
 // thanks to http://stackoverflow.com/questions/18939882/raw-pointer-lookup-for-sets-of-unique-ptrs
 template <typename T>
@@ -85,28 +79,6 @@ using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<
 
 template <typename T>
 using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<T>>;
-
-// Thanks https://stackoverflow.com/a/28139075
-
-template <typename Container>
-struct reversion_wrapper {
-	Container &container;
-};
-
-template <typename Container>
-auto begin(reversion_wrapper<Container> wrapper) {
-	return std::rbegin(wrapper.container);
-}
-
-template <typename Container>
-auto end(reversion_wrapper<Container> wrapper) {
-	return std::rend(wrapper.container);
-}
-
-template <typename Container>
-reversion_wrapper<Container> reversed(Container &&container) {
-	return { container };
-}
 
 template <typename Value, typename From, typename Till>
 inline bool in_range(Value &&value, From &&from, Till &&till) {

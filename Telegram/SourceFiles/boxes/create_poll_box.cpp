@@ -435,7 +435,7 @@ void Options::removeEmptyTail() {
 		_list,
 		&Option::hasFocus);
 	const auto end = _list.end();
-	auto reversed = ranges::view::reverse(_list);
+	const auto reversed = ranges::view::reverse(_list);
 	const auto emptyItem = ranges::find_if(
 		reversed,
 		ranges::not_fn(&Option::isEmpty)).base();

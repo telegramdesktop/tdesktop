@@ -730,26 +730,6 @@ void HistoryWidget::highlightMessage(MsgId universalMessageId) {
 	_highlightStart = getms();
 	_highlightedMessageId = universalMessageId;
 	_highlightTimer.callEach(AnimationTimerDelta);
-
-	adjustHighlightedMessageToMigrated();
-}
-
-void HistoryWidget::adjustHighlightedMessageToMigrated() {
-	if (_history
-		&& _highlightTimer.isActive()
-		&& _highlightedMessageId > 0
-		&& _migrated
-		&& !_migrated->isEmpty()
-		&& _migrated->loadedAtBottom()
-		&& _migrated->blocks.back()->messages.back()->data()->isGroupMigrate()
-		&& _list->historyTop() != _list->historyDrawTop()) {
-		auto highlighted = App::histItemById(
-			_history->channelId(),
-			_highlightedMessageId);
-		if (highlighted && highlighted->isGroupMigrate()) {
-			_highlightedMessageId = -_migrated->blocks.back()->messages.back()->data()->id;
-		}
-	}
 }
 
 void HistoryWidget::checkNextHighlight() {
@@ -4902,7 +4882,6 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry();
-		adjustHighlightedMessageToMigrated();
 		updateBotKeyboard();
 	}
 }
@@ -5553,22 +5532,15 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 		return;
 	}
 	if (item->history() == _migrated) {
-		if (item->isGroupMigrate()
-			&& !_history->isEmpty()
-			&& _history->blocks.front()->messages.front()->data()->isGroupMigrate()
-			&& _history != _migrated) {
-			replyToMessage(_history->blocks.front()->messages.front()->data());
+		if (item->serviceMsg()) {
+			Ui::show(Box<InformBox>(lang(lng_reply_cant)));
 		} else {
-			if (item->serviceMsg()) {
-				Ui::show(Box<InformBox>(lang(lng_reply_cant)));
-			} else {
-				const auto itemId = item->fullId();
-				Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), crl::guard(this, [=] {
-					App::main()->setForwardDraft(
-						_peer->id,
-						{ 1, itemId });
-				})));
-			}
+			const auto itemId = item->fullId();
+			Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), crl::guard(this, [=] {
+				App::main()->setForwardDraft(
+					_peer->id,
+					{ 1, itemId });
+			})));
 		}
 		return;
 	}

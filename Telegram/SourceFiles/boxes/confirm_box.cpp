@@ -605,25 +605,26 @@ void DeleteMessagesBox::deleteAndClear() {
 		_deleteConfirmedCallback();
 	}
 
-	QMap<PeerData*, QVector<MTPint>> idsByPeer;
+	base::flat_map<not_null<PeerData*>, QVector<MTPint>> idsByPeer;
 	for (const auto itemId : _ids) {
-		if (auto item = App::histItemById(itemId)) {
-			auto history = item->history();
-			auto wasOnServer = (item->id > 0);
-			auto wasLast = (history->lastMessage() == item);
+		if (const auto item = App::histItemById(itemId)) {
+			const auto history = item->history();
+			const auto wasOnServer = IsServerMsgId(item->id);
+			const auto wasLast = (history->lastMessage() == item);
+			const auto wasInChats = (history->chatListMessage() == item);
 			item->destroy();
 
 			if (wasOnServer) {
 				idsByPeer[history->peer].push_back(MTP_int(itemId.msg));
-			} else if (wasLast && !history->lastMessageKnown()) {
-				history->session().api().requestDialogEntry(history);
+			} else if (wasLast || wasInChats) {
+				history->requestChatListMessage();
 			}
 		}
 	}
 
-	auto forEveryone = _forEveryone ? _forEveryone->checked() : false;
-	for (auto i = idsByPeer.cbegin(), e = idsByPeer.cend(); i != e; ++i) {
-		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
+	const auto revoke = _forEveryone ? _forEveryone->checked() : false;
+	for (const auto &[peer, ids] : idsByPeer) {
+		App::main()->deleteMessages(peer, ids, revoke);
 	}
 	Ui::hideLayer();
 	Auth().data().sendHistoryChangeNotifications();

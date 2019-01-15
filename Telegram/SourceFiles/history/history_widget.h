@@ -387,7 +387,6 @@ private:
 	void supportShareContact(Support::Contact contact);
 
 	void highlightMessage(MsgId universalMessageId);
-	void adjustHighlightedMessageToMigrated();
 	void checkNextHighlight();
 	void updateHighlightedMessage();
 	void clearHighlightMessages();

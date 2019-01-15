@@ -416,7 +416,7 @@ void ApiWrap::savePinnedOrder() {
 	const auto &order = _session->data().pinnedDialogsOrder();
 	auto peers = QVector<MTPInputDialogPeer>();
 	peers.reserve(order.size());
-	for (const auto &pinned : base::reversed(order)) {
+	for (const auto &pinned : ranges::view::reverse(order)) {
 		if (const auto history = pinned.history()) {
 			peers.push_back(MTP_inputDialogPeer(history->peer->input));
 		} else if (const auto feed = pinned.feed()) {
@@ -708,7 +708,7 @@ void ApiWrap::requestDialogEntry(
 		MTP_vector(std::move(peers))
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
-		historyDialogEntryApplied(history);
+		history->dialogEntryApplied();
 		finalize();
 	}).fail([=](const RPCError &error) {
 		finalize();
@@ -744,7 +744,7 @@ void ApiWrap::requestDialogEntries(
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		for (const auto history : histories) {
-			historyDialogEntryApplied(history);
+			history->dialogEntryApplied();
 		}
 		finalize(histories);
 	}).fail([=](const RPCError &error) {
@@ -778,89 +778,41 @@ void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	_session->data().sendHistoryChangeNotifications();
 }
 
-void ApiWrap::historyDialogEntryApplied(not_null<History*> history) {
-	if (!history->lastMessage()) {
-		if (const auto chat = history->peer->asChat()) {
-			if (!chat->haveLeft()) {
-				Local::addSavedPeer(
-					history->peer,
-					ParseDateTime(history->chatsListTimeId()));
-			}
-		} else if (const auto channel = history->peer->asChannel()) {
-			const auto inviter = channel->inviter;
-			if (inviter != 0 && channel->amIn()) {
-				if (const auto from = App::userLoaded(inviter)) {
-					history->unloadBlocks();
-					history->addNewerSlice(QVector<MTPMessage>());
-					history->insertJoinedMessage(true);
-				}
-			}
-		} else {
-			App::main()->deleteConversation(history->peer, false);
-		}
-		return;
-	}
-
-	if (history->chatsListTimeId() != 0 && history->loadedAtBottom()) {
-		if (const auto channel = history->peer->asChannel()) {
-			const auto inviter = channel->inviter;
-			if (inviter != 0
-				&& history->chatsListTimeId() <= channel->inviteDate
-				&& channel->amIn()) {
-				if (const auto from = App::userLoaded(inviter)) {
-					history->insertJoinedMessage(true);
-				}
-			}
-		}
-	}
-	history->updateChatListExistence();
-}
-
 void ApiWrap::applyFeedDialogs(
 		not_null<Data::Feed*> feed,
 		const MTPmessages_Dialogs &dialogs) {
-	const auto [dialogsList, messagesList] = [&] {
-		const auto process = [&](const auto &data) {
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
-			return std::make_tuple(&data.vdialogs.v, &data.vmessages.v);
-		};
-		switch (dialogs.type()) {
-		case mtpc_messages_dialogs:
-			return process(dialogs.c_messages_dialogs());
-
-		case mtpc_messages_dialogsSlice:
-			LOG(("API Error: "
-				"Unexpected dialogsSlice in feed dialogs list."));
-			return process(dialogs.c_messages_dialogsSlice());
-		}
-		Unexpected("Type in DialogsWidget::dialogsReceived");
-	}();
-
-	App::feedMsgs(*messagesList, NewMessageLast);
+	if (dialogs.type() == mtpc_messages_dialogsNotModified) {
+		LOG(("API Error: "
+			"messages.dialogsNotModified in ApiWrap::applyFeedDialogs."));
+		return;
+	}
 
 	auto channels = std::vector<not_null<ChannelData*>>();
-	channels.reserve(dialogsList->size());
-	for (const auto &dialog : *dialogsList) {
-		switch (dialog.type()) {
-		case mtpc_dialog: {
-			if (const auto peerId = peerFromMTP(dialog.c_dialog().vpeer)) {
-				if (peerIsChannel(peerId)) {
-					const auto history = App::history(peerId);
-					history->applyDialog(dialog.c_dialog());
-					channels.emplace_back(history->peer->asChannel());
-				} else {
-					LOG(("API Error: "
-						"Unexpected non-channel in feed dialogs list."));
+	dialogs.match([&](const MTPDmessages_dialogsNotModified &) {
+		Unexpected("Type in ApiWrap::applyFeedDialogs.");
+	}, [&](const auto &data) {
+		App::feedUsers(data.vusers);
+		App::feedChats(data.vchats);
+		App::feedMsgs(data.vmessages.v, NewMessageLast);
+		channels.reserve(data.vdialogs.v.size());
+		for (const auto &dialog : data.vdialogs.v) {
+			dialog.match([&](const MTPDdialog &data) {
+				if (const auto peerId = peerFromMTP(data.vpeer)) {
+					if (peerIsChannel(peerId)) {
+						const auto history = App::history(peerId);
+						history->applyDialog(dialog.c_dialog());
+						channels.emplace_back(history->peer->asChannel());
+					} else {
+						LOG(("API Error: "
+							"Unexpected peer in feed dialogs list."));
+					}
 				}
-			}
-		} break;
-		//case mtpc_dialogFeed: { // #feed
-		//	LOG(("API Error: Unexpected dialogFeed in feed dialogs list."));
-		//} break;
-		default: Unexpected("Type in DialogsInner::dialogsReceived");
+			//}, [&](const MTPDdialogFeed &) { // #feed
+			//	LOG(("API Error: "
+			//		"Unexpected dialogFeed in feed dialogs list."));
+			});
 		}
-	}
+	});
 
 	feed->setChannels(channels);
 	_session->data().sendHistoryChangeNotifications();
@@ -876,6 +828,34 @@ void ApiWrap::changeDialogUnreadMark(
 		MTP_flags(unread ? Flag::f_unread : Flag(0)),
 		MTP_inputDialogPeer(history->peer->input)
 	)).send();
+}
+
+void ApiWrap::requestFakeChatListMessage(
+		not_null<History*> history) {
+	if (_fakeChatListRequests.contains(history)) {
+		return;
+	}
+
+	_fakeChatListRequests.emplace(history);
+	request(MTPmessages_GetHistory(
+		history->peer->input,
+		MTP_int(0),  // offset_id
+		MTP_int(0),  // offset_date
+		MTP_int(0),  // add_offset
+		MTP_int(2),  // limit
+		MTP_int(0),  // max_id
+		MTP_int(0),  // min_id
+		MTP_int(0)
+	)).done([=](const MTPmessages_Messages &result) {
+		_fakeChatListRequests.erase(history);
+		history->setFakeChatListMessageFrom(result);
+	}).fail([=](const RPCError &error) {
+		_fakeChatListRequests.erase(history);
+		history->setFakeChatListMessageFrom(MTP_messages_messages(
+			MTP_vector<MTPMessage>(0),
+			MTP_vector<MTPChat>(0),
+			MTP_vector<MTPUser>(0)));
+	}).send();
 }
 
 void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
@@ -1768,9 +1748,7 @@ void ApiWrap::deleteAllFromUserSend(
 		if (offset > 0) {
 			deleteAllFromUserSend(channel, from);
 		} else if (const auto history = App::historyLoaded(channel)) {
-			if (!history->lastMessageKnown()) {
-				requestDialogEntry(history);
-			}
+			history->requestChatListMessage();
 		}
 	}).send();
 }
@@ -2303,9 +2281,11 @@ int ApiWrap::OnlineTillFromStatus(
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer) {
 	auto deleteTillId = MsgId(0);
-	if (auto history = App::historyLoaded(peer->id)) {
+	if (const auto history = App::historyLoaded(peer->id)) {
 		if (const auto last = history->lastMessage()) {
 			deleteTillId = last->id;
+		}
+		if (const auto last = history->chatListMessage()) {
 			Local::addSavedPeer(history->peer, ItemDateTime(last));
 		}
 		history->clear();

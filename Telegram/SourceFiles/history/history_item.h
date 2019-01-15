@@ -134,8 +134,8 @@ public:
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_ClientFlag::f_has_text_links;
 	}
-	bool isGroupMigrate() const {
-		return _flags & MTPDmessage_ClientFlag::f_is_group_migrate;
+	bool isGroupEssential() const {
+		return _flags & MTPDmessage_ClientFlag::f_is_group_essential;
 	}
 	bool hasViews() const {
 		return _flags & MTPDmessage::Flag::f_views;
@@ -294,7 +294,7 @@ protected:
 	}
 	HistoryMessageReplyMarkup *inlineReplyMarkup();
 	ReplyKeyboard *inlineReplyKeyboard();
-	void invalidateChatsListEntry();
+	void invalidateChatListEntry();
 
 	void setGroupId(MessageGroupId groupId);
 

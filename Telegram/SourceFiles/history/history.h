@@ -58,7 +58,7 @@ class History final : public Dialogs::Entry {
 public:
 	using Element = HistoryView::Element;
 
-	History(not_null<Data::Session*> owner, const PeerId &peerId);
+	History(not_null<Data::Session*> owner, PeerId peerId);
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
 
@@ -77,6 +77,8 @@ public:
 
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
+	Element *findFirstNonEmpty() const;
+	Element *findLastNonEmpty() const;
 	bool hasOrphanMediaGroupPart() const;
 	bool removeOrphanMediaGroupPart();
 	QVector<MsgId> collectMessagesFromUserToDelete(
@@ -192,6 +194,7 @@ public:
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
+	void dialogEntryApplied();
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -283,16 +286,21 @@ public:
 	int chatListUnreadCount() const override;
 	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
-	HistoryItem *chatsListItem() const override;
-	const QString &chatsListName() const override;
-	const base::flat_set<QString> &chatsListNameWords() const override;
-	const base::flat_set<QChar> &chatsListFirstLetters() const override;
+	HistoryItem *chatListMessage() const override;
+	bool chatListMessageKnown() const override;
+	void requestChatListMessage() override;
+	const QString &chatListName() const override;
+	const base::flat_set<QString> &chatListNameWords() const override;
+	const base::flat_set<QChar> &chatListFirstLetters() const override;
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
 		int x,
 		int y,
 		int size) const override;
+
+	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
+	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
 
 	void forgetScrollState() {
 		scrollTopItem = nullptr;
@@ -411,6 +419,12 @@ private:
 	void checkLastMessage();
 	void setLastMessage(HistoryItem *item);
 
+	void refreshChatListMessage();
+	void setChatListMessage(HistoryItem *item);
+	std::optional<HistoryItem*> computeChatListMessageFromLast() const;
+	void setChatListMessageFromLast();
+	void setFakeChatListMessage();
+
 	// Add all items to the unread mentions if we were not loaded at bottom and now are.
 	void checkAddAllToUnreadMentions();
 
@@ -449,6 +463,12 @@ private:
 	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 	std::optional<HistoryItem*> _lastMessage;
+
+	// This almost always is equal to _lastMessage. The only difference is
+	// for a group that migrated to a supergroup. Then _lastMessage can
+	// be a migrate message, but _chatListMessage should be the one before.
+	std::optional<HistoryItem*> _chatListMessage;
+
 	bool _unreadMark = false;
 
 	// A pointer to the block that is currently being built.

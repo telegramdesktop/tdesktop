@@ -65,7 +65,7 @@ public:
 		return _sortKeyInChatList;
 	}
 	void updateChatListSortPosition();
-	void setChatsListTimeId(TimeId date);
+	void setChatListTimeId(TimeId date);
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
 
@@ -74,10 +74,12 @@ public:
 	virtual int chatListUnreadCount() const = 0;
 	virtual bool chatListUnreadMark() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
-	virtual HistoryItem *chatsListItem() const = 0;
-	virtual const QString &chatsListName() const = 0;
-	virtual const base::flat_set<QString> &chatsListNameWords() const = 0;
-	virtual const base::flat_set<QChar> &chatsListFirstLetters() const = 0;
+	virtual HistoryItem *chatListMessage() const = 0;
+	virtual bool chatListMessageKnown() const = 0;
+	virtual void requestChatListMessage() = 0;
+	virtual const QString &chatListName() const = 0;
+	virtual const base::flat_set<QString> &chatListNameWords() const = 0;
+	virtual const base::flat_set<QChar> &chatListFirstLetters() const = 0;
 
 	virtual void loadUserpic() = 0;
 	virtual void paintUserpic(
@@ -94,8 +96,8 @@ public:
 		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
 
-	TimeId chatsListTimeId() const {
-		return _lastMessageTimeId;
+	TimeId chatListTimeId() const {
+		return _timeId;
 	}
 
 	virtual ~Entry() = default;
@@ -118,7 +120,7 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	int _pinnedIndex = 0;
 	bool _isProxyPromoted = false;
-	TimeId _lastMessageTimeId = 0;
+	TimeId _timeId = 0;
 
 };
 

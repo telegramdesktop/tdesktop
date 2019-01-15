@@ -380,7 +380,7 @@ namespace App {
 			if (j != data->cend()) {
 				const auto history = (*j)->history();
 				(*j)->destroy();
-				if (!history->lastMessageKnown()) {
+				if (!history->chatListMessageKnown()) {
 					historiesToCheck.emplace(history);
 				}
 			} else if (affectedHistory) {
@@ -388,7 +388,7 @@ namespace App {
 			}
 		}
 		for (const auto history : historiesToCheck) {
-			Auth().api().requestDialogEntry(history);
+			history->requestChatListMessage();
 		}
 	}
 

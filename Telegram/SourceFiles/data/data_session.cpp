@@ -2759,7 +2759,7 @@ not_null<Feed*> Session::feed(FeedId id) {
 	}
 	const auto [it, ok] = _feeds.emplace(
 		id,
-		std::make_unique<Feed>(id, this));
+		std::make_unique<Feed>(this, id));
 	return it->second.get();
 }
 
@@ -3038,9 +3038,7 @@ void Session::setProxyPromoted(PeerData *promoted) {
 		if (_proxyPromoted) {
 			const auto history = this->history(_proxyPromoted);
 			history->cacheProxyPromoted(true);
-			if (!history->lastMessageKnown()) {
-				_session->api().requestDialogEntry(history);
-			}
+			history->requestChatListMessage();
 			Notify::peerUpdatedDelayed(
 				_proxyPromoted,
 				Notify::PeerUpdate::Flag::ChannelPromotedChanged);

@@ -436,10 +436,6 @@ void HistoryInner::enumerateDates(Method method) {
 				if (itemtop > _visibleAreaTop) {
 					// Previous item (from the _migrated history) is drawing date now.
 					return false;
-				} else if (item == _history->blocks.front()->messages.front()->data() && item->isGroupMigrate()
-					&& _migrated->blocks.back()->messages.back()->data()->isGroupMigrate()) {
-					// This item is completely invisible and should be completely ignored.
-					return false;
 				}
 			}
 
@@ -1954,17 +1950,19 @@ void HistoryInner::recountHistoryGeometry() {
 		_migrated->resizeToWidth(_contentWidth);
 	}
 
-	// with migrated history we perhaps do not need to display first _history message
-	// (if last _migrated message and first _history message are both isGroupMigrate)
-	// or at least we don't need to display first _history date (just skip it by height)
+	// With migrated history we perhaps do not need to display
+	// the first _history message date (just skip it by height).
 	_historySkipHeight = 0;
-	if (_migrated) {
-		if (!_migrated->isEmpty() && !_history->isEmpty() && _migrated->loadedAtBottom() && _history->loadedAtTop()) {
-			if (_migrated->blocks.back()->messages.back()->dateTime().date() == _history->blocks.front()->messages.front()->dateTime().date()) {
-				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
-					_historySkipHeight += _history->blocks.front()->messages.front()->height();
-				} else if (_migrated->height() > _history->blocks.front()->messages.front()->displayedDateHeight()) {
-					_historySkipHeight += _history->blocks.front()->messages.front()->displayedDateHeight();
+	if (_migrated
+		&& _migrated->loadedAtBottom()
+		&& _history->loadedAtTop()) {
+		if (const auto first = _history->findFirstNonEmpty()) {
+			if (const auto last = _migrated->findLastNonEmpty()) {
+				if (first->dateTime().date() == last->dateTime().date()) {
+					const auto dateHeight = first->displayedDateHeight();
+					if (_migrated->height() > dateHeight) {
+						_historySkipHeight += dateHeight;
+					}
 				}
 			}
 		}

@@ -36,7 +36,7 @@ constexpr auto kPinnedMessageTextLimit = 16;
 
 void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatAddUserText = [this](const MTPDmessageActionChatAddUser &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		auto &users = action.vusers.v;
 		if (users.size() == 1) {
 			auto u = App::user(peerFromUser(users[0]));
@@ -72,14 +72,14 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareChatJoinedByLink = [this](const MTPDmessageActionChatJoinedByLink &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		result.links.push_back(fromLink());
 		result.text = lng_action_user_joined_by_link(lt_from, fromLinkText());
 		return result;
 	};
 
 	auto prepareChatCreate = [this](const MTPDmessageActionChatCreate &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		result.links.push_back(fromLink());
 		result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
 		return result;
@@ -97,7 +97,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareChatDeletePhoto = [this] {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		if (isPost()) {
 			result.text = lang(lng_action_removed_photo_channel);
 		} else {
@@ -108,7 +108,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareChatDeleteUser = [this](const MTPDmessageActionChatDeleteUser &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		if (peerFromUser(action.vuser_id) == _from->id) {
 			result.links.push_back(fromLink());
 			result.text = lng_action_user_left(lt_from, fromLinkText());
@@ -122,7 +122,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareChatEditPhoto = [this](const MTPDmessageActionChatEditPhoto &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		if (isPost()) {
 			result.text = lang(lng_action_changed_photo_channel);
 		} else {
@@ -133,7 +133,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareChatEditTitle = [this](const MTPDmessageActionChatEditTitle &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		if (isPost()) {
 			result.text = lng_action_changed_title_channel(lt_title, TextUtilities::Clean(qs(action.vtitle)));
 		} else {
@@ -144,7 +144,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareScreenshotTaken = [this] {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		if (out()) {
 			result.text = lang(lng_action_you_took_screenshot);
 		} else {
@@ -155,7 +155,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareCustomAction = [&](const MTPDmessageActionCustomAction &action) {
-		auto result = PreparedText {};
+		auto result = PreparedText{};
 		result.text = qs(action.vmessage);
 		return result;
 	};
@@ -214,69 +214,98 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto messageText = PreparedText {};
-
-	switch (action.type()) {
-	case mtpc_messageActionChatAddUser: messageText = prepareChatAddUserText(action.c_messageActionChatAddUser()); break;
-	case mtpc_messageActionChatJoinedByLink: messageText = prepareChatJoinedByLink(action.c_messageActionChatJoinedByLink()); break;
-	case mtpc_messageActionChatCreate: messageText = prepareChatCreate(action.c_messageActionChatCreate()); break;
-	case mtpc_messageActionChannelCreate: messageText = prepareChannelCreate(action.c_messageActionChannelCreate()); break;
-	case mtpc_messageActionHistoryClear: break; // Leave empty text.
-	case mtpc_messageActionChatDeletePhoto: messageText = prepareChatDeletePhoto(); break;
-	case mtpc_messageActionChatDeleteUser: messageText = prepareChatDeleteUser(action.c_messageActionChatDeleteUser()); break;
-	case mtpc_messageActionChatEditPhoto: messageText = prepareChatEditPhoto(action.c_messageActionChatEditPhoto()); break;
-	case mtpc_messageActionChatEditTitle: messageText = prepareChatEditTitle(action.c_messageActionChatEditTitle()); break;
-	case mtpc_messageActionChatMigrateTo: messageText.text = lang(lng_action_group_migrate); break;
-	case mtpc_messageActionChannelMigrateFrom: messageText.text = lang(lng_action_group_migrate); break;
-	case mtpc_messageActionPinMessage: messageText = preparePinnedText(); break;
-	case mtpc_messageActionGameScore: messageText = prepareGameScoreText(); break;
-	case mtpc_messageActionPhoneCall: Unexpected("PhoneCall type in HistoryService.");
-	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
-	case mtpc_messageActionScreenshotTaken: messageText = prepareScreenshotTaken(); break;
-	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
-	case mtpc_messageActionBotAllowed: messageText = prepareBotAllowed(action.c_messageActionBotAllowed()); break;
-	case mtpc_messageActionSecureValuesSent: messageText = prepareSecureValuesSent(action.c_messageActionSecureValuesSent()); break;
-	case mtpc_messageActionContactSignUp: messageText = prepareContactSignUp(); break;
-	default: messageText.text = lang(lng_message_empty); break;
-	}
+	const auto messageText = action.match([&](
+		const MTPDmessageActionChatAddUser &data) {
+		return prepareChatAddUserText(data);
+	}, [&](const MTPDmessageActionChatJoinedByLink &data) {
+		return prepareChatJoinedByLink(data);
+	}, [&](const MTPDmessageActionChatCreate &data) {
+		return prepareChatCreate(data);
+	}, [](const MTPDmessageActionChatMigrateTo &) {
+		return PreparedText();
+	}, [](const MTPDmessageActionChannelMigrateFrom &) {
+		return PreparedText();
+	}, [](const MTPDmessageActionHistoryClear &) {
+		return PreparedText();
+	}, [&](const MTPDmessageActionChannelCreate &data) {
+		return prepareChannelCreate(data);
+	}, [&](const MTPDmessageActionChatDeletePhoto &) {
+		return prepareChatDeletePhoto();
+	}, [&](const MTPDmessageActionChatDeleteUser &data) {
+		return prepareChatDeleteUser(data);
+	}, [&](const MTPDmessageActionChatEditPhoto &data) {
+		return prepareChatEditPhoto(data);
+	}, [&](const MTPDmessageActionChatEditTitle &data) {
+		return prepareChatEditTitle(data);
+	}, [&](const MTPDmessageActionPinMessage &) {
+		return preparePinnedText();
+	}, [&](const MTPDmessageActionGameScore &) {
+		return prepareGameScoreText();
+	}, [&](const MTPDmessageActionPhoneCall &) -> PreparedText {
+		Unexpected("PhoneCall type in HistoryService.");
+	}, [&](const MTPDmessageActionPaymentSent &) {
+		return preparePaymentSentText();
+	}, [&](const MTPDmessageActionScreenshotTaken &) {
+		return prepareScreenshotTaken();
+	}, [&](const MTPDmessageActionCustomAction &data) {
+		return prepareCustomAction(data);
+	}, [&](const MTPDmessageActionBotAllowed &data) {
+		return prepareBotAllowed(data);
+	}, [&](const MTPDmessageActionSecureValuesSent &data) {
+		return prepareSecureValuesSent(data);
+	}, [&](const MTPDmessageActionContactSignUp &data) {
+		return prepareContactSignUp();
+	}, [](const MTPDmessageActionPaymentSentMe &) {
+		LOG(("API Error: messageActionPaymentSentMe received."));
+		return PreparedText{ lang(lng_message_empty) };
+	}, [](const MTPDmessageActionSecureValuesSentMe &) {
+		LOG(("API Error: messageActionSecureValuesSentMe received."));
+		return PreparedText{ lang(lng_message_empty) };
+	}, [](const MTPDmessageActionEmpty &) {
+		return PreparedText{ lang(lng_message_empty) };
+	});
 
 	setServiceText(messageText);
 
 	// Additional information.
-	switch (action.type()) {
-	case mtpc_messageActionChatAddUser: {
-		if (auto channel = history()->peer->asMegagroup()) {
-			auto &users = action.c_messageActionChatAddUser().vusers;
-			for_const (auto &item, users.v) {
-				if (item.v == history()->session().userId()) {
+	applyAction(action);
+}
+
+void HistoryService::applyAction(const MTPMessageAction &action) {
+	action.match([&](const MTPDmessageActionChatAddUser &data) {
+		if (const auto channel = history()->peer->asMegagroup()) {
+			const auto selfUserId = history()->session().userId();
+			for (const auto &item : data.vusers.v) {
+				if (item.v == selfUserId) {
 					channel->mgInfo->joinedMessageFound = true;
 					break;
 				}
 			}
 		}
-	} break;
-
-	case mtpc_messageActionChatJoinedByLink: {
-		if (_from->isSelf() && history()->peer->isMegagroup()) {
-			history()->peer->asChannel()->mgInfo->joinedMessageFound = true;
+	}, [&](const MTPDmessageActionChatJoinedByLink &data) {
+		if (_from->isSelf()) {
+			if (const auto channel = history()->peer->asMegagroup()) {
+				channel->mgInfo->joinedMessageFound = true;
+			}
 		}
-	} break;
-
-	case mtpc_messageActionChatEditPhoto: {
-		auto &photo = action.c_messageActionChatEditPhoto().vphoto;
-		if (photo.type() == mtpc_photo) {
+	}, [&](const MTPDmessageActionChatEditPhoto &data) {
+		data.vphoto.match([&](const MTPDphoto &photo) {
 			_media = std::make_unique<Data::MediaPhoto>(
 				this,
 				history()->peer,
-				history()->owner().photo(photo.c_photo()));
-		}
-	} break;
-
-	case mtpc_messageActionChatMigrateTo:
-	case mtpc_messageActionChannelMigrateFrom: {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-	} break;
-	}
+				history()->owner().photo(photo));
+		}, [](const MTPDphotoEmpty &) {
+		});
+	}, [&](const MTPDmessageActionChatCreate &) {
+		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+	}, [&](const MTPDmessageActionChannelCreate &) {
+		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+	}, [&](const MTPDmessageActionChatMigrateTo &) {
+		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+	}, [&](const MTPDmessageActionChannelMigrateFrom &) {
+		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+	}, [](const auto &) {
+	});
 }
 
 void HistoryService::setSelfDestruct(HistoryServiceSelfDestruct::Type type, int ttlSeconds) {

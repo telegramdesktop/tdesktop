@@ -90,6 +90,7 @@ public:
 	//	const std::vector<not_null<ChannelData*>> &channels);
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
+	void requestFakeChatListMessage(not_null<History*> history);
 
 	void requestFullPeer(not_null<PeerData*> peer);
 	void requestPeer(not_null<PeerData*> peer);
@@ -428,7 +429,6 @@ private:
 	QVector<MTPInputMessage> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
-	void historyDialogEntryApplied(not_null<History*> history);
 	void applyFeedDialogs(
 		not_null<Data::Feed*> feed,
 		const MTPmessages_Dialogs &dialogs);
@@ -666,6 +666,7 @@ private:
 	base::flat_map<
 		not_null<History*>,
 		std::vector<Fn<void()>>> _dialogRequests;
+	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 

@@ -1702,7 +1702,7 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 					+ (toFilterContacts ? toFilterContacts->size() : 0));
 				if (toFilter) {
 					for (const auto row : *toFilter) {
-						const auto &nameWords = row->entry()->chatsListNameWords();
+						const auto &nameWords = row->entry()->chatListNameWords();
 						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterWord = *fi;
@@ -1722,7 +1722,7 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 				}
 				if (toFilterContacts) {
 					for (const auto row : *toFilterContacts) {
-						const auto &nameWords = row->entry()->chatsListNameWords();
+						const auto &nameWords = row->entry()->chatListNameWords();
 						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterWord = *fi;
@@ -1875,7 +1875,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 	history->applyDialog(dialog);
 
 	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
-		const auto date = history->chatsListTimeId();
+		const auto date = history->chatListTimeId();
 		if (date != 0) {
 			addSavedPeersAfter(ParseDateTime(date));
 		}
@@ -1898,7 +1898,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 //	feed->applyDialog(dialog);
 //
 //	if (!feed->useProxyPromotion() && !feed->isPinnedDialog()) {
-//		const auto date = feed->chatsListDate();
+//		const auto date = feed->chatListDate();
 //		if (!date.isNull()) {
 //			addSavedPeersAfter(date);
 //		}
@@ -1913,7 +1913,7 @@ void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 		saved.remove(lastDate, lastPeer);
 
 		const auto history = App::history(lastPeer);
-		history->setChatsListTimeId(ServerTimeFromParsed(lastDate));
+		history->setChatListTimeId(ServerTimeFromParsed(lastDate));
 		_contactsNoDialogs->del(history);
 	}
 }
@@ -2233,7 +2233,7 @@ void DialogsInner::refreshSearchInChatLabel() {
 			}
 			return peer->name;
 		} else if (const auto feed = _searchInChat.feed()) {
-			return feed->chatsListName();
+			return feed->chatListName();
 		}
 		return QString();
 	}();

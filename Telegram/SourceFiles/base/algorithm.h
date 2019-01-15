@@ -24,6 +24,12 @@ inline constexpr size_t array_size(const Type(&)[Size]) {
 	return Size;
 }
 
+template <typename Container, typename T>
+inline bool contains(const Container &container, const T &value) {
+	const auto end = std::end(container);
+	return std::find(std::begin(container), end, value) != end;
+}
+
 } // namespace base
 
 template <typename T>

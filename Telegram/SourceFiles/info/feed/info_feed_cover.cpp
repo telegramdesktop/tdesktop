@@ -71,7 +71,7 @@ void Cover::initViewers() {
 }
 
 void Cover::refreshNameText() {
-	_name->setText(_feed->chatsListName());
+	_name->setText(_feed->chatListName());
 	refreshNameGeometry(width());
 }
 

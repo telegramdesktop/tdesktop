@@ -716,7 +716,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 	const auto resizeAllItems = (_itemsWidth != newWidth);
 	auto newHeight = 0;
-	for (auto &item : base::reversed(_items)) {
+	for (const auto &item : ranges::view::reverse(_items)) {
 		item->setY(newHeight);
 		if (item->pendingResize() || resizeAllItems) {
 			newHeight += item->resizeGetHeight(newWidth);

@@ -176,12 +176,12 @@ TimeId HistoryItem::date() const {
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
 	_history->owner().requestItemViewRefresh(this);
-	invalidateChatsListEntry();
+	invalidateChatListEntry();
 	if (const auto group = _history->owner().groups().find(this)) {
 		const auto leader = group->items.back();
 		if (leader != this) {
 			_history->owner().requestItemViewRefresh(leader);
-			leader->invalidateChatsListEntry();
+			leader->invalidateChatListEntry();
 		}
 	}
 
@@ -217,7 +217,7 @@ ReplyKeyboard *HistoryItem::inlineReplyKeyboard() {
 	return nullptr;
 }
 
-void HistoryItem::invalidateChatsListEntry() {
+void HistoryItem::invalidateChatListEntry() {
 	if (const auto main = App::main()) {
 		// #TODO feeds search results
 		main->repaintDialogRow({ history(), fullId() });
@@ -462,7 +462,7 @@ bool HistoryItem::canDelete() const {
 	}
 	auto channel = _history->peer->asChannel();
 	if (!channel) {
-		return !(_flags & MTPDmessage_ClientFlag::f_is_group_migrate);
+		return !(_flags & MTPDmessage_ClientFlag::f_is_group_essential);
 	}
 
 	if (id == 1) {
@@ -706,7 +706,7 @@ QString HistoryItem::notificationText() const {
 QString HistoryItem::inDialogsText(DrawInDialog way) const {
 	auto getText = [this]() {
 		if (_media) {
-			return _media->chatsListText();
+			return _media->chatListText();
 		} else if (!emptyText()) {
 			return TextUtilities::Clean(_text.originalText());
 		}
