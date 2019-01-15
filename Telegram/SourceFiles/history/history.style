@@ -543,3 +543,10 @@ boxAttachEmoji: IconButton(historyAttachEmoji) {
 	rippleAreaSize: 0px;
 }
 boxAttachEmojiTop: 20px;
+
+historyGroupAboutMargin: 16px;
+historyGroupAboutPadding: margins(24px, 16px, 24px, 16px);
+historyGroupAboutBulletSkip: 16px;
+historyGroupAboutHeaderSkip: 10px;
+historyGroupAboutTextSkip: 10px;
+historyGroupAboutSkip: 8px;

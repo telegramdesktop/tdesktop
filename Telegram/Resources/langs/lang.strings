@@ -1045,6 +1045,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers_description" = "You can choose a sticker set which will be available for every member while in the group chat.";
 "lng_group_stickers_add" = "Choose sticker set";
 
+"lng_group_about_header" = "You have created a group.";
+"lng_group_about_text" = "Groups can have:";
+"lng_group_about1" = "Up to 100,000 members";
+"lng_group_about2" = "Persistent chat history";
+"lng_group_about3" = "Public links such as t.me/title";
+"lng_group_about4" = "Admins with different rights";
+
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIFs";

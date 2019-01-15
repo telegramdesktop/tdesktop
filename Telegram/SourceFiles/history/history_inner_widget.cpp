@@ -551,8 +551,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 			p.restoreTextPalette();
 		}
-	} else if (noHistoryDisplayed) {
-		HistoryView::paintEmpty(p, width(), height());
+	} else if (historyDisplayedEmpty) {
+		HistoryView::paintEmpty(p, _history, width(), height());
 	}
 	if (!noHistoryDisplayed) {
 		auto readMentions = base::flat_set<not_null<HistoryItem*>>();

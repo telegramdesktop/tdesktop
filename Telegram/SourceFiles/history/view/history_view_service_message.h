@@ -74,7 +74,11 @@ private:
 
 };
 
-void paintEmpty(Painter &p, int width, int height);
+void paintEmpty(
+	Painter &p,
+	not_null<History*> history,
+	int width,
+	int height);
 
 void serviceColorsUpdated();
 

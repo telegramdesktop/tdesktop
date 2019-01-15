@@ -24,8 +24,6 @@ public:
 		not_null<PeerData*> peer,
 		base::flat_set<not_null<UserData*>> &&alreadyIn);
 
-	using ContactsBoxController::ContactsBoxController;
-
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void itemDeselectedHook(not_null<PeerData*> peer) override;
 

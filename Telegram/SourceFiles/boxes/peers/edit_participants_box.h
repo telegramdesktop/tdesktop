@@ -14,8 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
 
-struct MegagroupInfo;
-
 namespace Window {
 class Navigation;
 } // namespace Window

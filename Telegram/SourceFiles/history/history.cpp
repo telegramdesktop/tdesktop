@@ -2727,7 +2727,19 @@ bool History::isEmpty() const {
 }
 
 bool History::isDisplayedEmpty() const {
-	return findFirstNonEmpty() == nullptr;
+	const auto first = findFirstNonEmpty();
+	if (!first) {
+		return true;
+	} else if (!first->data()->isGroupEssential()) {
+		return false;
+	} else if (const auto chat = peer->asChat()) {
+		// For legacy chats we want to show the chat with only first
+		// message about you creating the group as an empty chat with
+		// a nice information about the group features.
+		return chat->amCreator() && (findLastNonEmpty() == first);
+	} else {
+		return false;
+	}
 }
 
 auto History::findFirstNonEmpty() const -> Element* {
