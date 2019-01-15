@@ -200,7 +200,7 @@ private:
 	void addNewItem();
 	void addNewParticipants();
 
-	void setNonEmptyDescription();
+	void refreshDescription();
 	void setupListChangeViewers();
 	void showAdmin(not_null<UserData*> user);
 	void editAdminDone(

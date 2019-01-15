@@ -143,10 +143,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_error_admin_limit_channel" = "Sorry, you've reached the maximum number of admins for this channel.";
 "lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
 "lng_sure_add_admin_invite_channel" = "This user is not a subscriber of this channel. Add them to the channel and promote them to admin?";
-"lng_sure_add_admin_unban" = "This user is currently restricted or banned. Are you sure you want to unban and promote them?";
+"lng_sure_add_admin_unremove" = "This user is currently restricted or removed. Are you sure you want to promote them?";
 "lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
-"lng_sure_ban_user_group" = "Ban {user} in the group?";
-"lng_sure_ban_user_channel" = "Ban {user} in the channel?";
+"lng_sure_remove_user_group" = "Remove {user} from the group?";
+"lng_sure_remove_user_channel" = "Remove {user} from the channel?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
 
@@ -663,9 +663,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_search_members" = "Search members";
-"lng_profile_manage_admins" = "Manage administrators";
-"lng_profile_manage_blocklist" = "Manage banned users";
-"lng_profile_manage_restrictedlist" = "Manage restricted users";
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_participants_section" = "Members";
@@ -788,8 +785,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_recent_actions" = "Recent Actions";
 "lng_manage_peer_members" = "Members";
 "lng_manage_peer_administrators" = "Administrators";
-"lng_manage_peer_banned_users" = "Banned users";
-"lng_manage_peer_restricted_users" = "Restricted users";
 "lng_manage_peer_exceptions" = "Exceptions";
 "lng_manage_peer_removed_users" = "Removed users";
 "lng_manage_peer_permissions" = "Permissions";
@@ -814,8 +809,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_channel_add_members" = "Add members";
 "lng_channel_add_users" = "Add users";
-"lng_channel_add_banned" = "Ban user";
-"lng_channel_add_restricted" = "Restrict user";
+"lng_channel_add_removed" = "Remove user";
+"lng_channel_add_exception" = "Add exception";
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_status_creator" = "Creator";
@@ -823,8 +818,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_admin_status_not_admin" = "Not administrator";
 "lng_channel_banned_status_restricted_by" = "Restricted by {user}";
 
-"lng_group_blocked_list_about" = "Banned users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
-"lng_channel_blocked_list_about" = "Banned users are removed from the channel.\nInvite links don't work for them.";
+"lng_channel_removed_list_about" = "Users removed from the channel by admins cannot rejoin it via invite links.";
+"lng_group_removed_list_about" = "Users removed from the group by admins cannot rejoin it via invite links.";
 
 "lng_chat_all_members_admins" = "All Members Are Admins";
 "lng_chat_about_all_admins" = "Group members can add new members, edit name and photo of the group.";
@@ -1521,8 +1516,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_inline_all" = "Posting inline content isn't allowed in this group.";
 "lng_restricted_send_polls_all" = "Posting polls isn't allowed in this group.";
 
-"lng_restricted_list_title" = "Restricted users";
-"lng_banned_list_title" = "Banned users";
+"lng_exceptions_list_title" = "Exceptions";
+"lng_removed_list_title" = "Removed users";
 
 "lng_admin_log_title_all" = "All actions";
 "lng_admin_log_title_selected" = "Selected actions";

@@ -807,9 +807,9 @@ void ParticipantsBoxController::Start(
 			case Role::Admins:
 				return langFactory(lng_channel_add_admin);
 			case Role::Restricted:
-				return langFactory(lng_channel_add_restricted);
+				return langFactory(lng_channel_add_exception);
 			case Role::Kicked:
-				return langFactory(lng_channel_add_banned);
+				return langFactory(lng_channel_add_removed);
 			}
 			Unexpected("Role value in ParticipantsBoxController::Start()");
 		}();
@@ -980,10 +980,8 @@ void ParticipantsBoxController::restoreState(
 			loadMoreRows();
 		}
 		PeerListController::restoreState(std::move(state));
-		if (delegate()->peerListFullRowsCount() > 0) {
-			setNonEmptyDescription();
-		} else if (_allLoaded) {
-			setDescriptionText(lang(lng_blocked_list_not_found));
+		if (delegate()->peerListFullRowsCount() > 0 || _allLoaded) {
+			refreshDescription();
 		}
 		if (_onlineSorter) {
 			_onlineSorter->sort();
@@ -1003,8 +1001,8 @@ void ParticipantsBoxController::prepare() {
 		case Role::Admins: return lng_channel_admins;
 		case Role::Profile:
 		case Role::Members: return lng_profile_participants_section;
-		case Role::Restricted: return lng_restricted_list_title;
-		case Role::Kicked: return lng_banned_list_title;
+		case Role::Restricted: return lng_exceptions_list_title;
+		case Role::Kicked: return lng_removed_list_title;
 		}
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
@@ -1153,11 +1151,7 @@ void ParticipantsBoxController::chatListReady() {
 		return;
 	}
 	_allLoaded = true;
-	if (delegate()->peerListFullRowsCount() > 0) {
-		setNonEmptyDescription();
-	} else {
-		setDescriptionText(lang(lng_blocked_list_not_found));
-	}
+	refreshDescription();
 }
 
 void ParticipantsBoxController::rebuildRowTypes() {
@@ -1243,15 +1237,12 @@ void ParticipantsBoxController::loadMoreRows() {
 			}
 		});
 
-		if (delegate()->peerListFullRowsCount() > 0) {
-			if (_onlineSorter) {
-				_onlineSorter->sort();
-			}
-			if (firstLoad) {
-				setNonEmptyDescription();
-			}
-		} else if (_allLoaded) {
-			setDescriptionText(lang(lng_blocked_list_not_found));
+		if (_allLoaded
+			|| (firstLoad && delegate()->peerListFullRowsCount() > 0)) {
+			refreshDescription();
+		}
+		if (_onlineSorter) {
+			_onlineSorter->sort();
 		}
 		delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
@@ -1259,12 +1250,14 @@ void ParticipantsBoxController::loadMoreRows() {
 	}).send();
 }
 
-void ParticipantsBoxController::setNonEmptyDescription() {
+void ParticipantsBoxController::refreshDescription() {
 	setDescriptionText((_role == Role::Kicked)
 		? lang((_peer->isChat() || _peer->isMegagroup())
-			? lng_group_blocked_list_about
-			: lng_channel_blocked_list_about)
-		: QString());
+			? lng_group_removed_list_about
+			: lng_channel_removed_list_about)
+		: (delegate()->peerListFullRowsCount() > 0)
+		? QString()
+		: lang(lng_blocked_list_not_found));
 }
 
 bool ParticipantsBoxController::feedMegagroupLastParticipants() {

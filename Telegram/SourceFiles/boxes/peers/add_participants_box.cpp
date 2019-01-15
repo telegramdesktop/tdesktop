@@ -283,9 +283,9 @@ void AddSpecialBoxController::prepare() {
 		case Role::Admins:
 			return langFactory(lng_channel_add_admin);
 		case Role::Restricted:
-			return langFactory(lng_channel_add_restricted);
+			return langFactory(lng_channel_add_exception);
 		case Role::Kicked:
-			return langFactory(lng_channel_add_banned);
+			return langFactory(lng_channel_add_removed);
 		}
 		Unexpected("Role in AddSpecialBoxController::prepare()");
 	}();
@@ -476,7 +476,7 @@ void AddSpecialBoxController::showAdmin(
 				if (!sure) {
 					_editBox = Ui::show(
 						Box<ConfirmBox>(
-							lang(lng_sure_add_admin_unban),
+							lang(lng_sure_add_admin_unremove),
 							showAdminSure),
 						LayerOption::KeepOther);
 					return;
@@ -499,7 +499,7 @@ void AddSpecialBoxController::showAdmin(
 			if (!sure) {
 				_editBox = Ui::show(
 					Box<ConfirmBox>(
-						lang(lng_sure_add_admin_unban),
+						lang(lng_sure_add_admin_unremove),
 						showAdminSure),
 					LayerOption::KeepOther);
 				return;
@@ -709,8 +709,8 @@ void AddSpecialBoxController::kickUser(
 	// Finally kick him.
 	if (!sure) {
 		const auto text = ((_peer->isChat() || _peer->isMegagroup())
-			? lng_sure_ban_user_group
-			: lng_sure_ban_user_channel)(lt_user, App::peerName(user));
+			? lng_sure_remove_user_group
+			: lng_sure_remove_user_channel)(lt_user, App::peerName(user));
 		_editBox = Ui::show(
 			Box<ConfirmBox>(text, kickUserSure),
 			LayerOption::KeepOther);
