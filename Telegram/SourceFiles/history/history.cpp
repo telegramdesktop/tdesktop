@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "application.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "observer_peer.h"
@@ -2178,7 +2179,9 @@ void History::setChatListMessageFromLast() {
 
 void History::requestChatListMessage() {
 	if (!lastMessageKnown()) {
-		session().api().requestDialogEntry(this);
+		session().api().requestDialogEntry(this, [=] {
+			requestChatListMessage();
+		});
 		return;
 	} else if (chatListMessageKnown()) {
 		return;
@@ -2336,13 +2339,16 @@ void History::applyDialog(const MTPDdialog &data) {
 	if (data.has_draft() && data.vdraft.type() == mtpc_draftMessage) {
 		Data::applyPeerCloudDraft(peer->id, data.vdraft.c_draftMessage());
 	}
+	session().api().dialogEntryApplied(this);
 }
 
 void History::dialogEntryApplied() {
 	if (!lastMessageKnown()) {
 		setLastMessage(nullptr);
 	}
-	if (!chatListMessageKnown()) {
+	if (peer->migrateTo()) {
+		return;
+	} else if (!chatListMessageKnown()) {
 		requestChatListMessage();
 		return;
 	}
@@ -2371,7 +2377,7 @@ void History::dialogEntryApplied() {
 	if (chatListTimeId() != 0 && loadedAtBottom()) {
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
-			if (inviter != 0
+			if (inviter > 0
 				&& chatListTimeId() <= channel->inviteDate
 				&& channel->amIn()) {
 				if (const auto from = App::userLoaded(inviter)) {
@@ -2380,7 +2386,6 @@ void History::dialogEntryApplied() {
 			}
 		}
 	}
-	updateChatListExistence();
 }
 
 bool History::clearUnreadOnClientSide() const {

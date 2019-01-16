@@ -306,7 +306,7 @@ void NotificationsController::applyFeedDialogs(
 					const auto history = App::history(peerId);
 					const auto channel = history->peer->asChannel();
 					history->applyDialog(dialog.c_dialog());
-					channels.push_back(channel);
+					channels.emplace_back(channel);
 				} else {
 					LOG(("API Error: "
 						"Unexpected non-channel in feed dialogs list."));

@@ -257,26 +257,23 @@ void ApiWrap::getProxyPromotionDelayed(TimeId now, TimeId next) {
 };
 
 void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
-	if (proxy.type() == mtpc_help_proxyDataEmpty) {
-		const auto &data = proxy.c_help_proxyDataEmpty();
-		const auto next = _proxyPromotionNextRequestTime = data.vexpires.v;
-		getProxyPromotionDelayed(unixtime(), next);
-		_session->data().setProxyPromoted(nullptr);
-		return;
-	}
-	Assert(proxy.type() == mtpc_help_proxyDataPromo);
-	const auto &data = proxy.c_help_proxyDataPromo();
-	const auto next = _proxyPromotionNextRequestTime = data.vexpires.v;
-	getProxyPromotionDelayed(unixtime(), next);
+	_proxyPromotionNextRequestTime = proxy.match([&](const auto &data) {
+		return data.vexpires.v;
+	});
+	getProxyPromotionDelayed(unixtime(), _proxyPromotionNextRequestTime);
 
-	App::feedChats(data.vchats);
-	App::feedUsers(data.vusers);
-	const auto peerId = peerFromMTP(data.vpeer);
-	const auto peer = App::peer(peerId);
-	_session->data().setProxyPromoted(peer);
-	if (const auto history = App::historyLoaded(peer)) {
-		requestDialogEntry(history);
-	}
+	proxy.match([&](const MTPDhelp_proxyDataEmpty &data) {
+		_session->data().setProxyPromoted(nullptr);
+	}, [&](const MTPDhelp_proxyDataPromo &data) {
+		App::feedChats(data.vchats);
+		App::feedUsers(data.vusers);
+		const auto peerId = peerFromMTP(data.vpeer);
+		const auto peer = _session->data().peer(peerId);
+		_session->data().setProxyPromoted(peer);
+		if (const auto history = App::historyLoaded(peer)) {
+			requestDialogEntry(history);
+		}
+	});
 }
 
 void ApiWrap::requestDeepLinkInfo(
@@ -687,69 +684,78 @@ void ApiWrap::requestDialogEntry(not_null<Data::Feed*> feed) {
 void ApiWrap::requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback) {
-	const auto[i, ok] = _dialogRequests.try_emplace(history);
+	const auto i = _dialogRequests.find(history);
+	if (i != end(_dialogRequests)) {
+		if (callback) {
+			i->second.push_back(std::move(callback));
+		}
+		return;
+	}
+
+	const auto [j, ok] = _dialogRequestsPending.try_emplace(history);
 	if (callback) {
-		i->second.push_back(std::move(callback));
+		j->second.push_back(std::move(callback));
 	}
 	if (!ok) {
 		return;
 	}
+	if (_dialogRequestsPending.size() > 1) {
+		return;
+	}
+	Core::App().postponeCall(crl::guard(_session, [=] {
+		sendDialogRequests();
+	}));
+}
+
+void ApiWrap::sendDialogRequests() {
+	if (_dialogRequestsPending.empty()) {
+		return;
+	}
+	auto histories = std::vector<not_null<History*>>();
+	ranges::transform(
+		_dialogRequestsPending,
+		ranges::back_inserter(histories),
+		[](const auto &pair) { return pair.first; });
+	auto peers = QVector<MTPInputDialogPeer>();
+	const auto dialogPeer = [](not_null<History*> history) {
+		return MTP_inputDialogPeer(history->peer->input);
+	};
+	ranges::transform(
+		histories,
+		ranges::back_inserter(peers),
+		dialogPeer);
+	for (auto &[history, callbacks] : base::take(_dialogRequestsPending)) {
+		_dialogRequests.emplace(history, std::move(callbacks));
+	}
+
 	const auto finalize = [=] {
-		if (const auto callbacks = _dialogRequests.take(history)) {
-			for (const auto &callback : *callbacks) {
-				callback();
-			}
+		for (const auto history : histories) {
+			dialogEntryApplied(history);
+			history->updateChatListExistence();
 		}
 	};
-	auto peers = QVector<MTPInputDialogPeer>(
-		1,
-		MTP_inputDialogPeer(history->peer->input));
 	request(MTPmessages_GetPeerDialogs(
 		MTP_vector(std::move(peers))
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
-		history->dialogEntryApplied();
 		finalize();
 	}).fail([=](const RPCError &error) {
 		finalize();
 	}).send();
 }
 
-void ApiWrap::requestDialogEntries(
-		std::vector<not_null<History*>> histories) {
-	const auto already = [&](not_null<History*> history) {
-		const auto [i, ok] = _dialogRequests.try_emplace(history);
-		return !ok;
-	};
-	histories.erase(ranges::remove_if(histories, already), end(histories));
-	if (histories.empty()) {
-		return;
-	}
-	auto peers = QVector<MTPInputDialogPeer>();
-	peers.reserve(histories.size());
-	for (const auto history : histories) {
-		peers.push_back(MTP_inputDialogPeer(history->peer->input));
-	}
-	const auto finalize = [=](std::vector<not_null<History*>> histories) {
-		for (const auto history : histories) {
-			if (const auto callbacks = _dialogRequests.take(history)) {
-				for (const auto &callback : *callbacks) {
-					callback();
-				}
-			}
+void ApiWrap::dialogEntryApplied(not_null<History*> history) {
+	history->dialogEntryApplied();
+	if (const auto callbacks = _dialogRequestsPending.take(history)) {
+		for (const auto &callback : *callbacks) {
+			callback();
 		}
-	};
-	request(MTPmessages_GetPeerDialogs(
-		MTP_vector(std::move(peers))
-	)).done([=](const MTPmessages_PeerDialogs &result) {
-		applyPeerDialogs(result);
-		for (const auto history : histories) {
-			history->dialogEntryApplied();
+	}
+	if (const auto callbacks = _dialogRequests.take(history)) {
+		for (const auto &callback : *callbacks) {
+			callback();
 		}
-		finalize(histories);
-	}).fail([=](const RPCError &error) {
-		finalize(histories);
-	}).send();
+	}
 }
 
 void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
@@ -1490,7 +1496,7 @@ void ApiWrap::applyLastParticipantsList(
 	Notify::peerUpdatedDelayed(update);
 
 	channel->mgInfo->botStatus = botStatus;
-	if (App::main()) fullPeerUpdated().notify(channel);
+	fullPeerUpdated().notify(channel);
 }
 
 void ApiWrap::applyBotsList(
@@ -1532,7 +1538,7 @@ void ApiWrap::applyBotsList(
 	}
 
 	channel->mgInfo->botStatus = botStatus;
-	if (App::main()) fullPeerUpdated().notify(channel);
+	fullPeerUpdated().notify(channel);
 }
 
 void ApiWrap::applyAdminsList(
@@ -1568,58 +1574,58 @@ void ApiWrap::applyAdminsList(
 	}
 }
 
-void ApiWrap::requestSelfParticipant(ChannelData *channel) {
+void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	if (_selfParticipantRequests.contains(channel)) {
 		return;
 	}
 
-	auto requestId = request(MTPchannels_GetParticipant(
+	const auto finalize = [=](UserId inviter, TimeId inviteDate) {
+		channel->inviter = inviter;
+		channel->inviteDate = inviteDate;
+		if (const auto history = App::historyLoaded(channel)) {
+			if (history->lastMessageKnown()) {
+				history->checkJoinedMessage(true);
+				history->owner().sendHistoryChangeNotifications();
+			} else {
+				requestDialogEntry(history);
+			}
+		}
+	};
+	_selfParticipantRequests.emplace(channel);
+	request(MTPchannels_GetParticipant(
 		channel->inputChannel,
 		MTP_inputUserSelf()
-	)).done([this, channel](const MTPchannels_ChannelParticipant &result) {
-		_selfParticipantRequests.remove(channel);
-		if (result.type() != mtpc_channels_channelParticipant) {
-			LOG(("API Error: unknown type in gotSelfParticipant (%1)").arg(result.type()));
-			channel->inviter = -1;
-			if (App::main()) App::main()->onSelfParticipantUpdated(channel);
-			return;
-		}
+	)).done([=](const MTPchannels_ChannelParticipant &result) {
+		_selfParticipantRequests.erase(channel);
+		result.match([&](const MTPDchannels_channelParticipant &data) {
+			App::feedUsers(data.vusers);
 
-		auto &p = result.c_channels_channelParticipant();
-		App::feedUsers(p.vusers);
-
-		switch (p.vparticipant.type()) {
-		case mtpc_channelParticipantSelf: {
-			auto &d = p.vparticipant.c_channelParticipantSelf();
-			channel->inviter = d.vinviter_id.v;
-			channel->inviteDate = d.vdate.v;
-		} break;
-		case mtpc_channelParticipantCreator: {
-			auto &d = p.vparticipant.c_channelParticipantCreator();
-			channel->inviter = _session->userId();
-			channel->inviteDate = channel->date;
-			if (channel->mgInfo) {
-				channel->mgInfo->creator = _session->user();
-			}
-		} break;
-		case mtpc_channelParticipantAdmin: {
-			auto &d = p.vparticipant.c_channelParticipantAdmin();
-			channel->inviter = (d.is_self() && d.has_inviter_id())
-				? d.vinviter_id.v
-				: 0;
-			channel->inviteDate = d.vdate.v;
-		} break;
-		}
-
-		if (App::main()) App::main()->onSelfParticipantUpdated(channel);
-	}).fail([this, channel](const RPCError &error) {
-		_selfParticipantRequests.remove(channel);
-		if (error.type() == qstr("USER_NOT_PARTICIPANT")) {
-			channel->inviter = -1;
-		}
+			const auto &participant = data.vparticipant;
+			participant.match([&](const MTPDchannelParticipantSelf &data) {
+				finalize(data.vinviter_id.v, data.vdate.v);
+			}, [&](const MTPDchannelParticipantCreator &) {
+				if (channel->mgInfo) {
+					channel->mgInfo->creator = _session->user();
+				}
+				finalize(_session->userId(), channel->date);
+			}, [&](const MTPDchannelParticipantAdmin &data) {
+				const auto inviter = (data.is_self()
+					&& data.has_inviter_id())
+					? data.vinviter_id.v
+					: -1;
+				finalize(inviter, data.vdate.v);
+			}, [&](const MTPDchannelParticipantBanned &data) {
+				LOG(("API Error: Got self banned participant."));
+				finalize(-1, 0);
+			}, [&](const MTPDchannelParticipant &data) {
+				LOG(("API Error: Got self regular participant."));
+				finalize(-1, 0);
+			});
+		});
+	}).fail([=](const RPCError &error) {
+		_selfParticipantRequests.erase(channel);
+		finalize(-1, 0);
 	}).afterDelay(kSmallDelayMs).send();
-
-	_selfParticipantRequests.insert(channel, requestId);
 }
 
 void ApiWrap::kickParticipant(

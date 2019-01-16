@@ -3305,24 +3305,6 @@ void MainWidget::openPeerByName(
 	}
 }
 
-void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
-	auto history = App::historyLoaded(channel->id);
-	if (_updatedChannels.contains(channel)) {
-		_updatedChannels.remove(channel);
-		if (!history) {
-			history = App::history(channel);
-		}
-		if (history->isEmpty()) {
-			Auth().api().requestDialogEntry(history);
-		} else {
-			history->checkJoinedMessage(true);
-		}
-	} else if (history) {
-		history->checkJoinedMessage();
-	}
-	Auth().data().sendHistoryChangeNotifications();
-}
-
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return (_history->contentOverlapped(globalRect)
 			|| _playerPanel->overlaps(globalRect)
@@ -4461,22 +4443,21 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateChannel();
 		if (const auto channel = App::channelLoaded(d.vchannel_id.v)) {
 			channel->inviter = UserId(0);
-			if (channel->amIn()
-				&& !channel->amCreator()
-				&& App::history(channel->id)) {
-				_updatedChannels.insert(channel, true);
-				Auth().api().requestSelfParticipant(channel);
-			}
-			if (const auto feed = channel->feed()) {
-				feed->requestChatListMessage();
-				if (!feed->unreadCountKnown()) {
-					feed->session().api().requestDialogEntry(feed);
+			if (channel->amIn()) {
+				const auto history = App::history(channel);
+				if (const auto feed = channel->feed()) {
+					feed->requestChatListMessage();
+					if (!feed->unreadCountKnown()) {
+						feed->session().api().requestDialogEntry(feed);
+					}
+				} else {
+					history->requestChatListMessage();
+					if (!history->unreadCountKnown()) {
+						history->session().api().requestDialogEntry(history);
+					}
 				}
-			} else if (channel->amIn()) {
-				const auto history = App::history(channel->id);
-				history->requestChatListMessage();
-				if (!history->unreadCountKnown()) {
-					history->session().api().requestDialogEntry(history);
+				if (!channel->amCreator()) {
+					Auth().api().requestSelfParticipant(channel);
 				}
 			}
 		}

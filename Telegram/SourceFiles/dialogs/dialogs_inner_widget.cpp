@@ -1298,14 +1298,14 @@ void DialogsInner::createDialog(Dialogs::Key key) {
 
 	const auto from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
 	const auto to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
-	if (!_dragging) {
+	if (!_dragging && from != to) {
 		// Don't jump in chats list scroll position while dragging.
 		emit dialogMoved(from, to);
 	}
 
 	if (creating) {
 		refresh();
-	} else if (_state == State::Default && changed.movedFrom != changed.movedTo) {
+	} else if (_state == State::Default && from != to) {
 		update(0, qMin(from, to), getFullWidth(), qAbs(from - to) + st::dialogsRowHeight);
 	}
 }
@@ -1948,7 +1948,6 @@ bool DialogsInner::searchReceived(
 	auto isGlobalSearch = (type == DialogsSearchFromStart || type == DialogsSearchFromOffset);
 	auto isMigratedSearch = (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset);
 
-	auto unknownUnreadCounts = std::vector<not_null<History*>>();
 	TimeId lastDateFound = 0;
 	for (const auto &message : messages) {
 		auto msgId = IdFromMessage(message);
@@ -1966,7 +1965,7 @@ bool DialogsInner::searchReceived(
 							_searchInChat,
 							item));
 					if (uniquePeers && !history->unreadCountKnown()) {
-						unknownUnreadCounts.push_back(history);
+						history->session().api().requestDialogEntry(history);
 					}
 				}
 				lastDateFound = lastDate;
@@ -2001,9 +2000,6 @@ bool DialogsInner::searchReceived(
 
 	refresh();
 
-	if (!unknownUnreadCounts.empty()) {
-		Auth().api().requestDialogEntries(std::move(unknownUnreadCounts));
-	}
 	return lastDateFound != 0;
 }
 
@@ -2123,16 +2119,15 @@ void DialogsInner::notify_historyMuteUpdated(History *history) {
 			return;
 		}
 
-		int from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
-		int to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
-		if (!_dragging) {
+		const auto from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
+		const auto to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
+		if (!_dragging && from != to) {
 			// Don't jump in chats list scroll position while dragging.
 			emit dialogMoved(from, to);
 		}
-
 		if (creating) {
 			refresh();
-		} else if (_state == State::Default && changed.movedFrom != changed.movedTo) {
+		} else if (_state == State::Default && from != to) {
 			update(0, qMin(from, to), getFullWidth(), qAbs(from - to) + st::dialogsRowHeight);
 		}
 	}

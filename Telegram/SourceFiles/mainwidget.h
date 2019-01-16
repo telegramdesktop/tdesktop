@@ -253,7 +253,6 @@ public:
 
 	void scheduleViewIncrement(HistoryItem *item);
 
-	void onSelfParticipantUpdated(ChannelData *channel);
 	void feedChannelDifference(const MTPDupdates_channelDifference &data);
 
 	// Mayde public for ApiWrap, while it is still here.
@@ -536,9 +535,6 @@ private:
 	int _cachedX = 0;
 	int _cachedY = 0;
 	SingleTimer _cacheBackgroundTimer;
-
-	typedef QMap<ChannelData*, bool> UpdatedChannels;
-	UpdatedChannels _updatedChannels;
 
 	PhotoData *_deletingPhoto = nullptr;
 

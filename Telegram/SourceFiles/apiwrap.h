@@ -83,7 +83,7 @@ public:
 	void requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback = nullptr);
-	void requestDialogEntries(std::vector<not_null<History*>> histories);
+	void dialogEntryApplied(not_null<History*> history);
 	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,
@@ -146,7 +146,7 @@ public:
 	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
 	void markMediaRead(not_null<HistoryItem*> item);
 
-	void requestSelfParticipant(ChannelData *channel);
+	void requestSelfParticipant(not_null<ChannelData*> channel);
 	void kickParticipant(not_null<ChatData*> chat, not_null<UserData*> user);
 	void kickParticipant(
 		not_null<ChannelData*> channel,
@@ -592,6 +592,8 @@ private:
 		not_null<ChannelData*> channel);
 	void migrateFail(not_null<PeerData*> peer, const RPCError &error);
 
+	void sendDialogRequests();
+
 	not_null<AuthSession*> _session;
 
 	MessageDataRequests _messageDataRequests;
@@ -624,7 +626,7 @@ private:
 		not_null<PeerData*>,
 		mtpRequestId> _defaultRestrictionsRequests;
 
-	QMap<ChannelData*, mtpRequestId> _selfParticipantRequests;
+	base::flat_set<not_null<ChannelData*>> _selfParticipantRequests;
 
 	base::flat_map<
 		not_null<ChannelData*>,
@@ -666,6 +668,9 @@ private:
 	base::flat_map<
 		not_null<History*>,
 		std::vector<Fn<void()>>> _dialogRequests;
+	base::flat_map<
+		not_null<History*>,
+		std::vector<Fn<void()>>> _dialogRequestsPending;
 	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;

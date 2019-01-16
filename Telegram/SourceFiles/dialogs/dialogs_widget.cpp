@@ -481,36 +481,29 @@ void DialogsWidget::updateDialogsOffset(
 	auto lastDate = TimeId(0);
 	auto lastPeer = PeerId(0);
 	auto lastMsgId = MsgId(0);
-	const auto fillFromDialog = [&](const auto &dialog) {
-		const auto peer = peerFromMTP(dialog.vpeer);
-		const auto msgId = dialog.vtop_message.v;
-		if (!peer || !msgId) {
-			return;
-		}
-		if (!lastPeer) {
-			lastPeer = peer;
-		}
-		if (!lastMsgId) {
-			lastMsgId = msgId;
-		}
-		for (auto j = messages.size(); j != 0;) {
-			const auto &message = messages[--j];
-			if (IdFromMessage(message) == msgId
-				&& PeerFromMessage(message) == peer) {
-				if (const auto date = DateFromMessage(message)) {
-					lastDate = date;
-				}
+	for (const auto &dialog : ranges::view::reverse(dialogs)) {
+		dialog.match([&](const auto &dialog) {
+			const auto peer = peerFromMTP(dialog.vpeer);
+			const auto messageId = dialog.vtop_message.v;
+			if (!peer || !messageId) {
 				return;
 			}
-		}
-	};
-	for (auto i = dialogs.size(); i != 0;) {
-		const auto &dialog = dialogs[--i];
-		switch (dialog.type()) {
-		case mtpc_dialog: fillFromDialog(dialog.c_dialog()); break;
-//		case mtpc_dialogFeed: fillFromDialog(dialog.c_dialogFeed()); break; // #feed
-		default: Unexpected("Type in DialogsWidget::updateDialogsOffset");
-		}
+			if (!lastPeer) {
+				lastPeer = peer;
+			}
+			if (!lastMsgId) {
+				lastMsgId = messageId;
+			}
+			for (const auto &message : ranges::view::reverse(messages)) {
+				if (IdFromMessage(message) == messageId
+					&& PeerFromMessage(message) == peer) {
+					if (const auto date = DateFromMessage(message)) {
+						lastDate = date;
+					}
+					return;
+				}
+			}
+		});
 		if (lastDate) {
 			break;
 		}
