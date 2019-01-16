@@ -1422,9 +1422,12 @@ void MainWidget::setChatBackground(const Data::WallPaper &background) {
 	_background = std::make_unique<SettingBackground>();
 	_background->data = background;
 	if (_background->data.document) {
-		_background->data.document->save(Data::FileOrigin(), QString());
+		_background->data.document->save(
+			Data::FileOriginWallpapers(),
+			QString());
 	} else if (_background->data.thumb) {
-		_background->data.thumb->loadEvenCancelled(Data::FileOrigin());
+		_background->data.thumb->loadEvenCancelled(
+			Data::FileOriginWallpapers());
 	}
 	checkChatBackground();
 

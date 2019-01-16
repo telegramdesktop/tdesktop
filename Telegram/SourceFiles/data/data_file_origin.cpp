@@ -52,6 +52,11 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDdocumentEmpty &data) {
 		});
 	}
+	void push(const MTPWallPaper &data) {
+		data.match([&](const MTPDwallPaper &data) {
+			push(data.vdocument);
+		});
+	}
 	void push(const MTPUserProfilePhoto &data) {
 		data.match([&](const MTPDuserProfilePhoto &data) {
 			push(data.vphoto_small);
@@ -173,6 +178,12 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDmessages_savedGifsNotModified &data) {
 		});
 	}
+	void push(const MTPaccount_WallPapers &data) {
+		data.match([&](const MTPDaccount_wallPapers &data) {
+			push(data.vwallpapers);
+		}, [](const MTPDaccount_wallPapersNotModified &) {
+		});
+	}
 
 	UpdatedFileReferences result;
 };
@@ -234,6 +245,10 @@ UpdatedFileReferences GetFileReferences(
 }
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPaccount_WallPapers &data) {
 	return GetFileReferencesHelper(data);
 }
 

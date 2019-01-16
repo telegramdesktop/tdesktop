@@ -2829,6 +2829,8 @@ void ApiWrap::refreshFileReference(
 		request(
 			MTPmessages_GetSavedGifs(MTP_int(0)),
 			[] { crl::on_main([] { Local::writeSavedGifs(); }); });
+	}, [&](Data::FileOriginWallpapers data) {
+		request(MTPaccount_GetWallPapers(MTP_int(0)));
 	}, [&](std::nullopt_t) {
 		fail();
 	});
