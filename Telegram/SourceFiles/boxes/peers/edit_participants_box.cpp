@@ -127,7 +127,9 @@ void SaveChannelAdmin(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
-		onDone();
+		if (onDone) {
+			onDone();
+		}
 	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
 			Ui::show(
@@ -147,7 +149,9 @@ void SaveChannelAdmin(
 					: lng_error_admin_limit_channel)),
 				LayerOption::KeepOther);
 		}
-		onFail();
+		if (onFail) {
+			onFail();
+		}
 	}).send();
 }
 
@@ -165,9 +169,13 @@ void SaveChannelRestriction(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditBanned(user, oldRights, newRights);
-		onDone();
+		if (onDone) {
+			onDone();
+		}
 	}).fail([=](const RPCError &error) {
-		onFail();
+		if (onFail) {
+			onFail();
+		}
 	}).send();
 }
 
@@ -183,7 +191,7 @@ Fn<void(
 	return [=](
 			const MTPChatAdminRights &oldRights,
 			const MTPChatAdminRights &newRights) {
-		const auto done = [=] { onDone(newRights); };
+		const auto done = [=] { if (onDone) onDone(newRights); };
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelAdmin(
 				channel,
@@ -226,7 +234,7 @@ Fn<void(
 	return [=](
 			const MTPChatBannedRights &oldRights,
 			const MTPChatBannedRights &newRights) {
-		const auto done = [=] { onDone(newRights); };
+		const auto done = [=] { if (onDone) onDone(newRights); };
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelRestriction(
 				channel,

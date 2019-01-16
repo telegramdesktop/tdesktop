@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -1189,15 +1190,19 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 	});
 }
 
-void InnerWidget::restrictUser(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
-	auto weak = QPointer<InnerWidget>(this);
-	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
-		Auth().api().applyUpdates(result);
-		megagroup->applyEditBanned(user, oldRights, newRights);
-		if (weak) {
-			weak->restrictUserDone(user, newRights);
-		}
-	}));
+void InnerWidget::restrictUser(
+		not_null<UserData*> user,
+		const MTPChatBannedRights &oldRights,
+		const MTPChatBannedRights &newRights) {
+	const auto done = [=](const MTPChatBannedRights &newRights) {
+		restrictUserDone(user, newRights);
+	};
+	const auto callback = SaveRestrictedCallback(
+		_channel,
+		user,
+		crl::guard(this, done),
+		nullptr);
+	callback(oldRights, newRights);
 }
 
 void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights) {
