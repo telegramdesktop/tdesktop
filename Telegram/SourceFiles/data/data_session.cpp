@@ -44,6 +44,7 @@ namespace Data {
 namespace {
 
 constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * TimeMs(1000);
+constexpr auto kMaxWallpaperSize = 10 * 1024 * 1024;
 
 using ViewElement = HistoryView::Element;
 
@@ -3055,38 +3056,50 @@ PeerData *Session::proxyPromoted() const {
 	return _proxyPromoted;
 }
 
-int Session::wallpapersCount() const {
-	return _wallpapers.size();
+bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
+	return data.match([&](const MTPDaccount_wallPapers &data) {
+		setWallpapers(data.vwallpapers.v, data.vhash.v);
+		return true;
+	}, [&](const MTPDaccount_wallPapersNotModified &) {
+		return false;
+	});
 }
 
-const WallPaper &Session::wallpaper(int index) const {
-	Expects(index >= 0 && index < _wallpapers.size());
+void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
+	_wallpapersHash = hash;
 
-	return _wallpapers[index];
-}
-
-void Session::setWallpapers(const QVector<MTPWallPaper> &data) {
 	_wallpapers.clear();
 	_wallpapers.reserve(data.size() + 1);
 
-	auto oldBackground = Images::Create(qsl(":/gui/art/bg_initial.jpg"), "JPG");
-	_wallpapers.push_back({
-		Window::Theme::kInitialBackground,
-		oldBackground,
-		oldBackground
-	});
+	const auto oldBackground = Images::Create(
+		qsl(":/gui/art/bg_initial.jpg"),
+		"JPG");
+	if (oldBackground) {
+		_wallpapers.push_back({
+			Window::Theme::kInitialBackground,
+			oldBackground
+		});
+	}
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
-			const auto document = Auth().data().document(paper.vdocument);
-			if (document->thumb) {
+			const auto document = this->document(paper.vdocument);
+			if (document->checkWallPaperProperties()) {
 				_wallpapers.push_back({
-					paper.vid.v ? int32(paper.vid.v) : INT_MAX,
+					paper.vid.v,
 					document->thumb,
-					document->thumb,
+					document,
 				});
 			}
 		});
 	}
+}
+
+const std::vector<WallPaper> &Session::wallpapers() const {
+	return _wallpapers;
+}
+
+int32 Session::wallpapersHash() const {
+	return _wallpapersHash;
 }
 
 void Session::clearLocalStorage() {

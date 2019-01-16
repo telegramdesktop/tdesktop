@@ -18,6 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
 
+namespace {
+
+constexpr auto kBackgroundsInRow = 3;
+
+} // namespace
+
 class BackgroundBox::Inner
 	: public Ui::RpWidget
 	, private MTP::Sender
@@ -42,10 +48,9 @@ private:
 
 	Fn<void(int index)> _backgroundChosenCallback;
 
-	int _bgCount = 0;
-	int _rows = 0;
 	int _over = -1;
 	int _overDown = -1;
+
 	std::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
 
 };
@@ -67,12 +72,9 @@ void BackgroundBox::prepare() {
 }
 
 void BackgroundBox::backgroundChosen(int index) {
-	if (index >= 0 && index < Auth().data().wallpapersCount()) {
-		const auto &paper = Auth().data().wallpaper(index);
-		App::main()->setChatBackground(paper);
-
-		using Update = Window::Theme::BackgroundUpdate;
-		Window::Theme::Background()->notify(Update(Update::Type::Start, !paper.id));
+	const auto &papers = Auth().data().wallpapers();
+	if (index >= 0 && index < papers.size()) {
+		App::main()->setChatBackground(papers[index]);
 	}
 	closeBox();
 }
@@ -80,24 +82,21 @@ void BackgroundBox::backgroundChosen(int index) {
 BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
-	if (!Auth().data().wallpapersCount()) {
-		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
-		request(MTPaccount_GetWallPapers(
-			MTP_int(0)
-		)).done([=](const MTPaccount_WallPapers &result) {
-			result.match([&](const MTPDaccount_wallPapers &data) {
-				Auth().data().setWallpapers(data.vwallpapers.v);
-				updateWallpapers();
-			}, [&](const MTPDaccount_wallPapersNotModified &) {
-				LOG(("API Error: account.wallPapersNotModified received."));
-			});
-		}).send();
+	if (Auth().data().wallpapers().empty()) {
+		resize(kBackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 	} else {
 		updateWallpapers();
 	}
+	request(MTPaccount_GetWallPapers(
+		MTP_int(Auth().data().wallpapersHash())
+	)).done([=](const MTPaccount_WallPapers &result) {
+		if (Auth().data().updateWallpapers(result)) {
+			updateWallpapers();
+		}
+	}).send();
 
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
+	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			_check->invalidateCache();
 		}
@@ -106,15 +105,16 @@ BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 }
 
 void BackgroundBox::Inner::updateWallpapers() {
-	_bgCount = Auth().data().wallpapersCount();
-	_rows = _bgCount / BackgroundsInRow;
-	if (_bgCount % BackgroundsInRow) ++_rows;
+	const auto &papers = Auth().data().wallpapers();
+	const auto count = papers.size();
+	const auto rows = (count / kBackgroundsInRow)
+		+ (count % kBackgroundsInRow ? 1 : 0);
 
-	resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, _rows * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
-	for (int i = 0; i < BackgroundsInRow * 3; ++i) {
-		if (i >= _bgCount) break;
+	resize(kBackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, rows * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 
-		Auth().data().wallpaper(i).thumb->load(Data::FileOrigin());
+	const auto preload = kBackgroundsInRow * 3;
+	for (const auto &paper : papers | ranges::view::take(preload)) {
+		paper.thumb->load(Data::FileOrigin());
 	}
 }
 
@@ -122,52 +122,68 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
-	if (_rows) {
-		for (int i = 0; i < _rows; ++i) {
-			if ((st::backgroundSize.height() + st::backgroundPadding) * (i + 1) <= r.top()) continue;
-			for (int j = 0; j < BackgroundsInRow; ++j) {
-				int index = i * BackgroundsInRow + j;
-				if (index >= _bgCount) break;
-
-				const auto &paper = Auth().data().wallpaper(index);
-				paper.thumb->load(Data::FileOrigin());
-
-				int x = st::backgroundPadding + j * (st::backgroundSize.width() + st::backgroundPadding);
-				int y = st::backgroundPadding + i * (st::backgroundSize.height() + st::backgroundPadding);
-
-				const auto &pix = paper.thumb->pix(
-					Data::FileOrigin(),
-					st::backgroundSize.width(),
-					st::backgroundSize.height());
-				p.drawPixmap(x, y, pix);
-
-				if (paper.id == Window::Theme::Background()->id()) {
-					auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
-					auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
-					_check->paint(p, getms(), checkLeft, checkTop, width());
-				}
-			}
-		}
-	} else {
+	const auto &papers = Auth().data().wallpapers();
+	if (papers.empty()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
+		return;
+	}
+	auto row = 0;
+	auto column = 0;
+	for (const auto &paper : papers) {
+		const auto increment = gsl::finally([&] {
+			++column;
+			if (column == kBackgroundsInRow) {
+				column = 0;
+				++row;
+			}
+		});
+		if ((st::backgroundSize.height() + st::backgroundPadding) * (row + 1) <= r.top()) {
+			continue;
+		}
+
+		paper.thumb->load(Data::FileOrigin());
+
+		int x = st::backgroundPadding + column * (st::backgroundSize.width() + st::backgroundPadding);
+		int y = st::backgroundPadding + row * (st::backgroundSize.height() + st::backgroundPadding);
+
+		const auto &pix = paper.thumb->pix(
+			Data::FileOrigin(),
+			st::backgroundSize.width(),
+			st::backgroundSize.height());
+		p.drawPixmap(x, y, pix);
+
+		if (paper.id == Window::Theme::Background()->id()) {
+			auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
+			auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
+			_check->paint(p, getms(), checkLeft, checkTop, width());
+		}
 	}
 }
 
 void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	int x = e->pos().x(), y = e->pos().y();
-	int row = int((y - st::backgroundPadding) / (st::backgroundSize.height() + st::backgroundPadding));
-	if (y - row * (st::backgroundSize.height() + st::backgroundPadding) > st::backgroundPadding + st::backgroundSize.height()) row = _rows + 1;
-
-	int col = int((x - st::backgroundPadding) / (st::backgroundSize.width() + st::backgroundPadding));
-	if (x - col * (st::backgroundSize.width() + st::backgroundPadding) > st::backgroundPadding + st::backgroundSize.width()) row = _rows + 1;
-
-	int newOver = row * BackgroundsInRow + col;
-	if (newOver >= _bgCount) newOver = -1;
-	if (newOver != _over) {
+	const auto newOver = [&] {
+		const auto x = e->pos().x();
+		const auto y = e->pos().y();
+		const auto width = st::backgroundSize.width();
+		const auto height = st::backgroundSize.height();
+		const auto skip = st::backgroundPadding;
+		const auto row = int((y - skip) / (height + skip));
+		const auto column = int((x - skip) / (width + skip));
+		if (y - row * (height + skip) > skip + height) {
+			return -1;
+		} else if (x - column * (width + skip) > skip + width) {
+			return -1;
+		}
+		const auto result = row * kBackgroundsInRow + column;
+		return (result < Auth().data().wallpapers().size()) ? result : -1;
+	}();
+	if (_over != newOver) {
 		_over = newOver;
-		setCursor((_over >= 0 || _overDown >= 0) ? style::cur_pointer : style::cur_default);
+		setCursor((_over >= 0 || _overDown >= 0)
+			? style::cur_pointer
+			: style::cur_default);
 	}
 }
 

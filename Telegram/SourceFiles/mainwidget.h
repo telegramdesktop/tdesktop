@@ -523,8 +523,7 @@ private:
 	bool _isIdle = false;
 
 	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
-	typedef QMap<ChannelData*, int32> ChannelFailDifferenceTimeout;
-	ChannelFailDifferenceTimeout _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
+	QMap<ChannelData*, int32> _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
 	SingleTimer _failDifferenceTimer;
 
 	TimeMs _lastUpdateTime = 0;
@@ -538,13 +537,10 @@ private:
 
 	PhotoData *_deletingPhoto = nullptr;
 
-	typedef QMap<MsgId, bool> ViewsIncrementMap;
-	typedef QMap<PeerData*, ViewsIncrementMap> ViewsIncrement;
-	ViewsIncrement _viewsIncremented, _viewsToIncrement;
-	typedef QMap<PeerData*, mtpRequestId> ViewsIncrementRequests;
-	ViewsIncrementRequests _viewsIncrementRequests;
-	typedef QMap<mtpRequestId, PeerData*> ViewsIncrementByRequest;
-	ViewsIncrementByRequest _viewsIncrementByRequest;
+	using ViewsIncrementMap = QMap<MsgId, bool>;
+	QMap<PeerData*, ViewsIncrementMap> _viewsIncremented, _viewsToIncrement;
+	QMap<PeerData*, mtpRequestId> _viewsIncrementRequests;
+	QMap<mtpRequestId, PeerData*> _viewsIncrementByRequest;
 	SingleTimer _viewsIncrementTimer;
 
 	std::unique_ptr<Data::WallPaper> _background;

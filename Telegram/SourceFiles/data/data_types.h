@@ -270,6 +270,7 @@ using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
 using PollId = uint64;
+using WallPaperId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 using PreparedPhotoThumbs = QMap<char, QImage>;
@@ -309,6 +310,7 @@ enum DocumentType {
 	AnimatedDocument = 4,
 	VoiceDocument = 5,
 	RoundVideoDocument = 6,
+	WallPaperDocument = 7,
 };
 
 using MediaKey = QPair<uint64, uint64>;

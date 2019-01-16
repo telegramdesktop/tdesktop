@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 
+class Image;
 class HistoryItem;
 class BoxContent;
 struct WebPageCollage;
@@ -51,9 +52,9 @@ enum class FeedUpdateFlag;
 struct FeedUpdate;
 
 struct WallPaper {
-	int32 id = 0;
+	WallPaperId id = WallPaperId();
 	ImagePtr thumb;
-	ImagePtr full;
+	DocumentData *document = nullptr;
 };
 
 class Session final {
@@ -530,9 +531,9 @@ public:
 		return _groups;
 	}
 
-	int wallpapersCount() const;
-	const WallPaper &wallpaper(int index) const;
-	void setWallpapers(const QVector<MTPWallPaper> &data);
+	bool updateWallpapers(const MTPaccount_WallPapers &data);
+	const std::vector<WallPaper> &wallpapers() const;
+	int32 wallpapersHash() const;
 
 	void clearLocalStorage();
 
@@ -639,7 +640,6 @@ private:
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(TimeMs delay);
 	void updateNotifySettingsLocal(not_null<PeerData*> peer);
-	void sendNotifySettingsUpdates();
 
 	template <typename Method>
 	void enumerateItemViews(
@@ -652,6 +652,8 @@ private:
 		TimeId date);
 
 	void step_typings(TimeMs ms, bool timer);
+
+	void setWallpapers(const QVector<MTPWallPaper> &data, int32 hash);
 
 	not_null<AuthSession*> _session;
 
@@ -797,6 +799,7 @@ private:
 	rpl::event_stream<SendActionAnimationUpdate> _sendActionAnimationUpdate;
 
 	std::vector<WallPaper> _wallpapers;
+	int32 _wallpapersHash = 0;
 
 	rpl::lifetime _lifetime;
 

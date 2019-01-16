@@ -389,7 +389,7 @@ void ChatBackground::start() {
 	}
 }
 
-void ChatBackground::setImage(int32 id, QImage &&image) {
+void ChatBackground::setImage(WallPaperId id, QImage &&image) {
 	auto needResetAdjustable = (id == kDefaultBackground)
 		&& (_id != kDefaultBackground)
 		&& !nightMode()
@@ -528,7 +528,7 @@ void ChatBackground::adjustPaletteUsingBackground(const QImage &img) {
 	}
 }
 
-int32 ChatBackground::id() const {
+WallPaperId ChatBackground::id() const {
 	return _id;
 }
 

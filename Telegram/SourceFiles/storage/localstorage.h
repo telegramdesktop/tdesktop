@@ -136,7 +136,7 @@ void writeSavedGifs();
 void readSavedGifs();
 int32 countSavedGifsHash();
 
-void writeBackground(int32 id, const QImage &img);
+void writeBackground(WallPaperId id, const QImage &img);
 bool readBackground();
 
 void writeTheme(const Window::Theme::Saved &saved);

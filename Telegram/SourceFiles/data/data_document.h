@@ -122,7 +122,7 @@ public:
 		FilePathResolveType type = FilePathResolveCached,
 		bool forceSavingAs = false) const;
 
-	bool saveToCache() const;
+	[[nodiscard]] bool saveToCache() const;
 
 	void performActionOnLoad();
 
@@ -158,6 +158,8 @@ public:
 	void setData(const QByteArray &data) {
 		_data = data;
 	}
+	bool checkWallPaperProperties();
+	bool isWallPaper() const;
 
 	bool hasGoodStickerThumb() const;
 

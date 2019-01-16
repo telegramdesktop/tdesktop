@@ -478,10 +478,13 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			auto &d = attributes[i].c_documentAttributeImageSize();
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
-		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument || type == VideoDocument) {
-			type = AnimatedDocument;
-			_additional = nullptr;
-		} break;
+		case mtpc_documentAttributeAnimated:
+			if (type == FileDocument
+				|| type == StickerDocument
+				|| type == VideoDocument) {
+				type = AnimatedDocument;
+				_additional = nullptr;
+			} break;
 		case mtpc_documentAttributeSticker: {
 			auto &d = attributes[i].c_documentAttributeSticker();
 			if (type == FileDocument) {
@@ -490,7 +493,8 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
-				if (sticker()->set.type() != mtpc_inputStickerSetID || d.vstickerset.type() == mtpc_inputStickerSetID) {
+				if (sticker()->set.type() != mtpc_inputStickerSetID
+					|| d.vstickerset.type() == mtpc_inputStickerSetID) {
 					sticker()->set = d.vstickerset;
 				}
 			}
@@ -498,7 +502,9 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeVideo: {
 			auto &d = attributes[i].c_documentAttributeVideo();
 			if (type == FileDocument) {
-				type = d.is_round_message() ? RoundVideoDocument : VideoDocument;
+				type = d.is_round_message()
+					? RoundVideoDocument
+					: VideoDocument;
 			}
 			_duration = d.vduration.v;
 			_supportsStreaming = d.is_supports_streaming();
@@ -568,6 +574,24 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 	validateGoodThumbnail();
 }
 
+bool DocumentData::checkWallPaperProperties() {
+	if (type != FileDocument
+		|| !thumb
+		|| !dimensions.width()
+		|| !dimensions.height()
+		|| dimensions.width() > Storage::kMaxWallPaperDimension
+		|| dimensions.height() > Storage::kMaxWallPaperDimension
+		|| size > Storage::kMaxWallPaperInMemory) {
+		return false;
+	}
+	type = WallPaperDocument;
+	return true;
+}
+
+bool DocumentData::isWallPaper() const {
+	return (type == WallPaperDocument);
+}
+
 Storage::Cache::Key DocumentData::goodThumbnailCacheKey() const {
 	return Data::DocumentThumbCacheKey(_dc, id);
 }
@@ -610,7 +634,8 @@ void DocumentData::setGoodThumbnail(QImage &&image, QByteArray &&bytes) {
 bool DocumentData::saveToCache() const {
 	return (type == StickerDocument && size < Storage::kMaxStickerInMemory)
 		|| (isAnimation() && size < Storage::kMaxAnimationInMemory)
-		|| (isVoiceMessage() && size < Storage::kMaxVoiceInMemory);
+		|| (isVoiceMessage() && size < Storage::kMaxVoiceInMemory)
+		|| (type == WallPaperDocument);
 }
 
 void DocumentData::unload() {

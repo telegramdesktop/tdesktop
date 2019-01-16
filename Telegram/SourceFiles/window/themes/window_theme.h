@@ -11,17 +11,22 @@ namespace Window {
 namespace Theme {
 namespace internal {
 
-constexpr int32 kUninitializedBackground = -999;
-constexpr int32 kTestingThemeBackground = -666;
-constexpr int32 kTestingDefaultBackground = -665;
-constexpr int32 kTestingEditorBackground = -664;
+constexpr auto FromLegacyBackgroundId(int32 legacyId) -> WallPaperId {
+	return uint64(0xFFFFFFFF00000000ULL) | uint64(uint32(legacyId));
+}
+
+constexpr auto kUninitializedBackground = FromLegacyBackgroundId(-999);
+constexpr auto kTestingThemeBackground = FromLegacyBackgroundId(-666);
+constexpr auto kTestingDefaultBackground = FromLegacyBackgroundId(-665);
+constexpr auto kTestingEditorBackground = FromLegacyBackgroundId(-664);
+constexpr auto kLegacyBackgroundId = int32(-111);
 
 } // namespace internal
 
-constexpr int32 kThemeBackground = -2;
-constexpr int32 kCustomBackground = -1;
-constexpr int32 kInitialBackground = 0;
-constexpr int32 kDefaultBackground = 105;
+constexpr auto kThemeBackground = internal::FromLegacyBackgroundId(-2);
+constexpr auto kCustomBackground = internal::FromLegacyBackgroundId(-1);
+constexpr auto kInitialBackground = internal::FromLegacyBackgroundId(0);
+constexpr auto kDefaultBackground = internal::FromLegacyBackgroundId(105);
 
 struct Cached {
 	QByteArray colors;
@@ -98,7 +103,7 @@ public:
 
 	// This method is setting the default (themed) image if none was set yet.
 	void start();
-	void setImage(int32 id, QImage &&image = QImage());
+	void setImage(WallPaperId id, QImage &&image = QImage());
 	void setTile(bool tile);
 	void setTileDayValue(bool tile);
 	void setTileNightValue(bool tile);
@@ -111,7 +116,7 @@ public:
 	void setTestingDefaultTheme();
 	void revert();
 
-	int32 id() const;
+	WallPaperId id() const;
 	const QPixmap &pixmap() const {
 		return _pixmap;
 	}
@@ -152,7 +157,7 @@ private:
 	friend void KeepApplied();
 	friend bool IsNonDefaultBackground();
 
-	int32 _id = internal::kUninitializedBackground;
+	WallPaperId _id = internal::kUninitializedBackground;
 	QPixmap _pixmap;
 	QPixmap _pixmapForTiled;
 	bool _nightMode = false;
@@ -163,7 +168,7 @@ private:
 	QImage _themeImage;
 	bool _themeTile = false;
 
-	int32 _idForRevert = internal::kUninitializedBackground;
+	WallPaperId _idForRevert = internal::kUninitializedBackground;
 	QImage _imageForRevert;
 	bool _tileForRevert = false;
 

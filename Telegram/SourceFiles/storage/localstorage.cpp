@@ -3956,7 +3956,7 @@ void readSavedGifs() {
 	}
 }
 
-void writeBackground(int32 id, const QImage &img) {
+void writeBackground(WallPaperId id, const QImage &img) {
 	if (!_working() || !_backgroundCanWrite) {
 		return;
 	}
@@ -3982,10 +3982,13 @@ void writeBackground(int32 id, const QImage &img) {
 		_writeMap(WriteMapWhen::Fast);
 	}
 	quint32 size = sizeof(qint32)
-		+ sizeof(quint32)
-		+ (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
+		+ sizeof(quint64)
+		+ Serialize::bytearraySize(bmp);
 	EncryptedDescriptor data(size);
-	data.stream << qint32(id) << bmp;
+	data.stream
+		<< qint32(Window::Theme::internal::kLegacyBackgroundId)
+		<< quint64(id)
+		<< bmp;
 
 	FileWriteDescriptor file(backgroundKey);
 	file.writeEncrypted(data);
@@ -4007,8 +4010,15 @@ bool readBackground() {
 	}
 
 	QByteArray bmpData;
-	qint32 id;
-	bg.stream >> id >> bmpData;
+	qint32 legacyId;
+	quint64 id;
+	bg.stream >> legacyId;
+	if (legacyId == Window::Theme::internal::kLegacyBackgroundId) {
+		bg.stream >> id;
+	} else {
+		id = Window::Theme::internal::FromLegacyBackgroundId(legacyId);
+	}
+	bg.stream >> bmpData;
 	auto oldEmptyImage = (bg.stream.status() != QDataStream::Ok);
 	if (oldEmptyImage
 		|| id == Window::Theme::kInitialBackground

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
 #include "ui/text_options.h"
@@ -1414,8 +1415,16 @@ void MainWidget::updateScrollColors() {
 
 void MainWidget::setChatBackground(const Data::WallPaper &background) {
 	_background = std::make_unique<Data::WallPaper>(background);
-	_background->full->loadEvenCancelled(Data::FileOrigin());
+	if (_background->document) {
+		_background->document->save(Data::FileOrigin(), QString());
+	} else if (_background->thumb) {
+		_background->thumb->loadEvenCancelled(Data::FileOrigin());
+	}
 	checkChatBackground();
+
+	const auto tile = (background.id == Window::Theme::kInitialBackground);
+	using Update = Window::Theme::BackgroundUpdate;
+	Window::Theme::Background()->notify(Update(Update::Type::Start, tile));
 }
 
 bool MainWidget::chatBackgroundLoading() {
@@ -1424,27 +1433,65 @@ bool MainWidget::chatBackgroundLoading() {
 
 float64 MainWidget::chatBackgroundProgress() const {
 	if (_background) {
-		return _background->full->progress();
+		if (_background->document) {
+			return _background->document->progress();
+		} else if (_background->thumb) {
+			return _background->thumb->progress();
+		}
 	}
 	return 1.;
 }
 
 void MainWidget::checkChatBackground() {
-	if (_background) {
-		if (_background->full->loaded()) {
-			if (_background->full->isNull()) {
-				Window::Theme::Background()->setImage(Window::Theme::kDefaultBackground);
-			} else if (false
-				|| _background->id == Window::Theme::kInitialBackground
-				|| _background->id == Window::Theme::kDefaultBackground) {
-				Window::Theme::Background()->setImage(_background->id);
-			} else {
-				Window::Theme::Background()->setImage(_background->id, _background->full->pix(Data::FileOrigin()).toImage());
-			}
-			_background = nullptr;
-			crl::on_main(this, [=] { update(); });
-		}
+	using namespace Window::Theme;
+
+	if (!_background) {
+		return;
 	}
+	const auto document = _background->document;
+	if (document && !document->loaded()) {
+		return;
+	} else if (!document && !_background->thumb->loaded()) {
+		return;
+	}
+
+	auto image = [&] {
+		if (!document) {
+			const auto &thumb = _background->thumb;
+			return thumb
+				? thumb->pixNoCache(Data::FileOrigin()).toImage()
+				: QImage();
+		}
+		auto bytes = document->data();
+		auto format = QByteArray();
+		const auto path = document->filepath();
+		if (bytes.isEmpty()) {
+			QFile f(document->filepath());
+			if (f.size() <= App::kImageSizeLimit
+				&& f.open(QIODevice::ReadOnly)) {
+				bytes = f.readAll();
+			}
+		}
+		return bytes.isEmpty()
+			? QImage()
+			: App::readImage(bytes, &format, false, nullptr);
+	}();
+
+	if (image.isNull()) {
+		Background()->setImage(kDefaultBackground);
+	} else if (false
+		|| _background->id == kInitialBackground
+		|| _background->id == kDefaultBackground) {
+		Background()->setImage(_background->id);
+	} else {
+		Background()->setImage(
+			_background->id,
+			std::move(image));
+	}
+	const auto tile = (_background->id == kInitialBackground);
+	Background()->setTile(tile);
+	_background = nullptr;
+	crl::on_main(this, [=] { update(); });
 }
 
 ImagePtr MainWidget::newBackgroundThumb() {
@@ -1483,14 +1530,14 @@ void MainWidget::setInnerFocus() {
 
 void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 	PeerData *peer = item->history()->peer;
-	ViewsIncrement::iterator i = _viewsIncremented.find(peer);
+	auto i = _viewsIncremented.find(peer);
 	if (i != _viewsIncremented.cend()) {
 		if (i.value().contains(item->id)) return;
 	} else {
 		i = _viewsIncremented.insert(peer, ViewsIncrementMap());
 	}
 	i.value().insert(item->id, true);
-	ViewsIncrement::iterator j = _viewsToIncrement.find(peer);
+	auto j = _viewsToIncrement.find(peer);
 	if (j == _viewsToIncrement.cend()) {
 		j = _viewsToIncrement.insert(peer, ViewsIncrementMap());
 		_viewsIncrementTimer.start(SendViewsTimeout);
@@ -1499,7 +1546,7 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 }
 
 void MainWidget::onViewsIncrement() {
-	for (ViewsIncrement::iterator i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
+	for (auto i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i.key())) {
 			++i;
 			continue;
@@ -1519,7 +1566,7 @@ void MainWidget::onViewsIncrement() {
 void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req) {
 	auto &v = result.v;
 	if (ids.size() == v.size()) {
-		for (ViewsIncrementRequests::iterator i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
+		for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 			if (i.value() == req) {
 				PeerData *peer = i.key();
 				ChannelId channel = peerToChannel(peer->id);
@@ -1541,7 +1588,7 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	for (ViewsIncrementRequests::iterator i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
+	for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 		if (i.value() == req) {
 			_viewsIncrementRequests.erase(i);
 			break;
@@ -2274,7 +2321,9 @@ void MainWidget::animationCallback() {
 }
 
 void MainWidget::paintEvent(QPaintEvent *e) {
-	if (_background) checkChatBackground();
+	if (_background) {
+		checkChatBackground();
+	}
 
 	Painter p(this);
 	auto progress = _a_show.current(getms(), 1.);
@@ -3059,25 +3108,19 @@ void MainWidget::ptsWaiterStartTimerFor(ChannelData *channel, int32 ms) {
 }
 
 void MainWidget::failDifferenceStartTimerFor(ChannelData *channel) {
-	int32 ms = 0;
-	ChannelFailDifferenceTimeout::iterator i;
-	if (channel) {
-		i = _channelFailDifferenceTimeout.find(channel);
-		if (i == _channelFailDifferenceTimeout.cend()) {
-			i = _channelFailDifferenceTimeout.insert(channel, 1);
+	auto &timeout = [&]() -> int32& {
+		if (!channel) {
+			return _failDifferenceTimeout;
 		}
-		ms = i.value() * 1000;
-	} else {
-		ms = _failDifferenceTimeout * 1000;
-	}
-	if (getDifferenceTimeChanged(channel, ms, _channelGetDifferenceTimeAfterFail, _getDifferenceTimeAfterFail)) {
+		const auto i = _channelFailDifferenceTimeout.find(channel);
+		return (i == _channelFailDifferenceTimeout.end())
+			? _channelFailDifferenceTimeout.insert(channel, 1).value()
+			: i.value();
+	}();
+	if (getDifferenceTimeChanged(channel, timeout * 1000, _channelGetDifferenceTimeAfterFail, _getDifferenceTimeAfterFail)) {
 		onGetDifferenceTimeAfterFail();
 	}
-	if (channel) {
-		if (i.value() < 64) i.value() *= 2;
-	} else {
-		if (_failDifferenceTimeout < 64) _failDifferenceTimeout *= 2;
-	}
+	if (timeout < 64) timeout *= 2;
 }
 
 bool MainWidget::ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates) {

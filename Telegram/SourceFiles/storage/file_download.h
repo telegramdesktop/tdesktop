@@ -19,7 +19,9 @@ struct Key;
 constexpr auto kMaxFileInMemory = 10 * 1024 * 1024; // 10 MB max file could be hold in memory
 constexpr auto kMaxVoiceInMemory = 2 * 1024 * 1024; // 2 MB audio is hold in memory and auto loaded
 constexpr auto kMaxStickerInMemory = 2 * 1024 * 1024; // 2 MB stickers hold in memory, auto loaded and displayed inline
+constexpr auto kMaxWallPaperInMemory = kMaxFileInMemory;
 constexpr auto kMaxAnimationInMemory = kMaxFileInMemory; // 10 MB gif and mp4 animations held in memory while playing
+constexpr auto kMaxWallPaperDimension = 4096; // 4096x4096 is max area.
 
 class Downloader final {
 public:
