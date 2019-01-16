@@ -1508,14 +1508,14 @@ void MainWidget::setGeneratedBackground(QImage &&image) {
 	using namespace Window::Theme;
 
 	if (image.isNull()) {
-		Background()->setImage(kDefaultBackground);
+		Background()->setImage({ kDefaultBackground });
 	} else if (false
 		|| _background->data.id == kInitialBackground
 		|| _background->data.id == kDefaultBackground) {
-		Background()->setImage(_background->data.id);
+		Background()->setImage(_background->data);
 	} else {
 		Background()->setImage(
-			_background->data.id,
+			_background->data,
 			std::move(image));
 	}
 	const auto tile = (_background->data.id == kInitialBackground);

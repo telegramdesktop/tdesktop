@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "auth_session.h"
 
+namespace Data {
+struct WallPaper;
+} // namespace Data
+
 namespace Lang {
 struct Language;
 } // namespace Lang
@@ -136,7 +140,7 @@ void writeSavedGifs();
 void readSavedGifs();
 int32 countSavedGifsHash();
 
-void writeBackground(WallPaperId id, const QImage &img);
+void writeBackground(const Data::WallPaper &paper, const QImage &img);
 bool readBackground();
 
 void writeTheme(const Window::Theme::Saved &saved);

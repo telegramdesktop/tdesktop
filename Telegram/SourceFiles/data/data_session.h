@@ -51,11 +51,7 @@ class Feed;
 enum class FeedUpdateFlag;
 struct FeedUpdate;
 
-struct WallPaper {
-	WallPaperId id = WallPaperId();
-	ImagePtr thumb;
-	DocumentData *document = nullptr;
-};
+struct WallPaper;
 
 class Session final {
 public:

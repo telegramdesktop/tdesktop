@@ -358,7 +358,7 @@ void DefaultTheme::checkedChangedHook(anim::type animated) {
 }
 
 void ChooseFromFile(not_null<QWidget*> parent) {
-	const auto imgExtensions = cImgExtensions();
+	const auto &imgExtensions = cImgExtensions();
 	auto filters = QStringList(
 		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette *")
 		+ imgExtensions.join(qsl(" *"))
@@ -401,7 +401,7 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 		}
 
 		Window::Theme::Background()->setImage(
-			Window::Theme::kCustomBackground,
+			{ Window::Theme::kCustomBackground },
 			std::move(image));
 		Window::Theme::Background()->setTile(false);
 	};

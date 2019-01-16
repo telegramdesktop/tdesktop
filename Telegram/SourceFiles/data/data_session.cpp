@@ -3071,12 +3071,27 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	_wallpapers.clear();
 	_wallpapers.reserve(data.size() + 1);
 
+	const auto defaultBackground = Images::Create(
+		qsl(":/gui/art/bg.jpg"),
+		"JPG");
+	if (defaultBackground) {
+		_wallpapers.push_back({
+			Window::Theme::kDefaultBackground,
+			0ULL, // access_hash
+			MTPDwallPaper::Flags(0),
+			QString(), // slug
+			defaultBackground
+		});
+	}
 	const auto oldBackground = Images::Create(
 		qsl(":/gui/art/bg_initial.jpg"),
 		"JPG");
 	if (oldBackground) {
 		_wallpapers.push_back({
 			Window::Theme::kInitialBackground,
+			0ULL, // access_hash
+			MTPDwallPaper::Flags(0),
+			QString(), // slug
 			oldBackground
 		});
 	}
@@ -3086,6 +3101,9 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 			if (document->checkWallPaperProperties()) {
 				_wallpapers.push_back({
 					paper.vid.v,
+					paper.vaccess_hash.v,
+					paper.vflags.v,
+					qs(paper.vslug),
 					document->thumb,
 					document,
 				});
