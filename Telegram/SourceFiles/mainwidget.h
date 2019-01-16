@@ -454,6 +454,8 @@ private:
 	void ensureFirstColumnResizeAreaCreated();
 	void ensureThirdColumnResizeAreaCreated();
 
+	void setGeneratedBackground(QImage &&image);
+
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
 
@@ -543,7 +545,8 @@ private:
 	QMap<mtpRequestId, PeerData*> _viewsIncrementByRequest;
 	SingleTimer _viewsIncrementTimer;
 
-	std::unique_ptr<Data::WallPaper> _background;
+	struct SettingBackground;
+	std::unique_ptr<SettingBackground> _background;
 
 	bool _firstColumnResizing = false;
 	int _firstColumnResizingShift = 0;
