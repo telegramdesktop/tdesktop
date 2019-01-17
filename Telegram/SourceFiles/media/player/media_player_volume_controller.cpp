@@ -87,7 +87,11 @@ VolumeWidget::VolumeWidget(QWidget *parent) : TWidget(parent)
 }
 
 QMargins VolumeWidget::getMargin() const {
-	return QMargins(st::mediaPlayerVolumeMargin, st::mediaPlayerPlayback.fullWidth, st::mediaPlayerVolumeMargin, st::mediaPlayerVolumeMargin);
+	const auto top = st::mediaPlayerHeight
+		+ st::lineWidth
+		- st::mediaPlayerPlayTop
+		- st::mediaPlayerVolumeToggle.height;
+	return QMargins(st::mediaPlayerVolumeMargin, top, st::mediaPlayerVolumeMargin, st::mediaPlayerVolumeMargin);
 }
 
 bool VolumeWidget::overlaps(const QRect &globalRect) {
