@@ -74,7 +74,7 @@ void CleanerObject::scheduleNext() {
 		return;
 	}
 	_weak.with([](CleanerObject &that) {
-		if (that._guard.alive()) {
+		if (that._guard) {
 			that.cleanNext();
 		}
 	});

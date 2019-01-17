@@ -227,7 +227,9 @@ public:
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
 	void updateScrollColors();
 
-	void setChatBackground(const Data::WallPaper &background);
+	void setChatBackground(
+		const Data::WallPaper &background,
+		QImage &&image = QImage());
 	bool chatBackgroundLoading();
 	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
@@ -454,7 +456,12 @@ private:
 	void ensureFirstColumnResizeAreaCreated();
 	void ensureThirdColumnResizeAreaCreated();
 
-	void setGeneratedBackground(QImage &&image);
+	bool isReadyChatBackground(
+		const Data::WallPaper &background,
+		const QImage &image) const;
+	void setReadyChatBackground(
+		const Data::WallPaper &background,
+		QImage &&image);
 
 	not_null<Window::Controller*> _controller;
 	bool _started = false;

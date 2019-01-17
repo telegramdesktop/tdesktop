@@ -382,7 +382,8 @@ void DocumentOpenClickHandler::Open(
 	if (data->status != FileReady) return;
 
 	QString filename;
-	if (!data->saveToCache()) {
+	if (!data->saveToCache()
+		|| (location.isEmpty() || (!data->data().isEmpty()))) {
 		filename = documentSaveFilename(data);
 		if (filename.isEmpty()) return;
 	}
@@ -575,6 +576,9 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 }
 
 bool DocumentData::checkWallPaperProperties() {
+	if (type == WallPaperDocument) {
+		return true;
+	}
 	if (type != FileDocument
 		|| !thumb
 		|| !dimensions.width()
@@ -1301,6 +1305,8 @@ uint8 DocumentData::cacheTag() const {
 		return Data::kVideoMessageCacheTag;
 	} else if (isAnimation()) {
 		return Data::kAnimationCacheTag;
+	} else if (type == WallPaperDocument) {
+		return Data::kImageCacheTag;
 	}
 	return 0;
 }
@@ -1524,6 +1530,41 @@ paf pif ps1 reg rgs scr sct shb shs u3p vb vbe vbs vbscript ws wsf");
 	return ranges::binary_search(
 		kExtensions,
 		FileExtension(filepath).toLower());
+}
+
+base::binary_guard ReadImageAsync(
+		not_null<DocumentData*> document,
+		FnMut<void(QImage&&)> done) {
+	auto [left, right] = base::make_binary_guard();
+	crl::async([
+		bytes = document->data(),
+		path = document->filepath(),
+		guard = std::move(left),
+		callback = std::move(done)
+	]() mutable {
+		auto format = QByteArray();
+		if (bytes.isEmpty()) {
+			QFile f(path);
+			if (f.size() <= App::kImageSizeLimit
+				&& f.open(QIODevice::ReadOnly)) {
+				bytes = f.readAll();
+			}
+		}
+		auto image = bytes.isEmpty()
+			? QImage()
+			: App::readImage(bytes, &format, false, nullptr);
+		crl::on_main([
+			guard = std::move(guard),
+			image = std::move(image),
+			callback = std::move(callback)
+		]() mutable {
+			if (!guard) {
+				return;
+			}
+			callback(std::move(image));
+		});
+	});
+	return std::move(right);
 }
 
 } // namespace Data

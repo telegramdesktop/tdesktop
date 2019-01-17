@@ -247,7 +247,7 @@ void FileLoader::localLoaded(
 		const StorageImageSaved &result,
 		const QByteArray &imageFormat,
 		const QImage &imageData) {
-	_localLoading.kill();
+	_localLoading = nullptr;
 	if (result.data.isEmpty()) {
 		_localStatus = LocalStatus::NotFound;
 		start(true);
@@ -383,7 +383,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 			format = std::move(format),
 			guard = std::move(guard)
 		]() mutable {
-			if (!guard.alive()) {
+			if (!guard) {
 				return;
 			}
 			localLoaded(
@@ -433,7 +433,7 @@ bool FileLoader::tryLoadLocal() {
 		return false;
 	} else if (_localStatus != LocalStatus::NotTried) {
 		return _finished;
-	} else if (_localLoading.alive()) {
+	} else if (_localLoading) {
 		_localStatus = LocalStatus::Loading;
 		return true;
 	}

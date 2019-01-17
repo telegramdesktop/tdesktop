@@ -301,11 +301,11 @@ void ConcurrentTimer::cancelAndSchedule(int timeout) {
 		runner = _runner,
 		guard = std::move(guards.second)
 	]() mutable {
-		if (!guard.alive()) {
+		if (!guard) {
 			return;
 		}
 		runner([=, guard = std::move(guard)] {
-			if (!guard.alive()) {
+			if (!guard) {
 				return;
 			}
 			timerEvent();

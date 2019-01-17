@@ -476,7 +476,7 @@ void Templates::reload() {
 void Templates::load() {
 	if (_reloadAfterRead) {
 		return;
-	} else if (_reading.alive() || _updates) {
+	} else if (_reading || _updates) {
 		_reloadAfterRead = true;
 		return;
 	}
@@ -491,7 +491,7 @@ void Templates::load() {
 			result = std::move(result),
 			guard = std::move(guard)
 		]() mutable {
-			if (!guard.alive()) {
+			if (!guard) {
 				return;
 			}
 			setData(std::move(result.result));

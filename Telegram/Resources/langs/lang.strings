@@ -392,6 +392,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_reverting#other" = "Reverting to the old theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
+"lng_background_header" = "Background preview";
+"lng_background_text1" = "You can't swipe left or right to preview anything - this is tdesktop, sorry.";
+"lng_background_text2" = "Sounds awful.";
+"lng_background_bad_link" = "This background link appears to be invalid.";
+"lng_background_apply" = "Apply";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";

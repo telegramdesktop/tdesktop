@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
+#include "window/themes/window_theme.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
@@ -861,6 +862,52 @@ void ApiWrap::requestFakeChatListMessage(
 			MTP_vector<MTPMessage>(0),
 			MTP_vector<MTPChat>(0),
 			MTP_vector<MTPUser>(0)));
+	}).send();
+}
+
+void ApiWrap::requestWallPaper(
+		const QString &slug,
+		Fn<void(const Data::WallPaper &)> done,
+		Fn<void(const RPCError &)> fail) {
+	if (_wallPaperSlug != slug) {
+		_wallPaperSlug = slug;
+		if (_wallPaperRequestId) {
+			request(base::take(_wallPaperRequestId)).cancel();
+		}
+	}
+	_wallPaperDone = std::move(done);
+	_wallPaperFail = std::move(fail);
+	if (_wallPaperRequestId) {
+		return;
+	}
+	_wallPaperRequestId = request(MTPaccount_GetWallPaper(
+		MTP_inputWallPaperSlug(MTP_string(slug))
+	)).done([=](const MTPWallPaper &result) {
+		_wallPaperRequestId = 0;
+		_wallPaperSlug = QString();
+		result.match([&](const MTPDwallPaper &data) {
+			const auto document = _session->data().document(data.vdocument);
+			if (document->checkWallPaperProperties()) {
+				if (const auto done = base::take(_wallPaperDone)) {
+					done({
+						data.vid.v,
+						data.vaccess_hash.v,
+						data.vflags.v,
+						qs(data.vslug),
+						document->thumb,
+						document
+					});
+				}
+			} else if (const auto fail = base::take(_wallPaperFail)) {
+				fail(RPCError::Local("BAD_DOCUMENT", "In a wallpaper."));
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		_wallPaperRequestId = 0;
+		_wallPaperSlug = QString();
+		if (const auto fail = base::take(_wallPaperFail)) {
+			fail(error);
+		}
 	}).send();
 }
 
@@ -2829,8 +2876,11 @@ void ApiWrap::refreshFileReference(
 		request(
 			MTPmessages_GetSavedGifs(MTP_int(0)),
 			[] { crl::on_main([] { Local::writeSavedGifs(); }); });
-	}, [&](Data::FileOriginWallpapers data) {
-		request(MTPaccount_GetWallPapers(MTP_int(0)));
+	}, [&](Data::FileOriginWallpaper data) {
+		request(MTPaccount_GetWallPaper(
+			MTP_inputWallPaper(
+				MTP_long(data.paperId),
+				MTP_long(data.accessHash))));
 	}, [&](std::nullopt_t) {
 		fail();
 	});

@@ -102,6 +102,8 @@ public:
 
 	static ImagePtr Blank();
 
+	QImage original() const;
+
 	const QPixmap &pix(
 		Data::FileOrigin origin,
 		int32 w = 0,

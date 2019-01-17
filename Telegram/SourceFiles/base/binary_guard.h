@@ -21,7 +21,9 @@ public:
 	~binary_guard();
 
 	bool alive() const;
-	void kill();
+
+	binary_guard &operator=(std::nullptr_t);
+	explicit operator bool() const;
 
 private:
 	void destroy();
@@ -44,15 +46,20 @@ inline binary_guard &binary_guard::operator=(binary_guard &&other) {
 	return *this;
 }
 
-inline binary_guard::~binary_guard() {
+inline binary_guard &binary_guard::operator=(std::nullptr_t) {
 	destroy();
+	return *this;
+}
+
+inline binary_guard::operator bool() const {
+	return alive();
 }
 
 inline bool binary_guard::alive() const {
 	return _bothAlive && _bothAlive->load();
 }
 
-inline void binary_guard::kill() {
+inline binary_guard::~binary_guard() {
 	destroy();
 }
 

@@ -78,6 +78,10 @@ void SectionWidget::PaintBackground(QWidget *widget, QPaintEvent *event) {
 
 	auto clip = event->rect();
 	auto fill = QRect(0, 0, widget->width(), App::main()->height());
+	if (const auto color = Window::Theme::Background()->color()) {
+		p.fillRect(fill, *color);
+		return;
+	}
 	auto fromy = App::main()->backgroundFromY();
 	auto x = 0, y = 0;
 	auto cached = App::main()->cachedBackground(fill, x, y);

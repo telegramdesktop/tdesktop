@@ -750,6 +750,11 @@ QPixmap Image::pixBlurredColoredNoCache(
 	return App::pixmapFromImageInPlace(prepareColored(add, img));
 }
 
+QImage Image::original() const {
+	checkSource();
+	return _data;
+}
+
 void Image::automaticLoad(Data::FileOrigin origin, const HistoryItem *item) {
 	if (!loaded()) {
 		_source->automaticLoad(origin, item);

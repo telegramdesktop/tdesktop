@@ -25,7 +25,7 @@ GoodThumbSource::GoodThumbSource(not_null<DocumentData*> document)
 }
 
 void GoodThumbSource::generate(base::binary_guard &&guard) {
-	if (!guard.alive()) {
+	if (!guard) {
 		return;
 	}
 	const auto data = _document->data();
@@ -74,7 +74,7 @@ void GoodThumbSource::ready(
 		image = std::move(image),
 		bytes = std::move(bytesForCache)
 	]() mutable {
-		if (!guard.alive()) {
+		if (!guard) {
 			return;
 		}
 		if (image.isNull()) {
@@ -162,7 +162,7 @@ bool GoodThumbSource::displayLoading() {
 }
 
 void GoodThumbSource::cancel() {
-	_loading.kill();
+	_loading = nullptr;
 }
 
 float64 GoodThumbSource::progress() {

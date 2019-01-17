@@ -4061,7 +4061,7 @@ bool readBackground() {
 #ifndef OS_MAC_OLD
 	reader.setAutoTransform(true);
 #endif // OS_MAC_OLD
-	if (reader.read(&image)) {
+	if (reader.read(&image) || Window::Theme::GetWallPaperColor(slug)) {
 		_backgroundCanWrite = false;
 		Window::Theme::Background()->setImage({
 			id,

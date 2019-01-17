@@ -13,14 +13,93 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
+#include "history/history.h"
+#include "history/history_message.h"
+#include "history/view/history_view_message.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/data_document.h"
+#include "boxes/confirm_box.h"
 #include "styles/style_overview.h"
+#include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
 namespace {
 
 constexpr auto kBackgroundsInRow = 3;
+constexpr auto kMaxWallPaperSlugLength = 255;
+
+[[nodiscard]] bool IsValidWallPaperSlug(const QString &slug) {
+	if (slug.isEmpty() || slug.size() > kMaxWallPaperSlugLength) {
+		return false;
+	}
+	return ranges::find_if(slug, [](QChar ch) {
+		return (ch != '.')
+			&& (ch != '_')
+			&& (ch != '-')
+			&& (ch < '0' || ch > '9')
+			&& (ch < 'a' || ch > 'z')
+			&& (ch < 'A' || ch > 'Z');
+	}) == slug.end();
+}
+
+AdminLog::OwnedItem GenerateTextItem(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		not_null<History*> history,
+		const QString &text,
+		bool out) {
+	Expects(history->peer->isUser());
+
+	using Flag = MTPDmessage::Flag;
+	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 3) + (out ? 1 : 0);
+	const auto flags = Flag::f_entities
+		| Flag::f_from_id
+		| (out ? Flag::f_out : Flag(0));
+	const auto replyTo = 0;
+	const auto viaBotId = 0;
+	const auto item = new HistoryMessage(
+		history,
+		id,
+		flags,
+		replyTo,
+		viaBotId,
+		unixtime(),
+		out ? history->session().userId() : peerToUser(history->peer->id),
+		QString(),
+		TextWithEntities{ TextUtilities::Clean(text) });
+	return AdminLog::OwnedItem(delegate, item);
+}
+
+QImage PrepareScaledFromFull(
+		const QImage &image,
+		Images::Option blur = Images::Option(0)) {
+	const auto size = st::boxWideWidth;
+	const auto width = std::max(image.width(), 1);
+	const auto height = std::max(image.height(), 1);
+	const auto takeWidth = (width > height)
+		? (width * size / height)
+		: size;
+	const auto takeHeight = (width > height)
+		? size
+		: (height * size / width);
+	return Images::prepare(
+		image,
+		takeWidth,
+		takeHeight,
+		Images::Option::Smooth | blur,
+		size,
+		size);
+}
+
+QPixmap PrepareScaledFromThumb(ImagePtr thumb) {
+	return thumb->loaded()
+		? App::pixmapFromImageInPlace(PrepareScaledFromFull(
+			thumb->original(),
+			Images::Option::Blurred))
+		: QPixmap();
+}
 
 } // namespace
 
@@ -202,3 +281,251 @@ void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 BackgroundBox::Inner::~Inner() = default;
+
+BackgroundPreviewBox::BackgroundPreviewBox(
+	QWidget*,
+	const Data::WallPaper &paper)
+: _text1(GenerateTextItem(
+	this,
+	App::history(App::user(ServiceUserId)),
+	lang(lng_background_text1),
+	false))
+, _text2(GenerateTextItem(
+	this,
+	App::history(App::user(ServiceUserId)),
+	lang(lng_background_text2),
+	true))
+, _paper(paper)
+, _radial(animation(this, &BackgroundPreviewBox::step_radial)) {
+	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
+}
+
+void BackgroundPreviewBox::prepare() {
+	setTitle(langFactory(lng_background_header));
+
+	addButton(langFactory(lng_background_apply), [=] { apply(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+
+	_scaled = PrepareScaledFromThumb(_paper.thumb);
+	checkLoadedDocument();
+
+	if (_paper.thumb && !_paper.thumb->loaded()) {
+		_paper.thumb->loadEvenCancelled(Data::FileOriginWallpaper(
+			_paper.id,
+			_paper.accessHash));
+	}
+	if (_paper.document) {
+		_paper.document->save(Data::FileOriginWallpaper(
+			_paper.id,
+			_paper.accessHash), QString());
+		if (_paper.document->loading()) {
+			_radial.start(_paper.document->progress());
+		}
+	}
+
+	_text1->setDisplayDate(true);
+	_text1->initDimensions();
+	_text1->resizeGetHeight(st::boxWideWidth);
+	_text2->initDimensions();
+	_text2->resizeGetHeight(st::boxWideWidth);
+
+	setDimensions(st::boxWideWidth, st::boxWideWidth);
+}
+
+void BackgroundPreviewBox::apply() {
+	App::main()->setChatBackground(_paper, std::move(_full));
+	closeBox();
+}
+
+void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	const auto ms = getms();
+
+	if (const auto color = Window::Theme::GetWallPaperColor(_paper.slug)) {
+		p.fillRect(e->rect(), *color);
+	} else {
+		if (_scaled.isNull()) {
+			_scaled = PrepareScaledFromThumb(_paper.thumb);
+			if (_scaled.isNull()) {
+				p.fillRect(e->rect(), st::boxBg);
+				return;
+			}
+		}
+		paintImage(p);
+		paintRadial(p, ms);
+	}
+	paintTexts(p, ms);
+}
+
+void BackgroundPreviewBox::paintImage(Painter &p) {
+	Expects(!_scaled.isNull());
+
+	const auto factor = cIntRetinaFactor();
+	const auto size = st::boxWideWidth;
+	const auto from = QRect(
+		0,
+		(size - height()) / 2 * factor,
+		size * factor,
+		height() * factor);
+	p.drawPixmap(rect(), _scaled, from);
+}
+
+void BackgroundPreviewBox::paintRadial(Painter &p, TimeMs ms) {
+	bool radial = false;
+	float64 radialOpacity = 0;
+	if (_radial.animating()) {
+		_radial.step(ms);
+		radial = _radial.animating();
+		radialOpacity = _radial.opacity();
+	}
+	if (!radial) {
+		return;
+	}
+	auto inner = radialRect();
+
+	p.setPen(Qt::NoPen);
+	p.setOpacity(radialOpacity);
+	p.setBrush(st::radialBg);
+
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(inner);
+	}
+
+	p.setOpacity(1);
+	QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
+	_radial.draw(p, arc, st::radialLine, st::radialFg);
+}
+
+QRect BackgroundPreviewBox::radialRect() const {
+	const auto available = height()
+		- st::historyPaddingBottom
+		- _text1->height()
+		- _text2->height()
+		- st::historyPaddingBottom;
+	return QRect(
+		QPoint(
+			(width() - st::radialSize.width()) / 2,
+			(available - st::radialSize.height()) / 2),
+		st::radialSize);
+}
+
+void BackgroundPreviewBox::paintTexts(Painter &p, TimeMs ms) {
+	const auto height1 = _text1->height();
+	const auto height2 = _text2->height();
+	const auto top = height()
+		- height1
+		- height2
+		- st::historyPaddingBottom;
+	p.translate(0, top);
+	_text1->draw(p, rect(), TextSelection(), ms);
+	p.translate(0, height1);
+	_text2->draw(p, rect(), TextSelection(), ms);
+	p.translate(0, height2);
+}
+
+void BackgroundPreviewBox::step_radial(TimeMs ms, bool timer) {
+	Expects(_paper.document != nullptr);
+
+	const auto document = _paper.document;
+	const auto wasAnimating = _radial.animating();
+	const auto updated = _radial.update(
+		document->progress(),
+		!document->loading(),
+		ms);
+	if (timer
+		&& (wasAnimating || _radial.animating())
+		&& (!anim::Disabled() || updated)) {
+		update(radialRect());
+	}
+	checkLoadedDocument();
+}
+
+void BackgroundPreviewBox::checkLoadedDocument() {
+	const auto document = _paper.document;
+	if (!document
+		|| !document->loaded(DocumentData::FilePathResolveChecked)
+		|| _generating) {
+		return;
+	}
+	_generating = Data::ReadImageAsync(document, [=](
+			QImage &&image) mutable {
+		auto [left, right] = base::make_binary_guard();
+		_generating = std::move(left);
+		crl::async([
+			this,
+			image = std::move(image),
+			guard = std::move(right)
+		]() mutable {
+			auto scaled = PrepareScaledFromFull(image);
+			crl::on_main([
+				this,
+				image = std::move(image),
+				scaled = std::move(scaled),
+				guard = std::move(guard)
+			]() mutable {
+				if (!guard) {
+					return;
+				}
+				_scaled = App::pixmapFromImageInPlace(std::move(scaled));
+				_full = std::move(image);
+				update();
+			});
+		});
+	});
+}
+
+bool BackgroundPreviewBox::Start(const QString &slug, const QString &mode) {
+	if (Window::Theme::GetWallPaperColor(slug)) {
+		Ui::show(Box<BackgroundPreviewBox>(Data::WallPaper{
+			Window::Theme::kCustomBackground,
+			0ULL, // accessHash
+			MTPDwallPaper::Flags(0),
+			slug,
+		}));
+		return true;
+	}
+	if (!IsValidWallPaperSlug(slug)) {
+		Ui::show(Box<InformBox>(lang(lng_background_bad_link)));
+		return false;
+	}
+	Auth().api().requestWallPaper(slug, [](const Data::WallPaper &result) {
+		Ui::show(Box<BackgroundPreviewBox>(result));
+	}, [](const RPCError &error) {
+		Ui::show(Box<InformBox>(lang(lng_background_bad_link)));
+	});
+	return true;
+}
+
+HistoryView::Context BackgroundPreviewBox::elementContext() {
+	return HistoryView::Context::ContactPreview;
+}
+
+std::unique_ptr<HistoryView::Element> BackgroundPreviewBox::elementCreate(
+		not_null<HistoryMessage*> message) {
+	return std::make_unique<HistoryView::Message>(this, message);
+}
+
+std::unique_ptr<HistoryView::Element> BackgroundPreviewBox::elementCreate(
+		not_null<HistoryService*> message) {
+	Unexpected("Service message in BackgroundPreviewBox.");
+}
+
+bool BackgroundPreviewBox::elementUnderCursor(
+		not_null<const Element*> view) {
+	return false;
+}
+
+void BackgroundPreviewBox::elementAnimationAutoplayAsync(
+	not_null<const Element*> element) {
+}
+
+TimeMs BackgroundPreviewBox::elementHighlightTime(
+		not_null<const Element*> element) {
+	return TimeMs();
+}
+
+bool BackgroundPreviewBox::elementInSelectionMode() {
+	return false;
+}

@@ -41,6 +41,8 @@ constexpr auto kCustomBackground = details::FromLegacyBackgroundId(-1);
 constexpr auto kInitialBackground = details::FromLegacyBackgroundId(0);
 constexpr auto kDefaultBackground = details::FromLegacyBackgroundId(105);
 
+constexpr auto kMinimumTiledSize = 512;
+
 struct Cached {
 	QByteArray colors;
 	QByteArray background;
@@ -78,15 +80,17 @@ void ApplyDefaultWithPath(const QString &themePath);
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
 QString NightThemePath();
-bool IsNightMode();
+[[nodiscard]] bool IsNightMode();
 void SetNightModeValue(bool nightMode);
 void ToggleNightMode();
 void ToggleNightMode(const QString &themePath);
-bool IsNonDefaultBackground();
+[[nodiscard]] bool IsNonDefaultBackground();
 void Revert();
 
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
 bool IsPaletteTestingPath(const QString &path);
+
+[[nodiscard]] std::optional<QColor> GetWallPaperColor(const QString &slug);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -121,7 +125,7 @@ public:
 	void setTileDayValue(bool tile);
 	void setTileNightValue(bool tile);
 	void setThemeAbsolutePath(const QString &path);
-	QString themeAbsolutePath() const;
+	[[nodiscard]] QString themeAbsolutePath() const;
 	void reset();
 
 	void setTestingTheme(Instance &&theme);
@@ -129,16 +133,20 @@ public:
 	void setTestingDefaultTheme();
 	void revert();
 
-	WallPaperId id() const;
-	const QPixmap &pixmap() const {
+	[[nodiscard]] WallPaperId id() const;
+	[[nodiscard]] const QPixmap &pixmap() const {
 		return _pixmap;
 	}
-	const QPixmap &pixmapForTiled() const {
+	[[nodiscard]] const QPixmap &pixmapForTiled() const {
 		return _pixmapForTiled;
 	}
-	bool tile() const;
-	bool tileDay() const;
-	bool tileNight() const;
+	[[nodiscard]] std::optional<QColor> color() const {
+		return _paperColor;
+	}
+	[[nodiscard]] QImage createCurrentImage() const;
+	[[nodiscard]] bool tile() const;
+	[[nodiscard]] bool tileDay() const;
+	[[nodiscard]] bool tileNight() const;
 
 private:
 	struct AdjustableColor {
@@ -152,16 +160,19 @@ private:
 	void saveForRevert();
 	void setPreparedImage(QImage &&image);
 	void writeNewBackgroundSettings();
+	void setPaper(const Data::WallPaper &paper);
 
+	[[nodiscard]] bool adjustPaletteRequired();
 	void adjustPaletteUsingBackground(const QImage &img);
+	void adjustPaletteUsingColor(QColor color);
 	void restoreAdjustableColors();
 
 	void setNightModeValue(bool nightMode);
-	bool nightMode() const;
+	[[nodiscard]] bool nightMode() const;
 	void toggleNightMode(std::optional<QString> themePath);
 	void keepApplied(const QString &path, bool write);
-	bool isNonDefaultThemeOrBackground();
-	bool isNonDefaultBackground();
+	[[nodiscard]] bool isNonDefaultThemeOrBackground();
+	[[nodiscard]] bool isNonDefaultBackground();
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);
@@ -171,6 +182,7 @@ private:
 	friend bool IsNonDefaultBackground();
 
 	Data::WallPaper _paper = { details::kUninitializedBackground };
+	std::optional<QColor> _paperColor;
 	QPixmap _pixmap;
 	QPixmap _pixmapForTiled;
 	bool _nightMode = false;

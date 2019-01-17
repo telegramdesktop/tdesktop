@@ -1840,7 +1840,7 @@ void MediaView::initThemePreview() {
 
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
-		current.backgroundImage = Window::Theme::Background()->pixmap().toImage();
+		current.backgroundImage = Window::Theme::Background()->createCurrentImage();
 		current.backgroundTiled = Window::Theme::Background()->tile();
 
 		const auto path = _doc->location().name();

@@ -411,7 +411,7 @@ void Widget::hideSlow() {
 		auto [left, right] = base::make_binary_guard();
 		_hidingDelayed = std::move(left);
 		App::CallDelayed(st::notifySlowHide, this, [=, guard = std::move(right)] {
-			if (guard.alive() && _hiding) {
+			if (guard && _hiding) {
 				hideFast();
 			}
 		});

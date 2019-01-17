@@ -926,7 +926,9 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 }
 
 void MainWidget::onCacheBackground() {
-	if (Window::Theme::Background()->tile()) {
+	if (Window::Theme::Background()->color()) {
+		return;
+	} else if (Window::Theme::Background()->tile()) {
 		auto &bg = Window::Theme::Background()->pixmapForTiled();
 
 		auto result = QImage(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
@@ -1418,22 +1420,62 @@ void MainWidget::updateScrollColors() {
 	_history->updateScrollColors();
 }
 
-void MainWidget::setChatBackground(const Data::WallPaper &background) {
+void MainWidget::setChatBackground(
+		const Data::WallPaper &background,
+		QImage &&image) {
+	using namespace Window::Theme;
+
+	if (isReadyChatBackground(background, image)) {
+		setReadyChatBackground(background, std::move(image));
+		return;
+	}
+
 	_background = std::make_unique<SettingBackground>();
 	_background->data = background;
-	if (_background->data.document) {
-		_background->data.document->save(
-			Data::FileOriginWallpapers(),
-			QString());
-	} else if (_background->data.thumb) {
-		_background->data.thumb->loadEvenCancelled(
-			Data::FileOriginWallpapers());
-	}
+	_background->data.document->save(
+		Data::FileOriginWallpaper(
+			_background->data.id,
+			_background->data.accessHash),
+		QString());
 	checkChatBackground();
 
 	const auto tile = (background.id == Window::Theme::kInitialBackground);
 	using Update = Window::Theme::BackgroundUpdate;
 	Window::Theme::Background()->notify(Update(Update::Type::Start, tile));
+}
+
+bool MainWidget::isReadyChatBackground(
+		const Data::WallPaper &background,
+		const QImage &image) const {
+	return !image.isNull()
+		|| !background.document
+		|| Window::Theme::GetWallPaperColor(background.slug);
+}
+
+void MainWidget::setReadyChatBackground(
+		const Data::WallPaper &background,
+		QImage &&image) {
+	using namespace Window::Theme;
+
+	if (image.isNull()
+		&& !background.document
+		&& background.thumb
+		&& background.thumb->loaded()) {
+		image = background.thumb->pixNoCache(Data::FileOrigin()).toImage();
+	}
+
+	const auto resetToDefault = image.isNull()
+		&& !background.document
+		&& !GetWallPaperColor(background.slug)
+		&& (background.id != kInitialBackground);
+	const auto ready = resetToDefault
+		? Data::WallPaper{ kDefaultBackground }
+		: background;
+
+	Background()->setImage(ready, std::move(image));
+	const auto tile = (ready.id == kInitialBackground);
+	Background()->setTile(tile);
+	Ui::ForceFullRepaint(this);
 }
 
 bool MainWidget::chatBackgroundLoading() {
@@ -1442,7 +1484,7 @@ bool MainWidget::chatBackgroundLoading() {
 
 float64 MainWidget::chatBackgroundProgress() const {
 	if (_background) {
-		if (_background->generating.alive()) {
+		if (_background->generating) {
 			return 1.;
 		} else if (_background->data.document) {
 			return _background->data.document->progress();
@@ -1454,7 +1496,7 @@ float64 MainWidget::chatBackgroundProgress() const {
 }
 
 void MainWidget::checkChatBackground() {
-	if (!_background || _background->generating.alive()) {
+	if (!_background || _background->generating) {
 		return;
 	}
 	const auto document = _background->data.document;
@@ -1464,67 +1506,18 @@ void MainWidget::checkChatBackground() {
 		return;
 	}
 
-	if (!document) {
-		const auto &thumb = _background->data.thumb;
-		setGeneratedBackground(thumb
-			? thumb->pixNoCache(Data::FileOrigin()).toImage()
-			: QImage());
-		return;
-	}
-	auto [left, right] = base::make_binary_guard();
-	_background->generating = std::move(left);
-	crl::async([
-		this,
-		bytes = document->data(),
-		path = document->filepath(),
-		guard = std::move(right)
-	]() mutable {
-		auto format = QByteArray();
-		if (bytes.isEmpty()) {
-			QFile f(path);
-			if (f.size() <= App::kImageSizeLimit
-				&& f.open(QIODevice::ReadOnly)) {
-				bytes = f.readAll();
-			}
-		}
-		auto image = bytes.isEmpty()
-			? QImage()
-			: App::readImage(bytes, &format, false, nullptr);
-		crl::on_main([
-			this,
-			guard = std::move(guard),
-			image = std::move(image)
-		]() mutable {
-			if (!guard.alive()) {
-				return;
-			}
-			setGeneratedBackground(std::move(image));
-		});
+	_background->generating = Data::ReadImageAsync(document, [=](
+			QImage &&image) {
+		const auto background = base::take(_background);
+		const auto ready = image.isNull()
+			? Data::WallPaper{ Window::Theme::kDefaultBackground }
+			: background->data;
+		setChatBackground(ready, std::move(image));
 	});
 }
 
 ImagePtr MainWidget::newBackgroundThumb() {
 	return _background ? _background->data.thumb : ImagePtr();
-}
-
-void MainWidget::setGeneratedBackground(QImage &&image) {
-	using namespace Window::Theme;
-
-	if (image.isNull()) {
-		Background()->setImage({ kDefaultBackground });
-	} else if (false
-		|| _background->data.id == kInitialBackground
-		|| _background->data.id == kDefaultBackground) {
-		Background()->setImage(_background->data);
-	} else {
-		Background()->setImage(
-			_background->data,
-			std::move(image));
-	}
-	const auto tile = (_background->data.id == kInitialBackground);
-	Background()->setTile(tile);
-	_background = nullptr;
-	crl::on_main(this, [=] { update(); });
 }
 
 void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {

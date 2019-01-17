@@ -927,7 +927,7 @@ void Instance::checkUniversalImages() {
 
 	if (_id != Universal->id()) {
 		_id = Universal->id();
-		_generating.kill();
+		_generating = nullptr;
 		_sprites.clear();
 	}
 	if (!Universal->ensureLoaded() && Universal->id() != 0) {
@@ -952,7 +952,7 @@ void Instance::generateCache() {
 			image = universal->generate(size, index),
 			guard = std::move(guard)
 		]() mutable {
-			if (!guard.alive() || universal != Universal) {
+			if (!guard || universal != Universal) {
 				return;
 			}
 			pushSprite(std::move(image));

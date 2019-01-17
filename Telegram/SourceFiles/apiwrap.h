@@ -26,6 +26,7 @@ class mtpFileLoader;
 
 namespace Data {
 struct UpdatedFileReferences;
+struct WallPaper;
 } // namespace Data
 
 namespace InlineBots {
@@ -91,6 +92,11 @@ public:
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
 	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 	void requestFakeChatListMessage(not_null<History*> history);
+
+	void requestWallPaper(
+		const QString &slug,
+		Fn<void(const Data::WallPaper &)> done,
+		Fn<void(const RPCError &)> fail);
 
 	void requestFullPeer(not_null<PeerData*> peer);
 	void requestPeer(not_null<PeerData*> peer);
@@ -774,5 +780,10 @@ private:
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollReloadRequestIds;
+
+	mtpRequestId _wallPaperRequestId = 0;
+	QString _wallPaperSlug;
+	Fn<void(const Data::WallPaper &)> _wallPaperDone;
+	Fn<void(const RPCError &)> _wallPaperFail;
 
 };

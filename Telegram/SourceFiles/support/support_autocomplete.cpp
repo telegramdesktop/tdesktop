@@ -278,7 +278,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 		replyTo,
 		viaBotId,
 		unixtime(),
-		Auth().userId(),
+		history->session().userId(),
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(data.comment) });
 	return AdminLog::OwnedItem(delegate, item);
@@ -296,7 +296,7 @@ AdminLog::OwnedItem GenerateContactItem(
 	const auto message = MTP_message(
 		MTP_flags(flags),
 		MTP_int(id),
-		MTP_int(Auth().userId()),
+		MTP_int(history->session().userId()),
 		peerToMTP(history->peer->id),
 		MTPMessageFwdHeader(),
 		MTP_int(viaBotId),

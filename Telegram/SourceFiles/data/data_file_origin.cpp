@@ -178,12 +178,6 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDmessages_savedGifsNotModified &data) {
 		});
 	}
-	void push(const MTPaccount_WallPapers &data) {
-		data.match([&](const MTPDaccount_wallPapers &data) {
-			push(data.vwallpapers);
-		}, [](const MTPDaccount_wallPapersNotModified &) {
-		});
-	}
 
 	UpdatedFileReferences result;
 };
@@ -248,7 +242,7 @@ UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data) {
 	return GetFileReferencesHelper(data);
 }
 
-UpdatedFileReferences GetFileReferences(const MTPaccount_WallPapers &data) {
+UpdatedFileReferences GetFileReferences(const MTPWallPaper &data) {
 	return GetFileReferencesHelper(data);
 }
 

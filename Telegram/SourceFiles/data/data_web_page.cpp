@@ -133,7 +133,7 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 	if (type == qstr("photo")) return WebPageType::Photo;
 	if (type == qstr("video")) return WebPageType::Video;
 	if (type == qstr("profile")) return WebPageType::Profile;
-	if (type == qstr("telegram_wallpaper")) return WebPageType::WallPaper;
+	if (type == qstr("telegram_background")) return WebPageType::WallPaper;
 	return page.has_cached_page()
 		? WebPageType::ArticleWithIV
 		: WebPageType::Article;
@@ -218,7 +218,7 @@ bool WebPageData::applyChanges(
 	pendingTill = newPendingTill;
 	++version;
 
-	if (type == WebPageType::WallPaper) {
+	if (type == WebPageType::WallPaper && document) {
 		document->checkWallPaperProperties();
 	}
 

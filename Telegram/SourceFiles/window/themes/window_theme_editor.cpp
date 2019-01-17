@@ -319,8 +319,8 @@ void Editor::Inner::prepare() {
 }
 
 Fn<void()> Editor::Inner::exportCallback() {
-	return App::LambdaDelayed(st::defaultRippleAnimation.hideDuration, this, [this] {
-		auto background = Background()->pixmap().toImage();
+	return App::LambdaDelayed(st::defaultRippleAnimation.hideDuration, this, [=] {
+		auto background = Background()->createCurrentImage();
 		auto backgroundContent = QByteArray();
 		auto tiled = Background()->tile();
 		{

@@ -265,26 +265,35 @@ void BackgroundRow::updateImage() {
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);
 
-		const auto &pix = Window::Theme::Background()->pixmap();
-		const auto sx = (pix.width() > pix.height())
-			? ((pix.width() - pix.height()) / 2)
-			: 0;
-		const auto sy = (pix.height() > pix.width())
-			? ((pix.height() - pix.width()) / 2)
-			: 0;
-		const auto s = (pix.width() > pix.height())
-			? pix.height()
-			: pix.width();
-		p.drawPixmap(
-			0,
-			0,
-			st::settingsBackgroundThumb,
-			st::settingsBackgroundThumb,
-			pix,
-			sx,
-			sy,
-			s,
-			s);
+		if (const auto color = Window::Theme::Background()->color()) {
+			p.fillRect(
+				0,
+				0,
+				st::settingsBackgroundThumb,
+				st::settingsBackgroundThumb,
+				*color);
+		} else {
+			const auto &pix = Window::Theme::Background()->pixmap();
+			const auto sx = (pix.width() > pix.height())
+				? ((pix.width() - pix.height()) / 2)
+				: 0;
+			const auto sy = (pix.height() > pix.width())
+				? ((pix.height() - pix.width()) / 2)
+				: 0;
+			const auto s = (pix.width() > pix.height())
+				? pix.height()
+				: pix.width();
+			p.drawPixmap(
+				0,
+				0,
+				st::settingsBackgroundThumb,
+				st::settingsBackgroundThumb,
+				pix,
+				sx,
+				sy,
+				s,
+				s);
+		}
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
 	_background = App::pixmapFromImageInPlace(std::move(back));

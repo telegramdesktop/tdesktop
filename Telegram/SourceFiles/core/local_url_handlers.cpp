@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "boxes/confirm_phone_box.h"
+#include "boxes/background_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"
@@ -162,11 +163,23 @@ bool ShowPassport(const Match &match, const QVariant &context) {
 		qthelp::UrlParamNameTransform::ToLower));
 }
 
+bool ShowWallPaper(const Match &match, const QVariant &context) {
+	if (!AuthSession::Exists()) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	return BackgroundPreviewBox::Start(
+		params.value(qsl("slug")),
+		params.value(qsl("mode")));
+}
+
 bool ResolveUsername(const Match &match, const QVariant &context) {
 	if (!AuthSession::Exists()) {
 		return false;
 	}
-	auto params = url_parse_params(
+	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto domain = params.value(qsl("domain"));
@@ -279,6 +292,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^passport/?\\?(.+)(#|$)"),
 			ShowPassport
+		},
+		{
+			qsl("^bg/?\\?(.+)(#|$)"),
+			ShowWallPaper
 		},
 		{
 			qsl("^resolve/?\\?(.+)(#|$)"),
