@@ -1048,7 +1048,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	types.reserve(20); vtypes.reserve(20); stages.reserve(20); flags.reserve(20);\n\
 	types.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0); flags.push_back(0);\n\
 \n\
-	const mtpPrime *start = from;\n\
 	mtpTypeId type = cons, vtype = vcons;\n\
 	int32 stage = 0, flag = 0;\n\
 \n\
@@ -1064,13 +1063,13 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				throw Exception("unknown type on stage > 0");\n\
 			}\n\
 			types.back() = type = *from;\n\
-			start = ++from;\n\
+			++from;\n\
 		}\n\
 \n\
 		int32 lev = level + types.size() - 1;\n\
 		auto it = serializers.constFind(type);\n\
 		if (it != serializers.cend()) {\n\
-			(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n\
+			(*it.value())(to, stage, lev, types, vtypes, stages, flags, from, end, flag);\n\
 		} else {\n\
 			mtpTextSerializeCore(to, from, end, type, lev, vtype);\n\
 			types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n\

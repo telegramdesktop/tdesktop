@@ -1612,7 +1612,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	case mtpc_gzip_packed: {
 		DEBUG_LOG(("Message Info: gzip container"));
 		mtpBuffer response = ungzip(++from, end);
-		if (!response.size()) {
+		if (response.empty()) {
 			return HandleResult::RestartConnection;
 		}
 		return handleOneReceived(response.data(), response.data() + response.size(), msgId, serverTime, serverSalt, badTime);

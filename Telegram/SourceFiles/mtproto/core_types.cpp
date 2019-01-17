@@ -302,11 +302,11 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		result.resize(0);
 
 		z_stream stream;
-		stream.zalloc = 0;
-		stream.zfree = 0;
-		stream.opaque = 0;
+		stream.zalloc = nullptr;
+		stream.zfree = nullptr;
+		stream.opaque = nullptr;
 		stream.avail_in = 0;
-		stream.next_in = 0;
+		stream.next_in = nullptr;
 		int res = inflateInit2(&stream, 16 + MAX_WBITS);
 		if (res != Z_OK) {
 			throw Exception(QString("ungzip init, code: %1").arg(res));
@@ -331,7 +331,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		result.resize(result.size() - (stream.avail_out >> 2));
 		inflateEnd(&stream);
 
-		if (!result.size()) {
+		if (result.empty()) {
 			throw Exception("ungzip void data");
 		}
 		const mtpPrime *newFrom = result.constData(), *newEnd = result.constData() + result.size();
