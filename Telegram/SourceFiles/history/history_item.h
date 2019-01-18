@@ -298,7 +298,7 @@ protected:
 
 	void setGroupId(MessageGroupId groupId);
 
-	Text _text = { int(st::msgMinWidth) };
+	Text _text = { st::msgMinWidth };
 	int _textWidth = -1;
 	int _textHeight = 0;
 

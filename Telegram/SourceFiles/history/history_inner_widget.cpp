@@ -180,7 +180,7 @@ HistoryInner::HistoryInner(
 void HistoryInner::messagesReceived(
 		PeerData *peer,
 		const QVector<MTPMessage> &messages) {
-	if (_history && _history->peer == peer) {
+	if (_history->peer == peer) {
 		_history->addOlderSlice(messages);
 	} else if (_migrated && _migrated->peer == peer) {
 		const auto newLoaded = _migrated
@@ -194,7 +194,7 @@ void HistoryInner::messagesReceived(
 }
 
 void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages) {
-	if (_history && _history->peer == peer) {
+	if (_history->peer == peer) {
 		const auto oldLoaded = _migrated
 			&& _history->isEmpty()
 			&& !_migrated->isEmpty();
@@ -523,6 +523,14 @@ TextSelection HistoryInner::itemRenderSelection(
 	return TextSelection();
 }
 
+void HistoryInner::paintEmpty(Painter &p, int width, int height) {
+	if (!_emptyPainter) {
+		_emptyPainter = std::make_unique<HistoryView::EmptyPainter>(
+			_history);
+	}
+	_emptyPainter->paint(p, width, height);
+}
+
 void HistoryInner::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) {
 		return;
@@ -552,7 +560,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.restoreTextPalette();
 		}
 	} else if (historyDisplayedEmpty) {
-		HistoryView::paintEmpty(p, _history, width(), height());
+		paintEmpty(p, width(), height());
 	}
 	if (!noHistoryDisplayed) {
 		auto readMentions = base::flat_set<not_null<HistoryItem*>>();
@@ -1371,8 +1379,6 @@ void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
-	if (!_history) return;
-
 	mouseActionStart(e->globalPos(), e->button());
 
 	const auto mouseActionView = _mouseActionItem
@@ -2101,8 +2107,6 @@ bool HistoryInner::displayScrollDate() const {
 }
 
 void HistoryInner::scrollDateCheck() {
-	if (!_history) return;
-
 	auto newScrollDateItem = _history->scrollTopItem ? _history->scrollTopItem : (_migrated ? _migrated->scrollTopItem : nullptr);
 	auto newScrollDateItemTop = _history->scrollTopItem ? _history->scrollTopOffset : (_migrated ? _migrated->scrollTopOffset : 0);
 	//if (newScrollDateItem && !displayScrollDate()) {
@@ -2282,7 +2286,6 @@ auto HistoryInner::nextItem(Element *view) -> Element* {
 	} else if (const auto result = view->nextInBlocks()) {
 		return result;
 	} else if (view->data()->history() == _migrated
-		&& _history
 		&& _migrated->loadedAtBottom()
 		&& _history->loadedAtTop()
 		&& !_history->isEmpty()) {
@@ -2380,7 +2383,7 @@ void HistoryInner::onTouchSelect() {
 }
 
 void HistoryInner::mouseActionUpdate() {
-	if (!_history || hasPendingResizedItems()) {
+	if (hasPendingResizedItems()) {
 		return;
 	}
 
@@ -2553,7 +2556,6 @@ void HistoryInner::mouseActionUpdate() {
 		}
 	} else if (item) {
 		if (_mouseAction == MouseAction::Selecting) {
-			auto canSelectMany = (_history != nullptr);
 			if (selectingText) {
 				uint16 second = dragState.symbol;
 				if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
@@ -2573,8 +2575,8 @@ void HistoryInner::mouseActionUpdate() {
 					_wasSelectedText = true;
 					setFocus();
 				}
-				updateDragSelection(0, 0, false);
-			} else if (canSelectMany) {
+				updateDragSelection(nullptr, nullptr, false);
+			} else {
 				auto selectingDown = (itemTop(_mouseActionItem) < itemTop(item)) || (_mouseActionItem == item && _dragStartPosition.y() < m.y());
 				auto dragSelFrom = _mouseActionItem->mainView();
 				auto dragSelTo = view;
@@ -2680,7 +2682,7 @@ void HistoryInner::updateDragSelection(Element *dragSelFrom, Element *dragSelTo,
 
 int HistoryInner::historyHeight() const {
 	int result = 0;
-	if (!_history || _history->isEmpty()) {
+	if (_history->isEmpty()) {
 		result += _migrated ? _migrated->height() : 0;
 	} else {
 		result += _history->height() - _historySkipHeight + (_migrated ? _migrated->height() : 0);
@@ -2706,7 +2708,11 @@ int HistoryInner::migratedTop() const {
 
 int HistoryInner::historyTop() const {
 	int mig = migratedTop();
-	return (_history && !_history->isEmpty()) ? (mig >= 0 ? (mig + _migrated->height() - _historySkipHeight) : _historyPaddingTop) : -1;
+	return !_history->isEmpty()
+		? (mig >= 0
+			? (mig + _migrated->height() - _historySkipHeight)
+			: _historyPaddingTop)
+		: -1;
 }
 
 int HistoryInner::historyDrawTop() const {
@@ -2736,7 +2742,7 @@ int HistoryInner::itemTop(const Element *view) const {
 }
 
 void HistoryInner::notifyIsBotChanged() {
-	const auto newinfo = (_peer && _peer->isUser())
+	const auto newinfo = _peer->isUser()
 		? _peer->asUser()->botInfo.get()
 		: nullptr;
 	if ((!newinfo && !_botAbout)
@@ -2918,7 +2924,7 @@ void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 }
 
 bool HistoryInner::hasPendingResizedItems() const {
-	return (_history && _history->hasPendingResizedItems())
+	return _history->hasPendingResizedItems()
 		|| (_migrated && _migrated->hasPendingResizedItems());
 }
 
@@ -3007,12 +3013,12 @@ void HistoryInner::applyDragSelection(
 		addSelectionRange(toItems, _history, fromblock, fromitem, toblock, toitem);
 	} else {
 		auto toRemove = std::vector<not_null<HistoryItem*>>();
-		for (auto i = toItems->begin(); i != toItems->cend(); ++i) {
-			auto iy = itemTop(i->first);
+		for (const auto &item : *toItems) {
+			auto iy = itemTop(item.first);
 			if (iy < -1) {
-				toRemove.push_back(i->first);
+				toRemove.emplace_back(item.first);
 			} else if (iy >= 0 && iy >= selfromy && iy < seltoy) {
-				toRemove.push_back(i->first);
+				toRemove.emplace_back(item.first);
 			}
 		}
 		for (const auto item : toRemove) {

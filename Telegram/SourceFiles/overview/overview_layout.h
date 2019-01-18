@@ -352,7 +352,7 @@ private:
 	WebPageData *_page = nullptr;
 	int _pixw = 0;
 	int _pixh = 0;
-	Text _text = { int(st::msgMinWidth) };
+	Text _text = { st::msgMinWidth };
 
 	struct LinkEntry {
 		LinkEntry() : width(0) {

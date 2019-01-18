@@ -6557,7 +6557,10 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (_scroll->isHidden() && _history) {
 			p.setClipRect(_scroll->geometry());
-			HistoryView::paintEmpty(p, _history, width(), height() - _field->height() - 2 * st::historySendPadding);
+			_list->paintEmpty(
+				p,
+				width(),
+				height() - _field->height() - 2 * st::historySendPadding);
 		}
 	} else {
 		const auto w = st::msgServiceFont->width(lang(lng_willbe_history))

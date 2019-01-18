@@ -74,11 +74,21 @@ private:
 
 };
 
-void paintEmpty(
-	Painter &p,
-	not_null<History*> history,
-	int width,
-	int height);
+class EmptyPainter {
+public:
+	explicit EmptyPainter(not_null<History*> history);
+
+	void paint(Painter &p, int width, int height);
+
+private:
+	void fillAboutGroup();
+
+	not_null<History*> _history;
+	Text _header = { st::msgMinWidth };
+	Text _text = { st::msgMinWidth };
+	std::vector<Text> _phrases;
+
+};
 
 void serviceColorsUpdated();
 

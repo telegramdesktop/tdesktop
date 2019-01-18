@@ -15,10 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
-#include "styles/style_history.h"
+#include "ui/text_options.h"
 #include "mainwidget.h"
 #include "layout.h"
 #include "lang/lang_keys.h"
+#include "styles/style_history.h"
 
 namespace HistoryView {
 namespace {
@@ -175,81 +176,13 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 	p.drawText(left + st::msgServicePadding.left(), y + st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->ascent, dateText);
 }
 
-void PaintAboutGroup(Painter &p, int width, int height) {
-	constexpr auto kPhrasesCount = 4;
-	const auto header = lang(lng_group_about_header);
-	const auto text = lang(lng_group_about_text);
-	const auto phrases = std::array<QString, kPhrasesCount>{
-		lang(lng_group_about1),
-		lang(lng_group_about2),
-		lang(lng_group_about3),
-		lang(lng_group_about4),
-	};
-
-	const auto &font = st::msgServiceFont;
-	const auto headerWidth = font->width(header);
-	const auto textWidth = font->width(text);
-	const auto phraseWidths = ranges::view::all(
-		phrases
-	) | ranges::view::transform([&](const QString &text) {
-		return font->width(text);
-	}) | ranges::to_vector;
-
-	const auto maxPhraseWidth = *ranges::max_element(phraseWidths);
-
-	const auto margin = st::msgMargin.left();
-	const auto maxBubbleWidth = width - 2 * st::historyGroupAboutMargin;
-	const auto padding = st::historyGroupAboutPadding;
-	const auto bubbleWidth = std::min(
-		maxBubbleWidth,
-		std::max({
-			maxPhraseWidth + st::historyGroupAboutBulletSkip,
-			headerWidth,
-			textWidth }) + padding.left() + padding.right());
-	const auto bubbleHeight = padding.top()
-		+ font->height
-		+ st::historyGroupAboutHeaderSkip
-		+ font->height
-		+ st::historyGroupAboutTextSkip
-		+ font->height * kPhrasesCount
-		+ st::historyGroupAboutSkip * (kPhrasesCount - 1)
-		+ padding.bottom();
-	const auto bubbleLeft = (width - bubbleWidth) / 2;
-	const auto bubbleTop = (height - bubbleHeight) / 3;
-
-	ServiceMessagePainter::paintBubble(
-		p,
-		bubbleLeft,
-		bubbleTop,
-		bubbleWidth,
-		bubbleHeight);
-
-	p.setFont(font);
-	p.setPen(st::msgServiceFg);
-	const auto left = bubbleLeft + padding.left();
-	auto top = bubbleTop + padding.top();
-
-	p.drawTextLeft(bubbleLeft + (bubbleWidth - headerWidth) / 2, top, width, header);
-	top += font->height + st::historyGroupAboutHeaderSkip;
-
-	p.drawTextLeft(left, top, width, text);
-	top += font->height + st::historyGroupAboutTextSkip;
-
-	p.setBrush(st::msgServiceFg);
-	for (const auto &text : phrases) {
-		p.setPen(st::msgServiceFg);
-		p.drawTextLeft(left + st::historyGroupAboutBulletSkip, top, width, text);
-		{
-			PainterHighQualityEnabler hq(p);
-			p.setPen(Qt::NoPen);
-			p.drawEllipse(
-				left,
-				top + (font->height - st::mediaUnreadSize) / 2,
-				st::mediaUnreadSize,
-				st::mediaUnreadSize);
-		}
-		top += font->height + st::historyGroupAboutSkip;
+bool NeedAboutGroup(not_null<History*> history) {
+	if (const auto chat = history->peer->asChat()) {
+		return chat->amCreator();
+	} else if (const auto channel = history->peer->asMegagroup()) {
+		return channel->amCreator();
 	}
+	return false;
 }
 
 } // namepsace
@@ -358,24 +291,6 @@ QVector<int> ServiceMessagePainter::countLineWidths(const Text &text, const QRec
 		}
 	}
 	return lineWidths;
-}
-
-void paintEmpty(
-		Painter &p,
-		not_null<History*> history,
-		int width,
-		int height) {
-	const auto needAboutGroup = [&] {
-		if (const auto chat = history->peer->asChat()) {
-			return chat->amCreator();
-		} else if (const auto channel = history->peer->asMegagroup()) {
-			return channel->amCreator();
-		}
-		return false;
-	}();
-	if (needAboutGroup) {
-		PaintAboutGroup(p, width, height);
-	}
 }
 
 void serviceColorsUpdated() {
@@ -623,6 +538,121 @@ TextSelection Service::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
 	return message()->_text.adjustSelection(selection, type);
+}
+
+EmptyPainter::EmptyPainter(not_null<History*> history) : _history(history) {
+	if (NeedAboutGroup(_history)) {
+		fillAboutGroup();
+	}
+}
+
+void EmptyPainter::fillAboutGroup() {
+	const auto phrases = {
+		lang(lng_group_about1),
+		lang(lng_group_about2),
+		lang(lng_group_about3),
+		lang(lng_group_about4),
+	};
+	const auto setText = [](Text &text, const QString &content) {
+		text.setText(
+			st::serviceTextStyle,
+			content,
+			Ui::ItemTextServiceOptions());
+	};
+	setText(_header, lang(lng_group_about_header));
+	setText(_text, lang(lng_group_about_header));
+	for (const auto &text : phrases) {
+		_phrases.emplace_back(st::msgMinWidth);
+		setText(_phrases.back(), text);
+	}
+}
+
+void EmptyPainter::paint(Painter &p, int width, int height) {
+	if (_phrases.empty()) {
+		return;
+	}
+	constexpr auto kMaxTextLines = 3;
+	const auto maxPhraseWidth = ranges::max_element(
+		_phrases,
+		ranges::less(),
+		&Text::maxWidth
+	)->maxWidth();
+
+	const auto &font = st::serviceTextStyle.font;
+	const auto margin = st::msgMargin.left();
+	const auto maxBubbleWidth = width - 2 * st::historyGroupAboutMargin;
+	const auto padding = st::historyGroupAboutPadding;
+	const auto bubbleWidth = std::min(
+		maxBubbleWidth,
+		std::max({
+			maxPhraseWidth + st::historyGroupAboutBulletSkip,
+			_header.maxWidth(),
+			_text.maxWidth() }) + padding.left() + padding.right());
+	const auto innerWidth = bubbleWidth - padding.left() - padding.right();
+	const auto textHeight = [&](const Text &text) {
+		return std::min(
+			text.countHeight(innerWidth),
+			kMaxTextLines * font->height);
+	};
+	const auto bubbleHeight = padding.top()
+		+ textHeight(_header)
+		+ st::historyGroupAboutHeaderSkip
+		+ textHeight(_text)
+		+ st::historyGroupAboutTextSkip
+		+ ranges::accumulate(_phrases, 0, ranges::plus(), textHeight)
+		+ st::historyGroupAboutSkip * int(_phrases.size() - 1)
+		+ padding.bottom();
+	const auto bubbleLeft = (width - bubbleWidth) / 2;
+	const auto bubbleTop = (height - bubbleHeight) / 3;
+
+	ServiceMessagePainter::paintBubble(
+		p,
+		bubbleLeft,
+		bubbleTop,
+		bubbleWidth,
+		bubbleHeight);
+
+	p.setPen(st::msgServiceFg);
+	p.setBrush(st::msgServiceFg);
+
+	const auto left = bubbleLeft + padding.left();
+	auto top = bubbleTop + padding.top();
+
+	_header.drawElided(
+		p,
+		left,
+		top,
+		innerWidth,
+		kMaxTextLines,
+		style::al_top);
+	top += textHeight(_header) + st::historyGroupAboutHeaderSkip;
+
+	_text.drawElided(
+		p,
+		left,
+		top,
+		innerWidth,
+		kMaxTextLines);
+	top += textHeight(_text) + st::historyGroupAboutTextSkip;
+
+	for (const auto &text : _phrases) {
+		p.setPen(st::msgServiceFg);
+		text.drawElided(
+			p,
+			left + st::historyGroupAboutBulletSkip,
+			top,
+			innerWidth,
+			kMaxTextLines);
+
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(
+			left,
+			top + (font->height - st::mediaUnreadSize) / 2,
+			st::mediaUnreadSize,
+			st::mediaUnreadSize);
+		top += textHeight(text) + st::historyGroupAboutSkip;
+	}
 }
 
 } // namespace HistoryView
