@@ -2491,7 +2491,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 
 	const auto &data = result.c_account_authorizationForm();
 
-	App::feedUsers(data.vusers);
+	Auth().data().processUsers(data.vusers);
 
 	for (const auto &value : data.vvalues.v) {
 		auto parsed = parseValue(value);
@@ -2525,7 +2525,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	if (!ValidateForm(_form)) {
 		return false;
 	}
-	_bot = App::userLoaded(_request.botId);
+	_bot = Auth().data().userLoaded(_request.botId);
 	_form.pendingErrors = data.verrors.v;
 	return true;
 }

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "auth_session.h"
@@ -435,7 +436,7 @@ bool AddSpecialBoxController::checkInfoLoaded(
 		Expects(result.type() == mtpc_channels_channelParticipant);
 
 		const auto &participant = result.c_channels_channelParticipant();
-		App::feedUsers(participant.vusers);
+		channel->owner().processUsers(participant.vusers);
 		_additional.applyParticipant(participant.vparticipant);
 		callback();
 	}).fail([=](const RPCError &error) {
@@ -964,8 +965,8 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 	auto &found = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
-		App::feedUsers(found.vusers);
-		App::feedChats(found.vchats);
+		_peer->owner().processUsers(found.vusers);
+		_peer->owner().processChats(found.vchats);
 		auto it = _globalQueries.find(requestId);
 		if (it != _globalQueries.cend()) {
 			query = it->second;
@@ -977,7 +978,7 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
 		for (const auto &mtpPeer : list.v) {
 			const auto peerId = peerFromMTP(mtpPeer);
-			if (const auto peer = App::peerLoaded(peerId)) {
+			if (const auto peer = _peer->owner().peerLoaded(peerId)) {
 				if (const auto user = peer->asUser()) {
 					_additional->checkForLoaded(user);
 					delegate()->peerListSearchAddRow(user);

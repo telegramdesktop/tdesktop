@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "ui/image/image.h"
 
 namespace Serialize {
@@ -154,10 +155,10 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		streamAppVersion,
 		stream);
 
-	PeerData *result = App::peerLoaded(peerId);
+	PeerData *result = Auth().data().peerLoaded(peerId);
 	bool wasLoaded = (result != nullptr);
 	if (!wasLoaded) {
-		result = App::peer(peerId);
+		result = Auth().data().peer(peerId);
 		result->loadedStatus = PeerData::FullLoaded;
 	}
 	if (const auto user = result->asUser()) {

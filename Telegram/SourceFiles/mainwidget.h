@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_float.h"
 #include "data/data_pts_waiter.h"
 
+class AuthSession;
 struct HistoryMessageMarkupButton;
 class MainWindow;
 class ConfirmBox;
@@ -96,6 +97,8 @@ public:
 	using SectionShow = Window::SectionShow;
 
 	MainWidget(QWidget *parent, not_null<Window::Controller*> controller);
+
+	AuthSession &session() const;
 
 	bool isMainSectionShown() const;
 	bool isThirdSectionShown() const;

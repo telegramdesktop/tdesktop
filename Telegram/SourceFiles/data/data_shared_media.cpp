@@ -76,7 +76,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			limitBefore,
 			limitAfter);
 		auto requestMediaAround = [
-			peer = App::peer(key.peerId),
+			peer = Auth().data().peer(key.peerId),
 			type = key.type
 		](const SparseIdsSliceBuilder::AroundData &data) {
 			Auth().api().requestSharedMedia(
@@ -313,7 +313,7 @@ void SharedMediaWithLastSlice::reverse() {
 
 std::optional<PhotoId> SharedMediaWithLastSlice::LastPeerPhotoId(
 		PeerId peerId) {
-	if (auto peer = App::peerLoaded(peerId)) {
+	if (const auto peer = Auth().data().peerLoaded(peerId)) {
 		return peer->userpicPhotoUnknown()
 			? std::nullopt
 			: base::make_optional(peer->userpicPhotoId());

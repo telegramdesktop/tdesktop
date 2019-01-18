@@ -266,12 +266,12 @@ void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
 	proxy.match([&](const MTPDhelp_proxyDataEmpty &data) {
 		_session->data().setProxyPromoted(nullptr);
 	}, [&](const MTPDhelp_proxyDataPromo &data) {
-		App::feedChats(data.vchats);
-		App::feedUsers(data.vusers);
+		_session->data().processChats(data.vchats);
+		_session->data().processUsers(data.vusers);
 		const auto peerId = peerFromMTP(data.vpeer);
 		const auto peer = _session->data().peer(peerId);
 		_session->data().setProxyPromoted(peer);
-		if (const auto history = App::historyLoaded(peer)) {
+		if (const auto history = _session->data().historyLoaded(peer)) {
 			requestDialogEntry(history);
 		}
 	});
@@ -378,7 +378,7 @@ void ApiWrap::importChatInvite(const QString &hash) {
 			}, [](auto&&) {
 				return PeerId(0);
 			});
-			if (const auto peer = App::peerLoaded(peerId)) {
+			if (const auto peer = _session->data().peerLoaded(peerId)) {
 				App::wnd()->controller()->showPeerHistory(
 					peer,
 					Window::SectionShow::Way::Forward);
@@ -563,8 +563,8 @@ void ApiWrap::resolveMessageDatas() {
 
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId requestId) {
 	auto handleResult = [&](auto &&result) {
-		App::feedUsers(result.vusers);
-		App::feedChats(result.vchats);
+		_session->data().processUsers(result.vusers);
+		_session->data().processChats(result.vchats);
 		App::feedMsgs(result.vmessages, NewMessageExisting);
 	};
 	switch (msgs.type()) {
@@ -624,7 +624,7 @@ void ApiWrap::requestContacts() {
 		}
 		Assert(result.type() == mtpc_contacts_contacts);
 		const auto &d = result.c_contacts_contacts();
-		App::feedUsers(d.vusers);
+		_session->data().processUsers(d.vusers);
 		for (const auto &contact : d.vcontacts.v) {
 			if (contact.type() != mtpc_contact) continue;
 
@@ -763,15 +763,15 @@ void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	Expects(dialogs.type() == mtpc_messages_peerDialogs);
 
 	const auto &data = dialogs.c_messages_peerDialogs();
-	App::feedUsers(data.vusers);
-	App::feedChats(data.vchats);
+	_session->data().processUsers(data.vusers);
+	_session->data().processChats(data.vchats);
 	App::feedMsgs(data.vmessages, NewMessageLast);
 	for (const auto &dialog : data.vdialogs.v) {
 		switch (dialog.type()) {
 		case mtpc_dialog: {
 			const auto &fields = dialog.c_dialog();
 			if (const auto peerId = peerFromMTP(fields.vpeer)) {
-				App::history(peerId)->applyDialog(fields);
+				_session->data().history(peerId)->applyDialog(fields);
 			}
 		} break;
 
@@ -798,15 +798,15 @@ void ApiWrap::applyFeedDialogs(
 	dialogs.match([&](const MTPDmessages_dialogsNotModified &) {
 		Unexpected("Type in ApiWrap::applyFeedDialogs.");
 	}, [&](const auto &data) {
-		App::feedUsers(data.vusers);
-		App::feedChats(data.vchats);
+		_session->data().processUsers(data.vusers);
+		_session->data().processChats(data.vchats);
 		App::feedMsgs(data.vmessages.v, NewMessageLast);
 		channels.reserve(data.vdialogs.v.size());
 		for (const auto &dialog : data.vdialogs.v) {
 			dialog.match([&](const MTPDdialog &data) {
 				if (const auto peerId = peerFromMTP(data.vpeer)) {
 					if (peerIsChannel(peerId)) {
-						const auto history = App::history(peerId);
+						const auto history = _session->data().history(peerId);
 						history->applyDialog(dialog.c_dialog());
 						channels.emplace_back(history->peer->asChannel());
 					} else {
@@ -886,7 +886,8 @@ void ApiWrap::requestWallPaper(
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();
 		result.match([&](const MTPDwallPaper &data) {
-			const auto document = _session->data().document(data.vdocument);
+			const auto document = _session->data().processDocument(
+				data.vdocument);
 			if (document->checkWallPaperProperties()) {
 				if (const auto done = base::take(_wallPaperDone)) {
 					done({
@@ -972,8 +973,8 @@ void ApiWrap::gotChatFull(
 	const auto &d = result.c_messages_chatFull();
 	_session->data().applyMaximumChatVersions(d.vchats);
 
-	App::feedUsers(d.vusers);
-	App::feedChats(d.vchats);
+	_session->data().processUsers(d.vusers);
+	_session->data().processChats(d.vchats);
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	if (const auto chat = peer->asChat()) {
@@ -987,7 +988,7 @@ void ApiWrap::gotChatFull(
 		if (f.has_bot_info()) {
 			for (const auto &item : f.vbot_info.v) {
 				item.match([&](const MTPDbotInfo &data) {
-					if (const auto bot = App::userLoaded(data.vuser_id.v)) {
+					if (const auto bot = _session->data().userLoaded(data.vuser_id.v)) {
 						bot->setBotInfo(item);
 						fullPeerUpdated().notify(bot);
 					}
@@ -1029,7 +1030,7 @@ void ApiWrap::gotChatFull(
 		if (f.has_migrated_from_chat_id()) {
 			channel->addFlags(MTPDchannel::Flag::f_megagroup);
 			const auto chat = channel->owner().chat(
-				peerFromChat(f.vmigrated_from_chat_id));
+				f.vmigrated_from_chat_id.v);
 			Data::ApplyMigration(chat, channel);
 		}
 		for (const auto &item : f.vbot_info.v) {
@@ -1047,7 +1048,7 @@ void ApiWrap::gotChatFull(
 		channel->setRestrictedCount(f.has_banned_count() ? f.vbanned_count.v : 0);
 		channel->setKickedCount(f.has_kicked_count() ? f.vkicked_count.v : 0);
 		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
-		if (const auto history = App::historyLoaded(channel->id)) {
+		if (const auto history = _session->data().historyLoaded(channel)) {
 			history->clearUpTill(f.vavailable_min_id.v);
 			history->applyDialogFields(
 				f.vunread_count.v,
@@ -1108,9 +1109,9 @@ void ApiWrap::gotUserFull(
 		});
 		return;
 	}
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
+	_session->data().processUser(d.vuser);
 	if (d.has_profile_photo()) {
-		_session->data().photo(d.vprofile_photo);
+		_session->data().processPhoto(d.vprofile_photo);
 	}
 	App::feedUserLink(MTP_int(peerToUser(user->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	if (App::main()) {
@@ -1158,14 +1159,14 @@ void ApiWrap::requestPeer(not_null<PeerData*> peer) {
 				return data.vchats;
 			});
 			_session->data().applyMaximumChatVersions(chats);
-			App::feedChats(chats);
+			_session->data().processChats(chats);
 		};
 		if (const auto user = peer->asUser()) {
 			return request(MTPusers_GetUsers(
 				MTP_vector<MTPInputUser>(1, user->inputUser)
 			)).done([=](const MTPVector<MTPUser> &result) {
 				_peerRequests.remove(user);
-				App::feedUsers(result);
+				_session->data().processUsers(result);
 			}).fail(failHandler).send();
 		} else if (const auto chat = peer->asChat()) {
 			return request(MTPmessages_GetChats(
@@ -1352,7 +1353,7 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 		}
 	}
 	const auto handleChats = [=](const MTPmessages_Chats &result) {
-		App::feedChats(result.match([](const auto &data) {
+		_session->data().processChats(result.match([](const auto &data) {
 			return data.vchats;
 		}));
 	};
@@ -1370,7 +1371,7 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 		request(MTPusers_GetUsers(
 			MTP_vector<MTPInputUser>(users)
 		)).done([=](const MTPVector<MTPUser> &result) {
-			App::feedUsers(result);
+			_session->data().processUsers(result);
 		}).send();
 	}
 }
@@ -1452,7 +1453,7 @@ void ApiWrap::requestAdmins(not_null<ChannelData*> channel) {
 	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
 		_adminsRequests.remove(channel);
 		result.match([&](const MTPDchannels_channelParticipants &data) {
-			App::feedUsers(data.vusers);
+			_session->data().processUsers(data.vusers);
 			applyAdminsList(
 				channel,
 				data.vcount.v,
@@ -1498,7 +1499,7 @@ void ApiWrap::applyLastParticipantsList(
 			continue;
 		}
 
-		auto user = App::user(userId);
+		auto user = _session->data().user(userId);
 		if (p.type() == mtpc_channelParticipantCreator) {
 			channel->mgInfo->creator = user;
 			if (!channel->mgInfo->admins.empty()
@@ -1550,7 +1551,7 @@ void ApiWrap::applyBotsList(
 		not_null<ChannelData*> channel,
 		int availableCount,
 		const QVector<MTPChannelParticipant> &list) {
-	const auto history = App::historyLoaded(channel->id);
+	const auto history = _session->data().historyLoaded(channel);
 	channel->mgInfo->bots.clear();
 	channel->mgInfo->botStatus = -1;
 
@@ -1565,7 +1566,7 @@ void ApiWrap::applyBotsList(
 			continue;
 		}
 
-		auto user = App::user(userId);
+		auto user = _session->data().user(userId);
 		if (user->botInfo) {
 			channel->mgInfo->bots.insert(user);
 			botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
@@ -1629,7 +1630,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	const auto finalize = [=](UserId inviter, TimeId inviteDate) {
 		channel->inviter = inviter;
 		channel->inviteDate = inviteDate;
-		if (const auto history = App::historyLoaded(channel)) {
+		if (const auto history = _session->data().historyLoaded(channel)) {
 			if (history->lastMessageKnown()) {
 				history->checkJoinedMessage(true);
 				history->owner().sendHistoryChangeNotifications();
@@ -1645,7 +1646,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		_selfParticipantRequests.erase(channel);
 		result.match([&](const MTPDchannels_channelParticipant &data) {
-			App::feedUsers(data.vusers);
+			_session->data().processUsers(data.vusers);
 
 			const auto &participant = data.vparticipant;
 			participant.match([&](const MTPDchannelParticipantSelf &data) {
@@ -1778,7 +1779,7 @@ void ApiWrap::saveDefaultRestrictions(
 void ApiWrap::deleteAllFromUser(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from) {
-	const auto history = App::historyLoaded(channel->id);
+	const auto history = _session->data().historyLoaded(channel);
 	const auto ids = history
 		? history->collectMessagesFromUserToDelete(from)
 		: QVector<MsgId>();
@@ -1804,7 +1805,7 @@ void ApiWrap::deleteAllFromUserSend(
 		const auto offset = applyAffectedHistory(channel, result);
 		if (offset > 0) {
 			deleteAllFromUserSend(channel, from);
-		} else if (const auto history = App::historyLoaded(channel)) {
+		} else if (const auto history = _session->data().historyLoaded(channel)) {
 			history->requestChatListMessage();
 		}
 	}).send();
@@ -2196,7 +2197,7 @@ void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacy
 		Expects(result.type() == mtpc_account_privacyRules);
 
 		auto &rules = result.c_account_privacyRules();
-		App::feedUsers(rules.vusers);
+		_session->data().processUsers(rules.vusers);
 		_privacySaveRequests.remove(keyTypeId);
 		handlePrivacyChange(keyTypeId, rules.vrules);
 	}).fail([=](const RPCError &error) {
@@ -2306,7 +2307,7 @@ void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
 		for_const (auto &item, result.v) {
 			Assert(item.type() == mtpc_contactStatus);
 			auto &data = item.c_contactStatus();
-			if (auto user = App::userLoaded(data.vuser_id.v)) {
+			if (auto user = _session->data().userLoaded(data.vuser_id.v)) {
 				auto oldOnlineTill = user->onlineTill;
 				auto newOnlineTill = OnlineTillFromStatus(data.vstatus, oldOnlineTill);
 				if (oldOnlineTill != newOnlineTill) {
@@ -2338,7 +2339,7 @@ int ApiWrap::OnlineTillFromStatus(
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer) {
 	auto deleteTillId = MsgId(0);
-	if (const auto history = App::historyLoaded(peer->id)) {
+	if (const auto history = _session->data().historyLoaded(peer)) {
 		if (const auto last = history->lastMessage()) {
 			deleteTillId = last->id;
 		}
@@ -2704,8 +2705,8 @@ void ApiWrap::channelRangeDifferenceDone(
 	case mtpc_updates_channelDifferenceTooLong: {
 		const auto &d = result.c_updates_channelDifferenceTooLong();
 
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_session->data().processUsers(d.vusers);
+		_session->data().processChats(d.vchats);
 
 		nextRequestPts = d.vpts.v;
 		isFinal = d.is_final();
@@ -2829,7 +2830,7 @@ void ApiWrap::refreshFileReference(
 			fail();
 		}
 	}, [&](Data::FileOriginUserPhoto data) {
-		if (const auto user = App::user(data.userId)) {
+		if (const auto user = _session->data().user(data.userId)) {
 			request(MTPphotos_GetUserPhotos(
 				user->inputUser,
 				MTP_int(-1),
@@ -2839,7 +2840,7 @@ void ApiWrap::refreshFileReference(
 			fail();
 		}
 	}, [&](Data::FileOriginPeerPhoto data) {
-		if (const auto peer = App::peer(data.peerId)) {
+		if (const auto peer = _session->data().peer(data.peerId)) {
 			if (const auto user = peer->asUser()) {
 				request(MTPusers_GetUsers(
 					MTP_vector<MTPInputUser>(1, user->inputUser)));
@@ -2895,15 +2896,15 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
 		auto &d = msgs.c_messages_messages();
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_session->data().processUsers(d.vusers);
+		_session->data().processChats(d.vchats);
 		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
 		auto &d = msgs.c_messages_messagesSlice();
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_session->data().processUsers(d.vusers);
+		_session->data().processChats(d.vchats);
 		v = &d.vmessages.v;
 	} break;
 
@@ -2914,8 +2915,8 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotWebPages)"));
 		}
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_session->data().processUsers(d.vusers);
+		_session->data().processChats(d.vchats);
 		v = &d.vmessages.v;
 	} break;
 
@@ -3023,7 +3024,8 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			entry.list.clear();
 			entry.list.reserve(data.vstickers.v.size());
 			for (const auto &sticker : data.vstickers.v) {
-				const auto document = _session->data().document(sticker);
+				const auto document = _session->data().processDocument(
+					sticker);
 				if (document->sticker()) {
 					entry.list.push_back(document);
 				}
@@ -3311,7 +3313,7 @@ void ApiWrap::parseChannelParticipants(
 			const QVector<MTPChannelParticipant> &list)> callbackList,
 		Fn<void()> callbackNotModified) {
 	result.match([&](const MTPDchannels_channelParticipants &data) {
-		App::feedUsers(data.vusers);
+		_session->data().processUsers(data.vusers);
 		if (channel->mgInfo) {
 			refreshChannelAdmins(channel, data.vparticipants.v);
 		}
@@ -3557,14 +3559,13 @@ void ApiWrap::requestMessageAfterDate(
 		MTP_int(minId),
 		MTP_int(historyHash)
 	)).done([
-		peer,
-		offsetDate,
+		=,
 		callback = std::forward<Callback>(callback)
 	](const MTPmessages_Messages &result) {
-		auto getMessagesList = [&result, peer]() -> const QVector<MTPMessage>* {
-			auto handleMessages = [](auto &messages) {
-				App::feedUsers(messages.vusers);
-				App::feedChats(messages.vchats);
+		auto getMessagesList = [&]() -> const QVector<MTPMessage>* {
+			auto handleMessages = [&](auto &messages) {
+				_session->data().processUsers(messages.vusers);
+				_session->data().processChats(messages.vchats);
 				return &messages.vmessages.v;
 			};
 			switch (result.type()) {
@@ -3660,8 +3661,8 @@ void ApiWrap::requestMessageAfterDate(
 	//	const auto &data = result.c_messages_feedMessages();
 	//	const auto &messages = data.vmessages.v;
 	//	const auto type = NewMessageExisting;
-	//	App::feedUsers(data.vusers);
-	//	App::feedChats(data.vchats);
+	//	_session->data().processUsers(data.vusers);
+	//	_session->data().processChats(data.vchats);
 	//	for (const auto &msg : messages) {
 	//		if (const auto item = _session->data().addNewMessage(msg, type)) {
 	//			if (item->date() >= offsetDate || true) {
@@ -3863,14 +3864,14 @@ void ApiWrap::userPhotosDone(
 		switch (result.type()) {
 		case mtpc_photos_photos: {
 			auto &d = result.c_photos_photos();
-			App::feedUsers(d.vusers);
+			_session->data().processUsers(d.vusers);
 			fullCount = d.vphotos.v.size();
 			return &d.vphotos.v;
 		} break;
 
 		case mtpc_photos_photosSlice: {
 			auto &d = result.c_photos_photosSlice();
-			App::feedUsers(d.vusers);
+			_session->data().processUsers(d.vusers);
 			fullCount = d.vcount.v;
 			return &d.vphotos.v;
 		} break;
@@ -3881,7 +3882,7 @@ void ApiWrap::userPhotosDone(
 	auto photoIds = std::vector<PhotoId>();
 	photoIds.reserve(photos.size());
 	for (auto &photo : photos) {
-		if (auto photoData = _session->data().photo(photo)) {
+		if (auto photoData = _session->data().processPhoto(photo)) {
 			photoIds.push_back(photoData->id);
 		}
 	}
@@ -3943,14 +3944,14 @@ void ApiWrap::userPhotosDone(
 //			const auto feed = _session->data().feed(feedId);
 //			auto channels = std::vector<not_null<ChannelData*>>();
 //			for (const auto &channelId : list.vchannels.v) {
-//				channels.push_back(App::channel(channelId.v));
+//				channels.push_back(_session->data().channel(channelId.v));
 //			}
 //			feed->setChannels(std::move(channels));
 //		}
 //	}
 //
-//	App::feedUsers(data.vusers);
-//	App::feedChats(data.vchats);
+//	_session->data().processUsers(data.vusers);
+//	_session->data().processChats(data.vchats);
 //
 //	if (data.has_newly_joined_feed()) {
 //		_session->data().setDefaultFeedId(
@@ -4085,8 +4086,8 @@ void ApiWrap::userPhotosDone(
 //	const auto tooSmallPosition = [&](const auto &position) {
 //		return (slice == SliceType::After) && !(messageId < position);
 //	};
-//	App::feedUsers(data.vusers);
-//	App::feedChats(data.vchats);
+//	_session->data().processUsers(data.vusers);
+//	_session->data().processChats(data.vchats);
 //	if (!messages.empty()) {
 //		ids.reserve(messages.size());
 //		for (const auto &msg : messages) {
@@ -4662,7 +4663,7 @@ void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
 	auto &info = bot->botInfo;
 	auto &token = chat ? info->startGroupToken : info->startToken;
 	if (token.isEmpty()) {
-		auto message = ApiWrap::MessageToSend(App::history(bot));
+		auto message = ApiWrap::MessageToSend(_session->data().history(bot));
 		message.textWithTags = { qsl("/start"), TextWithTags::Tags() };
 		sendMessage(std::move(message));
 		return;
@@ -5135,18 +5136,18 @@ void ApiWrap::photoUploadReady(
 				file
 			)).done([=](const MTPphotos_Photo &result) {
 				result.match([&](const MTPDphotos_photo &data) {
-					_session->data().photo(data.vphoto);
-					App::feedUsers(data.vusers);
+					_session->data().processPhoto(data.vphoto);
+					_session->data().processUsers(data.vusers);
 				});
 			}).send();
 		} else if (const auto chat = peer->asChat()) {
-			const auto history = App::history(chat);
+			const auto history = _session->data().history(chat);
 			history->sendRequestId = request(MTPmessages_EditChatPhoto(
 				chat->inputChat,
 				MTP_inputChatUploadedPhoto(file)
 			)).done(applier).afterRequest(history->sendRequestId).send();
 		} else if (const auto channel = peer->asChannel()) {
-			const auto history = App::history(channel);
+			const auto history = _session->data().history(channel);
 			history->sendRequestId = request(MTPchannels_EditPhoto(
 				channel->inputChannel,
 				MTP_inputChatUploadedPhoto(file)
@@ -5298,7 +5299,7 @@ void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
 	)).done([=](const MTPUser &result) {
 		_saveBioRequestId = 0;
 
-		App::feedUsers(MTP_vector<MTPUser>(1, result));
+		_session->data().processUsers(MTP_vector<MTPUser>(1, result));
 		_session->user()->setAbout(_saveBioText);
 		if (_saveBioDone) {
 			_saveBioDone();
@@ -5317,7 +5318,7 @@ void ApiWrap::reloadPrivacy(Privacy::Key key) {
 	)).done([=](const MTPaccount_PrivacyRules &result) {
 		_privacyRequestIds.erase(key);
 		result.match([&](const MTPDaccount_privacyRules &data) {
-			App::feedUsers(data.vusers);
+			_session->data().processUsers(data.vusers);
 			pushPrivacy(key, data.vrules.v);
 		});
 	}).fail([=](const RPCError &error) {
@@ -5351,7 +5352,7 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 			const auto &users = data.vusers.v;
 			always.reserve(always.size() + users.size());
 			for (const auto userId : users) {
-				const auto user = App::user(UserId(userId.v));
+				const auto user = _session->data().user(UserId(userId.v));
 				if (!base::contains(never, user)
 					&& !base::contains(always, user)) {
 					always.push_back(user);
@@ -5365,7 +5366,7 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 			const auto &users = data.vusers.v;
 			never.reserve(never.size() + users.size());
 			for (const auto userId : users) {
-				const auto user = App::user(UserId(userId.v));
+				const auto user = _session->data().user(UserId(userId.v));
 				if (!base::contains(always, user)
 					&& !base::contains(never, user)) {
 					never.push_back(user);
@@ -5589,7 +5590,7 @@ void ApiWrap::readServerHistoryForce(not_null<History*> history) {
 		if (!channel->amIn()) {
 			return; // no read request for channels that I didn't join
 		} else if (const auto migrateFrom = channel->migrateFrom()) {
-			if (const auto migrated = App::historyLoaded(migrateFrom)) {
+			if (const auto migrated = _session->data().historyLoaded(migrateFrom)) {
 				readServerHistory(migrated);
 			}
 		}

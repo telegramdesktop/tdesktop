@@ -53,10 +53,10 @@ WebPageCollage ExtractCollage(
 
 	auto &storage = Auth().data();
 	for (const auto &photo : photos) {
-		storage.photo(photo);
+		storage.processPhoto(photo);
 	}
 	for (const auto &document : documents) {
-		storage.document(document);
+		storage.processDocument(document);
 	}
 	auto result = WebPageCollage();
 	result.items.reserve(count);
@@ -89,12 +89,12 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 	if (!data.has_cached_page()) {
 		return {};
 	}
-	const auto parseMedia = [&] {
+	const auto processMedia = [&] {
 		if (data.has_photo()) {
-			Auth().data().photo(data.vphoto);
+			Auth().data().processPhoto(data.vphoto);
 		}
 		if (data.has_document()) {
-			Auth().data().document(data.vdocument);
+			Auth().data().processDocument(data.vdocument);
 		}
 	};
 	return data.vcached_page.match([&](const auto &page) {
@@ -108,13 +108,13 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 			case mtpc_pageBlockAudio:
 				return WebPageCollage();
 			case mtpc_pageBlockSlideshow:
-				parseMedia();
+				processMedia();
 				return ExtractCollage(
 					block.c_pageBlockSlideshow().vitems.v,
 					page.vphotos.v,
 					page.vdocuments.v);
 			case mtpc_pageBlockCollage:
-				parseMedia();
+				processMedia();
 				return ExtractCollage(
 					block.c_pageBlockCollage().vitems.v,
 					page.vphotos.v,

@@ -8,13 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/change_phone_box.h"
 
 #include "lang/lang_keys.h"
-#include "styles/style_boxes.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "boxes/confirm_phone_box.h"
 #include "ui/toast/toast.h"
 #include "boxes/confirm_box.h"
+#include "auth_session.h"
+#include "data/data_session.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -260,7 +262,7 @@ void ChangePhoneBox::EnterCode::submit() {
 		MTP_string(_hash),
 		MTP_string(code)
 	), rpcDone([weak = make_weak(this)](const MTPUser &result) {
-		App::feedUser(result);
+		Auth().data().processUser(result);
 		if (weak) {
 			Ui::hideLayer();
 		}

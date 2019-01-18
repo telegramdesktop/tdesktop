@@ -139,13 +139,16 @@ Uploader::Uploader() {
 	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
 }
 
-void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
+void Uploader::uploadMedia(
+		const FullMsgId &msgId,
+		const SendMediaReady &media) {
 	if (media.type == SendMediaType::Photo) {
-		Auth().data().photo(media.photo, media.photoThumbs);
-	} else if (media.type == SendMediaType::File || media.type == SendMediaType::Audio) {
+		Auth().data().processPhoto(media.photo, media.photoThumbs);
+	} else if (media.type == SendMediaType::File
+		|| media.type == SendMediaType::Audio) {
 		const auto document = media.photoThumbs.isEmpty()
-			? Auth().data().document(media.document)
-			: Auth().data().document(
+			? Auth().data().processDocument(media.document)
+			: Auth().data().processDocument(
 				media.document,
 				base::duplicate(media.photoThumbs.begin().value()));
 		if (!media.data.isEmpty()) {
@@ -171,15 +174,20 @@ void Uploader::upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file) {
 	if (file->type == SendMediaType::Photo) {
-		auto photo = Auth().data().photo(file->photo, file->photoThumbs);
-		photo->uploadingData = std::make_unique<Data::UploadState>(file->partssize);
-	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
-		auto document = file->thumb.isNull()
-			? Auth().data().document(file->document)
-			: Auth().data().document(
+		const auto photo = Auth().data().processPhoto(
+			file->photo,
+			file->photoThumbs);
+		photo->uploadingData = std::make_unique<Data::UploadState>(
+			file->partssize);
+	} else if (file->type == SendMediaType::File
+		|| file->type == SendMediaType::Audio) {
+		const auto document = file->thumb.isNull()
+			? Auth().data().processDocument(file->document)
+			: Auth().data().processDocument(
 				file->document,
 				std::move(file->thumb));
-		document->uploadingData = std::make_unique<Data::UploadState>(document->size);
+		document->uploadingData = std::make_unique<Data::UploadState>(
+			document->size);
 		document->setGoodThumbnail(
 			std::move(file->goodThumbnail),
 			std::move(file->goodThumbnailBytes));

@@ -338,7 +338,8 @@ bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	}
 	auto &data = media.c_messageMediaPhoto();
 	if (data.has_photo() && !data.has_ttl_seconds()) {
-		const auto photo = parent()->history()->owner().photo(data.vphoto);
+		const auto photo = parent()->history()->owner().processPhoto(
+			data.vphoto);
 		if (photo == _photo) {
 			return true;
 		} else {
@@ -684,7 +685,7 @@ bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	}
 	auto &data = media.c_messageMediaDocument();
 	if (data.has_document() && !data.has_ttl_seconds()) {
-		const auto document = parent()->history()->owner().document(
+		const auto document = parent()->history()->owner().processDocument(
 			data.vdocument);
 		if (document == _document) {
 			return false;

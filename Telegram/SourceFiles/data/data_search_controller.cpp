@@ -107,16 +107,16 @@ SearchResult ParseSearchResult(
 		switch (data.type()) {
 		case mtpc_messages_messages: {
 			auto &d = data.c_messages_messages();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
+			peer->owner().processUsers(d.vusers);
+			peer->owner().processChats(d.vchats);
 			result.fullCount = d.vmessages.v.size();
 			return &d.vmessages.v;
 		} break;
 
 		case mtpc_messages_messagesSlice: {
 			auto &d = data.c_messages_messagesSlice();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
+			peer->owner().processUsers(d.vusers);
+			peer->owner().processChats(d.vchats);
 			result.fullCount = d.vcount.v;
 			return &d.vmessages.v;
 		} break;
@@ -129,8 +129,8 @@ SearchResult ParseSearchResult(
 				LOG(("API Error: received messages.channelMessages when "
 					"no channel was passed! (ParseSearchResult)"));
 			}
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
+			peer->owner().processUsers(d.vusers);
+			peer->owner().processChats(d.vchats);
 			result.fullCount = d.vcount.v;
 			return &d.vmessages.v;
 		} break;
@@ -151,7 +151,7 @@ SearchResult ParseSearchResult(
 	auto addType = NewMessageExisting;
 	result.messageIds.reserve(messages->size());
 	for (const auto &message : *messages) {
-		if (auto item = Auth().data().addNewMessage(message, addType)) {
+		if (auto item = peer->owner().addNewMessage(message, addType)) {
 			auto itemId = item->id;
 			if ((type == Storage::SharedMediaType::kCount)
 				|| item->sharedMediaTypes().test(type)) {
@@ -178,9 +178,9 @@ SearchResult ParseSearchResult(
 }
 
 SearchController::CacheEntry::CacheEntry(const Query &query)
-: peerData(App::peer(query.peerId))
+: peerData(Auth().data().peer(query.peerId))
 , migratedData(query.migratedPeerId
-	? base::make_optional(Data(App::peer(query.migratedPeerId)))
+	? base::make_optional(Data(Auth().data().peer(query.migratedPeerId)))
 	: std::nullopt) {
 }
 

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "styles/style_chat_helpers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -1023,7 +1024,7 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
-		App::feedUsers(d.vusers);
+		Auth().data().processUsers(d.vusers);
 
 		auto &v = d.vresults.v;
 		auto queryId = d.vquery_id.v;

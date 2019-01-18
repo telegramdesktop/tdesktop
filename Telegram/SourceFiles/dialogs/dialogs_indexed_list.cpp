@@ -95,7 +95,7 @@ void IndexedList::peerNameChanged(
 		const base::flat_set<QChar> &oldLetters) {
 	Expects(_sortMode != SortMode::Date);
 
-	if (const auto history = App::historyLoaded(peer)) {
+	if (const auto history = peer->owner().historyLoaded(peer)) {
 		if (_sortMode == SortMode::Name) {
 			adjustByName(history, oldLetters);
 		} else {
@@ -110,7 +110,7 @@ void IndexedList::peerNameChanged(
 		const base::flat_set<QChar> &oldLetters) {
 	Expects(_sortMode == SortMode::Date);
 
-	if (const auto history = App::historyLoaded(peer)) {
+	if (const auto history = peer->owner().historyLoaded(peer)) {
 		adjustNames(list, history, oldLetters);
 	}
 }

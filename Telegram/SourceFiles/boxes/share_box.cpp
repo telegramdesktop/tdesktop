@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "auth_session.h"
 #include "messenger.h"
 #include "styles/style_boxes.h"
@@ -220,7 +221,7 @@ void ShareBox::prepare() {
 		applyFilterUpdate(query);
 	});
 	_select->setItemRemovedCallback([=](uint64 itemId) {
-		if (const auto peer = App::peerLoaded(itemId)) {
+		if (const auto peer = Auth().data().peerLoaded(itemId)) {
 			_inner->peerUnselected(peer);
 			selectedChanged();
 			update();
@@ -334,8 +335,8 @@ void ShareBox::peopleReceived(
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			auto &found = result.c_contacts_found();
-			App::feedUsers(found.vusers);
-			App::feedChats(found.vchats);
+			Auth().data().processUsers(found.vusers);
+			Auth().data().processChats(found.vchats);
 			_inner->peopleReceived(
 				query,
 				found.vmy_results.v,
@@ -491,7 +492,7 @@ ShareBox::Inner::Inner(
 	const auto dialogs = App::main()->dialogsList();
 	const auto self = Auth().user();
 	if (_filterCallback(self)) {
-		_chatsIndexed->addToEnd(App::history(self));
+		_chatsIndexed->addToEnd(self->owner().history(self));
 	}
 	for (const auto row : dialogs->all()) {
 		if (const auto history = row->history()) {
@@ -880,7 +881,7 @@ void ShareBox::Inner::changeCheckState(Chat *chat) {
 	if (!chat) return;
 
 	if (!_filter.isEmpty()) {
-		const auto history = App::history(chat->peer);
+		const auto history = chat->peer->owner().history(chat->peer);
 		auto row = _chatsIndexed->getRow(history);
 		if (!row) {
 			const auto rowsByLetter = _chatsIndexed->addToEnd(history);
@@ -1017,8 +1018,8 @@ void ShareBox::Inner::peopleReceived(
 	d_byUsernameFiltered.reserve(already + my.size() + people.size());
 	const auto feedList = [&](const QVector<MTPPeer> &list) {
 		for (const auto &data : list) {
-			if (const auto peer = App::peerLoaded(peerFromMTP(data))) {
-				const auto history = App::historyLoaded(peer);
+			if (const auto peer = Auth().data().peerLoaded(peerFromMTP(data))) {
+				const auto history = Auth().data().historyLoaded(peer);
 				if (!_filterCallback(peer)) {
 					continue;
 				} else if (history && _chatsIndexed->getRow(history)) {
@@ -1066,7 +1067,9 @@ QVector<PeerData*> ShareBox::Inner::selected() const {
 QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	auto shareHashData = QByteArray(0x10, Qt::Uninitialized);
 	auto shareHashDataInts = reinterpret_cast<int32*>(shareHashData.data());
-	auto channel = fullId.channel ? App::channelLoaded(fullId.channel) : static_cast<ChannelData*>(nullptr);
+	auto channel = fullId.channel
+		? Auth().data().channelLoaded(fullId.channel)
+		: static_cast<ChannelData*>(nullptr);
 	auto channelAccessHash = channel ? channel->access : 0ULL;
 	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
 	shareHashDataInts[0] = Auth().userId();
@@ -1169,7 +1172,9 @@ void ShareGameScoreByHash(const QString &hash) {
 			});
 		};
 
-		auto channel = channelId ? App::channelLoaded(channelId) : nullptr;
+		const auto channel = channelId
+			? Auth().data().channelLoaded(channelId)
+			: nullptr;
 		if (channel || !channelId) {
 			resolveMessageAndShareScore(channel);
 		} else {
@@ -1177,9 +1182,9 @@ void ShareGameScoreByHash(const QString &hash) {
 			auto requestChannel = MTPchannels_GetChannels(requestChannelIds);
 			MTP::send(requestChannel, rpcDone([=](const MTPmessages_Chats &result) {
 				result.match([](const auto &data) {
-					App::feedChats(data.vchats);
+					Auth().data().processChats(data.vchats);
 				});
-				if (const auto channel = App::channelLoaded(channelId)) {
+				if (const auto channel = Auth().data().channelLoaded(channelId)) {
 					resolveMessageAndShareScore(channel);
 				}
 			}));

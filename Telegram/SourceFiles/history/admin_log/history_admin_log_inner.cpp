@@ -216,7 +216,7 @@ InnerWidget::InnerWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _channel(channel)
-, _history(App::history(channel))
+, _history(channel->owner().history(channel))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _emptyText(
 	st::historyAdminLogEmptyWidth
@@ -405,7 +405,7 @@ void InnerWidget::requestAdmins() {
 				return std::make_pair(userId, canEdit);
 			}) | ranges::view::transform([&](auto &&pair) {
 				return std::make_pair(
-					App::userLoaded(pair.first),
+					Auth().data().userLoaded(pair.first),
 					pair.second);
 			}) | ranges::view::filter([&](auto &&pair) {
 				return (pair.first != nullptr);
@@ -588,13 +588,23 @@ void InnerWidget::preloadMore(Direction direction) {
 	auto maxId = (direction == Direction::Up) ? _minId : 0;
 	auto minId = (direction == Direction::Up) ? 0 : _maxId;
 	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
-	requestId = request(MTPchannels_GetAdminLog(MTP_flags(flags), _channel->inputChannel, MTP_string(_searchQuery), filter, MTP_vector<MTPInputUser>(admins), MTP_long(maxId), MTP_long(minId), MTP_int(perPage))).done([this, &requestId, &loadedFlag, direction](const MTPchannels_AdminLogResults &result) {
+	requestId = request(MTPchannels_GetAdminLog(
+		MTP_flags(flags),
+		_channel->inputChannel,
+		MTP_string(_searchQuery),
+		filter,
+		MTP_vector<MTPInputUser>(admins),
+		MTP_long(maxId),
+		MTP_long(minId),
+		MTP_int(perPage)
+	)).done([=, &requestId, &loadedFlag](const MTPchannels_AdminLogResults &result) {
 		Expects(result.type() == mtpc_channels_adminLogResults);
+
 		requestId = 0;
 
 		auto &results = result.c_channels_adminLogResults();
-		App::feedUsers(results.vusers);
-		App::feedChats(results.vchats);
+		_channel->owner().processUsers(results.vusers);
+		_channel->owner().processChats(results.vchats);
 		if (!loadedFlag) {
 			addEvents(direction, results.vevents.v);
 		}
@@ -1167,7 +1177,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
 
 				auto &participant = result.c_channels_channelParticipant();
-				App::feedUsers(participant.vusers);
+				_channel->owner().processUsers(participant.vusers);
 				auto type = participant.vparticipant.type();
 				if (type == mtpc_channelParticipantBanned) {
 					auto &banned = participant.vparticipant.c_channelParticipantBanned();

@@ -199,7 +199,7 @@ Key WrapWidget::key() const {
 
 Dialogs::RowDescriptor WrapWidget::activeChat() const {
 	if (const auto peer = key().peer()) {
-		return Dialogs::RowDescriptor(App::history(peer), FullMsgId());
+		return Dialogs::RowDescriptor(peer->owner().history(peer), FullMsgId());
 	} else if (const auto feed = key().feed()) {
 		return Dialogs::RowDescriptor(feed, FullMsgId());
 	} else if (key().settingsSelf()) {

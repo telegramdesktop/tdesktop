@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "messenger.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 #include "application.h"
 #include "platform/platform_specific.h"
 #include "history/view/history_view_element.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "core/file_utilities.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 
 namespace {
 
@@ -247,7 +249,7 @@ TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(ExpandLink
 void MentionNameClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (auto user = App::userLoaded(_userId)) {
+		if (auto user = Auth().data().userLoaded(_userId)) {
 			Ui::showPeerProfile(user);
 		}
 	}
@@ -259,7 +261,7 @@ TextWithEntities MentionNameClickHandler::getExpandedLinkTextWithEntities(Expand
 }
 
 QString MentionNameClickHandler::tooltip() const {
-	if (auto user = App::userLoaded(_userId)) {
+	if (auto user = Auth().data().userLoaded(_userId)) {
 		auto name = App::peerName(user);
 		if (name != _text) {
 			return name;

@@ -185,7 +185,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 				continue;
 			}
 
-			const auto history = App::history(peer);
+			const auto history = peer->owner().history(peer);
 			if (!comment.text.isEmpty()) {
 				auto message = ApiWrap::MessageToSend(history);
 				message.textWithTags = comment;
@@ -673,10 +673,12 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	}
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		forwarded->originalDate = config.originalDate;
-		forwarded->originalSender = App::peer(config.senderOriginal);
+		forwarded->originalSender = history()->owner().peer(
+			config.senderOriginal);
 		forwarded->originalId = config.originalId;
 		forwarded->originalAuthor = config.authorOriginal;
-		forwarded->savedFromPeer = App::peerLoaded(config.savedFromPeer);
+		forwarded->savedFromPeer = history()->owner().peerLoaded(
+			config.savedFromPeer);
 		forwarded->savedFromMsgId = config.savedFromMsgId;
 	}
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
@@ -789,7 +791,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vphoto.match([&](const MTPDphoto &photo) -> Result {
 			return std::make_unique<Data::MediaPhoto>(
 				item,
-				item->history()->owner().photo(photo));
+				item->history()->owner().processPhoto(photo));
 		}, [](const MTPDphotoEmpty &) -> Result {
 			return nullptr;
 		});
@@ -809,7 +811,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return document.match([&](const MTPDdocument &document) -> Result {
 			return std::make_unique<Data::MediaFile>(
 				item,
-				item->history()->owner().document(document));
+				item->history()->owner().processDocument(document));
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -819,11 +821,11 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		}, [&](const MTPDwebPagePending &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				item->history()->owner().webpage(webpage));
+				item->history()->owner().processWebpage(webpage));
 		}, [&](const MTPDwebPage &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				item->history()->owner().webpage(webpage));
+				item->history()->owner().processWebpage(webpage));
 		}, [](const MTPDwebPageNotModified &) -> Result {
 			LOG(("API Error: "
 				"webPageNotModified is unexpected in message media."));
@@ -833,14 +835,14 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vgame.match([&](const MTPDgame &game) {
 			return std::make_unique<Data::MediaGame>(
 				item,
-				item->history()->owner().game(game));
+				item->history()->owner().processGame(game));
 		});
 	}, [&](const MTPDmessageMediaInvoice &media) -> Result {
 		return std::make_unique<Data::MediaInvoice>(item, media);
 	}, [&](const MTPDmessageMediaPoll &media) -> Result {
 		return std::make_unique<Data::MediaPoll>(
 			item,
-			item->history()->owner().poll(media));
+			item->history()->owner().processPoll(media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

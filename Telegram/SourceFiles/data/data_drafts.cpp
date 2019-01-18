@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_widget.h"
+#include "data/data_session.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
 #include "support/support_helper.h"
@@ -45,7 +46,7 @@ Draft::Draft(
 }
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
-	const auto history = App::history(peerId);
+	const auto history = Auth().data().history(peerId);
 	const auto textWithTags = TextWithTags {
 		qs(draft.vmessage),
 		ConvertEntitiesToTextTags(
@@ -79,7 +80,7 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 }
 
 void clearPeerCloudDraft(PeerId peerId, TimeId date) {
-	const auto history = App::history(peerId);
+	const auto history = Auth().data().history(peerId);
 	if (history->skipCloudDraft(QString(), MsgId(0), date)) {
 		return;
 	}

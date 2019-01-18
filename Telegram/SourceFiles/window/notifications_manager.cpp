@@ -396,7 +396,7 @@ Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {
 void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 	onBeforeNotificationActivated(peerId, msgId);
 	if (auto window = App::wnd()) {
-		auto history = App::history(peerId);
+		auto history = Auth().data().history(peerId);
 		window->showFromTray();
 		window->reActivateWindow();
 		if (Messenger::Instance().locked()) {
@@ -447,7 +447,7 @@ void Manager::notificationReplied(
 		const TextWithTags &reply) {
 	if (!peerId) return;
 
-	const auto history = App::history(peerId);
+	const auto history = Auth().data().history(peerId);
 
 	auto message = ApiWrap::MessageToSend(history);
 	message.textWithTags = reply;

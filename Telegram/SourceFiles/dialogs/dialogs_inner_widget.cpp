@@ -1410,7 +1410,7 @@ void DialogsInner::updateDialogRow(
 	if (IsServerMsgId(-row.fullId.msg)) {
 		if (const auto peer = row.key.peer()) {
 			if (const auto from = peer->migrateFrom()) {
-				if (const auto migrated = App::historyLoaded(from)) {
+				if (const auto migrated = from->owner().historyLoaded(from)) {
 					row = Dialogs::RowDescriptor(
 						migrated,
 						FullMsgId(0, -row.fullId.msg));
@@ -1871,7 +1871,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 		return;
 	}
 
-	const auto history = App::history(peerId);
+	const auto history = Auth().data().history(peerId);
 	history->applyDialog(dialog);
 
 	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
@@ -1882,7 +1882,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 	}
 	_contactsNoDialogs->del(history);
 	if (const auto from = history->peer->migrateFrom()) {
-		if (const auto historyFrom = App::historyLoaded(from)) {
+		if (const auto historyFrom = from->owner().historyLoaded(from)) {
 			removeDialog(historyFrom);
 		}
 	} else if (const auto to = history->peer->migrateTo()) {
@@ -1912,7 +1912,7 @@ void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 		const auto lastPeer = saved.last();
 		saved.remove(lastDate, lastPeer);
 
-		const auto history = App::history(lastPeer);
+		const auto history = Auth().data().history(lastPeer);
 		history->setChatListTimeId(ServerTimeFromParsed(lastDate));
 		_contactsNoDialogs->del(history);
 	}
@@ -1953,7 +1953,7 @@ bool DialogsInner::searchReceived(
 		auto msgId = IdFromMessage(message);
 		auto peerId = PeerFromMessage(message);
 		auto lastDate = DateFromMessage(message);
-		if (const auto peer = App::peerLoaded(peerId)) {
+		if (const auto peer = Auth().data().peerLoaded(peerId)) {
 			if (lastDate) {
 				const auto item = Auth().data().addNewMessage(
 					message,
@@ -2025,14 +2025,14 @@ void DialogsInner::peerSearchReceived(
 	_peerSearchResults.clear();
 	_peerSearchResults.reserve(result.size());
 	for (const auto &mtpPeer : my) {
-		if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+		if (const auto peer = Auth().data().peerLoaded(peerFromMTP(mtpPeer))) {
 			if (alreadyAdded(peer)) {
 				continue;
 			}
 			const auto prev = nullptr, next = nullptr;
 			const auto position = 0;
 			auto row = std::make_unique<Dialogs::Row>(
-				App::history(peer),
+				peer->owner().history(peer),
 				prev,
 				next,
 				position);
@@ -2047,8 +2047,8 @@ void DialogsInner::peerSearchReceived(
 		}
 	}
 	for (const auto &mtpPeer : result) {
-		if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
-			if (const auto history = App::historyLoaded(peer)) {
+		if (const auto peer = Auth().data().peerLoaded(peerFromMTP(mtpPeer))) {
+			if (const auto history = peer->owner().historyLoaded(peer)) {
 				if (history->inChatList(Dialogs::Mode::All)) {
 					continue; // skip existing chats
 				}
@@ -2071,13 +2071,13 @@ void DialogsInner::userIsContactUpdated(not_null<UserData*> user) {
 		return;
 	}
 	if (user->contactStatus() == UserData::ContactStatus::Contact) {
-		const auto history = App::history(user->id);
+		const auto history = user->owner().history(user->id);
 		_contacts->addByName(history);
 		if (!shownDialogs()->getRow(history)
 			&& !_dialogs->contains(history)) {
 			_contactsNoDialogs->addByName(history);
 		}
-	} else if (const auto history = App::historyLoaded(user)) {
+	} else if (const auto history = user->owner().historyLoaded(user)) {
 		if (_selected && _selected->history() == history) {
 			_selected = nullptr;
 		}
@@ -2196,9 +2196,9 @@ void DialogsInner::searchInChat(Dialogs::Key key, UserData *from) {
 	_searchInMigrated = nullptr;
 	if (const auto peer = key.peer()) {
 		if (const auto migrateTo = peer->migrateTo()) {
-			return searchInChat(App::history(migrateTo), from);
+			return searchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			_searchInMigrated = App::history(migrateFrom);
+			_searchInMigrated = peer->owner().history(migrateFrom);
 		}
 	}
 	_searchInChat = key;
@@ -2544,7 +2544,7 @@ DialogsInner::ChosenRow DialogsInner::computeChosenRow() const {
 			};
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
 			return {
-				App::history(_peerSearchResults[_peerSearchSelected]->peer),
+				Auth().data().history(_peerSearchResults[_peerSearchSelected]->peer),
 				Data::UnreadMessagePosition
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
@@ -2666,7 +2666,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			}
 			return Dialogs::RowDescriptor(
-				App::history(_peerSearchResults.back()->peer),
+				Auth().data().history(_peerSearchResults.back()->peer),
 				FullMsgId(NoChannel, ShowAtUnreadMsgId));
 		}
 	}
@@ -2683,7 +2683,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 		for (auto b = _peerSearchResults.cbegin(), i = b + 1, e = _peerSearchResults.cend(); i != e; ++i) {
 			if ((*i)->peer == whichHistory->peer) {
 				return Dialogs::RowDescriptor(
-					App::history((*(i - 1))->peer),
+					Auth().data().history((*(i - 1))->peer),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			}
 		}
@@ -2739,7 +2739,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryAfter(
 			++i;
 			if (i != e) {
 				return Dialogs::RowDescriptor(
-					App::history((*i)->peer),
+					Auth().data().history((*i)->peer),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			} else if (!_searchResults.empty()) {
 				return Dialogs::RowDescriptor(
@@ -2758,7 +2758,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryAfter(
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			} else if (!_peerSearchResults.empty()) {
 				return Dialogs::RowDescriptor(
-					App::history(_peerSearchResults.front()->peer),
+					Auth().data().history(_peerSearchResults.front()->peer),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			} else if (!_searchResults.empty()) {
 				return Dialogs::RowDescriptor(
@@ -2786,7 +2786,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryFirst() const {
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	} else if (!_peerSearchResults.empty()) {
 		return Dialogs::RowDescriptor(
-			App::history(_peerSearchResults.front()->peer),
+			Auth().data().history(_peerSearchResults.front()->peer),
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	} else if (!_searchResults.empty()) {
 		return Dialogs::RowDescriptor(
@@ -2811,7 +2811,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryLast() const {
 			_searchResults.back()->item()->fullId());
 	} else if (!_peerSearchResults.empty()) {
 		return Dialogs::RowDescriptor(
-			App::history(_peerSearchResults.back()->peer),
+			Auth().data().history(_peerSearchResults.back()->peer),
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	} else if (!_filterResults.empty()) {
 		return Dialogs::RowDescriptor(

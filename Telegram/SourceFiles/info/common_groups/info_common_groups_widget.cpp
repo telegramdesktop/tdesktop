@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 #include "styles/style_info.h"
 
 namespace Info {
@@ -28,7 +30,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 	auto result = object_ptr<Widget>(
 		parent,
 		controller,
-		App::user(userId()));
+		Auth().data().user(userId()));
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }

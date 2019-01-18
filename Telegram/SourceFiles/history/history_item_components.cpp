@@ -21,11 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
 void HistoryMessageVia::create(UserId userId) {
-	bot = App::user(peerFromUser(userId));
+	bot = Auth().data().user(userId);
 	maxWidth = st::msgServiceNameFont->width(
 		lng_inline_bot_via(lt_inline_bot, '@' + bot->username));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot] {

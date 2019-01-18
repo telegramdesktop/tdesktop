@@ -144,7 +144,7 @@ public:
 		return canShareThisContact() && !isContact();
 	}
 
-	// In feedUsers() we check only that.
+	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform
 	// a full check by canShareThisContact() call.
 	bool canShareThisContactFast() const {

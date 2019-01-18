@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "messenger.h"
 #include "auth_session.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "styles/style_boxes.h"
 
@@ -170,7 +171,7 @@ void UsernameBox::linkClick() {
 }
 
 void UsernameBox::onUpdateDone(const MTPUser &user) {
-	App::feedUsers(MTP_vector<MTPUser>(1, user));
+	Auth().data().processUser(user);
 	closeBox();
 }
 

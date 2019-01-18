@@ -689,7 +689,7 @@ std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
 	auto result = std::vector<not_null<UserData*>>();
 	result.reserve(v.size());
 	for (const auto &participant : v) {
-		if (const auto user = App::feedUser(participant)) {
+		if (const auto user = Auth().data().processUser(participant)) {
 			result.push_back(user);
 		}
 	}

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/window_controller.h"
+#include "data/data_session.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
@@ -43,7 +44,7 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 				Auth().api().importChatInvite(hash);
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
-			if (const auto chat = App::feedChat(data.vchat)) {
+			if (const auto chat = Auth().data().processChat(data.vchat)) {
 				App::wnd()->controller()->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::Forward);

@@ -50,10 +50,61 @@ void DateClickHandler::onClick(ClickContext context) const {
 	App::wnd()->controller()->showJumpToDate(_chat, _date);
 }
 
-Controller::Controller(not_null<MainWindow*> window)
-: _window(window) {
-	Auth().data().animationPlayInlineRequest(
-	) | rpl::start_with_next([this](auto item) {
+Navigation::Navigation(not_null<AuthSession*> session) : _session(session) {
+}
+
+AuthSession &Navigation::session() const {
+	return *_session;
+}
+
+void Navigation::showPeerInfo(
+		PeerId peerId,
+		const SectionShow &params) {
+	//if (Adaptive::ThreeColumn()
+	//	&& !_session->settings().thirdSectionInfoEnabled()) {
+	//	_session->settings().setThirdSectionInfoEnabled(true);
+	//	_session->saveSettingsDelayed();
+	//}
+	showSection(Info::Memento(peerId), params);
+}
+
+void Navigation::showPeerInfo(
+		not_null<PeerData*> peer,
+		const SectionShow &params) {
+	showPeerInfo(peer->id, params);
+}
+
+void Navigation::showPeerInfo(
+		not_null<History*> history,
+		const SectionShow &params) {
+	showPeerInfo(history->peer->id, params);
+}
+
+void Navigation::showSettings(
+		Settings::Type type,
+		const SectionShow &params) {
+	showSection(
+		Info::Memento(
+			Info::Settings::Tag{ _session->user() },
+			Info::Section(type)),
+		params);
+}
+
+void Navigation::showSettings(const SectionShow &params) {
+	showSettings(Settings::Type::Main, params);
+}
+
+Controller::Controller(
+	not_null<AuthSession*> session,
+	not_null<MainWindow*> window)
+: Navigation(session)
+, _window(window) {
+	init();
+}
+
+void Controller::init() {
+	session().data().animationPlayInlineRequest(
+	) | rpl::start_with_next([=](auto item) {
 		if (const auto video = roundVideo(item)) {
 			video->pauseResume();
 		} else {
@@ -61,13 +112,13 @@ Controller::Controller(not_null<MainWindow*> window)
 		}
 	}, lifetime());
 
-	if (Auth().supportMode()) {
+	if (session().supportMode()) {
 		initSupportMode();
 	}
 }
 
 void Controller::initSupportMode() {
-	Auth().supportHelper().registerWindow(this);
+	session().supportHelper().registerWindow(this);
 
 	Shortcuts::Requests(
 	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
@@ -84,7 +135,7 @@ void Controller::initSupportMode() {
 
 void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {
 	_activeChatEntry = row;
-	if (Auth().supportMode()) {
+	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
 	}
 }
@@ -229,8 +280,8 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
 		}
-		if (!Auth().settings().tabbedSelectorSectionEnabled()
-			&& !Auth().settings().thirdSectionInfoEnabled()) {
+		if (!session().settings().tabbedSelectorSectionEnabled()
+			&& !session().settings().thirdSectionInfoEnabled()) {
 			return true;
 		}
 		return false;
@@ -260,14 +311,14 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 }
 
 int Controller::countDialogsWidthFromRatio(int bodyWidth) const {
-	auto result = qRound(bodyWidth * Auth().settings().dialogsWidthRatio());
+	auto result = qRound(bodyWidth * session().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
 int Controller::countThirdColumnWidthFromRatio(int bodyWidth) const {
-	auto result = Auth().settings().thirdColumnWidth();
+	auto result = session().settings().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
@@ -320,11 +371,11 @@ void Controller::resizeForThirdSection() {
 
 	auto layout = computeColumnLayout();
 	auto tabbedSelectorSectionEnabled =
-		Auth().settings().tabbedSelectorSectionEnabled();
+		session().settings().tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled =
-		Auth().settings().thirdSectionInfoEnabled();
-	Auth().settings().setTabbedSelectorSectionEnabled(false);
-	Auth().settings().setThirdSectionInfoEnabled(false);
+		session().settings().thirdSectionInfoEnabled();
+	session().settings().setTabbedSelectorSectionEnabled(false);
+	session().settings().setThirdSectionInfoEnabled(false);
 
 	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
 	auto minimal = st::columnMinimalWidthThird;
@@ -345,20 +396,20 @@ void Controller::resizeForThirdSection() {
 		return window()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
-		if (extendBy != Auth().settings().thirdColumnWidth()) {
-			Auth().settings().setThirdColumnWidth(extendBy);
+		if (extendBy != session().settings().thirdColumnWidth()) {
+			session().settings().setThirdColumnWidth(extendBy);
 		}
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = Auth().settings().dialogsWidthRatio();
-		Auth().settings().setDialogsWidthRatio(
+		auto currentRatio = session().settings().dialogsWidthRatio();
+		session().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 	}
 	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
-	Auth().settings().setThirdSectionExtendedBy(savedValue);
+	session().settings().setThirdSectionExtendedBy(savedValue);
 
-	Auth().settings().setTabbedSelectorSectionEnabled(
+	session().settings().setTabbedSelectorSectionEnabled(
 		tabbedSelectorSectionEnabled);
-	Auth().settings().setThirdSectionInfoEnabled(
+	session().settings().setThirdSectionInfoEnabled(
 		thirdSectionInfoEnabled);
 }
 
@@ -368,23 +419,23 @@ void Controller::closeThirdSection() {
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = window()->isFullScreen()
 			|| window()->isMaximized();
-		auto savedValue = Auth().settings().thirdSectionExtendedBy();
+		auto savedValue = session().settings().thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
 			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = Auth().settings().dialogsWidthRatio();
-		Auth().settings().setDialogsWidthRatio(
+		auto currentRatio = session().settings().dialogsWidthRatio();
+		session().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			window()->width() + (newBodyWidth - layout.bodyWidth),
 			window()->height());
 	}
-	Auth().settings().setTabbedSelectorSectionEnabled(false);
-	Auth().settings().setThirdSectionInfoEnabled(false);
-	Auth().saveSettingsDelayed();
+	session().settings().setTabbedSelectorSectionEnabled(false);
+	session().settings().setThirdSectionInfoEnabled(false);
+	session().saveSettingsDelayed();
 	if (window()->size() != newWindowSize) {
 		window()->resize(newWindowSize);
 	} else {
@@ -400,7 +451,7 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 			} else if (history->loadedAtTop()
 				&& !history->isEmpty()
 				&& history->peer->migrateFrom()) {
-				if (const auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
+				if (const auto migrated = history->owner().historyLoaded(history->peer->migrateFrom())) {
 					if (migrated->scrollTopItem) {
 						// We're up in the migrated history.
 						// So current date is the date of first message here.
@@ -422,7 +473,7 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	const auto maxPeerDate = [](Dialogs::Key chat) {
 		if (auto history = chat.history()) {
 			if (const auto channel = history->peer->migrateTo()) {
-				history = App::historyLoaded(channel);
+				history = channel->owner().historyLoaded(channel);
 			}
 			if (history && history->chatListTimeId() != 0) {
 				return ParseDateTime(history->chatListTimeId()).date();
@@ -441,7 +492,7 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		};
 		if (const auto history = chat.history()) {
 			if (const auto chat = history->peer->migrateFrom()) {
-				if (const auto history = App::historyLoaded(chat)) {
+				if (const auto history = chat->owner().historyLoaded(chat)) {
 					if (history->loadedAtTop()) {
 						if (!history->isEmpty()) {
 							return history->blocks.front()->messages.front()->dateTime().date();
@@ -467,7 +518,7 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		: requestedDate;
 	const auto month = highlighted;
 	auto callback = [=](const QDate &date) {
-		Auth().api().jumpToDate(chat, date);
+		session().api().jumpToDate(chat, date);
 	};
 	auto box = Box<CalendarBox>(
 		month,
@@ -521,43 +572,6 @@ void Controller::showPeerHistory(
 		history->peer->id,
 		params,
 		msgId);
-}
-
-void Navigation::showPeerInfo(
-		PeerId peerId,
-		const SectionShow &params) {
-	//if (Adaptive::ThreeColumn()
-	//	&& !Auth().settings().thirdSectionInfoEnabled()) {
-	//	Auth().settings().setThirdSectionInfoEnabled(true);
-	//	Auth().saveSettingsDelayed();
-	//}
-	showSection(Info::Memento(peerId), params);
-}
-
-void Navigation::showPeerInfo(
-		not_null<PeerData*> peer,
-		const SectionShow &params) {
-	showPeerInfo(peer->id, params);
-}
-
-void Navigation::showPeerInfo(
-		not_null<History*> history,
-		const SectionShow &params) {
-	showPeerInfo(history->peer->id, params);
-}
-
-void Navigation::showSettings(
-		Settings::Type type,
-		const SectionShow &params) {
-	showSection(
-		Info::Memento(
-			Info::Settings::Tag{ Auth().user() },
-			Info::Section(type)),
-		params);
-}
-
-void Navigation::showSettings(const SectionShow &params) {
-	showSettings(Settings::Type::Main, params);
 }
 
 void Controller::showSection(

@@ -164,7 +164,7 @@ HistoryItem::HistoryItem(
 	UserId from)
 : id(id)
 , _history(history)
-, _from(from ? App::user(from) : history->peer)
+, _from(from ? history->owner().user(from) : history->peer)
 , _flags(flags)
 , _date(date) {
 	App::historyRegItem(this);

@@ -78,7 +78,7 @@ void Feed::indexNameParts() {
 }
 
 void Feed::registerOne(not_null<ChannelData*> channel) {
-	const auto history = App::history(channel);
+	const auto history = owner().history(channel);
 	if (!base::contains(_channels, history)) {
 		const auto invisible = (_channels.size() < 2);
 		_channels.push_back(history);
@@ -120,7 +120,7 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 }
 
 void Feed::unregisterOne(not_null<ChannelData*> channel) {
-	const auto history = App::history(channel);
+	const auto history = owner().history(channel);
 	const auto i = ranges::remove(_channels, history);
 	if (i != end(_channels)) {
 		const auto visible = (_channels.size() > 1);
@@ -339,7 +339,7 @@ bool Feed::unreadCountKnown() const {
 // #feed
 //void Feed::applyDialog(const MTPDdialogFeed &data) {
 //	const auto addChannel = [&](ChannelId channelId) {
-//		if (const auto channel = App::channelLoaded(channelId)) {
+//		if (const auto channel = owner().channelLoaded(channelId)) {
 //			channel->setFeed(this);
 //		}
 //	};

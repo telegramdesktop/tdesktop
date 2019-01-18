@@ -102,10 +102,10 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		if (r.has_title()) result->_title = qs(r.vtitle);
 		if (r.has_description()) result->_description = qs(r.vdescription);
 		if (r.has_photo()) {
-			result->_photo = Auth().data().photo(r.vphoto);
+			result->_photo = Auth().data().processPhoto(r.vphoto);
 		}
 		if (r.has_document()) {
-			result->_document = Auth().data().document(r.vdocument);
+			result->_document = Auth().data().processDocument(r.vdocument);
 		}
 		message = &r.vsend_message;
 	} break;

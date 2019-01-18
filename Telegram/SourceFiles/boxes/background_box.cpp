@@ -290,12 +290,12 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	const Data::WallPaper &paper)
 : _text1(GenerateTextItem(
 	this,
-	App::history(App::user(ServiceUserId)),
+	Auth().data().history(peerFromUser(ServiceUserId)),
 	lang(lng_background_text1),
 	false))
 , _text2(GenerateTextItem(
 	this,
-	App::history(App::user(ServiceUserId)),
+	Auth().data().history(peerFromUser(ServiceUserId)),
 	lang(lng_background_text2),
 	true))
 , _paper(paper)

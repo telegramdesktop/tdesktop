@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
-	const auto history = App::historyLoaded(chat);
+	const auto history = chat->owner().historyLoaded(chat);
 	const auto randomId = rand_value<uint64>();
 	const auto requestId = MTP::send(
 		MTPmessages_SendMedia(
@@ -182,8 +182,8 @@ void PeerListGlobalSearchController::searchDone(
 	auto &contacts = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
-		App::feedUsers(contacts.vusers);
-		App::feedChats(contacts.vchats);
+		Auth().data().processUsers(contacts.vusers);
+		Auth().data().processChats(contacts.vchats);
 		auto it = _queries.find(requestId);
 		if (it != _queries.cend()) {
 			query = it->second;
@@ -193,7 +193,7 @@ void PeerListGlobalSearchController::searchDone(
 	}
 	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
 		for (const auto &mtpPeer : list.v) {
-			if (const auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+			if (const auto peer = Auth().data().peerLoaded(peerFromMTP(mtpPeer))) {
 				delegate()->peerListSearchAddRow(peer);
 			}
 		}
@@ -255,7 +255,7 @@ void ChatsListBoxController::rebuildRows() {
 	};
 	auto added = 0;
 	if (respectSavedMessagesChat()) {
-		if (appendRow(App::history(Auth().user()))) {
+		if (appendRow(Auth().data().history(Auth().user()))) {
 			++added;
 		}
 	}
@@ -292,7 +292,7 @@ QString ChatsListBoxController::emptyBoxText() const {
 }
 
 std::unique_ptr<PeerListRow> ChatsListBoxController::createSearchRow(not_null<PeerData*> peer) {
-	return createRow(App::history(peer));
+	return createRow(peer->owner().history(peer));
 }
 
 bool ChatsListBoxController::appendRow(not_null<History*> history) {

@@ -179,7 +179,7 @@ void PeerData::setUserpic(
 
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	const auto photoId = data.match([&](const MTPDphoto &data) {
-		const auto photo = owner().photo(data);
+		const auto photo = owner().processPhoto(data);
 		photo->peer = this;
 		return photo->id;
 	}, [](const MTPDphotoEmpty &data) {

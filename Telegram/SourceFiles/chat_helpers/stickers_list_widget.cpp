@@ -1092,7 +1092,7 @@ void StickersListWidget::searchResultsDone(
 				setData = &d.vset.c_stickerSet();
 			}
 			for (const auto &cover : d.vcovers.v) {
-				const auto document = Auth().data().document(cover);
+				const auto document = Auth().data().processDocument(cover);
 				if (document->sticker()) {
 					covers.push_back(document);
 				}

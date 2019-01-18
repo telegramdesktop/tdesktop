@@ -160,7 +160,7 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 		m->searchMessages(
 			tag + ' ',
 			(inPeer
-				? App::history(inPeer).get()
+				? inPeer->owner().history(inPeer).get()
 				: Dialogs::Key()));
 	}
 }
@@ -799,7 +799,7 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
-	
+
 DefineVar(Global, QString, CallOutputDeviceID);
 DefineVar(Global, QString, CallInputDeviceID);
 DefineVar(Global, int, CallOutputVolume);

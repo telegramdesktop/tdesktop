@@ -233,7 +233,7 @@ ChannelData *Session::channelLoaded(ChannelId id) const {
 	return nullptr;
 }
 
-not_null<UserData*> Session::user(const MTPUser &data) {
+not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const auto result = user(data.match([](const auto &data) {
 		return data.vid.v;
 	}));
@@ -409,7 +409,7 @@ not_null<UserData*> Session::user(const MTPUser &data) {
 	return result;
 }
 
-not_null<PeerData*> Session::chat(const MTPChat &data) {
+not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	const auto result = data.match([&](const MTPDchat &data) {
 		return peer(peerFromChat(data.vid.v));
 	}, [&](const MTPDchatForbidden &data) {
@@ -621,7 +621,7 @@ not_null<PeerData*> Session::chat(const MTPChat &data) {
 UserData *Session::processUsers(const MTPVector<MTPUser> &data) {
 	auto result = (UserData*)nullptr;
 	for (const auto &user : data.v) {
-		result = this->user(user);
+		result = processUser(user);
 	}
 	return result;
 }
@@ -629,7 +629,7 @@ UserData *Session::processUsers(const MTPVector<MTPUser> &data) {
 PeerData *Session::processChats(const MTPVector<MTPChat> &data) {
 	auto result = (PeerData*)nullptr;
 	for (const auto &chat : data.v) {
-		result = this->chat(chat);
+		result = processChat(chat);
 	}
 	return result;
 }
@@ -1614,10 +1614,10 @@ not_null<PhotoData*> Session::photo(PhotoId id) {
 	return i->second.get();
 }
 
-not_null<PhotoData*> Session::photo(const MTPPhoto &data) {
+not_null<PhotoData*> Session::processPhoto(const MTPPhoto &data) {
 	switch (data.type()) {
 	case mtpc_photo:
-		return photo(data.c_photo());
+		return processPhoto(data.c_photo());
 
 	case mtpc_photoEmpty:
 		return photo(data.c_photoEmpty().vid.v);
@@ -1625,13 +1625,13 @@ not_null<PhotoData*> Session::photo(const MTPPhoto &data) {
 	Unexpected("Type in Session::photo().");
 }
 
-not_null<PhotoData*> Session::photo(const MTPDphoto &data) {
+not_null<PhotoData*> Session::processPhoto(const MTPDphoto &data) {
 	const auto result = photo(data.vid.v);
 	photoApplyFields(result, data);
 	return result;
 }
 
-not_null<PhotoData*> Session::photo(
+not_null<PhotoData*> Session::processPhoto(
 		const MTPPhoto &data,
 		const PreparedPhotoThumbs &thumbs) {
 	auto thumb = (const QImage*)nullptr;
@@ -1846,10 +1846,10 @@ not_null<DocumentData*> Session::document(DocumentId id) {
 	return i->second.get();
 }
 
-not_null<DocumentData*> Session::document(const MTPDocument &data) {
+not_null<DocumentData*> Session::processDocument(const MTPDocument &data) {
 	switch (data.type()) {
 	case mtpc_document:
-		return document(data.c_document());
+		return processDocument(data.c_document());
 
 	case mtpc_documentEmpty:
 		return document(data.c_documentEmpty().vid.v);
@@ -1857,13 +1857,13 @@ not_null<DocumentData*> Session::document(const MTPDocument &data) {
 	Unexpected("Type in Session::document().");
 }
 
-not_null<DocumentData*> Session::document(const MTPDdocument &data) {
+not_null<DocumentData*> Session::processDocument(const MTPDdocument &data) {
 	const auto result = document(data.vid.v);
 	documentApplyFields(result, data);
 	return result;
 }
 
-not_null<DocumentData*> Session::document(
+not_null<DocumentData*> Session::processDocument(
 		const MTPdocument &data,
 		QImage &&thumb) {
 	switch (data.type()) {
@@ -2077,10 +2077,10 @@ not_null<WebPageData*> Session::webpage(WebPageId id) {
 	return i->second.get();
 }
 
-not_null<WebPageData*> Session::webpage(const MTPWebPage &data) {
+not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 	switch (data.type()) {
 	case mtpc_webPage:
-		return webpage(data.c_webPage());
+		return processWebpage(data.c_webPage());
 	case mtpc_webPageEmpty: {
 		const auto result = webpage(data.c_webPageEmpty().vid.v);
 		if (result->pendingTill > 0) {
@@ -2089,7 +2089,7 @@ not_null<WebPageData*> Session::webpage(const MTPWebPage &data) {
 		return result;
 	} break;
 	case mtpc_webPagePending:
-		return webpage(data.c_webPagePending());
+		return processWebpage(data.c_webPagePending());
 	case mtpc_webPageNotModified:
 		LOG(("API Error: "
 			"webPageNotModified is unexpected in Session::webpage()."));
@@ -2098,13 +2098,13 @@ not_null<WebPageData*> Session::webpage(const MTPWebPage &data) {
 	Unexpected("Type in Session::webpage().");
 }
 
-not_null<WebPageData*> Session::webpage(const MTPDwebPage &data) {
+not_null<WebPageData*> Session::processWebpage(const MTPDwebPage &data) {
 	const auto result = webpage(data.vid.v);
 	webpageApplyFields(result, data);
 	return result;
 }
 
-not_null<WebPageData*> Session::webpage(const MTPDwebPagePending &data) {
+not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 	constexpr auto kDefaultPendingTimeout = 60;
 	const auto result = webpage(data.vid.v);
 	webpageApplyFields(
@@ -2203,8 +2203,10 @@ void Session::webpageApplyFields(
 		siteName,
 		data.has_title() ? qs(data.vtitle) : QString(),
 		description,
-		data.has_photo() ? photo(data.vphoto).get() : nullptr,
-		data.has_document() ? document(data.vdocument).get() : nullptr,
+		data.has_photo() ? processPhoto(data.vphoto).get() : nullptr,
+		(data.has_document()
+			? processDocument(data.vdocument).get()
+			: nullptr),
 		WebPageCollage(data),
 		data.has_duration() ? data.vduration.v : 0,
 		data.has_author() ? qs(data.vauthor) : QString(),
@@ -2255,7 +2257,7 @@ not_null<GameData*> Session::game(GameId id) {
 	return i->second.get();
 }
 
-not_null<GameData*> Session::game(const MTPDgame &data) {
+not_null<GameData*> Session::processGame(const MTPDgame &data) {
 	const auto result = game(data.vid.v);
 	gameApplyFields(result, data);
 	return result;
@@ -2316,8 +2318,10 @@ void Session::gameApplyFields(
 		qs(data.vshort_name),
 		qs(data.vtitle),
 		qs(data.vdescription),
-		photo(data.vphoto),
-		data.has_document() ? document(data.vdocument).get() : nullptr);
+		processPhoto(data.vphoto),
+		(data.has_document()
+			? processDocument(data.vdocument).get()
+			: nullptr));
 }
 
 void Session::gameApplyFields(
@@ -2348,7 +2352,7 @@ not_null<PollData*> Session::poll(PollId id) {
 	return i->second.get();
 }
 
-not_null<PollData*> Session::poll(const MTPPoll &data) {
+not_null<PollData*> Session::processPoll(const MTPPoll &data) {
 	return data.match([&](const MTPDpoll &data) {
 		const auto id = data.vid.v;
 		const auto result = poll(id);
@@ -2360,8 +2364,8 @@ not_null<PollData*> Session::poll(const MTPPoll &data) {
 	});
 }
 
-not_null<PollData*> Session::poll(const MTPDmessageMediaPoll &data) {
-	const auto result = poll(data.vpoll);
+not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
+	const auto result = processPoll(data.vpoll);
 	const auto changed = result->applyResults(data.vresults);
 	if (changed) {
 		notifyPollUpdateDelayed(result);
@@ -2375,7 +2379,7 @@ void Session::applyUpdate(const MTPDupdateMessagePoll &update) {
 		return (i == end(_polls))
 			? nullptr
 			: update.has_poll()
-			? poll(update.vpoll).get()
+			? processPoll(update.vpoll).get()
 			: i->second.get();
 	}();
 	if (updated && updated->applyResults(update.vresults)) {
@@ -2949,7 +2953,7 @@ void Session::serviceNotification(
 		const MTPMessageMedia &media) {
 	const auto date = unixtime();
 	if (!userLoaded(ServiceUserId)) {
-		user(MTP_user(
+		processUser(MTP_user(
 			MTP_flags(
 				MTPDuser::Flag::f_first_name
 				| MTPDuser::Flag::f_phone
@@ -3098,7 +3102,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	}
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
-			const auto document = this->document(paper.vdocument);
+			const auto document = processDocument(paper.vdocument);
 			if (document->checkWallPaperProperties()) {
 				_wallpapers.push_back({
 					paper.vid.v,

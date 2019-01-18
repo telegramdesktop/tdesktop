@@ -39,7 +39,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedText{};
 		auto &users = action.vusers.v;
 		if (users.size() == 1) {
-			auto u = App::user(peerFromUser(users[0]));
+			auto u = history()->owner().user(users[0].v);
 			if (u == _from) {
 				result.links.push_back(fromLink());
 				result.text = lng_action_user_joined(lt_from, fromLinkText());
@@ -54,7 +54,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		} else {
 			result.links.push_back(fromLink());
 			for (auto i = 0, l = users.size(); i != l; ++i) {
-				auto user = App::user(peerFromUser(users[i]));
+				auto user = history()->owner().user(users[i].v);
 				result.links.push_back(user->createOpenLink());
 
 				auto linkText = textcmdLink(i + 2, user->name);
@@ -113,7 +113,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.links.push_back(fromLink());
 			result.text = lng_action_user_left(lt_from, fromLinkText());
 		} else {
-			auto user = App::user(peerFromUser(action.vuser_id));
+			auto user = history()->owner().user(action.vuser_id.v);
 			result.links.push_back(fromLink());
 			result.links.push_back(user->createOpenLink());
 			result.text = lng_action_kick_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
@@ -293,7 +293,7 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 			_media = std::make_unique<Data::MediaPhoto>(
 				this,
 				history()->peer,
-				history()->owner().photo(photo));
+				history()->owner().processPhoto(photo));
 		}, [](const MTPDphotoEmpty &) {
 		});
 	}, [&](const MTPDmessageActionChatCreate &) {

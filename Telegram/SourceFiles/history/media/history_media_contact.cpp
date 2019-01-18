@@ -93,7 +93,9 @@ QSize HistoryContact::countOptimalSize() {
 	const auto item = _parent->data();
 	auto maxWidth = st::msgFileMinWidth;
 
-	_contact = _userId ? App::userLoaded(_userId) : nullptr;
+	_contact = _userId
+		? item->history()->owner().userLoaded(_userId)
+		: nullptr;
 	if (_contact) {
 		_contact->loadUserpic();
 	} else {

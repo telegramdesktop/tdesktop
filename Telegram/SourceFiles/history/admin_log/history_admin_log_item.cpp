@@ -128,7 +128,7 @@ PhotoData *GenerateChatPhoto(
 	photoSizes.reserve(2);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), photo.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 	photoSizes.push_back(MTP_photoSize(MTP_string("c"), photo.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
-	return Auth().data().photo(MTP_photo(
+	return Auth().data().processPhoto(MTP_photo(
 		MTP_flags(0),
 		MTP_long(photoId),
 		MTP_long(0),
@@ -253,7 +253,7 @@ TextWithEntities GenerateBannedChangeText(
 
 auto GenerateUserString(MTPint userId) {
 	// User name in "User name (@username)" format with entities.
-	auto user = App::user(userId.v);
+	auto user = Auth().data().user(userId.v);
 	auto name = TextWithEntities { App::peerName(user) };
 	auto entityData = QString::number(user->id)
 		+ '.'
@@ -377,7 +377,7 @@ void GenerateItems(
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;
-	auto from = App::user(event.vuser_id.v);
+	auto from = Auth().data().user(event.vuser_id.v);
 	auto channel = history->peer->asChannel();
 	auto &action = event.vaction;
 	auto date = event.vdate.v;

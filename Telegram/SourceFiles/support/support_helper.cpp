@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "data/data_drafts.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "boxes/abstract_box.h"
 #include "ui/toast/toast.h"
@@ -579,7 +580,7 @@ QString InterpretSendPath(const QString &path) {
 			return "App Error: Invalid command: " + line;
 		}
 	}
-	const auto history = App::historyLoaded(toId);
+	const auto history = Auth().data().historyLoaded(toId);
 	if (!history) {
 		return "App Error: Could not find channel with id: " + QString::number(peerToChannel(toId));
 	}

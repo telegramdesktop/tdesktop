@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
 #include "data/data_channel.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
@@ -285,7 +286,7 @@ not_null<ChannelData*> Widget::channel() const {
 
 Dialogs::RowDescriptor Widget::activeChat() const {
 	return {
-		App::history(channel()),
+		channel()->owner().history(channel()),
 		FullMsgId(channel()->bareId(), ShowAtUnreadMsgId)
 	};
 }

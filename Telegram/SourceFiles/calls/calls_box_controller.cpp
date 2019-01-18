@@ -255,9 +255,9 @@ void BoxController::loadMoreRows() {
 	)).done([this](const MTPmessages_Messages &result) {
 		_loadRequestId = 0;
 
-		auto handleResult = [this](auto &data) {
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
+		auto handleResult = [&](auto &data) {
+			Auth().data().processUsers(data.vusers);
+			Auth().data().processChats(data.vchats);
 			receivedCalls(data.vmessages.v);
 		};
 
@@ -305,7 +305,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	for (const auto &message : result) {
 		auto msgId = IdFromMessage(message);
 		auto peerId = PeerFromMessage(message);
-		if (auto peer = App::peerLoaded(peerId)) {
+		if (auto peer = Auth().data().peerLoaded(peerId)) {
 			auto item = Auth().data().addNewMessage(message, NewMessageExisting);
 			insertRow(item, InsertWay::Append);
 		} else {

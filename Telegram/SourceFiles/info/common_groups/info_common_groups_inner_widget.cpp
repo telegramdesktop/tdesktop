@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "apiwrap.h"
 #include "styles/style_info.h"
 #include "styles/style_widgets.h"
@@ -101,13 +102,13 @@ void ListController::loadMoreRows() {
 			return data.vchats.v;
 		});
 		if (!chats.empty()) {
-			for (const auto &chatData : chats) {
-				if (const auto chat = App::feedChat(chatData)) {
-					if (!chat->migrateTo()) {
+			for (const auto &chat : chats) {
+				if (const auto peer = _user->owner().processChat(chat)) {
+					if (!peer->migrateTo()) {
 						delegate()->peerListAppendRow(
-							createRow(chat));
+							createRow(peer));
 					}
-					_preloadGroupId = chat->bareId();
+					_preloadGroupId = peer->bareId();
 					_allLoaded = false;
 				}
 			}

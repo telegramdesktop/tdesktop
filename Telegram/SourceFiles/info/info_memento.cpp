@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 
 namespace Info {
 
@@ -90,7 +92,7 @@ std::unique_ptr<ContentMemento> Memento::DefaultContent(
 		Section section) {
 	Expects(peerId != 0);
 
-	auto peer = App::peer(peerId);
+	auto peer = Auth().data().peer(peerId);
 	if (auto to = peer->migrateTo()) {
 		peer = to;
 	}

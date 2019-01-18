@@ -188,7 +188,7 @@ bool Filler::showInfo() {
 void Filler::addPinToggle() {
 	auto peer = _peer;
 	auto isPinned = false;
-	if (auto history = App::historyLoaded(peer)) {
+	if (auto history = peer->owner().historyLoaded(peer)) {
 		isPinned = history->isPinnedDialog();
 	}
 	auto pinText = [](bool isPinned) {
@@ -197,7 +197,7 @@ void Filler::addPinToggle() {
 			: lng_context_pin_to_top);
 	};
 	auto pinToggle = [=] {
-		TogglePinnedDialog(App::history(peer));
+		TogglePinnedDialog(peer->owner().history(peer));
 	};
 	auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
@@ -206,7 +206,7 @@ void Filler::addPinToggle() {
 		peer,
 		Notify::PeerUpdate::Flag::ChatPinnedChanged
 	) | rpl::start_with_next([peer, pinAction, pinText] {
-		auto isPinned = App::history(peer)->isPinnedDialog();
+		auto isPinned = peer->owner().history(peer)->isPinnedDialog();
 		pinAction->setText(pinText(isPinned));
 	}, *lifetime);
 }
@@ -226,14 +226,14 @@ void Filler::addInfo() {
 
 void Filler::addSearch() {
 	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
-		App::main()->searchInChat(App::history(peer));
+		App::main()->searchInChat(peer->owner().history(peer));
 	});
 }
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
 	const auto isUnread = [](not_null<PeerData*> peer) {
-		if (const auto history = App::historyLoaded(peer)) {
+		if (const auto history = peer->owner().historyLoaded(peer)) {
 			return (history->chatListUnreadCount() > 0)
 				|| (history->chatListUnreadMark());
 		}
@@ -253,7 +253,7 @@ void Filler::addToggleUnreadMark() {
 				Auth().api().changeDialogUnreadMark(history, !markAsRead);
 			}
 		};
-		const auto history = App::history(peer);
+		const auto history = peer->owner().history(peer);
 		handle(history);
 		if (markAsRead) {
 			if (const auto migrated = history->migrateSibling()) {
@@ -447,7 +447,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 
 void Filler::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
-		if (const auto history = App::historyLoaded(_peer)) {
+		if (const auto history = _peer->owner().historyLoaded(_peer)) {
 			if (!history->useProxyPromotion()) {
 				addPinToggle();
 			}
@@ -598,7 +598,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 				LayerOption::KeepOther);
 			return;
 		} else if (peer->isSelf()) {
-			auto options = ApiWrap::SendOptions(App::history(peer));
+			auto options = ApiWrap::SendOptions(peer->owner().history(peer));
 			Auth().api().shareContact(user, options);
 			Ui::Toast::Show(lang(lng_share_done));
 			if (auto strong = *weak) {
@@ -613,7 +613,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 			lng_forward_share_contact(lt_recipient, recipient),
 			lang(lng_forward_send),
 			[peer, user] {
-				const auto history = App::history(peer);
+				const auto history = peer->owner().history(peer);
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 				auto options = ApiWrap::SendOptions(history);
 				Auth().api().shareContact(user, options);
@@ -636,7 +636,7 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 		if (std::exchange(*lock, true)) {
 			return;
 		}
-		const auto options = ApiWrap::SendOptions(App::history(peer));
+		const auto options = ApiWrap::SendOptions(peer->owner().history(peer));
 		Auth().api().createPoll(result, options, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=](const RPCError &error) {
@@ -658,7 +658,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		if (peer->isSelf()) {
 			auto items = Auth().data().idsToItems(ids);
 			if (!items.empty()) {
-				auto options = ApiWrap::SendOptions(App::history(peer));
+				auto options = ApiWrap::SendOptions(peer->owner().history(peer));
 				options.generateLocal = false;
 				Auth().api().forwardMessages(std::move(items), options, [] {
 					Ui::Toast::Show(lang(lng_share_done));
@@ -704,7 +704,7 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 					return data.vuser_id.v;
 				});
 			}) | ranges::view::transform([](UserId userId) {
-				return App::userLoaded(userId);
+				return Auth().data().userLoaded(userId);
 			}) | ranges::view::filter([](UserData *user) {
 				return (user != nullptr);
 			}) | ranges::to_vector;

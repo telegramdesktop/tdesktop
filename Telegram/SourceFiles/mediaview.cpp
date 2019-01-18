@@ -2647,7 +2647,7 @@ void MediaView::setContext(base::optional_variant<
 	} else if (auto peer = base::get_if<not_null<PeerData*>>(&context)) {
 		_msgid = FullMsgId();
 		_canForwardItem = _canDeleteItem = false;
-		_history = App::history(*peer);
+		_history = (*peer)->owner().history(*peer);
 		_peer = *peer;
 	} else {
 		_msgid = FullMsgId();
@@ -2658,10 +2658,10 @@ void MediaView::setContext(base::optional_variant<
 	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
-			_migrated = App::history(_history->peer->migrateFrom()->id);
+			_migrated = _history->owner().history(_history->peer->migrateFrom());
 		} else if (_history->peer->migrateTo()) {
 			_migrated = _history;
-			_history = App::history(_history->peer->migrateTo()->id);
+			_history = _history->owner().history(_history->peer->migrateTo());
 		}
 	}
 	_user = _peer ? _peer->asUser() : nullptr;

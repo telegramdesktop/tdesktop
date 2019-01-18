@@ -1290,7 +1290,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			return false;
 		}
 		bot->botInfo->inlineReturnPeerId = 0;
-		History *h = App::history(toPeerId);
+		const auto h = bot->owner().history(toPeerId);
 		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
 		MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
 		h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
@@ -1596,7 +1596,7 @@ void HistoryWidget::showHistory(
 	_historyInited = false;
 
 	if (peerId) {
-		_peer = App::peer(peerId);
+		_peer = Auth().data().peer(peerId);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = _peer->canWrite();
 		_tabbedSelector->setCurrentPeer(_peer);
@@ -1626,7 +1626,7 @@ void HistoryWidget::showHistory(
 	if (_peer) {
 		Auth().downloader().clearPriorities();
 
-		_history = App::history(_peer);
+		_history = _peer->owner().history(_peer);
 		_migrated = _history->migrateFrom();
 		if (_migrated
 			&& !_migrated->isEmpty()
@@ -2153,7 +2153,7 @@ void HistoryWidget::newUnreadMsg(
 
 void HistoryWidget::historyToDown(History *history) {
 	history->forgetScrollState();
-	if (auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
+	if (auto migrated = history->owner().historyLoaded(history->peer->migrateFrom())) {
 		migrated->forgetScrollState();
 	}
 	if (history == _history) {
@@ -2218,15 +2218,15 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	switch (messages.type()) {
 	case mtpc_messages_messages: {
 		auto &d(messages.c_messages_messages());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_history->owner().processUsers(d.vusers);
+		_history->owner().processChats(d.vchats);
 		histList = &d.vmessages.v;
 		count = histList->size();
 	} break;
 	case mtpc_messages_messagesSlice: {
 		auto &d(messages.c_messages_messagesSlice());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_history->owner().processUsers(d.vusers);
+		_history->owner().processChats(d.vchats);
 		histList = &d.vmessages.v;
 		count = d.vcount.v;
 	} break;
@@ -2237,8 +2237,8 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (HistoryWidget::messagesReceived)"));
 		}
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
+		_history->owner().processUsers(d.vusers);
+		_history->owner().processChats(d.vchats);
 		histList = &d.vmessages.v;
 		count = d.vcount.v;
 	} break;
@@ -3449,7 +3449,7 @@ void HistoryWidget::inlineBotResolveDone(
 	const auto &data = result.c_contacts_resolvedPeer();
 //	Notify::inlineBotRequesting(false);
 	const auto resolvedBot = [&]() -> UserData* {
-		if (const auto result = App::feedUsers(data.vusers)) {
+		if (const auto result = Auth().data().processUsers(data.vusers)) {
 			if (result->botInfo
 				&& !result->botInfo->inlinePlaceholder.isEmpty()) {
 				return result;
@@ -3457,7 +3457,7 @@ void HistoryWidget::inlineBotResolveDone(
 		}
 		return nullptr;
 	}();
-	App::feedChats(data.vchats);
+	Auth().data().processChats(data.vchats);
 
 	const auto query = ParseInlineBotQuery(_field);
 	if (_inlineBotUsername == query.username) {
@@ -4200,7 +4200,7 @@ void HistoryWidget::sendFileConfirmed(
 
 	Auth().uploader().upload(newId, file);
 
-	const auto history = App::history(file->to.peer);
+	const auto history = Auth().data().history(file->to.peer);
 	const auto peer = history->peer;
 
 	auto options = ApiWrap::SendOptions(history);
@@ -5897,7 +5897,7 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 	}
 	if (result.type() == mtpc_messageMediaWebPage) {
 		const auto &data = result.c_messageMediaWebPage().vwebpage;
-		const auto page = Auth().data().webpage(data);
+		const auto page = Auth().data().processWebpage(data);
 		_previewCache.insert(links, page->id);
 		if (page->pendingTill > 0 && page->pendingTill <= unixtime()) {
 			page->pendingTill = -1;

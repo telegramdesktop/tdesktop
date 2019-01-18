@@ -586,7 +586,7 @@ void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 
 void MainWindow::checkAuthSession() {
 	if (AuthSession::Exists()) {
-		_controller = std::make_unique<Window::Controller>(this);
+		_controller = std::make_unique<Window::Controller>(&Auth(), this);
 	} else {
 		_controller = nullptr;
 	}

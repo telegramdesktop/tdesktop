@@ -130,22 +130,6 @@ namespace App {
 		return nullptr;
 	}
 
-	UserData *feedUser(const MTPUser &user) {
-		return Auth().data().user(user);
-	}
-
-	UserData *feedUsers(const MTPVector<MTPUser> &users) {
-		return Auth().data().processUsers(users);
-	}
-
-	PeerData *feedChat(const MTPChat &chat) {
-		return Auth().data().chat(chat);
-	}
-
-	PeerData *feedChats(const MTPVector<MTPChat> &chats) {
-		return Auth().data().processChats(chats);
-	}
-
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		auto peerId = peerFromMTP(m.vto_id);
 		if (m.has_from_id() && peerId == Auth().userPeerId()) {
@@ -337,13 +321,13 @@ namespace App {
 	}
 
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
-		if (const auto history = App::historyLoaded(peer)) {
+		if (const auto history = Auth().data().historyLoaded(peer)) {
 			history->inboxRead(upTo);
 		}
 	}
 
 	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
-		if (auto history = App::historyLoaded(peer)) {
+		if (auto history = Auth().data().historyLoaded(peer)) {
 			history->outboxRead(upTo);
 			if (const auto user = history->peer->asUser()) {
 				user->madeAction(when);
@@ -371,7 +355,7 @@ namespace App {
 		if (!data) return;
 
 		const auto affectedHistory = (channelId != NoChannel)
-			? App::history(peerFromChannel(channelId)).get()
+			? Auth().data().history(peerFromChannel(channelId)).get()
 			: nullptr;
 
 		auto historiesToCheck = base::flat_set<not_null<History*>>();
@@ -393,7 +377,7 @@ namespace App {
 	}
 
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
-		if (const auto user = userLoaded(userId.v)) {
+		if (const auto user = Auth().data().userLoaded(userId.v)) {
 			const auto wasShowPhone = (user->contactStatus() == UserData::ContactStatus::CanAdd);
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
@@ -431,49 +415,8 @@ namespace App {
 		}
 	}
 
-	not_null<PeerData*> peer(PeerId id) {
-		return Auth().data().peer(id);
-	}
-	not_null<UserData*> user(UserId id) {
-		return Auth().data().user(id);
-	}
-	not_null<ChatData*> chat(ChatId id) {
-		return Auth().data().chat(id);
-	}
-	not_null<ChannelData*> channel(ChannelId id) {
-		return Auth().data().channel(id);
-	}
-	PeerData *peerLoaded(PeerId id) {
-		return Auth().data().peerLoaded(id);
-	}
-	UserData *userLoaded(UserId id) {
-		return Auth().data().userLoaded(id);
-	}
-	ChatData *chatLoaded(ChatId id) {
-		return Auth().data().chatLoaded(id);
-	}
-	ChannelData *channelLoaded(ChannelId id) {
-		return Auth().data().channelLoaded(id);
-	}
-
 	QString peerName(const PeerData *peer, bool forDialogs) {
 		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : lang(lng_deleted);
-	}
-
-	not_null<History*> history(PeerId peer) {
-		return Auth().data().history(peer);
-	}
-
-	History *historyLoaded(PeerId peer) {
-		return Auth().data().historyLoaded(peer);
-	}
-
-	not_null<History*> history(not_null<const PeerData*> peer) {
-		return history(peer->id);
-	}
-
-	History *historyLoaded(const PeerData *peer) {
-		return peer ? historyLoaded(peer->id) : nullptr;
 	}
 
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {

@@ -99,9 +99,7 @@ private:
 
 class AbstractController : public Window::Navigation {
 public:
-	AbstractController(not_null<Window::Controller*> parent)
-	: _parent(parent) {
-	}
+	AbstractController(not_null<Window::Controller*> parent);
 
 	virtual Key key() const = 0;
 	virtual PeerData *migrated() const = 0;

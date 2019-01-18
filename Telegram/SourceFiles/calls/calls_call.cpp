@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio_track.h"
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 
 #ifdef slots
 #undef slots
@@ -201,7 +202,7 @@ void Call::startOutgoing() {
 		setState(State::Waiting);
 
 		auto &call = result.c_phone_phoneCall();
-		App::feedUsers(call.vusers);
+		Auth().data().processUsers(call.vusers);
 		if (call.vphone_call.type() != mtpc_phoneCallWaiting) {
 			LOG(("Call Error: Expected phoneCallWaiting in response to phone.requestCall()"));
 			finish(FinishType::Failed);
@@ -273,7 +274,7 @@ void Call::actuallyAnswer() {
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
-		App::feedUsers(call.vusers);
+		Auth().data().processUsers(call.vusers);
 		if (call.vphone_call.type() != mtpc_phoneCallWaiting) {
 			LOG(("Call Error: Expected phoneCallWaiting in response to phone.acceptCall()"));
 			finish(FinishType::Failed);
@@ -487,8 +488,9 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
+
 		auto &call = result.c_phone_phoneCall();
-		App::feedUsers(call.vusers);
+		Auth().data().processUsers(call.vusers);
 		if (call.vphone_call.type() != mtpc_phoneCall) {
 			LOG(("Call Error: Expected phoneCall in response to phone.confirmCall()"));
 			finish(FinishType::Failed);

@@ -84,17 +84,25 @@ public:
 	Storage::Cache::Database &cache();
 
 	[[nodiscard]] not_null<PeerData*> peer(PeerId id);
+	[[nodiscard]] not_null<PeerData*> peer(UserId id) = delete;
 	[[nodiscard]] not_null<UserData*> user(UserId id);
 	[[nodiscard]] not_null<ChatData*> chat(ChatId id);
 	[[nodiscard]] not_null<ChannelData*> channel(ChannelId id);
+	[[nodiscard]] not_null<UserData*> user(PeerId id) = delete;
+	[[nodiscard]] not_null<ChatData*> chat(PeerId id) = delete;
+	[[nodiscard]] not_null<ChannelData*> channel(PeerId id) = delete;
 
 	[[nodiscard]] PeerData *peerLoaded(PeerId id) const;
+	[[nodiscard]] PeerData *peerLoaded(UserId id) const = delete;
 	[[nodiscard]] UserData *userLoaded(UserId id) const;
 	[[nodiscard]] ChatData *chatLoaded(ChatId id) const;
 	[[nodiscard]] ChannelData *channelLoaded(ChannelId id) const;
+	[[nodiscard]] UserData *userLoaded(PeerId id) const = delete;
+	[[nodiscard]] ChatData *chatLoaded(PeerId id) const = delete;
+	[[nodiscard]] ChannelData *channelLoaded(PeerId id) const = delete;
 
-	not_null<UserData*> user(const MTPUser &data);
-	not_null<PeerData*> chat(const MTPChat &data);
+	not_null<UserData*> processUser(const MTPUser &data);
+	not_null<PeerData*> processChat(const MTPChat &data);
 
 	// Returns last user, if there were any.
 	UserData *processUsers(const MTPVector<MTPUser> &data);
@@ -107,10 +115,12 @@ public:
 	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
 	[[nodiscard]] PeerData *peerByUsername(const QString &username) const;
 
-	not_null<History*> history(PeerId peerId);
-	History *historyLoaded(PeerId peerId) const;
-	not_null<History*> history(not_null<const PeerData*> peer);
-	History *historyLoaded(const PeerData *peer);
+	[[nodiscard]] not_null<History*> history(PeerId peerId);
+	[[nodiscard]] History *historyLoaded(PeerId peerId) const;
+	[[nodiscard]] not_null<History*> history(UserId userId) = delete;
+	[[nodiscard]] History *historyLoaded(UserId userId) const = delete;
+	[[nodiscard]] not_null<History*> history(not_null<const PeerData*> peer);
+	[[nodiscard]] History *historyLoaded(const PeerData *peer);
 
 	void registerSendAction(
 		not_null<History*> history,
@@ -307,8 +317,6 @@ public:
 		-> rpl::producer<SendActionAnimationUpdate>;
 	void updateSendActionAnimation(SendActionAnimationUpdate &&update);
 
-	void updateSendActionAnimation();
-
 	int unreadBadge() const;
 	bool unreadBadgeMuted() const;
 	int unreadBadgeIgnoreOne(History *history) const;
@@ -323,13 +331,13 @@ public:
 
 	void selfDestructIn(not_null<HistoryItem*> item, TimeMs delay);
 
-	not_null<PhotoData*> photo(PhotoId id);
-	not_null<PhotoData*> photo(const MTPPhoto &data);
-	not_null<PhotoData*> photo(const MTPDphoto &data);
-	not_null<PhotoData*> photo(
+	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
+	not_null<PhotoData*> processPhoto(const MTPPhoto &data);
+	not_null<PhotoData*> processPhoto(const MTPDphoto &data);
+	not_null<PhotoData*> processPhoto(
 		const MTPPhoto &data,
 		const PreparedPhotoThumbs &thumbs);
-	not_null<PhotoData*> photo(
+	[[nodiscard]] not_null<PhotoData*> photo(
 		PhotoId id,
 		const uint64 &access,
 		const QByteArray &fileReference,
@@ -340,18 +348,18 @@ public:
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
-	PhotoData *photoFromWeb(
+	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
 		ImagePtr thumb = ImagePtr(),
 		bool willBecomeNormal = false);
 
-	not_null<DocumentData*> document(DocumentId id);
-	not_null<DocumentData*> document(const MTPDocument &data);
-	not_null<DocumentData*> document(const MTPDdocument &data);
-	not_null<DocumentData*> document(
+	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
+	not_null<DocumentData*> processDocument(const MTPDocument &data);
+	not_null<DocumentData*> processDocument(const MTPDdocument &data);
+	not_null<DocumentData*> processDocument(
 		const MTPdocument &data,
 		QImage &&thumb);
-	not_null<DocumentData*> document(
+	[[nodiscard]] not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
 		const QByteArray &fileReference,
@@ -365,19 +373,19 @@ public:
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
-	DocumentData *documentFromWeb(
+	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
 		ImagePtr thumb);
 
-	not_null<WebPageData*> webpage(WebPageId id);
-	not_null<WebPageData*> webpage(const MTPWebPage &data);
-	not_null<WebPageData*> webpage(const MTPDwebPage &data);
-	not_null<WebPageData*> webpage(const MTPDwebPagePending &data);
-	not_null<WebPageData*> webpage(
+	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
+	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
+	not_null<WebPageData*> processWebpage(const MTPDwebPage &data);
+	not_null<WebPageData*> processWebpage(const MTPDwebPagePending &data);
+	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		const QString &siteName,
 		const TextWithEntities &content);
-	not_null<WebPageData*> webpage(
+	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		WebPageType type,
 		const QString &url,
@@ -392,9 +400,9 @@ public:
 		const QString &author,
 		TimeId pendingTill);
 
-	not_null<GameData*> game(GameId id);
-	not_null<GameData*> game(const MTPDgame &data);
-	not_null<GameData*> game(
+	[[nodiscard]] not_null<GameData*> game(GameId id);
+	not_null<GameData*> processGame(const MTPDgame &data);
+	[[nodiscard]] not_null<GameData*> game(
 		GameId id,
 		const uint64 &accessHash,
 		const QString &shortName,
@@ -406,11 +414,12 @@ public:
 		not_null<GameData*> original,
 		const MTPGame &data);
 
-	not_null<PollData*> poll(PollId id);
-	not_null<PollData*> poll(const MTPPoll &data);
-	not_null<PollData*> poll(const MTPDmessageMediaPoll &data);
+	[[nodiscard]] not_null<PollData*> poll(PollId id);
+	not_null<PollData*> processPoll(const MTPPoll &data);
+	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
-	not_null<LocationData*> location(const LocationCoords &coords);
+	[[nodiscard]] not_null<LocationData*> location(
+		const LocationCoords &coords);
 
 	void registerPhotoItem(
 		not_null<const PhotoData*> photo,

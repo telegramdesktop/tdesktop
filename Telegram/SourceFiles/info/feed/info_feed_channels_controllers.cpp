@@ -111,7 +111,7 @@ auto ChannelsController::createRow(not_null<History*> history)
 
 std::unique_ptr<PeerListRow> ChannelsController::createRestoredRow(
 		not_null<PeerData*> peer) {
-	return createRow(App::history(peer));
+	return createRow(peer->owner().history(peer));
 }
 
 void ChannelsController::prepare() {
@@ -274,8 +274,8 @@ void NotificationsController::applyFeedDialogs(
 		const MTPmessages_Dialogs &result) {
 	const auto [dialogsList, messagesList] = [&] {
 		const auto process = [&](const auto &data) {
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
+			_feed->owner().processUsers(data.vusers);
+			_feed->owner().processChats(data.vchats);
 			return std::make_tuple(&data.vdialogs.v, &data.vmessages.v);
 		};
 		switch (result.type()) {
@@ -303,7 +303,7 @@ void NotificationsController::applyFeedDialogs(
 		case mtpc_dialog: {
 			if (const auto peerId = peerFromMTP(dialog.c_dialog().vpeer)) {
 				if (peerIsChannel(peerId)) {
-					const auto history = App::history(peerId);
+					const auto history = Auth().data().history(peerId);
 					const auto channel = history->peer->asChannel();
 					history->applyDialog(dialog.c_dialog());
 					channels.emplace_back(channel);
@@ -422,7 +422,7 @@ void EditController::loadMoreRows() {
 //
 //		for (const auto &chat : data.vchats.v) {
 //			if (chat.type() == mtpc_channel) {
-//				channels.push_back(App::channel(chat.c_channel().vid.v));
+//				channels.push_back(_feed->owner().channel(chat.c_channel().vid.v));
 //			}
 //		}
 //	} break;

@@ -65,11 +65,6 @@ namespace App {
 
 	QString formatPhone(QString phone);
 
-	UserData *feedUser(const MTPUser &user);
-	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
-	PeerData *feedChat(const MTPChat &chat);
-	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
-
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void updateEditedMessage(const MTPMessage &m);
 	void addSavedGif(DocumentData *doc);
@@ -83,22 +78,9 @@ namespace App {
 
 	ImagePtr image(const MTPPhotoSize &size);
 
-	[[nodiscard]] not_null<PeerData*> peer(PeerId id);
-	[[nodiscard]] not_null<UserData*> user(UserId userId);
-	[[nodiscard]] not_null<ChatData*> chat(ChatId chatId);
-	[[nodiscard]] not_null<ChannelData*> channel(ChannelId channelId);
-	[[nodiscard]] PeerData *peerLoaded(PeerId id);
-	[[nodiscard]] UserData *userLoaded(UserId userId);
-	[[nodiscard]] ChatData *chatLoaded(ChatId chatId);
-	[[nodiscard]] 	ChannelData *channelLoaded(ChannelId channelId);
-
 	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
 
-	[[nodiscard]] not_null<History*> history(PeerId peer);
-	[[nodiscard]] History *historyLoaded(PeerId peer);
 	[[nodiscard]] HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
-	[[nodiscard]] not_null<History*> history(not_null<const PeerData*> peer);
-	[[nodiscard]] History *historyLoaded(const PeerData *peer);
 	[[nodiscard]] HistoryItem *histItemById(
 		const ChannelData *channel,
 		MsgId itemId);

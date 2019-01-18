@@ -201,11 +201,11 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		auto &v = d.vdocuments.v;
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
-		for (int i = 0, l = v.size(); i < l; ++i) {
-			auto doc = Auth().data().document(v.at(i));
-			if (!doc->sticker()) continue;
+		for (const auto &item : v) {
+			const auto document = Auth().data().processDocument(item);
+			if (!document->sticker()) continue;
 
-			_pack.push_back(doc);
+			_pack.push_back(document);
 			_packOvers.push_back(Animation());
 		}
 		auto &packs = d.vpacks.v;

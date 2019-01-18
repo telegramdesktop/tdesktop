@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "data/data_peer_values.h"
 #include "data/data_chat.h"
+#include "data/data_session.h"
 #include "window/themes/window_theme.h"
 
 auto PaintUserpicCallback(
@@ -64,7 +65,7 @@ void PeerListBox::createMultiSelect() {
 	_select->entity()->setSubmittedCallback([this](Qt::KeyboardModifiers) { content()->submitted(); });
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
-		if (auto peer = App::peerLoaded(itemId)) {
+		if (auto peer = Auth().data().peerLoaded(itemId)) {
 			if (auto row = peerListFindRow(peer->id)) {
 				content()->changeCheckState(row, false, PeerListRow::SetStyle::Animated);
 				update();
@@ -327,7 +328,7 @@ auto PeerListBox::peerListCollectSelectedRows()
 	if (!items.empty()) {
 		result.reserve(items.size());
 		for (const auto itemId : items) {
-			result.push_back(App::peer(itemId));
+			result.push_back(Auth().data().peer(itemId));
 		}
 	}
 	return result;

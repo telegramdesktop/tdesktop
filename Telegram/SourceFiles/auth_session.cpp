@@ -386,7 +386,7 @@ AuthSession::AuthSession(const MTPUser &user)
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
-, _user(_data->user(user))
+, _user(_data->processUser(user))
 , _changelogs(Core::Changelogs::Create(this))
 , _supportHelper(Support::Helper::Create(this)) {
 	_saveDataTimer.setCallback([=] {

@@ -223,7 +223,7 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
-		App::feedUsers(d.vusers);
+		Auth().data().processUsers(d.vusers);
 
 		auto &v = d.vresults.v;
 		auto queryId = d.vquery_id.v;
@@ -842,12 +842,15 @@ void GifsListWidget::searchForGifs(const QString &query) {
 
 	if (!_searchBot && !_searchBotRequestId) {
 		auto username = str_const_toString(kSearchBotUsername);
-		_searchBotRequestId = request(MTPcontacts_ResolveUsername(MTP_string(username))).done([this](const MTPcontacts_ResolvedPeer &result) {
+		_searchBotRequestId = request(MTPcontacts_ResolveUsername(
+			MTP_string(username)
+		)).done([=](const MTPcontacts_ResolvedPeer &result) {
 			Expects(result.type() == mtpc_contacts_resolvedPeer);
+
 			auto &data = result.c_contacts_resolvedPeer();
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
-			if (auto peer = App::peerLoaded(peerFromMTP(data.vpeer))) {
+			Auth().data().processUsers(data.vusers);
+			Auth().data().processChats(data.vchats);
+			if (auto peer = Auth().data().peerLoaded(peerFromMTP(data.vpeer))) {
 				if (auto user = peer->asUser()) {
 					_searchBot = user;
 				}
