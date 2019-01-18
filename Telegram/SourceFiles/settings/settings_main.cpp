@@ -284,6 +284,7 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 
 	// If we load this in advance it won't jump when we open its' section.
 	Auth().api().reloadPasswordState();
+	Auth().api().reloadContactSignupSilent();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

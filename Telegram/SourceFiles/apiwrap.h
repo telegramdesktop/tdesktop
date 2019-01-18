@@ -366,6 +366,11 @@ public:
 	rpl::producer<Core::CloudPasswordState> passwordState() const;
 	std::optional<Core::CloudPasswordState> passwordStateCurrent() const;
 
+	void reloadContactSignupSilent();
+	rpl::producer<bool> contactSignupSilent() const;
+	std::optional<bool> contactSignupSilentCurrent() const;
+	void saveContactSignupSilent(bool silent);
+
 	void saveSelfBio(const QString &text, FnMut<void()> done);
 
 	struct Privacy {
@@ -785,5 +790,9 @@ private:
 	QString _wallPaperSlug;
 	Fn<void(const Data::WallPaper &)> _wallPaperDone;
 	Fn<void(const RPCError &)> _wallPaperFail;
+
+	mtpRequestId _contactSignupSilentRequestId = 0;
+	std::optional<bool> _contactSignupSilent;
+	rpl::event_stream<bool> _contactSignupSilentChanges;
 
 };

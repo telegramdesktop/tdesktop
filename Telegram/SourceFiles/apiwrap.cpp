@@ -5225,10 +5225,52 @@ rpl::producer<Core::CloudPasswordState> ApiWrap::passwordState() const {
 }
 
 auto ApiWrap::passwordStateCurrent() const
-->std::optional<Core::CloudPasswordState> {
+-> std::optional<Core::CloudPasswordState> {
 	return _passwordState
 		? base::make_optional(*_passwordState)
 		: std::nullopt;
+}
+
+void ApiWrap::reloadContactSignupSilent() {
+	if (_contactSignupSilentRequestId) {
+		return;
+	}
+	const auto requestId = request(MTPaccount_GetContactSignUpNotification(
+	)).done([=](const MTPBool &result) {
+		_contactSignupSilentRequestId = 0;
+		const auto silent = mtpIsTrue(result);
+		_contactSignupSilent = silent;
+		_contactSignupSilentChanges.fire_copy(silent);
+	}).fail([=](const RPCError &error) {
+		_contactSignupSilentRequestId = 0;
+	}).send();
+	_contactSignupSilentRequestId = requestId;
+}
+
+rpl::producer<bool> ApiWrap::contactSignupSilent() const {
+	return _contactSignupSilent
+		? _contactSignupSilentChanges.events_starting_with_copy(
+			*_contactSignupSilent)
+		: (_contactSignupSilentChanges.events() | rpl::type_erased());
+}
+
+std::optional<bool> ApiWrap::contactSignupSilentCurrent() const {
+	return _contactSignupSilent;
+}
+
+void ApiWrap::saveContactSignupSilent(bool silent) {
+	request(base::take(_contactSignupSilentRequestId)).cancel();
+
+	const auto requestId = request(MTPaccount_SetContactSignUpNotification(
+		MTP_bool(silent)
+	)).done([=](const MTPBool &) {
+		_contactSignupSilentRequestId = 0;
+		_contactSignupSilent = silent;
+		_contactSignupSilentChanges.fire_copy(silent);
+	}).fail([=](const RPCError &error) {
+		_contactSignupSilentRequestId = 0;
+	}).send();
+	_contactSignupSilentRequestId = requestId;
 }
 
 void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
