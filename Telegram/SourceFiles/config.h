@@ -26,8 +26,6 @@ enum {
 
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MTPChannelGetDifferenceLimit = 100,
-
 	MaxSelectedItems = 100,
 
 	MaxPhoneCodeLength = 4, // max length of country phone code
@@ -79,8 +77,6 @@ enum {
 
 	ServiceUserId = 777000,
 	WebPageUserId = 701000,
-
-	CacheBackgroundTimeout = 3000, // cache background scaled image after 3s
 
 	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests
 	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
@@ -245,32 +241,6 @@ inline const QString &cTempDir() {
 	static const QString res = cWorkingDir() + qsl("tdata/tdld/");
 	return res;
 }
-
-enum {
-	DialogsFirstLoad = 20, // first dialogs part size requested
-	DialogsPerPage = 500, // next dialogs part size
-
-    UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
-
-	UploadPartSize = 32 * 1024, // 32kb for photo
-    DocumentMaxPartsCount = 3000, // no more than 3000 parts
-    DocumentUploadPartSize0 = 32 * 1024, // 32kb for tiny document ( < 1mb )
-    DocumentUploadPartSize1 = 64 * 1024, // 64kb for little document ( <= 32mb )
-    DocumentUploadPartSize2 = 128 * 1024, // 128kb for small document ( <= 375mb )
-    DocumentUploadPartSize3 = 256 * 1024, // 256kb for medium document ( <= 750mb )
-    DocumentUploadPartSize4 = 512 * 1024, // 512kb for large document ( <= 1500mb )
-    UploadRequestInterval = 500, // one part each half second, if not uploaded faster
-
-	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
-	NoUpdatesTimeout = 60 * 1000, // if nothing is received in 1 min we ping
-	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we ping
-	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
-	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
-
-	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
-
-	SendViewsTimeout = 1000, // send views each second
-};
 
 inline const QRegularExpression &cRussianLetters() {
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));

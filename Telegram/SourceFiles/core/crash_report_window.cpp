@@ -806,7 +806,7 @@ void LastCrashedWindow::onNetworkSettingsSaved(
 	proxy.user = username;
 	proxy.password = password;
 
-	Sandbox::refreshGlobalProxy();
+	Core::App().refreshGlobalProxy();
 
 	if (_updaterData
 		&& ((_updaterData->state == UpdatingCheck)

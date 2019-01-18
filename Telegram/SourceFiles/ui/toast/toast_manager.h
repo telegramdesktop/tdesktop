@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/toast/toast.h"
-#include "core/single_timer.h"
+#include "base/timer.h"
 
 namespace Ui {
 namespace Toast {
@@ -32,14 +32,14 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e);
 
 private slots:
-	void onHideTimeout();
 	void onToastWidgetDestroyed(QObject *widget);
 
 private:
 	Manager(QWidget *parent);
 	void startNextHideTimer();
+	void hideByTimer();
 
-	SingleTimer _hideTimer;
+	base::Timer _hideTimer;
 	TimeMs _nextHide = 0;
 
 	QMultiMap<TimeMs, Instance*> _toastByHideTime;

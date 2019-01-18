@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/single_timer.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
 #include "media/player/media_player_float.h"
@@ -257,11 +257,14 @@ public:
 
 	void feedChannelDifference(const MTPDupdates_channelDifference &data);
 
-	// Mayde public for ApiWrap, while it is still here.
+	// Made public for ApiWrap, while it is still here.
 	// Better would be for this to be moved to ApiWrap.
 	bool requestingDifference() const {
 		return _ptsWaiter.requesting();
 	}
+	void getDifference();
+	void updateOnline(bool gotOtherOffline = false);
+	void checkIdleFinish();
 
 	bool contentOverlapped(const QRect &globalRect);
 
@@ -307,18 +310,6 @@ public slots:
 
 	void dialogsCancelled();
 
-	void getDifference();
-	void onGetDifferenceTimeByPts();
-	void onGetDifferenceTimeAfterFail();
-	void mtpPing();
-
-	void updateOnline(bool gotOtherOffline = false);
-	void checkIdleFinish();
-
-	void onCacheBackground();
-
-	void onViewsIncrement();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -342,6 +333,11 @@ private:
 		ChannelData *channel;
 		UserData *from;
 	};
+
+	void viewsIncrement();
+	void sendPing();
+	void getDifferenceByPts();
+	void getDifferenceAfterFail();
 
 	void animationCallback();
 	void handleAdaptiveLayoutUpdate();
@@ -429,6 +425,7 @@ private:
 	void showAll();
 	void clearHider(not_null<Window::HistoryHider*> instance);
 
+	void cacheBackground();
 	void clearCachedBackground();
 
 	not_null<Media::Player::FloatDelegate*> floatPlayerDelegate();
@@ -510,7 +507,7 @@ private:
 	int32 updDate = 0;
 	int32 updQts = -1;
 	int32 updSeq = 0;
-	SingleTimer noUpdatesTimer;
+	base::Timer _noUpdatesTimer;
 
 	PtsWaiter _ptsWaiter;
 
@@ -518,22 +515,23 @@ private:
 	TimeMs _getDifferenceTimeByPts = 0;
 	TimeMs _getDifferenceTimeAfterFail = 0;
 
-	SingleTimer _byPtsTimer;
+	base::Timer _byPtsTimer;
 
 	QMap<int32, MTPUpdates> _bySeqUpdates;
-	SingleTimer _bySeqTimer;
+	base::Timer _bySeqTimer;
 
-	SingleTimer _byMinChannelTimer;
+	base::Timer _byMinChannelTimer;
 
 	mtpRequestId _onlineRequest = 0;
-	SingleTimer _onlineTimer, _idleFinishTimer;
+	base::Timer _onlineTimer;
+	base::Timer _idleFinishTimer;
 	bool _lastWasOnline = false;
 	TimeMs _lastSetOnline = 0;
 	bool _isIdle = false;
 
 	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
 	QMap<ChannelData*, int32> _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
-	SingleTimer _failDifferenceTimer;
+	base::Timer _failDifferenceTimer;
 
 	TimeMs _lastUpdateTime = 0;
 	bool _handlingChannelDifference = false;
@@ -542,7 +540,7 @@ private:
 	QRect _cachedFor, _willCacheFor;
 	int _cachedX = 0;
 	int _cachedY = 0;
-	SingleTimer _cacheBackgroundTimer;
+	base::Timer _cacheBackgroundTimer;
 
 	PhotoData *_deletingPhoto = nullptr;
 
@@ -550,7 +548,7 @@ private:
 	QMap<PeerData*, ViewsIncrementMap> _viewsIncremented, _viewsToIncrement;
 	QMap<PeerData*, mtpRequestId> _viewsIncrementRequests;
 	QMap<mtpRequestId, PeerData*> _viewsIncrementByRequest;
-	SingleTimer _viewsIncrementTimer;
+	base::Timer _viewsIncrementTimer;
 
 	struct SettingBackground;
 	std::unique_ptr<SettingBackground> _background;

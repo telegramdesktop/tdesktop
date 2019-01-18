@@ -15,6 +15,10 @@ enum PtsSkippedQueue {
 class PtsWaiter {
 public:
 	PtsWaiter() = default;
+
+	// 1s wait for skipped seq or pts in updates.
+	static constexpr auto kWaitForSkippedTimeout = 1000;
+
 	void init(int32 pts) {
 		_good = _last = _count = pts;
 		clearSkippedUpdates();

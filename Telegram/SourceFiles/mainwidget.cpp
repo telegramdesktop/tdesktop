@@ -100,6 +100,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kChannelGetDifferenceLimit = 100;
+
+// 1s wait after show channel history before sending getChannelDifference.
+constexpr auto kWaitForChannelGetDifference = TimeMs(1000);
+
+// If nothing is received in 1 min we ping.
+constexpr auto kNoUpdatesTimeout = 60 * 1000;
+
+// If nothing is received in 1 min when was a sleepmode we ping.
+constexpr auto kNoUpdatesAfterSleepTimeout = 60 * TimeMs(1000);
+
+// Send channel views each second.
+constexpr auto kSendViewsTimeout = TimeMs(1000);
+
+// Cache background scaled image after 3s.
+constexpr auto kCacheBackgroundTimeout = 3000;
+
 bool IsForceLogoutNotification(const MTPDupdateServiceNotification &data) {
 	return qs(data.vtype).startsWith(qstr("AUTH_KEY_DROP_"));
 }
@@ -239,7 +256,16 @@ MainWidget::MainWidget(
 	this,
 	_controller,
 	Media::Player::Panel::Layout::OnlyPlaylist)
-, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full) {
+, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full)
+, _noUpdatesTimer([=] { sendPing(); })
+, _byPtsTimer([=] { getDifferenceByPts(); })
+, _bySeqTimer([=] { getDifference(); })
+, _byMinChannelTimer([=] { getDifference(); })
+, _onlineTimer([=] { updateOnline(); })
+, _idleFinishTimer([=] { checkIdleFinish(); })
+, _failDifferenceTimer([=] { getDifferenceAfterFail(); })
+, _cacheBackgroundTimer([=] { cacheBackground(); })
+, _viewsIncrementTimer([=] { viewsIncrement(); }) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 
@@ -256,13 +282,6 @@ MainWidget::MainWidget(
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
-	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
-	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
-	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
-	connect(&_bySeqTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
-	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
-	connect(&_byMinChannelTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
-	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeAfterFail()));
 	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
 		if (audioId.type() != AudioMsgId::Type::Video) {
 			handleAudioUpdate(audioId);
@@ -310,15 +329,12 @@ MainWidget::MainWidget(
 
 	QCoreApplication::instance()->installEventFilter(this);
 
-	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
-
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New || update.type == Update::Type::Changed) {
 			clearCachedBackground();
 		}
 	});
-	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
 
 	_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
 	_playerPanel->setCloseCallback([this] { closeBothPlayers(); });
@@ -925,7 +941,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	return false;
 }
 
-void MainWidget::onCacheBackground() {
+void MainWidget::cacheBackground() {
 	if (Window::Theme::Background()->color()) {
 		return;
 	} else if (Window::Theme::Background()->tile()) {
@@ -1025,7 +1041,7 @@ void MainWidget::itemEdited(not_null<HistoryItem*> item) {
 
 void MainWidget::checkLastUpdate(bool afterSleep) {
 	auto n = getms(true);
-	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? NoUpdatesAfterSleepTimeout : NoUpdatesTimeout)) {
+	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? kNoUpdatesAfterSleepTimeout : kNoUpdatesTimeout)) {
 		_lastUpdateTime = n;
 		MTP::ping();
 	}
@@ -1399,7 +1415,7 @@ bool MainWidget::isIdle() const {
 
 void MainWidget::clearCachedBackground() {
 	_cachedBackground = QPixmap();
-	_cacheBackgroundTimer.stop();
+	_cacheBackgroundTimer.cancel();
 	update();
 }
 
@@ -1411,7 +1427,7 @@ QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
 	}
 	if (_willCacheFor != forRect || !_cacheBackgroundTimer.isActive()) {
 		_willCacheFor = forRect;
-		_cacheBackgroundTimer.start(CacheBackgroundTimeout);
+		_cacheBackgroundTimer.callOnce(kCacheBackgroundTimeout);
 	}
 	return QPixmap();
 }
@@ -1562,12 +1578,12 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 	auto j = _viewsToIncrement.find(peer);
 	if (j == _viewsToIncrement.cend()) {
 		j = _viewsToIncrement.insert(peer, ViewsIncrementMap());
-		_viewsIncrementTimer.start(SendViewsTimeout);
+		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
 	j.value().insert(item->id, true);
 }
 
-void MainWidget::onViewsIncrement() {
+void MainWidget::viewsIncrement() {
 	for (auto i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i.key())) {
 			++i;
@@ -1603,7 +1619,7 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 		}
 	}
 	if (!_viewsToIncrement.isEmpty() && !_viewsIncrementTimer.isActive()) {
-		_viewsIncrementTimer.start(SendViewsTimeout);
+		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
 }
 
@@ -1617,7 +1633,7 @@ bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
 		}
 	}
 	if (!_viewsToIncrement.isEmpty() && !_viewsIncrementTimer.isActive()) {
-		_viewsIncrementTimer.start(SendViewsTimeout);
+		_viewsIncrementTimer.callOnce(kSendViewsTimeout);
 	}
 	return false;
 }
@@ -1775,7 +1791,7 @@ void MainWidget::ui_showPeerHistory(
 		if (nowActivePeer && nowActivePeer != wasActivePeer) {
 			if (const auto channel = nowActivePeer->asChannel()) {
 				channel->ptsWaitingForShortPoll(
-					WaitForChannelGetDifference);
+					kWaitForChannelGetDifference);
 			}
 			_viewsIncremented.remove(nowActivePeer);
 		}
@@ -2787,7 +2803,7 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 
 bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::FocusIn) {
-		if (auto widget = qobject_cast<QWidget*>(o)) {
+		if (const auto widget = qobject_cast<QWidget*>(o)) {
 			if (_history == widget || _history->isAncestorOf(widget)
 				|| (_mainSection && (_mainSection == widget || _mainSection->isAncestorOf(widget)))
 				|| (_thirdSection && (_thirdSection == widget || _thirdSection->isAncestorOf(widget)))) {
@@ -2928,7 +2944,9 @@ void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
 	}
 	if (seq && seq != updSeq) {
 		updSeq = seq;
-		if (_bySeqTimer.isActive()) _bySeqTimer.stop();
+		if (_bySeqTimer.isActive()) {
+			_bySeqTimer.cancel();
+		}
 		for (QMap<int32, MTPUpdates>::iterator i = _bySeqUpdates.begin(); i != _bySeqUpdates.end();) {
 			int32 s = i.key();
 			if (s <= seq + 1) {
@@ -2938,7 +2956,9 @@ void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
 					return feedUpdates(v);
 				}
 			} else {
-				if (!_bySeqTimer.isActive()) _bySeqTimer.start(WaitForSkippedTimeout);
+				if (!_bySeqTimer.isActive()) {
+					_bySeqTimer.callOnce(PtsWaiter::kWaitForSkippedTimeout);
+				}
 				break;
 			}
 		}
@@ -3008,7 +3028,9 @@ void MainWidget::gotChannelDifference(
 		MTP_LOG(0, ("getChannelDifference { good - after not final channelDifference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		getChannelDifference(channel);
 	} else if (_controller->activeChatCurrent().peer() == channel) {
-		channel->ptsWaitingForShortPoll(timeout ? (timeout * 1000) : WaitForChannelGetDifference);
+		channel->ptsWaitingForShortPoll(timeout
+			? (timeout * TimeMs(1000))
+			: kWaitForChannelGetDifference);
 	}
 }
 
@@ -3037,7 +3059,7 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	updSetState(d.vpts.v, d.vdate.v, d.vqts.v, d.vseq.v);
 
 	_lastUpdateTime = getms(true);
-	noUpdatesTimer.start(NoUpdatesTimeout);
+	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 	_ptsWaiter.setRequesting(false);
 
 	_dialogs->loadDialogs();
@@ -3053,7 +3075,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &difference) {
 		updSetState(_ptsWaiter.current(), d.vdate.v, updQts, d.vseq.v);
 
 		_lastUpdateTime = getms(true);
-		noUpdatesTimer.start(NoUpdatesTimeout);
+		_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 
 		_ptsWaiter.setRequesting(false);
 	} break;
@@ -3125,7 +3147,7 @@ bool MainWidget::getDifferenceTimeChanged(ChannelData *channel, int32 ms, Channe
 
 void MainWidget::ptsWaiterStartTimerFor(ChannelData *channel, int32 ms) {
 	if (getDifferenceTimeChanged(channel, ms, _channelGetDifferenceTimeByPts, _getDifferenceTimeByPts)) {
-		onGetDifferenceTimeByPts();
+		getDifferenceByPts();
 	}
 }
 
@@ -3140,7 +3162,7 @@ void MainWidget::failDifferenceStartTimerFor(ChannelData *channel) {
 			: i.value();
 	}();
 	if (getDifferenceTimeChanged(channel, timeout * 1000, _channelGetDifferenceTimeAfterFail, _getDifferenceTimeAfterFail)) {
-		onGetDifferenceTimeAfterFail();
+		getDifferenceAfterFail();
 	}
 	if (timeout < 64) timeout *= 2;
 }
@@ -3174,11 +3196,11 @@ bool MainWidget::failDifference(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	LOG(("RPC Error in getDifference: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
-	failDifferenceStartTimerFor(0);
+	failDifferenceStartTimerFor(nullptr);
 	return true;
 }
 
-void MainWidget::onGetDifferenceTimeByPts() {
+void MainWidget::getDifferenceByPts() {
 	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeByPts) {
 		if (_getDifferenceTimeByPts > now) {
@@ -3197,13 +3219,13 @@ void MainWidget::onGetDifferenceTimeByPts() {
 		}
 	}
 	if (wait) {
-		_byPtsTimer.start(wait);
+		_byPtsTimer.callOnce(wait);
 	} else {
-		_byPtsTimer.stop();
+		_byPtsTimer.cancel();
 	}
 }
 
-void MainWidget::onGetDifferenceTimeAfterFail() {
+void MainWidget::getDifferenceAfterFail() {
 	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeAfterFail) {
 		if (_getDifferenceTimeAfterFail > now) {
@@ -3224,9 +3246,9 @@ void MainWidget::onGetDifferenceTimeAfterFail() {
 		}
 	}
 	if (wait) {
-		_failDifferenceTimer.start(wait);
+		_failDifferenceTimer.callOnce(wait);
 	} else {
-		_failDifferenceTimer.stop();
+		_failDifferenceTimer.cancel();
 	}
 }
 
@@ -3238,14 +3260,22 @@ void MainWidget::getDifference() {
 	if (requestingDifference()) return;
 
 	_bySeqUpdates.clear();
-	_bySeqTimer.stop();
+	_bySeqTimer.cancel();
 
-	noUpdatesTimer.stop();
+	_noUpdatesTimer.cancel();
 	_getDifferenceTimeAfterFail = 0;
 
 	_ptsWaiter.setRequesting(true);
 
-	MTP::send(MTPupdates_GetDifference(MTP_flags(0), MTP_int(_ptsWaiter.current()), MTPint(), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
+	MTP::send(
+		MTPupdates_GetDifference(
+			MTP_flags(0),
+			MTP_int(_ptsWaiter.current()),
+			MTPint(),
+			MTP_int(updDate),
+			MTP_int(updQts)),
+		rpcDone(&MainWidget::gotDifference),
+		rpcFail(&MainWidget::failDifference));
 }
 
 void MainWidget::getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from) {
@@ -3270,10 +3300,18 @@ void MainWidget::getChannelDifference(ChannelData *channel, ChannelDifferenceReq
 			flags = 0; // No force flag when requesting for short poll.
 		}
 	}
-	MTP::send(MTPupdates_GetChannelDifference(MTP_flags(flags), channel->inputChannel, filter, MTP_int(channel->pts()), MTP_int(MTPChannelGetDifferenceLimit)), rpcDone(&MainWidget::gotChannelDifference, channel), rpcFail(&MainWidget::failChannelDifference, channel));
+	MTP::send(
+		MTPupdates_GetChannelDifference(
+			MTP_flags(flags),
+			channel->inputChannel,
+			filter,
+			MTP_int(channel->pts()),
+			MTP_int(kChannelGetDifferenceLimit)),
+		rpcDone(&MainWidget::gotChannelDifference, channel),
+		rpcFail(&MainWidget::failChannelDifference, channel));
 }
 
-void MainWidget::mtpPing() {
+void MainWidget::sendPing() {
 	MTP::ping();
 }
 
@@ -3470,7 +3508,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 		it->stickers.removeAt(index);
 		for (auto i = it->emoji.begin(); i != it->emoji.end();) {
 			if (const auto index = i->indexOf(sticker); index >= 0) {
-				removedFromEmoji.push_back(i.key());
+				removedFromEmoji.emplace_back(i.key());
 				i->removeAt(index);
 				if (i->isEmpty()) {
 					i = it->emoji.erase(i);
@@ -3620,7 +3658,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 			isOnline = false;
 			if (!_isIdle) {
 				_isIdle = true;
-				_idleFinishTimer.start(900);
+				_idleFinishTimer.callOnce(900);
 			}
 		} else {
 			updateIn = qMin(updateIn, int(Global::OfflineIdleTimeout() - idle));
@@ -3652,7 +3690,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	} else if (isOnline) {
 		updateIn = qMin(updateIn, int(_lastSetOnline + Global::OnlineUpdatePeriod() - ms));
 	}
-	_onlineTimer.start(updateIn);
+	_onlineTimer.callOnce(updateIn);
 }
 
 void MainWidget::saveDraftToCloud() {
@@ -3703,14 +3741,13 @@ void MainWidget::writeDrafts(History *history) {
 }
 
 void MainWidget::checkIdleFinish() {
-	if (this != App::main()) return;
 	if (psIdleTime() < Global::OfflineIdleTimeout()) {
-		_idleFinishTimer.stop();
+		_idleFinishTimer.cancel();
 		_isIdle = false;
 		updateOnline();
-		if (App::wnd()) App::wnd()->checkHistoryActivation();
+		App::wnd()->checkHistoryActivation();
 	} else {
-		_idleFinishTimer.start(900);
+		_idleFinishTimer.callOnce(900);
 	}
 }
 
@@ -3734,7 +3771,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 			updates.read(from, end);
 
 			_lastUpdateTime = getms(true);
-			noUpdatesTimer.start(NoUpdatesTimeout);
+			_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 			if (!requestingDifference()
 				|| HasForceLogoutNotification(updates)) {
 				feedUpdates(updates);
@@ -3860,7 +3897,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			}
 			if (d.vseq.v > updSeq + 1) {
 				_bySeqUpdates.insert(d.vseq.v, updates);
-				return _bySeqTimer.start(WaitForSkippedTimeout);
+				_bySeqTimer.callOnce(PtsWaiter::kWaitForSkippedTimeout);
+				return;
 			}
 		}
 
@@ -3879,7 +3917,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			}
 			if (d.vseq_start.v > updSeq + 1) {
 				_bySeqUpdates.insert(d.vseq_start.v, updates);
-				return _bySeqTimer.start(WaitForSkippedTimeout);
+				_bySeqTimer.callOnce(PtsWaiter::kWaitForSkippedTimeout);
+				return;
 			}
 		}
 
@@ -4019,7 +4058,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			}
 
 			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
-				_byMinChannelTimer.start(WaitForSkippedTimeout);
+				_byMinChannelTimer.callOnce(PtsWaiter::kWaitForSkippedTimeout);
 			}
 			return;
 		}
@@ -4068,7 +4107,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (!channel) {
 			if (!_byMinChannelTimer.isActive()) {
 				// getDifference after timeout.
-				_byMinChannelTimer.start(WaitForSkippedTimeout);
+				_byMinChannelTimer.callOnce(PtsWaiter::kWaitForSkippedTimeout);
 			}
 			return;
 		}
@@ -4615,13 +4654,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					auto &v = set.vdocuments.v;
 					it->stickers.clear();
 					it->stickers.reserve(v.size());
-					for (int i = 0, l = v.size(); i < l; ++i) {
-						const auto doc = Auth().data().document(v.at(i));
-						if (!doc->sticker()) continue;
+					for (const auto &item : v) {
+						const auto document = Auth().data().document(item);
+						if (!document->sticker()) continue;
 
-						it->stickers.push_back(doc);
-						if (doc->sticker()->set.type() != mtpc_inputStickerSetID) {
-							doc->sticker()->set = inputSet;
+						it->stickers.push_back(document);
+						if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
+							document->sticker()->set = inputSet;
 						}
 					}
 					it->emoji.clear();
@@ -4678,11 +4717,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			auto &order = d.vorder.v;
 			auto &sets = Auth().data().stickerSets();
 			Stickers::Order result;
-			for (int i = 0, l = order.size(); i < l; ++i) {
-				if (sets.constFind(order.at(i).v) == sets.cend()) {
+			for (const auto &item : order) {
+				if (sets.constFind(item.v) == sets.cend()) {
 					break;
 				}
-				result.push_back(order.at(i).v);
+				result.push_back(item.v);
 			}
 			if (result.size() != Auth().data().stickerSetsOrder().size() || result.size() != order.size()) {
 				Auth().data().setLastStickersUpdate(0);

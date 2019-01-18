@@ -40,9 +40,6 @@ public:
 
 	~Application();
 
-signals:
-	void adjustSingleTimers();
-
 // Single instance application
 public slots:
 	void socketConnected();
@@ -115,19 +112,7 @@ inline Application &App() {
 
 namespace Sandbox {
 
-QRect availableGeometry();
-QRect screenGeometry(const QPoint &p);
-void setActiveWindow(QWidget *window);
-bool isSavingSession();
-
 void execExternal(const QString &cmd);
-
-void adjustSingleTimers();
-
-void refreshGlobalProxy();
-
-void connect(const char *signal, QObject *object, const char *method);
-
 void launch();
 
 } // namespace Sandbox

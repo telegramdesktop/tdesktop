@@ -53,7 +53,9 @@ std::unique_ptr<Manager> Create(System *system) {
 	return std::make_unique<Manager>(system);
 }
 
-Manager::Manager(System *system) : Notifications::Manager(system) {
+Manager::Manager(System *system)
+: Notifications::Manager(system)
+, _inputCheckTimer([=] { checkLastInput(); }) {
 	subscribe(system->authSession()->downloader().taskFinished(), [this] {
 		for_const (auto &notification, _notifications) {
 			notification->updatePeerPhoto();
@@ -62,7 +64,6 @@ Manager::Manager(System *system) : Notifications::Manager(system) {
 	subscribe(system->settingsChanged(), [this](ChangeType change) {
 		settingsChanged(change);
 	});
-	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
 }
 
 Manager::QueuedNotification::QueuedNotification(
@@ -144,7 +145,7 @@ void Manager::checkLastInput() {
 		}
 	}
 	if (waiting) {
-		_inputCheckTimer.start(300);
+		_inputCheckTimer.callOnce(300);
 	}
 }
 
@@ -494,15 +495,25 @@ void Background::paintEvent(QPaintEvent *e) {
 	p.fillRect(st::notifyBorderWidth, height() - st::notifyBorderWidth, width() - 2 * st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
 }
 
-Notification::Notification(Manager *manager, History *history, PeerData *peer, PeerData *author, HistoryItem *msg, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection) : Widget(manager, startPosition, shift, shiftDirection)
+Notification::Notification(
+	Manager *manager,
+	History *history,
+	PeerData *peer,
+	PeerData *author,
+	HistoryItem *msg,
+	int forwardedCount,
+	QPoint startPosition,
+	int shift,
+	Direction shiftDirection)
+: Widget(manager, startPosition, shift, shiftDirection)
+#ifdef Q_OS_WIN
+, _started(GetTickCount())
+#endif // Q_OS_WIN
 , _history(history)
 , _peer(peer)
 , _author(author)
 , _item(msg)
 , _forwardedCount(forwardedCount)
-#ifdef Q_OS_WIN
-, _started(GetTickCount())
-#endif // Q_OS_WIN
 , _close(this, st::notifyClose)
 , _reply(this, langFactory(lng_notification_reply), st::defaultBoxButton) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });

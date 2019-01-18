@@ -30,6 +30,7 @@
             '/MP',     # Enable multi process build.
             '/EHsc',   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
             '/w14834', # [[nodiscard]]
+            '/w15038', # wrong initialization order
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },

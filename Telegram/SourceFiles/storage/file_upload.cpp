@@ -17,7 +17,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 namespace {
 
-constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024; // max 512kb uploaded at the same time in each session
+// max 512kb uploaded at the same time in each session
+constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024;
+
+constexpr auto kDocumentMaxPartsCount = 3000;
+
+// 32kb for tiny document ( < 1mb )
+constexpr auto kDocumentUploadPartSize0 = 32 * 1024;
+
+// 64kb for little document ( <= 32mb )
+constexpr auto kDocumentUploadPartSize1 = 64 * 1024;
+
+// 128kb for small document ( <= 375mb )
+constexpr auto kDocumentUploadPartSize2 = 128 * 1024;
+
+// 256kb for medium document ( <= 750mb )
+constexpr auto kDocumentUploadPartSize3 = 256 * 1024;
+
+// 512kb for large document ( <= 1500mb )
+constexpr auto kDocumentUploadPartSize4 = 512 * 1024;
+
+// One part each half second, if not uploaded faster.
+constexpr auto kUploadRequestInterval = TimeMs(500);
 
 } // namespace
 
@@ -75,11 +96,11 @@ void Uploader::File::setDocSize(int32 size) {
 	docSize = size;
 	constexpr auto limit0 = 1024 * 1024;
 	constexpr auto limit1 = 32 * limit0;
-	if (docSize >= limit0 || !setPartSize(DocumentUploadPartSize0)) {
-		if (docSize > limit1 || !setPartSize(DocumentUploadPartSize1)) {
-			if (!setPartSize(DocumentUploadPartSize2)) {
-				if (!setPartSize(DocumentUploadPartSize3)) {
-					if (!setPartSize(DocumentUploadPartSize4)) {
+	if (docSize >= limit0 || !setPartSize(kDocumentUploadPartSize0)) {
+		if (docSize > limit1 || !setPartSize(kDocumentUploadPartSize1)) {
+			if (!setPartSize(kDocumentUploadPartSize2)) {
+				if (!setPartSize(kDocumentUploadPartSize3)) {
+					if (!setPartSize(kDocumentUploadPartSize4)) {
 						LOG(("Upload Error: bad doc size: %1").arg(docSize));
 					}
 				}
@@ -92,7 +113,7 @@ bool Uploader::File::setPartSize(uint32 partSize) {
 	docPartSize = partSize;
 	docPartsCount = (docSize / docPartSize)
 		+ ((docSize % docPartSize) ? 1 : 0);
-	return (docPartsCount <= DocumentMaxPartsCount);
+	return (docPartsCount <= kDocumentMaxPartsCount);
 }
 
 uint64 Uploader::File::id() const {
@@ -288,7 +309,7 @@ void Uploader::sendNext() {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(uploadingData.md5Hash.result(), docMd5.data());
 
-					const auto file = (uploadingData.docSize > UseBigFilesFrom)
+					const auto file = (uploadingData.docSize > kUseBigFilesFrom)
 						? MTP_inputFileBig(
 							MTP_long(uploadingData.id()),
 							MTP_int(uploadingData.docPartsCount),
@@ -347,7 +368,7 @@ void Uploader::sendNext() {
 				}
 			}
 			toSend = uploadingData.docFile->read(uploadingData.docPartSize);
-			if (uploadingData.docSize <= UseBigFilesFrom) {
+			if (uploadingData.docSize <= kUseBigFilesFrom) {
 				uploadingData.md5Hash.feed(toSend.constData(), toSend.size());
 			}
 		} else {
@@ -356,7 +377,7 @@ void Uploader::sendNext() {
 			toSend = content.mid(offset, uploadingData.docPartSize);
 			if ((uploadingData.type() == SendMediaType::File
 				|| uploadingData.type() == SendMediaType::Audio)
-				&& uploadingData.docSentParts <= UseBigFilesFrom) {
+				&& uploadingData.docSentParts <= kUseBigFilesFrom) {
 				uploadingData.md5Hash.feed(toSend.constData(), toSend.size());
 			}
 		}
@@ -367,7 +388,7 @@ void Uploader::sendNext() {
 			return;
 		}
 		mtpRequestId requestId;
-		if (uploadingData.docSize > UseBigFilesFrom) {
+		if (uploadingData.docSize > kUseBigFilesFrom) {
 			requestId = MTP::send(
 				MTPupload_SaveBigFilePart(
 					MTP_long(uploadingData.id()),
@@ -411,7 +432,7 @@ void Uploader::sendNext() {
 
 		parts.erase(part);
 	}
-	nextTimer.start(UploadRequestInterval);
+	nextTimer.start(kUploadRequestInterval);
 }
 
 void Uploader::cancel(const FullMsgId &msgId) {

@@ -182,8 +182,6 @@ void WorkingDirReady();
 void WriteInstallBetaVersionsSetting();
 void WriteDebugModeSetting();
 
-void MainThreadTaskAdded();
-
 void start();
 bool started();
 void finish();

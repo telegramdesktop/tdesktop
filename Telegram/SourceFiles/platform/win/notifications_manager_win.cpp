@@ -374,8 +374,8 @@ private:
 };
 
 Manager::Private::Private(Manager *instance, Type type)
-: _guarded(std::make_shared<Manager*>(instance))
-, _cachedUserpics(type) {
+: _cachedUserpics(type)
+, _guarded(std::make_shared<Manager*>(instance)) {
 }
 
 bool Manager::Private::init() {

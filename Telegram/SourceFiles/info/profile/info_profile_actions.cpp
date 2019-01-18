@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "messenger.h"
 #include "apiwrap.h"
-#include "application.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
 
@@ -293,7 +292,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			auto link = Messenger::Instance().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
-				Application::clipboard()->setText(link);
+				QApplication::clipboard()->setText(link);
 				Ui::Toast::Show(lang(lng_username_copied));
 			}
 			return false;

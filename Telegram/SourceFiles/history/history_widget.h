@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
-#include "core/single_timer.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/rp_widget.h"
 #include "base/flags.h"
@@ -358,14 +357,13 @@ private slots:
 
 	void onModerateKeyActivate(int index, bool *outHandled);
 
-	void updateField();
-
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
 
 	void initTabbedSelector();
+	void updateField();
 
 	void send(Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
 	void handlePendingHistoryUpdate();
@@ -516,7 +514,7 @@ private:
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Text _replyEditMsgText;
-	mutable SingleTimer _updateEditTimeLeftDisplay;
+	mutable base::Timer _updateEditTimeLeftDisplay;
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);

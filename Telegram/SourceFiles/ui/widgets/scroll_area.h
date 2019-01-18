@@ -110,6 +110,7 @@ private:
 };
 
 class SplittedWidget : public Ui::RpWidget {
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:

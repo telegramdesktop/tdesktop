@@ -140,8 +140,6 @@
 <(src_loc)/core/mime_type.h
 <(src_loc)/core/shortcuts.cpp
 <(src_loc)/core/shortcuts.h
-<(src_loc)/core/single_timer.cpp
-<(src_loc)/core/single_timer.h
 <(src_loc)/core/update_checker.cpp
 <(src_loc)/core/update_checker.h
 <(src_loc)/core/utils.cpp

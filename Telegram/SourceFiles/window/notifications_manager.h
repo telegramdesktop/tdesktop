@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
 class AuthSession;
 
 namespace Platform {
@@ -96,7 +98,7 @@ private:
 	using Waiters = QMap<History*, Waiter>;
 	Waiters _waiters;
 	Waiters _settingWaiters;
-	SingleTimer _waitTimer;
+	base::Timer _waitTimer;
 
 	QMap<History*, QMap<TimeMs, PeerData*>> _whenAlerts;
 

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
-	// The Q_OBJECT meta info is used for qobject_cast to MainWindow!
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:

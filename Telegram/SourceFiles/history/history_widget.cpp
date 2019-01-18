@@ -176,6 +176,7 @@ HistoryWidget::HistoryWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
 : Window::AbstractSectionWidget(parent, controller)
+, _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _previewTimer([=] { requestPreview(); })
 , _topBar(this, controller)
@@ -359,8 +360,6 @@ HistoryWidget::HistoryWidget(
 		confirmSendingFiles(data, CompressConfirm::Yes);
 		ActivateWindow(this->controller());
 	});
-
-	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 
 	subscribe(Adaptive::Changed(), [this] { update(); });
 	Auth().data().itemRemoved(
@@ -6425,7 +6424,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 
 	// Restart timer only if we are sure that we've painted the whole timer.
 	if (rect.contains(myrtlrect(left, top, width() - left, st::normalFont->height)) && updateIn > 0) {
-		_updateEditTimeLeftDisplay.start(updateIn);
+		_updateEditTimeLeftDisplay.callOnce(updateIn);
 	}
 
 	if (!editTimeLeftText.isEmpty()) {

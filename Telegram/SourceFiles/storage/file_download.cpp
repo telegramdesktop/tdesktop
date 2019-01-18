@@ -1440,18 +1440,18 @@ void WebLoadManager::onFailed(QNetworkReply *reply) {
 }
 
 void WebLoadManager::onProgress(qint64 already, qint64 size) {
-	QNetworkReply *reply = qobject_cast<QNetworkReply*>(QObject::sender());
+	const auto reply = qobject_cast<QNetworkReply*>(QObject::sender());
 	if (!reply) return;
 
-	Replies::iterator j = _replies.find(reply);
+	const auto j = _replies.find(reply);
 	if (j == _replies.cend()) { // handled already
 		return;
 	}
-	webFileLoaderPrivate *loader = j.value();
+	const auto loader = j.value();
 
-	WebReplyProcessResult result = WebReplyProcessProgress;
-	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
-	int32 status = statusCode.isValid() ? statusCode.toInt() : 200;
+	auto result = WebReplyProcessProgress;
+	const auto statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+	const auto status = statusCode.isValid() ? statusCode.toInt() : 200;
 	if (status != 200 && status != 206 && status != 416) {
 		if (status == 301 || status == 302) {
 			QString loc = reply->header(QNetworkRequest::LocationHeader).toString();
@@ -1490,20 +1490,19 @@ void WebLoadManager::onProgress(qint64 already, qint64 size) {
 }
 
 void WebLoadManager::onMeta() {
-	QNetworkReply *reply = qobject_cast<QNetworkReply*>(QObject::sender());
+	const auto reply = qobject_cast<QNetworkReply*>(QObject::sender());
 	if (!reply) return;
 
-	Replies::iterator j = _replies.find(reply);
+	const auto j = _replies.find(reply);
 	if (j == _replies.cend()) { // handled already
 		return;
 	}
-	webFileLoaderPrivate *loader = j.value();
+	const auto loader = j.value();
 
-	typedef QList<QNetworkReply::RawHeaderPair> Pairs;
-	Pairs pairs = reply->rawHeaderPairs();
-	for (Pairs::iterator i = pairs.begin(), e = pairs.end(); i != e; ++i) {
+	const auto pairs = reply->rawHeaderPairs();
+	for (auto i = pairs.begin(), e = pairs.end(); i != e; ++i) {
 		if (QString::fromUtf8(i->first).toLower() == "content-range") {
-			QRegularExpressionMatch m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(i->second));
+			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(i->second));
 			if (m.hasMatch()) {
 				loader->setProgress(qMax(qint64(loader->data().size()), loader->already()), m.captured(1).toLongLong());
 				if (!handleReplyResult(loader, WebReplyProcessProgress)) {

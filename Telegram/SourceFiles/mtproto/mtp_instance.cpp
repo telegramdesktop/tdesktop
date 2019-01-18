@@ -361,7 +361,7 @@ void Instance::Private::setGoodProxyDomain(
 	}
 	if (applyToProxy(Global::RefSelectedProxy())
 		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
-		Sandbox::refreshGlobalProxy();
+		Core::App().refreshGlobalProxy();
 	}
 }
 

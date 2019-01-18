@@ -139,7 +139,8 @@ bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count) {
 	return true;
 }
 
-bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) { // return false if need to save that update and apply later
+// Return false if need to save that update and apply later.
+bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) {
 	if (!inited()) {
 		init(pts);
 		return true;
@@ -153,7 +154,7 @@ bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) { // return 
 	} else if (_last < _count) {
 		setWaitingForSkipped(channel, 1);
 	} else {
-		setWaitingForSkipped(channel, WaitForSkippedTimeout);
+		setWaitingForSkipped(channel, kWaitForSkippedTimeout);
 	}
 	return !count;
 }

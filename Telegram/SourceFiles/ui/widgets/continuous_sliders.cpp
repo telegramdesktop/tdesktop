@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/continuous_sliders.h"
 
+#include "base/timer.h"
+
 namespace Ui {
 namespace {
 
@@ -29,14 +31,13 @@ void ContinuousSlider::setDisabled(bool disabled) {
 void ContinuousSlider::setMoveByWheel(bool move) {
 	if (move != moveByWheel()) {
 		if (move) {
-			_byWheelFinished = std::make_unique<SingleTimer>();
-			_byWheelFinished->setTimeoutHandler([this] {
+			_byWheelFinished = std::make_unique<base::Timer>([=] {
 				if (_changeFinishedCallback) {
 					_changeFinishedCallback(getCurrentValue());
 				}
 			});
 		} else {
-			_byWheelFinished.reset();
+			_byWheelFinished = nullptr;
 		}
 	}
 }
@@ -109,7 +110,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	if (_changeProgressCallback) {
 		_changeProgressCallback(finalValue);
 	}
-	_byWheelFinished->start(kByWheelFinishedTimeout);
+	_byWheelFinished->callOnce(kByWheelFinishedTimeout);
 }
 
 void ContinuousSlider::updateDownValueFromPos(const QPoint &pos) {

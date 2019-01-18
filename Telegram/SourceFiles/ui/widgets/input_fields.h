@@ -41,6 +41,7 @@ enum class InputSubmitSettings {
 };
 
 class FlatInput : public TWidgetHelper<QLineEdit>, private base::Subscriber {
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:
@@ -493,6 +494,7 @@ private:
 class MaskedInputField
 	: public RpWidgetWrap<QLineEdit>
 	, private base::Subscriber {
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 	using Parent = RpWidgetWrap<QLineEdit>;

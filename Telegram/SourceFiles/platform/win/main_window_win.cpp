@@ -179,7 +179,7 @@ public:
 			return false;
 		}
 
-		QRect avail(Sandbox::availableGeometry());
+		const auto avail = QApplication::desktop()->availableGeometry();
 		max_w = avail.width();
 		accumulate_max(max_w, st::windowMinWidth);
 		max_h = avail.height();

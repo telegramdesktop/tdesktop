@@ -41,6 +41,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kDialogsFirstLoad = 20;
+constexpr auto kDialogsPerPage = 500;
+
 QString SwitchToChooseFromQuery() {
 	return qsl("from:");
 }
@@ -877,7 +880,7 @@ void DialogsWidget::loadDialogs() {
 	}
 
 	const auto firstLoad = !_dialogsOffsetDate;
-	const auto loadCount = firstLoad ? DialogsFirstLoad : DialogsPerPage;
+	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
 	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned;
 	const auto feedId = 0;
 	const auto hash = 0;

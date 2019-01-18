@@ -122,13 +122,12 @@ void SessionData::clear(Instance *instance) {
 Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObject()
 , _instance(instance)
 , data(this)
-, dcWithShift(shiftedDcId) {
+, dcWithShift(shiftedDcId)
+, sender([=] { needToResumeAndSend(); }) {
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
 	refreshOptions();
-
-	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 }
 
 void Session::start() {
@@ -247,10 +246,10 @@ void Session::sendAnything(qint64 msCanWait) {
 	if (msWait) {
 		DEBUG_LOG(("MTP Info: dcWithShift %1 can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
 		msSendCall = ms;
-		sender.start(msWait);
+		sender.callOnce(msWait);
 	} else {
 		DEBUG_LOG(("MTP Info: dcWithShift %1 stopped send timer, can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
-		sender.stop();
+		sender.cancel();
 		msSendCall = 0;
 		needToResumeAndSend();
 	}

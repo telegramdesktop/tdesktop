@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/notifications_manager.h"
-#include "core/single_timer.h"
+#include "base/timer.h"
 
 namespace Ui {
 class IconButton;
@@ -79,7 +79,7 @@ private:
 	std::unique_ptr<HideAllButton> _hideAll;
 
 	bool _positionsOutdated = false;
-	SingleTimer _inputCheckTimer;
+	base::Timer _inputCheckTimer;
 
 	struct QueuedNotification {
 		QueuedNotification(not_null<HistoryItem*> item, int forwardedCount);

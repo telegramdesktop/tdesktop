@@ -21,13 +21,14 @@ constexpr int kWaitBeforeRevertMs = 15999;
 
 } // namespace
 
-WarningWidget::WarningWidget(QWidget *parent) : TWidget(parent)
+WarningWidget::WarningWidget(QWidget *parent)
+: TWidget(parent)
+, _timer([=] { handleTimer(); })
 , _secondsLeft(kWaitBeforeRevertMs / 1000)
 , _keepChanges(this, langFactory(lng_theme_keep_changes), st::defaultBoxButton)
 , _revert(this, langFactory(lng_theme_revert), st::defaultBoxButton) {
 	_keepChanges->setClickedCallback([] { Window::Theme::KeepApplied(); });
 	_revert->setClickedCallback([] { Window::Theme::Revert(); });
-	_timer.setTimeoutHandler([this] { handleTimer(); });
 	updateText();
 }
 
@@ -52,7 +53,7 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 			_cache = QPixmap();
 			showChildren();
 			_started = getms(true);
-			_timer.start(100);
+			_timer.callOnce(100);
 		}
 		return;
 	}
@@ -100,7 +101,7 @@ void WarningWidget::setSecondsLeft(int secondsLeft) {
 			updateText();
 			update();
 		}
-		_timer.start(100);
+		_timer.callOnce(100);
 	}
 }
 
@@ -119,7 +120,7 @@ void WarningWidget::hideAnimated() {
 }
 
 void WarningWidget::startAnimation(bool hiding) {
-	_timer.stop();
+	_timer.cancel();
 	_hiding = hiding;
 	if (_cache.isNull()) {
 		showChildren();

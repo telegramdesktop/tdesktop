@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
 
+namespace base {
+class Timer;
+} // namespace base
+
 namespace Ui {
 
 class ContinuousSlider : public RpWidget {
@@ -87,7 +91,7 @@ private:
 	Direction _direction = Direction::Horizontal;
 	bool _disabled = false;
 
-	std::unique_ptr<SingleTimer> _byWheelFinished;
+	std::unique_ptr<base::Timer> _byWheelFinished;
 
 	Fn<float64(float64)> _adjustCallback;
 	Fn<void(float64)> _changeProgressCallback;

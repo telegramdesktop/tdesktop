@@ -34,7 +34,7 @@ auto GenerateCodes() {
 			: qsl("Do you want to enable DEBUG logs?\n\n"
 				"All network events will be logged.");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			Messenger::Instance().onSwitchDebugMode();
+			Messenger::Instance().switchDebugMode();
 		}));
 	});
 	codes.emplace(qsl("viewlogs"), [] {
@@ -43,7 +43,7 @@ auto GenerateCodes() {
 	codes.emplace(qsl("testmode"), [] {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			Messenger::Instance().onSwitchTestMode();
+			Messenger::Instance().switchTestMode();
 		}));
 	});
 	if (!Core::UpdaterDisabled()) {
@@ -71,7 +71,7 @@ auto GenerateCodes() {
 	codes.emplace(qsl("workmode"), [] {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			Messenger::Instance().onSwitchWorkMode();
+			Messenger::Instance().switchWorkMode();
 		}));
 	});
 	codes.emplace(qsl("moderate"), [] {

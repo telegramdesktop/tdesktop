@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
-#include "core/single_timer.h"
 #include "base/unique_qptr.h"
 
 class MainWidget;

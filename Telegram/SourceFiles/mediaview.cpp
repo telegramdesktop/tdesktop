@@ -906,7 +906,7 @@ void MediaView::onSaveAs() {
 			}));
 	}
 	activateWindow();
-	Sandbox::setActiveWindow(this);
+	Core::App().setActiveWindow(this);
 	setFocus();
 }
 
@@ -1777,7 +1777,7 @@ void MediaView::displayFinished() {
 		show();
 		psShowOverAll(this);
 		activateWindow();
-		Sandbox::setActiveWindow(this);
+		Core::App().setActiveWindow(this);
 		setFocus();
 	}
 }

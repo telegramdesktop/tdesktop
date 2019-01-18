@@ -37,6 +37,7 @@ class RSAPublicKey;
 struct ConnectionOptions;
 
 class Thread : public QThread {
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:

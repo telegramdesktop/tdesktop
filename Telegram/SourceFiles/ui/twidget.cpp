@@ -234,8 +234,7 @@ void ForceFullRepaint(not_null<QWidget*> widget) {
 }
 
 void PostponeCall(FnMut<void()> &&callable) {
-	const auto application = static_cast<Application*>(qApp);
-	application->postponeCall(std::move(callable));
+	Core::App().postponeCall(std::move(callable));
 }
 
 } // namespace Ui

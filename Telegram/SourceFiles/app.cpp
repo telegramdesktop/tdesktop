@@ -810,7 +810,7 @@ namespace App {
 		setLaunchState(QuitRequested);
 
 		if (auto window = App::wnd()) {
-			if (!Sandbox::isSavingSession()) {
+			if (!Core::App().isSavingSession()) {
 				window->hide();
 			}
 		}

@@ -636,7 +636,7 @@ void ScrollArea::resizeEvent(QResizeEvent *e) {
 	_verticalBar->recountSize();
 	_topShadow->setGeometry(QRect(0, 0, width(), qAbs(_st.topsh)));
 	_bottomShadow->setGeometry(QRect(0, height() - qAbs(_st.bottomsh), width(), qAbs(_st.bottomsh)));
-	if (SplittedWidget *w = qobject_cast<SplittedWidget*>(widget())) {
+	if (const auto w = qobject_cast<SplittedWidget*>(widget())) {
 		w->resize(width() - w->otherWidth(), w->height());
 		if (!rtl()) {
 			_other->move(w->width(), w->y());
@@ -720,7 +720,7 @@ void ScrollArea::scrollToY(int toTop, int toBottom) {
 }
 
 void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
-	auto splitted = qobject_cast<SplittedWidget*>(w.data());
+	const auto splitted = qobject_cast<SplittedWidget*>(w.data());
 	if (widget() && _touchEnabled) {
 		widget()->removeEventFilter(this);
 		if (!_widgetAcceptsTouch) widget()->setAttribute(Qt::WA_AcceptTouchEvents, false);

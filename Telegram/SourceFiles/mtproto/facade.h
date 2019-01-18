@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/single_timer.h"
 #include "mtproto/type_utils.h"
 #include "mtproto/mtp_instance.h"
 

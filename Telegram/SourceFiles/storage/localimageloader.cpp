@@ -25,6 +25,9 @@ namespace {
 
 constexpr auto kThumbnailQuality = 87;
 constexpr auto kThumbnailSize = 320;
+constexpr auto kPhotoUploadPartSize = 32 * 1024;
+
+using Storage::ValidateThumbDimensions;
 
 struct PreparedFileThumbnail {
 	uint64 id = 0;
@@ -37,7 +40,7 @@ struct PreparedFileThumbnail {
 PreparedFileThumbnail PrepareFileThumbnail(QImage &&original) {
 	const auto width = original.width();
 	const auto height = original.height();
-	if (!Storage::ValidateThumbDimensions(width, height)) {
+	if (!ValidateThumbDimensions(width, height)) {
 		return {};
 	}
 	auto result = PreparedFileThumbnail();
@@ -133,7 +136,43 @@ MTPInputSingleMedia PrepareAlbumItemMedia(
 
 } // namespace
 
-using Storage::ValidateThumbDimensions;
+SendMediaReady::SendMediaReady(
+	SendMediaType type,
+	const QString &file,
+	const QString &filename,
+	int32 filesize,
+	const QByteArray &data,
+	const uint64 &id,
+	const uint64 &thumbId,
+	const QString &thumbExt,
+	const PeerId &peer,
+	const MTPPhoto &photo,
+	const PreparedPhotoThumbs &photoThumbs,
+	const MTPDocument &document,
+	const QByteArray &jpeg,
+	MsgId replyTo)
+: replyTo(replyTo)
+, type(type)
+, file(file)
+, filename(filename)
+, filesize(filesize)
+, data(data)
+, thumbExt(thumbExt)
+, id(id)
+, thumbId(thumbId)
+, peer(peer)
+, photo(photo)
+, document(document)
+, photoThumbs(photoThumbs) {
+	if (!jpeg.isEmpty()) {
+		int32 size = jpeg.size();
+		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
+			parts.insert(part, jpeg.mid(i, kPhotoUploadPartSize));
+		}
+		jpeg_md5.resize(32);
+		hashMd5Hex(jpeg.constData(), jpeg.size(), jpeg_md5.data());
+	}
+}
 
 SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 	PreparedPhotoThumbs photoThumbs;
@@ -290,10 +329,8 @@ void TaskQueue::stop() {
 		_thread->quit();
 		DEBUG_LOG(("Waiting for taskThread to finish"));
 		_thread->wait();
-		delete _worker;
-		delete _thread;
-		_worker = 0;
-		_thread = 0;
+		delete base::take(_worker);
+		delete base::take(_thread);
 	}
 	_tasksToProcess.clear();
 	_tasksToFinish.clear();
@@ -398,6 +435,31 @@ FileLoadResult::FileLoadResult(
 , album(std::move(album))
 , caption(caption) {
 }
+
+void FileLoadResult::setFileData(const QByteArray &filedata) {
+	if (filedata.isEmpty()) {
+		partssize = 0;
+	} else {
+		partssize = filedata.size();
+		for (int32 i = 0, part = 0; i < partssize; i += kPhotoUploadPartSize, ++part) {
+			fileparts.insert(part, filedata.mid(i, kPhotoUploadPartSize));
+		}
+		filemd5.resize(32);
+		hashMd5Hex(filedata.constData(), filedata.size(), filemd5.data());
+	}
+}
+
+void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
+	if (!thumbdata.isEmpty()) {
+		int32 size = thumbdata.size();
+		for (int32 i = 0, part = 0; i < size; i += kPhotoUploadPartSize, ++part) {
+			thumbparts.insert(part, thumbdata.mid(i, kPhotoUploadPartSize));
+		}
+		thumbmd5.resize(32);
+		hashMd5Hex(thumbdata.constData(), thumbdata.size(), thumbmd5.data());
+	}
+}
+
 
 FileLoadTask::FileLoadTask(
 	const QString &filepath,

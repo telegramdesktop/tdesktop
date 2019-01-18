@@ -1283,7 +1283,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		} else {
 			Global::SetProxiesList({});
 		}
-		Sandbox::refreshGlobalProxy();
+		Core::App().refreshGlobalProxy();
 	} break;
 
 	case dbiConnectionType: {
@@ -1383,7 +1383,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				Global::SetProxySettings(ProxyData::Settings::System);
 			}
 		}
-		Sandbox::refreshGlobalProxy();
+		Core::App().refreshGlobalProxy();
 	} break;
 
 	case dbiThemeKeyOld: {

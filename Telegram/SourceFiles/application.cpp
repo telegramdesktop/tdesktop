@@ -510,38 +510,7 @@ void Application::closeApplication() {
 	_updateChecker = nullptr;
 }
 
-inline Application *application() {
-	return qobject_cast<Application*>(QApplication::instance());
-}
-
 namespace Sandbox {
-
-QRect availableGeometry() {
-	if (auto a = application()) {
-		return a->desktop()->availableGeometry();
-	}
-	return QDesktopWidget().availableGeometry();
-}
-
-QRect screenGeometry(const QPoint &p) {
-	if (auto a = application()) {
-		return a->desktop()->screenGeometry(p);
-	}
-	return QDesktopWidget().screenGeometry(p);
-}
-
-void setActiveWindow(QWidget *window) {
-	if (auto a = application()) {
-		a->setActiveWindow(window);
-	}
-}
-
-bool isSavingSession() {
-	if (auto a = application()) {
-		return a->isSavingSession();
-	}
-	return false;
-}
 
 void execExternal(const QString &cmd) {
 	DEBUG_LOG(("Application Info: executing external command '%1'").arg(cmd));
@@ -554,23 +523,7 @@ void execExternal(const QString &cmd) {
 	}
 }
 
-void adjustSingleTimers() {
-	if (auto a = application()) {
-		a->adjustSingleTimers();
-	}
-	base::Timer::Adjust();
-	base::ConcurrentTimerEnvironment::Adjust();
-}
-
-void connect(const char *signal, QObject *object, const char *method) {
-	if (auto a = application()) {
-		a->connect(a, signal, object, method);
-	}
-}
-
 void launch() {
-	Assert(application() != 0);
-
 	const auto dpi = Application::primaryScreen()->logicalDotsPerInch();
 	LOG(("Primary screen DPI: %1").arg(dpi));
 	if (dpi <= 108) {
@@ -587,7 +540,7 @@ void launch() {
 		cSetScreenScale(300); // 300%: 288 DPI (264-inf)
 	}
 
-	auto devicePixelRatio = application()->devicePixelRatio();
+	auto devicePixelRatio = Core::App().devicePixelRatio();
 	if (devicePixelRatio > 1.) {
 		if ((cPlatform() != dbipMac && cPlatform() != dbipMacOld) || (devicePixelRatio != 2.)) {
 			LOG(("Found non-trivial Device Pixel Ratio: %1").arg(devicePixelRatio));
@@ -601,13 +554,7 @@ void launch() {
 		cSetScreenScale(kInterfaceScaleDefault);
 	}
 
-	application()->createMessenger();
-}
-
-void refreshGlobalProxy() {
-	if (const auto instance = application()) {
-		instance->refreshGlobalProxy();
-	}
+	Core::App().createMessenger();
 }
 
 } // namespace Sandbox

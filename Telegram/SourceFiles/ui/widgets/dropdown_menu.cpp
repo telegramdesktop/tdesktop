@@ -231,7 +231,7 @@ void DropdownMenu::hideFinish() {
 //
 //	auto menuTopLeft = mapFromGlobal(_menu->mapToGlobal(QPoint(0, 0)));
 //	auto w = p - QPoint(0, menuTopLeft.y());
-//	auto r = Sandbox::screenGeometry(p);
+//	auto r = QApplication::desktop()->screenGeometry(p);
 //	if (rtl()) {
 //		if (w.x() - width() < r.x() - _padding.left()) {
 //			if (_parent && w.x() + _parent->width() - _padding.left() - _padding.right() + width() - _padding.right() <= r.x() + r.width()) {

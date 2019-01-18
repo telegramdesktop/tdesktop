@@ -39,7 +39,7 @@ class HistoryInner
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, private base::Subscriber {
-	// The Q_OBJECT meta info is used for qobject_cast to HistoryInner!
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:

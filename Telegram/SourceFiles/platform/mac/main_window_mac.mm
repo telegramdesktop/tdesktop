@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "application.h"
 #include "messenger.h"
 #include "auth_session.h"
 #include "history/history.h"
@@ -70,7 +69,7 @@ public:
 	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
 	: _weakView(view)
 	, _callback(std::move(callback)) {
-		QCoreApplication::instance()->installEventFilter(this);
+		QApplication::instance()->installEventFilter(this);
 	}
 
 protected:
@@ -334,7 +333,7 @@ bool MainWindow::Private::clipboardHasText() {
 	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
 	if (_generalPasteboardChangeCount != currentChangeCount) {
 		_generalPasteboardChangeCount = currentChangeCount;
-		_generalPasteboardHasText = !Application::clipboard()->text().isEmpty();
+		_generalPasteboardHasText = !QApplication::clipboard()->text().isEmpty();
 	}
 	return _generalPasteboardHasText;
 }

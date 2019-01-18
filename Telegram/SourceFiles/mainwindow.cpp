@@ -714,7 +714,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
-	if (Sandbox::isSavingSession()) {
+	if (Core::App().isSavingSession()) {
 		e->accept();
 		App::quit();
 	} else {

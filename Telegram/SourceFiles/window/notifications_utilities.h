@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/notifications_manager.h"
-#include "core/single_timer.h"
+#include "base/timer.h"
 
 namespace Window {
 namespace Notifications {
@@ -42,7 +42,7 @@ private:
 	using Images = QMap<StorageKey, Image>;
 	Images _images;
 	bool _someSavedFlag = false;
-	SingleTimer _clearTimer;
+	base::Timer _clearTimer;
 
 };
 

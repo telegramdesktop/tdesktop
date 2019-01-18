@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
-#include "core/single_timer.h"
 #include "mtproto/sender.h"
 #include "chat_helpers/stickers.h"
 #include "data/data_messages.h"

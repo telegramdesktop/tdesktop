@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/username_box.h"
 
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
@@ -166,7 +165,7 @@ void UsernameBox::changed() {
 }
 
 void UsernameBox::linkClick() {
-	Application::clipboard()->setText(Messenger::Instance().createInternalLinkFull(getName()));
+	QApplication::clipboard()->setText(Messenger::Instance().createInternalLinkFull(getName()));
 	Ui::Toast::Show(lang(lng_username_copied));
 }
 
@@ -180,7 +179,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 
 	_saveRequestId = 0;
 	const auto self = Auth().user();
-	const auto err = error.type();
+	const auto &err = error.type();
 	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == self->username) {
 		self->setName(
 			TextUtilities::SingleLine(self->firstName),

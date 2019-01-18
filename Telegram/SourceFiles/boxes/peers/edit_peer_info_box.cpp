@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "messenger.h"
 #include "apiwrap.h"
-#include "application.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
@@ -742,7 +741,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	_controls.inviteLink->setContextCopyText(QString());
 	_controls.inviteLink->setBreakEverywhere(true);
 	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
-		Application::clipboard()->setText(inviteLinkText());
+		QApplication::clipboard()->setText(inviteLinkText());
 		Ui::Toast::Show(lang(lng_group_invite_copied));
 		return false;
 	});

@@ -12,6 +12,9 @@ struct SendMediaReady;
 
 namespace Storage {
 
+// MTP big files methods used for files greater than 10mb.
+constexpr auto kUseBigFilesFrom = 10 * 1024 * 1024;
+
 struct UploadedPhoto {
 	FullMsgId fullId;
 	bool silent = false;

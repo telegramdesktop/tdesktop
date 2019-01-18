@@ -20,8 +20,8 @@ NeverFreedPointer<QMap<QObject*, Manager*>> _managers;
 
 } // namespace
 
-Manager::Manager(QWidget *parent) : QObject(parent) {
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimeout()));
+Manager::Manager(QWidget *parent) : QObject(parent)
+, _hideTimer([=] { hideByTimer(); }) {
 }
 
 bool Manager::eventFilter(QObject *o, QEvent *e) {
@@ -80,7 +80,7 @@ void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 	}
 }
 
-void Manager::onHideTimeout() {
+void Manager::hideByTimer() {
 	auto now = getms(true);
 	for (auto i = _toastByHideTime.begin(); i != _toastByHideTime.cend();) {
 		if (i.key() <= now) {
@@ -114,9 +114,11 @@ void Manager::startNextHideTimer() {
 
 	auto ms = getms(true);
 	if (ms >= _toastByHideTime.firstKey()) {
-		QMetaObject::invokeMethod(this, SLOT("onHideTimeout"), Qt::QueuedConnection);
+		crl::on_main(this, [=] {
+			hideByTimer();
+		});
 	} else {
-		_hideTimer.start(_toastByHideTime.firstKey() - ms);
+		_hideTimer.callOnce(_toastByHideTime.firstKey() - ms);
 	}
 }
 

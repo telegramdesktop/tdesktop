@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/single_timer.h"
+#include "base/timer.h"
 #include "mtproto/rpc_sender.h"
 
 namespace MTP {
@@ -394,7 +394,7 @@ private:
 	bool _ping = false;
 
 	QTimer timeouter;
-	SingleTimer sender;
+	base::Timer sender;
 
 };
 
