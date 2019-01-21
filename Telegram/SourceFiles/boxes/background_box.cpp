@@ -12,12 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/themes/window_theme.h"
 #include "ui/effects/round_checkbox.h"
+#include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_message.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "messenger.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
@@ -153,9 +155,10 @@ void BackgroundBox::prepare() {
 void BackgroundBox::backgroundChosen(int index) {
 	const auto &papers = Auth().data().wallpapers();
 	if (index >= 0 && index < papers.size()) {
-		App::main()->setChatBackground(papers[index]);
+		Ui::show(
+			Box<BackgroundPreviewBox>(papers[index]),
+			LayerOption::KeepOther);
 	}
-	closeBox();
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
@@ -305,6 +308,9 @@ void BackgroundPreviewBox::prepare() {
 
 	addButton(langFactory(lng_background_apply), [=] { apply(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	if (!_paper.slug.isEmpty()) {
+		addLeftButton(langFactory(lng_background_share), [=] { share(); });
+	}
 
 	_scaled = PrepareScaledFromThumb(_paper.thumb);
 	checkLoadedDocument();
@@ -335,6 +341,14 @@ void BackgroundPreviewBox::prepare() {
 void BackgroundPreviewBox::apply() {
 	App::main()->setChatBackground(_paper, std::move(_full));
 	closeBox();
+}
+
+void BackgroundPreviewBox::share() {
+	Expects(!_paper.slug.isEmpty());
+
+	QApplication::clipboard()->setText(
+		Messenger::Instance().createInternalLinkFull("bg/" + _paper.slug));
+	Ui::Toast::Show(lang(lng_background_link_copied));
 }
 
 void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {

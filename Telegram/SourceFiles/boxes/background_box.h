@@ -61,6 +61,7 @@ protected:
 
 private:
 	void apply();
+	void share();
 	void step_radial(TimeMs ms, bool timer);
 	QRect radialRect() const;
 

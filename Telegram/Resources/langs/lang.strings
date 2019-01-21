@@ -402,6 +402,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_text2" = "Sounds awful.";
 "lng_background_bad_link" = "This background link appears to be invalid.";
 "lng_background_apply" = "Apply";
+"lng_background_share" = "Share";
+"lng_background_link_copied" = "Link copied to clipboard";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";
