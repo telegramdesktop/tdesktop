@@ -2895,14 +2895,22 @@ void InputField::applyInstantReplace(
 	} else if (position < length) {
 		return;
 	}
-	commitInstantReplacement(position - length, position, with, what);
+	commitInstantReplacement(position - length, position, with, what, true);
+}
+
+void InputField::commitInstantReplacement(
+		int from,
+		int till,
+		const QString &with) {
+	commitInstantReplacement(from, till, with, std::nullopt, false);
 }
 
 void InputField::commitInstantReplacement(
 		int from,
 		int till,
 		const QString &with,
-		std::optional<QString> checkOriginal) {
+		std::optional<QString> checkOriginal,
+		bool checkIfInMonospace) {
 	const auto original = getTextWithTagsPart(from, till).text;
 	if (checkOriginal
 		&& checkOriginal->compare(original, Qt::CaseInsensitive) != 0) {
@@ -2910,9 +2918,11 @@ void InputField::commitInstantReplacement(
 	}
 
 	auto cursor = textCursor();
-	const auto currentTag = cursor.charFormat().property(kTagProperty);
-	if (currentTag == kTagPre || currentTag == kTagCode) {
-		return;
+	if (checkIfInMonospace) {
+		const auto currentTag = cursor.charFormat().property(kTagProperty);
+		if (currentTag == kTagPre || currentTag == kTagCode) {
+			return;
+		}
 	}
 	cursor.setPosition(from);
 	cursor.setPosition(till, QTextCursor::KeepAnchor);
