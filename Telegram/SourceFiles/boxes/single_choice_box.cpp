@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/padding_wrap.h"
 #include "styles/style_boxes.h"
 
 SingleChoiceBox::SingleChoiceBox(
@@ -31,17 +33,25 @@ void SingleChoiceBox::prepare() {
 	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
-	auto y = st::boxOptionListPadding.top()
-		+ st::autolockButton.margin.top();
-	_options.reserve(_optionTexts.size());
-	auto i = 0;
-	for (const auto &text : _optionTexts) {
-		_options.emplace_back(this, group, i, text, st::autolockButton);
-		_options.back()->moveToLeft(
-			st::boxPadding.left() + st::boxOptionListPadding.left(),
-			y);
-		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
-		i++;
+
+	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::boxOptionListPadding.top() + st::autolockButton.margin.top()));
+	auto &&ints = ranges::view::ints(0);
+	for (const auto &[i, text] : ranges::view::zip(ints, _optionTexts)) {
+		content->add(
+			object_ptr<Ui::Radiobutton>(
+				content,
+				group,
+				i,
+				text,
+				st::defaultBoxCheckbox),
+			QMargins(
+				st::boxPadding.left() + st::boxOptionListPadding.left(),
+				0,
+				st::boxPadding.right(),
+				st::boxOptionListSkip));
 	}
 	group->setChangedCallback([=](int value) {
 		const auto weak = make_weak(this);
@@ -50,11 +60,6 @@ void SingleChoiceBox::prepare() {
 			closeBox();
 		}
 	});
-
-	const auto height = y
-		- st::boxOptionListSkip
-		+ st::boxOptionListPadding.bottom()
-		+ st::boxPadding.bottom();
-	setDimensions(st::autolockWidth, height);
+	setDimensionsToContent(st::boxWidth, content);
 }
 
