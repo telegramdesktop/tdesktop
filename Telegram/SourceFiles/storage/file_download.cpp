@@ -945,7 +945,7 @@ int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
 bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 	Expects(!_finished);
 
-	if (buffer.size()) {
+	if (!buffer.empty()) {
 		if (_fileIsOpen) {
 			auto fsize = _file.size();
 			if (offset < fsize) {
@@ -978,7 +978,7 @@ bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
 			}
 		}
 	}
-	if (!buffer.size() || (buffer.size() % 1024)) { // bad next offset
+	if (buffer.empty() || (buffer.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
 	if (_sentRequests.empty()

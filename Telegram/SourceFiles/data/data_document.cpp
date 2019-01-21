@@ -379,7 +379,8 @@ void DocumentOpenClickHandler::Open(
 		return;
 	}
 
-	if (data->status != FileReady) return;
+	if (data->status != FileReady
+		&& data->status != FileDownloadFailed) return;
 
 	QString filename;
 	if (!data->saveToCache()
