@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image_prepare.h"
 #include "boxes/confirm_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -39,17 +40,13 @@ constexpr auto kInlineBotRequestDelay = 400;
 } // namespace
 
 Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
-, _controller(controller) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::emojiPanMinHeight);
+, _controller(controller)
+, _updateInlineItems([=] { updateInlineItems(); })
+, _previewTimer([=] { showPreview(); }) {
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::inlineResultsMinHeight);
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
-
-	_previewTimer.setSingleShot(true);
-	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
-
-	_updateInlineItems.setSingleShot(true);
-	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
@@ -193,11 +190,11 @@ void Inner::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	ClickHandler::pressed();
-	_previewTimer.start(QApplication::startDragTime());
+	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
 void Inner::mouseReleaseEvent(QMouseEvent *e) {
-	_previewTimer.stop();
+	_previewTimer.cancel();
 
 	auto pressed = std::exchange(_pressed, -1);
 	auto activated = ClickHandler::unpressed();
@@ -266,20 +263,20 @@ void Inner::clearSelection() {
 
 void Inner::hideFinish(bool completely) {
 	if (completely) {
-		auto itemForget = [](auto &item) {
-			if (auto document = item->getDocument()) {
-				document->forget();
+		const auto unload = [](const auto &item) {
+			if (const auto document = item->getDocument()) {
+				document->unload();
 			}
-			if (auto photo = item->getPhoto()) {
-				photo->forget();
+			if (const auto photo = item->getPhoto()) {
+				photo->unload();
 			}
-			if (auto result = item->getResult()) {
-				result->forget();
+			if (const auto result = item->getResult()) {
+				result->unload();
 			}
 		};
 		clearInlineRows(false);
-		for_const (auto &item, _inlineLayouts) {
-			itemForget(item.second);
+		for (const auto &[result, layout] : _inlineLayouts) {
+			unload(layout);
 		}
 	}
 }
@@ -422,7 +419,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton.create(this, base::lambda<QString()>(), st::switchPmButton);
+			_switchPmButton.create(this, Fn<QString()>(), st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
@@ -571,7 +568,7 @@ void Inner::inlineItemRepaint(const ItemBase *layout) {
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -591,6 +588,10 @@ bool Inner::inlineItemVisible(const ItemBase *layout) {
 	}
 
 	return (top < _visibleBottom) && (top + _rows[row].items[col]->height() > _visibleTop);
+}
+
+Data::FileOrigin Inner::inlineItemFileOrigin() {
+	return Data::FileOrigin();
 }
 
 void Inner::updateSelected() {
@@ -662,10 +663,12 @@ void Inner::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows.at(row).items.at(col);
-				if (auto previewDocument = layout->getPreviewDocument()) {
-					Ui::showMediaPreview(previewDocument);
+				if (const auto previewDocument = layout->getPreviewDocument()) {
+					Ui::showMediaPreview(
+						Data::FileOrigin(),
+						previewDocument);
 				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-					Ui::showMediaPreview(previewPhoto);
+					Ui::showMediaPreview(Data::FileOrigin(), previewPhoto);
 				}
 			}
 		}
@@ -675,28 +678,28 @@ void Inner::updateSelected() {
 	}
 }
 
-void Inner::onPreview() {
+void Inner::showPreview() {
 	if (_pressed < 0) return;
 
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows.at(row).items.size()) {
 		auto layout = _rows.at(row).items.at(col);
-		if (auto previewDocument = layout->getPreviewDocument()) {
-			Ui::showMediaPreview(previewDocument);
+		if (const auto previewDocument = layout->getPreviewDocument()) {
+			Ui::showMediaPreview(Data::FileOrigin(), previewDocument);
 			_previewShown = true;
-		} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-			Ui::showMediaPreview(previewPhoto);
+		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+			Ui::showMediaPreview(Data::FileOrigin(), previewPhoto);
 			_previewShown = true;
 		}
 	}
 }
 
-void Inner::onUpdateInlineItems() {
+void Inner::updateInlineItems() {
 	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -757,7 +760,7 @@ void Widget::moveBottom(int bottom) {
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
-	auto contentHeight = snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	auto contentHeight = snap(wantedContentHeight, st::inlineResultsMinHeight, st::inlineResultsMaxHeight);
 	accumulate_min(contentHeight, _bottom - addedHeight);
 	accumulate_min(contentHeight, _contentMaxHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;

@@ -59,9 +59,11 @@ public:
 	int unreadCount() const;
 	bool unreadCountKnown() const;
 
+	bool useProxyPromotion() const override;
 	bool toImportant() const override;
 	bool shouldBeInChatList() const override;
 	int chatListUnreadCount() const override;
+	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
 	HistoryItem *chatsListItem() const override;
 	const QString &chatsListName() const override;
@@ -92,6 +94,9 @@ private:
 		const std::vector<not_null<ChannelData*>> &add,
 		const std::vector<not_null<ChannelData*>> &remove);
 
+	template <typename PerformUpdate>
+	void updateUnreadCounts(PerformUpdate &&performUpdate);
+
 	FeedId _id = 0;
 	not_null<Data::Session*> _parent;
 	std::vector<not_null<History*>> _channels;
@@ -101,10 +106,10 @@ private:
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
-	base::optional<HistoryItem*> _lastMessage;
+	std::optional<HistoryItem*> _lastMessage;
 
 	rpl::variable<MessagePosition> _unreadPosition;
-	base::optional<int> _unreadCount;
+	std::optional<int> _unreadCount;
 	rpl::event_stream<int> _unreadCountChanges;
 	int _unreadMutedCount = 0;
 

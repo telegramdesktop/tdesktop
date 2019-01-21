@@ -27,7 +27,6 @@ namespace style {
 namespace {
 
 constexpr int kErrorBadIconSize     = 861;
-constexpr int kErrorBadIconFormat   = 862;
 
 // crc32 hash, taken somewhere from the internet
 
@@ -1122,22 +1121,12 @@ bool Generator::writePxValuesInit() {
 	}
 	source_->stream() << "\
 void initPxValues() {\n\
-	if (cRetina()) return;\n\
-\n\
-	switch (cScale()) {\n";
-	for (int i = 1, scalesCount = _scales.size(); i < scalesCount; ++i) {
-		source_->stream() << "\tcase " << _scaleNames.at(i) << ":\n";
-		for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
-			auto value = it.key();
-			int adjusted = structure::data::pxAdjust(value, _scales.at(i));
-			if (adjusted != value) {
-				source_->stream() << "\t\t" << pxValueName(value) << " = " << adjusted << ";\n";
-			}
-		}
-		source_->stream() << "\tbreak;\n";
+	const auto scale = cScale();\n";
+	for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
+		auto value = it.key();
+		source_->stream() << "\t" << pxValueName(value) << " = ConvertScale(" << value << ", scale);\n";
 	}
 	source_->stream() << "\
-	}\n\
 }\n\n";
 	return true;
 }
@@ -1184,46 +1173,54 @@ QByteArray iconMaskValuePng(QString filepath) {
 	filepath = directory.filePath(nameAndModifiers[0]);
 	auto modifiers = nameAndModifiers.mid(1);
 
-	QImage png100x(filepath + ".png");
-	QImage png200x(filepath + "@2x.png");
-	png100x.setDevicePixelRatio(1.);
-	png200x.setDevicePixelRatio(1.);
-	if (png100x.isNull()) {
-		common::logError(common::kErrorFileNotOpened, filepath + ".png") << "could not open icon file";
+	const auto readImage = [&](const QString &postfix) {
+		const auto path = filepath + postfix + ".png";
+		auto result = QImage(path);
+		if (result.isNull()) {
+			common::logError(common::kErrorFileNotOpened, path) << "could not open icon file";
+			return QImage();
+		} else if (result.format() != QImage::Format_RGB32) {
+			result = std::move(result).convertToFormat(QImage::Format_RGB32);
+		}
+		result.setDevicePixelRatio(1.);
+		return result;
+	};
+	auto png1x = readImage("");
+	auto png2x = readImage("@2x");
+	auto png3x = readImage("@3x");
+	if (png1x.isNull() || png2x.isNull() || png3x.isNull()) {
 		return result;
 	}
-	if (png200x.isNull()) {
-		common::logError(common::kErrorFileNotOpened, filepath + "@2x.png") << "could not open icon file";
+	if (png1x.width() * 2 != png2x.width()
+		|| png1x.height() * 2 != png2x.height()
+		|| png1x.width() * 3 != png3x.width()
+		|| png1x.height() * 3 != png3x.height()) {
+		common::logError(kErrorBadIconSize, filepath + ".png")
+			<< "bad icons size, 1x: "
+			<< png1x.width() << "x" << png1x.height()
+			<< ", 2x: "
+			<< png2x.width() << "x" << png2x.height()
+			<< ", 3x: "
+			<< png3x.width() << "x" << png3x.height();
 		return result;
 	}
-	if (png100x.format() != png200x.format()) {
-		common::logError(kErrorBadIconFormat, filepath + ".png") << "1x and 2x icons have different format";
-		return result;
-	}
-	if (png100x.width() * 2 != png200x.width() || png100x.height() * 2 != png200x.height()) {
-		common::logError(kErrorBadIconSize, filepath + ".png") << "bad icons size, 1x: " << png100x.width() << "x" << png100x.height() << ", 2x: " << png200x.width() << "x" << png200x.height();
-		return result;
-	}
-	for (auto modifierName : modifiers) {
-		if (auto modifier = GetModifier(modifierName)) {
-			modifier(png100x, png200x);
+	for (const auto modifierName : modifiers) {
+		if (const auto modifier = GetModifier(modifierName)) {
+			modifier(png1x);
+			modifier(png2x);
+			modifier(png3x);
 		} else {
 			common::logError(common::kErrorInternal, filepath) << "modifier should be valid here, name: " << modifierName.toStdString();
 			return result;
 		}
 	}
-	QImage png125x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 5), structure::data::pxAdjust(png100x.height(), 5), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-	QImage png150x = png200x.scaled(structure::data::pxAdjust(png100x.width(), 6), structure::data::pxAdjust(png100x.height(), 6), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-
-	QImage composed(png200x.width() + png100x.width(), png200x.height() + png150x.height(), png100x.format());
+	QImage composed(png3x.width(), png3x.height() + png2x.height(), QImage::Format_RGB32);
+	composed.fill(Qt::black);
 	{
 		QPainter p(&composed);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, composed.width(), composed.height(), QColor(0, 0, 0, 255));
-		p.drawImage(0, 0, png200x);
-		p.drawImage(png200x.width(), 0, png100x);
-		p.drawImage(0, png200x.height(), png150x);
-		p.drawImage(png150x.width(), png200x.height(), png125x);
+		p.drawImage(0, 0, png1x);
+		p.drawImage(png1x.width(), 0, png2x);
+		p.drawImage(0, png2x.height(), png3x);
 	}
 	{
 		QBuffer buffer(&result);

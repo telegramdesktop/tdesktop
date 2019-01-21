@@ -30,6 +30,7 @@ QString LogIds(const QVector<uint64> &ids) {
 ConnectionOptions::ConnectionOptions(
 	const QString &systemLangCode,
 	const QString &cloudLangCode,
+	const QString &langPackName,
 	const ProxyData &proxy,
 	bool useIPv4,
 	bool useIPv6,
@@ -37,6 +38,7 @@ ConnectionOptions::ConnectionOptions(
 	bool useTcp)
 : systemLangCode(systemLangCode)
 , cloudLangCode(cloudLangCode)
+, langPackName(langPackName)
 , proxy(proxy)
 , useIPv4(useIPv4)
 , useIPv6(useIPv6)
@@ -56,6 +58,20 @@ void SessionData::setKey(const AuthKeyPtr &key) {
 			_messagesSent = 0;
 		}
 		_layerInited = false;
+	}
+}
+
+void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
+	QWriteLocker locker(&_lock);
+	if (options.cloudLangCode == _options.cloudLangCode
+		&& options.systemLangCode == _options.systemLangCode
+		&& options.langPackName == _options.langPackName
+		&& options.proxy == _options.proxy
+		&& !_options.inited) {
+		_options.inited = true;
+
+		locker.unlock();
+		owner()->notifyDcConnectionInited();
 	}
 }
 
@@ -110,7 +126,7 @@ Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObjec
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
-	refreshDataFields();
+	refreshOptions();
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 }
@@ -133,25 +149,11 @@ void Session::createDcData() {
 	if (auto lock = ReadLockerAttempt(keyMutex())) {
 		data.setKey(dc->getKey());
 		if (dc->connectionInited()) {
-			data.setLayerWasInited(true);
+			data.setConnectionInited();
 		}
 	}
 	connect(dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-	connect(dc.get(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
-}
-
-void Session::registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift) {
-	return _instance->registerRequest(requestId, dcWithShift);
-}
-
-mtpRequestId Session::storeRequest(
-		mtpRequest &request,
-		RPCResponseHandler &&callbacks) {
-	return _instance->storeRequest(request, std::move(callbacks));
-}
-
-mtpRequest Session::getRequest(mtpRequestId requestId) {
-	return _instance->getRequest(requestId);
+	connect(dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
 }
 
 bool Session::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
@@ -163,27 +165,37 @@ void Session::restart() {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
 		return;
 	}
-	refreshDataFields();
+	refreshOptions();
 	emit needToRestart();
 }
 
-void Session::refreshDataFields() {
+void Session::refreshOptions() {
 	const auto &proxy = Global::SelectedProxy();
-	const auto proxyType = Global::UseProxy()
-		? proxy.type
-		: ProxyData::Type::None;
+	const auto proxyType =
+		(Global::ProxySettings() == ProxyData::Settings::Enabled
+			? proxy.type
+			: ProxyData::Type::None);
 	const auto useTcp = (proxyType != ProxyData::Type::Http);
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
-	data.setConnectionOptions(ConnectionOptions(
+	data.applyConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
-		Global::UseProxy() ? proxy : ProxyData(),
+		_instance->langPackName(),
+		(Global::ProxySettings() == ProxyData::Settings::Enabled
+			? proxy
+			: ProxyData()),
 		useIPv4,
 		useIPv6,
 		useHttp,
 		useTcp));
+}
+
+void Session::reInitConnection() {
+	dc->setConnectionInited(false);
+	data.setConnectionInited(false);
+	restart();
 }
 
 void Session::stop() {
@@ -261,22 +273,21 @@ void Session::needToResumeAndSend() {
 }
 
 void Session::sendPong(quint64 msgId, quint64 pingId) {
-	send(mtpRequestData::serialize(MTPPong(MTP_pong(
-		MTP_long(msgId),
-		MTP_long(pingId)))));
+	_instance->sendProtocolMessage(
+		dcWithShift,
+		MTPPong(MTP_pong(MTP_long(msgId), MTP_long(pingId))));
 }
 
 void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
-	auto info = std::string();
+	auto info = bytes::vector();
 	if (!data.isEmpty()) {
 		info.resize(data.size());
-		auto src = gsl::as_bytes(gsl::make_span(data));
-//		auto dst = gsl::as_writeable_bytes(gsl::make_span(info));
-		auto dst = gsl::as_writeable_bytes(gsl::make_span(&info[0], info.size()));
-		base::copy_bytes(dst, src);
+		bytes::copy(info, bytes::make_span(data));
 	}
-	send(mtpRequestData::serialize(MTPMsgsStateInfo(
-		MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::move(info))))));
+	_instance->sendProtocolMessage(
+		dcWithShift,
+		MTPMsgsStateInfo(
+			MTP_msgs_state_info(MTP_long(msgId), MTP_bytes(data))));
 }
 
 void Session::checkRequestsByTimer() {
@@ -286,14 +297,14 @@ void Session::checkRequestsByTimer() {
 
 	{
 		QReadLocker locker(data.haveSentMutex());
-		mtpRequestMap &haveSent(data.haveSentMap());
-		uint32 haveSentCount(haveSent.size());
+		auto &haveSent = data.haveSentMap();
+		const auto haveSentCount = haveSent.size();
 		auto ms = getms(true);
-		for (mtpRequestMap::iterator i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
-			mtpRequest &req(i.value());
+		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
+			auto &req = i.value();
 			if (req->msDate > 0) {
 				if (req->msDate + MTPCheckResendTimeout < ms) { // need to resend or check state
-					if (mtpRequestData::messageSize(req) < MTPResendThreshold) { // resend
+					if (req.messageSize() < MTPResendThreshold) { // resend
 						resendingIds.reserve(haveSentCount);
 						resendingIds.push_back(i.key());
 					} else {
@@ -392,8 +403,8 @@ int32 Session::requestState(mtpRequestId requestId) const {
 	if (!requestId) return MTP::RequestSent;
 
 	QWriteLocker locker(data.toSendMutex());
-	const mtpPreRequestMap &toSend(data.toSendMap());
-	mtpPreRequestMap::const_iterator i = toSend.constFind(requestId);
+	const auto &toSend = data.toSendMap();
+	const auto i = toSend.constFind(requestId);
 	if (i != toSend.cend()) {
 		return MTP::RequestSending;
 	} else {
@@ -429,10 +440,10 @@ QString Session::transport() const {
 }
 
 mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
-	mtpRequest request;
+	SecureRequest request;
 	{
 		QWriteLocker locker(data.haveSentMutex());
-		mtpRequestMap &haveSent(data.haveSentMap());
+		auto &haveSent = data.haveSentMap();
 
 		auto i = haveSent.find(msgId);
 		if (i == haveSent.end()) {
@@ -441,10 +452,12 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 				DEBUG_LOG(("Message Info: cant resend %1, request not found").arg(msgId));
 
 				auto info = std::string(cantResend, cantResend + 1);
-				return send(mtpRequestData::serialize(MTPMsgsStateInfo(
-					MTP_msgs_state_info(
-						MTP_long(msgId),
-						MTP_string(std::move(info))))));
+				return _instance->sendProtocolMessage(
+					dcWithShift,
+					MTPMsgsStateInfo(
+						MTP_msgs_state_info(
+							MTP_long(msgId),
+							MTP_string(std::move(info)))));
 			}
 			return 0;
 		}
@@ -452,14 +465,14 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		request = i.value();
 		haveSent.erase(i);
 	}
-	if (mtpRequestData::isSentContainer(request)) { // for container just resend all messages we can
+	if (request.isSentContainer()) { // for container just resend all messages we can
 		DEBUG_LOG(("Message Info: resending container from haveSent, msgId %1").arg(msgId));
 		const mtpMsgId *ids = (const mtpMsgId *)(request->constData() + 8);
 		for (uint32 i = 0, l = (request->size() - 8) >> 1; i < l; ++i) {
 			resend(ids[i], 10, true);
 		}
 		return 0xFFFFFFFF;
-	} else if (!mtpRequestData::isStateRequest(request)) {
+	} else if (!request.isStateRequest()) {
 		request->msDate = forceContainer ? 0 : getms(true);
 		sendPrepared(request, msCanWait, false);
 		{
@@ -482,10 +495,12 @@ void Session::resendAll() {
 	QVector<mtpMsgId> toResend;
 	{
 		QReadLocker locker(data.haveSentMutex());
-		const mtpRequestMap &haveSent(data.haveSentMap());
+		const auto &haveSent = data.haveSentMap();
 		toResend.reserve(haveSent.size());
-		for (mtpRequestMap::const_iterator i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
-			if (i.value()->requestId) toResend.push_back(i.key());
+		for (auto i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
+			if (i.value()->requestId) {
+				toResend.push_back(i.key());
+			}
 		}
 	}
 	for (uint32 i = 0, l = toResend.size(); i < l; ++i) {
@@ -493,31 +508,12 @@ void Session::resendAll() {
 	}
 }
 
-mtpRequestId Session::send(
-		mtpRequest &&request,
-		RPCResponseHandler &&callbacks,
+void Session::sendPrepared(
+		const SecureRequest &request,
 		TimeMs msCanWait,
-		bool needsLayer,
-		bool toMainDC,
-		mtpRequestId after) {
-	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
-
-	request->msDate = getms(true); // > 0 - can send without container
-	request->needsLayer = needsLayer;
-	if (after) {
-		request->after = getRequest(after);
-	}
-	const auto requestId = storeRequest(request, std::move(callbacks));
-	Assert(requestId != 0);
-
-	const auto signedDcId = toMainDC ? -getDcWithShift() : getDcWithShift();
-	sendPrepared(request, msCanWait);
-	registerRequest(requestId, signedDcId);
-
-	return requestId;
-}
-
-void Session::sendPrepared(const mtpRequest &request, TimeMs msCanWait, bool newRequest) { // returns true, if emit of needToSend() is needed
+		bool newRequest) {
+	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
+		).arg(msCanWait));
 	{
 		QWriteLocker locker(data.toSendMutex());
 		data.toSendMap().insert(request->requestId, request);
@@ -548,15 +544,15 @@ void Session::notifyKeyCreated(AuthKeyPtr &&key) {
 	dc->setKey(std::move(key));
 }
 
-void Session::layerWasInitedForDC(bool wasInited) {
-	DEBUG_LOG(("MTP Info: Session::layerWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
-	data.setLayerWasInited(wasInited);
+void Session::connectionWasInitedForDC() {
+	DEBUG_LOG(("MTP Info: Session::connectionWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
+	data.setConnectionInited();
 }
 
-void Session::notifyLayerInited(bool wasInited) {
-	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dcWithShift %2").arg(Logs::b(wasInited)).arg(dcWithShift));
-	dc->setConnectionInited(wasInited);
-	emit dc->layerWasInited(wasInited);
+void Session::notifyDcConnectionInited() {
+	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(dcWithShift));
+	dc->setConnectionInited();
+	emit dc->connectionWasInited();
 }
 
 void Session::destroyKey() {
@@ -609,7 +605,7 @@ void Session::tryToReceive() {
 			}
 		}
 		if (isUpdate) {
-			if (dcWithShift == bareDcId(dcWithShift)) { // call globalCallback only in main session
+			if (dcWithShift == BareDcId(dcWithShift)) { // call globalCallback only in main session
 				_instance->globalCallback(message.constData(), message.constData() + message.size());
 			}
 		} else {

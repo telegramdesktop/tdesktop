@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 class HistoryMedia;
+class LocationCoords;
+struct LocationData;
 
 namespace base {
 template <typename Enum>
@@ -39,7 +41,6 @@ struct SharedContact {
 	QString firstName;
 	QString lastName;
 	QString phoneNumber;
-
 };
 
 struct Call {
@@ -47,7 +48,6 @@ struct Call {
 
 	int duration = 0;
 	FinishReason finishReason = FinishReason::Missed;
-
 };
 
 struct Invoice {
@@ -58,7 +58,6 @@ struct Invoice {
 	QString description;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
-
 };
 
 class Media {
@@ -78,12 +77,13 @@ public:
 	virtual GameData *game() const;
 	virtual const Invoice *invoice() const;
 	virtual LocationData *location() const;
+	virtual PollData *poll() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
 	virtual bool canBeGrouped() const;
 	virtual bool hasReplyPreview() const;
-	virtual ImagePtr replyPreview() const;
+	virtual Image *replyPreview() const;
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	virtual QString chatsListText() const;
@@ -136,7 +136,7 @@ public:
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 	bool canBeGrouped() const override;
 	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() const override;
+	Image *replyPreview() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -172,7 +172,7 @@ public:
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 	bool canBeGrouped() const override;
 	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() const override;
+	Image *replyPreview() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -298,7 +298,7 @@ public:
 	WebPageData *webpage() const override;
 
 	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() const override;
+	Image *replyPreview() const override;
 	QString chatsListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -327,7 +327,7 @@ public:
 	GameData *game() const override;
 
 	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() const override;
+	Image *replyPreview() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
@@ -363,7 +363,7 @@ public:
 	const Invoice *invoice() const override;
 
 	bool hasReplyPreview() const override;
-	ImagePtr replyPreview() const override;
+	Image *replyPreview() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
@@ -376,6 +376,32 @@ public:
 
 private:
 	Invoice _invoice;
+
+};
+
+class MediaPoll : public Media {
+public:
+	MediaPoll(
+		not_null<HistoryItem*> parent,
+		not_null<PollData*> poll);
+	~MediaPoll();
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	PollData *poll() const override;
+
+	QString notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextWithEntities clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryMedia> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) override;
+
+private:
+	not_null<PollData*> _poll;
 
 };
 

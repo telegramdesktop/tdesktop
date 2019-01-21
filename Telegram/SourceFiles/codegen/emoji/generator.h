@@ -30,7 +30,7 @@ public:
 
 private:
 #ifdef SUPPORT_IMAGE_GENERATION
-	QImage generateImage(int variantIndex);
+	QImage generateImage(int imageIndex);
 	bool writeImages();
 #endif // SUPPORT_IMAGE_GENERATION
 
@@ -48,7 +48,10 @@ private:
 	bool writeGetSections();
 	bool writeFindReplace();
 	bool writeFind();
-	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes = false);
+	bool writeFindFromDictionary(
+		const std::map<QString, int, std::greater<QString>> &dictionary,
+		bool skipPostfixes = false,
+		const std::set<int> &postfixRequired = {});
 	bool writeGetReplacements();
 	void startBinary();
 	bool writeStringBinary(common::CppFile *source, const QString &string);

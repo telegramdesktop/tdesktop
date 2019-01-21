@@ -56,17 +56,23 @@ public:
 		return _pinnedIndex > 0;
 	}
 	void cachePinnedIndex(int index);
+	bool isProxyPromoted() const {
+		return _isProxyPromoted;
+	}
+	virtual bool useProxyPromotion() const = 0;
+	void cacheProxyPromoted(bool promoted);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
 	void updateChatListSortPosition();
-	void setChatsListDate(QDateTime date);
+	void setChatsListTimeId(TimeId date);
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
 
 	virtual bool toImportant() const = 0;
 	virtual bool shouldBeInChatList() const = 0;
 	virtual int chatListUnreadCount() const = 0;
+	virtual bool chatListUnreadMark() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
 	virtual HistoryItem *chatsListItem() const = 0;
 	virtual const QString &chatsListName() const = 0;
@@ -88,8 +94,8 @@ public:
 		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
 
-	QDateTime chatsListDate() const {
-		return _lastMessageDate;
+	TimeId chatsListTimeId() const {
+		return _lastMessageTimeId;
 	}
 
 	virtual ~Entry() = default;
@@ -98,7 +104,7 @@ public:
 	mutable Text lastItemTextCache;
 
 private:
-	virtual QDateTime adjustChatListDate() const;
+	virtual TimeId adjustChatListTimeId() const;
 	virtual void changedInChatListHook(Dialogs::Mode list, bool added);
 	virtual void changedChatListPinHook();
 
@@ -111,7 +117,8 @@ private:
 	RowsByLetter _chatListLinks[2];
 	uint64 _sortKeyInChatList = 0;
 	int _pinnedIndex = 0;
-	QDateTime _lastMessageDate;
+	bool _isProxyPromoted = false;
+	TimeId _lastMessageTimeId = 0;
 
 };
 

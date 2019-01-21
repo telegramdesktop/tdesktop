@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/basic_types.h"
 #include "history/history_location_manager.h"
 
 namespace InlineBots {

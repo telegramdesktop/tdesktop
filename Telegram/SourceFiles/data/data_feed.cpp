@@ -150,7 +150,7 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 void Feed::updateLastMessage(not_null<HistoryItem*> item) {
 	if (justUpdateLastMessage(item)) {
 		if (_lastMessage && *_lastMessage) {
-			setChatsListDate(ItemDateTime(*_lastMessage));
+			setChatsListTimeId((*_lastMessage)->date());
 		}
 	}
 }
@@ -250,7 +250,7 @@ void Feed::changeChannelsList(
 	// After that we restore it.
 	const auto oldLastMessage = base::take(_lastMessage);
 	for (const auto channel : add) {
-		_lastMessage = base::none;
+		_lastMessage = std::nullopt;
 		channel->setFeed(this);
 	}
 	_lastMessage = oldLastMessage;
@@ -282,7 +282,7 @@ void Feed::historyCleared(not_null<History*> history) {
 }
 
 void Feed::recountLastMessage() {
-	_lastMessage = base::none;
+	_lastMessage = std::nullopt;
 	for (const auto history : _channels) {
 		if (!history->lastMessageKnown()) {
 			_parent->session().api().requestDialogEntry(this);
@@ -304,7 +304,7 @@ void Feed::setLastMessageFromChannels() {
 
 void Feed::updateChatsListDate() {
 	if (_lastMessage && *_lastMessage) {
-		setChatsListDate(ItemDateTime(*_lastMessage));
+		setChatsListTimeId((*_lastMessage)->date());
 	}
 }
 
@@ -361,13 +361,68 @@ bool Feed::unreadCountKnown() const {
 //}
 
 void Feed::changedInChatListHook(Dialogs::Mode list, bool added) {
-	if (list == Dialogs::Mode::All && unreadCount()) {
+	if (list != Dialogs::Mode::All) {
+		return;
+	}
+	if (const auto count = unreadCount()) {
 		const auto mutedCount = _unreadMutedCount;
-		const auto nonMutedCount = unreadCount() - mutedCount;
+		const auto nonMutedCount = count - mutedCount;
 		const auto mutedDelta = added ? mutedCount : -mutedCount;
 		const auto nonMutedDelta = added ? nonMutedCount : -nonMutedCount;
 		App::histories().unreadIncrement(nonMutedDelta, false);
 		App::histories().unreadIncrement(mutedDelta, true);
+
+		const auto fullMuted = (nonMutedCount == 0);
+		const auto entriesWithUnreadDelta = added ? 1 : -1;
+		const auto mutedEntriesWithUnreadDelta = fullMuted
+			? entriesWithUnreadDelta
+			: 0;
+		App::histories().unreadEntriesChanged(
+			entriesWithUnreadDelta,
+			mutedEntriesWithUnreadDelta);
+	}
+}
+
+template <typename PerformUpdate>
+void Feed::updateUnreadCounts(PerformUpdate &&performUpdate) {
+	const auto wasUnreadCount = _unreadCount  ? *_unreadCount : 0;
+	const auto wasUnreadMutedCount = _unreadMutedCount;
+	const auto wasFullMuted = (wasUnreadMutedCount > 0)
+		&& (wasUnreadCount == wasUnreadMutedCount);
+
+	performUpdate();
+	Assert(_unreadCount.has_value());
+
+	_unreadCountChanges.fire(unreadCount());
+	updateChatListEntry();
+
+	if (inChatList(Dialogs::Mode::All)) {
+		const auto nowUnreadCount = *_unreadCount;
+		const auto nowUnreadMutedCount = _unreadMutedCount;
+		const auto nowFullMuted = (nowUnreadMutedCount > 0)
+			&& (nowUnreadCount == nowUnreadMutedCount);
+
+		App::histories().unreadIncrement(
+			(nowUnreadCount - nowUnreadMutedCount)
+			- (wasUnreadCount - wasUnreadMutedCount),
+			false);
+		App::histories().unreadIncrement(
+			nowUnreadMutedCount - wasUnreadMutedCount,
+			true);
+
+		const auto entriesDelta = (nowUnreadCount && !wasUnreadCount)
+			? 1
+			: (wasUnreadCount && !nowUnreadCount)
+			? -1
+			: 0;
+		const auto mutedEntriesDelta = (!wasFullMuted && nowFullMuted)
+			? 1
+			: (wasFullMuted && !nowFullMuted)
+			? -1
+			: 0;
+		App::histories().unreadEntriesChanged(
+			entriesDelta,
+			mutedEntriesDelta);
 	}
 }
 
@@ -377,26 +432,10 @@ void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
 		&& (_unreadMutedCount == unreadMutedCount)) {
 		return;
 	}
-	const auto unreadNonMutedCountDelta = _unreadCount | [&](int count) {
-		return unreadNonMutedCount - (count - _unreadMutedCount);
-	};
-	const auto unreadMutedCountDelta = _unreadCount | [&](int count) {
-		return unreadMutedCount - _unreadMutedCount;
-	};
-	_unreadCount = unreadNonMutedCount + unreadMutedCount;
-	_unreadMutedCount = unreadMutedCount;
-
-	_unreadCountChanges.fire(unreadCount());
-	updateChatListEntry();
-
-	if (inChatList(Dialogs::Mode::All)) {
-		App::histories().unreadIncrement(
-			unreadNonMutedCountDelta ? *unreadNonMutedCountDelta : unreadNonMutedCount,
-			false);
-		App::histories().unreadIncrement(
-			unreadMutedCountDelta ? *unreadMutedCountDelta : unreadMutedCount,
-			true);
-	}
+	updateUnreadCounts([&] {
+		_unreadCount = unreadNonMutedCount + unreadMutedCount;
+		_unreadMutedCount = unreadMutedCount;
+	});
 }
 
 void Feed::setUnreadPosition(const MessagePosition &position) {
@@ -405,30 +444,20 @@ void Feed::setUnreadPosition(const MessagePosition &position) {
 	}
 }
 
-void Feed::unreadCountChanged(
-		int unreadCountDelta,
-		int mutedCountDelta) {
+void Feed::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
 	if (!unreadCountKnown()) {
 		return;
 	}
-	accumulate_max(unreadCountDelta, -*_unreadCount);
-	*_unreadCount += unreadCountDelta;
+	updateUnreadCounts([&] {
+		accumulate_max(unreadCountDelta, -*_unreadCount);
+		*_unreadCount += unreadCountDelta;
 
-	mutedCountDelta = snap(
-		mutedCountDelta,
-		-_unreadMutedCount,
-		*_unreadCount - _unreadMutedCount);
-	_unreadMutedCount += mutedCountDelta;
-
-	_unreadCountChanges.fire(unreadCount());
-	updateChatListEntry();
-
-	if (inChatList(Dialogs::Mode::All)) {
-		App::histories().unreadIncrement(
-			unreadCountDelta,
-			false);
-		App::histories().unreadMuteChanged(mutedCountDelta, true);
-	}
+		mutedCountDelta = snap(
+			mutedCountDelta,
+			-_unreadMutedCount,
+			*_unreadCount - _unreadMutedCount);
+		_unreadMutedCount += mutedCountDelta;
+	});
 }
 
 MessagePosition Feed::unreadPosition() const {
@@ -443,12 +472,20 @@ bool Feed::toImportant() const {
 	return false; // TODO feeds workmode
 }
 
+bool Feed::useProxyPromotion() const {
+	return false;
+}
+
 bool Feed::shouldBeInChatList() const {
 	return _channels.size() > 1;
 }
 
 int Feed::chatListUnreadCount() const {
 	return unreadCount();
+}
+
+bool Feed::chatListUnreadMark() const {
+	return false; // #feed unread mark
 }
 
 bool Feed::chatListMutedBadge() const {

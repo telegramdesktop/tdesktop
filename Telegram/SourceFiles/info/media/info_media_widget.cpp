@@ -16,13 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 namespace Media {
 
-base::optional<int> TypeToTabIndex(Type type) {
+std::optional<int> TypeToTabIndex(Type type) {
 	switch (type) {
 	case Type::Photo: return 0;
 	case Type::Video: return 1;
 	case Type::File: return 2;
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 Type TabIndexToType(int index) {
@@ -97,7 +97,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;
 	}
-	if (auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
+	if (const auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
 		if (_inner->showInternal(mediaMemento)) {
 			return true;
 		}

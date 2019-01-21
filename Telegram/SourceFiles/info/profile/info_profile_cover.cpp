@@ -36,7 +36,7 @@ public:
 	SectionToggle(
 		const style::InfoToggle &st,
 		bool checked,
-		base::lambda<void()> updateCallback);
+		Fn<void()> updateCallback);
 
 	QSize getSize() const override;
 	void paint(
@@ -58,7 +58,7 @@ private:
 SectionToggle::SectionToggle(
 		const style::InfoToggle &st,
 		bool checked,
-		base::lambda<void()> updateCallback)
+		Fn<void()> updateCallback)
 : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(st) {
 }
@@ -193,9 +193,7 @@ bool SectionWithToggle::toggled() const {
 
 rpl::producer<bool> SectionWithToggle::toggledValue() const {
 	if (_toggle) {
-		return rpl::single(
-			_toggle->checked()
-		) | rpl::then(base::ObservableViewer(_toggle->checkedChanged));
+		return _toggle->checkedValue();
 	}
 	return rpl::never<bool>();
 }
@@ -214,17 +212,17 @@ int SectionWithToggle::toggleSkip() const {
 
 Cover::Cover(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<PeerData*> peer,
+	not_null<Window::Controller*> controller)
 : SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
-, _controller(controller)
-, _peer(_controller->key().peer())
+, _peer(peer)
 , _userpic(
 	this,
-	controller->parentController(),
+	controller,
 	_peer,
 	Ui::UserpicButton::Role::OpenPhoto,
 	st::infoProfilePhoto)
@@ -253,21 +251,11 @@ Cover::Cover(
 
 void Cover::setupChildGeometry() {
 	using namespace rpl::mappers;
-	//
-	// Visual Studio 2017 15.5.1 internal compiler error here.
-	// See https://developercommunity.visualstudio.com/content/problem/165155/ice-regression-in-1551-after-successfull-build-in.html
-	//
-	//rpl::combine(
-	//	toggleShownValue(),
-	//	widthValue(),
-	//	_2
-	//) | rpl::map([](bool shown, int width) {
 	rpl::combine(
 		toggleShownValue(),
-		widthValue()
-	) | rpl::map([](bool shown, int width) {
-		return width;
-	}) | rpl::start_with_next([this](int newWidth) {
+		widthValue(),
+		_2
+	) | rpl::start_with_next([this](int newWidth) {
 		_userpic->moveToLeft(
 			st::infoProfilePhotoLeft,
 			st::infoProfilePhotoTop,
@@ -289,12 +277,13 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 
 void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
-	Notify::PeerUpdateValue(
-		_peer,
-		Flag::NameChanged
-	) | rpl::start_with_next(
-		[this] { refreshNameText(); },
-		lifetime());
+	NameValue(
+		_peer
+	) | rpl::start_with_next([=](const TextWithEntities &name) {
+		_name->setText(name.text);
+		refreshNameGeometry(width());
+	}, lifetime());
+
 	Notify::PeerUpdateValue(
 		_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged
@@ -308,6 +297,8 @@ void Cover::initViewers() {
 		) | rpl::start_with_next(
 			[this] { refreshUploadPhotoOverlay(); },
 			lifetime());
+	} else if (_peer->isSelf()) {
+		refreshUploadPhotoOverlay();
 	}
 	VerifiedValue(
 		_peer
@@ -318,12 +309,12 @@ void Cover::initViewers() {
 
 void Cover::refreshUploadPhotoOverlay() {
 	_userpic->switchChangePhotoOverlay([&] {
-		if (auto chat = _peer->asChat()) {
+		if (const auto chat = _peer->asChat()) {
 			return chat->canEdit();
-		} else if (auto channel = _peer->asChannel()) {
+		} else if (const auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
 		}
-		return false;
+		return _peer->isSelf();
 	}());
 }
 
@@ -343,11 +334,6 @@ void Cover::setVerified(bool verified) {
 	} else {
 		_verifiedCheck.destroy();
 	}
-	refreshNameGeometry(width());
-}
-
-void Cover::refreshNameText() {
-	_name->setText(App::peerName(_peer));
 	refreshNameGeometry(width());
 }
 
@@ -391,9 +377,7 @@ void Cover::refreshStatusText() {
 	_status->setRichText(statusText);
 	if (hasMembersLink) {
 		_status->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-			_controller->showSection(Info::Memento(
-				_controller->peerId(),
-				Section::Type::Members));
+			_showSection.fire(Section::Type::Members);
 		}));
 	}
 	
@@ -475,21 +459,12 @@ void SharedMediaCover::createLabel() {
 		Lang::Viewer(lng_profile_shared_media) | ToUpperValue(),
 		st::infoBlockHeaderLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	//
-	// Visual Studio 2017 15.5.1 internal compiler error here.
-	// See https://developercommunity.visualstudio.com/content/problem/165155/ice-regression-in-1551-after-successfull-build-in.html
-	//
-	//rpl::combine(
-	//	toggleShownValue(),
-	//	widthValue(),
-	//	_2
-	//) | rpl::map([](bool shown, int width) {
+
 	rpl::combine(
 		toggleShownValue(),
-		widthValue()
-	) | rpl::map([](bool shown, int width) {
-		return width;
-	}) | rpl::start_with_next([this, weak = label.data()](int newWidth) {
+		widthValue(),
+		_2
+	) | rpl::start_with_next([this, weak = label.data()](int newWidth) {
 		auto availableWidth = newWidth
 			- st::infoBlockHeaderPosition.x()
 			- st::infoSharedMediaButton.padding.right()

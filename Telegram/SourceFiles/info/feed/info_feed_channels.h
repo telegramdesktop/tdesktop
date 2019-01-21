@@ -33,7 +33,7 @@ namespace FeedProfile {
 class Memento;
 struct ChannelsState {
 	std::unique_ptr<PeerListState> list;
-	base::optional<QString> search;
+	std::optional<QString> search;
 };
 
 class Channels
@@ -61,9 +61,9 @@ private:
 	using ListWidget = PeerListContent;
 
 	// PeerListContentDelegate interface.
-	void peerListSetTitle(base::lambda<QString()> title) override;
+	void peerListSetTitle(Fn<QString()> title) override;
 	void peerListSetAdditionalTitle(
-		base::lambda<QString()> title) override;
+		Fn<QString()> title) override;
 	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
 	int peerListSelectedRowsCount() override;
 	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;

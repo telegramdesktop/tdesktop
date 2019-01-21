@@ -646,10 +646,7 @@ int32 MainWindow::screenNameChecksum(const QString &name) const {
 }
 
 void MainWindow::psRefreshTaskbarIcon() {
-	auto refresher = object_ptr<QWidget>(this);
-	auto guard = gsl::finally([&refresher] {
-		refresher.destroy();
-	});
+	const auto refresher = std::make_unique<QWidget>(this);
 	refresher->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
 	refresher->setGeometry(x() + 1, y() + 1, 1, 1);
 	auto palette = refresher->palette();
@@ -730,8 +727,8 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	auto counter = App::histories().unreadBadge();
-	auto muted = App::histories().unreadOnlyMuted();
+	const auto counter = Messenger::Instance().unreadBadge();
+	const auto muted = Messenger::Instance().unreadBadgeMuted();
 
 	auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 	auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
@@ -800,10 +797,14 @@ void MainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized() && !App::passcoded()) || cStartInTray()) {
+	if (cStartInTray()
+		|| (cLaunchMode() == LaunchModeAutoStart
+			&& cStartMinimized()
+			&& !Messenger::Instance().passcodeLocked())) {
 		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
 		setWindowState(Qt::WindowMinimized);
-		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly
+			|| Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();

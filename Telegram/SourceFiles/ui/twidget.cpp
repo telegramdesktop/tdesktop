@@ -75,6 +75,11 @@ void Start() {
 	auto semibold = LoadCustomFont(qsl(":/gui/fonts/OpenSans-Semibold.ttf"), qsl("Open Sans Semibold"));
 
 #ifdef Q_OS_WIN
+	if (ValidateFont(qsl("Microsoft JhengHei UI"))) {
+		OpenSansOverride = qsl("Microsoft JhengHei UI");
+		LOG(("Fonts Info: Telegreat Using Microsoft JhengHei UI instead of Open Sans."));
+	}
+
 	// Attempt to workaround a strange font bug with Open Sans Semibold not loading.
 	// See https://github.com/telegramdesktop/tdesktop/issues/3276 for details.
 	// Crash happens on "options.maxh / _t->_st->font->height" with "division by zero".
@@ -91,7 +96,19 @@ void Start() {
 			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
 		}
 	}
-#endif // Q_OS_WIN
+	// Disable default fallbacks to Segoe UI, see:
+	// https://github.com/telegramdesktop/tdesktop/issues/5368
+	//
+	//QFont::insertSubstitution(qsl("Open Sans"), qsl("Segoe UI"));
+	//QFont::insertSubstitution(qsl("Open Sans Semibold"), qsl("Segoe UI Semibold"));
+#elif defined Q_OS_MAC // Q_OS_WIN
+	auto list = QStringList();
+	list.append(qsl(".SF NS Text"));
+	list.append(qsl("Helvetica Neue"));
+	list.append(qsl("Lucida Grande"));
+	QFont::insertSubstitutions(qsl("Open Sans"), list);
+	QFont::insertSubstitutions(qsl("Open Sans Semibold"), list);
+#endif // Q_OS_WIN || Q_OS_MAC
 }
 
 QString GetOverride(const QString &familyName) {
@@ -175,7 +192,7 @@ void SendPendingMoveResizeEvents(not_null<QWidget*> target) {
 	SendPendingEventsRecursive(target, !target->isVisible());
 }
 
-QPixmap GrabWidget(not_null<TWidget*> target, QRect rect, QColor bg) {
+QPixmap GrabWidget(not_null<QWidget*> target, QRect rect, QColor bg) {
 	SendPendingMoveResizeEvents(target);
 	if (rect.isNull()) {
 		rect = target->rect();
@@ -186,19 +203,15 @@ QPixmap GrabWidget(not_null<TWidget*> target, QRect rect, QColor bg) {
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
-
-	target->grabStart();
 	target->render(
 		&result,
 		QPoint(0, 0),
 		rect,
 		QWidget::DrawChildren | QWidget::IgnoreMask);
-	target->grabFinish();
-
 	return result;
 }
 
-QImage GrabWidgetToImage(not_null<TWidget*> target, QRect rect, QColor bg) {
+QImage GrabWidgetToImage(not_null<QWidget*> target, QRect rect, QColor bg) {
 	Ui::SendPendingMoveResizeEvents(target);
 	if (rect.isNull()) {
 		rect = target->rect();
@@ -211,16 +224,23 @@ QImage GrabWidgetToImage(not_null<TWidget*> target, QRect rect, QColor bg) {
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
-
-	target->grabStart();
 	target->render(
 		&result,
 		QPoint(0, 0),
 		rect,
 		QWidget::DrawChildren | QWidget::IgnoreMask);
-	target->grabFinish();
-
 	return result;
+}
+
+void ForceFullRepaint(not_null<QWidget*> widget) {
+	const auto refresher = std::make_unique<QWidget>(widget);
+	refresher->setGeometry(widget->rect());
+	refresher->show();
+}
+
+void PostponeCall(FnMut<void()> &&callable) {
+	const auto application = static_cast<Application*>(qApp);
+	application->postponeCall(std::move(callable));
 }
 
 } // namespace Ui

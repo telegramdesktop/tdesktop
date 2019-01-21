@@ -43,7 +43,20 @@
               'sources': [ '__Wrong_Official_Build_Target_<(official_build_target)_' ],
             }],
           ],
-        }],
+        }], [ '"<!(uname -p)" == "x86_64"', {
+          # 32 bit version can't be linked with debug info or LTO,
+          # virtual memory exhausted :(
+          'cflags_c': [ '-g' ],
+          'cflags_cc': [ '-g' ],
+          'ldflags': [ '-g' ],
+          'configurations': {
+            'Release': {
+              'cflags_c': [ '-flto' ],
+              'cflags_cc': [ '-flto' ],
+              'ldflags': [ '-flto', '-fuse-linker-plugin' ],
+            },
+          },
+        }]
       ],
       'defines': [
         '_REENTRANT',
@@ -58,6 +71,11 @@
         '<@(linux_common_flags)',
         '-std=c++1z',
         '-Wno-register',
+      ],
+      'make_global_settings': [
+        ['AR', '/usr/bin/gcc-ar'],
+        ['RANLIB', '/usr/bin/gcc-ranlib'],
+        ['NM', '/usr/bin/gcc-nm'],
       ],
       'configurations': {
         'Debug': {

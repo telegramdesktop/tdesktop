@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/lambda.h"
+#include <functional>
 #include <rpl/consumer.h>
 #include <rpl/lifetime.h>
 #include <rpl/details/superset_type.h>
 #include <rpl/details/callable.h>
 
-#if defined _DEBUG
+#if defined _DEBUG || defined COMPILER_MSVC
 #define RPL_PRODUCER_TYPE_ERASED_ALWAYS
 #endif // _DEBUG
 
@@ -47,7 +47,7 @@ private:
 
 };
 
-// Type-erased copyable mutable lambda using base::lambda.
+// Type-erased copyable mutable function using std::function.
 template <typename Value, typename Error>
 class type_erased_generator final {
 public:
@@ -100,7 +100,7 @@ public:
 	}
 
 private:
-	base::lambda<lifetime(const consumer_type<type_erased_handlers<Value, Error>> &)> _implementation;
+	std::function<lifetime(const consumer_type<type_erased_handlers<Value, Error>> &)> _implementation;
 
 };
 
@@ -443,9 +443,9 @@ template <
 inline auto make_producer(Generator &&generator)
 #ifdef RPL_PRODUCER_TYPE_ERASED_ALWAYS
 -> producer<Value, Error> {
-#else // RPL_CONSUMER_TYPE_ERASED_ALWAYS
+#else // RPL_PRODUCER_TYPE_ERASED_ALWAYS
 -> producer<Value, Error, std::decay_t<Generator>> {
-#endif // !RPL_CONSUMER_TYPE_ERASED_ALWAYS
+#endif // !RPL_PRODUCER_TYPE_ERASED_ALWAYS
 	return std::forward<Generator>(generator);
 }
 

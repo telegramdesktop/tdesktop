@@ -113,12 +113,13 @@ boxMediumSkip: 20px;
 boxButtonPadding: margins(8px, 12px, 13px, 12px);
 boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 285px;
+	minWidth: 274px;
 	align: align(topleft);
 	style: boxLabelStyle;
 }
 boxDividerLabel: FlatLabel(boxLabel) {
 	minWidth: 245px;
+	align: align(topleft);
 	textFg: windowSubTextFg;
 	style: defaultTextStyle;
 }
@@ -198,9 +199,9 @@ editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
-contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
-contactPhoneIcon: icon {{ "add_contact_phone", menuIconFg }};
-contactIconTop: 28px;
+contactUserIcon: icon {{ "settings_name", menuIconFg }};
+contactPhoneIcon: icon {{ "settings_phone_number", menuIconFg }};
+contactIconPosition: point(-5px, 23px);
 
 contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
 contactsAdd: TwoIconButton {
@@ -353,7 +354,35 @@ peerListBox: PeerList(defaultPeerList) {
 	}
 }
 
-localStorageBoxSkip: 10px;
+localStorageRowHeight: 50px;
+localStorageRowPadding: margins(23px, 5px, 20px, 5px);
+localStorageRowTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+localStorageRowSize: FlatLabel(defaultFlatLabel) {
+	textFg: contactsStatusFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px);
+	}
+}
+localStorageClear: defaultBoxButton;
+localStorageLimitLabel: LabelSimple(defaultLabelSimple) {
+	font: boxTextFont;
+}
+localStorageLimitLabelMargin: margins(23px, 10px, 20px, 5px);
+localStorageLimitSlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+}
+localStorageLimitMargin: margins(23px, 5px, 20px, 10px);
 
 shareRowsTop: 12px;
 shareRowHeight: 108px;
@@ -373,14 +402,25 @@ shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
+shareComment: InputField(defaultInputField) {
+	font: normalFont;
+	textMargins: margins(8px, 8px, 8px, 6px);
+	heightMin: 36px;
+	heightMax: 72px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	border: 0px;
+	borderActive: 0px;
+}
+shareCommentPadding: margins(5px, 5px, 5px, 5px);
 
-notificationsBoxHeight: 420px;
-notificationsBoxMonitorTop: 63px;
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
 notificationsBoxScreenSize: size(280px, 160px);
-notificationsBoxCountLabelTop: 80px;
-notificationsBoxCountTop: 30px;
 
 notificationsSampleSkip: 5px;
 notificationsSampleTopSkip: 5px;
@@ -403,7 +443,7 @@ sessionsHeight: 350px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
 sessionCurrentHeight: 118px;
-sessionPadding: margins(21px, 10px, 21px, 0px);
+sessionPadding: margins(23px, 10px, 23px, 0px);
 sessionNameFont: msgNameFont;
 sessionNameFg: boxTextFg;
 sessionWhenFont: msgDateFont;
@@ -493,14 +533,22 @@ aboutLabel: FlatLabel(defaultFlatLabel) {
 autoDownloadTopDelta: 10px;
 autoDownloadTitlePosition: point(23px, 18px);
 autoDownloadTitleFont: font(15px semibold);
+autoDownloadLimitSlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+}
+autoDownloadLimitPadding: margins(22px, 8px, 22px, 8px);
 
 confirmCaptionArea: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 1px, 4px);
+	textMargins: margins(1px, 26px, 31px, 4px);
 	heightMax: 78px;
 }
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
 confirmCompressedSkip: 10px;
+
+supportInfoField: InputField(defaultInputField) {
+	heightMax: 256px;
+}
 
 connectionHostInputField: InputField(defaultInputField) {
 	width: 160px;
@@ -516,9 +564,13 @@ connectionPasswordInputField: InputField(defaultInputField) {
 }
 connectionIPv6Skip: 11px;
 
-langsWidth: 256px;
-langsButton: Checkbox(defaultBoxCheckbox) {
+autolockWidth: 256px;
+autolockButton: Checkbox(defaultBoxCheckbox) {
 	width: 200px;
+}
+
+langsRadio: Radio(defaultRadio) {
+	bg: boxBg;
 }
 
 backgroundPadding: 10px;
@@ -548,14 +600,24 @@ calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
 calendarNext: IconButton(calendarPrevious) {
 	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
 }
+CalendarSizes {
+	width: pixels;
+	daysHeight: pixels;
+	cellSize: size;
+	cellInner: pixels;
+	padding: margins;
+}
 calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
 calendarTitleFont: boxTitleFont;
+defaultCalendarSizes: CalendarSizes {
+	width: boxWideWidth;
+	daysHeight: 32px;
+	cellSize: size(48px, 40px);
+	cellInner: 34px;
+	padding: margins(14px, 15px, 14px, 10px);
+}
 calendarDaysFont: normalFont;
 calendarDaysFg: boxTitleAdditionalFg;
-calendarDaysHeight: 32px;
-calendarCellSize: size(48px, 40px);
-calendarCellInner: 34px;
-calendarPadding: margins(14px, 15px, 14px, 10px);
 calendarScroll: backgroundScroll;
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {
@@ -589,27 +651,6 @@ colorValueInput: InputField(defaultInputField) {
 }
 colorResultInput: InputField(colorValueInput) {
 }
-
-editPrivacyOptionMargin: margins(23px, 14px, 21px, 0px);
-editPrivacyPadding: margins(23px, 0px, 21px, 0px);
-editPrivacyWarningPadding: margins(23px, 14px, 21px, 0px);
-editPrivacyTitle: FlatLabel(defaultFlatLabel) {
-	minWidth: 320px;
-	textFg: boxTitleFg;
-	maxHeight: 56px;
-	style: TextStyle(defaultTextStyle) {
-		font: boxTitleFont;
-		linkFont: boxTitleFont;
-		linkFontOver: boxTitleFont;
-	}
-}
-editPrivacyTitlePadding: margins(23px, 20px, 21px, 13px);
-editPrivacyLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 320px;
-	textFg: membersAboutLimitFg;
-	style: defaultTextStyle;
-}
-editPrivacyLinkMargin: margins(0px, 0px, 0px, 8px);
 
 changePhoneIcon: icon {
 	{ "phone_simcard_from", changePhoneSimcardFrom },
@@ -781,3 +822,90 @@ proxyDropdownDownPosition: point(-2px, 35px);
 proxyDropdownUpPosition: point(-2px, 20px);
 
 proxyAboutPadding: margins(22px, 7px, 22px, 14px);
+proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
+
+markdownLinkFieldPadding: margins(22px, 0px, 22px, 10px);
+
+termsContent: FlatLabel(defaultFlatLabel) {
+	minWidth: 285px;
+}
+termsPadding: margins(23px, 4px, 16px, 16px);
+termsAgePadding: margins(23px, 16px, 16px, 0px);
+
+themesSmallSkip: 10px;
+themesBackgroundSize: 120px;
+themesScroll: ScrollArea(defaultScrollArea) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
+
+createPollField: InputField(defaultInputField) {
+	font: boxTextFont;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(left);
+	heightMin: 36px;
+	heightMax: 86px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+}
+createPollFieldPadding: margins(22px, 5px, 22px, 5px);
+createPollOptionField: InputField(createPollField) {
+	textMargins: margins(22px, 8px, 40px, 8px);
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	heightMax: 64px;
+}
+createPollLimitLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 274px;
+	align: align(topleft);
+}
+createPollLimitPadding: margins(22px, 10px, 22px, 5px);
+createPollOptionRemove: CrossButton {
+	width: 22px;
+	height: 22px;
+
+	cross: CrossAnimation {
+		size: 22px;
+		skip: 6px;
+		stroke: 1px;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+createPollOptionRemovePosition: point(10px, 7px);
+createPollWarning: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: boxTextFgError;
+	}
+}
+createPollWarningPosition: point(16px, 6px);
+
+callSettingsButton: IconButton {
+	width: 50px;
+	height: boxLayerTitleHeight;
+	icon: icon {{ "menu_settings", boxTitleCloseFg }};
+	iconOver: icon {{ "menu_settings", boxTitleCloseFgOver }};
+	iconPosition: point(8px, -1px);
+	rippleAreaSize: 44px;
+	rippleAreaPosition: point(0px, 6px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
+#include "ui/emoji_config.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
@@ -176,9 +177,17 @@ void UndoInstallLocally(uint64 setId) {
 		LayerOption::KeepOther);
 }
 
-bool IsFaved(not_null<DocumentData*> document) {
-	auto it = Auth().data().stickerSets().constFind(FavedSetId);
-	return (it != Auth().data().stickerSets().cend()) && it->stickers.contains(document);
+bool IsFaved(not_null<const DocumentData*> document) {
+	const auto it = Auth().data().stickerSets().constFind(FavedSetId);
+	if (it == Auth().data().stickerSets().cend()) {
+		return false;
+	}
+	for (const auto sticker : it->stickers) {
+		if (sticker == document) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void CheckFavedLimit(Set &set) {
@@ -231,7 +240,7 @@ void MoveFavedToFront(Set &set, int index) {
 
 void RequestSetToPushFaved(not_null<DocumentData*> document);
 
-void SetIsFaved(not_null<DocumentData*> document, base::optional<std::vector<not_null<EmojiPtr>>> emojiList = base::none) {
+void SetIsFaved(not_null<DocumentData*> document, std::optional<std::vector<not_null<EmojiPtr>>> emojiList = std::nullopt) {
 	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
@@ -817,17 +826,17 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	}) | ranges::to_vector;
 }
 
-base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
+std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 		not_null<DocumentData*> document) {
 	if (auto sticker = document->sticker()) {
 		auto &inputSet = sticker->set;
 		if (inputSet.type() != mtpc_inputStickerSetID) {
-			return base::none;
+			return std::nullopt;
 		}
 		auto &sets = Auth().data().stickerSets();
 		auto it = sets.constFind(inputSet.c_inputStickerSetID().vid.v);
 		if (it == sets.cend()) {
-			return base::none;
+			return std::nullopt;
 		}
 		auto result = std::vector<not_null<EmojiPtr>>();
 		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
@@ -836,11 +845,11 @@ base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 			}
 		}
 		if (result.empty()) {
-			return base::none;
+			return std::nullopt;
 		}
 		return std::move(result);
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 Set *FeedSet(const MTPDstickerSet &set) {
@@ -1009,41 +1018,6 @@ RecentStickerPack &GetRecentPack() {
 		}
 	}
 	return cRefRecentStickers();
-}
-
-void IncrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
-	auto i = recent.begin(), e = recent.end();
-	for (; i != e; ++i) {
-		if (i->first == tag) {
-			++i->second;
-			if (qAbs(i->second) > 0x4000) {
-				for (auto j = recent.begin(); j != e; ++j) {
-					if (j->second > 1) {
-						j->second /= 2;
-					} else if (j->second > 0) {
-						j->second = 1;
-					}
-				}
-			}
-			for (; i != recent.begin(); --i) {
-				if (qAbs((i - 1)->second) > qAbs(i->second)) {
-					break;
-				}
-				qSwap(*i, *(i - 1));
-			}
-			break;
-		}
-	}
-	if (i == e) {
-		while (recent.size() >= 64) recent.pop_back();
-		recent.push_back(qMakePair(tag, 1));
-		for (i = recent.end() - 1; i != recent.begin(); --i) {
-			if ((i - 1)->second > i->second) {
-				break;
-			}
-			qSwap(*i, *(i - 1));
-		}
-	}
 }
 
 } // namespace Stickers

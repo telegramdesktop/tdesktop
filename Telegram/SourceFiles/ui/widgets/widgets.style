@@ -29,6 +29,7 @@ LinkButton {
 	overColor: color;
 	font: font;
 	overFont: font;
+	padding: margins;
 }
 
 RippleAnimation {
@@ -93,6 +94,7 @@ RoundButton {
 	textTop: pixels;
 
 	icon: icon;
+	iconPosition: point;
 
 	font: font;
 
@@ -140,6 +142,7 @@ Radio {
 
 Checkbox {
 	textFg: color;
+	textFgActive: color;
 
 	width: pixels;
 	margin: margins;
@@ -177,22 +180,6 @@ ScrollArea {
 
 	duration: int;
 	hiding: int;
-}
-
-FlatTextarea {
-	textColor: color;
-	bgColor: color;
-	width: pixels;
-	textMrg: margins;
-	align: align;
-	font: font;
-
-	phColor: color;
-	phFocusColor: color;
-	phPos: point;
-	phAlign: align;
-	phShift: pixels;
-	phDuration: int;
 }
 
 FlatInput {
@@ -540,6 +527,18 @@ InfoProfileButton {
 	ripple: RippleAnimation;
 }
 
+PassportScanRow {
+	padding: margins;
+	size: pixels;
+	textLeft: pixels;
+	nameTop: pixels;
+	statusTop: pixels;
+	border: pixels;
+	borderFg: color;
+	remove: IconButton;
+	restore: RoundButton;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
@@ -586,6 +585,8 @@ defaultActiveButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
+
+	iconPosition: point(0px, 0px);
 
 	font: semiboldFont;
 
@@ -754,8 +755,8 @@ defaultToggle: Toggle {
 	duration: 120;
 	border: 2px;
 	shift: 1px;
-	diameter: 20px;
-	width: 16px;
+	diameter: 16px;
+	width: 14px;
 	xsize: 0px;
 	vsize: 0px;
 	vshift: 0px;
@@ -886,6 +887,18 @@ defaultPanelAnimation: PanelAnimation {
 	fadeOpacity: 1.0;
 	fadeBg: menuBg;
 	shadow: defaultRoundShadow;
+}
+
+defaultContinuousSlider: MediaSlider {
+	width: 3px;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
+	activeFgOver: mediaPlayerActiveFg;
+	inactiveFgOver: mediaPlayerInactiveFg;
+	activeFgDisabled: mediaPlayerInactiveFg;
+	inactiveFgDisabled: windowBg;
+	seekSize: size(9px, 9px);
+	duration: 150;
 }
 
 defaultRoundCheckbox: RoundCheckbox {
@@ -1183,4 +1196,22 @@ InfoTopBar {
 	searchRow: SearchFieldRow;
 	highlightBg: color;
 	highlightDuration: int;
+}
+
+LevelMeter {
+    height: pixels;
+	lineWidth: pixels;
+	lineSpacing: pixels;
+	lineCount: int;
+	activeFg: color;
+	inactiveFg: color;
+}
+
+defaultLevelMeter: LevelMeter {
+    height: 18px;
+	lineWidth: 3px;
+	lineSpacing: 5px;
+	lineCount: 44;
+	activeFg: mediaPlayerActiveFg;
+	inactiveFg: mediaPlayerInactiveFg;
 }

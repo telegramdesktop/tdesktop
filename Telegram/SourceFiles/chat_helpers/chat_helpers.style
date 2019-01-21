@@ -151,6 +151,9 @@ emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanDesiredSize: 45px;
 
+inlineResultsMinHeight: 278px;
+inlineResultsMaxHeight: 640px;
+
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;
 emojiPanHeaderLeft: 22px;
@@ -256,3 +259,17 @@ mentionFg: windowSubTextFg;
 mentionFgOver: windowSubTextFgOver;
 mentionFgActive: windowActiveTextFg;
 mentionFgOverActive: windowActiveTextFg;
+
+autocompleteSearchPadding: margins(16px, 5px, 16px, 5px);
+autocompleteRowPadding: margins(16px, 5px, 16px, 5px);
+autocompleteRowTitle: semiboldTextStyle;
+autocompleteRowKeys: defaultTextStyle;
+autocompleteRowAnswer: defaultTextStyle;
+
+manageEmojiPreview: 22px;
+manageEmojiPreviewWidth: 48px;
+manageEmojiPreviewHeight: 48px;
+manageEmojiPreviewPadding: margins(23px, 9px, 19px, 9px);
+manageEmojiMarginRight: 21px;
+manageEmojiNameTop: 3px;
+manageEmojiStatusTop: 25px;

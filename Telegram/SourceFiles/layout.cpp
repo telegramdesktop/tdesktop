@@ -179,50 +179,6 @@ RoundCorners documentCorners(int32 colorIndex) {
 	return RoundCorners(Doc1Corners + (colorIndex & 3));
 }
 
-bool documentIsValidMediaFile(const QString &filepath) {
-	static StaticNeverFreedPointer<QList<QString>> validMediaTypes(([] {
-		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
-		*result = qsl("\
-webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf amv mp4 m4p \
-m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p f4a f4b wma divx evo mk3d \
-mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat dsh dvr-ms m1v fla flr sol wrap smi swf \
-wtv 8svx 16svx iff aiff aif aifc au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka \
-shn tak tta wv brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
-dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minipsf psflib \
-2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz\
-").split(' ');
-		return result.release();
-	})());
-
-	QFileInfo info(filepath);
-	auto parts = info.fileName().split('.', QString::SkipEmptyParts);
-	return !parts.isEmpty() && (validMediaTypes->indexOf(parts.back().toLower()) >= 0);
-}
-
-bool documentIsExecutableName(const QString &filename) {
-	static StaticNeverFreedPointer<QList<QString>> executableTypes(([] {
-		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
-#ifdef Q_OS_MAC
-		*result = qsl("\
-action app bin command csh osx workflow\
-").split(' ');
-#elif defined Q_OS_LINUX // Q_OS_MAC
-		*result = qsl("\
-bin csh ksh out run\
-").split(' ');
-#else // Q_OS_MAC || Q_OS_LINUX
-		*result = qsl("\
-bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi \
-msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
-").split(' ');
-#endif // !Q_OS_MAC && !Q_OS_LINUX
-		return result.release();
-	})());
-
-	auto lastDotIndex = filename.lastIndexOf('.');
-	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
-}
-
 [[nodiscard]] HistoryView::TextState LayoutItemBase::getState(
 		QPoint point,
 		StateRequest request) const {

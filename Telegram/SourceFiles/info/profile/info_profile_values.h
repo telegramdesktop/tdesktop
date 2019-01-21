@@ -42,6 +42,8 @@ inline auto ToUpperValue() {
 	});
 }
 
+rpl::producer<TextWithEntities> NameValue(
+	not_null<PeerData*> peer);
 rpl::producer<TextWithEntities> PhoneValue(
 	not_null<UserData*> user);
 rpl::producer<TextWithEntities> BioValue(

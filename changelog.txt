@@ -1,3 +1,230 @@
+1.5.7 beta (11.01.19)
+
+- Choose the emoji set you would like to use in Settings > Chat Settings.
+- Choose input and output devices for Telegram Calls in Settings > Adavanced > Call Settings.
+
+1.5.6 beta (27.12.18)
+
+- Fix crash on macOS.
+
+1.5.5 beta (27.12.18)
+
+- Support for auto-download of files and music.
+- Improved auto-download settings.
+- Bug fixes and other minor improvements.
+
+1.5.4 (24.12.18)
+
+- Bug fixes and other minor improvements.
+
+1.5.3 (23.12.18)
+
+- Create polls in groups and channels - right from the chat menu.
+
+1.5.2 (13.12.18)
+
+- Bug fixes and other minor improvements.
+
+1.5.1 (11.12.18)
+
+- Bug fixes and other minor improvements.
+
+1.5 (10.12.18)
+
+- Support for custom languages. Crowdsource a cloud-based language pack for Telegram in any language using our Translations platform - then apply it in real time.
+- Interface scaling for large screens, up to 300% (up to 150% for macOS retina screens).
+- 'Count unread messages' setting for the Badge counter in Settings > Notifications. Disable to show number of unread chats.
+- Video messages displayed in shared media (under voice messages).
+- Updated emoji. Farewell to question marks!
+
+Also in this update:
+- Listen to voice and video messages in 2X mode if you're in a hurry.
+- Add a comment when sharing posts from channels.
+- View all photos and videos in Twitter and Instagram link previews.
+- Add emoji to media captions.
+
+1.4.8 beta (04.12.18)
+
+- Add emoji to media captions.
+- Switch off the 'Count unread messages' option in Settings > Notifications if you want to see the unread chats count in the badge instead.
+
+1.4.7 beta (10.11.18)
+
+- Crash fix.
+
+1.4.6 beta (09.11.18)
+
+- Bug fixes and other minor improvements.
+
+1.4.5 beta (08.11.18)
+
+- Listen to voice and video messages in 2X mode if you're in a hurry.
+- Find video messages in the shared voice messages section.
+- Add a comment when you share posts from channels.
+- View all photos and videos in Twitter and Instagram link previews.
+- Bug fixes and other minor improvements.
+
+1.4.4 beta (16.10.18)
+
+- Interface scaling for large screens, up to 300% (up to 150% for macOS retina screens).
+- Updated emoji.
+
+1.4.3 (13.10.18)
+
+- Bug fixes and other minor improvements.
+
+1.4.2 (10.10.18)
+
+- Crash fix.
+
+1.4.1 (09.10.18)
+
+- Reduce crashes due to the out of memory exceptions.
+- Load map previews through mtproto.
+- Bug fixes and other minor improvements.
+
+1.4 (28.09.18)
+
+- Fully redesigned Settings section.
+- New theme selector in Chat Settings.
+- New local storage settings: Control how much disk space is used by the cache and for how long the cached files are stored.
+- Improved local caching for images and GIF animations.
+- New settings: Peer-to-Peer settings for calls, disable animations for low performance computers.
+- Various other improvements.
+
+1.3.17 beta (26.09.18)
+
+- Fully redisigned Settings section.
+- New theme selector in Chat Settings.
+- New settings: Peer-to-Peer settings for calls, disable animations for low performance computers.
+- Various other improvements.
+
+1.3.16 alpha (04.09.18)
+
+- Update libtgvoip, fix crash in calls.
+- Fix crash in local cache database.
+- Clear old local cache asynchronously.
+
+1.3.15 alpha (01.09.18)
+
+- Improved local caching for images and GIF animations.
+- Control how much disk space is used by the cache and for how long the cached files are stored.
+
+1.3.14 (27.08.18)
+
+- Fix a crash in calls.
+
+1.3.13 (25.08.18)
+
+- Export data from individual chats using the '...' menu.
+- Added a new night theme.
+- You can now assign custom themes as night and day themes to quickly switch between them.
+- Support for Telegram Passport 1.1 and improved password hashing algorithm to better protect Telegram Passport data.
+
+1.3.12 alpha (04.08.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.11 alpha (01.08.18)
+
+- Added a new night theme. 
+- You can now assign custom themes as night and day themes to quickly switch between them.  
+
+1.3.10 (13.07.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.9 (28.06.18)
+
+- Mark chats in the chat list as Read or Unread.
+- Improved censorship circumvention.
+
+1.3.8 (24.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.7 (11.06.18)
+
+- Push fixes to stable version.
+
+1.3.6 alpha (11.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.5 alpha (08.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.4 alpha (07.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.3 alpha (07.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.2 alpha (07.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.1 alpha (04.06.18)
+
+- Bug fixes and other minor improvements.
+
+1.3.0 (01.06.18)
+
+- Improved censorship circumvention.
+- Improved stability when working through proxy servers.
+- Save several proxy servers to quickly switch between them in Settings.
+- Use proxy for calls.
+- Emoji and text replacement now happens immediately after typing (instead of after sending) and can be rolled back using Backspace or CTRL/CMD + Z. Replacement no longer happens when pasting text.
+
+Added formatting shortcuts. Select text and use:
+- CTRL/CMD + B/I for bold and italic
+- CTRL/CMD + K to create or edit a custom link
+- CTRL/CMD + SHIFT + M for monospace font
+- CTRL/CMD + SHIFT + N to clear formatting
+
+1.2.25 alpha (31.05.18)
+
+- Apply markdown formatting (```, `, **, __) only when sending the message.
+- Display connection quality bars in calls.
+- Telegram Desktop can update itself through MTProto.
+- Bug fixes and other minor improvements.
+
+1.2.24 alpha (26.05.18)
+
+- Add links with custom text from context menu or by Ctrl/Cmd + K keyboard shortcut.
+
+1.2.23 alpha (25.05.18)
+
+- Apply formatting from input field context menu.
+- Apply formatting by hotkeys.
+- Bug fixes and other minor improvements.
+
+1.2.22 alpha (24.05.18)
+
+- Use markdown in media captions (**bold**, __italic__, `tag` and ```code```).
+- Use emoji replacement in media captions, group and channel titles and descriptions (:like: etc.)
+- Markdown replacement now happens immediately after typing (instead of after sending) and can be rolled back using Backspace or Ctrl/Cmd + Z. Replacement no longer happens when pasting text.
+
+1.2.21 alpha (18.05.18)
+
+- Support domain names in mtproto proxy.
+- Bug fixes and other minor improvements.
+
+1.2.20 alpha (13.05.18)
+
+- Emoji and text replacements are done while you type the message.
+- Revert emoji and text replacements by pressing backspace.
+- Disable emoji replacements or suggestions in Settings.
+- Some critical bug fixes.
+
+1.2.19 alpha (08.05.18)
+
+- Enable proxy for calls in Settings.
+- Bug fixes and other minor improvements.
+
 1.2.18 alpha (05.05.18)
 
 - Improve working through proxy servers.

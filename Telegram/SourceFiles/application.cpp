@@ -15,11 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "messenger.h"
 #include "base/timer.h"
+#include "base/concurrent_timer.h"
+#include "base/qthelp_url.h"
+#include "base/qthelp_regex.h"
 #include "core/update_checker.h"
 #include "core/crash_report_window.h"
-#include "lang/lang_keys.h"
 
 namespace {
+
+constexpr auto kEmptyPidForCommandResponse = 0ULL;
 
 QChar _toHex(ushort v) {
 	v = v & 0x000F;
@@ -61,16 +65,51 @@ QString _escapeFrom7bit(const QString &str) {
 
 } // namespace
 
+bool InternalPassportLink(const QString &url) {
+	const auto urlTrimmed = url.trimmed();
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		return false;
+	}
+	const auto command = urlTrimmed.midRef(qstr("tg://").size());
+
+	using namespace qthelp;
+	const auto matchOptions = RegExOption::CaseInsensitive;
+	const auto authMatch = regex_match(
+		qsl("^passport/?\\?(.+)(#|$)"),
+		command,
+		matchOptions);
+	const auto usernameMatch = regex_match(
+		qsl("^resolve/?\\?(.+)(#|$)"),
+		command,
+		matchOptions);
+	const auto usernameValue = usernameMatch->hasMatch()
+		? url_parse_params(
+			usernameMatch->captured(1),
+			UrlParamNameTransform::ToLower).value(qsl("domain"))
+		: QString();
+	const auto authLegacy = (usernameValue == qstr("telegrampassport"));
+	return authMatch->hasMatch() || authLegacy;
+}
+
+bool StartUrlRequiresActivate(const QString &url) {
+	return Messenger::Instance().locked()
+		? true
+		: !InternalPassportLink(url);
+}
+
 Application::Application(
 		not_null<Core::Launcher*> launcher,
 		int &argc,
 		char **argv)
 : QApplication(argc, argv)
-, _launcher(launcher)
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-, _updateChecker(std::make_unique<Core::UpdateChecker>())
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
-{
+, _mainThreadId(QThread::currentThreadId())
+, _launcher(launcher) {
+}
+
+int Application::execute() {
+	if (!Core::UpdaterDisabled()) {
+		_updateChecker = std::make_unique<Core::UpdateChecker>();
+	}
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -98,6 +137,8 @@ Application::Application(
         LOG(("Connecting local socket to %1...").arg(_localServerName));
 		_localSocket.connectToServer(_localServerName);
 	}
+
+	return exec();
 }
 
 Application::~Application() = default;
@@ -120,8 +161,9 @@ void Application::socketConnected() {
 	}
 	if (!cStartUrl().isEmpty()) {
 		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
+	} else {
+		commands += qsl("CMD:show;");
 	}
-	commands += qsl("CMD:show;");
 
 	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
 	_localSocket.write(commands.toLatin1());
@@ -146,7 +188,9 @@ void Application::socketReading() {
 	_localSocketReadData.append(_localSocket.readAll());
 	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
 		uint64 pid = _localSocketReadData.mid(4, _localSocketReadData.length() - 5).toULongLong();
-		psActivateProcess(pid);
+		if (pid != kEmptyPidForCommandResponse) {
+			psActivateProcess(pid);
+		}
 		LOG(("Show command response received, pid = %1, activating and quitting...").arg(pid));
 		return App::quit();
 	}
@@ -177,13 +221,13 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	}
 #endif // !Q_OS_WINRT
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if (!cNoStartUpdate() && Core::checkReadyUpdate()) {
+	if (!Core::UpdaterDisabled()
+		&& !cNoStartUpdate()
+		&& Core::checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
 		DEBUG_LOG(("Application Info: installing update instead of starting app..."));
 		return App::quit();
 	}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 	singleInstanceChecked();
 }
@@ -247,16 +291,26 @@ void Application::readClients() {
 				QStringRef cmd(&cmds, from, to - from);
 				if (cmd.startsWith(qsl("CMD:"))) {
 					Sandbox::execExternal(cmds.mid(from + 4, to - from - 4));
-					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1());
+					const auto response = qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toLatin1();
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(qsl("SEND:"))) {
 					if (cSendPaths().isEmpty()) {
 						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
 					}
 				} else if (cmd.startsWith(qsl("OPEN:"))) {
+					auto activateRequired = true;
 					if (cStartUrl().isEmpty()) {
 						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
+						activateRequired = StartUrlRequiresActivate(startUrl);
 					}
+					if (activateRequired) {
+						Sandbox::execExternal("show");
+					}
+					const auto responsePid = activateRequired
+						? QCoreApplication::applicationPid()
+						: kEmptyPidForCommandResponse;
+					const auto response = qsl("RES:%1;").arg(responsePid).toLatin1();
+					i->first->write(response.data(), response.size());
 				} else {
 					LOG(("Application Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));
 				}
@@ -308,13 +362,19 @@ void Application::createMessenger() {
 	Expects(!App::quitting());
 
 	_messengerInstance = std::make_unique<Messenger>(_launcher);
+
+	// Ideally this should go to constructor.
+	// But we want to catch all native events and Messenger installs
+	// its own filter that can filter out some of them. So we install
+	// our filter after the Messenger constructor installs his.
+	installNativeEventFilter(this);
 }
 
 void Application::refreshGlobalProxy() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = [&] {
 		if (Global::started()) {
-			return Global::UseProxy()
+			return (Global::ProxySettings() == ProxyData::Settings::Enabled)
 				? Global::SelectedProxy()
 				: ProxyData();
 		}
@@ -322,11 +382,112 @@ void Application::refreshGlobalProxy() {
 	}();
 	if (proxy.type == ProxyData::Type::Socks5
 		|| proxy.type == ProxyData::Type::Http) {
-		QNetworkProxy::setApplicationProxy(ToNetworkProxy(proxy));
-	} else {
+		QNetworkProxy::setApplicationProxy(
+			ToNetworkProxy(ToDirectIpProxy(proxy)));
+	} else if (!Global::started()
+		|| Global::ProxySettings() == ProxyData::Settings::System) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
+	} else {
+		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 	}
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
+}
+
+void Application::postponeCall(FnMut<void()> &&callable) {
+	Expects(callable != nullptr);
+	Expects(_eventNestingLevel >= _loopNestingLevel);
+
+	// _loopNestingLevel == _eventNestingLevel means that we had a
+	// native event in a nesting loop that didn't get a notify() call
+	// after. That means we already have exited the nesting loop and
+	// there must not be any postponed calls with that nesting level.
+	if (_loopNestingLevel == _eventNestingLevel) {
+		Assert(_postponedCalls.empty()
+			|| _postponedCalls.back().loopNestingLevel < _loopNestingLevel);
+		Assert(!_previousLoopNestingLevels.empty());
+
+		_loopNestingLevel = _previousLoopNestingLevels.back();
+		_previousLoopNestingLevels.pop_back();
+	}
+
+	_postponedCalls.push_back({
+		_loopNestingLevel,
+		std::move(callable)
+	});
+}
+
+void Application::incrementEventNestingLevel() {
+	++_eventNestingLevel;
+}
+
+void Application::decrementEventNestingLevel() {
+	if (_eventNestingLevel == _loopNestingLevel) {
+		_loopNestingLevel = _previousLoopNestingLevels.back();
+		_previousLoopNestingLevels.pop_back();
+	}
+	const auto processTillLevel = _eventNestingLevel - 1;
+	processPostponedCalls(processTillLevel);
+	_eventNestingLevel = processTillLevel;
+}
+
+void Application::registerEnterFromEventLoop() {
+	if (_eventNestingLevel > _loopNestingLevel) {
+		_previousLoopNestingLevels.push_back(_loopNestingLevel);
+		_loopNestingLevel = _eventNestingLevel;
+	}
+}
+
+bool Application::notify(QObject *receiver, QEvent *e) {
+	if (QThread::currentThreadId() != _mainThreadId) {
+		return QApplication::notify(receiver, e);
+	}
+
+	const auto wrap = createEventNestingLevel();
+	return QApplication::notify(receiver, e);
+}
+
+void Application::processPostponedCalls(int level) {
+	while (!_postponedCalls.empty()) {
+		auto &last = _postponedCalls.back();
+		if (last.loopNestingLevel != level) {
+			break;
+		}
+		auto taken = std::move(last);
+		_postponedCalls.pop_back();
+		taken.callable();
+	}
+}
+
+bool Application::nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
+	registerEnterFromEventLoop();
+	return false;
+}
+
+void Application::activateWindowDelayed(not_null<QWidget*> widget) {
+	if (_delayedActivationsPaused) {
+		return;
+	} else if (std::exchange(_windowForDelayedActivation, widget.get())) {
+		return;
+	}
+	crl::on_main(this, [=] {
+		if (const auto widget = base::take(_windowForDelayedActivation)) {
+			if (!widget->isHidden()) {
+				widget->activateWindow();
+			}
+		}
+	});
+}
+
+void Application::pauseDelayedWindowActivations() {
+	_windowForDelayedActivation = nullptr;
+	_delayedActivationsPaused = true;
+}
+
+void Application::resumeDelayedWindowActivations() {
+	_delayedActivationsPaused = false;
 }
 
 void Application::closeApplication() {
@@ -346,9 +507,7 @@ void Application::closeApplication() {
 
 	_localSocket.close();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	_updateChecker = nullptr;
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
 inline Application *application() {
@@ -400,6 +559,7 @@ void adjustSingleTimers() {
 		a->adjustSingleTimers();
 	}
 	base::Timer::Adjust();
+	base::ConcurrentTimerEnvironment::Adjust();
 }
 
 void connect(const char *signal, QObject *object, const char *method) {
@@ -411,15 +571,20 @@ void connect(const char *signal, QObject *object, const char *method) {
 void launch() {
 	Assert(application() != 0);
 
-	float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
-	if (dpi <= 108) { // 0-96-108
-		cSetScreenScale(dbisOne);
-	} else if (dpi <= 132) { // 108-120-132
-		cSetScreenScale(dbisOneAndQuarter);
-	} else if (dpi <= 168) { // 132-144-168
-		cSetScreenScale(dbisOneAndHalf);
-	} else { // 168-192-inf
-		cSetScreenScale(dbisTwo);
+	const auto dpi = Application::primaryScreen()->logicalDotsPerInch();
+	LOG(("Primary screen DPI: %1").arg(dpi));
+	if (dpi <= 108) {
+		cSetScreenScale(100); // 100%:  96 DPI (0-108)
+	} else if (dpi <= 132) {
+		cSetScreenScale(125); // 125%: 120 DPI (108-132)
+	} else if (dpi <= 168) {
+		cSetScreenScale(150); // 150%: 144 DPI (132-168)
+	} else if (dpi <= 216) {
+		cSetScreenScale(200); // 200%: 192 DPI (168-216)
+	} else if (dpi <= 264) {
+		cSetScreenScale(250); // 250%: 240 DPI (216-264)
+	} else {
+		cSetScreenScale(300); // 300%: 288 DPI (264-inf)
 	}
 
 	auto devicePixelRatio = application()->devicePixelRatio();
@@ -431,11 +596,9 @@ void launch() {
 			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
 			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
 		}
-		cSetRetina(true);
 		cSetRetinaFactor(devicePixelRatio);
 		cSetIntRetinaFactor(int32(cRetinaFactor()));
-		cSetConfigScale(dbisOne);
-		cSetRealScale(dbisOne);
+		cSetScreenScale(kInterfaceScaleDefault);
 	}
 
 	application()->createMessenger();

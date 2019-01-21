@@ -29,16 +29,16 @@ public:
 
 private:
 	void mergeSliceData(
-		base::optional<int> count,
+		std::optional<int> count,
 		const std::deque<PhotoId> &photoIds,
-		base::optional<int> skippedBefore,
+		std::optional<int> skippedBefore,
 		int skippedAfter);
 	void sliceToLimits();
 
 	Key _key;
 	std::deque<PhotoId> _ids;
-	base::optional<int> _fullCount;
-	base::optional<int> _skippedBefore;
+	std::optional<int> _fullCount;
+	std::optional<int> _skippedBefore;
 	int _skippedAfter = 0;
 	int _limitBefore = 0;
 	int _limitAfter = 0;
@@ -51,17 +51,17 @@ UserPhotosSlice::UserPhotosSlice(Key key)
 : UserPhotosSlice(
 	key,
 	{},
-	base::none,
-	base::none,
-	base::none) {
+	std::nullopt,
+	std::nullopt,
+	std::nullopt) {
 }
 
 UserPhotosSlice::UserPhotosSlice(
 	Key key,
 	std::deque<PhotoId> &&ids,
-	base::optional<int> fullCount,
-	base::optional<int> skippedBefore,
-	base::optional<int> skippedAfter)
+	std::optional<int> fullCount,
+	std::optional<int> skippedBefore,
+	std::optional<int> skippedAfter)
 : _key(key)
 , _ids(std::move(ids))
 , _fullCount(fullCount)
@@ -74,12 +74,12 @@ void UserPhotosSlice::reverse() {
 	std::swap(_skippedBefore, _skippedAfter);
 }
 
-base::optional<int> UserPhotosSlice::indexOf(PhotoId photoId) const {
+std::optional<int> UserPhotosSlice::indexOf(PhotoId photoId) const {
 	auto it = ranges::find(_ids, photoId);
 	if (it != _ids.end()) {
 		return (it - _ids.begin());
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 PhotoId UserPhotosSlice::operator[](int index) const {
@@ -88,17 +88,17 @@ PhotoId UserPhotosSlice::operator[](int index) const {
 	return *(_ids.begin() + index);
 }
 
-base::optional<int> UserPhotosSlice::distance(const Key &a, const Key &b) const {
+std::optional<int> UserPhotosSlice::distance(const Key &a, const Key &b) const {
 	if (a.userId != _key.userId
 		|| b.userId != _key.userId) {
-		return base::none;
+		return std::nullopt;
 	}
 	if (auto i = indexOf(a.photoId)) {
 		if (auto j = indexOf(b.photoId)) {
 			return *j - *i;
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 UserPhotosSliceBuilder::UserPhotosSliceBuilder(
@@ -137,9 +137,9 @@ void UserPhotosSliceBuilder::checkInsufficientPhotos() {
 }
 
 void UserPhotosSliceBuilder::mergeSliceData(
-		base::optional<int> count,
+		std::optional<int> count,
 		const std::deque<PhotoId> &photoIds,
-		base::optional<int> skippedBefore,
+		std::optional<int> skippedBefore,
 		int skippedAfter) {
 	if (photoIds.empty()) {
 		if (_fullCount != count) {

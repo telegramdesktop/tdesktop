@@ -1,5 +1,5 @@
 diff --git a/pylib/gyp/generator/cmake.py b/pylib/gyp/generator/cmake.py
-index a2b9629..68d7020 100644
+index a2b9629..ac59461 100644
 --- a/pylib/gyp/generator/cmake.py
 +++ b/pylib/gyp/generator/cmake.py
 @@ -1070,6 +1070,23 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
@@ -26,6 +26,43 @@ index a2b9629..68d7020 100644
    UnsetVariable(output, 'TOOLSET')
    UnsetVariable(output, 'TARGET')
  
+@@ -1112,6 +1129,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
+   SetVariable(output, 'configuration', config_to_use)
+ 
+   ar = None
++  ranlib = None
++  nm = None
+   cc = None
+   cxx = None
+ 
+@@ -1121,17 +1140,27 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
+   for key, value in make_global_settings:
+     if key == 'AR':
+       ar = os.path.join(build_to_top, value)
++    if key == 'RANLIB':
++      ranlib = os.path.join(build_to_top, value)
++    if key == 'NM':
++      nm = os.path.join(build_to_top, value)
+     if key == 'CC':
+       cc = os.path.join(build_to_top, value)
+     if key == 'CXX':
+       cxx = os.path.join(build_to_top, value)
+ 
+   ar = gyp.common.GetEnvironFallback(['AR_target', 'AR'], ar)
++  ranlib = gyp.common.GetEnvironFallback(['RANLIB_target', 'RANLIB'], ranlib)
++  nm = gyp.common.GetEnvironFallback(['NM_target', 'NM'], nm)
+   cc = gyp.common.GetEnvironFallback(['CC_target', 'CC'], cc)
+   cxx = gyp.common.GetEnvironFallback(['CXX_target', 'CXX'], cxx)
+ 
+   if ar:
+     SetVariable(output, 'CMAKE_AR', ar)
++  if ranlib:
++    SetVariable(output, 'CMAKE_RANLIB', ranlib)
++  if nm:
++    SetVariable(output, 'CMAKE_NM', nm)
+   if cc:
+     SetVariable(output, 'CMAKE_C_COMPILER', cc)
+   if cxx:
 diff --git a/pylib/gyp/generator/xcode.py b/pylib/gyp/generator/xcode.py
 index db99d6a..8d56baf 100644
 --- a/pylib/gyp/generator/xcode.py

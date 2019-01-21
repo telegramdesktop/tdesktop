@@ -9,21 +9,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/main_window.h"
 #include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "history/feed/history_feed_section.h"
 #include "media/player/media_player_round_controller.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
+#include "passport/passport_form_controller.h"
+#include "core/shortcuts.h"
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "support/support_helper.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 
 namespace Window {
+namespace {
+
+constexpr auto kMaxChatEntryHistorySize = 50;
+
+} // namespace
 
 DateClickHandler::DateClickHandler(Dialogs::Key chat, QDate date)
 : _chat(chat)
@@ -34,7 +44,7 @@ void DateClickHandler::setDate(QDate date) {
 	_date = date;
 }
 
-void DateClickHandler::onClick(Qt::MouseButton) const {
+void DateClickHandler::onClick(ClickContext context) const {
 	App::wnd()->controller()->showJumpToDate(_chat, _date);
 }
 
@@ -48,10 +58,72 @@ Controller::Controller(not_null<MainWindow*> window)
 			startRoundVideo(item);
 		}
 	}, lifetime());
+
+	if (Auth().supportMode()) {
+		initSupportMode();
+	}
+}
+
+void Controller::initSupportMode() {
+	Auth().supportHelper().registerWindow(this);
+
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using C = Shortcuts::Command;
+
+		request->check(C::SupportHistoryBack) && request->handle([=] {
+			return chatEntryHistoryMove(-1);
+		});
+		request->check(C::SupportHistoryForward) && request->handle([=] {
+			return chatEntryHistoryMove(1);
+		});
+	}, lifetime());
 }
 
 void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {
 	_activeChatEntry = row;
+	if (Auth().supportMode()) {
+		pushToChatEntryHistory(row);
+	}
+}
+
+bool Controller::chatEntryHistoryMove(int steps) {
+	if (_chatEntryHistory.empty()) {
+		return false;
+	}
+	const auto position = _chatEntryHistoryPosition + steps;
+	if (!base::in_range(position, 0, int(_chatEntryHistory.size()))) {
+		return false;
+	}
+	_chatEntryHistoryPosition = position;
+	return jumpToChatListEntry(_chatEntryHistory[position]);
+}
+
+bool Controller::jumpToChatListEntry(Dialogs::RowDescriptor row) {
+	if (const auto history = row.key.history()) {
+		Ui::showPeerHistory(history, row.fullId.msg);
+		return true;
+	} else if (const auto feed = row.key.feed()) {
+		if (const auto item = App::histItemById(row.fullId)) {
+			showSection(HistoryFeed::Memento(feed, item->position()));
+		} else {
+			showSection(HistoryFeed::Memento(feed));
+		}
+	}
+	return false;
+}
+
+void Controller::pushToChatEntryHistory(Dialogs::RowDescriptor row) {
+	if (!_chatEntryHistory.empty()
+		&& _chatEntryHistory[_chatEntryHistoryPosition] == row) {
+		return;
+	}
+	_chatEntryHistory.resize(++_chatEntryHistoryPosition);
+	_chatEntryHistory.push_back(row);
+	if (_chatEntryHistory.size() > kMaxChatEntryHistorySize) {
+		_chatEntryHistory.pop_front();
+		--_chatEntryHistoryPosition;
+	}
 }
 
 void Controller::setActiveChatEntry(Dialogs::Key key) {
@@ -333,14 +405,14 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 						return history->blocks.front()->messages.front()->dateTime().date();
 					}
 				}
-			} else if (!history->chatsListDate().isNull()) {
-				return history->chatsListDate().date();
+			} else if (history->chatsListTimeId() != 0) {
+				return ParseDateTime(history->chatsListTimeId()).date();
 			}
 		} else if (const auto feed = chat.feed()) {
 			/*if (chatScrollPosition(feed)) { // #TODO feeds save position
 
-			} else */if (!feed->chatsListDate().isNull()) {
-				return feed->chatsListDate().date();
+			} else */if (feed->chatsListTimeId() != 0) {
+				return ParseDateTime(feed->chatsListTimeId()).date();
 			}
 		}
 		return QDate::currentDate();
@@ -350,12 +422,12 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 			if (const auto channel = history->peer->migrateTo()) {
 				history = App::historyLoaded(channel);
 			}
-			if (history && !history->chatsListDate().isNull()) {
-				return history->chatsListDate().date();
+			if (history && history->chatsListTimeId() != 0) {
+				return ParseDateTime(history->chatsListTimeId()).date();
 			}
 		} else if (const auto feed = chat.feed()) {
-			if (!feed->chatsListDate().isNull()) {
-				return feed->chatsListDate().date();
+			if (feed->chatsListTimeId() != 0) {
+				return ParseDateTime(feed->chatsListTimeId()).date();
 			}
 		}
 		return QDate::currentDate();
@@ -402,6 +474,17 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	box->setMinDate(minPeerDate(chat));
 	box->setMaxDate(maxPeerDate(chat));
 	Ui::show(std::move(box));
+}
+
+void Controller::showPassportForm(const Passport::FormRequest &request) {
+	_passportForm = std::make_unique<Passport::FormController>(
+		this,
+		request);
+	_passportForm->show();
+}
+
+void Controller::clearPassportForm() {
+	_passportForm = nullptr;
 }
 
 void Controller::updateColumnLayout() {
@@ -461,12 +544,26 @@ void Navigation::showPeerInfo(
 	showPeerInfo(history->peer->id, params);
 }
 
+void Navigation::showSettings(
+		Settings::Type type,
+		const SectionShow &params) {
+	showSection(
+		Info::Memento(
+			Info::Settings::Tag{ Auth().user() },
+			Info::Section(type)),
+		params);
+}
+
+void Navigation::showSettings(const SectionShow &params) {
+	showSettings(Settings::Type::Main, params);
+}
+
 void Controller::showSection(
 		SectionMemento &&memento,
 		const SectionShow &params) {
-	if (App::wnd()->showSectionInExistingLayer(
+	if (!params.thirdColumn && App::wnd()->showSectionInExistingLayer(
 			&memento,
-			params) && !params.thirdColumn) {
+			params)) {
 		return;
 	}
 	App::main()->showSection(std::move(memento), params);
@@ -480,6 +577,10 @@ void Controller::showSpecialLayer(
 		object_ptr<LayerWidget> &&layer,
 		anim::type animated) {
 	App::wnd()->showSpecialLayer(std::move(layer), animated);
+}
+
+void Controller::removeLayerBlackout() {
+	App::wnd()->ui_removeLayerBlackout();
 }
 
 not_null<MainWidget*> Controller::chats() const {
@@ -518,6 +619,40 @@ void Controller::roundVideoFinished(not_null<RoundController*> video) {
 		_roundVideo = nullptr;
 		disableGifPauseReason(Window::GifPauseReason::RoundPlaying);
 	}
+}
+
+void Controller::setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate) {
+	Expects(_defaultFloatPlayerDelegate == nullptr);
+
+	_defaultFloatPlayerDelegate = delegate;
+	_floatPlayers = std::make_unique<Media::Player::FloatController>(
+		delegate);
+	_floatPlayers->closeEvents();
+}
+
+void Controller::replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_floatPlayers != nullptr);
+
+	_replacementFloatPlayerDelegate = replacement;
+	_floatPlayers->replaceDelegate(replacement);
+}
+
+void Controller::restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_floatPlayers != nullptr);
+
+	if (_replacementFloatPlayerDelegate == replacement) {
+		_replacementFloatPlayerDelegate = nullptr;
+		_floatPlayers->replaceDelegate(_defaultFloatPlayerDelegate);
+	}
+}
+
+rpl::producer<FullMsgId> Controller::floatPlayerClosed() const {
+	Expects(_floatPlayers != nullptr);
+
+	return _floatPlayers->closeEvents();
 }
 
 Controller::~Controller() = default;

@@ -36,52 +36,50 @@ TextWithEntities PrepareText(const QString &value, const QString &emptyValue) {
 	return result;
 }
 
-MTPMessage PrepareLogMessage(const MTPMessage &message, MsgId newId, int32 newDate) {
-	switch (message.type()) {
-	case mtpc_messageEmpty: return MTP_messageEmpty(MTP_int(newId));
-	case mtpc_messageService: {
-		auto &data = message.c_messageService();
-		auto removeFlags = MTPDmessageService::Flag::f_out
+MTPMessage PrepareLogMessage(
+		const MTPMessage &message,
+		MsgId newId,
+		TimeId newDate) {
+	return message.match([&](const MTPDmessageEmpty &) {
+		return MTP_messageEmpty(MTP_int(newId));
+	}, [&](const MTPDmessageService &message) {
+		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
 			/* | MTPDmessageService::Flag::f_reply_to_msg_id*/;
-		auto flags = data.vflags.v & ~removeFlags;
+		const auto flags = message.vflags.v & ~removeFlags;
 		return MTP_messageService(
 			MTP_flags(flags),
 			MTP_int(newId),
-			data.vfrom_id,
-			data.vto_id,
-			data.vreply_to_msg_id,
+			message.vfrom_id,
+			message.vto_id,
+			message.vreply_to_msg_id,
 			MTP_int(newDate),
-			data.vaction);
-	} break;
-	case mtpc_message: {
-		auto &data = message.c_message();
-		auto removeFlags = MTPDmessage::Flag::f_out
+			message.vaction);
+	}, [&](const MTPDmessage &message) {
+		const auto removeFlags = MTPDmessage::Flag::f_out
 			| MTPDmessage::Flag::f_post
 			| MTPDmessage::Flag::f_reply_to_msg_id
 			| MTPDmessage::Flag::f_edit_date
 			| MTPDmessage::Flag::f_grouped_id;
-		auto flags = data.vflags.v & ~removeFlags;
+		const auto flags = message.vflags.v & ~removeFlags;
 		return MTP_message(
 			MTP_flags(flags),
 			MTP_int(newId),
-			data.vfrom_id,
-			data.vto_id,
-			data.vfwd_from,
-			data.vvia_bot_id,
-			data.vreply_to_msg_id,
+			message.vfrom_id,
+			message.vto_id,
+			message.vfwd_from,
+			message.vvia_bot_id,
+			message.vreply_to_msg_id,
 			MTP_int(newDate),
-			data.vmessage,
-			data.vmedia,
-			data.vreply_markup,
-			data.ventities,
-			data.vviews,
-			data.vedit_date,
+			message.vmessage,
+			message.vmedia,
+			message.vreply_markup,
+			message.ventities,
+			message.vviews,
+			message.vedit_date,
 			MTP_string(""),
-			data.vgrouped_id);
-	} break;
-	}
-	Unexpected("Type in PrepareLogMessage()");
+			message.vgrouped_id);
+	});
 }
 
 bool MediaCanHaveCaption(const MTPMessage &message) {
@@ -105,12 +103,27 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	return { text, entities };
 }
 
-PhotoData *GenerateChatPhoto(ChannelId channelId, uint64 logEntryId, TimeId date, const MTPDchatPhoto &photo) {
+PhotoData *GenerateChatPhoto(
+		ChannelId channelId,
+		uint64 logEntryId,
+		TimeId date,
+		const MTPDchatPhoto &photo) {
 	// We try to make a unique photoId that will stay the same for each pair (channelId, logEntryId).
 	static const auto RandomIdPart = rand_value<uint64>();
 	auto mixinIdPart = (static_cast<uint64>(static_cast<uint32>(channelId)) << 32) ^ logEntryId;
 	auto photoId = RandomIdPart ^ mixinIdPart;
 
+	const auto fileReference = [&]() -> const MTPbytes * {
+		const auto takeFrom = [](const MTPFileLocation &location) {
+			return (location.type() == mtpc_fileLocation)
+				? &location.c_fileLocation().vfile_reference
+				: nullptr;
+		};
+		if (const auto result = takeFrom(photo.vphoto_big)) {
+			return result;
+		}
+		return takeFrom(photo.vphoto_small);
+	}();
 	auto photoSizes = QVector<MTPPhotoSize>();
 	photoSizes.reserve(2);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), photo.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
@@ -119,6 +132,7 @@ PhotoData *GenerateChatPhoto(ChannelId channelId, uint64 logEntryId, TimeId date
 		MTP_flags(0),
 		MTP_long(photoId),
 		MTP_long(0),
+		fileReference ? (*fileReference) : MTP_bytes(QByteArray()),
 		MTP_int(date),
 		MTP_vector<MTPPhotoSize>(photoSizes)));
 }
@@ -294,6 +308,9 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 
 } // namespace
 
+OwnedItem::OwnedItem(std::nullptr_t) {
+}
+
 OwnedItem::OwnedItem(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<HistoryItem*> data)
@@ -329,7 +346,7 @@ void GenerateItems(
 		not_null<History*> history,
 		not_null<LocalIdManager*> idManager,
 		const MTPDchannelAdminLogEvent &event,
-		base::lambda<void(OwnedItem item)> callback) {
+		Fn<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;

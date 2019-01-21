@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/crash_reports.h"
 #include "core/main_queue_processor.h"
+#include "core/update_checker.h"
+#include "base/concurrent_timer.h"
 #include "application.h"
 
 namespace Core {
@@ -19,9 +21,15 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
 }
 
-Launcher::Launcher(int argc, char *argv[])
+Launcher::Launcher(
+	int argc,
+	char *argv[],
+	const QString &deviceModel,
+	const QString &systemVersion)
 : _argc(argc)
-, _argv(argv) {
+, _argv(argv)
+, _deviceModel(deviceModel)
+, _systemVersion(systemVersion) {
 }
 
 void Launcher::init() {
@@ -55,15 +63,12 @@ int Launcher::exec() {
 
 	DEBUG_LOG(("Telegreat finished, result: %1").arg(result));
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	if (cRestartingUpdate()) {
+	if (!UpdaterDisabled() && cRestartingUpdate()) {
 		DEBUG_LOG(("Application Info: executing updater to install update..."));
 		if (!launchUpdater(UpdaterLaunch::PerformUpdate)) {
 			psDeleteDir(cWorkingDir() + qsl("tupdates/temp"));
 		}
-	} else
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	if (cRestarting()) {
+	} else if (cRestarting()) {
 		DEBUG_LOG(("Application Info: executing Telegram, because of restart..."));
 		launchUpdater(UpdaterLaunch::JustRelaunch);
 	}
@@ -92,6 +97,10 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 
 QString Launcher::argumentsString() const {
 	return _arguments.join(' ');
+}
+
+bool Launcher::customWorkingDir() const {
+	return _customWorkingDir;
 }
 
 void Launcher::prepareSettings() {
@@ -141,7 +150,8 @@ void Launcher::prepareSettings() {
 			info = info.symLinkTarget();
 		}
 		if (info.exists()) {
-			gExeDir = info.absoluteDir().absolutePath() + '/';
+			const auto dir = info.absoluteDir().absolutePath();
+			gExeDir = (dir.endsWith('/') ? dir : (dir + '/'));
 			gExeName = info.fileName();
 		}
 	}
@@ -152,6 +162,14 @@ void Launcher::prepareSettings() {
 	processArguments();
 }
 
+QString Launcher::deviceModel() const {
+	return _deviceModel;
+}
+
+QString Launcher::systemVersion() const {
+	return _systemVersion;
+}
+
 void Launcher::processArguments() {
 		enum class KeyFormat {
 		NoValues,
@@ -159,19 +177,20 @@ void Launcher::processArguments() {
 		AllLeftValues,
 	};
 	auto parseMap = std::map<QByteArray, KeyFormat> {
-		{ "-testmode"   , KeyFormat::NoValues },
-		{ "-debug"      , KeyFormat::NoValues },
-		{ "-many"       , KeyFormat::NoValues },
-		{ "-key"        , KeyFormat::OneValue },
-		{ "-autostart"  , KeyFormat::NoValues },
-		{ "-fixprevious", KeyFormat::NoValues },
-		{ "-cleanup"    , KeyFormat::NoValues },
-		{ "-noupdate"   , KeyFormat::NoValues },
-		{ "-tosettings" , KeyFormat::NoValues },
-		{ "-startintray", KeyFormat::NoValues },
-		{ "-sendpath"   , KeyFormat::AllLeftValues },
-		{ "-workdir"    , KeyFormat::OneValue },
-		{ "--"          , KeyFormat::OneValue },
+		{ "-testmode"       , KeyFormat::NoValues },
+		{ "-debug"          , KeyFormat::NoValues },
+		{ "-many"           , KeyFormat::NoValues },
+		{ "-key"            , KeyFormat::OneValue },
+		{ "-autostart"      , KeyFormat::NoValues },
+		{ "-fixprevious"    , KeyFormat::NoValues },
+		{ "-cleanup"        , KeyFormat::NoValues },
+		{ "-noupdate"       , KeyFormat::NoValues },
+		{ "-externalupdater", KeyFormat::NoValues },
+		{ "-tosettings"     , KeyFormat::NoValues },
+		{ "-startintray"    , KeyFormat::NoValues },
+		{ "-sendpath"       , KeyFormat::AllLeftValues },
+		{ "-workdir"        , KeyFormat::OneValue },
+		{ "--"              , KeyFormat::OneValue },
 	};
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
@@ -196,10 +215,14 @@ void Launcher::processArguments() {
 		}
 	}
 
+	if (parseResult.contains("-externalupdater")) {
+		SetUpdaterDisabledAtStartup();
+	}
 	gTestMode = parseResult.contains("-testmode");
-	gDebug = parseResult.contains("-debug");
+	Logs::SetDebugEnabled(parseResult.contains("-debug"));
 	gManyInstance = parseResult.contains("-many");
-	gKeyFile = parseResult.value("-key", QStringList()).join(QString());
+	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
+	gKeyFile = gKeyFile.replace(QRegularExpression("[^a-z0-9\\-_]"), {});
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
 		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
 		: parseResult.contains("-cleanup") ? LaunchModeCleanup
@@ -207,8 +230,8 @@ void Launcher::processArguments() {
 	gNoStartUpdate = parseResult.contains("-noupdate");
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
-	gSendPaths = parseResult.value("-sendpath", QStringList());
-	gWorkingDir = parseResult.value("-workdir", QStringList()).join(QString());
+	gSendPaths = parseResult.value("-sendpath", {});
+	gWorkingDir = parseResult.value("-workdir", {}).join(QString());
 	if (!gWorkingDir.isEmpty()) {
 		if (QDir().exists(gWorkingDir)) {
 			_customWorkingDir = true;
@@ -216,13 +239,14 @@ void Launcher::processArguments() {
 			gWorkingDir = QString();
 		}
 	}
-	gStartUrl = parseResult.value("--", QStringList()).join(QString());
+	gStartUrl = parseResult.value("--", {}).join(QString());
 }
 
 int Launcher::executeApplication() {
+	Application application(this, _argc, _argv);
 	MainQueueProcessor processor;
-	Application app(this, _argc, _argv);
-	return app.exec();
+	base::ConcurrentTimerEnvironment environment;
+	return application.execute();
 }
 
 } // namespace Core

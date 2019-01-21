@@ -27,7 +27,11 @@ public:
 		const style::InfoProfileButton &st);
 
 	Button *toggleOn(rpl::producer<bool> &&toggled);
+	bool toggled() const;
+	rpl::producer<bool> toggledChanges() const;
 	rpl::producer<bool> toggledValue() const;
+
+	void setColorOverride(std::optional<QColor> textColorOverride);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -48,6 +52,7 @@ private:
 	int _originalWidth = 0;
 	int _textWidth = 0;
 	std::unique_ptr<Ui::ToggleView> _toggle;
+	std::optional<QColor> _textColorOverride;
 
 };
 

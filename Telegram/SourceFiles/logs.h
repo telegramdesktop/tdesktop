@@ -7,11 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
+
 namespace Core {
 class Launcher;
 } // namespace Core
 
 namespace Logs {
+
+void SetDebugEnabled(bool enabled);
+bool DebugEnabled();
 
 void start(not_null<Core::Launcher*> launcher);
 bool started();
@@ -65,11 +70,11 @@ inline MemoryBuffer mb(const void *ptr, uint32 size) {
 #define LOG(msg) (Logs::writeMain(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))
 
-#define DEBUG_LOG(msg) { if (cDebug() || !Logs::started()) Logs::writeDebug(__FILE__, __LINE__, QString msg); }
+#define DEBUG_LOG(msg) { if (Logs::DebugEnabled() || !Logs::started()) Logs::writeDebug(__FILE__, __LINE__, QString msg); }
 //usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
 
-#define TCP_LOG(msg) { if (cDebug() || !Logs::started()) Logs::writeTcp(QString msg); }
+#define TCP_LOG(msg) { if (Logs::DebugEnabled() || !Logs::started()) Logs::writeTcp(QString msg); }
 //usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
 
-#define MTP_LOG(dc, msg) { if (cDebug() || !Logs::started()) Logs::writeMtp(dc, QString msg); }
+#define MTP_LOG(dc, msg) { if (Logs::DebugEnabled() || !Logs::started()) Logs::writeMtp(dc, QString msg); }
 //usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))

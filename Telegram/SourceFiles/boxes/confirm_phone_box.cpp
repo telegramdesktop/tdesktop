@@ -21,17 +21,43 @@ object_ptr<ConfirmPhoneBox> CurrentConfirmPhoneBox = { nullptr };
 
 } // namespace
 
+SentCodeField::SentCodeField(
+	QWidget *parent,
+	const style::InputField &st,
+	Fn<QString()> placeholderFactory,
+	const QString &val)
+: Ui::InputField(parent, st, std::move(placeholderFactory), val) {
+	connect(this, &Ui::InputField::changed, [this] { fix(); });
+}
+
+void SentCodeField::setAutoSubmit(int length, Fn<void()> submitCallback) {
+	_autoSubmitLength = length;
+	_submitCallback = std::move(submitCallback);
+}
+
+void SentCodeField::setChangedCallback(Fn<void()> changedCallback) {
+	_changedCallback = std::move(changedCallback);
+}
+
+QString SentCodeField::getDigitsOnly() const {
+	return QString(
+		getLastText()
+	).remove(
+		QRegularExpression("[^\\d]")
+	);
+}
+
 void SentCodeField::fix() {
 	if (_fixing) return;
 
 	_fixing = true;
 	auto newText = QString();
-	auto now = getLastText();
+	const auto now = getLastText();
 	auto oldPos = textCursor().position();
 	auto newPos = -1;
 	auto oldLen = now.size();
 	auto digitCount = 0;
-	for_const (auto ch, now) {
+	for (const auto ch : now) {
 		if (ch.isDigit()) {
 			++digitCount;
 		}
@@ -40,11 +66,12 @@ void SentCodeField::fix() {
 	if (_autoSubmitLength > 0 && digitCount > _autoSubmitLength) {
 		digitCount = _autoSubmitLength;
 	}
-	auto strict = (_autoSubmitLength > 0 && digitCount == _autoSubmitLength);
+	auto strict = (_autoSubmitLength > 0)
+		&& (digitCount == _autoSubmitLength);
 
 	newText.reserve(oldLen);
 	int i = 0;
-	for_const (auto ch, now) {
+	for (const auto ch : now) {
 		if (i++ == oldPos) {
 			newPos = newText.length();
 		}
@@ -56,14 +83,15 @@ void SentCodeField::fix() {
 			if (strict && !digitCount) {
 				break;
 			}
+		} else if (ch == '-') {
+			newText += ch;
 		}
 	}
 	if (newPos < 0) {
 		newPos = newText.length();
 	}
 	if (newText != now) {
-		now = newText;
-		setText(now);
+		setText(newText);
 		setCursorPosition(newPos);
 	}
 	_fixing = false;
@@ -76,15 +104,16 @@ void SentCodeField::fix() {
 	}
 }
 
-SentCodeCall::SentCodeCall(QObject *parent, base::lambda_once<void()> callCallback, base::lambda<void()> updateCallback)
-: _timer(parent)
-, _call(std::move(callCallback))
+SentCodeCall::SentCodeCall(
+	FnMut<void()> callCallback,
+	Fn<void()> updateCallback)
+: _call(std::move(callCallback))
 , _update(std::move(updateCallback)) {
-	_timer->connect(_timer, &QTimer::timeout, [this] {
+	_timer.setCallback([=] {
 		if (_status.state == State::Waiting) {
 			if (--_status.timeout <= 0) {
 				_status.state = State::Calling;
-				_timer->stop();
+				_timer.cancel();
 				if (_call) {
 					_call();
 				}
@@ -99,7 +128,7 @@ SentCodeCall::SentCodeCall(QObject *parent, base::lambda_once<void()> callCallba
 void SentCodeCall::setStatus(const Status &status) {
 	_status = status;
 	if (_status.state == State::Waiting) {
-		_timer->start(1000);
+		_timer.callEach(1000);
 	}
 }
 
@@ -130,7 +159,7 @@ void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
 ConfirmPhoneBox::ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash)
 : _phone(phone)
 , _hash(hash)
-, _call(this, [this] { sendCall(); }, [this] { update(); }) {
+, _call([this] { sendCall(); }, [this] { update(); }) {
 }
 
 void ConfirmPhoneBox::sendCall() {
@@ -198,17 +227,17 @@ void ConfirmPhoneBox::prepare() {
 	_about->setMarkedText(aboutText);
 
 	_code.create(this, st::confirmPhoneCodeField, langFactory(lng_code_ph));
-	_code->setAutoSubmit(_sentCodeLength, [this] { onSendCode(); });
-	_code->setChangedCallback([this] { showError(QString()); });
+	_code->setAutoSubmit(_sentCodeLength, [=] { sendCode(); });
+	_code->setChangedCallback([=] { showError(QString()); });
 
 	setTitle(langFactory(lng_confirm_phone_title));
 
-	addButton(langFactory(lng_confirm_phone_send), [this] { onSendCode(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_confirm_phone_send), [=] { sendCode(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip);
 
-	connect(_code, SIGNAL(submitted(bool)), this, SLOT(onSendCode()));
+	connect(_code, &Ui::InputField::submitted, [=] { sendCode(); });
 
 	showChildren();
 }
@@ -217,11 +246,11 @@ void ConfirmPhoneBox::callDone(const MTPauth_SentCode &result) {
 	_call.callDone();
 }
 
-void ConfirmPhoneBox::onSendCode() {
+void ConfirmPhoneBox::sendCode() {
 	if (_sendCodeRequestId) {
 		return;
 	}
-	auto code = _code->getLastText();
+	const auto code = _code->getDigitsOnly();
 	if (code.isEmpty()) {
 		_code->showError();
 		return;
@@ -232,7 +261,10 @@ void ConfirmPhoneBox::onSendCode() {
 
 	showError(QString());
 
-	_sendCodeRequestId = MTP::send(MTPaccount_ConfirmPhone(MTP_string(_phoneHash), MTP_string(_code->getLastText())), rpcDone(&ConfirmPhoneBox::confirmDone), rpcFail(&ConfirmPhoneBox::confirmFail));
+	_sendCodeRequestId = MTP::send(
+		MTPaccount_ConfirmPhone(MTP_string(_phoneHash), MTP_string(code)),
+		rpcDone(&ConfirmPhoneBox::confirmDone),
+		rpcFail(&ConfirmPhoneBox::confirmFail));
 }
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {

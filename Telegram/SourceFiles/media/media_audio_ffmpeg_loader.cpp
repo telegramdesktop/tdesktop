@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/media_audio_ffmpeg_loader.h"
 
+#include "base/bytes.h"
+
 uint64_t AbstractFFMpegLoader::ComputeChannelLayout(
 		uint64_t channel_layout,
 		int channels) {
@@ -183,8 +185,8 @@ int64_t AbstractFFMpegLoader::_seek_file(void *opaque, int64_t offset, int whenc
 AbstractAudioFFMpegLoader::AbstractAudioFFMpegLoader(
 	const FileLocation &file,
 	const QByteArray &data,
-	base::byte_vector &&bytes)
-: AbstractFFMpegLoader(file, data, std::move(bytes)) {
+	bytes::vector &&buffer)
+: AbstractFFMpegLoader(file, data, std::move(buffer)) {
 	_frame = av_frame_alloc();
 }
 
@@ -490,8 +492,8 @@ AbstractAudioFFMpegLoader::~AbstractAudioFFMpegLoader() {
 FFMpegLoader::FFMpegLoader(
 	const FileLocation &file,
 	const QByteArray &data,
-	base::byte_vector &&bytes)
-: AbstractAudioFFMpegLoader(file, data, std::move(bytes)) {
+	bytes::vector &&buffer)
+: AbstractAudioFFMpegLoader(file, data, std::move(buffer)) {
 }
 
 bool FFMpegLoader::open(TimeMs positionMs) {

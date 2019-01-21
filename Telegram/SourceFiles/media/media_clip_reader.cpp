@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "media/media_clip_ffmpeg.h"
 #include "media/media_clip_qtgif.h"
+#include "media/media_clip_check_streaming.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -80,14 +81,14 @@ QPixmap PrepareFrame(const FrameRequest &request, const QImage &original, bool h
 
 } // namespace
 
-Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, int64 seekMs)
+Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, TimeMs seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
 , _seekPositionMs(seekMs) {
 	init(FileLocation(filepath), QByteArray());
 }
 
-Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, int64 seekMs)
+Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, TimeMs seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
 , _audioMsgId(document, msgId, (mode == Mode::Video) ? rand_value<uint32>() : 0)
@@ -870,12 +871,14 @@ FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteA
 		auto durationMs = reader->durationMs();
 		if (durationMs > 0) {
 			result.isGifv = reader->isGifv();
-			if (!result.isGifv) {
-				auto middleMs = durationMs / 2;
-				if (!reader->inspectAt(middleMs)) {
-					return result;
-				}
-			}
+			// Use first video frame as a thumbnail.
+			// All other apps and server do that way.
+			//if (!result.isGifv) {
+			//	auto middleMs = durationMs / 2;
+			//	if (!reader->inspectAt(middleMs)) {
+			//		return result;
+			//	}
+			//}
 			auto hasAlpha = false;
 			auto readResult = reader->readFramesTill(-1, getms());
 			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
@@ -890,6 +893,10 @@ FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteA
 				}
 				result.duration = static_cast<int>(durationMs / 1000);
 			}
+
+			result.supportsStreaming = CheckStreamingSupport(
+				localLocation,
+				localData);
 		}
 	}
 	return result;

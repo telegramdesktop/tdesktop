@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "core/crash_reports.h"
 #include "storage/localstorage.h"
-#include "passcodewidget.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "platform/mac/mac_utilities.h"
@@ -27,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
 #include <mach-o/dyld.h>
+#include <AVFoundation/AVFoundation.h>
 
 namespace {
 
@@ -165,127 +165,6 @@ QStringList atosstr(uint64 *addresses, int count, uint64 base) {
 
 }
 
-QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
-	QString initial = QString::fromUtf8(crashdump), result;
-	QStringList lines = initial.split('\n');
-	result.reserve(initial.size());
-	int32 i = 0, l = lines.size();
-
-	while (i < l) {
-		uint64 addresses[1024] = { 0 };
-		for (; i < l; ++i) {
-			result.append(lines.at(i)).append('\n');
-			QString line = lines.at(i).trimmed();
-			if (line == qstr("Base image addresses:")) {
-				++i;
-				break;
-			}
-		}
-
-		uint64 base = 0;
-		for (int32 start = i; i < l; ++i) {
-			QString line = lines.at(i).trimmed();
-			if (line.isEmpty()) break;
-
-			if (!base) {
-				QRegularExpressionMatch m = QRegularExpression(qsl("^\\d+ (\\d+) \\((.+)\\)")).match(line);
-				if (m.hasMatch()) {
-					if (uint64 address = m.captured(1).toULongLong()) {
-						if (m.captured(2).endsWith(qstr("Contents/MacOS/Telegram"))) {
-							base = address;
-						}
-					}
-				}
-			}
-		}
-		if (base) {
-			result.append(qsl("(base address read: 0x%1)\n").arg(base, 0, 16));
-		} else {
-			result.append(qsl("ERROR: base address not read!\n"));
-		}
-
-		for (; i < l; ++i) {
-			result.append(lines.at(i)).append('\n');
-			QString line = lines.at(i).trimmed();
-			if (line == qstr("Backtrace:")) {
-				++i;
-				break;
-			}
-		}
-
-		int32 start = i;
-		for (; i < l; ++i) {
-			QString line = lines.at(i).trimmed();
-			if (line.isEmpty()) break;
-
-			if (QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
-				QStringList lst = line.split(' ', QString::SkipEmptyParts);
-				if (lst.size() > 2) {
-					uint64 addr = lst.at(2).startsWith(qstr("0x")) ? lst.at(2).mid(2).toULongLong(0, 16) : lst.at(2).toULongLong();
-					addresses[i - start] = addr;
-				}
-			}
-		}
-
-		QStringList atos = atosstr(addresses, i - start, base);
-		for (i = start; i < l; ++i) {
-			QString line = lines.at(i).trimmed();
-			if (line.isEmpty()) break;
-
-			if (!QRegularExpression(qsl("^\\d+")).match(line).hasMatch()) {
-				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
-					result.append(qstr("BAD LINE: "));
-				}
-				result.append(line).append('\n');
-				continue;
-			}
-			QStringList lst = line.split(' ', QString::SkipEmptyParts);
-			result.append('\n').append(lst.at(0)).append(qsl(". "));
-			if (lst.size() < 3) {
-				result.append(qstr("BAD LINE: ")).append(line).append('\n');
-				continue;
-			}
-			if (lst.size() > 5 && lst.at(3) == qsl("0x0") && lst.at(4) == qsl("+") && lst.at(5) == qsl("1")) {
-				result.append(qsl("(0x1 separator)\n"));
-				continue;
-			}
-			if (i - start < atos.size()) {
-				if (!atos.at(i - start).isEmpty()) {
-					result.append(atos.at(i - start)).append('\n');
-					continue;
-				}
-			}
-
-			for (int j = 1, s = lst.size();;) {
-				if (lst.at(j).startsWith('_')) {
-					result.append(demanglestr(lst.at(j)));
-					if (++j < s) {
-						result.append(' ');
-						for (;;) {
-							result.append(lst.at(j));
-							if (++j < s) {
-								result.append(' ');
-							} else {
-								break;
-							}
-						}
-					}
-					break;
-				} else if (j > 2) {
-					result.append(lst.at(j));
-				}
-				if (++j < s) {
-					result.append(' ');
-				} else {
-					break;
-				}
-			}
-			result.append(qsl(" [demangled]")).append('\n');
-		}
-	}
-	return result;
-}
-
 void psDeleteDir(const QString &dir) {
 	objc_deleteDir(dir);
 }
@@ -325,10 +204,6 @@ void psActivateProcess(uint64 pid) {
 
 QString psAppDataPath() {
 	return objc_appDataPath();
-}
-
-QString psDownloadPath() {
-	return objc_downloadPath();
 }
 
 void psDoCleanup() {
@@ -398,10 +273,78 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 	return NS2QString([[NSBundle mainBundle] bundlePath]);
 }
 
+void RegisterCustomScheme() {
+#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
+	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
+#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
+}
+
+// I do check for availability, just not in the exact way clang is content with
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+PermissionStatus GetPermissionStatus(PermissionType type) {
+#ifndef OS_MAC_OLD
+	switch (type) {
+		case PermissionType::Microphone:
+			if([AVCaptureDevice respondsToSelector: @selector(authorizationStatusForMediaType:)]) { // Available starting with 10.14
+				switch([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
+					case AVAuthorizationStatusNotDetermined:
+						return PermissionStatus::CanRequest;
+					case AVAuthorizationStatusAuthorized:
+						return PermissionStatus::Granted;
+					case AVAuthorizationStatusDenied:
+					case AVAuthorizationStatusRestricted:
+						return PermissionStatus::Denied;
+				}
+			}
+			break;
+	}
+#endif // OS_MAC_OLD
+	return PermissionStatus::Granted;
+}
+
+void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
+#ifndef OS_MAC_OLD
+	switch (type) {
+		case PermissionType::Microphone:
+			if ([AVCaptureDevice respondsToSelector: @selector(requestAccessForMediaType:completionHandler:)]) { // Available starting with 10.14
+				[AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+					crl::on_main([=] {
+						resultCallback(granted ? PermissionStatus::Granted : PermissionStatus::Denied);
+					});
+				}];
+			}
+			break;
+	}
+#endif // OS_MAC_OLD
+	resultCallback(PermissionStatus::Granted);
+}
+#pragma clang diagnostic pop // -Wunguarded-availability
+
+void OpenSystemSettingsForPermission(PermissionType type) {
+#ifndef OS_MAC_OLD
+	switch (type) {
+		case PermissionType::Microphone:
+			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
+			break;
+	}
+#endif // OS_MAC_OLD
+}
+
+bool OpenSystemSettings(SystemSettingsType type) {
+	switch (type) {
+	case SystemSettingsType::Audio:
+		[[NSWorkspace sharedWorkspace] openFile:@"/System/Library/PreferencePanes/Sound.prefPane"];
+		break;
+	}
+	return true;
+}
+
 } // namespace Platform
 
 void psNewVersion() {
-	objc_registerCustomScheme();
+	Platform::RegisterCustomScheme();
 }
 
 void psAutoStart(bool start, bool silent) {

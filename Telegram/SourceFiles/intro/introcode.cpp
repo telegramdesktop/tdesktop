@@ -11,13 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "application.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
+#include "core/update_checker.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "boxes/confirm_box.h"
 #include "styles/style_intro.h"
 
 namespace Intro {
 
-CodeInput::CodeInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory) : Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
+CodeInput::CodeInput(
+	QWidget *parent,
+	const style::InputField &st,
+	Fn<QString()> placeholderFactory)
+: Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {
@@ -46,6 +52,8 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 			if (strict && !digitCount) {
 				break;
 			}
+		} else if (ch == '-') {
+			newText += ch;
 		}
 		if (i == oldPos) {
 			newPos = newText.length();
@@ -63,8 +71,6 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 		nowCursor = newPos;
 		setCursorPosition(nowCursor);
 	}
-
-	if (strict) emit codeEntered();
 }
 
 CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
@@ -145,7 +151,7 @@ void CodeWidget::updateControlsGeometry() {
 	_callLabel->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
 }
 
-void CodeWidget::showCodeError(base::lambda<QString()> textFactory) {
+void CodeWidget::showCodeError(Fn<QString()> textFactory) {
 	if (textFactory) _code->showError();
 	showError(std::move(textFactory));
 }
@@ -242,7 +248,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		_sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&CodeWidget::gotPassword), rpcFail(&CodeWidget::codeSubmitFail));
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {
@@ -253,9 +259,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 
 void CodeWidget::onInputChange() {
 	hideError();
-	if (_code->getLastText().length() == getData()->codeLength) {
-		submit();
-	}
+	submit();
 }
 
 void CodeWidget::onSendCall() {
@@ -274,7 +278,7 @@ void CodeWidget::onSendCall() {
 
 void CodeWidget::callDone(const MTPauth_SentCode &v) {
 	if (v.type() == mtpc_auth_sentCode) {
-		fillSentCodeData(v.c_auth_sentCode().vtype);
+		fillSentCodeData(v.c_auth_sentCode());
 		_code->setDigitsCountMax(getData()->codeLength);
 	}
 	if (_callStatus == Widget::Data::CallStatus::Calling) {
@@ -286,34 +290,56 @@ void CodeWidget::callDone(const MTPauth_SentCode &v) {
 }
 
 void CodeWidget::gotPassword(const MTPaccount_Password &result) {
+	Expects(result.type() == mtpc_account_password);
+
 	stopCheck();
 	_sentRequest = 0;
-	switch (result.type()) {
-	case mtpc_account_noPassword: { // should not happen
+	const auto &d = result.c_account_password();
+	getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(d);
+	if (!d.has_current_algo() || !d.has_srp_id() || !d.has_srp_B()) {
+		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
-	} break;
-
-	case mtpc_account_password: {
-		auto &d = result.c_account_password();
-		getData()->pwdSalt = qba(d.vcurrent_salt);
-		getData()->hasRecovery = mtpIsTrue(d.vhas_recovery);
-		getData()->pwdHint = qs(d.vhint);
-		goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
-	} break;
+		return;
+	} else if (!getData()->pwdRequest) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto callback = [=] {
+			Core::UpdateApplication();
+			if (*box) (*box)->closeBox();
+		};
+		*box = Ui::show(Box<ConfirmBox>(
+			lang(lng_passport_app_out_of_date),
+			lang(lng_menu_update),
+			callback));
+		return;
 	}
+	getData()->hasRecovery = d.is_has_recovery();
+	getData()->pwdHint = qs(d.vhint);
+	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
+	goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
 }
 
 void CodeWidget::submit() {
-	if (_sentRequest) return;
+	const auto text = QString(
+		_code->getLastText()
+	).remove(
+		QRegularExpression("[^\\d]")
+	).mid(0, getData()->codeLength);
+
+	if (_sentRequest
+		|| _sentCode == text
+		|| text.size() != getData()->codeLength) {
+		return;
+	}
 
 	hideError();
 
 	_checkRequest->start(1000);
 
-	_sentCode = _code->getLastText();
-	getData()->pwdSalt = QByteArray();
+	_sentCode = text;
+	getData()->pwdRequest = Core::CloudPasswordCheckRequest();
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
+	getData()->pwdNotEmptyPassport = false;
 	_sentRequest = MTP::send(MTPauth_SignIn(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(_sentCode)), rpcDone(&CodeWidget::codeSubmitDone), rpcFail(&CodeWidget::codeSubmitFail));
 }
 
@@ -328,8 +354,8 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 		return;
 	}
 
-	auto &d = result.c_auth_sentCode();
-	fillSentCodeData(d.vtype);
+	const auto &d = result.c_auth_sentCode();
+	fillSentCodeData(d);
 	_code->setDigitsCountMax(getData()->codeLength);
 	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;
@@ -349,7 +375,7 @@ bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = error.type() + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {

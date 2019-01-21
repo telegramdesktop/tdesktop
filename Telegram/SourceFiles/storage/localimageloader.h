@@ -20,6 +20,7 @@ enum class SendMediaType {
 	Photo,
 	Audio,
 	File,
+	Secure,
 };
 
 struct SendMediaPrepare {
@@ -87,6 +88,8 @@ struct SendMediaReady {
 	QString caption;
 
 };
+
+SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image);
 
 using TaskId = void*; // no interface, just id
 
@@ -160,12 +163,20 @@ struct SendingAlbum {
 	struct Item {
 		explicit Item(TaskId taskId) : taskId(taskId) {
 		}
+
 		TaskId taskId;
 		FullMsgId msgId;
-		base::optional<MTPInputSingleMedia> media;
+		std::optional<MTPInputSingleMedia> media;
 	};
 
 	SendingAlbum();
+
+	void fillMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		uint64 randomId);
+	void refreshMediaCaption(not_null<HistoryItem*> item);
+	void removeItem(not_null<HistoryItem*> item);
 
 	uint64 groupId = 0;
 	std::vector<Item> items;
@@ -189,7 +200,7 @@ struct FileLoadResult {
 		TaskId taskId,
 		uint64 id,
 		const FileLoadTo &to,
-		const QString &caption,
+		const TextWithTags &caption,
 		std::shared_ptr<SendingAlbum> album);
 
 	TaskId taskId;
@@ -211,13 +222,16 @@ struct FileLoadResult {
 	QString thumbname;
 	UploadFileParts thumbparts;
 	QByteArray thumbmd5;
-	QPixmap thumb;
+	QImage thumb;
+
+	QImage goodThumbnail;
+	QByteArray goodThumbnailBytes;
 
 	MTPPhoto photo;
 	MTPDocument document;
 
 	PreparedPhotoThumbs photoThumbs;
-	QString caption;
+	TextWithTags caption;
 
 	void setFileData(const QByteArray &filedata) {
 		if (filedata.isEmpty()) {
@@ -256,6 +270,7 @@ struct FileMediaInformation {
 	};
 	struct Video {
 		bool isGifv = false;
+		bool supportsStreaming = false;
 		int duration = -1;
 		QImage thumbnail;
 	};
@@ -281,14 +296,14 @@ public:
 		std::unique_ptr<FileMediaInformation> information,
 		SendMediaType type,
 		const FileLoadTo &to,
-		const QString &caption,
+		const TextWithTags &caption,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 	FileLoadTask(
 		const QByteArray &voice,
 		int32 duration,
 		const VoiceWaveform &waveform,
 		const FileLoadTo &to,
-		const QString &caption);
+		const TextWithTags &caption);
 
 	uint64 fileid() const {
 		return _id;
@@ -328,7 +343,7 @@ private:
 	int32 _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;
-	QString _caption;
+	TextWithTags _caption;
 
 	std::shared_ptr<FileLoadResult> _result;
 

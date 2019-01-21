@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
 #include "media/media_audio_track.h"
+#include "platform/platform_specific.h"
+#include "mainwidget.h"
 
 #include "boxes/rate_call_box.h"
 namespace Calls {
@@ -38,7 +40,9 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
 		return;
 	}
-	createCall(user, Call::Type::Outgoing);
+	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
+		createCall(user, Call::Type::Outgoing);
+	}));
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -126,26 +130,26 @@ void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
 	request(MTPmessages_GetDhConfig(
 		MTP_int(_dhConfig.version),
-		MTP_int(Call::kRandomPowerSize)
+		MTP_int(MTP::ModExpFirst::kRandomPowerSize)
 	)).done([this, call = base::make_weak(_currentCall)](
 			const MTPmessages_DhConfig &result) {
-		auto random = base::const_byte_span();
+		auto random = bytes::const_span();
 		switch (result.type()) {
 		case mtpc_messages_dhConfig: {
 			auto &config = result.c_messages_dhConfig();
-			if (!MTP::IsPrimeAndGood(bytesFromMTP(config.vp), config.vg.v)) {
+			if (!MTP::IsPrimeAndGood(bytes::make_span(config.vp.v), config.vg.v)) {
 				LOG(("API Error: bad p/g received in dhConfig."));
 				callFailed(call.get());
 				return;
 			}
 			_dhConfig.g = config.vg.v;
-			_dhConfig.p = byteVectorFromMTP(config.vp);
-			random = bytesFromMTP(config.vrandom);
+			_dhConfig.p = bytes::make_vector(config.vp.v);
+			random = bytes::make_span(config.vrandom.v);
 		} break;
 
 		case mtpc_messages_dhConfigNotModified: {
 			auto &config = result.c_messages_dhConfigNotModified();
-			random = bytesFromMTP(config.vrandom);
+			random = bytes::make_span(config.vrandom.v);
 			if (!_dhConfig.g || _dhConfig.p.empty()) {
 				LOG(("API Error: dhConfigNotModified on zero version."));
 				callFailed(call.get());
@@ -156,7 +160,7 @@ void Instance::refreshDhConfig() {
 		default: Unexpected("Type in messages.getDhConfig");
 		}
 
-		if (random.size() != Call::kRandomPowerSize) {
+		if (random.size() != MTP::ModExpFirst::kRandomPowerSize) {
 			LOG(("API Error: dhConfig random bytes wrong size: %1").arg(random.size()));
 			callFailed(call.get());
 			return;
@@ -185,53 +189,8 @@ void Instance::refreshServerConfig() {
 		_serverConfigRequestId = 0;
 		_lastServerConfigUpdateTime = getms(true);
 
-		auto configUpdate = std::map<std::string, std::string>();
-		auto bytes = bytesFromMTP(result.c_dataJSON().vdata);
-		auto error = QJsonParseError { 0, QJsonParseError::NoError };
-		auto document = QJsonDocument::fromJson(QByteArray::fromRawData(reinterpret_cast<const char*>(bytes.data()), bytes.size()), &error);
-		if (error.error != QJsonParseError::NoError) {
-			LOG(("API Error: Failed to parse call config JSON, error: %1").arg(error.errorString()));
-			return;
-		} else if (!document.isObject()) {
-			LOG(("API Error: Not an object received in call config JSON."));
-			return;
-		}
-
-		auto parseValue = [](QJsonValueRef data) -> std::string {
-			switch (data.type()) {
-			case QJsonValue::String: return data.toString().toStdString();
-			case QJsonValue::Double: return QString::number(data.toDouble(), 'f').toStdString();
-			case QJsonValue::Bool: return data.toBool() ? "true" : "false";
-			case QJsonValue::Null: {
-				LOG(("API Warning: null field in call config JSON."));
-			} return "null";
-			case QJsonValue::Undefined: {
-				LOG(("API Warning: undefined field in call config JSON."));
-			} return "undefined";
-			case QJsonValue::Object:
-			case QJsonValue::Array: {
-				LOG(("API Warning: complex field in call config JSON."));
-				QJsonDocument serializer;
-				if (data.isArray()) {
-					serializer.setArray(data.toArray());
-				} else {
-					serializer.setObject(data.toObject());
-				}
-				auto byteArray = serializer.toJson(QJsonDocument::Compact);
-				return std::string(byteArray.constData(), byteArray.size());
-			} break;
-			}
-			Unexpected("Type in Json parse.");
-		};
-
-		auto object = document.object();
-		for (auto i = object.begin(), e = object.end(); i != e; ++i) {
-			auto key = i.key().toStdString();
-			auto value = parseValue(i.value());
-			configUpdate[key] = value;
-		}
-
-		UpdateConfig(configUpdate);
+		const auto &json = result.c_dataJSON().vdata.v;
+		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([this](const RPCError &error) {
 		_serverConfigRequestId = 0;
 	}).send();
@@ -283,6 +242,35 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 
 bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
+}
+
+Call *Instance::currentCall() {
+	return _currentCall.get();
+}
+
+void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
+	Platform::PermissionStatus status=Platform::GetPermissionStatus(Platform::PermissionType::Microphone);
+	if (status==Platform::PermissionStatus::Granted) {
+		onSuccess();
+	} else if(status==Platform::PermissionStatus::CanRequest) {
+		Platform::RequestPermission(Platform::PermissionType::Microphone, crl::guard(this, [=](Platform::PermissionStatus status) {
+			if (status==Platform::PermissionStatus::Granted) {
+				crl::on_main(onSuccess);
+			} else {
+				if (_currentCall) {
+					_currentCall->hangup();
+				}
+			}
+		}));
+	} else {
+		if (alreadyInCall()) {
+			_currentCall->hangup();
+		}
+		Ui::show(Box<ConfirmBox>(lang(lng_no_mic_permission), lang(lng_menu_settings), crl::guard(this, [] {
+			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
+			Ui::hideLayer();
+		})));
+	}
 }
 
 Instance::~Instance() {

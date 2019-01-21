@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_send_data.h"
 #include "storage/file_download.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
+#include "ui/image/image.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 
@@ -77,14 +79,15 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		if (r.has_description()) result->_description = qs(r.vdescription);
 		if (r.has_url()) result->_url = qs(r.vurl);
 		if (r.has_thumb()) {
-			result->_thumb = ImagePtr(r.vthumb, result->thumbBox());
+			result->_thumb = Images::Create(r.vthumb, result->thumbBox());
 		}
 		if (r.has_content()) {
 			result->_content_url = GetContentUrl(r.vcontent);
 			if (result->_type == Type::Photo) {
 				result->_photo = Auth().data().photoFromWeb(
 					r.vcontent,
-					result->_thumb);
+					result->_thumb,
+					true);
 			} else {
 				result->_document = Auth().data().documentFromWeb(
 					result->adjustAttributes(r.vcontent),
@@ -220,18 +223,22 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		return nullptr;
 	}
 
-	LocationCoords location;
-	if (result->getLocationCoords(&location)) {
-		int32 w = st::inlineThumbSize, h = st::inlineThumbSize;
-		int32 zoom = 13, scale = 1;
-		if (cScale() == dbisTwo || cRetina()) {
-			scale = 2;
-			w /= 2;
-			h /= 2;
-		}
-		auto coords = location.latAsString() + ',' + location.lonAsString();
-		QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
-		result->_locationThumb = ImagePtr(url);
+	LocationCoords coords;
+	if (result->getLocationCoords(&coords)) {
+		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
+		const auto zoom = 15 + (scale - 1);
+		const auto w = st::inlineThumbSize / scale;
+		const auto h = st::inlineThumbSize / scale;
+
+		auto location = GeoPointLocation();
+		location.lat = coords.lat();
+		location.lon = coords.lon();
+		location.access = coords.accessHash();
+		location.width = w;
+		location.height = h;
+		location.zoom = zoom;
+		location.scale = scale;
+		result->_locationThumb = Images::Create(location);
 	}
 
 	return result;
@@ -242,8 +249,8 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 		if (_photo->medium->loaded() || _photo->thumb->loaded()) {
 			return true;
 		} else if (!_photo->medium->loading()) {
-			_photo->thumb->loadEvenCancelled();
-			_photo->medium->loadEvenCancelled();
+			_photo->thumb->loadEvenCancelled(Data::FileOrigin());
+			_photo->medium->loadEvenCancelled(Data::FileOrigin());
 		}
 		return false;
 	}
@@ -259,7 +266,11 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			} else if (_document->loading()) {
 				_document->cancel();
 			} else {
-				DocumentOpenClickHandler::doOpen(_document, nullptr, ActionOnLoadNone);
+				DocumentOpenClickHandler::Open(
+					Data::FileOriginSavedGifs(),
+					_document,
+					nullptr,
+					ActionOnLoadNone);
 			}
 			return false;
 		}
@@ -268,29 +279,28 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 	return true;
 }
 
-void Result::forget() {
-	_thumb->forget();
+void Result::unload() {
 	if (_document) {
-		_document->forget();
+		_document->unload();
 	}
 	if (_photo) {
-		_photo->forget();
+		_photo->unload();
 	}
 }
 
 void Result::openFile() {
 	if (_document) {
-		DocumentOpenClickHandler(_document).onClick(Qt::LeftButton);
+		DocumentOpenClickHandler(_document).onClick({});
 	} else if (_photo) {
-		PhotoOpenClickHandler(_photo).onClick(Qt::LeftButton);
+		PhotoOpenClickHandler(_photo).onClick({});
 	}
 }
 
 void Result::cancelFile() {
 	if (_document) {
-		DocumentCancelClickHandler(_document).onClick(Qt::LeftButton);
+		DocumentCancelClickHandler(_document).onClick({});
 	} else if (_photo) {
-		PhotoCancelClickHandler(_photo).onClick(Qt::LeftButton);
+		PhotoCancelClickHandler(_photo).onClick({});
 	}
 }
 
@@ -365,8 +375,7 @@ MTPWebDocument Result::adjustAttributes(const MTPWebDocument &document) {
 			data.vaccess_hash,
 			data.vsize,
 			data.vmime_type,
-			adjustAttributes(data.vattributes, data.vmime_type),
-			data.vdc_id);
+			adjustAttributes(data.vattributes, data.vmime_type));
 	} break;
 
 	case mtpc_webDocumentNoProxy: {
@@ -427,7 +436,7 @@ MTPVector<MTPDocumentAttribute> Result::adjustAttributes(
 			const auto &fields = audio->c_documentAttributeAudio();
 			if (!exists(mtpc_documentAttributeFilename)
 				&& !(fields.vflags.v & Flag::f_voice)) {
-				const auto p = mimeTypeForName(mime).globPatterns();
+				const auto p = Core::MimeTypeForName(mime).globPatterns();
 				auto pattern = p.isEmpty() ? QString() : p.front();
 				const auto extension = pattern.isEmpty()
 					? qsl(".unknown")

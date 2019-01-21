@@ -39,7 +39,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
 
-base::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
+std::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
 	if (isNotificationsUser(user->id)) {
 		return lang(lng_status_service_notifications);
 	} else if (user->botInfo) {
@@ -47,10 +47,10 @@ base::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
 	} else if (isServiceUser(user->id)) {
 		return lang(lng_status_support);
 	}
-	return base::none;
+	return std::nullopt;
 }
 
-base::optional<QString> OnlineTextCommon(TimeId online, TimeId now) {
+std::optional<QString> OnlineTextCommon(TimeId online, TimeId now) {
 	if (online <= 0) {
 		switch (online) {
 		case 0:
@@ -65,7 +65,7 @@ base::optional<QString> OnlineTextCommon(TimeId online, TimeId now) {
 	} else if (online > now) {
 		return lang(lng_status_online);
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 } // namespace

@@ -17,10 +17,20 @@ class MainWidget;
 class FileUploader;
 class Translator;
 class MediaView;
+class BoxContent;
+
+namespace Storage {
+class Databases;
+} // namespace Storage
 
 namespace Core {
 class Launcher;
+struct LocalUrlHandler;
 } // namespace Core
+
+namespace Window {
+struct TermsLock;
+} // namespace Window
 
 namespace App {
 void quit();
@@ -98,13 +108,19 @@ public:
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
+	void setCurrentProxy(
+		const ProxyData &proxy,
+		ProxyData::Settings settings);
+	void badMtprotoConfigurationError();
 
 	// Set from legacy storage.
 	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
 	void setAuthSessionUserId(UserId userId);
 	void setAuthSessionFromStorage(
-		std::unique_ptr<AuthSessionSettings> data);
+		std::unique_ptr<AuthSessionSettings> data,
+		QByteArray &&selfSerialized,
+		int32 selfStreamVersion);
 	AuthSessionSettings *getAuthSessionSettings();
 
 	// Serialization.
@@ -118,6 +134,11 @@ public:
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
 
+	// Databases
+	Storage::Databases &databases() {
+		return *_databases;
+	}
+
 	// AuthSession component.
 	AuthSession *authSession() {
 		return _authSession.get();
@@ -128,11 +149,13 @@ public:
 	Lang::CloudManager *langCloudManager() {
 		return _langCloudManager.get();
 	}
-	void authSessionCreate(UserId userId);
-	void authSessionDestroy();
+	void authSessionCreate(const MTPUser &user);
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
 	}
+	int unreadBadge() const;
+	bool unreadBadgeMuted() const;
+	void logOut();
 
 	// Media component.
 	Media::Audio::Instance &audio() {
@@ -144,31 +167,29 @@ public:
 	QString createInternalLink(const QString &query) const;
 	QString createInternalLinkFull(const QString &query) const;
 	void checkStartUrl();
-	bool openLocalUrl(const QString &url);
-
-	void uploadProfilePhoto(QImage &&tosend, const PeerId &peerId);
-	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);
-	bool isPhotoUpdating(const PeerId &peer);
-	void cancelPhotoUpdate(const PeerId &peer);
-
-	void selfPhotoCleared(const MTPUserProfilePhoto &result);
-	void chatPhotoCleared(PeerId peer, const MTPUpdates &updates);
-	void selfPhotoDone(const MTPphotos_Photo &result);
-	void chatPhotoDone(PeerId peerId, const MTPUpdates &updates);
-	bool peerPhotoFailed(PeerId peerId, const RPCError &e);
-	void peerClearPhoto(PeerId peer);
-
-	void writeUserConfigIn(TimeMs ms);
+	bool openLocalUrl(const QString &url, QVariant context);
 
 	void killDownloadSessionsStart(MTP::DcId dcId);
 	void killDownloadSessionsStop(MTP::DcId dcId);
 
+	void forceLogOut(const TextWithEntities &explanation);
 	void checkLocalTime();
-	void setupPasscode();
-	void clearPasscode();
-	base::Observable<void> &passcodedChanged() {
-		return _passcodedChanged;
-	}
+	void lockByPasscode();
+	void unlockPasscode();
+	[[nodiscard]] bool passcodeLocked() const;
+	rpl::producer<bool> passcodeLockChanges() const;
+	rpl::producer<bool> passcodeLockValue() const;
+
+	void lockByTerms(const Window::TermsLock &data);
+	void unlockTerms();
+	[[nodiscard]] std::optional<Window::TermsLock> termsLocked() const;
+	rpl::producer<bool> termsLockChanges() const;
+	rpl::producer<bool> termsLockValue() const;
+	void termsDeleteNow();
+
+	[[nodiscard]] bool locked() const;
+	rpl::producer<bool> lockChanges() const;
+	rpl::producer<bool> lockValue() const;
 
 	void registerLeaveSubscription(QWidget *widget);
 	void unregisterLeaveSubscription(QWidget *widget);
@@ -182,21 +203,15 @@ public:
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
-	void callDelayed(int duration, base::lambda_once<void()> &&lambda) {
+	void callDelayed(int duration, FnMut<void()> &&lambda) {
 		_callDelayedTimer.call(duration, std::move(lambda));
 	}
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
-signals:
-	void peerPhotoDone(PeerId peer);
-	void peerPhotoFail(PeerId peer);
-
 public slots:
 	void onAllKeysDestroyed();
-
-	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
 	void onSwitchWorkMode();
@@ -208,16 +223,20 @@ public slots:
 private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void startLocalStorage();
+	void startShortcuts();
 
 	friend void App::quit();
 	static void QuitAttempt();
 	void quitDelayed();
 
+	void resetAuthorizationKeys();
+	void authSessionDestroy();
+	void clearPasscodeLock();
 	void loggedOut();
 
-	not_null<Core::Launcher*> _launcher;
+	void fillLocalUrlHandlers();
 
-	QMap<FullMsgId, PeerId> photoUpdates;
+	not_null<Core::Launcher*> _launcher;
 
 	QMap<MTP::DcId, TimeMs> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
@@ -228,6 +247,7 @@ private:
 
 	QWidget _globalShortcutParent;
 
+	std::unique_ptr<Storage::Databases> _databases;
 	std::unique_ptr<MainWindow> _window;
 	std::unique_ptr<MediaView> _mediaView;
 	std::unique_ptr<Lang::Instance> _langpack;
@@ -239,10 +259,15 @@ private:
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
+	QPointer<BoxContent> _badProxyDisableBox;
 
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;
 	QImage _logoNoMargin;
+
+	rpl::variable<bool> _passcodeLock;
+	rpl::event_stream<bool> _termsLockChanges;
+	std::unique_ptr<Window::TermsLock> _termsLock;
 
 	base::DelayedCallTimer _callDelayedTimer;
 
@@ -257,5 +282,7 @@ private:
 		rpl::lifetime subscription;
 	};
 	std::vector<LeaveSubscription> _leaveSubscriptions;
+
+	rpl::lifetime _lifetime;
 
 };

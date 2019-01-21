@@ -6,103 +6,199 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "basic.style";
-using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
+using "info/info.style";
 using "boxes/boxes.style";
 
-settingsScroll: ScrollArea(defaultScrollArea) {
-	bottomsh: 0px;
-	topsh: 0px;
+settingsSectionButton: InfoProfileButton(infoProfileButton) {
+	font: boxTextFont;
+	padding: margins(79px, 13px, 22px, 11px);
 }
-
-settingsMaxWidth: 520px;
-settingsMaxPadding: 48px;
-settingsMinPadding: 32px;
-settingsMargin: 48px;
-
-settingsFixedBarHeight: boxLayerTitleHeight;
-settingsFixedBarFont: boxTitleFont;
-settingsFixedBarTextPosition: boxLayerTitlePosition;
-settingsFixedBarClose: IconButton(boxTitleClose) {
-	width: settingsFixedBarHeight;
-	height: settingsFixedBarHeight;
+settingsButton: InfoProfileButton(settingsSectionButton) {
+	padding: margins(22px, 10px, 22px, 8px);
 }
-
-settingsMarginTop: 34px;
-settingsPhoto: UserpicButton(defaultUserpicButton) {
-	size: size(112px, 112px);
-	photoSize: 112px;
+settingsAttentionButton: InfoProfileButton(settingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
 }
-settingsPhotoLeft: -8px;
-settingsPhotoDuration: 500;
-settingsNameLeft: 26px;
-settingsNameTop: 9px;
-settingsNameLabel: FlatLabel(defaultFlatLabel) {
-	margin: margins(10px, 5px, 10px, 5px);
-	minWidth: 160px;
-	maxHeight: 24px;
-	textFg: windowBoldFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
-	}
-}
-settingsStatusLeft: 27px;
-settingsStatusTop: 35px;
-settingsStatusFont: normalFont;
-settingsStatusFg: windowSubTextFg;
-settingsStatusFgActive: windowActiveTextFg;
-settingsMarginBottom: 35px;
-
-settingsButtonLeft: 27px;
-settingsButtonTop: 75px;
-settingsButtonSkip: 10px;
-settingsPrimaryButton: defaultActiveButton;
-settingsSecondaryButton: defaultLightButton;
-settingsEditButton: IconButton {
-	width: 24px;
-	height: 34px;
-
-	icon: icon {{ "settings_edit_name", menuIconFg }};
-	iconPosition: point(3px, 9px);
-}
-
-settingsBlocksTop: 7px;
-settingsBlocksBottom: 20px;
-settingsBlockMarginTop: 14px;
-settingsBlockMarginRight: 10px;
-settingsBlockMarginBottom: 10px;
-settingsBlockTitleHeight: 31px;
-settingsBlockTitleFont: font(15px semibold);
-settingsBlockTitleFg: windowBoldFg;
-settingsBlockTitleTop: 0px;
-settingsPrimaryLabel: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: boxTextFont;
-		linkFont: boxTextFont;
-		linkFontOver: font(boxFontSize underline);
-	}
-}
-settingsBlockLabel: FlatLabel(settingsPrimaryLabel) {
-	textFg: windowSubTextFg;
-}
-settingsBlockOneLineTextPart: FlatLabel(settingsPrimaryLabel) {
-	minWidth: 0px; // No need to set minWidth in one-line text.
-	margin: margins(5px, 5px, 5px, 5px);
+settingsSectionSkip: 9px;
+settingsSectionIconLeft: 22px;
+settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
+settingsButtonRightSkip: 28px;
+settingsButtonRight: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+	style: boxTextStyle;
 	maxHeight: 20px;
 }
-settingsBioValue: FlatLabel(settingsBlockOneLineTextPart) {
-	minWidth: 120px;
-	maxHeight: 0px;
+settingsScalePadding: margins(79px, 10px, 28px, 8px);
+settingsBigScalePadding: margins(22px, 10px, 22px, 8px);
+settingsSlider: SettingsSlider(defaultSettingsSlider) {
+	barFg: windowBgOver;
+	labelFg: windowSubTextFg;
+	labelFgActive: windowActiveTextFg;
 }
-settingsSubSkip: 4px;
-settingsSmallSkip: 10px;
-settingsSkip: 14px;
-settingsLargeSkip: 23px;
+settingsUpdateToggle: InfoProfileButton(settingsButton) {
+	height: 40px;
+	padding: margins(22px, 8px, 22px, 8px);
+}
+settingsUpdateState: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
+}
+settingsUpdateStatePosition: point(22px, 29px);
+settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 
-settingsActionPadding: margins(0px, 4px, 0px, 5px);
+settingsIconInformation: icon {{ "settings_information", menuIconFg }};
+settingsIconNotifications: icon {{ "settings_notifications", menuIconFg }};
+settingsIconChat: icon {{ "settings_chat", menuIconFg }};
+settingsIconGeneral: icon {{ "settings_advanced", menuIconFg }};
+settingsIconPrivacySecurity: icon {{ "settings_privacy_security", menuIconFg }};
+settingsIconLanguage: icon {{ "settings_language", menuIconFg }};
+settingsIconInterfaceScale: icon {{ "settings_interface_scale", menuIconFg }};
+settingsIconFaq: icon {{ "settings_faq", menuIconFg }};
+settingsIconStickers: icon {{ "settings_stickers", menuIconFg }};
+settingsIconEmoji: icon {{ "settings_emoji", menuIconFg }};
+settingsIconThemes: icon {{ "settings_themes", menuIconFg }};
 
-settingsBackgroundSize: 120px;
+settingsSetPhotoSkip: 7px;
 
-settingsUpdateFg: windowSubTextFg;
+settingsCheckbox: Checkbox(defaultBoxCheckbox) {
+	textPosition: point(15px, 1px);
+}
+settingsCheckboxPadding: margins(22px, 10px, 10px, 10px);
+settingsLink: boxLinkButton;
+settingsAdvancedNotificationsPadding: margins(22px, 20px, 10px, 10px);
+settingsLinkLabel: defaultFlatLabel;
+settingsCheckboxesSkip: 12px;
+
+settingsSendType: settingsCheckbox;
+settingsSendTypePadding: margins(22px, 5px, 10px, 5px);
+settingsSendTypeSkip: 5px;
+
+settingsBackgroundThumb: 76px;
+settingsThumbSkip: 16px;
+settingsSubsectionTitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+		linkFont: font(boxFontSize semibold);
+		linkFontOver: font(boxFontSize semibold underline);
+	}
+	textFg: windowActiveTextFg;
+}
+settingsSubsectionTitlePadding: margins(22px, 7px, 10px, 9px);
+settingsBackgroundPadding: margins(22px, 11px, 10px, 12px);
+settingsTileSkip: 15px;
+settingsFromGalleryTop: 2px;
+settingsFromFileTop: 14px;
+settingsPrivacySecurityPadding: 12px;
+settingsPrivacySkip: 14px;
+
+settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: boxTextStyle;
+	maxHeight: 20px;
+}
+settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
+
+settingsInfoPhotoHeight: 175px;
+settingsInfoPhotoSize: 84px;
+settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
+	size: size(settingsInfoPhotoSize, settingsInfoPhotoSize);
+	photoSize: settingsInfoPhotoSize;
+}
+settingsInfoPhotoTop: 17px;
+settingsInfoPhotoSkip: 16px;
+settingsInfoPhotoSet: defaultActiveButton;
+
+settingsInfoRow: InfoProfileButton(settingsButton) {
+	height: 62px;
+	padding: margins(0px, 0px, 0px, 0px);
+}
+settingsInfoIconPosition: point(22px, 18px);
+settingsInfoValue: FlatLabel(defaultFlatLabel) {
+	textFg: windowFg;
+	style: boxTextStyle;
+	maxHeight: 20px;
+}
+settingsInfoValuePosition: point(78px, 14px);
+settingsInfoAbout: FlatLabel(settingsInfoValue) {
+	textFg: windowSubTextFg;
+	style: defaultTextStyle;
+}
+settingsInfoAboutPosition: point(78px, 34px);
+settingsInfoRightSkip: 60px;
+settingsInfoEditRight: 14px;
+settingsInfoEditIconOver: icon {{ "settings_edit", menuIconFgOver }};
+settingsBio: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 7px, 0px, 13px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 32px;
+
+	font: boxTextFont;
+}
+settingsInfoAfterSkip: 14px;
+settingsInfoName: icon {{ "settings_name", menuIconFg }};
+settingsInfoPhone: icon {{ "settings_phone_number", menuIconFg }};
+settingsInfoUsername: icon {{ "settings_username", menuIconFg }};
+
+settingsBioMargins: margins(20px, 6px, 20px, 6px);
+settingsBioCountdown: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+	textFg: windowSubTextFg;
+}
+settingsBioLabelPadding: margins(22px, 11px, 22px, 0px);
+
+settingsPrivacyEditLabelPadding: margins(22px, 11px, 22px, 11px);
+
+settingsChatButton: InfoProfileButton(settingsSectionButton) {
+	padding: margins(59px, 13px, 22px, 11px);
+}
+settingsChatIconLeft: 19px;
+
+settingsThemesTopSkip: 10px;
+settingsThemesBottomSkip: 8px;
+settingsTheme: Checkbox(defaultCheckbox) {
+	textFg: windowSubTextFg;
+	textFgActive: windowActiveTextFg;
+
+	width: 80px;
+	margin: margins(0px, 0px, 0px, 0px);
+
+	textPosition: point(0px, 86px);
+	checkPosition: point(0px, 0px);
+
+	style: defaultTextStyle;
+
+	disabledOpacity: 0.5;
+}
+
+settingsThemePreviewSize: size(80px, 80px);
+settingsThemeBubbleSize: size(40px, 14px);
+settingsThemeBubbleRadius: 2px;
+settingsThemeBubblePosition: point(6px, 8px);
+settingsThemeBubbleSkip: 4px;
+settingsThemeRadioBottom: 8px;
+settingsThemeMinSkip: 4px;
+
+autoDownloadLimitButton: InfoProfileButton(settingsButton) {
+	padding: margins(22px, 10px, 22px, 0px);
+}
+settingsAudioVolumeSlider: MediaSlider(defaultContinuousSlider) {
+    seekSize: size(15px, 15px);
+}
+settingsAudioVolumeSliderPadding: margins(23px, 5px, 20px, 10px);
+settingsAudioVolumeLabel: LabelSimple(defaultLabelSimple) {
+    font: boxTextFont;
+    textFg: windowBoldFg;
+}
+settingsAudioVolumeLabelPadding: margins(22px, 11px, 22px, 11px);
+settingsLevelMeterPadding: margins(23px, 10px, 20px, 10px);

@@ -28,7 +28,8 @@ struct TextState;
 enum class Context : char {
 	History,
 	Feed,
-	AdminLog
+	AdminLog,
+	ContactPreview
 };
 
 class Element;
@@ -249,6 +250,8 @@ protected:
 	void paintHighlight(
 		Painter &p,
 		int geometryHeight) const;
+
+	virtual void refreshDataIdHook();
 
 private:
 	// This should be called only from previousInBlocksChanged()

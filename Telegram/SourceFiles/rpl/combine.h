@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/optional.h"
+#include "base/variant.h"
 #include <rpl/map.h>
 #include <rpl/producer.h>
 #include <rpl/details/type_list.h>
@@ -20,17 +21,17 @@ namespace details {
 
 template <typename ...Values>
 struct combine_state {
-	combine_state() : accumulated(std::tuple<base::optional<Values>...>()) {
+	combine_state() : accumulated(std::tuple<std::optional<Values>...>()) {
 	}
-	base::optional<std::tuple<base::optional<Values>...>> accumulated;
-	base::optional<std::tuple<Values...>> latest;
+	std::optional<std::tuple<std::optional<Values>...>> accumulated;
+	std::optional<std::tuple<Values...>> latest;
 	int invalid = sizeof...(Values);
 	int working = sizeof...(Values);
 };
 
 template <typename ...Values, std::size_t ...I>
 inline std::tuple<Values...> combine_make_first(
-		std::tuple<base::optional<Values>...> &&accumulated,
+		std::tuple<std::optional<Values>...> &&accumulated,
 		std::index_sequence<I...>) {
 	return std::make_tuple(std::move(*std::get<I>(accumulated))...);
 }
@@ -64,7 +65,7 @@ public:
 						state->latest = combine_make_first(
 							std::move(*state->accumulated),
 							std::make_index_sequence<kArity>());
-						state->accumulated = base::none;
+						state->accumulated = std::nullopt;
 						consumer.put_next_copy(*state->latest);
 					}
 				}
@@ -121,7 +122,7 @@ template <
 class combine_implementation_helper<producer<Values, Errors, Generators>...> {
 public:
 	using CombinedValue = std::tuple<Values...>;
-	using CombinedError = normalized_variant_t<Errors...>;
+	using CombinedError = base::normalized_variant_t<Errors...>;
 
 	combine_implementation_helper(
 		producer<Values, Errors, Generators> &&...producers)
@@ -154,7 +155,7 @@ template <
 inline auto combine_implementation(
 		producer<Values, Errors, Generators> &&...producers) {
 	using CombinedValue = std::tuple<Values...>;
-	using CombinedError = normalized_variant_t<Errors...>;
+	using CombinedError = base::normalized_variant_t<Errors...>;
 
 	return make_producer<CombinedValue, CombinedError>(
 		make_combine_implementation_helper(std::move(producers)...));
@@ -275,7 +276,7 @@ namespace details {
 
 template <typename Value>
 struct combine_vector_state {
-	std::vector<base::optional<Value>> accumulated;
+	std::vector<std::optional<Value>> accumulated;
 	std::vector<Value> latest;
 	int invalid = 0;
 	int working = 0;

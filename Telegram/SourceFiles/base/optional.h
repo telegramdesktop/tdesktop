@@ -7,39 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <optional>
 #include <gsl/gsl_assert>
 #include "base/variant.h"
 
 namespace base {
 
-struct none_type {
-	bool operator==(none_type other) const {
-		return true;
-	}
-	bool operator!=(none_type other) const {
-		return false;
-	}
-	bool operator<(none_type other) const {
-		return false;
-	}
-	bool operator<=(none_type other) const {
-		return true;
-	}
-	bool operator>(none_type other) const {
-		return false;
-	}
-	bool operator>=(none_type other) const {
-		return true;
-	}
-
-};
-
-constexpr none_type none = {};
-
 template <typename... Types>
 class optional_variant {
 public:
-	optional_variant() : _impl(none) {
+	optional_variant() : _impl(std::nullopt) {
 	}
 	optional_variant(const optional_variant &other) : _impl(other._impl) {
 	}
@@ -63,7 +40,7 @@ public:
 	}
 
 	bool has_value() const {
-		return !is<none_type>();
+		return !is<std::nullopt_t>();
 	}
 	explicit operator bool() const {
 		return has_value();
@@ -87,6 +64,15 @@ public:
 		return _impl >= other._impl;
 	}
 
+	template <typename T, typename... Args>
+	T &set(Args &&...args) {
+		_impl.template set<T>(std::forward<Args>(args)...);
+		return get_unchecked<T>();
+	}
+	void clear() {
+		_impl.template set<std::nullopt_t>();
+	}
+
 	template <typename T>
 	decltype(auto) is() const {
 		return _impl.template is<T>();
@@ -100,8 +86,17 @@ public:
 		return _impl.template get_unchecked<T>();
 	}
 
+	template <typename ...Methods>
+	decltype(auto) match(Methods &&...methods) {
+		return base::match(_impl, std::forward<Methods>(methods)...);
+	}
+	template <typename ...Methods>
+	decltype(auto) match(Methods &&...methods) const {
+		return base::match(_impl, std::forward<Methods>(methods)...);
+	}
+
 private:
-	variant<none_type, Types...> _impl;
+	variant<std::nullopt_t, Types...> _impl;
 
 };
 
@@ -115,17 +110,28 @@ inline const T *get_if(const optional_variant<Types...> *v) {
 	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
 }
 
-template <typename Type>
-class optional;
+template <typename ...Types, typename ...Methods>
+inline decltype(auto) match(
+		optional_variant<Types...> &value,
+		Methods &&...methods) {
+	return value.match(std::forward<Methods>(methods)...);
+}
+
+template <typename ...Types, typename ...Methods>
+inline decltype(auto) match(
+		const optional_variant<Types...> &value,
+		Methods &&...methods) {
+	return value.match(std::forward<Methods>(methods)...);
+}
 
 template <typename Type>
 struct optional_wrap_once {
-	using type = optional<Type>;
+	using type = std::optional<Type>;
 };
 
 template <typename Type>
-struct optional_wrap_once<optional<Type>> {
-	using type = optional<Type>;
+struct optional_wrap_once<std::optional<Type>> {
+	using type = std::optional<Type>;
 };
 
 template <typename Type>
@@ -145,46 +151,21 @@ template <typename Type>
 using optional_chain_result_t = typename optional_chain_result<Type>::type;
 
 template <typename Type>
-class optional : public optional_variant<Type> {
-public:
-	using optional_variant<Type>::optional_variant;
-
-	Type &operator*() {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return *result;
-	}
-	const Type &operator*() const {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return *result;
-	}
-	Type *operator->() {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return result;
-	}
-	const Type *operator->() const {
-		auto result = get_if<Type>(this);
-		Expects(result != nullptr);
-		return result;
-	}
-
-};
-
-template <typename Type>
 optional_wrap_once_t<Type> make_optional(Type &&value) {
 	return optional_wrap_once_t<Type> { std::forward<Type>(value) };
 }
 
+} // namespace base
+
 template <typename Type, typename Method>
-inline auto operator|(const optional<Type> &value, Method method)
--> optional_chain_result_t<decltype(method(*value))> {
+inline auto operator|(const std::optional<Type> &value, Method method)
+-> base::optional_chain_result_t<decltype(method(*value))> {
 	if constexpr (std::is_same_v<decltype(method(*value)), void>) {
 		return value ? (method(*value), true) : false;
 	} else {
-		return value ? make_optional(method(*value)) : none;
+		return value
+			? base::optional_chain_result_t<decltype(method(*value))>(
+				method(*value))
+			: std::nullopt;
 	}
 }
-
-} // namespace base

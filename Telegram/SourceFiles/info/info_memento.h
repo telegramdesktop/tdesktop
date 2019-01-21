@@ -26,16 +26,20 @@ struct ScrollToRequest;
 } // namespace Ui
 
 namespace Info {
+namespace Settings {
+struct Tag;
+} // namespace Settings
 
 class ContentMemento;
 class WrapWidget;
 
 class Memento final : public Window::SectionMemento {
 public:
-	Memento(PeerId peerId);
+	explicit Memento(PeerId peerId);
 	Memento(PeerId peerId, Section section);
 	Memento(not_null<Data::Feed*> feed, Section section);
-	Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
+	Memento(Settings::Tag settings, Section section);
+	explicit Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -54,6 +58,7 @@ public:
 
 	not_null<ContentMemento*> content() {
 		Expects(!_stack.empty());
+
 		return _stack.back().get();
 	}
 
@@ -68,6 +73,9 @@ private:
 		Section section);
 	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
 		not_null<Data::Feed*> feed,
+		Section section);
+	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+		Settings::Tag settings,
 		Section section);
 	static std::unique_ptr<ContentMemento> DefaultContent(
 		not_null<Data::Feed*> feed,

@@ -7,14 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_media_types.h"
 
-#include "history/history_media_types.h"
 #include "history/history_item.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
+#include "history/media/history_media_photo.h"
+#include "history/media/history_media_sticker.h"
+#include "history/media/history_media_gif.h"
+#include "history/media/history_media_video.h"
+#include "history/media/history_media_document.h"
+#include "history/media/history_media_contact.h"
+#include "history/media/history_media_location.h"
+#include "history/media/history_media_game.h"
+#include "history/media/history_media_invoice.h"
+#include "history/media/history_media_call.h"
+#include "history/media/history_media_web_page.h"
+#include "history/media/history_media_poll.h"
+#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
+#include "data/data_game.h"
+#include "data/data_web_page.h"
+#include "data/data_poll.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
 #include "layout.h"
@@ -55,8 +74,7 @@ Invoice ComputeInvoiceData(const MTPDmessageMediaInvoice &data) {
 		result.receiptMsgId = data.vreceipt_msg_id.v;
 	}
 	if (data.has_photo()) {
-		const auto thumb = ImagePtr();
-		result.photo = Auth().data().photoFromWeb(data.vphoto, thumb);
+		result.photo = Auth().data().photoFromWeb(data.vphoto);
 	}
 	return result;
 }
@@ -150,6 +168,10 @@ LocationData *Media::location() const {
 	return nullptr;
 }
 
+PollData *Media::poll() const {
+	return nullptr;
+}
+
 bool Media::uploading() const {
 	return false;
 }
@@ -173,8 +195,8 @@ bool Media::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr Media::replyPreview() const {
-	return ImagePtr();
+Image *Media::replyPreview() const {
+	return nullptr;
 }
 
 bool Media::allowsForward() const {
@@ -268,8 +290,8 @@ bool MediaPhoto::hasReplyPreview() const {
 	return !_photo->thumb->isNull();
 }
 
-ImagePtr MediaPhoto::replyPreview() const {
-	return _photo->makeReplyPreview();
+Image *MediaPhoto::replyPreview() const {
+	return _photo->getReplyPreview(parent()->fullId());
 }
 
 QString MediaPhoto::notificationText() const {
@@ -312,22 +334,20 @@ bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaPhoto) {
 		return false;
 	}
-	auto &photo = media.c_messageMediaPhoto();
-	if (photo.has_photo() && !photo.has_ttl_seconds()) {
-		if (auto existing = Auth().data().photo(photo.vphoto)) {
-			if (existing == _photo) {
-				return true;
-			} else {
-				// collect data
-			}
+	auto &data = media.c_messageMediaPhoto();
+	if (data.has_photo() && !data.has_ttl_seconds()) {
+		const auto photo = Auth().data().photo(data.vphoto);
+		if (photo == _photo) {
+			return true;
+		} else {
+			photo->collectLocalData(_photo);
 		}
 	} else {
 		LOG(("API Error: "
 			"Got MTPMessageMediaPhoto without photo "
 			"or with ttl_seconds in updateInlineResultMedia()"));
 	}
-	// Can return false if we collect the data.
-	return true;
+	return false;
 }
 
 bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
@@ -347,45 +367,84 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	if (photo.type() != mtpc_photo) {
 		return false;
 	}
+	struct SizeData {
+		char letter = 0;
+		int width = 0;
+		int height = 0;
+		const MTPFileLocation *location = nullptr;
+		QByteArray bytes;
+	};
+	const auto saveImageToCache = [](
+			const ImagePtr &image,
+			SizeData size) {
+		Expects(size.location != nullptr);
+
+		const auto key = StorageImageLocation(
+			size.width,
+			size.height,
+			size.location->c_fileLocation());
+		if (key.isNull() || image->isNull() || !image->loaded()) {
+			return;
+		}
+		if (size.bytes.isEmpty()) {
+			size.bytes = image->bytesForCache();
+		}
+		const auto length = size.bytes.size();
+		if (!length || length > Storage::kMaxFileInMemory) {
+			LOG(("App Error: Bad photo data for saving to cache."));
+			return;
+		}
+		Auth().data().cache().putIfEmpty(
+			Data::StorageCacheKey(key),
+			Storage::Cache::Database::TaggedValue(
+				std::move(size.bytes),
+				Data::kImageCacheTag));
+		image->replaceSource(
+			std::make_unique<Images::StorageSource>(key, length));
+	};
 	auto &sizes = photo.c_photo().vsizes.v;
 	auto max = 0;
-	const MTPDfileLocation *maxLocation = 0;
+	auto maxSize = SizeData();
 	for (const auto &data : sizes) {
-		char size = 0;
-		const MTPFileLocation *loc = 0;
-		switch (data.type()) {
-		case mtpc_photoSize: {
-			const auto &s = data.c_photoSize().vtype.v;
-			loc = &data.c_photoSize().vlocation;
-			if (s.size()) size = s[0];
-		} break;
-
-		case mtpc_photoCachedSize: {
-			const auto &s = data.c_photoCachedSize().vtype.v;
-			loc = &data.c_photoCachedSize().vlocation;
-			if (s.size()) size = s[0];
-		} break;
-		}
-		if (!loc || loc->type() != mtpc_fileLocation) {
+		const auto size = data.match([](const MTPDphotoSize &data) {
+			return SizeData{
+				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vw.v,
+				data.vh.v,
+				&data.vlocation,
+				QByteArray()
+			};
+		}, [](const MTPDphotoCachedSize &data) {
+			return SizeData{
+				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vw.v,
+				data.vh.v,
+				&data.vlocation,
+				qba(data.vbytes)
+			};
+		}, [](const MTPDphotoSizeEmpty &) {
+			return SizeData();
+		});
+		if (!size.location || size.location->type() != mtpc_fileLocation) {
 			continue;
 		}
-		if (size == 's') {
-			Local::writeImage(storageKey(loc->c_fileLocation()), _photo->thumb);
-		} else if (size == 'm') {
-			Local::writeImage(storageKey(loc->c_fileLocation()), _photo->medium);
-		} else if (size == 'x' && max < 1) {
+		if (size.letter == 's') {
+			saveImageToCache(_photo->thumb, size);
+		} else if (size.letter == 'm') {
+			saveImageToCache(_photo->medium, size);
+		} else if (size.letter == 'x' && max < 1) {
 			max = 1;
-			maxLocation = &loc->c_fileLocation();
-		} else if (size == 'y' && max < 2) {
+			maxSize = size;
+		} else if (size.letter == 'y' && max < 2) {
 			max = 2;
-			maxLocation = &loc->c_fileLocation();
-		//} else if (size == 'w' && max < 3) {
+			maxSize = size;
+		//} else if (size.letter == 'w' && max < 3) {
 		//	max = 3;
-		//	maxLocation = &loc->c_fileLocation();
+		//	maxSize = size;
 		}
 	}
-	if (maxLocation) {
-		Local::writeImage(storageKey(*maxLocation), _photo->full);
+	if (maxSize.location) {
+		saveImageToCache(_photo->full, maxSize);
 	}
 	return true;
 }
@@ -469,8 +528,8 @@ bool MediaFile::hasReplyPreview() const {
 	return !_document->thumb->isNull();
 }
 
-ImagePtr MediaFile::replyPreview() const {
-	return _document->makeReplyPreview();
+Image *MediaFile::replyPreview() const {
+	return _document->getReplyPreview(parent()->fullId());
 }
 
 QString MediaFile::chatsListText() const {
@@ -637,13 +696,23 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	Auth().data().documentConvert(_document, data.vdocument);
-	if (!_document->data().isEmpty()) {
-		if (_document->isVoiceMessage()) {
-			Local::writeAudio(_document->mediaKey(), _document->data());
-		} else {
-			Local::writeStickerImage(_document->mediaKey(), _document->data());
+
+	if (const auto good = _document->goodThumbnail()) {
+		auto bytes = good->bytesForCache();
+		if (const auto length = bytes.size()) {
+			if (length > Storage::kMaxFileInMemory) {
+				LOG(("App Error: Bad thumbnail data for saving to cache."));
+			} else {
+				Auth().data().cache().putIfEmpty(
+					_document->goodThumbnailCacheKey(),
+					Storage::Cache::Database::TaggedValue(
+						std::move(bytes),
+						Data::kImageCacheTag));
+				_document->refreshGoodThumbnail();
+			}
 		}
 	}
+
 	return true;
 }
 
@@ -754,7 +823,7 @@ MediaLocation::MediaLocation(
 	const QString &title,
 	const QString &description)
 : Media(parent)
-, _location(App::location(coords))
+, _location(Auth().data().location(coords))
 , _title(title)
 , _description(description) {
 }
@@ -925,21 +994,21 @@ WebPageData *MediaWebPage::webpage() const {
 }
 
 bool MediaWebPage::hasReplyPreview() const {
-	if (const auto document = _page->document) {
+	if (const auto document = MediaWebPage::document()) {
 		return !document->thumb->isNull();
-	} else if (const auto photo = _page->photo) {
+	} else if (const auto photo = MediaWebPage::photo()) {
 		return !photo->thumb->isNull();
 	}
 	return false;
 }
 
-ImagePtr MediaWebPage::replyPreview() const {
-	if (const auto document = _page->document) {
-		return document->makeReplyPreview();
-	} else if (const auto photo = _page->photo) {
-		return photo->makeReplyPreview();
+Image *MediaWebPage::replyPreview() const {
+	if (const auto document = MediaWebPage::document()) {
+		return document->getReplyPreview(parent()->fullId());
+	} else if (const auto photo = MediaWebPage::photo()) {
+		return photo->getReplyPreview(parent()->fullId());
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QString MediaWebPage::chatsListText() const {
@@ -996,13 +1065,13 @@ bool MediaGame::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr MediaGame::replyPreview() const {
+Image *MediaGame::replyPreview() const {
 	if (const auto document = _game->document) {
-		return document->makeReplyPreview();
+		return document->getReplyPreview(parent()->fullId());
 	} else if (const auto photo = _game->photo) {
-		return photo->makeReplyPreview();
+		return photo->getReplyPreview(parent()->fullId());
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QString MediaGame::notificationText() const {
@@ -1024,7 +1093,7 @@ GameData *MediaGame::game() const {
 }
 
 QString MediaGame::pinnedTextSubstring() const {
-	auto title = _game->title;
+	const auto title = _game->title;
 	return lng_action_pinned_media_game(lt_game, title);
 }
 
@@ -1096,11 +1165,11 @@ bool MediaInvoice::hasReplyPreview() const {
 	return false;
 }
 
-ImagePtr MediaInvoice::replyPreview() const {
+Image *MediaInvoice::replyPreview() const {
 	if (const auto photo = _invoice.photo) {
-		return photo->makeReplyPreview();
+		return photo->getReplyPreview(parent()->fullId());
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QString MediaInvoice::notificationText() const {
@@ -1127,6 +1196,62 @@ std::unique_ptr<HistoryMedia> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) {
 	return std::make_unique<HistoryInvoice>(message, &_invoice);
+}
+
+MediaPoll::MediaPoll(
+	not_null<HistoryItem*> parent,
+	not_null<PollData*> poll)
+: Media(parent)
+, _poll(poll) {
+}
+
+MediaPoll::~MediaPoll() {
+}
+
+std::unique_ptr<Media> MediaPoll::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaPoll>(parent, _poll);
+}
+
+PollData *MediaPoll::poll() const {
+	return _poll;
+}
+
+QString MediaPoll::notificationText() const {
+	return _poll->question;
+}
+
+QString MediaPoll::pinnedTextSubstring() const {
+	return QChar(171) + _poll->question + QChar(187);
+}
+
+TextWithEntities MediaPoll::clipboardText() const {
+	const auto text = qsl("[ ")
+		+ lang(lng_in_dlg_poll)
+		+ qsl(" : ")
+		+ _poll->question
+		+ qsl(" ]")
+		+ ranges::accumulate(
+			ranges::view::all(
+				_poll->answers
+			) | ranges::view::transform(
+				[](const PollAnswer &answer) { return "\n- " + answer.text; }
+			),
+			QString());
+	return { text, EntitiesInText() };
+}
+
+bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaPoll::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+std::unique_ptr<HistoryMedia> MediaPoll::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent) {
+	return std::make_unique<HistoryPoll>(message, _poll);
 }
 
 } // namespace Data

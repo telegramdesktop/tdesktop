@@ -1,12 +1,14 @@
 image: Visual Studio 2017
-clone_folder: C:\TBuild\tdesktop
+clone_folder: C:\TBuild\Telegreat
 test: off
-clone_depth: 1
-configuration: Release
+deploy: off
 
 environment:
   matrix:
    - BUILD_VERSION:
+   - BUILD_VERSION: disable_register_custom_scheme
+   - BUILD_VERSION: disable_crash_reports
+   - BUILD_VERSION: disable_network_proxy
 
 matrix:
   fast_finish: true
@@ -18,14 +20,7 @@ build:
   project: Telegram\Telegreat.sln
 
 artifacts:
-  - path: out\*
-    name: files
-
-deploy:
-  - provider: GitHub
-    auth_token: ""
-    repository: Sea-n/Telegreat
-    prerelease: true
-    artifact: files
-    on:
-      branch: dev
+  - path: out\Debug\Telegreat.exe
+    name: Telegreat_debug.exe
+  - path: out\Debug\Telegreat.exe.pdb
+    name: Telegreat_debug.exe.pdb

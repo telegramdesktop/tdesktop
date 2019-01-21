@@ -7,11 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/utils.h"
+#define TDESKTOP_REQUESTED_ALPHA_VERSION (0ULL)
 
-#define BETA_VERSION_MACRO (0ULL)
+#ifdef TDESKTOP_OFFICIAL_TARGET
+#define TDESKTOP_ALPHA_VERSION TDESKTOP_REQUESTED_ALPHA_VERSION
+#else // TDESKTOP_OFFICIAL_TARGET
+#define TDESKTOP_ALPHA_VERSION (0ULL)
+#endif // TDESKTOP_OFFICIAL_TARGET
 
-constexpr int AppVersion = 1002018;
-constexpr str_const AppVersionStr = "1.2.18";
-constexpr bool AppAlphaVersion = true;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+constexpr auto AppVersion = 1005007;
+constexpr auto AppVersionStr = "1.5.7";
+constexpr auto AppBetaVersion = true;
+constexpr auto AppAlphaVersion = TDESKTOP_ALPHA_VERSION;

@@ -53,11 +53,12 @@ private:
 };
 
 } // namespace details
+
 inline auto take(int count)
 -> details::take_helper {
 	Expects(count >= 0);
+
 	return details::take_helper(count);
 }
-
 
 } // namespace rpl

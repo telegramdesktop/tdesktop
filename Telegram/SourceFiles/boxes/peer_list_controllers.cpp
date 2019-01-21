@@ -42,6 +42,63 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 	return {};
 }
 
+void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
+	const auto history = App::historyLoaded(chat);
+	const auto randomId = rand_value<uint64>();
+	const auto requestId = MTP::send(
+		MTPmessages_SendMedia(
+			MTP_flags(0),
+			chat->input,
+			MTP_int(0),
+			MTP_inputMediaGame(
+				MTP_inputGameShortName(
+					bot->inputUser,
+					MTP_string(bot->botInfo->shareGameShortName))),
+			MTP_string(""),
+			MTP_long(randomId),
+			MTPnullMarkup,
+			MTPnullEntities),
+		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+		App::main()->rpcFail(&MainWidget::sendMessageFail),
+		0,
+		0,
+		history ? history->sendRequestId : 0);
+	if (history) {
+		history->sendRequestId = requestId;
+	}
+	Ui::hideLayer();
+	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+}
+
+void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
+	if (bot->botInfo && !bot->botInfo->startGroupToken.isEmpty()) {
+		Auth().api().sendBotStart(bot, chat);
+	} else {
+		Auth().api().addChatParticipants(chat, { 1, bot });
+	}
+	Ui::hideLayer();
+	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+}
+
+bool InviteSelectedUsers(
+		not_null<PeerListBox*> box,
+		not_null<PeerData*> chat) {
+	const auto rows = box->peerListCollectSelectedRows();
+	const auto users = ranges::view::all(
+		rows
+	) | ranges::view::transform([](not_null<PeerData*> peer) {
+		Expects(peer->isUser());
+		Expects(!peer->isSelf());
+
+		return not_null<UserData*>(peer->asUser());
+	}) | ranges::to_vector;
+	if (users.empty()) {
+		return false;
+	}
+	Auth().api().addChatParticipants(chat, users);
+	return true;
+}
+
 } // namespace
 
 // Not used for now.
@@ -72,14 +129,23 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 //	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 //}
 
-class EditChatAdminsBoxController::LabeledCheckbox : public TWidget, private base::Subscriber {
+class EditChatAdminsBoxController::LabeledCheckbox : public Ui::RpWidget {
 public:
-	LabeledCheckbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox, const style::Check &checkSt = st::defaultCheck);
-
-	base::Observable<bool> checkedChanged;
+	LabeledCheckbox(
+		QWidget *parent,
+		const QString &text,
+		bool checked = false,
+		const style::Checkbox &st = st::defaultCheckbox,
+		const style::Check &checkSt = st::defaultCheck);
 
 	bool checked() const {
 		return _checkbox->checked();
+	}
+	rpl::producer<bool> checkedChanges() const {
+		return _checkbox->checkedChanges();
+	}
+	rpl::producer<bool> checkedValue() const {
+		return _checkbox->checkedValue();
 	}
 
 	void setLabelText(
@@ -263,10 +329,8 @@ void ChatsListBoxController::rebuildRows() {
 	};
 	auto added = 0;
 	if (respectSavedMessagesChat()) {
-		if (auto self = App::self()) {
-			if (appendRow(App::history(self))) {
-				++added;
-			}
+		if (appendRow(App::history(Auth().user()))) {
+			++added;
 		}
 	}
 	added += appendList(App::main()->dialogsList());
@@ -482,18 +546,9 @@ void AddParticipantsBoxController::updateTitle() {
 }
 
 void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
-	auto initBox = [chat](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_participant_invite), [box, chat] {
-			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					Assert(user != nullptr);
-					Assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				App::main()->addParticipants(chat, users);
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_participant_invite), [=] {
+			if (InviteSelectedUsers(box, chat)) {
 				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
 			}
 		});
@@ -507,18 +562,9 @@ void AddParticipantsBoxController::Start(
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated) {
 	auto initBox = [channel, justCreated](not_null<PeerListBox*> box) {
-		auto subscription = std::make_shared<base::Subscription>();
-		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
-			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					Assert(user != nullptr);
-					Assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				App::main()->addParticipants(channel, users);
+		auto subscription = std::make_shared<rpl::lifetime>();
+		box->addButton(langFactory(lng_participant_invite), [=, copy = subscription] {
+			if (InviteSelectedUsers(box, channel)) {
 				if (channel->isMegagroup()) {
 					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
 				} else {
@@ -528,9 +574,9 @@ void AddParticipantsBoxController::Start(
 		});
 		box->addButton(langFactory(justCreated ? lng_create_group_skip : lng_cancel), [box] { box->closeBox(); });
 		if (justCreated) {
-			*subscription = box->boxClosing.add_subscription([channel] {
+			box->boxClosing() | rpl::start_with_next([=] {
 				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
-			});
+			}, *subscription);
 		}
 	};
 	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
@@ -552,9 +598,8 @@ EditChatAdminsBoxController::LabeledCheckbox::LabeledCheckbox(
 	bool checked,
 	const style::Checkbox &st,
 	const style::Check &checkSt)
-: TWidget(parent)
+: RpWidget(parent)
 , _checkbox(this, text, checked, st, checkSt) {
-	subscribe(_checkbox->checkedChanged, [this](bool value) { checkedChanged.notify(value, true); });
 }
 
 void EditChatAdminsBoxController::LabeledCheckbox::setLabelText(
@@ -623,7 +668,8 @@ void EditChatAdminsBoxController::prepare() {
 		}));
 	}
 
-	subscribe(_allAdmins->checkedChanged, [this](bool checked) {
+	_allAdmins->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
 		delegate()->peerListSetSearchMode(checked ? PeerListSearchMode::Disabled : PeerListSearchMode::Enabled);
 		for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {
 			auto row = delegate()->peerListRowAt(i);
@@ -634,7 +680,7 @@ void EditChatAdminsBoxController::prepare() {
 				row->setDisabledState(PeerListRow::State::Active);
 			}
 		}
-	});
+	}, _allAdmins->lifetime());
 }
 
 void EditChatAdminsBoxController::createAllAdminsCheckbox() {
@@ -658,7 +704,7 @@ void EditChatAdminsBoxController::rebuildRows() {
 	admins.reserve(allAdmins ? _chat->participants.size() : _chat->admins.size());
 	others.reserve(_chat->participants.size());
 
-	for (auto [user, version] : _chat->participants) {
+	for (const auto [user, version] : _chat->participants) {
 		if (user->id == peerFromUser(_chat->creator)) continue;
 		if (_chat->admins.contains(user)) {
 			admins.push_back(user);
@@ -753,36 +799,9 @@ void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
-	auto send = [weak = base::make_weak(this), bot = _bot, chat] {
-		if (!weak) {
-			return;
-		}
-		const auto history = App::historyLoaded(chat);
-		const auto randomId = rand_value<uint64>();
-		const auto requestId = MTP::send(
-			MTPmessages_SendMedia(
-				MTP_flags(0),
-				chat->input,
-				MTP_int(0),
-				MTP_inputMediaGame(
-					MTP_inputGameShortName(
-						bot->inputUser,
-						MTP_string(bot->botInfo->shareGameShortName))),
-				MTP_string(""),
-				MTP_long(randomId),
-				MTPnullMarkup,
-				MTPnullEntities),
-			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-			App::main()->rpcFail(&MainWidget::sendMessageFail),
-			0,
-			0,
-			history ? history->sendRequestId : 0);
-		if (history) {
-			history->sendRequestId = requestId;
-		}
-		Ui::hideLayer();
-		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-	};
+	auto send = crl::guard(this, [bot = _bot, chat] {
+		ShareBotGame(bot, chat);
+	});
 	auto confirmText = [chat] {
 		if (chat->isUser()) {
 			return lng_bot_sure_share_game(lt_user, App::peerName(chat));
@@ -795,7 +814,7 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 }
 
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
-	if (auto megagroup = chat->asMegagroup()) {
+	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
 			Ui::show(
 				Box<InformBox>(lang(lng_error_cant_add_member)),
@@ -803,35 +822,9 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			return;
 		}
 	}
-	auto send = [weak = base::make_weak(this), bot = _bot, chat] {
-		if (!weak) {
-			return;
-		}
-		if (auto &info = bot->botInfo) {
-			if (!info->startGroupToken.isEmpty()) {
-				MTP::send(
-					MTPmessages_StartBot(
-						bot->inputUser,
-						chat->input,
-						MTP_long(rand_value<uint64>()),
-						MTP_string(info->startGroupToken)),
-					App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-					App::main()->rpcFail(
-						&MainWidget::addParticipantFail,
-						{ bot, chat }));
-			} else {
-				App::main()->addParticipants(
-					chat,
-					{ 1, bot });
-			}
-		} else {
-			App::main()->addParticipants(
-				chat,
-				{ 1, bot });
-		}
-		Ui::hideLayer();
-		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-	};
+	auto send = crl::guard(this, [bot = _bot, chat] {
+		AddBotToGroup(bot, chat);
+	});
 	auto confirmText = lng_bot_sure_invite(lt_group, chat->name);
 	Ui::show(
 		Box<ConfirmBox>(confirmText, send),
@@ -901,7 +894,7 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(
-	base::lambda_once<void(not_null<PeerData*>)> callback)
+	FnMut<void(not_null<PeerData*>)> callback)
 : _callback(std::move(callback)) {
 }
 
@@ -910,7 +903,12 @@ void ChooseRecipientBoxController::prepareViewHook() {
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_callback(row->peer());
+	auto weak = base::make_weak(this);
+	auto callback = std::move(_callback);
+	callback(row->peer());
+	if (weak) {
+		_callback = std::move(callback);
+	}
 }
 
 auto ChooseRecipientBoxController::createRow(

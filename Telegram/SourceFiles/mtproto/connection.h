@@ -10,23 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
+#include "base/openssl_help.h"
 #include "base/timer.h"
 
 namespace MTP {
 
 class Instance;
 
-bool IsPrimeAndGood(base::const_byte_span primeBytes, int g);
+bool IsPrimeAndGood(bytes::const_span primeBytes, int g);
 struct ModExpFirst {
 	static constexpr auto kRandomPowerSize = 256;
 
-	std::vector<gsl::byte> modexp;
-	std::array<gsl::byte, kRandomPowerSize> randomPower;
+	bytes::vector modexp;
+	bytes::vector randomPower;
 };
-ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed);
-std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes);
-
-bytes::vector ProtocolSecretFromPassword(const QString &password);
+bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime);
+ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed);
+bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes);
 
 namespace internal {
 
@@ -169,12 +169,20 @@ private:
 	void destroyAllConnections();
 	void confirmBestConnection();
 	void removeTestConnection(not_null<AbstractConnection*> connection);
+	int16 getProtocolDcId() const;
 
-	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
-	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
-	mtpMsgId replaceMsgId(mtpRequest &request, mtpMsgId newId);
+	mtpMsgId placeToContainer(
+		SecureRequest &toSendRequest,
+		mtpMsgId &bigMsgId,
+		mtpMsgId *&haveSentArr,
+		SecureRequest &req);
+	mtpMsgId prepareToSend(SecureRequest &request, mtpMsgId currentLastId);
+	mtpMsgId replaceMsgId(SecureRequest &request, mtpMsgId newId);
 
-	bool sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished);
+	bool sendSecureRequest(
+		SecureRequest &&request,
+		bool needAnyResponse,
+		QReadLocker &lockFinished);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
 	enum class HandleResult {
@@ -191,7 +199,7 @@ private:
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
-	base::byte_vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key);
+	bytes::vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const internal::RSAPublicKey &key);
 	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
 	void appendTestConnection(
 		DcOptions::Variants::Protocol protocol,
@@ -208,13 +216,13 @@ private:
 	void resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 	void resendMany(QVector<quint64> msgIds, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 
-	template <typename TRequest>
-	void sendRequestNotSecure(const TRequest &request);
+	template <typename Request>
+	void sendNotSecureRequest(const Request &request);
 
-	template <typename TResponse>
-	bool readResponseNotSecure(TResponse &response);
+	template <typename Response>
+	bool readNotSecureResponse(Response &response);
 
-	Instance *_instance = nullptr;
+	not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
 
 	mutable QReadWriteLock stateConnMutex;
@@ -239,8 +247,8 @@ private:
 	base::Timer _waitForConnectedTimer;
 	base::Timer _waitForReceivedTimer;
 	base::Timer _waitForBetterTimer;
-	uint32 _waitForReceived = 0;
-	uint32 _waitForConnected = 0;
+	TimeMs _waitForReceived = 0;
+	TimeMs _waitForConnected = 0;
 	TimeMs firstSentAt = -1;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;
@@ -282,13 +290,10 @@ private:
 		uchar aesKey[32] = { 0 };
 		uchar aesIV[32] = { 0 };
 		MTPlong auth_key_hash;
-
-		uint32 req_num = 0; // sent not encrypted request number
-		uint32 msgs_sent = 0;
 	};
 	struct AuthKeyCreateStrings {
-		std::vector<gsl::byte> dh_prime;
-		std::vector<gsl::byte> g_a;
+		bytes::vector dh_prime;
+		bytes::vector g_a;
 		AuthKey::Data auth_key = { { gsl::byte{} } };
 	};
 	std::unique_ptr<AuthKeyCreateData> _authKeyData;

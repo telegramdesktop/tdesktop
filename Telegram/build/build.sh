@@ -21,8 +21,6 @@ Error () {
   exit 1
 }
 
-REBUILD="yes"
-
 if [ ! -f "$FullScriptPath/target" ]; then
   Error "Build target not found!"
 fi
@@ -37,17 +35,17 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
 done < "$FullScriptPath/version"
 
 VersionForPacker="$AppVersion"
-if [ "$BetaVersion" != "0" ]; then
-  AppVersion="$BetaVersion"
-  AppVersionStrFull="${AppVersionStr}"
-  AlphaBetaParam="-beta $BetaVersion"
-  BetaKeyFile="tbeta_${AppVersion}_key"
-elif [ "$AlphaChannel" == "0" ]; then
+if [ "$AlphaVersion" != "0" ]; then
+  AppVersion="$AlphaVersion"
+  AppVersionStrFull="${AppVersionStr}_${AlphaVersion}"
+  AlphaBetaParam="-alpha $AlphaVersion"
+  AlphaKeyFile="talpha_${AppVersion}_key"
+elif [ "$BetaChannel" == "0" ]; then
   AppVersionStrFull="$AppVersionStr"
   AlphaBetaParam=''
 else
-  AppVersionStrFull="$AppVersionStr.alpha"
-  AlphaBetaParam='-alpha'
+  AppVersionStrFull="$AppVersionStr.beta"
+  AlphaBetaParam='-beta'
 fi
 
 echo ""
@@ -79,8 +77,8 @@ elif [ "$BuildTarget" == "mac32" ]; then
   ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegreat"
 elif [ "$BuildTarget" == "macstore" ]; then
-  if [ "$BetaVersion" != "0" ]; then
-    Error "Can't build macstore beta version!"
+  if [ "$AlphaVersion" != "0" ]; then
+    Error "Can't build macstore alpha version!"
   fi
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
@@ -91,28 +89,28 @@ else
 fi
 
 #if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
-  if [ "$BetaVersion" != "0" ]; then
-    if [ -f "$ReleasePath/$BetaKeyFile" ] && [ "$REBUILD" != "no" ]; then
-      Error "Beta version key file for version $AppVersion already exists!"
+  if [ "$AlphaVersion" != "0" ]; then
+    if [ -f "$ReleasePath/$AlphaKeyFile" ]; then
+      Error "Alpha version key file for version $AppVersion already exists!"
     fi
 
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ] && [ "$REBUILD" != "no" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ]; then
       Error "Deploy folder for version $AppVersionStrFull already exists!"
     fi
   else
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.alpha" ] && [ "$REBUILD" != "no" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.alpha" ]; then
       Error "Deploy folder for version $AppVersionStr.alpha already exists!"
     fi
 
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ] && [ "$REBUILD" != "no" ]; then
-      Error "Deploy folder for version $AppVersionStr.dev already exists!"
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.beta" ]; then
+      Error "Deploy folder for version $AppVersionStr.beta already exists!"
     fi
 
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ] && [ "$REBUILD" != "no" ]; then
+    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
       Error "Deploy folder for version $AppVersionStr already exists!"
     fi
 
-    if [ -f "$ReleasePath/$UpdateFile" ] && [ "$REBUILD" != "no" ]; then
+    if [ -f "$ReleasePath/$UpdateFile" ]; then
       Error "Update file for version $AppVersion already exists!"
     fi
   fi
@@ -194,22 +192,26 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   strip -s "$ReleasePath/$BinaryName"
   echo "Done!"
 
+  echo "Removing RPATH.."
+  chrpath -d "$ReleasePath/$BinaryName"
+  echo "Done!"
+
   echo "Preparing version $AppVersionStrFull, executing Packer.."
   cd "$ReleasePath"
   "./Packer" -path "$BinaryName" -path Updater -version $VersionForPacker $AlphaBetaParam
   echo "Packer done!"
 
-  if [ "$BetaVersion" != "0" ]; then
-    if [ ! -f "$ReleasePath/$BetaKeyFile" ]; then
-      Error "Beta version key file not found!"
+  if [ "$AlphaVersion" != "0" ]; then
+    if [ ! -f "$ReleasePath/$AlphaKeyFile" ]; then
+      Error "Alpha version key file not found!"
     fi
 
     while IFS='' read -r line || [[ -n "$line" ]]; do
-      BetaSignature="$line"
-    done < "$ReleasePath/$BetaKeyFile"
+      AlphaSignature="$line"
+    done < "$ReleasePath/$AlphaKeyFile"
 
-    UpdateFile="${UpdateFile}_${BetaSignature}"
-#   SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
+    UpdateFile="${UpdateFile}_${AlphaSignature}"
+    SetupFile="talpha${AlphaVersion}_${AlphaSignature}.tar.xz"
   fi
 
 # SymbolsHash=`head -n 1 "$ReleasePath/$BinaryName.sym" | awk -F " " 'END {print $4}'`
@@ -231,9 +233,9 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   mkdir "$DeployPath/$BinaryName"
   cp "$ReleasePath/$BinaryName" "$DeployPath/$BinaryName/"
   cp "$ReleasePath/Updater" "$DeployPath/$BinaryName/"
-  cp "$ReleasePath/$UpdateFile" "$DeployPath/"
-  if [ "$BetaVersion" != "0" ]; then
-    cp "$ReleasePath/$BetaKeyFile" "$DeployPath/"
+  mv "$ReleasePath/$UpdateFile" "$DeployPath/"
+  if [ "$AlphaVersion" != "0" ]; then
+    mv "$ReleasePath/$AlphaKeyFile" "$DeployPath/"
   fi
   cd "$DeployPath"
   tar -cJvf "$SetupFile" "$BinaryName/"
@@ -241,8 +243,8 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   mkdir -p $BackupPath
   cp "$SetupFile" "$BackupPath/"
   cp "$UpdateFile" "$BackupPath/"
-  if [ "$BetaVersion" != "0" ]; then
-    cp -v "$BetaKeyFile" "$BackupPath/"
+  if [ "$AlphaVersion" != "0" ]; then
+    cp -v "$AlphaKeyFile" "$BackupPath/"
   fi
 fi
 
@@ -253,8 +255,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 #   Error "Dropbox path not found!"
 # fi
 
-  BackupPath="$HOME/Telegram/backup/$AppVersionStrMajor/$AppVersionStrFull"
-  if [ ! -d "$HOME/Telegram/backup" ]; then
+  BackupPath="/Users/sean/Documents/Code/TBuild/deploy/$AppVersionStrMajor/$AppVersionStrFull"
+  if [ ! -d "/Users/sean/Documents/Code/TBuild/deploy" ]; then
     Error "Backup path not found!"
   fi
 
@@ -283,7 +285,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     fi
   fi
 
-  if [ ! "$REBUILD" == "no" ]; then
 #   echo "Dumping debug symbols.."
 #   "$HomePath/../../Libraries/breakpad/src/tools/mac/dump_syms/build/Release/dump_syms" "$ReleasePath/$BinaryName.app.dSYM" > "$ReleasePath/$BinaryName.sym" 2>/dev/null
 #   echo "Done!"
@@ -291,7 +292,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     echo "Stripping the executable.."
     strip "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     echo "Done!"
-  fi
 
 # echo "Signing the application.."
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
@@ -338,7 +338,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 # echo "Done!"
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
-#   if [ "$BetaVersion" == "0" ]; then
+    if [ "$AlphaVersion" == "0" ]; then
       cd "$ReleasePath"
       cp -f tsetup_template.dmg tsetup.temp.dmg
       TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
@@ -347,22 +347,22 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       hdiutil detach "$TempDiskPath"
       hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
       rm tsetup.temp.dmg
-#   fi
+   fi
     cd "$ReleasePath"
     "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
     echo "Packer done!"
 
-    if [ "$BetaVersion" != "0" ]; then
-      if [ ! -f "$ReleasePath/$BetaKeyFile" ]; then
-        Error "Beta version key file not found!"
+    if [ "$AlphaVersion" != "0" ]; then
+      if [ ! -f "$ReleasePath/$AlphaKeyFile" ]; then
+        Error "Alpha version key file not found!"
       fi
 
       while IFS='' read -r line || [[ -n "$line" ]]; do
-        BetaSignature="$line"
-      done < "$ReleasePath/$BetaKeyFile"
+        AlphaSignature="$line"
+      done < "$ReleasePath/$AlphaKeyFile"
 
-     UpdateFile="${UpdateFile}_${BetaSignature}"
-#     SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
+      UpdateFile="${UpdateFile}_${AlphaSignature}"
+      SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
     fi
   fi
 
@@ -379,10 +379,11 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mkdir "$DeployPath"
     mkdir "$DeployPath/$BinaryName"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/$BinaryName/"
-    if [ "$BetaVersion" == "9487" ]; then
+    if [ "$AlphaVersion" != "0" ]; then
       cd "$DeployPath"
       zip -r "$SetupFile" "$BinaryName"
-      cp "$SetupFile" "$ReleasePath/"
+      mv "$SetupFile" "$ReleasePath/"
+      mv "$ReleasePath/$AlphaKeyFile" "$DeployPath/"
     fi
     if [ "$BetaVersion" != "0" ]; then
       cp "$ReleasePath/$BetaKeyFile" "$DeployPath/"
@@ -392,23 +393,23 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     rm "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater"
     rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
-    cp "$ReleasePath/$UpdateFile" "$DeployPath/"
+    mv "$ReleasePath/$UpdateFile" "$DeployPath/"
     cp "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac" ]; then
       mkdir -p "$BackupPath/tmac"
       cp "$DeployPath/$UpdateFile" "$BackupPath/tmac/"
       cp "$DeployPath/$SetupFile" "$BackupPath/tmac/"
-      if [ "$BetaVersion" != "0" ]; then
-        cp -v "$DeployPath/$BetaKeyFile" "$BackupPath/tmac/"
+      if [ "$AlphaVersion" != "0" ]; then
+        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac/"
       fi
     fi
     if [ "$BuildTarget" == "mac32" ]; then
       mkdir -p "$BackupPath/tmac32"
       cp "$DeployPath/$UpdateFile" "$BackupPath/tmac32/"
       cp "$DeployPath/$SetupFile" "$BackupPath/tmac32/"
-      if [ "$BetaVersion" != "0" ]; then
-        cp -v "$DeployPath/$BetaKeyFile" "$BackupPath/tmac32/"
+      if [ "$AlphaVersion" != "0" ]; then
+        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac32/"
       fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then

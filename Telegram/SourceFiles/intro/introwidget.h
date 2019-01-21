@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 #include "ui/rp_widget.h"
+#include "window/window_lock_widgets.h"
+#include "core/core_cloud_password.h"
 
 namespace Ui {
 class IconButton;
@@ -20,6 +22,10 @@ class FlatLabel;
 template <typename Widget>
 class FadeWrap;
 } // namespace Ui
+
+namespace Window {
+class ConnectingWidget;
+} // namespace Window
 
 namespace Intro {
 
@@ -43,10 +49,8 @@ protected:
 signals:
 	void countryChanged();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 private slots:
 	void onCheckUpdateStatus();
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 	// Internal interface.
 public:
@@ -69,9 +73,12 @@ public:
 		int codeLength = 5;
 		bool codeByTelegram = false;
 
-		QByteArray pwdSalt;
+		Core::CloudPasswordCheckRequest pwdRequest;
 		bool hasRecovery = false;
 		QString pwdHint;
+		bool pwdNotEmptyPassport = false;
+
+		Window::TermsLock termsLock;
 
 		base::Observable<void> updated;
 
@@ -86,12 +93,19 @@ public:
 	public:
 		Step(QWidget *parent, Data *data, bool hasCover = false);
 
+		virtual void finishInit() {
+		}
 		virtual void setInnerFocus() {
 			setFocus();
 		}
 
-		void setGoCallback(base::lambda<void(Step *step, Direction direction)> callback);
-		void setShowResetCallback(base::lambda<void()> callback);
+		void setGoCallback(
+			Fn<void(Step *step, Direction direction)> callback);
+		void setShowResetCallback(Fn<void()> callback);
+		void setShowTermsCallback(
+			Fn<void()> callback);
+		void setAcceptTermsCallback(
+			Fn<void(Fn<void()> callback)> callback);
 
 		void prepareShowAnimated(Step *after);
 		void showAnimated(Direction direction);
@@ -112,9 +126,9 @@ public:
 
 		void setErrorCentered(bool centered);
 		void setErrorBelowLink(bool below);
-		void showError(base::lambda<QString()> textFactory);
+		void showError(Fn<QString()> textFactory);
 		void hideError() {
-			showError(base::lambda<QString()>());
+			showError(Fn<QString()>());
 		}
 
 		~Step();
@@ -123,11 +137,11 @@ public:
 		void paintEvent(QPaintEvent *e) override;
 		void resizeEvent(QResizeEvent *e) override;
 
-		void setTitleText(base::lambda<QString()> richTitleTextFactory);
-		void setDescriptionText(base::lambda<QString()> richDescriptionTextFactory);
+		void setTitleText(Fn<QString()> richTitleTextFactory);
+		void setDescriptionText(Fn<QString()> richDescriptionTextFactory);
 		bool paintAnimated(Painter &p, QRect clip);
 
-		void fillSentCodeData(const MTPauth_SentCodeType &type);
+		void fillSentCodeData(const MTPDauth_sentCode &type);
 
 		void showDescription();
 		void hideDescription();
@@ -148,6 +162,14 @@ public:
 		}
 		void showResetButton() {
 			if (_showResetCallback) _showResetCallback();
+		}
+		void showTerms() {
+			if (_showTermsCallback) _showTermsCallback();
+		}
+		void acceptTerms(Fn<void()> callback) {
+			if (_acceptTermsCallback) {
+				_acceptTermsCallback(callback);
+			}
 		}
 
 	private:
@@ -181,17 +203,20 @@ public:
 
 		Data *_data = nullptr;
 		bool _hasCover = false;
-		base::lambda<void(Step *step, Direction direction)> _goCallback;
-		base::lambda<void()> _showResetCallback;
+		Fn<void(Step *step, Direction direction)> _goCallback;
+		Fn<void()> _showResetCallback;
+		Fn<void()> _showTermsCallback;
+		Fn<void(
+			Fn<void()> callback)> _acceptTermsCallback;
 
 		object_ptr<Ui::FlatLabel> _title;
-		base::lambda<QString()> _titleTextFactory;
+		Fn<QString()> _titleTextFactory;
 		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _description;
-		base::lambda<QString()> _descriptionTextFactory;
+		Fn<QString()> _descriptionTextFactory;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;
-		base::lambda<QString()> _errorTextFactory;
+		Fn<QString()> _errorTextFactory;
 		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
 		Animation _a_show;
@@ -202,6 +227,7 @@ public:
 	};
 
 private:
+	void setupConnectingWidget();
 	void refreshLang();
 	void animationCallback();
 	void createLanguageLink();
@@ -219,6 +245,10 @@ private:
 	void showResetButton();
 	void resetAccount();
 
+	void showTerms();
+	void acceptTerms(Fn<void()> callback);
+	void hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget);
+
 	Step *getStep(int skip = 0) {
 		Assert(_stepHistory.size() + skip > 0);
 		return _stepHistory.at(_stepHistory.size() - skip - 1);
@@ -228,6 +258,7 @@ private:
 	void appendStep(Step *step);
 
 	void getNearestDC();
+	void showTerms(Fn<void()> callback);
 
 	Animation _a_show;
 	bool _showBack = false;
@@ -248,6 +279,9 @@ private:
 	object_ptr<Ui::RoundButton> _next;
 	object_ptr<Ui::FadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _terms = { nullptr };
+
+	base::unique_qptr<Window::ConnectingWidget> _connecting;
 
 	mtpRequestId _resetRequest = 0;
 

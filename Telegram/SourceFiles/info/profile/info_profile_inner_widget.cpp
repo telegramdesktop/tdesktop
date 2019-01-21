@@ -77,7 +77,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	_cover = result->add(object_ptr<Cover>(
 		result,
-		_controller));
+		_peer,
+		_controller->parentController()));
+	_cover->showSection(
+	) | rpl::start_with_next([=](Section section) {
+		_controller->showSection(Info::Memento(_peer->id, section));
+	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	auto details = SetupDetails(_controller, parent, _peer);
 	if (canHideDetailsEver()) {
@@ -167,8 +172,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	if (auto user = _peer->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
-	addMediaButton(MediaType::VoiceFile, st::infoIconMediaVoice);
-//	addMediaButton(MediaType::RoundFile, st::infoIconMediaRound);
+	addMediaButton(MediaType::RoundVoiceFile, st::infoIconMediaVoice);
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,

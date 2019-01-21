@@ -20,6 +20,14 @@ class Navigation;
 
 namespace Profile {
 
+Fn<void(
+	const MTPChannelAdminRights &oldRights,
+	const MTPChannelAdminRights &newRights)> SaveAdminCallback(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		Fn<void(const MTPChannelAdminRights &newRights)> onDone,
+		Fn<void()> onFail);
+
 // Viewing admins, banned or restricted users list with search.
 class ParticipantsBoxController
 	: public PeerListController
@@ -62,6 +70,7 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
 		not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
@@ -210,8 +219,8 @@ public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
 
-	using AdminDoneCallback = base::lambda<void(not_null<UserData*> user, const MTPChannelAdminRights &adminRights)>;
-	using BannedDoneCallback = base::lambda<void(not_null<UserData*> user, const MTPChannelBannedRights &bannedRights)>;
+	using AdminDoneCallback = Fn<void(not_null<UserData*> user, const MTPChannelAdminRights &adminRights)>;
+	using BannedDoneCallback = Fn<void(not_null<UserData*> user, const MTPChannelBannedRights &bannedRights)>;
 	AddParticipantBoxController(not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback);
 
 	void prepare() override;

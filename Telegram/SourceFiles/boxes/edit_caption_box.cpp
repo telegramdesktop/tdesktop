@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_caption_box.h"
 
 #include "ui/widgets/input_fields.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "ui/special_buttons.h"
 #include "media/media_clip_reader.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -16,16 +18,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
+#include "core/event_filter.h"
+#include "chat_helpers/message_field.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_controller.h"
-#include "mainwidget.h"
 #include "layout.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
+	not_null<Window::Controller*> controller,
 	not_null<HistoryItem*> item)
-: _msgId(item->fullId()) {
+: _controller(controller)
+, _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
 
@@ -50,7 +61,11 @@ EditCaptionBox::EditCaptionBox(
 		}
 		doc = document;
 	}
-	auto caption = item->originalText().text;
+	const auto original = item->originalText();
+	const auto editData = TextWithTags {
+		original.text,
+		ConvertEntitiesToTextTags(original.entities)
+	};
 
 	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
 		if (image->isNull()) {
@@ -62,8 +77,22 @@ EditCaptionBox::EditCaptionBox(
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			auto options = Images::Option::Smooth | Images::Option::RoundedSmall | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::RoundedBottomLeft | Images::Option::RoundedBottomRight;
-			_thumb = Images::pixmap(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
+			_thumbnailImage = image;
+			_refreshThumbnail = [=] {
+				auto options = Images::Option::Smooth
+					| Images::Option::RoundedSmall
+					| Images::Option::RoundedTopLeft
+					| Images::Option::RoundedTopRight
+					| Images::Option::RoundedBottomLeft
+					| Images::Option::RoundedBottomRight;
+				_thumb = App::pixmapFromImageInPlace(Images::prepare(
+					image->pix(_msgId).toImage(),
+					_thumbw * cIntRetinaFactor(),
+					0,
+					options,
+					st::msgFileThumbSize,
+					st::msgFileThumbSize));
+			};
 		}
 
 		if (doc) {
@@ -80,6 +109,9 @@ EditCaptionBox::EditCaptionBox(
 				st::normalFont->width(_status));
 			_isImage = doc->isImage();
 			_isAudio = (doc->isVoiceMessage() || doc->isAudioFile());
+		}
+		if (_refreshThumbnail) {
+			_refreshThumbnail();
 		}
 	} else {
 		int32 maxW = 0, maxH = 0;
@@ -99,13 +131,35 @@ EditCaptionBox::EditCaptionBox(
 					maxH = limitH;
 				}
 			}
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth | Images::Option::Blurred, maxW, maxH);
+			_thumbnailImage = image;
+			_refreshThumbnail = [=] {
+				const auto options = Images::Option::Smooth
+					| Images::Option::Blurred;
+				_thumb = image->pixNoCache(
+					_msgId,
+					maxW * cIntRetinaFactor(),
+					maxH * cIntRetinaFactor(),
+					options,
+					maxW,
+					maxH);
+			};
 			prepareGifPreview(doc);
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth, maxW, maxH);
+			_thumbnailImage = image;
+			_refreshThumbnail = [=] {
+				_thumb = image->pixNoCache(
+					_msgId,
+					maxW * cIntRetinaFactor(),
+					maxH * cIntRetinaFactor(),
+					Images::Option::Smooth,
+					maxW,
+					maxH);
+			};
 		}
+		_refreshThumbnail();
+
 		int32 tw = _thumb.width(), th = _thumb.height();
 		if (!tw || !th) {
 			tw = th = 1;
@@ -125,22 +179,74 @@ EditCaptionBox::EditCaptionBox(
 		}
 		_thumbx = (st::boxWideWidth - _thumbw) / 2;
 
-		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-		_thumb.setDevicePixelRatio(cRetinaFactor());
+		const auto prepareBasicThumb = _refreshThumbnail;
+		const auto scaleThumbDown = [=] {
+			_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(
+				_thumbw * cIntRetinaFactor(),
+				_thumbh * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation));
+			_thumb.setDevicePixelRatio(cRetinaFactor());
+		};
+		_refreshThumbnail = [=] {
+			prepareBasicThumb();
+			scaleThumbDown();
+		};
+		scaleThumbDown();
 	}
 	Assert(_animated || _photo || _doc);
 
-	_field.create(this, st::confirmCaptionArea, langFactory(lng_photo_caption), caption);
-	_field->setMaxLength(MaxPhotoCaption);
-	_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	_thumbnailImageLoaded = _thumbnailImage
+		? _thumbnailImage->loaded()
+		: true;
+	subscribe(Auth().downloaderTaskFinished(), [=] {
+		if (!_thumbnailImageLoaded && _thumbnailImage->loaded()) {
+			_thumbnailImageLoaded = true;
+			_refreshThumbnail();
+			update();
+		}
+		if (doc && doc->isAnimation() && doc->loaded() && !_gifPreview) {
+			prepareGifPreview(doc);
+		}
+	});
+
+	_field.create(
+		this,
+		st::confirmCaptionArea,
+		Ui::InputField::Mode::MultiLine,
+		langFactory(lng_photo_caption),
+		editData);
+	_field->setMaxLength(Global::CaptionLengthMax());
+	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
+	_field->setInstantReplaces(Ui::InstantReplaces::Default());
+	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_field->setMarkdownReplacesEnabled(rpl::single(true));
+	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
 }
 
-void EditCaptionBox::prepareGifPreview(DocumentData *document) {
-	auto createGifPreview = [document] {
-		return (document && document->isAnimation());
-	};
-	auto createGifPreviewResult = createGifPreview(); // Clang freeze workaround.
-	if (createGifPreviewResult) {
+bool EditCaptionBox::emojiFilter(not_null<QEvent*> event) {
+	const auto type = event->type();
+	if (type == QEvent::Move || type == QEvent::Resize) {
+		// updateEmojiPanelGeometry uses not only container geometry, but
+		// also container children geometries that will be updated later.
+		crl::on_main(this, [=] { updateEmojiPanelGeometry(); });
+	}
+	return false;
+}
+
+void EditCaptionBox::updateEmojiPanelGeometry() {
+	const auto parent = _emojiPanel->parentWidget();
+	const auto global = _emojiToggle->mapToGlobal({ 0, 0 });
+	const auto local = parent->mapFromGlobal(global);
+	_emojiPanel->moveBottomRight(
+		local.y(),
+		local.x() + _emojiToggle->width() * 3);
+}
+
+void EditCaptionBox::prepareGifPreview(not_null<DocumentData*> document) {
+	if (_gifPreview) {
+		return;
+	} else if (document->isAnimation() && document->loaded()) {
 		_gifPreview = Media::Clip::MakeReader(document, _msgId, [this](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		});
@@ -177,13 +283,14 @@ void EditCaptionBox::prepare() {
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateBoxSize();
-	connect(_field, &Ui::InputArea::submitted, this, [this] { save(); });
-	connect(_field, &Ui::InputArea::cancelled, this, [this] {
-		closeBox();
-	});
-	connect(_field, &Ui::InputArea::resized, this, [this] {
-		captionResized();
-	});
+	connect(_field, &Ui::InputField::submitted, [=] { save(); });
+	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
+	connect(_field, &Ui::InputField::resized, [=] { captionResized(); });
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_field);
+
+	setupEmojiPanel();
 
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
@@ -193,7 +300,38 @@ void EditCaptionBox::prepare() {
 void EditCaptionBox::captionResized() {
 	updateBoxSize();
 	resizeEvent(0);
+	updateEmojiPanelGeometry();
 	update();
+}
+
+void EditCaptionBox::setupEmojiPanel() {
+	const auto container = getDelegate()->outerContainer();
+	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		container,
+		_controller,
+		object_ptr<ChatHelpers::TabbedSelector>(
+			nullptr,
+			_controller,
+			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+	_emojiPanel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	_emojiPanel->hide();
+	_emojiPanel->getSelector()->emojiChosen(
+	) | rpl::start_with_next([=](EmojiPtr emoji) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	}, lifetime());
+
+	_emojiFilter.reset(Core::InstallEventFilter(
+		container,
+		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
+
+	_emojiToggle.create(this, st::boxAttachEmoji);
+	_emojiToggle->installEventFilter(_emojiPanel);
+	_emojiToggle->addClickHandler([=] {
+		_emojiPanel->toggleAnimated();
+	});
 }
 
 void EditCaptionBox::updateBoxSize() {
@@ -228,7 +366,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		}
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_thumbw, _thumbh);
-			auto paused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+			auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), frame);
 		} else {
@@ -312,6 +450,11 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_field->resize(st::sendMediaPreviewSize, _field->height());
 	_field->moveToLeft(st::boxPhotoPadding.left(), height() - st::normalFont->height - errorTopSkip() - _field->height());
+	_emojiToggle->moveToLeft(
+		(st::boxPhotoPadding.left()
+			+ st::sendMediaPreviewSize
+			- _emojiToggle->width()),
+		_field->y() + st::boxAttachEmojiTop);
 }
 
 void EditCaptionBox::setInnerFocus() {
@@ -332,20 +475,32 @@ void EditCaptionBox::save() {
 	if (_previewCancelled) {
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	MTPVector<MTPMessageEntity> sentEntities;
+	const auto textWithTags = _field->getTextWithAppliedMarkdown();
+	auto sending = TextWithEntities{
+		textWithTags.text,
+		ConvertTextTagsToEntities(textWithTags.tags)
+	};
+	const auto prepareFlags = Ui::ItemTextOptions(
+		item->history(),
+		Auth().user()).flags;
+	TextUtilities::PrepareForSending(sending, prepareFlags);
+	TextUtilities::Trim(sending);
+
+	const auto sentEntities = TextUtilities::EntitiesToMTP(
+		sending.entities,
+		TextUtilities::ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	auto text = TextUtilities::PrepareForSending(_field->getLastText(), TextUtilities::PrepareTextOption::CheckLinks);
 	_saveRequestId = MTP::send(
 		MTPmessages_EditMessage(
 			MTP_flags(flags),
 			item->history()->peer->input,
 			MTP_int(item->id),
-			MTP_string(text),
+			MTP_string(sending.text),
+			MTPInputMedia(),
 			MTPnullMarkup,
-			sentEntities,
-			MTP_inputGeoPointEmpty()),
+			sentEntities),
 		rpcDone(&EditCaptionBox::saveDone),
 		rpcFail(&EditCaptionBox::saveFail));
 }
@@ -353,9 +508,7 @@ void EditCaptionBox::save() {
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 	_saveRequestId = 0;
 	closeBox();
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 }
 
 bool EditCaptionBox::saveFail(const RPCError &error) {

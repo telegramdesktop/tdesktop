@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "data/data_shared_media.h"
 #include "data/data_user_photos.h"
+#include "data/data_web_page.h"
 
 namespace Media {
 namespace Player {
@@ -147,6 +148,7 @@ private:
 	};
 	Entity entityForUserPhotos(int index) const;
 	Entity entityForSharedMedia(int index) const;
+	Entity entityForCollage(int index) const;
 	Entity entityByIndex(int index) const;
 	Entity entityForItemId(const FullMsgId &itemId) const;
 	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
@@ -161,19 +163,27 @@ private:
 	struct SharedMedia;
 	using SharedMediaType = SharedMediaWithLastSlice::Type;
 	using SharedMediaKey = SharedMediaWithLastSlice::Key;
-	base::optional<SharedMediaType> sharedMediaType() const;
-	base::optional<SharedMediaKey> sharedMediaKey() const;
-	base::optional<SharedMediaType> computeOverviewType() const;
+	std::optional<SharedMediaType> sharedMediaType() const;
+	std::optional<SharedMediaKey> sharedMediaKey() const;
+	std::optional<SharedMediaType> computeOverviewType() const;
 	bool validSharedMedia() const;
 	void validateSharedMedia();
 	void handleSharedMediaUpdate(SharedMediaWithLastSlice &&update);
 
 	struct UserPhotos;
 	using UserPhotosKey = UserPhotosSlice::Key;
-	base::optional<UserPhotosKey> userPhotosKey() const;
+	std::optional<UserPhotosKey> userPhotosKey() const;
 	bool validUserPhotos() const;
 	void validateUserPhotos();
 	void handleUserPhotosUpdate(UserPhotosSlice &&update);
+
+	struct Collage;
+	using CollageKey = WebPageCollage::Item;
+	std::optional<CollageKey> collageKey() const;
+	bool validCollage() const;
+	void validateCollage();
+
+	Data::FileOrigin fileOrigin() const;
 
 	void refreshCaption(HistoryItem *item);
 	void refreshMediaViewer();
@@ -205,7 +215,6 @@ private:
 
 	void initAnimation();
 	void createClipReader();
-	Images::Options videoThumbOptions() const;
 
 	void initThemePreview();
 	void destroyThemePreview();
@@ -247,10 +256,12 @@ private:
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
 	std::unique_ptr<SharedMedia> _sharedMedia;
-	base::optional<SharedMediaWithLastSlice> _sharedMediaData;
-	base::optional<SharedMediaWithLastSlice::Key> _sharedMediaDataKey;
+	std::optional<SharedMediaWithLastSlice> _sharedMediaData;
+	std::optional<SharedMediaWithLastSlice::Key> _sharedMediaDataKey;
 	std::unique_ptr<UserPhotos> _userPhotos;
-	base::optional<UserPhotosSlice> _userPhotosData;
+	std::optional<UserPhotosSlice> _userPhotosData;
+	std::unique_ptr<Collage> _collage;
+	std::optional<WebPageCollage> _collageData;
 
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
@@ -330,9 +341,9 @@ private:
 	PeerData *_from = nullptr;
 	Text _fromName;
 
-	base::optional<int> _index; // Index in current _sharedMedia data.
-	base::optional<int> _fullIndex; // Index in full shared media.
-	base::optional<int> _fullCount;
+	std::optional<int> _index; // Index in current _sharedMedia data.
+	std::optional<int> _fullIndex; // Index in full shared media.
+	std::optional<int> _fullCount;
 	FullMsgId _msgid;
 	bool _canForwardItem = false;
 	bool _canDeleteItem = false;

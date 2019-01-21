@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "intro/introwidget.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class InputField;
@@ -18,7 +19,7 @@ class LinkButton;
 
 namespace Intro {
 
-class PwdCheckWidget : public Widget::Step {
+class PwdCheckWidget : public Widget::Step, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -45,17 +46,25 @@ private:
 	void updateControlsGeometry();
 
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
-	bool pwdSubmitFail(const RPCError &error);
-	bool codeSubmitFail(const RPCError &error);
-	bool recoverStartFail(const RPCError &error);
+	void pwdSubmitFail(const RPCError &error);
+	void codeSubmitFail(const RPCError &error);
+	void recoverStartFail(const RPCError &error);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 
 	void updateDescriptionText();
 	void stopCheck();
+	void handleSrpIdInvalid();
+	void requestPasswordData();
+	void checkPasswordHash();
+	void passwordChecked();
+	void serverError();
 
-	QByteArray _salt;
-	bool _hasRecovery;
+	Core::CloudPasswordCheckRequest _request;
+	TimeMs _lastSrpIdInvalidTime = 0;
+	bytes::vector _passwordHash;
+	bool _hasRecovery = false;
+	bool _notEmptyPassport = false;
 	QString _hint, _emailPattern;
 
 	object_ptr<Ui::PasswordInput> _pwdField;
@@ -64,8 +73,6 @@ private:
 	object_ptr<Ui::LinkButton> _toRecover;
 	object_ptr<Ui::LinkButton> _toPassword;
 	mtpRequestId _sentRequest = 0;
-
-	QByteArray _pwdSalt;
 
 	object_ptr<QTimer> _checkRequest;
 

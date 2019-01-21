@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
-#include "history/history_media_grouped.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_grouped.h"
 #include "history/history.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
@@ -174,6 +174,9 @@ void Element::setY(int y) {
 	_y = y;
 }
 
+void Element::refreshDataIdHook() {
+}
+
 void Element::paintHighlight(
 		Painter &p,
 		int geometryHeight) const {
@@ -257,6 +260,9 @@ void Element::refreshMedia() {
 	const auto item = data();
 	const auto media = item->media();
 	if (media && media->canBeGrouped()) {
+		if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
+			return;
+		}
 		if (const auto group = Auth().data().groups().find(item)) {
 			if (group->items.back() != item) {
 				_media = nullptr;
@@ -273,6 +279,9 @@ void Element::refreshMedia() {
 		}
 	}
 	if (_data->media()) {
+		if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
+			return;
+		}
 		_media = _data->media()->createView(this);
 	} else {
 		_media = nullptr;
@@ -292,6 +301,7 @@ void Element::refreshDataId() {
 	if (const auto media = this->media()) {
 		media->refreshParentId(data());
 	}
+	refreshDataIdHook();
 }
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {

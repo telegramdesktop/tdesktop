@@ -35,10 +35,10 @@ public:
 
 	bool overlaps(const QRect &globalRect);
 
-	void setClosedCallback(base::lambda<void()> callback) {
+	void setClosedCallback(Fn<void()> callback) {
 		_closedCallback = std::move(callback);
 	}
-	void setResizedCallback(base::lambda<void()> callback) {
+	void setResizedCallback(Fn<void()> callback) {
 		_resizedCallback = std::move(callback);
 	}
 	virtual bool takeToThirdSection() {
@@ -49,11 +49,14 @@ public:
 			const SectionShow &params) {
 		return false;
 	}
+	virtual bool closeByOutsideClick() const {
+		return true;
+	}
 
 protected:
 	void closeLayer() {
-		if (_closedCallback) {
-			_closedCallback();
+		if (const auto callback = base::take(_closedCallback)) {
+			callback();
 		}
 	}
 	void mousePressEvent(QMouseEvent *e) override {
@@ -72,34 +75,27 @@ protected:
 
 private:
 	bool _closing = false;
-	base::lambda<void()> _closedCallback;
-	base::lambda<void()> _resizedCallback;
+	Fn<void()> _closedCallback;
+	Fn<void()> _resizedCallback;
 
 };
 
-class LayerStackWidget : public TWidget {
-	Q_OBJECT
-
+class LayerStackWidget : public Ui::RpWidget {
 public:
-	LayerStackWidget(QWidget *parent, Controller *controller);
+	LayerStackWidget(QWidget *parent);
 
-	Controller *controller() const {
-		return _controller;
-	}
 	void finishAnimating();
+	rpl::producer<> hideFinishEvents() const;
 
 	void showBox(
 		object_ptr<BoxContent> box,
+		LayerOptions options,
 		anim::type animated);
 	void showSpecialLayer(
 		object_ptr<LayerWidget> layer,
 		anim::type animated);
-	void showMainMenu(anim::type animated);
-	void appendBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void prependBox(
-		object_ptr<BoxContent> box,
+	void showMainMenu(
+		not_null<Window::Controller*> controller,
 		anim::type animated);
 	bool takeToThirdSection();
 
@@ -112,6 +108,8 @@ public:
 	void hideLayers(anim::type animated);
 	void hideAll(anim::type animated);
 	void hideTopLayer(anim::type animated);
+	void setHideByBackgroundClick(bool hide);
+	void removeBodyCache();
 
 	bool showSectionInternal(
 		not_null<SectionMemento*> memento,
@@ -126,17 +124,24 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onLayerDestroyed(QObject *obj);
-	void onLayerClosed(LayerWidget *layer);
-	void onLayerResized();
-
 private:
+	void appendBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void prependBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void replaceBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void backgroundClicked();
+
 	LayerWidget *pushBox(
 		object_ptr<BoxContent> box,
 		anim::type animated);
 	void showFinished();
 	void hideCurrent(anim::type animated);
+	void closeLayer(not_null<LayerWidget*> layer);
 
 	enum class Action {
 		ShowMainMenu,
@@ -165,34 +170,37 @@ private:
 	void sendFakeMouseEvent();
 
 	LayerWidget *currentLayer() {
-		return _layers.empty() ? nullptr : _layers.back();
+		return _layers.empty() ? nullptr : _layers.back().get();
 	}
 	const LayerWidget *currentLayer() const {
 		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
-	Controller *_controller = nullptr;
-
-	QList<LayerWidget*> _layers;
+	std::vector<std::unique_ptr<LayerWidget>> _layers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
 	object_ptr<MainMenu> _mainMenu = { nullptr };
 
 	class BackgroundWidget;
 	object_ptr<BackgroundWidget> _background;
+	bool _hideByBackgroundClick = true;
+
+	rpl::event_stream<> _hideFinishStream;
 
 };
 
 } // namespace Window
 
 class MediaPreviewWidget : public TWidget, private base::Subscriber {
-	Q_OBJECT
-
 public:
 	MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
-	void showPreview(DocumentData *document);
-	void showPreview(PhotoData *photo);
+	void showPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document);
+	void showPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo);
 	void hidePreview();
 
 	~MediaPreviewWidget();
@@ -212,6 +220,7 @@ private:
 
 	Animation _a_shown;
 	bool _hiding = false;
+	Data::FileOrigin _origin;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Media::Clip::ReaderPointer _gif;

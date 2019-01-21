@@ -7,13 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/passcode_box.h"
 
+#include "base/bytes.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "boxes/confirm_phone_box.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 #include "storage/localstorage.h"
-#include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/fade_wrap.h"
+#include "passport/passport_encryption.h"
+#include "passport/passport_panel_edit_contact.h"
+#include "styles/style_boxes.h"
+#include "styles/style_passport.h"
+
+namespace {
+
+} // namespace
 
 PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 : _turningOff(turningOff)
@@ -26,25 +39,53 @@ PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 , _recover(this, lang(lng_signin_recover)) {
 }
 
-PasscodeBox::PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff)
+PasscodeBox::PasscodeBox(
+	QWidget*,
+	const Core::CloudPasswordCheckRequest &curRequest,
+	const Core::CloudPasswordAlgo &newAlgo,
+	bool hasRecovery,
+	bool notEmptyPassport,
+	const QString &hint,
+	const Core::SecureSecretAlgo &newSecureSecretAlgo,
+	bool turningOff)
 : _turningOff(turningOff)
 , _cloudPwd(true)
-, _newSalt(newSalt)
-, _curSalt(curSalt)
+, _curRequest(curRequest)
+, _newAlgo(newAlgo)
+, _newSecureSecretAlgo(newSecureSecretAlgo)
 , _hasRecovery(hasRecovery)
+, _notEmptyPassport(notEmptyPassport)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_enter_old))
-, _newPasscode(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new))
+, _newPasscode(this, st::defaultInputField, langFactory(curRequest ? lng_cloud_password_enter_new : lng_cloud_password_enter_first))
 , _reenterPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_confirm_new))
-, _passwordHint(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_hint : lng_cloud_password_change_hint))
+, _passwordHint(this, st::defaultInputField, langFactory(curRequest ? lng_cloud_password_change_hint : lng_cloud_password_hint))
 , _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
+	Expects(!_turningOff || curRequest);
+
 	if (!hint.isEmpty()) _hintText.setText(st::passcodeTextStyle, lng_signin_hint(lt_password_hint, hint));
 }
 
+rpl::producer<QByteArray> PasscodeBox::newPasswordSet() const {
+	return _newPasswordSet.events();
+}
+
+rpl::producer<> PasscodeBox::passwordReloadNeeded() const {
+	return _passwordReloadNeeded.events();
+}
+
+rpl::producer<> PasscodeBox::clearUnconfirmedPassword() const {
+	return _clearUnconfirmedPassword.events();
+}
+
+bool PasscodeBox::currentlyHave() const {
+	return _cloudPwd ? (!!_curRequest) : Global::LocalPasscode();
+}
+
 void PasscodeBox::prepare() {
-	addButton(langFactory(_turningOff ? lng_passcode_remove_button : lng_settings_save), [this] { onSave(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(_turningOff ? lng_passcode_remove_button : lng_settings_save), [=] { save(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	_about.setRichText(st::passcodeTextStyle, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
@@ -53,8 +94,7 @@ void PasscodeBox::prepare() {
 		setTitle(langFactory(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
 		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 	} else {
-		auto has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
-		if (has) {
+		if (currentlyHave()) {
 			_oldPasscode->show();
 			setTitle(langFactory(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
 			setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
@@ -65,34 +105,35 @@ void PasscodeBox::prepare() {
 		}
 	}
 
-	connect(_oldPasscode, SIGNAL(changed()), this, SLOT(onOldChanged()));
-	connect(_newPasscode, SIGNAL(changed()), this, SLOT(onNewChanged()));
-	connect(_reenterPasscode, SIGNAL(changed()), this, SLOT(onNewChanged()));
-	connect(_passwordHint, SIGNAL(changed()), this, SLOT(onNewChanged()));
-	connect(_recoverEmail, SIGNAL(changed()), this, SLOT(onEmailChanged()));
+	connect(_oldPasscode, &Ui::MaskedInputField::changed, [=] { oldChanged(); });
+	connect(_newPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
+	connect(_reenterPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
+	connect(_passwordHint, &Ui::InputField::changed, [=] { newChanged(); });
+	connect(_recoverEmail, &Ui::InputField::changed, [=] { emailChanged(); });
 
-	connect(_oldPasscode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_newPasscode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_reenterPasscode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_passwordHint, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_recoverEmail, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	const auto fieldSubmit = [=] { submit(); };
+	connect(_oldPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
+	connect(_newPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
+	connect(_reenterPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
+	connect(_passwordHint, &Ui::InputField::submitted, fieldSubmit);
+	connect(_recoverEmail, &Ui::InputField::submitted, fieldSubmit);
 
-	connect(_recover, SIGNAL(clicked()), this, SLOT(onRecoverByEmail()));
+	_recover->addClickHandler([=] { recoverByEmail(); });
 
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	_oldPasscode->setVisible(_turningOff || has);
 	_recover->setVisible((_turningOff || has) && _cloudPwd && _hasRecovery);
 	_newPasscode->setVisible(!_turningOff);
 	_reenterPasscode->setVisible(!_turningOff);
 	_passwordHint->setVisible(!_turningOff && _cloudPwd);
-	_recoverEmail->setVisible(!_turningOff && _cloudPwd && _curSalt.isEmpty());
+	_recoverEmail->setVisible(!_turningOff && _cloudPwd && !has);
 }
 
-void PasscodeBox::onSubmit() {
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+void PasscodeBox::submit() {
+	const auto has = currentlyHave();
 	if (_oldPasscode->hasFocus()) {
 		if (_turningOff) {
-			onSave();
+			save();
 		} else {
 			_newPasscode->setFocus();
 		}
@@ -110,16 +151,16 @@ void PasscodeBox::onSubmit() {
 		} else if (!_passwordHint->isHidden()) {
 			_passwordHint->setFocus();
 		} else {
-			onSave();
+			save();
 		}
 	} else if (_passwordHint->hasFocus()) {
 		if (_recoverEmail->isHidden()) {
-			onSave();
+			save();
 		} else {
 			_recoverEmail->setFocus();
 		}
 	} else if (_recoverEmail->hasFocus()) {
-		onSave();
+		save();
 	}
 }
 
@@ -156,7 +197,7 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	int32 w = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
 	_oldPasscode->resize(w, _oldPasscode->height());
 	_oldPasscode->moveToLeft(st::boxPadding.left(), st::passcodePadding.top());
@@ -184,11 +225,11 @@ void PasscodeBox::setInnerFocus() {
 	}
 }
 
-void PasscodeBox::setPasswordDone(const MTPBool &result) {
+void PasscodeBox::setPasswordDone(const QByteArray &newPasswordBytes) {
 	_setRequest = 0;
-	emit reloadPassword();
+	_newPasswordSet.fire_copy(newPasswordBytes);
 	auto text = lang(_reenterPasscode->isHidden() ? lng_cloud_password_removed : (_oldPasscode->isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated));
-	Ui::show(Box<InformBox>(text));
+	getDelegate()->show(Box<InformBox>(text), LayerOption::CloseOther);
 }
 
 void PasscodeBox::closeReplacedBy() {
@@ -199,10 +240,8 @@ void PasscodeBox::closeReplacedBy() {
 	}
 }
 
-bool PasscodeBox::setPasswordFail(const RPCError &error) {
+void PasscodeBox::setPasswordFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
-		if (_oldPasscode->isHidden()) return false;
-
 		closeReplacedBy();
 		_setRequest = 0;
 
@@ -214,45 +253,142 @@ bool PasscodeBox::setPasswordFail(const RPCError &error) {
 			_recover->hide();
 		}
 		update();
-		return true;
+		return;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
 
 	closeReplacedBy();
 	_setRequest = 0;
-	QString err = error.type();
-	if (err == qstr("PASSWORD_HASH_INVALID")) {
+	const auto err = error.type();
+	if (err == qstr("PASSWORD_HASH_INVALID")
+		|| err == qstr("SRP_PASSWORD_CHANGED")) {
 		if (_oldPasscode->isHidden()) {
-			emit reloadPassword();
+			_passwordReloadNeeded.fire({});
 			closeBox();
 		} else {
-			onBadOldPasscode();
+			badOldPasscode();
 		}
-	} else if (err == qstr("NEW_PASSWORD_BAD")) {
-		_newPasscode->setFocus();
-		_newPasscode->showError();
-		_newError = lang(lng_cloud_password_bad);
-		update();
-	} else if (err == qstr("NEW_SALT_INVALID")) {
-		emit reloadPassword();
-		closeBox();
+	} else if (error.type() == qstr("SRP_ID_INVALID")) {
+		handleSrpIdInvalid();
+	//} else if (err == qstr("NEW_PASSWORD_BAD")) {
+	//} else if (err == qstr("NEW_SALT_INVALID")) {
 	} else if (err == qstr("EMAIL_INVALID")) {
 		_emailError = lang(lng_cloud_password_bad_email);
 		_recoverEmail->setFocus();
 		_recoverEmail->showError();
 		update();
-	} else if (err == qstr("EMAIL_UNCONFIRMED")) {
-		Ui::show(Box<InformBox>(lang(lng_cloud_password_almost)));
-		emit reloadPassword();
 	}
-	return true;
 }
 
-void PasscodeBox::onSave(bool force) {
+void PasscodeBox::setPasswordFail(
+		const QByteArray &newPasswordBytes,
+		const QString &email,
+		const RPCError &error) {
+	const auto prefix = qstr("EMAIL_UNCONFIRMED_");
+	if (error.type().startsWith(prefix)) {
+		const auto codeLength = error.type().mid(prefix.size()).toInt();
+
+		closeReplacedBy();
+		_setRequest = 0;
+
+		validateEmail(email, codeLength, newPasswordBytes);
+	} else {
+		setPasswordFail(error);
+	}
+}
+
+void PasscodeBox::validateEmail(
+		const QString &email,
+		int codeLength,
+		const QByteArray &newPasswordBytes) {
+	const auto errors = std::make_shared<rpl::event_stream<QString>>();
+	const auto resent = std::make_shared<rpl::event_stream<QString>>();
+	const auto set = std::make_shared<bool>(false);
+	const auto submit = [=](QString code) {
+		if (_setRequest) {
+			return;
+		}
+		_setRequest = request(MTPaccount_ConfirmPasswordEmail(
+			MTP_string(code)
+		)).done([=](const MTPBool &result) {
+			*set = true;
+			setPasswordDone(newPasswordBytes);
+		}).fail([=](const RPCError &error) {
+			_setRequest = 0;
+			if (MTP::isFloodError(error)) {
+				errors->fire(lang(lng_flood_error));
+			} else if (error.type() == qstr("CODE_INVALID")) {
+				errors->fire(lang(lng_signin_wrong_code));
+			} else if (error.type() == qstr("EMAIL_HASH_EXPIRED")) {
+				const auto weak = make_weak(this);
+				_clearUnconfirmedPassword.fire({});
+				if (weak) {
+					auto box = Box<InformBox>(
+						Lang::Hard::EmailConfirmationExpired());
+					weak->getDelegate()->show(
+						std::move(box),
+						LayerOption::CloseOther);
+				}
+			} else {
+				errors->fire(Lang::Hard::ServerError());
+			}
+		}).handleFloodErrors().send();
+	};
+	const auto resend = [=] {
+		if (_setRequest) {
+			return;
+		}
+		_setRequest = request(MTPaccount_ResendPasswordEmail(
+		)).done([=](const MTPBool &result) {
+			_setRequest = 0;
+			resent->fire(lang(lng_cloud_password_resent));
+		}).fail([=](const RPCError &error) {
+			_setRequest = 0;
+			errors->fire(Lang::Hard::ServerError());
+		}).send();
+	};
+	const auto box = getDelegate()->show(
+		Passport::VerifyEmailBox(
+			email,
+			codeLength,
+			submit,
+			resend,
+			errors->events(),
+			resent->events()),
+		LayerOption::KeepOther);
+
+	box->setCloseByOutsideClick(false);
+	box->setCloseByEscape(false);
+	box->boxClosing(
+	) | rpl::filter([=] {
+		return !*set;
+	}) | start_with_next([=, weak = make_weak(this)] {
+		if (weak) {
+			weak->_clearUnconfirmedPassword.fire({});
+		}
+		if (weak) {
+			weak->closeBox();
+		}
+	}, box->lifetime());
+}
+
+void PasscodeBox::handleSrpIdInvalid() {
+	const auto now = getms(true);
+	if (_lastSrpIdInvalidTime > 0
+		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
+		_curRequest.id = 0;
+		_oldError = Lang::Hard::ServerError();
+		update();
+	} else {
+		_lastSrpIdInvalidTime = now;
+		requestPasswordData();
+	}
+}
+
+void PasscodeBox::save(bool force) {
 	if (_setRequest) return;
 
 	QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
-	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
+	const auto has = currentlyHave();
 	if (!_cloudPwd && (_turningOff || has)) {
 		if (!passcodeCanTry()) {
 			_oldError = lang(lng_flood_error);
@@ -268,7 +404,7 @@ void PasscodeBox::onSave(bool force) {
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));
-			onBadOldPasscode();
+			badOldPasscode();
 			return;
 		}
 	}
@@ -305,29 +441,15 @@ void PasscodeBox::onSave(bool force) {
 		}
 		if (!_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
-			_replacedBy = Ui::show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, base::lambda_guarded(this, [this] {
-				onSave(true);
-			})), LayerOption::KeepOther);
+			_replacedBy = getDelegate()->show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, crl::guard(this, [this] {
+				save(true);
+			})));
+		} else if (_newPasscode->isHidden()) {
+			clearCloudPassword(old);
+		} else if (_oldPasscode->isHidden()) {
+			setNewCloudPassword(pwd);
 		} else {
-			QByteArray newPasswordData = pwd.isEmpty() ? QByteArray() : (_newSalt + pwd.toUtf8() + _newSalt);
-			QByteArray newPasswordHash = pwd.isEmpty() ? QByteArray() : QByteArray(32, Qt::Uninitialized);
-			if (pwd.isEmpty()) {
-				hint = QString();
-				email = QString();
-			} else {
-				hashSha256(newPasswordData.constData(), newPasswordData.size(), newPasswordHash.data());
-			}
-			QByteArray oldPasswordData = _oldPasscode->isHidden() ? QByteArray() : (_curSalt + old.toUtf8() + _curSalt);
-			QByteArray oldPasswordHash = _oldPasscode->isHidden() ? QByteArray() : QByteArray(32, Qt::Uninitialized);
-			if (!_oldPasscode->isHidden()) {
-				hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
-			}
-			auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
-			if (_oldPasscode->isHidden() || _newPasscode->isHidden()) {
-				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
-			}
-			MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(_newSalt), MTP_bytes(newPasswordHash), MTP_string(hint), MTP_string(email)));
-			_setRequest = MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(oldPasswordHash), settings), rpcDone(&PasscodeBox::setPasswordDone), rpcFail(&PasscodeBox::setPasswordFail));
+			changeCloudPassword(old, pwd);
 		}
 	} else {
 		cSetPasscodeBadTries(0);
@@ -337,7 +459,298 @@ void PasscodeBox::onSave(bool force) {
 	}
 }
 
-void PasscodeBox::onBadOldPasscode() {
+void PasscodeBox::clearCloudPassword(const QString &oldPassword) {
+	Expects(!_oldPasscode->isHidden());
+
+	const auto send = [=] {
+		sendClearCloudPassword(oldPassword);
+	};
+	if (_notEmptyPassport) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto confirmed = [=] {
+			send();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		*box = getDelegate()->show(Box<ConfirmBox>(
+			lang(lng_cloud_password_passport_losing),
+			lang(lng_continue),
+			confirmed));
+	} else {
+		send();
+	}
+}
+
+void PasscodeBox::sendClearCloudPassword(const QString &oldPassword) {
+	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
+		sendClearCloudPassword(check);
+	});
+}
+
+void PasscodeBox::checkPassword(
+		const QString &oldPassword,
+		CheckPasswordCallback callback) {
+	const auto passwordUtf = oldPassword.toUtf8();
+	_checkPasswordHash = Core::ComputeCloudPasswordHash(
+		_curRequest.algo,
+		bytes::make_span(passwordUtf));
+	checkPasswordHash(std::move(callback));
+}
+
+void PasscodeBox::checkPasswordHash(CheckPasswordCallback callback) {
+	_checkPasswordCallback = std::move(callback);
+	if (_curRequest.id) {
+		passwordChecked();
+	} else {
+		requestPasswordData();
+	}
+}
+
+void PasscodeBox::passwordChecked() {
+	if (!_curRequest || !_curRequest.id || !_checkPasswordCallback) {
+		return serverError();
+	}
+	const auto check = Core::ComputeCloudPasswordCheck(
+		_curRequest,
+		_checkPasswordHash);
+	if (!check) {
+		return serverError();
+	}
+	_curRequest.id = 0;
+	_checkPasswordCallback(check);
+}
+
+void PasscodeBox::requestPasswordData() {
+	if (!_checkPasswordCallback) {
+		return serverError();
+	}
+
+	request(base::take(_setRequest)).cancel();
+	_setRequest = request(
+		MTPaccount_GetPassword()
+	).done([=](const MTPaccount_Password &result) {
+		_setRequest = 0;
+		result.match([&](const MTPDaccount_password &data) {
+			_curRequest = Core::ParseCloudPasswordCheckRequest(data);
+			passwordChecked();
+		});
+	}).send();
+}
+
+void PasscodeBox::serverError() {
+	getDelegate()->show(Box<InformBox>(Lang::Hard::ServerError()));
+	closeBox();
+}
+
+void PasscodeBox::sendClearCloudPassword(
+		const Core::CloudPasswordResult &check) {
+	const auto newPasswordData = QByteArray();
+	const auto newPasswordHash = QByteArray();
+	const auto hint = QString();
+	const auto email = QString();
+	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
+		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
+		| MTPDaccount_passwordInputSettings::Flag::f_hint
+		| MTPDaccount_passwordInputSettings::Flag::f_email;
+	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+		check.result,
+		MTP_account_passwordInputSettings(
+			MTP_flags(flags),
+			Core::PrepareCloudPasswordAlgo(_newAlgo),
+			MTP_bytes(QByteArray()), // new_password_hash
+			MTP_string(hint),
+			MTP_string(email),
+			MTPSecureSecretSettings())
+	)).done([=](const MTPBool &result) {
+		setPasswordDone({});
+	}).handleFloodErrors().fail([=](const RPCError &error) mutable {
+		setPasswordFail({}, QString(), error);
+	}).send();
+}
+
+void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
+	const auto newPasswordBytes = newPassword.toUtf8();
+	const auto newPasswordHash = Core::ComputeCloudPasswordDigest(
+		_newAlgo,
+		bytes::make_span(newPasswordBytes));
+	if (newPasswordHash.modpow.empty()) {
+		return serverError();
+	}
+	const auto hint = _passwordHint->getLastText();
+	const auto email = _recoverEmail->getLastText().trimmed();
+	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
+		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
+		| MTPDaccount_passwordInputSettings::Flag::f_hint
+		| MTPDaccount_passwordInputSettings::Flag::f_email;
+	_checkPasswordCallback = nullptr;
+	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+		MTP_inputCheckPasswordEmpty(),
+		MTP_account_passwordInputSettings(
+			MTP_flags(flags),
+			Core::PrepareCloudPasswordAlgo(_newAlgo),
+			MTP_bytes(newPasswordHash.modpow),
+			MTP_string(hint),
+			MTP_string(email),
+			MTPSecureSecretSettings())
+	)).done([=](const MTPBool &result) {
+		setPasswordDone(newPasswordBytes);
+	}).fail([=](const RPCError &error) {
+		setPasswordFail(newPasswordBytes, email, error);
+	}).send();
+}
+
+void PasscodeBox::changeCloudPassword(
+		const QString &oldPassword,
+		const QString &newPassword) {
+	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
+		changeCloudPassword(oldPassword, check, newPassword);
+	});
+}
+
+void PasscodeBox::changeCloudPassword(
+		const QString &oldPassword,
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword) {
+	_setRequest = request(MTPaccount_GetPasswordSettings(
+		check.result
+	)).done([=](const MTPaccount_PasswordSettings &result) {
+		_setRequest = 0;
+
+		Expects(result.type() == mtpc_account_passwordSettings);
+		const auto &data = result.c_account_passwordSettings();
+
+		if (!data.has_secure_settings()) {
+			checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+				const auto empty = QByteArray();
+				sendChangeCloudPassword(check, newPassword, empty);
+			});
+			return;
+		}
+		const auto &wrapped = data.vsecure_settings;
+		const auto &settings = wrapped.c_secureSecretSettings();
+		const auto passwordUtf = oldPassword.toUtf8();
+		const auto secret = Passport::DecryptSecureSecret(
+			bytes::make_span(settings.vsecure_secret.v),
+			Core::ComputeSecureSecretHash(
+				Core::ParseSecureSecretAlgo(settings.vsecure_algo),
+				bytes::make_span(passwordUtf)));
+		if (secret.empty()) {
+			LOG(("API Error: Failed to decrypt secure secret."));
+			suggestSecretReset(newPassword);
+		} else if (Passport::CountSecureSecretId(secret)
+				!= settings.vsecure_secret_id.v) {
+			LOG(("API Error: Wrong secure secret id."));
+			suggestSecretReset(newPassword);
+		} else {
+			const auto secureSecret = QByteArray(
+				reinterpret_cast<const char*>(secret.data()),
+				secret.size());
+			checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+				sendChangeCloudPassword(check, newPassword, secureSecret);
+			});
+		}
+	}).handleFloodErrors().fail([=](const RPCError &error) {
+		setPasswordFail(error);
+	}).send();
+}
+
+void PasscodeBox::suggestSecretReset(const QString &newPassword) {
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto resetSecretAndSave = [=] {
+		checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+			resetSecret(check, newPassword, [=] {
+				if (*box) {
+					(*box)->closeBox();
+				}
+			});
+		});
+	};
+	*box = getDelegate()->show(Box<ConfirmBox>(
+		Lang::Hard::PassportCorruptedChange(),
+		Lang::Hard::PassportCorruptedReset(),
+		[=] { resetSecretAndSave(); }));
+}
+
+void PasscodeBox::resetSecret(
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword,
+		Fn<void()> callback) {
+	using Flag = MTPDaccount_passwordInputSettings::Flag;
+	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+		check.result,
+		MTP_account_passwordInputSettings(
+			MTP_flags(Flag::f_new_secure_settings),
+			MTPPasswordKdfAlgo(), // new_algo
+			MTPbytes(), // new_password_hash
+			MTPstring(), // hint
+			MTPstring(), // email
+			MTP_secureSecretSettings(
+				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
+				MTP_bytes(QByteArray()), // secure_secret
+				MTP_long(0))) // secure_secret_id
+	)).done([=](const MTPBool &result) {
+		_setRequest = 0;
+		callback();
+		checkPasswordHash([=](const Core::CloudPasswordResult &check) {
+			const auto empty = QByteArray();
+			sendChangeCloudPassword(check, newPassword, empty);
+		});
+	}).fail([=](const RPCError &error) {
+		_setRequest = 0;
+		if (error.type() == qstr("SRP_ID_INVALID")) {
+			handleSrpIdInvalid();
+		}
+	}).send();
+}
+
+void PasscodeBox::sendChangeCloudPassword(
+		const Core::CloudPasswordResult &check,
+		const QString &newPassword,
+		const QByteArray &secureSecret) {
+	const auto newPasswordBytes = newPassword.toUtf8();
+	const auto newPasswordHash = Core::ComputeCloudPasswordDigest(
+		_newAlgo,
+		bytes::make_span(newPasswordBytes));
+	if (newPasswordHash.modpow.empty()) {
+		return serverError();
+	}
+	const auto hint = _passwordHint->getLastText();
+	auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
+		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
+		| MTPDaccount_passwordInputSettings::Flag::f_hint;
+	auto newSecureSecret = bytes::vector();
+	auto newSecureSecretId = 0ULL;
+	if (!secureSecret.isEmpty()) {
+		flags |= MTPDaccount_passwordInputSettings::Flag::f_new_secure_settings;
+		newSecureSecretId = Passport::CountSecureSecretId(
+			bytes::make_span(secureSecret));
+		newSecureSecret = Passport::EncryptSecureSecret(
+			bytes::make_span(secureSecret),
+			Core::ComputeSecureSecretHash(
+				_newSecureSecretAlgo,
+				bytes::make_span(newPasswordBytes)));
+	}
+	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+		check.result,
+		MTP_account_passwordInputSettings(
+			MTP_flags(flags),
+			Core::PrepareCloudPasswordAlgo(_newAlgo),
+			MTP_bytes(newPasswordHash.modpow),
+			MTP_string(hint),
+			MTPstring(), // email is not changing
+			MTP_secureSecretSettings(
+				Core::PrepareSecureSecretAlgo(_newSecureSecretAlgo),
+				MTP_bytes(newSecureSecret),
+				MTP_long(newSecureSecretId)))
+	)).done([=](const MTPBool &result) {
+		setPasswordDone(newPasswordBytes);
+	}).handleFloodErrors().fail([=](const RPCError &error) {
+		setPasswordFail(newPasswordBytes, QString(), error);
+	}).send();
+}
+
+void PasscodeBox::badOldPasscode() {
 	_oldPasscode->selectAll();
 	_oldPasscode->setFocus();
 	_oldPasscode->showError();
@@ -348,7 +761,7 @@ void PasscodeBox::onBadOldPasscode() {
 	update();
 }
 
-void PasscodeBox::onOldChanged() {
+void PasscodeBox::oldChanged() {
 	if (!_oldError.isEmpty()) {
 		_oldError = QString();
 		if (_hasRecovery && _hintText.isEmpty()) {
@@ -358,41 +771,56 @@ void PasscodeBox::onOldChanged() {
 	}
 }
 
-void PasscodeBox::onNewChanged() {
+void PasscodeBox::newChanged() {
 	if (!_newError.isEmpty()) {
 		_newError = QString();
 		update();
 	}
 }
 
-void PasscodeBox::onEmailChanged() {
+void PasscodeBox::emailChanged() {
 	if (!_emailError.isEmpty()) {
 		_emailError = QString();
 		update();
 	}
 }
 
-void PasscodeBox::onRecoverByEmail() {
+void PasscodeBox::recoverByEmail() {
 	if (_pattern.isEmpty()) {
 		_pattern = "-";
-		MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&PasscodeBox::recoverStarted), rpcFail(&PasscodeBox::recoverStartFail));
+		request(MTPauth_RequestPasswordRecovery(
+		)).done([=](const MTPauth_PasswordRecovery &result) {
+			recoverStarted(result);
+		}).fail([=](const RPCError &error) {
+			recoverStartFail(error);
+		}).send();
 	} else {
 		recover();
 	}
 }
 
-void PasscodeBox::onRecoverExpired() {
+void PasscodeBox::recoverExpired() {
 	_pattern = QString();
 }
 
 void PasscodeBox::recover() {
 	if (_pattern == "-") return;
 
-	_replacedBy = Ui::show(
-		Box<RecoverBox>(_pattern),
-		LayerOption::KeepOther);
-	connect(_replacedBy, SIGNAL(reloadPassword()), this, SIGNAL(reloadPassword()));
-	connect(_replacedBy, SIGNAL(recoveryExpired()), this, SLOT(onRecoverExpired()));
+	const auto box = getDelegate()->show(Box<RecoverBox>(
+		_pattern,
+		_notEmptyPassport));
+
+	box->passwordCleared(
+	) | rpl::map([] {
+		return QByteArray();
+	}) | rpl::start_to_stream(_newPasswordSet, lifetime());
+
+	box->recoveryExpired(
+	) | rpl::start_with_next([=] {
+		recoverExpired();
+	}, lifetime());
+
+	_replacedBy = box;
 }
 
 void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
@@ -400,29 +828,38 @@ void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
 	recover();
 }
 
-bool PasscodeBox::recoverStartFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
+void PasscodeBox::recoverStartFail(const RPCError &error) {
 	_pattern = QString();
 	closeBox();
-	return true;
 }
 
-RecoverBox::RecoverBox(QWidget*, const QString &pattern)
+RecoverBox::RecoverBox(
+	QWidget*,
+	const QString &pattern,
+	bool notEmptyPassport)
 : _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
+, _notEmptyPassport(notEmptyPassport)
 , _recoverCode(this, st::defaultInputField, langFactory(lng_signin_code)) {
+}
+
+rpl::producer<> RecoverBox::passwordCleared() const {
+	return _passwordCleared.events();
+}
+
+rpl::producer<> RecoverBox::recoveryExpired() const {
+	return _recoveryExpired.events();
 }
 
 void RecoverBox::prepare() {
 	setTitle(langFactory(lng_signin_recover_title));
 
-	addButton(langFactory(lng_passcode_submit), [this] { onSubmit(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_passcode_submit), [=] { submit(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine + _recoverCode->height() + st::passcodeTextLine);
 
-	connect(_recoverCode, SIGNAL(changed()), this, SLOT(onCodeChanged()));
-	connect(_recoverCode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_recoverCode, &Ui::InputField::changed, [=] { codeChanged(); });
+	connect(_recoverCode, &Ui::InputField::submitted, [=] { submit(); });
 }
 
 void RecoverBox::paintEvent(QPaintEvent *e) {
@@ -452,7 +889,7 @@ void RecoverBox::setInnerFocus() {
 	_recoverCode->setFocusFast();
 }
 
-void RecoverBox::onSubmit() {
+void RecoverBox::submit() {
 	if (_submitRequest) return;
 
 	QString code = _recoverCode->getLastText().trimmed();
@@ -462,19 +899,43 @@ void RecoverBox::onSubmit() {
 		return;
 	}
 
-	_submitRequest = MTP::send(MTPauth_RecoverPassword(MTP_string(code)), rpcDone(&RecoverBox::codeSubmitDone, true), rpcFail(&RecoverBox::codeSubmitFail));
+	const auto send = crl::guard(this, [=] {
+		_submitRequest = MTP::send(
+			MTPauth_RecoverPassword(MTP_string(code)),
+			rpcDone(&RecoverBox::codeSubmitDone, true),
+			rpcFail(&RecoverBox::codeSubmitFail));
+	});
+	if (_notEmptyPassport) {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto confirmed = [=] {
+			send();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		*box = getDelegate()->show(Box<ConfirmBox>(
+			lang(lng_cloud_password_passport_losing),
+			lang(lng_continue),
+			confirmed));
+	} else {
+		send();
+	}
 }
 
-void RecoverBox::onCodeChanged() {
+void RecoverBox::codeChanged() {
 	_error = QString();
 	update();
 }
 
-void RecoverBox::codeSubmitDone(bool recover, const MTPauth_Authorization &result) {
+void RecoverBox::codeSubmitDone(
+		bool recover,
+		const MTPauth_Authorization &result) {
 	_submitRequest = 0;
 
-	emit reloadPassword();
-	Ui::show(Box<InformBox>(lang(lng_cloud_password_removed)));
+	_passwordCleared.fire({});
+	getDelegate()->show(
+		Box<InformBox>(lang(lng_cloud_password_removed)),
+		LayerOption::CloseOther);
 }
 
 bool RecoverBox::codeSubmitFail(const RPCError &error) {
@@ -491,14 +952,16 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 
 	const QString &err = error.type();
 	if (err == qstr("PASSWORD_EMPTY")) {
-		emit reloadPassword();
-		Ui::show(Box<InformBox>(lang(lng_cloud_password_removed)));
+		_passwordCleared.fire({});
+		getDelegate()->show(
+			Box<InformBox>(lang(lng_cloud_password_removed)),
+			LayerOption::CloseOther);
 		return true;
 	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
 		closeBox();
 		return true;
 	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
-		emit recoveryExpired();
+		_recoveryExpired.fire({});
 		closeBox();
 		return true;
 	} else if (err == qstr("CODE_INVALID")) {
@@ -509,7 +972,7 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 		_recoverCode->showError();
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		_error =  err + ": " + error.description();
 	} else {
 		_error = Lang::Hard::ServerError();
@@ -517,4 +980,82 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	update();
 	_recoverCode->setFocus();
 	return false;
+}
+
+RecoveryEmailValidation ConfirmRecoveryEmail(const QString &pattern) {
+	const auto errors = std::make_shared<rpl::event_stream<QString>>();
+	const auto resent = std::make_shared<rpl::event_stream<QString>>();
+	const auto requestId = std::make_shared<mtpRequestId>(0);
+	const auto weak = std::make_shared<QPointer<BoxContent>>();
+	const auto reloads = std::make_shared<rpl::event_stream<>>();
+	const auto cancels = std::make_shared<rpl::event_stream<>>();
+
+	const auto submit = [=](QString code) {
+		if (*requestId) {
+			return;
+		}
+		const auto done = [=](const MTPBool &result) {
+			*requestId = 0;
+			reloads->fire({});
+			if (*weak) {
+				(*weak)->getDelegate()->show(
+					Box<InformBox>(lang(lng_cloud_password_was_set)),
+					LayerOption::CloseOther);
+			}
+		};
+		const auto fail = [=](const RPCError &error) {
+			const auto skip = MTP::isDefaultHandledError(error)
+				&& !MTP::isFloodError(error);
+			if (skip) {
+				return false;
+			}
+			*requestId = 0;
+			if (MTP::isFloodError(error)) {
+				errors->fire(lang(lng_flood_error));
+			} else if (error.type() == qstr("CODE_INVALID")) {
+				errors->fire(lang(lng_signin_wrong_code));
+			} else if (error.type() == qstr("EMAIL_HASH_EXPIRED")) {
+				cancels->fire({});
+				if (*weak) {
+					auto box = Box<InformBox>(
+						Lang::Hard::EmailConfirmationExpired());
+					(*weak)->getDelegate()->show(
+						std::move(box),
+						LayerOption::CloseOther);
+				}
+			} else {
+				errors->fire(Lang::Hard::ServerError());
+			}
+			return true;
+		};
+		*requestId = MTP::send(
+			MTPaccount_ConfirmPasswordEmail(MTP_string(code)),
+			rpcDone(done),
+			rpcFail(fail));
+	};
+	const auto resend = [=] {
+		if (*requestId) {
+			return;
+		}
+		*requestId = MTP::send(MTPaccount_ResendPasswordEmail(
+		), rpcDone([=](const MTPBool &result) {
+			*requestId = 0;
+			resent->fire(lang(lng_cloud_password_resent));
+		}), rpcFail([=](const RPCError &error) {
+			*requestId = 0;
+			errors->fire(Lang::Hard::ServerError());
+			return true;
+		}));
+	};
+
+	auto box = Passport::VerifyEmailBox(
+		pattern,
+		0,
+		submit,
+		resend,
+		errors->events(),
+		resent->events());
+
+	*weak = box.data();
+	return { std::move(box), reloads->events(), cancels->events() };
 }

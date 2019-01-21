@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "application.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
@@ -21,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_audio.h"
 #include "history/history.h"
 #include "history/history_message.h"
-#include "history/history_media_types.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "window/themes/window_theme_preview.h"
@@ -45,22 +46,36 @@ constexpr auto kIdsLimit = 48;
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
 
+Images::Options VideoThumbOptions(not_null<DocumentData*> document) {
+	const auto result = Images::Option::Smooth | Images::Option::Blurred;
+	return (document && document->isVideoMessage())
+		? (result | Images::Option::Circled)
+		: result;
+}
+
 } // namespace
 
 struct MediaView::SharedMedia {
-	SharedMedia(SharedMediaWithLastSlice::Key key) : key(key) {
+	SharedMedia(SharedMediaKey key) : key(key) {
 	}
 
-	SharedMediaWithLastSlice::Key key;
+	SharedMediaKey key;
 	rpl::lifetime lifetime;
 };
 
 struct MediaView::UserPhotos {
-	UserPhotos(UserPhotosSlice::Key key) : key(key) {
+	UserPhotos(UserPhotosKey key) : key(key) {
 	}
 
-	UserPhotosSlice::Key key;
+	UserPhotosKey key;
 	rpl::lifetime lifetime;
+};
+
+struct MediaView::Collage {
+	Collage(CollageKey key) : key(key) {
+	}
+
+	CollageKey key;
 };
 
 MediaView::MediaView()
@@ -76,6 +91,9 @@ MediaView::MediaView()
 , _dropdown(this, st::mediaviewDropdownMenu)
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
+	setWindowIcon(Window::CreateIcon());
+	setWindowTitle(qsl("Media viewer"));
 
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
@@ -109,6 +127,7 @@ MediaView::MediaView()
 		} else {
 			_sharedMedia = nullptr;
 			_userPhotos = nullptr;
+			_collage = nullptr;
 		}
 	};
 	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
@@ -116,7 +135,7 @@ MediaView::MediaView()
 	});
 	handleAuthSessionChange();
 
-	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
+	setWindowFlags(Qt::FramelessWindowHint);
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -124,7 +143,11 @@ MediaView::MediaView()
 
 	hide();
 	createWinId();
-	if (cPlatform() == dbipWindows) {
+	if (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) {
+		windowHandle()->setTransientParent(App::wnd()->windowHandle());
+		setWindowModality(Qt::WindowModal);
+	}
+	if (cPlatform() != dbipMac && cPlatform() != dbipMacOld) {
 		setWindowState(Qt::WindowFullScreen);
 	}
 
@@ -164,7 +187,8 @@ void MediaView::moveToScreen() {
 	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
-	auto available = activeWindow ? Sandbox::screenGeometry(activeWindow->geometry().center()) : QApplication::desktop()->screenGeometry();
+	const auto screen = activeWindowScreen ? activeWindowScreen : QApplication::primaryScreen();
+	const auto available = screen->geometry();
 	if (geometry() != available) {
 		setGeometry(available);
 	}
@@ -282,6 +306,9 @@ void MediaView::refreshNavVisibility() {
 	} else if (_userPhotosData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index && (*_index + 1 < _userPhotosData->size());
+	} else if (_collageData) {
+		_leftNavVisible = _index && (*_index > 0);
+		_rightNavVisible = _index && (*_index + 1 < _collageData->items.size());
 	} else {
 		_leftNavVisible = false;
 		_rightNavVisible = false;
@@ -327,12 +354,12 @@ void MediaView::updateControls() {
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
-		if (_photo) {
+		if (const auto item = App::histItemById(_msgid)) {
+			return ItemDateTime(item);
+		} else if (_photo) {
 			return ParseDateTime(_photo->date);
 		} else if (_doc) {
 			return ParseDateTime(_doc->date);
-		} else if (const auto item = App::histItemById(_msgid)) {
-			return ItemDateTime(item);
 		}
 		return dNow;
 	}();
@@ -433,7 +460,7 @@ void MediaView::updateActions() {
 	auto canDelete = [&] {
 		if (_canDeleteItem) {
 			return true;
-		} else if (!_msgid && _photo && App::self() && _user == App::self()) {
+		} else if (!_msgid && _photo && _user && _user == Auth().user()) {
 			return _userPhotosData && _fullIndex && _fullCount;
 		} else if (_photo && _photo->peer && _photo->peer->userpicPhotoId() == _photo->id) {
 			if (auto chat = _photo->peer->asChat()) {
@@ -455,7 +482,7 @@ void MediaView::updateActions() {
 }
 
 auto MediaView::computeOverviewType() const
--> base::optional<SharedMediaType> {
+-> std::optional<SharedMediaType> {
 	if (const auto mediaType = sharedMediaType()) {
 		if (const auto overviewType = SharedMediaOverviewType(*mediaType)) {
 			return overviewType;
@@ -467,12 +494,15 @@ auto MediaView::computeOverviewType() const
 			}
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 void MediaView::step_state(TimeMs ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::mediaviewShowDuration + st::mediaviewHideDuration;
+	}
 	bool result = false;
-	for (Showing::iterator i = _animations.begin(); i != _animations.end();) {
+	for (auto i = _animations.begin(); i != _animations.end();) {
 		TimeMs start = i.value();
 		switch (i.key()) {
 		case OverLeftNav: update(_leftNav); break;
@@ -575,8 +605,11 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		return;
 	}
 	const auto wasAnimating = _radial.animating();
-	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
-	if (timer && (wasAnimating || _radial.animating())) {
+	const auto updated = _radial.update(
+		radialProgress(),
+		!radialLoading(),
+		ms + radialTimeShift());
+	if (timer && (wasAnimating || _radial.animating()) && (!anim::Disabled() || updated)) {
 		update(radialRect());
 	}
 	const auto ready = _doc && _doc->loaded();
@@ -682,7 +715,7 @@ void MediaView::clearData() {
 	stopGif();
 	delete _menu;
 	_menu = nullptr;
-	setContext(base::none);
+	setContext(std::nullopt);
 	_from = nullptr;
 	_photo = nullptr;
 	_doc = nullptr;
@@ -807,7 +840,7 @@ void MediaView::onSaveAs() {
 			QFileInfo alreadyInfo(location.name());
 			QDir alreadyDir(alreadyInfo.dir());
 			QString name = alreadyInfo.fileName(), filter;
-			MimeType mimeType = mimeTypeForName(_doc->mimeString());
+			const auto mimeType = Core::MimeTypeForName(_doc->mimeString());
 			QStringList p = mimeType.globPatterns();
 			QString pattern = p.isEmpty() ? QString() : p.front();
 			if (name.isEmpty()) {
@@ -837,7 +870,7 @@ void MediaView::onSaveAs() {
 			if (_doc->data().isEmpty()) location.accessDisable();
 		} else {
 			if (!fileShown()) {
-				DocumentSaveClickHandler::doSave(_doc, true);
+				DocumentSaveClickHandler::Save(fileOrigin(), _doc, true);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -851,6 +884,7 @@ void MediaView::onSaveAs() {
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
+			this,
 			lang(lng_save_photo),
 			filter,
 			filedialogDefaultName(
@@ -859,12 +893,12 @@ void MediaView::onSaveAs() {
 				QString(),
 				false,
 				_photo->date),
-			base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+			crl::guard(this, [this, photo = _photo](const QString &result) {
 				if (!result.isEmpty() && _photo == photo && photo->loaded()) {
-					photo->full->pix().toImage().save(result, "JPG");
+					photo->full->pix(fileOrigin()).toImage().save(result, "JPG");
 				}
 				psShowOverAll(this);
-			}), base::lambda_guarded(this, [this] {
+			}), crl::guard(this, [this] {
 				psShowOverAll(this);
 			}));
 	}
@@ -877,7 +911,11 @@ void MediaView::onDocClick() {
 	if (_doc->loading()) {
 		onSaveCancel();
 	} else {
-		DocumentOpenClickHandler::doOpen(_doc, nullptr, ActionOnLoadNone);
+		DocumentOpenClickHandler::Open(
+			fileOrigin(),
+			_doc,
+			App::histItemById(_msgid),
+			ActionOnLoadNone);
 		if (_doc->loading() && !_radial.animating()) {
 			_radial.start(_doc->progress());
 		}
@@ -940,7 +978,7 @@ void MediaView::onDownload() {
 
 	QString path;
 	if (Global::DownloadPath().isEmpty()) {
-		path = psDownloadPath();
+		path = File::DefaultDownloadPath();
 	} else if (Global::DownloadPath() == qsl("tmp")) {
 		path = cTempDir();
 	} else {
@@ -964,7 +1002,7 @@ void MediaView::onDownload() {
 			location.accessDisable();
 		} else {
 			if (!fileShown()) {
-				DocumentSaveClickHandler::doSave(_doc);
+				DocumentSaveClickHandler::Save(fileOrigin(), _doc);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -979,7 +1017,7 @@ void MediaView::onDownload() {
 		} else {
 			if (!QDir().exists(path)) QDir().mkpath(path);
 			toName = filedialogDefaultName(qsl("photo"), qsl(".jpg"), path);
-			if (!_photo->full->pix().toImage().save(toName, "JPG")) {
+			if (!_photo->full->pix(fileOrigin()).toImage().save(toName, "JPG")) {
 				toName = QString();
 			}
 		}
@@ -1058,13 +1096,18 @@ void MediaView::onCopy() {
 	} else {
 		if (!_photo || !_photo->loaded()) return;
 
-		QApplication::clipboard()->setPixmap(_photo->full->pix());
+		QApplication::clipboard()->setPixmap(_photo->full->pix(fileOrigin()));
 	}
 }
 
-base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
+std::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 	using Type = SharedMediaType;
-	if (auto item = App::histItemById(_msgid)) {
+	if (const auto item = App::histItemById(_msgid)) {
+		if (const auto media = item->media()) {
+			if (media->webpage()) {
+				return std::nullopt;
+			}
+		}
 		if (_photo) {
 			if (item->toHistoryMessage()) {
 				return Type::PhotoVideo;
@@ -1079,10 +1122,10 @@ base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 			return Type::File;
 		}
 	}
-	return base::none;
+	return std::nullopt;
 }
 
-base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
+std::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 	if (!_msgid && _peer && !_user && _photo && _peer->userpicPhotoId() == _photo->id) {
 		return SharedMediaKey {
 			_history->peer->id,
@@ -1092,7 +1135,7 @@ base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 		};
 	}
 	if (!IsServerMsgId(_msgid.msg)) {
-		return base::none;
+		return std::nullopt;
 	}
 	auto keyForType = [this](SharedMediaType type) -> SharedMediaKey {
 		return {
@@ -1104,6 +1147,17 @@ base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 	return
 		sharedMediaType()
 		| keyForType;
+}
+
+Data::FileOrigin MediaView::fileOrigin() const {
+	if (_msgid) {
+		return _msgid;
+	} else if (_photo && _user) {
+		return Data::FileOriginUserPhoto(_user->bareId(), _photo->id);
+	} else if (_photo && _peer && _peer->userpicPhotoId() == _photo->id) {
+		return Data::FileOriginPeerPhoto(_peer->id);
+	}
+	return Data::FileOrigin();
 }
 
 bool MediaView::validSharedMedia() const {
@@ -1121,7 +1175,7 @@ bool MediaView::validSharedMedia() const {
 			return [&](const SharedMediaWithLastSlice &data) {
 				return inSameDomain(a, b)
 					? data.distance(a, b)
-					: base::optional<int>();
+					: std::optional<int>();
 			};
 		};
 
@@ -1157,15 +1211,15 @@ void MediaView::validateSharedMedia() {
 		}, _sharedMedia->lifetime);
 	} else {
 		_sharedMedia = nullptr;
-		_sharedMediaData = base::none;
-		_sharedMediaDataKey = base::none;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
 	}
 }
 
 void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	if ((!_photo && !_doc) || !_sharedMedia) {
-		_sharedMediaData = base::none;
-		_sharedMediaDataKey = base::none;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
 	} else {
 		_sharedMediaData = std::move(update);
 		_sharedMediaDataKey = _sharedMedia->key;
@@ -1175,28 +1229,28 @@ void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	preloadData(0);
 }
 
-base::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
+std::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
 	if (!_msgid && _user && _photo) {
 		return UserPhotosKey {
 			_user->bareId(),
 			_photo->id
 		};
 	}
-	return base::none;
+	return std::nullopt;
 }
 
 bool MediaView::validUserPhotos() const {
-	if (auto key = userPhotosKey()) {
+	if (const auto key = userPhotosKey()) {
 		if (!_userPhotos) {
 			return false;
 		}
-		auto countDistanceInData = [](const auto &a, const auto &b) {
+		const auto countDistanceInData = [](const auto &a, const auto &b) {
 			return [&](const UserPhotosSlice &data) {
 				return data.distance(a, b);
 			};
 		};
 
-		auto distance = (key == _userPhotos->key) ? 0 :
+		const auto distance = (key == _userPhotos->key) ? 0 :
 			_userPhotosData
 			| countDistanceInData(*key, _userPhotos->key)
 			| func::abs;
@@ -1208,7 +1262,7 @@ bool MediaView::validUserPhotos() const {
 }
 
 void MediaView::validateUserPhotos() {
-	if (auto key = userPhotosKey()) {
+	if (const auto key = userPhotosKey()) {
 		_userPhotos = std::make_unique<UserPhotos>(*key);
 		UserPhotosReversedViewer(
 			*key,
@@ -1220,13 +1274,13 @@ void MediaView::validateUserPhotos() {
 		}, _userPhotos->lifetime);
 	} else {
 		_userPhotos = nullptr;
-		_userPhotosData = base::none;
+		_userPhotosData = std::nullopt;
 	}
 }
 
 void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 	if (!_photo || !_userPhotos) {
-		_userPhotosData = base::none;
+		_userPhotosData = std::nullopt;
 	} else {
 		_userPhotosData = std::move(update);
 	}
@@ -1235,12 +1289,75 @@ void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 	preloadData(0);
 }
 
+std::optional<MediaView::CollageKey> MediaView::collageKey() const {
+	if (const auto item = App::histItemById(_msgid)) {
+		if (const auto media = item->media()) {
+			if (const auto page = media->webpage()) {
+				for (const auto item : page->collage.items) {
+					if (item == _photo || item == _doc) {
+						return item;
+					}
+				}
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+bool MediaView::validCollage() const {
+	if (const auto key = collageKey()) {
+		if (!_collage) {
+			return false;
+		}
+		const auto countDistanceInData = [](const auto &a, const auto &b) {
+			return [&](const WebPageCollage &data) {
+				const auto i = ranges::find(data.items, a);
+				const auto j = ranges::find(data.items, b);
+				return (i != end(data.items) && j != end(data.items))
+					? std::make_optional(i - j)
+					: std::nullopt;
+			};
+		};
+
+		if (key == _collage->key) {
+			return true;
+		} else if (_collageData) {
+			const auto &items = _collageData->items;
+			if (ranges::find(items, *key) != end(items)
+				&& ranges::find(items, _collage->key) != end(items)) {
+				return true;
+			}
+		}
+	}
+	return (_collage == nullptr);
+}
+
+void MediaView::validateCollage() {
+	if (const auto key = collageKey()) {
+		_collage = std::make_unique<Collage>(*key);
+		_collageData = WebPageCollage();
+		if (const auto item = App::histItemById(_msgid)) {
+			if (const auto media = item->media()) {
+				if (const auto page = media->webpage()) {
+					_collageData = page->collage;
+				}
+			}
+		}
+	} else {
+		_collage = nullptr;
+		_collageData = std::nullopt;
+	}
+}
+
 void MediaView::refreshMediaViewer() {
 	if (!validSharedMedia()) {
 		validateSharedMedia();
 	}
 	if (!validUserPhotos()) {
 		validateUserPhotos();
+	}
+	if (!validCollage()) {
+		validateCollage();
 	}
 	findCurrent();
 	updateControls();
@@ -1251,6 +1368,10 @@ void MediaView::refreshCaption(HistoryItem *item) {
 	_caption = Text();
 	if (!item) {
 		return;
+	} else if (const auto media = item->media()) {
+		if (media->webpage()) {
+			return;
+		}
 	}
 	const auto caption = item->originalText();
 	if (caption.text.isEmpty()) {
@@ -1283,6 +1404,12 @@ void MediaView::refreshGroupThumbs() {
 			*_userPhotosData,
 			*_index,
 			_groupThumbsAvailableWidth);
+	} else if (_index && _collageData) {
+		Media::View::GroupThumbs::Refresh(
+			_groupThumbs,
+			{ _msgid, &*_collageData },
+			*_index,
+			_groupThumbsAvailableWidth);
 	} else if (_groupThumbs) {
 		_groupThumbs->clear();
 		_groupThumbs->resizeToWidth(_groupThumbsAvailableWidth);
@@ -1308,11 +1435,16 @@ void MediaView::initGroupThumbs() {
 
 	_groupThumbs->activateRequests(
 	) | rpl::start_with_next([this](Media::View::GroupThumbs::Key key) {
+		using CollageKey = Media::View::GroupThumbs::CollageKey;
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
 			const auto photo = Auth().data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
 		} else if (const auto itemId = base::get_if<FullMsgId>(&key)) {
 			moveToEntity(entityForItemId(*itemId));
+		} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
+			if (_collageData) {
+				moveToEntity(entityForCollage(collageKey->index));
+			}
 		}
 	}, _groupThumbs->lifetime());
 
@@ -1327,7 +1459,7 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	if (context) {
 		setContext(context);
 	} else {
-		setContext(base::none);
+		setContext(std::nullopt);
 	}
 
 	_firstOpenedPeerPhoto = false;
@@ -1379,7 +1511,7 @@ void MediaView::showDocument(not_null<DocumentData*> document, HistoryItem *cont
 	if (context) {
 		setContext(context);
 	} else {
-		setContext(base::none);
+		setContext(std::nullopt);
 	}
 
 	_photo = nullptr;
@@ -1424,8 +1556,8 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;
-	_w = convertScale(photo->full->width());
-	_h = convertScale(photo->full->height());
+	_w = ConvertScale(photo->full->width());
+	_h = ConvertScale(photo->full->height());
 	if (isHidden()) {
 		moveToScreen();
 	}
@@ -1445,7 +1577,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	} else {
 		_from = _user;
 	}
-	_photo->download();
+	_photo->download(fileOrigin());
 	displayFinished();
 }
 
@@ -1484,14 +1616,16 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	if (_doc) {
 		if (_doc->sticker()) {
-			_doc->checkSticker();
-			if (!_doc->sticker()->img->isNull()) {
-				_current = _doc->sticker()->img->pix();
+			if (const auto image = _doc->getStickerImage()) {
+				_current = image->pix(fileOrigin());
 			} else {
-				_current = _doc->thumb->pixBlurred(_doc->dimensions.width(), _doc->dimensions.height());
+				_current = _doc->thumb->pixBlurred(
+					fileOrigin(),
+					_doc->dimensions.width(),
+					_doc->dimensions.height());
 			}
 		} else {
-			_doc->automaticLoad(item);
+			_doc->automaticLoad(fileOrigin(), item);
 
 			if (_doc->isAnimation() || _doc->isVideoFile()) {
 				initAnimation();
@@ -1520,11 +1654,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
 			_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
 			if (_docExtWidth > extmaxw) {
-				_docExt = st::mediaviewFileNameFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
-				_docExtWidth = st::mediaviewFileNameFont->width(_docExt);
+				_docExt = st::mediaviewFileExtFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+				_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
 			}
 		} else {
-			_doc->thumb->load();
+			_doc->thumb->load(fileOrigin());
 			int32 tw = _doc->thumb->width(), th = _doc->thumb->height();
 			if (!tw || !th) {
 				_docThumbx = _docThumby = _docThumbw = 0;
@@ -1566,11 +1700,11 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		updateThemePreviewGeometry();
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
-		_w = convertScale(_current.width());
-		_h = convertScale(_current.height());
+		_w = ConvertScale(_current.width());
+		_h = ConvertScale(_current.height());
 	} else {
-		_w = convertScale(_gif->width());
-		_h = convertScale(_gif->height());
+		_w = ConvertScale(_gif->width());
+		_h = ConvertScale(_gif->height());
 	}
 	if (isHidden()) {
 		moveToScreen();
@@ -1645,14 +1779,6 @@ void MediaView::displayFinished() {
 	}
 }
 
-Images::Options MediaView::videoThumbOptions() const {
-	auto options = Images::Option::Smooth | Images::Option::Blurred;
-	if (_doc && _doc->isVideoMessage()) {
-		options |= Images::Option::Circled;
-	}
-	return options;
-}
-
 void MediaView::initAnimation() {
 	Expects(_doc != nullptr);
 	Expects(_doc->isAnimation() || _doc->isVideoFile());
@@ -1666,10 +1792,10 @@ void MediaView::initAnimation() {
 	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		auto w = _doc->dimensions.width();
 		auto h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1682,10 +1808,10 @@ void MediaView::createClipReader() {
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_current = _doc->thumb->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(fileOrigin(), _doc->thumb->width(), _doc->thumb->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideoFile() || _doc->isVideoMessage())
 		? Media::Clip::Reader::Mode::Video
@@ -1819,6 +1945,13 @@ void MediaView::toggleVideoPaused() {
 }
 
 void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
+	// Seek works bad: it seeks to the next keyframe after positionMs.
+	// At least let user to seek to the beginning of the video.
+	if (positionMs < 1000
+		&& (!_videoDurationMs || (positionMs * 20 < _videoDurationMs))) {
+		positionMs = 0;
+	}
+
 	_autoplayVideoDocument = _doc;
 
 	if (_current.isNull()) {
@@ -1950,20 +2083,20 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		int32 w = _width * cIntRetinaFactor();
 		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->full->pixNoCache(w, h, Images::Option::Smooth);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current = _photo->full->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth);
+			_current.setDevicePixelRatio(cRetinaFactor());
 			_full = 1;
 		} else if (_full < 0 && _photo->medium->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->medium->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current = _photo->medium->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth | Images::Option::Blurred);
+			_current.setDevicePixelRatio(cRetinaFactor());
 			_full = 0;
 		} else if (_current.isNull() && _photo->thumb->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->thumb->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred);
-			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_current = _photo->thumb->pixNoCache(fileOrigin(), w, h, Images::Option::Smooth | Images::Option::Blurred);
+			_current.setDevicePixelRatio(cRetinaFactor());
 		} else if (_current.isNull()) {
-			_current = _photo->thumb->pix();
+			_current = _photo->thumb->pix(fileOrigin());
 		}
 	}
 	p.setOpacity(1);
@@ -1972,7 +2105,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (imgRect.intersects(r)) {
 			auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners, ms) : _current;
-			if (!_gif && (!_doc || !_doc->sticker() || _doc->sticker()->img->isNull()) && toDraw.hasAlpha()) {
+			if (!_gif && (!_doc || !_doc->getStickerImage()) && toDraw.hasAlpha()) {
 				p.fillRect(imgRect, _transparentBrush);
 			}
 			if (toDraw.width() != _w * cIntRetinaFactor()) {
@@ -2064,7 +2197,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					}
 				} else {
 					int32 rf(cIntRetinaFactor());
-					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
+					p.drawPixmap(_docIconRect.topLeft(), _doc->thumb->pix(fileOrigin(), _docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
 				}
 
 				paintDocRadialLoading(p, radial, radialOpacity);
@@ -2311,9 +2444,10 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
+	const auto ctrl = e->modifiers().testFlag(Qt::ControlModifier);
 	if (_clipController) {
-		auto toggle1 = (e->key() == Qt::Key_F && e->modifiers().testFlag(Qt::ControlModifier));
-		auto toggle2 = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || e->modifiers().testFlag(Qt::ControlModifier));
+		auto toggle1 = (e->key() == Qt::Key_F && ctrl);
+		auto toggle2 = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || ctrl);
 		if (toggle1 || toggle2) {
 			onVideoToggleFullScreen();
 			return;
@@ -2335,7 +2469,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
 		onSaveAs();
-	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
+	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && ctrl)) {
 		onCopy();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_doc && !_doc->loading() && (fileBubbleShown() || !_doc->loaded())) {
@@ -2353,12 +2487,12 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 			activateControls();
 		}
 		moveToNext(1);
-	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
+	} else if (ctrl) {
 		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
 			zoomIn();
 		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
 			zoomOut();
-		} else {
+		} else if (e->key() == Qt::Key_0) {
 			zoomReset();
 		}
 	}
@@ -2403,8 +2537,8 @@ void MediaView::setZoomLevel(int newZoom) {
 	if (_zoom == newZoom) return;
 
 	float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
-	_w = gifShown() ? convertScale(_gif->width()) : (convertScale(_current.width()) / cIntRetinaFactor());
-	_h = gifShown() ? convertScale(_gif->height()) : (convertScale(_current.height()) / cIntRetinaFactor());
+	_w = gifShown() ? ConvertScale(_gif->width()) : (ConvertScale(_current.width()) / cIntRetinaFactor());
+	_h = gifShown() ? ConvertScale(_gif->height()) : (ConvertScale(_current.height()) / cIntRetinaFactor());
 	if (z >= 0) {
 		nx = (_x - width() / 2.) / (z + 1);
 		ny = (_y - height() / 2.) / (z + 1);
@@ -2430,22 +2564,22 @@ void MediaView::setZoomLevel(int newZoom) {
 }
 
 MediaView::Entity MediaView::entityForUserPhotos(int index) const {
-	Expects(!!_userPhotosData);
+	Expects(_userPhotosData.has_value());
 
 	if (index < 0 || index >= _userPhotosData->size()) {
-		return { base::none, nullptr };
+		return { std::nullopt, nullptr };
 	}
 	if (auto photo = Auth().data().photo((*_userPhotosData)[index])) {
 		return { photo, nullptr };
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 MediaView::Entity MediaView::entityForSharedMedia(int index) const {
-	Expects(!!_sharedMediaData);
+	Expects(_sharedMediaData.has_value());
 
 	if (index < 0 || index >= _sharedMediaData->size()) {
-		return { base::none, nullptr };
+		return { std::nullopt, nullptr };
 	}
 	auto value = (*_sharedMediaData)[index];
 	if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
@@ -2454,7 +2588,23 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 	} else if (const auto itemId = base::get_if<FullMsgId>(&value)) {
 		return entityForItemId(*itemId);
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
+}
+
+MediaView::Entity MediaView::entityForCollage(int index) const {
+	Expects(_collageData.has_value());
+
+	const auto item = App::histItemById(_msgid);
+	const auto &items = _collageData->items;
+	if (!item || index < 0 || index >= items.size()) {
+		return { std::nullopt, nullptr };
+	}
+	if (const auto document = base::get_if<DocumentData*>(&items[index])) {
+		return { *document, item };
+	} else if (const auto photo = base::get_if<PhotoData*>(&items[index])) {
+		return { *photo, item };
+	}
+	return { std::nullopt, nullptr };
 }
 
 MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
@@ -2466,9 +2616,9 @@ MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
 				return { document, item };
 			}
 		}
-		return { base::none, item };
+		return { std::nullopt, item };
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 MediaView::Entity MediaView::entityByIndex(int index) const {
@@ -2476,8 +2626,10 @@ MediaView::Entity MediaView::entityByIndex(int index) const {
 		return entityForSharedMedia(index);
 	} else if (_userPhotosData) {
 		return entityForUserPhotos(index);
+	} else if (_collageData) {
+		return entityForCollage(index);
 	}
-	return { base::none, nullptr };
+	return { std::nullopt, nullptr };
 }
 
 void MediaView::setContext(base::optional_variant<
@@ -2529,7 +2681,7 @@ bool MediaView::moveToEntity(const Entity &entity, int preloadDelta) {
 	} else if (_peer) {
 		setContext(_peer);
 	} else {
-		setContext(base::none);
+		setContext(std::nullopt);
 	}
 	stopGif();
 	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
@@ -2555,22 +2707,22 @@ void MediaView::preloadData(int delta) {
 		auto forgetIndex = *_index - delta * 2;
 		auto entity = entityByIndex(forgetIndex);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-			(*photo)->forget();
+			(*photo)->unload();
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			(*document)->forget();
+			(*document)->unload();
 		}
 	}
 
 	for (auto index = from; index != till; ++index) {
 		auto entity = entityByIndex(index);
 		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-			(*photo)->download();
+			(*photo)->download(fileOrigin());
 		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			if (auto sticker = (*document)->sticker()) {
-				sticker->img->load();
+			if (const auto image = (*document)->getStickerImage()) {
+				image->load(fileOrigin());
 			} else {
-				(*document)->thumb->load();
-				(*document)->automaticLoad(entity.item);
+				(*document)->thumb->load(fileOrigin());
+				(*document)->automaticLoad(fileOrigin(), entity.item);
 			}
 		}
 	}
@@ -2845,7 +2997,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 			_menu->deleteLater();
 			_menu = 0;
 		}
-		_menu = new Ui::PopupMenu(nullptr, st::mediaviewPopupMenu);
+		_menu = new Ui::PopupMenu(this, st::mediaviewPopupMenu);
 		updateActions();
 		for_const (auto &action, _actions) {
 			_menu->addAction(action.text, this, action.member);
@@ -2960,9 +3112,6 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 				activate = true;
 			}
 			if (activate) {
-				if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
-					int a = 0;
-				}
 				activateControls();
 			}
 		}
@@ -2973,10 +3122,12 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 void MediaView::setVisible(bool visible) {
 	if (!visible) {
 		_sharedMedia = nullptr;
-		_sharedMediaData = base::none;
-		_sharedMediaDataKey = base::none;
+		_sharedMediaData = std::nullopt;
+		_sharedMediaDataKey = std::nullopt;
 		_userPhotos = nullptr;
-		_userPhotosData = base::none;
+		_userPhotosData = std::nullopt;
+		_collage = nullptr;
+		_collageData = std::nullopt;
 		if (_menu) _menu->hideMenu(true);
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;
@@ -2993,6 +3144,10 @@ void MediaView::setVisible(bool visible) {
 		stopGif();
 		destroyThemePreview();
 		_radial.stop();
+		_current = QPixmap();
+		_themePreview = nullptr;
+		_themeApply.destroyDelayed();
+		_themeCancel.destroyDelayed();
 	}
 }
 
@@ -3033,19 +3188,28 @@ void MediaView::findCurrent() {
 	if (_sharedMediaData) {
 		_index = _msgid
 			? _sharedMediaData->indexOf(_msgid)
-			: _photo ? _sharedMediaData->indexOf(_photo) : base::none;
+			: _photo ? _sharedMediaData->indexOf(_photo) : std::nullopt;
 		_fullIndex = _sharedMediaData->skippedBefore()
 			? (_index | func::add(*_sharedMediaData->skippedBefore()))
-			: base::none;
+			: std::nullopt;
 		_fullCount = _sharedMediaData->fullCount();
 	} else if (_userPhotosData) {
-		_index = _photo ? _userPhotosData->indexOf(_photo->id) : base::none;
+		_index = _photo ? _userPhotosData->indexOf(_photo->id) : std::nullopt;
 		_fullIndex = _userPhotosData->skippedBefore()
 			? (_index | func::add(*_userPhotosData->skippedBefore()))
-			: base::none;
+			: std::nullopt;
 		_fullCount = _userPhotosData->fullCount();
+	} else if (_collageData) {
+		const auto item = _photo ? WebPageCollage::Item(_photo) : _doc;
+		const auto &items = _collageData->items;
+		const auto i = ranges::find(items, item);
+		_index = (i != end(items))
+			? std::make_optional(int(i - begin(items)))
+			: std::nullopt;
+		_fullIndex = _index;
+		_fullCount = items.size();
 	} else {
-		_index = _fullIndex = _fullCount = base::none;
+		_index = _fullIndex = _fullCount = std::nullopt;
 	}
 }
 
@@ -3074,7 +3238,7 @@ void MediaView::updateHeader() {
 			_headerText = lang(lng_mediaview_single_photo);
 		}
 	}
-	_headerHasLink = computeOverviewType() != base::none;
+	_headerHasLink = computeOverviewType() != std::nullopt;
 	auto hwidth = st::mediaviewThickFont->width(_headerText);
 	if (hwidth > width() / 3) {
 		hwidth = width() / 3;

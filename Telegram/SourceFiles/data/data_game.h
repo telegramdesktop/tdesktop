@@ -30,11 +30,6 @@ struct GameData {
 	, document(document) {
 	}
 
-	void forget() {
-		if (document) document->forget();
-		if (photo) photo->forget();
-	}
-
 	GameId id = 0;
 	uint64 accessHash = 0;
 	QString shortName;

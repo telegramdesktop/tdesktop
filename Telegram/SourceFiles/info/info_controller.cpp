@@ -38,6 +38,9 @@ Key::Key(not_null<PeerData*> peer) : _value(peer) {
 Key::Key(not_null<Data::Feed*> feed) : _value(feed) {
 }
 
+Key::Key(Settings::Tag settings) : _value(settings) {
+}
+
 PeerData *Key::peer() const {
 	if (const auto peer = base::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
@@ -48,6 +51,13 @@ PeerData *Key::peer() const {
 Data::Feed *Key::feed() const {
 	if (const auto feed = base::get_if<not_null<Data::Feed*>>(&_value)) {
 		return *feed;
+	}
+	return nullptr;
+}
+
+UserData *Key::settingsSelf() const {
+	if (const auto tag = base::get_if<Settings::Tag>(&_value)) {
+		return tag->self;
 	}
 	return nullptr;
 }
@@ -88,9 +98,7 @@ Controller::Controller(
 	not_null<ContentMemento*> memento)
 : AbstractController(window)
 , _widget(widget)
-, _key(memento->peerId()
-	? Key(App::peer(memento->peerId()))
-	: Key(memento->feed()))
+, _key(memento->key())
 , _migrated(memento->migratedPeerId()
 	? App::peer(memento->migratedPeerId())
 	: nullptr)
@@ -135,7 +143,8 @@ bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peerId() == peerId()
 		&& memento->migratedPeerId() == migratedPeerId()
-		&& memento->feed() == feed();
+		&& memento->feed() == feed()
+		&& memento->settingsSelf() == settingsSelf();
 }
 
 void Controller::setSection(not_null<ContentMemento*> memento) {
@@ -258,6 +267,18 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 			query.type),
 		limitBefore,
 		limitAfter);
+}
+
+void Controller::setCanSaveChanges(rpl::producer<bool> can) {
+	_canSaveChanges = std::move(can);
+}
+
+rpl::producer<bool> Controller::canSaveChanges() const {
+	return _canSaveChanges.value();
+}
+
+bool Controller::canSaveChangesNow() const {
+	return _canSaveChanges.current();
 }
 
 Controller::~Controller() = default;

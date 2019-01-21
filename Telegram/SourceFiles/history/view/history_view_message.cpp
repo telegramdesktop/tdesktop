@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
-#include "history/history_media_types.h"
-#include "history/history_media.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_web_page.h"
 #include "history/history.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
@@ -527,10 +527,10 @@ void Message::paintFromName(
 		if (item->isPost()) {
 			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
 		} else {
-			p.setPen(FromNameFg(item->author(), selected));
+			p.setPen(FromNameFg(item->displayFrom(), selected));
 		}
 		item->displayFrom()->nameText.drawElided(p, availableLeft, trect.top(), availableWidth);
-		auto skipWidth = item->author()->nameText.maxWidth() + st::msgServiceFont->spacew;
+		auto skipWidth = item->displayFrom()->nameText.maxWidth() + st::msgServiceFont->spacew;
 		availableLeft += skipWidth;
 		availableWidth -= skipWidth;
 
@@ -540,7 +540,7 @@ void Message::paintFromName(
 			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 			
 			if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
-				if (Window::Theme::IsNightTheme())
+				if (Window::Theme::IsNightMode())
 					p.setPen(Qt::darkGray);
 				else
 					p.setPen(Qt::lightGray);
@@ -585,7 +585,7 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 		trect.setY(trect.y() + (((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
 		
 		if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
-			if (Window::Theme::IsNightTheme())
+			if (Window::Theme::IsNightMode())
 				p.setPen(Qt::darkGray);
 			else
 				p.setPen(Qt::lightGray);
@@ -619,7 +619,7 @@ void Message::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const {
 			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 
 			if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
-				if (Window::Theme::IsNightTheme())
+				if (Window::Theme::IsNightMode())
 					p.setPen(Qt::darkGray);
 				else
 					p.setPen(Qt::lightGray);
@@ -645,7 +645,7 @@ void Message::paintText(Painter &p, QRect &trect, TextSelection selection) const
 	p.setFont(st::msgFont);
 
 	if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
-		if (Window::Theme::IsNightTheme())
+		if (Window::Theme::IsNightMode())
 			p.setPen(Qt::darkGray);
 		else
 			p.setPen(Qt::lightGray);
@@ -731,6 +731,8 @@ bool Message::hasFromPhoto() const {
 		}
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
+	case Context::ContactPreview:
+		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
 }
@@ -901,7 +903,7 @@ bool Message::getStateFromName(
 			auto via = item->Get<HistoryMessageVia>();
 			if (via
 				&& !displayForwardedFrom()
-				&& point.x() >= availableLeft + item->author()->nameText.maxWidth() + st::msgServiceFont->spacew
+				&& point.x() >= availableLeft + item->displayFrom()->nameText.maxWidth() + st::msgServiceFont->spacew
 				&& point.x() < availableLeft + availableWidth
 				&& point.x() < availableLeft + user->nameText.maxWidth() + st::msgServiceFont->spacew + via->width) {
 				outResult->link = via->link;
@@ -1269,6 +1271,15 @@ int Message::infoWidth() const {
 	return result;
 }
 
+void Message::refreshDataIdHook() {
+	if (base::take(_rightActionLink)) {
+		_rightActionLink = rightActionLink();
+	}
+	if (base::take(_fastReplyLink)) {
+		_fastReplyLink = fastReplyLink();
+	}
+}
+
 int Message::timeLeft() const {
 	const auto item = message();
 	auto result = 0;
@@ -1314,6 +1325,8 @@ bool Message::hasFromName() const {
 			&& (!item->history()->peer->isUser()
 				|| item->history()->peer->isSelf());
 	} break;
+	case Context::ContactPreview:
+		return false;
 	}
 	Unexpected("Context in Message::hasFromPhoto.");
 }
@@ -1375,6 +1388,7 @@ bool Message::hasFastReply() const {
 
 bool Message::displayFastReply() const {
 	return hasFastReply()
+		&& IsServerMsgId(data()->id)
 		&& data()->history()->peer->canWrite()
 		&& !delegate()->elementInSelectionMode();
 }
@@ -1386,10 +1400,16 @@ bool Message::displayRightAction() const {
 bool Message::displayFastShare() const {
 	const auto item = message();
 	const auto peer = item->history()->peer;
-	if (peer->isChannel()) {
+	if (!IsServerMsgId(item->id)) {
+		return false;
+	} else if (peer->isChannel()) {
 		return !peer->isMegagroup();
 	} else if (const auto user = peer->asUser()) {
-		if (user->botInfo && !item->out()) {
+		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+			return !peer->isSelf()
+				&& forwarded->originalSender->isChannel()
+				&& !forwarded->originalSender->isMegagroup();
+		} else if (user->botInfo && !item->out()) {
 			if (const auto media = this->media()) {
 				return media->allowsFastShare();
 			}
@@ -1538,7 +1558,7 @@ void Message::fromNameUpdated(int width) const {
 			via->resize(width
 				- st::msgPadding.left()
 				- st::msgPadding.right()
-				- item->author()->nameText.maxWidth()
+				- item->displayFrom()->nameText.maxWidth()
 				- st::msgServiceFont->spacew);
 		}
 	}

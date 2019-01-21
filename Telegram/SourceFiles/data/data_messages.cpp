@@ -93,7 +93,7 @@ template <typename Range>
 void MessagesList::addRange(
 		const Range &messages,
 		MessagesRange noSkipRange,
-		base::optional<int> count,
+		std::optional<int> count,
 		bool incrementCount) {
 	Expects(!count || !incrementCount);
 
@@ -119,13 +119,13 @@ void MessagesList::addRange(
 
 void MessagesList::addNew(MessagePosition messageId) {
 	auto range = { messageId };
-	addRange(range, { messageId, MaxMessagePosition }, base::none, true);
+	addRange(range, { messageId, MaxMessagePosition }, std::nullopt, true);
 }
 
 void MessagesList::addSlice(
 		std::vector<MessagePosition> &&messageIds,
 		MessagesRange noSkipRange,
-		base::optional<int> count) {
+		std::optional<int> count) {
 	addRange(messageIds, noSkipRange, count);
 }
 
@@ -167,7 +167,7 @@ void MessagesList::removeAll(ChannelId channelId) {
 
 void MessagesList::invalidate() {
 	_slices.clear();
-	_count = base::none;
+	_count = std::nullopt;
 }
 
 void MessagesList::invalidateBottom() {
@@ -181,7 +181,7 @@ void MessagesList::invalidateBottom() {
 			});
 		}
 	}
-	_count = base::none;
+	_count = std::nullopt;
 }
 
 rpl::producer<MessagesResult> MessagesList::query(
@@ -272,10 +272,10 @@ bool MessagesSliceBuilder::applyUpdate(const MessagesSliceUpdate &update) {
 	}
 	auto skippedBefore = (update.range.from == MinMessagePosition)
 		? 0
-		: base::optional<int> {};
+		: std::optional<int> {};
 	auto skippedAfter = (update.range.till == MaxMessagePosition)
 		? 0
-		: base::optional<int> {};
+		: std::optional<int> {};
 	mergeSliceData(
 		update.count,
 		needMergeMessages
@@ -331,20 +331,20 @@ bool MessagesSliceBuilder::removeFromChannel(ChannelId channelId) {
 			++i;
 		}
 	}
-	_skippedBefore = _skippedAfter = base::none;
+	_skippedBefore = _skippedAfter = std::nullopt;
 	checkInsufficient();
 	return true;
 }
 
 bool MessagesSliceBuilder::invalidated() {
-	_fullCount = _skippedBefore = _skippedAfter = base::none;
+	_fullCount = _skippedBefore = _skippedAfter = std::nullopt;
 	_ids.clear();
 	checkInsufficient();
 	return false;
 }
 
 bool MessagesSliceBuilder::bottomInvalidated() {
-	_fullCount = _skippedAfter = base::none;
+	_fullCount = _skippedAfter = std::nullopt;
 	checkInsufficient();
 	return true;
 }
@@ -354,10 +354,10 @@ void MessagesSliceBuilder::checkInsufficient() {
 }
 
 void MessagesSliceBuilder::mergeSliceData(
-		base::optional<int> count,
+		std::optional<int> count,
 		const base::flat_set<MessagePosition> &messageIds,
-		base::optional<int> skippedBefore,
-		base::optional<int> skippedAfter) {
+		std::optional<int> skippedBefore,
+		std::optional<int> skippedAfter) {
 	if (messageIds.empty()) {
 		if (count && _fullCount != count) {
 			_fullCount = count;
@@ -388,7 +388,7 @@ void MessagesSliceBuilder::mergeSliceData(
 	} else if (wasMinId != impossible && _skippedBefore) {
 		adjustSkippedBefore(wasMinId, *_skippedBefore);
 	} else {
-		_skippedBefore = base::none;
+		_skippedBefore = std::nullopt;
 	}
 
 	auto adjustSkippedAfter = [&](MessagePosition oldId, int oldSkippedAfter) {
@@ -402,7 +402,7 @@ void MessagesSliceBuilder::mergeSliceData(
 	} else if (wasMaxId != impossible && _skippedAfter) {
 		adjustSkippedAfter(wasMaxId, *_skippedAfter);
 	} else {
-		_skippedAfter = base::none;
+		_skippedAfter = std::nullopt;
 	}
 	fillSkippedAndSliceToLimits();
 }

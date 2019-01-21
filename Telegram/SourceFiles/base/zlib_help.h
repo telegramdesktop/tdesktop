@@ -172,15 +172,28 @@ public:
 		return error();
 	}
 
+	int goToFirstFile() {
+		if (error() == UNZ_OK) {
+			_error = _handle ? unzGoToFirstFile(_handle) : -1;
+		}
+		return error();
+	}
+
+	int goToNextFile() {
+		if (error() == UNZ_OK) {
+			_error = _handle ? unzGoToNextFile(_handle) : -1;
+		}
+		return error();
+	}
+
 	int getCurrentFileInfo(
-		unz_file_info *pfile_info,
-		char *szFileName,
-		uLong fileNameBufferSize,
-		void *extraField,
-		uLong extraFieldBufferSize,
-		char *szComment,
-		uLong commentBufferSize
-	) {
+			unz_file_info *pfile_info,
+			char *szFileName,
+			uLong fileNameBufferSize,
+			void *extraField,
+			uLong extraFieldBufferSize,
+			char *szComment,
+			uLong commentBufferSize) {
 		if (error() == UNZ_OK) {
 			_error = _handle ? unzGetCurrentFileInfo(
 				_handle,
@@ -194,6 +207,21 @@ public:
 			) : -1;
 		}
 		return error();
+	}
+
+	QString getCurrentFileName() {
+		unz_file_info info = { 0 };
+		constexpr auto kMaxName = 128;
+		char name[kMaxName + 1] = { 0 };
+		const auto result = getCurrentFileInfo(
+			&info,
+			name,
+			kMaxName,
+			nullptr,
+			0,
+			nullptr,
+			0);
+		return (result == UNZ_OK) ? QString::fromUtf8(name) : QString();
 	}
 
 	int openCurrentFile() {

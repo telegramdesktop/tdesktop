@@ -35,6 +35,8 @@ void OpenWith(const QString &filepath, QPoint menuPosition);
 void Launch(const QString &filepath);
 void ShowInFolder(const QString &filepath);
 
+QString DefaultDownloadPath();
+
 namespace internal {
 
 inline QString UrlToLocalDefault(const QUrl &url) {
@@ -54,26 +56,30 @@ struct OpenResult {
 	QByteArray remoteContent;
 };
 void GetOpenPath(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
-	base::lambda<void(OpenResult &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(OpenResult &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 void GetOpenPaths(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
-	base::lambda<void(OpenResult &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(OpenResult &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 void GetWritePath(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &filter,
 	const QString &initialPath,
-	base::lambda<void(QString &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(QString &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 void GetFolder(
+	QPointer<QWidget> parent,
 	const QString &caption,
 	const QString &initialPath,
-	base::lambda<void(QString &&result)> callback,
-	base::lambda<void()> failed = base::lambda<void()>());
+	Fn<void(QString &&result)> callback,
+	Fn<void()> failed = Fn<void()>());
 
 QString AllFilesFilter();
 
@@ -89,6 +95,7 @@ enum class Type {
 void InitLastPathDefault();
 
 bool GetDefault(
+	QPointer<QWidget> parent,
 	QStringList &files,
 	QByteArray &remoteContent,
 	const QString &caption,

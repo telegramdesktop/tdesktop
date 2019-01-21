@@ -11,7 +11,8 @@
   'targets': [{
     'target_name': 'crl',
     'type': 'static_library',
-    'dependencies': [],
+    'dependencies': [
+    ],
     'includes': [
       'common.gypi',
       'qt.gypi',
@@ -32,6 +33,7 @@
     },
     'include_dirs': [
       '../ThirdParty/crl/src',
+      '../SourceFiles',
     ],
     'sources': [
       '<(crl_src_loc)/common/crl_common_config.h',
@@ -51,6 +53,8 @@
       '<(crl_src_loc)/dispatch/crl_dispatch_queue.h',
       '<(crl_src_loc)/dispatch/crl_dispatch_semaphore.cpp',
       '<(crl_src_loc)/dispatch/crl_dispatch_semaphore.h',
+      '<(crl_src_loc)/mac/crl_mac_time.cpp',
+      '<(crl_src_loc)/linux/crl_linux_time.cpp',
       '<(crl_src_loc)/qt/crl_qt_async.cpp',
       '<(crl_src_loc)/qt/crl_qt_async.h',
       '<(crl_src_loc)/qt/crl_qt_semaphore.cpp',
@@ -62,11 +66,15 @@
       '<(crl_src_loc)/winapi/crl_winapi_list.h',
       '<(crl_src_loc)/winapi/crl_winapi_semaphore.cpp',
       '<(crl_src_loc)/winapi/crl_winapi_semaphore.h',
+      '<(crl_src_loc)/winapi/crl_winapi_time.cpp',
       '<(crl_src_loc)/crl.h',
       '<(crl_src_loc)/crl_async.h',
+      '<(crl_src_loc)/crl_object_on_queue.h',
       '<(crl_src_loc)/crl_on_main.h',
       '<(crl_src_loc)/crl_queue.h',
       '<(crl_src_loc)/crl_semaphore.h',
+      '<(crl_src_loc)/crl_time.cpp',
+      '<(crl_src_loc)/crl_time.h',
     ],
   }],
 }

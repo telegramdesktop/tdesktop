@@ -23,6 +23,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_quit_from_tray" = "Quit Telegreat";
 "lng_tray_icon_text" = "Telegreat is still running here,\nyou can change this from settings page.\nIf this icon disappears from tray menu,\nyou can drag it here from hidden icons.";
 
+// For lng_month_year or plain month name.
 "lng_month1" = "January";
 "lng_month2" = "February";
 "lng_month3" = "March";
@@ -35,6 +36,20 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_month10" = "October";
 "lng_month11" = "November";
 "lng_month12" = "December";
+
+// For lng_month_day and lng_month_day_year.
+"lng_month_day1" = "January";
+"lng_month_day2" = "February";
+"lng_month_day3" = "March";
+"lng_month_day4" = "April";
+"lng_month_day5" = "May";
+"lng_month_day6" = "June";
+"lng_month_day7" = "July";
+"lng_month_day8" = "August";
+"lng_month_day9" = "September";
+"lng_month_day10" = "October";
+"lng_month_day11" = "November";
+"lng_month_day12" = "December";
 
 "lng_month1_small" = "Jan";
 "lng_month2_small" = "Feb";
@@ -123,11 +138,14 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_error_cant_add_admin_invite" = "Sorry, you can't add this user as an admin because they are not a member of this group and you are not allowed to invite them.";
 "lng_error_cant_add_admin_unban" = "Sorry, you can't add this user as an admin because they are in the blacklist and you can't unban them.";
 "lng_error_cant_ban_admin" = "Sorry, you can't ban this user because they are an admin in this group and you are not allowed to demote them.";
+"lng_error_admin_limit" = "Sorry, you've reached the maximum number of admins for this group.";
+"lng_error_admin_limit_channel" = "Sorry, you've reached the maximum number of admins for this channel.";
 "lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
 "lng_sure_add_admin_invite_channel" = "This user is not a subscriber of this channel. Add them to the channel and promote them to admin?";
 "lng_sure_add_admin_unban" = "This user is currently restricted or banned. Are you sure you want to unban and promote them?";
 "lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
 "lng_sure_ban_user_group" = "Ban {user} in the group?";
+"lng_sure_ban_user_channel" = "Ban {user} in the channel?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
 
@@ -138,6 +156,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_deleted" = "Deleted Account";
 "lng_deleted_message" = "Deleted message";
 "lng_pinned_message" = "Pinned message";
+"lng_pinned_poll" = "Pinned poll";
 "lng_pinned_unpin_sure" = "Would you like to unpin this message?";
 "lng_pinned_pin_sure" = "Would you like to pin this message?";
 "lng_pinned_pin" = "Pin";
@@ -179,19 +198,19 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";
-"lng_signin_recover_desc" = "Please enter the code from the e-mail\n{email}";
+"lng_signin_recover_desc" = "Please enter the code from the email\n{email}";
 "lng_signin_password" = "Your cloud password";
-"lng_signin_code" = "Code from e-mail";
+"lng_signin_code" = "Code from email";
 "lng_signin_recover" = "Forgot password?";
 "lng_signin_recover_title" = "Password reset";
 "lng_signin_hint" = "Hint: {password_hint}";
 "lng_signin_recover_hint" = "Code was sent to {recover_email}";
 "lng_signin_bad_password" = "You have entered a wrong password.";
 "lng_signin_wrong_code" = "You have entered an invalid code.";
-"lng_signin_try_password" = "Having trouble accessing your e-mail?";
+"lng_signin_try_password" = "Having trouble accessing your email?";
 "lng_signin_password_removed" = "Your cloud password was disabled.\nYou can set up a new one in Settings.";
-"lng_signin_no_email_forgot" = "Since you didn't provide a recovery e-mail when setting up your password, your remaining options are either to remember your password or to reset your account.";
-"lng_signin_cant_email_forgot" = "If you can't restore access to the e-mail, your remaining options are either to remember your password or to reset your account.";
+"lng_signin_no_email_forgot" = "Since you didn't provide a recovery email when setting up your password, your remaining options are either to remember your password or to reset your account.";
+"lng_signin_cant_email_forgot" = "If you can't restore access to the email, your remaining options are either to remember your password or to reset your account.";
 "lng_signin_reset_account" = "Reset your account";
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
@@ -250,7 +269,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_bio_placeholder" = "Bio";
 "lng_bio_about" = "You can add a few lines about yourself. Anyone who opens your profile will see this text.";
 
-"lng_settings_section_info" = "Info";
+"lng_settings_section_info" = "My info";
 "lng_settings_username" = "Username:";
 "lng_settings_choose_username" = "Choose username";
 "lng_settings_empty_bio" = "None";
@@ -261,11 +280,11 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_use_native_notifications" = "Use native notifications";
-"lng_settings_advanced_notifications" = "Notifications position and count";
 "lng_settings_notifications_position" = "Location on the screen";
 "lng_settings_notifications_count" = "Notifications count";
 "lng_settings_sound_notify" = "Play sound";
 "lng_settings_include_muted" = "Include muted chats in unread count";
+"lng_settings_count_unread" = "Count unread messages";
 
 "lng_notification_preview" = "You have a new message";
 "lng_notification_reply" = "Reply";
@@ -277,6 +296,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_languages" = "Languages";
 "lng_sure_save_language" = "Telegreat will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
+"lng_settings_install_beta" = "Install beta versions";
 "lng_settings_current_version_label" = "Version {version}:";
 "lng_settings_current_version" = "Version {version}";
 "lng_settings_check_now" = "Check for updates";
@@ -296,6 +316,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
+"lng_settings_suggest_emoji" = "Suggest emoji replacements";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_send_enter" = "Send by Enter";
@@ -306,9 +327,63 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_bg_use_default" = "Use default color theme";
 "lng_settings_bg_from_gallery" = "Choose from gallery";
 "lng_settings_bg_from_file" = "Choose from file";
-"lng_settings_bg_edit_theme" = "Edit theme";
+"lng_settings_bg_edit_theme" = "Launch theme editor";
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
+
+"lng_settings_section_call_settings" = "Calls Settings";
+"lng_settings_call_section_output" = "Speakers and headphones";
+"lng_settings_call_section_input" = "Microphone";
+"lng_settings_call_input_device" = "Input device";
+"lng_settings_call_output_device" = "Output device";
+"lng_settings_call_input_volume" = "Input volume: {percent}%";
+"lng_settings_call_output_volume" = "Output volume: {percent}%";
+"lng_settings_call_test_mic" = "Test microphone";
+"lng_settings_call_stop_mic_test" = "Stop test";
+"lng_settings_call_section_other" = "Other settings";
+"lng_settings_call_open_system_prefs" = "Open system sound preferences";
+"lng_settings_call_device_default" = "Default";
+"lng_settings_call_audio_ducking" = "Mute other sounds during calls";
+
+"lng_settings_language" = "Language";
+"lng_settings_default_scale" = "Default interface scale";
+"lng_settings_connection_type" = "Connection type";
+"lng_settings_downloading_update" = "Downloading update {progress}...";
+"lng_settings_privacy_title" = "Privacy";
+"lng_settings_last_seen" = "Last seen";
+"lng_settings_calls" = "Voice calls";
+"lng_settings_calls_peer_to_peer" = "Peer-to-peer in calls";
+"lng_settings_groups_invite" = "Groups";
+"lng_settings_group_privacy_about" = "Change who can add you to groups and channels.";
+"lng_settings_sessions_about" = "Control your sessions on other devices.";
+"lng_settings_passcode_disable" = "Disable passcode";
+"lng_settings_password_disable" = "Disable cloud password";
+"lng_settings_password_abort" = "Abort two-step verification setup";
+"lng_settings_password_reenter_email" = "Re-enter recovery email";
+"lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
+"lng_settings_name_label" = "Name";
+"lng_settings_username_label" = "Username";
+"lng_settings_phone_label" = "Phone number";
+"lng_settings_username_add" = "Add username";
+"lng_settings_close_sure" = "Are you sure you want to close this page? You didn't save your changes.";
+//"lng_settings_peer_to_peer" = "Peer-to-Peer";
+"lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
+"lng_settings_advanced" = "Advanced";
+"lng_settings_stickers_emoji" = "Stickers and emoji";
+"lng_settings_messages" = "Messages";
+"lng_settings_themes" = "Themes";
+"lng_settings_data_storage" = "Data and storage";
+"lng_settings_information" = "Edit profile";
+"lng_settings_passcode_title" = "Local passcode";
+"lng_settings_password_title" = "Two-step verification";
+"lng_settings_sessions_title" = "Active sessions";
+"lng_settings_destroy_title" = "Delete my account";
+"lng_settings_network_proxy" = "Network and proxy";
+"lng_settings_version_info" = "Version and updates";
+"lng_settings_system_integration" = "System integration";
+"lng_settings_performance" = "Performance";
+"lng_settings_enable_animations" = "Enable animations";
+"lng_settings_autoplay_gifs" = "Autoplay GIFs";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";
@@ -317,10 +392,10 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
 
-"lng_download_path_dont_ask" = "Don't ask download path for each file";
-"lng_download_path_label" = "Download path:";
-"lng_download_path_temp" = "temp folder";
-"lng_download_path_default" = "default folder";
+"lng_download_path_ask" = "Ask download path for each file";
+"lng_download_path" = "Download path";
+"lng_download_path_temp" = "Temp folder";
+"lng_download_path_default" = "Default folder";
 "lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
 "lng_download_path_default_radio" = "Telegreat folder in system «Downloads»";
@@ -337,14 +412,28 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_section_privacy" = "Privacy and Security";
 
 "lng_local_storage_title" = "Local storage";
-"lng_settings_no_data_cached" = "No cached data found!";
-"lng_settings_images_cached#one" = "{count} image, {size}";
-"lng_settings_images_cached#other" = "{count} images, {size}";
-"lng_settings_audios_cached#one" = "{count} voice message, {size}";
-"lng_settings_audios_cached#other" = "{count} voice messages, {size}";
+"lng_local_storage_empty" = "No cached files";
+"lng_local_storage_image#one" = "{count} image";
+"lng_local_storage_image#other" = "{count} images";
+"lng_local_storage_sticker#one" = "{count} sticker";
+"lng_local_storage_sticker#other" = "{count} stickers";
+"lng_local_storage_voice#one" = "{count} voice message";
+"lng_local_storage_voice#other" = "{count} voice messages";
+"lng_local_storage_round#one" = "{count} video message";
+"lng_local_storage_round#other" = "{count} video messages";
+"lng_local_storage_animation#one" = "{count} animation";
+"lng_local_storage_animation#other" = "{count} animations";
+"lng_local_storage_size_limit" = "Total size limit: {size}";
+"lng_local_storage_time_limit" = "Clear files older than: {limit}";
+"lng_local_storage_limit_weeks#one" = "{count} week";
+"lng_local_storage_limit_weeks#other" = "{count} weeks";
+"lng_local_storage_limit_months#one" = "{count} month";
+"lng_local_storage_limit_months#other" = "{count} months";
+"lng_local_storage_limit_never" = "Never";
+"lng_local_storage_summary" = "Summary";
+"lng_local_storage_clear_some" = "Clear";
 "lng_local_storage_clear" = "Clear all";
 "lng_local_storage_clearing" = "Clearing...";
-"lng_local_storage_cleared" = "Cleared!";
 
 "lng_settings_section_advanced_settings" = "Advanced Settings";
 "lng_settings_enable_night_theme" = "Enable night mode";
@@ -358,8 +447,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_passcode_remove" = "Remove local passcode";
 "lng_passcode_turn_off" = "Turn off";
 "lng_passcode_autolock" = "Auto-Lock";
-"lng_passcode_autolock_away" = "Auto-Lock if away for:";
-"lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
+"lng_passcode_autolock_away" = "Auto-Lock if away for...";
+"lng_passcode_autolock_inactive" = "Auto-Lock if inactive for...";
 "lng_passcode_autolock_minutes#one" = "{count} minute";
 "lng_passcode_autolock_minutes#other" = "{count} minutes";
 "lng_passcode_autolock_hours#one" = "{count} hour";
@@ -378,7 +467,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_passcode_logout" = "Log out";
 "lng_passcode_need_unblock" = "You need to unlock me first.";
 
-"lng_cloud_password_waiting" = "Confirmation link sent to {email}...";
+"lng_cloud_password_waiting_code" = "Confirmation code sent to {email}...";
+"lng_cloud_password_confirm" = "Confirm recovery email";
 "lng_cloud_password_change" = "Change cloud password";
 "lng_cloud_password_create" = "Cloud password";
 "lng_cloud_password_remove" = "Remove cloud password";
@@ -391,20 +481,22 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_cloud_password_hint" = "Enter password hint";
 "lng_cloud_password_change_hint" = "Enter new password hint";
 "lng_cloud_password_bad" = "Password and hint cannot be the same.";
-"lng_cloud_password_email" = "Enter recovery e-mail";
-"lng_cloud_password_bad_email" = "Incorrect e-mail, please try other.";
+"lng_cloud_password_email" = "Enter recovery email";
+"lng_cloud_password_bad_email" = "Incorrect email, please try other.";
 "lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the SMS code.";
-"lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery e-mail?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
-"lng_cloud_password_skip_email" = "Skip e-mail";
-"lng_cloud_password_almost" = "A confirmation link was sent to the\ne-mail you provided. Two-step verification will be enabled as soon as you follow that link.";
+"lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery email?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
+"lng_cloud_password_skip_email" = "Skip email";
+"lng_cloud_password_almost" = "A confirmation link was sent to the\nemail you provided. Two-step verification will be enabled as soon as you follow that link.";
 "lng_cloud_password_was_set" = "Two-step verification enabled.";
 "lng_cloud_password_updated" = "Your cloud password was updated.";
 "lng_cloud_password_removed" = "Two-step verification was disabled.";
 "lng_cloud_password_differ" = "Passwords do not match";
 "lng_cloud_password_wrong" = "Wrong cloud password";
 "lng_cloud_password_is_same" = "Password was not changed";
+"lng_cloud_password_passport_losing" = "Warning! All data saved in your Telegram Passport will be lost!";
+"lng_cloud_password_resend" = "Resend code";
+"lng_cloud_password_resent" = "Code was resent.";
 
-"lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting...)";
 "lng_connection_auto" = "Default ({transport} used)";
 "lng_connection_proxy_connecting" = "Connecting through proxy...";
@@ -422,15 +514,17 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_connection_save" = "Save";
 
 "lng_proxy_settings" = "Proxy settings";
-"lng_proxy_use" = "Use proxy";
+"lng_proxy_disable" = "Disable proxy";
+"lng_proxy_use_system_settings" = "Use system proxy settings";
+"lng_proxy_use_custom" = "Use custom proxy";
 "lng_proxy_use_for_calls" = "Use proxy for calls";
 "lng_proxy_about" = "Proxy servers may be helpful in accessing Telegram if there is no connection in a specific region.";
 "lng_proxy_add" = "Add proxy";
 "lng_proxy_share" = "Share";
-"lng_proxy_online" = "online";
+"lng_proxy_online" = "connected";
 "lng_proxy_checking" = "checking";
 "lng_proxy_connecting" = "connecting";
-"lng_proxy_available" = "available (ping: {ping}ms)";
+"lng_proxy_available" = "available, {ping} ms ping";
 "lng_proxy_unavailable" = "not available";
 "lng_proxy_edit" = "Edit proxy";
 "lng_proxy_menu_edit" = "Edit";
@@ -441,13 +535,14 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_proxy_credentials_optional" = "Credentials (optional)";
 "lng_proxy_credentials" = "Credentials";
 "lng_proxy_description" = "Your saved proxy list will be here.";
+"lng_proxy_sponsor" = "Proxy sponsor";
+"lng_proxy_sponsor_about" = "This channel is shown by your proxy server.\nTo remove this channel from your chats list,\ndisable the proxy in Telegram Settings.";
+"lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 
 "lng_settings_blocked_users" = "Blocked users";
-"lng_settings_last_seen_privacy" = "Last seen privacy";
-"lng_settings_calls_privacy" = "Phone calls privacy";
-"lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
-"lng_settings_self_destruct" = "Account self-destruct settings";
+"lng_settings_export_data" = "Export Telegram data";
+"lng_settings_destroy_if" = "If away for...";
 "lng_settings_change_phone" = "Change phone number";
 
 "lng_settings_reset" = "Terminate all other sessions";
@@ -470,10 +565,14 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_sessions_other_header" = "Active sessions";
 "lng_sessions_other_desc" = "You can log in to Telegram from other mobile, tablet and desktop devices, using the same phone number. All your data will be instantly synchronized.";
 "lng_sessions_terminate_all" = "Terminate all other sessions";
+"lng_sessions_terminate_all_about" = "Logs out all devices except for this one.";
+"lng_sessions_incomplete" = "Incomplete login attempts";
+"lng_sessions_incomplete_about" = "The devices above have no access to your messages. The code was entered correctly, but no correct password was given.";
 
 "lng_blocked_list_title" = "Blocked users";
 "lng_blocked_list_unknown_phone" = "unknown phone number";
 "lng_blocked_list_unblock" = "Unblock";
+"lng_blocked_list_restart" = "Restart";
 "lng_blocked_list_add" = "Block user";
 "lng_blocked_list_add_title" = "Select user to block";
 "lng_blocked_list_already_blocked" = "blocked already";
@@ -485,42 +584,46 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_exceptions" = "Add exceptions";
 
+"lng_edit_privacy_exceptions_count#one" = "{count} user";
+"lng_edit_privacy_exceptions_count#other" = "{count} users";
+"lng_edit_privacy_exceptions_add" = "Add users";
+
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
-"lng_edit_privacy_lastseen_description" = "You can choose who can see your last seen time:";
+"lng_edit_privacy_lastseen_header" = "Who can see your last seen time";
 "lng_edit_privacy_lastseen_warning" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
 "lng_edit_privacy_lastseen_always_empty" = "Always share with";
-"lng_edit_privacy_lastseen_always#one" = "Always share with {count} user";
-"lng_edit_privacy_lastseen_always#other" = "Always share with {count} users";
 "lng_edit_privacy_lastseen_never_empty" = "Never share with";
-"lng_edit_privacy_lastseen_never#one" = "Never share with {count} user";
-"lng_edit_privacy_lastseen_never#other" = "Never share with {count} users";
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
 
 "lng_edit_privacy_groups_title" = "Group invite settings";
-"lng_edit_privacy_groups_description" = "You can choose who can add you to groups and channels with granular precision:";
+"lng_edit_privacy_groups_header" = "Who can invite you to groups and channels";
 "lng_edit_privacy_groups_always_empty" = "Always allow";
-"lng_edit_privacy_groups_always#one" = "Always allow {count} user";
-"lng_edit_privacy_groups_always#other" = "Always allow {count} users";
 "lng_edit_privacy_groups_never_empty" = "Never allow";
-"lng_edit_privacy_groups_never#one" = "Never allow {count} user";
-"lng_edit_privacy_groups_never#other" = "Never allow {count} users";
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
 
-"lng_edit_privacy_calls_title" = "Telegram call privacy";
-"lng_edit_privacy_calls_description" = "You can restrict who can call you:";
+"lng_edit_privacy_calls_title" = "Voice calls privacy";
+"lng_edit_privacy_calls_header" = "Who can call you";
 "lng_edit_privacy_calls_always_empty" = "Always allow";
-"lng_edit_privacy_calls_always#one" = "Always allow {count} user";
-"lng_edit_privacy_calls_always#other" = "Always allow {count} users";
 "lng_edit_privacy_calls_never_empty" = "Never allow";
-"lng_edit_privacy_calls_never#one" = "Never allow {count} user";
-"lng_edit_privacy_calls_never#other" = "Never allow {count} users";
 "lng_edit_privacy_calls_exceptions" = "These users will or will not be able to call you regardless of the settings above.";
 "lng_edit_privacy_calls_always_title" = "Always allow";
 "lng_edit_privacy_calls_never_title" = "Never allow";
+
+"lng_edit_privacy_calls_p2p_title" = "Peer-to-peer in calls";
+"lng_edit_privacy_calls_p2p_header" = "With who peer-to-peer is enabled?";
+"lng_edit_privacy_calls_p2p_always_empty" = "Always allow";
+"lng_edit_privacy_calls_p2p_never_empty" = "Never allow";
+"lng_edit_privacy_calls_p2p_exceptions" = "Peer-to-peer in calls will or will not be used with these users regardless of the settings above.";
+"lng_edit_privacy_calls_p2p_always_title" = "Always allow";
+"lng_edit_privacy_calls_p2p_never_title" = "Never allow";
+
+"lng_edit_privacy_calls_p2p_everyone" = "Everybody";
+"lng_edit_privacy_calls_p2p_contacts" = "My contacts";
+"lng_edit_privacy_calls_p2p_nobody" = "Nobody";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
@@ -543,6 +646,9 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_mute_duration_hours#one" = "For {count} hour";
 "lng_mute_duration_hours#other" = "For {count} hours";
+"lng_mute_duration_days#one" = "For {count} day";
+"lng_mute_duration_days#other" = "For {count} days";
+"lng_mute_duration_forever" = "Forever";
 "lng_mute_box_tip" = "Choose for how long you would like to turn off notifications for the following chat";
 
 "lng_preview_loading" = "Getting Link Info...";
@@ -551,6 +657,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_profile_actions_section" = "Actions";
 "lng_profile_bot_settings" = "Bot Settings";
 "lng_profile_bot_help" = "Bot Help";
+"lng_profile_bot_privacy" = "Bot Privacy Policy";
 "lng_profile_invite_link_section" = "Invite link";
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
@@ -576,7 +683,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_profile_report" = "Report";
 "lng_profile_search_messages" = "Search for messages";
 "lng_profile_block_bot" = "Stop and block bot";
-"lng_profile_unblock_bot" = "Unblock bot";
+"lng_profile_restart_bot" = "Restart bot";
 "lng_profile_invite_to_group" = "Add to Group";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
@@ -648,6 +755,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
+"lng_profile_export_chat" = "Export chat history";
+"lng_profile_export_channel" = "Export channel history";
 "lng_media_selected_photo#one" = "{count} Photo";
 "lng_media_selected_photo#other" = "{count} Photos";
 "lng_media_selected_video#one" = "{count} Video";
@@ -690,6 +799,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";
 "lng_report_bot_title" = "Report bot";
+"lng_report_message_title" = "Report message";
 "lng_report_reason_spam" = "Spam";
 "lng_report_reason_violence" = "Violence";
 "lng_report_reason_pornography" = "Pornography";
@@ -817,6 +927,13 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
 "lng_action_bot_allowed_from_domain" = "You allowed this bot to message you when you logged in on {domain}.";
+"lng_action_secure_values_sent" = "{user} received the following documents: {documents}";
+"lng_action_secure_personal_details" = "personal details";
+"lng_action_secure_proof_of_identity" = "proof of identity";
+"lng_action_secure_address" = "address";
+"lng_action_secure_proof_of_address" = "proof of address";
+"lng_action_secure_phone" = "phone number";
+"lng_action_secure_email" = "email address";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";
@@ -894,15 +1011,21 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_media_video" = "Video";
 "lng_media_audio" = "Voice message";
 
-"lng_media_auto_settings" = "Automatic media download settings";
-"lng_media_auto_photo" = "Automatic photo download";
-"lng_media_auto_audio" = "Automatic voice message download";
-"lng_media_auto_gif" = "Automatic GIF download";
-"lng_media_auto_private_chats" = "Private chats";
-"lng_media_auto_groups" = "Groups and channels";
-"lng_media_auto_play" = "Autoplay";
+"lng_media_auto_settings" = "Automatic media download";
+"lng_media_auto_in_private" = "In private chats";
+"lng_media_auto_in_groups" = "In groups";
+"lng_media_auto_in_channels" = "In channels";
+"lng_media_auto_title" = "Automatically download";
+"lng_media_photo_title" = "Photos";
+"lng_media_video_title" = "Video files";
+"lng_media_audio_title" = "Voice messages";
+"lng_media_video_messages_title" = "Round video messages";
+"lng_media_file_title" = "Files";
+"lng_media_music_title" = "Music";
+"lng_media_animation_title" = "Animated GIFs";
+"lng_media_size_limit" = "Limit by size";
+"lng_media_size_up_to" = "up to {size}";
 
-"lng_emoji_category0" = "Frequently used";
 "lng_emoji_category1" = "People";
 "lng_emoji_category2" = "Nature";
 "lng_emoji_category3" = "Food & Drink";
@@ -911,6 +1034,11 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_emoji_category6" = "Objects";
 "lng_emoji_category7" = "Symbols & Flags";
 "lng_emoji_hide_panel" = "Click here to hide the emoji sidebar";
+"lng_emoji_manage_sets" = "Choose emoji set";
+"lng_emoji_set_ready" = "Downloaded";
+"lng_emoji_set_active" = "Current set";
+"lng_emoji_set_download" = "Download {size}";
+"lng_emoji_set_loading" = "{percent}, {progress}";
 
 "lng_recent_stickers" = "Frequently used";
 "lng_faved_stickers_add" = "Add to Favorites";
@@ -941,7 +1069,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
-"lng_stickers_you_have" = "Manage and reorder sticker packs";
+"lng_stickers_you_have" = "Manage sticker packs";
 "lng_stickers_return" = "Undo";
 "lng_stickers_count#one" = "{count} sticker";
 "lng_stickers_count#other" = "{count} stickers";
@@ -964,6 +1092,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
+"lng_in_dlg_poll" = "Poll";
 
 "lng_ban_user" = "Ban User";
 "lng_delete_all_from" = "Delete all from this user";
@@ -980,7 +1109,10 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
 "lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";
 "lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of their privacy settings.";
+"lng_cant_invite_bot_to_channel" = "Sorry, bots can only be added to channels as administrators.";
 "lng_cant_do_this" = "Sorry, this action is unavailable.";
+"lng_cant_invite_offer_admin" = "Bots can only be added as administrators.";
+"lng_cant_invite_make_admin" = "Make admin";
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message...";
@@ -994,6 +1126,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_from_draft" = "Draft";
 "lng_bot_description" = "What can this bot do?";
 "lng_unblock_button" = "Unblock";
+"lng_restart_button" = "Restart";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 "lng_saved_messages" = "Saved Messages";
@@ -1074,6 +1207,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_context_view_feed_info" = "View feed info";
 "lng_context_pin_to_top" = "Pin to top";
 "lng_context_unpin_from_top" = "Unpin from top";
+"lng_context_mark_unread" = "Mark as unread";
+"lng_context_mark_read" = "Mark as read";
 
 "lng_context_promote_admin" = "Promote to admin";
 "lng_context_edit_permissions" = "Edit permissions";
@@ -1105,6 +1240,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
+"lng_context_report_msg" = "Report Message";
 "lng_context_pin_msg" = "Pin Message";
 "lng_context_unpin_msg" = "Unpin Message";
 "lng_context_cancel_upload" = "Cancel Upload";
@@ -1247,6 +1383,18 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
+"lng_menu_formatting" = "Formatting";
+"lng_menu_formatting_bold" = "Bold";
+"lng_menu_formatting_italic" = "Italic";
+"lng_menu_formatting_monospace" = "Monospace";
+"lng_menu_formatting_link_create" = "Create link";
+"lng_menu_formatting_link_edit" = "Edit link";
+"lng_menu_formatting_clear" = "Plain text";
+"lng_formatting_link_create_title" = "Create link";
+"lng_formatting_link_edit_title" = "Create link";
+"lng_formatting_link_text" = "Text";
+"lng_formatting_link_url" = "URL";
+"lng_formatting_link_create" = "Create";
 
 "lng_full_name" = "{first_name} {last_name}";
 
@@ -1315,6 +1463,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";
+
+"lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
 "lng_player_message_today" = "Today at {time}";
 "lng_player_message_yesterday" = "Yesterday at {time}";
@@ -1472,6 +1622,263 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_info_feed_is_default" = "Group new channels";
 "lng_info_feed_channels" = "Channels";
 
+"lng_terms_signup" = "By signing up,\nyou agree to the {link}.";
+"lng_terms_signup_link" = "Terms of Service";
+"lng_terms_header" = "Terms of Service";
+"lng_terms_age#one" = "I confirm that I am {count} or over";
+"lng_terms_age#other" = "I confirm that I am {count} or over";
+"lng_terms_agree" = "Agree & Continue";
+"lng_terms_decline" = "Decline";
+"lng_terms_signup_sorry" = "We're very sorry, but this means you can't sign up for Telegram.\n\nUnlike others, we don't use your data for ad targeting or other commercial purposes. Telegram only stores the information it needs to function as a feature-rich cloud service. You can adjust how we use your data in Privacy & Security settings.\n\nBut if you're generally not OK with Telegram's modest needs, it won't be possible for us to provide this service.";
+"lng_terms_update_sorry" = "We're very sorry, but this means we must part ways here. Unlike others, we don't use your data for ad targeting or other commercial purposes. Telegram only stores the information it needs to function as a feature-rich cloud service. You can adjust how we use your data in Privacy & Security settings.\n\nBut if you're generally not OK with Telegram's modest needs, it won't be possible for us to provide this service. You can deactivate your account now — or look around some more and deactivate it later if you feel you're not happy with the way we use your data. How does that sound?";
+"lng_terms_decline_and_delete" = "Decline & Delete";
+"lng_terms_back" = "Back";
+"lng_terms_delete_warning" = "Warning, this will irreversibly delete your Telegram account along with all the data you store in the Telegram cloud.\n\nWe will provide a tool to download your data before June, 23 – so you may want to wait a little before deleting.";
+"lng_terms_delete_now" = "Delete now";
+"lng_terms_agree_to_proceed" = "Please agree and proceed to {bot}.";
+
+"lng_date_input_day" = "Day";
+"lng_date_input_month" = "Month";
+"lng_date_input_year" = "Year";
+
+"lng_passport_title" = "Telegram passport";
+"lng_passport_request1" = "{bot} requests access to your personal data";
+"lng_passport_request2" = "to sign you up for their services";
+"lng_passport_create_password" = "Please create a password which will be used\nto encrypt your personal data.";
+"lng_passport_about_password" = "This password will also be required whenever\nyou log in to a new device.";
+"lng_passport_password_create" = "Create a password";
+"lng_passport_email_validate" = "Validate";
+"lng_passport_code_sent" = "A confirmation code was sent to\n{email}";
+"lng_passport_stop_password_sure" = "Are you sure you want to cancel setting up your password?";
+"lng_passport_password_placeholder" = "Your password";
+"lng_passport_next" = "Next";
+"lng_passport_password_wrong" = "The password you entered is not valid.";
+"lng_passport_header" = "Requested information";
+"lng_passport_identity_title" = "Identity document";
+"lng_passport_identity_description" = "Upload proof of your identity";
+"lng_passport_identity_passport" = "Passport";
+"lng_passport_identity_passport_upload" = "Upload a scan of your passport";
+"lng_passport_identity_card" = "Identity card";
+"lng_passport_identity_card_upload" = "Upload a scan of your identity card";
+"lng_passport_identity_license" = "Driver's license";
+"lng_passport_identity_license_upload" = "Upload a scan of your driver's license";
+"lng_passport_identity_internal" = "Internal passport";
+"lng_passport_identity_internal_upload" = "Upload a scan of your internal passport";
+"lng_passport_identity_about" = "The document must contain your photograph, first and last name, date of birth, document number, country of issue, and expiry date.";
+"lng_passport_address_title" = "Residential address";
+"lng_passport_address_description" = "Upload a proof of your address";
+"lng_passport_address_bill" = "Utility bill";
+"lng_passport_address_bill_upload" = "Upload a scan of your utility bill";
+"lng_passport_address_statement" = "Bank statement";
+"lng_passport_address_statement_upload" = "Upload a scan of your bank statement";
+"lng_passport_address_agreement" = "Tenancy agreement";
+"lng_passport_address_agreement_upload" = "Upload a scan of your tenancy agreement";
+"lng_passport_address_registration" = "Passport registration";
+"lng_passport_address_registration_upload" = "Upload a scan of your passport registration page";
+"lng_passport_address_temporary" = "Temporary registration";
+"lng_passport_address_temporary_upload" = "Upload a scan of your temporary registration";
+"lng_passport_address_about" = "To confirm your address, please upload a scan or photo of the selected document (all pages).";
+"lng_passport_or_title" = "{document} or {second_document}";
+"lng_passport_document_type" = "Please choose the type of your document:";
+"lng_passport_upload_document" = "Upload document";
+"lng_passport_phone_title" = "Phone number";
+"lng_passport_phone_description" = "Enter your phone number";
+"lng_passport_email_title" = "Email";
+"lng_passport_email_description" = "Enter your email address";
+"lng_passport_identity_selfie" = "Take a selfie with your document";
+"lng_passport_translation_needed" = "Upload a translation of your document";
+"lng_passport_accept_allow" = "You accept the {policy} and allow their {bot} to send you messages.";
+"lng_passport_allow" = "You allow {bot} to send you messages.";
+"lng_passport_policy" = "{bot} privacy policy";
+"lng_passport_authorize" = "Authorize";
+"lng_passport_form_error" = "Could not get authorization form.";
+"lng_passport_save_value" = "Save";
+"lng_passport_saving" = "Saving...";
+"lng_passport_uploading" = "Uploading...";
+"lng_passport_scan_index" = "Scan {index}";
+"lng_passport_upload_scans" = "Upload scans";
+"lng_passport_upload_more" = "Upload additional scans";
+"lng_passport_selfie_title" = "Selfie";
+"lng_passport_selfie_description" = "Upload a photo of yourself holding your document. Make sure the ID and your face are clearly visible.";
+"lng_passport_upload_selfie" = "Upload selfie";
+"lng_passport_reupload_selfie" = "Reupload selfie";
+"lng_passport_front_side_title" = "Front side";
+"lng_passport_front_side_description" = "Upload the front side of your document.";
+"lng_passport_upload_front_side" = "Upload a scan of the front side";
+"lng_passport_reupload_front_side" = "Reupload a scan of the front side";
+"lng_passport_reverse_side_title" = "Reverse side";
+"lng_passport_reverse_side_description" = "Upload the reverse side of your document.";
+"lng_passport_upload_reverse_side" = "Upload a scan of the reverse side";
+"lng_passport_reupload_reverse_side" = "Reupload a scan of the reverse side";
+"lng_passport_main_page_title" = "Main page";
+"lng_passport_main_page_description" = "Upload the main page of your document.";
+"lng_passport_upload_main_page" = "Upload a scan of the main page";
+"lng_passport_reupload_main_page" = "Reupload a scan of the main page";
+"lng_passport_personal_details" = "Personal details";
+"lng_passport_personal_details_enter" = "Fill in your personal details";
+"lng_passport_document_details" = "Document details";
+"lng_passport_choose_image" = "Choose scan image";
+"lng_passport_delete_scan_undo" = "Undo";
+"lng_passport_scan_uploaded" = "Uploaded on {date}";
+"lng_passport_first_name" = "First name";
+"lng_passport_middle_name" = "Middle name";
+"lng_passport_last_name" = "Last name";
+"lng_passport_birth_date" = "Date of birth";
+"lng_passport_gender" = "Gender";
+"lng_passport_gender_male" = "Male";
+"lng_passport_gender_female" = "Female";
+"lng_passport_country" = "Country";
+"lng_passport_residence_country" = "Residence";
+"lng_passport_country_choose" = "Choose country";
+"lng_passport_document_number" = "Document Number";
+"lng_passport_expiry_date" = "Expiry date";
+"lng_passport_native_name_title" = "Name in document language";
+"lng_passport_native_name_about" = "Your name in the language of the country ({country}) that issued the document.";
+"lng_passport_native_name_language" = "Your name in {language}";
+"lng_passport_native_name_language_about" = "Your name in the language of the country that issued the document.";
+"lng_passport_address" = "Address";
+"lng_passport_address_enter" = "Please provide your address";
+"lng_passport_street" = "Street";
+"lng_passport_city" = "City";
+"lng_passport_state" = "State";
+"lng_passport_postcode" = "Postcode";
+"lng_passport_translation" = "Translation";
+"lng_passport_use_existing" = "USE {existing}";
+"lng_passport_use_existing_phone" = "Use the same phone number as on Telegram.";
+"lng_passport_new_phone" = "Or enter a new phone number";
+"lng_passport_new_phone_code" = "Note: You will receive a confirmation code on the phone number you provide.";
+"lng_passport_use_existing_email" = "Use the same email address as on Telegram.";
+"lng_passport_new_email" = "Or enter a new email";
+"lng_passport_new_email_code" = "Note: You will receive a confirmation code to the email address you provide.";
+"lng_passport_confirm_phone" = "We've sent an SMS with a confirmation code to your phone {phone}.";
+"lng_passport_confirm_email" = "We've sent a confirmation code to your email {email}.";
+"lng_passport_sure_cancel" = "If you continue, your changes will be lost.";
+"lng_passport_scans_limit_reached" = "Sorry, that's too many scans for one document.";
+"lng_passport_delete_document" = "Delete document";
+"lng_passport_delete_document_sure" = "Are you sure you want to delete this document?";
+"lng_passport_delete_details" = "Delete personal details";
+"lng_passport_delete_details_sure" = "Are you sure you want to delete your personal details?";
+"lng_passport_delete_address" = "Delete address information";
+"lng_passport_delete_address_sure" = "Are you sure you want to delete your address information?";
+"lng_passport_delete_email" = "Delete email";
+"lng_passport_delete_email_sure" = "Are you sure you want to delete your email address?";
+"lng_passport_delete_phone" = "Delete phone number";
+"lng_passport_delete_phone_sure" = "Are you sure you want to delete your phone number?";
+"lng_passport_success" = "Authorization successful!";
+"lng_passport_stop_sure" = "Are you sure you want to stop this authorization?";
+"lng_passport_stop" = "Stop";
+"lng_passport_restart_sure" = "An unexpected error has occurred. Perhaps some changes were made from a different Telegram application. Would you like to restart this authorization?";
+"lng_passport_restart" = "Restart";
+"lng_passport_error_too_large" = "Sorry, this file is too large.";
+"lng_passport_error_bad_size" = "Sorry, this image has wrong dimensions.";
+"lng_passport_error_cant_read" = "Can't read this file. Please choose an image.";
+"lng_passport_bad_name" = "Please use latin characters only.";
+"lng_passport_wait_upload" = "Please wait while upload is finished.";
+"lng_passport_app_out_of_date" = "Sorry, your Telegram app is out of date and can't handle this request. Please update Telegram.";
+
+"lng_export_title" = "Export Personal Data";
+"lng_export_progress_title" = "Exporting personal data";
+"lng_export_option_info" = "Account information";
+"lng_export_option_info_about" = "Your chosen screen name, username, phone number and profile pictures.";
+"lng_export_option_contacts" = "Contacts list";
+"lng_export_option_contacts_about" = "If you allow access, contacts are continuously synced with Telegram. You can adjust this in Settings > Privacy & Security on mobile devices.";
+"lng_export_option_sessions" = "Active sessions";
+"lng_export_option_sessions_about" = "We store this to display your connected devices in Settings > Privacy & Security > Active Sessions.";
+"lng_export_header_other" = "Other";
+"lng_export_option_other" = "Miscellaneous data";
+"lng_export_option_other_about" = "Other types of data not mentioned above (beta).";
+"lng_export_header_chats" = "Chat export settings";
+"lng_export_option_personal_chats" = "Personal chats";
+"lng_export_option_bot_chats" = "Bot chats";
+"lng_export_option_private_groups" = "Private groups";
+"lng_export_option_private_channels" = "Private channels";
+"lng_export_option_public_groups" = "Public groups";
+"lng_export_option_public_channels" = "Public channels";
+"lng_export_option_only_my" = "Only my messages";
+"lng_export_header_media" = "Media export settings";
+"lng_export_option_photos" = "Photos";
+"lng_export_option_video_files" = "Video files";
+"lng_export_option_voice_messages" = "Voice messages";
+"lng_export_option_video_messages" = "Round video messages";
+"lng_export_option_stickers" = "Stickers";
+"lng_export_option_gifs" = "Animated GIFs";
+"lng_export_option_files" = "Files";
+"lng_export_option_size_limit" = "Size limit: {size}";
+"lng_export_header_format" = "Location and format";
+"lng_export_option_location" = "Download path: {path}";
+"lng_export_option_html" = "Human-readable HTML";
+"lng_export_option_json" = "Machine-readable JSON";
+"lng_export_limits" = "From: {from}, to: {till}";
+"lng_export_beginning" = "the oldest message";
+"lng_export_end" = "present";
+"lng_export_from_beginning" = "Reset";
+"lng_export_till_end" = "Reset";
+"lng_export_start" = "Export";
+"lng_export_state_initializing" = "Initializing...";
+"lng_export_state_userpics" = "Profile pictures";
+"lng_export_state_chats_list" = "Processing chats...";
+"lng_export_state_chats" = "Chats";
+"lng_export_state_progress" = "{count} / {total}";
+"lng_export_progress" = "You can close this window now. Please don't quit Telegram until the data export is completed.";
+"lng_export_stop" = "Stop";
+"lng_export_sure_stop" = "Are you sure you want to stop exporting your data?\n\nIf you do, you'll need to start over.";
+"lng_export_about_done" = "Your data was successfully exported.";
+"lng_export_done" = "Show my data";
+"lng_export_finished" = "Data export completed.";
+"lng_export_total_files" = "Total files: {count}.";
+"lng_export_total_size" = "Total size: {size}.";
+"lng_export_folder" = "Choose export folder";
+"lng_export_invalid" = "Sorry, you have started a new data export, so this data export is now cancelled.";
+"lng_export_delay" = "Sorry, for security reasons, you will be able to begin downloading your data in {hours}. We have notified all your devices about the export request to make sure it's authorized and to give you time to react if it's not.\n\nPlease come back on {date} and repeat the request using the same device.";
+"lng_export_delay_less_than_hour" = "less than an hour";
+"lng_export_delay_hours#one" = "{count} hour";
+"lng_export_delay_hours#other" = "{count} hours";
+"lng_export_suggest_title" = "Data export ready";
+"lng_export_suggest_text" = "You can now download the data you requested. Start exporting data?";
+"lng_export_suggest_cancel" = "Not now";
+"lng_export_about_telegram" = "Here is all the data you requested. Remember: we don’t use your data for ad targeting, we don’t sell it to others, and we’re not part of any “family of companies.”\n\nTelegram only keeps the information it needs to function as a feature-rich cloud service – for example, your cloud chats so that you can access them from any devices without using third-party backups, or your contacts so that you can rely on your existing social graph when messaging people on Telegram.\n\nCheck out Settings > Privacy & Security on Telegram's mobile apps for relevant settings.";
+"lng_export_about_contacts" = "If you allow access, your contacts are continuously synced with Telegram. Thanks to this, you can easily switch to Telegram without losing your existing social graph – and connect with friends across all your devices. We use data about your contacts to let you know when they join Telegram. We also use it to make sure that you see the names you have in your phone book instead of the screen names people choose for themselves.\n\nYou can disable contact syncing or delete your stored contacts in Settings > Privacy & Security on Telegram's mobile apps.";
+"lng_export_about_frequent" = "This rating shows which people you are likelier to message frequently. Telegram uses this data to populate the 'People' box at the top of the Search section. This rating is also calculated for inline bots so that the app can suggest the bots you are most likely to use in the attachment menu (or when you start a new message with \"@\").\n\nTo delete this data, go to Settings > Privacy & Security and disable 'Suggest Frequent Contacts' (requires Telegram for iOS v.4.8.3 or Telegram for Android v.4.8.10 or higher).";
+"lng_export_about_sessions" = "We store session info to display your connected devices in Settings > Privacy & Security > Active Sessions.";
+"lng_export_about_web_sessions" = "We store this to display the websites where you logged in using authentication via Telegram. This information is shown in Settings > Privacy & Security > Active Sessions.";
+"lng_export_about_chats" = "This page lists all chats from this export and where to look for their data.";
+"lng_export_about_left_chats" = "Below are the supergroups and channels from this export that you've left or where you were banned.\n\nNote that when you leave a channel or supergroup you've created, you have the option to either delete it, or simply leave (in case you want to rejoin later, or keep the community alive despite not being a member).";
+
+"lng_language_switch_title" = "Change language?";
+"lng_language_switch_about_official" = "You are about to apply a language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
+"lng_language_switch_about_unofficial" = "You are about to apply a custom language pack {lang_name} that is {percent}% complete.\n\nThis will translate the entire interface. You can suggest corrections in the {link}.\n\nYou can change your language back at any time in Settings.";
+"lng_language_switch_link" = "translation panel";
+"lng_language_switch_apply" = "Change";
+"lng_language_not_found" = "Sorry, this language pack doesn't exist.";
+"lng_language_already" = "You're already using this language pack. You can change your language back in Settings.";
+"lng_language_not_ready_title" = "Insufficient data";
+"lng_language_not_ready_about" = "Unfortunately, this custom language pack ({lang_name}) doesn't contain data for Telegram Desktop. You can contribute to this language pack using the {link}.";
+"lng_language_not_ready_link" = "translations platform";
+
+"lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
+"lng_launch_exe_sure" = "Run";
+"lng_launch_exe_dont_ask" = "Don't ask me again";
+
+"lng_polls_anonymous" = "Anonymous Poll";
+"lng_polls_closed" = "Final results";
+"lng_polls_votes_count#one" = "{count} vote";
+"lng_polls_votes_count#other" = "{count} votes";
+"lng_polls_votes_none" = "No votes";
+"lng_polls_retract" = "Retract vote";
+"lng_polls_stop" = "Stop poll";
+"lng_polls_stop_warning" = "If you stop this poll now, nobody will be able to vote in it anymore. This action cannot be undone.";
+"lng_polls_stop_sure" = "Stop";
+"lng_polls_create" = "Create poll";
+"lng_polls_create_title" = "New poll";
+"lng_polls_create_question" = "Question";
+"lng_polls_create_question_placeholder" = "Ask a question";
+"lng_polls_create_options" = "Poll options";
+"lng_polls_create_option_add" = "Add an option...";
+"lng_polls_create_limit#one" = "You can add {count} more option.";
+"lng_polls_create_limit#other" = "You can add {count} more options.";
+"lng_polls_create_maximum" = "You have added the maximum number of options.";
+"lng_polls_create_button" = "Create";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
@@ -1483,6 +1890,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_linux_menu_undo" = "Undo";
 "lng_linux_menu_redo" = "Redo";
+
+"lng_linux_no_audio_prefs" = "You don't have any audio configuration applications installed.";
 
 // Mac specific
 
@@ -1522,43 +1931,31 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_mac_menu_show" = "Show Telegram";
 
 
-"lng_telegreat_stickers_export" = "Export";
 "lng_telegreat_stickers_export_copied" = "All Stickers links copied.";
 "lng_telegreat_stickers_export_header" = "{user}'s Stickers pack list:";
 "lng_telegreat_stickers_export_footer" = "Exported from @Telegreat Desktop";
 
 "lng_telegreat_setting" = "Telegreat Config";
-"lng_telegreat_setting_unstable" = "Unstable Features";
 "lng_telegreat_setting_callback" = "Show callback data";
 "lng_telegreat_setting_username" = "Append @username to Display Name";
 "lng_telegreat_setting_ignore" = "Ignore blocked users";
-"lng_telegreat_setting_everyuser" = "Be mention by @admin and @everyuser";
-"lng_telegreat_setting_show_restrict" = "Show restrict users box instead of ban";
 "lng_telegreat_setting_text_mention" = "Mention users without username";
 "lng_telegreat_setting_auto_copy" = "Auto copy text when click";
 "lng_telegreat_setting_typing" = "Online/Typing Toast";
 
 "lng_telegreat_goto_first_message" = "Go to first message";
-"lng_telegreat_delete_message_warning" = "This guy is in your contact, you need to block him before delete his messages.";
+"lng_telegreat_delete_message_warning" = "This guy is in your contact, be careful when deleting messages.";
 "lng_telegreat_mark_all_as_read" = "Mark all as read";
-"lng_telegreat_mark_as_read" = "Mark as read";
 
 "lng_telegreat_online_toast" = "Online Toast";
 "lng_telegreat_typing_toast_all" = "Typing Toast (All)";
 "lng_telegreat_typing_toast_contact" = "Typing Toast (Contact)";
 "lng_telegreat_typing_desc" = "Toast duration time will vary,\nbased on the recently messaging log.";
-"lng_telegreat_user_typing" = "{user} is typing";
+"lng_telegreat_user_typing" = "{user} is typing in {chat}";
 "lng_telegreat_user_online" = "{user} is online";
 
 "lng_telegreat_chat_type" = "Chat Type";
 "lng_telegreat_user" = "Users";
-"lng_telegreat_group" = "Groups";
 "lng_telegreat_supergroup" = "Supergroups";
-"lng_telegreat_channel" = "Channels";
-"lng_telegreat_bot" = "Bots";
-
-"lng_telegreat_custom" = "false";
-"lng_telegreat_index" = "0";
-"lng_telegreat_lang_code" = "en";
 
 // Keys finished

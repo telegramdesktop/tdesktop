@@ -18,7 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
+#include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "boxes/edit_participant_box.h"
 #include "core/click_handler_types.h"
@@ -27,6 +29,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "observer_peer.h"
 
+namespace {
+
+void ConvertToSupergroupDone(const MTPUpdates &updates) {
+	Auth().api().applyUpdates(updates);
+
+	auto handleChats = [](const MTPVector<MTPChat> &chats) {
+		for (const auto &chat : chats.v) {
+			if (chat.type() == mtpc_channel) {
+				const auto channel = App::channel(chat.c_channel().vid.v);
+				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
+				Auth().api().requestParticipantsCountDelayed(channel);
+			}
+		}
+	};
+
+	switch (updates.type()) {
+	case mtpc_updates:
+		handleChats(updates.c_updates().vchats);
+		break;
+	case mtpc_updatesCombined:
+		handleChats(updates.c_updatesCombined().vchats);
+		break;
+	default:
+		LOG(("API Error: unexpected update cons %1 "
+			"(ConvertToSupergroupBox::convertDone)").arg(updates.type()));
+		break;
+	}
+}
+
+} // namespace
+
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -34,7 +67,7 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
 : _confirmText(lang(lng_box_ok))
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
@@ -44,7 +77,7 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, base::lambda_once<void()> 
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
@@ -54,7 +87,17 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const TextWithEntities &text, const QString &confirmText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
+: _confirmText(confirmText)
+, _cancelText(lang(lng_cancel))
+, _confirmStyle(st::defaultBoxButton)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
+	init(text);
+}
+
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(confirmStyle)
@@ -64,7 +107,7 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
@@ -74,7 +117,7 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, FnMut<void()> confirmedCallback, FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
@@ -84,7 +127,7 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda<void()> closedCallback)
+ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, Fn<void()> closedCallback)
 : _confirmText(doneText)
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
@@ -94,8 +137,18 @@ ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString 
 	init(text);
 }
 
-base::lambda_once<void()> ConfirmBox::generateInformCallback(base::lambda<void()> closedCallback) {
-	return base::lambda_guarded(this, [this, closedCallback] {
+ConfirmBox::ConfirmBox(const InformBoxTag &, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback)
+: _confirmText(doneText)
+, _confirmStyle(st::defaultBoxButton)
+, _informative(true)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(generateInformCallback(closedCallback))
+, _cancelledCallback(generateInformCallback(closedCallback)) {
+	init(text);
+}
+
+FnMut<void()> ConfirmBox::generateInformCallback(Fn<void()> closedCallback) {
+	return crl::guard(this, [this, closedCallback] {
 		closeBox();
 		if (closedCallback) {
 			closedCallback();
@@ -107,22 +160,40 @@ void ConfirmBox::init(const QString &text) {
 	_text.setText(st::boxLabelStyle, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 }
 
+void ConfirmBox::init(const TextWithEntities &text) {
+	_text.setMarkedText(st::boxLabelStyle, text, _confirmBoxTextOptions);
+}
+
 void ConfirmBox::prepare() {
 	addButton([this] { return _confirmText; }, [this] { confirmed(); }, _confirmStyle);
 	if (!_informative) {
 		addButton([this] { return _cancelText; }, [this] { _cancelled = true; closeBox(); });
 	}
-	subscribe(boxClosing, [this] {
-		if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
-			_cancelledCallback();
+
+	boxClosing() | rpl::start_with_next([=] {
+		if (!_confirmed && (!_strictCancel || _cancelled)) {
+			if (auto callback = std::move(_cancelledCallback)) {
+				callback();
+			}
 		}
-	});
+	}, lifetime());
+
 	textUpdated();
+}
+
+void ConfirmBox::setMaxLineCount(int count) {
+	if (_maxLineCount != count) {
+		_maxLineCount = count;
+		textUpdated();
+	}
 }
 
 void ConfirmBox::textUpdated() {
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
-	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
+	_textHeight = _text.countHeight(_textWidth);
+	if (_maxLineCount > 0) {
+		accumulate_min(_textHeight, _maxLineCount * st::boxLabelStyle.lineHeight);
+	}
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 
 	setMouseTracking(_text.hasLinks());
@@ -131,8 +202,8 @@ void ConfirmBox::textUpdated() {
 void ConfirmBox::confirmed() {
 	if (!_confirmed) {
 		_confirmed = true;
-		if (_confirmedCallback) {
-			_confirmedCallback();
+		if (auto callback = std::move(_confirmedCallback)) {
+			callback();
 		}
 	}
 }
@@ -152,11 +223,12 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (auto activated = ClickHandler::unpressed()) {
+	if (const auto activated = ClickHandler::unpressed()) {
 		Ui::hideLayer();
 		App::activateClickHandler(activated, e->button());
+		return;
 	}
-	return BoxContent::mouseReleaseEvent(e);
+	BoxContent::mouseReleaseEvent(e);
 }
 
 void ConfirmBox::leaveEventHook(QEvent *e) {
@@ -199,13 +271,23 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
-	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
+	if (_maxLineCount > 0) {
+		_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), _maxLineCount, style::al_left);
+	} else {
+		_text.drawLeft(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), style::al_left);
+	}
 }
 
-InformBox::InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
+}
+
+InformBox::InformBox(QWidget*, const TextWithEntities &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
+}
+
+InformBox::InformBox(QWidget*, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
 }
 
 MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxContent()
@@ -313,23 +395,7 @@ void ConvertToSupergroupBox::convertToSupergroup() {
 
 void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 	Ui::hideLayer();
-	App::main()->sentUpdatesReceived(updates);
-
-	auto handleChats = [](auto &mtpChats) {
-		for_const (auto &mtpChat, mtpChats.v) {
-			if (mtpChat.type() == mtpc_channel) {
-				const auto channel = App::channel(mtpChat.c_channel().vid.v);
-				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-				Auth().api().requestParticipantsCountDelayed(channel);
-			}
-		}
-	};
-
-	switch (updates.type()) {
-	case mtpc_updates: handleChats(updates.c_updates().vchats); break;
-	case mtpc_updatesCombined: handleChats(updates.c_updatesCombined().vchats); break;
-	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
-	}
+	ConvertToSupergroupDone(updates);
 }
 
 bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
@@ -357,8 +423,11 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 	_note.drawLeft(p, st::boxPadding.left(), _textHeight + st::boxPadding.bottom(), _textWidth, width());
 }
 
-PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
-: _channel(channel)
+PinMessageBox::PinMessageBox(
+	QWidget*,
+	not_null<PeerData*> peer,
+	MsgId msgId)
+: _peer(peer)
 , _msgId(msgId)
 , _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel) {
 }
@@ -367,7 +436,7 @@ void PinMessageBox::prepare() {
 	addButton(langFactory(lng_pinned_pin), [this] { pinMessage(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	if (_channel->isMegagroup()) {
+	if (_peer->isChat() || _peer->isMegagroup()) {
 		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
 	}
 
@@ -397,23 +466,21 @@ void PinMessageBox::keyPressEvent(QKeyEvent *e) {
 void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
-	auto flags = MTPchannels_UpdatePinnedMessage::Flags(0);
+	auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
 	if (_notify && !_notify->checked()) {
-		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
+		flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
 	}
 	_requestId = MTP::send(
-		MTPchannels_UpdatePinnedMessage(
+		MTPmessages_UpdatePinnedMessage(
 			MTP_flags(flags),
-			_channel->inputChannel,
+			_peer->input,
 			MTP_int(_msgId)),
 		rpcDone(&PinMessageBox::pinDone),
 		rpcFail(&PinMessageBox::pinFail));
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	Auth().api().applyUpdates(updates);
 	Ui::hideLayer();
 }
 
@@ -450,14 +517,15 @@ void DeleteMessagesBox::prepare() {
 	auto text = QString();
 	if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
+		text = lang(lng_selected_delete_sure_this).append(" (%1)").arg(_moderateFrom->firstName);
+
 		PeerId peerId = _moderateFrom->id;
 		History *history = App::history(peerId);
-		QDateTime msgDate = history->chatsListDate();
+		QDateTime msgDate = ParseDateTime(history->chatsListTimeId());
 		bool defaultBan = msgDate.isNull();
 
-		text = lang(lng_selected_delete_sure_this).append(" (%1)").arg(_moderateFrom->firstName);
 		if (_moderateBan) {
-			_banUser.create(this, lang(cShowRestrict() ? lng_context_restrict_user : lng_ban_user), defaultBan, st::defaultBoxCheckbox);
+			_banUser.create(this, lang(lng_ban_user), defaultBan, st::defaultBoxCheckbox);
 		}
 		_reportSpam.create(this, lang(lng_report_spam), defaultBan, st::defaultBoxCheckbox);
 		if (_moderateDeleteAll) {
@@ -507,8 +575,7 @@ void DeleteMessagesBox::prepare() {
 
 	if (_moderateFrom && _moderateFrom->isContact() && !_moderateFrom->isBlocked() && _moderateInChannel)
 		_warn.create(this, lang(lng_telegreat_delete_message_warning), Ui::FlatLabel::InitType::Simple, st::changePhoneError);
-	else
-		addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
+	addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
 
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
@@ -558,40 +625,19 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 
 void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (!_warn)
-			deleteAndClear();
+		deleteAndClear();
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
 }
 
 void DeleteMessagesBox::deleteAndClear() {
-	if (!App::main()) {
-		return;
-	}
-
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
-			if (cShowRestrict()) {
-				not_null<UserData*> user = _moderateFrom;
-				auto megagroup = _moderateInChannel;
-				auto currentRightsIt = megagroup->mgInfo->lastRestricted.find(user);
-				auto currentRights = (currentRightsIt != megagroup->mgInfo->lastRestricted.end())
-				? currentRightsIt->second.rights
-				: MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
-				auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
-				auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
-				box->setSaveCallback([megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
-					Ui::hideLayer();
-					MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights));
-				});
-				Ui::show(std::move(box));
-			} else {
-				Auth().api().kickParticipant(
-					_moderateInChannel,
-					_moderateFrom,
-					MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
-			}
+			Auth().api().kickParticipant(
+					 _moderateInChannel,
+					 _moderateFrom,
+					 MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 		if (_reportSpam->checked()) {
 			MTP::send(
@@ -631,39 +677,50 @@ void DeleteMessagesBox::deleteAndClear() {
 	for (auto i = idsByPeer.cbegin(), e = idsByPeer.cend(); i != e; ++i) {
 		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
 	}
-	if (!cShowRestrict() || !(_banUser && _banUser->checked()))
-		Ui::hideLayer();
+	Ui::hideLayer();
 	Auth().data().sendHistoryChangeNotifications();
 }
 
-ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
-: _title(this, st::confirmInviteTitle)
+ConfirmInviteBox::ConfirmInviteBox(
+	QWidget*,
+	const MTPDchatInvite &data,
+	Fn<void()> submit)
+: _submit(std::move(submit))
+, _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
-, _participants(participants) {
-	_title->setText(title);
-	QString status;
-	if (_participants.isEmpty() || _participants.size() >= count) {
-		if (count > 0) {
-			status = lng_chat_status_members(lt_count, count);
+, _participants(GetParticipants(data))
+, _isChannel(data.is_channel() && !data.is_megagroup()) {
+	const auto title = qs(data.vtitle);
+	const auto count = data.vparticipants_count.v;
+	const auto status = [&] {
+		if (_participants.empty() || _participants.size() >= count) {
+			if (count > 0) {
+				return lng_chat_status_members(lt_count, count);
+			} else {
+				return lang(_isChannel
+					? lng_channel_status
+					: lng_group_status);
+			}
 		} else {
-			status = lang(isChannel ? lng_channel_status : lng_group_status);
+			return lng_group_invite_members(lt_count, count);
 		}
-	} else {
-		status = lng_group_invite_members(lt_count, count);
-	}
+	}();
+	_title->setText(title);
 	_status->setText(status);
-	if (photo.type() == mtpc_chatPhoto) {
-		const auto &data = photo.c_chatPhoto();
+	if (data.vphoto.type() == mtpc_chatPhoto) {
+		const auto &photo = data.vphoto.c_chatPhoto();
 		const auto size = 160;
 		const auto location = StorageImageLocation::FromMTP(
 			size,
 			size,
-			data.vphoto_small);
+			photo.vphoto_small);
 		if (!location.isNull()) {
-			_photo = ImagePtr(location);
+			_photo = Images::Create(location);
 			if (!_photo->loaded()) {
-				subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
-				_photo->load();
+				subscribe(Auth().downloaderTaskFinished(), [=] {
+					update();
+				});
+				_photo->load(Data::FileOrigin());
 			}
 		}
 	}
@@ -674,26 +731,41 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChanne
 	}
 }
 
-void ConfirmInviteBox::prepare() {
-	addButton(langFactory(lng_group_invite_join), [] {
-		if (auto main = App::main()) {
-			main->onInviteImport();
+std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
+		const MTPDchatInvite &data) {
+	if (!data.has_participants()) {
+		return {};
+	}
+	const auto &v = data.vparticipants.v;
+	auto result = std::vector<not_null<UserData*>>();
+	result.reserve(v.size());
+	for (const auto &participant : v) {
+		if (const auto user = App::feedUser(participant)) {
+			result.push_back(user);
 		}
-	});
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	}
+	return result;
+}
 
-	if (_participants.size() > 4) {
-		_participants.resize(4);
+void ConfirmInviteBox::prepare() {
+	const auto joinKey = _isChannel
+		? lng_profile_join_channel
+		: lng_profile_join_group;
+	addButton(langFactory(joinKey), _submit);
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+
+	while (_participants.size() > 4) {
+		_participants.pop_back();
 	}
 
 	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
-	if (!_participants.isEmpty()) {
+	if (!_participants.empty()) {
 		int skip = (st::boxWideWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
 		int padding = skip / 2;
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
 		int left = (st::boxWideWidth - sumWidth) / 2;
-		for_const (auto user, _participants) {
+		for (const auto user : _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
 			name->setText(user->firstName.isEmpty() ? App::peerName(user) : user->firstName);
@@ -718,17 +790,81 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_photo) {
-		p.drawPixmap((width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, _photo->pixCircled(st::confirmInvitePhotoSize, st::confirmInvitePhotoSize));
+		p.drawPixmap(
+			(width() - st::confirmInvitePhotoSize) / 2,
+			st::confirmInvitePhotoTop,
+			_photo->pixCircled(
+				Data::FileOrigin(),
+				st::confirmInvitePhotoSize,
+				st::confirmInvitePhotoSize));
 	} else {
-		_photoEmpty->paint(p, (width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, width(), st::confirmInvitePhotoSize);
+		_photoEmpty->paint(
+			p,
+			(width() - st::confirmInvitePhotoSize) / 2,
+			st::confirmInvitePhotoTop,
+			width(),
+			st::confirmInvitePhotoSize);
 	}
 
 	int sumWidth = _participants.size() * _userWidth;
 	int left = (width() - sumWidth) / 2;
 	for_const (auto user, _participants) {
-		user->paintUserpicLeft(p, left + (_userWidth - st::confirmInviteUserPhotoSize) / 2, st::confirmInviteUserPhotoTop, width(), st::confirmInviteUserPhotoSize);
+		user->paintUserpicLeft(
+			p,
+			left + (_userWidth - st::confirmInviteUserPhotoSize) / 2,
+			st::confirmInviteUserPhotoTop,
+			width(),
+			st::confirmInviteUserPhotoSize);
 		left += _userWidth;
 	}
 }
 
 ConfirmInviteBox::~ConfirmInviteBox() = default;
+
+ConfirmDontWarnBox::ConfirmDontWarnBox(
+	QWidget*,
+	const QString &text,
+	const QString &checkbox,
+	const QString &confirm,
+	FnMut<void(bool)> callback)
+: _confirm(confirm)
+, _content(setupContent(text, checkbox, std::move(callback))) {
+}
+
+void ConfirmDontWarnBox::prepare() {
+	setDimensionsToContent(st::boxWidth, _content);
+	addButton([=] { return _confirm; }, [=] { _callback(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+}
+
+not_null<Ui::RpWidget*> ConfirmDontWarnBox::setupContent(
+		const QString &text,
+		const QString &checkbox,
+		FnMut<void(bool)> callback) {
+	const auto result = Ui::CreateChild<Ui::VerticalLayout>(this);
+	result->add(
+		object_ptr<Ui::FlatLabel>(
+			result,
+			text,
+			Ui::FlatLabel::InitType::Rich,
+			st::boxLabel),
+		st::boxPadding);
+	const auto control = result->add(
+		object_ptr<Ui::Checkbox>(
+			result,
+			checkbox,
+			false,
+			st::defaultBoxCheckbox),
+		style::margins(
+			st::boxPadding.left(),
+			st::boxPadding.bottom(),
+			st::boxPadding.right(),
+			st::boxPadding.bottom()));
+	_callback = [=, callback = std::move(callback)]() mutable {
+		const auto checked = control->checked();
+		auto local = std::move(callback);
+		closeBox();
+		local(checked);
+	};
+	return result;
+}

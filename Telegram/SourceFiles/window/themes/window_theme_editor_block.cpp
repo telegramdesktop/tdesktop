@@ -294,10 +294,10 @@ void EditorBlock::activateRow(const Row &row) {
 	} else {
 		_editing = findRowIndex(&row);
 		if (auto box = Ui::show(Box<EditColorBox>(row.name(), row.value()))) {
-			box->setSaveCallback(base::lambda_guarded(this, [this](QColor value) {
+			box->setSaveCallback(crl::guard(this, [this](QColor value) {
 				saveEditing(value);
 			}));
-			box->setCancelCallback(base::lambda_guarded(this, [this] {
+			box->setCancelCallback(crl::guard(this, [this] {
 				cancelEditing();
 			}));
 			_context->box = box;
@@ -310,7 +310,9 @@ void EditorBlock::activateRow(const Row &row) {
 bool EditorBlock::selectSkip(int direction) {
 	_mouseSelection = false;
 
-	auto maxSelected = (isSearch() ? _searchResults.size() : _data.size()) - 1;
+	auto maxSelected = size_type(isSearch()
+		? _searchResults.size()
+		: _data.size()) - 1;
 	auto newSelected = _selected + direction;
 	if (newSelected < -1 || newSelected > maxSelected) {
 		newSelected = maxSelected;

@@ -29,7 +29,7 @@ public:
 // this type used as a flag, we dynamic_cast<> to it
 class SendClickHandler : public ClickHandler {
 public:
-	void onClick(Qt::MouseButton) const override {
+	void onClick(ClickContext context) const override {
 	}
 };
 
@@ -38,13 +38,18 @@ public:
 	virtual void inlineItemLayoutChanged(const ItemBase *layout) = 0;
 	virtual bool inlineItemVisible(const ItemBase *item) = 0;
 	virtual void inlineItemRepaint(const ItemBase *item) = 0;
+	virtual Data::FileOrigin inlineItemFileOrigin() = 0;
 };
 
 class ItemBase : public LayoutItemBase {
 public:
-	ItemBase(not_null<Context*> context, Result *result) : _result(result), _context(context) {
+	ItemBase(not_null<Context*> context, not_null<Result*> result)
+	: _result(result)
+	, _context(context) {
 	}
-	ItemBase(not_null<Context*> context, DocumentData *doc) : _doc(doc), _context(context) {
+	ItemBase(not_null<Context*> context, DocumentData *doc)
+	: _doc(doc)
+	, _context(context) {
 	}
 	// Not used anywhere currently.
 	//ItemBase(not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
@@ -100,6 +105,9 @@ protected:
 
 	not_null<Context*> context() const {
 		return _context;
+	}
+	Data::FileOrigin fileOrigin() const {
+		return _context->inlineItemFileOrigin();
 	}
 
 	Result *_result = nullptr;

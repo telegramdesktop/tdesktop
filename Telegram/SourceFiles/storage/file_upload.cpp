@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 
 #include "storage/localimageloader.h"
+#include "storage/file_download.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -29,8 +30,8 @@ struct Uploader::File {
 
 	std::shared_ptr<FileLoadResult> file;
 	SendMediaReady media;
-	int32 partsCount;
-	mutable int32 fileSentSize;
+	int32 partsCount = 0;
+	mutable int32 fileSentSize = 0;
 
 	uint64 id() const;
 	SendMediaType type() const;
@@ -59,7 +60,8 @@ Uploader::File::File(const SendMediaReady &media) : media(media) {
 }
 Uploader::File::File(const std::shared_ptr<FileLoadResult> &file)
 : file(file) {
-	partsCount = (type() == SendMediaType::Photo)
+	partsCount = (type() == SendMediaType::Photo
+		|| type() == SendMediaType::Secure)
 		? file->fileparts.size()
 		: file->thumbparts.size();
 	if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
@@ -112,8 +114,8 @@ const QString &Uploader::File::filename() const {
 Uploader::Uploader() {
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
-	killSessionsTimer.setSingleShot(true);
-	connect(&killSessionsTimer, SIGNAL(timeout()), this, SLOT(killSessions()));
+	stopSessionsTimer.setSingleShot(true);
+	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
 }
 
 void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
@@ -122,9 +124,19 @@ void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) 
 	} else if (media.type == SendMediaType::File || media.type == SendMediaType::Audio) {
 		const auto document = media.photoThumbs.isEmpty()
 			? Auth().data().document(media.document)
-			: Auth().data().document(media.document, media.photoThumbs.begin().value());
+			: Auth().data().document(
+				media.document,
+				base::duplicate(media.photoThumbs.begin().value()));
 		if (!media.data.isEmpty()) {
 			document->setData(media.data);
+			if (document->saveToCache()
+				&& media.data.size() <= Storage::kMaxFileInMemory) {
+				Auth().data().cache().put(
+					document->cacheKey(),
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(media.data),
+						document->cacheTag()));
+			}
 		}
 		if (!media.file.isEmpty()) {
 			document->setLocation(FileLocation(media.file));
@@ -143,10 +155,23 @@ void Uploader::upload(
 	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
 		auto document = file->thumb.isNull()
 			? Auth().data().document(file->document)
-			: Auth().data().document(file->document, file->thumb);
+			: Auth().data().document(
+				file->document,
+				std::move(file->thumb));
 		document->uploadingData = std::make_unique<Data::UploadState>(document->size);
+		document->setGoodThumbnail(
+			std::move(file->goodThumbnail),
+			std::move(file->goodThumbnailBytes));
 		if (!file->content.isEmpty()) {
 			document->setData(file->content);
+			if (document->saveToCache()
+				&& file->content.size() <= Storage::kMaxFileInMemory) {
+				Auth().data().cache().put(
+					document->cacheKey(),
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(file->content),
+						document->cacheTag()));
+			}
 		}
 		if (!file->filepath.isEmpty()) {
 			document->setLocation(FileLocation(file->filepath));
@@ -160,13 +185,18 @@ void Uploader::currentFailed() {
 	auto j = queue.find(uploadingId);
 	if (j != queue.end()) {
 		if (j->second.type() == SendMediaType::Photo) {
-			emit photoFailed(j->first);
-		} else if (j->second.type() == SendMediaType::File) {
+			_photoFailed.fire_copy(j->first);
+		} else if (j->second.type() == SendMediaType::File
+			|| j->second.type() == SendMediaType::Audio) {
 			const auto document = Auth().data().document(j->second.id());
 			if (document->uploading()) {
 				document->status = FileUploadFailed;
 			}
-			emit documentFailed(j->first);
+			_documentFailed.fire_copy(j->first);
+		} else if (j->second.type() == SendMediaType::Secure) {
+			_secureFailed.fire_copy(j->first);
+		} else {
+			Unexpected("Type in Uploader::currentFailed.");
 		}
 		queue.erase(j);
 	}
@@ -183,7 +213,7 @@ void Uploader::currentFailed() {
 	sendNext();
 }
 
-void Uploader::killSessions() {
+void Uploader::stopSessions() {
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		MTP::stopSession(MTP::uploadDcId(i));
 	}
@@ -192,16 +222,16 @@ void Uploader::killSessions() {
 void Uploader::sendNext() {
 	if (sentSize >= kMaxUploadFileParallelSize || _pausedId.msg) return;
 
-	bool killing = killSessionsTimer.isActive();
+	bool stopping = stopSessionsTimer.isActive();
 	if (queue.empty()) {
-		if (!killing) {
-			killSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout);
+		if (!stopping) {
+			stopSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout);
 		}
 		return;
 	}
 
-	if (killing) {
-		killSessionsTimer.stop();
+	if (stopping) {
+		stopSessionsTimer.stop();
 	}
 	auto i = uploadingId.msg ? queue.find(uploadingId) : queue.begin();
 	if (!uploadingId.msg) {
@@ -220,12 +250,14 @@ void Uploader::sendNext() {
 	}
 
 	auto &parts = uploadingData.file
-		? (uploadingData.type() == SendMediaType::Photo
+		? ((uploadingData.type() == SendMediaType::Photo
+			|| uploadingData.type() == SendMediaType::Secure)
 			? uploadingData.file->fileparts
 			: uploadingData.file->thumbparts)
 		: uploadingData.media.parts;
 	const auto partsOfId = uploadingData.file
-		? (uploadingData.type() == SendMediaType::Photo
+		? ((uploadingData.type() == SendMediaType::Photo
+			|| uploadingData.type() == SendMediaType::Secure)
 			? uploadingData.file->id
 			: uploadingData.file->thumbId)
 		: uploadingData.media.thumbId;
@@ -250,7 +282,7 @@ void Uploader::sendNext() {
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
-					emit photoReady(uploadingId, silent, file);
+					_photoReady.fire({ uploadingId, silent, file });
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::Audio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
@@ -278,14 +310,19 @@ void Uploader::sendNext() {
 							MTP_int(uploadingData.partsCount),
 							MTP_string(thumbFilename),
 							MTP_bytes(thumbMd5));
-						emit thumbDocumentReady(
+						_thumbDocumentReady.fire({
 							uploadingId,
 							silent,
 							file,
-							thumb);
+							thumb });
 					} else {
-						emit documentReady(uploadingId, silent, file);
+						_documentReady.fire({ uploadingId, silent, file });
 					}
+				} else if (uploadingData.type() == SendMediaType::Secure) {
+					_secureReady.fire({
+						uploadingId,
+						uploadingData.id(),
+						uploadingData.partsCount });
 				}
 				queue.erase(uploadingId);
 				uploadingId = FullMsgId();
@@ -415,7 +452,7 @@ void Uploader::clear() {
 		MTP::stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
-	killSessionsTimer.stop();
+	stopSessionsTimer.stop();
 }
 
 void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
@@ -457,7 +494,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					photo->uploadingData->size = file.file->partssize;
 					photo->uploadingData->offset = file.fileSentSize;
 				}
-				emit photoProgress(fullId);
+				_photoProgress.fire_copy(fullId);
 			} else if (file.type() == SendMediaType::File
 				|| file.type() == SendMediaType::Audio) {
 				const auto document = Auth().data().document(file.id());
@@ -468,7 +505,13 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 						document->uploadingData->size,
 						doneParts * file.docPartSize);
 				}
-				emit documentProgress(fullId);
+				_documentProgress.fire_copy(fullId);
+			} else if (file.type() == SendMediaType::Secure) {
+				file.fileSentSize += sentPartSize;
+				_secureProgress.fire_copy({
+					fullId,
+					file.fileSentSize,
+					file.file->partssize });
 			}
 		}
 	}

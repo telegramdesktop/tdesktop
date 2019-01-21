@@ -39,11 +39,11 @@ public:
 
 	void setAcceptBoth(bool acceptBoth = true);
 
-	void setClickedCallback(base::lambda<void()> callback) {
+	void setClickedCallback(Fn<void()> callback) {
 		_clickedCallback = std::move(callback);
 	}
 
-	auto clicks() const {
+	rpl::producer<Qt::MouseButton> clicks() const {
 		return _clicks.events();
 	}
 	template <typename Handler>
@@ -98,9 +98,9 @@ private:
 	Qt::KeyboardModifiers _modifiers;
 	bool _enablePointerCursor = true;
 
-	base::lambda<void()> _clickedCallback;
+	Fn<void()> _clickedCallback;
 
-	rpl::event_stream<> _clicks;
+	rpl::event_stream<Qt::MouseButton> _clicks;
 
 };
 

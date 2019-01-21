@@ -22,43 +22,37 @@ NeverFreedPointer<IconMasks> iconMasks;
 NeverFreedPointer<IconPixmaps> iconPixmaps;
 NeverFreedPointer<IconDatas> iconData;
 
-inline int pxAdjust(int value, int scale) {
-	if (value < 0) {
-		return -pxAdjust(-value, scale);
-	}
-	return qFloor((value * scale / 4.) + 0.1);
-}
-
-QImage createIconMask(const IconMask *mask, DBIScale scale) {
+QImage createIconMask(const IconMask *mask, int scale) {
 	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
 	maskImage.setDevicePixelRatio(cRetinaFactor());
 	Assert(!maskImage.isNull());
 
 	// images are layouted like this:
-	// 200x 100x
-	// 150x 125x
-	int width = maskImage.width() / 3;
-	int height = qRound((maskImage.height() * 2) / 7.);
-	auto r = QRect(0, 0, width * 2, height * 2);
-	if (!cRetina() && scale != dbisTwo) {
-		if (scale == dbisOne) {
-			r = QRect(width * 2, 0, width, height);
-		} else {
-			int width125 = pxAdjust(width, 5);
-			int height125 = pxAdjust(height, 5);
-			int width150 = pxAdjust(width, 6);
-			int height150 = pxAdjust(height, 6);
-			if (scale == dbisOneAndQuarter) {
-				r = QRect(width150, height * 2, width125, height125);
-			} else {
-				r = QRect(0, height * 2, width150, height150);
-			}
-		}
+	// 100x 200x
+	// 300x
+	scale *= cIntRetinaFactor();
+	const auto width = maskImage.width() / 3;
+	const auto height = maskImage.height() / 5;
+	const auto one = QRect(0, 0, width, height);
+	const auto two = QRect(width, 0, width * 2, height * 2);
+	const auto three = QRect(0, height * 2, width * 3, height * 3);
+	if (scale == 100) {
+		return maskImage.copy(one);
+	} else if (scale == 200) {
+		return maskImage.copy(two);
+	} else if (scale == 300) {
+		return maskImage.copy(three);
 	}
-	return maskImage.copy(r);
+	return maskImage.copy(
+		(scale > 200) ? three : two
+	).scaled(
+		ConvertScale(width, scale),
+		ConvertScale(height, scale),
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
 }
 
-QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
+QSize readGeneratedSize(const IconMask *mask, int scale) {
 	auto data = mask->data();
 	auto size = mask->size();
 
@@ -78,12 +72,9 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			stream >> width >> height;
 			Assert(stream.status() == QDataStream::Ok);
 
-			switch (scale) {
-			case dbisOne: return QSize(width, height);
-			case dbisOneAndQuarter: return QSize(pxAdjust(width, 5), pxAdjust(height, 5));
-			case dbisOneAndHalf: return QSize(pxAdjust(width, 6), pxAdjust(height, 6));
-			case dbisTwo: return QSize(width * 2, height * 2);
-			}
+			return QSize(
+				ConvertScale(width, scale),
+				ConvertScale(height, scale));
 		} else {
 			Unexpected("Bad data in generated icon!");
 		}
@@ -221,8 +212,8 @@ void MonoIcon::fill(
 	}
 }
 
-QImage MonoIcon::instance(QColor colorOverride, DBIScale scale) const {
-	if (scale == dbisAuto) {
+QImage MonoIcon::instance(QColor colorOverride, int scale) const {
+	if (scale == kInterfaceScaleAuto) {
 		ensureLoaded();
 		auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(cRetinaFactor());
@@ -313,7 +304,7 @@ void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const 
 	}
 }
 
-QImage IconData::instance(QColor colorOverride, DBIScale scale) const {
+QImage IconData::instance(QColor colorOverride, int scale) const {
 	Assert(_parts.size() == 1);
 	auto &part = _parts[0];
 	Assert(part.offset() == QPoint(0, 0));

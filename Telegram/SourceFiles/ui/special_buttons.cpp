@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_layout.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "mainwidget.h"
 #include "messenger.h"
 #include "observer_peer.h"
@@ -31,6 +33,16 @@ namespace Ui {
 namespace {
 
 constexpr int kWideScale = 5;
+
+QString CropTitle(not_null<PeerData*> peer) {
+	if (peer->isChat() || peer->isMegagroup()) {
+		return lang(lng_create_group_crop);
+	} else if (peer->isChannel()) {
+		return lang(lng_create_channel_crop);
+	} else {
+		return lang(lng_settings_crop_profile);
+	}
+}
 
 template <typename Callback>
 QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
@@ -48,7 +60,7 @@ QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 template <typename Callback>
 void SuggestPhoto(
 		const QImage &image,
-		PeerId peerForCrop,
+		const QString &title,
 		Callback &&callback) {
 	auto badAspect = [](int a, int b) {
 		return (a >= 10 * b);
@@ -62,8 +74,8 @@ void SuggestPhoto(
 		return;
 	}
 
-	auto box = Ui::show(
-		Box<PhotoCropBox>(image, peerForCrop),
+	const auto box = Ui::show(
+		Box<PhotoCropBox>(image, title),
 		LayerOption::KeepOther);
 	box->ready(
 	) | rpl::start_with_next(
@@ -74,7 +86,7 @@ void SuggestPhoto(
 template <typename Callback>
 void SuggestPhotoFile(
 		const FileDialog::OpenResult &result,
-		PeerId peerForCrop,
+		const QString &title,
 		Callback &&callback) {
 	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 		return;
@@ -90,24 +102,28 @@ void SuggestPhotoFile(
 	}();
 	SuggestPhoto(
 		image,
-		peerForCrop,
+		title,
 		std::forward<Callback>(callback));
 }
 
 template <typename Callback>
-void ShowChoosePhotoBox(PeerId peerForCrop, Callback &&callback) {
+void ShowChoosePhotoBox(
+		QPointer<QWidget> parent,
+		const QString &title,
+		Callback &&callback) {
 	auto imgExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*")
 		+ imgExtensions.join(qsl(" *"))
 		+ qsl(");;")
 		+ FileDialog::AllFilesFilter();
 	auto handleChosenPhoto = [
-		peerForCrop,
+		title,
 		callback = std::forward<Callback>(callback)
 	](auto &&result) mutable {
-		SuggestPhotoFile(result, peerForCrop, std::move(callback));
+		SuggestPhotoFile(result, title, std::move(callback));
 	};
 	FileDialog::GetOpenPath(
+		parent,
 		lang(lng_choose_image),
 		filter,
 		std::move(handleChosenPhoto));
@@ -134,9 +150,9 @@ QPoint HistoryDownButton::prepareRippleStartPosition() const {
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
-	auto over = isOver();
-	auto down = isDown();
+	const auto ms = getms();
+	const auto over = isOver();
+	const auto down = isDown();
 	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
 	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
@@ -177,28 +193,57 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleOverride ? &(*_rippleOverride)->c : nullptr);
 
+	const auto over = isOver();
 	const auto loadingState = _loading
 		? _loading->computeState()
-		: Ui::InfiniteRadialAnimation::State{ 0., 0, FullArcLength };
-	p.setOpacity(1. - loadingState.shown);
+		: Ui::RadialState{ 0., 0, FullArcLength };
+	if (loadingState.shown < 1.) {
+		p.setOpacity(1. - loadingState.shown);
 
-	auto over = isOver();
-	auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
-	icon->paint(p, _st.iconPosition, width());
+		const auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
+		auto position = _st.iconPosition;
+		if (position.x() < 0) {
+			position.setX((width() - icon->width()) / 2);
+		}
+		if (position.y() < 0) {
+			position.setY((height() - icon->height()) / 2);
+		}
+		icon->paint(p, position, width());
 
-	p.setOpacity(1.);
-	auto pen = _colorOverride ? (*_colorOverride)->p : (over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg)->p;
-	pen.setWidth(st::historyEmojiCircleLine);
-	pen.setCapStyle(Qt::RoundCap);
-	p.setPen(pen);
-	p.setBrush(Qt::NoBrush);
+		p.setOpacity(1.);
+	}
 
-	PainterHighQualityEnabler hq(p);
-	QRect inner(QPoint((width() - st::historyEmojiCircle.width()) / 2, st::historyEmojiCircleTop), st::historyEmojiCircle);
-	if (loadingState.arcLength < FullArcLength) {
-		p.drawArc(inner, loadingState.arcFrom, loadingState.arcLength);
+	QRect inner(QPoint((width() - st::historyEmojiCircle.width()) / 2, (height() - st::historyEmojiCircle.height()) / 2), st::historyEmojiCircle);
+	const auto color = (_colorOverride
+		? *_colorOverride
+		: (over
+			? st::historyEmojiCircleFgOver
+			: st::historyEmojiCircleFg));
+	if (anim::Disabled() && _loading && _loading->animating()) {
+		anim::DrawStaticLoading(
+			p,
+			inner,
+			st::historyEmojiCircleLine,
+			color);
 	} else {
-		p.drawEllipse(inner);
+		auto pen = color->p;
+		pen.setWidth(st::historyEmojiCircleLine);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+
+		PainterHighQualityEnabler hq(p);
+		if (loadingState.arcLength < FullArcLength) {
+			p.drawArc(inner, loadingState.arcFrom, loadingState.arcLength);
+		} else {
+			p.drawEllipse(inner);
+		}
+	}
+}
+
+void EmojiButton::step_loading(TimeMs ms, bool timer) {
+	if (timer && !anim::Disabled()) {
+		update();
 	}
 }
 
@@ -210,8 +255,10 @@ void EmojiButton::setLoading(bool loading) {
 	}
 	if (loading) {
 		_loading->start();
-	} else {
+		update();
+	} else if (_loading) {
 		_loading->stop();
+		update();
 	}
 }
 
@@ -231,6 +278,9 @@ void EmojiButton::onStateChanged(State was, StateChangeSource source) {
 }
 
 QPoint EmojiButton::prepareRippleStartPosition() const {
+	if (!_st.rippleAreaSize) {
+		return DisabledRippleStartPosition();
+	}
 	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 }
 
@@ -386,12 +436,12 @@ void SendButton::recordAnimationCallback() {
 
 UserpicButton::UserpicButton(
 	QWidget *parent,
-	PeerId peerForCrop,
+	const QString &cropTitle,
 	Role role,
 	const style::UserpicButton &st)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
-, _peerForCrop(peerForCrop)
+, _cropTitle(cropTitle)
 , _role(role) {
 	Expects(_role == Role::ChangePhoto);
 
@@ -409,11 +459,27 @@ UserpicButton::UserpicButton(
 , _st(st)
 , _controller(controller)
 , _peer(peer)
-, _peerForCrop(_peer->id)
+, _cropTitle(CropTitle(_peer))
 , _role(role) {
 	processPeerPhoto();
 	prepare();
 	setupPeerViewers();
+}
+
+UserpicButton::UserpicButton(
+	QWidget *parent,
+	not_null<PeerData*> peer,
+	Role role,
+	const style::UserpicButton &st)
+: RippleButton(parent, st.changeButton.ripple)
+, _st(st)
+, _peer(peer)
+, _cropTitle(CropTitle(_peer))
+, _role(role) {
+	Expects(_role != Role::OpenProfile);
+
+	_waiting = false;
+	prepare();
 }
 
 void UserpicButton::prepare() {
@@ -451,22 +517,17 @@ void UserpicButton::setClickHandlerByRole() {
 }
 
 void UserpicButton::changePhotoLazy() {
-	auto callback = base::lambda_guarded(
+	auto callback = crl::guard(
 		this,
 		[this](QImage &&image) { setImage(std::move(image)); });
-	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
+	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
 }
 
 void UserpicButton::uploadNewPeerPhoto() {
-	auto callback = base::lambda_guarded(
-		this,
-		[this](QImage &&image) {
-			Messenger::Instance().uploadProfilePhoto(
-				std::move(image),
-				_peer->id
-			);
-		});
-	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
+	auto callback = crl::guard(this, [=](QImage &&image) {
+		Auth().api().uploadPeerPhoto(_peer, std::move(image));
+	});
+	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -918,8 +979,8 @@ QPoint FeedUserpicButton::countInnerPosition() const {
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : IconButton(parent, st::historySilentToggle)
 , _channel(channel)
-, _checked(_channel->notifySilentPosts()) {
-	Expects(!_channel->notifySettingsUnknown());
+, _checked(Auth().data().notifySilentPosts(_channel)) {
+	Expects(!Auth().data().notifySilentPostsUnknown(_channel));
 
 	if (_checked) {
 		refreshIconOverrides();
@@ -962,13 +1023,10 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	IconButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	const auto silentState = _checked
-		? Data::NotifySettings::SilentPostsChange::Silent
-		: Data::NotifySettings::SilentPostsChange::Notify;
-	App::main()->updateNotifySettings(
+	Auth().data().updateNotifySettings(
 		_channel,
-		Data::NotifySettings::MuteChange::Ignore,
-		silentState);
+		std::nullopt,
+		_checked);
 }
 
 QString SilentToggle::tooltipText() const {

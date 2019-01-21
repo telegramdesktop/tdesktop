@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "base/bytes.h"
 
 namespace Media {
 namespace Audio {
@@ -20,7 +21,7 @@ public:
 
 	void samplePeakEach(TimeMs peakDuration);
 
-	void fillFromData(base::byte_vector &&data);
+	void fillFromData(bytes::vector &&data);
 	void fillFromFile(const FileLocation &location);
 	void fillFromFile(const QString &filePath);
 
@@ -66,7 +67,7 @@ private:
 
 	int64 _samplesCount = 0;
 	int32 _sampleRate = 0;
-	base::byte_vector _samples;
+	bytes::vector _samples;
 
 	TimeMs _peakDurationMs = 0;
 	int _peakEachPosition = 0;

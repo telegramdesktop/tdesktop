@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_window.h"
-#include "styles/style_settings.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/scroll_area.h"
@@ -22,9 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/image/image_prepare.h"
+#include "ui/toast/toast.h"
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
-#include "ui/toast/toast.h"
 #include "core/file_utilities.h"
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
@@ -194,19 +194,19 @@ class Editor::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, const QString &path);
 
-	void setErrorCallback(base::lambda<void()> callback) {
+	void setErrorCallback(Fn<void()> callback) {
 		_errorCallback = std::move(callback);
 	}
-	void setFocusCallback(base::lambda<void()> callback) {
+	void setFocusCallback(Fn<void()> callback) {
 		_focusCallback = std::move(callback);
 	}
-	void setScrollCallback(base::lambda<void(int top, int bottom)> callback) {
+	void setScrollCallback(Fn<void(int top, int bottom)> callback) {
 		_scrollCallback = std::move(callback);
 	}
 
 	void prepare();
 
-	base::lambda<void()> exportCallback();
+	Fn<void()> exportCallback();
 
 	void filterRows(const QString &query);
 	void chooseRow();
@@ -238,9 +238,9 @@ private:
 
 	QString _path;
 	QByteArray _paletteContent;
-	base::lambda<void()> _errorCallback;
-	base::lambda<void()> _focusCallback;
-	base::lambda<void(int top, int bottom)> _scrollCallback;
+	Fn<void()> _errorCallback;
+	Fn<void()> _focusCallback;
+	Fn<void(int top, int bottom)> _scrollCallback;
 
 	object_ptr<EditorBlock> _existingRows;
 	object_ptr<EditorBlock> _newRows;
@@ -318,7 +318,7 @@ void Editor::Inner::prepare() {
 	}
 }
 
-base::lambda<void()> Editor::Inner::exportCallback() {
+Fn<void()> Editor::Inner::exportCallback() {
 	return App::LambdaDelayed(st::defaultRippleAnimation.hideDuration, this, [this] {
 		auto background = Background()->pixmap().toImage();
 		auto backgroundContent = QByteArray();
@@ -391,10 +391,10 @@ void Editor::Inner::selectSkipPage(int delta, int direction) {
 void Editor::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.setFont(st::settingsFixedBarFont);
+	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
 	if (!_newRows->isHidden()) {
-		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::settingsFixedBarTextPosition.y(), width(), lang(lng_theme_editor_new_keys));
+		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::boxLayerTitlePosition.y(), width(), lang(lng_theme_editor_new_keys));
 	}
 }
 
@@ -404,7 +404,7 @@ int Editor::Inner::resizeGetHeight(int newWidth) {
 	_newRows->resizeToWidth(rowsWidth);
 
 	_existingRows->moveToLeft(0, 0);
-	_newRows->moveToLeft(0, _existingRows->height() + st::settingsFixedBarHeight);
+	_newRows->moveToLeft(0, _existingRows->height() + st::boxLayerTitleHeight);
 
 	auto lowest = (_newRows->isHidden() ? _existingRows : _newRows).data();
 
@@ -573,7 +573,7 @@ void ThemeExportBox::prepare() {
 	addButton(langFactory(lng_theme_editor_export), [this] { exportTheme(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	auto height = st::settingsSmallSkip + st::settingsBackgroundSize + st::settingsSmallSkip + _tileBackground->height();
+	auto height = st::themesSmallSkip + st::themesBackgroundSize + st::themesSmallSkip + _tileBackground->height();
 
 	setDimensions(st::boxWideWidth, height);
 
@@ -585,23 +585,23 @@ void ThemeExportBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	auto linkLeft = st::boxPadding.left() + st::settingsBackgroundSize + st::settingsSmallSkip;
+	auto linkLeft = st::boxPadding.left() + st::themesBackgroundSize + st::themesSmallSkip;
 
 	p.setPen(st::boxTextFg);
 	p.setFont(st::boxTextFont);
-	p.drawTextLeft(linkLeft, st::settingsSmallSkip, width(), _imageText);
+	p.drawTextLeft(linkLeft, st::themesSmallSkip, width(), _imageText);
 
-	p.drawPixmapLeft(st::boxPadding.left(), st::settingsSmallSkip, width(), _thumbnail);
+	p.drawPixmapLeft(st::boxPadding.left(), st::themesSmallSkip, width(), _thumbnail);
 }
 
 void ThemeExportBox::resizeEvent(QResizeEvent *e) {
-	auto linkLeft = st::boxPadding.left() + st::settingsBackgroundSize + st::settingsSmallSkip;
-	_chooseFromFile->moveToLeft(linkLeft, st::settingsSmallSkip + st::boxTextFont->height + st::settingsSmallSkip);
-	_tileBackground->moveToLeft(st::boxPadding.left(), st::settingsSmallSkip + st::settingsBackgroundSize + 2 * st::settingsSmallSkip);
+	auto linkLeft = st::boxPadding.left() + st::themesBackgroundSize + st::themesSmallSkip;
+	_chooseFromFile->moveToLeft(linkLeft, st::themesSmallSkip + st::boxTextFont->height + st::themesSmallSkip);
+	_tileBackground->moveToLeft(st::boxPadding.left(), st::themesSmallSkip + st::themesBackgroundSize + 2 * st::themesSmallSkip);
 }
 
 void ThemeExportBox::updateThumbnail() {
-	int32 size = st::settingsBackgroundSize * cIntRetinaFactor();
+	int32 size = st::themesBackgroundSize * cIntRetinaFactor();
 	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
@@ -612,7 +612,7 @@ void ThemeExportBox::updateThumbnail() {
 		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
-		p.drawImage(QRect(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize), pix, QRect(sx, sy, s, s));
+		p.drawImage(QRect(0, 0, st::themesBackgroundSize, st::themesBackgroundSize), pix, QRect(sx, sy, s, s));
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
 	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
@@ -621,7 +621,7 @@ void ThemeExportBox::updateThumbnail() {
 }
 
 void ThemeExportBox::chooseBackgroundFromFile() {
-	FileDialog::GetOpenPath(lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(this, lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", crl::guard(this, [this](const FileDialog::OpenResult &result) {
 		auto content = result.remoteContent;
 		if (!result.paths.isEmpty()) {
 			QFile f(result.paths.front());
@@ -651,7 +651,7 @@ void ThemeExportBox::exportTheme() {
 		auto caption = lang(lng_theme_editor_choose_name);
 		auto filter = "Themes (*.tdesktop-theme)";
 		auto name = "awesome.tdesktop-theme";
-		FileDialog::GetWritePath(caption, filter, name, base::lambda_guarded(this, [this](const QString &path) {
+		FileDialog::GetWritePath(this, caption, filter, name, crl::guard(this, [this](const QString &path) {
 			zlib::FileToWrite zip;
 
 			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
@@ -690,7 +690,7 @@ void ThemeExportBox::exportTheme() {
 }
 
 Editor::Editor(QWidget*, const QString &path)
-: _scroll(this, st::settingsScroll)
+: _scroll(this, st::themesScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
 , _select(this, st::contactsMultiSelect, langFactory(lng_country_ph))
 , _leftShadow(this)
@@ -720,7 +720,7 @@ Editor::Editor(QWidget*, const QString &path)
 
 	_select->resizeToWidth(st::windowMinWidth);
 	_select->setQueryChangedCallback([this](const QString &query) { _inner->filterRows(query); _scroll->scrollToY(0); });
-	_select->setSubmittedCallback([this](bool) { _inner->chooseRow(); });
+	_select->setSubmittedCallback([this](Qt::KeyboardModifiers) { _inner->chooseRow(); });
 
 	_inner->prepare();
 	resizeToWidth(st::windowMinWidth);
@@ -779,15 +779,15 @@ void Editor::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), st::dialogsBg);
 
-	p.setFont(st::settingsFixedBarFont);
+	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
 	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), lang(lng_theme_editor_title));
 }
 
 void Editor::Start() {
-	auto palettePath = Local::themePaletteAbsolutePath();
-	if (palettePath.isEmpty()) {
-		FileDialog::GetWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
+	const auto path = Background()->themeAbsolutePath();
+	if (path.isEmpty() || !Window::Theme::IsPaletteTestingPath(path)) {
+		const auto start = [](const QString &path) {
 			if (!Local::copyThemeColorsToPalette(path)) {
 				writeDefaultPalette(path);
 			}
@@ -799,9 +799,15 @@ void Editor::Start() {
 			if (auto window = App::wnd()) {
 				window->showRightColumn(Box<Editor>(path));
 			}
-		});
+		};
+		FileDialog::GetWritePath(
+			App::wnd(),
+			lang(lng_theme_editor_save_palette),
+			"Palette (*.tdesktop-palette)",
+			"colors.tdesktop-palette",
+			start);
 	} else if (auto window = App::wnd()) {
-		window->showRightColumn(Box<Editor>(palettePath));
+		window->showRightColumn(Box<Editor>(path));
 	}
 }
 

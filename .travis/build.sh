@@ -17,7 +17,7 @@ XKB_PATH="$BUILD/libxkbcommon"
 XKB_CACHE_VERSION="3"
 
 QT_PATH="$BUILD/qt"
-QT_CACHE_VERSION="3"
+QT_CACHE_VERSION="4"
 QT_PATCH="$UPSTREAM/Telegram/Patches/qtbase_${QT_VERSION//\./_}.diff"
 
 BREAKPAD_PATH="$BUILD/breakpad"
@@ -40,11 +40,11 @@ FFMPEG_PATH="$BUILD/ffmpeg"
 FFMPEG_CACHE_VERSION="3"
 
 OPENAL_PATH="$BUILD/openal-soft"
-OPENAL_CACHE_VERSION="3"
+OPENAL_CACHE_VERSION="4"
 
 GYP_DEFINES=""
 
-[[ ! $MAKE_ARGS ]] && MAKE_ARGS="-j3"
+[[ ! $MAKE_ARGS ]] && MAKE_ARGS="--silent -j4"
 
 run() {
   # Move files to subdir
@@ -100,10 +100,6 @@ build() {
   fi
 
   # Configure the build
-  if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
-    GYP_DEFINES+=",TDESKTOP_DISABLE_AUTOUPDATE"
-  fi
-
   if [[ $BUILD_VERSION == *"disable_register_custom_scheme"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME"
   fi
@@ -476,10 +472,12 @@ buildOpenAL() {
     rm -rf "$EXTERNAL/openal-soft"
   fi
   cd $OPENAL_PATH
-  rm -rf *
+  sudo rm -rf *
 
   cd "$EXTERNAL"
   git clone https://github.com/kcat/openal-soft.git
+  cd openal-soft
+  git checkout openal-soft-1.19.1
 
   cd "$EXTERNAL/openal-soft/build"
   cmake \
@@ -585,10 +583,10 @@ buildCustomQt() {
   info_msg "Downloading and building patched qt"
 
   if [ -d "$EXTERNAL/qt${QT_VERSION}" ]; then
-    rm -rf "$EXTERNAL/qt${QT_VERSION}"
+    sudo rm -rf "$EXTERNAL/qt${QT_VERSION}"
   fi
   cd $QT_PATH
-  rm -rf *
+  sudo rm -rf *
 
   cd "$EXTERNAL"
   git clone git://code.qt.io/qt/qt5.git qt${QT_VERSION}
@@ -606,6 +604,7 @@ buildCustomQt() {
   cd "$EXTERNAL/qt${QT_VERSION}/qtbase/src/plugins/platforminputcontexts"
   git clone https://github.com/telegramdesktop/fcitx.git
   git clone https://github.com/telegramdesktop/hime.git
+  git clone https://github.com/telegramdesktop/nimf.git
   cd ../../../..
 
   ./configure -prefix $QT_PATH -release -opensource -confirm-license -qt-zlib \
@@ -673,10 +672,12 @@ buildGYP() {
 }
 
 buildTelegram() {
-  travisStartFold "Build tdesktop"
+  travisStartFold "Build Telegreat"
 
   cd "$UPSTREAM/Telegram/gyp"
   "$GYP_PATH/gyp" \
+      -Dapi_id=17349 \
+      -Dapi_hash=344583e45741c457fe1862106095a5eb \
       -Dbuild_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
@@ -688,9 +689,12 @@ buildTelegram() {
       -Dlinux_path_breakpad=$BREAKPAD_PATH \
       -Dlinux_path_libexif_lib=/usr/local/lib \
       -Dlinux_path_opus_include=/usr/include/opus \
+      -Dlinux_lib_ssl=-lssl \
+      -Dlinux_lib_crypto=-lcrypto \
+      -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \
       --depth=. --generator-output=.. --format=cmake -Goutput_dir=../out \
       Telegreat.gyp
-  cd "$UPSTREAM/out/Release"
+  cd "$UPSTREAM/out/Debug"
 
   export ASM="gcc"
   cmake .
@@ -698,7 +702,7 @@ buildTelegram() {
 }
 
 check() {
-  local filePath="$UPSTREAM/out/Release/Telegreat"
+  local filePath="$UPSTREAM/out/Debug/Telegreat"
   if test -f "$filePath"; then
     success_msg "Build successfully done! :)"
 

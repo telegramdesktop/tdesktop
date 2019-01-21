@@ -22,7 +22,6 @@ struct TrackState;
 namespace Clip {
 
 class Playback;
-class VolumeController;
 
 class Controller : public TWidget {
 	Q_OBJECT
@@ -35,9 +34,6 @@ public:
 
 	void updatePlayback(const Player::TrackState &state);
 	void setInFullScreen(bool inFullScreen);
-
-	void grabStart() override;
-	void grabFinish() override;
 
 	~Controller();
 
@@ -69,6 +65,7 @@ private:
 	void refreshTimeTexts();
 
 	bool _showPause = false;
+	bool _childrenHidden = false;
 	QString _timeAlready, _timeLeft;
 	TimeMs _seekPositionMs = -1;
 	TimeMs _lastDurationMs = 0;
@@ -76,7 +73,7 @@ private:
 	object_ptr<Ui::IconButton> _playPauseResume;
 	object_ptr<Ui::MediaSlider> _playbackSlider;
 	std::unique_ptr<Playback> _playback;
-	object_ptr<VolumeController> _volumeController;
+	object_ptr<Ui::MediaSlider> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;

@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "history/history_location_manager.h"
 #include "storage/localstorage.h"
-#include "passcodewidget.h"
 #include "core/crash_reports.h"
 
 #include <Shobjidl.h>
@@ -194,10 +193,6 @@ QString psAppDataPathOld() {
 	return QString();
 }
 
-QString psDownloadPath() {
-	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + str_const_toString(AppName) + '/';
-}
-
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
@@ -331,6 +326,14 @@ QString SystemCountry() {
 		}
 	}
 	return QString();
+}
+
+bool IsApplicationActive() {
+	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
+}
+
+void SetApplicationIcon(const QIcon &icon) {
+	qApp->setWindowIcon(icon);
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
@@ -576,6 +579,8 @@ namespace {
 	}
 }
 
+namespace Platform {
+
 void RegisterCustomScheme() {
 	if (cExeName().isEmpty()) {
 		return;
@@ -621,8 +626,58 @@ void RegisterCustomScheme() {
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
+PermissionStatus GetPermissionStatus(PermissionType type) {
+	if (type==PermissionType::Microphone) {
+		PermissionStatus result=PermissionStatus::Granted;
+		HKEY hKey;
+		LSTATUS res=RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone", 0, KEY_QUERY_VALUE, &hKey);
+		if(res==ERROR_SUCCESS) {
+			wchar_t buf[20];
+			DWORD length=sizeof(buf);
+			res=RegQueryValueEx(hKey, L"Value", NULL, NULL, (LPBYTE)buf, &length);
+			if(res==ERROR_SUCCESS) {
+				if(wcscmp(buf, L"Deny")==0) {
+					result=PermissionStatus::Denied;
+				}
+			}
+			RegCloseKey(hKey);
+		}
+		return result;
+	}
+	return PermissionStatus::Granted;
+}
+
+void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback) {
+	resultCallback(PermissionStatus::Granted);
+}
+
+void OpenSystemSettingsForPermission(PermissionType type) {
+	if (type == PermissionType::Microphone) {
+		crl::on_main([] {
+			ShellExecute(
+				nullptr,
+				L"open",
+				L"ms-settings:privacy-microphone",
+				nullptr,
+				nullptr,
+				SW_SHOWDEFAULT);
+		});
+	}
+}
+
+bool OpenSystemSettings(SystemSettingsType type) {
+	if (type == SystemSettingsType::Audio) {
+		crl::on_main([] {
+			WinExec("control.exe mmsys.cpl", SW_SHOW);
+		});
+	}
+	return true;
+}
+
+} // namespace Platform
+
 void psNewVersion() {
-	RegisterCustomScheme();
+	Platform::RegisterCustomScheme();
 	if (Local::oldSettingsVersion() < 8051) {
 		AppUserModelId::checkPinned();
 	}
@@ -704,608 +759,29 @@ void psUpdateOverlayed(TWidget *widget) {
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }
 
-// Stack walk code is inspired by http://www.codeproject.com/Articles/11132/Walking-the-callstack
-
-static const int StackEntryMaxNameLength = MAX_SYM_NAME + 1;
-
-typedef BOOL(FAR STDAPICALLTYPE *t_SymCleanup)(
-	_In_ HANDLE hProcess
-);
-t_SymCleanup symCleanup = 0;
-
-typedef PVOID (FAR STDAPICALLTYPE *t_SymFunctionTableAccess64)(
-    _In_ HANDLE hProcess,
-    _In_ DWORD64 AddrBase
-);
-t_SymFunctionTableAccess64 symFunctionTableAccess64 = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_SymGetLineFromAddr64)(
-    _In_ HANDLE hProcess,
-    _In_ DWORD64 dwAddr,
-    _Out_ PDWORD pdwDisplacement,
-    _Out_ PIMAGEHLP_LINEW64 Line
-);
-t_SymGetLineFromAddr64 symGetLineFromAddr64 = 0;
-
-typedef DWORD64 (FAR STDAPICALLTYPE *t_SymGetModuleBase64)(
-    _In_ HANDLE hProcess,
-    _In_ DWORD64 qwAddr
-);
-t_SymGetModuleBase64 symGetModuleBase64 = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_SymGetModuleInfo64)(
-    _In_ HANDLE hProcess,
-    _In_ DWORD64 qwAddr,
-    _Out_ PIMAGEHLP_MODULEW64 ModuleInfo
-);
-t_SymGetModuleInfo64 symGetModuleInfo64 = 0;
-
-typedef DWORD (FAR STDAPICALLTYPE *t_SymGetOptions)(
-	VOID
-);
-t_SymGetOptions symGetOptions = 0;
-
-typedef DWORD (FAR STDAPICALLTYPE *t_SymSetOptions)(
-    _In_ DWORD SymOptions
-);
-t_SymSetOptions symSetOptions = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_SymGetSymFromAddr64)(
-	IN HANDLE hProcess,
-	IN DWORD64 dwAddr,
-	OUT PDWORD64 pdwDisplacement,
-	OUT PIMAGEHLP_SYMBOL64 Symbol
-);
-t_SymGetSymFromAddr64 symGetSymFromAddr64 = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_SymInitialize)(
-	_In_ HANDLE hProcess,
-	_In_opt_ PCWSTR UserSearchPath,
-	_In_ BOOL fInvadeProcess
-);
-t_SymInitialize symInitialize = 0;
-
-typedef DWORD64 (FAR STDAPICALLTYPE *t_SymLoadModule64)(
-	_In_ HANDLE hProcess,
-	_In_opt_ HANDLE hFile,
-	_In_opt_ PCSTR ImageName,
-	_In_opt_ PCSTR ModuleName,
-	_In_ DWORD64 BaseOfDll,
-	_In_ DWORD SizeOfDll
-);
-t_SymLoadModule64 symLoadModule64;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_StackWalk64)(
-	_In_ DWORD MachineType,
-	_In_ HANDLE hProcess,
-	_In_ HANDLE hThread,
-	_Inout_ LPSTACKFRAME64 StackFrame,
-	_Inout_ PVOID ContextRecord,
-	_In_opt_ PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
-	_In_opt_ PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
-	_In_opt_ PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
-	_In_opt_ PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress
-);
-t_StackWalk64 stackWalk64 = 0;
-
-typedef DWORD (FAR STDAPICALLTYPE *t_UnDecorateSymbolName)(
-	PCSTR DecoratedName,
-	PSTR UnDecoratedName,
-	DWORD UndecoratedLength,
-	DWORD Flags
-);
-t_UnDecorateSymbolName unDecorateSymbolName = 0;
-
-typedef BOOL(FAR STDAPICALLTYPE *t_SymGetSearchPath)(
-	_In_ HANDLE hProcess,
-	_Out_writes_(SearchPathLength) PWSTR SearchPath,
-	_In_ DWORD SearchPathLength
-);
-t_SymGetSearchPath symGetSearchPath = 0;
-
-BOOL __stdcall ReadProcessMemoryRoutine64(
-	_In_ HANDLE hProcess,
-	_In_ DWORD64 qwBaseAddress,
-	_Out_writes_bytes_(nSize) PVOID lpBuffer,
-	_In_ DWORD nSize,
-	_Out_ LPDWORD lpNumberOfBytesRead
-) {
-	SIZE_T st;
-	BOOL bRet = ReadProcessMemory(hProcess, (LPVOID)qwBaseAddress, lpBuffer, nSize, &st);
-	*lpNumberOfBytesRead = (DWORD)st;
-
-	return bRet;
-}
-
-// **************************************** ToolHelp32 ************************
-#define MAX_MODULE_NAME32 255
-#define TH32CS_SNAPMODULE   0x00000008
-#pragma pack( push, 8 )
-typedef struct tagMODULEENTRY32
-{
-	DWORD   dwSize;
-	DWORD   th32ModuleID;       // This module
-	DWORD   th32ProcessID;      // owning process
-	DWORD   GlblcntUsage;       // Global usage count on the module
-	DWORD   ProccntUsage;       // Module usage count in th32ProcessID's context
-	BYTE  * modBaseAddr;        // Base address of module in th32ProcessID's context
-	DWORD   modBaseSize;        // Size in bytes of module starting at modBaseAddr
-	HMODULE hModule;            // The hModule of this module in th32ProcessID's context
-	char    szModule[MAX_MODULE_NAME32 + 1];
-	char    szExePath[MAX_PATH];
-} MODULEENTRY32;
-typedef MODULEENTRY32 *PMODULEENTRY32;
-typedef MODULEENTRY32 *LPMODULEENTRY32;
-#pragma pack( pop )
-
-typedef HANDLE (FAR STDAPICALLTYPE *t_CreateToolhelp32Snapshot)(DWORD dwFlags, DWORD th32ProcessID);
-t_CreateToolhelp32Snapshot createToolhelp32Snapshot = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_Module32First)(HANDLE hSnapshot, LPMODULEENTRY32 lpme);
-t_Module32First module32First = 0;
-
-typedef BOOL (FAR STDAPICALLTYPE *t_Module32Next)(HANDLE hSnapshot, LPMODULEENTRY32 lpme);
-t_Module32Next module32Next = 0;
-
-bool LoadDbgHelp(bool extended = false) {
-	if (stackWalk64 && (!extended || symInitialize)) return true;
-
-	HMODULE hDll = 0;
-
-	WCHAR szTemp[4096];
-	if (GetModuleFileName(NULL, szTemp, 4096) > 0) {
-		wcscat_s(szTemp, L".local");
-		if (GetFileAttributes(szTemp) == INVALID_FILE_ATTRIBUTES) {
-			// ".local" file does not exist, so we can try to load the dbghelp.dll from the "Debugging Tools for Windows"
-			if (GetEnvironmentVariable(L"ProgramFiles", szTemp, 4096) > 0) {
-				wcscat_s(szTemp, L"\\Debugging Tools for Windows\\dbghelp.dll");
-				// now check if the file exists:
-				if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES) {
-					hDll = LoadLibrary(szTemp);
-				}
-			}
-			// Still not found? Then try to load the 64-Bit version:
-			if (!hDll && (GetEnvironmentVariable(L"ProgramFiles", szTemp, 4096) > 0)) {
-				wcscat_s(szTemp, L"\\Debugging Tools for Windows 64-Bit\\dbghelp.dll");
-				if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES) {
-					hDll = LoadLibrary(szTemp);
-				}
-			}
-		}
-	}
-	if (!hDll) {
-		hDll = LoadLibrary(L"DBGHELP.DLL");
-	}
-
-	if (!hDll) return false;
-
-	stackWalk64 = (t_StackWalk64)GetProcAddress(hDll, "StackWalk64");
-	symFunctionTableAccess64 = (t_SymFunctionTableAccess64)GetProcAddress(hDll, "SymFunctionTableAccess64");
-	symGetModuleBase64 = (t_SymGetModuleBase64)GetProcAddress(hDll, "SymGetModuleBase64");
-
-	if (!stackWalk64 ||
-		!symFunctionTableAccess64 ||
-		!symGetModuleBase64) {
-		stackWalk64 = 0;
-		return false;
-	}
-
-	if (extended) {
-		HANDLE hProcess = GetCurrentProcess();
-		DWORD dwProcessId = GetCurrentProcessId();
-
-		symGetLineFromAddr64 = (t_SymGetLineFromAddr64)GetProcAddress(hDll, "SymGetLineFromAddrW64");
-		symGetModuleInfo64 = (t_SymGetModuleInfo64)GetProcAddress(hDll, "SymGetModuleInfoW64");
-		symGetSymFromAddr64 = (t_SymGetSymFromAddr64)GetProcAddress(hDll, "SymGetSymFromAddr64");
-		unDecorateSymbolName = (t_UnDecorateSymbolName)GetProcAddress(hDll, "UnDecorateSymbolName");
-		symInitialize = (t_SymInitialize)GetProcAddress(hDll, "SymInitializeW");
-		symCleanup = (t_SymCleanup)GetProcAddress(hDll, "SymCleanup");
-		symGetSearchPath = (t_SymGetSearchPath)GetProcAddress(hDll, "SymGetSearchPathW");
-		symGetOptions = (t_SymGetOptions)GetProcAddress(hDll, "SymGetOptions");
-		symSetOptions = (t_SymSetOptions)GetProcAddress(hDll, "SymSetOptions");
-		symLoadModule64 = (t_SymLoadModule64)GetProcAddress(hDll, "SymLoadModule64");
-		if (!symGetModuleInfo64 ||
-			!symGetLineFromAddr64 ||
-			!symGetSymFromAddr64 ||
-			!unDecorateSymbolName ||
-			!symInitialize ||
-			!symCleanup ||
-			!symGetOptions ||
-			!symSetOptions ||
-			!symLoadModule64) {
-			symInitialize = 0;
-			return false;
-		}
-
-		const size_t nSymPathLen = 10 * MAX_PATH;
-		WCHAR szSymPath[nSymPathLen] = { 0 };
-
-		wcscat_s(szSymPath, nSymPathLen, L".;..;");
-
-		WCHAR szTemp[MAX_PATH + 1] = { 0 };
-		if (GetCurrentDirectory(MAX_PATH, szTemp) > 0)	{
-			wcscat_s(szSymPath, nSymPathLen, szTemp);
-			wcscat_s(szSymPath, nSymPathLen, L";");
-		}
-
-		if (GetModuleFileName(NULL, szTemp, MAX_PATH) > 0) {
-			for (WCHAR *p = (szTemp + wcslen(szTemp) - 1); p >= szTemp; --p) {
-				if ((*p == '\\') || (*p == '/') || (*p == ':'))	{
-					*p = 0;
-					break;
-				}
-			}
-			if (wcslen(szTemp) > 0)	{
-				wcscat_s(szSymPath, nSymPathLen, szTemp);
-				wcscat_s(szSymPath, nSymPathLen, L";");
-			}
-		}
-		if (GetEnvironmentVariable(L"_NT_SYMBOL_PATH", szTemp, MAX_PATH) > 0) {
-			wcscat_s(szSymPath, nSymPathLen, szTemp);
-			wcscat_s(szSymPath, nSymPathLen, L";");
-		}
-		if (GetEnvironmentVariable(L"_NT_ALTERNATE_SYMBOL_PATH", szTemp, MAX_PATH) > 0) {
-			wcscat_s(szSymPath, nSymPathLen, szTemp);
-			wcscat_s(szSymPath, nSymPathLen, L";");
-		}
-		if (GetEnvironmentVariable(L"SYSTEMROOT", szTemp, MAX_PATH) > 0) {
-			wcscat_s(szSymPath, nSymPathLen, szTemp);
-			wcscat_s(szSymPath, nSymPathLen, L";");
-
-			// also add the "system32"-directory:
-			wcscat_s(szTemp, MAX_PATH, L"\\system32");
-			wcscat_s(szSymPath, nSymPathLen, szTemp);
-			wcscat_s(szSymPath, nSymPathLen, L";");
-		}
-
-		if (GetEnvironmentVariable(L"SYSTEMDRIVE", szTemp, MAX_PATH) > 0) {
-			wcscat_s(szSymPath, nSymPathLen, L"SRV*");
-			wcscat_s(szSymPath, nSymPathLen, szTemp);
-			wcscat_s(szSymPath, nSymPathLen, L"\\websymbols*http://msdl.microsoft.com/download/symbols;");
-		} else {
-			wcscat_s(szSymPath, nSymPathLen, L"SRV*c:\\websymbols*http://msdl.microsoft.com/download/symbols;");
-		}
-
-		if (symInitialize(hProcess, szSymPath, FALSE) == FALSE) {
-			symInitialize = 0;
-			return false;
-		}
-
-		DWORD symOptions = symGetOptions();
-		symOptions |= SYMOPT_LOAD_LINES;
-		symOptions |= SYMOPT_FAIL_CRITICAL_ERRORS;
-		symOptions = symSetOptions(symOptions);
-
-		const WCHAR *dllname[] = { L"kernel32.dll",  L"tlhelp32.dll" };
-		HINSTANCE hToolhelp = NULL;
-
-		HANDLE hSnap;
-		MODULEENTRY32 me;
-		me.dwSize = sizeof(me);
-		BOOL keepGoing;
-		size_t i;
-
-		for (i = 0; i < (sizeof(dllname) / sizeof(dllname[0])); i++) {
-			hToolhelp = LoadLibrary(dllname[i]);
-			if (!hToolhelp) continue;
-
-			createToolhelp32Snapshot = (t_CreateToolhelp32Snapshot)GetProcAddress(hToolhelp, "CreateToolhelp32Snapshot");
-			module32First = (t_Module32First)GetProcAddress(hToolhelp, "Module32First");
-			module32Next = (t_Module32Next)GetProcAddress(hToolhelp, "Module32Next");
-			if (createToolhelp32Snapshot && module32First && module32Next) {
-				break; // found the functions!
-			}
-			FreeLibrary(hToolhelp);
-			hToolhelp = NULL;
-		}
-
-		if (hToolhelp == NULL) {
-			return false;
-		}
-
-		hSnap = createToolhelp32Snapshot(TH32CS_SNAPMODULE, dwProcessId);
-		if (hSnap == (HANDLE)-1)
-			return FALSE;
-
-		keepGoing = !!module32First(hSnap, &me);
-		int cnt = 0;
-		while (keepGoing) {
-			symLoadModule64(hProcess, 0, me.szExePath, me.szModule, (DWORD64)me.modBaseAddr, me.modBaseSize);
-			++cnt;
-			keepGoing = !!module32Next(hSnap, &me);
-		}
-		CloseHandle(hSnap);
-		FreeLibrary(hToolhelp);
-
-		return (cnt > 0);
-	}
-
-	return true;
-}
-
-struct StackEntry {
-	DWORD64 offset;  // if 0, we have no valid entry
-	CHAR name[StackEntryMaxNameLength];
-	CHAR undName[StackEntryMaxNameLength];
-	CHAR undFullName[StackEntryMaxNameLength];
-	DWORD64 offsetFromSmybol;
-	DWORD offsetFromLine;
-	DWORD lineNumber;
-	WCHAR lineFileName[StackEntryMaxNameLength];
-	DWORD symType;
-	LPCSTR symTypeString;
-	WCHAR moduleName[StackEntryMaxNameLength];
-	DWORD64 baseOfImage;
-	WCHAR loadedImageName[StackEntryMaxNameLength];
-};
-
-enum StackEntryType {
-	StackEntryFirst,
-	StackEntryNext,
-	StackEntryLast,
-};
-
-char GetModuleInfoData[2 * sizeof(IMAGEHLP_MODULEW64)];
-BOOL _getModuleInfo(HANDLE hProcess, DWORD64 baseAddr, IMAGEHLP_MODULEW64 *pModuleInfo) {
-	pModuleInfo->SizeOfStruct = sizeof(IMAGEHLP_MODULEW64);
-
-	memcpy(GetModuleInfoData, pModuleInfo, sizeof(IMAGEHLP_MODULEW64));
-	if (symGetModuleInfo64(hProcess, baseAddr, (IMAGEHLP_MODULEW64*)GetModuleInfoData) != FALSE) {
-		// only copy as much memory as is reserved...
-		memcpy(pModuleInfo, GetModuleInfoData, sizeof(IMAGEHLP_MODULEW64));
-		pModuleInfo->SizeOfStruct = sizeof(IMAGEHLP_MODULEW64);
-		return TRUE;
-	}
-	return FALSE;
-}
-
 void psWriteDump() {
-}
-
-char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
-QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
-	if (!LoadDbgHelp(true) || cExeName().isEmpty()) {
-		return qsl("ERROR: could not init dbghelp.dll!");
-	}
-
-	HANDLE hProcess = GetCurrentProcess();
-
-	QString initial = QString::fromUtf8(crashdump), result;
-	QStringList lines = initial.split('\n');
-	result.reserve(initial.size());
-	int32 i = 0, l = lines.size();
-	QString versionstr;
-	uint64 version = 0, betaversion = 0;
-	for (;  i < l; ++i) {
-		result.append(lines.at(i)).append('\n');
-		QString line = lines.at(i).trimmed();
-		if (line.startsWith(qstr("Version: "))) {
-			versionstr = line.mid(qstr("Version: ").size()).trimmed();
-			version = versionstr.toULongLong();
-			if (versionstr.endsWith(qstr("beta"))) {
-				if (version % 1000) {
-					betaversion = version;
-				} else {
-					version /= 1000;
-				}
-			}
-			++i;
-			break;
-		}
-	}
-
-	// maybe need to launch another executable
-	QString tolaunch;
-	if ((betaversion && betaversion != cBetaVersion()) || (!betaversion && version && version != AppVersion)) {
-		QString path = cExeDir();
-		QRegularExpressionMatch m = QRegularExpression("deploy/\\d+\\.\\d+/\\d+\\.\\d+\\.\\d+(/|\\.dev/|\\.alpha/|_\\d+/)(Telegram/)?$").match(path);
-		if (m.hasMatch()) {
-			QString base = path.mid(0, m.capturedStart()) + qstr("deploy/");
-			int32 major = version / 1000000, minor = (version % 1000000) / 1000, micro = (version % 1000);
-			base += qsl("%1.%2/%3.%4.%5").arg(major).arg(minor).arg(major).arg(minor).arg(micro);
-			if (betaversion) {
-				base += qsl("_%1").arg(betaversion);
-			} else if (QDir(base + qstr(".dev")).exists()) {
-				base += qstr(".dev");
-			} else if (QDir(base + qstr(".alpha")).exists()) {
-				base += qstr(".alpha");
-			}
-			if (QFile(base + qstr("/Telegram/Telegram.exe")).exists()) {
-				base += qstr("/Telegram");
-			}
-			tolaunch = base + qstr("Telegram.exe");
-		}
-	}
-	if (!tolaunch.isEmpty()) {
-		result.append(qsl("ERROR: for this crashdump executable '%1' should be used!").arg(tolaunch));
-	}
-
-	while (i < l) {
-		for (; i < l; ++i) {
-			result.append(lines.at(i)).append('\n');
-			QString line = lines.at(i).trimmed();
-			if (line == qstr("Backtrace:")) {
-				++i;
-				break;
-			}
-		}
-
-		IMAGEHLP_SYMBOL64 *pSym = NULL;
-		IMAGEHLP_MODULEW64 Module;
-		IMAGEHLP_LINEW64 Line;
-
-		pSym = (IMAGEHLP_SYMBOL64*)ImageHlpSymbol64;
-		memset(pSym, 0, sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength);
-		pSym->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
-		pSym->MaxNameLength = StackEntryMaxNameLength;
-
-		memset(&Line, 0, sizeof(Line));
-		Line.SizeOfStruct = sizeof(Line);
-
-		memset(&Module, 0, sizeof(Module));
-		Module.SizeOfStruct = sizeof(Module);
-
-		StackEntry csEntry;
-		for (int32 start = i; i < l; ++i) {
-			QString line = lines.at(i).trimmed();
-			if (line.isEmpty()) break;
-
-			result.append(qsl("%1. ").arg(i + 1 - start));
-			if (!QRegularExpression(qsl("^\\d+$")).match(line).hasMatch()) {
-				if (!lines.at(i).startsWith(qstr("ERROR: "))) {
-					result.append(qstr("BAD LINE: "));
-				}
-				result.append(line).append('\n');
-				continue;
-			}
-
-			DWORD64 address = line.toULongLong();
-
-			csEntry.offset = address;
-			csEntry.name[0] = 0;
-			csEntry.undName[0] = 0;
-			csEntry.undFullName[0] = 0;
-			csEntry.offsetFromSmybol = 0;
-			csEntry.offsetFromLine = 0;
-			csEntry.lineFileName[0] = 0;
-			csEntry.lineNumber = 0;
-			csEntry.loadedImageName[0] = 0;
-			csEntry.moduleName[0] = 0;
-
-			if (symGetSymFromAddr64(hProcess, address, &(csEntry.offsetFromSmybol), pSym) != FALSE) {
-				// TODO: Mache dies sicher...!
-				strcpy_s(csEntry.name, pSym->Name);
-
-				unDecorateSymbolName(pSym->Name, csEntry.undName, StackEntryMaxNameLength, UNDNAME_NAME_ONLY);
-				unDecorateSymbolName(pSym->Name, csEntry.undFullName, StackEntryMaxNameLength, UNDNAME_COMPLETE);
-
-				if (symGetLineFromAddr64) {
-					if (symGetLineFromAddr64(hProcess, address, &(csEntry.offsetFromLine), &Line) != FALSE) {
-						csEntry.lineNumber = Line.LineNumber;
-
-						// TODO: Mache dies sicher...!
-						wcscpy_s(csEntry.lineFileName, Line.FileName);
-					}
-				}
-			} else {
-				result.append("ERROR: could not get Sym from Addr! for ").append(QString::number(address)).append('\n');
-				continue;
-			}
-
-			if (_getModuleInfo(hProcess, address, &Module) != FALSE) {
-				// TODO: Mache dies sicher...!
-				wcscpy_s(csEntry.moduleName, Module.ModuleName);
-			}
-			if (csEntry.name[0] == 0) {
-				strcpy_s(csEntry.name, "(function-name not available)");
-			}
-			if (csEntry.undName[0] != 0) {
-				strcpy_s(csEntry.name, csEntry.undName);
-			}
-			if (csEntry.undFullName[0] != 0) {
-				strcpy_s(csEntry.name, csEntry.undFullName);
-			}
-			if (csEntry.lineFileName[0] == 0) {
-				if (csEntry.moduleName[0] == 0) {
-					wcscpy_s(csEntry.moduleName, L"module-name not available");
-				}
-				result.append(csEntry.name).append(qsl(" (%1) 0x%3").arg(QString::fromWCharArray(csEntry.moduleName)).arg(address, 0, 16)).append('\n');
-			} else {
-				QString file = QString::fromWCharArray(csEntry.lineFileName).toLower();
-				int32 index = file.indexOf(qstr("tbuild\\tdesktop\\telegram\\"));
-				if (index >= 0) {
-					file = file.mid(index + qstr("tbuild\\tdesktop\\telegram\\").size());
-					if (file.startsWith(qstr("sourcefiles\\"))) {
-						file = file.mid(qstr("sourcefiles\\").size());
-					}
-				}
-				result.append(csEntry.name).append(qsl(" (%1 - %2) 0x%3").arg(file).arg(csEntry.lineNumber).arg(address, 0, 16)).append('\n');
-			}
-		}
-	}
-
-	symCleanup(hProcess);
-	return result;
-}
-
-void psWriteStackTrace() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-	if (!LoadDbgHelp()) {
-		CrashReports::dump() << "ERROR: Could not load dbghelp.dll!\n";
-		return;
+	PROCESS_MEMORY_COUNTERS data = { 0 };
+	if (Dlls::GetProcessMemoryInfo
+		&& Dlls::GetProcessMemoryInfo(
+			GetCurrentProcess(),
+			&data,
+			sizeof(data))) {
+		const auto mb = 1024 * 1024;
+		CrashReports::dump()
+			<< "Memory-usage: "
+			<< (data.PeakWorkingSetSize / mb)
+			<< " MB (peak), "
+			<< (data.WorkingSetSize / mb)
+			<< " MB (current)\n";
+		CrashReports::dump()
+			<< "Pagefile-usage: "
+			<< (data.PeakPagefileUsage / mb)
+			<< " MB (peak), "
+			<< (data.PagefileUsage / mb)
+			<< " MB (current)\n";
 	}
-
-	HANDLE hThread = GetCurrentThread(), hProcess = GetCurrentProcess();
-	const CONTEXT *context = NULL;
-	LPVOID pUserData = NULL;
-
-	CONTEXT c;
-	int frameNum;
-
-	memset(&c, 0, sizeof(CONTEXT));
-	c.ContextFlags = CONTEXT_FULL;
-	RtlCaptureContext(&c);
-
-	// init STACKFRAME for first call
-	STACKFRAME64 s; // in/out stackframe
-	memset(&s, 0, sizeof(s));
-	DWORD imageType;
-#ifdef _M_IX86
-	// normally, call ImageNtHeader() and use machine info from PE header
-	imageType = IMAGE_FILE_MACHINE_I386;
-	s.AddrPC.Offset = c.Eip;
-	s.AddrPC.Mode = AddrModeFlat;
-	s.AddrFrame.Offset = c.Ebp;
-	s.AddrFrame.Mode = AddrModeFlat;
-	s.AddrStack.Offset = c.Esp;
-	s.AddrStack.Mode = AddrModeFlat;
-#elif _M_X64
-	imageType = IMAGE_FILE_MACHINE_AMD64;
-	s.AddrPC.Offset = c.Rip;
-	s.AddrPC.Mode = AddrModeFlat;
-	s.AddrFrame.Offset = c.Rsp;
-	s.AddrFrame.Mode = AddrModeFlat;
-	s.AddrStack.Offset = c.Rsp;
-	s.AddrStack.Mode = AddrModeFlat;
-#elif _M_IA64
-	imageType = IMAGE_FILE_MACHINE_IA64;
-	s.AddrPC.Offset = c.StIIP;
-	s.AddrPC.Mode = AddrModeFlat;
-	s.AddrFrame.Offset = c.IntSp;
-	s.AddrFrame.Mode = AddrModeFlat;
-	s.AddrBStore.Offset = c.RsBSP;
-	s.AddrBStore.Mode = AddrModeFlat;
-	s.AddrStack.Offset = c.IntSp;
-	s.AddrStack.Mode = AddrModeFlat;
-#else
-#error "Platform not supported!"
-#endif
-
-	for (frameNum = 0; frameNum < 1024; ++frameNum) {
-		// get next stack frame (StackWalk64(), SymFunctionTableAccess64(), SymGetModuleBase64())
-		// if this returns ERROR_INVALID_ADDRESS (487) or ERROR_NOACCESS (998), you can
-		// assume that either you are done, or that the stack is so hosed that the next
-		// deeper frame could not be found.
-		// CONTEXT need not to be suplied if imageTyp is IMAGE_FILE_MACHINE_I386!
-		if (!stackWalk64(imageType, hProcess, hThread, &s, &c, ReadProcessMemoryRoutine64, symFunctionTableAccess64, symGetModuleBase64, NULL)) {
-			CrashReports::dump() << "ERROR: Call to StackWalk64() failed!\n";
-			return;
-		}
-
-		if (s.AddrPC.Offset == s.AddrReturn.Offset) {
-			CrashReports::dump() << s.AddrPC.Offset << "\n";
-			CrashReports::dump() << "ERROR: StackWalk64() endless callstack!";
-			return;
-		}
-		if (s.AddrPC.Offset != 0) { // we seem to have a valid PC
-			CrashReports::dump() << s.AddrPC.Offset << "\n";
-		}
-
-		if (s.AddrReturn.Offset == 0) {
-			break;
-		}
-	}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 bool psLaunchMaps(const LocationCoords &coords) {

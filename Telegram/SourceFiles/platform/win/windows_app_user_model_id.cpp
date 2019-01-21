@@ -30,7 +30,7 @@ const WCHAR AppUserModelIdRelease[] = L"Telegram.Telegreat.Store";
 #else // OS_WIN_STORE
 const WCHAR AppUserModelIdRelease[] = L"Telegram.Telegreat";
 #endif // OS_WIN_STORE
-const WCHAR AppUserModelIdBeta[] = L"Telegram.Telegreat.Beta";
+const WCHAR AppUserModelIdAlpha[] = L"Telegram.Telegreat.Alpha";
 
 } // namespace
 
@@ -304,7 +304,7 @@ bool validateShortcut() {
 }
 
 const WCHAR *getId() {
-	return cBetaVersion() ? AppUserModelIdBeta : AppUserModelIdRelease;
+	return cAlphaVersion() ? AppUserModelIdAlpha : AppUserModelIdRelease;
 }
 
 const PROPERTYKEY &getKey() {

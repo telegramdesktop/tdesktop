@@ -192,13 +192,16 @@ private:
 	bool isAlreadyIn(not_null<UserData*> user) const;
 	int fullCount() const;
 	void updateTitle();
+	bool inviteSelectedUsers(not_null<PeerData*> chat) const;
 
 	PeerData *_peer = nullptr;
 	base::flat_set<not_null<UserData*>> _alreadyIn;
 
 };
 
-class AddBotToGroupBoxController : public ChatsListBoxController, public base::has_weak_ptr {
+class AddBotToGroupBoxController
+	: public ChatsListBoxController
+	, public base::has_weak_ptr {
 public:
 	static void Start(not_null<UserData*> bot);
 
@@ -227,10 +230,12 @@ private:
 
 };
 
-class ChooseRecipientBoxController : public ChatsListBoxController {
+class ChooseRecipientBoxController
+	: public ChatsListBoxController
+	, public base::has_weak_ptr {
 public:
 	ChooseRecipientBoxController(
-		base::lambda_once<void(not_null<PeerData*>)> callback);
+		FnMut<void(not_null<PeerData*>)> callback);
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 
@@ -244,6 +249,6 @@ protected:
 		not_null<History*> history) override;
 
 private:
-	base::lambda_once<void(not_null<PeerData*>)> _callback;
+	FnMut<void(not_null<PeerData*>)> _callback;
 
 };

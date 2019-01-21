@@ -40,10 +40,29 @@ class StickersListWidget;
 class GifsListWidget;
 
 class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
-	Q_OBJECT
-
 public:
-	TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller);
+	struct InlineChosen {
+		not_null<InlineBots::Result*> result;
+		not_null<UserData*> bot;
+	};
+	enum class Mode {
+		Full,
+		EmojiOnly
+	};
+
+	TabbedSelector(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		Mode mode = Mode::Full);
+
+	rpl::producer<EmojiPtr> emojiChosen() const;
+	rpl::producer<not_null<DocumentData*>> fileChosen() const;
+	rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	rpl::producer<InlineChosen> inlineResultChosen() const;
+
+	rpl::producer<> cancelled() const;
+	rpl::producer<> checkForHide() const;
+	rpl::producer<> slideFinished() const;
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
@@ -57,16 +76,17 @@ public:
 
 	int marginTop() const;
 	int marginBottom() const;
+	int scrollTop() const;
 
 	bool preventAutoHide() const;
 	bool isSliding() const {
 		return _a_slide.animating();
 	}
 
-	void setAfterShownCallback(base::lambda<void(SelectorTab)> callback) {
+	void setAfterShownCallback(Fn<void(SelectorTab)> callback) {
 		_afterShownCallback = std::move(callback);
 	}
-	void setBeforeHidingCallback(base::lambda<void(SelectorTab)> callback) {
+	void setBeforeHidingCallback(Fn<void(SelectorTab)> callback) {
 		_beforeHidingCallback = std::move(callback);
 	}
 
@@ -87,19 +107,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onScroll();
-
-signals:
-	void emojiSelected(EmojiPtr emoji);
-	void stickerSelected(DocumentData *sticker);
-	void photoSelected(PhotoData *photo);
-	void inlineResultSelected(InlineBots::Result *result, UserData *bot);
-
-	void cancelled();
-	void slideFinished();
-	void checkForHide();
-
 private:
 	class Tab {
 	public:
@@ -113,7 +120,7 @@ private:
 		SelectorTab type() const {
 			return _type;
 		}
-		not_null<Inner*> widget() const {
+		Inner *widget() const {
 			return _weak;
 		}
 		not_null<InnerFooter*> footer() const {
@@ -137,12 +144,18 @@ private:
 
 	};
 
+	bool full() const;
+	Tab createTab(
+		SelectorTab type,
+		not_null<Window::Controller*> controller);
+
 	void paintSlideFrame(Painter &p, TimeMs ms);
 	void paintContent(Painter &p);
 
 	void checkRestrictedPeer();
 	bool isRestrictedView();
 	void updateRestrictedLabelGeometry();
+	void handleScroll();
 
 	QImage grabForAnimation();
 
@@ -171,6 +184,7 @@ private:
 	not_null<StickersListWidget*> stickers() const;
 	not_null<GifsListWidget*> gifs() const;
 
+	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
 	int _footerTop = 0;
 	PeerData *_currentPeer = nullptr;
@@ -187,16 +201,15 @@ private:
 	std::array<Tab, Tab::kCount> _tabs;
 	SelectorTab _currentTabType = SelectorTab::Emoji;
 
-	base::lambda<void(SelectorTab)> _afterShownCallback;
-	base::lambda<void(SelectorTab)> _beforeHidingCallback;
+	Fn<void(SelectorTab)> _afterShownCallback;
+	Fn<void(SelectorTab)> _beforeHidingCallback;
 
 	rpl::event_stream<> _showRequests;
+	rpl::event_stream<> _slideFinished;
 
 };
 
 class TabbedSelector::Inner : public Ui::RpWidget {
-	Q_OBJECT
-
 public:
 	Inner(QWidget *parent, not_null<Window::Controller*> controller);
 
@@ -220,11 +233,10 @@ public:
 	virtual void beforeHiding() {
 	}
 
-	virtual object_ptr<InnerFooter> createFooter() = 0;
+	rpl::producer<int> scrollToRequests() const;
+	rpl::producer<bool> disableScrollRequests() const;
 
-signals:
-	void scrollToY(int y);
-	void disableScroll(bool disabled);
+	virtual object_ptr<InnerFooter> createFooter() = 0;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -244,12 +256,18 @@ protected:
 	virtual void processPanelHideFinished() {
 	}
 
+	void scrollTo(int y);
+	void disableScroll(bool disabled);
+
 private:
 	not_null<Window::Controller*> _controller;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	int _minimalHeight = 0;
+
+	rpl::event_stream<int> _scrollToRequests;
+	rpl::event_stream<bool> _disableScrollRequests;
 
 };
 

@@ -17,8 +17,6 @@ constexpr str_const AppId = "{53F49750-5EA2-5EA2-5EA2-7A333C87D1ED}"; // used in
 constexpr str_const AppFile = "Telegreat";
 
 enum {
-	MTPShortBufferSize = 65535, // of ints, 256 kb
-	MTPPacketSizeMax = 67108864, // 64 mb
 	MTPIdsBufferSize = 400, // received msgIds and wereAcked msgIds count stored
 	MTPCheckResendTimeout = 10000, // how much time passed from send till we resend request or check it's state, in ms
 	MTPCheckResendWaiting = 1000, // how much time to wait for some more requests, when resending request or checking it's state, in ms
@@ -27,10 +25,6 @@ enum {
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
 
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
-
-	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
-
-	MaxUsersPerInvite = 100, // max users in one super group invite request
 
 	MTPChannelGetDifferenceLimit = 100,
 
@@ -56,8 +50,6 @@ enum {
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
-	SaveWindowPositionTimeout = 1000, // 1 sec
-
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,
 	SearchManyPerPage = 100,
@@ -74,21 +66,14 @@ enum {
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
 
-	ShortcutsCountLimit = 256, // how many shortcuts can be in json file
-
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,
 	UsernameCheckTimeout = 200,
 
-	MaxPhotoCaption = 200,
-
 	MaxMessageSize = 4096,
 
 	WriteMapTimeout = 1000,
-	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
-	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
-	SaveCloudDraftIdleTimeout = 14000, // save draft to the cloud after 14 more seconds
 
 	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
@@ -102,7 +87,6 @@ enum {
 	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
 
 	WrongPasscodeTimeout = 1500,
-	SessionsShortPollTimeout = 60000,
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };
@@ -118,9 +102,9 @@ inline bool isServiceUser(uint64 id) {
 #ifdef Q_OS_WIN
 inline const GUID &cGUID() {
 #ifndef OS_MAC_STORE
-	static const GUID gGuid = { 0x87a94ab0, 0xe370, 0x4cde, { 0x98, 0xd3, 0xac, 0xc1, 0x10, 0xc5, 0x96, 0x7d } };
+	static const GUID gGuid = { 0x87a94ab0, 0x5ea2, 0x5ea2, { 0x98, 0xd3, 0xac, 0xc1, 0x10, 0xc5, 0x96, 0x7d } };
 #else // OS_MAC_STORE
-	static const GUID gGuid = { 0xe51fb841, 0x8c0b, 0x4ef9, { 0x9e, 0x9e, 0x5a, 0x0, 0x78, 0x56, 0x76, 0x27 } };
+	static const GUID gGuid = { 0xe51fb841, 0x5ea2, 0x5ea2, { 0x9e, 0x9e, 0x5a, 0x0, 0x78, 0x56, 0x76, 0x27 } };
 #endif // OS_MAC_STORE
 
 	return gGuid;
@@ -129,9 +113,9 @@ inline const GUID &cGUID() {
 
 inline const char *cGUIDStr() {
 #ifndef OS_MAC_STORE
-	static const char *gGuidStr = "{87A94AB0-E370-4cde-98D3-ACC110C5967D}";
+	static const char *gGuidStr = "{87A94AB0-5EA2-5EA2-98D3-ACC110C5967D}";
 #else // OS_MAC_STORE
-	static const char *gGuidStr = "{E51FB841-8C0B-4EF9-9E9E-5A0078567627}";
+	static const char *gGuidStr = "{E51FB841-5EA2-5EA2-9E9E-5A0078567627}";
 #endif // OS_MAC_STORE
 
 	return gGuidStr;
@@ -189,59 +173,67 @@ inline int builtInDcsCountIPv6() {
 
 static const char *UpdatesPublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBALKRRx+VecHJxU+w06JGN6rULQddUcRVzAi5CglZHuyBSlMf4yDlA3f+\n\
-3ZmCEbt7SfrC/ZXz3OnvRuGv7tQJ/jpQiFCrIUHocwZOmUE27AiU7Islrc7dtvtw\n\
-ihUthkqjdoGaXmm9PhK2JPdFm1lKoYGC0A/u6yp35gch0dRk/4NzAgMBAAE=\n\
+MIGJAoGBAMT5V5SKpButqB0N30US1RZWto9054ss/oCAjjR3jUFMuadr82i6u30I\n\
+N/DdzTg7ML8uam1Zu99DStaOJaNFMOaGoyea/MGUaR/IgoB0rNotjlgJpN+Sv+KN\n\
+nzD00iPN8cQJZUA7x+ER/oUKgnULiA+Z3JLU5nP+LjAXPnSL0QpJAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-static const char *UpdatesPublicAlphaKey = "\
+static const char *UpdatesPublicBetaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
-MIGJAoGBALKRRx+VecHJxU+w06JGN6rULQddUcRVzAi5CglZHuyBSlMf4yDlA3f+\n\
-3ZmCEbt7SfrC/ZXz3OnvRuGv7tQJ/jpQiFCrIUHocwZOmUE27AiU7Islrc7dtvtw\n\
-ihUthkqjdoGaXmm9PhK2JPdFm1lKoYGC0A/u6yp35gch0dRk/4NzAgMBAAE=\n\
+MIGJAoGBAMT5V5SKpButqB0N30US1RZWto9054ss/oCAjjR3jUFMuadr82i6u30I\n\
+N/DdzTg7ML8uam1Zu99DStaOJaNFMOaGoyea/MGUaR/IgoB0rNotjlgJpN+Sv+KN\n\
+nzD00iPN8cQJZUA7x+ER/oUKgnULiA+Z3JLU5nP+LjAXPnSL0QpJAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-//#ifdef CUSTOM_API_ID
-//#include "../../../TelegramPrivate/custom_api_id.h" // Custom API id and API hash
-//#else
-static const int32 ApiId = 45735;
-static const char *ApiHash = "6685194f787f91058cbc0fe77b4eb139";
-//#endif
+#if defined TDESKTOP_API_ID && defined TDESKTOP_API_HASH
+
+#define TDESKTOP_API_HASH_TO_STRING_HELPER(V) #V
+#define TDESKTOP_API_HASH_TO_STRING(V) TDESKTOP_API_HASH_TO_STRING_HELPER(V)
+
+constexpr auto ApiId = TDESKTOP_API_ID;
+constexpr auto ApiHash = TDESKTOP_API_HASH_TO_STRING(TDESKTOP_API_HASH);
+
+#undef TDESKTOP_API_HASH_TO_STRING
+#undef TDESKTOP_API_HASH_TO_STRING_HELPER
+
+#else // TDESKTOP_API_ID && TDESKTOP_API_HASH
+
+// To build your version of Telegram Desktop you're required to provide
+// your own 'api_id' and 'api_hash' for the Telegram API access.
+//
+// How to obtain your 'api_id' and 'api_hash' is described here:
+// https://core.telegram.org/api/obtaining_api_id
+//
+// If you're building the application not for deployment,
+// but only for test purposes you can comment out the error below.
+//
+// This will allow you to use TEST ONLY 'api_id' and 'api_hash' which are
+// very limited by the Telegram API server.
+//
+// Your users will start getting internal server errors on login
+// if you deploy an app using those 'api_id' and 'api_hash'.
+
+#error You are required to provide API_ID and API_HASH.
+
+constexpr auto ApiId = 45735;
+constexpr auto ApiHash = "6685194f787f91058cbc0fe77b4eb139";
+
+#endif // TDESKTOP_API_ID && TDESKTOP_API_HASH
 
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN
 #error "Only little endian is supported!"
 #endif // Q_BYTE_ORDER == Q_BIG_ENDIAN
 
-#ifndef BETA_VERSION_MACRO
-#error "Beta version macro is not defined."
-#endif
+#if (TDESKTOP_ALPHA_VERSION != 0)
 
-//#if (defined CUSTOM_API_ID) && (BETA_VERSION_MACRO > 0ULL)
-#include "../../../TelegramPrivate/beta_private.h" // private key for downloading closed betas
-//#else
-//static const char *BetaPrivateKey = "";
-//#endif
+// Private key for downloading closed alphas.
+#include "../../../TelegramPrivate/alpha_private.h"
 
-inline const char *cApiDeviceModel() {
-#ifdef Q_OS_WIN
-	return "PC";
-#elif defined Q_OS_MAC
-	return "Mac";
-#elif defined Q_OS_LINUX
-	return "PC";
+#else
+static const char *AlphaPrivateKey = "";
 #endif
-}
-inline const char *cApiSystemVersion() {
-#ifdef Q_OS_WIN
-	return "Windows";
-#elif defined Q_OS_MAC
-	return "OS X";
-#elif defined Q_OS_LINUX
-	return "Linux";
-#endif
-}
 
 extern QString gKeyFile;
 inline const QString &cDataFile() {
@@ -276,14 +268,9 @@ enum {
 	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
 	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
 
-	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
-	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
-	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
 	SendViewsTimeout = 1000, // send views each second
-
-	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
 
 inline const QRegularExpression &cRussianLetters() {

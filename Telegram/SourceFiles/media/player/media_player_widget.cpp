@@ -22,7 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_mediaview.h"
 #include "history/history_item.h"
+#include "storage/localstorage.h"
 #include "layout.h"
+#include "facades.h"
 
 namespace Media {
 namespace Player {
@@ -80,6 +82,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
+, _playbackSpeed(this, st::mediaPlayerSpeedButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
@@ -128,6 +131,15 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
+	updatePlaybackSpeedIcon();
+	_playbackSpeed->setClickedCallback([=] {
+		const auto doubled = !Global::VoiceMsgPlaybackDoubled();
+		Global::SetVoiceMsgPlaybackDoubled(doubled);
+		mixer()->setVoicePlaybackDoubled(doubled);
+		updatePlaybackSpeedIcon();
+		Local::writeUserSettings();
+	});
+
 	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
 		if (type == _type) {
 			updateRepeatTrackIcon();
@@ -171,7 +183,7 @@ void Widget::updateVolumeToggleIcon() {
 	_volumeToggle->setIconOverride(icon());
 }
 
-void Widget::setCloseCallback(base::lambda<void()> callback) {
+void Widget::setCloseCallback(Fn<void()> callback) {
 	_closeCallback = std::move(callback);
 	_close->setClickedCallback([this] { stopAndClose(); });
 }
@@ -247,6 +259,9 @@ void Widget::handleSeekFinished(float64 progress) {
 void Widget::resizeEvent(QResizeEvent *e) {
 	auto right = st::mediaPlayerCloseRight;
 	_close->moveToRight(right, st::mediaPlayerPlayTop); right += _close->width();
+	if (hasPlaybackSpeedControl()) {
+		_playbackSpeed->moveToRight(right, st::mediaPlayerPlayTop); right += _playbackSpeed->width();
+	}
 	_repeatTrack->moveToRight(right, st::mediaPlayerPlayTop); right += _repeatTrack->width();
 	_volumeToggle->moveToRight(right, st::mediaPlayerPlayTop); right += _volumeToggle->width();
 
@@ -330,6 +345,8 @@ int Widget::getLabelsRight() const {
 	auto result = st::mediaPlayerCloseRight + _close->width();
 	if (_type == AudioMsgId::Type::Song) {
 		result += _repeatTrack->width() + _volumeToggle->width();
+	} else if (hasPlaybackSpeedControl()) {
+		result += _playbackSpeed->width();
 	}
 	result += st::mediaPlayerPadding;
 	return result;
@@ -353,6 +370,16 @@ void Widget::updateRepeatTrackIcon() {
 	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
+void Widget::updatePlaybackSpeedIcon() {
+	const auto doubled = Global::VoiceMsgPlaybackDoubled();
+	const auto isDefaultSpeed = !doubled;
+	_playbackSpeed->setIconOverride(
+		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,
+		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIconOver : nullptr);
+	_playbackSpeed->setRippleColorOverride(
+		isDefaultSpeed ? &st::mediaPlayerSpeedDisabledRippleBg : nullptr);
+}
+
 void Widget::checkForTypeChange() {
 	auto hasActiveType = [](AudioMsgId::Type type) {
 		auto current = instance()->current(type);
@@ -367,11 +394,20 @@ void Widget::checkForTypeChange() {
 	}
 }
 
+bool Widget::hasPlaybackSpeedControl() const {
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return (_type == AudioMsgId::Type::Voice);
+#else // TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return false;
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
+}
+
 void Widget::setType(AudioMsgId::Type type) {
 	if (_type != type) {
 		_type = type;
 		_repeatTrack->setVisible(_type == AudioMsgId::Type::Song);
 		_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
+		_playbackSpeed->setVisible(hasPlaybackSpeedControl());
 		if (!_shadow->isHidden()) {
 			_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
 		}
@@ -384,6 +420,9 @@ void Widget::setType(AudioMsgId::Type type) {
 		) | rpl::start_with_next([=] {
 			handlePlaylistUpdate();
 		});
+		// maybe the type change causes a change of the button layout
+		QResizeEvent event = { size(), size() };
+		resizeEvent(&event);
 	}
 }
 

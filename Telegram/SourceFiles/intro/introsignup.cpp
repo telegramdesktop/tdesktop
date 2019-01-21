@@ -24,7 +24,7 @@ namespace Intro {
 SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _photo(
 	this,
-	peerFromUser(0),
+	lang(lng_settings_crop_profile),
 	Ui::UserpicButton::Role::ChangePhoto,
 	st::defaultUserpicButton)
 , _first(this, st::introName, langFactory(lng_signup_firstname))
@@ -45,6 +45,10 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	setTitleText(langFactory(lng_signup_title));
 	setDescriptionText(langFactory(lng_signup_desc));
 	setMouseTracking(true);
+}
+
+void SignupWidget::finishInit() {
+	showTerms();
 }
 
 void SignupWidget::refreshLang() {
@@ -157,7 +161,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		_last->setFocus();
 		return true;
 	}
-	if (cDebug()) { // internal server error
+	if (Logs::DebugEnabled()) { // internal server error
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
@@ -176,7 +180,9 @@ void SignupWidget::onInputChange() {
 }
 
 void SignupWidget::submit() {
-	if (_sentRequest) return;
+	if (_sentRequest) {
+		return;
+	}
 	if (_invertOrder) {
 		if ((_last->hasFocus() || _last->getLastText().trimmed().length()) && !_first->getLastText().trimmed().length()) {
 			_first->setFocus();
@@ -195,11 +201,31 @@ void SignupWidget::submit() {
 		}
 	}
 
-	hideError();
+	const auto send = [&] {
+		hideError();
 
-	_firstName = _first->getLastText().trimmed();
-	_lastName = _last->getLastText().trimmed();
-	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
+		_firstName = _first->getLastText().trimmed();
+		_lastName = _last->getLastText().trimmed();
+		_sentRequest = MTP::send(
+			MTPauth_SignUp(
+				MTP_string(getData()->phone),
+				MTP_bytes(getData()->phoneHash),
+				MTP_string(getData()->code),
+				MTP_string(_firstName),
+				MTP_string(_lastName)),
+			rpcDone(&SignupWidget::nameSubmitDone),
+			rpcFail(&SignupWidget::nameSubmitFail));
+	};
+	if (_termsAccepted
+		|| getData()->termsLock.text.text.isEmpty()
+		|| !getData()->termsLock.popup) {
+		send();
+	} else {
+		acceptTerms(crl::guard(this, [=] {
+			_termsAccepted = true;
+			send();
+		}));
+	}
 }
 
 QString SignupWidget::nextButtonText() const {

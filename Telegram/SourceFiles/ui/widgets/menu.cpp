@@ -49,7 +49,7 @@ QAction *Menu::addAction(const QString &text, const QObject *receiver, const cha
 	return action;
 }
 
-QAction *Menu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+QAction *Menu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
 	auto action = addAction(new QAction(text, this), icon, iconOver);
 	connect(action, &QAction::triggered, action, std::move(callback), Qt::QueuedConnection);
 	return action;
@@ -132,7 +132,7 @@ int Menu::processAction(QAction *action, int index, int width) {
 			auto updateCallback = [this, index] { updateItem(index); };
 			if (data.toggle) {
 				data.toggle->setUpdateCallback(updateCallback);
-				data.toggle->setCheckedAnimated(action->isChecked());
+				data.toggle->setChecked(action->isChecked(), anim::type::normal);
 			} else {
 				data.toggle = std::make_unique<ToggleView>(_st.itemToggle, action->isChecked(), updateCallback);
 			}
@@ -216,7 +216,18 @@ void Menu::paintEvent(QPaintEvent *e) {
 				p.setPen(selected ? _st.itemFgOver : (enabled ? _st.itemFg : _st.itemFgDisabled));
 				p.drawTextLeft(_st.itemPadding.left(), _st.itemPadding.top(), width(), data.text);
 				if (data.hasSubmenu) {
-					_st.arrow.paint(p, width() - _st.itemPadding.right() - _st.arrow.width(), (_itemHeight - _st.arrow.height()) / 2, width());
+					const auto left = width() - _st.itemPadding.right() - _st.arrow.width();
+					const auto top = (_itemHeight - _st.arrow.height()) / 2;
+					if (enabled) {
+						_st.arrow.paint(p, left, top, width());
+					} else {
+						_st.arrow.paint(
+							p,
+							left,
+							top,
+							width(),
+							_st.itemFgDisabled->c);
+					}
 				} else if (!data.shortcut.isEmpty()) {
 					p.setPen(selected ? _st.itemFgShortcutOver : (enabled ? _st.itemFgShortcut : _st.itemFgShortcutDisabled));
 					p.drawTextRight(_st.itemPadding.right(), _st.itemPadding.top(), width(), data.shortcut);

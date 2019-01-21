@@ -90,6 +90,8 @@ public:
 	rpl::producer<Wrap> wrapValue() const;
 	void setWrap(Wrap wrap);
 
+	rpl::producer<> contentChanged() const;
+
 	not_null<Controller*> controller() {
 		return _controller.get();
 	}
@@ -115,6 +117,8 @@ public:
 	QRect rectForFloatPlayer() const override;
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
+
+	bool closeByOutsideClick() const;
 
 	void updateGeometry(QRect newGeometry, int additionalScroll);
 	int scrollTillBottom(int forHeight) const;
@@ -148,6 +152,7 @@ private:
 	void injectActiveFeedProfile(not_null<Data::Feed*> feed);
 	void injectActiveProfileMemento(
 		std::unique_ptr<ContentMemento> memento);
+	void checkBeforeClose(Fn<void()> close);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);
 	bool hasStackHistory() const {
@@ -189,10 +194,11 @@ private:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	bool requireTopBarSearch() const;
 
-	void addProfileMenuButton();
+	void addTopBarMenuButton();
+	void addContentSaveButton();
 	void addProfileCallsButton();
 	void addProfileNotificationsButton();
-	void showProfileMenu();
+	void showTopBarMenu();
 
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;
@@ -217,6 +223,7 @@ private:
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _scrollTillBottomChanges;
+	rpl::event_stream<> _contentChanges;
 
 };
 

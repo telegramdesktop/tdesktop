@@ -155,10 +155,10 @@ public:
 	void setFullOrder(const Stickers::Order &order);
 	void setRemovedSets(const Stickers::Order &removed);
 
-	void setInstallSetCallback(base::lambda<void(uint64 setId)> callback) {
+	void setInstallSetCallback(Fn<void(uint64 setId)> callback) {
 		_installSetCallback = std::move(callback);
 	}
-	void setLoadMoreCallback(base::lambda<void()> callback) {
+	void setLoadMoreCallback(Fn<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
 
@@ -191,13 +191,27 @@ public slots:
 
 private:
 	struct Row {
-		Row(uint64 id, DocumentData *sticker, int32 count, const QString &title, int titleWidth, bool installed, bool official, bool unread, bool archived, bool removed, int32 pixw, int32 pixh);
+		Row(
+			uint64 id,
+			uint64 accessHash,
+			DocumentData *sticker,
+			int32 count,
+			const QString &title,
+			int titleWidth,
+			bool installed,
+			bool official,
+			bool unread,
+			bool archived,
+			bool removed,
+			int32 pixw,
+			int32 pixh);
 		bool isRecentSet() const {
 			return (id == Stickers::CloudRecentSetId);
 		}
 		~Row();
 
 		uint64 id = 0;
+		uint64 accessHash = 0;
 		DocumentData *sticker = nullptr;
 		int32 count = 0;
 		QString title;
@@ -281,8 +295,8 @@ private:
 	anim::value _aboveShadowFadeOpacity;
 	BasicAnimation _a_shifting;
 
-	base::lambda<void(uint64 setId)> _installSetCallback;
-	base::lambda<void()> _loadMoreCallback;
+	Fn<void(uint64 setId)> _installSetCallback;
+	Fn<void()> _loadMoreCallback;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

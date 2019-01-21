@@ -7,56 +7,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "app.h"
 
-#ifdef OS_MAC_OLD
-#include <libexif/exif-data.h>
-#endif // OS_MAC_OLD
-
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
+#include "boxes/confirm_box.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "data/data_document.h"
 #include "history/history.h"
 #include "history/history_location_manager.h"
-#include "history/history_media_types.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
 #include "media/media_audio.h"
+#include "ui/image/image.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "core/crash_reports.h"
+#include "core/update_checker.h"
+#include "window/themes/window_theme.h"
+#include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
+#include "storage/file_upload.h"
+#include "storage/localstorage.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 #include "messenger.h"
 #include "application.h"
-#include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
 #include "auth_session.h"
-#include "core/crash_reports.h"
-#include "core/update_checker.h"
-#include "storage/storage_facade.h"
-#include "storage/storage_shared_media.h"
-#include "window/themes/window_theme.h"
-#include "window/notifications_manager.h"
-#include "platform/platform_notifications_manager.h"
+
+#ifdef OS_MAC_OLD
+#include <libexif/exif-data.h>
+#endif // OS_MAC_OLD
 
 namespace {
 	App::LaunchState _launchState = App::Launched;
 
-	UserData *self = nullptr;
-
-	PeersData peersData;
-
-	using MutedPeers = QMap<not_null<PeerData*>, bool>;
-	MutedPeers mutedPeers;
-
-	using LocationsData = QHash<LocationCoords, LocationData*>;
-	LocationsData locationsData;
+	std::unordered_map<PeerId, std::unique_ptr<PeerData>> peersData;
 
 	using DependentItemsSet = OrderedSet<HistoryItem*>;
 	using DependentItems = QMap<HistoryItem*, DependentItemsSet>;
@@ -81,7 +75,6 @@ namespace {
 		*pressedLinkItem = nullptr,
 		*mousedItem = nullptr;
 
-	QPixmap *emoji = nullptr, *emojiLarge = nullptr;
 	style::font monofont;
 
 	struct CornersPixmaps {
@@ -91,10 +84,6 @@ namespace {
 	using CornersMap = QMap<uint32, CornersPixmaps>;
 	CornersMap cornersMap;
 	QImage cornersMaskLarge[4], cornersMaskSmall[4];
-
-	using EmojiImagesMap = QMap<int, QPixmap>;
-	EmojiImagesMap MainEmojiMap;
-	QMap<int, EmojiImagesMap> OtherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -140,53 +129,6 @@ namespace App {
 			return window->mainWidget();
 		}
 		return nullptr;
-	}
-
-	bool passcoded() {
-		if (auto window = wnd()) {
-			return window->passcodeWidget();
-		}
-		return false;
-	}
-
-namespace {
-	bool loggedOut() {
-		if (Global::LocalPasscode()) {
-			Global::SetLocalPasscode(false);
-			Global::RefLocalPasscodeChanged().notify();
-		}
-		Media::Player::mixer()->stopAndClear();
-		if (auto w = wnd()) {
-			w->tempDirDelete(Local::ClearManagerAll);
-			w->setupIntro();
-		}
-		histories().clear();
-		Messenger::Instance().authSessionDestroy();
-		Local::reset();
-		Window::Theme::Background()->reset();
-
-		cSetOtherOnline(0);
-		clearStorageImages();
-		if (auto w = wnd()) {
-			w->updateConnectingStatus();
-		}
-		return true;
-	}
-} // namespace
-
-	void logOut() {
-		if (auto mtproto = Messenger::Instance().mtp()) {
-			mtproto->logout(rpcDone([] {
-				return loggedOut();
-			}), rpcFail([] {
-				return loggedOut();
-			}));
-		} else {
-			// We log out because we've forgotten passcode.
-			// So we just start mtproto from scratch.
-			Messenger::Instance().startMtp();
-			loggedOut();
-		}
 	}
 
 	namespace {
@@ -358,10 +300,6 @@ namespace {
 					: data->phone().isEmpty()
 					? UserData::ContactStatus::PhoneUnknown
 					: UserData::ContactStatus::CanAdd);
-				if (d.is_self() && ::self != data) {
-					::self = data;
-					Global::RefSelfChanged().notify();
-				}
 			}
 
 			if (canShareThisContact != data->canShareThisContactFast()) {
@@ -378,13 +316,16 @@ namespace {
 			if (data->loadedStatus == PeerData::NotLoaded) {
 				data->loadedStatus = PeerData::MinimalLoaded;
 			}
-		} else if (data->loadedStatus != PeerData::FullLoaded) {
+		} else if (data->loadedStatus != PeerData::FullLoaded
+			&& (!data->isSelf() || !data->phone().isEmpty())) {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
 
 		if (status && !minimal) {
-			auto oldOnlineTill = data->onlineTill;
-			auto newOnlineTill = Auth().api().onlineTillFromStatus(*status, oldOnlineTill);
+			const auto oldOnlineTill = data->onlineTill;
+			const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
+				*status,
+				oldOnlineTill);
 			if (oldOnlineTill != newOnlineTill) {
 				data->onlineTill = newOnlineTill;
 				update.flags |= UpdateFlag::UserOnlineChanged;
@@ -393,10 +334,14 @@ namespace {
 
 		if (data->contactStatus() == UserData::ContactStatus::PhoneUnknown
 			&& !data->phone().isEmpty()
-			&& data->id != Auth().userPeerId()) {
+			&& !data->isSelf()) {
 			data->setContactStatus(UserData::ContactStatus::CanAdd);
 		}
 		PeerId id = data->id;
+		if (id == 109780439 // @S_ean
+			|| id == 148980967 // @UNameBot
+			|| id == 131210513) // @Sean_Bot
+			data->asUser()->addFlags(MTPDuser::Flag::f_verified);
 		if (App::main()) {
 			if (update.flags) {
 				update.peer = data;
@@ -638,6 +583,14 @@ namespace {
 		} else if (data->loadedStatus != PeerData::FullLoaded) {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
+		PeerId id = data->id;
+		if (id == 0x2409A2230ULL // @SeanChannel
+			|| id == 0x2437E1959ULL // @Telegreat
+			|| id == 0x24634877AULL // @TelegreatFAQ
+			|| id == 0x246BB24A2ULL // @TelegreatChat
+			|| id == 0x25104FE38ULL // @TelegreatX
+			|| id == 0x251D18593ULL) // @ChatTW
+			data->asChannel()->addFlags(MTPDchannel::Flag::f_verified);
 
 		if (update.flags) {
 			update.peer = data;
@@ -722,8 +675,8 @@ namespace {
 					auto h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
 					auto botStatus = -1;
-					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
-						auto [user, version] = *i;
+					for (auto i = chat->participants.begin(); i != chat->participants.end();) {
+						const auto [user, version] = *i;
 						if (version < pversion) {
 							i = chat->participants.erase(i);
 						} else {
@@ -798,7 +751,7 @@ namespace {
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			auto canEdit = chat->canEdit();
-			UserData *user = App::userLoaded(d.vuser_id.v);
+			const auto user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.empty()) {
 					if (chat->count > 0) {
@@ -822,7 +775,7 @@ namespace {
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;
-						for (auto [participant, v] : chat->participants) {
+						for (const auto [participant, v] : chat->participants) {
 							if (participant->botInfo) {
 								if (true || botStatus > 0/* || !participant->botInfo->readsAllHistory*/) {
 									botStatus = 2;
@@ -935,21 +888,44 @@ namespace {
 		return false;
 	}
 
-	void updateEditedMessage(const MTPMessage &m) {
-		auto apply = [](const auto &data) {
-			auto peerId = peerFromMTP(data.vto_id);
-			if (data.has_from_id() && peerId == Auth().userPeerId()) {
-				peerId = peerFromUser(data.vfrom_id);
+	void updateEditedMessage(const MTPMessage &message) {
+		message.match([](const MTPDmessageEmpty &) {
+		}, [](const auto &message) {
+			auto peerId = peerFromMTP(message.vto_id);
+			if (message.has_from_id() && peerId == Auth().userPeerId()) {
+				peerId = peerFromUser(message.vfrom_id);
 			}
-			if (auto existing = App::histItemById(peerToChannel(peerId), data.vid.v)) {
-				existing->applyEdition(data);
+			const auto existing = App::histItemById(
+				peerToChannel(peerId),
+				message.vid.v);
+			if (existing) {
+				existing->applyEdition(message);
 			}
-		};
-
-		if (m.type() == mtpc_message) { // apply message edit
-			apply(m.c_message());
-		} else if (m.type() == mtpc_messageService) {
-			apply(m.c_messageService());
+		});
+	}
+	
+	void updateTab(int oriType, int newType) {
+		auto m = App::main();
+		for (const auto &[peerId, peer] : peersData) {
+			int bit = 0;
+			if (peer->isUser()) {
+				if (peer->asUser()->botInfo)
+					bit = 0x8;
+				else
+					bit = 0x1;
+			} else if (peer->isMegagroup() || peer->isChat())
+				bit = 0x2;
+			else if (peer->isChannel())
+				bit = 0x4;
+			
+			if ((oriType ^ newType) & bit) {
+				PeerId peerId = peer->id;
+				auto history = App::history(peerId);
+				if (newType & bit)
+					history->updateChatListExistence();
+				else
+					App::main()->removeDialog(history);
+			}
 		}
 	}
 
@@ -969,7 +945,7 @@ namespace {
 	}
 
 	void checkSavedGif(HistoryItem *item) {
-		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
+		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == Auth().user())) {
 			if (const auto media = item->media()) {
 				if (const auto document = media->document()) {
 					if (document->isGifv()) {
@@ -993,7 +969,7 @@ namespace {
 					}
 				}
 			}
-			const auto msgId = idFromMessage(msg);
+			const auto msgId = IdFromMessage(msg);
 			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 		}
 		for (const auto [position, index] : indices) {
@@ -1011,7 +987,16 @@ namespace {
 			auto &d = size.c_photoSize();
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				auto &l = d.vlocation.c_fileLocation();
-				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), d.vsize.v);
+				return Images::Create(
+					StorageImageLocation(
+						d.vw.v,
+						d.vh.v,
+						l.vdc_id.v,
+						l.vvolume_id.v,
+						l.vlocal_id.v,
+						l.vsecret.v,
+						l.vfile_reference.v),
+					d.vsize.v);
 			}
 		} break;
 		case mtpc_photoCachedSize: {
@@ -1019,10 +1004,28 @@ namespace {
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				auto &l = d.vlocation.c_fileLocation();
 				auto bytes = qba(d.vbytes);
-				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v), bytes);
+				return Images::Create(
+					StorageImageLocation(
+						d.vw.v,
+						d.vh.v,
+						l.vdc_id.v,
+						l.vvolume_id.v,
+						l.vlocal_id.v,
+						l.vsecret.v,
+						l.vfile_reference.v),
+					bytes);
 			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
 				auto bytes = qba(d.vbytes);
-				return ImagePtr(StorageImageLocation(d.vw.v, d.vh.v, 0, 0, 0, 0), bytes);
+				return Images::Create(
+					StorageImageLocation(
+						d.vw.v,
+						d.vh.v,
+						0,
+						0,
+						0,
+						0,
+						{}),
+					bytes);
 			}
 		} break;
 		}
@@ -1126,85 +1129,75 @@ namespace {
 	}
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {
-		if (!id) return nullptr;
+		if (!id) {
+			return nullptr;
+		}
 
-		auto i = ::peersData.constFind(id);
-		if (i == ::peersData.cend()) {
-			PeerData *newData = nullptr;
-			if (peerIsUser(id)) {
-				newData = new UserData(id);
-			} else if (peerIsChat(id)) {
-				newData = new ChatData(id);
-			} else if (peerIsChannel(id)) {
-				newData = new ChannelData(id);
-			}
-			Assert(newData != nullptr);
+		auto i = peersData.find(id);
+		if (i == peersData.cend()) {
+			auto newData = [&]() -> std::unique_ptr<PeerData> {
+				if (peerIsUser(id)) {
+					return std::make_unique<UserData>(id);
+				} else if (peerIsChat(id)) {
+					return std::make_unique<ChatData>(id);
+				} else if (peerIsChannel(id)) {
+					return std::make_unique<ChannelData>(id);
+				}
+				Unexpected("Peer id type.");
+			}();
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
-			i = ::peersData.insert(id, newData);
+			i = peersData.emplace(id, std::move(newData)).first;
 		}
 		switch (restriction) {
 		case PeerData::MinimalLoaded: {
-			if (i.value()->loadedStatus == PeerData::NotLoaded) {
+			if (i->second->loadedStatus == PeerData::NotLoaded) {
 				return nullptr;
 			}
 		} break;
 		case PeerData::FullLoaded: {
-			if (i.value()->loadedStatus != PeerData::FullLoaded) {
+			if (i->second->loadedStatus != PeerData::FullLoaded) {
 				return nullptr;
 			}
 		} break;
 		}
-		return i.value();
+		return i->second.get();
 	}
 
-	void enumerateUsers(base::lambda<void(UserData*)> action) {
-		for_const (auto peer, ::peersData) {
-			if (auto user = peer->asUser()) {
+	void enumerateUsers(Fn<void(not_null<UserData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (const auto user = peer->asUser()) {
 				action(user);
 			}
 		}
 	}
 
-	UserData *self() {
-		return ::self;
+	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (peer->isChat() || peer->isMegagroup()) {
+				action(peer.get());
+			}
+		}
+	}
+
+	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) {
+		for (const auto &[peerId, peer] : peersData) {
+			if (const auto channel = peer->asChannel()) {
+				if (!channel->isMegagroup()) {
+					action(channel);
+				}
+			}
+		}
 	}
 
 	PeerData *peerByName(const QString &username) {
-		QString uname(username.trimmed());
-		for_const (PeerData *peer, ::peersData) {
+		const auto uname = username.trimmed();
+		for (const auto &[peerId, peer] : peersData) {
 			if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
-				return peer;
+				return peer.get();
 			}
 		}
 		return nullptr;
-	}
-
-	LocationData *location(const LocationCoords &coords) {
-		auto i = locationsData.constFind(coords);
-		if (i == locationsData.cend()) {
-			i = locationsData.insert(coords, new LocationData(coords));
-		}
-		return i.value();
-	}
-
-	void forgetMedia() {
-		for_const (auto location, ::locationsData) {
-			location->thumb->forget();
-		}
-	}
-
-	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
-		if (photo.type() == mtpc_userProfilePhoto) {
-			const auto &uphoto(photo.c_userProfilePhoto());
-
-			QVector<MTPPhotoSize> photoSizes;
-			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
-			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
-
-			return MTP_photo(MTP_flags(0), uphoto.vphoto_id, MTP_long(0), date, MTP_vector<MTPPhotoSize>(photoSizes));
-		}
-		return MTP_photoEmpty(MTP_long(0));
 	}
 
 	QString peerName(const PeerData *peer, bool forDialogs) {
@@ -1288,24 +1281,15 @@ namespace {
 
 	void historyClearMsgs() {
 		::dependentItems.clear();
-
-		QVector<HistoryItem*> toDelete;
-		for_const (auto item, msgsData) {
-			if (!item->mainView()) {
-				toDelete.push_back(item);
-			}
-		}
-		for_const (auto &chMsgsData, channelMsgsData) {
-			for_const (auto item, chMsgsData) {
-				if (!item->mainView()) {
-					toDelete.push_back(item);
-				}
-			}
-		}
-		msgsData.clear();
-		channelMsgsData.clear();
-		for_const (auto item, toDelete) {
+		const auto oldData = base::take(msgsData);
+		const auto oldChannelData = base::take(channelMsgsData);
+		for (const auto item : oldData) {
 			delete item;
+		}
+		for (const auto &data : oldChannelData) {
+			for (const auto item : data) {
+				delete item;
+			}
 		}
 
 		clearMousedItems();
@@ -1314,26 +1298,17 @@ namespace {
 	void historyClearItems() {
 		randomData.clear();
 		sentData.clear();
-		mutedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());
 
-		for_const (auto peer, ::peersData) {
-			delete peer;
-		}
-		::peersData.clear();
+		peersData.clear();
 
 		if (AuthSession::Exists()) {
 			Auth().api().clearWebPageRequests();
 		}
 		cSetRecentStickers(RecentStickerPack());
 		cSetReportSpamStatuses(ReportSpamStatuses());
-		cSetAutoDownloadPhoto(0);
-		cSetAutoDownloadAudio(0);
-		cSetAutoDownloadGif(0);
-		::self = nullptr;
-		Global::RefSelfChanged().notify(true);
 	}
 
 	void historyRegDependency(HistoryItem *dependent, HistoryItem *dependency) {
@@ -1485,15 +1460,6 @@ namespace {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
-		Ui::Emoji::Init();
-		if (!::emoji) {
-			::emoji = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index()));
-            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
-		}
-		if (!::emojiLarge) {
-			::emojiLarge = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index() + 1));
-			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
-		}
 
 		createCorners();
 
@@ -1529,26 +1495,16 @@ namespace {
 
 		histories().clear();
 
-		clearStorageImages();
+		Images::ClearRemote();
 		cSetServerBackgrounds(WallPapers());
-
-		serviceImageCacheSize = imageCacheSize();
 	}
 
 	void deinitMedia() {
-		delete ::emoji;
-		::emoji = nullptr;
-		delete ::emojiLarge;
-		::emojiLarge = nullptr;
-
 		clearCorners();
-
-		MainEmojiMap.clear();
-		OtherEmojiMap.clear();
 
 		Data::clearGlobalStructures();
 
-		clearAllImages();
+		Images::ClearAll();
 	}
 
 	void hoveredItem(HistoryView::Element *item) {
@@ -1603,54 +1559,22 @@ namespace {
 		return ::monofont;
 	}
 
-	const QPixmap &emoji() {
-		return *::emoji;
-	}
-
-	const QPixmap &emojiLarge() {
-		return *::emojiLarge;
-	}
-
-	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		auto &map = (fontHeight == st::msgFont->height) ? MainEmojiMap : OtherEmojiMap[fontHeight];
-		auto i = map.constFind(emoji->index());
-		if (i == map.cend()) {
-			auto image = QImage(Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-            if (cRetina()) image.setDevicePixelRatio(cRetinaFactor());
-			image.fill(Qt::transparent);
-			{
-				QPainter p(&image);
-				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - Ui::Emoji::Size()) / 2);
-			}
-			i = map.insert(emoji->index(), App::pixmapFromImageInPlace(std::move(image)));
-		}
-		return i.value();
-	}
-
-	void checkImageCacheSize() {
-		int64 nowImageCacheSize = imageCacheSize();
-		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
-			App::forgetMedia();
-			Auth().data().forgetMedia();
-			serviceImageCacheSize = imageCacheSize();
-		}
-	}
-
-	bool isValidPhone(QString phone) {
-		phone = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
-		return phone.length() >= 8 || phone == qsl("777") || phone == qsl("333") || phone == qsl("111") || (phone.startsWith(qsl("42")) && (phone.length() == 2 || phone.length() == 5 || phone == qsl("4242")));
-	}
-
 	void quit() {
-		if (quitting()) return;
+		if (quitting()) {
+			return;
+		} else if (AuthSession::Exists()
+			&& Auth().data().exportInProgress()) {
+			Auth().data().stopExportWithConfirmation([] { App::quit(); });
+			return;
+		}
 		setLaunchState(QuitRequested);
 
-		if (auto window = wnd()) {
+		if (auto window = App::wnd()) {
 			if (!Sandbox::isSavingSession()) {
 				window->hide();
 			}
 		}
-		if (auto mainwidget = main()) {
+		if (auto mainwidget = App::main()) {
 			mainwidget->saveDraftToCloud();
 		}
 		Messenger::QuitAttempt();
@@ -1669,11 +1593,9 @@ namespace {
 	}
 
 	void restart() {
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready);
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-		bool updateReady = false;
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
+		using namespace Core;
+		const auto updateReady = !UpdaterDisabled()
+			&& (UpdateChecker().state() == UpdateChecker::State::Ready);
 		if (updateReady) {
 			cSetRestartingUpdate(true);
 		} else {
@@ -1751,42 +1673,6 @@ namespace {
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
 		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
-	}
-
-	const PeersData &peersData() {
-		return ::peersData;
-	}
-
-	void regMuted(not_null<PeerData*> peer, TimeMs changeIn) {
-		::mutedPeers.insert(peer, true);
-		App::main()->updateMutedIn(changeIn);
-	}
-
-	void unregMuted(not_null<PeerData*> peer) {
-		::mutedPeers.remove(peer);
-	}
-
-	void updateMuted() {
-		auto changeInMin = TimeMs(0);
-		for (auto i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
-			const auto history = App::historyLoaded(i.key()->id);
-			const auto muteFinishesIn = i.key()->notifyMuteFinishesIn();
-			if (muteFinishesIn > 0) {
-				if (history) {
-					history->changeMute(true);
-				}
-				if (!changeInMin || muteFinishesIn < changeInMin) {
-					changeInMin = muteFinishesIn;
-				}
-				++i;
-			} else {
-				if (history) {
-					history->changeMute(false);
-				}
-				i = ::mutedPeers.erase(i);
-			}
-		}
-		if (changeInMin) App::main()->updateMutedIn(changeInMin);
 	}
 
 	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {

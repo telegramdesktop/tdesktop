@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "styles/style_boxes.h"
 #include "messenger.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -24,29 +25,36 @@ constexpr auto kMinUsernameLength = 5;
 } // namespace
 
 UsernameBox::UsernameBox(QWidget*)
-: _username(this, st::defaultInputField, [] { return qsl("@username"); }, App::self()->username, false)
+: _username(
+	this,
+	st::defaultInputField,
+	[] { return qsl("@username"); },
+	Auth().user()->username,
+	false)
 , _link(this, QString(), st::boxLinkButton)
 , _about(st::boxWidth - st::usernamePadding.left())
 , _checkTimer(this) {
 }
 
 void UsernameBox::prepare() {
-	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
+	_goodText = Auth().user()->username.isEmpty()
+		? QString()
+		: lang(lng_username_available);
 
 	setTitle(langFactory(lng_username_title));
 
-	addButton(langFactory(lng_settings_save), [this] { onSave(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [=] { save(); });
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	connect(_username, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(_username, SIGNAL(submitted(bool)), this, SLOT(onSave()));
-	connect(_link, SIGNAL(clicked()), this, SLOT(onLinkClick()));
+	connect(_username, &Ui::MaskedInputField::changed, [=] { changed(); });
+	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
+	_link->addClickHandler([=] { linkClick(); });
 
 	_about.setRichText(st::usernameTextStyle, lang(lng_username_about));
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _username->height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom());
 
 	_checkTimer->setSingleShot(true);
-	connect(_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
+	connect(_checkTimer, &QTimer::timeout, [=] { check(); });
 
 	updateLinkText();
 }
@@ -96,14 +104,14 @@ void UsernameBox::resizeEvent(QResizeEvent *e) {
 	_link->moveToLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2));
 }
 
-void UsernameBox::onSave() {
+void UsernameBox::save() {
 	if (_saveRequestId) return;
 
 	_sentUsername = getName();
 	_saveRequestId = MTP::send(MTPaccount_UpdateUsername(MTP_string(_sentUsername)), rpcDone(&UsernameBox::onUpdateDone), rpcFail(&UsernameBox::onUpdateFail));
 }
 
-void UsernameBox::onCheck() {
+void UsernameBox::check() {
 	if (_checkRequestId) {
 		MTP::cancel(_checkRequestId);
 	}
@@ -118,7 +126,7 @@ void UsernameBox::onCheck() {
 	}
 }
 
-void UsernameBox::onChanged() {
+void UsernameBox::changed() {
 	updateLinkText();
 	QString name = getName();
 	if (name.isEmpty()) {
@@ -156,7 +164,7 @@ void UsernameBox::onChanged() {
 	}
 }
 
-void UsernameBox::onLinkClick() {
+void UsernameBox::linkClick() {
 	Application::clipboard()->setText(Messenger::Instance().createInternalLinkFull(getName()));
 	Ui::Toast::Show(lang(lng_username_copied));
 }
@@ -170,9 +178,14 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
-	QString err(error.type());
-	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
-		App::self()->setName(TextUtilities::SingleLine(App::self()->firstName), TextUtilities::SingleLine(App::self()->lastName), TextUtilities::SingleLine(App::self()->nameOrPhone), TextUtilities::SingleLine(_sentUsername));
+	const auto self = Auth().user();
+	const auto err = error.type();
+	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == self->username) {
+		self->setName(
+			TextUtilities::SingleLine(self->firstName),
+			TextUtilities::SingleLine(self->lastName),
+			TextUtilities::SingleLine(self->nameOrPhone),
+			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
@@ -194,8 +207,13 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 
 void UsernameBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
-	QString newError = (mtpIsTrue(result) || _checkUsername == App::self()->username) ? QString() : lang(lng_username_occupied);
-	QString newGood = newError.isEmpty() ? lang(lng_username_available) : QString();
+	const auto newError = (mtpIsTrue(result)
+		|| _checkUsername == Auth().user()->username)
+		? QString()
+		: lang(lng_username_occupied);
+	const auto newGood = newError.isEmpty()
+		? lang(lng_username_available)
+		: QString();
 	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;
 		_goodText = newGood;
@@ -212,7 +230,7 @@ bool UsernameBox::onCheckFail(const RPCError &error) {
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
-	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != App::self()->username) {
+	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != Auth().user()->username) {
 		_errorText = lang(lng_username_occupied);
 		update();
 		return true;

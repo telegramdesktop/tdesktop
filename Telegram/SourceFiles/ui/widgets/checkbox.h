@@ -15,17 +15,21 @@ namespace Ui {
 
 class AbstractCheckView {
 public:
-	AbstractCheckView(int duration, bool checked, base::lambda<void()> updateCallback);
+	AbstractCheckView(int duration, bool checked, Fn<void()> updateCallback);
 
-	void setCheckedFast(bool checked);
-	void setCheckedAnimated(bool checked);
+	void setChecked(bool checked, anim::type animated);
 	void finishAnimating();
-	void setUpdateCallback(base::lambda<void()> updateCallback);
+	void setUpdateCallback(Fn<void()> updateCallback);
 	bool checked() const {
 		return _checked;
 	}
+	void update();
 	float64 currentAnimationValue(TimeMs ms);
+	bool animating() const;
 
+	auto checkedChanges() const {
+		return _checks.events();
+	}
 	auto checkedValue() const {
 		return _checks.events_starting_with(checked());
 	}
@@ -46,9 +50,12 @@ public:
 	virtual ~AbstractCheckView() = default;
 
 private:
+	virtual void checkedChangedHook(anim::type animated) {
+	}
+
 	int _duration = 0;
 	bool _checked = false;
-	base::lambda<void()> _updateCallback;
+	Fn<void()> _updateCallback;
 	Animation _toggleAnimation;
 
 	rpl::event_stream<bool> _checks;
@@ -57,7 +64,10 @@ private:
 
 class CheckView : public AbstractCheckView {
 public:
-	CheckView(const style::Check &st, bool checked, base::lambda<void()> updateCallback);
+	CheckView(
+		const style::Check &st,
+		bool checked,
+		Fn<void()> updateCallback = nullptr);
 
 	void setStyle(const style::Check &st);
 
@@ -66,18 +76,28 @@ public:
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
+	void setUntoggledOverride(
+		std::optional<QColor> untoggledOverride);
+
 private:
 	QSize rippleSize() const;
 
 	not_null<const style::Check*> _st;
+	std::optional<QColor> _untoggledOverride;
 
 };
 
 class RadioView : public AbstractCheckView {
 public:
-	RadioView(const style::Radio &st, bool checked, base::lambda<void()> updateCallback);
+	RadioView(
+		const style::Radio &st,
+		bool checked,
+		Fn<void()> updateCallback = nullptr);
 
 	void setStyle(const style::Radio &st);
+
+	void setToggledOverride(std::optional<QColor> toggledOverride);
+	void setUntoggledOverride(std::optional<QColor> untoggledOverride);
 
 	QSize getSize() const override;
 	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
@@ -88,12 +108,17 @@ private:
 	QSize rippleSize() const;
 
 	not_null<const style::Radio*> _st;
+	std::optional<QColor> _toggledOverride;
+	std::optional<QColor> _untoggledOverride;
 
 };
 
 class ToggleView : public AbstractCheckView {
 public:
-	ToggleView(const style::Toggle &st, bool checked, base::lambda<void()> updateCallback);
+	ToggleView(
+		const style::Toggle &st,
+		bool checked,
+		Fn<void()> updateCallback = nullptr);
 
 	void setStyle(const style::Toggle &st);
 
@@ -112,20 +137,37 @@ private:
 
 class Checkbox : public RippleButton {
 public:
-	Checkbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox, const style::Check &checkSt = st::defaultCheck);
-	Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st, const style::Toggle &toggleSt);
-	Checkbox(QWidget *parent, const QString &text, const style::Checkbox &st, std::unique_ptr<AbstractCheckView> check);
+	Checkbox(
+		QWidget *parent,
+		const QString &text,
+		bool checked = false,
+		const style::Checkbox &st = st::defaultCheckbox,
+		const style::Check &checkSt = st::defaultCheck);
+	Checkbox(
+		QWidget *parent,
+		const QString &text,
+		bool checked,
+		const style::Checkbox &st,
+		const style::Toggle &toggleSt);
+	Checkbox(
+		QWidget *parent,
+		const QString &text,
+		const style::Checkbox &st,
+		std::unique_ptr<AbstractCheckView> check);
 
 	void setText(const QString &text);
 	void setCheckAlignment(style::align alignment);
 
 	bool checked() const;
+	rpl::producer<bool> checkedChanges() const;
+	rpl::producer<bool> checkedValue() const;
 	enum class NotifyAboutChange {
 		Notify,
 		DontNotify,
 	};
-	void setChecked(bool checked, NotifyAboutChange notify = NotifyAboutChange::Notify);
-	base::Observable<bool> checkedChanged;
+	void setChecked(
+		bool checked,
+		NotifyAboutChange notify = NotifyAboutChange::Notify);
 
 	void finishAnimating();
 
@@ -156,6 +198,7 @@ private:
 
 	const style::Checkbox &_st;
 	std::unique_ptr<AbstractCheckView> _check;
+	rpl::event_stream<bool> _checkedChanges;
 	QPixmap _checkCache;
 
 	Text _text;
@@ -171,7 +214,7 @@ public:
 	RadiobuttonGroup(int value) : _value(value), _hasValue(true) {
 	}
 
-	void setChangedCallback(base::lambda<void(int value)> callback) {
+	void setChangedCallback(Fn<void(int value)> callback) {
 		_changedCallback = std::move(callback);
 	}
 
@@ -196,14 +239,27 @@ private:
 
 	int _value = 0;
 	bool _hasValue = false;
-	base::lambda<void(int value)> _changedCallback;
+	Fn<void(int value)> _changedCallback;
 	std::vector<Radiobutton*> _buttons;
 
 };
 
-class Radiobutton : public Checkbox, private base::Subscriber {
+class Radiobutton : public Checkbox {
 public:
-	Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st = st::defaultCheckbox, const style::Radio &radioSt = st::defaultRadio);
+	Radiobutton(
+		QWidget *parent,
+		const std::shared_ptr<RadiobuttonGroup> &group,
+		int value,
+		const QString &text,
+		const style::Checkbox &st = st::defaultCheckbox,
+		const style::Radio &radioSt = st::defaultRadio);
+	Radiobutton(
+		QWidget *parent,
+		const std::shared_ptr<RadiobuttonGroup> &group,
+		int value,
+		const QString &text,
+		const style::Checkbox &st,
+		std::unique_ptr<AbstractCheckView> check);
 	~Radiobutton();
 
 protected:
@@ -212,8 +268,10 @@ protected:
 private:
 	// Hide the names from Checkbox.
 	bool checked() const;
+	void checkedChanges() const;
+	void checkedValue() const;
 	void setChecked(bool checked, NotifyAboutChange notify);
-	void checkedChanged();
+
 	Checkbox *checkbox() {
 		return this;
 	}
@@ -267,8 +325,33 @@ private:
 template <typename Enum>
 class Radioenum : public Radiobutton {
 public:
-	Radioenum(QWidget *parent, const std::shared_ptr<RadioenumGroup<Enum>> &group, Enum value, const QString &text, const style::Checkbox &st = st::defaultCheckbox)
-		: Radiobutton(parent, std::shared_ptr<RadiobuttonGroup>(group, &group->_group), static_cast<int>(value), text, st) {
+	Radioenum(
+		QWidget *parent,
+		const std::shared_ptr<RadioenumGroup<Enum>> &group,
+		Enum value,
+		const QString &text,
+		const style::Checkbox &st = st::defaultCheckbox)
+	: Radiobutton(
+		parent,
+		std::shared_ptr<RadiobuttonGroup>(group, &group->_group),
+		static_cast<int>(value),
+		text,
+		st) {
+	}
+	Radioenum(
+		QWidget *parent,
+		const std::shared_ptr<RadioenumGroup<Enum>> &group,
+		Enum value,
+		const QString &text,
+		const style::Checkbox &st,
+		std::unique_ptr<AbstractCheckView> check)
+		: Radiobutton(
+			parent,
+			std::shared_ptr<RadiobuttonGroup>(group, &group->_group),
+			static_cast<int>(value),
+			text,
+			st,
+			std::move(check)) {
 	}
 
 };

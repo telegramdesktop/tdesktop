@@ -49,7 +49,8 @@ QByteArray EscapeShell(const QByteArray &content) {
 } // namespace internal
 
 void UnsafeShowInFolder(const QString &filepath) {
-	Ui::hideLayer(anim::type::instant); // Hide mediaview to make other apps visible.
+	// Hide mediaview to make other apps visible.
+	Ui::hideLayer(anim::type::instant);
 
 	auto absolutePath = QFileInfo(filepath).absoluteFilePath();
 	QProcess process;
@@ -139,8 +140,14 @@ bool PreviewSupported() {
 		&& (Libs::gdk_pixbuf_new_from_file_at_size != nullptr);
 }
 
-bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
-	auto parent = Messenger::Instance().getFileDialogParent();
+bool GetNative(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		Type type,
+		QString startFile) {
 	internal::GtkFileDialog dialog(parent, caption, QString(), filter);
 
 	dialog.setModal(true);
@@ -185,13 +192,37 @@ bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &cap
 
 } // namespace
 
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
+bool Get(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		Type type,
+		QString startFile) {
+	if (parent) {
+		parent = parent->window();
+	}
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (NativeSupported()) {
-		return GetNative(files, remoteContent, caption, filter, type, startFile);
+		return GetNative(
+			parent,
+			files,
+			remoteContent,
+			caption,
+			filter,
+			type,
+			startFile);
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-	return ::FileDialog::internal::GetDefault(files, remoteContent, caption, filter, type, startFile);
+	return ::FileDialog::internal::GetDefault(
+		parent,
+		files,
+		remoteContent,
+		caption,
+		filter,
+		type,
+		startFile);
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -217,9 +248,6 @@ GtkDialog *QGtkDialog::gtkDialog() const {
 }
 
 void QGtkDialog::exec() {
-	if (auto w = App::wnd()) {
-		w->reActivateWindow();
-	}
 	if (modality() == Qt::ApplicationModal) {
 		// block input to the whole app, including other GTK dialogs
 		Libs::gtk_dialog_run(gtkDialog());
@@ -382,6 +410,12 @@ int GtkFileDialog::exec() {
 	setResult(0);
 
 	show();
+
+	if (const auto parent = parentWidget()) {
+		App::CallDelayed(200, parent, [=] {
+			parent->activateWindow();
+		});
+	}
 
 	QPointer<QDialog> guard = this;
 	d->exec();

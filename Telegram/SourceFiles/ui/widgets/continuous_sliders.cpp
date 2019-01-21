@@ -14,7 +14,7 @@ constexpr auto kByWheelFinishedTimeout = 1000;
 
 } // namespace
 
-ContinuousSlider::ContinuousSlider(QWidget *parent) : TWidget(parent) {
+ContinuousSlider::ContinuousSlider(QWidget *parent) : RpWidget(parent) {
 	setCursor(style::cur_pointer);
 }
 
@@ -58,11 +58,12 @@ void ContinuousSlider::mouseMoveEvent(QMouseEvent *e) {
 }
 
 float64 ContinuousSlider::computeValue(const QPoint &pos) const {
-	auto seekRect = myrtlrect(getSeekRect());
-	auto result = isHorizontal() ?
+	const auto seekRect = myrtlrect(getSeekRect());
+	const auto result = isHorizontal() ?
 		(pos.x() - seekRect.x()) / float64(seekRect.width()) :
 		(1. - (pos.y() - seekRect.y()) / float64(seekRect.height()));
-	return snap(result, 0., 1.);
+	const auto snapped = snap(result, 0., 1.);
+	return _adjustCallback ? _adjustCallback(snapped) : snapped;
 }
 
 void ContinuousSlider::mousePressEvent(QMouseEvent *e) {
@@ -195,7 +196,14 @@ float64 MediaSlider::getOverDuration() const {
 	return _st.duration;
 }
 
+void MediaSlider::disablePaint(bool disabled) {
+	_paintDisabled = disabled;
+}
+
 void MediaSlider::paintEvent(QPaintEvent *e) {
+	if (_paintDisabled) {
+		return;
+	}
 	Painter p(this);
 	PainterHighQualityEnabler hq(p);
 
@@ -223,18 +231,20 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	auto inactiveFg = disabled ? _st.inactiveFgDisabled : anim::brush(_st.inactiveFg, _st.inactiveFgOver, over);
 	if (mid > from) {
 		auto fromClipRect = horizontal ? QRect(0, 0, mid, height()) : QRect(0, 0, width(), mid);
+		const auto till = std::min(mid + radius, end);
 		auto fromRect = horizontal
-			? QRect(from, (height() - _st.width) / 2, mid + radius - from, _st.width)
-			: QRect((width() - _st.width) / 2, from, _st.width, mid + radius - from);
+			? QRect(from, (height() - _st.width) / 2, till - from, _st.width)
+			: QRect((width() - _st.width) / 2, from, _st.width, till - from);
 		p.setClipRect(fromClipRect);
 		p.setBrush(horizontal ? activeFg : inactiveFg);
 		p.drawRoundedRect(fromRect, radius, radius);
 	}
 	if (end > mid) {
 		auto endClipRect = horizontal ? QRect(mid, 0, width() - mid, height()) : QRect(0, mid, width(), height() - mid);
+		const auto begin = std::max(mid - radius, from);
 		auto endRect = horizontal
-			? QRect(mid - radius, (height() - _st.width) / 2, end - (mid - radius), _st.width)
-			: QRect((width() - _st.width) / 2, mid - radius, _st.width, end - (mid - radius));
+			? QRect(begin, (height() - _st.width) / 2, end - begin, _st.width)
+			: QRect((width() - _st.width) / 2, begin, _st.width, end - begin);
 		p.setClipRect(endClipRect);
 		p.setBrush(horizontal ? inactiveFg : activeFg);
 		p.drawRoundedRect(endRect, radius, radius);

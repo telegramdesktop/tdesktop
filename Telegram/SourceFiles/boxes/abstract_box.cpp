@@ -20,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 
 QPointer<Ui::RoundButton> BoxContent::addButton(
-		base::lambda<QString()> textFactory,
-		base::lambda<void()> clickCallback) {
+		Fn<QString()> textFactory,
+		Fn<void()> clickCallback) {
 	return addButton(
 		std::move(textFactory),
 		std::move(clickCallback),
@@ -29,11 +29,11 @@ QPointer<Ui::RoundButton> BoxContent::addButton(
 }
 
 QPointer<Ui::RoundButton> BoxContent::addLeftButton(
-		base::lambda<QString()> textFactory,
-		base::lambda<void()> clickCallback) {
+		Fn<QString()> textFactory,
+		Fn<void()> clickCallback) {
 	return getDelegate()->addLeftButton(
-		std::move(textFactory), 
-		std::move(clickCallback), 
+		std::move(textFactory),
+		std::move(clickCallback),
 		st::defaultBoxButton);
 }
 
@@ -76,6 +76,10 @@ void BoxContent::finishPrepare() {
 
 void BoxContent::finishScrollCreate() {
 	Expects(_scroll != nullptr);
+
+	if (!_scroll->isHidden()) {
+		_scroll->show();
+	}
 	updateScrollAreaGeometry();
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
@@ -141,6 +145,16 @@ void BoxContent::onInnerResize() {
 	updateShadowsVisibility();
 }
 
+void BoxContent::setDimensionsToContent(
+		int newWidth,
+		not_null<Ui::RpWidget*> content) {
+	content->resizeToWidth(newWidth);
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(newWidth, height);
+	}, content->lifetime());
+}
+
 void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
 	if (_innerTopSkip != innerTopSkip) {
 		auto delta = innerTopSkip - _innerTopSkip;
@@ -188,6 +202,14 @@ void BoxContent::resizeEvent(QResizeEvent *e) {
 	}
 }
 
+void BoxContent::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape && !_closeByEscape) {
+		e->accept();
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
 void BoxContent::updateScrollAreaGeometry() {
 	auto newScrollHeight = height() - _innerTopSkip - _innerBottomSkip;
 	auto changed = (_scroll->height() != newScrollHeight);
@@ -225,8 +247,9 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content) : LayerWidget(parent)
-, _controller(controller)
+AbstractBox::AbstractBox(not_null<Window::LayerStackWidget*> layer, object_ptr<BoxContent> content)
+: LayerWidget(layer)
+, _layer(layer)
 , _content(std::move(content)) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	_content->setParent(this);
@@ -287,7 +310,7 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-void AbstractBox::setTitle(base::lambda<TextWithEntities()> titleFactory) {
+void AbstractBox::setTitle(Fn<TextWithEntities()> titleFactory) {
 	_titleFactory = std::move(titleFactory);
 	refreshTitle();
 }
@@ -308,9 +331,17 @@ void AbstractBox::refreshTitle() {
 	}
 }
 
-void AbstractBox::setAdditionalTitle(base::lambda<QString()> additionalFactory) {
+void AbstractBox::setAdditionalTitle(Fn<QString()> additionalFactory) {
 	_additionalTitleFactory = std::move(additionalFactory);
 	refreshAdditionalTitle();
+}
+
+void AbstractBox::setCloseByOutsideClick(bool close) {
+	_closeByOutsideClick = close;
+}
+
+bool AbstractBox::closeByOutsideClick() const {
+	return _closeByOutsideClick;
 }
 
 void AbstractBox::refreshAdditionalTitle() {
@@ -328,6 +359,13 @@ bool AbstractBox::hasTitle() const {
 	return (_title != nullptr) || !_additionalTitle.isEmpty();
 }
 
+void AbstractBox::showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options,
+		anim::type animated) {
+	_layer->showBox(std::move(box), options, animated);
+}
+
 void AbstractBox::updateSize() {
 	setDimensions(width(), _maxContentHeight);
 }
@@ -340,11 +378,18 @@ void AbstractBox::updateButtonsPositions() {
 		if (_leftButton) {
 			_leftButton->moveToLeft(right, top);
 		}
-		for_const (auto &button, _buttons) {
+		for (const auto &button : _buttons) {
 			button->moveToRight(right, top);
 			right += button->width() + padding.left();
 		}
 	}
+	if (_topButton) {
+		_topButton->moveToRight(0, 0);
+	}
+}
+
+QPointer<QWidget> AbstractBox::outerContainer() {
+	return parentWidget();
 }
 
 void AbstractBox::updateTitlePosition() {
@@ -361,9 +406,10 @@ void AbstractBox::clearButtons() {
 		button.destroy();
 	}
 	_leftButton.destroy();
+	_topButton = nullptr;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_buttons.push_back(object_ptr<Ui::RoundButton>(this, std::move(textFactory), st));
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
@@ -372,9 +418,18 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFac
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
 	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(textFactory), st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
+	result->setClickedCallback(std::move(clickCallback));
+	result->show();
+	updateButtonsPositions();
+	return result;
+}
+
+QPointer<Ui::IconButton> AbstractBox::addTopButton(const style::IconButton &st, Fn<void()> clickCallback) {
+	_topButton = base::make_unique_q<Ui::IconButton>(this, st);
+	auto result = QPointer<Ui::IconButton>(_topButton.get());
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
 	updateButtonsPositions();
@@ -436,11 +491,13 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-BoxContentDivider::BoxContentDivider(QWidget *parent) : RpWidget(parent) {
+BoxContentDivider::BoxContentDivider(QWidget *parent)
+: BoxContentDivider(parent, st::rightsDividerHeight) {
 }
 
-int BoxContentDivider::resizeGetHeight(int newWidth) {
-	return st::rightsDividerHeight;
+BoxContentDivider::BoxContentDivider(QWidget *parent, int height)
+: RpWidget(parent) {
+	resize(width(), height);
 }
 
 void BoxContentDivider::paintEvent(QPaintEvent *e) {

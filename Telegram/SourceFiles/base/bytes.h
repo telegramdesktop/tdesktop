@@ -7,17 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
+#include <gsl/gsl>
 #include <gsl/gsl_byte>
 
 namespace bytes {
 
-using span = gsl::span<gsl::byte>;
-using const_span = gsl::span<const gsl::byte>;
-using vector = std::vector<gsl::byte>;
+using type = gsl::byte;
+using span = gsl::span<type>;
+using const_span = gsl::span<const type>;
+using vector = std::vector<type>;
+
+template <gsl::index Size>
+using array = std::array<type, Size>;
+
+inline span make_detached_span(QByteArray &container) {
+	return gsl::as_writeable_bytes(gsl::make_span(container));
+}
 
 template <
 	typename Container,
-	typename = std::enable_if_t<!std::is_const_v<Container>>>
+	typename = std::enable_if_t<
+		!std::is_const_v<Container>
+		&& !std::is_same_v<Container, QByteArray>>>
 inline span make_span(Container &container) {
 	return gsl::as_writeable_bytes(gsl::make_span(container));
 }
@@ -47,6 +59,16 @@ inline const_span make_span(const Type *value, std::size_t count) {
 	return gsl::as_bytes(gsl::make_span(value, count));
 }
 
+template <typename Type>
+inline span object_as_span(Type *value) {
+	return bytes::make_span(value, 1);
+}
+
+template <typename Type>
+inline const_span object_as_span(const Type *value) {
+	return bytes::make_span(value, 1);
+}
+
 template <typename Container>
 inline vector make_vector(const Container &container) {
 	const auto buffer = bytes::make_span(container);
@@ -65,7 +87,7 @@ inline void move(span destination, const_span source) {
 	memmove(destination.data(), source.data(), source.size());
 }
 
-inline void set_with_const(span destination, gsl::byte value) {
+inline void set_with_const(span destination, type value) {
 	memset(
 		destination.data(),
 		gsl::to_integer<unsigned char>(value),
@@ -133,5 +155,8 @@ vector concatenate(SpanRange args) {
 	}
 	return result;
 }
+
+// Implemented in base/openssl_help.h
+void set_random(span destination);
 
 } // namespace bytes

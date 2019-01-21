@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/images.h"
 #include "mtproto/auth_key.h"
 
 namespace Serialize {
@@ -20,15 +19,15 @@ inline int bytearraySize(const QByteArray &arr) {
 	return sizeof(quint32) + arr.size();
 }
 
-inline int bytesSize(base::const_byte_span bytes) {
+inline int bytesSize(bytes::const_span bytes) {
 	return sizeof(quint32) + bytes.size();
 }
 
 struct ReadBytesVectorWrap {
-	base::byte_vector &bytes;
+	bytes::vector &bytes;
 };
 
-inline ReadBytesVectorWrap bytes(base::byte_vector &bytes) {
+inline ReadBytesVectorWrap bytes(bytes::vector &bytes) {
 	return ReadBytesVectorWrap { bytes };
 }
 
@@ -58,10 +57,10 @@ inline QDataStream &operator>>(QDataStream &stream, ReadBytesVectorWrap data) {
 }
 
 struct WriteBytesWrap {
-	base::const_byte_span bytes;
+	bytes::const_span bytes;
 };
 
-inline WriteBytesWrap bytes(base::const_byte_span bytes) {
+inline WriteBytesWrap bytes(bytes::const_span bytes) {
 	return WriteBytesWrap { bytes };
 }
 
@@ -85,9 +84,13 @@ inline int dateTimeSize() {
 	return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
 }
 
-void writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc);
-StorageImageLocation readStorageImageLocation(QDataStream &stream);
-int storageImageLocationSize();
+void writeStorageImageLocation(
+	QDataStream &stream,
+	const StorageImageLocation &location);
+StorageImageLocation readStorageImageLocation(
+	int streamAppVersion,
+	QDataStream &stream);
+int storageImageLocationSize(const StorageImageLocation &location);
 
 template <typename T>
 inline T read(QDataStream &stream) {
@@ -102,5 +105,10 @@ inline MTP::AuthKey::Data read<MTP::AuthKey::Data>(QDataStream &stream) {
 	stream.readRawData(reinterpret_cast<char*>(result.data()), result.size());
 	return result;
 }
+
+uint32 peerSize(not_null<PeerData*> peer);
+void writePeer(QDataStream &stream, PeerData *peer);
+PeerData *readPeer(int streamAppVersion, QDataStream &stream);
+QString peekUserPhone(int streamAppVersion, QDataStream &stream);
 
 } // namespace Serialize

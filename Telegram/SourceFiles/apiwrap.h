@@ -21,6 +21,12 @@ class AuthSession;
 struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
+struct FileLoadTo;
+class mtpFileLoader;
+
+namespace InlineBots {
+class Result;
+} // namespace InlineBots
 
 namespace Storage {
 enum class SharedMediaType : signed char;
@@ -30,6 +36,10 @@ struct PreparedList;
 namespace Dialogs {
 class Key;
 } // namespace Dialogs
+
+namespace Core {
+struct CloudPasswordState;
+} // namespace Core
 
 namespace Api {
 
@@ -50,7 +60,6 @@ inline int32 CountHash(IntRange &&range) {
 	return int32(acc & 0x7FFFFFFF);
 }
 
-
 } // namespace Api
 
 class ApiWrap : private MTP::Sender, private base::Subscriber {
@@ -63,10 +72,10 @@ public:
 	//void toggleChannelGrouping( // #feed
 	//	not_null<ChannelData*> channel,
 	//	bool group,
-	//	base::lambda<void()> callback);
+	//	Fn<void()> callback);
 	//void ungroupAllFromFeed(not_null<Data::Feed*> feed);
 
-	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
+	using RequestMessageDataCallback = Fn<void(ChannelData*, MsgId)>;
 	void requestMessageData(
 		ChannelData *channel,
 		MsgId msgId,
@@ -75,11 +84,16 @@ public:
 	void requestContacts();
 	void requestDialogEntry(not_null<Data::Feed*> feed);
 	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed);
-	void requestDialogEntry(not_null<History*> history);
+	void requestDialogEntry(
+		not_null<History*> history,
+		Fn<void()> callback = nullptr);
+	void requestDialogEntries(std::vector<not_null<History*>> histories);
 	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
 	//void setFeedChannels(
 	//	not_null<Data::Feed*> feed,
 	//	const std::vector<not_null<ChannelData*>> &channels);
+	void changeDialogUnreadMark(not_null<History*> history, bool unread);
+	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -90,13 +104,36 @@ public:
 	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
 	void requestChannelRangeDifference(not_null<History*> history);
 
+	using UpdatedFileReferences = Data::UpdatedFileReferences;
+	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
+	void refreshFileReference(
+		Data::FileOrigin origin,
+		FileReferencesHandler &&handler);
+	void refreshFileReference(
+		Data::FileOrigin origin,
+		not_null<mtpFileLoader*> loader,
+		int requestId,
+		const QByteArray &current);
+
 	void requestChangelog(
 		const QString &sinceVersion,
-		base::lambda<void(const MTPUpdates &result)> callback);
+		Fn<void(const MTPUpdates &result)> callback);
+	void refreshProxyPromotion();
+	void requestDeepLinkInfo(
+		const QString &path,
+		Fn<void(const MTPDhelp_deepLinkInfo &result)> callback);
+	void requestTermsUpdate();
+	void acceptTerms(bytes::const_span termsId);
+
+	void checkChatInvite(
+		const QString &hash,
+		FnMut<void(const MTPChatInvite &)> done,
+		FnMut<void(const RPCError &)> fail);
+	void importChatInvite(const QString &hash);
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
-		base::lambda<void(const MTPchannels_ChannelParticipants&)> callback);
+		Fn<void(const MTPchannels_ChannelParticipants&)> callback);
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(UserData *user, const MTPUserFull &result);
 
@@ -132,21 +169,31 @@ public:
 		const MTPInputStickerSet &set);
 	std::vector<not_null<DocumentData*>> *stickersByEmoji(
 		not_null<EmojiPtr> emoji);
+	void toggleFavedSticker(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		bool faved);
+	void toggleSavedGif(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		bool saved);
 
 	void joinChannel(not_null<ChannelData*> channel);
 	void leaveChannel(not_null<ChannelData*> channel);
 
-	void blockUser(UserData *user);
-	void unblockUser(UserData *user);
+	void blockUser(not_null<UserData*> user);
+	void unblockUser(not_null<UserData*> user);
 
-	void exportInviteLink(PeerData *peer);
-	void requestNotifySetting(PeerData *peer);
-
-	void saveDraftToCloudDelayed(History *history);
+	void exportInviteLink(not_null<PeerData*> peer);
+	void requestNotifySettings(const MTPInputNotifyPeer &peer);
+	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
+	void saveDraftToCloudDelayed(not_null<History*> history);
 
 	void savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules);
 	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
-	int onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill);
+	static int OnlineTillFromStatus(
+		const MTPUserStatus &status,
+		int currentOnlineTill);
 
 	void clearHistory(not_null<PeerData*> peer);
 
@@ -202,27 +249,30 @@ public:
 	void parseChannelParticipants(
 		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(
+		Fn<void(
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
-		base::lambda<void()> callbackNotModified = nullptr);
+		Fn<void()> callbackNotModified = nullptr);
 	void parseRecentChannelParticipants(
 		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(
+		Fn<void(
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
-		base::lambda<void()> callbackNotModified = nullptr);
+		Fn<void()> callbackNotModified = nullptr);
+	void addChatParticipants(
+		not_null<PeerData*> peer,
+		const std::vector<not_null<UserData*>> &users);
 
 	struct SendOptions {
-		SendOptions(not_null<History*> history) : history(history) {
-		}
+		SendOptions(not_null<History*> history);
 
 		not_null<History*> history;
 		MsgId replyTo = 0;
 		WebPageId webPageId = 0;
 		bool clearDraft = false;
 		bool generateLocal = true;
+		bool handleSupportSwitch = false;
 	};
 	rpl::producer<SendOptions> sendActions() const {
 		return _sendActions.events();
@@ -231,7 +281,7 @@ public:
 	void forwardMessages(
 		HistoryItemsList &&items,
 		const SendOptions &options,
-		base::lambda_once<void()> &&successCallback = nullptr);
+		FnMut<void()> &&successCallback = nullptr);
 	void shareContact(
 		const QString &phone,
 		const QString &firstName,
@@ -252,7 +302,7 @@ public:
 	void sendFiles(
 		Storage::PreparedList &&list,
 		SendMediaType type,
-		QString caption,
+		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendOptions &options);
 	void sendFile(
@@ -267,9 +317,79 @@ public:
 	void sendUploadedDocument(
 		FullMsgId localId,
 		const MTPInputFile &file,
-		const base::optional<MTPInputFile> &thumb,
+		const std::optional<MTPInputFile> &thumb,
 		bool silent);
 	void cancelLocalItem(not_null<HistoryItem*> item);
+
+	struct MessageToSend {
+		MessageToSend(not_null<History*> history);
+
+		not_null<History*> history;
+		TextWithTags textWithTags;
+		MsgId replyTo = 0;
+		WebPageId webPageId = 0;
+		bool clearDraft = true;
+		bool handleSupportSwitch = false;
+	};
+	void sendMessage(MessageToSend &&message);
+	void sendBotStart(not_null<UserData*> bot, PeerData *chat = nullptr);
+	void sendInlineResult(
+		not_null<UserData*> bot,
+		not_null<InlineBots::Result*> data,
+		const SendOptions &options);
+	void sendExistingDocument(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin,
+		TextWithEntities caption,
+		const SendOptions &options);
+
+	void requestSupportContact(FnMut<void(const MTPUser&)> callback);
+
+	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
+	void clearPeerPhoto(not_null<PhotoData*> photo);
+
+	void reloadPasswordState();
+	void clearUnconfirmedPassword();
+	rpl::producer<Core::CloudPasswordState> passwordState() const;
+	std::optional<Core::CloudPasswordState> passwordStateCurrent() const;
+
+	void saveSelfBio(const QString &text, FnMut<void()> done);
+
+	struct Privacy {
+		enum class Key {
+			LastSeen,
+			Calls,
+			Invites,
+			CallsPeer2Peer,
+		};
+		enum class Option {
+			Everyone,
+			Contacts,
+			Nobody,
+		};
+		Option option = Option::Everyone;
+		std::vector<not_null<UserData*>> always;
+		std::vector<not_null<UserData*>> never;
+
+		static MTPInputPrivacyKey Input(Key key);
+	};
+	void reloadPrivacy(Privacy::Key key);
+	rpl::producer<Privacy> privacyValue(Privacy::Key key);
+
+	void reloadSelfDestruct();
+	rpl::producer<int> selfDestructValue() const;
+	void saveSelfDestruct(int days);
+
+	void createPoll(
+		const PollData &data,
+		const SendOptions &options,
+		FnMut<void()> done,
+		FnMut<void(const RPCError &error)> fail);
+	void sendPollVotes(
+		FullMsgId itemId,
+		const std::vector<QByteArray> &options);
+	void closePoll(FullMsgId itemId);
+	void reloadPollResults(not_null<HistoryItem*> item);
 
 	~ApiWrap();
 
@@ -284,9 +404,13 @@ private:
 
 	struct StickersByEmoji {
 		std::vector<not_null<DocumentData*>> list;
-		QString hash;
+		int32 hash = 0;
 		TimeMs received = 0;
 	};
+
+	using SimpleFileLocationId = Data::SimpleFileLocationId;
+	using DocumentFileLocationId = Data::DocumentFileLocationId;
+	using FileLocationId = Data::FileLocationId;
 
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
@@ -337,7 +461,7 @@ private:
 		MsgRange range,
 		const MTPupdates_ChannelDifference &result);
 
-	PeerData *notifySettingReceived(
+	void notifySettingReceived(
 		MTPInputNotifyPeer peer,
 		const MTPPeerNotifySettings &settings);
 
@@ -358,7 +482,6 @@ private:
 	void refreshChannelAdmins(
 		not_null<ChannelData*> channel,
 		const QVector<MTPChannelParticipant> &participants);
-
 
 	void jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date);
 	void jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date);
@@ -434,8 +557,30 @@ private:
 		const MTPInputMedia &media,
 		bool silent,
 		uint64 randomId);
+	FileLoadTo fileLoadTaskOptions(const SendOptions &options) const;
 
 	void readFeeds();
+
+	void getProxyPromotionDelayed(TimeId now, TimeId next);
+	void proxyPromotionDone(const MTPhelp_ProxyData &proxy);
+
+	void sendNotifySettingsUpdates();
+
+	template <typename Request>
+	void requestFileReference(
+		Data::FileOrigin origin,
+		FileReferencesHandler &&handler,
+		Request &&data);
+
+	void photoUploadReady(const FullMsgId &msgId, const MTPInputFile &file);
+
+	Privacy parsePrivacy(const QVector<MTPPrivacyRule> &rules);
+	void pushPrivacy(
+		Privacy::Key key,
+		const QVector<MTPPrivacyRule> &rules);
+	void updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules);
+
+	void setSelfDestructDays(int days);
 
 	not_null<AuthSession*> _session;
 
@@ -454,11 +599,11 @@ private:
 
 	ChannelData *_channelMembersForAdd = nullptr;
 	mtpRequestId _channelMembersForAddRequestId = 0;
-	base::lambda<void(
+	Fn<void(
 		const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
 	base::flat_map<
 		not_null<ChannelData*>,
-		std::pair<mtpRequestId,base::lambda<void()>>> _channelGroupingRequests;
+		std::pair<mtpRequestId,Fn<void()>>> _channelGroupingRequests;
 
 	using KickRequest = std::pair<
 		not_null<ChannelData*>,
@@ -477,12 +622,10 @@ private:
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 
 	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
-	QMap<UserData*, mtpRequestId> _blockRequests;
-	QMap<PeerData*, mtpRequestId> _exportInviteRequests;
-
-	QMap<PeerData*, mtpRequestId> _notifySettingRequests;
-
-	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
+	base::flat_map<not_null<UserData*>, mtpRequestId> _blockRequests;
+	base::flat_map<not_null<PeerData*>, mtpRequestId> _exportInviteRequests;
+	base::flat_map<PeerId, mtpRequestId> _notifySettingRequests;
+	base::flat_map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
@@ -506,7 +649,9 @@ private:
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
 	base::flat_set<not_null<Data::Feed*>> _dialogFeedRequests;
-	base::flat_set<not_null<History*>> _dialogRequests;
+	base::flat_map<
+		not_null<History*>,
+		std::vector<Fn<void()>>> _dialogRequests;
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 
@@ -566,5 +711,50 @@ private:
 	base::flat_map<not_null<Data::Feed*>, TimeMs> _feedReadsDelayed;
 	base::flat_map<not_null<Data::Feed*>, mtpRequestId> _feedReadRequests;
 	base::Timer _feedReadTimer;
+
+	mtpRequestId _proxyPromotionRequestId = 0;
+	std::pair<QString, uint32> _proxyPromotionKey;
+	TimeId _proxyPromotionNextRequestTime = TimeId(0);
+	base::Timer _proxyPromotionTimer;
+
+	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
+	base::Timer _updateNotifySettingsTimer;
+
+	std::map<
+		Data::FileOrigin,
+		std::vector<FileReferencesHandler>> _fileReferenceHandlers;
+
+	mtpRequestId _deepLinkInfoRequestId = 0;
+
+	TimeMs _termsUpdateSendAt = 0;
+	mtpRequestId _termsUpdateRequestId = 0;
+
+	mtpRequestId _checkInviteRequestId = 0;
+	FnMut<void(const MTPChatInvite &result)> _checkInviteDone;
+	FnMut<void(const RPCError &error)> _checkInviteFail;
+
+	std::vector<FnMut<void(const MTPUser &)>> _supportContactCallbacks;
+
+	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
+
+	mtpRequestId _passwordRequestId = 0;
+	std::unique_ptr<Core::CloudPasswordState> _passwordState;
+	rpl::event_stream<Core::CloudPasswordState> _passwordStateChanges;
+
+	mtpRequestId _saveBioRequestId = 0;
+	FnMut<void()> _saveBioDone;
+	QString _saveBioText;
+
+	base::flat_map<Privacy::Key, mtpRequestId> _privacyRequestIds;
+	base::flat_map<Privacy::Key, Privacy> _privacyValues;
+	std::map<Privacy::Key, rpl::event_stream<Privacy>> _privacyChanges;
+
+	mtpRequestId _selfDestructRequestId = 0;
+	std::optional<int> _selfDestructDays;
+	rpl::event_stream<int> _selfDestructChanges;
+
+	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
+	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
+	base::flat_map<FullMsgId, mtpRequestId> _pollReloadRequestIds;
 
 };

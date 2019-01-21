@@ -144,7 +144,7 @@ bool update() {
 		if (!ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD)) {
 			versionNum = 0;
 		} else {
-			if (versionNum == 0x7FFFFFFF) { // beta version
+			if (versionNum == 0x7FFFFFFF) { // alpha version
 
 			} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
 				versionNum = 0;
@@ -307,7 +307,7 @@ void updateRegistry() {
 								RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (const BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
 								wsprintf(nameStr, L"Telegreat version %s", versionStr);
 								RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (const BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
-								wsprintf(publisherStr, L"Telegram Messenger LLP");
+								wsprintf(publisherStr, L"Sean");
 								RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (const BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
 								wsprintf(icongroupStr, L"Telegreat");
 								RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (const BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
@@ -339,7 +339,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	LPWSTR *args;
 	int argsCount;
 
-	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, testmode = false;
+	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, testmode = false, externalupdater = false;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
@@ -355,6 +355,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				startintray = true;
 			} else if (equal(args[i], L"-testmode")) {
 				testmode = true;
+			} else if (equal(args[i], L"-externalupdater")) {
+				externalupdater = true;
 			} else if (equal(args[i], L"-writeprotected") && ++i < argsCount) {
 				writeLog(std::wstring(L"Argument: ") + args[i]);
 				writeprotected = true;
@@ -425,6 +427,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	if (debug) targs += L" -debug";
 	if (startintray) targs += L" -startintray";
 	if (testmode) targs += L" -testmode";
+	if (externalupdater) targs += L" -externalupdater";
 	if (!customWorkingDir.empty()) {
 		targs += L" -workdir \"" + customWorkingDir + L"\"";
 	}

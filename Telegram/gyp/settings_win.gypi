@@ -72,32 +72,15 @@
       'configurations': {
         'Debug': {
           'msvs_settings': {
-#            'VCCLCompilerTool': {
-#              'Optimization': '0',                # Disabled (/Od)
-#              'RuntimeLibrary': '1',              # Multi-threaded Debug (/MTd)
-#            },
-#            'VCLinkerTool': {
-#              'GenerateDebugInformation': 'true', # true (/DEBUG)
-#              'IgnoreDefaultLibraryNames': 'LIBCMT',
-#              'LinkIncremental': '2',             # Yes (/INCREMENTAL)
-#            },
-            'VCCLCompilerTool': {   # BEGIN of Release Config
-              'Optimization': '2',                 # Maximize Speed (/O2)
-              'InlineFunctionExpansion': '2',      # Any suitable (/Ob2)
-              'EnableIntrinsicFunctions': 'true',  # Yes (/Oi)
-              'FavorSizeOrSpeed': '1',             # Favor fast code (/Ot)
-              'RuntimeLibrary': '0',               # Multi-threaded (/MT)
-              'EnableEnhancedInstructionSet': '2', # Streaming SIMD Extensions 2 (/arch:SSE2)
-              'WholeProgramOptimization': 'true',  # /GL
+            'VCCLCompilerTool': {
+              'Optimization': '0',                # Disabled (/Od)
+              'RuntimeLibrary': '1',              # Multi-threaded Debug (/MTd)
             },
             'VCLinkerTool': {
-              'GenerateDebugInformation': 'true',  # /DEBUG
-              'OptimizeReferences': '2',
-              'LinkTimeCodeGeneration': '1',       # /LTCG
+              'GenerateDebugInformation': 'true', # true (/DEBUG)
+              'IgnoreDefaultLibraryNames': 'LIBCMT',
+              'LinkIncremental': '2',             # Yes (/INCREMENTAL)
             },
-            'VCLibrarianTool': {
-              'LinkTimeCodeGeneration': 'true',    # /LTCG
-            },   # END of Release Config
           },
         },
         'Release': {

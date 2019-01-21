@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
+#include "base/unique_qptr.h"
 
-class PasscodeWidget;
 class MainWidget;
 class BoxContent;
 
@@ -28,6 +28,7 @@ class LayerWidget;
 class LayerStackWidget;
 class SectionMemento;
 struct SectionShow;
+class PasscodeLockWidget;
 namespace Theme {
 struct BackgroundUpdate;
 class WarningWidget;
@@ -37,26 +38,6 @@ class WarningWidget;
 namespace Ui {
 class LinkButton;
 } // namespace Ui
-
-class ConnectingWidget : public TWidget {
-	Q_OBJECT
-
-public:
-	ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect);
-	void set(const QString &text, const QString &reconnect);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-public slots:
-	void onReconnect();
-
-private:
-	QString _text;
-	int _textWidth = 0;
-	object_ptr<Ui::LinkButton> _reconnect;
-
-};
 
 class MediaPreviewWidget;
 
@@ -69,22 +50,16 @@ public:
 
 	void firstShow();
 
-	void setupPasscode();
-	void clearPasscode();
+	void setupPasscodeLock();
+	void clearPasscodeLock();
 	void setupIntro();
-	void setupMain(const MTPUser *user = nullptr);
-	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
-	void sendServiceHistoryRequest();
-	void showDelayedServiceMsgs();
-
-	void mtpStateChanged(int32 dc, int32 state);
+	void setupMain();
 
 	MainWidget *chatsWidget() {
 		return mainWidget();
 	}
 
 	MainWidget *mainWidget();
-	PasscodeWidget *passcodeWidget();
 
 	bool doWeReadServerHistory();
 	bool doWeReadMentions();
@@ -92,8 +67,6 @@ public:
 	void activate();
 
 	void noIntro(Intro::Widget *was);
-	void noLayerStack(Window::LayerStackWidget *was);
-	void layerFinishedHide(Window::LayerStackWidget *was);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
@@ -135,10 +108,14 @@ public:
 		LayerOptions options,
 		anim::type animated);
 	void ui_hideSettingsAndLayer(anim::type animated);
+	void ui_removeLayerBlackout();
 	bool ui_isLayerShown();
-	void ui_showMediaPreview(DocumentData *document);
-	void ui_showMediaPreview(PhotoData *photo);
-	void ui_hideMediaPreview();
+	void ui_showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document);
+	void ui_showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo);
 
 protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
@@ -153,7 +130,6 @@ protected:
 public slots:
 	void showSettings();
 	void setInnerFocus();
-	void updateConnectingStatus();
 
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
@@ -171,16 +147,13 @@ public slots:
 signals:
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
-	void checkNewAuthorization();
 
 private:
-	void showConnecting(const QString &text, const QString &reconnect = QString());
-	void hideConnecting();
-
 	[[nodiscard]] bool skipTrayClick() const;
 
+	void hideMediaPreview();
 	void ensureLayerCreated();
-	void destroyLayerDelayed();
+	void destroyLayer();
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
@@ -189,24 +162,14 @@ private:
 	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) override;
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
-	struct DelayedServiceMsg {
-		DelayedServiceMsg(const TextWithEntities &message, const MTPMessageMedia &media, int32 date) : message(message), media(media), date(date) {
-		}
-		TextWithEntities message;
-		MTPMessageMedia media;
-		int32 date;
-	};
-	QList<DelayedServiceMsg> _delayedServiceMsgs;
-	mtpRequestId _serviceHistoryRequest = 0;
 	TimeMs _lastTrayClickTime = 0;
 
-	object_ptr<PasscodeWidget> _passcode = { nullptr };
+	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
-	object_ptr<Window::LayerStackWidget> _layerBg = { nullptr };
+	base::unique_qptr<Window::LayerStackWidget> _layer;
 	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
-	object_ptr<ConnectingWidget> _connecting = { nullptr };
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;

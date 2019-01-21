@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/localimageloader.h"
+#include "ui/image/image_prepare.h"
 
 class FileLocation;
 
@@ -42,7 +43,7 @@ enum ReaderSteps {
 class ReaderPrivate;
 class Reader {
 public:
-	using Callback = base::lambda<void(Notification)>;
+	using Callback = Fn<void(Notification)>;
 	enum class Mode {
 		Gif,
 		Video,

@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "reporters/catch_reporter_compact.hpp"
 #include <QFile>
 
+int (*TestForkedMethod)()/* = nullptr*/;
+
 namespace base {
 namespace assertion {
 
@@ -84,6 +86,8 @@ int main(int argc, const char *argv[]) {
 	for (auto i = 0; i != argc; ++i) {
 		if (argv[i] == QString("--touch") && i + 1 != argc) {
 			touchFile = QFile::decodeName(argv[++i]);
+		} else if (argv[i] == QString("--forked") && TestForkedMethod) {
+			return TestForkedMethod();
 		}
 	}
 	const char *catch_argv[] = {

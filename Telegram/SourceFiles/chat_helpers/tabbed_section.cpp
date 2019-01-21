@@ -14,7 +14,7 @@ namespace ChatHelpers {
 
 TabbedMemento::TabbedMemento(
 	object_ptr<TabbedSelector> selector,
-	base::lambda<void(object_ptr<TabbedSelector>)> returnMethod)
+	Fn<void(object_ptr<TabbedSelector>)> returnMethod)
 : _selector(std::move(selector))
 , _returnMethod(std::move(returnMethod)) {
 }
@@ -46,14 +46,14 @@ TabbedSection::TabbedSection(
 	parent,
 	controller,
 	object_ptr<TabbedSelector>(this, controller),
-	base::lambda<void(object_ptr<TabbedSelector>)>()) {
+	Fn<void(object_ptr<TabbedSelector>)>()) {
 }
 
 TabbedSection::TabbedSection(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	object_ptr<TabbedSelector> selector,
-	base::lambda<void(object_ptr<TabbedSelector>)> returnMethod)
+	Fn<void(object_ptr<TabbedSelector>)> returnMethod)
 : Window::SectionWidget(parent, controller)
 , _selector(std::move(selector))
 , _returnMethod(std::move(returnMethod)) {
@@ -62,13 +62,8 @@ TabbedSection::TabbedSection(
 	_selector->setGeometry(rect());
 	_selector->showStarted();
 	_selector->show();
-	connect(_selector, &TabbedSelector::cancelled, this, [this] {
-		if (_cancelledCallback) {
-			_cancelledCallback();
-		}
-	});
-	_selector->setAfterShownCallback(base::lambda<void(SelectorTab)>());
-	_selector->setBeforeHidingCallback(base::lambda<void(SelectorTab)>());
+	_selector->setAfterShownCallback(nullptr);
+	_selector->setBeforeHidingCallback(nullptr);
 
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 }

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/twidget.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/panel_animation.h"
+#include "base/timer.h"
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
@@ -66,10 +67,11 @@ public:
 	void inlineItemLayoutChanged(const ItemBase *layout) override;
 	void inlineItemRepaint(const ItemBase *layout) override;
 	bool inlineItemVisible(const ItemBase *layout) override;
+	Data::FileOrigin inlineItemFileOrigin() override;
 
 	int countHeight();
 
-	void setResultSelectedCallback(base::lambda<void(Result *result, UserData *bot)> callback) {
+	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
 		_resultSelectedCallback = std::move(callback);
 	}
 
@@ -89,8 +91,6 @@ protected:
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 private slots:
-	void onPreview();
-	void onUpdateInlineItems();
 	void onSwitchPm();
 
 signals:
@@ -100,6 +100,11 @@ private:
 	static constexpr bool kRefreshIconsScrollAnimation = true;
 	static constexpr bool kRefreshIconsNoAnimation = false;
 
+	struct Row {
+		int height = 0;
+		QVector<ItemBase*> items;
+	};
+
 	void updateSelected();
 	void checkRestrictedPeer();
 	bool isRestrictedView();
@@ -108,30 +113,9 @@ private:
 
 	void refreshSwitchPmButton(const CacheEntry *entry);
 
-	not_null<Window::Controller*> _controller;
-
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-
-	UserData *_inlineBot = nullptr;
-	PeerData *_inlineQueryPeer = nullptr;
-	TimeMs _lastScrolled = 0;
-	QTimer _updateInlineItems;
-	bool _inlineWithThumb = false;
-
-	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
-	QString _switchPmStartToken;
-
-	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
-
-	struct Row {
-		int height = 0;
-		QVector<ItemBase*> items;
-	};
-	QVector<Row> _rows;
+	void showPreview();
+	void updateInlineItems();
 	void clearInlineRows(bool resultsDeleted);
-
-	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
 	ItemBase *layoutPrepareInlineResult(Result *result, int32 position);
 
 	bool inlineRowsAddItem(Result *result, Row &row, int32 &sumWidth);
@@ -143,14 +127,34 @@ private:
 	int validateExistingInlineRows(const Results &results);
 	void selectInlineResult(int row, int column);
 
+	not_null<Window::Controller*> _controller;
+
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+
+	UserData *_inlineBot = nullptr;
+	PeerData *_inlineQueryPeer = nullptr;
+	TimeMs _lastScrolled = 0;
+	base::Timer _updateInlineItems;
+	bool _inlineWithThumb = false;
+
+	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
+	QString _switchPmStartToken;
+
+	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
+
+	QVector<Row> _rows;
+
+	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
+
 	int _selected = -1;
 	int _pressed = -1;
 	QPoint _lastMousePos;
 
-	QTimer _previewTimer;
+	base::Timer _previewTimer;
 	bool _previewShown = false;
 
-	base::lambda<void(Result *result, UserData *bot)> _resultSelectedCallback;
+	Fn<void(Result *result, UserData *bot)> _resultSelectedCallback;
 
 };
 
@@ -177,7 +181,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void setResultSelectedCallback(base::lambda<void(Result *result, UserData *bot)> callback) {
+	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
 		_inner->setResultSelectedCallback(std::move(callback));
 	}
 

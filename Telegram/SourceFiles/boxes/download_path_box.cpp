@@ -33,7 +33,7 @@ void DownloadPathBox::prepare() {
 
 	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
 
-	connect(_pathLink, SIGNAL(clicked()), this, SLOT(onEditPath()));
+	_pathLink->addClickHandler([=] { editPath(); });
 	if (!_path.isEmpty() && _path != qsl("tmp")) {
 		setPathText(QDir::toNativeSeparators(_path));
 	}
@@ -69,7 +69,7 @@ void DownloadPathBox::radioChanged(Directory value) {
 	if (value == Directory::Custom) {
 		if (_path.isEmpty() || _path == qsl("tmp")) {
 			_group->setValue(_path.isEmpty() ? Directory::Downloads : Directory::Temp);
-			onEditPath();
+			editPath();
 		} else {
 			setPathText(QDir::toNativeSeparators(_path));
 		}
@@ -82,21 +82,26 @@ void DownloadPathBox::radioChanged(Directory value) {
 	update();
 }
 
-void DownloadPathBox::onEditPath() {
-	auto initialPath = [] {
+void DownloadPathBox::editPath() {
+	const auto initialPath = [] {
 		if (!Global::DownloadPath().isEmpty() && Global::DownloadPath() != qstr("tmp")) {
 			return Global::DownloadPath().left(Global::DownloadPath().size() - (Global::DownloadPath().endsWith('/') ? 1 : 0));
 		}
 		return QString();
-	};
-	FileDialog::GetFolder(lang(lng_download_path_choose), initialPath(), base::lambda_guarded(this, [this](const QString &result) {
+	}();
+	const auto handleFolder = [=](const QString &result) {
 		if (!result.isEmpty()) {
-			_path = result + '/';
+			_path = result.endsWith('/') ? result : (result + '/');
 			_pathBookmark = psDownloadPathBookmark(_path);
 			setPathText(QDir::toNativeSeparators(_path));
 			_group->setValue(Directory::Custom);
 		}
-	}));
+	};
+	FileDialog::GetFolder(
+		this,
+		lang(lng_download_path_choose),
+		initialPath,
+		crl::guard(this, handleFolder));
 }
 
 void DownloadPathBox::save() {

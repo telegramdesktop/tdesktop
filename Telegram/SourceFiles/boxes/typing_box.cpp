@@ -7,27 +7,20 @@ https://git.io/TD
 */
 #include "boxes/typing_box.h"
 
-//#include "data/data_photo.h"
-//#include "data/data_document.h"
-//#include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
-//#include "mainwidget.h"
-//#include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-//#include "ui/widgets/input_fields.h"
-//#include "history/history_location_manager.h"
 #include "styles/style_boxes.h"
 
 TypingBox::TypingBox(QWidget *parent)
 : _onlineContact(this, lang(lng_edit_privacy_contacts), (cTyping() & 0x1), st::defaultBoxCheckbox)
 , _onlineEveryone(this, lang(lng_edit_privacy_everyone), (cTyping() & 0x2), st::defaultBoxCheckbox)
-, _typingPrivateContact(this, lang(lng_media_auto_private_chats), (cTyping() & 0x10), st::defaultBoxCheckbox)
-, _typingGroupContact(this, lang(lng_telegreat_group), (cTyping() & 0x20), st::defaultBoxCheckbox)
+, _typingPrivateContact(this, lang(lng_export_option_personal_chats), (cTyping() & 0x10), st::defaultBoxCheckbox)
+, _typingGroupContact(this, lang(lng_group_status), (cTyping() & 0x20), st::defaultBoxCheckbox)
 , _typingSupergroupContact(this, lang(lng_telegreat_supergroup), (cTyping() & 0x40), st::defaultBoxCheckbox)
-, _typingPrivate(this, lang(lng_media_auto_private_chats), (cTyping() & 0x100), st::defaultBoxCheckbox)
-, _typingGroup(this, lang(lng_telegreat_group), (cTyping() & 0x200), st::defaultBoxCheckbox)
+, _typingPrivate(this, lang(lng_export_option_personal_chats), (cTyping() & 0x100), st::defaultBoxCheckbox)
+, _typingGroup(this, lang(lng_group_status), (cTyping() & 0x200), st::defaultBoxCheckbox)
 , _typingSupergroup(this, lang(lng_telegreat_supergroup), (cTyping() & 0x400), st::defaultBoxCheckbox)
 , _about()
 , _sectionHeight1(st::boxTitleHeight + 2 * (st::defaultCheck.diameter + st::setLittleSkip))

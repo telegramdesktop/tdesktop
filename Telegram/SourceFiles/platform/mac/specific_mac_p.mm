@@ -29,7 +29,11 @@ namespace {
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
 
+std::optional<bool> ApplicationIsActive;
+
 } // namespace
+
+NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 using Platform::Q2NSString;
 using Platform::NSlang;
@@ -85,6 +89,7 @@ using Platform::NS2QString;
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
 - (void) applicationDidFinishLaunching:(NSNotification *)aNotification;
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification;
+- (void) applicationDidResignActive:(NSNotification *)aNotification;
 - (void) receiveWakeNote:(NSNotification*)note;
 
 - (void) setWatchingMediaKeys:(bool)watching;
@@ -118,7 +123,16 @@ ApplicationDelegate *_sharedDelegate = nil;
 	});
 #ifndef OS_MAC_STORE
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-		_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+#ifndef OS_MAC_OLD
+		if (QSysInfo::macVersion() < Q_MV_OSX(10, 14)) {
+#else // OS_MAC_OLD
+		if (true) {
+#endif // OS_MAC_OLD
+			_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+		} else {
+			// In macOS Mojave it requires accessibility features.
+			LOG(("Media key monitoring disabled in Mojave."));
+		}
 	} else {
 		LOG(("Media key monitoring disabled"));
 	}
@@ -126,6 +140,7 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
+	ApplicationIsActive = true;
 	if (auto messenger = Messenger::InstancePointer()) {
 		if (!_ignoreActivation) {
 			messenger->handleAppActivated();
@@ -136,6 +151,10 @@ ApplicationDelegate *_sharedDelegate = nil;
 			}
 		}
 	}
+}
+
+- (void) applicationDidResignActive:(NSNotification *)aNotification {
+	ApplicationIsActive = false;
 }
 
 - (void) receiveWakeNote:(NSNotification*)aNotification {
@@ -185,6 +204,23 @@ void SetWatchingMediaKeys(bool watching) {
 	if (_sharedDelegate) {
 		[_sharedDelegate setWatchingMediaKeys:watching];
 	}
+}
+
+bool IsApplicationActive() {
+	return ApplicationIsActive
+		? *ApplicationIsActive
+		: (static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr);
+}
+
+void SetApplicationIcon(const QIcon &icon) {
+    NSImage *image = nil;
+    if (!icon.isNull()) {
+        auto pixmap = icon.pixmap(1024, 1024);
+		pixmap.setDevicePixelRatio(cRetinaFactor());
+        image = static_cast<NSImage*>(qt_mac_create_nsimage(pixmap));
+    }
+    [[NSApplication sharedApplication] setApplicationIconImage:image];
+    [image release];
 }
 
 void InitOnTopPanel(QWidget *panel) {
@@ -394,13 +430,6 @@ void objc_finish() {
 	}
 }
 
-void objc_registerCustomScheme() {
-#ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
-	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
-#endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
-}
-
 void objc_activateProgram(WId winId) {
 	[NSApp activateIgnoringOtherApps:YES];
 	if (winId) {
@@ -454,14 +483,6 @@ QString objc_documentsPath() {
 
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
-	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + str_const_toString(AppName) + '/';
-	}
-	return QString();
-}
-
-QString objc_downloadPath() {
-	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDownloadsDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
 		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + str_const_toString(AppName) + '/';
 	}

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/twidget.h"
+#include "base/timer.h"
 #include "chat_helpers/stickers.h"
 
 namespace Ui {
@@ -32,7 +33,10 @@ public:
 	FieldAutocomplete(QWidget *parent);
 
 	bool clearFilteredBotCommands();
-	void showFiltered(PeerData *peer, QString query, bool addInlineBots);
+	void showFiltered(
+		not_null<PeerData*> peer,
+		QString query,
+		bool addInlineBots);
 	void showStickers(EmojiPtr emoji);
 	void setBoundings(QRect boundings);
 
@@ -71,7 +75,7 @@ signals:
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
-	void stickerChosen(DocumentData *sticker, FieldAutocomplete::ChooseMethod method) const;
+	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
 
 	void moderateKeyActivate(int key, bool *outHandled) const;
 
@@ -143,13 +147,11 @@ signals:
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
-	void stickerChosen(DocumentData *sticker, FieldAutocomplete::ChooseMethod method) const;
+	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 
 public slots:
 	void onParentGeometryChanged();
-	void onUpdateSelected(bool force = false);
-	void onPreview();
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -164,22 +166,26 @@ private:
 
 	void updateSelectedRow();
 	void setSel(int sel, bool scroll = false);
+	void showPreview();
+	void selectByMouse(QPoint global);
 
-	FieldAutocomplete *_parent;
-	MentionRows *_mrows;
-	HashtagRows *_hrows;
-	BotCommandRows *_brows;
-	StickerRows *_srows;
-	int32 _stickersPerRow, _recentInlineBotsInRows;
-	int32 _sel, _down;
-	bool _mouseSel;
-	QPoint _mousePos;
+	FieldAutocomplete *_parent = nullptr;
+	MentionRows *_mrows = nullptr;
+	HashtagRows *_hrows = nullptr;
+	BotCommandRows *_brows = nullptr;
+	StickerRows *_srows = nullptr;
+	int _stickersPerRow = 1;
+	int _recentInlineBotsInRows = 0;
+	int _sel = -1;
+	int _down = -1;
+	std::optional<QPoint> _lastMousePosition;
+	bool _mouseSelection = false;
 
-	bool _overDelete;
+	bool _overDelete = false;
 
-	bool _previewShown;
+	bool _previewShown = false;
 
-	QTimer _previewTimer;
+	base::Timer _previewTimer;
 
 };
 

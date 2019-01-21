@@ -10,13 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 bool gRtl = false;
 Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
 
-bool gAlphaVersion = AppAlphaVersion;
-uint64 gBetaVersion = AppBetaVersion;
-uint64 gRealBetaVersion = AppBetaVersion;
-QByteArray gBetaPrivateKey;
+bool gInstallBetaVersion = AppBetaVersion;
+uint64 gAlphaVersion = AppAlphaVersion;
+uint64 gRealAlphaVersion = AppAlphaVersion;
+QByteArray gAlphaPrivateKey;
 
 bool gTestMode = false;
-bool gDebug = false;
 bool gManyInstance = false;
 QString gKeyFile;
 QString gWorkingDir, gExeDir, gExeName;
@@ -40,17 +39,13 @@ bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = fal
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
-bool gReplaceEmojis = true;
-
-bool gCtrlEnter = false;
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
 
 QByteArray gLocalSalt;
-DBIScale gRealScale = dbisAuto;
-DBIScale gScreenScale = dbisOne;
-DBIScale gConfigScale = dbisAuto;
+int gScreenScale = kInterfaceScaleAuto;
+int gConfigScale = kInterfaceScaleAuto;
 
 QString gTimeFormat = qsl("hh:mm");
 
@@ -69,7 +64,6 @@ bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;
 TimeMs gPasscodeLastTry = 0;
 
-bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 
@@ -102,13 +96,15 @@ int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
 bool gAutoPlayGif = true;
 
-bool gUnstableFeature = false;
 bool gShowCallbackData = false;
 bool gShowUsername = true;
 bool gIgnoreBlocked = true;
-bool gTagMention = true;
-bool gShowRestrict = true;
 bool gTextMention = false;
 bool gAutoCopy = false;
 int gDialogsType = 0;
-int gTyping = 0x111;
+#ifdef Q_OS_WIN
+	int gTyping = 0x000; // Windows will broken input
+#else
+	int gTyping = 0x111;
+#endif // Q_OS_WIN
+bool gTemplate = true;

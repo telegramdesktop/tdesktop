@@ -12,15 +12,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
+namespace ChatHelpers {
+class TabbedPanel;
+} // namespace ChatHelpers
+
 namespace Ui {
 template <typename Enum>
 class Radioenum;
 template <typename Enum>
 class RadioenumGroup;
 class RoundButton;
-class InputArea;
+class InputField;
 struct GroupMediaLayout;
+class EmojiButton;
 } // namespace Ui
+
+namespace Window {
+class Controller;
+} // namespace Window
 
 enum class SendFilesWay {
 	Album,
@@ -32,18 +45,20 @@ class SendFilesBox : public BoxContent {
 public:
 	SendFilesBox(
 		QWidget*,
+		not_null<Window::Controller*> controller,
 		Storage::PreparedList &&list,
+		const TextWithTags &caption,
 		CompressConfirm compressed);
 
 	void setConfirmedCallback(
-		base::lambda<void(
+		Fn<void(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
-			const QString &caption,
+			TextWithTags &&caption,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
-	void setCancelledCallback(base::lambda<void()> callback) {
+	void setCancelledCallback(Fn<void()> callback) {
 		_cancelledCallback = std::move(callback);
 	}
 
@@ -70,6 +85,10 @@ private:
 		not_null<Ui::ScrollArea*> wrap,
 		not_null<AlbumPreview*> content);
 
+	void setupEmojiPanel();
+	void updateEmojiPanelGeometry();
+	bool emojiFilter(not_null<QEvent*> event);
+
 	void refreshAlbumMediaCount();
 	void preparePreview();
 	void prepareSingleFilePreview();
@@ -82,10 +101,13 @@ private:
 	void setupTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
+	void updateCaptionPlaceholder();
 
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool canAddUrls(const QList<QUrl> &urls) const;
 	bool addFiles(not_null<const QMimeData*> data);
+
+	not_null<Window::Controller*> _controller;
 
 	QString _titleText;
 	int _titleHeight = 0;
@@ -95,15 +117,19 @@ private:
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 
-	base::lambda<void(
+	Fn<void(
 		Storage::PreparedList &&list,
 		SendFilesWay way,
-		const QString &caption,
+		TextWithTags &&caption,
 		bool ctrlShiftEnter)> _confirmedCallback;
-	base::lambda<void()> _cancelledCallback;
+	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;
 
-	object_ptr<Ui::InputArea> _caption = { nullptr };
+	object_ptr<Ui::InputField> _caption = { nullptr };
+	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
+	base::unique_qptr<QObject> _emojiFilter;
+
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendFiles = { nullptr };

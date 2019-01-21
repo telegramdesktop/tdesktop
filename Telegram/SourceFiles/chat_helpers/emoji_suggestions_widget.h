@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/panel_animation.h"
+#include "base/unique_qptr.h"
 
 namespace Ui {
 
 class InnerDropdown;
-class FlatTextarea;
+class InputField;
 
 namespace Emoji {
 
@@ -23,8 +24,8 @@ public:
 	void showWithQuery(const QString &query);
 	void handleKeyEvent(int key);
 
-	base::Observable<bool> toggleAnimated;
-	base::Observable<QString> triggered;
+	rpl::producer<bool> toggleAnimated() const;
+	rpl::producer<QString> triggered() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -48,7 +49,7 @@ private:
 	void updateSelectedItem();
 	int itemTop(int index);
 	void updateItem(int index);
-	void updateSelection(QPoint globalPosition);
+	void selectByMouse(QPoint globalPosition);
 	void triggerSelectedRow();
 	void triggerRow(const Row &row);
 
@@ -58,20 +59,31 @@ private:
 	std::vector<Row> _rows;
 
 	int _rowHeight = 0;
+	std::optional<QPoint> _lastMousePosition;
 	bool _mouseSelection = false;
 	int _selected = -1;
 	int _pressed = -1;
 
+	rpl::event_stream<bool> _toggleAnimated;
+	rpl::event_stream<QString> _triggered;
+
 };
 
-class SuggestionsController : public QObject, private base::Subscriber {
+class SuggestionsController {
 public:
-	SuggestionsController(QWidget *parent, not_null<QTextEdit*> field);
+	SuggestionsController(
+		not_null<QWidget*> outer,
+		not_null<QTextEdit*> field);
 
 	void raise();
+	void setReplaceCallback(Fn<void(
+		int from,
+		int till,
+		const QString &replacement)> callback);
 
-protected:
-	bool eventFilter(QObject *object, QEvent *event) override;
+	static SuggestionsController *Init(
+		not_null<QWidget*> outer,
+		not_null<Ui::InputField*> field);
 
 private:
 	void handleCursorPositionChange();
@@ -81,6 +93,8 @@ private:
 	void updateGeometry();
 	void updateForceHidden();
 	void replaceCurrent(const QString &replacement);
+	bool fieldFilter(not_null<QEvent*> event);
+	bool outerFilter(not_null<QEvent*> event);
 
 	bool _shown = false;
 	bool _forceHidden = false;
@@ -88,8 +102,16 @@ private:
 	bool _ignoreCursorPositionChange = false;
 	bool _textChangeAfterKeyPress = false;
 	QPointer<QTextEdit> _field;
-	object_ptr<InnerDropdown> _container;
+	Fn<void(
+		int from,
+		int till,
+		const QString &replacement)> _replaceCallback;
+	base::unique_qptr<InnerDropdown> _container;
 	QPointer<SuggestionsWidget> _suggestions;
+	base::unique_qptr<QObject> _fieldFilter;
+	base::unique_qptr<QObject> _outerFilter;
+
+	rpl::lifetime _lifetime;
 
 };
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <memory>
 #include <gsl/gsl_assert>
 #include <rpl/lifetime.h>
 #include <rpl/details/callable.h>

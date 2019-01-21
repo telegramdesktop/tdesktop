@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 FullExecPath=$PWD
 pushd `dirname $0` > /dev/null
@@ -34,14 +36,14 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   eval $1="$2"
 done < "$FullScriptPath/version"
 
-if [ "$BetaVersion" != "0" ]; then
-  AppVersion="$BetaVersion"
-  AppVersionStrFull="${AppVersionStr}"
-  BetaKeyFile="tbeta_${BetaVersion}_key"
-elif [ "$AlphaChannel" == "0" ]; then
+if [ "$AlphaVersion" != "0" ]; then
+  AppVersion="$AlphaVersion"
+  AppVersionStrFull="${AppVersionStr}_${AlphaVersion}"
+  AlphaKeyFile="talpha_${AppVersion}_key"
+elif [ "$BetaChannel" == "0" ]; then
   AppVersionStrFull="$AppVersionStr"
 else
-  AppVersionStrFull="$AppVersionStr.alpha"
+  AppVersionStrFull="$AppVersionStr.beta"
 fi
 
 echo ""
@@ -70,7 +72,7 @@ else
   DeployMac="1"
   DeployWin="1"
   DeployLinux="1"
-  if [ "$BetaVersion" == "0" ]; then
+  if [ "$AlphaVersion" == "0" ]; then
     DeployMac32="1"
     DeployLinux32="1"
     echo "Deploying five versions of $AppVersionStrFull: for Windows, OS X 10.6 and 10.7, OS X 10.8+, Linux 64 bit and Linux 32 bit.."
@@ -79,9 +81,9 @@ else
   fi
 fi
 if [ "$BuildTarget" == "mac" ]; then
-  BackupPath="$HOME/Telegram/backup"
+  BackupPath="/Users/sean/Documents/Code/TBuild/deploy"
 elif [ "$BuildTarget" == "linux" ]; then
-  BackupPath="/media/psf/Home/Telegram/backup"
+  BackupPath="/media/psf/backup"
 else
   Error "Can't deploy here"
 fi
@@ -108,36 +110,36 @@ Linux32SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
 Linux32RemoteFolder="tlinux32"
 DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
 
-if [ "$BetaVersion" != "0" ]; then
+if [ "$AlphaVersion" != "0" ]; then
   if [ "$DeployTarget" == "win" ]; then
-    BetaFilePath="$WinDeployPath/$BetaKeyFile"
+    AlphaFilePath="$WinDeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "mac32" ]; then
-    BetaFilePath="$Mac32DeployPath/$BetaKeyFile"
+    AlphaFilePath="$Mac32DeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "linux" ]; then
-    BetaFilePath="$LinuxDeployPath/$BetaKeyFile"
+    AlphaFilePath="$LinuxDeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "linux32" ]; then
-    BetaFilePath="$Linux32DeployPath/$BetaKeyFile"
+    AlphaFilePath="$Linux32DeployPath/$AlphaKeyFile"
   else
-    BetaFilePath="$MacDeployPath/$BetaKeyFile"
+    AlphaFilePath="$MacDeployPath/$AlphaKeyFile"
   fi
-  if [ ! -f "$BetaFilePath" ]; then
-    Error "Beta key file for $AppVersionStrFull ($BetaFilePath) not found :("
+  if [ ! -f "$AlphaFilePath" ]; then
+    Error "Alpha key file for $AppVersionStrFull not found."
   fi
 
   while IFS='' read -r line || [[ -n "$line" ]]; do
-    BetaSignature="$line"
-  done < "$BetaFilePath"
+    AlphaSignature="$line"
+  done < "$AlphaFilePath"
 
-  MacUpdateFile="${MacUpdateFile}_${BetaSignature}"
-# MacSetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-  Mac32UpdateFile="${Mac32UpdateFile}_${BetaSignature}"
-# Mac32SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-  WinUpdateFile="${WinUpdateFile}_${BetaSignature}"
-# WinPortableFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-  LinuxUpdateFile="${LinuxUpdateFile}_${BetaSignature}"
-# LinuxSetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
-  Linux32UpdateFile="${Linux32UpdateFile}_${BetaSignature}"
-# Linux32SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
+  MacUpdateFile="${MacUpdateFile}_${AlphaSignature}"
+  MacSetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
+  Mac32UpdateFile="${Mac32UpdateFile}_${AlphaSignature}"
+  Mac32SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
+  WinUpdateFile="${WinUpdateFile}_${AlphaSignature}"
+  WinPortableFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
+  LinuxUpdateFile="${LinuxUpdateFile}_${AlphaSignature}"
+  LinuxSetupFile="talpha${AlphaVersion}_${AlphaSignature}.tar.xz"
+  Linux32UpdateFile="${Linux32UpdateFile}_${AlphaSignature}"
+  Linux32SetupFile="talpha${AlphaVersion}_${AlphaSignature}.tar.xz"
 fi
 
 if [ "$DeployMac" == "1" ]; then
@@ -160,7 +162,7 @@ if [ "$DeployWin" == "1" ]; then
   if [ ! -f "$WinDeployPath/$WinUpdateFile" ]; then
     Error "$WinUpdateFile not found!"
   fi
-  if [ "$BetaVersion" == "0" ]; then
+  if [ "$AlphaVersion" == "0" ]; then
     if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
       Error "$WinSetupFile not found!"
     fi
@@ -197,7 +199,7 @@ if [ "$DeployMac32" == "1" ]; then
 fi
 if [ "$DeployWin" == "1" ]; then
   Files+=("tsetup/$WinUpdateFile" "tsetup/$WinPortableFile")
-  if [ "$BetaVersion" == "0" ]; then
+  if [ "$AlphaVersion" == "0" ]; then
     Files+=("tsetup/$WinSetupFile")
   fi
 fi
@@ -208,7 +210,7 @@ if [ "$DeployLinux32" == "1" ]; then
   Files+=("tlinux32/$Linux32UpdateFile" "tlinux32/$Linux32SetupFile")
 fi
 cd $DeployPath
-rsync -avR --progress ${Files[@]} gcp:/usr/share/nginx/telegre.at/
+rsync -avR --progress ${Files[@]} sean:/usr/share/nginx/telegre.at/
 
 echo "Version $AppVersionStrFull was deployed!"
 cd $FullExecPath

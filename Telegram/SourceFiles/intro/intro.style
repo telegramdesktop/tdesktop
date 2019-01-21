@@ -59,6 +59,7 @@ introTitle: FlatLabel(defaultFlatLabel) {
 }
 introTitleTop: 1px;
 introDescription: FlatLabel(defaultFlatLabel) {
+	minWidth: 300px;
 	textFg: introDescriptionFg;
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 20px;
@@ -124,6 +125,11 @@ introResetButton: RoundButton(defaultLightButton) {
 	}
 }
 introResetBottom: 20px;
+
+introTermsLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+}
+introTermsBottom: 20px;
 
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
 introCountryIconPosition: point(8px, 37px);

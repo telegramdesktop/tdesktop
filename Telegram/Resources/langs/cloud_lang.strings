@@ -1,0 +1,55 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+
+"cloud_lng_passport_in_ar" = "Arabic";
+"cloud_lng_passport_in_az" = "Azerbaijani";
+"cloud_lng_passport_in_bg" = "Bulgarian";
+"cloud_lng_passport_in_bn" = "Bangla";
+"cloud_lng_passport_in_cs" = "Czech";
+"cloud_lng_passport_in_da" = "Danish";
+"cloud_lng_passport_in_de" = "German";
+"cloud_lng_passport_in_dv" = "Divehi";
+"cloud_lng_passport_in_dz" = "Dzongkha";
+"cloud_lng_passport_in_el" = "Greek";
+"cloud_lng_passport_in_en" = "English";
+"cloud_lng_passport_in_es" = "Spanish";
+"cloud_lng_passport_in_et" = "Estonian";
+"cloud_lng_passport_in_fa" = "Persian";
+"cloud_lng_passport_in_fr" = "French";
+"cloud_lng_passport_in_he" = "Hebrew";
+"cloud_lng_passport_in_hr" = "Croatian";
+"cloud_lng_passport_in_hu" = "Hungarian";
+"cloud_lng_passport_in_hy" = "Armenian";
+"cloud_lng_passport_in_id" = "Indonesian";
+"cloud_lng_passport_in_is" = "Icelandic";
+"cloud_lng_passport_in_it" = "Italian";
+"cloud_lng_passport_in_ja" = "Japanese";
+"cloud_lng_passport_in_ka" = "Georgian";
+"cloud_lng_passport_in_km" = "Khmer";
+"cloud_lng_passport_in_ko" = "Korean";
+"cloud_lng_passport_in_lo" = "Lao";
+"cloud_lng_passport_in_lt" = "Lithuanian";
+"cloud_lng_passport_in_lv" = "Latvian";
+"cloud_lng_passport_in_mk" = "Macedonian";
+"cloud_lng_passport_in_mn" = "Mongolian";
+"cloud_lng_passport_in_ms" = "Malay";
+"cloud_lng_passport_in_my" = "Burmese";
+"cloud_lng_passport_in_ne" = "Nepali";
+"cloud_lng_passport_in_nl" = "Dutch";
+"cloud_lng_passport_in_pl" = "Polish";
+"cloud_lng_passport_in_pt" = "Portuguese";
+"cloud_lng_passport_in_ro" = "Romanian";
+"cloud_lng_passport_in_ru" = "Russian";
+"cloud_lng_passport_in_sk" = "Slovak";
+"cloud_lng_passport_in_sl" = "Slovenian";
+"cloud_lng_passport_in_th" = "Thai";
+"cloud_lng_passport_in_tk" = "Turkmen";
+"cloud_lng_passport_in_tr" = "Turkish";
+"cloud_lng_passport_in_uk" = "Ukrainian";
+"cloud_lng_passport_in_uz" = "Uzbek";
+"cloud_lng_passport_in_vi" = "Vietnamese";

@@ -20,13 +20,14 @@ namespace Calls {
 
 class Panel;
 
-class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber {
+class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber, public base::has_weak_ptr {
 public:
 	Instance();
 
 	void startOutgoingCall(not_null<UserData*> user);
 	void handleUpdate(const MTPDupdatePhoneCall &update);
 	void showInfoPanel(not_null<Call*> call);
+	Call* currentCall();
 
 	base::Observable<Call*> &currentCallChanged() {
 		return _currentCallChanged;
@@ -55,6 +56,7 @@ private:
 	void createCall(not_null<UserData*> user, Call::Type type);
 	void destroyCall(not_null<Call*> call);
 	void destroyCurrentPanel();
+	void requestMicrophonePermissionOrFail(Fn<void()> onSuccess) override;
 
 	void refreshDhConfig();
 	void refreshServerConfig();

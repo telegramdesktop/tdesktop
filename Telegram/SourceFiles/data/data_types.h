@@ -8,9 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/value_ordering.h"
+#include "ui/text/text.h" // For QFIXED_MAX
+
+namespace Storage {
+namespace Cache {
+struct Key;
+} // namespace Cache
+} // namespace Storage
 
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
+
+namespace Ui {
+class InputField;
+} // namespace Ui
+
+class StorageImageLocation;
+class WebFileLocation;
+struct GeoPointLocation;
 
 namespace Data {
 
@@ -21,6 +36,19 @@ struct UploadState {
 	int size = 0;
 	bool waitingForAlbum = false;
 };
+
+Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id);
+Storage::Cache::Key DocumentThumbCacheKey(int32 dcId, uint64 id);
+Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location);
+Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location);
+Storage::Cache::Key UrlCacheKey(const QString &location);
+Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location);
+
+constexpr auto kImageCacheTag = uint8(0x01);
+constexpr auto kStickerCacheTag = uint8(0x02);
+constexpr auto kVoiceMessageCacheTag = uint8(0x03);
+constexpr auto kVideoMessageCacheTag = uint8(0x04);
+constexpr auto kAnimationCacheTag = uint8(0x05);
 
 } // namespace Data
 
@@ -202,48 +230,20 @@ struct FullMsgId {
 
 };
 
+Q_DECLARE_METATYPE(FullMsgId);
+
 using MessageIdsList = std::vector<FullMsgId>;
 
-inline PeerId peerFromMessage(const MTPmessage &msg) {
-	auto compute = [](auto &message) {
-		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;
-		auto to_id = peerFromMTP(message.vto_id);
-		auto out = message.is_out();
-		return (out || !peerIsUser(to_id)) ? to_id : from_id;
-	};
-	switch (msg.type()) {
-	case mtpc_message: return compute(msg.c_message());
-	case mtpc_messageService: return compute(msg.c_messageService());
-	}
-	return 0;
-}
-inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
-	switch (msg.type()) {
-	case mtpc_message: return msg.c_message().vflags.v;
-	case mtpc_messageService: return mtpCastFlags(msg.c_messageService().vflags.v);
-	}
-	return 0;
-}
-inline MsgId idFromMessage(const MTPmessage &msg) {
-	switch (msg.type()) {
-	case mtpc_messageEmpty: return msg.c_messageEmpty().vid.v;
-	case mtpc_message: return msg.c_message().vid.v;
-	case mtpc_messageService: return msg.c_messageService().vid.v;
-	}
-	Unexpected("Type in idFromMessage()");
-}
-inline TimeId dateFromMessage(const MTPmessage &msg) {
-	switch (msg.type()) {
-	case mtpc_message: return msg.c_message().vdate.v;
-	case mtpc_messageService: return msg.c_messageService().vdate.v;
-	}
-	return 0;
-}
+PeerId PeerFromMessage(const MTPmessage &message);
+MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message);
+MsgId IdFromMessage(const MTPmessage &message);
+TimeId DateFromMessage(const MTPmessage &message);
 
 class DocumentData;
 class PhotoData;
 struct WebPageData;
 struct GameData;
+struct PollData;
 
 class AudioMsgId;
 class PhotoClickHandler;
@@ -263,9 +263,10 @@ using AudioId = uint64;
 using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
+using PollId = uint64;
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
-using PreparedPhotoThumbs = QMap<char, QPixmap>;
+using PreparedPhotoThumbs = QMap<char, QImage>;
 
 // [0] == -1 -- counting, [0] == -2 -- could not count
 using VoiceWaveform = QVector<signed char>;
@@ -284,6 +285,7 @@ enum LocationType {
 	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
 	AudioFileLocation = 0x74dc404d, // mtpc_inputAudioFileLocation
 	VideoFileLocation = 0x3d0364ec, // mtpc_inputVideoFileLocation
+	SecureFileLocation = 0xcbc7ee28, // mtpc_inputSecureFileLocation
 };
 
 enum FileStatus {
@@ -384,16 +386,16 @@ inline MsgId clientMsgId() {
 struct MessageCursor {
 	MessageCursor() = default;
 	MessageCursor(int position, int anchor, int scroll)
-		: position(position)
-		, anchor(anchor)
-		, scroll(scroll) {
+	: position(position)
+	, anchor(anchor)
+	, scroll(scroll) {
 	}
-	MessageCursor(const QTextEdit *edit) {
-		fillFrom(edit);
+	MessageCursor(not_null<const Ui::InputField*> field) {
+		fillFrom(field);
 	}
 
-	void fillFrom(const QTextEdit *edit);
-	void applyTo(QTextEdit *edit);
+	void fillFrom(not_null<const Ui::InputField*> field);
+	void applyTo(not_null<Ui::InputField*> field);
 
 	int position = 0;
 	int anchor = 0;

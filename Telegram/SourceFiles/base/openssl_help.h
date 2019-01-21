@@ -7,10 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/bytes.h"
+#include "base/algorithm.h"
+#include "base/basic_types.h"
+
+extern "C" {
 #include <openssl/bn.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
-#include "base/bytes.h"
+#include <openssl/aes.h>
+#include <openssl/modes.h>
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+} // extern "C"
 
 namespace openssl {
 
@@ -61,7 +70,7 @@ public:
 	explicit BigNum(unsigned int word) : BigNum() {
 		setWord(word);
 	}
-	explicit BigNum(base::const_byte_span bytes) : BigNum() {
+	explicit BigNum(bytes::const_span bytes) : BigNum() {
 		setBytes(bytes);
 	}
 
@@ -70,7 +79,7 @@ public:
 			_failed = true;
 		}
 	}
-	void setBytes(base::const_byte_span bytes) {
+	void setBytes(bytes::const_span bytes) {
 		if (!BN_bin2bn(
 				reinterpret_cast<const unsigned char*>(bytes.data()),
 				bytes.size(),
@@ -78,18 +87,11 @@ public:
 			_failed = true;
 		}
 	}
-	void setModExp(
-			const BigNum &a,
-			const BigNum &p,
-			const BigNum &m,
-			const Context &context = Context()) {
-		if (a.failed() || p.failed() || m.failed()) {
+
+	void setAdd(const BigNum &a, const BigNum &b) {
+		if (a.failed() || b.failed()) {
 			_failed = true;
-		} else if (a.isNegative() || p.isNegative() || m.isNegative()) {
-			_failed = true;
-		} else if (!BN_mod_exp(raw(), a.raw(), p.raw(), m.raw(), context.raw())) {
-			_failed = true;
-		} else if (isNegative()) {
+		} else if (!BN_add(raw(), a.raw(), b.raw())) {
 			_failed = true;
 		}
 	}
@@ -107,6 +109,16 @@ public:
 			_failed = true;
 		}
 	}
+	void setMul(
+			const BigNum &a,
+			const BigNum &b,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed()) {
+			_failed = true;
+		} else if (!BN_mul(raw(), a.raw(), b.raw(), context.raw())) {
+			_failed = true;
+		}
+	}
 	BN_ULONG setDivWord(BN_ULONG word) {
 		Expects(word != 0);
 		if (failed()) {
@@ -118,6 +130,51 @@ public:
 			_failed = true;
 		}
 		return result;
+	}
+	void setModSub(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed() || m.failed()) {
+			_failed = true;
+		} else if (a.isNegative() || b.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_sub(raw(), a.raw(), b.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		}
+	}
+	void setModMul(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed() || m.failed()) {
+			_failed = true;
+		} else if (a.isNegative() || b.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_mul(raw(), a.raw(), b.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		}
+	}
+	void setModExp(
+			const BigNum &base,
+			const BigNum &power,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (base.failed() || power.failed() || m.failed()) {
+			_failed = true;
+		} else if (base.isNegative() || power.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_exp(raw(), base.raw(), power.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		}
 	}
 
 	bool isNegative() const {
@@ -162,12 +219,12 @@ public:
 		return failed() ? 0 : BN_num_bytes(raw());
 	}
 
-	base::byte_vector getBytes() const {
+	bytes::vector getBytes() const {
 		if (failed()) {
-			return base::byte_vector();
+			return {};
 		}
 		auto length = BN_num_bytes(raw());
-		auto result = base::byte_vector(length, gsl::byte());
+		auto result = bytes::vector(length);
 		auto resultSize = BN_bn2bin(
 			raw(),
 			reinterpret_cast<unsigned char*>(result.data()));
@@ -189,9 +246,54 @@ public:
 		return _failed;
 	}
 
-	static BigNum ModExp(const BigNum &base, const BigNum &power, const openssl::BigNum &mod) {
+	static BigNum Add(const BigNum &a, const BigNum &b) {
 		BigNum result;
-		result.setModExp(base, power, mod);
+		result.setAdd(a, b);
+		return result;
+	}
+	static BigNum Sub(const BigNum &a, const BigNum &b) {
+		BigNum result;
+		result.setSub(a, b);
+		return result;
+	}
+	static BigNum Mul(
+			const BigNum &a,
+			const BigNum &b,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setMul(a, b, context);
+		return result;
+	}
+	static BigNum ModSub(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setModSub(a, b, mod, context);
+		return result;
+	}
+	static BigNum ModMul(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setModMul(a, b, mod, context);
+		return result;
+	}
+	static BigNum ModExp(
+			const BigNum &base,
+			const BigNum &power,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		BigNum result;
+		result.setModExp(base, power, mod, context);
+		return result;
+	}
+	static BigNum Failed() {
+		BigNum result;
+		result._failed = true;
 		return result;
 	}
 
@@ -201,26 +303,142 @@ private:
 
 };
 
-inline BigNum operator-(const BigNum &a, const BigNum &b) {
-	BigNum result;
-	result.setSub(a, b);
+namespace details {
+
+template <typename Context, typename Method, typename Arg>
+inline void ShaUpdate(Context context, Method method, Arg &&arg) {
+	const auto span = bytes::make_span(arg);
+	method(context, span.data(), span.size());
+}
+
+template <typename Context, typename Method, typename Arg, typename ...Args>
+inline void ShaUpdate(Context context, Method method, Arg &&arg, Args &&...args) {
+	const auto span = bytes::make_span(arg);
+	method(context, span.data(), span.size());
+	ShaUpdate(context, method, args...);
+}
+
+template <size_type Size, typename Method>
+inline bytes::vector Sha(Method method, bytes::const_span data) {
+	auto result = bytes::vector(Size);
+	method(
+		reinterpret_cast<const unsigned char*>(data.data()),
+		data.size(),
+		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline base::byte_array<SHA256_DIGEST_LENGTH> Sha256(base::const_byte_span bytes) {
-	auto result = base::byte_array<SHA256_DIGEST_LENGTH>();
-	SHA256(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
+template <
+	size_type Size,
+	typename Context,
+	typename Init,
+	typename Update,
+	typename Finalize,
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+bytes::vector Sha(
+		Context context,
+		Init init,
+		Update update,
+		Finalize finalize,
+		Args &&...args) {
+	auto result = bytes::vector(Size);
+
+	init(&context);
+	ShaUpdate(&context, update, args...);
+	finalize(reinterpret_cast<unsigned char*>(result.data()), &context);
+
 	return result;
 }
 
-inline base::byte_array<SHA_DIGEST_LENGTH> Sha1(base::const_byte_span bytes) {
-	auto result = base::byte_array<SHA_DIGEST_LENGTH>();
-	SHA1(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
+template <
+	size_type Size,
+	typename Evp>
+bytes::vector Pbkdf2(
+		bytes::const_span password,
+		bytes::const_span salt,
+		int iterations,
+		Evp evp) {
+	auto result = bytes::vector(Size);
+	PKCS5_PBKDF2_HMAC(
+		reinterpret_cast<const char*>(password.data()),
+		password.size(),
+		reinterpret_cast<const unsigned char*>(salt.data()),
+		salt.size(),
+		iterations,
+		evp,
+		result.size(),
+		reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline int FillRandom(base::byte_span bytes) {
-	return RAND_bytes(reinterpret_cast<unsigned char*>(bytes.data()), bytes.size());
+} // namespace details
+
+constexpr auto kSha1Size = size_type(SHA_DIGEST_LENGTH);
+constexpr auto kSha256Size = size_type(SHA256_DIGEST_LENGTH);
+constexpr auto kSha512Size = size_type(SHA512_DIGEST_LENGTH);
+
+inline bytes::vector Sha1(bytes::const_span data) {
+	return details::Sha<kSha1Size>(SHA1, data);
+}
+
+template <
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+inline bytes::vector Sha1(Args &&...args) {
+	return details::Sha<kSha1Size>(
+		SHA_CTX(),
+		SHA1_Init,
+		SHA1_Update,
+		SHA1_Final,
+		args...);
+}
+
+inline bytes::vector Sha256(bytes::const_span data) {
+	return details::Sha<kSha256Size>(SHA256, data);
+}
+
+template <
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+inline bytes::vector Sha256(Args &&...args) {
+	return details::Sha<kSha256Size>(
+		SHA256_CTX(),
+		SHA256_Init,
+		SHA256_Update,
+		SHA256_Final,
+		args...);
+}
+
+inline bytes::vector Sha512(bytes::const_span data) {
+	return details::Sha<kSha512Size>(SHA512, data);
+}
+
+template <
+	typename ...Args,
+	typename = std::enable_if_t<(sizeof...(Args) > 1)>>
+inline bytes::vector Sha512(Args &&...args) {
+	return details::Sha<kSha512Size>(
+		SHA512_CTX(),
+		SHA512_Init,
+		SHA512_Update,
+		SHA512_Final,
+		args...);
+}
+
+inline void AddRandomSeed(bytes::const_span data) {
+	RAND_seed(data.data(), data.size());
+}
+
+inline bytes::vector Pbkdf2Sha512(
+		bytes::const_span password,
+		bytes::const_span salt,
+		int iterations) {
+	return details::Pbkdf2<kSha512Size>(
+		password,
+		salt,
+		iterations,
+		EVP_sha512());
 }
 
 } // namespace openssl

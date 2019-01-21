@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 #include "styles/style_dialogs.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -19,11 +20,15 @@ namespace {
 
 auto DialogsPosToTopShift = 0;
 
-uint64 DialogPosFromDate(const QDateTime &date) {
-	if (date.isNull()) {
+uint64 DialogPosFromDate(TimeId date) {
+	if (!date) {
 		return 0;
 	}
-	return (uint64(date.toTime_t()) << 32) | (++DialogsPosToTopShift);
+	return (uint64(date) << 32) | (++DialogsPosToTopShift);
+}
+
+uint64 ProxyPromotedDialogPos() {
+	return 0xFFFFFFFFFFFF0001ULL;
 }
 
 uint64 PinnedDialogPos(int pinnedIndex) {
@@ -49,14 +54,33 @@ void Entry::cachePinnedIndex(int index) {
 	}
 }
 
+void Entry::cacheProxyPromoted(bool promoted) {
+	if (_isProxyPromoted != promoted) {
+		_isProxyPromoted = promoted;
+		updateChatListSortPosition();
+		updateChatListEntry();
+		if (!_isProxyPromoted) {
+			updateChatListExistence();
+		}
+	}
+}
+
 bool Entry::needUpdateInChatList() const {
 	return inChatList(Dialogs::Mode::All) || shouldBeInChatList();
 }
 
 void Entry::updateChatListSortPosition() {
-	_sortKeyInChatList = isPinnedDialog()
+	if (Auth().supportMode()
+		&& _sortKeyInChatList != 0
+		&& Auth().settings().supportFixChatsOrder()) {
+		updateChatListEntry();
+		return;
+	}
+	_sortKeyInChatList = useProxyPromotion()
+		? ProxyPromotedDialogPos()
+		: isPinnedDialog()
 		? PinnedDialogPos(_pinnedIndex)
-		: DialogPosFromDate(adjustChatListDate());
+		: DialogPosFromDate(adjustChatListTimeId());
 	if (needUpdateInChatList()) {
 		setChatListExistence(true);
 	}
@@ -77,8 +101,8 @@ void Entry::setChatListExistence(bool exists) {
 	}
 }
 
-QDateTime Entry::adjustChatListDate() const {
-	return chatsListDate();
+TimeId Entry::adjustChatListTimeId() const {
+	return chatsListTimeId();
 }
 
 void Entry::changedInChatListHook(Dialogs::Mode list, bool added) {
@@ -111,13 +135,13 @@ PositionChange Entry::adjustByPosInChatList(
 	return { movedFrom, movedTo };
 }
 
-void Entry::setChatsListDate(QDateTime date) {
-	if (!_lastMessageDate.isNull() && _lastMessageDate >= date) {
+void Entry::setChatsListTimeId(TimeId date) {
+	if (_lastMessageTimeId && _lastMessageTimeId >= date) {
 		if (!inChatList(Dialogs::Mode::All)) {
 			return;
 		}
 	}
-	_lastMessageDate = date;
+	_lastMessageTimeId = date;
 	updateChatListSortPosition();
 }
 
@@ -175,6 +199,10 @@ void Entry::updateChatListEntry() const {
 					Mode::Important,
 					mainChatListLink(Mode::Important));
 			}
+		}
+		if (Auth().supportMode()
+			&& !Auth().settings().supportAllSearchResults()) {
+			main->repaintDialogRow({ _key, FullMsgId() });
 		}
 	}
 }

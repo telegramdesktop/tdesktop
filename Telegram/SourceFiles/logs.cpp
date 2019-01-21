@@ -69,9 +69,9 @@ public:
 
 	void closeMain() {
 		QMutexLocker lock(_logsMutex(LogDataMain));
-		if (files[LogDataMain]) {
-			streams[LogDataMain].setDevice(0);
-			files[LogDataMain]->close();
+		const auto file = files[LogDataMain].get();
+		if (file && file->isOpen()) {
+			file->close();
 		}
 	}
 
@@ -80,11 +80,12 @@ public:
 	}
 
 	QString full() {
-		if (!streams[LogDataMain].device()) {
+		const auto file = files[LogDataMain].get();
+		if (!!file || !file->isOpen()) {
 			return QString();
 		}
 
-		QFile out(files[LogDataMain]->fileName());
+		QFile out(file->fileName());
 		if (out.open(QIODevice::ReadOnly)) {
 			return QString::fromUtf8(out.readAll());
 		}
@@ -93,27 +94,29 @@ public:
 
 	void write(LogDataType type, const QString &msg) {
 		QMutexLocker lock(_logsMutex(type));
-		if (type != LogDataMain) reopenDebug();
-		if (!streams[type].device()) return;
-
-		streams[type] << msg;
-		streams[type].flush();
+		if (type != LogDataMain) {
+			reopenDebug();
+		}
+		const auto file = files[type].get();
+		if (!file || !file->isOpen()) {
+			return;
+		}
+		file->write(msg.toUtf8());
+		file->flush();
 	}
 
 private:
 	std::unique_ptr<QFile> files[LogDataCount];
-	QTextStream streams[LogDataCount];
 
 	int32 part = -1;
 
 	bool reopen(LogDataType type, int32 dayIndex, const QString &postfix) {
-		if (streams[type].device()) {
+		if (files[type] && files[type]->isOpen()) {
 			if (type == LogDataMain) {
 				if (!postfix.isEmpty()) {
 					return true;
 				}
 			} else {
-				streams[type].setDevice(0);
 				files[type]->close();
 			}
 		}
@@ -134,8 +137,6 @@ private:
 				}
 				if (to->open(mode | QIODevice::Append)) {
 					std::swap(files[type], to);
-					streams[type].setDevice(files[type].get());
-					streams[type].setCodec("UTF-8");
 					LOG(("Moved logging from '%1' to '%2'!").arg(to->fileName()).arg(files[type]->fileName()));
 					to->remove();
 
@@ -192,17 +193,14 @@ private:
 			}
 		}
 		if (files[type]->open(mode)) {
-			streams[type].setDevice(files[type].get());
-			streams[type].setCodec("UTF-8");
-
 			if (type != LogDataMain) {
-				streams[type] << ((mode & QIODevice::Append)
+				files[type]->write(((mode & QIODevice::Append)
 					? qsl("\
 ----------------------------------------------------------------\n\
 NEW LOGGING INSTANCE STARTED!!!\n\
 ----------------------------------------------------------------\n")
-					: qsl("%1\n").arg(dayIndex));
-				streams[type].flush();
+					: qsl("%1\n").arg(dayIndex)).toUtf8());
+				files[type]->flush();
 			}
 
 			return true;
@@ -243,7 +241,7 @@ QString LogsBeforeSingleInstanceChecked; // LogsInMemory already dumped in LogsD
 
 void _logsWrite(LogDataType type, const QString &msg) {
 	if (LogsData && (type == LogDataMain || LogsStartIndexChosen < 0)) {
-		if (type == LogDataMain || cDebug()) {
+		if (type == LogDataMain || Logs::DebugEnabled()) {
 			LogsData->write(type, msg);
 		}
 	} else if (LogsInMemory != DeletedLogsInMemory) {
@@ -258,6 +256,8 @@ void _logsWrite(LogDataType type, const QString &msg) {
 
 namespace Logs {
 namespace {
+
+bool DebugModeEnabled = false;
 
 void MoveOldDataFiles(const QString &wasDir) {
 	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
@@ -307,10 +307,22 @@ void MoveOldDataFiles(const QString &wasDir) {
 
 } // namespace
 
+void SetDebugEnabled(bool enabled) {
+	DebugModeEnabled = enabled;
+}
+
+bool DebugEnabled() {
+#if defined _DEBUG
+	return true;
+#else
+	return DebugModeEnabled;
+#endif
+}
+
 void start(not_null<Core::Launcher*> launcher) {
 	Assert(LogsData == 0);
 
-	if (!Sandbox::CheckBetaVersionDir()) {
+	if (!Sandbox::CheckPortableVersionDir()) {
 		return;
 	}
 
@@ -318,20 +330,22 @@ void start(not_null<Core::Launcher*> launcher) {
 	auto moveOldDataFrom = QString();
 	auto workingDirChosen = false;
 
-	if (cBetaVersion()) {
+	if (cAlphaVersion()) {
 		workingDirChosen = true;
+
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 	} else {
-#ifdef _DEBUG
-		cForceWorkingDir(cExeDir());
-#else // _DEBUG
 		if (!cWorkingDir().isEmpty()) {
-			// This value must come only from the "-workdir" argument.
+			// This value must come from TelegramForcePortable
+			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 		} else {
+#ifdef _DEBUG
+			cForceWorkingDir(cExeDir());
+#else // _DEBUG
 			cForceWorkingDir(psAppDataPath());
-		}
 #endif // !_DEBUG
+		}
 		workingDirChosen = true;
 
 #if defined Q_OS_LINUX && !defined _DEBUG // fix first version
@@ -342,6 +356,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	} else {
 		cForceWorkingDir(psAppDataPath());
 		workingDirChosen = true;
+
 #elif defined OS_WIN_STORE // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
 #ifdef _DEBUG
 		cForceWorkingDir(cExeDir());
@@ -349,13 +364,16 @@ void start(not_null<Core::Launcher*> launcher) {
 		cForceWorkingDir(psAppDataPath());
 #endif // !_DEBUG
 		workingDirChosen = true;
+
 #elif defined Q_OS_WIN
 	} else {
 		if (!cWorkingDir().isEmpty()) {
-			// This value must come only from the "-workdir" argument.
+			// This value must come from TelegramForcePortable
+			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		}
+
 #endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || OS_WIN_STORE
 	}
 
@@ -384,14 +402,24 @@ void start(not_null<Core::Launcher*> launcher) {
 		LogsData = 0;
 	}
 
-	LOG(("Launched version: %1, alpha: %2, beta: %3, debug mode: %4, test dc: %5").arg(AppVersion).arg(Logs::b(cAlphaVersion())).arg(cBetaVersion()).arg(Logs::b(cDebug())).arg(Logs::b(cTestMode())));
+	LOG(("Launched version: %1, "
+		"install beta: %2, "
+		"alpha: %3, "
+		"debug mode: %4, "
+		"test dc: %5"
+		).arg(AppVersion
+		).arg(Logs::b(cInstallBetaVersion())
+		).arg(cAlphaVersion()
+		).arg(Logs::b(DebugEnabled())
+		).arg(Logs::b(cTestMode())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
 	LOG(("Command line: %1").arg(launcher->argumentsString()));
 
 	if (!LogsData) {
-		LOG(("FATAL: Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
+		LOG(("FATAL: Could not open '%1' for writing log!"
+			).arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
 		return;
 	}
 
@@ -474,7 +502,7 @@ void multipleInstances() {
 	}
 	LogsInMemory = DeletedLogsInMemory;
 
-	if (cDebug()) {
+	if (Logs::DebugEnabled()) {
 		LOG(("WARNING: debug logs are not written in multiple instances mode!"));
 	}
 	LogsBeforeSingleInstanceChecked.clear();

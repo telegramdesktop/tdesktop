@@ -126,8 +126,7 @@ void InnerWidget::createTypeButtons() {
 	if (auto user = _controller->key().peer()->asUser()) {
 //		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
-	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
-//	addMediaButton(Type::RoundFile, st::infoIconMediaRound);
+	addMediaButton(Type::RoundVoiceFile, st::infoIconMediaVoice);
 
 	content->add(object_ptr<Ui::FixedHeightWidget>(
 		content,

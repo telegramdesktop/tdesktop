@@ -101,7 +101,10 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 		const auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
 		const auto manager = _manager;
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
+			manager->notificationReplied(
+				notificationPeerId,
+				notificationMsgId,
+				{ notificationReply, {} });
 		});
 	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
 		const auto manager = _manager;
@@ -314,6 +317,8 @@ Manager::Private::~Private() {
 		putClearTask(ClearFinish());
 		_clearingThread.join();
 	}
+	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+	[center setDelegate:nil];
 	[_delegate release];
 }
 

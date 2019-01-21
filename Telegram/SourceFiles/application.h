@@ -12,16 +12,31 @@ class Launcher;
 class UpdateChecker;
 } // namespace Core
 
-class Application : public QApplication {
+bool InternalPassportLink(const QString &url);
+bool StartUrlRequiresActivate(const QString &url);
+
+class Application : public QApplication, private QAbstractNativeEventFilter {
 	Q_OBJECT
 
 public:
 	Application(not_null<Core::Launcher*> launcher, int &argc, char **argv);
 
-	bool event(QEvent *e) override;
+	int execute();
 
 	void createMessenger();
 	void refreshGlobalProxy();
+
+	void postponeCall(FnMut<void()> &&callable);
+	bool notify(QObject *receiver, QEvent *e) override;
+	void registerEnterFromEventLoop();
+	auto createEventNestingLevel() {
+		incrementEventNestingLevel();
+		return gsl::finally([=] { decrementEventNestingLevel(); });
+	}
+
+	void activateWindowDelayed(not_null<QWidget*> widget);
+	void pauseDelayedWindowActivations();
+	void resumeDelayedWindowActivations();
 
 	~Application();
 
@@ -43,9 +58,34 @@ public slots:
 	void startApplication(); // will be done in exec()
 	void closeApplication(); // will be done in aboutToQuit()
 
+protected:
+	bool event(QEvent *e) override;
+
 private:
 	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
 	typedef QList<LocalClient> LocalClients;
+
+	struct PostponedCall {
+		int loopNestingLevel = 0;
+		FnMut<void()> callable;
+	};
+
+	void incrementEventNestingLevel();
+	void decrementEventNestingLevel();
+	bool nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		long *result) override;
+	void processPostponedCalls(int level);
+
+	const Qt::HANDLE _mainThreadId = nullptr;
+	int _eventNestingLevel = 0;
+	int _loopNestingLevel = 0;
+	std::vector<int> _previousLoopNestingLevels;
+	std::vector<PostponedCall> _postponedCalls;
+
+	QPointer<QWidget> _windowForDelayedActivation;
+	bool _delayedActivationsPaused = false;
 
 	not_null<Core::Launcher*> _launcher;
 	std::unique_ptr<Messenger> _messengerInstance;
@@ -59,11 +99,19 @@ private:
 	void singleInstanceChecked();
 
 private:
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	std::unique_ptr<Core::UpdateChecker> _updateChecker;
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 };
+
+namespace Core {
+
+inline Application &App() {
+	Expects(QCoreApplication::instance() != nullptr);
+
+	return *static_cast<Application*>(QCoreApplication::instance());
+}
+
+} // namespace Core
 
 namespace Sandbox {
 

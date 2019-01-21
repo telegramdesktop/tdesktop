@@ -11,16 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/themes/window_theme.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/image/image.h"
+#include "auth_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
-#include "ui/effects/round_checkbox.h"
-#include "auth_session.h"
 
 class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 public:
 	Inner(QWidget *parent);
 
-	void setBackgroundChosenCallback(base::lambda<void(int index)> callback) {
+	void setBackgroundChosenCallback(Fn<void(int index)> callback) {
 		_backgroundChosenCallback = std::move(callback);
 	}
 
@@ -36,7 +37,7 @@ private:
 	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
 	void updateWallpapers();
 
-	base::lambda<void(int index)> _backgroundChosenCallback;
+	Fn<void(int index)> _backgroundChosenCallback;
 
 	int _bgCount = 0;
 	int _rows = 0;
@@ -93,7 +94,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
-	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_initial.jpg"));
+	auto oldBackground = Images::Create(qsl(":/gui/art/bg_initial.jpg"), "JPG");
 	wallpapers.push_back(App::WallPaper(Window::Theme::kInitialBackground, oldBackground, oldBackground));
 	auto &v = result.v;
 	for_const (auto &w, v) {
@@ -157,7 +158,7 @@ void BackgroundBox::Inner::updateWallpapers() {
 	for (int i = 0; i < BackgroundsInRow * 3; ++i) {
 		if (i >= _bgCount) break;
 
-		App::cServerBackgrounds().at(i).thumb->load();
+		App::cServerBackgrounds()[i].thumb->load(Data::FileOrigin());
 	}
 }
 
@@ -172,13 +173,16 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 				int index = i * BackgroundsInRow + j;
 				if (index >= _bgCount) break;
 
-				const App::WallPaper &paper(App::cServerBackgrounds().at(index));
-				paper.thumb->load();
+				const auto &paper = App::cServerBackgrounds()[index];
+				paper.thumb->load(Data::FileOrigin());
 
 				int x = st::backgroundPadding + j * (st::backgroundSize.width() + st::backgroundPadding);
 				int y = st::backgroundPadding + i * (st::backgroundSize.height() + st::backgroundPadding);
 
-				const QPixmap &pix(paper.thumb->pix(st::backgroundSize.width(), st::backgroundSize.height()));
+				const auto &pix = paper.thumb->pix(
+					Data::FileOrigin(),
+					st::backgroundSize.width(),
+					st::backgroundSize.height());
 				p.drawPixmap(x, y, pix);
 
 				if (paper.id == Window::Theme::Background()->id()) {

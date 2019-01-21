@@ -145,12 +145,15 @@ public:
 
 };
 
-class IgnoreMargins : public Wrap<RpWidget> {
+class OverrideMargins : public Wrap<RpWidget> {
 	using Parent = Wrap<RpWidget>;
 
 public:
-	IgnoreMargins(QWidget *parent, object_ptr<RpWidget> &&child)
-	: Parent(parent, std::move(child)) {
+	OverrideMargins(
+		QWidget *parent,
+		object_ptr<RpWidget> &&child,
+		QMargins margins = QMargins())
+	: Parent(parent, std::move(child)), _margins(margins) {
 		if (auto weak = wrapped()) {
 			auto margins = weak->getMargins();
 			resizeToWidth(weak->width()
@@ -160,14 +163,14 @@ public:
 	}
 
 	QMargins getMargins() const override {
-		return QMargins();
+		return _margins;
 	}
 
 protected:
 	int resizeGetHeight(int newWidth) override {
 		if (auto weak = wrapped()) {
 			weak->resizeToWidth(newWidth);
-			weak->moveToLeft(0, 0);
+			weak->moveToLeft(_margins.left(), _margins.top());
 			return weak->heightNoMargins();
 		}
 		return height();
@@ -177,9 +180,19 @@ private:
 	void wrappedSizeUpdated(QSize size) override {
 		auto margins = wrapped()->getMargins();
 		resize(
-			size.width() - margins.left() - margins.right(),
-			size.height() - margins.top() - margins.bottom());
+			(size.width()
+				- margins.left()
+				- margins.right()
+				+ _margins.left()
+				+ _margins.right()),
+			(size.height()
+				- margins.top()
+				- margins.bottom()
+				+ _margins.top()
+				+ _margins.bottom()));
 	}
+
+	QMargins _margins;
 
 };
 

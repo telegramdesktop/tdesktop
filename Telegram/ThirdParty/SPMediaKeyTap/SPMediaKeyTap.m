@@ -77,7 +77,10 @@ static CGEventRef tapEventCallback(CGEventTapProxy proxy, CGEventType type, CGEv
 								  CGEventMaskBit(NX_SYSDEFINED),
 								  tapEventCallback,
 								  self);
-	assert(_eventPort != NULL);
+	if (!_eventPort) {
+		[self stopWatchingMediaKeys];
+		return;
+	}
 	
     _eventPortSource = CFMachPortCreateRunLoopSource(kCFAllocatorSystemDefault, _eventPort, 0);
 	assert(_eventPortSource != NULL);

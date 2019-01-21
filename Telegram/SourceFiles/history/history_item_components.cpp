@@ -9,11 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "history/history_message.h"
-#include "history/history_media.h"
-#include "history/history_media_types.h"
 #include "history/view/history_view_service_message.h"
+#include "history/media/history_media_document.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "auth_session.h"
@@ -149,12 +149,12 @@ bool HistoryMessageReply::updateData(
 	if (replyToMsg) {
 		replyToText.setText(
 			st::messageTextStyle,
-			TextUtilities::Clean(replyToMsg->inReplyText()),
+			replyToMsg->inReplyText(),
 			Ui::DialogTextOptions());
 
 		updateName();
 
-		replyToLnk = goToMessageClickHandler(replyToMsg, holder->fullId());
+		setReplyToLinkFrom(holder);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				replyToVia = std::make_unique<HistoryMessageVia>();
@@ -168,6 +168,13 @@ bool HistoryMessageReply::updateData(
 		Auth().data().requestItemResize(holder);
 	}
 	return (replyToMsg || !replyToMsgId);
+}
+
+void HistoryMessageReply::setReplyToLinkFrom(
+		not_null<HistoryMessage*> holder) {
+	replyToLnk = replyToMsg
+		? goToMessageClickHandler(replyToMsg, holder->fullId())
+		: nullptr;
 }
 
 void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
@@ -250,12 +257,11 @@ void HistoryMessageReply::paint(
 			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
-				const auto replyPreview = replyToMsg->media()->replyPreview();
-				if (!replyPreview->isNull()) {
+				if (const auto image = replyToMsg->media()->replyPreview()) {
 					auto to = rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
-					auto previewWidth = replyPreview->width() / cIntRetinaFactor();
-					auto previewHeight = replyPreview->height() / cIntRetinaFactor();
-					auto preview = replyPreview->pixSingle(previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, RectPart::AllCorners, selected ? &st::msgStickerOverlay : nullptr);
+					auto previewWidth = image->width() / cIntRetinaFactor();
+					auto previewHeight = image->height() / cIntRetinaFactor();
+					auto preview = image->pixSingle(replyToMsg->fullId(), previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, RectPart::AllCorners, selected ? &st::msgStickerOverlay : nullptr);
 					p.drawPixmap(to.x(), to.y(), preview);
 				}
 			}
@@ -271,14 +277,14 @@ void HistoryMessageReply::paint(
 					p.drawText(x + st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew, y + st::msgReplyPadding.top() + st::msgServiceFont->ascent, replyToVia->text);
 				}
 
-				auto replyToAsMsg = replyToMsg->toHistoryMessage();
-				if (!(flags & PaintFlag::InBubble)) {
-				} else if (!replyToAsMsg) {
-					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
-				} else {
+				if (flags & PaintFlag::InBubble) {
 					p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
+					p.setTextPalette(outbg ? (selected ? st::outReplyTextPaletteSelected : st::outReplyTextPalette) : (selected ? st::inReplyTextPaletteSelected : st::inReplyTextPalette));
+				} else {
+					p.setTextPalette(st::imgReplyTextPalette);
 				}
 				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
+				p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 			}
 		} else {
 			p.setFont(st::msgDateFont);
@@ -609,6 +615,9 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 }
 
 void ReplyKeyboard::step_selected(TimeMs ms, bool timer) {
+	if (anim::Disabled()) {
+		ms += st::botKbDuration;
+	}
 	for (auto i = _animations.begin(); i != _animations.end();) {
 		const auto index = std::abs(i->first) - 1;
 		const auto row = (index / MatrixRowShift);

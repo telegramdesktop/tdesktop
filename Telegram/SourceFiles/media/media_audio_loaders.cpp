@@ -206,7 +206,7 @@ void Loaders::loadData(AudioMsgId audio, TimeMs positionMs) {
 		track->fadeStartPosition = position;
 	}
 	if (samplesCount) {
-		track->ensureStreamCreated();
+		track->ensureStreamCreated(type);
 
 		auto bufferIndex = track->getNotQueuedBufferIndex();
 
@@ -326,7 +326,7 @@ AudioPlayerLoader *Loaders::setupLoader(
 			}
 			*loader = std::make_unique<ChildFFMpegLoader>(std::move(track->videoData));
 		} else {
-			*loader = std::make_unique<FFMpegLoader>(track->file, track->data, base::byte_vector());
+			*loader = std::make_unique<FFMpegLoader>(track->file, track->data, bytes::vector());
 		}
 		l = loader->get();
 

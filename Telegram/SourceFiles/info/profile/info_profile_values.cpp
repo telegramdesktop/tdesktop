@@ -23,6 +23,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 namespace Profile {
 
+rpl::producer<TextWithEntities> NameValue(
+		not_null<PeerData*> peer) {
+	return Notify::PeerUpdateValue(
+		peer,
+		Notify::PeerUpdate::Flag::NameChanged
+	) | rpl::map([=] {
+		return App::peerName(peer);
+	}) | WithEmptyEntities();
+}
+
 rpl::producer<TextWithEntities> PhoneValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
@@ -115,11 +125,14 @@ rpl::producer<QString> LinkValue(
 
 rpl::producer<bool> NotificationsEnabledValue(
 		not_null<PeerData*> peer) {
-	return Notify::PeerUpdateValue(
+	return rpl::merge(
+		Notify::PeerUpdateValue(
 			peer,
 			Notify::PeerUpdate::Flag::NotificationsEnabled
+		) | rpl::map([] { return rpl::empty_value(); }),
+		Auth().data().defaultNotifyUpdates(peer)
 	) | rpl::map([peer] {
-		return !peer->isMuted();
+		return !Auth().data().notifyIsMuted(peer);
 	}) | rpl::distinct_until_changed();
 }
 

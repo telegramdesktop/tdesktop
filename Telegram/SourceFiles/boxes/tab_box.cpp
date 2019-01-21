@@ -18,9 +18,9 @@ https://git.io/TD
 TabBox::TabBox(QWidget *parent)
 : _hideMuted(this, lang(lng_dialogs_hide_muted_chats), (Global::DialogsMode() == Dialogs::Mode::Important), st::defaultBoxCheckbox)
 , _showUser(this, lang(lng_telegreat_user), (cDialogsType() & 0x1), st::defaultBoxCheckbox)
-, _showGroup(this, lang(lng_telegreat_group), (cDialogsType() & 0x2), st::defaultBoxCheckbox)
-, _showChannel(this, lang(lng_telegreat_channel), (cDialogsType() & 0x4), st::defaultBoxCheckbox)
-, _showBot(this, lang(lng_telegreat_bot), (cDialogsType() & 0x8), st::defaultBoxCheckbox)
+, _showGroup(this, lang(lng_group_status), (cDialogsType() & 0x2), st::defaultBoxCheckbox)
+, _showChannel(this, lang(lng_channel_status), (cDialogsType() & 0x4), st::defaultBoxCheckbox)
+, _showBot(this, lang(lng_status_bot), (cDialogsType() & 0x8), st::defaultBoxCheckbox)
 , _sectionHeight(st::boxTitleHeight + 1 * (st::defaultCheck.diameter + st::setLittleSkip)) {
 	connect(_hideMuted, SIGNAL(clicked()), this, SLOT(onHideMute()));
 	connect(_showUser, SIGNAL(clicked()), this, SLOT(onSave()));
@@ -65,15 +65,6 @@ void TabBox::onHideMute() {
 		Global::SetDialogsMode(Dialogs::Mode::All);
 	}
 	Local::writeUserSettings();
-
-	auto &peersData = App::peersData();
-	auto c = peersData.constFind(0x2409A2230ULL);
-	if (c != peersData.cend()) {
-		PeerId peerId = c.value()->id;
-		auto history = App::history(peerId);
-		App::main()->removeDialog(history);
-		history->updateChatListSortPosition(); // Refresh
-	}
 }
 
 void TabBox::onSave() {
@@ -94,28 +85,5 @@ void TabBox::onSave() {
 		type = 0xf;
 
 	Local::writeUserSettings();
-
-	auto &peersData = App::peersData();
-	auto m = App::main();
-	for_const (auto peer, peersData) {
-		int bit = 0;
-		if (peer->isUser()) {
-			if (peer->asUser()->botInfo)
-				bit = 0x8;
-			else
-				bit = 0x1;
-		} else if (peer->isMegagroup() || peer->isChat())
-			bit = 0x2;
-		else if (peer->isChannel())
-			bit = 0x4;
-		
-		if ((oriType ^ type) & bit) {
-			PeerId peerId = peer->id;
-			auto history = App::history(peerId);
-			if (type & bit)
-				history->updateChatListExistence();
-			else
-				App::main()->removeDialog(history);
-		}
-	}
+	App::updateTab(oriType, type);
 }

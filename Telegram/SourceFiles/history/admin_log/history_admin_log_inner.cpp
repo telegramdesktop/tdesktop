@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_history.h"
 #include "history/history.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_web_page.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
+#include "boxes/sticker_set_box.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
@@ -27,12 +29,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/image/image.h"
 #include "core/file_utilities.h"
 #include "core/tl_help.h"
 #include "base/overload.h"
 #include "lang/lang_keys.h"
 #include "boxes/edit_participant_box.h"
 #include "data/data_session.h"
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "data/data_media_types.h"
 
 namespace AdminLog {
@@ -411,7 +416,7 @@ void InnerWidget::requestAdmins() {
 			}
 		});
 		if (_admins.empty()) {
-			_admins.push_back(App::self());
+			_admins.push_back(Auth().user());
 		}
 		if (_showFilterCallback) {
 			showFilter(std::move(_showFilterCallback));
@@ -419,7 +424,7 @@ void InnerWidget::requestAdmins() {
 	}).send();
 }
 
-void InnerWidget::showFilter(base::lambda<void(FilterValue &&filter)> callback) {
+void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 	if (_admins.empty()) {
 		_showFilterCallback = std::move(callback);
 	} else {
@@ -941,7 +946,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
 	const auto link = ClickHandler::getActive();
 	auto view = App::hoveredItem()
@@ -1009,47 +1014,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); });
 		} else {
 			if (item && !isUponSelected) {
-				auto mediaHasTextForCopy = false;
-				if (auto media = view->media()) {
-					mediaHasTextForCopy = media->hasTextForCopy();
-					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
-						media = static_cast<HistoryWebPage*>(media)->attach();
-					}
-					if (media->type() == MediaTypeSticker) {
-						if (const auto document = media->getDocument()) {
-							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
-									showStickerPackInfo(document);
-								});
-							}
-							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-								saveDocumentToFile(document);
-							}));
-						}
-					} else if (media->type() == MediaTypeGif && !link) {
-						if (auto document = media->getDocument()) {
-							if (document->loading()) {
-								_menu->addAction(lang(lng_context_cancel_download), [=] {
-									cancelContextDownload(document);
-								});
-							} else {
-								if (document->isGifv()) {
-									if (!cAutoPlayGif()) {
-										_menu->addAction(lang(lng_context_open_gif), [=] {
-											openContextGif(itemId);
-										});
-									}
-								}
-								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
-										showContextInFolder(document);
-									});
-								}
-								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-									saveDocumentToFile(document);
-								}));
-							}
-						}
+				const auto media = view->media();
+				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
+				if (const auto document = media ? media->getDocument() : nullptr) {
+					if (document->sticker()) {
+						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+							saveDocumentToFile(document);
+						}));
 					}
 				}
 				if (msg && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
@@ -1081,28 +1052,31 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 }
 
 void InnerWidget::savePhotoToFile(PhotoData *photo) {
-	if (!photo || !photo->date || !photo->loaded()) return;
+	if (!photo || !photo->date || !photo->loaded()) {
+		return;
+	}
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
+		this,
 		lang(lng_save_photo),
 		filter,
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
-		base::lambda_guarded(this, [=](const QString &result) {
+		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
+				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
 			}
 		}));
 }
 
 void InnerWidget::saveDocumentToFile(DocumentData *document) {
-	DocumentSaveClickHandler::doSave(document, true);
+	DocumentSaveClickHandler::Save(Data::FileOrigin(), document, true);
 }
 
 void InnerWidget::copyContextImage(PhotoData *photo) {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(photo->full->pix());
+	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
 }
 
 void InnerWidget::copySelectedText() {
@@ -1110,11 +1084,7 @@ void InnerWidget::copySelectedText() {
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
-	if (auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
+	StickerSetBox::Show(document);
 }
 
 void InnerWidget::cancelContextDownload(not_null<DocumentData*> document) {

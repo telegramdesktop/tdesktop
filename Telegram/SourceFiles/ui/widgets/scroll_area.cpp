@@ -785,8 +785,8 @@ void ScrollArea::rangeChanged(int oldMax, int newMax, bool vertical) {
 }
 
 void ScrollArea::updateBars() {
-	_horizontalBar->update();
-	_verticalBar->update();
+	_horizontalBar->updateBar(true);
+	_verticalBar->updateBar(true);
 }
 
 bool ScrollArea::focusNextPrevChild(bool next) {

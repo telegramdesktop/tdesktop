@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 
-class ContinuousSlider : public TWidget {
+class ContinuousSlider : public RpWidget {
 public:
 	ContinuousSlider(QWidget *parent);
 
@@ -32,11 +33,13 @@ public:
 		return _disabled;
 	}
 
-	using Callback = base::lambda<void(float64)>;
-	void setChangeProgressCallback(Callback &&callback) {
+	void setAdjustCallback(Fn<float64(float64)> callback) {
+		_adjustCallback = std::move(callback);
+	}
+	void setChangeProgressCallback(Fn<void(float64)> callback) {
 		_changeProgressCallback = std::move(callback);
 	}
-	void setChangeFinishedCallback(Callback &&callback) {
+	void setChangeFinishedCallback(Fn<void(float64)> callback) {
 		_changeFinishedCallback = std::move(callback);
 	}
 	bool isChanging() const {
@@ -86,8 +89,9 @@ private:
 
 	std::unique_ptr<SingleTimer> _byWheelFinished;
 
-	Callback _changeProgressCallback;
-	Callback _changeFinishedCallback;
+	Fn<float64(float64)> _adjustCallback;
+	Fn<void(float64)> _changeProgressCallback;
+	Fn<void(float64)> _changeFinishedCallback;
 
 	bool _over = false;
 	Animation _a_over;
@@ -124,6 +128,44 @@ public:
 		_alwaysDisplayMarker = alwaysDisplayMarker;
 		update();
 	}
+	void disablePaint(bool disabled);
+
+	template <
+		typename Value,
+		typename Convert,
+		typename Callback,
+		typename = std::enable_if_t<
+			rpl::details::is_callable_plain_v<Callback, Value>
+			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
+	void setPseudoDiscrete(
+			int valuesCount,
+			Convert &&convert,
+			Value current,
+			Callback &&callback) {
+		Expects(valuesCount > 1);
+
+		setAlwaysDisplayMarker(true);
+		setDirection(Ui::ContinuousSlider::Direction::Horizontal);
+
+		const auto sectionsCount = (valuesCount - 1);
+		for (auto index = index_type(); index != valuesCount; ++index) {
+			if (current <= convert(index)) {
+				setValue(index / float64(sectionsCount));
+				break;
+			}
+		}
+		setAdjustCallback([=](float64 value) {
+			return std::round(value * sectionsCount) / sectionsCount;
+		});
+		setChangeProgressCallback([
+			=,
+			convert = std::forward<Convert>(convert),
+			callback = std::forward<Callback>(callback)
+		](float64 value) {
+			const auto index = int(std::round(value * sectionsCount));
+			callback(convert(index));
+		});
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -134,6 +176,7 @@ private:
 
 	const style::MediaSlider &_st;
 	bool _alwaysDisplayMarker = false;
+	bool _paintDisabled = false;
 
 };
 

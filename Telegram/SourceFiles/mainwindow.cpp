@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -16,13 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/emoji_config.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
-#include "shortcuts.h"
+#include "core/shortcuts.h"
 #include "messenger.h"
+#include "auth_session.h"
 #include "application.h"
-#include "passcodewidget.h"
 #include "intro/introwidget.h"
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
@@ -32,14 +34,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mediaview.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
-#include "settings/settings_widget.h"
+#include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/layer_widget.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
+#include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
-#include "auth_session.h"
 #include "window/window_controller.h"
 
 namespace {
@@ -63,50 +65,6 @@ void FeedLangTestingKey(int key) {
 
 } // namespace
 
-ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
-, _reconnect(this, QString()) {
-	set(text, reconnect);
-	connect(_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
-}
-
-void ConnectingWidget::set(const QString &text, const QString &reconnect) {
-	_text = text;
-	_textWidth = st::linkFont->width(_text) + st::linkFont->spacew;
-	int32 _reconnectWidth = 0;
-	if (reconnect.isEmpty()) {
-		_reconnect->hide();
-	} else {
-		_reconnect->setText(reconnect);
-		_reconnect->show();
-		_reconnect->move(st::connectingPadding.left() + _textWidth, st::boxRoundShadow.extend.top() + st::connectingPadding.top());
-		_reconnectWidth = _reconnect->width();
-	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxRoundShadow.extend.right(), st::boxRoundShadow.extend.top() + st::connectingPadding.top() + st::normalFont->height + st::connectingPadding.bottom());
-	update();
-}
-
-void ConnectingWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto sides = RectPart::Top | RectPart::Right;
-	Ui::Shadow::paint(p, QRect(0, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right(), height() - st::boxRoundShadow.extend.top()), width(), st::boxRoundShadow, sides);
-	auto parts = RectPart::Top | RectPart::TopRight | RectPart::Center | RectPart::Right;
-	App::roundRect(p, QRect(-st::boxRadius, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right() + st::boxRadius, height() - st::boxRoundShadow.extend.top() + st::boxRadius), st::boxBg, BoxCorners, nullptr, parts);
-
-	p.setFont(st::normalFont);
-	p.setPen(st::windowSubTextFg);
-	p.drawText(st::connectingPadding.left(), st::boxRoundShadow.extend.top() + st::connectingPadding.top() + st::normalFont->ascent, _text);
-}
-
-void ConnectingWidget::onReconnect() {
-	if (Global::UseProxy()) {
-		//Ui::show(Box<ConnectionBox>());
-		Ui::show(ProxiesBoxController::CreateOwningBox());
-	} else {
-		MTP::restart();
-	}
-}
-
 MainWindow::MainWindow() {
 	auto logo = Messenger::Instance().logo();
 	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
@@ -122,11 +80,24 @@ MainWindow::MainWindow() {
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	subscribe(Global::RefSelfChanged(), [this] { updateGlobalMenu(); });
+	subscribe(Messenger::Instance().authSessionChanged(), [this] {
+		updateGlobalMenu();
+		if (!AuthSession::Exists()) {
+			_mediaPreview.destroy();
+		}
+	});
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
-	subscribe(Messenger::Instance().passcodedChanged(), [this] { updateGlobalMenu(); });
+	Messenger::Instance().lockChanges(
+	) | rpl::start_with_next([=] {
+		updateGlobalMenu();
+	}, lifetime());
+
+	Ui::Emoji::Updated(
+	) | rpl::start_with_next([=] {
+		Ui::ForceFullRepaint(this);
+	}, lifetime());
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -169,9 +140,11 @@ void MainWindow::firstShow() {
 }
 
 void MainWindow::clearWidgetsHook() {
+	Expects(_passcodeLock == nullptr || !Global::LocalPasscode());
+
 	auto wasMain = (_main != nullptr);
-	_passcode.destroyDelayed();
 	_main.destroy();
+	_passcodeLock.destroy();
 	_intro.destroy();
 	if (wasMain) {
 		App::clearHistories();
@@ -179,57 +152,62 @@ void MainWindow::clearWidgetsHook() {
 }
 
 QPixmap MainWindow::grabInner() {
-	QPixmap result;
 	if (_intro) {
-		result = Ui::GrabWidget(_intro);
-	} else if (_passcode) {
-		result = Ui::GrabWidget(_passcode);
+		return Ui::GrabWidget(_intro);
+	} else if (_passcodeLock) {
+		return Ui::GrabWidget(_passcodeLock);
 	} else if (_main) {
-		result = Ui::GrabWidget(_main);
+		return Ui::GrabWidget(_main);
 	}
-	return result;
+	return {};
 }
 
-void MainWindow::clearPasscode() {
-	if (!_passcode) return;
-
-	auto bg = grabInner();
-
-	_passcode.destroy();
-	if (_intro) {
-		_intro->showAnimated(bg, true);
-	} else {
-		Assert(_main != nullptr);
-		_main->showAnimated(bg, true);
-		Messenger::Instance().checkStartUrl();
-	}
-}
-
-void MainWindow::setupPasscode() {
+void MainWindow::setupPasscodeLock() {
 	auto animated = (_main || _intro);
 	auto bg = animated ? grabInner() : QPixmap();
-	_passcode.create(bodyWidget());
+	_passcodeLock.create(bodyWidget());
 	updateControlsGeometry();
 
-	if (_main) _main->hide();
 	Messenger::Instance().hideMediaView();
 	Ui::hideSettingsAndLayer(anim::type::instant);
-	if (_intro) _intro->hide();
+	if (_main) {
+		_main->hide();
+	}
+	if (_intro) {
+		_intro->hide();
+	}
 	if (animated) {
-		_passcode->showAnimated(bg);
+		_passcodeLock->showAnimated(bg);
 	} else {
 		setInnerFocus();
 	}
 }
 
-void MainWindow::setupIntro() {
-	if (_intro && !_intro->isHidden() && !_main) {
-		return;
-	}
+void MainWindow::clearPasscodeLock() {
+	if (!_passcodeLock) return;
 
+	auto bg = grabInner();
+
+	_passcodeLock.destroy();
+	if (_intro) {
+		_intro->showAnimated(bg, true);
+	} else if (_main) {
+		_main->showAnimated(bg, true);
+		Messenger::Instance().checkStartUrl();
+	} else {
+		Messenger::Instance().startMtp();
+		if (AuthSession::Exists()) {
+			setupMain();
+		} else {
+			setupIntro();
+		}
+	}
+}
+
+void MainWindow::setupIntro() {
 	Ui::hideSettingsAndLayer(anim::type::instant);
 
-	auto animated = (_main || _passcode);
+	auto animated = (_main || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
@@ -243,82 +221,15 @@ void MainWindow::setupIntro() {
 	}
 
 	fixOrder();
-
-	updateConnectingStatus();
-
-	_delayedServiceMsgs.clear();
-	if (_serviceHistoryRequest) {
-		MTP::cancel(_serviceHistoryRequest);
-		_serviceHistoryRequest = 0;
-	}
 }
 
-void MainWindow::serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date, bool force) {
-	if (date <= 0) date = unixtime();
-	auto h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId).get() : nullptr;
-	if (!h || (!force && h->isEmpty())) {
-		_delayedServiceMsgs.push_back(DelayedServiceMsg(message, media, date));
-		return sendServiceHistoryRequest();
-	}
+void MainWindow::setupMain() {
+	Expects(AuthSession::Exists());
 
-	_main->insertCheckedServiceNotification(message, media, date);
-}
-
-void MainWindow::showDelayedServiceMsgs() {
-	for (auto &delayed : base::take(_delayedServiceMsgs)) {
-		serviceNotification(delayed.message, delayed.media, delayed.date, true);
-	}
-}
-
-void MainWindow::sendServiceHistoryRequest() {
-	if (!_main || !_main->started() || _delayedServiceMsgs.isEmpty() || _serviceHistoryRequest) return;
-
-	auto user = App::userLoaded(ServiceUserId);
-	if (!user) {
-		auto userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
-		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(
-			MTP_flags(userFlags),
-			MTP_int(ServiceUserId),
-			MTPlong(),
-			MTP_string("Telegram"),
-			MTPstring(),
-			MTPstring(),
-			MTP_string("42777"),
-			MTP_userProfilePhotoEmpty(),
-			MTP_userStatusRecently(),
-			MTPint(),
-			MTPstring(),
-			MTPstring(),
-			MTPstring())));
-	}
-	auto offsetId = 0;
-	auto offsetDate = 0;
-	auto addOffset = 0;
-	auto limit = 1;
-	auto maxId = 0;
-	auto minId = 0;
-	auto historyHash = 0;
-	_serviceHistoryRequest = MTP::send(
-		MTPmessages_GetHistory(
-			user->input,
-			MTP_int(offsetId),
-			MTP_int(offsetDate),
-			MTP_int(addOffset),
-			MTP_int(limit),
-			MTP_int(maxId),
-			MTP_int(minId),
-			MTP_int(historyHash)),
-		_main->rpcDone(&MainWidget::serviceHistoryDone),
-		_main->rpcFail(&MainWidget::serviceHistoryFail));
-}
-
-void MainWindow::setupMain(const MTPUser *self) {
-	auto animated = (_intro || _passcode);
+	auto animated = (_intro || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
-
-	Assert(AuthSession::Exists());
 
 	_main.create(bodyWidget(), controller());
 	_main->show();
@@ -329,105 +240,102 @@ void MainWindow::setupMain(const MTPUser *self) {
 	} else {
 		_main->activate();
 	}
-	_main->start(self);
+	_main->start();
 
 	fixOrder();
-
-	updateConnectingStatus();
 }
 
 void MainWindow::showSettings() {
 	if (isHidden()) showFromTray();
 
-	controller()->showSpecialLayer(Box<Settings::Widget>());
+	if (const auto controller = this->controller()) {
+		controller->showSettings();
+	} else {
+		showSpecialLayer(Box<Settings::LayerWidget>(), anim::type::normal);
+	}
 }
 
 void MainWindow::showSpecialLayer(
 		object_ptr<Window::LayerWidget> layer,
 		anim::type animated) {
-	if (_passcode) return;
+	if (_passcodeLock) return;
 
 	if (layer) {
 		ensureLayerCreated();
-		_layerBg->showSpecialLayer(std::move(layer), animated);
-	} else if (_layerBg) {
-		_layerBg->hideSpecialLayer(animated);
+		_layer->showSpecialLayer(std::move(layer), animated);
+	} else if (_layer) {
+		_layer->hideSpecialLayer(animated);
 	}
 }
 
 bool MainWindow::showSectionInExistingLayer(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
-	if (_layerBg) {
-		return _layerBg->showSectionInternal(memento, params);
+	if (_layer) {
+		return _layer->showSectionInternal(memento, params);
 	}
 	return false;
 }
 
 void MainWindow::showMainMenu() {
-	if (_passcode) return;
+	if (_passcodeLock) return;
 
 	if (isHidden()) showFromTray();
 
 	ensureLayerCreated();
-	_layerBg->showMainMenu(anim::type::normal);
+	_layer->showMainMenu(controller(), anim::type::normal);
 }
 
 void MainWindow::ensureLayerCreated() {
-	if (!_layerBg) {
-		_layerBg.create(bodyWidget(), controller());
-		if (controller()) {
-			controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
-		}
+	if (_layer) {
+		return;
+	}
+	_layer = base::make_unique_q<Window::LayerStackWidget>(
+		bodyWidget());
+
+	_layer->hideFinishEvents(
+	) | rpl::start_with_next([=] {
+		destroyLayer();
+	}, _layer->lifetime());
+
+	if (controller()) {
+		controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 }
 
-void MainWindow::destroyLayerDelayed() {
-	if (_layerBg) {
-		_layerBg.destroyDelayed();
-		if (controller()) {
-			controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
-		}
+void MainWindow::destroyLayer() {
+	if (!_layer) {
+		return;
 	}
+	const auto resetFocus = Ui::InFocusChain(_layer);
+	if (resetFocus) setFocus();
+	_layer = nullptr;
+	if (controller()) {
+		controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
+	}
+	if (resetFocus) setInnerFocus();
+	InvokeQueued(this, [=] {
+		checkHistoryActivation();
+	});
 }
 
 void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
-	if (_layerBg) {
-		_layerBg->hideAll(animated);
+	if (_layer) {
+		_layer->hideAll(animated);
 		if (animated == anim::type::instant) {
-			destroyLayerDelayed();
+			destroyLayer();
 		}
 	}
 }
 
-void MainWindow::mtpStateChanged(int32 dc, int32 state) {
-	if (dc == MTP::maindc()) {
-		updateConnectingStatus();
-		Global::RefConnectionTypeChanged().notify();
-	}
-}
-
-void MainWindow::updateConnectingStatus() {
-	const auto state = MTP::dcstate();
-	const auto throughProxy = Global::UseProxy();
-	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
-		if (_main || getms() > 5000 || _connecting) {
-			showConnecting(lang(throughProxy ? lng_connecting_to_proxy : lng_connecting), throughProxy ? lang(lng_connecting_settings) : QString());
-		}
-	} else if (state < 0) {
-		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(throughProxy ? lng_connecting_settings : lng_reconnecting_try_now));
-		QTimer::singleShot((-state) % 1000, this, SLOT(updateConnectingStatus()));
-	} else {
-		hideConnecting();
+void MainWindow::ui_removeLayerBlackout() {
+	if (_layer) {
+		_layer->removeBodyCache();
 	}
 }
 
 MainWidget *MainWindow::mainWidget() {
 	return _main;
-}
-
-PasscodeWidget *MainWindow::passcodeWidget() {
-	return _passcode;
 }
 
 void MainWindow::ui_showBox(
@@ -436,22 +344,14 @@ void MainWindow::ui_showBox(
 		anim::type animated) {
 	if (box) {
 		ensureLayerCreated();
-		if (options & LayerOption::KeepOther) {
-			if (options & LayerOption::ShowAfterOther) {
-				_layerBg->prependBox(std::move(box), animated);
-			} else {
-				_layerBg->appendBox(std::move(box), animated);
-			}
-		} else {
-			_layerBg->showBox(std::move(box), animated);
-		}
+		_layer->showBox(std::move(box), options, animated);
 	} else {
-		if (_layerBg) {
-			_layerBg->hideTopLayer(animated);
+		if (_layer) {
+			_layer->hideTopLayer(animated);
 			if ((animated == anim::type::instant)
-				&& _layerBg
-				&& !_layerBg->layerShown()) {
-				destroyLayerDelayed();
+				&& _layer
+				&& !_layer->layerShown()) {
+				destroyLayer();
 			}
 		}
 		Messenger::Instance().hideMediaView();
@@ -459,10 +359,12 @@ void MainWindow::ui_showBox(
 }
 
 bool MainWindow::ui_isLayerShown() {
-	return _layerBg != nullptr;
+	return _layer != nullptr;
 }
 
-void MainWindow::ui_showMediaPreview(DocumentData *document) {
+void MainWindow::ui_showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) {
 		return;
 	}
@@ -473,11 +375,15 @@ void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (_mediaPreview->isHidden()) {
 		fixOrder();
 	}
-	_mediaPreview->showPreview(document);
+	_mediaPreview->showPreview(origin, document);
 }
 
-void MainWindow::ui_showMediaPreview(PhotoData *photo) {
-	if (!photo) return;
+void MainWindow::ui_showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo) {
+	if (!photo) {
+		return;
+	}
 	if (!_mediaPreview) {
 		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();
@@ -485,30 +391,14 @@ void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (_mediaPreview->isHidden()) {
 		fixOrder();
 	}
-	_mediaPreview->showPreview(photo);
+	_mediaPreview->showPreview(origin, photo);
 }
 
-void MainWindow::ui_hideMediaPreview() {
-	if (!_mediaPreview) return;
+void MainWindow::hideMediaPreview() {
+	if (!_mediaPreview) {
+		return;
+	}
 	_mediaPreview->hidePreview();
-}
-
-void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
-	if (_connecting) {
-		_connecting->set(text, reconnect);
-		_connecting->show();
-	} else {
-		_connecting.create(bodyWidget(), text, reconnect);
-		_connecting->show();
-		updateControlsGeometry();
-		fixOrder();
-	}
-}
-
-void MainWindow::hideConnecting() {
-	if (_connecting) {
-		_connecting->hide();
-	}
 }
 
 void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
@@ -548,33 +438,37 @@ void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 
 bool MainWindow::doWeReadServerHistory() {
 	updateIsActive(0);
-	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadServerHistory();
+	return isActive()
+		&& !Ui::isLayerShown()
+		&& (_main ? _main->doWeReadServerHistory() : false);
 }
 
 bool MainWindow::doWeReadMentions() {
 	updateIsActive(0);
-	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadMentions();
+	return isActive()
+		&& !Ui::isLayerShown()
+		&& (_main ? _main->doWeReadMentions() : false);
 }
 
 void MainWindow::checkHistoryActivation() {
-	if (_main && doWeReadServerHistory()) {
+	if (doWeReadServerHistory()) {
 		_main->markActiveHistoryAsRead();
 	}
 }
 
 bool MainWindow::contentOverlapped(const QRect &globalRect) {
 	if (_main && _main->contentOverlapped(globalRect)) return true;
-	if (_layerBg && _layerBg->contentOverlapped(globalRect)) return true;
+	if (_layer && _layer->contentOverlapped(globalRect)) return true;
 	return false;
 }
 
 void MainWindow::setInnerFocus() {
 	if (_testingThemeWarning) {
 		_testingThemeWarning->setFocus();
-	} else if (_layerBg && _layerBg->canSetFocus()) {
-		_layerBg->setInnerFocus();
-	} else if (_passcode) {
-		_passcode->setInnerFocus();
+	} else if (_layer && _layer->canSetFocus()) {
+		_layer->setInnerFocus();
+	} else if (_passcodeLock) {
+		_passcodeLock->setInnerFocus();
 	} else if (_main) {
 		_main->setInnerFocus();
 	} else if (_intro) {
@@ -585,7 +479,9 @@ void MainWindow::setInnerFocus() {
 bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::KeyPress: {
-		if (cDebug() && e->type() == QEvent::KeyPress && object == windowHandle()) {
+		if (Logs::DebugEnabled()
+			&& (e->type() == QEvent::KeyPress)
+			&& object == windowHandle()) {
 			auto key = static_cast<QKeyEvent*>(e)->key();
 			FeedLangTestingKey(key);
 		}
@@ -599,12 +495,12 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	} break;
 
 	case QEvent::MouseButtonRelease: {
-		Ui::hideMediaPreview();
+		hideMediaPreview();
 	} break;
 
 	case QEvent::ApplicationActivate: {
 		if (object == QCoreApplication::instance()) {
-			InvokeQueued(this, [this] {
+			InvokeQueued(this, [=] {
 				handleActiveChanged();
 			});
 		}
@@ -672,7 +568,7 @@ void MainWindow::updateTrayMenu(bool force) {
 void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
-	if (App::self()) {
+	if (AuthSession::Exists()) {
 		Ui::show(Box<AddContactBox>(), LayerOption::KeepOther);
 	}
 }
@@ -680,7 +576,7 @@ void MainWindow::onShowAddContact() {
 void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (App::self()) {
+	if (AuthSession::Exists()) {
 		Ui::show(
 			Box<GroupInfoBox>(CreatingGroupGroup, false),
 			LayerOption::KeepOther);
@@ -698,11 +594,26 @@ void MainWindow::onShowNewChannel() {
 }
 
 void MainWindow::onLogout() {
-	if (isHidden()) showFromTray();
+	if (isHidden()) {
+		showFromTray();
+	}
 
-	Ui::show(Box<ConfirmBox>(lang(lng_sure_logout), lang(lng_settings_logout), st::attentionBoxButton, [] {
-		App::logOut();
-	}));
+	const auto logout = [] {
+		Messenger::Instance().logOut();
+	};
+	const auto callback = [=] {
+		if (AuthSession::Exists() && Auth().data().exportInProgress()) {
+			Ui::hideLayer();
+			Auth().data().stopExportWithConfirmation(logout);
+		} else {
+			logout();
+		}
+	};
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_sure_logout),
+		lang(lng_settings_logout),
+		st::attentionBoxButton,
+		callback));
 }
 
 void MainWindow::quitFromTray() {
@@ -729,36 +640,13 @@ void MainWindow::noIntro(Intro::Widget *was) {
 	}
 }
 
-void MainWindow::noLayerStack(Window::LayerStackWidget *was) {
-	if (was == _layerBg) {
-		_layerBg = nullptr;
-		if (controller()) {
-			controller()->disableGifPauseReason(
-				Window::GifPauseReason::Layer);
-		}
-	}
-}
-
-void MainWindow::layerFinishedHide(Window::LayerStackWidget *was) {
-	if (was == _layerBg) {
-		auto resetFocus = Ui::InFocusChain(was);
-		if (resetFocus) setFocus();
-		destroyLayerDelayed();
-		if (resetFocus) setInnerFocus();
-		InvokeQueued(this, [this] {
-			checkHistoryActivation();
-		});
-	}
-}
-
 bool MainWindow::takeThirdSectionFromLayer() {
-	return _layerBg ? _layerBg->takeToThirdSection() : false;
+	return _layer ? _layer->takeToThirdSection() : false;
 }
 
 void MainWindow::fixOrder() {
-	if (_layerBg) _layerBg->raise();
+	if (_layer) _layer->raise();
 	if (_mediaPreview) _mediaPreview->raise();
-	if (_connecting) _connecting->raise();
 	if (_testingThemeWarning) _testingThemeWarning->raise();
 }
 
@@ -796,7 +684,7 @@ bool MainWindow::skipTrayClick() const {
 }
 
 void MainWindow::toggleDisplayNotifyFromTray() {
-	if (App::passcoded()) {
+	if (Messenger::Instance().locked()) {
 		if (!isActive()) showFromTray();
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
@@ -845,12 +733,11 @@ void MainWindow::updateControlsGeometry() {
 	Platform::MainWindow::updateControlsGeometry();
 
 	auto body = bodyWidget()->rect();
-	if (_passcode) _passcode->setGeometry(body);
+	if (_passcodeLock) _passcodeLock->setGeometry(body);
 	if (_main) _main->setGeometry(body);
 	if (_intro) _intro->setGeometry(body);
-	if (_layerBg) _layerBg->setGeometry(body);
+	if (_layer) _layer->setGeometry(body);
 	if (_mediaPreview) _mediaPreview->setGeometry(body);
-	if (_connecting) _connecting->moveToLeft(0, body.height() - _connecting->height());
 	if (_testingThemeWarning) _testingThemeWarning->setGeometry(body);
 
 	if (_main) _main->checkMainSectionToLayer();
@@ -867,7 +754,7 @@ MainWindow::TempDirState MainWindow::localStorageState() {
 	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
-	return (Local::hasImages() || Local::hasStickers() || Local::hasWebFiles() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
+	return TempDirEmpty;
 }
 
 void MainWindow::tempDirDelete(int task) {
@@ -949,6 +836,8 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 	if (layer) {
 		if (size != 16 && size != 20 && size != 24) size = 32;
 
+		// platform/linux/main_window_linux depends on count used the same
+		// way for all the same (count % 1000) values.
 		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
 		QImage result(size, size, QImage::Format_ARGB32);
 		int32 cntSize = cnt.size();
@@ -996,6 +885,9 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 	}
 
 	QImage img(smallIcon ? ((size == 16) ? iconbig16 : (size == 32 ? iconbig32 : iconbig64)) : ((size == 16) ? icon16 : (size == 32 ? icon32 : icon64)));
+	if (AuthSession::Exists() && Auth().supportMode()) {
+		Window::ConvertIconToBlack(img);
+	}
 	if (!count) return img;
 
 	if (smallIcon) {
@@ -1008,7 +900,9 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 }
 
 void MainWindow::sendPaths() {
-	if (App::passcoded()) return;
+	if (Messenger::Instance().locked()) {
+		return;
+	}
 	Messenger::Instance().hideMediaView();
 	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_main) {

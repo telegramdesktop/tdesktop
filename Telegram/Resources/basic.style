@@ -40,7 +40,7 @@ lineWidth: 1px;
 
 defaultTextPalette: TextPalette {
 	linkFg: windowActiveTextFg;
-	monoFg: windowSubTextFg;
+	monoFg: msgInMonoFg;
 	selectBg: msgInBgSelected;
 	selectFg: transparent; // use painter current pen instead
 	selectLinkFg: historyLinkInFgSelected;
@@ -172,6 +172,21 @@ inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFgSelected;
 }
+inReplyTextPalette: TextPalette(inTextPalette) {
+	linkFg: msgInDateFg;
+}
+inReplyTextPaletteSelected: TextPalette(inTextPaletteSelected) {
+	linkFg: msgInDateFgSelected;
+}
+outReplyTextPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutDateFg;
+}
+outReplyTextPaletteSelected: TextPalette(outTextPaletteSelected) {
+	linkFg: msgOutDateFgSelected;
+}
+imgReplyTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgImgReplyBarColor;
+}
 inSemiboldPalette: TextPalette(inTextPalette) {
 	linkFg: msgInServiceFg;
 	selectFg: msgInServiceFgSelected;
@@ -181,6 +196,9 @@ outSemiboldPalette: TextPalette(outTextPalette) {
 	linkFg: msgOutServiceFg;
 	selectFg: msgOutServiceFgSelected;
 	selectLinkFg: msgOutServiceFgSelected;
+}
+historyComposeAreaPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyComposeAreaFgService;
 }
 
 mediaCaptionSkip: 5px;
@@ -215,8 +233,6 @@ emojiReplaceHeight: 56px;
 emojiReplaceInnerHeight: 42px;
 emojiReplacePadding: 14px;
 
-connectingPadding: margins(5px, 5px, 5px, 5px);
-
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
 dragColor: windowSubTextFg;
@@ -226,12 +242,6 @@ dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
-
-minPhotoSize: 100px;
-maxMediaSize: 430px;
-maxStickerSize: 256px;
-maxGifSize: 320px;
-maxSignatureSize: 144px;
 
 radialSize: size(50px, 50px);
 radialLine: 3px;
@@ -247,19 +257,6 @@ videoIcon: icon {
 	{ "media_video_play", videoPlayIconFg, point(12px, 12px) },
 };
 locationSize: size(320px, 240px);
-
-webPageLeft: 10px;
-webPageBar: 2px;
-webPageTitleFont: semiboldFont;
-webPageTitleStyle: semiboldTextStyle;
-webPageTitleOutFg: historyTextOutFg;
-webPageTitleInFg: historyTextInFg;
-webPageDescriptionOutFg: historyTextOutFg;
-webPageDescriptionInFg: historyTextInFg;
-webPageDescriptionFont: normalFont;
-webPageDescriptionStyle: defaultTextStyle;
-webPagePhotoSize: 100px;
-webPagePhotoDelta: 8px;
 
 mediaPlayerSuppressDuration: 150;
 

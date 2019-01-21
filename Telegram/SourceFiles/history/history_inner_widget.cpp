@@ -13,17 +13,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "history/history.h"
 #include "history/history_message.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_sticker.h"
+#include "history/media/history_media_web_page.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
-#include "ui/text_options.h"
+#include "history/view/history_view_context_menu.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/image/image.h"
+#include "ui/text_options.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "boxes/confirm_box.h"
+#include "boxes/report_box.h"
+#include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
@@ -36,6 +42,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_document.h"
+#include "data/data_poll.h"
+#include "data/data_photo.h"
 
 namespace {
 
@@ -586,7 +595,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				if (item->hasViews()) {
 					App::main()->scheduleViewIncrement(item);
 				}
-				if (item->mentionsMe() && item->isMediaUnread()) {
+				if (item->isUnreadMention() && !item->isUnreadMedia()) {
 					readMentions.insert(item);
 					_widget->enqueueMessageHighlight(view);
 				}
@@ -632,7 +641,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					if (item->hasViews()) {
 						App::main()->scheduleViewIncrement(item);
 					}
-					if (item->mentionsMe() && item->isMediaUnread()) {
+					if (item->isUnreadMention() && !item->isUnreadMedia()) {
 						readMentions.insert(item);
 						_widget->enqueueMessageHighlight(view);
 					}
@@ -946,7 +955,7 @@ void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	touchUpdateSpeed();
 }
 
-QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) {
+QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) const {
 	if (view) {
 		const auto top = itemTop(view);
 		p.setY(p.y() - top);
@@ -955,7 +964,9 @@ QPoint HistoryInner::mapPointToItem(QPoint p, const Element *view) {
 	return QPoint();
 }
 
-QPoint HistoryInner::mapPointToItem(QPoint p, const HistoryItem *item) {
+QPoint HistoryInner::mapPointToItem(
+		QPoint p,
+		const HistoryItem *item) const {
 	return item ? mapPointToItem(p, item->mainView()) : QPoint();
 }
 
@@ -1276,8 +1287,9 @@ void HistoryInner::mouseActionFinish(
 			}
 		}
 	}
-	if (App::pressedItem()) {
-		repaintItem(App::pressedItem());
+	const auto pressedItemView = App::pressedItem();
+	if (pressedItemView) {
+		repaintItem(pressedItemView);
 		App::pressedItem(nullptr);
 	}
 
@@ -1285,7 +1297,13 @@ void HistoryInner::mouseActionFinish(
 
 	if (activated) {
 		mouseActionCancel();
-		App::activateClickHandler(activated, button);
+		const auto pressedItemId = pressedItemView
+			? pressedItemView->data()->fullId()
+			: FullMsgId();
+		App::activateClickHandler(activated, {
+			button,
+			QVariant::fromValue(pressedItemId)
+		});
 		return;
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)
@@ -1448,7 +1466,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
 	const auto addItemActions = [&](HistoryItem *item) {
 		if (!item
@@ -1528,14 +1546,20 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					});
 				}
 				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-					saveDocumentToFile(document);
+					saveDocumentToFile(itemId, document);
 				}));
 			}
 		}
-		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
-			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link).append(" (%1)").arg(item->id), [=] {
-				_widget->copyPostLink(itemId);
-			});
+		if (item && isUponSelected != 2 && isUponSelected != -2) {
+			if (item->hasDirectLink()) {
+				_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link).append(" (%1)").arg(item->id), [=] {
+					_widget->copyPostLink(itemId);
+				});
+			} else if (item->history()->peer->isChannel()) {
+				_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link).append(" (tg:%1)").arg(item->id), [=] {
+					_widget->copyPostPrivateLink(itemId);
+				});
+			}
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
@@ -1562,6 +1586,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (item->canDelete()) {
 					_menu->addAction(lang(lng_context_delete_msg), [=] {
 						deleteItem(itemId);
+					});
+				}
+				if (item->suggestReport()) {
+					_menu->addAction(lang(lng_context_report_msg), [=] {
+						reportItem(itemId);
 					});
 				}
 			}
@@ -1596,6 +1625,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			&& item->canDelete()
 			&& (item->id > 0 || !item->serviceMsg());
 		const auto canForward = item && item->allowsForward();
+		const auto canReport = item && item->suggestReport();
 		const auto view = item ? item->mainView() : nullptr;
 
 		const auto msg = dynamic_cast<HistoryMessage*>(item);
@@ -1609,25 +1639,39 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		} else {
 			addItemActions(item);
 			if (item && !isUponSelected) {
-				auto mediaHasTextForCopy = false;
-				if (auto media = (view ? view->media() : nullptr)) {
-					mediaHasTextForCopy = media->hasTextForCopy();
-					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
-						media = static_cast<HistoryWebPage*>(media)->attach();
+				const auto media = (view ? view->media() : nullptr);
+				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
+				if (const auto document = media ? media->getDocument() : nullptr) {
+					if (document->sticker()) {
+						if (document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+							_menu->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
+								showStickerPackInfo(document);
+							});
+							_menu->addAction(lang(Stickers::IsFaved(document) ? lng_faved_stickers_remove : lng_faved_stickers_add), [=] {
+								Auth().api().toggleFavedSticker(
+									document,
+									itemId,
+									!Stickers::IsFaved(document));
+							});
+						}
+						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+							saveDocumentToFile(itemId, document);
+						}));
 					}
-					if (media->type() == MediaTypeSticker) {
-						if (auto document = media->getDocument()) {
-							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
-									showStickerPackInfo(document);
-								});
-								_menu->addAction(lang(Stickers::IsFaved(document) ? lng_faved_stickers_remove : lng_faved_stickers_add), [=] {
-									toggleFavedSticker(document);
+				}
+				if (const auto media = item->media()) {
+					if (const auto poll = media->poll()) {
+						if (!poll->closed) {
+							if (poll->voted()) {
+								_menu->addAction(lang(lng_polls_retract), [=] {
+									Auth().api().sendPollVotes(itemId, {});
 								});
 							}
-							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
-								saveDocumentToFile(document);
-							}));
+							if (item->canStopPoll()) {
+								_menu->addAction(lang(lng_polls_stop), [=] {
+									HistoryView::StopPoll(itemId);
+								});
+							}
 						}
 					}
 				}
@@ -1648,10 +1692,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				[text = link->copyToClipboardText()] {
 					QApplication::clipboard()->setText(text);
 				});
-		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
-			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link).append(" (%1)").arg(item->id), [=] {
-				_widget->copyPostLink(itemId);
-			});
+		} else if (item && isUponSelected != 2 && isUponSelected != -2) {
+			if (item->hasDirectLink()) {
+				_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link).append(" (%1)").arg(item->id), [=] {
+					_widget->copyPostLink(itemId);
+				});
+			} else if (item->history()->peer->isChannel()) {
+				_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link).append(" (tg:%1)").arg(item->id), [=] {
+					_widget->copyPostPrivateLink(itemId);
+				});
+			}
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
@@ -1674,10 +1724,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						forwardAsGroup(itemId);
 					});
 				}
-
 				if (canDelete) {
 					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), [=] {
 						deleteAsGroup(itemId);
+					});
+				}
+				if (canReport) {
+					_menu->addAction(lang(lng_context_report_msg), [=] {
+						reportAsGroup(itemId);
 					});
 				}
 			}
@@ -1727,14 +1781,15 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
+		this,
 		lang(lng_save_photo),
 		filter,
 		filedialogDefaultName(
 			qsl("photo"),
 			qsl(".jpg")),
-		base::lambda_guarded(this, [=](const QString &result) {
+		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
+				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
 			}
 		}));
 }
@@ -1742,22 +1797,11 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
 	if (!photo->date || !photo->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(photo->full->pix());
+	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
-	if (auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
-}
-
-void HistoryInner::toggleFavedSticker(not_null<DocumentData*> document) {
-	auto unfave = Stickers::IsFaved(document);
-	MTP::send(MTPmessages_FaveSticker(document->mtpInput(), MTP_bool(unfave)), rpcDone([document, unfave](const MTPBool &result) {
-		Stickers::SetFaved(document, !unfave);
-	}));
+	StickerSetBox::Show(document);
 }
 
 void HistoryInner::cancelContextDownload(not_null<DocumentData*> document) {
@@ -1772,8 +1816,10 @@ void HistoryInner::showContextInFolder(not_null<DocumentData*> document) {
 	}
 }
 
-void HistoryInner::saveDocumentToFile(not_null<DocumentData*> document) {
-	DocumentSaveClickHandler::doSave(document, true);
+void HistoryInner::saveDocumentToFile(
+		FullMsgId contextId,
+		not_null<DocumentData*> document) {
+	DocumentSaveClickHandler::Save(contextId, document, true);
 }
 
 void HistoryInner::openContextGif(FullMsgId itemId) {
@@ -1790,7 +1836,7 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				_widget->saveGif(document);
+				Auth().api().toggleSavedGif(document, item->fullId(), true);
 			}
 		}
 	}
@@ -1928,7 +1974,7 @@ void HistoryInner::recountHistoryGeometry() {
 			if (_migrated->blocks.back()->messages.back()->dateTime().date() == _history->blocks.front()->messages.front()->dateTime().date()) {
 				if (_migrated->blocks.back()->messages.back()->data()->isGroupMigrate() && _history->blocks.front()->messages.front()->data()->isGroupMigrate()) {
 					_historySkipHeight += _history->blocks.front()->messages.front()->height();
-				} else {
+				} else if (_migrated->height() > _history->blocks.front()->messages.front()->displayedDateHeight()) {
 					_historySkipHeight += _history->blocks.front()->messages.front()->displayedDateHeight();
 				}
 			}
@@ -2503,7 +2549,8 @@ void HistoryInner::mouseActionUpdate() {
 	}
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
-		|| dragState.cursor == CursorState::Forwarded) {
+		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
 
@@ -2899,6 +2946,22 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 	}
 }
 
+void HistoryInner::reportItem(FullMsgId itemId) {
+	Ui::show(Box<ReportBox>(_peer, MessageIdsList(1, itemId)));
+}
+
+void HistoryInner::reportAsGroup(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		const auto group = Auth().data().groups().find(item);
+		if (!group) {
+			return reportItem(itemId);
+		}
+		Ui::show(Box<ReportBox>(
+			_peer,
+			Auth().data().itemsToIds(group->items)));
+	}
+}
+
 void HistoryInner::addSelectionRange(
 		not_null<SelectedItems*> toItems,
 		not_null<History*> history,
@@ -3000,8 +3063,17 @@ QString HistoryInner::tooltipText() const {
 				return forwarded->text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
-	} else if (auto lnk = ClickHandler::getActive()) {
+	} else if (const auto lnk = ClickHandler::getActive()) {
 		return lnk->tooltip();
+	} else if (const auto view = App::mousedItem()) {
+		StateRequest request;
+		const auto local = mapFromGlobal(_mousePosition);
+		const auto point = _widget->clampMousePosition(local);
+		request.flags |= Text::StateRequest::Flag::LookupCustomTooltip;
+		const auto state = view->textState(
+			mapPointToItem(point, view),
+			request);
+		return state.customTooltipText;
 	}
 	return QString();
 }

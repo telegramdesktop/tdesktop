@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_privacy_controllers.h"
 
+#include "settings/settings_common.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
@@ -14,8 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "storage/localstorage.h"
 #include "history/history.h"
+#include "calls/calls_instance.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/wrap/vertical_layout.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
+#include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
 namespace {
@@ -26,7 +32,7 @@ class BlockUserBoxController : public ChatsListBoxController {
 public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	void setBlockUserCallback(base::lambda<void(not_null<UserData*> user)> callback) {
+	void setBlockUserCallback(Fn<void(not_null<UserData*> user)> callback) {
 		_blockUserCallback = std::move(callback);
 	}
 
@@ -41,7 +47,7 @@ protected:
 private:
 	void updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const;
 
-	base::lambda<void(not_null<UserData*> user)> _blockUserCallback;
+	Fn<void(not_null<UserData*> user)> _blockUserCallback;
 
 };
 
@@ -91,7 +97,7 @@ void BlockedBoxController::prepare() {
 	delegate()->peerListRefreshRows();
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
-		if (auto user = update.peer->asUser()) {
+		if (const auto user = update.peer->asUser()) {
 			handleBlockedEvent(user);
 		}
 	}));
@@ -163,7 +169,7 @@ void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &resul
 	delegate()->peerListRefreshRows();
 }
 
-void BlockedBoxController::handleBlockedEvent(UserData *user) {
+void BlockedBoxController::handleBlockedEvent(not_null<UserData*> user) {
 	if (user->isBlocked()) {
 		if (prependRow(user)) {
 			delegate()->peerListRefreshRows();
@@ -189,7 +195,7 @@ void BlockedBoxController::BlockNewUser() {
 		LayerOption::KeepOther);
 }
 
-bool BlockedBoxController::appendRow(UserData *user) {
+bool BlockedBoxController::appendRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -197,7 +203,7 @@ bool BlockedBoxController::appendRow(UserData *user) {
 	return true;
 }
 
-bool BlockedBoxController::prependRow(UserData *user) {
+bool BlockedBoxController::prependRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -205,22 +211,31 @@ bool BlockedBoxController::prependRow(UserData *user) {
 	return true;
 }
 
-std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) const {
+std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
+		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink(lang(lng_blocked_list_unblock));
-	auto status = [user]() -> QString {
-		if (user->botInfo) {
+	row->setActionLink(lang(user->botInfo
+		? lng_blocked_list_restart
+		: lng_blocked_list_unblock));
+	const auto status = [&] {
+		if (!user->phone().isEmpty()) {
+			return App::formatPhone(user->phone());
+		} else if (!user->username.isEmpty()) {
+			return '@' + user->username;
+		} else if (user->botInfo) {
 			return lang(lng_status_bot);
-		} else if (user->phone().isEmpty()) {
-			return lang(lng_blocked_list_unknown_phone);
 		}
-		return App::formatPhone(user->phone());
-	};
-	row->setCustomStatus(status());
+		return lang(lng_blocked_list_unknown_phone);
+	}();
+	row->setCustomStatus(status);
 	return std::move(row);
 }
 
-MTPInputPrivacyKey LastSeenPrivacyController::key() {
+ApiWrap::Privacy::Key LastSeenPrivacyController::key() {
+	return Key::LastSeen;
+}
+
+MTPInputPrivacyKey LastSeenPrivacyController::apiKey() {
 	return MTP_inputPrivacyKeyStatusTimestamp();
 }
 
@@ -228,18 +243,21 @@ QString LastSeenPrivacyController::title() {
 	return lang(lng_edit_privacy_lastseen_title);
 }
 
-QString LastSeenPrivacyController::description() {
-	return lang(lng_edit_privacy_lastseen_description);
+LangKey LastSeenPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_lastseen_header;
 }
 
-QString LastSeenPrivacyController::warning() {
-	return lang(lng_edit_privacy_lastseen_warning);
+rpl::producer<QString> LastSeenPrivacyController::warning() {
+	return Lang::Viewer(lng_edit_privacy_lastseen_warning);
 }
 
-QString LastSeenPrivacyController::exceptionLinkText(Exception exception, int count) {
+LangKey LastSeenPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
 	switch (exception) {
-	case Exception::Always: return (count > 0) ? lng_edit_privacy_lastseen_always(lt_count, count) : lang(lng_edit_privacy_lastseen_always_empty);
-	case Exception::Never: return (count > 0) ? lng_edit_privacy_lastseen_never(lt_count, count) : lang(lng_edit_privacy_lastseen_never_empty);
+	case Exception::Always:
+		return lng_edit_privacy_lastseen_always_empty;
+	case Exception::Never:
+		return lng_edit_privacy_lastseen_never_empty;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -252,11 +270,11 @@ QString LastSeenPrivacyController::exceptionBoxTitle(Exception exception) {
 	Unexpected("Invalid exception value.");
 }
 
-QString LastSeenPrivacyController::exceptionsDescription() {
-	return lang(lng_edit_privacy_lastseen_exceptions);
+rpl::producer<QString> LastSeenPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_lastseen_exceptions);
 }
 
-void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
+void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) {
 	if (someAreDisallowed && !Auth().settings().lastSeenWarningSeen()) {
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [weakBox, saveCallback = std::move(saveCallback)]() mutable {
@@ -274,7 +292,11 @@ void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda
 	}
 }
 
-MTPInputPrivacyKey GroupsInvitePrivacyController::key() {
+ApiWrap::Privacy::Key GroupsInvitePrivacyController::key() {
+	return Key::Invites;
+}
+
+MTPInputPrivacyKey GroupsInvitePrivacyController::apiKey() {
 	return MTP_inputPrivacyKeyChatInvite();
 }
 
@@ -286,14 +308,15 @@ bool GroupsInvitePrivacyController::hasOption(Option option) {
 	return (option != Option::Nobody);
 }
 
-QString GroupsInvitePrivacyController::description() {
-	return lang(lng_edit_privacy_groups_description);
+LangKey GroupsInvitePrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_groups_header;
 }
 
-QString GroupsInvitePrivacyController::exceptionLinkText(Exception exception, int count) {
+LangKey GroupsInvitePrivacyController::exceptionButtonTextKey(
+		Exception exception) {
 	switch (exception) {
-	case Exception::Always: return (count > 0) ? lng_edit_privacy_groups_always(lt_count, count) : lang(lng_edit_privacy_groups_always_empty);
-	case Exception::Never: return (count > 0) ? lng_edit_privacy_groups_never(lt_count, count) : lang(lng_edit_privacy_groups_never_empty);
+	case Exception::Always: return lng_edit_privacy_groups_always_empty;
+	case Exception::Never: return lng_edit_privacy_groups_never_empty;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -306,11 +329,16 @@ QString GroupsInvitePrivacyController::exceptionBoxTitle(Exception exception) {
 	Unexpected("Invalid exception value.");
 }
 
-QString GroupsInvitePrivacyController::exceptionsDescription() {
-	return lang(lng_edit_privacy_groups_exceptions);
+auto GroupsInvitePrivacyController::exceptionsDescription()
+-> rpl::producer<QString> {
+	return Lang::Viewer(lng_edit_privacy_groups_exceptions);
 }
 
-MTPInputPrivacyKey CallsPrivacyController::key() {
+ApiWrap::Privacy::Key CallsPrivacyController::key() {
+	return Key::Calls;
+}
+
+MTPInputPrivacyKey CallsPrivacyController::apiKey() {
 	return MTP_inputPrivacyKeyPhoneCall();
 }
 
@@ -318,14 +346,15 @@ QString CallsPrivacyController::title() {
 	return lang(lng_edit_privacy_calls_title);
 }
 
-QString CallsPrivacyController::description() {
-	return lang(lng_edit_privacy_calls_description);
+LangKey CallsPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_calls_header;
 }
 
-QString CallsPrivacyController::exceptionLinkText(Exception exception, int count) {
+LangKey CallsPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
 	switch (exception) {
-	case Exception::Always: return (count > 0) ? lng_edit_privacy_calls_always(lt_count, count) : lang(lng_edit_privacy_calls_always_empty);
-	case Exception::Never: return (count > 0) ? lng_edit_privacy_calls_never(lt_count, count) : lang(lng_edit_privacy_calls_never_empty);
+	case Exception::Always: return lng_edit_privacy_calls_always_empty;
+	case Exception::Never: return lng_edit_privacy_calls_never_empty;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -338,8 +367,59 @@ QString CallsPrivacyController::exceptionBoxTitle(Exception exception) {
 	Unexpected("Invalid exception value.");
 }
 
-QString CallsPrivacyController::exceptionsDescription() {
-	return lang(lng_edit_privacy_calls_exceptions);
+rpl::producer<QString> CallsPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_calls_exceptions);
+}
+
+ApiWrap::Privacy::Key CallsPeer2PeerPrivacyController::key() {
+	return Key::CallsPeer2Peer;
+}
+
+MTPInputPrivacyKey CallsPeer2PeerPrivacyController::apiKey() {
+	return MTP_inputPrivacyKeyPhoneP2P();
+}
+
+QString CallsPeer2PeerPrivacyController::title() {
+	return lang(lng_edit_privacy_calls_p2p_title);
+}
+
+LangKey CallsPeer2PeerPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_calls_p2p_header;
+}
+
+LangKey CallsPeer2PeerPrivacyController::optionLabelKey(
+		EditPrivacyBox::Option option) {
+	switch (option) {
+		case Option::Everyone: return lng_edit_privacy_calls_p2p_everyone;
+		case Option::Contacts: return lng_edit_privacy_calls_p2p_contacts;
+		case Option::Nobody: return lng_edit_privacy_calls_p2p_nobody;
+	}
+	Unexpected("Option value in optionsLabelKey.");
+}
+
+rpl::producer<QString> CallsPeer2PeerPrivacyController::warning() {
+	return Lang::Viewer(lng_settings_peer_to_peer_about);
+}
+
+LangKey CallsPeer2PeerPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_calls_p2p_always_empty;
+	case Exception::Never: return lng_edit_privacy_calls_p2p_never_empty;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPeer2PeerPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_calls_p2p_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_calls_p2p_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_calls_p2p_exceptions);
 }
 
 } // namespace Settings

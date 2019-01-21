@@ -93,6 +93,10 @@
 
   },
 
+  'defines': [
+    'TDESKTOP_DISABLE_CRASH_REPORTS',
+    'NOMINMAX'
+  ],
   'configurations': {
     'Debug': {
       'defines': [

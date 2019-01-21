@@ -10,23 +10,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/variable.h>
 #include "data/data_search_controller.h"
 #include "window/window_controller.h"
+#include "settings/settings_common.h"
 
 namespace Ui {
 class SearchFieldController;
 } // namespace Ui
 
 namespace Info {
+namespace Settings {
+
+struct Tag {
+	explicit Tag(not_null<UserData*> self) : self(self) {
+	}
+
+	not_null<UserData*> self;
+};
+
+} // namespace Settings
 
 class Key {
 public:
 	Key(not_null<PeerData*> peer);
 	Key(not_null<Data::Feed*> feed);
+	Key(Settings::Tag settings);
 
 	PeerData *peer() const;
 	Data::Feed *feed() const;
+	UserData *settingsSelf() const;
 
 private:
-	base::variant<not_null<PeerData*>, not_null<Data::Feed*>> _value;
+	base::variant<
+		not_null<PeerData*>,
+		not_null<Data::Feed*>,
+		Settings::Tag> _value;
 
 };
 
@@ -43,15 +59,21 @@ public:
 		CommonGroups,
 		Members,
 		Channels,
+		Settings,
 	};
+	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;
 
 	Section(Type type) : _type(type) {
-		Expects(type != Type::Media);
+		Expects(type != Type::Media && type != Type::Settings);
 	}
 	Section(MediaType mediaType)
 	: _type(Type::Media)
 	, _mediaType(mediaType) {
+	}
+	Section(SettingsType settingsType)
+	: _type(Type::Settings)
+	, _settingsType(settingsType) {
 	}
 
 	Type type() const {
@@ -59,12 +81,19 @@ public:
 	}
 	MediaType mediaType() const {
 		Expects(_type == Type::Media);
+
 		return _mediaType;
+	}
+	SettingsType settingsType() const {
+		Expects(_type == Type::Settings);
+
+		return _settingsType;
 	}
 
 private:
 	Type _type;
-	Storage::SharedMediaType _mediaType;
+	MediaType _mediaType = MediaType();
+	SettingsType _settingsType = SettingsType();
 
 };
 
@@ -92,6 +121,9 @@ public:
 	}
 	Data::Feed *feed() const {
 		return key().feed();
+	}
+	UserData *settingsSelf() const {
+		return key().settingsSelf();
 	}
 
 	virtual void setSearchEnabledByContent(bool enabled) {
@@ -156,6 +188,10 @@ public:
 		return base::take(_searchStartsFocused);
 	}
 
+	void setCanSaveChanges(rpl::producer<bool> can);
+	rpl::producer<bool> canSaveChanges() const;
+	bool canSaveChangesNow() const;
+
 	void saveSearchState(not_null<ContentMemento*> memento);
 
 	void showSection(
@@ -186,6 +222,7 @@ private:
 	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
 	std::unique_ptr<Api::DelayedSearchController> _searchController;
 	rpl::variable<bool> _seachEnabledByContent = false;
+	rpl::variable<bool> _canSaveChanges = false;
 	bool _searchStartsFocused = false;
 
 	rpl::lifetime _lifetime;

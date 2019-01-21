@@ -114,25 +114,22 @@ public:
 	}
 	bool unread() const;
 	bool mentionsMe() const {
-		if (cTagMention()) {
-			if ((history()->peer->isMegagroup() || history()->peer->isChat()) && !hasViews()) {
-				if (_text.originalText().contains("@everyuser", Qt::CaseInsensitive))
-					return true;
+		if ((history()->peer->isMegagroup() || history()->peer->isChat()) && !hasViews()) {
+			if (_text.originalText().contains("@admin", Qt::CaseInsensitive)) {
+				if (auto chat = history()->peer->asChat())
+					if (chat->amCreator())
+						return true;
 
-				if (_text.originalText().contains("@admin", Qt::CaseInsensitive)) {
-					if (auto chat = history()->peer->asChat())
-						if (chat->amCreator())
-							return true;
-
-					if (auto channel = history()->peer->asMegagroup())
-						if (channel->amCreator() || channel->hasAdminRights())
-							return true;
-				}
+				if (auto channel = history()->peer->asMegagroup())
+					if (channel->amCreator() || channel->hasAdminRights())
+						return true;
 			}
 		}
 		return _flags & MTPDmessage::Flag::f_mentioned;
 	}
-	bool isMediaUnread() const;
+	bool isUnreadMention() const;
+	bool isUnreadMedia() const;
+	bool hasUnreadMediaFlag() const;
 	void markMediaRead();
 
 	// Zero result means this message is not self-destructing right now.
@@ -200,7 +197,7 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	virtual QString inDialogsText(DrawInDialog way) const;
 	virtual QString inReplyText() const {
-		return notificationText();
+		return inDialogsText(DrawInDialog::WithoutSender);
 	}
 	virtual TextWithEntities originalText() const {
 		return { QString(), EntitiesInText() };
@@ -228,15 +225,18 @@ public:
 
 	bool isPinned() const;
 	bool canPin() const;
+	bool canStopPoll() const;
 	virtual bool allowsForward() const;
 	virtual bool allowsEdit(TimeId now) const;
 	bool canDelete() const;
 	bool canDeleteForEveryone(TimeId now) const;
+	bool suggestReport() const;
 	bool suggestBanReport() const;
 	bool suggestDeleteAllReport() const;
 
 	bool hasDirectLink() const;
 	QString directLink() const;
+	QString privateLink() const;
 
 	MsgId id;
 

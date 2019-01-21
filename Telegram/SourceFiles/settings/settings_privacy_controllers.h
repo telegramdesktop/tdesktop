@@ -24,11 +24,11 @@ public:
 
 private:
 	void receivedUsers(const QVector<MTPContactBlocked> &result);
-	void handleBlockedEvent(UserData *user);
+	void handleBlockedEvent(not_null<UserData*> user);
 
-	bool appendRow(UserData *user);
-	bool prependRow(UserData *user);
-	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
+	bool appendRow(not_null<UserData*> user);
+	bool prependRow(not_null<UserData*> user);
+	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
@@ -41,16 +41,17 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	MTPInputPrivacyKey key() override;
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
-	QString description() override;
-	QString warning() override;
-	QString exceptionLinkText(Exception exception, int count) override;
+	LangKey optionsTitleKey() override;
+	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
 	QString exceptionBoxTitle(Exception exception) override;
-	QString exceptionsDescription() override;
+	rpl::producer<QString> exceptionsDescription() override;
 
-	void confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) override;
+	void confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) override;
 
 };
 
@@ -59,14 +60,15 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	MTPInputPrivacyKey key() override;
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
 	bool hasOption(Option option) override;
-	QString description() override;
-	QString exceptionLinkText(Exception exception, int count) override;
+	LangKey optionsTitleKey() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
 	QString exceptionBoxTitle(Exception exception) override;
-	QString exceptionsDescription() override;
+	rpl::producer<QString> exceptionsDescription() override;
 
 };
 
@@ -75,13 +77,32 @@ public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	MTPInputPrivacyKey key() override;
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
-	QString description() override;
-	QString exceptionLinkText(Exception exception, int count) override;
+	LangKey optionsTitleKey() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
 	QString exceptionBoxTitle(Exception exception) override;
-	QString exceptionsDescription() override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+};
+
+class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	QString title() override;
+	LangKey optionsTitleKey() override;
+	LangKey optionLabelKey(EditPrivacyBox::Option option) override;
+	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
 
 };
 

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_media_types.h"
 #include "window/window_controller.h"
+#include "core/shortcuts.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "auth_session.h"
@@ -54,27 +55,29 @@ Instance::Instance()
 	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
 	});
-	subscribe(Global::RefSelfChanged(), [this] {
-		if (!App::self()) {
-			handleLogout();
-		}
-	});
 
 	// While we have one Media::Player::Instance for all authsessions we have to do this.
-	auto handleAuthSessionChange = [this] {
+	const auto handleAuthSessionChange = [=] {
 		if (AuthSession::Exists()) {
-			subscribe(Auth().calls().currentCallChanged(), [this](Calls::Call *call) {
+			subscribe(Auth().calls().currentCallChanged(), [=](Calls::Call *call) {
 				if (call) {
-					pause(AudioMsgId::Type::Voice);
-					pause(AudioMsgId::Type::Song);
+					pauseOnCall(AudioMsgId::Type::Voice);
+					pauseOnCall(AudioMsgId::Type::Song);
+				} else {
+					resumeOnCall(AudioMsgId::Type::Voice);
+					resumeOnCall(AudioMsgId::Type::Song);
 				}
 			});
+		} else {
+			handleLogout();
 		}
 	};
-	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
-		handleAuthSessionChange();
-	});
+	subscribe(
+		Messenger::Instance().authSessionChanged(),
+		handleAuthSessionChange);
 	handleAuthSessionChange();
+
+	setupShortcuts();
 }
 
 AudioMsgId::Type Instance::getActiveType() const {
@@ -130,7 +133,7 @@ void Instance::playlistUpdated(not_null<Data*> data) {
 		const auto fullId = data->current.contextId();
 		data->playlistIndex = data->playlistSlice->indexOf(fullId);
 	} else {
-		data->playlistIndex = base::none;
+		data->playlistIndex = std::nullopt;
 	}
 	data->playlistChanges.fire({});
 }
@@ -149,7 +152,7 @@ bool Instance::validPlaylist(not_null<Data*> data) {
 			return [&](const SparseIdsMergedSlice &data) {
 				return inSameDomain(a, b)
 					? data.distance(a, b)
-					: base::optional<int>();
+					: std::optional<int>();
 			};
 		};
 
@@ -183,14 +186,14 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 			playlistUpdated(data);
 		}, data->playlistLifetime);
 	} else {
-		data->playlistSlice = base::none;
-		data->playlistSliceKey = data->playlistRequestedKey = base::none;
+		data->playlistSlice = std::nullopt;
+		data->playlistSliceKey = data->playlistRequestedKey = std::nullopt;
 		playlistUpdated(data);
 	}
 }
 
 auto Instance::playlistKey(not_null<Data*> data) const
--> base::optional<SliceKey> {
+-> std::optional<SliceKey> {
 	const auto contextId = data->current.contextId();
 	const auto history = data->history;
 	if (!contextId || !history || !IsServerMsgId(contextId.msg)) {
@@ -238,7 +241,8 @@ bool Instance::moveInPlaylist(
 					|| document->isVideoMessage()) {
 					play(AudioMsgId(document, item->fullId()));
 				} else {
-					//DocumentOpenClickHandler::doOpen(
+					//DocumentOpenClickHandler::Open(
+					//	item->fullId(),
 					//	document,
 					//	item,
 					//	ActionOnLoadPlayInline);
@@ -291,6 +295,9 @@ void Instance::play(AudioMsgId::Type type) {
 			play(data->current);
 		}
 	}
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = false;
+	}
 }
 
 void Instance::play(const AudioMsgId &audioId) {
@@ -315,21 +322,24 @@ void Instance::play(const AudioMsgId &audioId) {
 }
 
 void Instance::pause(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
+	const auto state = mixer()->currentState(type);
 	if (state.id) {
 		mixer()->pause(state.id);
 	}
 }
 
 void Instance::stop(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
+	const auto state = mixer()->currentState(type);
 	if (state.id) {
 		mixer()->stop(state.id);
+	}
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = false;
 	}
 }
 
 void Instance::playPause(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
+	const auto state = mixer()->currentState(type);
 	if (state.id) {
 		if (IsStopped(state.state)) {
 			play(state.id);
@@ -343,17 +353,43 @@ void Instance::playPause(AudioMsgId::Type type) {
 			play(data->current);
 		}
 	}
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = false;
+	}
+}
+
+void Instance::pauseOnCall(AudioMsgId::Type type) {
+	const auto state = mixer()->currentState(type);
+	if (!state.id
+		|| IsStopped(state.state)
+		|| IsPaused(state.state)
+		|| state.state == State::Pausing) {
+		return;
+	}
+	pause(type);
+	if (const auto data = getData(type)) {
+		data->resumeOnCallEnd = true;
+	}
+}
+
+void Instance::resumeOnCall(AudioMsgId::Type type) {
+	if (const auto data = getData(type)) {
+		if (data->resumeOnCallEnd) {
+			data->resumeOnCallEnd = false;
+			play(type);
+		}
+	}
 }
 
 bool Instance::next(AudioMsgId::Type type) {
-	if (auto data = getData(type)) {
+	if (const auto data = getData(type)) {
 		return moveInPlaylist(data, 1, false);
 	}
 	return false;
 }
 
 bool Instance::previous(AudioMsgId::Type type) {
-	if (auto data = getData(type)) {
+	if (const auto data = getData(type)) {
 		return moveInPlaylist(data, -1, false);
 	}
 	return false;
@@ -440,9 +476,10 @@ void Instance::preloadNext(not_null<Data*> data) {
 				const auto isLoaded = document->loaded(
 					DocumentData::FilePathResolveSaveFromDataSilent);
 				if (!isLoaded) {
-					DocumentOpenClickHandler::doOpen(
+					DocumentOpenClickHandler::Open(
+						item->fullId(),
 						document,
-						nullptr,
+						item,
 						ActionOnLoadNone);
 				}
 			}
@@ -458,6 +495,37 @@ void Instance::handleLogout() {
 	reset(AudioMsgId::Type::Voice);
 	reset(AudioMsgId::Type::Song);
 	_usePanelPlayer.notify(false, true);
+}
+
+void Instance::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::MediaPlay) && request->handle([=] {
+			play();
+			return true;
+		});
+		request->check(Command::MediaPause) && request->handle([=] {
+			pause();
+			return true;
+		});
+		request->check(Command::MediaPlayPause) && request->handle([=] {
+			playPause();
+			return true;
+		});
+		request->check(Command::MediaStop) && request->handle([=] {
+			stop();
+			return true;
+		});
+		request->check(Command::MediaPrevious) && request->handle([=] {
+			previous();
+			return true;
+		});
+		request->check(Command::MediaNext) && request->handle([=] {
+			next();
+			return true;
+		});
+	}, _lifetime);
 }
 
 } // namespace Player

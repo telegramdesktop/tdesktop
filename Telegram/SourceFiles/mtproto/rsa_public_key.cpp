@@ -8,10 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 
 #include "base/openssl_help.h"
+
+extern "C" {
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+} // extern "C"
 
 namespace MTP {
 namespace internal {
@@ -59,7 +62,7 @@ enum class Format {
 	Unknown,
 };
 
-Format GuessFormat(base::const_byte_span key) {
+Format GuessFormat(bytes::const_span key) {
 	const auto array = QByteArray::fromRawData(
 		reinterpret_cast<const char*>(key.data()),
 		key.size());
@@ -71,7 +74,7 @@ Format GuessFormat(base::const_byte_span key) {
 	return Format::Unknown;
 }
 
-RSA *CreateRaw(base::const_byte_span key) {
+RSA *CreateRaw(bytes::const_span key) {
 	const auto format = GuessFormat(key);
 	const auto bio = BIO_new_mem_buf(
 		const_cast<gsl::byte*>(key.data()),
@@ -89,13 +92,13 @@ RSA *CreateRaw(base::const_byte_span key) {
 
 class RSAPublicKey::Private {
 public:
-	Private(base::const_byte_span key)
+	Private(bytes::const_span key)
 	: _rsa(CreateRaw(key)) {
 		if (_rsa) {
 			computeFingerprint();
 		}
 	}
-	Private(base::const_byte_span nBytes, base::const_byte_span eBytes)
+	Private(bytes::const_span nBytes, bytes::const_span eBytes)
 	: _rsa(RSA_new()) {
 		if (_rsa) {
 			auto n = openssl::BigNum(nBytes).takeRaw();
@@ -110,14 +113,16 @@ public:
 			}
 		}
 	}
-	base::byte_vector getN() const {
+	bytes::vector getN() const {
 		Expects(isValid());
+
 		const BIGNUM *n;
 		RSA_get0_key(_rsa, &n, nullptr, nullptr);
 		return toBytes(n);
 	}
-	base::byte_vector getE() const {
+	bytes::vector getE() const {
 		Expects(isValid());
+
 		const BIGNUM *e;
 		RSA_get0_key(_rsa, nullptr, &e, nullptr);
 		return toBytes(e);
@@ -128,37 +133,60 @@ public:
 	bool isValid() const {
 		return _rsa != nullptr;
 	}
-	base::byte_vector encrypt(base::const_byte_span data) const {
+	bytes::vector encrypt(bytes::const_span data) const {
 		Expects(isValid());
 
 		constexpr auto kEncryptSize = 256;
-		auto result = base::byte_vector(kEncryptSize, gsl::byte {});
+		auto result = bytes::vector(kEncryptSize, gsl::byte {});
 		auto res = RSA_public_encrypt(kEncryptSize, reinterpret_cast<const unsigned char*>(data.data()), reinterpret_cast<unsigned char*>(result.data()), _rsa, RSA_NO_PADDING);
 		if (res < 0 || res > kEncryptSize) {
 			ERR_load_crypto_strings();
 			LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(getFingerPrint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
-			return base::byte_vector();
+			return {};
 		} else if (auto zeroBytes = kEncryptSize - res) {
 			auto resultBytes = gsl::make_span(result);
-			base::move_bytes(resultBytes.subspan(zeroBytes, res), resultBytes.subspan(0, res));
-			base::set_bytes(resultBytes.subspan(0, zeroBytes), gsl::byte {});
+			bytes::move(resultBytes.subspan(zeroBytes, res), resultBytes.subspan(0, res));
+			bytes::set_with_const(resultBytes.subspan(0, zeroBytes), gsl::byte {});
 		}
 		return result;
 	}
-	base::byte_vector decrypt(base::const_byte_span data) const {
+	bytes::vector decrypt(bytes::const_span data) const {
 		Expects(isValid());
 
 		constexpr auto kDecryptSize = 256;
-		auto result = base::byte_vector(kDecryptSize, gsl::byte {});
+		auto result = bytes::vector(kDecryptSize, gsl::byte {});
 		auto res = RSA_public_decrypt(kDecryptSize, reinterpret_cast<const unsigned char*>(data.data()), reinterpret_cast<unsigned char*>(result.data()), _rsa, RSA_NO_PADDING);
 		if (res < 0 || res > kDecryptSize) {
 			ERR_load_crypto_strings();
 			LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(getFingerPrint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
-			return base::byte_vector();
+			return {};
 		} else if (auto zeroBytes = kDecryptSize - res) {
 			auto resultBytes = gsl::make_span(result);
-			base::move_bytes(resultBytes.subspan(zeroBytes - res, res), resultBytes.subspan(0, res));
-			base::set_bytes(resultBytes.subspan(0, zeroBytes - res), gsl::byte {});
+			bytes::move(resultBytes.subspan(zeroBytes - res, res), resultBytes.subspan(0, res));
+			bytes::set_with_const(resultBytes.subspan(0, zeroBytes - res), gsl::byte {});
+		}
+		return result;
+	}
+	bytes::vector encryptOAEPpadding(bytes::const_span data) const {
+		Expects(isValid());
+
+		const auto resultSize = RSA_size(_rsa);
+		auto result = bytes::vector(resultSize, gsl::byte{});
+		const auto encryptedSize = RSA_public_encrypt(
+			data.size(),
+			reinterpret_cast<const unsigned char*>(data.data()),
+			reinterpret_cast<unsigned char*>(result.data()),
+			_rsa,
+			RSA_PKCS1_OAEP_PADDING);
+		if (encryptedSize != resultSize) {
+			ERR_load_crypto_strings();
+			LOG(("RSA Error: RSA_public_encrypt failed, "
+				"key fp: %1, result: %2, error: %3"
+				).arg(getFingerPrint()
+				).arg(encryptedSize
+				).arg(ERR_error_string(ERR_get_error(), 0)
+				));
+			return {};
 		}
 		return result;
 	}
@@ -179,9 +207,9 @@ private:
 		uchar sha1Buffer[20];
 		_fingerprint = *(uint64*)(hashSha1(&string[0], string.size() * sizeof(mtpPrime), sha1Buffer) + 3);
 	}
-	static base::byte_vector toBytes(const BIGNUM *number) {
+	static bytes::vector toBytes(const BIGNUM *number) {
 		auto size = BN_num_bytes(number);
-		auto result = base::byte_vector(size, gsl::byte {});
+		auto result = bytes::vector(size, gsl::byte {});
 		BN_bn2bin(number, reinterpret_cast<unsigned char*>(result.data()));
 		return result;
 	}
@@ -191,13 +219,13 @@ private:
 
 };
 
-RSAPublicKey::RSAPublicKey(base::const_byte_span key)
+RSAPublicKey::RSAPublicKey(bytes::const_span key)
 : _private(std::make_shared<Private>(key)) {
 }
 
 RSAPublicKey::RSAPublicKey(
-	base::const_byte_span nBytes,
-	base::const_byte_span eBytes)
+	bytes::const_span nBytes,
+	bytes::const_span eBytes)
 : _private(std::make_shared<Private>(nBytes, eBytes)) {
 }
 
@@ -210,24 +238,33 @@ uint64 RSAPublicKey::getFingerPrint() const {
 	return _private->getFingerPrint();
 }
 
-base::byte_vector RSAPublicKey::getN() const {
+bytes::vector RSAPublicKey::getN() const {
 	Expects(isValid());
+
 	return _private->getN();
 }
 
-base::byte_vector RSAPublicKey::getE() const {
+bytes::vector RSAPublicKey::getE() const {
 	Expects(isValid());
+
 	return _private->getE();
 }
 
-base::byte_vector RSAPublicKey::encrypt(base::const_byte_span data) const {
+bytes::vector RSAPublicKey::encrypt(bytes::const_span data) const {
 	Expects(isValid());
+
 	return _private->encrypt(data);
 }
 
-base::byte_vector RSAPublicKey::decrypt(base::const_byte_span data) const {
+bytes::vector RSAPublicKey::decrypt(bytes::const_span data) const {
 	Expects(isValid());
+
 	return _private->decrypt(data);
+}
+
+bytes::vector RSAPublicKey::encryptOAEPpadding(
+		bytes::const_span data) const {
+	return _private->encryptOAEPpadding(data);
 }
 
 } // namespace internal

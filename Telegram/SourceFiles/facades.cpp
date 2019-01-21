@@ -24,33 +24,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
+#include "history/media/history_media.h"
 #include "styles/style_history.h"
 #include "data/data_session.h"
 
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda_once<void()> &&lambda) {
+void CallDelayed(int duration, FnMut<void()> &&lambda) {
 	Messenger::Instance().callDelayed(duration, std::move(lambda));
 }
 
 } // namespace internal
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
-	if (auto m = main()) {
+	if (auto m = App::main()) {
 		m->sendBotCommand(peer, bot, cmd, replyTo);
 	}
 }
 
 void hideSingleUseKeyboard(const HistoryItem *msg) {
-	if (auto m = main()) {
+	if (auto m = App::main()) {
 		m->hideSingleUseKeyboard(msg->history()->peer, msg->id);
 	}
 }
 
 bool insertBotCommand(const QString &cmd) {
-	if (auto m = main()) {
+	if (auto m = App::main()) {
 		return m->insertBotCommand(cmd);
 	}
 	return false;
@@ -82,7 +82,7 @@ void activateBotCommand(
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
-		if (auto m = main()) {
+		if (auto m = App::main()) {
 			m->app_sendBotCallback(button, msg, row, column);
 		}
 	} break;
@@ -100,9 +100,9 @@ void activateBotCommand(
 			}
 		}
 		if (skipConfirmation) {
-			UrlClickHandler::doOpen(url);
+			UrlClickHandler::Open(url);
 		} else {
-			HiddenUrlClickHandler::doOpen(url);
+			HiddenUrlClickHandler::Open(url);
 		}
 	} break;
 
@@ -119,7 +119,7 @@ void activateBotCommand(
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 			auto options = ApiWrap::SendOptions(history);
 			options.replyTo = msgId;
-			Auth().api().shareContact(App::self(), options);
+			Auth().api().shareContact(Auth().user(), options);
 		}));
 	} break;
 
@@ -149,7 +149,7 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (const auto m = main()) {
+	if (const auto m = App::main()) {
 		Ui::hideSettingsAndLayer();
 		Messenger::Instance().hideMediaView();
 		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
@@ -163,30 +163,20 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	}
 }
 
-void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
-	if (MainWidget *m = main()) m->openPeerByName(username, msgId, startToken);
-}
-
-void joinGroupByHash(const QString &hash) {
-	if (MainWidget *m = main()) m->joinGroupByHash(hash);
-}
-
 void showSettings() {
-	if (auto w = wnd()) {
+	if (auto w = App::wnd()) {
 		w->showSettings();
 	}
 }
 
-void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	crl::on_main(wnd(), [handler, button] {
-		handler->onClick(button);
+void activateClickHandler(ClickHandlerPtr handler, ClickContext context) {
+	crl::on_main(App::wnd(), [=] {
+		handler->onClick(context);
 	});
 }
 
-void logOutDelayed() {
-	InvokeQueued(QCoreApplication::instance(), [] {
-		App::logOut();
-	});
+void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
+	activateClickHandler(handler, ClickContext{ button });
 }
 
 } // namespace App
@@ -205,21 +195,17 @@ void showBox(
 
 } // namespace internal
 
-void showMediaPreview(DocumentData *document) {
+void showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) {
 	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(document);
+		w->ui_showMediaPreview(origin, document);
 	}
 }
 
-void showMediaPreview(PhotoData *photo) {
+void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo) {
 	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(photo);
-	}
-}
-
-void hideMediaPreview() {
-	if (auto w = App::wnd()) {
-		w->ui_hideMediaPreview();
+		w->ui_showMediaPreview(origin, photo);
 	}
 }
 
@@ -371,67 +357,147 @@ uint64 SandboxUserTag = 0;
 
 namespace Sandbox {
 
-bool CheckBetaVersionDir() {
-	QFile beta(cExeDir() + qsl("TelegramBeta_data/tdata/beta"));
-	if (cBetaVersion()) {
-		cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
-		QDir().mkpath(cWorkingDir() + qstr("tdata"));
-		if (*BetaPrivateKey) {
-			cSetBetaPrivateKey(QByteArray(BetaPrivateKey));
-		}
-		if (beta.open(QIODevice::WriteOnly)) {
-			QDataStream dataStream(&beta);
-			dataStream.setVersion(QDataStream::Qt_5_3);
-			dataStream << quint64(cRealBetaVersion()) << cBetaPrivateKey();
-		} else {
-			LOG(("FATAL: Could not open '%1' for writing private key!").arg(beta.fileName()));
-			return false;
-		}
-	} else if (beta.exists()) {
-		cForceWorkingDir(cExeDir() + qsl("TelegramBeta_data/"));
-		if (beta.open(QIODevice::ReadOnly)) {
-			QDataStream dataStream(&beta);
-			dataStream.setVersion(QDataStream::Qt_5_3);
-
-			quint64 v;
-			QByteArray k;
-			dataStream >> v >> k;
-			if (dataStream.status() == QDataStream::Ok && !k.isEmpty()) {
-				cSetBetaVersion(AppVersion * 1000ULL);
-				cSetBetaPrivateKey(k);
-				cSetRealBetaVersion(v);
-			} else {
-				LOG(("FATAL: '%1' is corrupted, reinstall private beta!").arg(beta.fileName()));
+bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
+	const auto was = cExeDir() + folder;
+	const auto now = cExeDir() + qsl("TelegramForcePortable");
+	if (QDir(was).exists() && !QDir(now).exists()) {
+		const auto oldFile = was + "/tdata/" + file;
+		const auto newFile = was + "/tdata/alpha";
+		if (QFile(oldFile).exists() && !QFile(newFile).exists()) {
+			if (!QFile(oldFile).copy(newFile)) {
+				LOG(("FATAL: Could not copy '%1' to '%2'"
+					).arg(oldFile
+					).arg(newFile));
 				return false;
 			}
-		} else {
-			LOG(("FATAL: could not open '%1' for reading private key!").arg(beta.fileName()));
+		}
+		if (!QDir().rename(was, now)) {
+			LOG(("FATAL: Could not rename '%1' to '%2'"
+				).arg(was
+				).arg(now));
 			return false;
 		}
 	}
 	return true;
 }
 
-void WorkingDirReady() {
+bool MoveLegacyAlphaFolder() {
+	if (!MoveLegacyAlphaFolder(qsl("TelegramAlpha_data"), qsl("alpha"))
+		|| !MoveLegacyAlphaFolder(qsl("TelegramBeta_data"), qsl("beta"))) {
+		return false;
+	}
+	return true;
+}
+
+bool CheckPortableVersionDir() {
+	if (!MoveLegacyAlphaFolder()) {
+		return false;
+	}
+
+	const auto portable = cExeDir() + qsl("TelegramForcePortable");
+	QFile key(portable + qsl("/tdata/alpha"));
+	if (cAlphaVersion()) {
+		Assert(*AlphaPrivateKey != 0);
+
+		cForceWorkingDir(portable + '/');
+		QDir().mkpath(cWorkingDir() + qstr("tdata"));
+		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
+		if (!key.open(QIODevice::WriteOnly)) {
+			LOG(("FATAL: Could not open '%1' for writing private key!"
+				).arg(key.fileName()));
+			return false;
+		}
+		QDataStream dataStream(&key);
+		dataStream.setVersion(QDataStream::Qt_5_3);
+		dataStream << quint64(cRealAlphaVersion()) << cAlphaPrivateKey();
+		return true;
+	}
+	if (!QDir(portable).exists()) {
+		return true;
+	}
+	cForceWorkingDir(portable + '/');
+	if (!key.exists()) {
+		return true;
+	}
+
+	if (!key.open(QIODevice::ReadOnly)) {
+		LOG(("FATAL: could not open '%1' for reading private key. "
+			"Delete it or reinstall private alpha version."
+			).arg(key.fileName()));
+		return false;
+	}
+	QDataStream dataStream(&key);
+	dataStream.setVersion(QDataStream::Qt_5_3);
+
+	quint64 v;
+	QByteArray k;
+	dataStream >> v >> k;
+	if (dataStream.status() != QDataStream::Ok || k.isEmpty()) {
+		LOG(("FATAL: '%1' is corrupted. "
+			"Delete it or reinstall private alpha version."
+			).arg(key.fileName()));
+		return false;
+	}
+	cSetAlphaVersion(AppVersion * 1000ULL);
+	cSetAlphaPrivateKey(k);
+	cSetRealAlphaVersion(v);
+	return true;
+}
+
+QString InstallBetaVersionsSettingPath() {
+	return cWorkingDir() + qsl("tdata/devversion");
+}
+
+void WriteInstallBetaVersionsSetting() {
+	QFile f(InstallBetaVersionsSettingPath());
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(cInstallBetaVersion() ? "1" : "0");
+	}
+}
+
+QString DebugModeSettingPath() {
+	return cWorkingDir() + qsl("tdata/withdebug");
+}
+
+void WriteDebugModeSetting() {
+	QFile f(DebugModeSettingPath());
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(Logs::DebugEnabled() ? "1" : "0");
+	}
+}
+
+void ComputeTestMode() {
 	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
 		cSetTestMode(true);
 	}
-	if (!cDebug() && QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
-		cSetDebug(true);
-	}
-	if (cBetaVersion()) {
-		cSetAlphaVersion(false);
-	} else if (!cAlphaVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
-		cSetAlphaVersion(true);
-	} else if (AppAlphaVersion) {
-		QFile f(cWorkingDir() + qsl("tdata/devversion"));
-		if (!f.exists() && f.open(QIODevice::WriteOnly)) {
-			f.write("1");
+}
+
+void ComputeDebugMode() {
+	Logs::SetDebugEnabled(cAlphaVersion() != 0);
+	const auto debugModeSettingPath = DebugModeSettingPath();
+	if (QFile(debugModeSettingPath).exists()) {
+		QFile f(debugModeSettingPath);
+		if (f.open(QIODevice::ReadOnly)) {
+			Logs::SetDebugEnabled(f.read(1) != "0");
 		}
 	}
+}
 
-	srand((int32)time(NULL));
+void ComputeInstallBetaVersions() {
+	const auto installBetaSettingPath = InstallBetaVersionsSettingPath();
+	if (cAlphaVersion()) {
+		cSetInstallBetaVersion(false);
+	} else if (QFile(installBetaSettingPath).exists()) {
+		QFile f(installBetaSettingPath);
+		if (f.open(QIODevice::ReadOnly)) {
+			cSetInstallBetaVersion(f.read(1) != "0");
+		}
+	} else if (AppBetaVersion) {
+		WriteInstallBetaVersionsSetting();
+	}
+}
 
+void ComputeUserTag() {
 	SandboxUserTag = 0;
 	QFile usertag(cWorkingDir() + qsl("tdata/usertag"));
 	if (usertag.open(QIODevice::ReadOnly)) {
@@ -450,6 +516,15 @@ void WorkingDirReady() {
 			usertag.close();
 		}
 	}
+}
+
+void WorkingDirReady() {
+	srand((int32)time(NULL));
+
+	ComputeTestMode();
+	ComputeDebugMode();
+	ComputeInstallBetaVersions();
+	ComputeUserTag();
 }
 
 void start() {
@@ -527,8 +602,13 @@ struct Data {
 	int32 CallRingTimeoutMs = 90000;
 	int32 CallConnectTimeoutMs = 30000;
 	int32 CallPacketTimeoutMs = 10000;
+	int32 WebFileDcId = cTestMode() ? 2 : 4;
+	QString TxtDomainString = cTestMode()
+		? qsl("testapv2.stel.com")
+		: qsl("apv2.stel.com");
 	bool PhoneCallsEnabled = true;
 	bool BlockedMode = false;
+	int32 CaptionLengthMax = 1024;
 	base::Observable<void> PhoneCallsEnabledChanged;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
@@ -546,18 +626,19 @@ struct Data {
 
 	CircleMasksMap CircleMasks;
 
-	base::Observable<void> SelfChanged;
-
 	bool AskDownloadPath = false;
 	QString DownloadPath;
 	QByteArray DownloadPathBookmark;
 	base::Observable<void> DownloadPathChanged;
 
+	bool ReplaceEmoji = true;
+	bool SuggestEmoji = true;
 	bool SuggestStickersByEmoji = true;
+	base::Observable<void> ReplaceEmojiChanged;
+	bool VoiceMsgPlaybackDoubled = false;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
 	bool RestoreSoundNotifyFromTray = false;
-	bool IncludeMuted = false;
 	DBINotifyView NotifyView = dbinvShowPreview;
 	bool NativeNotifications = false;
 	int NotificationsCount = 3;
@@ -567,7 +648,7 @@ struct Data {
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
 	std::vector<ProxyData> ProxiesList;
 	ProxyData SelectedProxy;
-	bool UseProxy = false;
+	ProxyData::Settings ProxySettings = ProxyData::Settings::System;
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
@@ -575,11 +656,20 @@ struct Data {
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
 
-	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowOnly };
+#ifdef Q_OS_WIN
+    base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
+#else
+    base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowOnly };
+#endif // Q_OS_WIN
 
 	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
 
+	QString CallOutputDeviceID = qsl("default");
+	QString CallInputDeviceID = qsl("default");
+	int CallOutputVolume = 100;
+	int CallInputVolume = 100;
+	bool CallAudioDuckingEnabled = true;
 };
 
 } // namespace internal
@@ -652,8 +742,11 @@ DefineVar(Global, int32, CallReceiveTimeoutMs);
 DefineVar(Global, int32, CallRingTimeoutMs);
 DefineVar(Global, int32, CallConnectTimeoutMs);
 DefineVar(Global, int32, CallPacketTimeoutMs);
+DefineVar(Global, int32, WebFileDcId);
+DefineVar(Global, QString, TxtDomainString);
 DefineVar(Global, bool, PhoneCallsEnabled);
 DefineVar(Global, bool, BlockedMode);
+DefineVar(Global, int32, CaptionLengthMax);
 DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
@@ -671,18 +764,19 @@ DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 
 DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
-DefineRefVar(Global, base::Observable<void>, SelfChanged);
-
 DefineVar(Global, bool, AskDownloadPath);
 DefineVar(Global, QString, DownloadPath);
 DefineVar(Global, QByteArray, DownloadPathBookmark);
 DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
 
+DefineVar(Global, bool, ReplaceEmoji);
+DefineVar(Global, bool, SuggestEmoji);
 DefineVar(Global, bool, SuggestStickersByEmoji);
+DefineRefVar(Global, base::Observable<void>, ReplaceEmojiChanged);
+DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
 DefineVar(Global, bool, RestoreSoundNotifyFromTray);
-DefineVar(Global, bool, IncludeMuted);
 DefineVar(Global, DBINotifyView, NotifyView);
 DefineVar(Global, bool, NativeNotifications);
 DefineVar(Global, int, NotificationsCount);
@@ -692,7 +786,7 @@ DefineVar(Global, bool, NotificationsDemoIsShown);
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, std::vector<ProxyData>, ProxiesList);
 DefineVar(Global, ProxyData, SelectedProxy);
-DefineVar(Global, bool, UseProxy);
+DefineVar(Global, ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 
@@ -704,5 +798,21 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
+	
+DefineVar(Global, QString, CallOutputDeviceID);
+DefineVar(Global, QString, CallInputDeviceID);
+DefineVar(Global, int, CallOutputVolume);
+DefineVar(Global, int, CallInputVolume);
+DefineVar(Global, bool, CallAudioDuckingEnabled);
+
+rpl::producer<bool> ReplaceEmojiValue() {
+	return rpl::single(
+		Global::ReplaceEmoji()
+	) | rpl::then(base::ObservableViewer(
+		Global::RefReplaceEmojiChanged()
+	) | rpl::map([] {
+		return Global::ReplaceEmoji();
+	}));
+}
 
 } // namespace Global

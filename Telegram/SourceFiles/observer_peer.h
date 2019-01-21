@@ -35,15 +35,17 @@ struct PeerUpdate {
 		AboutChanged              = (1 << 3),
 		NotificationsEnabled      = (1 << 4),
 		MigrationChanged          = (1 << 6),
-		PinnedChanged             = (1 << 7),
+		ChatPinnedChanged         = (1 << 7),
 		RestrictionReasonChanged  = (1 << 8),
+		UnreadViewChanged         = (1 << 9),
+		PinnedMessageChanged      = (1 << 10),
 
 		// For chats and channels
-		InviteLinkChanged         = (1 << 9),
-		MembersChanged            = (1 << 10),
-		AdminsChanged             = (1 << 11),
-		BannedUsersChanged        = (1 << 12),
-		UnreadMentionsChanged     = (1 << 13),
+		InviteLinkChanged         = (1 << 11),
+		MembersChanged            = (1 << 12),
+		AdminsChanged             = (1 << 13),
+		BannedUsersChanged        = (1 << 14),
+		UnreadMentionsChanged     = (1 << 15),
 
 		// For users
 		UserCanShareContact       = (1 << 16),
@@ -55,6 +57,8 @@ struct PeerUpdate {
 		BotCanAddToGroups         = (1 << 22),
 		UserCommonChatsChanged    = (1 << 23),
 		UserHasCalls              = (1 << 24),
+		UserOccupiedChanged       = (1 << 25),
+		UserSupportInfoChanged    = (1 << 26),
 
 		// For chats
 		ChatCanEdit               = (1 << 16),
@@ -63,7 +67,7 @@ struct PeerUpdate {
 		ChannelAmIn               = (1 << 16),
 		ChannelRightsChanged      = (1 << 17),
 		ChannelStickersChanged    = (1 << 18),
-		ChannelPinnedChanged      = (1 << 19),
+		ChannelPromotedChanged    = (1 << 19),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -96,7 +100,7 @@ public:
 
 private:
 	PeerUpdate::Flags _events;
-	base::lambda<void(const PeerUpdate&)> _handler;
+	Fn<void(const PeerUpdate&)> _handler;
 
 };
 base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated();

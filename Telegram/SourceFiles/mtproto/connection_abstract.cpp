@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/connection_tcp.h"
 #include "mtproto/connection_http.h"
+#include "mtproto/connection_resolving.h"
 #include "mtproto/session.h"
 
 namespace MTP {
@@ -74,66 +75,108 @@ ConnectionPointer::~ConnectionPointer() {
 	reset();
 }
 
-AbstractConnection::~AbstractConnection() {
+mtpBuffer AbstractConnection::prepareSecurePacket(
+		uint64 keyId,
+		MTPint128 msgKey,
+		uint32 size) const {
+	auto result = mtpBuffer();
+	constexpr auto kTcpPrefixInts = 2;
+	constexpr auto kAuthKeyIdPosition = kTcpPrefixInts;
+	constexpr auto kAuthKeyIdInts = 2;
+	constexpr auto kMessageKeyPosition = kAuthKeyIdPosition
+		+ kAuthKeyIdInts;
+	constexpr auto kMessageKeyInts = 4;
+	constexpr auto kPrefixInts = kTcpPrefixInts
+		+ kAuthKeyIdInts
+		+ kMessageKeyInts;
+	constexpr auto kTcpPostfixInts = 4;
+	result.reserve(kPrefixInts + size + kTcpPostfixInts);
+	result.resize(kPrefixInts);
+	*reinterpret_cast<uint64*>(&result[kAuthKeyIdPosition]) = keyId;
+	*reinterpret_cast<MTPint128*>(&result[kMessageKeyPosition]) = msgKey;
+	return result;
 }
 
-mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) {
-	MTPReq_pq req_pq(nonce);
-	mtpBuffer buffer;
-	uint32 requestSize = req_pq.innerLength() >> 2;
-
-	buffer.resize(0);
-	buffer.reserve(8 + requestSize);
-	buffer.push_back(0); // tcp packet len
-	buffer.push_back(0); // tcp packet num
-	buffer.push_back(0);
-	buffer.push_back(0);
-	buffer.push_back(0);
-	buffer.push_back(unixtime());
-	buffer.push_back(requestSize * 4);
-	req_pq.write(buffer);
-	buffer.push_back(0); // tcp crc32 hash
-
-	return buffer;
+gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
+		const mtpBuffer &buffer) const {
+	const auto answer = buffer.data();
+	const auto len = buffer.size();
+	if (len < 6) {
+		LOG(("Not Secure Error: bad request answer, len = %1"
+			).arg(len * sizeof(mtpPrime)));
+		DEBUG_LOG(("Not Secure Error: answer bytes %1"
+			).arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+		return {};
+	}
+	if (answer[0] != 0
+		|| answer[1] != 0
+		|| (((uint32)answer[2]) & 0x03) != 1
+		//|| (unixtime() - answer[3] > 300) // We didn't sync time yet.
+		//|| (answer[3] - unixtime() > 60)
+		|| false) {
+		LOG(("Not Secure Error: bad request answer start (%1 %2 %3)"
+			).arg(answer[0]
+			).arg(answer[1]
+			).arg(answer[2]));
+		DEBUG_LOG(("Not Secure Error: answer bytes %1"
+			).arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+		return {};
+	}
+	const auto answerLen = (uint32)answer[4];
+	if (answerLen < 1 || answerLen > (len - 5) * sizeof(mtpPrime)) {
+		LOG(("Not Secure Error: bad request answer 1 <= %1 <= %2"
+			).arg(answerLen
+			).arg((len - 5) * sizeof(mtpPrime)));
+		DEBUG_LOG(("Not Secure Error: answer bytes %1"
+			).arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+		return {};
+	}
+	return gsl::make_span(answer + 5, answerLen);
 }
 
-MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
-	const mtpPrime *answer(buffer.constData());
-	uint32 len = buffer.size();
-	if (len < 5) {
-		LOG(("Fake PQ Error: bad request answer, len = %1").arg(len * sizeof(mtpPrime)));
-		DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
+mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) const {
+	return prepareNotSecurePacket(MTPReq_pq(nonce));
+}
+
+MTPResPQ AbstractConnection::readPQFakeReply(
+		const mtpBuffer &buffer) const {
+	const auto answer = parseNotSecureResponse(buffer);
+	if (answer.empty()) {
 		throw Exception("bad pq reply");
 	}
-	if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
-		LOG(("Fake PQ Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
-		DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
-		throw Exception("bad pq reply");
-	}
-	uint32 answerLen = (uint32)answer[4];
-	if (answerLen != (len - 5) * sizeof(mtpPrime)) {
-		LOG(("Fake PQ Error: bad request answer %1 <> %2").arg(answerLen).arg((len - 5) * sizeof(mtpPrime)));
-		DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
-		throw Exception("bad pq reply");
-	}
-	const mtpPrime *from(answer + 5), *end(from + len - 5);
+	auto from = answer.data();
 	MTPResPQ response;
-	response.read(from, end);
+	response.read(from, from + answer.size());
 	return response;
 }
 
-AbstractConnection::AbstractConnection(QThread *thread) {
+AbstractConnection::AbstractConnection(
+	QThread *thread,
+	const ProxyData &proxy)
+: _proxy(proxy) {
 	moveToThread(thread);
 }
 
-ConnectionPointer AbstractConnection::create(
+ConnectionPointer AbstractConnection::Create(
+		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
-		QThread *thread) {
-	if (protocol == DcOptions::Variants::Tcp) {
-		return ConnectionPointer(new TCPConnection(thread));
-	} else {
-		return ConnectionPointer(new HTTPConnection(thread));
+		QThread *thread,
+		const ProxyData &proxy) {
+	auto result = [&] {
+		if (protocol == DcOptions::Variants::Tcp) {
+			return ConnectionPointer::New<TcpConnection>(thread, proxy);
+		} else {
+			return ConnectionPointer::New<HttpConnection>(thread, proxy);
+		}
+	}();
+	if (proxy.tryCustomResolve()) {
+		return ConnectionPointer::New<ResolvingConnection>(
+			instance,
+			thread,
+			proxy,
+			std::move(result));
 	}
+	return result;
 }
 
 } // namespace internal

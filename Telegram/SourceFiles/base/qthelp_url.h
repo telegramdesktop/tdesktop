@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace qthelp {
 
+const QRegularExpression &RegExpDomain();
+const QRegularExpression &RegExpDomainExplicit();
+QRegularExpression RegExpProtocol();
+
 inline QString url_encode(const QString &part) {
 	return QString::fromLatin1(QUrl::toPercentEncoding(part));
 }
@@ -22,8 +26,14 @@ enum class UrlParamNameTransform {
 	ToLower,
 };
 // Parses a string like "p1=v1&p2=v2&..&pn=vn" to a map.
-QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTransform transform = UrlParamNameTransform::NoTransform);
+QMap<QString, QString> url_parse_params(
+	const QString &params,
+	UrlParamNameTransform transform = UrlParamNameTransform::NoTransform);
+
+QString url_append_query_or_hash(const QString &url, const QString &add);
 
 bool is_ipv6(const QString &ip);
+
+QString validate_url(const QString &value);
 
 } // namespace qthelp

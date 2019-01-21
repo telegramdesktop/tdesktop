@@ -15,13 +15,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace details {
 
+struct ForwardTag {
+};
+
+struct InPlaceTag {
+};
+
 template <typename Value>
 class AttachmentOwner : public QObject {
 public:
 	template <typename OtherValue>
-	AttachmentOwner(QObject *parent, OtherValue &&value)
+	AttachmentOwner(QObject *parent, const ForwardTag&, OtherValue &&value)
 	: QObject(parent)
 	, _value(std::forward<OtherValue>(value)) {
+	}
+
+	template <typename ...Args>
+	AttachmentOwner(QObject *parent, const InPlaceTag&, Args &&...args)
+	: QObject(parent)
+	, _value(std::forward<Args>(args)...) {
+	}
+
+	not_null<Value*> value() {
+		return &_value;
 	}
 
 private:
@@ -31,6 +47,8 @@ private:
 
 } // namespace details
 
+class RpWidget;
+
 template <typename Widget, typename ...Args>
 inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
 	return base::make_unique_q<Widget>(
@@ -38,24 +56,38 @@ inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
 		std::forward<Args>(args)...);
 }
 
-template <typename Widget, typename Parent, typename ...Args>
-inline Widget *CreateChild(
+template <typename Value, typename Parent, typename ...Args>
+inline Value *CreateChild(
 		Parent *parent,
 		Args &&...args) {
 	Expects(parent != nullptr);
-	return new Widget(parent, std::forward<Args>(args)...);
+
+	if constexpr (std::is_base_of_v<QObject, Value>) {
+		return new Value(parent, std::forward<Args>(args)...);
+	} else {
+		return CreateChild<details::AttachmentOwner<Value>>(
+			parent,
+			details::InPlaceTag{},
+			std::forward<Args>(args)...)->value();
+	}
 }
 
 inline void DestroyChild(QWidget *child) {
 	delete child;
 }
 
+void ResizeFitChild(
+	not_null<RpWidget*> parent,
+	not_null<RpWidget*> child);
+
 template <typename Value>
-inline void AttachAsChild(not_null<QObject*> parent, Value &&value) {
-	using PlainValue = std::decay_t<Value>;
-	CreateChild<details::AttachmentOwner<PlainValue>>(
+inline not_null<std::decay_t<Value>*> AttachAsChild(
+		not_null<QObject*> parent,
+		Value &&value) {
+	return CreateChild<details::AttachmentOwner<std::decay_t<Value>>>(
 		parent.get(),
-		std::forward<Value>(value));
+		details::ForwardTag{},
+		std::forward<Value>(value))->value();
 }
 
 template <typename Widget>
@@ -135,7 +167,7 @@ public:
 
 	void setVisible(bool visible) final override {
 		auto wasVisible = !this->isHidden();
-		Parent::setVisible(visible);
+		setVisibleHook(visible);
 		visibilityChangedHook(wasVisible, !this->isHidden());
 	}
 
@@ -150,6 +182,9 @@ protected:
 	}
 	bool eventHook(QEvent *event) override {
 		return Parent::event(event);
+	}
+	virtual void setVisibleHook(bool visible) {
+		Parent::setVisible(visible);
 	}
 
 private:

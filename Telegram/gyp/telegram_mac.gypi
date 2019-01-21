@@ -7,8 +7,6 @@
 {
   'conditions': [[ 'build_mac', {
     'xcode_settings': {
-      'GCC_PREFIX_HEADER': '<(src_loc)/stdafx.h',
-      'GCC_PRECOMPILE_PREFIX_HEADER': 'YES',
       'INFOPLIST_FILE': '../Telegram.plist',
       'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
@@ -19,9 +17,11 @@
       ],
     },
     'include_dirs': [
+      '/usr/local/tdesktop/ffmpeg-3.4/include',
       '/usr/local/include',
     ],
     'library_dirs': [
+      '/usr/local/tdesktop/ffmpeg-3.4/lib',
       '/usr/local/lib',
     ],
     'configurations': {
@@ -38,16 +38,12 @@
         },
       },
     },
-    'mac_bundle': '1',
-    'mac_bundle_resources': [
-      '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
-      '../Telegram/Images.xcassets',
-    ],
   }], [ 'build_macold', {
     'xcode_settings': {
-      'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.Telegram',
       'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
+        '-isysroot', '/',
+        '-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/',
         '-lbase',
         '-lcrashpad_client',
         '-lcrashpad_util',
@@ -63,25 +59,28 @@
         '/usr/local/macold/lib/libexif.a',
         '/usr/local/macold/lib/libc++.a',
         '/usr/local/macold/lib/libc++abi.a',
-        '<(libs_loc)/macold/openssl/libssl.a',
-        '<(libs_loc)/macold/openssl/libcrypto.a',
       ],
     },
     'include_dirs': [
       '/usr/local/macold',
       '/usr/local/macold/include/c++/v1',
-      '<(libs_loc)/macold/openssl/include',
       '<(libs_loc)/macold/libexif-0.6.20',
       '<(libs_loc)/macold/crashpad',
       '<(libs_loc)/macold/crashpad/third_party/mini_chromium/mini_chromium',
     ],
     'configurations': {
       'Debug': {
+        'xcode_settings': {
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.TelegramDebugOld',
+        },
         'library_dirs': [
           '<(libs_loc)/macold/crashpad/out/Debug',
         ],
       },
       'Release': {
+        'xcode_settings': {
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.Telegram',
+        },
         'library_dirs': [
           '<(libs_loc)/macold/crashpad/out/Release',
         ],
@@ -119,19 +118,16 @@
         '/usr/local/lib/libopus.a',
         '/usr/local/lib/libopenal.a',
         '/usr/local/lib/libiconv.a',
-        '/usr/local/lib/libavcodec.a',
-        '/usr/local/lib/libavformat.a',
-        '/usr/local/lib/libavutil.a',
-        '/usr/local/lib/libswscale.a',
-        '/usr/local/lib/libswresample.a',
-        '<(libs_loc)/openssl/libssl.a',
-        '<(libs_loc)/openssl/libcrypto.a',
+        '/usr/local/tdesktop/ffmpeg-3.4/lib/libavcodec.a',
+        '/usr/local/tdesktop/ffmpeg-3.4/lib/libavformat.a',
+        '/usr/local/tdesktop/ffmpeg-3.4/lib/libavutil.a',
+        '/usr/local/tdesktop/ffmpeg-3.4/lib/libswscale.a',
+        '/usr/local/tdesktop/ffmpeg-3.4/lib/libswresample.a',
       ],
     },
     'include_dirs': [
       '<(libs_loc)/crashpad',
       '<(libs_loc)/crashpad/third_party/mini_chromium/mini_chromium',
-      '<(libs_loc)/openssl/include'
     ],
     'configurations': {
       'Debug': {
@@ -147,13 +143,24 @@
     },
   }], [ '"<(build_macold)" != "1" and "<(build_macstore)" != "1"', {
     'xcode_settings': {
-      'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.Telegram',
       'OTHER_LDFLAGS': [
         '-lbase',
         '-lcrashpad_client',
         '-lcrashpad_util',
       ],
      },
+    'configurations': {
+      'Debug': {
+        'xcode_settings': {
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.TelegramDebug',
+        },
+      },
+      'Release': {
+        'xcode_settings': {
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.Telegram',
+        },
+      },
+    },
     'postbuilds': [{
       'postbuild_name': 'Force Frameworks path',
       'action': [
@@ -189,12 +196,6 @@
         '<(libs_loc)/breakpad/src/client/mac/build/Release',
       ],
     },
-    'mac_sandbox': 1,
-    'mac_sandbox_development_team': '6N38VWS5BX',
-    'product_name': 'Telegreat',
-    'sources': [
-      '../Telegram/Telegreat.entitlements',
-    ],
     'defines': [
       'TDESKTOP_DISABLE_AUTOUPDATE',
       'OS_MAC_STORE',
@@ -202,19 +203,19 @@
     'postbuilds': [{
       'postbuild_name': 'Clear Frameworks path',
       'action': [
-        'rm', '-rf', '${BUILT_PRODUCTS_DIR}/Telegreat Desktop.app/Contents/Frameworks'
+        'rm', '-rf', '${BUILT_PRODUCTS_DIR}/Telegreat.app/Contents/Frameworks'
       ],
     }, {
       'postbuild_name': 'Force Frameworks path',
       'action': [
-        'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegreat Desktop.app/Contents/Frameworks/'
+        'mkdir', '-p', '${BUILT_PRODUCTS_DIR}/Telegreat.app/Contents/Frameworks/'
       ],
     }, {
       'postbuild_name': 'Copy Breakpad.framework to Frameworks',
       'action': [
         'cp', '-a',
         '<(libs_loc)/breakpad/src/client/mac/build/Release/Breakpad.framework',
-        '${BUILT_PRODUCTS_DIR}/Telegreat Desktop.app/Contents/Frameworks/Breakpad.framework',
+        '${BUILT_PRODUCTS_DIR}/Telegreat.app/Contents/Frameworks/Breakpad.framework',
       ],
     }]
   }]],

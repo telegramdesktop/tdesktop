@@ -38,7 +38,7 @@ void UserPhotos::List::addSlice(
 void UserPhotos::List::removeOne(PhotoId photoId) {
 	auto position = ranges::find(_photoIds, photoId);
 	if (position == _photoIds.end()) {
-		_count = base::none;
+		_count = std::nullopt;
 	} else {
 		if (_count) {
 			--*_count;
@@ -51,7 +51,7 @@ void UserPhotos::List::removeOne(PhotoId photoId) {
 void UserPhotos::List::removeAfter(PhotoId photoId) {
 	auto position = ranges::find(_photoIds, photoId);
 	if (position == _photoIds.end()) {
-		_count = base::none;
+		_count = std::nullopt;
 		_photoIds.clear();
 	} else {
 		if (_count) {

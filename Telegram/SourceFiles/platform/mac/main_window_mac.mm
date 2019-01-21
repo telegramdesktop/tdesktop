@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
+#include "messenger.h"
+#include "auth_session.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -65,7 +67,7 @@ id FindClassInSubviews(NSView *parent, NSString *className) {
 
 class LayerCreationChecker : public QObject {
 public:
-	LayerCreationChecker(NSView * __weak view, base::lambda<void()> callback)
+	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
 	: _weakView(view)
 	, _callback(std::move(callback)) {
 		QCoreApplication::instance()->installEventFilter(this);
@@ -81,7 +83,7 @@ protected:
 
 private:
 	NSView * __weak _weakView = nil;
-	base::lambda<void()> _callback;
+	Fn<void()> _callback;
 
 };
 
@@ -377,8 +379,8 @@ MainWindow::MainWindow()
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 #endif // !OS_MAC_OLD
 
-	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
-	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
+	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), 100);
+	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), 100);
 
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 
@@ -520,21 +522,24 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	auto counter = App::histories().unreadBadge();
+	const auto counter = Messenger::Instance().unreadBadge();
+	const auto muted = Messenger::Instance().unreadBadgeMuted();
 
-	QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-	_private->setWindowBadge(counter ? cnt : QString());
+	const auto string = !counter
+		? QString()
+		: (counter < 1000)
+		? QString("%1").arg(counter)
+		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
+	_private->setWindowBadge(string);
 
 	if (trayIcon) {
-		bool muted = App::histories().unreadOnlyMuted();
 		bool dm = objc_darkMode();
-
 		auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 		QIcon icon;
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
 		img.detach();
 		imgsel.detach();
-		int32 size = cRetina() ? 44 : 22;
+		int32 size = 22 * cIntRetinaFactor();
 		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
 		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
 		icon.addPixmap(App::pixmapFromImageInPlace(std::move(img)));
@@ -604,7 +609,7 @@ void MainWindow::createGlobalMenu() {
 	connect(psContacts, &QAction::triggered, psContacts, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
-		if (!App::self()) return;
+		if (!AuthSession::Exists()) return;
 		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
@@ -675,7 +680,7 @@ void MainWindow::updateGlobalMenuHook() {
 	if (!App::wnd() || !positionInited()) return;
 
 	auto focused = QApplication::focusWidget();
-	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
+	bool canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
 	auto clipboardHasText = _private->clipboardHasText();
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
@@ -694,7 +699,11 @@ void MainWindow::updateGlobalMenuHook() {
 		canDelete = list->canDeleteSelected();
 	}
 	App::wnd()->updateIsActive(0);
-	_forceDisabled(psLogout, !isLogged && !App::passcoded());
+	const auto logged = AuthSession::Exists();
+	const auto locked = Messenger::Instance().locked();
+	const auto inactive = !logged || locked;
+	const auto support = logged && Auth().supportMode();
+	_forceDisabled(psLogout, !logged && !locked);
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);
 	_forceDisabled(psCut, !canCut);
@@ -702,10 +711,10 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psPaste, !canPaste);
 	_forceDisabled(psDelete, !canDelete);
 	_forceDisabled(psSelectAll, !canSelectAll);
-	_forceDisabled(psContacts, !isLogged || App::passcoded());
-	_forceDisabled(psAddContact, !isLogged || App::passcoded());
-	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
-	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
+	_forceDisabled(psContacts, inactive || support);
+	_forceDisabled(psAddContact, inactive);
+	_forceDisabled(psNewGroup, inactive || support);
+	_forceDisabled(psNewChannel, inactive || support);
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
 }
 

@@ -9,10 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <windows.h>
 
+class LocationCoords;
+
 namespace Platform {
 
 inline void SetWatchingMediaKeys(bool watching) {
 }
+
+bool IsApplicationActive();
 
 inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 	return true;
@@ -50,8 +54,6 @@ inline void psCheckLocalSocket(const QString &) {
 }
 
 void psWriteDump();
-void psWriteStackTrace();
-QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile);
 
 void psDeleteDir(const QString &dir);
 
@@ -66,7 +68,6 @@ void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psAppDataPath();
 QString psAppDataPathOld();
-QString psDownloadPath();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 

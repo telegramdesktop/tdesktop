@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/click_handler.h"
 #include "ui/text/text_entity.h"
-#include "ui/emoji_config.h"
 #include "base/flags.h"
 
 static const QChar TextCommand(0x0010);
@@ -116,9 +115,10 @@ public:
 
 	struct StateRequest {
 		enum class Flag {
-			BreakEverywhere = (1 << 0),
-			LookupSymbol    = (1 << 1),
-			LookupLink      = (1 << 2),
+			BreakEverywhere     = (1 << 0),
+			LookupSymbol        = (1 << 1),
+			LookupLink          = (1 << 2),
+			LookupCustomTooltip = (1 << 3),
 		};
 		using Flags = base::flags<Flag>;
 		friend inline constexpr auto is_flag_type(Flag) { return true; };
@@ -185,6 +185,10 @@ public:
 			_text[j] = QChar(' ');
 		}
 		return true;
+	}
+
+	const style::TextStyle *style() const {
+		return _st;
 	}
 
 	void clear();
@@ -372,5 +376,3 @@ inline bool chIsParagraphSeparator(QChar ch) {
 	}
 	return false;
 }
-
-void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);

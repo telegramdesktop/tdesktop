@@ -13,10 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_message.h"
 #include "history/history_item_text.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media.h"
+#include "history/media/history_media_web_page.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/image/image.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/confirm_box.h"
+#include "boxes/sticker_set_box.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
@@ -28,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "messenger.h"
 #include "mainwidget.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 
 namespace HistoryView {
 namespace {
@@ -49,12 +53,13 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 	}
 
 	FileDialog::GetWritePath(
+		Messenger::Instance().getFileDialogParent(),
 		lang(lng_save_photo),
 		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
-		base::lambda_guarded(&Auth(), [=](const QString &result) {
+		crl::guard(&Auth(), [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix().toImage().save(result, "JPG");
+				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
 			}
 		}));
 }
@@ -64,26 +69,20 @@ void CopyImage(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	QApplication::clipboard()->setPixmap(photo->full->pix());
+	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {
-	if (const auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			App::main()->stickersBox(sticker->set);
-		}
-	}
+	StickerSetBox::Show(document);
 }
 
-void ToggleFavedSticker(not_null<DocumentData*> document) {
-	const auto unfave = Stickers::IsFaved(document);
-	MTP::send(
-		MTPmessages_FaveSticker(
-			document->mtpInput(),
-			MTP_bool(unfave)),
-		rpcDone([=](const MTPBool &result) {
-		Stickers::SetFaved(document, !unfave);
-	}));
+void ToggleFavedSticker(
+		not_null<DocumentData*> document,
+		FullMsgId contextId) {
+	Auth().api().toggleFavedSticker(
+		document,
+		contextId,
+		!Stickers::IsFaved(document));
 }
 
 void AddPhotoActions(
@@ -120,6 +119,7 @@ void ShowInFolder(not_null<DocumentData*> document) {
 
 void AddSaveDocumentAction(
 		not_null<Ui::PopupMenu*> menu,
+		Data::FileOrigin origin,
 		not_null<DocumentData*> document) {
 	menu->addAction(
 		lang(document->isVideoFile()
@@ -134,7 +134,7 @@ void AddSaveDocumentAction(
 		App::LambdaDelayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
 			&Auth(),
-			[=] { DocumentSaveClickHandler::doSave(document, true); }));
+			[=] { DocumentSaveClickHandler::Save(origin, document, true); }));
 }
 
 void AddDocumentActions(
@@ -165,7 +165,7 @@ void AddDocumentActions(
 			lang(Stickers::IsFaved(document)
 				? lng_faved_stickers_remove
 				: lng_faved_stickers_add),
-			[=] { ToggleFavedSticker(document); });
+			[=] { ToggleFavedSticker(document, contextId); });
 	}
 	if (!document->filepath(
 			DocumentData::FilePathResolveChecked).isEmpty()) {
@@ -175,7 +175,7 @@ void AddDocumentActions(
 				: lng_context_show_in_folder),
 			[=] { ShowInFolder(document); });
 	}
-	AddSaveDocumentAction(menu, document);
+	AddSaveDocumentAction(menu, contextId, document);
 }
 
 void CopyPostLink(FullMsgId itemId) {
@@ -433,7 +433,7 @@ void AddCopyLinkAction(
 base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		not_null<ListWidget*> list,
 		const ContextMenuRequest &request) {
-	auto result = base::make_unique_q<Ui::PopupMenu>(nullptr);
+	auto result = base::make_unique_q<Ui::PopupMenu>(list);
 
 	const auto link = request.link;
 	const auto view = request.view;
@@ -473,24 +473,16 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			&& (list->delegate()->listContext() == Context::Feed)) {
 			Window::PeerMenuAddMuteAction(peer, [&](
 					const QString &text,
-					base::lambda<void()> handler) {
+					Fn<void()> handler) {
 				return result->addAction(text, handler);
 			});
 			AddToggleGroupingAction(result, linkPeer->peer());
 		}
 	} else if (!request.overSelection && view && !hasSelection) {
-		auto media = view->media();
+		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
-		if (media) {
-			if (media->type() == MediaTypeWebPage
-				&& static_cast<HistoryWebPage*>(media)->attach()) {
-				media = static_cast<HistoryWebPage*>(media)->attach();
-			}
-			if (media->type() == MediaTypeSticker) {
-				if (const auto document = media->getDocument()) {
-					AddDocumentActions(result, document, view->data()->fullId());
-				}
-			}
+		if (const auto document = media ? media->getDocument() : nullptr) {
+			AddDocumentActions(result, document, view->data()->fullId());
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);
@@ -511,6 +503,14 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
 	return result;
+}
+
+void StopPoll(FullMsgId itemId) {
+	Ui::show(Box<ConfirmBox>(
+		lang(lng_polls_stop_warning),
+		lang(lng_polls_stop_sure),
+		lang(lng_cancel),
+		[=] { Ui::hideLayer(); Auth().api().closePoll(itemId); }));
 }
 
 } // namespace HistoryView

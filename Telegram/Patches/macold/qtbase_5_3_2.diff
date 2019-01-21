@@ -13,7 +13,7 @@ index cb8d78fd3c..cadb3f0a88 100755
          echo "   Xcode not set up properly. You may need to confirm the license" >&2
          echo "   agreement by running /usr/bin/xcodebuild without arguments." >&2
 diff --git a/mkspecs/common/g++-macx.conf b/mkspecs/common/g++-macx.conf
-index 086510dd96..c485967863 100644
+index 086510dd96..078a5ed1dd 100644
 --- a/mkspecs/common/g++-macx.conf
 +++ b/mkspecs/common/g++-macx.conf
 @@ -14,7 +14,13 @@ QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
@@ -27,7 +27,7 @@ index 086510dd96..c485967863 100644
 +# Patch: Use C++14 with custom libc++ build.
 +QMAKE_CXXFLAGS_CXX11 = -std=c++1y
 +QMAKE_CXXFLAGS += -nostdinc++ -I/usr/local/macold/include/c++/v1
-+QMAKE_LFLAGS += /usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a
++QMAKE_LFLAGS += /usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a -isysroot /
  
  QMAKE_XCODE_GCC_VERSION = com.apple.compilers.llvmgcc42
  
@@ -188,6 +188,19 @@ index cbe42c3844..b273db7e78 100644
  };
  
  
+diff --git a/src/network/access/qhttpnetworkconnection.cpp b/src/network/access/qhttpnetworkconnection.cpp
+index 360f9722c7..f28f289ef6 100644
+--- a/src/network/access/qhttpnetworkconnection.cpp
++++ b/src/network/access/qhttpnetworkconnection.cpp
+@@ -118,6 +118,8 @@ QHttpNetworkConnectionPrivate::~QHttpNetworkConnectionPrivate()
+ {
+     for (int i = 0; i < channelCount; ++i) {
+         if (channels[i].socket) {
++            // Patch: backport critical bugfix from '4f959b6b30' commit.
++            QObject::disconnect(channels[i].socket, Q_NULLPTR, &channels[i], Q_NULLPTR);
+             channels[i].socket->close();
+             delete channels[i].socket;
+         }
 diff --git a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
 index ca7afb7d1b..25ae50008d 100644
 --- a/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
@@ -206,6 +219,20 @@ index ca7afb7d1b..25ae50008d 100644
      fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
      fd->weight = QFont::Normal;
      fd->style = QFont::StyleNormal;
+diff --git a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+index 6e2c8a2a9a..3cace8abcb 100644
+--- a/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
++++ b/src/platformsupport/fontdatabases/mac/qfontengine_coretext.mm
+@@ -717,7 +717,8 @@ void QCoreTextFontEngine::getUnscaledGlyph(glyph_t, QPainterPath *, glyph_metric
+ 
+ QFixed QCoreTextFontEngine::emSquareSize() const
+ {
+-    return QFixed::QFixed(int(CTFontGetUnitsPerEm(ctfont)));
++    // Patch: Fix build for Xcode 9.3.1.
++    return QFixed(int(CTFontGetUnitsPerEm(ctfont)));
+ }
+ 
+ QFontEngine *QCoreTextFontEngine::cloneWithSize(qreal pixelSize) const
 diff --git a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
 index 92358ecc74..694fee7350 100644
 --- a/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
@@ -257,7 +284,7 @@ index b81b9a0b1c..4e59e833b1 100644
      CFRelease(e);
  }
 diff --git a/src/plugins/platforms/cocoa/qcocoahelpers.mm b/src/plugins/platforms/cocoa/qcocoahelpers.mm
-index 9850f83dea..218ed7e81c 100644
+index 9850f83dea..b2e1d3dfda 100644
 --- a/src/plugins/platforms/cocoa/qcocoahelpers.mm
 +++ b/src/plugins/platforms/cocoa/qcocoahelpers.mm
 @@ -649,9 +649,10 @@ OSStatus qt_mac_drawCGImage(CGContextRef inContext, const CGRect *inBounds, CGIm

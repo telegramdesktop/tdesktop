@@ -38,6 +38,7 @@ class HistoryInner
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, private base::Subscriber {
+	// The Q_OBJECT meta info is used for qobject_cast to HistoryInner!
 	Q_OBJECT
 
 public:
@@ -198,8 +199,8 @@ private:
 	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
 
-	QPoint mapPointToItem(QPoint p, const Element *view);
-	QPoint mapPointToItem(QPoint p, const HistoryItem *item);
+	QPoint mapPointToItem(QPoint p, const Element *view) const;
+	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 	void cancelContextDownload(not_null<DocumentData*> document);
@@ -208,10 +209,11 @@ private:
 	void copyContextText(FullMsgId itemId);
 	void showContextInFolder(not_null<DocumentData*> document);
 	void savePhotoToFile(not_null<PhotoData*> photo);
-	void saveDocumentToFile(not_null<DocumentData*> document);
+	void saveDocumentToFile(
+		FullMsgId contextId,
+		not_null<DocumentData*> document);
 	void copyContextImage(not_null<PhotoData*> photo);
 	void showStickerPackInfo(not_null<DocumentData*> document);
-	void toggleFavedSticker(not_null<DocumentData*> document);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void viewRemoved(not_null<const Element*> view);
@@ -281,6 +283,8 @@ private:
 	void deleteItem(not_null<HistoryItem*> item);
 	void deleteItem(FullMsgId itemId);
 	void deleteAsGroup(FullMsgId itemId);
+	void reportItem(FullMsgId itemId);
+	void reportAsGroup(FullMsgId itemId);
 	void copySelectedText();
 
 	// Does any of the shown histories has this flag set.

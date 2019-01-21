@@ -16,78 +16,56 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
-std::map<int, const char*> AlphaLogs() {
+std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1001024,
-		"\xE2\x80\x94 Radically improved navigation. "
-		"New side panel on the right with quick access to "
-		"shared media and group members.\n"
+		1004004,
+		"- Interface scaling for large screens, up to 300% "
+		"(up to 150% for macOS retina screens).\n"
 
-		"\xE2\x80\x94 Pinned Messages. If you are a channel admin, "
-		"pin messages to focus your subscribers\xE2\x80\x99 attention "
-		"on important announcements.\n"
-
-		"\xE2\x80\x94 Also supported clearing history in supergroups "
-		"and added a host of minor improvements."
+		"- Updated emoji."
 	},
 	{
-		1001026,
-		"\xE2\x80\x94 Admin badges in supergroup messages.\n"
-		"\xE2\x80\x94 Fix crashing on launch in OS X 10.6.\n"
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
+		1004005,
+		"- Listen to voice and video messages in 2X mode "
+		"if you're in a hurry.\n"
+
+		"- Find video messages in the shared voice messages section.\n"
+
+		"- Add a comment when you share posts from channels.\n"
+
+		"- View all photos and videos "
+		"in Twitter and Instagram link previews.\n"
+
+		"- Bug fixes and other minor improvements."
 	},
 	{
-		1001027,
-		"\xE2\x80\x94 Saved Messages. Bookmark messages by forwarding them "
-		"to \xE2\x80\x9C""Saved Messages\xE2\x80\x9D. "
-		"Access them from the Chats list or from the side menu."
+		1004008,
+		"- Add emoji to media captions.\n"
+
+		"- Switch off the 'Count unread messages' option "
+		"in Settings > Notifications if you want to see "
+		"the unread chats count in the badge instead."
 	},
 	{
-		1002002,
-		"\xE2\x80\x94 Grouped photos and videos are displayed as albums."
+		1005005,
+		"- Support for auto-download of files and music.\n"
+
+		"- Improved auto-download settings.\n"
+
+		"- Bug fixes and other minor improvements."
 	},
 	{
-		1002004,
-		"\xE2\x80\x94 Group media into an album "
-		"when sharing multiple photos and videos.\n"
+		1005007,
+		"- Choose the emoji set you would like to use "
+		"in Settings > Chat Settings.\n"
 
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
-		1002005,
-		"\xE2\x80\x94 When viewing a photo from an album, "
-		"you'll see other pictures from the same group "
-		"as thumbnails in the lower part of the screen.\n"
+		"- Choose input and output devices for Telegram Calls "
+		"in Settings > Adavanced > Call Settings."
+		
+		"\n\n- Telegreat Settings have been moved to Advanced -> Telegreat Config"
 
-		"\xE2\x80\x94 When composing an album paste "
-		"additional media from the clipboard.\n"
-
-		"\xE2\x80\x94 Bug fixes and other minor improvements."
-	},
-	{
-		1002007,
-		"\xE2\x80\x94 Use fast reply button in group chats.\n"
-
-		"\xE2\x80\x94 Select a message you want to reply to by "
-		"pressing Ctrl+Up and Ctrl+Down."
-	},
-	{
-		1002009,
-		"\xE2\x80\x94 Quick Reply. "
-		"Double click next to any message for a quick reply.\n"
-
-		"\xE2\x80\x94 Search for Stickers. "
-		"Click on the new search icon to access "
-		"your sticker sets or find new ones."
-	},
-	{
-		1002012,
-		"\xE2\x80\x94 Let emoji suggestions be case insensitive\n"
-
-		"\xE2\x80\x94 Cancel empty reply by Escape.\n"
-
-		"Welcome to join @Telegreat channel and chat group \xF0\x9F\x98\x8A"
+		"\n\nWelcome to join t.me/Telegreat channel and chat group \xF0\x9F\x98\x8A"
 	}
 	};
 }
@@ -154,21 +132,21 @@ void Changelogs::requestCloudLogs() {
 	};
 	_session->api().requestChangelog(
 		FormatVersionPrecise(_oldVersion),
-		base::lambda_guarded(this, callback));
+		crl::guard(this, callback));
 }
 
 void Changelogs::addLocalLogs() {
-	if (cAlphaVersion() || cBetaVersion()) {
-		addAlphaLogs();
+	if (AppBetaVersion || cAlphaVersion()) {
+		addBetaLogs();
 	}
 	if (!_addedSomeLocal) {
 		const auto text = lng_new_version_wrap(
 			lt_version,
-			str_const_toString(AppVersionStr),
+			QString::fromLatin1(AppVersionStr),
 			lt_changes,
 			lang(lng_new_version_minor),
 			lt_link,
-			qsl("https://telegre.at/changelog.php"));
+			qsl("https://telegre.at/changelog"));
 		addLocalLog(text.trimmed());
 	}
 }
@@ -176,20 +154,19 @@ void Changelogs::addLocalLogs() {
 void Changelogs::addLocalLog(const QString &text) {
 	auto textWithEntities = TextWithEntities{ text };
 	TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
-	App::wnd()->serviceNotification(
+	_session->data().serviceNotification(
 		textWithEntities,
-		MTP_messageMediaEmpty(),
-		unixtime());
+		MTP_messageMediaEmpty());
 	_addedSomeLocal = true;
 };
 
-void Changelogs::addAlphaLogs() {
-	for (const auto[version, changes] : AlphaLogs()) {
-		addAlphaLog(version, changes);
+void Changelogs::addBetaLogs() {
+	for (const auto[version, changes] : BetaLogs()) {
+		addBetaLog(version, changes);
 	}
 }
 
-void Changelogs::addAlphaLog(int changeVersion, const char *changes) {
+void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 	if (_oldVersion >= changeVersion) {
 		return;
 	}

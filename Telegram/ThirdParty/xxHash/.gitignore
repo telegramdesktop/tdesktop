@@ -1,0 +1,17 @@
+# objects
+*.o
+
+# libraries
+libxxhash.*
+
+# Executables
+xxh32sum
+xxh64sum
+xxhsum
+xxhsum32
+xxhsum_privateXXH
+xxhsum_inlinedXXH
+
+# Mac OS-X artefacts
+*.dSYM
+.DS_Store

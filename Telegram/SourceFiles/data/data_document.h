@@ -9,24 +9,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 
+namespace Images {
+class Source;
+} // namespace Images
+
+namespace Storage {
+namespace Cache {
+struct Key;
+} // namespace Cache
+} // namespace Storage
+
 class AuthSession;
+class mtpFileLoader;
 
 inline uint64 mediaMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32)
 		| uint64(*reinterpret_cast<uint32*>(&b));
 }
 
-// Old method, should not be used anymore.
-//inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
-//	return MediaKey(mediaMix32To64(type, dc), id);
-//}
-// New method when version was introduced, type is not relevant anymore (all files are Documents).
-inline MediaKey mediaKey(
-		LocationType type,
-		int32 dc,
-		const uint64 &id,
-		int32 version) {
-	return (version > 0) ? MediaKey(mediaMix32To64(version, dc), id) : MediaKey(mediaMix32To64(type, dc), id);
+// version field removed from document.
+inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
+	return MediaKey(mediaMix32To64(type, dc), id);
 }
 
 inline StorageKey mediaKey(const MTPDfileLocation &location) {
@@ -42,11 +45,12 @@ struct DocumentAdditionalData {
 };
 
 struct StickerData : public DocumentAdditionalData {
-	ImagePtr img;
+	Data::FileOrigin setOrigin() const;
+
+	std::unique_ptr<Image> image;
 	QString alt;
 	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
 	StorageImageLocation loc; // doc thumb location
-
 };
 
 struct SongData : public DocumentAdditionalData {
@@ -78,7 +82,9 @@ public:
 	void setattributes(
 		const QVector<MTPDocumentAttribute> &attributes);
 
-	void automaticLoad(const HistoryItem *item); // auto load sticker or video
+	void automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
 	enum FilePathResolveType {
@@ -93,12 +99,14 @@ public:
 	QString loadingFilePath() const;
 	bool displayLoading() const;
 	void save(
+		Data::FileOrigin origin,
 		const QString &toFile,
 		ActionOnLoad action = ActionOnLoadNone,
 		const FullMsgId &actionMsgId = FullMsgId(),
 		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
 		bool autoLoading = false);
 	void cancel();
+	bool cancelled() const;
 	float64 progress() const;
 	int32 loadOffset() const;
 	bool uploading() const;
@@ -118,11 +126,16 @@ public:
 
 	void performActionOnLoad();
 
-	void forget();
-	ImagePtr makeReplyPreview();
+	void unload();
+	Image *getReplyPreview(Data::FileOrigin origin);
 
 	StickerData *sticker() const;
 	void checkSticker();
+	void checkStickerThumb();
+	Image *getStickerThumb();
+	Image *getStickerImage();
+	Data::FileOrigin stickerSetOrigin() const;
+	Data::FileOrigin stickerOrGifOrigin() const;
 	bool isStickerSetInstalled() const;
 	SongData *song();
 	const SongData *song() const;
@@ -141,18 +154,32 @@ public:
 	int32 duration() const;
 	bool isImage() const;
 	void recountIsImage();
+	bool supportsStreaming() const;
 	void setData(const QByteArray &data) {
 		_data = data;
 	}
 
-	bool setRemoteVersion(int32 version); // Returns true if version has changed.
-	void setRemoteLocation(int32 dc, uint64 access);
+	bool hasGoodStickerThumb() const;
+
+	Image *goodThumbnail() const;
+	Storage::Cache::Key goodThumbnailCacheKey() const;
+	void setGoodThumbnail(QImage &&image, QByteArray &&bytes);
+	void refreshGoodThumbnail();
+	void replaceGoodThumbnail(std::unique_ptr<Images::Source> &&source);
+
+	void setRemoteLocation(
+		int32 dc,
+		uint64 access,
+		const QByteArray &fileReference);
 	void setContentUrl(const QString &url);
 	void setWebLocation(const WebFileLocation &location);
 	bool hasRemoteLocation() const;
 	bool hasWebLocation() const;
 	bool isValid() const;
 	MTPInputDocument mtpInput() const;
+	QByteArray fileReference() const;
+	void refreshFileReference(const QByteArray &value);
+	void refreshStickerThumbFileReference();
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)
@@ -166,6 +193,8 @@ public:
 	void setMimeString(const QString &mime);
 
 	MediaKey mediaKey() const;
+	Storage::Cache::Key cacheKey() const;
+	uint8 cacheTag() const;
 
 	static QString ComposeNameString(
 		const QString &filename,
@@ -179,7 +208,7 @@ public:
 	DocumentType type = FileDocument;
 	QSize dimensions;
 	int32 date = 0;
-	ImagePtr thumb, replyPreview;
+	ImagePtr thumb;
 	int32 size = 0;
 
 	FileStatus status = FileReady;
@@ -190,17 +219,21 @@ private:
 	friend class Serialize::Document;
 
 	LocationType locationType() const;
+	void validateGoodThumbnail();
 
-	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
+	void destroyLoader(mtpFileLoader *newValue = nullptr) const;
 
-	// Two types of location: from MTProto by dc+access+version or from web by url
+	// Two types of location: from MTProto by dc+access or from web by url
 	int32 _dc = 0;
 	uint64 _access = 0;
-	int32 _version = 0;
+	QByteArray _fileReference;
 	QString _url;
 	QString _filename;
 	QString _mimeString;
 	WebFileLocation _urlLocation;
+
+	std::unique_ptr<Image> _goodThumbnail;
+	std::unique_ptr<Image> _replyPreview;
 
 	not_null<AuthSession*> _session;
 
@@ -208,6 +241,8 @@ private:
 	QByteArray _data;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
+	bool _isImage = false;
+	bool _supportsStreaming = false;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;
@@ -238,7 +273,8 @@ private:
 class DocumentSaveClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
-	static void doSave(
+	static void Save(
+		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
 		bool forceSavingAs = false);
 
@@ -250,7 +286,8 @@ protected:
 class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
-	static void doOpen(
+	static void Open(
+		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
 		HistoryItem *context,
 		ActionOnLoad action = ActionOnLoadOpen);
@@ -295,3 +332,11 @@ QString FileNameForSave(
 	QString name,
 	bool savingAs,
 	const QDir &dir = QDir());
+
+namespace Data {
+
+QString FileExtension(const QString &filepath);
+bool IsValidMediaFile(const QString &filepath);
+bool IsExecutableName(const QString &filepath);
+
+} // namespace Data

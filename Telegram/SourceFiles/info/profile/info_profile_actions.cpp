@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_text.h"
+#include "support/support_helper.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
@@ -211,18 +212,27 @@ DetailsFiller::DetailsFiller(
 object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	auto result = object_ptr<Ui::VerticalLayout>(_wrap);
 	auto tracker = Ui::MultiSlideTracker();
-	auto addInfoLine = [&](
-			LangKey label,
+	auto addInfoLineGeneric = [&](
+			rpl::producer<QString> label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled) {
 		auto line = CreateTextWithLabel(
 			result,
-			Lang::Viewer(label) | WithEmptyEntities(),
+			std::move(label) | WithEmptyEntities(),
 			std::move(text),
 			textSt,
 			st::infoProfileLabeledPadding);
 		tracker.track(result->add(std::move(line.wrap)));
 		return line.text;
+	};
+	auto addInfoLine = [&](
+			LangKey label,
+			rpl::producer<TextWithEntities> &&text,
+			const style::FlatLabel &textSt = st::infoLabeled) {
+		return addInfoLineGeneric(
+			Lang::Viewer(label),
+			std::move(text),
+			textSt);
 	};
 	auto addInfoOneLine = [&](
 			LangKey label,
@@ -237,6 +247,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		return result;
 	};
 	if (auto user = _peer->asUser()) {
+		if (Auth().supportMode()) {
+			addInfoLineGeneric(
+				Auth().supportHelper().infoLabelValue(user),
+				Auth().supportHelper().infoTextValue(user));
+		}
+
 		addInfoOneLine(
 			lng_info_mobile_label,
 			PhoneValue(user),
@@ -272,7 +288,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			lng_info_link_label,
 			std::move(linkText),
 			QString());
-		link->setClickHandlerHook([peer = _peer](auto&&...) {
+		link->setClickHandlerFilter([peer = _peer](auto&&...) {
 			auto link = Messenger::Instance().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
@@ -311,14 +327,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
-		if (peer->isMuted()) {   // was muted
-			Global::RefHiddenPinnedMessages().remove(peer->id);
-			Local::writeUserSettings();
-		}
-		const auto muteState = peer->isMuted()
-			? Data::NotifySettings::MuteChange::Unmute
-			: Data::NotifySettings::MuteChange::Mute;
-		App::main()->updateNotifySettings(peer, muteState);
+		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+			? 0
+			: Data::NotifySettings::kDefaultMutePeriod;
+		Auth().data().updateNotifySettings(peer, muteForSeconds);
 	});
 	object_ptr<FloatingIcon>(
 		result,
@@ -542,6 +554,7 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	};
 	addBotCommand(lng_profile_bot_help, qsl("help"));
 	addBotCommand(lng_profile_bot_settings, qsl("settings"));
+	addBotCommand(lng_profile_bot_privacy, qsl("privacy"));
 }
 
 void ActionsFiller::addReportAction() {
@@ -562,7 +575,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 		switch (user->blockStatus()) {
 		case UserData::BlockStatus::Blocked:
 			return Lang::Viewer(user->botInfo
-				? lng_profile_unblock_bot
+				? lng_profile_restart_bot
 				: lng_profile_unblock_user);
 		case UserData::BlockStatus::NotBlocked:
 		default:
@@ -578,9 +591,12 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	) | rpl::map([](const QString &text) {
 		return !text.isEmpty();
 	});
-	auto callback = [user] {
+	auto callback = [=] {
 		if (user->isBlocked()) {
 			Auth().api().unblockUser(user);
+			if (user->botInfo) {
+				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+			}
 		} else {
 			Auth().api().blockUser(user);
 		}

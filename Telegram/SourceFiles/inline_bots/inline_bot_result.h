@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/basic_types.h"
-
 class FileLoader;
+class LocationCoords;
 
 namespace InlineBots {
 
@@ -46,7 +45,7 @@ public:
 	// inline bot result. If it returns true you need to send this result.
 	bool onChoose(Layout::ItemBase *layout);
 
-	void forget();
+	void unload();
 	void openFile();
 	void cancelFile();
 

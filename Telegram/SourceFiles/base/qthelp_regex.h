@@ -35,8 +35,11 @@ public:
 	const QRegularExpressionMatch *operator->() const {
 		return &data_;
 	}
-	explicit operator bool() const {
+	bool valid() const {
 		return data_.hasMatch();
+	}
+	explicit operator bool() const {
+		return valid();
 	}
 
 private:

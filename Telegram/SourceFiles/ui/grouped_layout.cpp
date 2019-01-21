@@ -374,7 +374,7 @@ std::vector<GroupMediaLayout> Layouter::layoutFourTopAndOther() const {
 		},
 		{
 			QRect(w0 + _spacing + w1 + _spacing, h0 + _spacing, w2, h1),
-			RectPart::Right | RectPart::BottomLeft
+			RectPart::Right | RectPart::Bottom
 		},
 	};
 }

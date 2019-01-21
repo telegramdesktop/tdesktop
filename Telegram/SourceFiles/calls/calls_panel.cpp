@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/empty_userpic.h"
+#include "ui/emoji_config.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
@@ -66,6 +68,66 @@ private:
 	Animation _outerAnimation;
 
 };
+
+SignalBars::SignalBars(
+	QWidget *parent,
+	not_null<Call*> call,
+	const style::CallSignalBars &st,
+	Fn<void()> displayedChangedCallback)
+: RpWidget(parent)
+, _st(st)
+, _displayedChangedCallback(std::move(displayedChangedCallback)) {
+	resize(
+		_st.width + (_st.width + _st.skip) * (Call::kSignalBarCount - 1),
+		_st.width * Call::kSignalBarCount);
+	subscribe(call->signalBarCountChanged(), [=](int count) {
+		changed(count);
+	});
+}
+
+bool SignalBars::isDisplayed() const {
+	return (_count >= 0);
+}
+
+void SignalBars::paintEvent(QPaintEvent *e) {
+	if (!isDisplayed()) {
+		return;
+	}
+
+	Painter p(this);
+
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(_st.color);
+	for (auto i = 0; i < Call::kSignalBarCount; ++i) {
+		p.setOpacity((i < _count) ? 1. : _st.inactiveOpacity);
+		const auto barHeight = (i + 1) * _st.width;
+		const auto barLeft = i * (_st.width + _st.skip);
+		const auto barTop = height() - barHeight;
+		p.drawRoundedRect(
+			barLeft,
+			barTop,
+			_st.width,
+			barHeight,
+			_st.radius,
+			_st.radius);
+	}
+	p.setOpacity(1.);
+}
+
+void SignalBars::changed(int count) {
+	if (_count == Call::kSignalBarFinished) {
+		return;
+	}
+	if (_count != count) {
+		const auto wasDisplayed = isDisplayed();
+		_count = count;
+		if (isDisplayed() != wasDisplayed && _displayedChangedCallback) {
+			_displayedChangedCallback();
+		}
+		update();
+	}
+}
 
 Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo) : Ui::RippleButton(parent, stFrom.button.ripple)
 , _stFrom(&stFrom)
@@ -238,7 +300,8 @@ Panel::Panel(not_null<Call*> call)
 , _cancel(this, object_ptr<Button>(this, st::callCancel))
 , _mute(this, st::callMuteToggle)
 , _name(this, st::callName)
-, _status(this, st::callStatus) {
+, _status(this, st::callStatus)
+, _signalBars(this, call, st::callPanelSignalBars) {
 	_decline->setDuration(st::callPanelDuration);
 	_cancel->setDuration(st::callPanelDuration);
 
@@ -337,16 +400,24 @@ void Panel::initControls() {
 void Panel::reinitControls() {
 	Expects(_call != nullptr);
 
-	unsubscribe(_stateChangedSubscription);
-	_stateChangedSubscription = subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
+	unsubscribe(base::take(_stateChangedSubscription));
+	_stateChangedSubscription = subscribe(
+		_call->stateChanged(),
+		[=](State state) { stateChanged(state); });
 	stateChanged(_call->state());
+
+	_signalBars.create(
+		this,
+		_call,
+		st::callPanelSignalBars,
+		[=] { rtlupdate(signalBarsRect()); });
 
 	_name->setText(App::peerName(_call->user()));
 	updateStatusText(_call->state());
 }
 
 void Panel::initLayout() {
-	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Dialog);
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::NoDropShadowWindowHint | Qt::Dialog);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -434,7 +505,7 @@ void Panel::processUserPhoto() {
 		? Auth().data().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
-		photo->full->load(true);
+		photo->full->load(_user->userpicPhotoOrigin(), true);
 	} else if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
 		Auth().api().requestFullPeer(_user);
 	}
@@ -452,13 +523,13 @@ void Panel::refreshUserPhoto() {
 	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
 		_userPhotoId = photo->id;
 		_userPhotoFull = true;
-		createUserpicCache(photo->full);
+		createUserpicCache(photo->full, _user->userpicPhotoOrigin());
 	} else if (_userPhoto.isNull()) {
-		createUserpicCache(_user->currentUserpic());
+		createUserpicCache(_user->currentUserpic(), _user->userpicOrigin());
 	}
 }
 
-void Panel::createUserpicCache(ImagePtr image) {
+void Panel::createUserpicCache(ImagePtr image, Data::FileOrigin origin) {
 	auto size = st::callWidth * cIntRetinaFactor();
 	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
@@ -471,8 +542,14 @@ void Panel::createUserpicCache(ImagePtr image) {
 			height = qMax((height * size) / width, 1);
 			width = size;
 		}
-		_userPhoto = image->pixNoCache(width, height, options, st::callWidth, st::callWidth);
-		if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
+		_userPhoto = image->pixNoCache(
+			origin,
+			width,
+			height,
+			options,
+			st::callWidth,
+			st::callWidth);
+		_userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		auto filled = QImage(QSize(st::callWidth, st::callWidth) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		filled.setDevicePixelRatio(cRetinaFactor());
@@ -531,7 +608,7 @@ void Panel::createBottomImage() {
 		p.setBrush(st::callBg);
 		p.setPen(Qt::NoPen);
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(myrtlrect(_padding.left(), -st::historyMessageRadius, st::callWidth, bottomHeight - _padding.bottom() + st::historyMessageRadius), st::historyMessageRadius, st::historyMessageRadius);
+		p.drawRoundedRect(myrtlrect(_padding.left(), -st::callRadius, st::callWidth, bottomHeight - _padding.bottom() + st::callRadius), st::callRadius, st::callRadius);
 	}
 	_bottomCache = App::pixmapFromImageInPlace(std::move(image));
 }
@@ -551,7 +628,7 @@ void Panel::createDefaultCacheImage() {
 		p.setBrush(st::callBg);
 		p.setPen(Qt::NoPen);
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(myrtlrect(inner), st::historyMessageRadius, st::historyMessageRadius);
+		p.drawRoundedRect(myrtlrect(inner), st::callRadius, st::callRadius);
 	}
 	_cache = App::pixmapFromImageInPlace(std::move(cache));
 }
@@ -585,6 +662,12 @@ void Panel::updateControlsGeometry() {
 	updateHangupGeometry();
 
 	_mute->moveToRight(_padding.right() + st::callMuteRight, controlsTop);
+
+	const auto skip = st::callSignalMargin + st::callSignalPadding;
+	const auto delta = (_signalBars->width() - _signalBars->height());
+	_signalBars->moveToLeft(
+		_padding.left() + skip,
+		_padding.top() + skip + delta / 2);
 }
 
 void Panel::updateHangupGeometry() {
@@ -637,18 +720,39 @@ void Panel::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, _contentTop, width(), height() - _contentTop, brush);
 	}
 
+	if (_signalBars->isDisplayed()) {
+		paintSignalBarsBg(p);
+	}
+
 	if (!_fingerprint.empty()) {
 		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Small);
 
-		auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-		auto size = realSize / cIntRetinaFactor();
+		const auto realSize = Ui::Emoji::GetSizeLarge();
+		const auto size = realSize / cIntRetinaFactor();
 		auto left = _fingerprintArea.left() + st::callFingerprintPadding.left();
-		auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
-		for (auto emoji : _fingerprint) {
-			p.drawPixmap(QPoint(left, top), App::emojiLarge(), QRect(emoji->x() * realSize, emoji->y() * realSize, realSize, realSize));
+		const auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
+		for (const auto emoji : _fingerprint) {
+			Ui::Emoji::Draw(p, emoji, realSize, left, top);
 			left += st::callFingerprintSkip + size;
 		}
 	}
+}
+
+QRect Panel::signalBarsRect() const {
+	const auto size = 2 * st::callSignalPadding + _signalBars->width();
+	return QRect(
+		_padding.left() + st::callSignalMargin,
+		_padding.top() + st::callSignalMargin,
+		size,
+		size);
+}
+
+void Panel::paintSignalBarsBg(Painter &p) {
+	App::roundRect(
+		p,
+		signalBarsRect(),
+		st::callFingerprintBg,
+		ImageRoundRadius::Small);
 }
 
 void Panel::closeEvent(QCloseEvent *e) {
@@ -766,7 +870,7 @@ void Panel::fillFingerprint() {
 	Expects(_call != nullptr);
 	_fingerprint = ComputeEmojiFingerprint(_call);
 
-	auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
+	auto realSize = Ui::Emoji::GetSizeLarge();
 	auto size = realSize / cIntRetinaFactor();
 	auto count = _fingerprint.size();
 	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;

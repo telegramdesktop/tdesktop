@@ -15,11 +15,22 @@ class MainWidget;
 class HistoryMessage;
 class HistoryService;
 
+namespace Settings {
+enum class Type;
+} // namespace Settings
+
 namespace Media {
 namespace Player {
 class RoundController;
+class FloatController;
+class FloatDelegate;
 } // namespace Player
 } // namespace Media
+
+namespace Passport {
+struct FormRequest;
+class FormController;
+} // namespace Passport
 
 namespace Window {
 
@@ -43,7 +54,7 @@ public:
 	DateClickHandler(Dialogs::Key chat, QDate date);
 
 	void setDate(QDate date);
-	void onClick(Qt::MouseButton) const override;
+	void onClick(ClickContext context) const override;
 
 private:
 	Dialogs::Key _chat;
@@ -109,6 +120,11 @@ public:
 		not_null<History*> history,
 		const SectionShow &params = SectionShow());
 
+	void showSettings(
+		Settings::Type type,
+		const SectionShow &params = SectionShow());
+	void showSettings(const SectionShow &params = SectionShow());
+
 	virtual ~Navigation() = default;
 
 };
@@ -133,6 +149,7 @@ public:
 	rpl::producer<Dialogs::Key> activeChatChanges() const;
 	rpl::producer<Dialogs::RowDescriptor> activeChatEntryValue() const;
 	rpl::producer<Dialogs::Key> activeChatValue() const;
+	bool jumpToChatListEntry(Dialogs::RowDescriptor row);
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -195,10 +212,14 @@ public:
 			anim::type animated = anim::type::normal) {
 		showSpecialLayer(nullptr, animated);
 	}
+	void removeLayerBlackout();
 
 	void showJumpToDate(
 		Dialogs::Key chat,
 		QDate requestedDate);
+
+	void showPassportForm(const Passport::FormRequest &request);
+	void clearPassportForm();
 
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
@@ -224,6 +245,14 @@ public:
 	RoundController *roundVideo(FullMsgId contextId) const;
 	void roundVideoFinished(not_null<RoundController*> video);
 
+	void setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate);
+	void replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	void restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	rpl::producer<FullMsgId> floatPlayerClosed() const;
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -231,6 +260,8 @@ public:
 	~Controller();
 
 private:
+	void initSupportMode();
+
 	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;
 	int countDialogsWidthFromRatio(int bodyWidth) const;
@@ -244,7 +275,12 @@ private:
 		int thirdWidth,
 		int bodyWidth) const;
 
+	void pushToChatEntryHistory(Dialogs::RowDescriptor row);
+	bool chatEntryHistoryMove(int steps);
+
 	not_null<MainWindow*> _window;
+
+	std::unique_ptr<Passport::FormController> _passportForm;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
@@ -253,8 +289,13 @@ private:
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
+	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
+	int _chatEntryHistoryPosition = -1;
 
 	std::unique_ptr<RoundController> _roundVideo;
+	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
+	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
+	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 
 	rpl::lifetime _lifetime;
 

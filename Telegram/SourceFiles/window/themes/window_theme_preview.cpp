@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "platform/platform_window_title.h"
 #include "ui/text_options.h"
+#include "ui/image/image_prepare.h"
+#include "ui/emoji_config.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_mediaview.h"
@@ -277,8 +279,8 @@ void Generator::addDateBubble(QString date) {
 void Generator::addPhotoBubble(QString image, QString caption, QString date, Status status) {
 	Bubble bubble;
 	bubble.photo.load(image);
-	bubble.photoWidth = convertScale(bubble.photo.width() / 2);
-	bubble.photoHeight = convertScale(bubble.photo.height() / 2);
+	bubble.photoWidth = ConvertScale(bubble.photo.width() / 2);
+	bubble.photoHeight = ConvertScale(bubble.photo.height() / 2);
 	auto skipBlock = computeSkipBlock(status, date);
 	bubble.text.setRichText(st::messageTextStyle, caption + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
 
@@ -474,10 +476,16 @@ void Generator::paintComposeArea() {
 	auto right = st::historySendRight + st::historySendSize.width();
 	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()));
 
+	const auto emojiIconLeft = (st::historyAttachEmoji.iconPosition.x() < 0)
+		? ((st::historyAttachEmoji.width - st::historyAttachEmoji.icon.width()) / 2)
+		: st::historyAttachEmoji.iconPosition.x();
+	const auto emojiIconTop = (st::historyAttachEmoji.iconPosition.y() < 0)
+		? ((st::historyAttachEmoji.height - st::historyAttachEmoji.icon.height()) / 2)
+		: st::historyAttachEmoji.iconPosition.y();
 	right += st::historyAttachEmoji.width;
 	auto attachEmojiLeft = _composeArea.x() + _composeArea.width() - right;
 	_p->fillRect(attachEmojiLeft, controlsTop, st::historyAttachEmoji.width, st::historyAttachEmoji.height, st::historyComposeAreaBg[_palette]);
-	st::historyAttachEmoji.icon[_palette].paint(*_p, attachEmojiLeft + st::historyAttachEmoji.iconPosition.x(), controlsTop + st::historyAttachEmoji.iconPosition.y(), _rect.width());
+	st::historyAttachEmoji.icon[_palette].paint(*_p, attachEmojiLeft + emojiIconLeft, controlsTop + emojiIconTop, _rect.width());
 
 	auto pen = st::historyEmojiCircleFg[_palette]->p;
 	pen.setWidth(st::historyEmojiCircleLine);
@@ -489,27 +497,26 @@ void Generator::paintComposeArea() {
 	auto inner = QRect(QPoint(attachEmojiLeft + (st::historyAttachEmoji.width - st::historyEmojiCircle.width()) / 2, controlsTop + st::historyEmojiCircleTop), st::historyEmojiCircle);
 	_p->drawEllipse(inner);
 
-	auto fakeMargin = 0;
-	switch (cScale()) {
-	case dbisOneAndQuarter: fakeMargin = 1; break;
-	case dbisOneAndHalf: fakeMargin = 2; break;
-	case dbisTwo: fakeMargin = 4; break;
-	}
+	const auto fakeMargin = (cScale() - 100) / 25;
 
 	auto fieldLeft = _composeArea.x() + st::historyAttach.width + fakeMargin;
 	auto fieldTop = _composeArea.y() + _composeArea.height() - st::historyAttach.height + st::historySendPadding + fakeMargin;
 	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - st::historyAttachEmoji.width - 2 * fakeMargin;
 	auto fieldHeight = st::historySendSize.height() - 2 * st::historySendPadding - 2 * fakeMargin;
 	auto field = QRect(fieldLeft, fieldTop, fieldWidth, fieldHeight);
-	_p->fillRect(field, st::historyComposeField.bgColor[_palette]);
+	_p->fillRect(field, st::historyComposeField.textBg[_palette]);
 
 	_p->save();
 	_p->setClipRect(field);
 	_p->setFont(st::historyComposeField.font);
-	_p->setPen(st::historyComposeField.phColor[_palette]);
+	_p->setPen(st::historyComposeField.placeholderFg[_palette]);
 
-	auto phRect = QRect(field.x() + st::historyComposeField.textMrg.left() - fakeMargin + st::historyComposeField.phPos.x(), field.y() + st::historyComposeField.textMrg.top() - fakeMargin + st::historyComposeField.phPos.y(), field.width() - st::historyComposeField.textMrg.left() - st::historyComposeField.textMrg.right(), field.height() - st::historyComposeField.textMrg.top() - st::historyComposeField.textMrg.bottom());
-	_p->drawText(phRect, lang(lng_message_ph), QTextOption(st::historyComposeField.phAlign));
+	auto placeholderRect = QRect(
+		field.x() + st::historyComposeField.textMargins.left() - fakeMargin + st::historyComposeField.placeholderMargins.left(),
+		field.y() + st::historyComposeField.textMargins.top() - fakeMargin + st::historyComposeField.placeholderMargins.top(),
+		field.width() - st::historyComposeField.textMargins.left() - st::historyComposeField.textMargins.right(),
+		field.height() - st::historyComposeField.textMargins.top() - st::historyComposeField.textMargins.bottom());
+	_p->drawText(placeholderRect, lang(lng_message_ph), QTextOption(st::historyComposeField.textAlign));
 
 	_p->restore();
 	_p->setClipping(false);
@@ -885,12 +892,25 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
+std::unique_ptr<Preview> PreviewFromFile(const QString &filepath) {
+	auto result = std::make_unique<Preview>();
+	result->pathRelative = filepath.isEmpty()
+		? QString()
+		: QDir().relativeFilePath(filepath);
+	result->pathAbsolute = filepath.isEmpty()
+		? QString()
+		: QFileInfo(filepath).absoluteFilePath();
+	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
+		return nullptr;
+	}
+	return result;
+}
+
 std::unique_ptr<Preview> GeneratePreview(
 		const QString &filepath,
 		CurrentData &&data) {
-	auto result = std::make_unique<Preview>();
-	result->path = filepath;
-	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
+	auto result = PreviewFromFile(filepath);
+	if (!result) {
 		return nullptr;
 	}
 	result->preview = Generator(
@@ -935,7 +955,7 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 		currentInt = *lastLineInts;
 		++maxSize;
 	}
-	if (cRetina() && (maxSize % cIntRetinaFactor())) {
+	if (maxSize % cIntRetinaFactor()) {
 		maxSize -= (maxSize % cIntRetinaFactor());
 	}
 	auto size = maxSize / cIntRetinaFactor();

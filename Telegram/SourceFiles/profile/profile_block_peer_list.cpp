@@ -207,7 +207,7 @@ void PeerListWidget::contextMenuEvent(QContextMenuEvent *e) {
 
 	_menu = fillPeerMenu(_items[_selected]->peer);
 	if (_menu) {
-		_menu->setDestroyedCallback(base::lambda_guarded(this, [this, menu = _menu] {
+		_menu->setDestroyedCallback(crl::guard(this, [this, menu = _menu] {
 			if (_menu == menu) {
 				_menu = nullptr;
 			}

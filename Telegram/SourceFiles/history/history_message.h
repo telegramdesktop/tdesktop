@@ -15,7 +15,7 @@ class Message;
 
 struct HistoryMessageEdited;
 
-base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
+Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 QString GetErrorTextForForward(
@@ -147,6 +147,10 @@ private:
 	void setEmptyText();
 	bool hasAdminBadge() const {
 		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
+	}
+	bool isTooOldForEdit(TimeId now) const;
+	bool isUnsupportedMessage() const {
+		return _flags & MTPDmessage_ClientFlag::f_is_unsupported;
 	}
 
 	// For an invoice button we replace the button text with a "Receipt" key.

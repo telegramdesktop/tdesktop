@@ -70,7 +70,9 @@ RoundController::RoundController(
 	Auth().data().itemRepaintRequest(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		if (item == _context) {
-			checkReaderState();
+			crl::on_main(this, [=] {
+				checkReaderState();
+			});
 		}
 	}, lifetime());
 }

@@ -8,12 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 
 #include "data/data_session.h"
+#include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "mainwidget.h"
-#include "history/history_media_types.h"
 #include "auth_session.h"
 #include "messenger.h"
 
-PhotoData::PhotoData(const PhotoId &id, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full)
+PhotoData::PhotoData(const PhotoId &id)
+: id(id) {
+}
+
+PhotoData::PhotoData(
+	const PhotoId &id,
+	const uint64 &access,
+	const QByteArray &fileReference,
+	TimeId date,
+	const ImagePtr &thumb,
+	const ImagePtr &medium,
+	const ImagePtr &full)
 : id(id)
 , access(access)
 , date(date)
@@ -22,16 +34,18 @@ PhotoData::PhotoData(const PhotoId &id, const uint64 &access, int32 date, const 
 , full(full) {
 }
 
-void PhotoData::automaticLoad(const HistoryItem *item) {
-	full->automaticLoad(item);
+void PhotoData::automaticLoad(
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
+	full->automaticLoad(origin, item);
 }
 
 void PhotoData::automaticLoadSettingsChanged() {
 	full->automaticLoadSettingsChanged();
 }
 
-void PhotoData::download() {
-	full->loadEvenCancelled();
+void PhotoData::download(Data::FileOrigin origin) {
+	full->loadEvenCancelled(origin);
 	Auth().data().notifyPhotoLayoutChanged(this);
 }
 
@@ -89,25 +103,66 @@ bool PhotoData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
-void PhotoData::forget() {
-	thumb->forget();
-	replyPreview->forget();
-	medium->forget();
-	full->forget();
+void PhotoData::unload() {
+	// Forget thumb only when image cache limit exceeds.
+	//thumb->unload();
+	medium->unload();
+	full->unload();
+	_replyPreview = nullptr;
 }
 
-ImagePtr PhotoData::makeReplyPreview() {
-	if (replyPreview->isNull() && !thumb->isNull()) {
-		if (thumb->loaded()) {
-			int w = thumb->width(), h = thumb->height();
+Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
+	if (!_replyPreview && !thumb->isNull()) {
+		const auto previewFromImage = [&](const ImagePtr &image) {
+			if (!image->loaded()) {
+				image->load(origin);
+				return std::unique_ptr<Image>();
+			}
+			int w = image->width(), h = image->height();
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
-			replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
+			return std::make_unique<Image>(
+				std::make_unique<Images::ImageSource>(
+				(w > h
+					? image->pix(
+						origin,
+						w * st::msgReplyBarSize.height() / h,
+						st::msgReplyBarSize.height())
+					: image->pix(origin, st::msgReplyBarSize.height())
+					).toImage(),
+					"PNG"));
+		};
+		if (thumb->isDelayedStorageImage()
+			&& !full->isNull()
+			&& !full->isDelayedStorageImage()) {
+			_replyPreview = previewFromImage(full);
 		} else {
-			thumb->load();
+			_replyPreview = previewFromImage(thumb);
 		}
 	}
-	return replyPreview;
+	return _replyPreview.get();
+}
+
+MTPInputPhoto PhotoData::mtpInput() const {
+	return MTP_inputPhoto(
+		MTP_long(id),
+		MTP_long(access),
+		MTP_bytes(fileReference));
+}
+
+void PhotoData::collectLocalData(PhotoData *local) {
+	if (local == this) return;
+
+	const auto copyImage = [](const ImagePtr &src, const ImagePtr &dst) {
+		if (const auto from = src->cacheKey()) {
+			if (const auto to = dst->cacheKey()) {
+				Auth().data().cache().copyIfEmpty(*from, *to);
+			}
+		}
+	};
+	copyImage(local->thumb, thumb);
+	copyImage(local->medium, medium);
+	copyImage(local->full, full);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
@@ -118,7 +173,7 @@ void PhotoSaveClickHandler::onClickImpl() const {
 	auto data = photo();
 	if (!data->date) return;
 
-	data->download();
+	data->download(context());
 }
 
 void PhotoCancelClickHandler::onClickImpl() const {

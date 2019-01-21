@@ -47,9 +47,12 @@ private:
 
 };
 
-class LabelSimple : public TWidget {
+class LabelSimple : public RpWidget {
 public:
-	LabelSimple(QWidget *parent, const style::LabelSimple &st = st::defaultLabelSimple, const QString &value = QString());
+	LabelSimple(
+		QWidget *parent,
+		const style::LabelSimple &st = st::defaultLabelSimple,
+		const QString &value = QString());
 
 	// This method also resizes the label.
 	void setText(const QString &newText, bool *outTextChanged = nullptr);
@@ -94,6 +97,7 @@ public:
 		const style::FlatLabel &st = st::defaultFlatLabel);
 
 	void setOpacity(float64 o);
+	void setTextColorOverride(std::optional<QColor> color);
 
 	void setText(const QString &text);
 	void setRichText(const QString &text);
@@ -109,8 +113,8 @@ public:
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
-	using ClickHandlerHook = base::lambda<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
-	void setClickHandlerHook(ClickHandlerHook &&hook);
+	using ClickHandlerFilter = Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
+	void setClickHandlerFilter(ClickHandlerFilter &&filter);
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
@@ -172,6 +176,7 @@ private:
 
 	Text _text;
 	const style::FlatLabel &_st;
+	std::optional<QColor> _textColorOverride;
 	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;
@@ -204,7 +209,7 @@ private:
 	QString _contextCopyText;
 	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;
 
-	ClickHandlerHook _clickHandlerHook;
+	ClickHandlerFilter _clickHandlerFilter;
 
 	// text selection and context menu by touch support (at least Windows Surface tablets)
 	bool _touchSelect = false;
@@ -214,7 +219,7 @@ private:
 
 };
 
-class DividerLabel : public Ui::PaddingWrap<Ui::FlatLabel> {
+class DividerLabel : public PaddingWrap<Ui::FlatLabel> {
 public:
 	using PaddingWrap::PaddingWrap;
 

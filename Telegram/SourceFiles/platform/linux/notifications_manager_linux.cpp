@@ -111,6 +111,7 @@ public:
 	bool show() {
 		if (valid()) {
 			GError *error = nullptr;
+
 			Libs::notify_notification_show(_data, &error);
 			if (!error) {
 				return true;
@@ -152,6 +153,8 @@ private:
 			Libs::notify_notification_set_hint_string(_data, "x-canonical-append", "true");
 		}
 
+		Libs::notify_notification_set_hint_string(_data, "desktop-entry", "telegramdesktop");
+
 		auto signalReceiver = Libs::g_object_cast(_data);
 		auto signalHandler = G_CALLBACK(NotificationData::notificationClosed);
 		auto signalName = "closed";
@@ -189,7 +192,7 @@ private:
 		PeerId peerId = 0;
 		MsgId msgId = 0;
 	};
-	static void performOnMainQueue(NotificationDataStruct *data, base::lambda_once<void(Manager *manager)> task) {
+	static void performOnMainQueue(NotificationDataStruct *data, FnMut<void(Manager *manager)> task) {
 		const auto weak = data->weak;
 		crl::on_main(weak, [=, task = std::move(task)]() mutable {
 			task(*weak.lock());

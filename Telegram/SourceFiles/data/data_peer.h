@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
+#include "data/data_file_origin.h"
 
 namespace Ui {
 class EmptyUserpic;
@@ -33,7 +34,7 @@ style::color PeerUserpicColor(PeerId peerId);
 class PeerClickHandler : public ClickHandler {
 public:
 	PeerClickHandler(not_null<PeerData*> peer);
-	void onClick(Qt::MouseButton button) const override;
+	void onClick(ClickContext context) const override;
 
 	not_null<PeerData*> peer() const {
 		return _peer;
@@ -68,29 +69,25 @@ public:
 	bool isVerified() const;
 	bool isMegagroup() const;
 
-	TimeMs notifyMuteFinishesIn() const {
-		return _notify.muteFinishesIn();
+	std::optional<TimeId> notifyMuteUntil() const {
+		return _notify.muteUntil();
 	}
 	bool notifyChange(const MTPPeerNotifySettings &settings) {
 		return _notify.change(settings);
 	}
 	bool notifyChange(
-			Data::NotifySettings::MuteChange mute,
-			Data::NotifySettings::SilentPostsChange silent,
-			int muteForSeconds) {
-		return _notify.change(mute, silent, muteForSeconds);
+			std::optional<int> muteForSeconds,
+			std::optional<bool> silentPosts) {
+		return _notify.change(muteForSeconds, silentPosts);
 	}
 	bool notifySettingsUnknown() const {
 		return _notify.settingsUnknown();
 	}
-	bool notifySilentPosts() const {
+	std::optional<bool> notifySilentPosts() const {
 		return _notify.silentPosts();
 	}
 	MTPinputPeerNotifySettings notifySerialize() const {
 		return _notify.serialize();
-	}
-	bool isMuted() const {
-		return (notifyMuteFinishesIn() > 0);
 	}
 
 	bool canWrite() const;
@@ -169,17 +166,9 @@ public:
 		int x,
 		int y,
 		int size) const;
-	void loadUserpic(bool loadFirst = false, bool prior = true) {
-		_userpic->load(loadFirst, prior);
-	}
-	bool userpicLoaded() const {
-		return _userpic->loaded();
-	}
-	bool useEmptyUserpic() const {
-		return _userpicLocation.isNull()
-			|| !_userpic
-			|| !_userpic->loaded();
-	}
+	void loadUserpic(bool loadFirst = false, bool prior = true);
+	bool userpicLoaded() const;
+	bool useEmptyUserpic() const;
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
 	void saveUserpicRounded(const QString &path, int size) const;
@@ -193,6 +182,14 @@ public:
 	}
 	PhotoId userpicPhotoId() const {
 		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
+	}
+	Data::FileOrigin userpicOrigin() const {
+		return Data::FileOrigin(Data::FileOriginPeerPhoto(id));
+	}
+	Data::FileOrigin userpicPhotoOrigin() const {
+		return (isUser() && userpicPhotoId())
+			? Data::FileOriginUserPhoto(bareId(), userpicPhotoId())
+			: Data::FileOrigin();
 	}
 
 	int nameVersion = 1;
@@ -212,6 +209,15 @@ public:
 	}
 
 	ImagePtr currentUserpic() const;
+
+	bool canPinMessages() const;
+	MsgId pinnedMessageId() const {
+		return _pinnedMessageId;
+	}
+	void setPinnedMessageId(MsgId messageId);
+	void clearPinnedMessage() {
+		setPinnedMessageId(0);
+	}
 
 protected:
 	void updateNameDelayed(
@@ -245,6 +251,7 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	TimeMs _lastFullUpdate = 0;
+	MsgId _pinnedMessageId = 0;
 
 };
 
@@ -921,7 +928,6 @@ public:
 	bool hiddenPreHistory() const;
 	bool canAddMembers() const;
 	bool canAddAdmins() const;
-	bool canPinMessages() const;
 	bool canPublish() const;
 	bool canWrite() const;
 	bool canViewMembers() const;
@@ -1002,14 +1008,6 @@ public:
 	}
 	void setAvailableMinId(MsgId availableMinId);
 
-	MsgId pinnedMessageId() const {
-		return _pinnedMessageId;
-	}
-	void setPinnedMessageId(MsgId messageId);
-	void clearPinnedMessage() {
-		setPinnedMessageId(0);
-	}
-
 	void setFeed(not_null<Data::Feed*> feed);
 	void clearFeed();
 
@@ -1034,7 +1032,6 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	MsgId _availableMinId = 0;
-	MsgId _pinnedMessageId = 0;
 
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;

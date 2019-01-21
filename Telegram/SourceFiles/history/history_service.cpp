@@ -13,13 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "layout.h"
 #include "history/history.h"
-#include "history/history_media_types.h"
+#include "history/media/history_media_invoice.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
 #include "data/data_feed.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_game.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
@@ -166,6 +167,51 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareSecureValuesSent = [&](const MTPDmessageActionSecureValuesSent &action) {
+		auto result = PreparedText{};
+		auto documents = QStringList();
+		for (const auto &type : action.vtypes.v) {
+			documents.push_back([&] {
+				switch (type.type()) {
+				case mtpc_secureValueTypePersonalDetails:
+					return lang(lng_action_secure_personal_details);
+				case mtpc_secureValueTypePassport:
+				case mtpc_secureValueTypeDriverLicense:
+				case mtpc_secureValueTypeIdentityCard:
+				case mtpc_secureValueTypeInternalPassport:
+					return lang(lng_action_secure_proof_of_identity);
+				case mtpc_secureValueTypeAddress:
+					return lang(lng_action_secure_address);
+				case mtpc_secureValueTypeUtilityBill:
+				case mtpc_secureValueTypeBankStatement:
+				case mtpc_secureValueTypeRentalAgreement:
+				case mtpc_secureValueTypePassportRegistration:
+				case mtpc_secureValueTypeTemporaryRegistration:
+					return lang(lng_action_secure_proof_of_address);
+				case mtpc_secureValueTypePhone:
+					return lang(lng_action_secure_phone);
+				case mtpc_secureValueTypeEmail:
+					return lang(lng_action_secure_email);
+				}
+				Unexpected("Type in prepareSecureValuesSent.");
+			}());
+		};
+		result.links.push_back(history()->peer->createOpenLink());
+		result.text = lng_action_secure_values_sent(
+			lt_user,
+			textcmdLink(1, App::peerName(history()->peer)),
+			lt_documents,
+			documents.join(", "));
+		return result;
+	};
+
+	auto prepareContactSignUp = [this] {
+		auto result = PreparedText{};
+		result.links.push_back(fromLink());
+		result.text = lng_action_user_registered(lt_from, fromLinkText());
+		return result;
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -187,6 +233,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionScreenshotTaken: messageText = prepareScreenshotTaken(); break;
 	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
 	case mtpc_messageActionBotAllowed: messageText = prepareBotAllowed(action.c_messageActionBotAllowed()); break;
+	case mtpc_messageActionSecureValuesSent: messageText = prepareSecureValuesSent(action.c_messageActionSecureValuesSent()); break;
+	case mtpc_messageActionContactSignUp: messageText = prepareContactSignUp(); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 
@@ -464,8 +512,11 @@ QString HistoryService::inDialogsText(DrawInDialog way) const {
 }
 
 QString HistoryService::inReplyText() const {
-	QString result = HistoryService::notificationText();
-	return result.trimmed().startsWith(author()->name) ? result.trimmed().mid(author()->name.size()).trimmed() : result;
+	const auto result = HistoryService::notificationText();
+	const auto text = result.trimmed().startsWith(author()->name)
+		? result.trimmed().mid(author()->name.size()).trimmed()
+		: result;
+	return textcmdLink(1, text);
 }
 
 std::unique_ptr<HistoryView::Element> HistoryService::createView(
@@ -566,7 +617,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		UpdateComponents(HistoryServicePayment::Bit());
 		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
 		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
-		Get<HistoryServicePayment>()->amount = HistoryInvoice::fillAmountAndCurrency(amount, currency);
+		Get<HistoryServicePayment>()->amount = FillAmountAndCurrency(amount, currency);
 	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {
@@ -640,7 +691,7 @@ void HistoryService::updateDependentText() {
 	}
 	if (const auto main = App::main()) {
 		// #TODO feeds search results
-		main->repaintDialogRow(history(), id);
+		main->repaintDialogRow({ history(), fullId() });
 	}
 	App::historyUpdateDependent(this);
 }

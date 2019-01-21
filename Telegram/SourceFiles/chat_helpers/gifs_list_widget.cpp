@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/stickers.h"
@@ -63,23 +64,23 @@ GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(p
 , _pan(parent)
 , _field(this, st::gifsSearchField, langFactory(lng_gifs_search))
 , _cancel(this, st::gifsSearchCancel) {
-	connect(_field, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) {
+	connect(_field, &Ui::InputField::submitted, [=] {
 		_pan->sendInlineRequest();
 	});
-	connect(_field, &Ui::InputField::cancelled, this, [this] {
+	connect(_field, &Ui::InputField::cancelled, [=] {
 		if (_field->getLastText().isEmpty()) {
-			emit _pan->cancelled();
+			_pan->cancelled();
 		} else {
 			_field->setText(QString());
 		}
 	});
-	connect(_field, &Ui::InputField::changed, this, [this] {
+	connect(_field, &Ui::InputField::changed, [=] {
 		_cancel->toggle(
 			!_field->getLastText().isEmpty(),
 			anim::type::normal);
 		_pan->searchForGifs(_field->getLastText());
 	});
-	_cancel->setClickedCallback([this] {
+	_cancel->setClickedCallback([=] {
 		_field->setText(QString());
 	});
 }
@@ -124,15 +125,11 @@ GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
 : Inner(parent, controller)
-, _section(Section::Gifs) {
+, _section(Section::Gifs)
+, _updateInlineItems([=] { updateInlineItems(); })
+, _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
-
-	_previewTimer.setSingleShot(true);
-	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
-
-	_updateInlineItems.setSingleShot(true);
-	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
 	_inlineRequestTimer.setSingleShot(true);
 	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
@@ -151,8 +148,22 @@ GifsListWidget::GifsListWidget(
 	});
 }
 
+rpl::producer<not_null<DocumentData*>> GifsListWidget::fileChosen() const {
+	return _fileChosen.events();
+}
+
+rpl::producer<not_null<PhotoData*>> GifsListWidget::photoChosen() const {
+	return _photoChosen.events();
+}
+
+auto GifsListWidget::inlineResultChosen() const
+-> rpl::producer<InlineChosen> {
+	return _inlineResultChosen.events();
+}
+
 object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 	Expects(_footer == nullptr);
+
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
 	return std::move(result);
@@ -304,11 +315,11 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	ClickHandler::pressed();
-	_previewTimer.start(QApplication::startDragTime());
+	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
-	_previewTimer.stop();
+	_previewTimer.cancel();
 
 	auto pressed = std::exchange(_pressed, -1);
 	auto activated = ClickHandler::unpressed();
@@ -339,24 +350,28 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 	}
 
 	auto item = _rows[row].items[column];
-	if (auto photo = item->getPhoto()) {
+	if (const auto photo = item->getPhoto()) {
 		if (photo->medium->loaded() || photo->thumb->loaded()) {
-			emit selected(photo);
+			_photoChosen.fire_copy(photo);
 		} else if (!photo->medium->loading()) {
-			photo->thumb->loadEvenCancelled();
-			photo->medium->loadEvenCancelled();
+			photo->thumb->loadEvenCancelled(Data::FileOrigin());
+			photo->medium->loadEvenCancelled(Data::FileOrigin());
 		}
-	} else if (auto document = item->getDocument()) {
+	} else if (const auto document = item->getDocument()) {
 		if (document->loaded()) {
-			emit selected(document);
+			_fileChosen.fire_copy(document);
 		} else if (document->loading()) {
 			document->cancel();
 		} else {
-			DocumentOpenClickHandler::doOpen(document, nullptr, ActionOnLoadNone);
+			DocumentOpenClickHandler::Open(
+				document->stickerOrGifOrigin(),
+				document,
+				nullptr,
+				ActionOnLoadNone);
 		}
-	} else if (auto inlineResult = item->getResult()) {
+	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			emit selected(inlineResult, _searchBot);
+			_inlineResultChosen.fire({ inlineResult, _searchBot });
 		}
 	}
 }
@@ -399,24 +414,24 @@ void GifsListWidget::processHideFinished() {
 }
 
 void GifsListWidget::processPanelHideFinished() {
-	auto itemForget = [](auto &item) {
-		if (auto document = item->getDocument()) {
-			document->forget();
+	const auto itemForget = [](const auto &item) {
+		if (const auto document = item->getDocument()) {
+			document->unload();
 		}
-		if (auto photo = item->getPhoto()) {
-			photo->forget();
+		if (const auto photo = item->getPhoto()) {
+			photo->unload();
 		}
-		if (auto result = item->getResult()) {
-			result->forget();
+		if (const auto result = item->getResult()) {
+			result->unload();
 		}
 	};
 	// Preserve panel state through visibility toggles.
 	//clearInlineRows(false);
-	for_const (auto &item, _gifLayouts) {
-		itemForget(item.second);
+	for (const auto &[document, layout] : _gifLayouts) {
+		itemForget(layout);
 	}
-	for_const (auto &item, _inlineLayouts) {
-		itemForget(item.second);
+	for (const auto &[document, layout] : _inlineLayouts) {
+		itemForget(layout);
 	}
 }
 
@@ -616,8 +631,7 @@ void GifsListWidget::switchToSavedGifs() {
 	clearInlineRows(false);
 	_section = Section::Gifs;
 	refreshSavedGifs();
-	emit scrollToY(0);
-	emit scrollUpdated();
+	scrollTo(0);
 }
 
 int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool resultsDeleted) {
@@ -741,7 +755,7 @@ void GifsListWidget::inlineItemRepaint(const InlineBots::Layout::ItemBase *layou
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 
@@ -762,6 +776,12 @@ bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layou
 	}
 
 	return (top < getVisibleBottom()) && (top + _rows[row].items[col]->height() > getVisibleTop());
+}
+
+Data::FileOrigin GifsListWidget::inlineItemFileOrigin() {
+	return _inlineQuery.isEmpty()
+		? Data::FileOriginSavedGifs()
+		: Data::FileOrigin();
 }
 
 void GifsListWidget::afterShown() {
@@ -792,7 +812,7 @@ int32 GifsListWidget::showInlineRows(bool newResults) {
 	auto added = 0;
 	auto clear = !refreshInlineRows(&added);
 	if (newResults) {
-		scrollToY(0);
+		scrollTo(0);
 	}
 	return added;
 }
@@ -835,6 +855,14 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 }
 
+void GifsListWidget::cancelled() {
+	_cancelled.fire({});
+}
+
+rpl::producer<> GifsListWidget::cancelRequests() const {
+	return _cancelled.events();
+}
+
 void GifsListWidget::sendInlineRequest() {
 	if (_inlineRequestId || !_inlineQueryPeer || _inlineNextQuery.isEmpty()) {
 		return;
@@ -860,7 +888,14 @@ void GifsListWidget::sendInlineRequest() {
 	}
 
 	_footer->setLoading(true);
-	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _searchBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
+	_inlineRequestId = request(MTPmessages_GetInlineBotResults(
+		MTP_flags(0),
+		_searchBot->inputUser,
+		_inlineQueryPeer->input,
+		MTPInputGeoPoint(),
+		MTP_string(_inlineQuery),
+		MTP_string(nextOffset)
+	)).done([this](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
 	}).fail([this](const RPCError &error) {
 		// show error?
@@ -941,10 +976,14 @@ void GifsListWidget::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows[row].items[col];
-				if (auto previewDocument = layout->getPreviewDocument()) {
-					Ui::showMediaPreview(previewDocument);
-				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-					Ui::showMediaPreview(previewPhoto);
+				if (const auto previewDocument = layout->getPreviewDocument()) {
+					Ui::showMediaPreview(
+						Data::FileOriginSavedGifs(),
+						previewDocument);
+				} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+					Ui::showMediaPreview(
+						Data::FileOrigin(),
+						previewPhoto);
 				}
 			}
 		}
@@ -954,27 +993,33 @@ void GifsListWidget::updateSelected() {
 	}
 }
 
-void GifsListWidget::onPreview() {
-	if (_pressed < 0) return;
+void GifsListWidget::showPreview() {
+	if (_pressed < 0) {
+		return;
+	}
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows[row].items.size()) {
 		auto layout = _rows[row].items[col];
-		if (auto previewDocument = layout->getPreviewDocument()) {
-			Ui::showMediaPreview(previewDocument);
+		if (const auto previewDocument = layout->getPreviewDocument()) {
+			Ui::showMediaPreview(
+				Data::FileOriginSavedGifs(),
+				previewDocument);
 			_previewShown = true;
-		} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-			Ui::showMediaPreview(previewPhoto);
+		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+			Ui::showMediaPreview(
+				Data::FileOrigin(),
+				previewPhoto);
 			_previewShown = true;
 		}
 	}
 }
 
-void GifsListWidget::onUpdateInlineItems() {
+void GifsListWidget::updateInlineItems() {
 	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
-		_updateInlineItems.start(_lastScrolled + 100 - ms);
+		_updateInlineItems.callOnce(_lastScrolled + 100 - ms);
 	}
 }
 

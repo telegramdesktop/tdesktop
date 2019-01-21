@@ -1,5 +1,5 @@
 diff --git a/src/build/common.gypi b/src/build/common.gypi
-index 29990c6..53e99d4 100644
+index 29990c65..53e99d44 100644
 --- a/src/build/common.gypi
 +++ b/src/build/common.gypi
 @@ -330,6 +330,7 @@
@@ -11,7 +11,7 @@ index 29990c6..53e99d4 100644
          },
        }],
 diff --git a/src/client/mac/Breakpad.xcodeproj/project.pbxproj b/src/client/mac/Breakpad.xcodeproj/project.pbxproj
-index 1a93ce6..1c1d643 100644
+index 1a93ce6d..b5986e33 100644
 --- a/src/client/mac/Breakpad.xcodeproj/project.pbxproj
 +++ b/src/client/mac/Breakpad.xcodeproj/project.pbxproj
 @@ -35,6 +35,19 @@
@@ -34,7 +34,15 @@ index 1a93ce6..1c1d643 100644
  		162F64F2161C577500CD68D5 /* arch_utilities.cc in Sources */ = {isa = PBXBuildFile; fileRef = 162F64F0161C577500CD68D5 /* arch_utilities.cc */; };
  		162F64F3161C577500CD68D5 /* arch_utilities.h in Headers */ = {isa = PBXBuildFile; fileRef = 162F64F1161C577500CD68D5 /* arch_utilities.h */; };
  		162F64F4161C579B00CD68D5 /* arch_utilities.cc in Sources */ = {isa = PBXBuildFile; fileRef = 162F64F0161C577500CD68D5 /* arch_utilities.cc */; };
-@@ -170,11 +183,8 @@
+@@ -67,6 +80,7 @@
+ 		4DBE49A7134A4F280072546A /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DBE4769134A4F080072546A /* CoreServices.framework */; };
+ 		4DBE49A8134A4F380072546A /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DBE4769134A4F080072546A /* CoreServices.framework */; };
+ 		4DBE49A9134A4F460072546A /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DBE4769134A4F080072546A /* CoreServices.framework */; };
++		5A8B220921E0C5740045F83C /* breakpad_nlist_64.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53690ECCE3FD009BE4BA /* breakpad_nlist_64.cc */; };
+ 		8B3101C611F0CD9F00FCF3E4 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0867D6A5FE840307C02AAC07 /* AppKit.framework */; };
+ 		8B3101C711F0CD9F00FCF3E4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0867D69BFE84028FC02AAC07 /* Foundation.framework */; };
+ 		8B3101CA11F0CDB000FCF3E4 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0867D6A5FE840307C02AAC07 /* AppKit.framework */; };
+@@ -170,11 +184,8 @@
  		F92C564A0ECD10CA009BE4BA /* string_conversion.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C53850ECCE6AD009BE4BA /* string_conversion.cc */; };
  		F92C564C0ECD10DD009BE4BA /* breakpadUtilities.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F92C563C0ECD10B3009BE4BA /* breakpadUtilities.dylib */; };
  		F92C56570ECD113E009BE4BA /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F92C554A0ECCF530009BE4BA /* Carbon.framework */; };
@@ -46,7 +54,7 @@ index 1a93ce6..1c1d643 100644
  		F92C56A90ECE04C5009BE4BA /* crash_report_sender.m in Sources */ = {isa = PBXBuildFile; fileRef = F92C56A80ECE04C5009BE4BA /* crash_report_sender.m */; };
  		F93803CD0F8083B7004D428B /* dynamic_images.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536B0ECCE3FD009BE4BA /* dynamic_images.cc */; };
  		F93803CE0F8083B7004D428B /* exception_handler.cc in Sources */ = {isa = PBXBuildFile; fileRef = F92C536D0ECCE3FD009BE4BA /* exception_handler.cc */; };
-@@ -213,7 +223,6 @@
+@@ -213,7 +224,6 @@
  		F9C44DBD0EF072A0003AEBAA /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = F9C44DBA0EF072A0003AEBAA /* MainMenu.xib */; };
  		F9C44E000EF077CD003AEBAA /* Breakpad.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DC2EF5B0486A6940098B216 /* Breakpad.framework */; };
  		F9C44E3C0EF08B12003AEBAA /* Breakpad.framework in Copy Frameworks */ = {isa = PBXBuildFile; fileRef = 8DC2EF5B0486A6940098B216 /* Breakpad.framework */; };
@@ -54,7 +62,7 @@ index 1a93ce6..1c1d643 100644
  		F9C44EA20EF09F93003AEBAA /* HTTPMultipartUpload.m in Sources */ = {isa = PBXBuildFile; fileRef = F92C53770ECCE635009BE4BA /* HTTPMultipartUpload.m */; };
  		F9C44EE50EF0A006003AEBAA /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F9C44EE40EF0A006003AEBAA /* SystemConfiguration.framework */; };
  		F9C44EE90EF0A3C1003AEBAA /* GTMLogger.m in Sources */ = {isa = PBXBuildFile; fileRef = F9C44EE80EF0A3C1003AEBAA /* GTMLogger.m */; };
-@@ -410,20 +419,6 @@
+@@ -410,20 +420,6 @@
  			remoteGlobalIDString = F92C563B0ECD10B3009BE4BA;
  			remoteInfo = breakpadUtilities;
  		};
@@ -75,7 +83,7 @@ index 1a93ce6..1c1d643 100644
  		F93DE2FB0F82C3C600608B94 /* PBXContainerItemProxy */ = {
  			isa = PBXContainerItemProxy;
  			containerPortal = 0867D690FE84028FC02AAC07 /* Project object */;
-@@ -536,13 +531,6 @@
+@@ -536,13 +532,6 @@
  			remoteGlobalIDString = 8DC2EF4F0486A6940098B216;
  			remoteInfo = Breakpad;
  		};
@@ -89,7 +97,7 @@ index 1a93ce6..1c1d643 100644
  /* End PBXContainerItemProxy section */
  
  /* Begin PBXCopyFilesBuildPhase section */
-@@ -714,7 +702,6 @@
+@@ -714,7 +703,6 @@
  			isa = PBXFrameworksBuildPhase;
  			buildActionMask = 2147483647;
  			files = (
@@ -97,7 +105,7 @@ index 1a93ce6..1c1d643 100644
  				8DC2EF570486A6940098B216 /* Cocoa.framework in Frameworks */,
  			);
  			runOnlyForDeploymentPostprocessing = 0;
-@@ -1181,18 +1168,13 @@
+@@ -1181,18 +1169,13 @@
  			isa = PBXNativeTarget;
  			buildConfigurationList = 1DEB91AD08733DA50010E9CD /* Build configuration list for PBXNativeTarget "Breakpad" */;
  			buildPhases = (
@@ -116,7 +124,7 @@ index 1a93ce6..1c1d643 100644
  			);
  			name = Breakpad;
  			productInstallPath = "$(HOME)/Library/Frameworks";
-@@ -1399,6 +1381,8 @@
+@@ -1399,6 +1382,8 @@
  /* Begin PBXProject section */
  		0867D690FE84028FC02AAC07 /* Project object */ = {
  			isa = PBXProject;
@@ -125,7 +133,7 @@ index 1a93ce6..1c1d643 100644
  			buildConfigurationList = 1DEB91B108733DA50010E9CD /* Build configuration list for PBXProject "Breakpad" */;
  			compatibilityVersion = "Xcode 3.1";
  			developmentRegion = English;
-@@ -1583,16 +1567,6 @@
+@@ -1583,16 +1568,6 @@
  /* End PBXReferenceProxy section */
  
  /* Begin PBXResourcesBuildPhase section */
@@ -142,7 +150,7 @@ index 1a93ce6..1c1d643 100644
  		F92C569C0ECE04A7009BE4BA /* Resources */ = {
  			isa = PBXResourcesBuildPhase;
  			buildActionMask = 2147483647;
-@@ -1640,20 +1614,6 @@
+@@ -1640,20 +1615,6 @@
  			shellPath = /bin/sh;
  			shellScript = "install_name_tool -id \"@executable_path/../Resources/breakpadUtilities.dylib\" \"${BUILT_PRODUCTS_DIR}/breakpadUtilities.dylib\"\n";
  		};
@@ -163,10 +171,11 @@ index 1a93ce6..1c1d643 100644
  		F9C77DD80F7DD5CF0045F7DB /* ShellScript */ = {
  			isa = PBXShellScriptBuildPhase;
  			buildActionMask = 2147483647;
-@@ -1674,6 +1634,19 @@
+@@ -1674,6 +1635,20 @@
  			isa = PBXSourcesBuildPhase;
  			buildActionMask = 2147483647;
  			files = (
++				5A8B220921E0C5740045F83C /* breakpad_nlist_64.cc in Sources */,
 +				0748C0501C63C52D004489BF /* bootstrap_compat.cc in Sources */,
 +				0748C04F1C63C523004489BF /* macho_walker.cc in Sources */,
 +				0748C04E1C63C51C004489BF /* md5.cc in Sources */,
@@ -183,7 +192,7 @@ index 1a93ce6..1c1d643 100644
  				F92C565F0ECD116B009BE4BA /* protected_memory_allocator.cc in Sources */,
  				F92C56630ECD1179009BE4BA /* exception_handler.cc in Sources */,
  				F92C55D10ECD0064009BE4BA /* Breakpad.mm in Sources */,
-@@ -1955,16 +1928,6 @@
+@@ -1955,16 +1930,6 @@
  			target = F92C563B0ECD10B3009BE4BA /* breakpadUtilities */;
  			targetProxy = F92C564D0ECD10E5009BE4BA /* PBXContainerItemProxy */;
  		};
@@ -200,7 +209,7 @@ index 1a93ce6..1c1d643 100644
  		F93DE2FC0F82C3C600608B94 /* PBXTargetDependency */ = {
  			isa = PBXTargetDependency;
  			target = F93803BD0F80820F004D428B /* generator_test */;
-@@ -2025,11 +1988,6 @@
+@@ -2025,11 +1990,6 @@
  			target = 8DC2EF4F0486A6940098B216 /* Breakpad */;
  			targetProxy = F9C44E190EF0790F003AEBAA /* PBXContainerItemProxy */;
  		};
@@ -212,7 +221,7 @@ index 1a93ce6..1c1d643 100644
  /* End PBXTargetDependency section */
  
  /* Begin PBXVariantGroup section */
-@@ -2126,8 +2084,12 @@
+@@ -2126,8 +2086,12 @@
  			isa = XCBuildConfiguration;
  			baseConfigurationReference = 8B31027711F0D3AF00FCF3E4 /* BreakpadDebug.xcconfig */;
  			buildSettings = {
@@ -226,7 +235,7 @@ index 1a93ce6..1c1d643 100644
  			};
  			name = Debug;
  		};
-@@ -2135,7 +2097,12 @@
+@@ -2135,7 +2099,12 @@
  			isa = XCBuildConfiguration;
  			baseConfigurationReference = 8B31027811F0D3AF00FCF3E4 /* BreakpadRelease.xcconfig */;
  			buildSettings = {
@@ -239,7 +248,7 @@ index 1a93ce6..1c1d643 100644
  			};
  			name = Release;
  		};
-@@ -2454,7 +2421,12 @@
+@@ -2454,7 +2423,12 @@
  			isa = XCBuildConfiguration;
  			baseConfigurationReference = 8B31027711F0D3AF00FCF3E4 /* BreakpadDebug.xcconfig */;
  			buildSettings = {
@@ -253,7 +262,7 @@ index 1a93ce6..1c1d643 100644
  			name = "Debug With Code Coverage";
  		};
 diff --git a/src/client/mac/Framework/Breakpad.mm b/src/client/mac/Framework/Breakpad.mm
-index 1d2e519..943310f 100644
+index 1d2e519b..943310fa 100644
 --- a/src/client/mac/Framework/Breakpad.mm
 +++ b/src/client/mac/Framework/Breakpad.mm
 @@ -355,10 +355,10 @@ bool Breakpad::Initialize(NSDictionary *parameters) {
@@ -480,7 +489,7 @@ index 1d2e519..943310f 100644
  }
  
 diff --git a/src/common/language.cc b/src/common/language.cc
-index 978fb85..a95ae5f 100644
+index 978fb855..a95ae5f7 100644
 --- a/src/common/language.cc
 +++ b/src/common/language.cc
 @@ -46,8 +46,27 @@
@@ -552,7 +561,7 @@ index 978fb85..a95ae5f 100644
  #endif
    }
 diff --git a/src/common/linux/elf_symbols_to_module.cc b/src/common/linux/elf_symbols_to_module.cc
-index 562875e..4367851 100644
+index 562875e1..43678510 100644
 --- a/src/common/linux/elf_symbols_to_module.cc
 +++ b/src/common/linux/elf_symbols_to_module.cc
 @@ -39,6 +39,29 @@
@@ -615,7 +624,7 @@ index 562875e..4367851 100644
        module->AddExtern(ext);
      }
 diff --git a/src/tools/linux/tools_linux.gypi b/src/tools/linux/tools_linux.gypi
-index 1c15992..020e4c1 100644
+index 1c15992e..020e4c1c 100644
 --- a/src/tools/linux/tools_linux.gypi
 +++ b/src/tools/linux/tools_linux.gypi
 @@ -58,7 +58,7 @@
@@ -627,3 +636,16 @@ index 1c15992..020e4c1 100644
        ],
        'dependencies': [
          '../common/common.gyp:common',
+diff --git a/src/tools/mac/dump_syms/macho_dump.cc b/src/tools/mac/dump_syms/macho_dump.cc
+index d882bbe8..3432bb45 100644
+--- a/src/tools/mac/dump_syms/macho_dump.cc
++++ b/src/tools/mac/dump_syms/macho_dump.cc
+@@ -140,7 +140,7 @@ void DumpFile(const char *filename) {
+   size_t object_files_size;
+   const SuperFatArch* super_fat_object_files =
+       fat_reader.object_files(&object_files_size);
+-  struct fat_arch *object_files;
++  struct fat_arch *object_files = 0;
+   if (!super_fat_object_files->ConvertToFatArch(object_files)) {
+     exit(1);
+   }

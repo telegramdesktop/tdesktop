@@ -11,9 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/filter.h>
 #include <rpl/variable.h>
 #include "base/timer.h"
+#include "data/data_auto_download.h"
 
 class ApiWrap;
 enum class SendFilesWay;
+
+namespace Ui {
+enum class InputSubmitSettings;
+} // namespace Ui
+
+namespace Support {
+enum class SwitchSettings;
+class Helper;
+class Templates;
+} // namespace Support
 
 namespace Data {
 class Session;
@@ -64,6 +75,38 @@ public:
 	SendFilesWay sendFilesWay() const {
 		return _variables.sendFilesWay;
 	}
+	void setSendSubmitWay(Ui::InputSubmitSettings value) {
+		_variables.sendSubmitWay = value;
+	}
+	Ui::InputSubmitSettings sendSubmitWay() const {
+		return _variables.sendSubmitWay;
+	}
+
+	void setSupportSwitch(Support::SwitchSettings value) {
+		_variables.supportSwitch = value;
+	}
+	Support::SwitchSettings supportSwitch() const {
+		return _variables.supportSwitch;
+	}
+	void setSupportFixChatsOrder(bool fix) {
+		_variables.supportFixChatsOrder = fix;
+	}
+	bool supportFixChatsOrder() const {
+		return _variables.supportFixChatsOrder;
+	}
+	void setSupportTemplatesAutocomplete(bool enabled) {
+		_variables.supportTemplatesAutocomplete = enabled;
+	}
+	bool supportTemplatesAutocomplete() const {
+		return _variables.supportTemplatesAutocomplete;
+	}
+	void setSupportChatsTimeSlice(int slice);
+	int supportChatsTimeSlice() const;
+	rpl::producer<int> supportChatsTimeSliceValue() const;
+	void setSupportAllSearchResults(bool all);
+	bool supportAllSearchResults() const;
+	rpl::producer<bool> supportAllSearchResultsValue() const;
+
 	ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
 	}
@@ -144,6 +187,36 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
+	Data::AutoDownload::Full &autoDownload() {
+		return _variables.autoDownload;
+	}
+	const Data::AutoDownload::Full &autoDownload() const {
+		return _variables.autoDownload;
+	}
+
+	bool hadLegacyCallsPeerToPeerNobody() const {
+		return _variables.hadLegacyCallsPeerToPeerNobody;
+	}
+
+	bool includeMutedCounter() const {
+		return _variables.includeMutedCounter;
+	}
+	void setIncludeMutedCounter(bool value) {
+		_variables.includeMutedCounter = value;
+	}
+	bool countUnreadMessages() const {
+		return _variables.countUnreadMessages;
+	}
+	void setCountUnreadMessages(bool value) {
+		_variables.countUnreadMessages = value;
+	}
+	bool exeLaunchWarning() const {
+		return _variables.exeLaunchWarning;
+	}
+	void setExeLaunchWarning(bool warning) {
+		_variables.exeLaunchWarning = warning;
+	}
+
 private:
 	struct Variables {
 		Variables();
@@ -167,6 +240,22 @@ private:
 			= kDefaultDialogsWidthRatio; // per-window
 		rpl::variable<int> thirdColumnWidth
 			= kDefaultThirdColumnWidth; // per-window
+		Ui::InputSubmitSettings sendSubmitWay;
+		bool hadLegacyCallsPeerToPeerNobody = false;
+		bool includeMutedCounter = false;
+		bool countUnreadMessages = false;
+		bool exeLaunchWarning = true;
+		Data::AutoDownload::Full autoDownload;
+
+		static constexpr auto kDefaultSupportChatsLimitSlice
+			= 7 * 24 * 60 * 60;
+
+		Support::SwitchSettings supportSwitch;
+		bool supportFixChatsOrder = true;
+		bool supportTemplatesAutocomplete = true;
+		rpl::variable<int> supportChatsTimeSlice
+			= kDefaultSupportChatsLimitSlice;
+		rpl::variable<bool> supportAllSearchResults = false;
 	};
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
@@ -186,7 +275,7 @@ class AuthSession final
 	: public base::has_weak_ptr
 	, private base::Subscriber {
 public:
-	AuthSession(UserId userId);
+	AuthSession(const MTPUser &user);
 
 	AuthSession(const AuthSession &other) = delete;
 	AuthSession &operator=(const AuthSession &other) = delete;
@@ -194,12 +283,14 @@ public:
 	static bool Exists();
 
 	UserId userId() const {
-		return _userId;
+		return _user->bareId();
 	}
 	PeerId userPeerId() const {
-		return peerFromUser(userId());
+		return _user->id;
 	}
-	UserData *user() const;
+	not_null<UserData*> user() const {
+		return _user;
+	}
 	bool validateSelf(const MTPUser &user);
 
 	Storage::Downloader &downloader() {
@@ -224,6 +315,7 @@ public:
 	AuthSessionSettings &settings() {
 		return _settings;
 	}
+	void moveSettingsFrom(AuthSessionSettings &&other);
 	void saveSettingsDelayed(TimeMs delay = kDefaultSaveDelay);
 
 	ApiWrap &api() {
@@ -237,15 +329,23 @@ public:
 	void checkAutoLock();
 	void checkAutoLockIn(TimeMs time);
 
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 	base::Observable<DocumentData*> documentUpdated;
 	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
+
+	bool supportMode() const;
+	Support::Helper &supportHelper() const;
+	Support::Templates &supportTemplates() const;
 
 	~AuthSession();
 
 private:
 	static constexpr auto kDefaultSaveDelay = TimeMs(1000);
 
-	const UserId _userId = 0;
+	const not_null<UserData*> _user;
 	AuthSessionSettings _settings;
 	base::Timer _saveDataTimer;
 
@@ -264,6 +364,8 @@ private:
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;
+
+	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	rpl::lifetime _lifetime;
 

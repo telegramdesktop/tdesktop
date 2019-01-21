@@ -60,6 +60,10 @@
         'COMBINE_HIDPI_IMAGES': 'YES',
         'COPY_PHASE_STRIP': 'NO',
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++1z',
+        'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
+        'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
+        'GCC_OPTIMIZATION_LEVEL': '0',
+        'ALWAYS_SEARCH_USER_PATHS': 'NO',
       },
       'configurations': {
         'Debug': {
@@ -84,6 +88,10 @@
           '-w', # Suppress 'libstdc++ is deprecated' warning.
         ],
       },
+      'defines': [
+        'OS_MAC_OLD',
+        'RANGES_CXX_THREAD_LOCAL=0',
+      ],
     }, {
       'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',
@@ -96,5 +104,11 @@
         ],
       },
     }],
+    [ 'build_macstore', {
+      'defines': [
+        'TDESKTOP_DISABLE_AUTOUPDATE',
+        'OS_MAC_STORE',
+      ],
+    }]
   ],
 }

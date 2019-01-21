@@ -1,0 +1,14 @@
+# cmake artifacts
+
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+
+
+# make compilation results
+
+libxxhash.0.6.3.dylib
+libxxhash.0.dylib
+libxxhash.a
+libxxhash.dylib

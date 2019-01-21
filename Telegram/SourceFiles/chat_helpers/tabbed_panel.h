@@ -22,16 +22,21 @@ namespace ChatHelpers {
 
 class TabbedSelector;
 
-class TabbedPanel : public Ui::RpWidget{
-	Q_OBJECT
-
+class TabbedPanel : public Ui::RpWidget {
 public:
 	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller);
-	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
+	TabbedPanel(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		object_ptr<TabbedSelector> selector);
 
 	object_ptr<TabbedSelector> takeSelector();
 	QPointer<TabbedSelector> getSelector() const;
-	void moveBottom(int bottom);
+	void moveBottomRight(int bottom, int right);
+	void setDesiredHeightValues(
+		float64 ratio,
+		int minHeight,
+		int maxHeight);
 
 	void hideFast();
 	bool hiding() const {
@@ -55,9 +60,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-private slots:
-	void onWndActiveChanged();
-
 private:
 	void hideByTimerOrLeave();
 	void moveByBottom();
@@ -65,19 +67,12 @@ private:
 		return !_selector;
 	}
 	void showFromSelector();
+	void windowActiveChanged();
 
 	style::margins innerPadding() const;
 
 	// Rounded rect which has shadow around it.
 	QRect innerRect() const;
-
-	// Inner rect with removed st::buttonRadius from top and bottom.
-	// This one is allowed to be not rounded.
-	QRect horizontalRect() const;
-
-	// Inner rect with removed st::buttonRadius from left and right.
-	// This one is allowed to be not rounded.
-	QRect verticalRect() const;
 
 	QImage grabForAnimation();
 	void startShowAnimation();
@@ -98,6 +93,10 @@ private:
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
 	int _bottom = 0;
+	int _right = 0;
+	float64 _heightRatio = 1.;
+	int _minContentHeight = 0;
+	int _maxContentHeight = 0;
 
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;

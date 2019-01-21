@@ -89,8 +89,8 @@ private:
 
 void DcOptions::readBuiltInPublicKeys() {
 	for (const auto key : PublicRSAKeys) {
-		const auto keyBytes = gsl::make_span(key, key + strlen(key));
-		auto parsed = internal::RSAPublicKey(gsl::as_bytes(keyBytes));
+		const auto keyBytes = bytes::make_span(key, strlen(key));
+		auto parsed = internal::RSAPublicKey(keyBytes);
 		if (parsed.isValid()) {
 			_publicKeys.emplace(parsed.getFingerPrint(), std::move(parsed));
 		} else {
@@ -233,7 +233,7 @@ void DcOptions::constructAddOne(
 		int port,
 		const bytes::vector &secret) {
 	WriteLocker lock(this);
-	applyOneGuarded(bareDcId(id), flags, ip, port, secret);
+	applyOneGuarded(BareDcId(id), flags, ip, port, secret);
 }
 
 bool DcOptions::applyOneGuarded(
@@ -352,8 +352,8 @@ QByteArray DcOptions::serialize() const {
 	}
 	struct SerializedPublicKey {
 		DcId dcId;
-		base::byte_vector n;
-		base::byte_vector e;
+		bytes::vector n;
+		bytes::vector e;
 	};
 	std::vector<SerializedPublicKey> publicKeys;
 	publicKeys.reserve(count);
@@ -485,7 +485,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 
 		for (auto i = 0; i != count; ++i) {
 			qint32 dcId = 0;
-			base::byte_vector n, e;
+			bytes::vector n, e;
 			stream >> dcId >> Serialize::bytes(n) >> Serialize::bytes(e);
 			if (stream.status() != QDataStream::Ok) {
 				LOG(("MTP Error: Bad data for CDN config inside DcOptions::constructFromSerialized()"));
@@ -525,7 +525,7 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 		return DcType::Temporary;
 	}
 	ReadLocker lock(this);
-	if (_cdnDcIds.find(bareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
+	if (_cdnDcIds.find(BareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
 		return DcType::Cdn;
 	}
 	if (isDownloadDcId(shiftedDcId)) {
@@ -540,8 +540,8 @@ void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 	for_const (auto &publicKey, config.vpublic_keys.v) {
 		Expects(publicKey.type() == mtpc_cdnPublicKey);
 		const auto &keyData = publicKey.c_cdnPublicKey();
-		const auto keyBytes = gsl::make_span(keyData.vpublic_key.v);
-		auto key = internal::RSAPublicKey(gsl::as_bytes(keyBytes));
+		const auto keyBytes = bytes::make_span(keyData.vpublic_key.v);
+		auto key = internal::RSAPublicKey(keyBytes);
 		if (key.isValid()) {
 			_cdnPublicKeys[keyData.vdc_id.v].emplace(
 				key.getFingerPrint(),
@@ -642,7 +642,7 @@ void DcOptions::computeCdnDcIds() {
 	for (auto &item : _data) {
 		Assert(!item.second.empty());
 		if (item.second.front().flags & Flag::f_cdn) {
-			_cdnDcIds.insert(bareDcId(item.first));
+			_cdnDcIds.insert(BareDcId(item.first));
 		}
 	}
 }
@@ -675,7 +675,7 @@ bool DcOptions::loadFromFile(const QString &path) {
 		auto ip = components[1];
 		auto port = components[2].toInt();
 		auto host = QHostAddress();
-		if (dcId <= 0 || dcId >= internal::kDcShift || !host.setAddress(ip) || port <= 0) {
+		if (dcId <= 0 || dcId >= kDcShift || !host.setAddress(ip) || port <= 0) {
 			return error();
 		}
 		auto flags = Flags(0);

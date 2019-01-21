@@ -21,7 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/view/history_view_cursor_state.h"
 #include "storage/localstorage.h"
+#include "ui/image/image.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 
 namespace InlineBots {
@@ -30,14 +32,16 @@ namespace internal {
 
 using TextState = HistoryView::TextState;
 
-FileBase::FileBase(not_null<Context*> context, Result *result) : ItemBase(context, result) {
+FileBase::FileBase(not_null<Context*> context, not_null<Result*> result)
+: ItemBase(context, result) {
 }
 
-FileBase::FileBase(not_null<Context*> context, DocumentData *document) : ItemBase(context, document) {
+FileBase::FileBase(not_null<Context*> context, DocumentData *document)
+: ItemBase(context, document) {
 }
 
 DocumentData *FileBase::getShownDocument() const {
-	if (DocumentData *result = getDocument()) {
+	if (const auto result = getDocument()) {
 		return result;
 	}
 	return getResultDocument();
@@ -49,7 +53,7 @@ int FileBase::content_width() const {
 		return document->dimensions.width();
 	}
 	if (!document->thumb->isNull()) {
-		return convertScale(document->thumb->width());
+		return ConvertScale(document->thumb->width());
 	}
 	return 0;
 }
@@ -60,7 +64,7 @@ int FileBase::content_height() const {
 		return document->dimensions.height();
 	}
 	if (!document->thumb->isNull()) {
-		return convertScale(document->thumb->height());
+		return ConvertScale(document->thumb->height());
 	}
 	return 0;
 }
@@ -115,12 +119,12 @@ void Gif::setPosition(int32 position) {
 }
 
 void DeleteSavedGifClickHandler::onClickImpl() const {
-	auto index = Auth().data().savedGifs().indexOf(_data);
+	Auth().api().toggleSavedGif(_data, Data::FileOriginSavedGifs(), false);
+
+	const auto index = Auth().data().savedGifs().indexOf(_data);
 	if (index >= 0) {
 		Auth().data().savedGifsRef().remove(index);
 		Local::writeSavedGifs();
-
-		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
 	Auth().data().notifySavedGifsUpdated();
 }
@@ -132,8 +136,8 @@ int Gif::resizeGetHeight(int width) {
 }
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	DocumentData *document = getShownDocument();
-	document->automaticLoad(nullptr);
+	const auto document = getShownDocument();
+	document->automaticLoad(fileOrigin(), nullptr);
 
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 	if (loaded && !_gif && !_gif.isBad()) {
@@ -284,25 +288,26 @@ QSize Gif::countFrameSize() const {
 }
 
 void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	if (DocumentData *document = getShownDocument()) {
+	const auto origin = fileOrigin();
+	if (const auto document = getShownDocument()) {
 		if (!document->thumb->isNull()) {
 			if (document->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+					_thumb = document->thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			} else {
-				document->thumb->load();
+				document->thumb->load(origin);
 			}
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto thumb = getResultThumb();
 		if (!thumb->isNull()) {
 			if (thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+					_thumb = thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			} else {
-				thumb->load();
+				thumb->load(origin);
 			}
 		}
 	}
@@ -322,11 +327,19 @@ bool Gif::isRadialAnimation(TimeMs ms) const {
 }
 
 void Gif::step_radial(TimeMs ms, bool timer) {
+	const auto document = getShownDocument();
+	const auto updateRadial = [&] {
+		return _animation->radial.update(
+			document->progress(),
+			!document->loading() || document->loaded(),
+			ms);
+	};
 	if (timer) {
-		update();
+		if (!anim::Disabled() || updateRadial()) {
+			update();
+		}
 	} else {
-		DocumentData *document = getShownDocument();
-		_animation->radial.update(document->progress(), !document->loading() || document->loaded(), ms);
+		updateRadial();
 		if (!_animation->radial.animating() && document->loaded()) {
 			_animation.reset();
 		}
@@ -340,14 +353,14 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
-				getShownDocument()->forget();
+				getShownDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
 				auto height = st::inlineMediaHeight;
 				auto frame = countFrameSize();
 				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				_gif.reset();
-				getShownDocument()->forget();
+				getShownDocument()->unload();
 			}
 		}
 
@@ -362,7 +375,8 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-Sticker::Sticker(not_null<Context*> context, Result *result) : FileBase(context, result) {
+Sticker::Sticker(not_null<Context*> context, Result *result)
+: FileBase(context, result) {
 }
 
 void Sticker::initDimensions() {
@@ -371,18 +385,10 @@ void Sticker::initDimensions() {
 }
 
 void Sticker::preload() const {
-	if (DocumentData *document = getShownDocument()) {
-		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
-		if (goodThumb) {
-			document->thumb->load();
-		} else {
-			document->checkSticker();
-		}
-	} else {
-		ImagePtr thumb = getResultThumb();
-		if (!thumb->isNull()) {
-			thumb->load();
-		}
+	if (const auto document = getShownDocument()) {
+		document->checkStickerThumb();
+	} else if (const auto thumb = getResultThumb()) {
+		thumb->load(fileOrigin());
 	}
 }
 
@@ -437,35 +443,38 @@ QSize Sticker::getThumbSize() const {
 }
 
 void Sticker::prepareThumb() const {
-	if (DocumentData *document = getShownDocument()) {
-		bool goodThumb = !document->thumb->isNull() && ((document->thumb->width() >= 128) || (document->thumb->height() >= 128));
-		if (goodThumb) {
-			document->thumb->load();
-		} else {
-			document->checkSticker();
-		}
-
-		ImagePtr sticker = goodThumb ? document->thumb : document->sticker()->img;
-		if (!_thumbLoaded && sticker->loaded()) {
-			QSize thumbSize = getThumbSize();
-			_thumb = sticker->pix(thumbSize.width(), thumbSize.height());
-			_thumbLoaded = true;
+	if (const auto document = getShownDocument()) {
+		document->checkStickerThumb();
+		if (const auto sticker = document->getStickerThumb()) {
+			if (!_thumbLoaded && sticker->loaded()) {
+				const auto thumbSize = getThumbSize();
+				_thumb = sticker->pix(
+					document->stickerSetOrigin(),
+					thumbSize.width(),
+					thumbSize.height());
+				_thumbLoaded = true;
+			}
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto origin = fileOrigin();
+		const auto thumb = getResultThumb();
 		if (thumb->loaded()) {
 			if (!_thumbLoaded) {
-				QSize thumbSize = getThumbSize();
-				_thumb = thumb->pix(thumbSize.width(), thumbSize.height());
+				const auto thumbSize = getThumbSize();
+				_thumb = thumb->pix(
+					origin,
+					thumbSize.width(),
+					thumbSize.height());
 				_thumbLoaded = true;
 			}
 		} else {
-			thumb->load();
+			thumb->load(origin);
 		}
 	}
 }
 
-Photo::Photo(not_null<Context*> context, Result *result) : ItemBase(context, result) {
+Photo::Photo(not_null<Context*> context, Result *result)
+: ItemBase(context, result) {
 }
 
 void Photo::initDimensions() {
@@ -538,28 +547,29 @@ QSize Photo::countFrameSize() const {
 }
 
 void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
-	if (PhotoData *photo = getShownPhoto()) {
+	const auto origin = fileOrigin();
+	if (const auto photo = getShownPhoto()) {
 		if (photo->medium->loaded()) {
 			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+				_thumb = photo->medium->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 			}
 			_thumbLoaded = true;
 		} else {
 			if (photo->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+					_thumb = photo->thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			}
-			photo->medium->load();
+			photo->medium->load(origin);
 		}
 	} else {
-		ImagePtr thumb = getResultThumb();
+		const auto thumb = getResultThumb();
 		if (thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+				_thumb = thumb->pixNoCache(origin, frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 			}
 		} else {
-			thumb->load();
+			thumb->load(origin);
 		}
 	}
 }
@@ -652,10 +662,11 @@ TextState Video::getState(
 }
 
 void Video::prepareThumb(int32 width, int32 height) const {
-	ImagePtr thumb = content_thumb();
+	const auto thumb = content_thumb();
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int32 w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int32 w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -667,10 +678,10 @@ void Video::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -682,13 +693,19 @@ void CancelFileClickHandler::onClickImpl() const {
 	_result->cancelFile();
 }
 
-File::File(not_null<Context*> context, Result *result) : FileBase(context, result)
+File::File(not_null<Context*> context, not_null<Result*> result)
+: FileBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _open(std::make_shared<OpenFileClickHandler>(result))
-, _cancel(std::make_shared<CancelFileClickHandler>(result)) {
+, _cancel(std::make_shared<CancelFileClickHandler>(result))
+, _document(getShownDocument()) {
 	updateStatusText();
-	regDocumentItem(getShownDocument(), this);
+
+	// We have to save document, not read it from Result every time.
+	// Because we first delete the Result and then delete this File.
+	// So in destructor we have to remember _document, we can't read it.
+	regDocumentItem(_document, this);
 }
 
 void File::initDimensions() {
@@ -706,14 +723,14 @@ void File::initDimensions() {
 }
 
 void File::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
-	int32 left = st::msgFileSize + st::inlineThumbSkip;
+	const auto left = st::msgFileSize + st::inlineThumbSkip;
 
-	DocumentData *document = getShownDocument();
-	bool loaded = document->loaded(), displayLoading = document->displayLoading();
+	const auto loaded = _document->loaded();
+	const auto displayLoading = _document->displayLoading();
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(document->progress());
+			_animation->radial.start(_document->progress());
 		}
 	}
 	bool showPause = updateStatusText();
@@ -725,7 +742,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		auto over = _animation->a_thumbOver.current();
 		p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
 	} else {
-		bool over = ClickHandler::showAsActive(document->loading() ? _cancel : _open);
+		bool over = ClickHandler::showAsActive(_document->loading() ? _cancel : _open);
 		p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 	}
 
@@ -739,15 +756,16 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::historyFileInRadialFg);
 	}
 
-	auto icon = ([showPause, radial, document] {
+	auto icon = ([&] {
 		if (showPause) {
 			return &st::historyFileInPause;
-		} else if (radial || document->loading()) {
+		} else if (radial || _document->loading()) {
 			return &st::historyFileInCancel;
-		} else if (true || document->loaded()) {
-			if (document->isImage()) {
+		} else if (true || _document->loaded()) {
+			if (_document->isImage()) {
 				return &st::historyFileInImage;
-			} else if (document->isVoiceMessage() || document->isAudioFile()) {
+			} else if (_document->isVoiceMessage()
+				|| _document->isAudioFile()) {
 				return &st::historyFileInPlay;
 			}
 			return &st::historyFileInDocument;
@@ -784,7 +802,7 @@ TextState File::getState(
 		QPoint point,
 		StateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
-		return { nullptr, getShownDocument()->loading() ? _cancel : _open };
+		return { nullptr, _document->loading() ? _cancel : _open };
 	} else {
 		auto left = st::msgFileSize + st::inlineThumbSkip;
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
@@ -802,7 +820,7 @@ void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 }
 
 File::~File() {
-	unregDocumentItem(getShownDocument(), this);
+	unregDocumentItem(_document, this);
 }
 
 void File::thumbAnimationCallback() {
@@ -810,11 +828,18 @@ void File::thumbAnimationCallback() {
 }
 
 void File::step_radial(TimeMs ms, bool timer) {
+	const auto updateRadial = [&] {
+		return _animation->radial.update(
+			_document->progress(),
+			!_document->loading() || _document->loaded(),
+			ms);
+	};
 	if (timer) {
-		update();
+		if (!anim::Disabled() || updateRadial()) {
+			update();
+		}
 	} else {
-		DocumentData *document = getShownDocument();
-		_animation->radial.update(document->progress(), !document->loading() || document->loaded(), ms);
+		updateRadial();
 		if (!_animation->radial.animating()) {
 			checkAnimationFinished();
 		}
@@ -828,8 +853,10 @@ void File::ensureAnimation() const {
 }
 
 void File::checkAnimationFinished() const {
-	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
-		if (getShownDocument()->loaded()) {
+	if (_animation
+		&& !_animation->a_thumbOver.animating()
+		&& !_animation->radial.animating()) {
+		if (_document->loaded()) {
 			_animation.reset();
 		}
 	}
@@ -838,32 +865,31 @@ void File::checkAnimationFinished() const {
 bool File::updateStatusText() const {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
-	DocumentData *document = getShownDocument();
-	if (document->status == FileDownloadFailed || document->status == FileUploadFailed) {
+	if (_document->status == FileDownloadFailed || _document->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
-	} else if (document->uploading()) {
-		statusSize = document->uploadingData->offset;
-	} else if (document->loading()) {
-		statusSize = document->loadOffset();
-	} else if (document->loaded()) {
+	} else if (_document->uploading()) {
+		statusSize = _document->uploadingData->offset;
+	} else if (_document->loading()) {
+		statusSize = _document->loadOffset();
+	} else if (_document->loaded()) {
 		using State = Media::Player::State;
-		if (document->isVoiceMessage()) {
+		if (_document->isVoiceMessage()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
-		} else if (document->isAudioFile()) {
+		} else if (_document->isAudioFile()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
-			if (!showPause && (state.id == AudioMsgId(document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
+			if (!showPause && (state.id == AudioMsgId(_document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
 				showPause = true;
 			}
 		} else {
@@ -873,12 +899,12 @@ bool File::updateStatusText() const {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _statusSize) {
-		int32 duration = document->isSong()
-			? document->song()->duration
-			: (document->isVoiceMessage()
-				? document->voice()->duration
+		int32 duration = _document->isSong()
+			? _document->song()->duration
+			: (_document->isVoiceMessage()
+				? _document->voice()->duration
 				: -1);
-		setStatusSize(statusSize, document->size, duration, realDuration);
+		setStatusSize(statusSize, _document->size, duration, realDuration);
 	}
 	return showPause;
 }
@@ -953,7 +979,7 @@ TextState Contact::getState(
 }
 
 void Contact::prepareThumb(int width, int height) const {
-	ImagePtr thumb = getResultThumb();
+	const auto thumb = getResultThumb();
 	if (thumb->isNull()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -961,9 +987,10 @@ void Contact::prepareThumb(int width, int height) const {
 		return;
 	}
 
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -975,10 +1002,10 @@ void Contact::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -1100,7 +1127,7 @@ TextState Article::getState(
 }
 
 void Article::prepareThumb(int width, int height) const {
-	ImagePtr thumb = getResultThumb();
+	const auto thumb = getResultThumb();
 	if (thumb->isNull()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
 			_thumb = getResultContactAvatar(width, height);
@@ -1108,9 +1135,10 @@ void Article::prepareThumb(int width, int height) const {
 		return;
 	}
 
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1122,10 +1150,10 @@ void Article::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -1199,7 +1227,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	auto document = getResultDocument();
 	auto animatedThumb = document && document->isAnimation();
 	if (animatedThumb) {
-		document->automaticLoad(nullptr);
+		document->automaticLoad(fileOrigin(), nullptr);
 
 		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
@@ -1275,7 +1303,7 @@ TextState Game::getState(
 }
 
 void Game::prepareThumb(int width, int height) const {
-	auto thumb = [this] {
+	const auto thumb = [this] {
 		if (auto photo = getResultPhoto()) {
 			return photo->medium;
 		} else if (auto document = getResultDocument()) {
@@ -1287,9 +1315,10 @@ void Game::prepareThumb(int width, int height) const {
 		return;
 	}
 
+	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(convertScale(thumb->width()), 1), h = qMax(convertScale(thumb->height()), 1);
+			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
 			auto resizeByHeight1 = (w * height > h * width) && (h >= height);
 			auto resizeByHeight2 = (h * width >= w * height) && (w < width);
 			if (resizeByHeight1 || resizeByHeight2) {
@@ -1303,10 +1332,10 @@ void Game::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
+			_thumb = thumb->pixNoCache(origin, w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
-		thumb->load();
+		thumb->load(origin);
 	}
 }
 
@@ -1318,11 +1347,19 @@ bool Game::isRadialAnimation(TimeMs ms) const {
 }
 
 void Game::step_radial(TimeMs ms, bool timer) {
+	const auto document = getResultDocument();
+	const auto updateRadial = [&] {
+		return _radial->update(
+			document->progress(),
+			!document->loading() || document->loaded(),
+			ms);
+	};
 	if (timer) {
-		update();
+		if (!anim::Disabled() || updateRadial()) {
+			update();
+		}
 	} else {
-		auto document = getResultDocument();
-		_radial->update(document->progress(), !document->loading() || document->loaded(), ms);
+		updateRadial();
 		if (!_radial->animating() && document->loaded()) {
 			_radial.reset();
 		}
@@ -1336,12 +1373,12 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 		if (_gif) {
 			if (_gif->state() == State::Error) {
 				_gif.setBad();
-				getResultDocument()->forget();
+				getResultDocument()->unload();
 			} else if (_gif->ready() && !_gif->started()) {
 				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				_gif.reset();
-				getResultDocument()->forget();
+				getResultDocument()->unload();
 			}
 		}
 

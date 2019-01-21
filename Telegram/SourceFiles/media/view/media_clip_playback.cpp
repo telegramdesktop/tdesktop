@@ -94,7 +94,7 @@ void Playback::setValue(float64 value, bool animated) {
 }
 
 void Playback::step_value(float64 ms, bool timer) {
-	auto dt = ms / kPlaybackAnimationDurationMs;
+	auto dt = anim::Disabled() ? 1. : (ms / kPlaybackAnimationDurationMs);
 	if (dt >= 1.) {
 		_a_value.stop();
 		a_value.finish();

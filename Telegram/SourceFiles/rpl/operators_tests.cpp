@@ -14,8 +14,8 @@ using namespace rpl;
 
 class OnDestructor {
 public:
-	OnDestructor(base::lambda_once<void()> callback)
-		: _callback(std::move(callback)) {
+	OnDestructor(std::function<void()> callback)
+	: _callback(std::move(callback)) {
 	}
 	~OnDestructor() {
 		if (_callback) {
@@ -24,7 +24,7 @@ public:
 	}
 
 private:
-	base::lambda_once<void()> _callback;
+	std::function<void()> _callback;
 
 };
 
@@ -367,6 +367,15 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 
 			using namespace mappers;
 
+			// MSVC BUG + REGRESSION rpl::mappers::tuple :(
+			//combine(
+			//	a.events(),
+			//	b.events(),
+			//	tuple(_1, _1 + _2)
+			//) | rpl::start_with_next([=](int a, int a_plus_b) {
+			//	*sum += std::to_string(a * a_plus_b);
+			//}, lifetime);
+
 			combine(
 				a.events(),
 				b.events(),
@@ -384,6 +393,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 			c.fire(6);
 		}
 		REQUIRE(*sum == "16192225");
+
+		// MSVC BUG + REGRESSION rpl::mappers::tuple :(
+		//REQUIRE(*sum == "3162419362225");
 	}
 
 	SECTION("after_next test") {
@@ -460,5 +472,37 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				}, lifetime);
 		}
 		REQUIRE(*sum == "012done012done012done");
+	}
+
+	SECTION("skip test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			ints(10) | skip(5)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			ints(3) | skip(3)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			ints(3) | skip(10)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		REQUIRE(*sum == "56789donedonedone");
 	}
 }

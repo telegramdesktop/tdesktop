@@ -40,15 +40,26 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 		false,
 		[this] { rtlupdate(toggleRect()); });
 	addClickHandler([this] {
-		_toggle->setCheckedAnimated(!_toggle->checked());
+		_toggle->setChecked(!_toggle->checked(), anim::type::normal);
 	});
 	std::move(
 		toggled
 	) | rpl::start_with_next([this](bool toggled) {
-		_toggle->setCheckedAnimated(toggled);
+		_toggle->setChecked(toggled, anim::type::normal);
 	}, lifetime());
 	_toggle->finishAnimating();
 	return this;
+}
+
+bool Button::toggled() const {
+	return _toggle ? _toggle->checked() : false;
+}
+
+rpl::producer<bool> Button::toggledChanges() const {
+	if (_toggle) {
+		return _toggle->checkedChanges();
+	}
+	return rpl::never<bool>();
 }
 
 rpl::producer<bool> Button::toggledValue() const {
@@ -58,18 +69,27 @@ rpl::producer<bool> Button::toggledValue() const {
 	return rpl::never<bool>();
 }
 
+void Button::setColorOverride(std::optional<QColor> textColorOverride) {
+	_textColorOverride = textColorOverride;
+	update();
+}
+
 void Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto paintOver = (isOver() || isDown());
+	auto paintOver = (isOver() || isDown()) && !isDisabled();
 	p.fillRect(e->rect(), paintOver ? _st.textBgOver : _st.textBg);
 
 	paintRipple(p, 0, 0, ms);
 
 	auto outerw = width();
 	p.setFont(_st.font);
-	p.setPen(paintOver ? _st.textFgOver : _st.textFg);
+	p.setPen(_textColorOverride
+		? QPen(*_textColorOverride)
+		: paintOver
+		? _st.textFgOver
+		: _st.textFg);
 	p.drawTextLeft(
 		_st.padding.left(),
 		_st.padding.top(),
@@ -85,6 +105,7 @@ void Button::paintEvent(QPaintEvent *e) {
 
 QRect Button::toggleRect() const {
 	Expects(_toggle != nullptr);
+
 	auto size = _toggle->getSize();
 	auto left = width() - _st.toggleSkip - size.width();
 	auto top = (height() - size.height()) / 2;
@@ -99,10 +120,13 @@ int Button::resizeGetHeight(int newWidth) {
 void Button::onStateChanged(
 		State was,
 		StateChangeSource source) {
-	RippleButton::onStateChanged(was, source);
+	if (!isDisabled() || !isDown()) {
+		RippleButton::onStateChanged(was, source);
+	}
 	if (_toggle) {
 		_toggle->setStyle(isOver() ? _st.toggleOver : _st.toggle);
 	}
+	setPointerCursor(!isDisabled());
 }
 
 void Button::setText(QString &&text) {

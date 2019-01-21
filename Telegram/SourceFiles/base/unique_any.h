@@ -69,11 +69,11 @@ public:
 
 	unique_any(const unique_any &other) = delete;
 	unique_any &operator=(const unique_any &other) = delete;
-	
+
 	unique_any(unique_any &&other) noexcept
 	: _impl(std::move(other._impl)) {
 	}
-	
+
 	unique_any &operator=(unique_any &&other) noexcept {
 		_impl = std::move(other._impl);
 		return *this;
@@ -88,7 +88,7 @@ public:
 		std::forward<Value>(other),
 		std::is_copy_constructible<std::decay_t<Value>>()) {
 	}
-	
+
 	template <
 		typename Value,
 		typename = std::enable_if_t<
@@ -106,7 +106,7 @@ public:
 		}
 		return *this;
 	}
-	
+
 	template <
 		typename Value,
 		typename ...Args,
@@ -143,7 +143,7 @@ private:
 	unique_any(Value &&other, std::true_type)
 	: _impl(std::forward<Value>(other)) {
 	}
-	
+
 	template <
 		typename Value,
 		typename = std::enable_if_t<
@@ -177,7 +177,7 @@ inline void swap(unique_any &a, unique_any &b) noexcept {
 template <
 	typename Value,
 	typename ...Args>
-inline auto make_any(Args &&...args) 
+inline auto make_any(Args &&...args)
 -> std::enable_if_t<
 		std::is_copy_constructible_v<std::decay_t<Value>>,
 		unique_any> {
@@ -187,7 +187,7 @@ inline auto make_any(Args &&...args)
 template <
 	typename Value,
 	typename ...Args>
-inline auto make_any(Args &&...args) 
+inline auto make_any(Args &&...args)
 -> std::enable_if_t<
 		!std::is_copy_constructible_v<std::decay_t<Value>>
 		&& std::is_move_constructible_v<std::decay_t<Value>>,

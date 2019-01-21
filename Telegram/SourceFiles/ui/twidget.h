@@ -49,13 +49,29 @@ inline ChildWidget *AttachParentChild(
 void SendPendingMoveResizeEvents(not_null<QWidget*> target);
 
 QPixmap GrabWidget(
-	not_null<TWidget*> target,
+	not_null<QWidget*> target,
 	QRect rect = QRect(),
 	QColor bg = QColor(255, 255, 255, 0));
 QImage GrabWidgetToImage(
-	not_null<TWidget*> target,
+	not_null<QWidget*> target,
 	QRect rect = QRect(),
 	QColor bg = QColor(255, 255, 255, 0));
+
+void ForceFullRepaint(not_null<QWidget*> widget);
+
+void PostponeCall(FnMut<void()> &&callable);
+
+template <
+	typename Guard,
+	typename Callable,
+	typename GuardTraits = crl::guard_traits<std::decay_t<Guard>>,
+	typename = std::enable_if_t<
+		sizeof(GuardTraits) != crl::details::dependent_zero<GuardTraits>>>
+inline void PostponeCall(Guard &&object, Callable &&callable) {
+	return PostponeCall(crl::guard(
+		std::forward<Guard>(object),
+		std::forward<Callable>(callable)));
+}
 
 } // namespace Ui
 
@@ -177,7 +193,7 @@ private:
 
 class PainterHighQualityEnabler {
 public:
-	PainterHighQualityEnabler(Painter &p) : _painter(p) {
+	PainterHighQualityEnabler(QPainter &p) : _painter(p) {
 		static constexpr QPainter::RenderHint Hints[] = {
 			QPainter::Antialiasing,
 			QPainter::SmoothPixmapTransform,
@@ -185,8 +201,8 @@ public:
 			QPainter::HighQualityAntialiasing
 		};
 
-		auto hints = _painter.renderHints();
-		for_const (auto hint, Hints) {
+		const auto hints = _painter.renderHints();
+		for (const auto hint : Hints) {
 			if (!(hints & hint)) {
 				_hints |= hint;
 			}
@@ -195,8 +211,12 @@ public:
 			_painter.setRenderHints(_hints);
 		}
 	}
-	PainterHighQualityEnabler(const PainterHighQualityEnabler &other) = delete;
-	PainterHighQualityEnabler &operator=(const PainterHighQualityEnabler &other) = delete;
+
+	PainterHighQualityEnabler(
+		const PainterHighQualityEnabler &other) = delete;
+	PainterHighQualityEnabler &operator=(
+		const PainterHighQualityEnabler &other) = delete;
+
 	~PainterHighQualityEnabler() {
 		if (_hints) {
 			_painter.setRenderHints(_hints, false);
@@ -204,7 +224,7 @@ public:
 	}
 
 private:
-	Painter &_painter;
+	QPainter &_painter;
 	QPainter::RenderHints _hints = 0;
 
 };
@@ -325,10 +345,6 @@ class TWidget : public TWidgetHelper<QWidget> {
 
 public:
 	TWidget(QWidget *parent = nullptr) : TWidgetHelper<QWidget>(parent) {
-	}
-	virtual void grabStart() {
-	}
-	virtual void grabFinish() {
 	}
 
 	bool inFocusChain() const {
@@ -454,7 +470,7 @@ QPointer<const Widget> make_weak(not_null<const Widget*> object) {
 
 class SingleQueuedInvokation : public QObject {
 public:
-	SingleQueuedInvokation(base::lambda<void()> callback) : _callback(callback) {
+	SingleQueuedInvokation(Fn<void()> callback) : _callback(callback) {
 	}
 	void call() {
 		if (_pending.testAndSetAcquire(0, 1)) {
@@ -467,7 +483,7 @@ public:
 	}
 
 private:
-	base::lambda<void()> _callback;
+	Fn<void()> _callback;
 	QAtomicInt _pending = { 0 };
 
 };

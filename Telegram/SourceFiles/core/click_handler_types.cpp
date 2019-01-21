@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "messenger.h"
+#include "mainwidget.h"
+#include "application.h"
 #include "platform/platform_specific.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -22,7 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 QString tryConvertUrlToLocal(QString url) {
-	if (url.size() > 8192) url = url.mid(0, 8192);
+	if (url.size() > 8192) {
+		url = url.mid(0, 8192);
+	}
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
@@ -33,6 +37,8 @@ QString tryConvertUrlToLocal(QString url) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto languageMatch = regex_match(qsl("^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://setlanguage?lang=") + url_encode(languageMatch->captured(1));
 		} else if (auto shareUrlMatch = regex_match(qsl("^share/url/?\\?(.+)$"), query, matchOptions)) {
 			return qsl("tg://msg_url?") + shareUrlMatch->captured(1);
 		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
@@ -66,7 +72,7 @@ QString tryConvertUrlToLocal(QString url) {
 
 bool UrlRequiresConfirmation(const QUrl &url) {
 	using namespace qthelp;
-	return !regex_match(qsl("(^|\\.)(telegram\\.org|telegra\\.ph|telesco\\.pe|sean\\.taipei|telegre\\.at)$"), url.host(), RegExOption::CaseInsensitive);
+	return !regex_match(qsl("(^|\\.)(telegram\\.org|telegra\\.ph|telesco\\.pe|tlgr\\.tw|sean\\.taipei|sean\\.cat|telegre\\.at)$"), url.host(), RegExOption::CaseInsensitive);
 }
 
 } // namespace
@@ -103,19 +109,18 @@ QString UrlClickHandler::url() const {
 	return result;
 }
 
-void UrlClickHandler::doOpen(QString url) {
-	Ui::Tooltip::Hide();
-
-	if (isEmail(url)) {
-		File::OpenEmailLink(url);
+void UrlClickHandler::Open(QString url, QVariant context) {
+	url = tryConvertUrlToLocal(url);
+	if (InternalPassportLink(url)) {
 		return;
 	}
 
-	url = tryConvertUrlToLocal(url);
-
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Messenger::Instance().openLocalUrl(url);
-	} else {
+	Ui::Tooltip::Hide();
+	if (isEmail(url)) {
+		File::OpenEmailLink(url);
+	} else if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		Messenger::Instance().openLocalUrl(url, context);
+	} else if (!url.isEmpty()) {
 		QDesktopServices::openUrl(url);
 	}
 }
@@ -140,38 +145,59 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 	return result;
 }
 
-void HiddenUrlClickHandler::doOpen(QString url) {
-	auto urlText = tryConvertUrlToLocal(url);
+void HiddenUrlClickHandler::Open(QString url, QVariant context) {
+	url = tryConvertUrlToLocal(url);
+	if (InternalPassportLink(url)) {
+		return;
+	}
 
-	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Messenger::Instance().openLocalUrl(urlText);
+	const auto open = [=] {
+		UrlClickHandler::Open(url, context);
+	};
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		open();
 	} else {
-		auto parsedUrl = QUrl::fromUserInput(urlText);
-		if (UrlRequiresConfirmation(urlText)) {
-			auto displayUrl = parsedUrl.isValid() ? parsedUrl.toDisplayString() : urlText;
-			Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + displayUrl, lang(lng_open_link), [urlText] {
-				Ui::hideLayer();
-				UrlClickHandler::doOpen(urlText);
-			}), LayerOption::KeepOther);
+		const auto parsedUrl = QUrl::fromUserInput(url);
+		if (UrlRequiresConfirmation(url)) {
+			Messenger::Instance().hideMediaView();
+			const auto displayUrl = parsedUrl.isValid()
+				? parsedUrl.toDisplayString()
+				: url;
+			Ui::show(
+				Box<ConfirmBox>(
+					lang(lng_open_this_link) + qsl("\n\n") + displayUrl,
+					lang(lng_open_link),
+					[=] { Ui::hideLayer(); open(); }),
+				LayerOption::KeepOther);
 		} else {
-			UrlClickHandler::doOpen(urlText);
+			open();
 		}
 	}
 }
 
-void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto urlText = tryConvertUrlToLocal(url());
+void BotGameUrlClickHandler::onClick(ClickContext context) const {
+	const auto url = tryConvertUrlToLocal(this->url());
+	if (InternalPassportLink(url)) {
+		return;
+	}
 
-	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Messenger::Instance().openLocalUrl(urlText);
+	const auto open = [=] {
+		UrlClickHandler::Open(url, context.other);
+	};
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		open();
 	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
-		doOpen(urlText);
+		open();
 	} else {
-		Ui::show(Box<ConfirmBox>(lng_allow_bot_pass(lt_bot_name, _bot->name), lang(lng_allow_bot), [bot = _bot, urlText] {
+		const auto callback = [=, bot = _bot] {
 			Ui::hideLayer();
 			Local::makeBotTrusted(bot);
-			UrlClickHandler::doOpen(urlText);
-		}));
+			open();
+		};
+		Ui::show(Box<ConfirmBox>(
+			lng_allow_bot_pass(lt_bot_name, _bot->name),
+			lang(lng_allow_bot),
+			callback));
 	}
 }
 
@@ -203,9 +229,10 @@ QString MentionClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_mention);
 }
 
-void MentionClickHandler::onClick(Qt::MouseButton button) const {
+void MentionClickHandler::onClick(ClickContext context) const {
+	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
+		App::main()->openPeerByName(_tag.mid(1), ShowAtProfileMsgId);
 	}
 }
 
@@ -213,7 +240,8 @@ TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(ExpandLink
 	return simpleTextWithEntity({ EntityInTextMention, entityOffset, textPart.size() });
 }
 
-void MentionNameClickHandler::onClick(Qt::MouseButton button) const {
+void MentionNameClickHandler::onClick(ClickContext context) const {
+	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		if (auto user = App::userLoaded(_userId)) {
 			Ui::showPeerProfile(user);
@@ -240,7 +268,8 @@ QString HashtagClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_hashtag);
 }
 
-void HashtagClickHandler::onClick(Qt::MouseButton button) const {
+void HashtagClickHandler::onClick(ClickContext context) const {
+	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
 	}
@@ -254,7 +283,8 @@ QString CashtagClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_hashtag);
 }
 
-void CashtagClickHandler::onClick(Qt::MouseButton button) const {
+void CashtagClickHandler::onClick(ClickContext context) const {
+	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
 	}
@@ -269,7 +299,8 @@ TextWithEntities CashtagClickHandler::getExpandedLinkTextWithEntities(
 
 PeerData *BotCommandClickHandler::_peer = nullptr;
 UserData *BotCommandClickHandler::_bot = nullptr;
-void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
+void BotCommandClickHandler::onClick(ClickContext context) const {
+	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		if (auto peer = peerForCommand()) {
 			if (auto bot = peer->isUser() ? peer->asUser() : botForCommand()) {

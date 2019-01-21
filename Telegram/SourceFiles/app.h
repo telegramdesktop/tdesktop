@@ -7,19 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/basic_types.h"
 #include "data/data_types.h"
 #include "data/data_peer.h"
 
 enum NewMessageType : char;
+enum class ImageRoundRadius;
 class Messenger;
 class MainWindow;
 class MainWidget;
-
-using PeersData = QHash<PeerId, PeerData*>;
-
-class LocationCoords;
-struct LocationData;
 class HistoryItem;
 class History;
 class Histories;
@@ -69,9 +64,6 @@ enum RoundCorners {
 namespace App {
 	MainWindow *wnd();
 	MainWidget *main();
-	bool passcoded();
-
-	void logOut();
 
 	QString formatPhone(QString phone);
 
@@ -87,6 +79,7 @@ namespace App {
 	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void updateEditedMessage(const MTPMessage &m);
+	void updateTab(int oriType, int newType);
 	void addSavedGif(DocumentData *doc);
 	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
@@ -138,16 +131,12 @@ namespace App {
 	inline ChannelData *channelLoaded(ChannelId channelId) {
 		return channel(channelId, PeerData::FullLoaded);
 	}
-	void enumerateUsers(base::lambda<void(UserData*)> action);
+	void enumerateUsers(Fn<void(not_null<UserData*>)> action);
+	void enumerateGroups(Fn<void(not_null<PeerData*>)> action);
+	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action);
 
-	UserData *self();
 	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
-
-	LocationData *location(const LocationCoords &coords);
-	void forgetMedia();
-
-	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
 	not_null<History*> history(const PeerId &peer);
@@ -194,18 +183,11 @@ namespace App {
 	void clearMousedItems();
 
 	const style::font &monofont();
-	const QPixmap &emoji();
-	const QPixmap &emojiLarge();
-	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
 
 	void clearHistories();
 
 	void initMedia();
 	void deinitMedia();
-
-	void checkImageCacheSize();
-
-	bool isValidPhone(QString phone);
 
 	enum LaunchState {
 		Launched = 0,
@@ -223,12 +205,6 @@ namespace App {
 	QImage readImage(QByteArray data, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr);
 	QImage readImage(const QString &file, QByteArray *format = nullptr, bool opaque = true, bool *animated = nullptr, QByteArray *content = 0);
 	QPixmap pixmapFromImageInPlace(QImage &&image);
-
-	const PeersData &peersData();
-
-	void regMuted(not_null<PeerData*> peer, TimeMs changeIn);
-	void unregMuted(not_null<PeerData*> peer);
-	void updateMuted();
 
 	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);

@@ -13,7 +13,23 @@ namespace Ui {
 
 class CrossAnimation {
 public:
-	static void paint(Painter &p, const style::CrossAnimation &st, style::color color, int x, int y, int outerWidth, float64 shown, float64 loading = 0.);
+	static void paint(
+		Painter &p,
+		const style::CrossAnimation &st,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		float64 shown,
+		float64 loading = 0.);
+	static void paintStaticLoading(
+		Painter &p,
+		const style::CrossAnimation &st,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		float64 shown);
 
 };
 

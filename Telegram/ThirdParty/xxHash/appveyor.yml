@@ -1,0 +1,70 @@
+version: 1.0.{build}
+environment:
+  matrix:
+  - COMPILER: "gcc"
+    PLATFORM: "mingw64"
+  - COMPILER: "gcc"
+    PLATFORM: "mingw32"
+
+install:
+  - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - MKDIR bin
+  - if [%COMPILER%]==[gcc] SET PATH_ORIGINAL=%PATH%
+  - if [%COMPILER%]==[gcc] (
+      SET "PATH_MINGW32=c:\MinGW\bin;c:\MinGW\usr\bin" &&
+      SET "PATH_MINGW64=c:\msys64\mingw64\bin;c:\msys64\usr\bin" &&
+      COPY C:\MinGW\bin\mingw32-make.exe C:\MinGW\bin\make.exe &&
+      COPY C:\MinGW\bin\gcc.exe C:\MinGW\bin\cc.exe
+    ) else (
+      IF [%PLATFORM%]==[x64] (SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;")
+    )
+
+build_script:
+  - if [%PLATFORM%]==[mingw32] SET PATH=%PATH_MINGW32%;%PATH_ORIGINAL%
+  - if [%PLATFORM%]==[mingw64] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL%
+  - if [%PLATFORM%]==[clang] SET PATH=%PATH_MINGW64%;%PATH_ORIGINAL%
+  - ECHO *** &&
+      ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION% &&
+      ECHO ***
+  - if [%PLATFORM%]==[clang] (clang -v)
+  - if [%COMPILER%]==[gcc] (gcc -v)
+  - if [%COMPILER%]==[gcc] (
+      echo ----- &&
+      make -v &&
+      echo ----- &&
+      if not [%PLATFORM%]==[clang] (
+        make -B clean test MOREFLAGS=-Werror
+      ) ELSE (
+        make -B clean test CC=clang MOREFLAGS="--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion"
+      )
+    )
+  - if [%COMPILER%]==[visual] (
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2010 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "visual\VS2010\lz4.sln" %ADDITIONALPARAM% /m /verbosity:minimal /property:PlatformToolset=v100 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /p:EnableWholeProgramOptimization=true /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2012 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "visual\VS2010\lz4.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2013 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "visual\VS2010\lz4.sln" /m /verbosity:minimal /property:PlatformToolset=v120 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      ECHO *** &&
+      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
+      ECHO *** &&
+      msbuild "visual\VS2010\lz4.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
+      COPY visual\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe programs\
+    )
+
+test_script:
+  - ECHO *** &&
+      ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION% &&
+      ECHO ***
+  - if not [%COMPILER%]==[unknown] (
+      xxhsum -h &&
+      xxhsum xxhsum.exe &&
+      xxhsum -bi1 &&
+      echo ------- xxhsum tested -------
+    )

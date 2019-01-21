@@ -8,13 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Ui {
-class FlatTextarea;
+class InputField;
 } // namespace Ui
 
 namespace Data {
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft);
-void clearPeerCloudDraft(PeerId peerId);
+void clearPeerCloudDraft(PeerId peerId, TimeId date);
 
 struct Draft {
 	Draft() = default;
@@ -25,7 +25,7 @@ struct Draft {
 		bool previewCancelled,
 		mtpRequestId saveRequestId = 0);
 	Draft(
-		not_null<const Ui::FlatTextarea*> field,
+		not_null<const Ui::InputField*> field,
 		MsgId msgId,
 		bool previewCancelled,
 		mtpRequestId saveRequestId = 0);
@@ -47,11 +47,12 @@ inline bool draftStringIsEmpty(const QString &text) {
 	return true;
 }
 
-inline bool draftIsNull(Draft *draft) {
-	return !draft || (draftStringIsEmpty(draft->textWithTags.text) && !draft->msgId);
+inline bool draftIsNull(const Draft *draft) {
+	return !draft
+		|| (draftStringIsEmpty(draft->textWithTags.text) && !draft->msgId);
 }
 
-inline bool draftsAreEqual(Draft *a, Draft *b) {
+inline bool draftsAreEqual(const Draft *a, const Draft *b) {
 	bool aIsNull = draftIsNull(a);
 	bool bIsNull = draftIsNull(b);
 	if (aIsNull) {
@@ -60,7 +61,9 @@ inline bool draftsAreEqual(Draft *a, Draft *b) {
 		return false;
 	}
 
-	return (a->textWithTags == b->textWithTags) && (a->msgId == b->msgId) && (a->previewCancelled == b->previewCancelled);
+	return (a->textWithTags == b->textWithTags)
+		&& (a->msgId == b->msgId)
+		&& (a->previewCancelled == b->previewCancelled);
 }
 
 } // namespace Data

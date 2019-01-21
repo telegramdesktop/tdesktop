@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
 #include "ui/effects/round_checkbox.h"
+#include "ui/image/image.h"
 #include "ui/text_options.h"
 
 namespace Overview {
@@ -83,7 +84,7 @@ public:
 private:
 	void startAnimation();
 
-	base::lambda<void()> _updateCallback;
+	Fn<void()> _updateCallback;
 	Ui::RoundCheckbox _check;
 
 	Animation _pression;
@@ -188,7 +189,11 @@ void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document) {
 	const auto context = parent()->fullId();
 	const auto createSaveHandler = [&]() -> ClickHandlerPtr {
-		if (document->isVoiceMessage()) {
+		if (document->isVideoMessage()) {
+			return std::make_shared<GifOpenClickHandler>(
+				document,
+				context);
+		} else if (document->isVoiceMessage()) {
 			return std::make_shared<DocumentOpenClickHandler>(
 				document,
 				context);
@@ -198,9 +203,13 @@ void RadialProgressItem::setDocumentLinks(
 			context);
 	};
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(
-			document,
-			context),
+		(document->isVideoMessage()
+			? std::make_shared<GifOpenClickHandler>(
+				document,
+				context)
+			: std::make_shared<DocumentOpenClickHandler>(
+				document,
+				context)),
 		createSaveHandler(),
 		std::make_shared<DocumentCancelClickHandler>(
 			document,
@@ -227,10 +236,15 @@ void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&sav
 }
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
+	const auto updateRadial = [&] {
+		return _radial->update(dataProgress(), dataFinished(), ms);
+	};
 	if (timer) {
-		Auth().data().requestItemRepaint(parent());
+		if (!anim::Disabled() || updateRadial()) {
+			Auth().data().requestItemRepaint(parent());
+		}
 	} else {
-		_radial->update(dataProgress(), dataFinished(), ms);
+		updateRadial();
 		if (!_radial->animating()) {
 			checkRadialFinished();
 		}
@@ -314,7 +328,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool good = _data->loaded(), selected = (selection == FullSelection);
 	if (!good) {
-		_data->medium->automaticLoad(parent());
+		_data->medium->automaticLoad(parent()->fullId(), parent());
 		good = _data->medium->loaded();
 	}
 	if ((good && !_goodLoaded) || _pix.width() != _width * cIntRetinaFactor()) {
@@ -322,7 +336,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		int32 size = _width * cIntRetinaFactor();
 		if (_goodLoaded || _data->thumb->loaded()) {
-			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
+			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix(parent()->fullId()).toImage();
 			if (!_goodLoaded) {
 				img = Images::prepareBlur(std::move(img));
 			}
@@ -336,7 +350,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
 			img.setDevicePixelRatio(cRetinaFactor());
-			_data->forget();
+			_data->unload();
 
 			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
@@ -376,11 +390,11 @@ Video::Video(
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
 	setDocumentLinks(_data);
-	_data->thumb->load();
+	_data->thumb->load(parent->fullId());
 }
 
 void Video::initDimensions() {
-	_maxw = 2 * st::minPhotoSize;
+	_maxw = 2 * st::overviewPhotoMinSize;
 	_minh = _maxw;
 }
 
@@ -393,7 +407,7 @@ int32 Video::resizeGetHeight(int32 width) {
 void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
 
-	_data->automaticLoad(parent());
+	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
 		ensureRadial();
@@ -409,7 +423,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
 			auto size = _width * cIntRetinaFactor();
-			auto img = Images::prepareBlur(_data->thumb->pix().toImage());
+			auto img = Images::prepareBlur(_data->thumb->pix(parent()->fullId()).toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
 					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -420,7 +434,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
 			img.setDevicePixelRatio(cRetinaFactor());
-			_data->forget();
+			_data->unload();
 
 			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
@@ -561,13 +575,14 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(parent)
 , _data(voice)
-, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
+, _namel(_data->isVideoMessage()
+	? std::make_shared<GifOpenClickHandler>(_data, parent->fullId())
+	: std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st) {
 	AddComponents(Info::Bit());
 
-	Assert(_data->isVoiceMessage());
-
 	setDocumentLinks(_data);
+	_data->thumb->load(parent->fullId());
 
 	updateName();
 	const auto dateText = textcmdLink(
@@ -581,7 +596,7 @@ Voice::Voice(
 			lt_date,
 			dateText,
 			lt_duration,
-			formatDurationText(_data->voice()->duration)),
+			formatDurationText(duration())),
 		opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
@@ -594,7 +609,7 @@ void Voice::initDimensions() {
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
 
-	_data->automaticLoad(parent());
+	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
@@ -626,13 +641,28 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		_width);
 	if (clip.intersects(inner)) {
 		p.setPen(Qt::NoPen);
+		const auto drawThumb = !_data->thumb->isNull()
+			&& _data->thumb->loaded();
+		if (drawThumb) {
+			const auto thumb = _data->thumb->pixCircled(
+				parent()->fullId(),
+				inner.width(),
+				inner.height());
+			p.drawPixmap(inner.topLeft(), thumb);
+		} else if (!_data->thumb->isNull()) {
+			PainterHighQualityEnabler hq(p);
+			p.setBrush(st::imageBg);
+			p.drawEllipse(inner);
+		}
 		if (selected) {
-			p.setBrush(st::msgFileInBgSelected);
+			p.setBrush(drawThumb ? st::msgDateImgBgSelected : st::msgFileInBgSelected);
+		} else if (!_data->thumb->isNull()) {
+			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		} else {
 			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
-
 		{
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
@@ -644,7 +674,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
-		auto icon = ([showPause, this, selected] {
+		auto icon = [&] {
 			if (showPause) {
 				return &(selected ? _st.songPauseSelected : _st.songPause);
 			} else if (_status.size() < 0 || _status.size() == FileStatusSizeLoaded) {
@@ -653,7 +683,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				return &(selected ? _st.songCancelSelected : _st.songCancel);
 			}
 			return &(selected ? _st.songDownloadSelected : _st.songDownload);
-		})();
+		}();
 		icon->paintInCenter(p, inner);
 	}
 
@@ -676,7 +706,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.drawTextLeft(nameleft, statustop, _width, _status.text(), statusw);
 			unreadx += statusw;
 		}
-		if (parent()->isMediaUnread() && unreadx + st::mediaUnreadSkip + st::mediaUnreadSize <= _width) {
+		if (parent()->hasUnreadMediaFlag() && unreadx + st::mediaUnreadSkip + st::mediaUnreadSize <= _width) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(selected ? st::msgFileInBgSelected : st::msgFileInBg);
 
@@ -788,6 +818,12 @@ void Voice::updateName() {
 	_nameVersion = version;
 }
 
+int Voice::duration() const {
+	return _data->voice()
+		? _data->voice()->duration
+		: std::max(_data->duration(), 0);
+}
+
 bool Voice::updateStatusText() {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
@@ -797,7 +833,7 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeLoaded;
 		using State = Media::Player::State;
 		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-		if (state.id == AudioMsgId(_data, parent()->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+		if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.playId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 			statusSize = -1 - (state.position / state.frequency);
 			realDuration = (state.length / state.frequency);
 			showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
@@ -806,7 +842,7 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _status.size()) {
-		_status.update(statusSize, _data->size, _data->voice()->duration, realDuration);
+		_status.update(statusSize, _data->size, duration(), realDuration);
 	}
 	return showPause;
 }
@@ -832,8 +868,8 @@ Document::Document(
 	_status.update(FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
-		_data->thumb->load();
-		int32 tw = convertScale(_data->thumb->width()), th = convertScale(_data->thumb->height());
+		_data->thumb->load(parent->fullId());
+		int32 tw = ConvertScale(_data->thumb->width()), th = ConvertScale(_data->thumb->height());
 		if (tw > th) {
 			_thumbw = (tw * _st.fileThumbSize) / th;
 		} else {
@@ -852,7 +888,7 @@ Document::Document(
 
 void Document::initDimensions() {
 	_maxw = _st.maxWidth;
-	if (_data->isAudioFile()) {
+	if (_data->isSong()) {
 		_minh = _st.songPadding.top() + _st.songThumbSize + _st.songPadding.bottom();
 	} else {
 		_minh = _st.filePadding.top() + _st.fileThumbSize + _st.filePadding.bottom() + st::lineWidth;
@@ -862,8 +898,8 @@ void Document::initDimensions() {
 void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
 
-	_data->automaticLoad(parent());
-	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey()), displayLoading = _data->displayLoading();
+	_data->automaticLoad(parent()->fullId(), parent());
+	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
@@ -877,7 +913,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 	bool wthumb = withThumb();
 
-	auto isSong = _data->isAudioFile();
+	auto isSong = _data->isSong();
 	if (isSong) {
 		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		nameright = _st.songPadding.left();
@@ -905,7 +941,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 			}
 
-			auto icon = ([showPause, loaded, this, selected] {
+			auto icon = [&] {
 				if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);
 				} else if (loaded) {
@@ -914,7 +950,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				}
 				return &(selected ? _st.songDownloadSelected : _st.songDownload);
-			})();
+			}();
 			icon->paintInCenter(p, inner);
 		}
 	} else {
@@ -936,7 +972,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 						_thumbForLoaded = loaded;
 						auto options = Images::Option::Smooth | Images::Option::None;
 						if (!_thumbForLoaded) options |= Images::Option::Blurred;
-						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
+						_thumb = _data->thumb->pixNoCache(parent()->fullId(), _thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -1024,11 +1060,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 TextState Document::getState(
 		QPoint point,
 		StateRequest request) const {
-	const auto loaded = _data->loaded()
-		|| Local::willStickerImageLoad(_data->mediaKey());
+	const auto loaded = _data->loaded();
 	const auto wthumb = withThumb();
 
-	if (_data->isAudioFile()) {
+	if (_data->isSong()) {
 		const auto nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		const auto nameright = _st.songPadding.left();
 		const auto namewidth = std::min(
@@ -1138,17 +1173,17 @@ bool Document::dataLoaded() const {
 }
 
 bool Document::iconAnimated() const {
-	return _data->isAudioFile()
+	return _data->isSong()
 		|| !_data->loaded()
 		|| (_radial && _radial->animating());
 }
 
 bool Document::withThumb() const {
-	return !_data->isAudioFile()
+	return !_data->isSong()
 		&& !_data->thumb->isNull()
 		&& _data->thumb->width()
 		&& _data->thumb->height()
-		&& !documentIsExecutableName(_data->filename());
+		&& !Data::IsExecutableName(_data->filename());
 }
 
 bool Document::updateStatusText() {
@@ -1161,7 +1196,7 @@ bool Document::updateStatusText() {
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
-		if (_data->isAudioFile()) {
+		if (_data->isSong()) {
 			statusSize = FileStatusSizeLoaded;
 			using State = Media::Player::State;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
@@ -1241,9 +1276,11 @@ Link::Link(
 				_page->document,
 				parent->fullId());
 		} else if (_page->photo) {
-			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
+			if (_page->type == WebPageType::Profile || _page->type == WebPageType::Video) {
 				_photol = std::make_shared<UrlClickHandler>(_page->url);
-			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
+			} else if (_page->type == WebPageType::Photo
+				|| _page->siteName == qstr("Twitter")
+				|| _page->siteName == qstr("Facebook")) {
 				_photol = std::make_shared<PhotoOpenClickHandler>(
 					_page->photo,
 					parent->fullId());
@@ -1267,15 +1304,19 @@ Link::Link(
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {
-		if (!_page->photo->loaded()) _page->photo->thumb->load(false, false);
+		if (!_page->photo->loaded()) {
+			_page->photo->thumb->load(parent->fullId(), false, false);
+		}
 
-		tw = convertScale(_page->photo->thumb->width());
-		th = convertScale(_page->photo->thumb->height());
+		tw = ConvertScale(_page->photo->thumb->width());
+		th = ConvertScale(_page->photo->thumb->height());
 	} else if (_page && _page->document) {
-		if (!_page->document->thumb->loaded()) _page->document->thumb->load(false, false);
+		if (!_page->document->thumb->loaded()) {
+			_page->document->thumb->load(parent->fullId(), false, false);
+		}
 
-		tw = convertScale(_page->document->thumb->width());
-		th = convertScale(_page->document->thumb->height());
+		tw = ConvertScale(_page->document->thumb->width());
+		th = ConvertScale(_page->document->thumb->height());
 	}
 	if (tw > st::linksPhotoSize) {
 		if (th > tw) {
@@ -1357,18 +1398,18 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		if (_page && _page->photo) {
 			QPixmap pix;
 			if (_page->photo->medium->loaded()) {
-				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->medium->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->full->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else {
-				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->thumb->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			}
 			p.drawPixmapLeft(pixLeft, pixTop, _width, pix);
 		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
 			auto roundRadius = _page->document->isVideoMessage()
 				? ImageRoundRadius::Ellipse
 				: ImageRoundRadius::Small;
-			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
+			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumb->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
 		} else {
 			const auto index = _letter.isEmpty()
 				? 0

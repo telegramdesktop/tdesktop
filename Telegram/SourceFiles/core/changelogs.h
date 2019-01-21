@@ -24,8 +24,8 @@ private:
 	void requestCloudLogs();
 	void addLocalLogs();
 	void addLocalLog(const QString &text);
-	void addAlphaLogs();
-	void addAlphaLog(int changeVersion, const char *changes);
+	void addBetaLogs();
+	void addBetaLog(int changeVersion, const char *changes);
 
 	const not_null<AuthSession*> _session;
 	const int _oldVersion = 0;

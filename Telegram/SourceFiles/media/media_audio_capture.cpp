@@ -65,7 +65,11 @@ void Instance::check() {
 			auto error = ErrorHappened(device);
 			alcCaptureCloseDevice(device);
 			_available = !error;
+		} else {
+			LOG(("Audio Error: Could not open capture device!"));
 		}
+	} else {
+		LOG(("Audio Error: No capture device found!"));
 	}
 }
 

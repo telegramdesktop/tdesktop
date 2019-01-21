@@ -23,10 +23,10 @@ public:
 	void setTopBarShadow(bool enabled);
 	void setWithFade(bool withFade);
 
-	using RepaintCallback = base::lambda<void()>;
+	using RepaintCallback = Fn<void()>;
 	void setRepaintCallback(RepaintCallback &&callback);
 
-	using FinishedCallback = base::lambda<void()>;
+	using FinishedCallback = Fn<void()>;
 	void setFinishedCallback(FinishedCallback &&callback);
 
 	void start();

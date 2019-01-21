@@ -34,6 +34,7 @@ class FadeWrapScaled;
 
 namespace Window {
 class Controller;
+class ConnectingWidget;
 } // namespace Window
 
 enum DialogsSearchRequestType {
@@ -60,7 +61,7 @@ public:
 	void createDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
 	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
-	void repaintDialogRow(not_null<History*> history, MsgId messageId);
+	void repaintDialogRow(Dialogs::RowDescriptor row);
 
 	void dialogsToUp();
 
@@ -75,12 +76,7 @@ public:
 
 	void destroyData();
 
-	Dialogs::RowDescriptor chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const;
-
-	void scrollToPeer(not_null<History*> history, MsgId msgId);
+	void scrollToEntry(const Dialogs::RowDescriptor &entry);
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
@@ -104,7 +100,6 @@ public slots:
 	void onCancel();
 	void onListScroll();
 	void activate();
-	void onFilterUpdate(bool force = false);
 	bool onCancelSearch();
 	void onCancelSearchInChat();
 
@@ -151,6 +146,8 @@ private:
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
 
+	void setupSupportMode();
+	void setupConnectingWidget();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Dialogs::Key chat, UserData *from = nullptr);
 	void showJumpToDate();
@@ -162,10 +159,12 @@ private:
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void checkUpdateStatus();
-#endif // TDESKTOP_DISABLE_AUTOUPDATE
+
+	void applyFilterUpdate(bool force = false);
+	bool loadingBlockedByDate() const;
+	void refreshLoadMoreButton();
+	void loadMoreBlockedByDateChats();
 
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
@@ -176,7 +175,8 @@ private:
 	QTimer _chooseByDragTimer;
 
 	bool _dialogsFull = false;
-	int32 _dialogsOffsetDate = 0;
+	TimeId _dialogsLoadTill = 0;
+	TimeId _dialogsOffsetDate = 0;
 	MsgId _dialogsOffsetId = 0;
 	PeerData *_dialogsOffsetPeer = nullptr;
 	mtpRequestId _dialogsRequestId = 0;
@@ -192,8 +192,10 @@ private:
 	object_ptr<Ui::IconButton> _lockUnlock;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<DialogsInner> _inner;
-	class UpdateButton;
-	object_ptr<UpdateButton> _updateTelegram = { nullptr };
+	class BottomButton;
+	object_ptr<BottomButton> _updateTelegram = { nullptr };
+	object_ptr<BottomButton> _loadMoreChats = { nullptr };
+	base::unique_qptr<Window::ConnectingWidget> _connecting;
 
 	Animation _a_show;
 	Window::SlideDirection _showDirection;

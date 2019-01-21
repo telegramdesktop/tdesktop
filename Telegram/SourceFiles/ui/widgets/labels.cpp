@@ -88,7 +88,11 @@ void CrossFadeAnimation::paintLine(Painter &p, const Line &line, float64 positio
 	}
 }
 
-LabelSimple::LabelSimple(QWidget *parent, const style::LabelSimple &st, const QString &value) : TWidget(parent)
+LabelSimple::LabelSimple(
+	QWidget *parent,
+	const style::LabelSimple &st,
+	const QString &value)
+: RpWidget(parent)
 , _st(st) {
 	setText(value);
 }
@@ -270,8 +274,8 @@ void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	_text.setLink(lnkIndex, lnk);
 }
 
-void FlatLabel::setClickHandlerHook(ClickHandlerHook &&hook) {
-	_clickHandlerHook = std::move(hook);
+void FlatLabel::setClickHandlerFilter(ClickHandlerFilter &&filter) {
+	_clickHandlerFilter = std::move(filter);
 }
 
 void FlatLabel::mouseMoveEvent(QMouseEvent *e) {
@@ -356,7 +360,8 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 	_selectionType = TextSelectType::Letters;
 
 	if (activated) {
-		if (!_clickHandlerHook || _clickHandlerHook(activated, button)) {
+		if (!_clickHandlerFilter
+			|| _clickHandlerFilter(activated, button)) {
 			App::activateClickHandler(activated, button);
 		}
 	}
@@ -538,7 +543,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 		uponSelection = hasSelection;
 	}
 
-	_contextMenu = new Ui::PopupMenu(nullptr);
+	_contextMenu = new Ui::PopupMenu(this);
 
 	if (fullSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
@@ -805,10 +810,19 @@ void FlatLabel::setOpacity(float64 o) {
 	update();
 }
 
+void FlatLabel::setTextColorOverride(std::optional<QColor> color) {
+	_textColorOverride = color;
+	update();
+}
+
 void FlatLabel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setOpacity(_opacity);
-	p.setPen(_st.textFg);
+	if (_textColorOverride) {
+		p.setPen(*_textColorOverride);
+	} else {
+		p.setPen(_st.textFg);
+	}
 	p.setTextPalette(_st.palette);
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;

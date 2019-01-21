@@ -30,7 +30,8 @@ public:
 			[method = std::move(method), consumer](auto &&value) {
 				auto copy = method;
 				consumer.put_next_copy(value);
-				std::move(copy)(
+				details::callable_invoke(
+					std::move(copy),
 					std::forward<decltype(value)>(value));
 			}, [consumer](auto &&error) {
 				consumer.put_error_forward(

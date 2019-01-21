@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "boxes/confirm_box.h"
 #include "boxes/edit_participant_box.h"
+#include "profile/profile_channel_controllers.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"
 #include "mainwidget.h"
@@ -67,16 +68,19 @@ void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
 	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
 	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
 	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_channelAdminRights(MTP_flags(0));
-	auto weak = QPointer<GroupMembersWidget>(this);
+	auto weak = std::make_shared<QPointer<EditAdminBox>>(nullptr);
 	auto box = Box<EditAdminBox>(megagroup, user, currentRights);
-	box->setSaveCallback([weak, megagroup, user](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-		Ui::hideLayer();
-		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, newRights), rpcDone([weak, megagroup, user, oldRights, newRights](const MTPUpdates &result) {
-			if (App::main()) App::main()->sentUpdatesReceived(result);
-			megagroup->applyEditAdmin(user, oldRights, newRights);
-		}));
-	});
-	Ui::show(std::move(box));
+	box->setSaveCallback(SaveAdminCallback(megagroup, user, [=](
+			const MTPChannelAdminRights &newRights) {
+		if (*weak) {
+			(*weak)->closeBox();
+		}
+	}, [=] {
+		if (*weak) {
+			(*weak)->closeBox();
+		}
+	}));
+	*weak = Ui::show(std::move(box));
 }
 
 void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
@@ -92,8 +96,9 @@ void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 	auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
 	box->setSaveCallback([megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 		Ui::hideLayer();
+		// #TODO use Auth().api().
 		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, oldRights, newRights](const MTPUpdates &result) {
-			if (App::main()) App::main()->sentUpdatesReceived(result);
+			Auth().api().applyUpdates(result);
 			megagroup->applyEditBanned(user, oldRights, newRights);
 		}));
 	});
@@ -217,7 +222,7 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 		return nullptr;
 	}
 	auto user = selectedPeer->asUser();
-	auto result = new Ui::PopupMenu(nullptr);
+	auto result = new Ui::PopupMenu(this);
 	result->addAction(lang(lng_context_view_profile), [selectedPeer] {
 		Ui::showPeerProfile(selectedPeer);
 	});
@@ -240,20 +245,20 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 			if (channel) {
 				if (channel->canEditAdmin(user)) {
 					auto label = lang((item->adminState != Item::AdminState::None) ? lng_context_edit_permissions : lng_context_promote_admin);
-					result->addAction(label, base::lambda_guarded(this, [this, user] {
+					result->addAction(label, crl::guard(this, [this, user] {
 						editAdmin(user);
 					}));
 				}
 				if (channel->canRestrictUser(user)) {
-					result->addAction(lang(lng_context_restrict_user), base::lambda_guarded(this, [this, user] {
+					result->addAction(lang(lng_context_restrict_user), crl::guard(this, [this, user] {
 						restrictUser(user);
 					}));
-					result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+					result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
 						removePeer(selectedPeer);
 					}));
 				}
 			} else if (item->hasRemoveLink) {
-				result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+				result->addAction(lang(lng_context_remove_from_group), crl::guard(this, [this, selectedPeer] {
 					removePeer(selectedPeer);
 				}));
 			}
@@ -322,7 +327,7 @@ void GroupMembersWidget::refreshLimitReached() {
 	bool limitReachedShown = (itemsCount() >= Global::ChatSizeMax()) && chat->amCreator() && !emptyTitle();
 	if (limitReachedShown && !_limitReachedInfo) {
 		auto url = "https://telegram.org/blog/supergroups5k";
-		if (lang(lng_telegreat_lang_code).startsWith("zh"))
+		if (lang(lng_language_name).contains("Chinese"))
 			url = "https://telegram.how/2016/03/13/supergroups5k";
 		_limitReachedInfo.create(this, st::profileLimitReachedLabel);
 		QString title = TextUtilities::EscapeForRichParsing(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
@@ -330,7 +335,7 @@ void GroupMembersWidget::refreshLimitReached() {
 		QString link = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_learn_more));
 		QString text = qsl("%1%2%3\n%4 [a href=\"") + url + qsl("\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
-		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+		_limitReachedInfo->setClickHandlerFilter([=](auto&&...) {
 			Ui::show(Box<ConvertToSupergroupBox>(peer()->asChat()));
 			return false;
 		});
@@ -342,7 +347,7 @@ void GroupMembersWidget::refreshLimitReached() {
 void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
 	if (chat->participants.empty()) return;
 
-	auto self = App::self();
+	const auto self = Auth().user();
 	if (chat->amAdmin() && !chat->admins.contains(self)) {
 		chat->admins.insert(self);
 	} else if (!chat->amAdmin() && chat->admins.contains(self)) {
@@ -403,9 +408,9 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 	_sortByOnline = true;
 
 	reserveItemsForSize(chat->participants.size());
-	addUser(chat, App::self())->onlineForSort
+	addUser(chat, Auth().user())->onlineForSort
 		= std::numeric_limits<TimeId>::max();
-	for (auto [user, v] : chat->participants) {
+	for (const auto &[user, v] : chat->participants) {
 		if (!user->isSelf()) {
 			addUser(chat, user);
 		}
@@ -453,7 +458,7 @@ void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 		clearItems();
 		reserveItemsForSize(membersList.size());
 		if (megagroup->amIn()) {
-			addUser(megagroup, App::self())->onlineForSort
+			addUser(megagroup, Auth().user())->onlineForSort
 				= std::numeric_limits<TimeId>::max();
 		}
 	} else if (membersList.size() >= itemsCount()) {

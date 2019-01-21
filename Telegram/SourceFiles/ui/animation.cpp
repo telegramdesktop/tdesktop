@@ -93,8 +93,10 @@ void stopManager() {
 	Media::Clip::Finish();
 }
 
-void registerClipManager(Media::Clip::Manager *manager) {
-	manager->connect(manager, SIGNAL(callback(Media::Clip::Reader*,qint32,qint32)), _manager, SLOT(clipCallback(Media::Clip::Reader*,qint32,qint32)));
+void registerClipManager(not_null<Media::Clip::Manager*> manager) {
+	Expects(_manager != nullptr);
+
+	_manager->registerClip(manager);
 }
 
 bool Disabled() {
@@ -104,7 +106,35 @@ bool Disabled() {
 void SetDisabled(bool disabled) {
 	AnimationsDisabled = disabled;
 	if (disabled && _manager) {
-		_manager->timeout();
+		_manager->step();
+	}
+}
+
+void DrawStaticLoading(
+		QPainter &p,
+		QRectF rect,
+		int stroke,
+		QPen pen,
+		QBrush brush) {
+	PainterHighQualityEnabler hq(p);
+
+	p.setBrush(brush);
+	pen.setWidthF(stroke);
+	pen.setCapStyle(Qt::RoundCap);
+	pen.setJoinStyle(Qt::RoundJoin);
+	p.setPen(pen);
+	p.drawEllipse(rect);
+
+	const auto center = rect.center();
+	const auto first = QPointF(center.x(), rect.y() + 1.5 * stroke);
+	const auto delta = center.y() - first.y();
+	const auto second = QPointF(center.x() + delta * 2 / 3., center.y());
+	if (delta > 0) {
+		QPainterPath path;
+		path.moveTo(first);
+		path.lineTo(center);
+		path.lineTo(second);
+		p.drawPath(path);
 	}
 }
 
@@ -125,19 +155,19 @@ void BasicAnimation::stop() {
 	_manager->stop(this);
 }
 
-AnimationManager::AnimationManager() : _timer(this), _iterating(false) {
+AnimationManager::AnimationManager() : _timer(this) {
 	_timer.setSingleShot(false);
-	connect(&_timer, SIGNAL(timeout()), this, SLOT(timeout()));
+	connect(&_timer, &QTimer::timeout, this, &AnimationManager::step);
 }
 
 void AnimationManager::start(BasicAnimation *obj) {
 	if (_iterating) {
 		_starting.insert(obj);
-		if (!_stopping.isEmpty()) {
-			_stopping.remove(obj);
+		if (!_stopping.empty()) {
+			_stopping.erase(obj);
 		}
 	} else {
-		if (_objects.isEmpty()) {
+		if (_objects.empty()) {
 			_timer.start(AnimationTimerDelta);
 		}
 		_objects.insert(obj);
@@ -147,8 +177,8 @@ void AnimationManager::start(BasicAnimation *obj) {
 void AnimationManager::stop(BasicAnimation *obj) {
 	if (_iterating) {
 		_stopping.insert(obj);
-		if (!_starting.isEmpty()) {
-			_starting.remove(obj);
+		if (!_starting.empty()) {
+			_starting.erase(obj);
 		}
 	} else {
 		auto i = _objects.find(obj);
@@ -161,25 +191,33 @@ void AnimationManager::stop(BasicAnimation *obj) {
 	}
 }
 
-void AnimationManager::timeout() {
+void AnimationManager::registerClip(not_null<Media::Clip::Manager*> clip) {
+	connect(
+		clip,
+		&Media::Clip::Manager::callback,
+		this,
+		&AnimationManager::clipCallback);
+}
+
+void AnimationManager::step() {
 	_iterating = true;
-	auto ms = getms();
-	for_const (auto object, _objects) {
+	const auto ms = getms();
+	for (const auto object : _objects) {
 		if (!_stopping.contains(object)) {
 			object->step(ms, true);
 		}
 	}
 	_iterating = false;
 
-	if (!_starting.isEmpty()) {
-		for_const (auto object, _starting) {
-			_objects.insert(object);
+	if (!_starting.empty()) {
+		for (const auto object : _starting) {
+			_objects.emplace(object);
 		}
 		_starting.clear();
 	}
-	if (!_stopping.isEmpty()) {
-		for_const (auto object, _stopping) {
-			_objects.remove(object);
+	if (!_stopping.empty()) {
+		for (const auto object : _stopping) {
+			_objects.erase(object);
 		}
 		_stopping.clear();
 	}
@@ -188,7 +226,13 @@ void AnimationManager::timeout() {
 	}
 }
 
-void AnimationManager::clipCallback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification) {
-	Media::Clip::Reader::callback(reader, threadIndex, Media::Clip::Notification(notification));
+void AnimationManager::clipCallback(
+		Media::Clip::Reader *reader,
+		qint32 threadIndex,
+		qint32 notification) {
+	Media::Clip::Reader::callback(
+		reader,
+		threadIndex,
+		Media::Clip::Notification(notification));
 }
 

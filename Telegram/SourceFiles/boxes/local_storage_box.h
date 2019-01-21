@@ -8,20 +8,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "storage/cache/storage_cache_database.h"
+
+namespace Storage {
+namespace Cache {
+class Database;
+} // namespace Cache
+} // namespace Storage
 
 namespace Ui {
-class LinkButton;
+class VerticalLayout;
+template <typename Widget>
+class SlideWrap;
+class LabelSimple;
 } // namespace Ui
 
 class LocalStorageBox : public BoxContent {
-	Q_OBJECT
+	struct CreateTag {
+	};
 
 public:
-	LocalStorageBox(QWidget*);
+	using Database = Storage::Cache::Database;
 
-private slots:
-	void onTempDirCleared(int task);
-	void onTempDirClearFailed(int task);
+	LocalStorageBox(QWidget*, not_null<Database*> db, CreateTag);
+
+	static void Show(not_null<Database*> db);
 
 protected:
 	void prepare() override;
@@ -29,21 +40,42 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void clearStorage();
-	void updateControls();
-	void checkLocalStoredCounts();
+	class Row;
 
-	enum class State {
-		Normal,
-		Clearing,
-		Cleared,
-		ClearFailed,
-	};
-	State _state = State::Normal;
+	void clearByTag(uint8 tag);
+	void update(Database::Stats &&stats);
+	void updateRow(
+		not_null<Ui::SlideWrap<Row>*> row,
+		Database::TaggedSummary *data);
+	void setupControls();
+	void setupLimits(not_null<Ui::VerticalLayout*> container);
+	void limitsChanged();
+	void save();
 
-	object_ptr<Ui::LinkButton> _clear;
+	template <
+		typename Value,
+		typename Convert,
+		typename Callback,
+		typename = std::enable_if_t<
+			rpl::details::is_callable_plain_v<
+				Callback,
+				not_null<Ui::LabelSimple*>,
+				Value>
+			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
+	void createLimitsSlider(
+		not_null<Ui::VerticalLayout*> container,
+		int valuesCount,
+		Convert &&convert,
+		Value currentValue,
+		Callback &&callback);
 
-	int _imagesCount = -1;
-	int _audiosCount = -1;
+	not_null<Storage::Cache::Database*> _db;
+	Database::Stats _stats;
+
+	base::flat_map<uint8, not_null<Ui::SlideWrap<Row>*>> _rows;
+
+	int64 _sizeLimit = 0;
+	size_type _timeLimit = 0;
+	bool _limitsChanged = false;
 
 };

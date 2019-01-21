@@ -95,10 +95,11 @@ void Channels::setupHeader() {
 		parent,
 		rpl::single(QString()));
 
-	object_ptr<Profile::FloatingIcon>(
-		parent,
-		st::infoIconFeed,
-		st::infoIconPosition);
+	// #feed
+	//object_ptr<Profile::FloatingIcon>(
+	//	parent,
+	//	st::infoIconFeed,
+	//	st::infoIconPosition);
 
 	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
 	_title = setupTitle();
@@ -289,11 +290,11 @@ void Channels::visibleTopBottomUpdated(
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
-void Channels::peerListSetTitle(base::lambda<QString()> title) {
+void Channels::peerListSetTitle(Fn<QString()> title) {
 }
 
 void Channels::peerListSetAdditionalTitle(
-		base::lambda<QString()> title) {
+		Fn<QString()> title) {
 }
 
 bool Channels::peerListIsRowSelected(not_null<PeerData*> peer) {

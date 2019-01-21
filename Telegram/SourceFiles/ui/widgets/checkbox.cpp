@@ -22,31 +22,43 @@ TextParseOptions _checkboxOptions = {
 
 } // namespace
 
-AbstractCheckView::AbstractCheckView(int duration, bool checked, base::lambda<void()> updateCallback)
+AbstractCheckView::AbstractCheckView(int duration, bool checked, Fn<void()> updateCallback)
 : _duration(duration)
 , _checked(checked)
 , _updateCallback(std::move(updateCallback)) {
 }
 
-void AbstractCheckView::setCheckedFast(bool checked) {
+void AbstractCheckView::setChecked(bool checked, anim::type animated) {
+	const auto changed = (_checked != checked);
 	_checked = checked;
-	finishAnimating();
-	if (_updateCallback) {
-		_updateCallback();
+	if (animated == anim::type::instant) {
+		finishAnimating();
+		if (_updateCallback) {
+			_updateCallback();
+		}
+	} else if (changed) {
+		_toggleAnimation.start(
+			_updateCallback,
+			_checked ? 0. : 1.,
+			_checked ? 1. : 0.,
+			_duration);
+	}
+	if (changed) {
+		checkedChangedHook(animated);
+		_checks.fire_copy(_checked);
 	}
 }
 
-void AbstractCheckView::setUpdateCallback(base::lambda<void()> updateCallback) {
+void AbstractCheckView::setUpdateCallback(Fn<void()> updateCallback) {
 	_updateCallback = std::move(updateCallback);
 	if (_toggleAnimation.animating()) {
 		_toggleAnimation.setUpdateCallback(_updateCallback);
 	}
 }
 
-void AbstractCheckView::setCheckedAnimated(bool checked) {
-	if (_checked != checked) {
-		_checked = checked;
-		_toggleAnimation.start(_updateCallback, _checked ? 0. : 1., _checked ? 1. : 0., _duration);
+void AbstractCheckView::update() {
+	if (_updateCallback) {
+		_updateCallback();
 	}
 }
 
@@ -58,10 +70,14 @@ float64 AbstractCheckView::currentAnimationValue(TimeMs ms) {
 	return ms ? _toggleAnimation.current(ms, _checked ? 1. : 0.) : _toggleAnimation.current(_checked ? 1. : 0.);
 }
 
+bool AbstractCheckView::animating() const {
+	return _toggleAnimation.animating();
+}
+
 ToggleView::ToggleView(
 	const style::Toggle &st,
 	bool checked,
-	base::lambda<void()> updateCallback)
+	Fn<void()> updateCallback)
 : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
@@ -198,7 +214,7 @@ bool ToggleView::checkRippleStartPosition(QPoint position) const {
 	return QRect(QPoint(0, 0), rippleSize()).contains(position);
 }
 
-CheckView::CheckView(const style::Check &st, bool checked, base::lambda<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
+CheckView::CheckView(const style::Check &st, bool checked, Fn<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
 
@@ -212,10 +228,17 @@ void CheckView::setStyle(const style::Check &st) {
 
 void CheckView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) {
 	auto toggled = currentAnimationValue(ms);
-	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, toggled);
+	auto pen = _untoggledOverride
+		? anim::pen(*_untoggledOverride, _st->toggledFg, toggled)
+		: anim::pen(_st->untoggledFg, _st->toggledFg, toggled);
 	pen.setWidth(_st->thickness);
 	p.setPen(pen);
-	p.setBrush(anim::brush(_st->bg, anim::color(_st->untoggledFg, _st->toggledFg, toggled), toggled));
+	p.setBrush(anim::brush(
+		_st->bg,
+		(_untoggledOverride
+			? anim::color(*_untoggledOverride, _st->toggledFg, toggled)
+			: anim::color(_st->untoggledFg, _st->toggledFg, toggled)),
+		toggled));
 
 	{
 		PainterHighQualityEnabler hq(p);
@@ -239,7 +262,17 @@ bool CheckView::checkRippleStartPosition(QPoint position) const {
 	return QRect(QPoint(0, 0), rippleSize()).contains(position);
 }
 
-RadioView::RadioView(const style::Radio &st, bool checked, base::lambda<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
+void CheckView::setUntoggledOverride(
+		std::optional<QColor> untoggledOverride) {
+	_untoggledOverride = untoggledOverride;
+	update();
+}
+
+RadioView::RadioView(
+	const style::Radio &st,
+	bool checked,
+	Fn<void()> updateCallback)
+: AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
 
@@ -255,7 +288,13 @@ void RadioView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) 
 	PainterHighQualityEnabler hq(p);
 
 	auto toggled = currentAnimationValue(ms);
-	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, toggled);
+	auto pen = _toggledOverride
+		? (_untoggledOverride
+			? anim::pen(*_untoggledOverride, *_toggledOverride, toggled)
+			: anim::pen(_st->untoggledFg, *_toggledOverride, toggled))
+		: (_untoggledOverride
+			? anim::pen(*_untoggledOverride, _st->toggledFg, toggled)
+			: anim::pen(_st->untoggledFg, _st->toggledFg, toggled));
 	pen.setWidth(_st->thickness);
 	p.setPen(pen);
 	p.setBrush(_st->bg);
@@ -265,7 +304,13 @@ void RadioView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) 
 
 	if (toggled > 0) {
 		p.setPen(Qt::NoPen);
-		p.setBrush(anim::brush(_st->untoggledFg, _st->toggledFg, toggled));
+		p.setBrush(_toggledOverride
+			? (_untoggledOverride
+				? anim::brush(*_untoggledOverride, *_toggledOverride, toggled)
+				: anim::brush(_st->untoggledFg, *_toggledOverride, toggled))
+			: (_untoggledOverride
+				? anim::brush(*_untoggledOverride, _st->toggledFg, toggled)
+				: anim::brush(_st->untoggledFg, _st->toggledFg, toggled)));
 
 		auto skip0 = _st->diameter / 2., skip1 = _st->skip / 10., checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
 		p.drawEllipse(rtlrect(QRectF(left, top, _st->diameter, _st->diameter).marginsRemoved(QMarginsF(checkSkip, checkSkip, checkSkip, checkSkip)), outerWidth));
@@ -295,16 +340,57 @@ bool RadioView::checkRippleStartPosition(QPoint position) const {
 	return QRect(QPoint(0, 0), rippleSize()).contains(position);
 }
 
-Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st, const style::Check &checkSt) : Checkbox(parent, text, st, std::make_unique<CheckView>(checkSt, checked, [this] { updateCheck(); })) {
+void RadioView::setToggledOverride(std::optional<QColor> toggledOverride) {
+	_toggledOverride = toggledOverride;
+	update();
 }
 
-Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st, const style::Toggle &toggleSt) : Checkbox(parent, text, st, std::make_unique<ToggleView>(toggleSt, checked, [this] { updateCheck(); })) {
+void RadioView::setUntoggledOverride(
+		std::optional<QColor> untoggledOverride) {
+	_untoggledOverride = untoggledOverride;
+	update();
 }
 
-Checkbox::Checkbox(QWidget *parent, const QString &text, const style::Checkbox &st, std::unique_ptr<AbstractCheckView> check) : RippleButton(parent, st.ripple)
+Checkbox::Checkbox(
+	QWidget *parent,
+	const QString &text,
+	bool checked,
+	const style::Checkbox &st,
+	const style::Check &checkSt)
+: Checkbox(
+	parent,
+	text,
+	st,
+	std::make_unique<CheckView>(
+		checkSt,
+		checked)) {
+}
+
+Checkbox::Checkbox(
+	QWidget *parent,
+	const QString &text,
+	bool checked,
+	const style::Checkbox &st,
+	const style::Toggle &toggleSt)
+: Checkbox(
+	parent,
+	text,
+	st,
+	std::make_unique<ToggleView>(
+		toggleSt,
+		checked)) {
+}
+
+Checkbox::Checkbox(
+	QWidget *parent,
+	const QString &text,
+	const style::Checkbox &st,
+	std::unique_ptr<AbstractCheckView> check)
+: RippleButton(parent, st.ripple)
 , _st(st)
 , _check(std::move(check))
 , _text(_st.style, text, _checkboxOptions) {
+	_check->setUpdateCallback([=] { updateCheck(); });
 	resizeToText();
 	setCursor(style::cur_pointer);
 }
@@ -342,6 +428,14 @@ bool Checkbox::checked() const {
 	return _check->checked();
 }
 
+rpl::producer<bool> Checkbox::checkedChanges() const {
+	return _checkedChanges.events();
+}
+
+rpl::producer<bool> Checkbox::checkedValue() const {
+	return _checkedChanges.events_starting_with(checked());
+}
+
 void Checkbox::resizeToText() {
 	if (_st.width <= 0) {
 		resizeToWidth(_text.maxWidth() - _st.width);
@@ -352,9 +446,9 @@ void Checkbox::resizeToText() {
 
 void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {
 	if (_check->checked() != checked) {
-		_check->setCheckedAnimated(checked);
+		_check->setChecked(checked, anim::type::normal);
 		if (notify == NotifyAboutChange::Notify) {
-			checkedChanged.notify(checked, true);
+			_checkedChanges.fire_copy(checked);
 		}
 	}
 }
@@ -379,10 +473,10 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 
 	auto check = checkRect();
 	auto ms = getms();
+	auto active = _check->currentAnimationValue(ms);
 	if (isDisabled()) {
 		p.setOpacity(_st.disabledOpacity);
 	} else {
-		auto active = _check->currentAnimationValue(ms);
 		auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
 		paintRipple(
 			p,
@@ -408,8 +502,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	auto availableTextWidth = qMax(width() - leftSkip, 1);
 
 	if (!_text.isEmpty()) {
-		Assert(!(_checkAlignment & Qt::AlignHCenter));
-		p.setPen(_st.textFg);
+		p.setPen(anim::pen(_st.textFg, _st.textFgActive, active));
 		auto textSkip = _st.checkPosition.x()
 			+ check.width()
 			+ _st.textPosition.x();
@@ -421,13 +514,21 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 				textTop,
 				availableTextWidth,
 				width());
-		} else {
+		} else if (_checkAlignment & Qt::AlignRight) {
 			_text.drawRightElided(
 				p,
 				textSkip,
 				textTop,
 				availableTextWidth,
 				width());
+		} else {
+			_text.drawLeft(
+				p,
+				_st.margin.left(),
+				textTop,
+				width() - _st.margin.left() - _st.margin.right(),
+				width(),
+				style::al_top);
 		}
 	}
 }
@@ -469,7 +570,15 @@ void Checkbox::handlePress() {
 }
 
 int Checkbox::resizeGetHeight(int newWidth) {
-	return _check->getSize().height();
+	const auto result = _check->getSize().height();
+	if (!(_checkAlignment & Qt::AlignHCenter)) {
+		return result;
+	}
+	const auto textBottom = _st.margin.top()
+		+ _st.textPosition.y()
+		+ _text.countHeight(
+			newWidth - _st.margin.left() - _st.margin.right());
+	return std::max(result, textBottom);
 }
 
 QImage Checkbox::prepareRippleMask() const {
@@ -494,29 +603,64 @@ void RadiobuttonGroup::setValue(int value) {
 	}
 	_hasValue = true;
 	_value = value;
-	for (auto button : _buttons) {
+	for (const auto button : _buttons) {
 		button->handleNewGroupValue(_value);
 	}
-	if (_changedCallback) {
-		_changedCallback(_value);
+	if (const auto callback = _changedCallback) {
+		callback(_value);
 	}
 }
 
-Radiobutton::Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st, const style::Radio &radioSt) : Checkbox(parent, text, st, std::make_unique<RadioView>(radioSt, (group->hasValue() && group->value() == value), [this] { updateCheck(); }))
+Radiobutton::Radiobutton(
+	QWidget *parent,
+	const std::shared_ptr<RadiobuttonGroup> &group,
+	int value,
+	const QString &text,
+	const style::Checkbox &st,
+	const style::Radio &radioSt)
+: Radiobutton(
+	parent,
+	group,
+	value,
+	text,
+	st,
+	std::make_unique<RadioView>(
+		radioSt,
+		(group->hasValue() && group->value() == value))) {
+}
+
+Radiobutton::Radiobutton(
+	QWidget *parent,
+	const std::shared_ptr<RadiobuttonGroup> &group,
+	int value,
+	const QString &text,
+	const style::Checkbox &st,
+	std::unique_ptr<AbstractCheckView> check)
+: Checkbox(
+	parent,
+	text,
+	st,
+	std::move(check))
 , _group(group)
 , _value(value) {
+	using namespace rpl::mappers;
+
+	checkbox()->setChecked(group->hasValue() && group->value() == value);
 	_group->registerButton(this);
-	subscribe(checkbox()->checkedChanged, [this](bool checked) {
-		if (checked) {
-			_group->setValue(_value);
-		}
-	});
+	checkbox()->checkedChanges(
+	) | rpl::filter(
+		_1
+	) | rpl::start_with_next([=] {
+		_group->setValue(_value);
+	}, lifetime());
 }
 
 void Radiobutton::handleNewGroupValue(int value) {
 	auto checked = (value == _value);
 	if (checkbox()->checked() != checked) {
-		checkbox()->setChecked(checked, Ui::Checkbox::NotifyAboutChange::DontNotify);
+		checkbox()->setChecked(
+			checked,
+			Ui::Checkbox::NotifyAboutChange::DontNotify);
 	}
 }
 

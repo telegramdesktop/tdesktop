@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/localimageloader.h"
+#include "base/bytes.h"
 
 struct VideoSoundData;
 struct VideoSoundPart;
@@ -29,9 +30,6 @@ bool AttachToDevice();
 void ScheduleDetachFromDeviceSafe();
 void ScheduleDetachIfNotUsedSafe();
 void StopDetachIfNotUsedSafe();
-
-template <typename Callback>
-void IterateSamples();
 
 } // namespace Audio
 
@@ -141,6 +139,9 @@ public:
 	void setVideoVolume(float64 volume);
 	float64 getVideoVolume() const;
 
+	// Thread: Any. Locks AudioMutex.
+	void setVoicePlaybackDoubled(bool doubled);
+
 	~Mixer();
 
 private slots:
@@ -180,7 +181,7 @@ private:
 		void started();
 
 		bool isStreamCreated() const;
-		void ensureStreamCreated();
+		void ensureStreamCreated(AudioMsgId::Type type);
 
 		int getNotQueuedBufferIndex();
 
@@ -212,7 +213,7 @@ private:
 		TimeMs lastUpdateCorrectedMs = 0;
 
 	private:
-		void createStream();
+		void createStream(AudioMsgId::Type type);
 		void destroyStream();
 		void resetStream();
 
@@ -220,6 +221,8 @@ private:
 
 	// Thread: Any. Must be locked: AudioMutex.
 	void setStoppedState(Track *current, State state = State::Stopped);
+	void updatePlaybackSpeed(Track *track);
+	void updatePlaybackSpeed(Track *track, bool doubled);
 
 	Track *trackForType(AudioMsgId::Type type, int index = -1); // -1 uses currentIndex(type)
 	const Track *trackForType(AudioMsgId::Type type, int index = -1) const;
@@ -236,6 +239,7 @@ private:
 
 	QAtomicInt _volumeVideo;
 	QAtomicInt _volumeSong;
+	QAtomicInt _voicePlaybackDoubled = { 0 };
 
 	friend class Fader;
 	friend class Loaders;
@@ -323,16 +327,16 @@ VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &dat
 namespace Media {
 namespace Audio {
 
-FORCE_INLINE uint16 ReadOneSample(uchar data) {
+TG_FORCE_INLINE uint16 ReadOneSample(uchar data) {
 	return qAbs((static_cast<int16>(data) - 0x80) * 0x100);
 }
 
-FORCE_INLINE uint16 ReadOneSample(int16 data) {
+TG_FORCE_INLINE uint16 ReadOneSample(int16 data) {
 	return qAbs(data);
 }
 
 template <typename SampleType, typename Callback>
-void IterateSamples(base::const_byte_span bytes, Callback &&callback) {
+void IterateSamples(bytes::const_span bytes, Callback &&callback) {
 	auto samplesPointer = reinterpret_cast<const SampleType*>(bytes.data());
 	auto samplesCount = bytes.size() / sizeof(SampleType);
 	auto samplesData = gsl::make_span(samplesPointer, samplesCount);

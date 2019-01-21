@@ -127,15 +127,16 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 			_innerWrap ? _innerWrap->padding() : style::margins()));
 	_innerWrap->move(0, 0);
 
+	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_innerWrap->entity()->desiredHeightValue(),
-		tuple(_1, _1 + _2, _3)
+		_innerWrap->entity()->desiredHeightValue()
 	) | rpl::start_with_next([this](
 			int top,
-			int bottom,
+			int height,
 			int desired) {
+		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
@@ -157,10 +158,6 @@ rpl::producer<int> ContentWidget::scrollTillBottomChanges() const {
 
 void ContentWidget::setScrollTopSkip(int scrollTopSkip) {
 	_scrollTopSkip = scrollTopSkip;
-}
-
-rpl::producer<Section> ContentWidget::sectionRequest() const {
-	return rpl::never<Section>();
 }
 
 rpl::producer<int> ContentWidget::scrollHeightValue() const {
@@ -225,6 +222,14 @@ rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
 }
 
+rpl::producer<bool> ContentWidget::canSaveChanges() const {
+	return rpl::single(false);
+}
+
+void ContentWidget::saveChanges(FnMut<void()> done) {
+	done();
+}
+
 void ContentWidget::refreshSearchField(bool shown) {
 	auto search = _controller->searchFieldController();
 	if (search && shown) {
@@ -250,6 +255,20 @@ void ContentWidget::refreshSearchField(bool shown) {
 		_searchWrap = nullptr;
 		setScrollTopSkip(0);
 	}
+}
+
+Key ContentMemento::key() const {
+	if (const auto peerId = this->peerId()) {
+		return Key(App::peer(peerId));
+	} else if (const auto feed = this->feed()) {
+		return Key(feed);
+	} else {
+		return Settings::Tag{ settingsSelf() };
+	}
+}
+
+ContentMemento::ContentMemento(Settings::Tag settings)
+: _settingsSelf(settings.self.get()) {
 }
 
 } // namespace Info

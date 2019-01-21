@@ -155,6 +155,15 @@ infoTopBarCall: IconButton(infoTopBarNotifications) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 }
+infoTopBarSave: IconButton(infoTopBarNotifications) {
+	width: 48px;
+	icon: icon {{ "passport_ready", windowActiveTextFg }};
+	iconOver: icon {{ "passport_ready", windowActiveTextFg }};
+	iconPosition: point(11px, 17px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
@@ -221,6 +230,14 @@ infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
 infoLayerTopBarCall: IconButton(infoLayerTopBarNotifications) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+}
+infoLayerTopBarSave: IconButton(infoLayerTopBarNotifications) {
+	icon: icon {{ "passport_ready", windowActiveTextFg }};
+	iconOver: icon {{ "passport_ready", windowActiveTextFg }};
+	iconPosition: point(13px, 18px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
@@ -332,7 +349,7 @@ infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
-infoIconFeed: icon {{ "info_feed", infoIconFg }};
+//infoIconFeed: icon {{ "info_feed", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
 infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};
@@ -378,8 +395,6 @@ infoBlockHeaderLabel: FlatLabel(infoProfileStatusLabel) {
 infoBlockHeaderPosition: point(79px, 22px);
 
 infoProfileToggle: Toggle(defaultToggle) {
-	diameter: 16px;
-	width: 14px;
 	untoggledFg: menuIconFg;
 }
 infoProfileToggleOver: Toggle(infoProfileToggle) {
@@ -573,6 +588,10 @@ managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
 }
 managePeerButtonLabelPosition: point(25px, 10px);
 
+terminateSessionsButton: InfoProfileButton(infoBlockButton) {
+	padding: margins(23px, 12px, 23px, 10px);
+}
+
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info_media_photo_empty", infoEmptyFg }};
 infoEmptyVideo: icon {{ "info_media_video_empty", infoEmptyFg }};
@@ -704,5 +723,42 @@ topBarFeedInfoButton: FeedUserpicButton(defaultFeedUserpicButton) {
 		photoSize: 20px;
 	}
 }
+topBarConnectingPosition: point(2px, 5px);
+topBarConnectingSkip: 6px;
+topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 1px;
+	size: size(8px, 8px);
+}
 
 infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);
+
+separatePanelBorderCacheSize: 60px;
+separatePanelTitleHeight: 62px;
+separatePanelClose: IconButton(boxTitleClose) {
+	width: 60px;
+	height: 60px;
+
+	rippleAreaPosition: point(8px, 8px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+separatePanelTitleFont: font(18px semibold);
+separatePanelTitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 26px;
+	style: TextStyle(defaultTextStyle) {
+		font: separatePanelTitleFont;
+		linkFont: separatePanelTitleFont;
+		linkFontOver: font(18px semibold underline);
+	}
+}
+separatePanelTitleTop: 18px;
+separatePanelTitleLeft: 22px;
+separatePanelTitleSkip: 0px;
+separatePanelBack: IconButton(separatePanelClose) {
+	icon: infoTopBarBackIcon;
+	iconOver: infoTopBarBackIconOver;
+}

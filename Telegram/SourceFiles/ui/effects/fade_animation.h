@@ -19,10 +19,10 @@ public:
 	bool paint(Painter &p);
 	void refreshCache();
 
-	using FinishedCallback = base::lambda<void()>;
+	using FinishedCallback = Fn<void()>;
 	void setFinishedCallback(FinishedCallback &&callback);
 
-	using UpdatedCallback = base::lambda<void(float64)>;
+	using UpdatedCallback = Fn<void(float64)>;
 	void setUpdatedCallback(UpdatedCallback &&callback);
 
 	void show();

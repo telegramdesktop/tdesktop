@@ -2,4 +2,7 @@
   <qresource prefix="/qt">
     <file alias="etc/qt.conf">../etc/qt_linux.conf</file>
   </qresource>
+  <qresource prefix="/fc">
+    <file alias="fc-custom.conf">../fc-custom.conf</file>
+  </qresource>
 </RCC>

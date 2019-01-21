@@ -23,8 +23,6 @@ void objc_start();
 void objc_ignoreApplicationActivationRightNow();
 void objc_finish();
 
-void objc_registerCustomScheme();
-
 void objc_activateProgram(WId winId);
 bool objc_moveFile(const QString &from, const QString &to);
 void objc_deleteDir(const QString &dir);
@@ -33,7 +31,6 @@ double objc_appkitVersion();
 
 QString objc_documentsPath();
 QString objc_appDataPath();
-QString objc_downloadPath();
 QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);

@@ -58,7 +58,7 @@ public:
 	void paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const;
 	void fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const;
 
-	QImage instance(QColor colorOverride, DBIScale scale) const;
+	QImage instance(QColor colorOverride, int scale) const;
 
 	~MonoIcon() {
 	}
@@ -116,7 +116,7 @@ public:
 	}
 	void fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const;
 
-	QImage instance(QColor colorOverride, DBIScale scale) const;
+	QImage instance(QColor colorOverride, int scale) const;
 
 	int width() const;
 	int height() const;
@@ -205,7 +205,7 @@ public:
 		return _data->fill(p, rect, colorOverride);
 	}
 
-	QImage instance(QColor colorOverride, DBIScale scale = dbisAuto) const {
+	QImage instance(QColor colorOverride, int scale = kInterfaceScaleAuto) const {
 		return _data->instance(colorOverride, scale);
 	}
 

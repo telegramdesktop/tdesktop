@@ -37,6 +37,7 @@ struct PreparedFile {
 	QString mime;
 	std::unique_ptr<FileMediaInformation> information;
 	QImage preview;
+	QSize shownDimensions;
 	AlbumType type = AlbumType::None;
 
 };
@@ -59,6 +60,8 @@ struct PreparedList {
 		PreparedList &&list,
 		std::vector<int> order);
 	void mergeToEnd(PreparedList &&other);
+
+	bool canAddCaption(bool isAlbum, bool compressImages) const;
 
 	Error error = Error::None;
 	QString errorData;
