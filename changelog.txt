@@ -1,3 +1,11 @@
+1.5.8 (21.01.19)
+
+- Global permissions for groups. Restrict all members in any group from posting certain types of content.
+- Unified group settings. Make groups public, set admins with granular permissions and toggle persistent history in just a few clicks in any group.
+- Choose the emoji set you would like to use in Chat Settings.
+- Choose input and output devices for Telegram Calls in Settings > Advanced > Call Settings.
+- Support for automatically downloading files and music.
+
 1.5.7 beta (11.01.19)
 
 - Choose the emoji set you would like to use in Settings > Chat Settings.
