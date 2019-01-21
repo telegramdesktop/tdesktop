@@ -708,6 +708,7 @@ void Controller::observeInviteLink() {
 		_peer,
 		Notify::PeerUpdate::Flag::InviteLinkChanged
 	) | rpl::start_with_next([=] {
+		refreshCreateInviteLink();
 		refreshEditInviteLink();
 	}, _controls.editInviteLinkWrap->lifetime());
 }
