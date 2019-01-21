@@ -700,6 +700,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_join_group" = "Join Group";
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Remove";
+"lng_profile_delete_removed" = "Delete";
 "lng_profile_sure_kick" = "Remove {user} from the group?";
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
 "lng_profile_sure_remove_admin" = "Remove {user} from admins?";
@@ -827,6 +828,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_admin_status_promoted_by" = "Promoted by {user}";
 "lng_channel_admin_status_not_admin" = "Not administrator";
 "lng_channel_banned_status_restricted_by" = "Restricted by {user}";
+"lng_channel_banned_status_removed_by" = "Removed by {user}";
 
 "lng_channel_removed_list_about" = "Users removed from the channel by admins cannot rejoin it via invite links.";
 "lng_group_removed_list_about" = "Users removed from the group by admins cannot rejoin it via invite links.";
@@ -1229,6 +1231,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_edit_permissions" = "Edit permissions";
 "lng_context_restrict_user" = "Restrict user";
 "lng_context_remove_from_group" = "Remove from group";
+"lng_context_add_to_group" = "Add to group";
 
 "lng_context_copy_link" = "Copy Link";
 "lng_context_copy_post_link" = "Copy Post Link";

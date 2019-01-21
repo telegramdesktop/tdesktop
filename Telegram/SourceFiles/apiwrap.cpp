@@ -1759,11 +1759,15 @@ void ApiWrap::saveDefaultRestrictions(
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
 			if (const auto chat = peer->asChat()) {
 				chat->setDefaultRestrictions(rights);
-				if (callback) {
-					callback(true);
-				}
-				return;
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setDefaultRestrictions(rights);
+			} else {
+				Unexpected("Peer in ApiWrap::saveDefaultRestrictions.");
 			}
+			if (callback) {
+				callback(true);
+			}
+			return;
 		}
 		if (callback) {
 			callback(false);

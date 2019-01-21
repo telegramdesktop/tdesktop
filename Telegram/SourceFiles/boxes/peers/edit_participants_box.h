@@ -209,8 +209,11 @@ private:
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights);
 	void removeKicked(not_null<PeerListRow*> row, not_null<UserData*> user);
+	void removeKickedWithRow(not_null<UserData*> user);
+	void removeKicked(not_null<UserData*> user);
 	void kickMember(not_null<UserData*> user);
 	void kickMemberSure(not_null<UserData*> user);
+	void unkickMember(not_null<UserData*> user);
 	void removeAdmin(not_null<UserData*> user);
 	void removeAdminSure(not_null<UserData*> user);
 	bool appendRow(not_null<UserData*> user);
