@@ -560,7 +560,7 @@ void EmptyPainter::fillAboutGroup() {
 			Ui::ItemTextServiceOptions());
 	};
 	setText(_header, lang(lng_group_about_header));
-	setText(_text, lang(lng_group_about_header));
+	setText(_text, lang(lng_group_about_text));
 	for (const auto &text : phrases) {
 		_phrases.emplace_back(st::msgMinWidth);
 		setText(_phrases.back(), text);
