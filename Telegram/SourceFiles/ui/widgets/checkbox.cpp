@@ -115,20 +115,28 @@ void ToggleView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms)
 	p.drawEllipse(fgRect);
 
 	if (_st->xsize > 0) {
-		paintXV(p, toggleLeft, top, outerWidth, toggled, fgBrush);
+		p.setPen(Qt::NoPen);
+		p.setBrush(fgBrush);
+		if (_locked) {
+			const auto color = anim::color(_st->untoggledFg, _st->toggledFg, toggled);
+			_st->lockIcon.paint(p, toggleLeft, top, outerWidth, color);
+		} else {
+			paintXV(p, toggleLeft, top, outerWidth, toggled, fgBrush);
+		}
 	}
 }
 
 void ToggleView::paintXV(Painter &p, int left, int top, int outerWidth, float64 toggled, const QBrush &brush) {
-	Assert(_st->vsize > 0);
-	Assert(_st->stroke > 0);
+	Expects(_st->vsize > 0);
+	Expects(_st->stroke > 0);
+
 	static const auto sqrt2 = sqrt(2.);
-	auto stroke = (0. + _st->stroke) / sqrt2;
+	const auto stroke = (0. + _st->stroke) / sqrt2;
 	if (toggled < 1) {
 		// Just X or X->V.
-		auto xSize = 0. + _st->xsize;
-		auto xLeft = left + (_st->diameter - xSize) / 2.;
-		auto xTop = top + (_st->diameter - xSize) / 2.;
+		const auto xSize = 0. + _st->xsize;
+		const auto xLeft = left + (_st->diameter - xSize) / 2.;
+		const auto xTop = top + (_st->diameter - xSize) / 2.;
 		QPointF pathX[] = {
 			{ xLeft, xTop + stroke },
 			{ xLeft + stroke, xTop },
@@ -148,10 +156,10 @@ void ToggleView::paintXV(Painter &p, int left, int top, int outerWidth, float64 
 		}
 		if (toggled > 0) {
 			// X->V.
-			auto vSize = 0. + _st->vsize;
-			auto fSize = (xSize + vSize - 2. * stroke);
-			auto vLeft = left + (_st->diameter - fSize) / 2.;
-			auto vTop = 0. + xTop + _st->vshift;
+			const auto vSize = 0. + _st->vsize;
+			const auto fSize = (xSize + vSize - 2. * stroke);
+			const auto vLeft = left + (_st->diameter - fSize) / 2.;
+			const auto vTop = 0. + xTop + _st->vshift;
 			QPointF pathV[] = {
 				{ vLeft, vTop + xSize - vSize + stroke },
 				{ vLeft + stroke, vTop + xSize - vSize },
@@ -176,12 +184,12 @@ void ToggleView::paintXV(Painter &p, int left, int top, int outerWidth, float64 
 		}
 	} else {
 		// Just V.
-		auto xSize = 0. + _st->xsize;
-		auto xTop = top + (_st->diameter - xSize) / 2.;
-		auto vSize = 0. + _st->vsize;
-		auto fSize = (xSize + vSize - 2. * stroke);
-		auto vLeft = left + (_st->diameter - (_st->xsize + _st->vsize - 2. * stroke)) / 2.;
-		auto vTop = 0. + xTop + _st->vshift;
+		const auto xSize = 0. + _st->xsize;
+		const auto xTop = top + (_st->diameter - xSize) / 2.;
+		const auto vSize = 0. + _st->vsize;
+		const auto fSize = (xSize + vSize - 2. * stroke);
+		const auto vLeft = left + (_st->diameter - (_st->xsize + _st->vsize - 2. * stroke)) / 2.;
+		const auto vTop = 0. + xTop + _st->vshift;
 		QPointF pathV[] = {
 			{ vLeft, vTop + xSize - vSize + stroke },
 			{ vLeft + stroke, vTop + xSize - vSize },
@@ -212,6 +220,13 @@ QImage ToggleView::prepareRippleMask() const {
 
 bool ToggleView::checkRippleStartPosition(QPoint position) const {
 	return QRect(QPoint(0, 0), rippleSize()).contains(position);
+}
+
+void ToggleView::setLocked(bool locked) {
+	if (_locked != locked) {
+		_locked = locked;
+		update();
+	}
 }
 
 CheckView::CheckView(const style::Check &st, bool checked, Fn<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))

@@ -221,12 +221,26 @@ void EditAdminBox::prepare() {
 		| (prepareRights.c_chatAdminRights().vflags.v
 			& (filterByMyRights ? channel->adminRights() : ~Flag(0)));
 
-	const auto disabledFlags = canSave()
-		? (disabledByDefaults
-			| ((!channel || channel->amCreator())
-				? Flags(0)
-				: ~channel->adminRights()))
-		: ~Flags(0);
+	const auto disabledMessages = [&] {
+		auto result = std::map<Flags, QString>();
+		if (!canSave()) {
+			result.emplace(
+				~Flags(0),
+				lang(lng_rights_about_admin_cant_edit));
+		} else {
+			result.emplace(
+				disabledByDefaults,
+				lang(lng_rights_permission_for_all));
+			if (const auto channel = peer()->asChannel()) {
+				if (!channel->amCreator()) {
+					result.emplace(
+						~channel->adminRights(),
+						lang(lng_rights_permission_cant_edit));
+				}
+			}
+		}
+		return result;
+	}();
 
 	const auto anyoneCanAddMembers = chat
 		? chat->anyoneCanAddMembers()
@@ -235,7 +249,7 @@ void EditAdminBox::prepare() {
 		this,
 		lng_rights_edit_admin_header,
 		prepareFlags,
-		disabledFlags,
+		disabledMessages,
 		peer()->isChat() || peer()->isMegagroup(),
 		anyoneCanAddMembers);
 	addControl(std::move(checkboxes), QMargins());
@@ -316,18 +330,29 @@ void EditRestrictedBox::prepare() {
 		| ((channel && channel->isPublic())
 			? (Flag::f_change_info | Flag::f_pin_messages)
 			: Flags(0));
-	const auto disabledFlags = canSave()
-		? (defaultRestrictions
-			| ((channel && channel->isPublic())
-				? (Flag::f_change_info | Flag::f_pin_messages)
-				: Flags(0)))
-		: ~Flags(0);
+	const auto disabledMessages = [&] {
+		auto result = std::map<Flags, QString>();
+		if (!canSave()) {
+			result.emplace(
+				~Flags(0),
+				lang(lng_rights_about_restriction_cant_edit));
+		} else {
+			const auto disabled = defaultRestrictions
+				| ((channel && channel->isPublic())
+					? (Flag::f_change_info | Flag::f_pin_messages)
+					: Flags(0));
+			result.emplace(
+				disabled,
+				lang(lng_rights_restriction_for_all));
+		}
+		return result;
+	}();
 
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
 		lng_rights_user_restrictions_header,
 		prepareFlags,
-		disabledFlags);
+		disabledMessages);
 	addControl(std::move(checkboxes), QMargins());
 
 	_until = prepareRights.c_chatBannedRights().vuntil_date.v;
@@ -424,7 +449,7 @@ void EditRestrictedBox::createUntilVariants() {
 		if (!canSave() && _untilGroup->value() != value) {
 			return;
 		}
-		_untilVariants.push_back(base::unique_qptr<Ui::Radiobutton>(
+		_untilVariants.emplace_back(
 			addControl(
 				object_ptr<Ui::Radiobutton>(
 					this,
@@ -432,7 +457,7 @@ void EditRestrictedBox::createUntilVariants() {
 					value,
 					text,
 					st::defaultBoxCheckbox),
-				st::rightsToggleMargin)));
+				st::rightsToggleMargin));
 		if (!canSave()) {
 			_untilVariants.back()->setDisabled(true);
 		}

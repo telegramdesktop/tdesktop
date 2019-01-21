@@ -115,6 +115,7 @@ Toggle {
 	vsize: pixels;
 	vshift: pixels;
 	stroke: pixels;
+	lockIcon: icon;
 	rippleAreaPadding: pixels;
 }
 

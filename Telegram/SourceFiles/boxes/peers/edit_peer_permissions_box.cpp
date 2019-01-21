@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/toast/toast.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
@@ -280,24 +281,26 @@ void EditPeerPermissionsBox::prepare() {
 		}
 		Unexpected("User in EditPeerPermissionsBox.");
 	}();
-	const auto disabledFlags = [&] {
-		if (const auto chat = _peer->asChat()) {
-			return Flags(0)
-				| disabledByAdminRights;
-		} else if (const auto channel = _peer->asChannel()) {
-			return (channel->isPublic()
-				? (Flag::f_change_info | Flag::f_pin_messages)
-				: Flags(0))
-				| disabledByAdminRights;
+	const auto disabledMessages = [&] {
+		auto result = std::map<Flags, QString>();
+			result.emplace(
+				disabledByAdminRights,
+				lang(lng_rights_permission_cant_edit));
+		if (const auto channel = _peer->asChannel()) {
+			if (channel->isPublic()) {
+				result.emplace(
+					Flag::f_change_info | Flag::f_pin_messages,
+					lang(lng_rights_permission_unavailable));
+			}
 		}
-		Unexpected("User in EditPeerPermissionsBox.");
+		return result;
 	}();
 
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
 		lng_rights_default_restrictions_header,
 		restrictions,
-		disabledFlags);
+		disabledMessages);
 
 	inner->add(std::move(checkboxes));
 
@@ -353,12 +356,15 @@ void EditPeerPermissionsBox::addBannedButtons(
 	}
 }
 
-template <typename Flags, typename FlagLabelPairs>
+template <
+	typename Flags,
+	typename DisabledMessagePairs,
+	typename FlagLabelPairs>
 EditFlagsControl<Flags> CreateEditFlags(
 		QWidget *parent,
 		LangKey header,
 		Flags checked,
-		Flags disabled,
+		const DisabledMessagePairs &disabledMessagePairs,
 		const FlagLabelPairs &flagLabelPairs) {
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
 	const auto container = widget.data();
@@ -394,24 +400,38 @@ EditFlagsControl<Flags> CreateEditFlags(
 		st::rightsHeaderMargin);
 
 	auto addCheckbox = [&](Flags flags, const QString &text) {
+		const auto lockedIt = ranges::find_if(
+			disabledMessagePairs,
+			[&](const auto &pair) { return (pair.first & flags) != 0; });
+		const auto locked = (lockedIt != end(disabledMessagePairs))
+			? std::make_optional(lockedIt->second)
+			: std::nullopt;
+		const auto toggled = ((checked & flags) != 0);
+		auto toggle = std::make_unique<Ui::ToggleView>(
+			st::rightsToggle,
+			toggled);
+		toggle->setLocked(locked.has_value());
 		const auto control = container->add(
 			object_ptr<Ui::Checkbox>(
 				container,
 				text,
-				(checked & flags) != 0,
 				st::rightsCheckbox,
-				st::rightsToggle),
+				std::move(toggle)),
 			st::rightsToggleMargin);
 		control->checkedChanges(
 		) | rpl::start_with_next([=](bool checked) {
-			InvokeQueued(control, [=] {
-				applyDependencies(control);
-				changes->fire({});
-			});
+			if (locked.has_value()) {
+				if (checked != toggled) {
+					Ui::Toast::Show(*locked);
+					control->setChecked(toggled);
+				}
+			} else {
+				InvokeQueued(control, [=] {
+					applyDependencies(control);
+					changes->fire({});
+				});
+			}
 		}, control->lifetime());
-		if ((disabled & flags) != 0) {
-			control->setDisabled(true);
-		}
 		checkboxes->emplace(flags, control);
 	};
 	for (const auto &[flags, label] : flagLabelPairs) {
@@ -434,12 +454,12 @@ EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 		QWidget *parent,
 		LangKey header,
 		MTPDchatBannedRights::Flags restrictions,
-		MTPDchatBannedRights::Flags disabled) {
+		std::map<MTPDchatBannedRights::Flags, QString> disabledMessages) {
 	auto result = CreateEditFlags(
 		parent,
 		header,
 		NegateRestrictions(restrictions),
-		disabled,
+		disabledMessages,
 		RestrictionLabels());
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
@@ -455,13 +475,13 @@ EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 		QWidget *parent,
 		LangKey header,
 		MTPDchatAdminRights::Flags rights,
-		MTPDchatAdminRights::Flags disabled,
+		std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
 		bool isGroup,
 		bool anyoneCanAddMembers) {
 	return CreateEditFlags(
 		parent,
 		header,
 		rights,
-		disabled,
+		disabledMessages,
 		AdminRightLabels(isGroup, anyoneCanAddMembers));
 }

@@ -126,12 +126,14 @@ public:
 	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
+	void setLocked(bool locked);
 
 private:
 	void paintXV(Painter &p, int left, int top, int outerWidth, float64 toggled, const QBrush &brush);
 	QSize rippleSize() const;
 
 	not_null<const style::Toggle*> _st;
+	bool _locked = false;
 
 };
 

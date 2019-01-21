@@ -22,7 +22,7 @@ bool ValidateFont(const QString &familyName, int flags = 0) {
 	checkFont.setStyleStrategy(QFont::PreferQuality);
 	auto realFamily = QFontInfo(checkFont).family();
 	if (realFamily.trimmed().compare(familyName, Qt::CaseInsensitive)) {
-		LOG(("Font Error: could not resolve '%1' font, got '%2' after feeding '%3'.").arg(familyName).arg(realFamily));
+		LOG(("Font Error: could not resolve '%1' font, got '%2'.").arg(familyName).arg(realFamily));
 		return false;
 	}
 

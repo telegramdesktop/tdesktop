@@ -46,13 +46,13 @@ EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 	QWidget *parent,
 	LangKey header,
 	MTPDchatBannedRights::Flags restrictions,
-	MTPDchatBannedRights::Flags disabled);
+	std::map<MTPDchatBannedRights::Flags, QString> disabledMessages);
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 	QWidget *parent,
 	LangKey header,
 	MTPDchatAdminRights::Flags rights,
-	MTPDchatAdminRights::Flags disabled,
+	std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
 	bool isGroup,
 	bool anyoneCanAddMembers);
 

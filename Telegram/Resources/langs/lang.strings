@@ -1489,7 +1489,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_edit_admin_header" = "What can this admin do?";
 "lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
-"lng_rights_about_admin_cant_edit" = "You cannot edit rights of this admin.";
+
+"lng_rights_about_admin_cant_edit" = "You are not allowed to edit the rights of this admin.";
+"lng_rights_about_restriction_cant_edit" = "You cannot change the restrictions for this user.";
+"lng_rights_restriction_for_all" = "This option is disabled for all members in Group Permissions. You can either enable the permission for everyone or make this user an admin.";
+"lng_rights_permission_for_all" = "This option is enabled for all members in Group Permissions.";
+"lng_rights_permission_unavailable" = "This permission is not available in public groups.";
+"lng_rights_permission_cant_edit" = "You cannot edit this permission.";
 "lng_rights_user_restrictions" = "User restrictions";
 "lng_rights_user_restrictions_header" = "What can this member do?";
 "lng_rights_default_restrictions_header" = "What can members of this group do?";

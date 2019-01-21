@@ -692,6 +692,7 @@ rightsCheckbox: Checkbox(defaultBoxCheckbox) {
 rightsToggle: Toggle(defaultToggle) {
 	toggledFg: windowBgActive;
 	untoggledFg: attentionButtonFg;
+	lockIcon: icon {{ "info_rights_lock", windowBgActive }};
 	xsize: 8px;
 	vsize: 5px;
 	vshift: 1px;
