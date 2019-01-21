@@ -2055,8 +2055,9 @@ void Session::documentApplyFields(
 	document->setMimeString(mime);
 	if (!thumb->isNull()
 		&& (document->thumb->isNull()
-			|| document->thumb->width() < thumb->width()
-			|| document->thumb->height() < thumb->height())) {
+			|| (document->sticker()
+				&& (document->thumb->width() < thumb->width()
+					|| document->thumb->height() < thumb->height())))) {
 		document->thumb = thumb;
 	}
 	document->size = size;
