@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
-#include "application.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/widgets/checkbox.h"

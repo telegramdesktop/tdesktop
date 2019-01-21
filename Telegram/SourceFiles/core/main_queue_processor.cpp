@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/main_queue_processor.h"
 
-#include "application.h"
+#include "core/sandbox.h"
 
 namespace Core {
 namespace {
@@ -54,12 +54,12 @@ MainQueueProcessor::MainQueueProcessor() {
 
 		if (ProcessorInstance) {
 			const auto event = new ProcessorEvent(callable, argument);
-			QCoreApplication::postEvent(ProcessorInstance, event);
+			QApplication::postEvent(ProcessorInstance, event);
 		}
 	});
 	crl::wrap_main_queue([](void (*callable)(void*), void *argument) {
-		App().registerEnterFromEventLoop();
-		const auto wrap = App().createEventNestingLevel();
+		Sandbox::Instance().registerEnterFromEventLoop();
+		const auto wrap = Sandbox::Instance().createEventNestingLevel();
 		callable(argument);
 	});
 

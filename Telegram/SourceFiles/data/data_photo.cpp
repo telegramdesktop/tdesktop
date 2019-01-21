@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 #include "mainwidget.h"
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 
 PhotoData::PhotoData(const PhotoId &id)
 : id(id) {
@@ -167,7 +167,7 @@ void PhotoData::collectLocalData(PhotoData *local) {
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
-	Messenger::Instance().showPhoto(this);
+	Core::App().showPhoto(this);
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {

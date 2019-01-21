@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "auth_session.h"
 #include "apiwrap.h"
-#include "messenger.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
+#include "core/application.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
@@ -347,7 +347,7 @@ void BackgroundPreviewBox::share() {
 	Expects(!_paper.slug.isEmpty());
 
 	QApplication::clipboard()->setText(
-		Messenger::Instance().createInternalLinkFull("bg/" + _paper.slug));
+		Core::App().createInternalLinkFull("bg/" + _paper.slug));
 	Ui::Toast::Show(lang(lng_background_link_copied));
 }
 

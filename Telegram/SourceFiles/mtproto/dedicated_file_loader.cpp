@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dedicated_file_loader.h"
 
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 
 namespace MTP {
 namespace {
@@ -88,7 +88,7 @@ WeakInstance::WeakInstance(QPointer<MTP::Instance> instance)
 		_instance = nullptr;
 		die();
 	});
-	subscribe(Messenger::Instance().authSessionChanged(), [=] {
+	subscribe(Core::App().authSessionChanged(), [=] {
 		if (!AuthSession::Exists()) {
 			die();
 		}

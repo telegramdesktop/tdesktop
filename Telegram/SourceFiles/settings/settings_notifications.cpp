@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
@@ -239,7 +239,7 @@ void NotificationsCount::prepareNotificationSampleSmall() {
 void NotificationsCount::prepareNotificationSampleUserpic() {
 	if (_notificationSampleUserpic.isNull()) {
 		_notificationSampleUserpic = App::pixmapFromImageInPlace(
-			Messenger::Instance().logoNoMargin().scaled(
+			Core::App().logoNoMargin().scaled(
 				st::notifyPhotoSize * cIntRetinaFactor(),
 				st::notifyPhotoSize * cIntRetinaFactor(),
 				Qt::IgnoreAspectRatio,

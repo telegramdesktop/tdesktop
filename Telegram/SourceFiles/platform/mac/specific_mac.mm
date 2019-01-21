@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/specific_mac.h"
 
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "mainwidget.h"
 #include "history/history_widget.h"
 #include "core/crash_reports.h"

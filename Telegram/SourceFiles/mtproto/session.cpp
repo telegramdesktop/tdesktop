@@ -16,6 +16,20 @@ namespace MTP {
 namespace internal {
 namespace {
 
+// How much time passed from send till we resend request or check its state.
+constexpr auto kCheckResendTimeout = TimeMs(10000);
+
+// How much time to wait for some more requests,
+// when resending request or checking its state.
+constexpr auto kCheckResendWaiting = TimeMs(1000);
+
+// How much ints should message contain for us not to resend,
+// but instead to check its state.
+constexpr auto kResendThreshold = 1;
+
+// Container lives 10 minutes in haveSent map.
+constexpr auto kContainerLives = 600;
+
 QString LogIds(const QVector<uint64> &ids) {
 	if (!ids.size()) return "[]";
 	auto idsStr = QString("[%1").arg(*ids.cbegin());
@@ -305,8 +319,8 @@ void Session::checkRequestsByTimer() {
 		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
 			auto &req = i.value();
 			if (req->msDate > 0) {
-				if (req->msDate + MTPCheckResendTimeout < ms) { // need to resend or check state
-					if (req.messageSize() < MTPResendThreshold) { // resend
+				if (req->msDate + kCheckResendTimeout < ms) { // need to resend or check state
+					if (req.messageSize() < kResendThreshold) { // resend
 						resendingIds.reserve(haveSentCount);
 						resendingIds.push_back(i.key());
 					} else {
@@ -315,7 +329,7 @@ void Session::checkRequestsByTimer() {
 						stateRequestIds.push_back(i.key());
 					}
 				}
-			} else if (unixtime() > (int32)(i.key() >> 32) + MTPContainerLives) {
+			} else if (unixtime() > (int32)(i.key() >> 32) + kContainerLives) {
 				removingIds.reserve(haveSentCount);
 				removingIds.push_back(i.key());
 			}
@@ -330,12 +344,12 @@ void Session::checkRequestsByTimer() {
 				data.stateRequestMap().insert(stateRequestIds[i], true);
 			}
 		}
-		sendAnything(MTPCheckResendWaiting);
+		sendAnything(kCheckResendWaiting);
 	}
 	if (!resendingIds.isEmpty()) {
 		for (uint32 i = 0, l = resendingIds.size(); i < l; ++i) {
 			DEBUG_LOG(("MTP Info: resending request %1").arg(resendingIds[i]));
-			resend(resendingIds[i], MTPCheckResendWaiting);
+			resend(resendingIds[i], kCheckResendWaiting);
 		}
 	}
 	if (!removingIds.isEmpty()) {

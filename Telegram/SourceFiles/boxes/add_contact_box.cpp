@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang/lang_keys.h"
-#include "messenger.h"
 #include "mtproto/sender.h"
 #include "base/flat_set.h"
 #include "boxes/confirm_box.h"
@@ -20,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -66,7 +66,7 @@ style::InputField CreateBioFieldStyle() {
 
 QString PeerFloodErrorText(PeerFloodType type) {
 	auto link = textcmdLink(
-		Messenger::Instance().createInternalLinkFull(qsl("spambot")),
+		Core::App().createInternalLinkFull(qsl("spambot")),
 		lang(lng_cant_more_info));
 	if (type == PeerFloodType::InviteGroup) {
 		return lng_cant_invite_not_contact(lt_more_info, link);
@@ -1209,7 +1209,7 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : 
 					Ui::NameTextOptions());
 				row.status.setText(
 					st::defaultTextStyle,
-					Messenger::Instance().createInternalLink(
+					Core::App().createInternalLink(
 						textcmdLink(1, peer->userName())),
 					Ui::DialogTextOptions());
 				_rows.push_back(std::move(row));
@@ -1284,7 +1284,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
 	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
-		auto text = text_method(lt_link, Messenger::Instance().createInternalLink(pressed->userName()), lt_group, pressed->name);
+		auto text = text_method(lt_link, Core::App().createInternalLink(pressed->userName()), lt_group, pressed->name);
 		auto confirmText = lang(lng_channels_too_much_public_revoke);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
 			if (_revokeRequestId) return;

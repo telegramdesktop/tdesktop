@@ -18,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "window/window_controller.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 
@@ -383,7 +383,7 @@ void System::updateAll() {
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {
-	const auto hideEverything = Messenger::Instance().locked()
+	const auto hideEverything = Core::App().locked()
 		|| Global::ScreenIsLocked();
 
 	DisplayOptions result;
@@ -399,7 +399,7 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 		auto history = Auth().data().history(peerId);
 		window->showFromTray();
 		window->reActivateWindow();
-		if (Messenger::Instance().locked()) {
+		if (Core::App().locked()) {
 			window->setInnerFocus();
 			system()->clearAll();
 		} else {

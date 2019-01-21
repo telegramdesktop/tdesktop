@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 
 namespace AdminLog {
@@ -434,10 +434,10 @@ void GenerateItems(
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Messenger::Instance().createInternalLinkFull(newValue), QString());
+		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Core::App().createInternalLinkFull(newValue), QString());
 		auto body = new HistoryMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), newLink);
 		if (!oldValue.isEmpty()) {
-			auto oldLink = PrepareText(Messenger::Instance().createInternalLinkFull(oldValue), QString());
+			auto oldLink = PrepareText(Core::App().createInternalLinkFull(oldValue), QString());
 			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_link), oldLink);
 		}
 		addPart(body);

@@ -12,10 +12,179 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/main_queue_processor.h"
 #include "core/update_checker.h"
+#include "core/sandbox.h"
 #include "base/concurrent_timer.h"
-#include "application.h"
 
 namespace Core {
+namespace {
+
+uint64 InstallationTag = 0;
+
+QString DebugModeSettingPath() {
+	return cWorkingDir() + qsl("tdata/withdebug");
+}
+
+void WriteDebugModeSetting() {
+	auto file = QFile(DebugModeSettingPath());
+	if (file.open(QIODevice::WriteOnly)) {
+		file.write(Logs::DebugEnabled() ? "1" : "0");
+	}
+}
+
+void ComputeDebugMode() {
+	Logs::SetDebugEnabled(cAlphaVersion() != 0);
+	const auto debugModeSettingPath = DebugModeSettingPath();
+	auto file = QFile(debugModeSettingPath);
+	if (file.exists() && file.open(QIODevice::ReadOnly)) {
+		Logs::SetDebugEnabled(file.read(1) != "0");
+	}
+}
+
+void ComputeTestMode() {
+	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
+		cSetTestMode(true);
+	}
+}
+
+QString InstallBetaVersionsSettingPath() {
+	return cWorkingDir() + qsl("tdata/devversion");
+}
+
+void WriteInstallBetaVersionsSetting() {
+	QFile f(InstallBetaVersionsSettingPath());
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write(cInstallBetaVersion() ? "1" : "0");
+	}
+}
+
+void ComputeInstallBetaVersions() {
+	const auto installBetaSettingPath = InstallBetaVersionsSettingPath();
+	if (cAlphaVersion()) {
+		cSetInstallBetaVersion(false);
+	} else if (QFile(installBetaSettingPath).exists()) {
+		QFile f(installBetaSettingPath);
+		if (f.open(QIODevice::ReadOnly)) {
+			cSetInstallBetaVersion(f.read(1) != "0");
+		}
+	} else if (AppBetaVersion) {
+		WriteInstallBetaVersionsSetting();
+	}
+}
+
+void ComputeInstallationTag() {
+	InstallationTag = 0;
+	auto file = QFile(cWorkingDir() + qsl("tdata/usertag"));
+	if (file.open(QIODevice::ReadOnly)) {
+		const auto result = file.read(
+			reinterpret_cast<char*>(&InstallationTag),
+			sizeof(uint64));
+		if (result != sizeof(uint64)) {
+			InstallationTag = 0;
+		}
+		file.close();
+	}
+	if (!InstallationTag) {
+		do {
+			memsetrnd_bad(InstallationTag);
+		} while (!InstallationTag);
+
+		if (file.open(QIODevice::WriteOnly)) {
+			file.write(
+				reinterpret_cast<char*>(&InstallationTag),
+				sizeof(uint64));
+			file.close();
+		}
+	}
+}
+
+bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
+	const auto was = cExeDir() + folder;
+	const auto now = cExeDir() + qsl("TelegramForcePortable");
+	if (QDir(was).exists() && !QDir(now).exists()) {
+		const auto oldFile = was + "/tdata/" + file;
+		const auto newFile = was + "/tdata/alpha";
+		if (QFile(oldFile).exists() && !QFile(newFile).exists()) {
+			if (!QFile(oldFile).copy(newFile)) {
+				LOG(("FATAL: Could not copy '%1' to '%2'"
+					).arg(oldFile
+					).arg(newFile));
+				return false;
+			}
+		}
+		if (!QDir().rename(was, now)) {
+			LOG(("FATAL: Could not rename '%1' to '%2'"
+				).arg(was
+				).arg(now));
+			return false;
+		}
+	}
+	return true;
+}
+
+bool MoveLegacyAlphaFolder() {
+	if (!MoveLegacyAlphaFolder(qsl("TelegramAlpha_data"), qsl("alpha"))
+		|| !MoveLegacyAlphaFolder(qsl("TelegramBeta_data"), qsl("beta"))) {
+		return false;
+	}
+	return true;
+}
+
+bool CheckPortableVersionFolder() {
+	if (!MoveLegacyAlphaFolder()) {
+		return false;
+	}
+
+	const auto portable = cExeDir() + qsl("TelegramForcePortable");
+	QFile key(portable + qsl("/tdata/alpha"));
+	if (cAlphaVersion()) {
+		Assert(*AlphaPrivateKey != 0);
+
+		cForceWorkingDir(portable + '/');
+		QDir().mkpath(cWorkingDir() + qstr("tdata"));
+		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
+		if (!key.open(QIODevice::WriteOnly)) {
+			LOG(("FATAL: Could not open '%1' for writing private key!"
+				).arg(key.fileName()));
+			return false;
+		}
+		QDataStream dataStream(&key);
+		dataStream.setVersion(QDataStream::Qt_5_3);
+		dataStream << quint64(cRealAlphaVersion()) << cAlphaPrivateKey();
+		return true;
+	}
+	if (!QDir(portable).exists()) {
+		return true;
+	}
+	cForceWorkingDir(portable + '/');
+	if (!key.exists()) {
+		return true;
+	}
+
+	if (!key.open(QIODevice::ReadOnly)) {
+		LOG(("FATAL: could not open '%1' for reading private key. "
+			"Delete it or reinstall private alpha version."
+			).arg(key.fileName()));
+		return false;
+	}
+	QDataStream dataStream(&key);
+	dataStream.setVersion(QDataStream::Qt_5_3);
+
+	quint64 v;
+	QByteArray k;
+	dataStream >> v >> k;
+	if (dataStream.status() != QDataStream::Ok || k.isEmpty()) {
+		LOG(("FATAL: '%1' is corrupted. "
+			"Delete it or reinstall private alpha version."
+			).arg(key.fileName()));
+		return false;
+	}
+	cSetAlphaVersion(AppVersion * 1000ULL);
+	cSetAlphaPrivateKey(k);
+	cSetRealAlphaVersion(v);
+	return true;
+}
+
+} // namespace
 
 std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
@@ -37,10 +206,10 @@ void Launcher::init() {
 
 	prepareSettings();
 
-	QCoreApplication::setApplicationName(qsl("TelegramDesktop"));
+	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
 #ifndef OS_MAC_OLD
-	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
+	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
 #endif // OS_MAC_OLD
 
 	initHook();
@@ -55,21 +224,21 @@ int Launcher::exec() {
 		return psCleanup();
 	}
 
-	// both are finished in Application::closeApplication
+	// both are finished in Sandbox::closeApplication
 	Logs::start(this); // must be started before Platform is started
-	Platform::start(); // must be started before QApplication is created
+	Platform::start(); // must be started before Sandbox is created
 
 	auto result = executeApplication();
 
 	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
 
 	if (!UpdaterDisabled() && cRestartingUpdate()) {
-		DEBUG_LOG(("Application Info: executing updater to install update..."));
+		DEBUG_LOG(("Sandbox Info: executing updater to install update."));
 		if (!launchUpdater(UpdaterLaunch::PerformUpdate)) {
 			psDeleteDir(cWorkingDir() + qsl("tupdates/temp"));
 		}
 	} else if (cRestarting()) {
-		DEBUG_LOG(("Application Info: executing Telegram, because of restart..."));
+		DEBUG_LOG(("Sandbox Info: executing Telegram because of restart."));
 		launchUpdater(UpdaterLaunch::JustRelaunch);
 	}
 
@@ -78,6 +247,27 @@ int Launcher::exec() {
 	Logs::finish();
 
 	return result;
+}
+
+void Launcher::workingFolderReady() {
+	srand((unsigned int)time(nullptr));
+
+	ComputeTestMode();
+	ComputeDebugMode();
+	ComputeInstallBetaVersions();
+	ComputeInstallationTag();
+}
+
+void Launcher::writeDebugModeSetting() {
+	WriteDebugModeSetting();
+}
+
+void Launcher::writeInstallBetaVersionsSetting() {
+	WriteInstallBetaVersionsSetting();
+}
+
+bool Launcher::checkPortableVersionFolder() {
+	return CheckPortableVersionFolder();
 }
 
 QStringList Launcher::readArguments(int argc, char *argv[]) const {
@@ -170,6 +360,10 @@ QString Launcher::systemVersion() const {
 	return _systemVersion;
 }
 
+uint64 Launcher::installationTag() const {
+	return InstallationTag;
+}
+
 void Launcher::processArguments() {
 		enum class KeyFormat {
 		NoValues,
@@ -243,10 +437,10 @@ void Launcher::processArguments() {
 }
 
 int Launcher::executeApplication() {
-	Application application(this, _argc, _argv);
+	Sandbox sandbox(this, _argc, _argv);
 	MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
-	return application.execute();
+	return sandbox.start();
 }
 
 } // namespace Core

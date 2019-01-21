@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/observer.h"
-#include "data/data_file_origin.h"
+#include "base/timer.h"
 #include "base/binary_guard.h"
+#include "data/data_file_origin.h"
 
 namespace Storage {
 namespace Cache {
@@ -42,11 +43,18 @@ public:
 	~Downloader();
 
 private:
+	void killDownloadSessionsStart(MTP::DcId dcId);
+	void killDownloadSessionsStop(MTP::DcId dcId);
+	void killDownloadSessions();
+
 	base::Observable<void> _taskFinishedObservable;
 	int _priority = 1;
 
 	using RequestedInDc = std::array<int64, MTP::kDownloadSessionsCount>;
 	std::map<MTP::DcId, RequestedInDc> _requestedBytesAmount;
+
+	base::flat_map<MTP::DcId, TimeMs> _killDownloadSessionTimes;
+	base::Timer _killDownloadSessionsTimer;
 
 };
 

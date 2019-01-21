@@ -28,8 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "media/media_audio.h"
 #include "mtproto/dc_options.h"
-#include "messenger.h"
-#include "application.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "window/window_controller.h"
@@ -48,6 +47,7 @@ constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 constexpr auto kProxyTypeShift = 1024;
+constexpr auto kWriteMapTimeout = TimeMs(1000);
 
 constexpr auto kSinglePeerTypeUser = qint32(1);
 constexpr auto kSinglePeerTypeChat = qint32(2);
@@ -881,7 +881,7 @@ struct ReadSettingsContext {
 };
 
 void applyReadContext(ReadSettingsContext &&context) {
-	Messenger::Instance().dcOptions()->addFromOther(std::move(context.dcOptions));
+	Core::App().dcOptions()->addFromOther(std::move(context.dcOptions));
 	if (context.legacyLanguageId != Lang::kLegacyLanguageNone) {
 		Lang::Current().fillFromLegacy(context.legacyLanguageId, context.legacyLanguageFile);
 		writeLangPack();
@@ -1011,8 +1011,8 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
-		Messenger::Instance().setMtpMainDcId(dcId);
-		Messenger::Instance().setAuthSessionUserId(userId);
+		Core::App().setMtpMainDcId(dcId);
+		Core::App().setAuthSessionUserId(userId);
 	} break;
 
 	case dbiKey: {
@@ -1021,7 +1021,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		auto key = Serialize::read<MTP::AuthKey::Data>(stream);
 		if (!_checkStreamStatus(stream)) return false;
 
-		Messenger::Instance().setMtpKey(dcId, key);
+		Core::App().setMtpKey(dcId, key);
 	} break;
 
 	case dbiMtpAuthorization: {
@@ -1029,7 +1029,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> serialized;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Messenger::Instance().setMtpAuthorization(serialized);
+		Core::App().setMtpAuthorization(serialized);
 	} break;
 
 	case dbiAutoStart: {
@@ -2045,7 +2045,7 @@ void _writeUserSettings() {
 	}
 	auto userDataInstance = StoredAuthSessionCache
 		? StoredAuthSessionCache.get()
-		: Messenger::Instance().getAuthSessionSettings();
+		: Core::App().getAuthSessionSettings();
 	auto userData = userDataInstance
 		? userDataInstance->serialize()
 		: QByteArray();
@@ -2168,7 +2168,7 @@ void _writeMtpData() {
 		return;
 	}
 
-	auto mtpAuthorizationSerialized = Messenger::Instance().serializeMtpAuthorization();
+	auto mtpAuthorizationSerialized = Core::App().serializeMtpAuthorization();
 
 	quint32 size = sizeof(quint32) + Serialize::bytearraySize(mtpAuthorizationSerialized);
 
@@ -2402,7 +2402,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readMtpData();
 
 	DEBUG_LOG(("selfSerialized set: %1").arg(selfSerialized.size()));
-	Messenger::Instance().setAuthSessionFromStorage(
+	Core::App().setAuthSessionFromStorage(
 		std::move(StoredAuthSessionCache),
 		std::move(selfSerialized),
 		_oldMapVersion);
@@ -2640,7 +2640,7 @@ void writeSettings() {
 	}
 	settings.writeData(_settingsSalt);
 
-	auto dcOptionsSerialized = Messenger::Instance().dcOptions()->serialize();
+	auto dcOptionsSerialized = Core::App().dcOptions()->serialize();
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
@@ -5045,7 +5045,7 @@ Manager::Manager() {
 
 void Manager::writeMap(bool fast) {
 	if (!_mapWriteTimer.isActive() || fast) {
-		_mapWriteTimer.start(fast ? 1 : WriteMapTimeout);
+		_mapWriteTimer.start(fast ? 1 : kWriteMapTimeout);
 	} else if (_mapWriteTimer.remainingTime() <= 0) {
 		mapWriteTimeout();
 	}
@@ -5057,7 +5057,7 @@ void Manager::writingMap() {
 
 void Manager::writeLocations(bool fast) {
 	if (!_locationsWriteTimer.isActive() || fast) {
-		_locationsWriteTimer.start(fast ? 1 : WriteMapTimeout);
+		_locationsWriteTimer.start(fast ? 1 : kWriteMapTimeout);
 	} else if (_locationsWriteTimer.remainingTime() <= 0) {
 		locationsWriteTimeout();
 	}

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "media/media_clip_reader.h"
 #include "boxes/abstract_box.h"
-#include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/file_utilities.h"

@@ -175,24 +175,6 @@ inline bool IsTopCorner(ScreenCorner corner) {
 #define DeclareVar(Type, Name) DeclareRefVar(Type, Name) \
 	void Set##Name(const Type &Name);
 
-namespace Sandbox {
-
-bool CheckPortableVersionDir();
-void WorkingDirReady();
-void WriteInstallBetaVersionsSetting();
-void WriteDebugModeSetting();
-
-void start();
-bool started();
-void finish();
-
-uint64 UserTag();
-
-DeclareVar(QByteArray, LastCrashDump);
-DeclareVar(ProxyData, PreLaunchProxy);
-
-} // namespace Sandbox
-
 namespace Adaptive {
 
 enum class WindowLayout {

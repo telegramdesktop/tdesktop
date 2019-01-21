@@ -38,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
@@ -289,7 +289,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			std::move(linkText),
 			QString());
 		link->setClickHandlerFilter([peer = _peer](auto&&...) {
-			auto link = Messenger::Instance().createInternalLinkFull(
+			auto link = Core::App().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
 				QApplication::clipboard()->setText(link);

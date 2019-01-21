@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "layout.h"
 #include "window/window_controller.h"

@@ -267,7 +267,6 @@ private:
 
 };
 
-// One per Messenger.
 class AuthSession;
 AuthSession &Auth();
 

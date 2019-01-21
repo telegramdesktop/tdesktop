@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "twidget.h"
 
-#include "application.h"
 #include "mainwindow.h"
+#include "core/application.h"
 
 namespace Fonts {
 namespace {

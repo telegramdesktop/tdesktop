@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
@@ -34,7 +34,7 @@ auto GenerateCodes() {
 			: qsl("Do you want to enable DEBUG logs?\n\n"
 				"All network events will be logged.");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			Messenger::Instance().switchDebugMode();
+			Core::App().switchDebugMode();
 		}));
 	});
 	codes.emplace(qsl("viewlogs"), [] {
@@ -43,7 +43,7 @@ auto GenerateCodes() {
 	codes.emplace(qsl("testmode"), [] {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			Messenger::Instance().switchTestMode();
+			Core::App().switchTestMode();
 		}));
 	});
 	if (!Core::UpdaterDisabled()) {
@@ -71,7 +71,7 @@ auto GenerateCodes() {
 	codes.emplace(qsl("workmode"), [] {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			Messenger::Instance().switchWorkMode();
+			Core::App().switchWorkMode();
 		}));
 	});
 	codes.emplace(qsl("moderate"), [] {
@@ -88,7 +88,7 @@ auto GenerateCodes() {
 		}
 	});
 	codes.emplace(qsl("loadcolors"), [] {
-		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
@@ -106,9 +106,9 @@ auto GenerateCodes() {
 		}));
 	});
 	codes.emplace(qsl("endpoints"), [] {
-		FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
-				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
+				if (!Core::App().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
 					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
 				}
 			}
@@ -137,7 +137,7 @@ auto GenerateCodes() {
 				return;
 			}
 
-			FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
+			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
 				if (AuthSession::Exists() && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());

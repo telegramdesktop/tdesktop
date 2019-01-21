@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text_options.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "layout.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
@@ -109,7 +109,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			} else if (const auto bot = item->getMessageBot()) {
 				if (const auto media = item->media()) {
 					if (const auto game = media->game()) {
-						const auto link = Messenger::Instance().createInternalLinkFull(
+						const auto link = Core::App().createInternalLinkFull(
 							bot->username
 							+ qsl("?game=")
 							+ game->shortName);

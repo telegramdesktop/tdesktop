@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "media/media_audio.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
@@ -572,7 +572,7 @@ QString HistoryItem::directLink() const {
 				}
 			}
 		}
-		return Messenger::Instance().createInternalLinkFull(query);
+		return Core::App().createInternalLinkFull(query);
 	}
 	return QString();
 }

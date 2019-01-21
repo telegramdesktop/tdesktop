@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "application.h"
+#include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "ui/widgets/popup_menu.h"
@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "observer_peer.h"
 #include "auth_session.h"
-#include "messenger.h"
 #include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
@@ -133,7 +132,7 @@ MediaView::MediaView()
 			_collage = nullptr;
 		}
 	};
-	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
+	subscribe(Core::App().authSessionChanged(), [handleAuthSessionChange] {
 		handleAuthSessionChange();
 	});
 	handleAuthSessionChange();
@@ -184,7 +183,7 @@ void MediaView::moveToScreen() {
 		}
 		return nullptr;
 	};
-	auto activeWindow = Messenger::Instance().getActiveWindow();
+	auto activeWindow = Core::App().getActiveWindow();
 	auto activeWindowScreen = widgetScreen(activeWindow);
 	auto myScreen = widgetScreen(this);
 	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
@@ -751,7 +750,7 @@ void MediaView::updateMixerVideoVolume() const {
 }
 
 void MediaView::close() {
-	Messenger::Instance().hideMediaView();
+	Core::App().hideMediaView();
 }
 
 void MediaView::activateControls() {
@@ -906,7 +905,7 @@ void MediaView::onSaveAs() {
 			}));
 	}
 	activateWindow();
-	Core::App().setActiveWindow(this);
+	QApplication::setActiveWindow(this);
 	setFocus();
 }
 
@@ -1777,7 +1776,7 @@ void MediaView::displayFinished() {
 		show();
 		psShowOverAll(this);
 		activateWindow();
-		Core::App().setActiveWindow(this);
+		QApplication::setActiveWindow(this);
 		setFocus();
 	}
 }

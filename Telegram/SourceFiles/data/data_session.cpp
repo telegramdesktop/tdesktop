@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "core/crash_reports.h" // for CrashReports::SetAnnotation
 #include "ui/image/image.h"
 #include "export/export_controller.h"
@@ -145,7 +145,7 @@ MTPPhotoSize FindDocumentThumb(const MTPDdocument &data) {
 
 Session::Session(not_null<AuthSession*> session)
 : _session(session)
-, _cache(Messenger::Instance().databases().get(
+, _cache(Core::App().databases().get(
 	Local::cachePath(),
 	Local::cacheSettings()))
 , _selfDestructTimer([=] { checkSelfDestructItems(); })

@@ -8,8 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager_default.h"
 
 #include "platform/platform_notifications_manager.h"
-#include "application.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -78,7 +77,7 @@ Manager::QueuedNotification::QueuedNotification(
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
 	if (_hiddenUserpicPlaceholder.isNull()) {
-		_hiddenUserpicPlaceholder = App::pixmapFromImageInPlace(Messenger::Instance().logoNoMargin().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_hiddenUserpicPlaceholder = App::pixmapFromImageInPlace(Core::App().logoNoMargin().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_hiddenUserpicPlaceholder.setDevicePixelRatio(cRetinaFactor());
 	}
 	return _hiddenUserpicPlaceholder;
@@ -759,7 +758,7 @@ bool Notification::unlinkItem(HistoryItem *deleted) {
 bool Notification::canReply() const {
 	return !_hideReplyButton
 		&& (_item != nullptr)
-		&& !Messenger::Instance().locked()
+		&& !Core::App().locked()
 		&& (Global::NotifyView() <= dbinvShowPreview);
 }
 

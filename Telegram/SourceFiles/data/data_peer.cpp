@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "ui/image/image.h"
@@ -315,7 +315,7 @@ void PeerData::clearUserpic() {
 	const auto loc = StorageImageLocation();
 	const auto photo = [&] {
 		if (id == peerFromUser(ServiceUserId)) {
-			auto image = Messenger::Instance().logoNoMargin().scaledToWidth(
+			auto image = Core::App().logoNoMargin().scaledToWidth(
 				kUserpicSize,
 				Qt::SmoothTransformation);
 			return _userpic

@@ -113,6 +113,8 @@
 <(src_loc)/chat_helpers/tabbed_section.h
 <(src_loc)/chat_helpers/tabbed_selector.cpp
 <(src_loc)/chat_helpers/tabbed_selector.h
+<(src_loc)/core/application.cpp
+<(src_loc)/core/application.h
 <(src_loc)/core/changelogs.cpp
 <(src_loc)/core/changelogs.h
 <(src_loc)/core/click_handler.cpp
@@ -138,6 +140,8 @@
 <(src_loc)/core/media_active_cache.h
 <(src_loc)/core/mime_type.cpp
 <(src_loc)/core/mime_type.h
+<(src_loc)/core/sandbox.cpp
+<(src_loc)/core/sandbox.h
 <(src_loc)/core/shortcuts.cpp
 <(src_loc)/core/shortcuts.h
 <(src_loc)/core/update_checker.cpp
@@ -799,8 +803,6 @@
 <(src_loc)/apiwrap.h
 <(src_loc)/app.cpp
 <(src_loc)/app.h
-<(src_loc)/application.cpp
-<(src_loc)/application.h
 <(src_loc)/auth_session.cpp
 <(src_loc)/auth_session.h
 <(src_loc)/config.h
@@ -818,8 +820,6 @@
 <(src_loc)/mainwindow.h
 <(src_loc)/mediaview.cpp
 <(src_loc)/mediaview.h
-<(src_loc)/messenger.cpp
-<(src_loc)/messenger.h
 <(src_loc)/observer_peer.cpp
 <(src_loc)/observer_peer.h
 <(src_loc)/qt_static_plugins.cpp

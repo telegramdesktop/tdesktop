@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "media/player/media_player_instance.h"
 #include "platform/platform_specific.h"
 #include "base/parse_helper.h"
@@ -371,7 +371,7 @@ void Manager::set(const QString &keys, Command command) {
 	}
 	auto shortcut = base::make_unique_q<QShortcut>(
 		result,
-		Messenger::Instance().getActiveWindow(),
+		Core::App().getActiveWindow(),
 		nullptr,
 		nullptr,
 		Qt::ApplicationShortcut);

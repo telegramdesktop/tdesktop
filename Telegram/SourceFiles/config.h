@@ -17,15 +17,6 @@ constexpr str_const AppId = "{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in
 constexpr str_const AppFile = "Telegram";
 
 enum {
-	MTPIdsBufferSize = 400, // received msgIds and wereAcked msgIds count stored
-	MTPCheckResendTimeout = 10000, // how much time passed from send till we resend request or check it's state, in ms
-	MTPCheckResendWaiting = 1000, // how much time to wait for some more requests, when resending request or checking it's state, in ms
-	MTPAckSendWaiting = 10000, // how much time to wait for some more requests, when sending msg acks
-	MTPResendThreshold = 1, // how much ints should message contain for us not to resend, but to check it's state
-	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
-
-	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
-
 	MaxSelectedItems = 100,
 
 	MaxPhoneCodeLength = 4, // max length of country phone code
@@ -70,8 +61,6 @@ enum {
 	UsernameCheckTimeout = 200,
 
 	MaxMessageSize = 4096,
-
-	WriteMapTimeout = 1000,
 
 	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "window/window_peer_menu.h"
 #include "lang/lang_keys.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -54,7 +54,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 	}
 
 	FileDialog::GetWritePath(
-		Messenger::Instance().getFileDialogParent(),
+		Core::App().getFileDialogParent(),
 		lang(lng_save_photo),
 		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
@@ -104,7 +104,7 @@ void OpenGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				Messenger::Instance().showDocument(document, item);
+				Core::App().showDocument(document, item);
 			}
 		}
 	}

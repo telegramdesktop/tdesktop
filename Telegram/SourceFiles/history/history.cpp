@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
-#include "application.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "observer_peer.h"

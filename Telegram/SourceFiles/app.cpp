@@ -7,11 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "app.h"
 
-#include "styles/style_overview.h"
-#include "styles/style_mediaview.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_history.h"
-#include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "data/data_channel.h"
@@ -30,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "core/sandbox.h"
+#include "core/application.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
@@ -37,14 +34,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "messenger.h"
-#include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "styles/style_overview.h"
+#include "styles/style_mediaview.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_history.h"
+#include "styles/style_boxes.h"
 
 #ifdef OS_MAC_OLD
 #include <libexif/exif-data.h>
@@ -117,8 +117,8 @@ namespace App {
 	}
 
 	MainWindow *wnd() {
-		if (auto instance = Messenger::InstancePointer()) {
-			return instance->getActiveWindow();
+		if (Core::Sandbox::Instance().applicationLaunched()) {
+			return Core::App().getActiveWindow();
 		}
 		return nullptr;
 	}
@@ -753,14 +753,14 @@ namespace App {
 		setLaunchState(QuitRequested);
 
 		if (auto window = App::wnd()) {
-			if (!Core::App().isSavingSession()) {
+			if (!Core::Sandbox::Instance().isSavingSession()) {
 				window->hide();
 			}
 		}
 		if (auto mainwidget = App::main()) {
 			mainwidget->saveDraftToCloud();
 		}
-		Messenger::QuitAttempt();
+		Core::Application::QuitAttempt();
 	}
 
 	bool quitting() {

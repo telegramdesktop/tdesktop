@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
+#include "core/application.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "auth_session.h"
@@ -174,7 +175,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			return (toggled != cInstallBetaVersion());
 		}) | rpl::start_with_next([=](bool toggled) {
 			cSetInstallBetaVersion(toggled);
-			Sandbox::WriteInstallBetaVersionsSetting();
+			Core::App().writeInstallBetaVersionsSetting();
 
 			Core::UpdateChecker checker;
 			checker.stop();

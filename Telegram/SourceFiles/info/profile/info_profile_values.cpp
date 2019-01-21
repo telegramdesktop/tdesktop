@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/then.h>
 #include <rpl/combine.h>
 #include "observer_peer.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "data/data_peer_values.h"
@@ -110,7 +110,7 @@ rpl::producer<QString> LinkValue(not_null<PeerData*> peer) {
 	) | rpl::map([](QString &&username) {
 		return username.isEmpty()
 			? QString()
-			: Messenger::Instance().createInternalLinkFull(username);
+			: Core::App().createInternalLinkFull(username);
 	});
 }
 

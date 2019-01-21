@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 
 #include "platform/platform_specific.h"
+#include "core/launcher.h"
 
 #include <signal.h>
 #include <new>
@@ -319,14 +320,14 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 
 } // namespace
 
-void StartCatching() {
+void StartCatching(not_null<Core::Launcher*> launcher) {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
 	ProcessAnnotations["Version"] = (cAlphaVersion() ? qsl("%1 alpha").arg(cAlphaVersion()) : (AppBetaVersion ? qsl("%1 beta") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
 	ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
 	ProcessAnnotations["Platform"] = cPlatformString().toUtf8().constData();
-	ProcessAnnotations["UserTag"] = QString::number(Sandbox::UserTag(), 16).toUtf8().constData();
+	ProcessAnnotations["UserTag"] = QString::number(launcher->installationTag(), 16).toUtf8().constData();
 
 	QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
 	QDir().mkpath(dumpspath);
@@ -393,7 +394,7 @@ void FinishCatching() {
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
-Status Start() {
+StartResult Start() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	ReportPath = cWorkingDir() + qsl("tdata/working");
 
@@ -413,11 +414,11 @@ Status Start() {
 		}
 		fclose(f);
 
-		Sandbox::SetLastCrashDump(lastdump);
+		LOG(("Opened '%1' for reading, the previous "
+			"Telegram Desktop launch was not finished properly :( "
+			"Crash log size: %2").arg(ReportPath).arg(lastdump.size()));
 
-		LOG(("Opened '%1' for reading, the previous Telegram Desktop launch was not finished properly :( Crash log size: %2").arg(ReportPath).arg(lastdump.size()));
-
-		return LastCrashed;
+		return lastdump;
 	}
 
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS

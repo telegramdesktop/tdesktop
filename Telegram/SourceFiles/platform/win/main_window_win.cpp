@@ -12,8 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 #include "window/notifications_manager.h"
 #include "mainwindow.h"
-#include "messenger.h"
-#include "application.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/popup_menu.h"
@@ -665,7 +664,7 @@ void MainWindow::psSetupTrayIcon() {
 	if (!trayIcon) {
 		trayIcon = new QSystemTrayIcon(this);
 
-		auto icon = QIcon(App::pixmapFromImageInPlace(Messenger::Instance().logoNoMargin()));
+		auto icon = QIcon(App::pixmapFromImageInPlace(Core::App().logoNoMargin()));
 
 		trayIcon->setIcon(icon);
 		trayIcon->setToolTip(str_const_toString(AppName));
@@ -727,8 +726,8 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	const auto counter = Messenger::Instance().unreadBadge();
-	const auto muted = Messenger::Instance().unreadBadgeMuted();
+	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
 
 	auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 	auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
@@ -800,7 +799,7 @@ void MainWindow::psFirstShow() {
 	if (cStartInTray()
 		|| (cLaunchMode() == LaunchModeAutoStart
 			&& cStartMinimized()
-			&& !Messenger::Instance().passcodeLocked())) {
+			&& !Core::App().passcodeLocked())) {
 		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
 		setWindowState(Qt::WindowMinimized);
 		if (Global::WorkMode().value() == dbiwmTrayOnly

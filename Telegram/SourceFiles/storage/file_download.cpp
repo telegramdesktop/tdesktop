@@ -11,9 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
+#include "mtproto/connection.h" // for MTP::kAckSendWaiting
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "core/crash_reports.h"
@@ -21,8 +22,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 
 namespace Storage {
+namespace {
 
-Downloader::Downloader() {
+// How much time without download causes additional session kill.
+constexpr auto kKillSessionTimeout = TimeMs(5000);
+
+} // namespace
+
+Downloader::Downloader()
+: _killDownloadSessionsTimer([=] { killDownloadSessions(); }) {
 }
 
 void Downloader::clearPriorities() {
@@ -38,9 +46,49 @@ void Downloader::requestedAmountIncrement(MTP::DcId dcId, int index, int amount)
 	}
 	it->second[index] += amount;
 	if (it->second[index]) {
-		Messenger::Instance().killDownloadSessionsStop(dcId);
+		killDownloadSessionsStop(dcId);
 	} else {
-		Messenger::Instance().killDownloadSessionsStart(dcId);
+		killDownloadSessionsStart(dcId);
+	}
+}
+
+void Downloader::killDownloadSessionsStart(MTP::DcId dcId) {
+	if (!_killDownloadSessionTimes.contains(dcId)) {
+		_killDownloadSessionTimes.emplace(
+			dcId,
+			getms() + MTP::kAckSendWaiting + kKillSessionTimeout);
+	}
+	if (!_killDownloadSessionsTimer.isActive()) {
+		_killDownloadSessionsTimer.callOnce(
+			MTP::kAckSendWaiting + kKillSessionTimeout + 5);
+	}
+}
+
+void Downloader::killDownloadSessionsStop(MTP::DcId dcId) {
+	_killDownloadSessionTimes.erase(dcId);
+	if (_killDownloadSessionTimes.empty()
+		&& _killDownloadSessionsTimer.isActive()) {
+		_killDownloadSessionsTimer.cancel();
+	}
+}
+
+void Downloader::killDownloadSessions() {
+	auto ms = getms(), left = MTP::kAckSendWaiting + kKillSessionTimeout;
+	for (auto i = _killDownloadSessionTimes.begin(); i != _killDownloadSessionTimes.end(); ) {
+		if (i->second <= ms) {
+			for (int j = 0; j < MTP::kDownloadSessionsCount; ++j) {
+				MTP::stopSession(MTP::downloadDcId(i->first, j));
+			}
+			i = _killDownloadSessionTimes.erase(i);
+		} else {
+			if (i->second - ms < left) {
+				left = i->second - ms;
+			}
+			++i;
+		}
+	}
+	if (!_killDownloadSessionTimes.empty()) {
+		_killDownloadSessionsTimer.callOnce(left);
 	}
 }
 
@@ -57,7 +105,9 @@ int Downloader::chooseDcIndexForRequest(MTP::DcId dcId) const {
 	return result;
 }
 
-Downloader::~Downloader() = default;
+Downloader::~Downloader() {
+	killDownloadSessions();
+}
 
 } // namespace Storage
 

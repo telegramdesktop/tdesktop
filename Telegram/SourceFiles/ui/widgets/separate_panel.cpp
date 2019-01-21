@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "window/layer_widget.h"
 #include "window/themes/window_theme.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "styles/style_widgets.h"
 #include "styles/style_info.h"
 #include "styles/style_calls.h"
@@ -333,7 +333,7 @@ void SeparatePanel::setInnerSize(QSize size) {
 }
 
 void SeparatePanel::initGeometry(QSize size) {
-	const auto center = Messenger::Instance().getPointForCallPanelCenter();
+	const auto center = Core::App().getPointForCallPanelCenter();
 	_useTransparency = Platform::TranslucentWindowsSupported(center);
 	_padding = _useTransparency
 		? st::callShadow.extend

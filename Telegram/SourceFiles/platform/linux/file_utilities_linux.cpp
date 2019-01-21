@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qguiapplication_p.h>
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_gdk_helper.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 

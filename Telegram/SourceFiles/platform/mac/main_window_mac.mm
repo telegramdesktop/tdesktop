@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 #include "history/history.h"
 #include "history/history_widget.h"
@@ -521,8 +521,8 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	const auto counter = Messenger::Instance().unreadBadge();
-	const auto muted = Messenger::Instance().unreadBadgeMuted();
+	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
 
 	const auto string = !counter
 		? QString()
@@ -699,7 +699,7 @@ void MainWindow::updateGlobalMenuHook() {
 	}
 	App::wnd()->updateIsActive(0);
 	const auto logged = AuthSession::Exists();
-	const auto locked = Messenger::Instance().locked();
+	const auto locked = Core::App().locked();
 	const auto inactive = !logged || locked;
 	const auto support = logged && Auth().supportMode();
 	_forceDisabled(psLogout, !logged && !locked);

@@ -463,8 +463,8 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 		}
 	};
 	QObject::connect(
-		qApp,
-		&QApplication::applicationStateChanged,
+		static_cast<QGuiApplication*>(QCoreApplication::instance()),
+		&QGuiApplication::applicationStateChanged,
 		label,
 		reloadOnActivation);
 

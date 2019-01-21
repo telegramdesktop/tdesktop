@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 
 #include "apiwrap.h"
-#include "messenger.h"
+#include "core/application.h"
+#include "core/sandbox.h"
 #include "core/changelogs.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
@@ -372,7 +373,7 @@ rpl::producer<int> AuthSessionSettings::thirdColumnWidthChanges() const {
 }
 
 AuthSession &Auth() {
-	auto result = Messenger::Instance().authSession();
+	auto result = Core::App().authSession();
 	Assert(result != nullptr);
 	return *result;
 }
@@ -392,11 +393,11 @@ AuthSession::AuthSession(const MTPUser &user)
 	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
 	});
-	Messenger::Instance().passcodeLockChanges(
+	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		_shouldLockAt = 0;
 	}, _lifetime);
-	Messenger::Instance().lockChanges(
+	Core::App().lockChanges(
 	) | rpl::start_with_next([=] {
 		notifications().updateAll();
 	}, _lifetime);
@@ -429,10 +430,8 @@ AuthSession::AuthSession(const MTPUser &user)
 }
 
 bool AuthSession::Exists() {
-	if (const auto messenger = Messenger::InstancePointer()) {
-		return (messenger->authSession() != nullptr);
-	}
-	return false;
+	return Core::Sandbox::Instance().applicationLaunched()
+		&& (Core::App().authSession() != nullptr);
 }
 
 base::Observable<void> &AuthSession::downloaderTaskFinished() {
@@ -453,7 +452,7 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 		return false;
 	} else if (user.c_user().vid.v != userId()) {
 		LOG(("Auth Error: wrong self user received."));
-		crl::on_main(this, [] { Messenger::Instance().logOut(); });
+		crl::on_main(this, [] { Core::App().logOut(); });
 		return false;
 	}
 	return true;
@@ -479,18 +478,18 @@ void AuthSession::saveSettingsDelayed(TimeMs delay) {
 
 void AuthSession::checkAutoLock() {
 	if (!Global::LocalPasscode()
-		|| Messenger::Instance().passcodeLocked()) {
+		|| Core::App().passcodeLocked()) {
 		return;
 	}
 
-	Messenger::Instance().checkLocalTime();
+	Core::App().checkLocalTime();
 	auto now = getms(true);
 	auto shouldLockInMs = Global::AutoLock() * 1000LL;
 	auto idleForMs = psIdleTime();
 	auto notPlayingVideoForMs = now - settings().lastTimeVideoPlayedAt();
 	auto checkTimeMs = qMin(idleForMs, notPlayingVideoForMs);
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
-		Messenger::Instance().lockByPasscode();
+		Core::App().lockByPasscode();
 	} else {
 		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
 		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);

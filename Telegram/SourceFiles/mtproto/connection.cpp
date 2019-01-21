@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
 #include "zlib.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "core/launcher.h"
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
@@ -820,10 +820,10 @@ void ConnectionPrivate::tryToSend() {
 		const auto langPackName = _connectionOptions->langPackName;
 		const auto deviceModel = (_dcType == DcType::Cdn)
 			? "n/a"
-			: Messenger::Instance().launcher()->deviceModel();
+			: Core::App().launcher()->deviceModel();
 		const auto systemVersion = (_dcType == DcType::Cdn)
 			? "n/a"
-			: Messenger::Instance().launcher()->systemVersion();
+			: Core::App().launcher()->systemVersion();
 #if defined OS_MAC_STORE || defined OS_WIN_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
 			+ " store";
@@ -1563,7 +1563,7 @@ void ConnectionPrivate::handleReceived() {
 		uint32 toAckSize = ackRequestData.size();
 		if (toAckSize) {
 			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(LogIdsVector(ackRequestData)));
-			emit sendAnythingAsync(MTPAckSendWaiting);
+			emit sendAnythingAsync(kAckSendWaiting);
 		}
 
 		bool emitSignal = false;
@@ -2321,10 +2321,10 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 		}
 
 		uint32 ackedCount = wereAcked.size();
-		if (ackedCount > MTPIdsBufferSize) {
-			DEBUG_LOG(("Message Info: removing some old acked sent msgIds %1").arg(ackedCount - MTPIdsBufferSize));
-			clearedBecauseTooOld.reserve(ackedCount - MTPIdsBufferSize);
-			while (ackedCount-- > MTPIdsBufferSize) {
+		if (ackedCount > kIdsBufferSize) {
+			DEBUG_LOG(("Message Info: removing some old acked sent msgIds %1").arg(ackedCount - kIdsBufferSize));
+			clearedBecauseTooOld.reserve(ackedCount - kIdsBufferSize);
+			while (ackedCount-- > kIdsBufferSize) {
 				auto i = wereAcked.begin();
 				clearedBecauseTooOld.push_back(RPCCallbackClear(
 					i.value(),

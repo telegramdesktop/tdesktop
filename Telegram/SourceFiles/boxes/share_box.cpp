@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 

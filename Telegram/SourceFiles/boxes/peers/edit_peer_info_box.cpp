@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "observer_peer.h"

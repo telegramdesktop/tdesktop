@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "lang/lang_instance.h"
 
-#include "messenger.h"
+#include "core/application.h"
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
@@ -777,7 +777,7 @@ void Instance::resetValue(const QByteArray &key) {
 }
 
 Instance &Current() {
-	return Messenger::Instance().langpack();
+	return Core::App().langpack();
 }
 
 rpl::producer<QString> Viewer(LangKey key) {

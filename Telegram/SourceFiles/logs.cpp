@@ -233,7 +233,7 @@ NEW LOGGING INSTANCE STARTED!!!\n\
 
 LogsDataFields *LogsData = 0;
 
-typedef QList<QPair<LogDataType, QString> > LogsInMemoryList;
+using LogsInMemoryList = QList<QPair<LogDataType, QString>>;
 LogsInMemoryList *LogsInMemory = 0;
 LogsInMemoryList *DeletedLogsInMemory = SharedMemoryLocation<LogsInMemoryList, 0>();
 
@@ -320,9 +320,9 @@ bool DebugEnabled() {
 }
 
 void start(not_null<Core::Launcher*> launcher) {
-	Assert(LogsData == 0);
+	Assert(LogsData == nullptr);
 
-	if (!Sandbox::CheckPortableVersionDir()) {
+	if (!launcher->checkPortableVersionFolder()) {
 		return;
 	}
 
@@ -394,12 +394,12 @@ void start(not_null<Core::Launcher*> launcher) {
 
 	QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
-	Sandbox::WorkingDirReady();
-	CrashReports::StartCatching();
+	launcher->workingFolderReady();
+	CrashReports::StartCatching(launcher);
 
 	if (!LogsData->openMain()) {
 		delete LogsData;
-		LogsData = 0;
+		LogsData = nullptr;
 	}
 
 	LOG(("Launched version: %1, "

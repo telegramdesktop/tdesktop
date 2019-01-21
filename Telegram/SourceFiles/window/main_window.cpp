@@ -15,12 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "boxes/confirm_box.h"
 #include "core/click_handler_types.h"
+#include "core/application.h"
+#include "core/sandbox.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "mediaview.h"
 #include "auth_session.h"
 #include "apiwrap.h"
-#include "messenger.h"
 #include "mainwindow.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
@@ -92,8 +93,8 @@ void ConvertIconToBlack(QImage &image) {
 
 QIcon CreateOfficialIcon() {
 	auto image = [&] {
-		if (const auto messenger = Messenger::InstancePointer()) {
-			return messenger->logo();
+		if (Core::Sandbox::Instance().applicationLaunched()) {
+			return Core::App().logo();
 		}
 		return LoadLogo();
 	}();
@@ -128,13 +129,13 @@ MainWindow::MainWindow()
 	subscribe(Global::RefWorkMode(), [=](DBIWorkMode mode) {
 		workmodeUpdated(mode);
 	});
-	subscribe(Messenger::Instance().authSessionChanged(), [=] {
+	subscribe(Core::App().authSessionChanged(), [=] {
 		checkAuthSession();
 		updateWindowIcon();
 	});
 	checkAuthSession();
 
-	Messenger::Instance().termsLockValue(
+	Core::App().termsLockValue(
 	) | rpl::start_with_next([=] {
 		checkLockByTerms();
 	}, lifetime());
@@ -144,7 +145,7 @@ MainWindow::MainWindow()
 }
 
 void MainWindow::checkLockByTerms() {
-	const auto data = Messenger::Instance().termsLocked();
+	const auto data = Core::App().termsLocked();
 	if (!data || !AuthSession::Exists()) {
 		if (_termsBox) {
 			_termsBox->closeBox();
@@ -170,7 +171,7 @@ void MainWindow::checkLockByTerms() {
 				MentionClickHandler(mention).onClick({});
 			}
 		}
-		Messenger::Instance().unlockTerms();
+		Core::App().unlockTerms();
 	}, box->lifetime());
 
 	box->cancelClicks(
@@ -217,7 +218,7 @@ void MainWindow::showTermsDelete() {
 			lang(lng_terms_delete_warning),
 			lang(lng_terms_delete_now),
 			st::attentionBoxButton,
-			[=] { Messenger::Instance().termsDeleteNow(); },
+			[=] { Core::App().termsDeleteNow(); },
 			[=] { if (*box) (*box)->closeBox(); }),
 		LayerOption::KeepOther);
 }
@@ -301,7 +302,7 @@ void MainWindow::handleStateChanged(Qt::WindowState state) {
 
 void MainWindow::handleActiveChanged() {
 	if (isActiveWindow()) {
-		Messenger::Instance().checkMediaViewActivation();
+		Core::App().checkMediaViewActivation();
 	}
 	App::CallDelayed(1, this, [this] {
 		updateTrayMenu();

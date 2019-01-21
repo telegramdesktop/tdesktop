@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "application.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "media/media_audio.h"

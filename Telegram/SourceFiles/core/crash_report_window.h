@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Core {
+class Launcher;
+} // namespace Core
+
 class PreLaunchWindow : public QWidget {
 public:
 	PreLaunchWindow(QString title = QString());
@@ -62,8 +66,8 @@ public:
 	NotStartedWindow();
 
 protected:
-	void closeEvent(QCloseEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void closeEvent(QCloseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void updateControls();
@@ -78,7 +82,16 @@ class LastCrashedWindow : public PreLaunchWindow {
 	 Q_OBJECT
 
 public:
-	LastCrashedWindow();
+	LastCrashedWindow(
+		not_null<Core::Launcher*> launcher,
+		const QByteArray &crashdump,
+		Fn<void()> launch);
+
+	rpl::producer<ProxyData> proxyChanges() const;
+
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 public slots:
 	void onViewReport();
@@ -105,10 +118,11 @@ public slots:
 	void onUpdateFailed();
 
 protected:
-	void closeEvent(QCloseEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void closeEvent(QCloseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void proxyUpdated();
 	QString minidumpFileName();
 	void updateControls();
 
@@ -116,6 +130,8 @@ private:
 
 	QString getReportField(const QLatin1String &name, const QLatin1String &prefix);
 	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);
+
+	QByteArray _dumpraw;
 
 	QString _host, _username, _password;
 	quint32 _port;
@@ -146,10 +162,12 @@ private:
 	SendingState _sendingState;
 
 	PreLaunchLabel _updating;
-	qint64 _sendingProgress, _sendingTotal;
+	qint64 _sendingProgress = 0;
+	qint64 _sendingTotal = 0;
 
 	QNetworkAccessManager _sendManager;
-	QNetworkReply *_checkReply, *_sendReply;
+	QNetworkReply *_checkReply = nullptr;
+	QNetworkReply *_sendReply = nullptr;
 
 	enum UpdatingState {
 		UpdatingNone,
@@ -171,6 +189,8 @@ private:
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
 
+	Fn<void()> _launch;
+	rpl::event_stream<ProxyData> _proxyChanges;
 	rpl::lifetime _lifetime;
 
 };

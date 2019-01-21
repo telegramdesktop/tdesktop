@@ -9,15 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "core/application.h"
+#include "core/sandbox.h"
+#include "core/crash_reports.h"
 #include "storage/localstorage.h"
 #include "media/player/media_player_instance.h"
 #include "media/media_audio.h"
 #include "platform/mac/mac_utilities.h"
-#include "styles/style_window.h"
 #include "lang/lang_keys.h"
 #include "base/timer.h"
-#include "core/crash_reports.h"
+#include "styles/style_window.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -141,9 +142,9 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
 	ApplicationIsActive = true;
-	if (auto messenger = Messenger::InstancePointer()) {
+	if (Core::Sandbox::Instance().applicationLaunched()) {
 		if (!_ignoreActivation) {
-			messenger->handleAppActivated();
+			Core::App().handleAppActivated();
 			if (auto window = App::wnd()) {
 				if (window->isHidden()) {
 					window->showFromTray();
@@ -158,8 +159,8 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) receiveWakeNote:(NSNotification*)aNotification {
-	if (auto messenger = Messenger::InstancePointer()) {
-		messenger->checkLocalTime();
+	if (Core::Sandbox::Instance().applicationLaunched()) {
+		Core::App().checkLocalTime();
 	}
 
 	LOG(("Audio Info: -receiveWakeNote: received, scheduling detach from audio device"));

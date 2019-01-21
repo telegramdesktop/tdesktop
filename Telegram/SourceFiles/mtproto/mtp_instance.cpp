@@ -18,9 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
 #include "auth_session.h"
-#include "application.h"
 #include "apiwrap.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "base/timer.h"
@@ -413,7 +412,7 @@ void Instance::Private::setUserPhone(const QString &phone) {
 
 void Instance::Private::badConfigurationError() {
 	if (_mode == Mode::Normal) {
-		Messenger::Instance().badMtprotoConfigurationError();
+		Core::App().badMtprotoConfigurationError();
 	}
 }
 
@@ -757,7 +756,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
-	Messenger::Instance().setInternalLinkDomain(qs(data.vme_url_prefix));
+	Core::App().setInternalLinkDomain(qs(data.vme_url_prefix));
 	Global::SetChannelsReadMediaPeriod(data.vchannels_read_media_period.v);
 	Global::SetWebFileDcId(data.vwebfile_dc_id.v);
 	Global::SetTxtDomainString(qs(data.vdc_txt_domain_name));

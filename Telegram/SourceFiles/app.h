@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum NewMessageType : char;
 enum class ImageRoundRadius;
-class Messenger;
 class MainWindow;
 class MainWidget;
 class HistoryItem;

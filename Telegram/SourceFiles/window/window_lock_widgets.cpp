@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -143,7 +143,7 @@ void PasscodeLockWidget::submit() {
 		return;
 	}
 
-	Messenger::Instance().unlockPasscode(); // Destroys this widget.
+	Core::App().unlockPasscode(); // Destroys this widget.
 }
 
 void PasscodeLockWidget::error() {

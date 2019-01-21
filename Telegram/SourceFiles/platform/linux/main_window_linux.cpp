@@ -13,8 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "history/history.h"
 #include "mainwindow.h"
-#include "messenger.h"
-#include "application.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 
@@ -71,14 +70,14 @@ gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 QImage _trayIconImageGen() {
-	const auto counter = Messenger::Instance().unreadBadge();
-	const auto muted = Messenger::Instance().unreadBadgeMuted();
+	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
 	const auto counterSlice = (counter >= 1000)
 		? (1000 + (counter % 100))
 		: counter;
 	if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
 		if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
-			_trayIconImageBack = Messenger::Instance().logo().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			_trayIconImageBack = Core::App().logo().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 			_trayIconImageBack = _trayIconImageBack.convertToFormat(QImage::Format_ARGB32);
 			int w = _trayIconImageBack.width(), h = _trayIconImageBack.height(), perline = _trayIconImageBack.bytesPerLine();
 			uchar *bytes = _trayIconImageBack.bits();
@@ -114,8 +113,8 @@ QImage _trayIconImageGen() {
 }
 
 QString _trayIconImageFile() {
-	const auto counter = Messenger::Instance().unreadBadge();
-	const auto muted = Messenger::Instance().unreadBadgeMuted();
+	const auto counter = Core::App().unreadBadge();
+	const auto muted = Core::App().unreadBadgeMuted();
 	const auto counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
 
 	QString name = cWorkingDir() + qsl("tdata/ticons/icon%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
@@ -335,7 +334,7 @@ void MainWindow::unreadCounterChangedHook() {
 void MainWindow::updateIconCounters() {
 	updateWindowIcon();
 
-	const auto counter = Messenger::Instance().unreadBadge();
+	const auto counter = Core::App().unreadBadge();
 
 #if !defined(TDESKTOP_DISABLE_GTK_INTEGRATION) && !defined(TDESKTOP_DISABLE_UNITY_INTEGRATION)
 	if (_psUnityLauncherEntry) {
@@ -374,8 +373,8 @@ void MainWindow::updateIconCounters() {
 			QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 			icon = QIcon(path.constData());
 		} else {
-			const auto counter = Messenger::Instance().unreadBadge();
-			const auto muted = Messenger::Instance().unreadBadgeMuted();
+			const auto counter = Core::App().unreadBadge();
+			const auto muted = Core::App().unreadBadgeMuted();
 
 			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 			auto &fg = st::trayCounterFg;

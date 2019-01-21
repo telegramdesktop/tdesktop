@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 
 #include "lang/lang_keys.h"
-#include "messenger.h"
+#include "core/application.h"
+#include "core/local_url_handlers.h"
+#include "core/file_utilities.h"
 #include "mainwidget.h"
 #include "auth_session.h"
-#include "application.h"
 #include "platform/platform_specific.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/tooltip.h"
-#include "core/file_utilities.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 
@@ -117,7 +117,7 @@ QString UrlClickHandler::url() const {
 
 void UrlClickHandler::Open(QString url, QVariant context) {
 	url = tryConvertUrlToLocal(url);
-	if (InternalPassportLink(url)) {
+	if (Core::InternalPassportLink(url)) {
 		return;
 	}
 
@@ -125,7 +125,7 @@ void UrlClickHandler::Open(QString url, QVariant context) {
 	if (isEmail(url)) {
 		File::OpenEmailLink(url);
 	} else if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Messenger::Instance().openLocalUrl(url, context);
+		Core::App().openLocalUrl(url, context);
 	} else if (!url.isEmpty()) {
 		QDesktopServices::openUrl(url);
 	}
@@ -153,7 +153,7 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	url = tryConvertUrlToLocal(url);
-	if (InternalPassportLink(url)) {
+	if (Core::InternalPassportLink(url)) {
 		return;
 	}
 
@@ -165,7 +165,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
 		if (UrlRequiresConfirmation(url)) {
-			Messenger::Instance().hideMediaView();
+			Core::App().hideMediaView();
 			const auto displayUrl = parsedUrl.isValid()
 				? parsedUrl.toDisplayString()
 				: url;
@@ -183,7 +183,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 
 void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	const auto url = tryConvertUrlToLocal(this->url());
-	if (InternalPassportLink(url)) {
+	if (Core::InternalPassportLink(url)) {
 		return;
 	}
 

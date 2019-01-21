@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/update_checker.h"
 
-#include "application.h"
 #include "platform/platform_specific.h"
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "storage/localstorage.h"
-#include "messenger.h"
+#include "core/application.h"
+#include "core/sandbox.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
 #include "info/info_memento.h"
@@ -1187,7 +1187,7 @@ void Updater::stop() {
 }
 
 void Updater::start(bool forceWait) {
-	if (!Sandbox::started() || cExeName().isEmpty()) {
+	if (cExeName().isEmpty()) {
 		return;
 	}
 
@@ -1382,8 +1382,8 @@ Updater::~Updater() {
 
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
-	if (const auto messenger = Messenger::InstancePointer()) {
-		if (const auto mtproto = messenger->mtp()) {
+	if (Sandbox::Instance().applicationLaunched()) {
+		if (const auto mtproto = Core::App().mtp()) {
 			_updater->setMtproto(mtproto);
 		}
 	}

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_libs.h"
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "platform/linux/linux_desktop_environment.h"
@@ -91,11 +90,11 @@ void FallbackFontConfig() {
 namespace Platform {
 
 bool IsApplicationActive() {
-	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
+	return QApplication::activeWindow() != nullptr;
 }
 
 void SetApplicationIcon(const QIcon &icon) {
-	qApp->setWindowIcon(icon);
+	QApplication::setWindowIcon(icon);
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {

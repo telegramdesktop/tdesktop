@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "window/window_controller.h"
 #include "core/shortcuts.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "auth_session.h"
 
@@ -74,7 +74,7 @@ Instance::Instance()
 		}
 	};
 	subscribe(
-		Messenger::Instance().authSessionChanged(),
+		Core::App().authSessionChanged(),
 		handleAuthSessionChange);
 	handleAuthSessionChange();
 

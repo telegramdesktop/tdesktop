@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -88,7 +88,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	if (_link->isHidden()) {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), lang(lng_username_link_willbe));
 		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), Messenger::Instance().createInternalLinkFull(qsl("username")));
+		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), Core::App().createInternalLinkFull(qsl("username")));
 	} else {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), lang(lng_username_link));
 	}
@@ -166,7 +166,7 @@ void UsernameBox::changed() {
 }
 
 void UsernameBox::linkClick() {
-	QApplication::clipboard()->setText(Messenger::Instance().createInternalLinkFull(getName()));
+	QApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
 	Ui::Toast::Show(lang(lng_username_copied));
 }
 
@@ -247,7 +247,7 @@ QString UsernameBox::getName() const {
 
 void UsernameBox::updateLinkText() {
 	QString uname = getName();
-	_link->setText(st::boxTextFont->elided(Messenger::Instance().createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
+	_link->setText(st::boxTextFont->elided(Core::App().createInternalLinkFull(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
 	if (uname.isEmpty()) {
 		if (!_link->isHidden()) {
 			_link->hide();

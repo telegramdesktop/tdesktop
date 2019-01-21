@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
+#include "core/sandbox.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -137,7 +138,7 @@ QString FormatDateTime(TimeId value) {
 }
 
 uint32 OccupationTag() {
-	return uint32(Sandbox::UserTag() & 0xFFFFFFFFU);
+	return uint32(Core::Sandbox::Instance().installationTag() & 0xFFFFFFFF);
 }
 
 QString NormalizeName(QString name) {
@@ -280,7 +281,9 @@ Helper::Helper(not_null<AuthSession*> session)
 		});
 	}).fail([=](const RPCError &error) {
 		setSupportName(
-			qsl("[rand^") + QString::number(Sandbox::UserTag()) + ']');
+			qsl("[rand^")
+			+ QString::number(Core::Sandbox::Instance().installationTag())
+			+ ']');
 	}).send();
 }
 

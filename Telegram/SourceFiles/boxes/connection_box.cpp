@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "base/qthelp_url.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -975,7 +975,7 @@ void ProxiesBoxController::ShowApplyConfirmation(
 			if (ranges::find(proxies, proxy) == end(proxies)) {
 				proxies.push_back(proxy);
 			}
-			Messenger::Instance().setCurrentProxy(
+			Core::App().setCurrentProxy(
 				proxy,
 				ProxyData::Settings::Enabled);
 			Local::writeSettings();
@@ -998,7 +998,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 	const auto type = (item.data.type == Type::Http)
 		? Variants::Http
 		: Variants::Tcp;
-	const auto mtproto = Messenger::Instance().mtp();
+	const auto mtproto = Core::App().mtp();
 	const auto dcId = mtproto->mainDcId();
 
 	item.state = ItemState::Checking;
@@ -1140,7 +1140,7 @@ void ProxiesBoxController::applyItem(int id) {
 
 	auto j = findByProxy(Global::SelectedProxy());
 
-	Messenger::Instance().setCurrentProxy(
+	Core::App().setCurrentProxy(
 		item->data,
 		ProxyData::Settings::Enabled);
 	saveDelayed();
@@ -1163,7 +1163,7 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 			_lastSelectedProxy = base::take(Global::RefSelectedProxy());
 			if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
 				_lastSelectedProxyUsed = true;
-				Messenger::Instance().setCurrentProxy(
+				Core::App().setCurrentProxy(
 					ProxyData(),
 					ProxyData::Settings::System);
 				saveDelayed();
@@ -1188,7 +1188,7 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 			Assert(Global::ProxySettings() != ProxyData::Settings::Enabled);
 
 			if (base::take(_lastSelectedProxyUsed)) {
-				Messenger::Instance().setCurrentProxy(
+				Core::App().setCurrentProxy(
 					base::take(_lastSelectedProxy),
 					ProxyData::Settings::Enabled);
 			} else {
@@ -1293,9 +1293,7 @@ bool ProxiesBoxController::setProxySettings(ProxyData::Settings value) {
 			}
 		}
 	}
-	Messenger::Instance().setCurrentProxy(
-		Global::SelectedProxy(),
-		value);
+	Core::App().setCurrentProxy(Global::SelectedProxy(), value);
 	saveDelayed();
 	return true;
 }

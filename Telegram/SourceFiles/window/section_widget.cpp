@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 
 #include <rpl/range.h>
-#include "application.h"
 #include "mainwidget.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"

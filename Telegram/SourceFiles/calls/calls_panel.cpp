@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
@@ -582,7 +582,7 @@ bool Panel::isGoodUserPhoto(PhotoData *photo) {
 }
 
 void Panel::initGeometry() {
-	auto center = Messenger::Instance().getPointForCallPanelCenter();
+	auto center = Core::App().getPointForCallPanelCenter();
 	_useTransparency = Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);

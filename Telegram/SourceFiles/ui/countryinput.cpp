@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/countryinput.h"
 
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"

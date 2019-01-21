@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 #include "auth_session.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 
 namespace {
 
@@ -299,7 +299,7 @@ void DocumentOpenClickHandler::Open(
 	auto &location = data->location(true);
 	if (data->isTheme()) {
 		if (!location.isEmpty() && location.accessEnable()) {
-			Messenger::Instance().showDocument(data, context);
+			Core::App().showDocument(data, context);
 			location.accessDisable();
 			return;
 		}
@@ -335,9 +335,9 @@ void DocumentOpenClickHandler::Open(
 			}
 		} else if (playVideo) {
 			if (!data->data().isEmpty()) {
-				Messenger::Instance().showDocument(data, context);
+				Core::App().showDocument(data, context);
 			} else if (location.accessEnable()) {
-				Messenger::Instance().showDocument(data, context);
+				Core::App().showDocument(data, context);
 				location.accessDisable();
 			} else {
 				const auto filepath = location.name();
@@ -357,14 +357,14 @@ void DocumentOpenClickHandler::Open(
 				if (action == ActionOnLoadPlayInline && context) {
 					data->session()->data().requestAnimationPlayInline(context);
 				} else {
-					Messenger::Instance().showDocument(data, context);
+					Core::App().showDocument(data, context);
 				}
 			} else if (location.accessEnable()) {
 				if (playAnimation || QImageReader(location.name()).canRead()) {
 					if (playAnimation && action == ActionOnLoadPlayInline && context) {
 						data->session()->data().requestAnimationPlayInline(context);
 					} else {
-						Messenger::Instance().showDocument(data, context);
+						Core::App().showDocument(data, context);
 					}
 				} else {
 					LaunchWithWarning(location.name(), context);
@@ -720,7 +720,7 @@ void DocumentData::performActionOnLoad() {
 		&& item;
 	if (auto applyTheme = isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
-			Messenger::Instance().showDocument(this, item);
+			Core::App().showDocument(this, item);
 			loc.accessDisable();
 			return;
 		}
@@ -760,7 +760,7 @@ void DocumentData::performActionOnLoad() {
 			if (_actionOnLoad == ActionOnLoadPlayInline && item) {
 				_session->data().requestAnimationPlayInline(item);
 			} else {
-				Messenger::Instance().showDocument(this, item);
+				Core::App().showDocument(this, item);
 			}
 		}
 	} else {
@@ -776,7 +776,7 @@ void DocumentData::performActionOnLoad() {
 				_session->data().markMediaRead(this);
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
-					Messenger::Instance().showDocument(this, item);
+					Core::App().showDocument(this, item);
 				} else {
 					LaunchWithWarning(already, item);
 				}

@@ -25,9 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "window/section_memento.h"
-#include "window/section_widget.h"
-#include "window/window_connecting_widget.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
@@ -36,6 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/resize_area.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
+#include "window/section_memento.h"
+#include "window/section_widget.h"
+#include "window/window_connecting_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "info/info_memento.h"
@@ -54,8 +54,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
 #include "storage/file_upload.h"
-#include "messenger.h"
-#include "application.h"
 #include "mainwindow.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "boxes/confirm_box.h"
@@ -84,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
+#include "core/application.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "export/export_settings.h"
@@ -374,9 +373,6 @@ MainWidget::MainWidget(
 , _failDifferenceTimer([=] { getDifferenceAfterFail(); })
 , _cacheBackgroundTimer([=] { cacheBackground(); })
 , _viewsIncrementTimer([=] { viewsIncrement(); }) {
-	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
-	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
-
 	_controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 	_controller->floatPlayerClosed(
 	) | rpl::start_with_next([=](FullMsgId itemId) {
@@ -786,7 +782,7 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 }
 
 void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
-	if (Messenger::Instance().locked()) {
+	if (Core::App().locked()) {
 		return;
 	}
 
@@ -1044,7 +1040,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 		return true;
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = textcmdLink(
-			Messenger::Instance().createInternalLinkFull(qsl("spambot")),
+			Core::App().createInternalLinkFull(qsl("spambot")),
 			lang(lng_cant_more_info));
 		const auto text = lng_error_public_groups_denied(lt_more_info, link);
 		Ui::show(Box<InformBox>(text));
@@ -1838,7 +1834,7 @@ void MainWidget::ui_showPeerHistory(
 
 	auto animatedShow = [&] {
 		if (_a_show.animating()
-			|| Messenger::Instance().locked()
+			|| Core::App().locked()
 			|| (params.animated == anim::type::instant)) {
 			return false;
 		}
@@ -2147,7 +2143,7 @@ void MainWidget::showNewSection(
 
 	auto animatedShow = [&] {
 		if (_a_show.animating()
-			|| Messenger::Instance().locked()
+			|| Core::App().locked()
 			|| (params.animated == anim::type::instant)
 			|| memento.instant()) {
 			return false;
@@ -3039,11 +3035,6 @@ void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
 	}
 }
 
-bool MainWidget::updateFail(const RPCError &e) {
-	crl::on_main(this, [] { Messenger::Instance().logOut(); });
-	return true;
-}
-
 void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
 	if (pts) {
 		_ptsWaiter.init(pts);
@@ -3451,7 +3442,7 @@ void MainWidget::start() {
 
 	_history->start();
 
-	Messenger::Instance().checkStartUrl();
+	Core::App().checkStartUrl();
 }
 
 bool MainWidget::started() {
@@ -3463,7 +3454,7 @@ void MainWidget::openPeerByName(
 		MsgId msgId,
 		const QString &startToken,
 		FullMsgId clickFromMessageId) {
-	Messenger::Instance().hideMediaView();
+	Core::App().hideMediaView();
 
 	if (const auto peer = session().data().peerByUsername(username)) {
 		if (msgId == ShowAtGameShareMsgId) {
@@ -3753,9 +3744,9 @@ int32 MainWidget::dlgsWidth() const {
 }
 
 MainWidget::~MainWidget() {
-	if (App::main() == this) _history->showHistory(0, 0);
-
-	Messenger::Instance().mtp()->clearGlobalHandlers();
+	if (App::main() == this) {
+		_history->showHistory(0, 0);
+	}
 }
 
 void MainWidget::updateOnline(bool gotOtherOffline) {
@@ -4398,11 +4389,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDcOptions: {
 		auto &d = update.c_updateDcOptions();
-		Messenger::Instance().dcOptions()->addFromList(d.vdc_options);
+		Core::App().dcOptions()->addFromList(d.vdc_options);
 	} break;
 
 	case mtpc_updateConfig: {
-		Messenger::Instance().mtp()->requestConfig();
+		Core::App().mtp()->requestConfig();
 	} break;
 
 	case mtpc_updateUserPhone: {
@@ -4463,7 +4454,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			TextUtilities::EntitiesFromMTP(d.ventities.v)
 		};
 		if (IsForceLogoutNotification(d)) {
-			Messenger::Instance().forceLogOut(text);
+			Core::App().forceLogOut(text);
 		} else if (d.is_popup()) {
 			Ui::show(Box<InformBox>(text));
 		} else {

@@ -22,12 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
+#include "core/application.h"
 #include "base/openssl_help.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "mainwindow.h"
-#include "messenger.h"
 #include "mainwidget.h"
 #include "boxes/add_contact_box.h"
 #include "history/history.h"
@@ -329,7 +328,7 @@ void ApiWrap::requestTermsUpdate() {
 			const auto &data = result.c_help_termsOfServiceUpdate();
 			const auto &terms = data.vterms_of_service;
 			const auto &fields = terms.c_help_termsOfService();
-			Messenger::Instance().lockByTerms(
+			Core::App().lockByTerms(
 				Window::TermsLock::FromMTP(fields));
 			requestNext(data);
 		} break;
@@ -478,7 +477,7 @@ void ApiWrap::sendMessageFail(const RPCError &error) {
 			PeerFloodErrorText(PeerFloodType::Send)));
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = textcmdLink(
-			Messenger::Instance().createInternalLinkFull(qsl("spambot")),
+			Core::App().createInternalLinkFull(qsl("spambot")),
 			lang(lng_cant_more_info));
 		Ui::show(Box<InformBox>(lng_error_public_groups_denied(
 			lt_more_info,
@@ -2488,7 +2487,7 @@ void ApiWrap::checkQuitPreventFinished() {
 		if (App::quitting()) {
 			LOG(("ApiWrap doesn't prevent quit any more."));
 		}
-		Messenger::Instance().quitPreventFinished();
+		Core::App().quitPreventFinished();
 	}
 }
 

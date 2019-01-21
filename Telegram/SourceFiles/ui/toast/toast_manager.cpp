@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/toast/toast_manager.h"
 
-#include "application.h"
 #include "ui/toast/toast_widget.h"
 
 namespace Ui {

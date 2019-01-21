@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "numbers.h"
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 
 namespace Ui {
 namespace {
@@ -4118,7 +4118,7 @@ void HexInput::correctValue(
 }
 
 UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
-	setLinkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString());
+	setLinkPlaceholder(isLink ? Core::App().createInternalLink(QString()) : QString());
 }
 
 void UsernameInput::setLinkPlaceholder(const QString &placeholder) {

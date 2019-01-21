@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "application.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "core/file_utilities.h"

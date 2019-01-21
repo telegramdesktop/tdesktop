@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "chat_helpers/stickers.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
 #include "auth_session.h"
-#include "messenger.h"
 
 namespace {
 
@@ -623,7 +623,7 @@ StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : T
 , _megagroupSetField(this, st::groupStickersField, [] { return qsl("stickerset"); }, QString(), true)
 , _megagroupDivider(this)
 , _megagroupSubTitle(this, lang(lng_stickers_group_from_your), Ui::FlatLabel::InitType::Simple, st::boxTitle) {
-	_megagroupSetField->setLinkPlaceholder(Messenger::Instance().createInternalLink(qsl("addstickers/")));
+	_megagroupSetField->setLinkPlaceholder(Core::App().createInternalLink(qsl("addstickers/")));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });
 	connect(

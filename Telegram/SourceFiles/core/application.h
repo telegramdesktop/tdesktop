@@ -23,11 +23,6 @@ namespace Storage {
 class Databases;
 } // namespace Storage
 
-namespace Core {
-class Launcher;
-struct LocalUrlHandler;
-} // namespace Core
-
 namespace Window {
 struct TermsLock;
 } // namespace Window
@@ -56,20 +51,26 @@ class Translator;
 class CloudManager;
 } // namespace Lang
 
-class Messenger final : public QObject, public RPCSender, private base::Subscriber {
-	Q_OBJECT
+namespace Core {
 
+class Launcher;
+struct LocalUrlHandler;
+
+class Application final
+	: public QObject
+	, public RPCSender
+	, private base::Subscriber {
 public:
-	Messenger(not_null<Core::Launcher*> launcher);
+	Application(not_null<Launcher*> launcher);
 
-	Messenger(const Messenger &other) = delete;
-	Messenger &operator=(const Messenger &other) = delete;
+	Application(const Application &other) = delete;
+	Application &operator=(const Application &other) = delete;
 
-	~Messenger();
-
-	not_null<Core::Launcher*> launcher() const {
+	not_null<Launcher*> launcher() const {
 		return _launcher;
 	}
+
+	void run();
 
 	// Windows interface.
 	MainWindow *getActiveWindow() const;
@@ -95,13 +96,6 @@ public:
 	}
 	QImage logoNoMargin() const {
 		return _logoNoMargin;
-	}
-
-	static Messenger *InstancePointer();
-	static Messenger &Instance() {
-		auto result = InstancePointer();
-		Assert(result != nullptr);
-		return *result;
 	}
 
 	// MTProto components.
@@ -169,9 +163,6 @@ public:
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
 
-	void killDownloadSessionsStart(MTP::DcId dcId);
-	void killDownloadSessionsStop(MTP::DcId dcId);
-
 	void forceLogOut(const TextWithEntities &explanation);
 	void checkLocalTime();
 	void lockByPasscode();
@@ -194,6 +185,14 @@ public:
 	void registerLeaveSubscription(QWidget *widget);
 	void unregisterLeaveSubscription(QWidget *widget);
 
+	// Sandbox interface.
+	void postponeCall(FnMut<void()> &&callable);
+	void refreshGlobalProxy();
+	void activateWindowDelayed(not_null<QWidget*> widget);
+	void pauseDelayedWindowActivations();
+	void resumeDelayedWindowActivations();
+	void preventWindowActivation();
+
 	void quitPreventFinished();
 
 	void handleAppActivated();
@@ -202,6 +201,7 @@ public:
 	void switchDebugMode();
 	void switchWorkMode();
 	void switchTestMode();
+	void writeInstallBetaVersionsSetting();
 
 	void call_handleUnreadCounterUpdate();
 	void call_handleDelayedPeerUpdates();
@@ -211,12 +211,10 @@ public:
 		_callDelayedTimer.call(duration, std::move(lambda));
 	}
 
+	~Application();
+
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
-
-public slots:
-	void killDownloadSessions();
-	void onAppStateChanged(Qt::ApplicationState state);
 
 private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
@@ -224,6 +222,8 @@ private:
 
 	void startLocalStorage();
 	void startShortcuts();
+
+	void stateChanged(Qt::ApplicationState state);
 
 	friend void App::quit();
 	static void QuitAttempt();
@@ -234,12 +234,7 @@ private:
 	void clearPasscodeLock();
 	void loggedOut();
 
-	void fillLocalUrlHandlers();
-
-	not_null<Core::Launcher*> _launcher;
-
-	base::flat_map<MTP::DcId, TimeMs> _killDownloadSessionTimes;
-	base::Timer _killDownloadSessionsTimer;
+	not_null<Launcher*> _launcher;
 
 	// Some fields are just moved from the declaration.
 	struct Private;
@@ -286,3 +281,7 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+Application &App();
+
+} // namespace Core

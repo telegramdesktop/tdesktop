@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 
 #include "mtproto/connection.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -101,7 +101,7 @@ void Instance::destroyCall(not_null<Call*> call) {
 		if (App::quitting()) {
 			LOG(("Calls::Instance doesn't prevent quit any more."));
 		}
-		Messenger::Instance().quitPreventFinished();
+		Core::App().quitPreventFinished();
 	}
 }
 

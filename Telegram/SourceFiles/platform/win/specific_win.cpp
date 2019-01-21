@@ -329,11 +329,11 @@ QString SystemCountry() {
 }
 
 bool IsApplicationActive() {
-	return static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr;
+	return QApplication::activeWindow() != nullptr;
 }
 
 void SetApplicationIcon(const QIcon &icon) {
-	qApp->setWindowIcon(icon);
+	QApplication::setWindowIcon(icon);
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {

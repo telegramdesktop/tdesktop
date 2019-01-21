@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "layout.h"
 #include "window/window_controller.h"
@@ -1125,7 +1125,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (auto media = item->media()) {
 			if (auto document = media->document()) {
-				Messenger::Instance().showDocument(document, item);
+				Core::App().showDocument(document, item);
 			}
 		}
 	}

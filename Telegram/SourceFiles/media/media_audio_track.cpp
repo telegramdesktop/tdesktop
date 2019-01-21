@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/media_audio_ffmpeg_loader.h"
 #include "media/media_audio.h"
-#include "messenger.h"
+#include "core/application.h"
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -339,7 +339,7 @@ void Instance::stopDetachIfNotUsed() {
 }
 
 Instance &Current() {
-	return Messenger::Instance().audio();
+	return Core::App().audio();
 }
 
 } // namespace Audio

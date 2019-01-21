@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"

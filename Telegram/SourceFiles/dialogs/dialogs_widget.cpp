@@ -18,13 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/update_checker.h"
 #include "auth_session.h"
 #include "apiwrap.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "window/window_controller.h"
@@ -207,7 +206,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
 		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
-		Messenger::Instance().lockByPasscode();
+		Core::App().lockByPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
 	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });

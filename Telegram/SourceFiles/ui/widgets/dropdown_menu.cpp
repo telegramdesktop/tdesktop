@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/dropdown_menu.h"
 
-#include "application.h"
 #include "lang/lang_keys.h"
 
 namespace Ui {

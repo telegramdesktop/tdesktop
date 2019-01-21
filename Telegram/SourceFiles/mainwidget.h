@@ -120,6 +120,7 @@ public:
 	void incrementSticker(DocumentData *sticker);
 
 	void activate();
+	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 
 	void createDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
@@ -414,9 +415,6 @@ private:
 	void feedUpdate(const MTPUpdate &update);
 
 	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
-
-	void updateReceived(const mtpPrime *from, const mtpPrime *end);
-	bool updateFail(const RPCError &e);
 
 	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);

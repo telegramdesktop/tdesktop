@@ -8,23 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Core {
+
 class Launcher;
 class UpdateChecker;
-} // namespace Core
+class Application;
 
-bool InternalPassportLink(const QString &url);
-bool StartUrlRequiresActivate(const QString &url);
-
-class Application : public QApplication, private QAbstractNativeEventFilter {
-	Q_OBJECT
-
+class Sandbox final
+	: public QApplication
+	, private QAbstractNativeEventFilter {
 public:
-	Application(not_null<Core::Launcher*> launcher, int &argc, char **argv);
+	Sandbox(not_null<Launcher*> launcher, int &argc, char **argv);
 
-	int execute();
+	Sandbox(const Sandbox &other) = delete;
+	Sandbox &operator=(const Sandbox &other) = delete;
 
-	void createMessenger();
+	int start();
+
 	void refreshGlobalProxy();
+	uint64 installationTag() const;
 
 	void postponeCall(FnMut<void()> &&callable);
 	bool notify(QObject *receiver, QEvent *e) override;
@@ -38,22 +39,24 @@ public:
 	void pauseDelayedWindowActivations();
 	void resumeDelayedWindowActivations();
 
-	~Application();
+	ProxyData sandboxProxy() const;
 
-// Single instance application
-public slots:
-	void socketConnected();
-	void socketError(QLocalSocket::LocalSocketError e);
-	void socketDisconnected();
-	void socketWritten(qint64 bytes);
-	void socketReading();
-	void newInstanceConnected();
+	static Sandbox &Instance() {
+		Expects(QApplication::instance() != nullptr);
 
-	void readClients();
-	void removeClients();
+		return *static_cast<Sandbox*>(QApplication::instance());
+	}
 
-	void startApplication(); // will be done in exec()
-	void closeApplication(); // will be done in aboutToQuit()
+	bool applicationLaunched() const {
+		return _application != nullptr;
+	}
+	Application &application() const {
+		Expects(_application != nullptr);
+
+		return *_application;
+	}
+
+	~Sandbox();
 
 protected:
 	bool event(QEvent *e) override;
@@ -67,6 +70,8 @@ private:
 		FnMut<void()> callable;
 	};
 
+	void closeApplication(); // will be done in aboutToQuit()
+	void checkForQuit(); // will be done in exec()
 	void incrementEventNestingLevel();
 	void decrementEventNestingLevel();
 	bool nativeEventFilter(
@@ -74,6 +79,21 @@ private:
 		void *message,
 		long *result) override;
 	void processPostponedCalls(int level);
+	void singleInstanceChecked();
+	void launchApplication();
+	void runApplication();
+	void execExternal(const QString &cmd);
+
+	// Single instance application
+	void socketConnected();
+	void socketError(QLocalSocket::LocalSocketError e);
+	void socketDisconnected();
+	void socketWritten(qint64 bytes);
+	void socketReading();
+	void newInstanceConnected();
+
+	void readClients();
+	void removeClients();
 
 	const Qt::HANDLE _mainThreadId = nullptr;
 	int _eventNestingLevel = 0;
@@ -84,8 +104,8 @@ private:
 	QPointer<QWidget> _windowForDelayedActivation;
 	bool _delayedActivationsPaused = false;
 
-	not_null<Core::Launcher*> _launcher;
-	std::unique_ptr<Messenger> _messengerInstance;
+	not_null<Launcher*> _launcher;
+	std::unique_ptr<Application> _application;
 
 	QString _localServerName, _localSocketReadData;
 	QLocalServer _localServer;
@@ -93,26 +113,11 @@ private:
 	LocalClients _localClients;
 	bool _secondInstance = false;
 
-	void singleInstanceChecked();
+	std::unique_ptr<UpdateChecker> _updateChecker;
 
-private:
-	std::unique_ptr<Core::UpdateChecker> _updateChecker;
+	QByteArray _lastCrashDump;
+	ProxyData _sandboxProxy;
 
 };
 
-namespace Core {
-
-inline Application &App() {
-	Expects(QCoreApplication::instance() != nullptr);
-
-	return *static_cast<Application*>(QCoreApplication::instance());
-}
-
 } // namespace Core
-
-namespace Sandbox {
-
-void execExternal(const QString &cmd);
-void launch();
-
-} // namespace Sandbox

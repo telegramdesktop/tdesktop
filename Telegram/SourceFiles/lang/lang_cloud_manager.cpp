@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "mtproto/mtp_instance.h"
 #include "storage/localstorage.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
@@ -514,7 +514,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 void CloudManager::performSwitchToCustom() {
 	auto filter = qsl("Language files (*.strings)");
 	auto title = qsl("Choose language .strings file");
-	FileDialog::GetOpenPath(Messenger::Instance().getFileDialogParent(), title, filter, [weak = base::make_weak(this)](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(Core::App().getFileDialogParent(), title, filter, [weak = base::make_weak(this)](const FileDialog::OpenResult &result) {
 		if (!weak || result.paths.isEmpty()) {
 			return;
 		}
@@ -605,7 +605,7 @@ void CloudManager::changeIdAndReInitConnection(const Language &data) {
 }
 
 CloudManager &CurrentCloudManager() {
-	auto result = Messenger::Instance().langCloudManager();
+	auto result = Core::App().langCloudManager();
 	Assert(result != nullptr);
 	return *result;
 }

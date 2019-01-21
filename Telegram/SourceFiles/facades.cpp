@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
+#include "core/application.h"
 #include "media/media_clip_reader.h"
 #include "window/window_controller.h"
 #include "history/history_item_components.h"
@@ -18,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "messenger.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
 #include "window/layer_widget.h"
@@ -34,7 +34,7 @@ namespace App {
 namespace internal {
 
 void CallDelayed(int duration, FnMut<void()> &&lambda) {
-	Messenger::Instance().callDelayed(duration, std::move(lambda));
+	Core::App().callDelayed(duration, std::move(lambda));
 }
 
 } // namespace internal
@@ -153,7 +153,7 @@ void activateBotCommand(
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	if (const auto m = App::main()) {
 		Ui::hideSettingsAndLayer();
-		Messenger::Instance().hideMediaView();
+		Core::App().hideMediaView();
 		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
 			inPeer = nullptr;
 		}
@@ -271,7 +271,7 @@ void showPeerHistory(const PeerData *peer, MsgId msgId) {
 }
 
 PeerData *getPeerForMouseAction() {
-	return Messenger::Instance().ui_getPeerForMouseAction();
+	return Core::App().ui_getPeerForMouseAction();
 }
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
@@ -346,220 +346,13 @@ void Set##Name(const Type &Name) { \
 	Namespace##Data->Name = Name; \
 }
 
-namespace Sandbox {
-namespace internal {
-
-struct Data {
-	QByteArray LastCrashDump;
-	ProxyData PreLaunchProxy;
-};
-
-} // namespace internal
-} // namespace Sandbox
-
-std::unique_ptr<Sandbox::internal::Data> SandboxData;
-uint64 SandboxUserTag = 0;
-
-namespace Sandbox {
-
-bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
-	const auto was = cExeDir() + folder;
-	const auto now = cExeDir() + qsl("TelegramForcePortable");
-	if (QDir(was).exists() && !QDir(now).exists()) {
-		const auto oldFile = was + "/tdata/" + file;
-		const auto newFile = was + "/tdata/alpha";
-		if (QFile(oldFile).exists() && !QFile(newFile).exists()) {
-			if (!QFile(oldFile).copy(newFile)) {
-				LOG(("FATAL: Could not copy '%1' to '%2'"
-					).arg(oldFile
-					).arg(newFile));
-				return false;
-			}
-		}
-		if (!QDir().rename(was, now)) {
-			LOG(("FATAL: Could not rename '%1' to '%2'"
-				).arg(was
-				).arg(now));
-			return false;
-		}
-	}
-	return true;
-}
-
-bool MoveLegacyAlphaFolder() {
-	if (!MoveLegacyAlphaFolder(qsl("TelegramAlpha_data"), qsl("alpha"))
-		|| !MoveLegacyAlphaFolder(qsl("TelegramBeta_data"), qsl("beta"))) {
-		return false;
-	}
-	return true;
-}
-
-bool CheckPortableVersionDir() {
-	if (!MoveLegacyAlphaFolder()) {
-		return false;
-	}
-
-	const auto portable = cExeDir() + qsl("TelegramForcePortable");
-	QFile key(portable + qsl("/tdata/alpha"));
-	if (cAlphaVersion()) {
-		Assert(*AlphaPrivateKey != 0);
-
-		cForceWorkingDir(portable + '/');
-		QDir().mkpath(cWorkingDir() + qstr("tdata"));
-		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
-		if (!key.open(QIODevice::WriteOnly)) {
-			LOG(("FATAL: Could not open '%1' for writing private key!"
-				).arg(key.fileName()));
-			return false;
-		}
-		QDataStream dataStream(&key);
-		dataStream.setVersion(QDataStream::Qt_5_3);
-		dataStream << quint64(cRealAlphaVersion()) << cAlphaPrivateKey();
-		return true;
-	}
-	if (!QDir(portable).exists()) {
-		return true;
-	}
-	cForceWorkingDir(portable + '/');
-	if (!key.exists()) {
-		return true;
-	}
-
-	if (!key.open(QIODevice::ReadOnly)) {
-		LOG(("FATAL: could not open '%1' for reading private key. "
-			"Delete it or reinstall private alpha version."
-			).arg(key.fileName()));
-		return false;
-	}
-	QDataStream dataStream(&key);
-	dataStream.setVersion(QDataStream::Qt_5_3);
-
-	quint64 v;
-	QByteArray k;
-	dataStream >> v >> k;
-	if (dataStream.status() != QDataStream::Ok || k.isEmpty()) {
-		LOG(("FATAL: '%1' is corrupted. "
-			"Delete it or reinstall private alpha version."
-			).arg(key.fileName()));
-		return false;
-	}
-	cSetAlphaVersion(AppVersion * 1000ULL);
-	cSetAlphaPrivateKey(k);
-	cSetRealAlphaVersion(v);
-	return true;
-}
-
-QString InstallBetaVersionsSettingPath() {
-	return cWorkingDir() + qsl("tdata/devversion");
-}
-
-void WriteInstallBetaVersionsSetting() {
-	QFile f(InstallBetaVersionsSettingPath());
-	if (f.open(QIODevice::WriteOnly)) {
-		f.write(cInstallBetaVersion() ? "1" : "0");
-	}
-}
-
-QString DebugModeSettingPath() {
-	return cWorkingDir() + qsl("tdata/withdebug");
-}
-
-void WriteDebugModeSetting() {
-	QFile f(DebugModeSettingPath());
-	if (f.open(QIODevice::WriteOnly)) {
-		f.write(Logs::DebugEnabled() ? "1" : "0");
-	}
-}
-
-void ComputeTestMode() {
-	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
-		cSetTestMode(true);
-	}
-}
-
-void ComputeDebugMode() {
-	Logs::SetDebugEnabled(cAlphaVersion() != 0);
-	const auto debugModeSettingPath = DebugModeSettingPath();
-	if (QFile(debugModeSettingPath).exists()) {
-		QFile f(debugModeSettingPath);
-		if (f.open(QIODevice::ReadOnly)) {
-			Logs::SetDebugEnabled(f.read(1) != "0");
-		}
-	}
-}
-
-void ComputeInstallBetaVersions() {
-	const auto installBetaSettingPath = InstallBetaVersionsSettingPath();
-	if (cAlphaVersion()) {
-		cSetInstallBetaVersion(false);
-	} else if (QFile(installBetaSettingPath).exists()) {
-		QFile f(installBetaSettingPath);
-		if (f.open(QIODevice::ReadOnly)) {
-			cSetInstallBetaVersion(f.read(1) != "0");
-		}
-	} else if (AppBetaVersion) {
-		WriteInstallBetaVersionsSetting();
-	}
-}
-
-void ComputeUserTag() {
-	SandboxUserTag = 0;
-	QFile usertag(cWorkingDir() + qsl("tdata/usertag"));
-	if (usertag.open(QIODevice::ReadOnly)) {
-		if (usertag.read(reinterpret_cast<char*>(&SandboxUserTag), sizeof(uint64)) != sizeof(uint64)) {
-			SandboxUserTag = 0;
-		}
-		usertag.close();
-	}
-	if (!SandboxUserTag) {
-		do {
-			memsetrnd_bad(SandboxUserTag);
-		} while (!SandboxUserTag);
-
-		if (usertag.open(QIODevice::WriteOnly)) {
-			usertag.write(reinterpret_cast<char*>(&SandboxUserTag), sizeof(uint64));
-			usertag.close();
-		}
-	}
-}
-
-void WorkingDirReady() {
-	srand((int32)time(NULL));
-
-	ComputeTestMode();
-	ComputeDebugMode();
-	ComputeInstallBetaVersions();
-	ComputeUserTag();
-}
-
-void start() {
-	SandboxData = std::make_unique<internal::Data>();
-}
-
-bool started() {
-	return (SandboxData != nullptr);
-}
-
-void finish() {
-	SandboxData.reset();
-}
-
-uint64 UserTag() {
-	return SandboxUserTag;
-}
-
-DefineVar(Sandbox, QByteArray, LastCrashDump);
-DefineVar(Sandbox, ProxyData, PreLaunchProxy);
-
-} // namespace Sandbox
-
 namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Messenger::Instance().call_handleUnreadCounterUpdate(); } };
-	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Messenger::Instance().call_handleDelayedPeerUpdates(); } };
-	SingleQueuedInvokation HandleObservables = { [] { Messenger::Instance().call_handleObservables(); } };
+	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Core::App().call_handleUnreadCounterUpdate(); } };
+	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Core::App().call_handleDelayedPeerUpdates(); } };
+	SingleQueuedInvokation HandleObservables = { [] { Core::App().call_handleObservables(); } };
 
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;

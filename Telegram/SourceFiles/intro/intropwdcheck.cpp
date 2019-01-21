@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
-#include "application.h"
 #include "intro/introsignup.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

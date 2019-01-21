@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
@@ -192,7 +192,7 @@ void TabbedPanel::moveByBottom() {
 }
 
 void TabbedPanel::enterEventHook(QEvent *e) {
-	Messenger::Instance().registerLeaveSubscription(this);
+	Core::App().registerLeaveSubscription(this);
 	showAnimated();
 }
 
@@ -204,7 +204,7 @@ bool TabbedPanel::preventAutoHide() const {
 }
 
 void TabbedPanel::leaveEventHook(QEvent *e) {
-	Messenger::Instance().unregisterLeaveSubscription(this);
+	Core::App().unregisterLeaveSubscription(this);
 	if (preventAutoHide()) {
 		return;
 	}

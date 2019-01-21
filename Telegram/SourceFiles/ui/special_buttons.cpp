@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "history/history.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
 #include "window/window_controller.h"
@@ -27,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
-#include "messenger.h"
 #include "observer_peer.h"
 
 namespace Ui {
@@ -546,7 +546,7 @@ void UserpicButton::openPeerPhoto() {
 	}
 	const auto photo = Auth().data().photo(id);
 	if (photo->date) {
-		Messenger::Instance().showPhoto(photo, _peer);
+		Core::App().showPhoto(photo, _peer);
 	}
 }
 

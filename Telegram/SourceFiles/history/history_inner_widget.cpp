@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "layout.h"
 #include "auth_session.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
@@ -1820,7 +1820,7 @@ void HistoryInner::openContextGif(FullMsgId itemId) {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				Messenger::Instance().showDocument(document, item);
+				Core::App().showDocument(document, item);
 			}
 		}
 	}

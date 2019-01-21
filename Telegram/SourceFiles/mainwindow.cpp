@@ -22,9 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
-#include "messenger.h"
+#include "core/sandbox.h"
+#include "core/application.h"
 #include "auth_session.h"
-#include "application.h"
 #include "intro/introwidget.h"
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
@@ -66,12 +66,12 @@ void FeedLangTestingKey(int key) {
 } // namespace
 
 MainWindow::MainWindow() {
-	auto logo = Messenger::Instance().logo();
+	auto logo = Core::App().logo();
 	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = logo.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = logo.scaledToWidth(64, Qt::SmoothTransformation);
 
-	auto logoNoMargin = Messenger::Instance().logoNoMargin();
+	auto logoNoMargin = Core::App().logoNoMargin();
 	iconbig16 = logoNoMargin.scaledToWidth(16, Qt::SmoothTransformation);
 	iconbig32 = logoNoMargin.scaledToWidth(32, Qt::SmoothTransformation);
 	iconbig64 = logoNoMargin.scaledToWidth(64, Qt::SmoothTransformation);
@@ -80,7 +80,7 @@ MainWindow::MainWindow() {
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	subscribe(Messenger::Instance().authSessionChanged(), [this] {
+	subscribe(Core::App().authSessionChanged(), [this] {
 		updateGlobalMenu();
 		if (!AuthSession::Exists()) {
 			_mediaPreview.destroy();
@@ -89,7 +89,7 @@ MainWindow::MainWindow() {
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
-	Messenger::Instance().lockChanges(
+	Core::App().lockChanges(
 	) | rpl::start_with_next([=] {
 		updateGlobalMenu();
 	}, lifetime());
@@ -164,7 +164,7 @@ void MainWindow::setupPasscodeLock() {
 	_passcodeLock.create(bodyWidget());
 	updateControlsGeometry();
 
-	Messenger::Instance().hideMediaView();
+	Core::App().hideMediaView();
 	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->hide();
@@ -189,9 +189,9 @@ void MainWindow::clearPasscodeLock() {
 		_intro->showAnimated(bg, true);
 	} else if (_main) {
 		_main->showAnimated(bg, true);
-		Messenger::Instance().checkStartUrl();
+		Core::App().checkStartUrl();
 	} else {
-		Messenger::Instance().startMtp();
+		Core::App().startMtp();
 		if (AuthSession::Exists()) {
 			setupMain();
 		} else {
@@ -350,7 +350,7 @@ void MainWindow::ui_showBox(
 				destroyLayer();
 			}
 		}
-		Messenger::Instance().hideMediaView();
+		Core::App().hideMediaView();
 	}
 }
 
@@ -595,7 +595,7 @@ void MainWindow::onLogout() {
 	}
 
 	const auto logout = [] {
-		Messenger::Instance().logOut();
+		Core::App().logOut();
 	};
 	const auto callback = [=] {
 		if (AuthSession::Exists() && Auth().data().exportInProgress()) {
@@ -680,7 +680,7 @@ bool MainWindow::skipTrayClick() const {
 }
 
 void MainWindow::toggleDisplayNotifyFromTray() {
-	if (Messenger::Instance().locked()) {
+	if (Core::App().locked()) {
 		if (!isActive()) showFromTray();
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
@@ -714,7 +714,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {
-	if (Core::App().isSavingSession()) {
+	if (Core::Sandbox::Instance().isSavingSession()) {
 		e->accept();
 		App::quit();
 	} else {
@@ -896,10 +896,10 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 }
 
 void MainWindow::sendPaths() {
-	if (Messenger::Instance().locked()) {
+	if (Core::App().locked()) {
 		return;
 	}
-	Messenger::Instance().hideMediaView();
+	Core::App().hideMediaView();
 	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->activate();
