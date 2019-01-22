@@ -396,6 +396,7 @@ private:
 		return _buildingFrontBlock != nullptr;
 	}
 
+	void checkForLoadedAtTop(not_null<HistoryItem*> added);
 	void mainViewRemoved(
 		not_null<HistoryBlock*> block,
 		not_null<Element*> view);
@@ -439,6 +440,7 @@ private:
 
 	HistoryItem *lastAvailableMessage() const;
 	void getNextFirstUnreadMessage();
+	bool nonEmptyCountMoreThan(int count) const;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.

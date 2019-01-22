@@ -462,7 +462,7 @@ bool HistoryItem::canDelete() const {
 	}
 	auto channel = _history->peer->asChannel();
 	if (!channel) {
-		return !(_flags & MTPDmessage_ClientFlag::f_is_group_essential);
+		return !isGroupMigrate();
 	}
 
 	if (id == 1) {

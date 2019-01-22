@@ -6554,13 +6554,6 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		if (_pinnedBar && !_pinnedBar->cancel->isHidden()) {
 			drawPinnedBar(p);
 		}
-		if (_scroll->isHidden() && _history) {
-			p.setClipRect(_scroll->geometry());
-			_list->paintEmpty(
-				p,
-				width(),
-				height() - _field->height() - 2 * st::historySendPadding);
-		}
 	} else {
 		const auto w = st::msgServiceFont->width(lang(lng_willbe_history))
 			+ st::msgPadding.left()

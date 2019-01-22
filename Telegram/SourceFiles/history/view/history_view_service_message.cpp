@@ -557,7 +557,7 @@ void EmptyPainter::fillAboutGroup() {
 		text.setText(
 			st::serviceTextStyle,
 			content,
-			Ui::ItemTextServiceOptions());
+			Ui::NameTextOptions());
 	};
 	setText(_header, lang(lng_group_about_header));
 	setText(_text, lang(lng_group_about_text));
@@ -603,7 +603,7 @@ void EmptyPainter::paint(Painter &p, int width, int height) {
 		+ st::historyGroupAboutSkip * int(_phrases.size() - 1)
 		+ padding.bottom();
 	const auto bubbleLeft = (width - bubbleWidth) / 2;
-	const auto bubbleTop = (height - bubbleHeight) / 3;
+	const auto bubbleTop = (height - bubbleHeight) / 2;
 
 	ServiceMessagePainter::paintBubble(
 		p,

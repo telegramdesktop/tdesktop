@@ -137,6 +137,9 @@ public:
 	bool isGroupEssential() const {
 		return _flags & MTPDmessage_ClientFlag::f_is_group_essential;
 	}
+	bool isGroupMigrate() const {
+		return isGroupEssential() && isEmpty();
+	}
 	bool hasViews() const {
 		return _flags & MTPDmessage::Flag::f_views;
 	}

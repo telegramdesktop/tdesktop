@@ -543,7 +543,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 	auto ms = getms();
 
-	bool historyDisplayedEmpty = (_history->isDisplayedEmpty() && (!_migrated || _migrated->isDisplayedEmpty()));
+	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
+		&& (!_migrated || _migrated->isDisplayedEmpty());
 	bool noHistoryDisplayed = _firstLoading || historyDisplayedEmpty;
 	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
@@ -561,6 +562,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 	} else if (historyDisplayedEmpty) {
 		paintEmpty(p, width(), height());
+	} else {
+		_emptyPainter = nullptr;
 	}
 	if (!noHistoryDisplayed) {
 		auto readMentions = base::flat_set<not_null<HistoryItem*>>();

@@ -55,7 +55,6 @@ public:
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
 	TextWithEntities getSelectedText() const;
-	void paintEmpty(Painter &p, int width, int height);
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
@@ -200,6 +199,8 @@ private:
 	void mouseActionCancel();
 	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
+
+	void paintEmpty(Painter &p, int width, int height);
 
 	QPoint mapPointToItem(QPoint p, const Element *view) const;
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;

@@ -586,6 +586,7 @@ HistoryItem *History::addNewToLastBlock(
 		applyMessageChanges(item, msg);
 	}
 	const auto result = addNewItem(item, newUnreadMessage);
+	checkForLoadedAtTop(result);
 	if (type == NewMessageLast) {
 		// When we add just one last item, like we do while loading dialogs,
 		// we want to remove a single added grouped media, otherwise it will
@@ -597,6 +598,22 @@ HistoryItem *History::addNewToLastBlock(
 		removeOrphanMediaGroupPart();
 	}
 	return result;
+}
+
+void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
+	if (peer->isChat()) {
+		if (added->isGroupEssential() && !added->isGroupMigrate()) {
+			// We added the first message about group creation.
+			_loadedAtTop = true;
+			addEdgesToSharedMedia();
+		}
+	} else if (peer->isChannel()) {
+		if (added->id == 1) {
+			_loadedAtTop = true;
+			checkJoinedMessage();
+			addEdgesToSharedMedia();
+		}
+	}
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
@@ -2130,7 +2147,7 @@ auto History::computeChatListMessageFromLast() const
 	// about migration in the chats list and display the last
 	// non-migration message from the original legacy group.
 	const auto last = lastMessage();
-	if (!last || !last->isGroupEssential() || !last->isEmpty()) {
+	if (!last || !last->isGroupMigrate()) {
 		return _lastMessage;
 	}
 	if (const auto chat = peer->asChat()) {
@@ -2216,7 +2233,7 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 		}
 	});
 	const auto last = lastMessage();
-	if (!last || !last->isGroupEssential() || !last->isEmpty()) {
+	if (!last || !last->isGroupMigrate()) {
 		// Last message is good enough.
 		return;
 	}
@@ -2239,7 +2256,7 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 		return;
 	}
 	const auto item = owner().addNewMessage(*other, NewMessageExisting);
-	if (!item || (item->isGroupEssential() && item->isEmpty())) {
+	if (!item || item->isGroupMigrate()) {
 		// Not better than the last one.
 		return;
 	}
@@ -2732,19 +2749,37 @@ bool History::isEmpty() const {
 }
 
 bool History::isDisplayedEmpty() const {
+	if (!loadedAtTop() || !loadedAtBottom()) {
+		return false;
+	}
 	const auto first = findFirstNonEmpty();
 	if (!first) {
 		return true;
-	} else if (!first->data()->isGroupEssential()) {
-		return false;
-	} else if (const auto chat = peer->asChat()) {
-		// For legacy chats we want to show the chat with only first
-		// message about you creating the group as an empty chat with
-		// a nice information about the group features.
-		return chat->amCreator() && (findLastNonEmpty() == first);
-	} else {
+	}
+	const auto chat = peer->asChat();
+	if (!chat || !chat->amCreator()) {
 		return false;
 	}
+
+	// For legacy chats we want to show the chat with only
+	// messages about you creating the group and maybe about you
+	// changing the group photo as an empty chat with
+	// a nice information about the group features.
+	if (nonEmptyCountMoreThan(2)) {
+		return false;
+	}
+	const auto isChangePhoto = [](not_null<HistoryItem*> item) {
+		if (const auto media = item->media()) {
+			return (media->photo() != nullptr) && !item->toHistoryMessage();
+		}
+		return false;
+	};
+	const auto last = findLastNonEmpty();
+	if (first == last) {
+		return first->data()->isGroupEssential()
+			|| isChangePhoto(first->data());
+	}
+	return first->data()->isGroupEssential() && isChangePhoto(last->data());
 }
 
 auto History::findFirstNonEmpty() const -> Element* {
@@ -2767,6 +2802,21 @@ auto History::findLastNonEmpty() const -> Element* {
 		}
 	}
 	return nullptr;
+}
+
+bool History::nonEmptyCountMoreThan(int count) const {
+	Expects(count >= 0);
+
+	for (const auto &block : blocks) {
+		for (const auto &element : block->messages) {
+			if (!element->data()->isEmpty()) {
+				if (!count--) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 bool History::hasOrphanMediaGroupPart() const {
