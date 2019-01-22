@@ -189,12 +189,12 @@ rpl::producer<bool> CanWriteValue(ChatData *chat) {
 				MTPDchat::Flags flags,
 				Data::Flags<ChatAdminRights>::Change adminRights,
 				bool defaultSendMessagesRestriction) {
-			const auto actionsUnavailableFlags = 0
+			const auto amOutFlags = 0
 				| MTPDchat::Flag::f_deactivated
 				| MTPDchat_ClientFlag::f_forbidden
 				| MTPDchat::Flag::f_left
 				| MTPDchat::Flag::f_kicked;
-			return !(flags & actionsUnavailableFlags)
+			return !(flags & amOutFlags)
 				&& ((flags & MTPDchat::Flag::f_creator)
 					|| (adminRights.value != MTPDchatAdminRights::Flags(0))
 					|| !defaultSendMessagesRestriction);

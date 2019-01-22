@@ -103,7 +103,10 @@ public:
 		return flags() & MTPDchat_ClientFlag::f_forbidden;
 	}
 	bool amIn() const {
-		return !isForbidden() && !haveLeft() && !wasKicked();
+		return !isForbidden()
+			&& !isDeactivated()
+			&& !haveLeft()
+			&& !wasKicked();
 	}
 	bool haveLeft() const {
 		return flags() & MTPDchat::Flag::f_left;

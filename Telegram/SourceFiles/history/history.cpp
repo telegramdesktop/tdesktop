@@ -2304,6 +2304,10 @@ bool History::shouldBeInChatList() const {
 		} else if (const auto feed = channel->feed()) {
 			return !feed->needUpdateInChatList();
 		}
+	} else if (const auto chat = peer->asChat()) {
+		return chat->amIn()
+			|| !lastMessageKnown()
+			|| (lastMessage() != nullptr);
 	}
 	return true;
 }

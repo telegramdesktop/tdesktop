@@ -39,10 +39,6 @@ void ChatData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
 	}
 }
 
-bool ChatData::actionsUnavailable() const {
-	return isDeactivated() || !amIn();
-}
-
 auto ChatData::DefaultAdminRights() -> AdminRights {
 	using Flag = AdminRight;
 	return Flag::f_change_info
@@ -54,17 +50,15 @@ auto ChatData::DefaultAdminRights() -> AdminRights {
 
 bool ChatData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	return !actionsUnavailable()
-		&& !amRestricted(Restriction::f_send_messages);
+	return amIn() && !amRestricted(Restriction::f_send_messages);
 }
 
 bool ChatData::canEditInformation() const {
-	return !actionsUnavailable()
-		&& !amRestricted(Restriction::f_change_info);
+	return amIn() && !amRestricted(Restriction::f_change_info);
 }
 
 bool ChatData::canEditPermissions() const {
-	return !actionsUnavailable()
+	return amIn()
 		&& (amCreator() || (adminRights() & AdminRight::f_ban_users));
 }
 
@@ -78,18 +72,15 @@ bool ChatData::canEditPreHistoryHidden() const {
 }
 
 bool ChatData::canAddMembers() const {
-	return !actionsUnavailable()
-		&& !amRestricted(Restriction::f_invite_users);
+	return amIn() && !amRestricted(Restriction::f_invite_users);
 }
 
 bool ChatData::canSendPolls() const {
-	return !actionsUnavailable()
-		&& !amRestricted(Restriction::f_send_polls);
+	return amIn() && !amRestricted(Restriction::f_send_polls);
 }
 
 bool ChatData::canAddAdmins() const {
-	return !actionsUnavailable()
-		&& amCreator();
+	return amIn() && amCreator();
 }
 
 bool ChatData::canBanMembers() const {
