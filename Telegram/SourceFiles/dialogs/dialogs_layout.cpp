@@ -433,6 +433,14 @@ const style::icon *ChatTypeIcon(
 			: (selected
 				? st::dialogsChannelIconOver
 				: st::dialogsChannelIcon));
+	} else if (const auto user = peer->asUser()) {
+		if (user->isBot()) {
+			return &(active
+				? st::dialogsBotIconActive
+				: (selected
+					? st::dialogsBotIconOver
+					: st::dialogsBotIcon));
+		}
 	}
 	return nullptr;
 }
