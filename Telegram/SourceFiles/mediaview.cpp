@@ -137,7 +137,7 @@ MediaView::MediaView()
 	});
 	handleAuthSessionChange();
 
-	setWindowFlags(Qt::FramelessWindowHint);
+	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -1777,7 +1777,7 @@ void MediaView::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		psUpdateOverlayed(this);
-		show();
+		showFullScreen();
 		psShowOverAll(this);
 		activateWindow();
 		QApplication::setActiveWindow(this);
