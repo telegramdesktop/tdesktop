@@ -138,10 +138,11 @@ MediaView::MediaView()
 	});
 	handleAuthSessionChange();
 
-	setWindowFlags(Qt::FramelessWindowHint);
+	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint | Qt::WindowStaysOnTopHint);
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
+	setAttribute(Qt::WA_X11NetWmWindowTypeDock, true);
 	setMouseTracking(true);
 
 	hide();
