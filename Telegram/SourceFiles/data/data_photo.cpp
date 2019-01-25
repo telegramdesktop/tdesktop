@@ -12,49 +12,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "mainwidget.h"
-#include "auth_session.h"
 #include "core/application.h"
 
-PhotoData::PhotoData(const PhotoId &id)
-: id(id) {
+PhotoData::PhotoData(not_null<Data::Session*> owner, PhotoId id)
+: id(id)
+, _owner(owner) {
 }
 
-PhotoData::PhotoData(
-	const PhotoId &id,
-	const uint64 &access,
-	const QByteArray &fileReference,
-	TimeId date,
-	const ImagePtr &thumb,
-	const ImagePtr &medium,
-	const ImagePtr &full)
-: id(id)
-, access(access)
-, date(date)
-, thumb(thumb)
-, medium(medium)
-, full(full) {
+Data::Session &PhotoData::owner() const {
+	return *_owner;
+}
+
+AuthSession &PhotoData::session() const {
+	return _owner->session();
 }
 
 void PhotoData::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {
-	full->automaticLoad(origin, item);
+	_large->automaticLoad(origin, item);
 }
 
 void PhotoData::automaticLoadSettingsChanged() {
-	full->automaticLoadSettingsChanged();
+	_large->automaticLoadSettingsChanged();
 }
 
 void PhotoData::download(Data::FileOrigin origin) {
-	full->loadEvenCancelled(origin);
-	Auth().data().notifyPhotoLayoutChanged(this);
+	_large->loadEvenCancelled(origin);
+	_owner->notifyPhotoLayoutChanged(this);
 }
 
 bool PhotoData::loaded() const {
 	bool wasLoading = loading();
-	if (full->loaded()) {
+	if (_large->loaded()) {
 		if (wasLoading) {
-			Auth().data().notifyPhotoLayoutChanged(this);
+			_owner->notifyPhotoLayoutChanged(this);
 		}
 		return true;
 	}
@@ -62,18 +54,18 @@ bool PhotoData::loaded() const {
 }
 
 bool PhotoData::loading() const {
-	return full->loading();
+	return _large->loading();
 }
 
 bool PhotoData::displayLoading() const {
-	return full->loading()
-		? full->displayLoading()
+	return _large->loading()
+		? _large->displayLoading()
 		: (uploading() && !waitingForAlbum());
 }
 
 void PhotoData::cancel() {
-	full->cancel();
-	Auth().data().notifyPhotoLayoutChanged(this);
+	_large->cancel();
+	_owner->notifyPhotoLayoutChanged(this);
 }
 
 float64 PhotoData::progress() const {
@@ -83,7 +75,7 @@ float64 PhotoData::progress() const {
 		}
 		return 0;
 	}
-	return full->progress();
+	return _large->progress();
 }
 
 void PhotoData::setWaitingForAlbum() {
@@ -97,7 +89,7 @@ bool PhotoData::waitingForAlbum() const {
 }
 
 int32 PhotoData::loadOffset() const {
-	return full->loadOffset();
+	return _large->loadOffset();
 }
 
 bool PhotoData::uploading() const {
@@ -105,43 +97,42 @@ bool PhotoData::uploading() const {
 }
 
 void PhotoData::unload() {
-	// Forget thumb only when image cache limit exceeds.
-	//thumb->unload();
-	medium->unload();
-	full->unload();
-	_replyPreview = nullptr;
+	// Forget thumbnail only when image cache limit exceeds.
+	//_thumbnailInline->unload();
+	_thumbnailSmall->unload();
+	_thumbnail->unload();
+	_large->unload();
+	_replyPreview.clear();
 }
 
 Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
-	if (!_replyPreview && !thumb->isNull()) {
-		const auto previewFromImage = [&](const ImagePtr &image) {
-			if (!image->loaded()) {
-				image->load(origin);
-				return std::unique_ptr<Image>();
-			}
-			int w = image->width(), h = image->height();
-			if (w <= 0) w = 1;
-			if (h <= 0) h = 1;
-			return std::make_unique<Image>(
-				std::make_unique<Images::ImageSource>(
-				(w > h
-					? image->pix(
-						origin,
-						w * st::msgReplyBarSize.height() / h,
-						st::msgReplyBarSize.height())
-					: image->pix(origin, st::msgReplyBarSize.height())
-					).toImage(),
-					"PNG"));
-		};
-		if (thumb->isDelayedStorageImage()
-			&& !full->isNull()
-			&& !full->isDelayedStorageImage()) {
-			_replyPreview = previewFromImage(full);
-		} else {
-			_replyPreview = previewFromImage(thumb);
+	if (_replyPreview
+		&& (_replyPreview.good() || !_thumbnailSmall->loaded())) {
+		return _replyPreview.image();
+	}
+	if (_thumbnailSmall->isDelayedStorageImage()
+		&& !_large->isNull()
+		&& !_large->isDelayedStorageImage()
+		&& _large->loaded()) {
+		_replyPreview.prepare(
+			_large.get(),
+			origin,
+			Images::Option(0));
+	} else if (_thumbnailSmall->loaded()) {
+		_replyPreview.prepare(
+			_thumbnailSmall.get(),
+			origin,
+			Images::Option(0));
+	} else {
+		_thumbnailSmall->load(origin);
+		if (_thumbnailInline) {
+			_replyPreview.prepare(
+				_thumbnailInline.get(),
+				origin,
+				Images::Option::Blurred);
 		}
 	}
-	return _replyPreview.get();
+	return _replyPreview.image();
 }
 
 MTPInputPhoto PhotoData::mtpInput() const {
@@ -151,19 +142,88 @@ MTPInputPhoto PhotoData::mtpInput() const {
 		MTP_bytes(fileReference));
 }
 
-void PhotoData::collectLocalData(PhotoData *local) {
-	if (local == this) return;
+void PhotoData::collectLocalData(not_null<PhotoData*> local) {
+	if (local == this) {
+		return;
+	}
 
-	const auto copyImage = [](const ImagePtr &src, const ImagePtr &dst) {
+	const auto copyImage = [&](const ImagePtr &src, const ImagePtr &dst) {
 		if (const auto from = src->cacheKey()) {
 			if (const auto to = dst->cacheKey()) {
-				Auth().data().cache().copyIfEmpty(*from, *to);
+				_owner->cache().copyIfEmpty(*from, *to);
 			}
 		}
 	};
-	copyImage(local->thumb, thumb);
-	copyImage(local->medium, medium);
-	copyImage(local->full, full);
+	copyImage(local->_thumbnailSmall, _thumbnailSmall);
+	copyImage(local->_thumbnail, _thumbnail);
+	copyImage(local->_large, _large);
+}
+
+bool PhotoData::isNull() const {
+	return _large->isNull();
+}
+
+void PhotoData::loadThumbnail(Data::FileOrigin origin) {
+	_thumbnail->load(origin);
+}
+
+void PhotoData::loadThumbnailSmall(Data::FileOrigin origin) {
+	_thumbnailSmall->load(origin);
+}
+
+Image *PhotoData::thumbnailInline() const {
+	return _thumbnailInline ? _thumbnailInline.get() : nullptr;
+}
+
+not_null<Image*> PhotoData::thumbnailSmall() const {
+	return _thumbnailSmall.get();
+}
+
+not_null<Image*> PhotoData::thumbnail() const {
+	return _thumbnail.get();
+}
+
+void PhotoData::load(Data::FileOrigin origin) {
+	_large->load(origin);
+}
+
+not_null<Image*> PhotoData::large() const {
+	return _large.get();
+}
+
+void PhotoData::updateImages(
+		ImagePtr thumbnailInline,
+		ImagePtr thumbnailSmall,
+		ImagePtr thumbnail,
+		ImagePtr large) {
+	if (!thumbnailSmall || !thumbnail || !large) {
+		return;
+	}
+	if (thumbnailInline && !_thumbnailInline) {
+		_thumbnailInline = thumbnailInline;
+	}
+	const auto update = [](ImagePtr &was, ImagePtr now) {
+		if (!was) {
+			was = now;
+		} else if (was->isDelayedStorageImage()) {
+			if (const auto location = now->location(); !location.isNull()) {
+				was->setDelayedStorageLocation(
+					Data::FileOrigin(),
+					location);
+			}
+		}
+	};
+	update(_thumbnailSmall, thumbnailSmall);
+	update(_thumbnail, thumbnail);
+	update(_large, large);
+}
+
+int PhotoData::width() const {
+	return _large->width();
+}
+
+int PhotoData::height() const {
+	return _large->height();
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {

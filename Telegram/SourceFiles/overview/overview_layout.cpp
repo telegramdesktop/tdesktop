@@ -328,33 +328,23 @@ int32 Photo::resizeGetHeight(int32 width) {
 void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool good = _data->loaded(), selected = (selection == FullSelection);
 	if (!good) {
-		_data->medium->automaticLoad(parent()->fullId(), parent());
-		good = _data->medium->loaded();
+		_data->thumbnail()->automaticLoad(parent()->fullId(), parent());
+		good = _data->thumbnail()->loaded();
 	}
 	if ((good && !_goodLoaded) || _pix.width() != _width * cIntRetinaFactor()) {
 		_goodLoaded = good;
-
-		int32 size = _width * cIntRetinaFactor();
-		if (_goodLoaded || _data->thumb->loaded()) {
-			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix(parent()->fullId()).toImage();
-			if (!_goodLoaded) {
-				img = Images::prepareBlur(std::move(img));
+		_pix = QPixmap();
+		if (_goodLoaded) {
+			setPixFrom(_data->loaded()
+				? _data->large()
+				: _data->thumbnail());
+		} else if (_data->thumbnailSmall()->loaded()) {
+			setPixFrom(_data->thumbnailSmall());
+		} else if (const auto blurred = _data->thumbnailInline()) {
+			blurred->load({});
+			if (blurred->loaded()) {
+				setPixFrom(blurred);
 			}
-			if (img.width() == img.height()) {
-				if (img.width() != size) {
-					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-				}
-			} else if (img.width() > img.height()) {
-				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-			} else {
-				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-			}
-			img.setDevicePixelRatio(cRetinaFactor());
-			_data->unload();
-
-			_pix = App::pixmapFromImageInPlace(std::move(img));
-		} else if (!_pix.isNull()) {
-			_pix = QPixmap();
 		}
 	}
 
@@ -373,6 +363,29 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
+void Photo::setPixFrom(not_null<Image*> image) {
+	Expects(image->loaded());
+
+	const auto size = _width * cIntRetinaFactor();
+	auto img = image->original();
+	if (!_goodLoaded) {
+		img = Images::prepareBlur(std::move(img));
+	}
+	if (img.width() == img.height()) {
+		if (img.width() != size) {
+			img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+		}
+	} else if (img.width() > img.height()) {
+		img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+	} else {
+		img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+	}
+	img.setDevicePixelRatio(cRetinaFactor());
+	_data->unload();
+
+	_pix = App::pixmapFromImageInPlace(std::move(img));
+}
+
 TextState Photo::getState(
 		QPoint point,
 		StateRequest request) const {
@@ -387,10 +400,9 @@ Video::Video(
 	not_null<DocumentData*> video)
 : RadialProgressItem(parent)
 , _data(video)
-, _duration(formatDurationText(_data->duration()))
-, _thumbLoaded(false) {
+, _duration(formatDurationText(_data->duration())) {
 	setDocumentLinks(_data);
-	_data->thumb->load(parent->fullId());
+	_data->loadThumbnail(parent->fullId());
 }
 
 void Video::initDimensions() {
@@ -405,7 +417,10 @@ int32 Video::resizeGetHeight(int32 width) {
 }
 
 void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
-	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
+	const auto selected = (selection == FullSelection);
+	const auto blurred = _data->thumbnailInline();
+	const auto thumbLoaded = _data->hasThumbnail()
+		&& _data->thumbnail()->loaded();
 
 	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
@@ -418,28 +433,25 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	updateStatusText();
 	bool radial = isRadialAnimation(context->ms);
 
-	if ((thumbLoaded && !_thumbLoaded) || (_pix.width() != _width * cIntRetinaFactor())) {
-		_thumbLoaded = thumbLoaded;
-
-		if (_thumbLoaded && !_data->thumb->isNull()) {
-			auto size = _width * cIntRetinaFactor();
-			auto img = Images::prepareBlur(_data->thumb->pix(parent()->fullId()).toImage());
-			if (img.width() == img.height()) {
-				if (img.width() != size) {
-					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-				}
-			} else if (img.width() > img.height()) {
-				img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-			} else {
-				img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+	if ((blurred || thumbLoaded)
+		&& (_pix.width() != _width * cIntRetinaFactor())) {
+		auto size = _width * cIntRetinaFactor();
+		auto img = thumbLoaded
+			? _data->thumbnail()->original()
+			: Images::prepareBlur(blurred->original());
+		if (img.width() == img.height()) {
+			if (img.width() != size) {
+				img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 			}
-			img.setDevicePixelRatio(cRetinaFactor());
-			_data->unload();
-
-			_pix = App::pixmapFromImageInPlace(std::move(img));
-		} else if (!_pix.isNull()) {
-			_pix = QPixmap();
+		} else if (img.width() > img.height()) {
+			img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+		} else {
+			img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 		}
+		img.setDevicePixelRatio(cRetinaFactor());
+		_data->unload();
+
+		_pix = App::pixmapFromImageInPlace(std::move(img));
 	}
 
 	if (_pix.isNull()) {
@@ -582,7 +594,7 @@ Voice::Voice(
 	AddComponents(Info::Bit());
 
 	setDocumentLinks(_data);
-	_data->thumb->load(parent->fullId());
+	_data->loadThumbnail(parent->fullId());
 
 	updateName();
 	const auto dateText = textcmdLink(
@@ -641,22 +653,28 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		_width);
 	if (clip.intersects(inner)) {
 		p.setPen(Qt::NoPen);
-		const auto drawThumb = !_data->thumb->isNull()
-			&& _data->thumb->loaded();
-		if (drawThumb) {
-			const auto thumb = _data->thumb->pixCircled(
-				parent()->fullId(),
-				inner.width(),
-				inner.height());
+		const auto thumbLoaded = _data->hasThumbnail()
+			&& _data->thumbnail()->loaded();
+		const auto blurred = _data->thumbnailInline();
+		if (thumbLoaded || blurred) {
+			const auto thumb = thumbLoaded
+				? _data->thumbnail()->pixCircled(
+					parent()->fullId(),
+					inner.width(),
+					inner.height())
+				: blurred->pixBlurredCircled(
+					parent()->fullId(),
+					inner.width(),
+					inner.height());
 			p.drawPixmap(inner.topLeft(), thumb);
-		} else if (!_data->thumb->isNull()) {
+		} else if (_data->hasThumbnail()) {
 			PainterHighQualityEnabler hq(p);
 			p.setBrush(st::imageBg);
 			p.drawEllipse(inner);
 		}
 		if (selected) {
-			p.setBrush(drawThumb ? st::msgDateImgBgSelected : st::msgFileInBgSelected);
-		} else if (!_data->thumb->isNull()) {
+			p.setBrush((thumbLoaded || blurred) ? st::msgDateImgBgSelected : st::msgFileInBgSelected);
+		} else if (_data->hasThumbnail()) {
 			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		} else {
@@ -868,8 +886,8 @@ Document::Document(
 	_status.update(FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
-		_data->thumb->load(parent->fullId());
-		int32 tw = ConvertScale(_data->thumb->width()), th = ConvertScale(_data->thumb->height());
+		_data->loadThumbnail(parent->fullId());
+		int32 tw = ConvertScale(_data->thumbnail()->width()), th = ConvertScale(_data->thumbnail()->height());
 		if (tw > th) {
 			_thumbw = (tw * _st.fileThumbSize) / th;
 		} else {
@@ -967,12 +985,16 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		QRect rthumb(rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width));
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
-				if (_data->thumb->loaded()) {
-					if (_thumb.isNull() || loaded != _thumbForLoaded) {
-						_thumbForLoaded = loaded;
+				const auto thumbLoaded = _data->thumbnail()->loaded();
+				const auto blurred = _data->thumbnailInline();
+				if (thumbLoaded || blurred) {
+					if (_thumb.isNull() || (thumbLoaded && !_thumbLoaded)) {
+						_thumbLoaded = thumbLoaded;
 						auto options = Images::Option::Smooth | Images::Option::None;
-						if (!_thumbForLoaded) options |= Images::Option::Blurred;
-						_thumb = _data->thumb->pixNoCache(parent()->fullId(), _thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
+						if (!_thumbLoaded) options |= Images::Option::Blurred;
+						_thumb = (_thumbLoaded
+							? _data->thumbnail()
+							: blurred)->pixNoCache(parent()->fullId(), _thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
@@ -1132,7 +1154,7 @@ TextState Document::getState(
 				return { parent(), _msgl };
 			}
 		}
-		if (!_data->loading() && _data->isValid()) {
+		if (!_data->loading() && !_data->isNull()) {
 			auto leftofnamerect = rtlrect(
 				0,
 				st::linksBorder,
@@ -1180,9 +1202,9 @@ bool Document::iconAnimated() const {
 
 bool Document::withThumb() const {
 	return !_data->isSong()
-		&& !_data->thumb->isNull()
-		&& _data->thumb->width()
-		&& _data->thumb->height()
+		&& _data->hasThumbnail()
+		&& _data->thumbnail()->width()
+		&& _data->thumbnail()->height()
 		&& !Data::IsExecutableName(_data->filename());
 }
 
@@ -1304,19 +1326,19 @@ Link::Link(
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {
-		if (!_page->photo->loaded()) {
-			_page->photo->thumb->load(parent->fullId(), false, false);
+		if (!_page->photo->loaded()
+			&& !_page->photo->thumbnail()->loaded()
+			&& !_page->photo->thumbnailSmall()->loaded()) {
+			_page->photo->loadThumbnailSmall(parent->fullId());
 		}
 
-		tw = ConvertScale(_page->photo->thumb->width());
-		th = ConvertScale(_page->photo->thumb->height());
-	} else if (_page && _page->document) {
-		if (!_page->document->thumb->loaded()) {
-			_page->document->thumb->load(parent->fullId(), false, false);
-		}
+		tw = ConvertScale(_page->photo->width());
+		th = ConvertScale(_page->photo->height());
+	} else if (_page && _page->document && _page->document->hasThumbnail()) {
+		_page->document->loadThumbnail(parent->fullId());
 
-		tw = ConvertScale(_page->document->thumb->width());
-		th = ConvertScale(_page->document->thumb->height());
+		tw = ConvertScale(_page->document->thumbnail()->width());
+		th = ConvertScale(_page->document->thumbnail()->height());
 	}
 	if (tw > st::linksPhotoSize) {
 		if (th > tw) {
@@ -1397,19 +1419,21 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	if (clip.intersects(rtlrect(0, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
-			if (_page->photo->medium->loaded()) {
-				pix = _page->photo->medium->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			if (_page->photo->thumbnail()->loaded()) {
+				pix = _page->photo->thumbnail()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
-			} else {
-				pix = _page->photo->thumb->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+				pix = _page->photo->large()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			} else if (_page->photo->thumbnailSmall()->loaded()) {
+				pix = _page->photo->thumbnailSmall()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
+			} else if (const auto blurred = _page->photo->thumbnailInline()) {
+				pix = blurred->pixBlurredSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			}
 			p.drawPixmapLeft(pixLeft, pixTop, _width, pix);
-		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
+		} else if (_page && _page->document && _page->document->hasThumbnail()) {
 			auto roundRadius = _page->document->isVideoMessage()
 				? ImageRoundRadius::Ellipse
 				: ImageRoundRadius::Small;
-			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumb->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
+			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumbnail()->pixSingle(parent()->fullId(), _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
 		} else {
 			const auto index = _letter.isEmpty()
 				? 0

@@ -49,6 +49,9 @@ QPixmap PixmapFast(QImage &&image) {
 }
 
 QImage prepareBlur(QImage img) {
+	if (img.isNull()) {
+		return img;
+	}
 	auto ratio = img.devicePixelRatio();
 	auto fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {

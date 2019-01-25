@@ -472,7 +472,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 				p.setOpacity(1);
 
 			}
-			doc->checkStickerThumb();
+			doc->checkStickerSmall();
 
 			float64 coef = qMin((st::stickersSize.width() - st::buttonRadius * 2) / float64(doc->dimensions.width()), (st::stickersSize.height() - st::buttonRadius * 2) / float64(doc->dimensions.height()));
 			if (coef > 1) coef = 1;
@@ -480,7 +480,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 			if (w < 1) w = 1;
 			if (h < 1) h = 1;
 			QPoint ppos = pos + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
-			if (const auto image = doc->getStickerThumb()) {
+			if (const auto image = doc->getStickerSmall()) {
 				p.drawPixmapLeft(
 					ppos,
 					width(),

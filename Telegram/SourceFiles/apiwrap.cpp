@@ -894,7 +894,7 @@ void ApiWrap::requestWallPaper(
 						data.vaccess_hash.v,
 						data.vflags.v,
 						qs(data.vslug),
-						document->thumb,
+						document->thumbnail(),
 						document
 					});
 				}

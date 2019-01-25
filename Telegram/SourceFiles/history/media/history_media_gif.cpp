@@ -56,7 +56,7 @@ HistoryGif::HistoryGif(
 	setStatusSize(FileStatusSizeReady);
 
 	_caption = createCaption(item);
-	_data->thumb->load(item->fullId());
+	_data->loadThumbnail(item->fullId());
 }
 
 QSize HistoryGif::countOptimalSize() {
@@ -89,8 +89,8 @@ QSize HistoryGif::countOptimalSize() {
 	} else {
 		tw = ConvertScale(_data->dimensions.width()), th = ConvertScale(_data->dimensions.height());
 		if (!tw || !th) {
-			tw = ConvertScale(_data->thumb->width());
-			th = ConvertScale(_data->thumb->height());
+			tw = ConvertScale(_data->thumbnail()->width());
+			th = ConvertScale(_data->thumbnail()->height());
 		}
 	}
 	const auto maxSize = _data->isVideoMessage()
@@ -147,8 +147,8 @@ QSize HistoryGif::countCurrentSize(int newWidth) {
 	} else {
 		tw = ConvertScale(_data->dimensions.width()), th = ConvertScale(_data->dimensions.height());
 		if (!tw || !th) {
-			tw = ConvertScale(_data->thumb->width());
-			th = ConvertScale(_data->thumb->height());
+			tw = ConvertScale(_data->thumbnail()->width());
+			th = ConvertScale(_data->thumbnail()->height());
 		}
 	}
 	const auto maxSize = _data->isVideoMessage()
@@ -347,7 +347,13 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			if (good) {
 				good->load({});
 			}
-			p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+			if (const auto normal = _data->thumbnail()) {
+				if (normal->loaded()) {
+					p.drawPixmap(rthumb.topLeft(), _data->thumbnail()->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+				} else if (const auto blurred = _data->thumbnailInline()) {
+					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+				}
+			}
 		}
 	}
 

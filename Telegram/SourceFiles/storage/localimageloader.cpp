@@ -198,7 +198,7 @@ SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 				MTP_long(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
-		photoThumbs.insert(type[0], std::move(image));
+		photoThumbs.emplace(type[0], std::move(image));
 	};
 	push("a", scaled(160));
 	push("b", scaled(320));
@@ -795,15 +795,15 @@ void FileLoadTask::process() {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != SendMediaType::File) {
 				auto thumb = (w > 100 || h > 100) ? fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
-				photoThumbs.insert('s', thumb);
+				photoThumbs.emplace('s', thumb);
 				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
-				photoThumbs.insert('m', medium);
+				photoThumbs.emplace('m', medium);
 				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
 				auto full = (w > 1280 || h > 1280) ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
-				photoThumbs.insert('y', full);
+				photoThumbs.emplace('y', full);
 				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
 				{

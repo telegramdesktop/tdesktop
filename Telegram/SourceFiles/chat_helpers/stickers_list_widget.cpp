@@ -259,8 +259,8 @@ void StickersListWidget::Footer::enumerateVisibleIcons(Callback callback) {
 
 void StickersListWidget::Footer::preloadImages() {
 	enumerateVisibleIcons([](const StickerIcon &icon, int x) {
-		if (auto sticker = icon.sticker) {
-			sticker->thumb->load(sticker->stickerSetOrigin());
+		if (const auto sticker = icon.sticker) {
+			sticker->loadThumbnail(sticker->stickerSetOrigin());
 		}
 	});
 }
@@ -631,10 +631,12 @@ void StickersListWidget::Footer::paintSetIcon(
 		int x) const {
 	if (icon.sticker) {
 		const auto origin = icon.sticker->stickerSetOrigin();
-		icon.sticker->thumb->load(origin);
-		auto pix = icon.sticker->thumb->pix(origin, icon.pixw, icon.pixh);
+		if (const auto thumb = icon.sticker->thumbnail()) {
+			thumb->load(origin);
+			auto pix = thumb->pix(origin, icon.pixw, icon.pixh);
 
-		p.drawPixmapLeft(x + (st::stickerIconWidth - icon.pixw) / 2, _iconsTop + (st::emojiFooterHeight - icon.pixh) / 2, width(), pix);
+			p.drawPixmapLeft(x + (st::stickerIconWidth - icon.pixw) / 2, _iconsTop + (st::emojiFooterHeight - icon.pixh) / 2, width(), pix);
+		}
 	} else if (icon.megagroup) {
 		icon.megagroup->paintUserpicLeft(p, x + (st::stickerIconWidth - st::stickerGroupCategorySize) / 2, _iconsTop + (st::emojiFooterHeight - st::stickerGroupCategorySize) / 2, width(), st::stickerGroupCategorySize);
 	} else {
@@ -753,7 +755,9 @@ void StickersListWidget::readVisibleSets() {
 		int count = qMin(set.pack.size(), _columnCount);
 		int loaded = 0;
 		for (int j = 0; j < count; ++j) {
-			if (set.pack[j]->thumb->loaded() || set.pack[j]->loaded()) {
+			if (!set.pack[j]->hasThumbnail()
+				|| set.pack[j]->thumbnail()->loaded()
+				|| set.pack[j]->loaded()) {
 				++loaded;
 			}
 		}
@@ -1339,14 +1343,14 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int index, bo
 		App::roundRect(p, QRect(tl, _singleSize), st::emojiPanHover, StickerHoverCorners);
 	}
 
-	document->checkStickerThumb();
+	document->checkStickerSmall();
 
 	auto coef = qMin((_singleSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (_singleSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
 	if (coef > 1) coef = 1;
 	auto w = qMax(qRound(coef * document->dimensions.width()), 1);
 	auto h = qMax(qRound(coef * document->dimensions.height()), 1);
 	auto ppos = pos + QPoint((_singleSize.width() - w) / 2, (_singleSize.height() - h) / 2);
-	if (const auto image = document->getStickerThumb()) {
+	if (const auto image = document->getStickerSmall()) {
 		if (image->loaded()) {
 			p.drawPixmapLeft(
 				ppos,
@@ -1786,7 +1790,7 @@ void StickersListWidget::preloadImages() {
 			const auto document = sets[i].pack[j];
 			if (!document || !document->sticker()) continue;
 
-			document->checkStickerThumb();
+			document->checkStickerSmall();
 		}
 		if (k > _columnCount * (_columnCount + 1)) break;
 	}
@@ -2047,7 +2051,10 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 		}
 		auto s = _mySets[i].pack[0];
 		auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding, availh = st::emojiFooterHeight - 2 * st::stickerIconPadding;
-		auto thumbw = s->thumb->width(), thumbh = s->thumb->height(), pixw = 1, pixh = 1;
+		const auto size = s->hasThumbnail()
+			? s->thumbnail()->size()
+			: QSize();
+		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
 		if (availw * thumbh > availh * thumbw) {
 			pixh = availh;
 			pixw = (pixh * thumbw) / thumbh;

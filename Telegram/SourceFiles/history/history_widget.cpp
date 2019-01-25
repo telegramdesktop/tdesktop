@@ -6361,7 +6361,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	if (drawWebPagePreview) {
 		auto previewLeft = st::historyReplySkip + st::webPageLeft;
 		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor);
-		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->document && !_previewData->document->thumb->isNull())) {
+		if ((_previewData->photo && !_previewData->photo->isNull()) || (_previewData->document && _previewData->document->hasThumbnail())) {
 			const auto preview = _previewData->photo
 				? _previewData->photo->getReplyPreview(Data::FileOrigin())
 				: _previewData->document->getReplyPreview(Data::FileOrigin());

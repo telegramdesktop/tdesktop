@@ -59,7 +59,11 @@ void HistoryPhoto::create(FullMsgId contextId, PeerData *chat) {
 		std::make_shared<PhotoOpenClickHandler>(_data, contextId, chat),
 		std::make_shared<PhotoSaveClickHandler>(_data, contextId, chat),
 		std::make_shared<PhotoCancelClickHandler>(_data, contextId, chat));
-	_data->thumb->load(contextId);
+	if (!_data->thumbnailInline()
+		&& !_data->loaded()
+		&& !_data->thumbnail()->loaded()) {
+		_data->thumbnailSmall()->load(contextId);
+	}
 }
 
 QSize HistoryPhoto::countOptimalSize() {
@@ -74,8 +78,8 @@ QSize HistoryPhoto::countOptimalSize() {
 	auto maxWidth = 0;
 	auto minHeight = 0;
 
-	auto tw = ConvertScale(_data->full->width());
-	auto th = ConvertScale(_data->full->height());
+	auto tw = ConvertScale(_data->width());
+	auto th = ConvertScale(_data->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -106,7 +110,7 @@ QSize HistoryPhoto::countOptimalSize() {
 }
 
 QSize HistoryPhoto::countCurrentSize(int newWidth) {
-	int tw = ConvertScale(_data->full->width()), th = ConvertScale(_data->full->height());
+	int tw = ConvertScale(_data->width()), th = ConvertScale(_data->height());
 	if (tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
@@ -169,9 +173,19 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 	auto rthumb = rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
-		const auto pix = loaded
-			? _data->full->pixCircled(_realParent->fullId(), _pixw, _pixh)
-			: _data->thumb->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+		const auto pix = [&] {
+			if (loaded) {
+				return _data->large()->pixCircled(_realParent->fullId(), _pixw, _pixh);
+			} else if (_data->thumbnail()->loaded()) {
+				return _data->thumbnail()->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+			} else if (_data->thumbnailSmall()->loaded()) {
+				return _data->thumbnailSmall()->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+			} else if (const auto blurred = _data->thumbnailInline()) {
+				return blurred->pixBlurredCircled(_realParent->fullId(), _pixw, _pixh);
+			} else {
+				return QPixmap();
+			}
+		}();
 		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
 		if (bubble) {
@@ -189,9 +203,19 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 		auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 			| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
-		const auto pix = loaded
-			? _data->full->pixSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners)
-			: _data->thumb->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+		const auto pix = [&] {
+			if (loaded) {
+				return _data->large()->pixSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+			} else if (_data->thumbnail()->loaded()) {
+				return _data->thumbnail()->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+			} else if (_data->thumbnailSmall()->loaded()) {
+				return _data->thumbnailSmall()->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+			} else if (const auto blurred = _data->thumbnailInline()) {
+				return blurred->pixBlurredSingle(_realParent->fullId(), _pixw, _pixh, paintw, painth, roundRadius, roundCorners);
+			} else {
+				return QPixmap();
+			}
+		}();
 		p.drawPixmap(rthumb.topLeft(), pix);
 		if (selected) {
 			App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
@@ -224,7 +248,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		auto icon = ([radial, this, selected]() -> const style::icon* {
 			if (radial || _data->loading()) {
 				if (_data->uploading()
-					|| !_data->full->location().isNull()) {
+					|| !_data->large()->location().isNull()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -292,7 +316,7 @@ TextState HistoryPhoto::textState(QPoint point, StateRequest request) const {
 		} else if (_data->loaded()) {
 			result.link = _openl;
 		} else if (_data->loading()) {
-			if (!_data->full->location().isNull()) {
+			if (!_data->large()->location().isNull()) {
 				result.link = _cancell;
 			}
 		} else {
@@ -317,8 +341,8 @@ TextState HistoryPhoto::textState(QPoint point, StateRequest request) const {
 }
 
 QSize HistoryPhoto::sizeForGrouping() const {
-	const auto width = _data->full->width();
-	const auto height = _data->full->height();
+	const auto width = _data->width();
+	const auto height = _data->height();
 	return { std::max(width, 1), std::max(height, 1) };
 }
 
@@ -395,7 +419,7 @@ void HistoryPhoto::drawGrouped(
 			if (_data->waitingForAlbum()) {
 				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
 			} else if (radial || _data->loading()) {
-				if (_data->uploading() || !_data->full->location().isNull()) {
+				if (_data->uploading() || !_data->large()->location().isNull()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -440,7 +464,7 @@ TextState HistoryPhoto::getStateGrouped(
 		: _data->loaded()
 		? _openl
 		: _data->loading()
-		? (_data->full->location().isNull()
+		? (_data->large()->location().isNull()
 			? ClickHandlerPtr()
 			: _cancell)
 		: _savel);
@@ -470,7 +494,13 @@ void HistoryPhoto::validateGroupedCache(
 		not_null<QPixmap*> cache) const {
 	using Option = Images::Option;
 	const auto loaded = _data->loaded();
-	const auto loadLevel = loaded ? 2 : _data->thumb->loaded() ? 1 : 0;
+	const auto loadLevel = loaded
+		? 2
+		: (_data->thumbnailInline()
+			|| _data->thumbnail()->loaded()
+			|| _data->thumbnailSmall()->loaded())
+		? 1
+		: 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
 	const auto options = Option::Smooth
@@ -488,14 +518,22 @@ void HistoryPhoto::validateGroupedCache(
 		return;
 	}
 
-	const auto originalWidth = ConvertScale(_data->full->width());
-	const auto originalHeight = ConvertScale(_data->full->height());
+	const auto originalWidth = ConvertScale(_data->width());
+	const auto originalHeight = ConvertScale(_data->height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
 	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
 	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
-	const auto &image = loaded ? _data->full : _data->thumb;
+	const auto image = loaded
+		? _data->large().get()
+		: _data->thumbnail()->loaded()
+		? _data->thumbnail().get()
+		: _data->thumbnailSmall()->loaded()
+		? _data->thumbnailSmall().get()
+		: _data->thumbnailInline()
+		? _data->thumbnailInline()
+		: Image::Blank().get();
 
 	*cacheKey = key;
 	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);

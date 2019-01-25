@@ -1074,7 +1074,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 }
 
 void InnerWidget::savePhotoToFile(PhotoData *photo) {
-	if (!photo || !photo->date || !photo->loaded()) {
+	if (!photo || photo->isNull() || !photo->loaded()) {
 		return;
 	}
 
@@ -1086,7 +1086,7 @@ void InnerWidget::savePhotoToFile(PhotoData *photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
+				photo->large()->original().save(result, "JPG");
 			}
 		}));
 }
@@ -1096,9 +1096,9 @@ void InnerWidget::saveDocumentToFile(DocumentData *document) {
 }
 
 void InnerWidget::copyContextImage(PhotoData *photo) {
-	if (!photo || !photo->date || !photo->loaded()) return;
+	if (!photo || photo->isNull() || !photo->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
+	QApplication::clipboard()->setImage(photo->large()->original());
 }
 
 void InnerWidget::copySelectedText() {

@@ -28,7 +28,7 @@ protected:
 	int content_width() const;
 	int content_height() const;
 	int content_duration() const;
-	ImagePtr content_thumb() const;
+	Image *content_thumb() const;
 };
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
@@ -83,7 +83,13 @@ private:
 	Media::Clip::ReaderPointer _gif;
 	ClickHandlerPtr _delete;
 	mutable QPixmap _thumb;
-	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+	mutable bool _thumbGood = false;
+	void validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good) const;
+	void prepareThumbnail(QSize size, QSize frame) const;
 
 	void ensureAnimation() const;
 	bool isRadialAnimation(TimeMs ms) const;
@@ -131,8 +137,13 @@ private:
 	QSize countFrameSize() const;
 
 	mutable QPixmap _thumb;
-	mutable bool _thumbLoaded = false;
-	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+	mutable bool _thumbGood = false;
+	void prepareThumbnail(QSize size, QSize frame) const;
+	void validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good) const;
 
 };
 
@@ -168,7 +179,7 @@ private:
 
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded = false;
-	void prepareThumb() const;
+	void prepareThumbnail() const;
 
 };
 
@@ -191,7 +202,7 @@ private:
 	QString _duration;
 	int _durationWidth = 0;
 
-	void prepareThumb(int32 width, int32 height) const;
+	void prepareThumbnail(QSize size) const;
 
 };
 
@@ -302,7 +313,7 @@ private:
 	mutable QPixmap _thumb;
 	Text _title, _description;
 
-	void prepareThumb(int width, int height) const;
+	void prepareThumbnail(int width, int height) const;
 
 };
 
@@ -327,7 +338,7 @@ private:
 	QString _thumbLetter, _urlText;
 	int32 _urlWidth;
 
-	void prepareThumb(int width, int height) const;
+	void prepareThumbnail(int width, int height) const;
 
 };
 
@@ -346,7 +357,8 @@ public:
 private:
 	void countFrameSize();
 
-	void prepareThumb(int32 width, int32 height) const;
+	void prepareThumbnail(QSize size) const;
+	void validateThumbnail(Image *image, QSize size, bool good) const;
 
 	bool isRadialAnimation(TimeMs ms) const;
 	void step_radial(TimeMs ms, bool timer);
@@ -355,6 +367,7 @@ private:
 
 	Media::Clip::ReaderPointer _gif;
 	mutable QPixmap _thumb;
+	mutable bool _thumbGood = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
 	Text _title, _description;
 

@@ -3753,6 +3753,7 @@ void importOldRecentStickers() {
 			attributes,
 			mime,
 			ImagePtr(),
+			ImagePtr(),
 			dc,
 			size,
 			StorageImageLocation());

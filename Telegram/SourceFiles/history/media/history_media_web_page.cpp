@@ -34,14 +34,16 @@ namespace {
 
 constexpr auto kMaxOriginalEntryLines = 8192;
 
-int articleThumbWidth(PhotoData *thumb, int height) {
-	auto w = thumb->medium->width();
-	auto h = thumb->medium->height();
+int articleThumbWidth(not_null<PhotoData*> thumb, int height) {
+	auto w = thumb->thumbnail()->width();
+	auto h = thumb->thumbnail()->height();
 	return qMax(qMin(height * w / h, height), 1);
 }
 
-int articleThumbHeight(PhotoData *thumb, int width) {
-	return qMax(thumb->medium->height() * width / thumb->medium->width(), 1);
+int articleThumbHeight(not_null<PhotoData*> thumb, int width) {
+	return qMax(
+		thumb->thumbnail()->height() * width / thumb->thumbnail()->width(),
+		1);
 }
 
 std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
@@ -410,22 +412,25 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 	auto lineHeight = unitedLineHeight();
 	if (_asArticle) {
 		const auto contextId = _parent->data()->fullId();
-		_data->photo->medium->load(contextId, false, false);
-		bool full = _data->photo->medium->loaded();
+		_data->photo->loadThumbnail(contextId);
+		bool full = _data->photo->thumbnail()->loaded();
 		QPixmap pix;
 		auto pw = qMax(_pixw, lineHeight);
 		auto ph = _pixh;
 		auto pixw = _pixw, pixh = articleThumbHeight(_data->photo, _pixw);
-		auto maxw = ConvertScale(_data->photo->medium->width()), maxh = ConvertScale(_data->photo->medium->height());
+		const auto maxw = ConvertScale(_data->photo->thumbnail()->width());
+		const auto maxh = ConvertScale(_data->photo->thumbnail()->height());
 		if (pixw * ph != pixh * pw) {
 			float64 coef = (pixw * ph > pixh * pw) ? qMin(ph / float64(pixh), maxh / float64(pixh)) : qMin(pw / float64(pixw), maxw / float64(pixw));
 			pixh = qRound(pixh * coef);
 			pixw = qRound(pixw * coef);
 		}
 		if (full) {
-			pix = _data->photo->medium->pixSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
-		} else {
-			pix = _data->photo->thumb->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+			pix = _data->photo->thumbnail()->pixSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+		} else if (_data->photo->thumbnailSmall()->loaded()) {
+			pix = _data->photo->thumbnailSmall()->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
+		} else if (const auto blurred = _data->photo->thumbnailInline()) {
+			pix = blurred->pixBlurredSingle(contextId, pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (selected) {

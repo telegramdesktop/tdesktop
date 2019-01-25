@@ -49,7 +49,7 @@ void AddToggleGroupingAction(
 }
 
 void SavePhotoToFile(not_null<PhotoData*> photo) {
-	if (!photo->date || !photo->loaded()) {
+	if (photo->isNull() || !photo->loaded()) {
 		return;
 	}
 
@@ -60,17 +60,17 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(&Auth(), [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
+				photo->large()->original().save(result, "JPG");
 			}
 		}));
 }
 
 void CopyImage(not_null<PhotoData*> photo) {
-	if (!photo->date || !photo->loaded()) {
+	if (photo->isNull() || !photo->loaded()) {
 		return;
 	}
 
-	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
+	QApplication::clipboard()->setImage(photo->large()->original());
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {

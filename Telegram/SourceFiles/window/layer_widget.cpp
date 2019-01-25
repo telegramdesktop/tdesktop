@@ -892,11 +892,6 @@ void MediaPreviewWidget::showPreview(
 void MediaPreviewWidget::showPreview(
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo) {
-	if (photo->full->isNull()) {
-		hidePreview();
-		return;
-	}
-
 	startShow();
 	_origin = origin;
 	_photo = photo;
@@ -965,7 +960,7 @@ QSize MediaPreviewWidget::currentDimensions() const {
 
 	QSize result, box;
 	if (_photo) {
-		result = QSize(_photo->full->width(), _photo->full->height());
+		result = QSize(_photo->width(), _photo->height());
 		box = QSize(width() - 2 * st::boxVerticalMargin, height() - 2 * st::boxVerticalMargin);
 	} else {
 		result = _document->dimensions;
@@ -997,13 +992,15 @@ QPixmap MediaPreviewWidget::currentImage() const {
 	if (_document) {
 		if (_document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
-				if (const auto image = _document->getStickerImage()) {
+				if (const auto image = _document->getStickerLarge()) {
 					QSize s = currentDimensions();
 					_cache = image->pix(_origin, s.width(), s.height());
 					_cacheStatus = CacheLoaded;
-				} else if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
+				} else if (_cacheStatus != CacheThumbLoaded
+					&& _document->hasThumbnail()
+					&& _document->thumbnail()->loaded()) {
 					QSize s = currentDimensions();
-					_cache = _document->thumb->pixBlurred(_origin, s.width(), s.height());
+					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
 					_cacheStatus = CacheThumbLoaded;
 				}
 			}
@@ -1023,26 +1020,43 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
 				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
 			}
-			if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
+			if (_cacheStatus != CacheThumbLoaded
+				&& _document->hasThumbnail()) {
 				QSize s = currentDimensions();
-				_cache = _document->thumb->pixBlurred(_origin, s.width(), s.height());
-				_cacheStatus = CacheThumbLoaded;
+				if (_document->thumbnail()->loaded()) {
+					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+					_cacheStatus = CacheThumbLoaded;
+				} else if (const auto blurred = _document->thumbnailInline()) {
+					_cache = _document->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+					_cacheStatus = CacheThumbLoaded;
+				} else {
+					_document->thumbnail()->load(_origin);
+				}
 			}
 		}
 	} else if (_photo) {
 		if (_cacheStatus != CacheLoaded) {
-			if (_photo->full->loaded()) {
+			if (_photo->loaded()) {
 				QSize s = currentDimensions();
-				_cache = _photo->full->pix(_origin, s.width(), s.height());
+				_cache = _photo->large()->pix(_origin, s.width(), s.height());
 				_cacheStatus = CacheLoaded;
 			} else {
-				if (_cacheStatus != CacheThumbLoaded && _photo->thumb->loaded()) {
+				_photo->load(_origin);
+				if (_cacheStatus != CacheThumbLoaded) {
 					QSize s = currentDimensions();
-					_cache = _photo->thumb->pixBlurred(_origin, s.width(), s.height());
-					_cacheStatus = CacheThumbLoaded;
+					if (_photo->thumbnail()->loaded()) {
+						_cache = _photo->thumbnail()->pixBlurred(_origin, s.width(), s.height());
+						_cacheStatus = CacheThumbLoaded;
+					} else if (_photo->thumbnailSmall()->loaded()) {
+						_cache = _photo->thumbnailSmall()->pixBlurred(_origin, s.width(), s.height());
+						_cacheStatus = CacheThumbLoaded;
+					} else if (const auto blurred = _photo->thumbnailInline()) {
+						_cache = blurred->pixBlurred(_origin, s.width(), s.height());
+						_cacheStatus = CacheThumbLoaded;
+					} else {
+						_photo->thumbnailSmall()->load(_origin);
+					}
 				}
-				_photo->thumb->load(_origin);
-				_photo->full->load(_origin);
 			}
 		}
 

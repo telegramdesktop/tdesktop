@@ -251,6 +251,9 @@ private:
 	void checkGroupThumbsAnimation();
 	void initGroupThumbs();
 
+	void validatePhotoImage(Image *image, bool blurred);
+	void validatePhotoCurrentImage();
+
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
@@ -299,7 +302,7 @@ private:
 	int32 _dragging = 0;
 	QPixmap _current;
 	Media::Clip::ReaderPointer _gif;
-	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
+	bool _blurred = true;
 
 	// Video without audio stream playback information.
 	bool _videoIsSilent = false;

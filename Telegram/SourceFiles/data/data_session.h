@@ -342,15 +342,16 @@ public:
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
-		const ImagePtr &thumb,
-		const ImagePtr &medium,
-		const ImagePtr &full);
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnailSmall,
+		const ImagePtr &thumbnail,
+		const ImagePtr &large);
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
 	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb = ImagePtr(),
+		ImagePtr thumbnailSmall = ImagePtr(),
 		bool willBecomeNormal = false);
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
@@ -366,7 +367,8 @@ public:
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumb,
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnail,
 		int32 dc,
 		int32 size,
 		const StorageImageLocation &thumbLocation);
@@ -571,9 +573,10 @@ private:
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
-		const ImagePtr &thumb,
-		const ImagePtr &medium,
-		const ImagePtr &full);
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnailSmall,
+		const ImagePtr &thumbnail,
+		const ImagePtr &large);
 
 	void documentApplyFields(
 		not_null<DocumentData*> document,
@@ -588,7 +591,8 @@ private:
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumb,
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnail,
 		int32 dc,
 		int32 size,
 		const StorageImageLocation &thumbLocation);

@@ -318,7 +318,7 @@ void Instance::play(const AudioMsgId &audioId) {
 		}
 	}
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
-		document->session()->data().markMediaRead(document);
+		document->owner().markMediaRead(document);
 	}
 }
 

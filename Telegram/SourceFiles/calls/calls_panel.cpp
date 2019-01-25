@@ -503,34 +503,39 @@ void Panel::processUserPhoto() {
 		_user->loadUserpic(true);
 	}
 	const auto photo = _user->userpicPhotoId()
-		? Auth().data().photo(_user->userpicPhotoId()).get()
+		? _user->owner().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	if (isGoodUserPhoto(photo)) {
-		photo->full->load(_user->userpicPhotoOrigin(), true);
+		photo->large()->load(_user->userpicPhotoOrigin(), true);
 	} else if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
-		Auth().api().requestFullPeer(_user);
+		_user->session().api().requestFullPeer(_user);
 	}
 	refreshUserPhoto();
 }
 
 void Panel::refreshUserPhoto() {
 	const auto photo = _user->userpicPhotoId()
-		? Auth().data().photo(_user->userpicPhotoId()).get()
+		? _user->owner().photo(_user->userpicPhotoId()).get()
 		: nullptr;
 	const auto isNewPhoto = [&](not_null<PhotoData*> photo) {
-		return photo->full->loaded()
+		return photo->large()->loaded()
 			&& (photo->id != _userPhotoId || !_userPhotoFull);
 	};
 	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
 		_userPhotoId = photo->id;
 		_userPhotoFull = true;
-		createUserpicCache(photo->full, _user->userpicPhotoOrigin());
+		createUserpicCache(
+			photo->isNull() ? nullptr : photo->large().get(),
+			_user->userpicPhotoOrigin());
 	} else if (_userPhoto.isNull()) {
-		createUserpicCache(_user->currentUserpic(), _user->userpicOrigin());
+		const auto userpic = _user->currentUserpic();
+		createUserpicCache(
+			userpic ? userpic.get() : nullptr,
+			_user->userpicOrigin());
 	}
 }
 
-void Panel::createUserpicCache(ImagePtr image, Data::FileOrigin origin) {
+void Panel::createUserpicCache(Image *image, Data::FileOrigin origin) {
 	auto size = st::callWidth * cIntRetinaFactor();
 	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	if (image) {
@@ -570,14 +575,14 @@ void Panel::createUserpicCache(ImagePtr image, Data::FileOrigin origin) {
 }
 
 bool Panel::isGoodUserPhoto(PhotoData *photo) {
-	if (!photo || !photo->date) {
+	if (!photo || photo->isNull()) {
 		return false;
 	}
-	auto badAspect = [](int a, int b) {
+	const auto badAspect = [](int a, int b) {
 		return a > 10 * b;
 	};
-	auto width = photo->full->width();
-	auto height = photo->full->height();
+	const auto width = photo->width();
+	const auto height = photo->height();
 	return !badAspect(width, height) && !badAspect(height, width);
 }
 

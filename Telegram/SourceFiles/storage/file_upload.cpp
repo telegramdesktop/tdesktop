@@ -150,11 +150,11 @@ void Uploader::uploadMedia(
 		Auth().data().processPhoto(media.photo, media.photoThumbs);
 	} else if (media.type == SendMediaType::File
 		|| media.type == SendMediaType::Audio) {
-		const auto document = media.photoThumbs.isEmpty()
+		const auto document = media.photoThumbs.empty()
 			? Auth().data().processDocument(media.document)
 			: Auth().data().processDocument(
 				media.document,
-				base::duplicate(media.photoThumbs.begin().value()));
+				base::duplicate(media.photoThumbs.front().second));
 		if (!media.data.isEmpty()) {
 			document->setData(media.data);
 			if (document->saveToCache()

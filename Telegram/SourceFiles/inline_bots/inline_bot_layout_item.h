@@ -95,7 +95,7 @@ public:
 protected:
 	DocumentData *getResultDocument() const;
 	PhotoData *getResultPhoto() const;
-	ImagePtr getResultThumb() const;
+	Image *getResultThumb() const;
 	QPixmap getResultContactAvatar(int width, int height) const;
 	int getResultDuration() const;
 	QString getResultUrl() const;

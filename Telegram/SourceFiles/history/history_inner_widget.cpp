@@ -1771,7 +1771,7 @@ void HistoryInner::copySelectedText() {
 }
 
 void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
-	if (!photo->date || !photo->loaded()) return;
+	if (photo->isNull() || !photo->loaded()) return;
 
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
@@ -1783,15 +1783,15 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 			qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				photo->full->pix(Data::FileOrigin()).toImage().save(result, "JPG");
+				photo->large()->original().save(result, "JPG");
 			}
 		}));
 }
 
 void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
-	if (!photo->date || !photo->loaded()) return;
+	if (photo->isNull() || !photo->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(photo->full->pix(Data::FileOrigin()));
+	QApplication::clipboard()->setImage(photo->large()->original());
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {

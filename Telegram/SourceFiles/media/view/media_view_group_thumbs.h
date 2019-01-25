@@ -99,7 +99,7 @@ private:
 		Key key,
 		const WebPageCollage &collage,
 		int index);
-	std::unique_ptr<Thumb> createThumb(Key key, ImagePtr image);
+	std::unique_ptr<Thumb> createThumb(Key key, Image *image);
 
 	void update();
 	void countUpdatedRect();

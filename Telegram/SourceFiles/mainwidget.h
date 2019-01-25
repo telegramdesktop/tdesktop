@@ -237,7 +237,7 @@ public:
 	bool chatBackgroundLoading();
 	float64 chatBackgroundProgress() const;
 	void checkChatBackground();
-	ImagePtr newBackgroundThumb();
+	Image *newBackgroundThumb();
 
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);

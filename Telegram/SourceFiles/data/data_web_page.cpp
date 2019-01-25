@@ -63,7 +63,7 @@ WebPageCollage ExtractCollage(
 	for (const auto &item : items) {
 		const auto good = item.match([&](const MTPDpageBlockPhoto &data) {
 			const auto photo = storage.photo(data.vphoto_id.v);
-			if (photo->full->isNull()) {
+			if (photo->isNull()) {
 				return false;
 			}
 			result.items.push_back(photo);
@@ -231,12 +231,12 @@ void WebPageData::replaceDocumentGoodThumbnail() {
 	if (!document || !photo || !document->goodThumbnail()) {
 		return;
 	}
-	const auto &location = photo->full->location();
+	const auto &location = photo->large()->location();
 	if (!location.isNull()) {
 		document->replaceGoodThumbnail(
 			std::make_unique<Images::StorageSource>(
 				location,
-				photo->full->bytesSize()));
+				photo->large()->bytesSize()));
 	}
 
 }

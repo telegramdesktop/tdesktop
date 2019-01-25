@@ -42,17 +42,17 @@ EditCaptionBox::EditCaptionBox(
 	Expects(item->media()->allowsEditCaption());
 
 	QSize dimensions;
-	ImagePtr image;
+	auto image = (Image*)nullptr;
 	DocumentData *doc = nullptr;
 
 	const auto media = item->media();
 	if (const auto photo = media->photo()) {
 		_photo = true;
-		dimensions = QSize(photo->full->width(), photo->full->height());
-		image = photo->full;
+		dimensions = QSize(photo->width(), photo->height());
+		image = photo->large();
 	} else if (const auto document = media->document()) {
 		dimensions = document->dimensions;
-		image = document->thumb;
+		image = document->thumbnail();
 		if (document->isAnimation()) {
 			_animated = true;
 		} else if (document->isVideoFile()) {
@@ -68,8 +68,8 @@ EditCaptionBox::EditCaptionBox(
 		ConvertEntitiesToTextTags(original.entities)
 	};
 
-	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
-		if (image->isNull()) {
+	if (!_animated && (dimensions.isEmpty() || doc || !image)) {
+		if (!image) {
 			_thumbw = 0;
 		} else {
 			int32 tw = image->width(), th = image->height();

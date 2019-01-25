@@ -129,7 +129,7 @@ public:
 
 	Thumb(
 		Key key,
-		ImagePtr image,
+		Image *image,
 		Data::FileOrigin origin,
 		Fn<void()> handler);
 
@@ -157,7 +157,7 @@ private:
 
 	ClickHandlerPtr _link;
 	const Key _key;
-	ImagePtr _image;
+	Image *_image = nullptr;
 	Data::FileOrigin _origin;
 	State _state = State::Alive;
 	QPixmap _full;
@@ -172,7 +172,7 @@ private:
 
 GroupThumbs::Thumb::Thumb(
 	Key key,
-	ImagePtr image,
+	Image *image,
 	Data::FileOrigin origin,
 	Fn<void()> handler)
 : _key(key)
@@ -186,15 +186,15 @@ GroupThumbs::Thumb::Thumb(
 }
 
 QSize GroupThumbs::Thumb::wantedPixSize() const {
-	const auto originalWidth = std::max(_image->width(), 1);
-	const auto originalHeight = std::max(_image->height(), 1);
+	const auto originalWidth = _image ? std::max(_image->width(), 1) : 1;
+	const auto originalHeight = _image ? std::max(_image->height(), 1) : 1;
 	const auto pixHeight = st::mediaviewGroupHeight;
 	const auto pixWidth = originalWidth * pixHeight / originalHeight;
 	return { pixWidth, pixHeight };
 }
 
 void GroupThumbs::Thumb::validateImage() {
-	if (!_full.isNull()) {
+	if (!_full.isNull() || !_image) {
 		return;
 	}
 	_image->load(_origin);
@@ -516,20 +516,18 @@ auto GroupThumbs::createThumb(Key key)
 -> std::unique_ptr<Thumb> {
 	if (const auto photoId = base::get_if<PhotoId>(&key)) {
 		const auto photo = Auth().data().photo(*photoId);
-		return createThumb(
-			key,
-			photo->date ? photo->thumb : ImagePtr());
+		return createThumb(key, photo->thumbnail());
 	} else if (const auto msgId = base::get_if<FullMsgId>(&key)) {
 		if (const auto item = App::histItemById(*msgId)) {
 			if (const auto media = item->media()) {
 				if (const auto photo = media->photo()) {
-					return createThumb(key, photo->thumb);
+					return createThumb(key, photo->thumbnail());
 				} else if (const auto document = media->document()) {
-					return createThumb(key, document->thumb);
+					return createThumb(key, document->thumbnail());
 				}
 			}
 		}
-		return createThumb(key, ImagePtr());
+		return createThumb(key, nullptr);
 	} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
 		if (const auto itemId = base::get_if<FullMsgId>(&_context)) {
 			if (const auto item = App::histItemById(*itemId)) {
@@ -543,7 +541,7 @@ auto GroupThumbs::createThumb(Key key)
 				}
 			}
 		}
-		return createThumb(key, ImagePtr());
+		return createThumb(key, nullptr);
 	}
 	Unexpected("Value of Key in GroupThumbs::createThumb()");
 }
@@ -554,18 +552,18 @@ auto GroupThumbs::createThumb(
 	int index)
 -> std::unique_ptr<Thumb> {
 	if (index < 0 || index >= collage.items.size()) {
-		return createThumb(key, ImagePtr());
+		return createThumb(key, nullptr);
 	}
 	const auto &item = collage.items[index];
 	if (const auto photo = base::get_if<PhotoData*>(&item)) {
-		return createThumb(key, (*photo)->thumb);
+		return createThumb(key, (*photo)->thumbnail());
 	} else if (const auto document = base::get_if<DocumentData*>(&item)) {
-		return createThumb(key, (*document)->thumb);
+		return createThumb(key, (*document)->thumbnail());
 	}
-	return createThumb(key, ImagePtr());
+	return createThumb(key, nullptr);
 }
 
-auto GroupThumbs::createThumb(Key key, ImagePtr image)
+auto GroupThumbs::createThumb(Key key, Image *image)
 -> std::unique_ptr<Thumb> {
 	const auto weak = base::make_weak(this);
 	const auto origin = ComputeFileOrigin(key, _context);

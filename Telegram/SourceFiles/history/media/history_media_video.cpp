@@ -41,7 +41,21 @@ HistoryVideo::HistoryVideo(
 
 	setStatusSize(FileStatusSizeReady);
 
-	_data->thumb->load(realParent->fullId());
+	_data->loadThumbnail(realParent->fullId());
+}
+
+QSize HistoryVideo::sizeForAspectRatio() const {
+	// We use size only for aspect ratio and we want to have it
+	// as close to the thumbnail as possible.
+	//if (!_data->dimensions.isEmpty()) {
+	//	return _data->dimensions;
+	//}
+	if (const auto thumb = _data->thumbnail()) {
+		if (!thumb->size().isEmpty()) {
+			return thumb->size();
+		}
+	}
+	return { 1, 1 };
 }
 
 QSize HistoryVideo::countOptimalSize() {
@@ -53,8 +67,9 @@ QSize HistoryVideo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	auto tw = ConvertScale(_data->thumb->width());
-	auto th = ConvertScale(_data->thumb->height());
+	const auto size = sizeForAspectRatio();
+	auto tw = ConvertScale(size.width());
+	auto th = ConvertScale(size.height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -86,7 +101,9 @@ QSize HistoryVideo::countOptimalSize() {
 }
 
 QSize HistoryVideo::countCurrentSize(int newWidth) {
-	int tw = ConvertScale(_data->thumb->width()), th = ConvertScale(_data->thumb->height());
+	const auto size = sizeForAspectRatio();
+	auto tw = ConvertScale(size.width());
+	auto th = ConvertScale(size.height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -166,7 +183,12 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		if (good) {
 			good->load({});
 		}
-		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, paintw, painth, roundRadius, roundCorners));
+		if (const auto normal = _data->thumbnail()) {
+			const auto use = (normal->loaded() || !_data->thumbnailInline())
+				? normal
+				: _data->thumbnailInline();
+			p.drawPixmap(rthumb.topLeft(), use->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, paintw, painth, roundRadius, roundCorners));
+		}
 	}
 	if (selected) {
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
@@ -288,13 +310,7 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 }
 
 QSize HistoryVideo::sizeForGrouping() const {
-	const auto width = _data->dimensions.isEmpty()
-		? _data->thumb->width()
-		: _data->dimensions.width();
-	const auto height = _data->dimensions.isEmpty()
-		? _data->thumb->height()
-		: _data->dimensions.height();
-	return { std::max(width, 1), std::max(height, 1) };
+	return sizeForAspectRatio();
 }
 
 void HistoryVideo::drawGrouped(
@@ -384,7 +400,6 @@ void HistoryVideo::drawGrouped(
 	p.setOpacity(backOpacity);
 	if (icon) {
 		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
-			LOG(("INTERPOLATING: %1").arg(radialOpacity));
 			PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
 		} else {
 			icon->paintInCenter(p, inner);
@@ -442,13 +457,18 @@ void HistoryVideo::validateGroupedCache(
 	using Option = Images::Option;
 	const auto good = _data->goodThumbnail();
 	const auto useGood = (good && good->loaded());
-	const auto image = useGood ? good : _data->thumb.get();
+	const auto thumb = _data->thumbnail();
+	const auto useThumb = (thumb && thumb->loaded());
+	const auto image = useGood
+		? good
+		: useThumb
+		? thumb
+		: _data->thumbnailInline();
 	if (good && !useGood) {
 		good->load({});
 	}
 
-	const auto loaded = useGood ? true : _data->thumb->loaded();
-	const auto loadLevel = loaded ? 1 : 0;
+	const auto loadLevel = useGood ? 3 : useThumb ? 2 : image ? 1 : 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
 	const auto options = Option::Smooth
@@ -466,8 +486,9 @@ void HistoryVideo::validateGroupedCache(
 		return;
 	}
 
-	const auto originalWidth = ConvertScale(_data->thumb->width());
-	const auto originalHeight = ConvertScale(_data->thumb->height());
+	const auto original = sizeForAspectRatio();
+	const auto originalWidth = ConvertScale(original.width());
+	const auto originalHeight = ConvertScale(original.height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
@@ -475,7 +496,7 @@ void HistoryVideo::validateGroupedCache(
 	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
+	*cache = (image ? image : Image::Blank().get())->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
 }
 
 void HistoryVideo::setStatusSize(int newSize) const {

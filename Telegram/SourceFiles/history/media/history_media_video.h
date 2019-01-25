@@ -83,6 +83,7 @@ private:
 		not_null<QPixmap*> cache) const;
 	void setStatusSize(int newSize) const;
 	void updateStatusText() const;
+	QSize sizeForAspectRatio() const;
 
 	not_null<DocumentData*> _data;
 	int _thumbw = 1;

@@ -146,7 +146,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 	}
 	if (radial) {
 		const auto backThumb = App::main()->newBackgroundThumb();
-		if (backThumb->isNull()) {
+		if (!backThumb) {
 			p.drawPixmap(0, 0, _background);
 		} else {
 			const auto &pix = backThumb->pixBlurred(

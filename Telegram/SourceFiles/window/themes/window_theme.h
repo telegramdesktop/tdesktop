@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class Image;
+
 namespace Data {
 
 struct WallPaper {
@@ -14,7 +16,7 @@ struct WallPaper {
 	uint64 accessHash = 0;
 	MTPDwallPaper::Flags flags;
 	QString slug;
-	ImagePtr thumb;
+	Image *thumb = nullptr;
 	DocumentData *document = nullptr;
 };
 

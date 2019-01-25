@@ -352,11 +352,10 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 
 	auto item = _rows[row].items[column];
 	if (const auto photo = item->getPhoto()) {
-		if (photo->medium->loaded() || photo->thumb->loaded()) {
+		if (photo->thumbnail()->loaded()) {
 			_photoChosen.fire_copy(photo);
-		} else if (!photo->medium->loading()) {
-			photo->thumb->loadEvenCancelled(Data::FileOrigin());
-			photo->medium->loadEvenCancelled(Data::FileOrigin());
+		} else if (!photo->thumbnail()->loading()) {
+			photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
 		if (document->loaded()) {

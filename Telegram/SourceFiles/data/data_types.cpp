@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
+#include "ui/image/image_source.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
@@ -29,6 +31,20 @@ constexpr auto kGeoPointCacheTag = 0x0000040000000000ULL;
 constexpr auto kGeoPointCacheMask = 0x000000FFFFFFFFFFULL;
 
 } // namespace
+
+struct ReplyPreview::Data {
+	Data(std::unique_ptr<Images::Source> &&source, bool good);
+
+	Image image;
+	bool good = false;
+};
+
+ReplyPreview::Data::Data(
+	std::unique_ptr<Images::Source> &&source,
+	bool good)
+: image(std::move(source))
+, good(good) {
+}
 
 Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id) {
 	return Storage::Cache::Key{
@@ -96,6 +112,63 @@ Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location) {
 		(uint64(std::round(std::abs(location.lat + 360.) * 1000000)) << 32)
 		| uint64(std::round(std::abs(location.lon + 360.) * 1000000))
 	};
+}
+
+ReplyPreview::ReplyPreview() = default;
+
+ReplyPreview::ReplyPreview(ReplyPreview &&other) = default;
+
+ReplyPreview &ReplyPreview::operator=(ReplyPreview &&other) = default;
+
+ReplyPreview::~ReplyPreview() = default;
+
+void ReplyPreview::prepare(
+		not_null<Image*> image,
+		FileOrigin origin,
+		Images::Options options) {
+	int w = image->width(), h = image->height();
+	if (w <= 0) w = 1;
+	if (h <= 0) h = 1;
+	auto thumbSize = (w > h)
+		? QSize(
+			w * st::msgReplyBarSize.height() / h,
+			st::msgReplyBarSize.height())
+		: QSize(
+			st::msgReplyBarSize.height(),
+			h * st::msgReplyBarSize.height() / w);
+	thumbSize *= cIntRetinaFactor();
+	const auto prepareOptions = Images::Option::Smooth
+		| Images::Option::TransparentBackground
+		| options;
+	auto outerSize = st::msgReplyBarSize.height();
+	auto bitmap = image->pixNoCache(
+		origin,
+		thumbSize.width(),
+		thumbSize.height(),
+		prepareOptions,
+		outerSize,
+		outerSize);
+	_data = std::make_unique<ReplyPreview::Data>(
+		std::make_unique<Images::ImageSource>(
+			bitmap.toImage(),
+			"PNG"),
+		((options & Images::Option::Blurred) == 0));
+}
+
+void ReplyPreview::clear() {
+	_data = nullptr;
+}
+
+Image *ReplyPreview::image() const {
+	return _data ? &_data->image : nullptr;
+}
+
+bool ReplyPreview::good() const {
+	return !empty() && _data->good;
+}
+
+bool ReplyPreview::empty() const {
+	return !_data;
 }
 
 } // namespace Data

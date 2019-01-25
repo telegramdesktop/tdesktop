@@ -57,23 +57,10 @@ using ViewElement = HistoryView::Element;
 // b: crop 320x320
 // c: crop 640x640
 // d: crop 1280x1280
-const auto ThumbLevels = QByteArray::fromRawData("isambcxydw", 10);
-const auto MediumLevels = QByteArray::fromRawData("mbcxasydwi", 10);
-const auto FullLevels = QByteArray::fromRawData("yxwmsdcbai", 10);
-
-void UpdateImage(ImagePtr &old, ImagePtr now) {
-	if (now->isNull()) {
-		return;
-	}
-	if (old->isNull()) {
-		old = now;
-	} else if (old->isDelayedStorageImage()) {
-		const auto location = now->location();
-		if (!location.isNull()) {
-			old->setDelayedStorageLocation(Data::FileOrigin(), location);
-		}
-	}
-}
+const auto InlineLevels = QByteArray::fromRawData("i", 1);
+const auto SmallLevels = QByteArray::fromRawData("sambcxydwi", 10);
+const auto ThumbnailLevels = QByteArray::fromRawData("mbcxasydwi", 10);
+const auto LargeLevels = QByteArray::fromRawData("yxwmsdcbai", 10);
 
 void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	if (item->out() || !item->hasSwitchInlineButton()) {
@@ -121,22 +108,31 @@ QString ExtractUnavailableReason(const QString &restriction) {
 	return QString();
 }
 
-MTPPhotoSize FindDocumentThumb(const MTPDdocument &data) {
+MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
+	const auto &thumbs = data.vthumbs.v;
+	const auto i = ranges::find(
+		thumbs,
+		mtpc_photoStrippedSize,
+		&MTPPhotoSize::type);
+	return (i != thumbs.end())
+		? (*i)
+		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string("")));
+}
+
+MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 	const auto area = [](const MTPPhotoSize &size) {
-		static constexpr auto kInvalid = std::numeric_limits<int>::max();
+		static constexpr auto kInvalid = 0;
 		return size.match([](const MTPDphotoSizeEmpty &) {
 			return kInvalid;
 		}, [](const MTPDphotoStrippedSize &) {
 			return kInvalid;
 		}, [](const auto &data) {
-			return (data.vw.v >= 90 || data.vh.v >= 90)
-				? (data.vw.v * data.vh.v)
-				: kInvalid;
+			return (data.vw.v * data.vh.v);
 		});
 	};
 	const auto &thumbs = data.vthumbs.v;
-	const auto i = ranges::max_element(thumbs, std::greater<>(), area);
-	return (i != thumbs.end())
+	const auto i = ranges::max_element(thumbs, std::less<>(), area);
+	return (i != thumbs.end() && area(*i) > 0)
 		? (*i)
 		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string("")));
 }
@@ -1609,20 +1605,19 @@ void Session::checkSelfDestructItems() {
 not_null<PhotoData*> Session::photo(PhotoId id) {
 	auto i = _photos.find(id);
 	if (i == _photos.end()) {
-		i = _photos.emplace(id, std::make_unique<PhotoData>(id)).first;
+		i = _photos.emplace(
+			id,
+			std::make_unique<PhotoData>(this, id)).first;
 	}
 	return i->second.get();
 }
 
 not_null<PhotoData*> Session::processPhoto(const MTPPhoto &data) {
-	switch (data.type()) {
-	case mtpc_photo:
-		return processPhoto(data.c_photo());
-
-	case mtpc_photoEmpty:
-		return photo(data.c_photoEmpty().vid.v);
-	}
-	Unexpected("Type in Session::photo().");
+	return data.match([&](const MTPDphoto &data) {
+		return processPhoto(data);
+	}, [&](const MTPDphotoEmpty &data) {
+		return photo(data.vid.v);
+	});
 }
 
 not_null<PhotoData*> Session::processPhoto(const MTPDphoto &data) {
@@ -1634,50 +1629,44 @@ not_null<PhotoData*> Session::processPhoto(const MTPDphoto &data) {
 not_null<PhotoData*> Session::processPhoto(
 		const MTPPhoto &data,
 		const PreparedPhotoThumbs &thumbs) {
-	auto thumb = (const QImage*)nullptr;
-	auto medium = (const QImage*)nullptr;
-	auto full = (const QImage*)nullptr;
-	auto thumbLevel = -1;
-	auto mediumLevel = -1;
-	auto fullLevel = -1;
-	for (auto i = thumbs.cbegin(), e = thumbs.cend(); i != e; ++i) {
-		const auto newThumbLevel = ThumbLevels.indexOf(i.key());
-		const auto newMediumLevel = MediumLevels.indexOf(i.key());
-		const auto newFullLevel = FullLevels.indexOf(i.key());
-		if (newThumbLevel < 0 || newMediumLevel < 0 || newFullLevel < 0) {
-			continue;
-		}
-		if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
-			thumbLevel = newThumbLevel;
-			thumb = &i.value();
-		}
-		if (mediumLevel < 0 || newMediumLevel < mediumLevel) {
-			mediumLevel = newMediumLevel;
-			medium = &i.value();
-		}
-		if (fullLevel < 0 || newFullLevel < fullLevel) {
-			fullLevel = newFullLevel;
-			full = &i.value();
-		}
-	}
-	if (!thumb || !medium || !full) {
-		return photo(0);
-	}
-	switch (data.type()) {
-	case mtpc_photo:
-		return photo(
-			data.c_photo().vid.v,
-			data.c_photo().vaccess_hash.v,
-			data.c_photo().vfile_reference.v,
-			data.c_photo().vdate.v,
-			Images::Create(base::duplicate(*thumb), "JPG"),
-			Images::Create(base::duplicate(*medium), "JPG"),
-			Images::Create(base::duplicate(*full), "JPG"));
+	Expects(!thumbs.empty());
 
-	case mtpc_photoEmpty:
-		return photo(data.c_photoEmpty().vid.v);
-	}
-	Unexpected("Type in Session::photo() with prepared thumbs.");
+	const auto find = [&](const QByteArray &levels) {
+		const auto kInvalidIndex = int(levels.size());
+		const auto level = [&](const auto &pair) {
+			const auto letter = pair.first;
+			const auto index = levels.indexOf(letter);
+			return (index >= 0) ? index : kInvalidIndex;
+		};
+		const auto result = ranges::max_element(
+			thumbs,
+			std::greater<>(),
+			level);
+		return (level(*result) == kInvalidIndex) ? thumbs.end() : result;
+	};
+	const auto image = [&](const QByteArray &levels) {
+		const auto i = find(levels);
+		return (i == thumbs.end())
+			? ImagePtr()
+			: Images::Create(base::duplicate(i->second), "JPG");
+	};
+	const auto thumbnailInline = image(InlineLevels);
+	const auto thumbnailSmall = image(SmallLevels);
+	const auto thumbnail = image(ThumbnailLevels);
+	const auto large = image(LargeLevels);
+	return data.match([&](const MTPDphoto &data) {
+		return photo(
+			data.vid.v,
+			data.vaccess_hash.v,
+			data.vfile_reference.v,
+			data.vdate.v,
+			thumbnailInline,
+			thumbnailSmall,
+			thumbnail,
+			large);
+	}, [&](const MTPDphotoEmpty &data) {
+		return photo(data.vid.v);
+	});
 }
 
 not_null<PhotoData*> Session::photo(
@@ -1685,31 +1674,29 @@ not_null<PhotoData*> Session::photo(
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
-		const ImagePtr &thumb,
-		const ImagePtr &medium,
-		const ImagePtr &full) {
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnailSmall,
+		const ImagePtr &thumbnail,
+		const ImagePtr &large) {
 	const auto result = photo(id);
 	photoApplyFields(
 		result,
 		access,
 		fileReference,
 		date,
-		thumb,
-		medium,
-		full);
+		thumbnailInline,
+		thumbnailSmall,
+		thumbnail,
+		large);
 	return result;
 }
 
 void Session::photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data) {
-	const auto id = [&] {
-		switch (data.type()) {
-		case mtpc_photo: return data.c_photo().vid.v;
-		case mtpc_photoEmpty: return data.c_photoEmpty().vid.v;
-		}
-		Unexpected("Type in Session::photoConvert().");
-	}();
+	const auto id = data.match([](const auto &data) {
+		return data.vid.v;
+	});
 	if (original->id != id) {
 		auto i = _photos.find(id);
 		if (i == _photos.end()) {
@@ -1732,23 +1719,26 @@ void Session::photoConvert(
 
 PhotoData *Session::photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumb,
+		ImagePtr thumbnailSmall,
 		bool willBecomeNormal) {
-	const auto full = Images::Create(data);
-	if (full->isNull()) {
+	const auto large = Images::Create(data);
+	const auto thumbnailInline = ImagePtr();
+	if (large->isNull()) {
 		return nullptr;
 	}
-	auto medium = ImagePtr();
+	auto thumbnail = large;
 	if (willBecomeNormal) {
-		const auto width = full->width();
-		const auto height = full->height();
-		if (thumb->isNull()) {
+		const auto width = large->width();
+		const auto height = large->height();
+		if (thumbnailSmall->isNull()) {
 			auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-			thumb = Images::Create(thumbsize.width(), thumbsize.height());
+			thumbnailSmall = Images::Create(thumbsize.width(), thumbsize.height());
 		}
 
 		auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-		medium = Images::Create(mediumsize.width(), mediumsize.height());
+		thumbnail = Images::Create(mediumsize.width(), mediumsize.height());
+	} else if (thumbnailSmall->isNull()) {
+		thumbnailSmall = large;
 	}
 
 	return photo(
@@ -1756,9 +1746,10 @@ PhotoData *Session::photoFromWeb(
 		uint64(0),
 		QByteArray(),
 		unixtime(),
-		thumb,
-		medium,
-		full);
+		thumbnailInline,
+		thumbnailSmall,
+		thumbnail,
+		large);
 }
 
 void Session::photoApplyFields(
@@ -1772,48 +1763,42 @@ void Session::photoApplyFields(
 void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPDphoto &data) {
-	auto thumb = (const MTPPhotoSize*)nullptr;
-	auto medium = (const MTPPhotoSize*)nullptr;
-	auto full = (const MTPPhotoSize*)nullptr;
-	auto thumbLevel = -1;
-	auto mediumLevel = -1;
-	auto fullLevel = -1;
-	for (const auto &sizeData : data.vsizes.v) {
-		const auto sizeLetter = sizeData.match([](MTPDphotoSizeEmpty) {
-			return char(0);
-		}, [](const auto &size) {
-			return size.vtype.v.isEmpty() ? char(0) : size.vtype.v[0];
-		});
-		if (!sizeLetter) continue;
-
-		const auto newThumbLevel = ThumbLevels.indexOf(sizeLetter);
-		const auto newMediumLevel = MediumLevels.indexOf(sizeLetter);
-		const auto newFullLevel = FullLevels.indexOf(sizeLetter);
-		if (newThumbLevel < 0 || newMediumLevel < 0 || newFullLevel < 0) {
-			continue;
-		}
-		if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
-			thumbLevel = newThumbLevel;
-			thumb = &sizeData;
-		}
-		if (mediumLevel < 0 || newMediumLevel < mediumLevel) {
-			mediumLevel = newMediumLevel;
-			medium = &sizeData;
-		}
-		if (fullLevel < 0 || newFullLevel < fullLevel) {
-			fullLevel = newFullLevel;
-			full = &sizeData;
-		}
-	}
-	if (thumb && medium && full) {
+	const auto &sizes = data.vsizes.v;
+	const auto find = [&](const QByteArray &levels) {
+		const auto kInvalidIndex = int(levels.size());
+		const auto level = [&](const MTPPhotoSize &size) {
+			const auto letter = size.match([](const MTPDphotoSizeEmpty &) {
+				return char(0);
+			}, [](const auto &size) {
+				return size.vtype.v.isEmpty() ? char(0) : size.vtype.v[0];
+			});
+			const auto index = levels.indexOf(letter);
+			return (index >= 0) ? index : kInvalidIndex;
+		};
+		const auto result = ranges::max_element(
+			sizes,
+			std::greater<>(),
+			level);
+		return (level(*result) == kInvalidIndex) ? sizes.end() : result;
+	};
+	const auto image = [&](const QByteArray &levels) {
+		const auto i = find(levels);
+		return (i == sizes.end()) ? ImagePtr() : App::image(*i);
+	};
+	const auto thumbnailInline = image(InlineLevels);
+	const auto thumbnailSmall = image(SmallLevels);
+	const auto thumbnail = image(ThumbnailLevels);
+	const auto large = image(LargeLevels);
+	if (thumbnailSmall && thumbnail && large) {
 		photoApplyFields(
 			photo,
 			data.vaccess_hash.v,
 			data.vfile_reference.v,
 			data.vdate.v,
-			App::image(*thumb),
-			App::image(*medium),
-			App::image(*full));
+			thumbnailInline,
+			thumbnailSmall,
+			thumbnail,
+			large);
 	}
 }
 
@@ -1822,18 +1807,21 @@ void Session::photoApplyFields(
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
-		const ImagePtr &thumb,
-		const ImagePtr &medium,
-		const ImagePtr &full) {
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnailSmall,
+		const ImagePtr &thumbnail,
+		const ImagePtr &large) {
 	if (!date) {
 		return;
 	}
 	photo->access = access;
 	photo->fileReference = fileReference;
 	photo->date = date;
-	UpdateImage(photo->thumb, thumb);
-	UpdateImage(photo->medium, medium);
-	UpdateImage(photo->full, full);
+	photo->updateImages(
+		thumbnailInline,
+		thumbnailSmall,
+		thumbnail,
+		large);
 }
 
 not_null<DocumentData*> Session::document(DocumentId id) {
@@ -1841,7 +1829,7 @@ not_null<DocumentData*> Session::document(DocumentId id) {
 	if (i == _documents.cend()) {
 		i = _documents.emplace(
 			id,
-			std::make_unique<DocumentData>(id, _session)).first;
+			std::make_unique<DocumentData>(this, id)).first;
 	}
 	return i->second.get();
 }
@@ -1879,6 +1867,7 @@ not_null<DocumentData*> Session::processDocument(
 			fields.vdate.v,
 			fields.vattributes.v,
 			qs(fields.vmime_type),
+			ImagePtr(),
 			Images::Create(std::move(thumb), "JPG"),
 			fields.vdc_id.v,
 			fields.vsize.v,
@@ -1895,7 +1884,8 @@ not_null<DocumentData*> Session::document(
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumb,
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnail,
 		int32 dc,
 		int32 size,
 		const StorageImageLocation &thumbLocation) {
@@ -1907,7 +1897,8 @@ not_null<DocumentData*> Session::document(
 		date,
 		attributes,
 		mime,
-		thumb,
+		thumbnailInline,
+		thumbnail,
 		dc,
 		size,
 		thumbLocation);
@@ -1979,6 +1970,7 @@ DocumentData *Session::documentFromWeb(
 		unixtime(),
 		data.vattributes.v,
 		data.vmime_type.v,
+		ImagePtr(),
 		thumb,
 		MTP::maindc(),
 		int32(0), // data.vsize.v
@@ -2000,6 +1992,7 @@ DocumentData *Session::documentFromWeb(
 		unixtime(),
 		data.vattributes.v,
 		data.vmime_type.v,
+		ImagePtr(),
 		thumb,
 		MTP::maindc(),
 		int32(0), // data.vsize.v
@@ -2019,7 +2012,8 @@ void Session::documentApplyFields(
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDdocument &data) {
-	const auto thumb = FindDocumentThumb(data);
+	const auto thumbnailInline = FindDocumentInlineThumbnail(data);
+	const auto thumbnail = FindDocumentThumbnail(data);
 	documentApplyFields(
 		document,
 		data.vaccess_hash.v,
@@ -2027,10 +2021,11 @@ void Session::documentApplyFields(
 		data.vdate.v,
 		data.vattributes.v,
 		qs(data.vmime_type),
-		App::image(thumb),
+		App::image(thumbnailInline),
+		App::image(thumbnail),
 		data.vdc_id.v,
 		data.vsize.v,
-		StorageImageLocation::FromMTP(thumb));
+		StorageImageLocation::FromMTP(thumbnail));
 }
 
 void Session::documentApplyFields(
@@ -2040,7 +2035,8 @@ void Session::documentApplyFields(
 		TimeId date,
 		const QVector<MTPDocumentAttribute> &attributes,
 		const QString &mime,
-		const ImagePtr &thumb,
+		const ImagePtr &thumbnailInline,
+		const ImagePtr &thumbnail,
 		int32 dc,
 		int32 size,
 		const StorageImageLocation &thumbLocation) {
@@ -2053,13 +2049,7 @@ void Session::documentApplyFields(
 	}
 	document->date = date;
 	document->setMimeString(mime);
-	if (!thumb->isNull()
-		&& (document->thumb->isNull()
-			|| (document->sticker()
-				&& (document->thumb->width() < thumb->width()
-					|| document->thumb->height() < thumb->height())))) {
-		document->thumb = thumb;
-	}
+	document->updateThumbnails(thumbnailInline, thumbnail);
 	document->size = size;
 	document->recountIsImage();
 	if (document->sticker()
@@ -3085,7 +3075,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 			0ULL, // access_hash
 			MTPDwallPaper::Flags(0),
 			QString(), // slug
-			defaultBackground
+			defaultBackground.get()
 		});
 	}
 	const auto oldBackground = Images::Create(
@@ -3097,7 +3087,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 			0ULL, // access_hash
 			MTPDwallPaper::Flags(0),
 			QString(), // slug
-			oldBackground
+			oldBackground.get()
 		});
 	}
 	for (const auto &paper : data) {
@@ -3109,7 +3099,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 					paper.vaccess_hash.v,
 					paper.vflags.v,
 					qs(paper.vslug),
-					document->thumb,
+					document->thumbnail(),
 					document,
 				});
 			}

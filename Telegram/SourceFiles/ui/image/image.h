@@ -198,6 +198,9 @@ public:
 	int height() const {
 		return _source->height();
 	}
+	QSize size() const {
+		return { width(), height() };
+	}
 	int bytesSize() const {
 		return _source->bytesSize();
 	}

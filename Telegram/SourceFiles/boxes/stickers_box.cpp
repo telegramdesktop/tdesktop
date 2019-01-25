@@ -804,9 +804,11 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, TimeMs ms) {
 		const auto origin = Data::FileOriginStickerSet(
 			set->id,
 			set->accessHash);
-		set->sticker->thumb->load(origin);
-		auto pix = set->sticker->thumb->pix(origin, set->pixw, set->pixh);
-		p.drawPixmapLeft(stickerx + (st::contactsPhotoSize - set->pixw) / 2, st::contactsPadding.top() + (st::contactsPhotoSize - set->pixh) / 2, width(), pix);
+		if (const auto thumb = set->sticker->thumbnail()) {
+			thumb->load(origin);
+			auto pix = thumb->pix(origin, set->pixw, set->pixh);
+			p.drawPixmapLeft(stickerx + (st::contactsPhotoSize - set->pixw) / 2, st::contactsPadding.top() + (st::contactsPhotoSize - set->pixh) / 2, width(), pix);
+		}
 	}
 
 	int namex = stickerx + st::contactsPhotoSize + st::contactsPadding.left();
@@ -1575,8 +1577,11 @@ void StickersBox::Inner::fillSetCover(const Stickers::Set &set, DocumentData **o
 	}
 	auto sticker = *outSticker = set.stickers.front();
 
-	auto pixw = sticker->thumb->width();
-	auto pixh = sticker->thumb->height();
+	const auto size = sticker->thumbnail()
+		? sticker->thumbnail()->size()
+		: QSize(1, 1);
+	auto pixw = size.width();
+	auto pixh = size.height();
 	if (pixw > st::contactsPhotoSize) {
 		if (pixw > pixh) {
 			pixh = (pixh * st::contactsPhotoSize) / pixw;
@@ -1734,7 +1739,10 @@ void StickersBox::Inner::readVisibleSets() {
 		if (i * _rowHeight < itemsVisibleTop || (i + 1) * _rowHeight > itemsVisibleBottom) {
 			continue;
 		}
-		if (!_rows[i]->sticker || _rows[i]->sticker->thumb->loaded() || _rows[i]->sticker->loaded()) {
+		if (!_rows[i]->sticker
+			|| !_rows[i]->sticker->hasThumbnail()
+			|| _rows[i]->sticker->thumbnail()->loaded()
+			|| _rows[i]->sticker->loaded()) {
 			Auth().api().readFeaturedSetDelayed(_rows[i]->id);
 		}
 	}

@@ -95,7 +95,7 @@ QImage PrepareScaledFromFull(
 		size);
 }
 
-QPixmap PrepareScaledFromThumb(ImagePtr thumb) {
+QPixmap PrepareScaledFromThumb(not_null<Image*> thumb) {
 	return thumb->loaded()
 		? App::pixmapFromImageInPlace(PrepareScaledFromFull(
 			thumb->original(),
@@ -315,7 +315,7 @@ void BackgroundPreviewBox::prepare() {
 	_scaled = PrepareScaledFromThumb(_paper.thumb);
 	checkLoadedDocument();
 
-	if (_paper.thumb && !_paper.thumb->loaded()) {
+	if (!_paper.thumb->loaded()) {
 		_paper.thumb->loadEvenCancelled(Data::FileOriginWallpaper(
 			_paper.id,
 			_paper.accessHash));

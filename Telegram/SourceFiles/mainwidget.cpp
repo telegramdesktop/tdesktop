@@ -1640,8 +1640,8 @@ void MainWidget::checkChatBackground() {
 	});
 }
 
-ImagePtr MainWidget::newBackgroundThumb() {
-	return _background ? _background->data.thumb : ImagePtr();
+Image *MainWidget::newBackgroundThumb() {
+	return _background ? _background->data.thumb : nullptr;
 }
 
 void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {

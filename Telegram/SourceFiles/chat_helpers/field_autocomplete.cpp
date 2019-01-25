@@ -561,7 +561,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
 				}
 
-				document->checkStickerThumb();
+				document->checkStickerSmall();
 
 				float64 coef = qMin((st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
 				if (coef > 1) coef = 1;
@@ -569,7 +569,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				if (w < 1) w = 1;
 				if (h < 1) h = 1;
 				QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
-				if (const auto image = document->getStickerThumb()) {
+				if (const auto image = document->getStickerSmall()) {
 					p.drawPixmapLeft(ppos, width(), image->pix(document->stickerSetOrigin(), w, h));
 				}
 			}
