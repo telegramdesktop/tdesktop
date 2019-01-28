@@ -1564,13 +1564,20 @@ bool IsExecutableName(const QString &filepath) {
 	static const auto kExtensions = [] {
 		const auto joined =
 #ifdef Q_OS_MAC
-			qsl("action app bin command csh osx workflow terminal");
+			qsl("\
+action app bin command csh osx workflow terminal url caction mpkg pkg xhtm \
+webarchive");
 #elif defined Q_OS_LINUX // Q_OS_MAC
 			qsl("bin csh ksh out run");
 #else // Q_OS_MAC || Q_OS_LINUX
 			qsl("\
-bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi msp mst \
-paf pif ps1 reg rgs scr sct shb shs u3p vb vbe vbs vbscript ws wsf");
+ade adp app asp bas bat bin cer chm cmd cnt com cpl crt csh der diagcab \
+exe fxp gadget grp hlp hpj hta inf ins inx isp isu its jar jnlp job js jse \
+ksh lnk mad maf mag mam maq mar mas mat mau mav maw mcf mda mdb mde mdt \
+mdw mdz msc msh msh1 msh2 msh1xml msh2xml mshxml msi msp mst ops osd \
+paf pcd pif pl plg prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 pst reg rgs scf \
+scr sct shb shs tmp u3p url vb vbe vbp vbs vbscript vsmacros vsw ws wsc \
+wsf wsh xbap xll xnk");
 #endif // !Q_OS_MAC && !Q_OS_LINUX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
