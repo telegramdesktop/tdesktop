@@ -381,7 +381,9 @@ bool ChannelData::canViewBanned() const {
 }
 
 bool ChannelData::canEditInformation() const {
-	return !amRestricted(Restriction::f_change_info);
+	return isMegagroup()
+		? !amRestricted(Restriction::f_change_info)
+		: ((adminRights() & AdminRight::f_change_info) || amCreator());
 }
 
 bool ChannelData::canEditPermissions() const {
