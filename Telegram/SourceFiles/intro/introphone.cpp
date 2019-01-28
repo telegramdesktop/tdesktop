@@ -160,11 +160,12 @@ void PhoneWidget::submit() {
 	//_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	_sentRequest = MTP::send(
 		MTPauth_SendCode(
-			MTP_flags(0),
 			MTP_string(_sentPhone),
-			MTPBool(),
 			MTP_int(ApiId),
-			MTP_string(ApiHash)),
+			MTP_string(ApiHash),
+			MTP_codeSettings(
+				MTP_flags(0),
+				MTPstring())),
 		rpcDone(&PhoneWidget::phoneSubmitDone),
 		rpcFail(&PhoneWidget::phoneSubmitFail));
 }

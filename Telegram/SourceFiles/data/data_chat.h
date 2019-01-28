@@ -178,8 +178,6 @@ public:
 //	ImagePtr photoFull;
 
 private:
-	[[nodiscard]] bool actionsUnavailable() const;
-
 	Flags _flags;
 	FullFlags _fullFlags;
 	QString _inviteLink;

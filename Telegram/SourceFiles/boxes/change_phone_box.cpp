@@ -146,11 +146,19 @@ void ChangePhoneBox::EnterPhone::submit() {
 	hideError();
 
 	auto phoneNumber = _phone->getLastText().trimmed();
-	_requestId = MTP::send(MTPaccount_SendChangePhoneCode(MTP_flags(0), MTP_string(phoneNumber), MTP_bool(false)), rpcDone(crl::guard(this, [this, phoneNumber](const MTPauth_SentCode &result) {
-		return sendPhoneDone(phoneNumber, result);
-	})), rpcFail(crl::guard(this, [this, phoneNumber](const RPCError &error) {
-		return sendPhoneFail(phoneNumber, error);
-	})));
+	_requestId = MTP::send(
+		MTPaccount_SendChangePhoneCode(
+			MTP_string(phoneNumber),
+			MTP_codeSettings(
+				MTP_flags(0),
+				MTPstring())),
+		rpcDone(crl::guard(this, [=](
+				const MTPauth_SentCode &result) {
+			return sendPhoneDone(phoneNumber, result);
+		})), rpcFail(crl::guard(this, [=](
+				const RPCError &error) {
+			return sendPhoneFail(phoneNumber, error);
+		})));
 }
 
 void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const MTPauth_SentCode &result) {

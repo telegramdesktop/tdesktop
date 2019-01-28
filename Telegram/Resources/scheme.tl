@@ -318,7 +318,7 @@ peerNotifySettings#af509d20 flags:# show_previews:flags.0?Bool silent:flags.1?Bo
 
 peerSettings#818426cd flags:# report_spam:flags.0?true = PeerSettings;
 
-wallPaper#f04f91ec id:long flags:# creator:flags.0?true default:flags.1?true access_hash:long slug:string document:Document = WallPaper;
+wallPaper#a437c3ed id:long flags:# creator:flags.0?true default:flags.1?true pattern:flags.3?true dark:flags.4?true access_hash:long slug:string document:Document settings:flags.2?WallPaperSettings = WallPaper;
 
 inputReportReasonSpam#58dbcab8 = ReportReason;
 inputReportReasonViolence#1e22c78d = ReportReason;
@@ -1112,6 +1112,10 @@ inputWallPaperSlug#72091c80 slug:string = InputWallPaper;
 account.wallPapersNotModified#1c199183 = account.WallPapers;
 account.wallPapers#702b65a9 hash:int wallpapers:Vector<WallPaper> = account.WallPapers;
 
+codeSettings#302f59f3 flags:# allow_flashcall:flags.0?true current_number:flags.1?true app_hash_persistent:flags.2?true app_hash:flags.3?string = CodeSettings;
+
+wallPaperSettings#a12f40b8 flags:# blur:flags.1?true motion:flags.2?true background_color:flags.0?int intensity:flags.3?int = WallPaperSettings;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1122,7 +1126,7 @@ invokeWithoutUpdates#bf9459b7 {X:Type} query:!X = X;
 invokeWithMessagesRange#365275f2 {X:Type} range:MessageRange query:!X = X;
 invokeWithTakeout#aca9fd2e {X:Type} takeout_id:long query:!X = X;
 
-auth.sendCode#86aef0ec flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool api_id:int api_hash:string = auth.SentCode;
+auth.sendCode#a677244f phone_number:string api_id:int api_hash:string settings:CodeSettings = auth.SentCode;
 auth.signUp#1b067634 phone_number:string phone_code_hash:string phone_code:string first_name:string last_name:string = auth.Authorization;
 auth.signIn#bcd51581 phone_number:string phone_code_hash:string phone_code:string = auth.Authorization;
 auth.logOut#5717da40 = Bool;
@@ -1154,7 +1158,7 @@ account.setPrivacy#c9f81ce8 key:InputPrivacyKey rules:Vector<InputPrivacyRule> =
 account.deleteAccount#418d4e0b reason:string = Bool;
 account.getAccountTTL#8fc711d = AccountDaysTTL;
 account.setAccountTTL#2442485e ttl:AccountDaysTTL = Bool;
-account.sendChangePhoneCode#8e57deb flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
+account.sendChangePhoneCode#82574ae5 phone_number:string settings:CodeSettings = auth.SentCode;
 account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
 account.updateDeviceLocked#38df3532 period:int = Bool;
 account.getAuthorizations#e320c158 = account.Authorizations;
@@ -1162,7 +1166,7 @@ account.resetAuthorization#df77f3bc hash:long = Bool;
 account.getPassword#548a30f5 = account.Password;
 account.getPasswordSettings#9cd4eaf9 password:InputCheckPasswordSRP = account.PasswordSettings;
 account.updatePasswordSettings#a59b102f password:InputCheckPasswordSRP new_settings:account.PasswordInputSettings = Bool;
-account.sendConfirmPhoneCode#1516d7bd flags:# allow_flashcall:flags.0?true hash:string current_number:flags.0?Bool = auth.SentCode;
+account.sendConfirmPhoneCode#1b3faa88 hash:string settings:CodeSettings = auth.SentCode;
 account.confirmPhone#5f2178c3 phone_code_hash:string phone_code:string = Bool;
 account.getTmpPassword#449e0b51 password:InputCheckPasswordSRP period:int = account.TmpPassword;
 account.getWebAuthorizations#182e6d6f = account.WebAuthorizations;
@@ -1174,7 +1178,7 @@ account.saveSecureValue#899fe31d value:InputSecureValue secure_secret_id:long = 
 account.deleteSecureValue#b880bc4b types:Vector<SecureValueType> = Bool;
 account.getAuthorizationForm#b86ba8e1 bot_id:int scope:string public_key:string = account.AuthorizationForm;
 account.acceptAuthorization#e7027c94 bot_id:int scope:string public_key:string value_hashes:Vector<SecureValueHash> credentials:SecureCredentialsEncrypted = Bool;
-account.sendVerifyPhoneCode#823380b4 flags:# allow_flashcall:flags.0?true phone_number:string current_number:flags.0?Bool = auth.SentCode;
+account.sendVerifyPhoneCode#a5a356f9 phone_number:string settings:CodeSettings = auth.SentCode;
 account.verifyPhone#4dd3a7f6 phone_number:string phone_code_hash:string phone_code:string = Bool;
 account.sendVerifyEmailCode#7011509f email:string = account.SentEmailCode;
 account.verifyEmail#ecba39db email:string code:string = Bool;
@@ -1186,10 +1190,11 @@ account.cancelPasswordEmail#c1cbd5b6 = Bool;
 account.getContactSignUpNotification#9f07c728 = Bool;
 account.setContactSignUpNotification#cff43f61 silent:Bool = Bool;
 account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true peer:flags.0?InputNotifyPeer = Updates;
-account.uploadWallPaper#c7ba9b4d file:InputFile mime_type:string = WallPaper;
 account.getWallPaper#fc8ddbea wallpaper:InputWallPaper = WallPaper;
-account.saveWallPaper#189581b3 wallpaper:InputWallPaper unsave:Bool = Bool;
-account.installWallPaper#4a0378ce wallpaper:InputWallPaper = Bool;
+account.uploadWallPaper#dd853661 file:InputFile mime_type:string settings:WallPaperSettings = WallPaper;
+account.saveWallPaper#6c5a5b37 wallpaper:InputWallPaper unsave:Bool settings:WallPaperSettings = Bool;
+account.installWallPaper#feed5769 wallpaper:InputWallPaper settings:WallPaperSettings = Bool;
+account.resetWallPapers#bb3b9804 = Bool;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;
@@ -1418,4 +1423,4 @@ langpack.getDifference#9d51e814 lang_code:string from_version:int = LangPackDiff
 langpack.getLanguages#42c6978f lang_pack:string = Vector<LangPackLanguage>;
 langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLanguage;
 
-// LAYER 93
+// LAYER 95

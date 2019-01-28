@@ -2082,9 +2082,10 @@ QString FormController::getPlainTextFromValue(
 
 void FormController::startPhoneVerification(not_null<Value*> value) {
 	value->verification.requestId = request(MTPaccount_SendVerifyPhoneCode(
-		MTP_flags(MTPaccount_SendVerifyPhoneCode::Flag(0)),
 		MTP_string(getPhoneFromValue(value)),
-		MTPBool()
+		MTP_codeSettings(
+			MTP_flags(0),
+			MTPstring())
 	)).done([=](const MTPauth_SentCode &result) {
 		Expects(result.type() == mtpc_auth_sentCode);
 
