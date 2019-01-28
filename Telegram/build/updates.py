@@ -107,6 +107,8 @@ if building:
     print('Finished.')
     finish(0)
 
+commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
+
 if composing:
     templatePath = scriptPath + '/../../../TelegramPrivate/updates_template.txt'
     if not os.path.exists(templatePath):
@@ -147,16 +149,17 @@ if composing:
     changelog = '\n'.join(commits)
     print('\n\nReady! File: ' + archive + '\nChangelog:\n' + changelog)
     with open(templatePath, 'r') as template:
-        with open(scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt', 'w') as f:
+        with open(commandPath, 'w') as f:
             for line in template:
                 if line.startswith('//'):
                     continue
                 line = line.replace('{path}', scriptPath + '/../../out/Debug/' + outputFolder + '/' + archive)
                 line = line.replace('{caption}', 'TDesktop at ' + today.replace('_', '.') + ':\n\n' + changelog)
                 f.write(line)
+    print('\n\nEdit:\n')
+    print('vi ' + commandPath)
     finish(0)
 
-commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
 if not os.path.exists(commandPath):
     print('[ERROR] Command file not found.')
     finish(1)
