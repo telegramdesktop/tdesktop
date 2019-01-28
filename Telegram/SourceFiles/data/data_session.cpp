@@ -3070,41 +3070,23 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 		qsl(":/gui/art/bg.jpg"),
 		"JPG");
 	if (defaultBackground) {
-		_wallpapers.push_back({
-			Window::Theme::kDefaultBackground,
-			0ULL, // access_hash
-			MTPDwallPaper::Flags(0),
-			QString(), // slug
-			defaultBackground.get()
-		});
+		_wallpapers.push_back(Data::DefaultWallPaper());
+		_wallpapers.back().setLocalImageAsThumbnail(
+			defaultBackground.get());
 	}
 	const auto oldBackground = Images::Create(
 		qsl(":/gui/art/bg_initial.jpg"),
 		"JPG");
 	if (oldBackground) {
-		_wallpapers.push_back({
-			Window::Theme::kInitialBackground,
-			0ULL, // access_hash
-			MTPDwallPaper::Flags(0),
-			QString(), // slug
-			oldBackground.get()
-		});
+		_wallpapers.push_back(Data::Legacy1DefaultWallPaper());
+		_wallpapers.back().setLocalImageAsThumbnail(oldBackground.get());
 	}
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
 			if (paper.is_pattern()) {
 				return;
-			}
-			const auto document = processDocument(paper.vdocument);
-			if (document->checkWallPaperProperties()) {
-				_wallpapers.push_back({
-					paper.vid.v,
-					paper.vaccess_hash.v,
-					paper.vflags.v,
-					qs(paper.vslug),
-					document->thumbnail(),
-					document,
-				});
+			} else if (const auto parsed = Data::WallPaper::Create(paper)) {
+				_wallpapers.push_back(*parsed);
 			}
 		});
 	}

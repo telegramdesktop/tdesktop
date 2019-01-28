@@ -345,9 +345,16 @@ StackItemSection::StackItemSection(
 }
 
 struct MainWidget::SettingBackground {
+	explicit SettingBackground(const Data::WallPaper &data);
+
 	Data::WallPaper data;
 	base::binary_guard generating;
 };
+
+MainWidget::SettingBackground::SettingBackground(
+	const Data::WallPaper &data)
+: data(data) {
+}
 
 MainWidget::MainWidget(
 	QWidget *parent,
@@ -1554,16 +1561,11 @@ void MainWidget::setChatBackground(
 		return;
 	}
 
-	_background = std::make_unique<SettingBackground>();
-	_background->data = background;
-	_background->data.document->save(
-		Data::FileOriginWallpaper(
-			_background->data.id,
-			_background->data.accessHash),
-		QString());
+	_background = std::make_unique<SettingBackground>(background);
+	_background->data.loadDocument();
 	checkChatBackground();
 
-	const auto tile = (background.id == Window::Theme::kInitialBackground);
+	const auto tile = Data::IsLegacy1DefaultWallPaper(background);
 	using Update = Window::Theme::BackgroundUpdate;
 	Window::Theme::Background()->notify(Update(Update::Type::Start, tile));
 }
@@ -1571,9 +1573,7 @@ void MainWidget::setChatBackground(
 bool MainWidget::isReadyChatBackground(
 		const Data::WallPaper &background,
 		const QImage &image) const {
-	return !image.isNull()
-		|| !background.document
-		|| Window::Theme::GetWallPaperColor(background.slug);
+	return !image.isNull() || !background.document();
 }
 
 void MainWidget::setReadyChatBackground(
@@ -1582,22 +1582,22 @@ void MainWidget::setReadyChatBackground(
 	using namespace Window::Theme;
 
 	if (image.isNull()
-		&& !background.document
-		&& background.thumb
-		&& background.thumb->loaded()) {
-		image = background.thumb->pixNoCache(Data::FileOrigin()).toImage();
+		&& !background.document()
+		&& background.thumbnail()
+		&& background.thumbnail()->loaded()) {
+		image = background.thumbnail()->original();
 	}
 
 	const auto resetToDefault = image.isNull()
-		&& !background.document
-		&& !GetWallPaperColor(background.slug)
-		&& (background.id != kInitialBackground);
+		&& !background.document()
+		&& !background.backgroundColor()
+		&& !Data::IsLegacy1DefaultWallPaper(background);
 	const auto ready = resetToDefault
-		? Data::WallPaper{ kDefaultBackground }
+		? Data::DefaultWallPaper()
 		: background;
 
 	Background()->setImage(ready, std::move(image));
-	const auto tile = (ready.id == kInitialBackground);
+	const auto tile = Data::IsLegacy1DefaultWallPaper(ready);
 	Background()->setTile(tile);
 	Ui::ForceFullRepaint(this);
 }
@@ -1610,10 +1610,10 @@ float64 MainWidget::chatBackgroundProgress() const {
 	if (_background) {
 		if (_background->generating) {
 			return 1.;
-		} else if (_background->data.document) {
-			return _background->data.document->progress();
-		} else if (_background->data.thumb) {
-			return _background->data.thumb->progress();
+		} else if (const auto document = _background->data.document()) {
+			return document->progress();
+		} else if (const auto thumbnail = _background->data.thumbnail()) {
+			return thumbnail->progress();
 		}
 	}
 	return 1.;
@@ -1623,10 +1623,9 @@ void MainWidget::checkChatBackground() {
 	if (!_background || _background->generating) {
 		return;
 	}
-	const auto document = _background->data.document;
-	if (document && !document->loaded()) {
-		return;
-	} else if (!document && !_background->data.thumb->loaded()) {
+	const auto document = _background->data.document();
+	Assert(document != nullptr);
+	if (!document->loaded()) {
 		return;
 	}
 
@@ -1634,14 +1633,14 @@ void MainWidget::checkChatBackground() {
 			QImage &&image) {
 		const auto background = base::take(_background);
 		const auto ready = image.isNull()
-			? Data::WallPaper{ Window::Theme::kDefaultBackground }
+			? Data::DefaultWallPaper()
 			: background->data;
-		setChatBackground(ready, std::move(image));
+		setReadyChatBackground(ready, std::move(image));
 	});
 }
 
 Image *MainWidget::newBackgroundThumb() {
-	return _background ? _background->data.thumb : nullptr;
+	return _background ? _background->data.thumbnail() : nullptr;
 }
 
 void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {

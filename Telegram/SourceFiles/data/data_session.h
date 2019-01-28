@@ -51,7 +51,7 @@ class Feed;
 enum class FeedUpdateFlag;
 struct FeedUpdate;
 
-struct WallPaper;
+class WallPaper;
 
 class Session final {
 public:

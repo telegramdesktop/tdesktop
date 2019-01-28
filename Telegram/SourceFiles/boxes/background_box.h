@@ -66,6 +66,7 @@ private:
 	QRect radialRect() const;
 
 	void checkLoadedDocument();
+	bool setScaledFromThumb();
 	void paintImage(Painter &p);
 	void paintRadial(Painter &p, TimeMs ms);
 	void paintTexts(Painter &p, TimeMs ms);

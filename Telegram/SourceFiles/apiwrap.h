@@ -25,7 +25,7 @@ class mtpFileLoader;
 
 namespace Data {
 struct UpdatedFileReferences;
-struct WallPaper;
+class WallPaper;
 } // namespace Data
 
 namespace InlineBots {

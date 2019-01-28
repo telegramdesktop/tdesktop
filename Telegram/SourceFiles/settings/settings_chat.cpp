@@ -410,7 +410,7 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 		}
 
 		Window::Theme::Background()->setImage(
-			{ Window::Theme::kCustomBackground },
+			Data::CustomWallPaper(),
 			std::move(image));
 		Window::Theme::Background()->setTile(false);
 	};

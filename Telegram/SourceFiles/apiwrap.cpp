@@ -884,24 +884,13 @@ void ApiWrap::requestWallPaper(
 	)).done([=](const MTPWallPaper &result) {
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();
-		result.match([&](const MTPDwallPaper &data) {
-			const auto document = _session->data().processDocument(
-				data.vdocument);
-			if (document->checkWallPaperProperties()) {
-				if (const auto done = base::take(_wallPaperDone)) {
-					done({
-						data.vid.v,
-						data.vaccess_hash.v,
-						data.vflags.v,
-						qs(data.vslug),
-						document->thumbnail(),
-						document
-					});
-				}
-			} else if (const auto fail = base::take(_wallPaperFail)) {
-				fail(RPCError::Local("BAD_DOCUMENT", "In a wallpaper."));
+		if (const auto paper = Data::WallPaper::Create(result)) {
+			if (const auto done = base::take(_wallPaperDone)) {
+				done(*paper);
 			}
-		});
+		} else if (const auto fail = base::take(_wallPaperFail)) {
+			fail(RPCError::Local("BAD_DOCUMENT", "In a wallpaper."));
+		}
 	}).fail([=](const RPCError &error) {
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();

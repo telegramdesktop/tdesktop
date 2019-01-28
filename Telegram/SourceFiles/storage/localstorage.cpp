@@ -49,6 +49,9 @@ constexpr auto kDefaultStickerInstallDate = TimeId(1);
 constexpr auto kProxyTypeShift = 1024;
 constexpr auto kWriteMapTimeout = TimeMs(1000);
 
+constexpr auto kWallPaperLegacySerializeTagId = int32(-111);
+constexpr auto kWallPaperSerializeTagId = int32(-112);
+
 constexpr auto kSinglePeerTypeUser = qint32(1);
 constexpr auto kSinglePeerTypeChat = qint32(2);
 constexpr auto kSinglePeerTypeChannel = qint32(3);
@@ -3982,19 +3985,23 @@ void writeBackground(const Data::WallPaper &paper, const QImage &img) {
 		_mapChanged = true;
 		_writeMap(WriteMapWhen::Fast);
 	}
+	const auto serialized = paper.serialize();
 	quint32 size = sizeof(qint32)
-		+ 2 * sizeof(quint64)
-		+ sizeof(quint32)
-		+ Serialize::stringSize(paper.slug)
+		+ Serialize::bytearraySize(serialized)
 		+ Serialize::bytearraySize(bmp);
 	EncryptedDescriptor data(size);
 	data.stream
-		<< qint32(Window::Theme::details::kLegacyBackgroundId)
-		<< quint64(paper.id)
-		<< quint64(paper.accessHash)
-		<< quint32(paper.flags.value())
-		<< paper.slug
+		<< qint32(kWallPaperSerializeTagId)
+		<< serialized
 		<< bmp;
+	//+2 * sizeof(quint64)
+	//	+ sizeof(quint32)
+	//	+ Serialize::stringSize(paper.slug)
+
+	//	<< quint64(paper.id)
+	//	<< quint64(paper.accessHash)
+	//	<< quint32(paper.flags.value())
+	//	<< paper.slug
 
 	FileWriteDescriptor file(backgroundKey);
 	file.writeEncrypted(data);
@@ -4015,61 +4022,67 @@ bool readBackground() {
 		return false;
 	}
 
-	QByteArray bmpData;
 	qint32 legacyId = 0;
-	quint64 id = 0;
-	quint64 accessHash = 0;
-	quint32 flags = 0;
-	QString slug;
 	bg.stream >> legacyId;
-	if (legacyId == Window::Theme::details::kLegacyBackgroundId) {
-		bg.stream
-			>> id
-			>> accessHash
-			>> flags
-			>> slug;
-	} else {
-		id = Window::Theme::details::FromLegacyBackgroundId(legacyId);
-		accessHash = 0;
-		if (id != Window::Theme::kCustomBackground) {
-			flags = static_cast<quint32>(MTPDwallPaper::Flag::f_default);
+	const auto paper = [&] {
+		if (legacyId == kWallPaperLegacySerializeTagId) {
+			quint64 id = 0;
+			quint64 accessHash = 0;
+			quint32 flags = 0;
+			QString slug;
+			bg.stream
+				>> id
+				>> accessHash
+				>> flags
+				>> slug;
+			return Data::WallPaper::FromLegacySerialized(
+				id,
+				accessHash,
+				flags,
+				slug);
+		} else if (legacyId == kWallPaperSerializeTagId) {
+			QByteArray serialized;
+			bg.stream >> serialized;
+			return Data::WallPaper::FromSerialized(serialized);
+		} else {
+			return Data::WallPaper::FromLegacyId(legacyId);
 		}
+	}();
+	if (bg.stream.status() != QDataStream::Ok || !paper) {
+		return false;
 	}
-	bg.stream >> bmpData;
-	auto oldEmptyImage = (bg.stream.status() != QDataStream::Ok);
-	if (oldEmptyImage
-		|| id == Window::Theme::kInitialBackground
-		|| id == Window::Theme::kDefaultBackground) {
+
+	QByteArray bmp;
+	bg.stream >> bmp;
+	const auto isOldEmptyImage = (bg.stream.status() != QDataStream::Ok);
+	if (isOldEmptyImage
+		|| Data::IsLegacy1DefaultWallPaper(*paper)
+		|| Data::IsDefaultWallPaper(*paper)) {
 		_backgroundCanWrite = false;
-		if (oldEmptyImage || bg.version < 8005) {
-			Window::Theme::Background()->setImage({ Window::Theme::kDefaultBackground });
+		if (isOldEmptyImage || bg.version < 8005) {
+			Window::Theme::Background()->setImage(Data::DefaultWallPaper());
 			Window::Theme::Background()->setTile(false);
 		} else {
-			Window::Theme::Background()->setImage({ id });
+			Window::Theme::Background()->setImage(*paper);
 		}
 		_backgroundCanWrite = true;
 		return true;
-	} else if (id == Window::Theme::kThemeBackground && bmpData.isEmpty()) {
+	} else if (Data::IsThemeWallPaper(*paper) && bmp.isEmpty()) {
 		_backgroundCanWrite = false;
-		Window::Theme::Background()->setImage({ id });
+		Window::Theme::Background()->setImage(*paper);
 		_backgroundCanWrite = true;
 		return true;
 	}
 
-	QImage image;
-	QBuffer buf(&bmpData);
-	QImageReader reader(&buf);
+	auto image = QImage();
+	auto buffer = QBuffer(&bmp);
+	auto reader = QImageReader(&buffer);
 #ifndef OS_MAC_OLD
 	reader.setAutoTransform(true);
 #endif // OS_MAC_OLD
-	if (reader.read(&image) || Window::Theme::GetWallPaperColor(slug)) {
+	if (reader.read(&image) || paper->backgroundColor()) {
 		_backgroundCanWrite = false;
-		Window::Theme::Background()->setImage({
-			id,
-			accessHash,
-			MTPDwallPaper::Flags::from_raw(flags),
-			slug
-		}, std::move(image));
+		Window::Theme::Background()->setImage(*paper, std::move(image));
 		_backgroundCanWrite = true;
 		return true;
 	}

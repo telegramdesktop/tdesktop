@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 
 namespace Data {
-struct WallPaper;
+class WallPaper;
 } // namespace Data
 
 namespace Lang {

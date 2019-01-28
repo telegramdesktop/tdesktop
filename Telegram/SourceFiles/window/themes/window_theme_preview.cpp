@@ -395,7 +395,8 @@ void Generator::paintHistoryBackground() {
 	auto background = _theme.background;
 	auto tiled = _theme.tiled;
 	if (background.isNull()) {
-		if (_current.backgroundId == Window::Theme::kThemeBackground) {
+		const auto fakePaper = Data::WallPaper(_current.backgroundId);
+		if (Data::IsThemeWallPaper(fakePaper)) {
 			background.load(qsl(":/gui/art/bg.jpg"));
 			tiled = false;
 		} else {

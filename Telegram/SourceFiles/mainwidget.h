@@ -27,7 +27,7 @@ struct PeerUpdate;
 } // namespace Notify
 
 namespace Data {
-struct WallPaper;
+class WallPaper;
 } // namespace Data
 
 namespace Dialogs {

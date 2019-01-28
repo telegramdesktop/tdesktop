@@ -95,11 +95,11 @@ QImage PrepareScaledFromFull(
 		size);
 }
 
-QPixmap PrepareScaledFromThumb(not_null<Image*> thumb) {
+QPixmap PrepareScaledFromThumb(not_null<Image*> thumb, bool good) {
 	return thumb->loaded()
 		? App::pixmapFromImageInPlace(PrepareScaledFromFull(
 			thumb->original(),
-			Images::Option::Blurred))
+			good ? Images::Option(0) : Images::Option::Blurred))
 		: QPixmap();
 }
 
@@ -126,6 +126,11 @@ protected:
 
 private:
 	void updateWallpapers();
+	void paintPaper(
+		Painter &p,
+		const Data::WallPaper &paper,
+		int column,
+		int row) const;
 
 	Fn<void(int index)> _backgroundChosenCallback;
 
@@ -196,7 +201,7 @@ void BackgroundBox::Inner::updateWallpapers() {
 
 	const auto preload = kBackgroundsInRow * 3;
 	for (const auto &paper : papers | ranges::view::take(preload)) {
-		paper.thumb->load(Data::FileOrigin());
+		paper.loadThumbnail();
 	}
 }
 
@@ -223,24 +228,32 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 		});
 		if ((st::backgroundSize.height() + st::backgroundPadding) * (row + 1) <= r.top()) {
 			continue;
+		} else if ((st::backgroundSize.height() + st::backgroundPadding) * row >= r.top() + r.height()) {
+			break;
 		}
+		paintPaper(p, paper, column, row);
+	}
+}
 
-		paper.thumb->load(Data::FileOrigin());
+void BackgroundBox::Inner::paintPaper(
+		Painter &p,
+		const Data::WallPaper &paper,
+		int column,
+		int row) const {
+	Expects(paper.thumbnail() != nullptr);
 
-		int x = st::backgroundPadding + column * (st::backgroundSize.width() + st::backgroundPadding);
-		int y = st::backgroundPadding + row * (st::backgroundSize.height() + st::backgroundPadding);
+	const auto x = st::backgroundPadding + column * (st::backgroundSize.width() + st::backgroundPadding);
+	const auto y = st::backgroundPadding + row * (st::backgroundSize.height() + st::backgroundPadding);
+	const auto &pixmap = paper.thumbnail()->pix(
+		paper.fileOrigin(),
+		st::backgroundSize.width(),
+		st::backgroundSize.height());
+	p.drawPixmap(x, y, pixmap);
 
-		const auto &pix = paper.thumb->pix(
-			Data::FileOrigin(),
-			st::backgroundSize.width(),
-			st::backgroundSize.height());
-		p.drawPixmap(x, y, pix);
-
-		if (paper.id == Window::Theme::Background()->id()) {
-			auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
-			auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
-			_check->paint(p, getms(), checkLeft, checkTop, width());
-		}
+	if (paper.id() == Window::Theme::Background()->id()) {
+		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
+		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
+		_check->paint(p, getms(), checkLeft, checkTop, width());
 	}
 }
 
@@ -300,6 +313,8 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	true))
 , _paper(paper)
 , _radial(animation(this, &BackgroundPreviewBox::step_radial)) {
+	Expects(_paper.thumbnail() != nullptr);
+
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 }
 
@@ -308,26 +323,17 @@ void BackgroundPreviewBox::prepare() {
 
 	addButton(langFactory(lng_background_apply), [=] { apply(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
-	if (!_paper.slug.isEmpty()) {
+	if (_paper.hasShareUrl()) {
 		addLeftButton(langFactory(lng_background_share), [=] { share(); });
 	}
 
-	_scaled = PrepareScaledFromThumb(_paper.thumb);
+	_paper.loadThumbnail();
+	_paper.loadDocument();
+	if (_paper.document() && _paper.document()->loading()) {
+		_radial.start(_paper.document()->progress());
+	}
+	setScaledFromThumb();
 	checkLoadedDocument();
-
-	if (!_paper.thumb->loaded()) {
-		_paper.thumb->loadEvenCancelled(Data::FileOriginWallpaper(
-			_paper.id,
-			_paper.accessHash));
-	}
-	if (_paper.document) {
-		_paper.document->save(Data::FileOriginWallpaper(
-			_paper.id,
-			_paper.accessHash), QString());
-		if (_paper.document->loading()) {
-			_radial.start(_paper.document->progress());
-		}
-	}
 
 	_text1->setDisplayDate(true);
 	_text1->initDimensions();
@@ -344,10 +350,7 @@ void BackgroundPreviewBox::apply() {
 }
 
 void BackgroundPreviewBox::share() {
-	Expects(!_paper.slug.isEmpty());
-
-	QApplication::clipboard()->setText(
-		Core::App().createInternalLinkFull("bg/" + _paper.slug));
+	QApplication::clipboard()->setText(_paper.shareUrl());
 	Ui::Toast::Show(lang(lng_background_link_copied));
 }
 
@@ -356,15 +359,12 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 
 	const auto ms = getms();
 
-	if (const auto color = Window::Theme::GetWallPaperColor(_paper.slug)) {
+	if (const auto color = _paper.backgroundColor()) {
 		p.fillRect(e->rect(), *color);
 	} else {
-		if (_scaled.isNull()) {
-			_scaled = PrepareScaledFromThumb(_paper.thumb);
-			if (_scaled.isNull()) {
-				p.fillRect(e->rect(), st::boxBg);
-				return;
-			}
+		if (_scaled.isNull() && !setScaledFromThumb()) {
+			p.fillRect(e->rect(), st::boxBg);
+			return;
 		}
 		paintImage(p);
 		paintRadial(p, ms);
@@ -440,9 +440,9 @@ void BackgroundPreviewBox::paintTexts(Painter &p, TimeMs ms) {
 }
 
 void BackgroundPreviewBox::step_radial(TimeMs ms, bool timer) {
-	Expects(_paper.document != nullptr);
+	Expects(_paper.document() != nullptr);
 
-	const auto document = _paper.document;
+	const auto document = _paper.document();
 	const auto wasAnimating = _radial.animating();
 	const auto updated = _radial.update(
 		document->progress(),
@@ -456,8 +456,15 @@ void BackgroundPreviewBox::step_radial(TimeMs ms, bool timer) {
 	checkLoadedDocument();
 }
 
+bool BackgroundPreviewBox::setScaledFromThumb() {
+	_scaled = PrepareScaledFromThumb(
+		_paper.thumbnail(),
+		!_paper.document());
+	return !_scaled.isNull();
+}
+
 void BackgroundPreviewBox::checkLoadedDocument() {
-	const auto document = _paper.document;
+	const auto document = _paper.document();
 	if (!document
 		|| !document->loaded(DocumentData::FilePathResolveChecked)
 		|| _generating) {
@@ -491,13 +498,8 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 }
 
 bool BackgroundPreviewBox::Start(const QString &slug, const QString &mode) {
-	if (Window::Theme::GetWallPaperColor(slug)) {
-		Ui::show(Box<BackgroundPreviewBox>(Data::WallPaper{
-			Window::Theme::kCustomBackground,
-			0ULL, // accessHash
-			MTPDwallPaper::Flags(0),
-			slug,
-		}));
+	if (const auto paper = Data::WallPaper::FromColorSlug(slug)) {
+		Ui::show(Box<BackgroundPreviewBox>(*paper));
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
