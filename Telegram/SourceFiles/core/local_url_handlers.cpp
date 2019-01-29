@@ -173,7 +173,7 @@ bool ShowWallPaper(const Match &match, const QVariant &context) {
 		qthelp::UrlParamNameTransform::ToLower);
 	return BackgroundPreviewBox::Start(
 		params.value(qsl("slug")),
-		params.value(qsl("mode")));
+		params);
 }
 
 bool ResolveUsername(const Match &match, const QVariant &context) {

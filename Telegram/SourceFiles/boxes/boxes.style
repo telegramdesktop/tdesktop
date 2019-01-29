@@ -69,7 +69,7 @@ boxTitle: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(17px semibold underline);
 	}
 }
-boxTitlePosition: point(23px, 20px);
+boxTitlePosition: point(23px, 16px);
 boxTitleHeight: 56px;
 boxLayerTitlePosition: point(23px, 16px);
 boxLayerTitleHeight: 56px;

@@ -265,7 +265,7 @@ void BackgroundRow::updateImage() {
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);
 
-		if (const auto color = Window::Theme::Background()->color()) {
+		if (const auto color = Window::Theme::Background()->colorForFill()) {
 			p.fillRect(
 				0,
 				0,

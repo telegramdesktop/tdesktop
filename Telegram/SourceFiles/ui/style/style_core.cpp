@@ -62,6 +62,10 @@ void stopManager() {
 }
 
 void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect, QPoint dstPoint) {
+	// In background_box ColorizePattern we use the fact that
+	// colorizeImage takes only first byte of the mask, so it
+	// could be used for wallpaper patterns, which have values
+	// in ranges (0, 0, 0, 0) to (0, 0, 0, 255) (only 'alpha').
 	if (srcRect.isNull()) {
 		srcRect = src.rect();
 	} else {

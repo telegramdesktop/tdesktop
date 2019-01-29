@@ -23,12 +23,19 @@ public:
 	[[nodiscard]] std::optional<QColor> backgroundColor() const;
 	[[nodiscard]] DocumentData *document() const;
 	[[nodiscard]] Image *thumbnail() const;
+	[[nodiscard]] bool isPattern() const;
+	[[nodiscard]] bool isDefault() const;
+	[[nodiscard]] bool isCreator() const;
+	[[nodiscard]] int patternIntensity() const;
 	[[nodiscard]] bool hasShareUrl() const;
 	[[nodiscard]] QString shareUrl() const;
 
 	void loadDocument() const;
 	void loadThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
+
+	[[nodiscard]] WallPaper withUrlParams(
+		const QMap<QString, QString> &params) const;
 
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		const MTPWallPaper &data);
@@ -49,6 +56,8 @@ public:
 		const QString &slug);
 
 private:
+	static constexpr auto kDefaultIntensity = 40;
+
 	WallPaperId _id = WallPaperId();
 	uint64 _accessHash = 0;
 	MTPDwallPaper::Flags _flags;
@@ -56,7 +65,7 @@ private:
 
 	MTPDwallPaperSettings::Flags _settings;
 	std::optional<QColor> _backgroundColor;
-	int _intensity = 40;
+	int _intensity = kDefaultIntensity;
 
 	DocumentData *_document = nullptr;
 	Image *_thumbnail = nullptr;
@@ -138,7 +147,7 @@ void Revert();
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
 bool IsPaletteTestingPath(const QString &path);
 
-[[nodiscard]] std::optional<QColor> GetWallPaperColor(const QString &slug);
+QColor PatternColor(QColor background);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -190,9 +199,7 @@ public:
 	[[nodiscard]] const QPixmap &pixmapForTiled() const {
 		return _pixmapForTiled;
 	}
-	[[nodiscard]] std::optional<QColor> color() const {
-		return _paper.backgroundColor();
-	}
+	[[nodiscard]] std::optional<QColor> colorForFill() const;
 	[[nodiscard]] QImage createCurrentImage() const;
 	[[nodiscard]] bool tile() const;
 	[[nodiscard]] bool tileDay() const;

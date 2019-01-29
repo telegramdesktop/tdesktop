@@ -1057,7 +1057,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 }
 
 void MainWidget::cacheBackground() {
-	if (Window::Theme::Background()->color()) {
+	if (Window::Theme::Background()->colorForFill()) {
 		return;
 	} else if (Window::Theme::Background()->tile()) {
 		auto &bg = Window::Theme::Background()->pixmapForTiled();

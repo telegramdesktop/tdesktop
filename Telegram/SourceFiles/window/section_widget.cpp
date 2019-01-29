@@ -77,7 +77,7 @@ void SectionWidget::PaintBackground(QWidget *widget, QPaintEvent *event) {
 
 	auto clip = event->rect();
 	auto fill = QRect(0, 0, widget->width(), App::main()->height());
-	if (const auto color = Window::Theme::Background()->color()) {
+	if (const auto color = Window::Theme::Background()->colorForFill()) {
 		p.fillRect(fill, *color);
 		return;
 	}

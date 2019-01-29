@@ -39,7 +39,9 @@ class BackgroundPreviewBox
 public:
 	BackgroundPreviewBox(QWidget*, const Data::WallPaper &paper);
 
-	static bool Start(const QString &slug, const QString &mode);
+	static bool Start(
+		const QString &slug,
+		const QMap<QString, QString> &params);
 
 	using Element = HistoryView::Element;
 	HistoryView::Context elementContext() override;
@@ -67,6 +69,8 @@ private:
 
 	void checkLoadedDocument();
 	bool setScaledFromThumb();
+	void setScaledFromImage(QImage &&image);
+	std::optional<QColor> patternBackgroundColor() const;
 	void paintImage(Painter &p);
 	void paintRadial(Painter &p, TimeMs ms);
 	void paintTexts(Painter &p, TimeMs ms);
