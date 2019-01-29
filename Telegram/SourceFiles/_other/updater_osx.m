@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #import <Cocoa/Cocoa.h>
+#include <sys/xattr.h>
 
 NSString *appName = @"Telegram.app";
 NSString *appDir = nil;
@@ -42,6 +43,20 @@ void writeLog(NSString *msg) {
 
 	[_logFile writeData:[[msg stringByAppendingString:@"\n"] dataUsingEncoding:NSUTF8StringEncoding]];
 	[_logFile synchronizeFile];
+}
+
+void RemoveQuarantineAttribute(NSString *path) {
+	const char *kQuarantineAttribute = "com.apple.quarantine";
+
+	writeLog([@"Removing quarantine: " stringByAppendingString:path]);
+	removexattr([path fileSystemRepresentation], kQuarantineAttribute, 0);
+}
+
+void RemoveQuarantineFromBundle(NSString *path) {
+    RemoveQuarantineAttribute(path);
+    RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/MacOS/Telegram"]);
+    RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/Helpers/crashpad_handler"]);
+    RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/Frameworks/Updater"]);
 }
 
 void delFolder() {
@@ -232,6 +247,9 @@ int main(int argc, const char * argv[]) {
 	}
 
 	NSString *appPath = [[NSArray arrayWithObjects:appDir, appRealName, nil] componentsJoinedByString:@""];
+
+	RemoveQuarantineFromBundle(appPath);
+
 	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects: @"-noupdate", nil];
 	if (toSettings) [args addObject:@"-tosettings"];
 	if (_debug) [args addObject:@"-debug"];

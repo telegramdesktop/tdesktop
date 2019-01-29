@@ -19,6 +19,8 @@ inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 
 QString CurrentExecutablePath(int argc, char *argv[]);
 
+void RemoveQuarantine(const QString &path);
+
 namespace ThirdParty {
 
 inline void start() {

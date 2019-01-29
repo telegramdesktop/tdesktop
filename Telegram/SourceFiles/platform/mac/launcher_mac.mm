@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "platform/mac/mac_utilities.h"
+#include "platform/platform_specific.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -117,6 +118,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			return false;
 		}
 		path = [path stringByAppendingString:@"/Contents/Frameworks/Updater"];
+		RemoveQuarantine(QFile::decodeName([path fileSystemRepresentation]));
 
 		NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-workpath", Q2NSString(cWorkingDir()), @"-procid", nil];
 		[args addObject:[NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]]];

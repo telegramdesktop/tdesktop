@@ -1547,6 +1547,12 @@ bool checkReadyUpdate() {
 		return false;
 	}
 #endif // Q_OS_LINUX
+
+#ifdef Q_OS_MAC
+	Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
+	Platform::RemoveQuarantine(updater.absolutePath());
+#endif // Q_OS_MAC
+
 	return true;
 }
 

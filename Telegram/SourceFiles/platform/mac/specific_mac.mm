@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <cstdlib>
 #include <execinfo.h>
+#include <sys/xattr.h>
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -83,85 +84,6 @@ void psWriteDump() {
 	double v = objc_appkitVersion();
 	CrashReports::dump() << "OS-Version: " << v;
 #endif // TDESKTOP_DISABLE_CRASH_REPORTS
-}
-
-QString demanglestr(const QString &mangled) {
-	QByteArray cmd = ("c++filt -n " + mangled).toUtf8();
-	FILE *f = popen(cmd.constData(), "r");
-	if (!f) return "BAD_SYMBOL_" + mangled;
-
-	QString result;
-	char buffer[4096] = {0};
-	while (!feof(f)) {
-		if (fgets(buffer, 4096, f) != NULL) {
-			result += buffer;
-		}
-	}
-	pclose(f);
-	return result.trimmed();
-}
-
-QString escapeShell(const QString &str) {
-	QString result;
-	const QChar *b = str.constData(), *e = str.constEnd();
-	for (const QChar *ch = b; ch != e; ++ch) {
-		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
-			if (result.isEmpty()) {
-				result.reserve(str.size() * 2);
-			}
-			if (ch > b) {
-				result.append(b, ch - b);
-			}
-			result.append('\\');
-			b = ch;
-		}
-	}
-	if (result.isEmpty()) return str;
-
-	if (e > b) {
-		result.append(b, e - b);
-	}
-	return result;
-}
-
-QStringList atosstr(uint64 *addresses, int count, uint64 base) {
-	QStringList result;
-	if (!count || cExeName().isEmpty()) return result;
-
-	result.reserve(count);
-	QString cmdstr = "atos -o " + escapeShell(cExeDir() + cExeName()) + qsl("/Contents/MacOS/Telegram -l 0x%1").arg(base, 0, 16);
-	for (int i = 0; i < count; ++i) {
-		if (addresses[i]) {
-			cmdstr += qsl(" 0x%1").arg(addresses[i], 0, 16);
-		}
-	}
-	QByteArray cmd = cmdstr.toUtf8();
-	FILE *f = popen(cmd.constData(), "r");
-
-	QStringList atosResult;
-	if (f) {
-		char buffer[4096] = {0};
-		while (!feof(f)) {
-			if (fgets(buffer, 4096, f) != NULL) {
-				atosResult.push_back(QString::fromUtf8(buffer));
-			}
-		}
-		pclose(f);
-	}
-	for (int i = 0, j = 0; i < count; ++i) {
-		if (addresses[i]) {
-			if (j < atosResult.size() && !atosResult.at(j).isEmpty() && !atosResult.at(j).startsWith(qstr("0x"))) {
-				result.push_back(atosResult.at(j).trimmed());
-			} else {
-				result.push_back(QString());
-			}
-			++j;
-		} else {
-			result.push_back(QString());
-		}
-	}
-	return result;
-
 }
 
 void psDeleteDir(const QString &dir) {
@@ -270,6 +192,14 @@ QString SystemLanguage() {
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	return NS2QString([[NSBundle mainBundle] bundlePath]);
+}
+
+void RemoveQuarantine(const QString &path) {
+	const auto kQuarantineAttribute = "com.apple.quarantine";
+
+	DEBUG_LOG(("Removing quarantine attribute: %1").arg(path));
+	const auto local = QFile::encodeName(path);
+	removexattr(local.data(), kQuarantineAttribute, 0);
 }
 
 void RegisterCustomScheme() {
