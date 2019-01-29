@@ -88,8 +88,8 @@ QImage PrepareScaledNonPattern(
 		: (height * size / width);
 	return Images::prepare(
 		image,
-		takeWidth,
-		takeHeight,
+		takeWidth * cIntRetinaFactor(),
+		takeHeight * cIntRetinaFactor(),
 		Images::Option::Smooth
 		| Images::Option::TransparentBackground
 		| blur,
@@ -141,7 +141,7 @@ QImage ColorizePattern(QImage image, QColor color) {
 		maskBytes += maskBytesAdded;
 		resultInts += resultIntsAdded;
 	}
-	return std::move(image);
+	return image;
 }
 
 QImage PrepareScaledFromFull(

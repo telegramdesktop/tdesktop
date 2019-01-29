@@ -120,7 +120,7 @@ QImage PreparePatternImage(QImage image, QColor bg, QColor fg, int intensity) {
 		fg.alphaF() * std::clamp(intensity / 100., 0., 1.));
 	if (!alpha) {
 		image.fill(bg);
-		return std::move(image);
+		return image;
 	}
 	fg.setAlpha(255);
 	const auto patternBg = anim::shifted(bg);
@@ -158,7 +158,7 @@ QImage PreparePatternImage(QImage image, QColor bg, QColor fg, int intensity) {
 		maskBytes += maskBytesAdded;
 		resultInts += resultIntsAdded;
 	}
-	return std::move(image);
+	return image;
 }
 
 } // namespace
