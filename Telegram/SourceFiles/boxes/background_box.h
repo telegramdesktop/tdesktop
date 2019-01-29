@@ -70,10 +70,12 @@ private:
 	void checkLoadedDocument();
 	bool setScaledFromThumb();
 	void setScaledFromImage(QImage &&image);
+	void updateServiceBg(std::optional<QColor> background);
 	std::optional<QColor> patternBackgroundColor() const;
 	void paintImage(Painter &p);
 	void paintRadial(Painter &p, TimeMs ms);
 	void paintTexts(Painter &p, TimeMs ms);
+	void paintDate(Painter &p);
 
 	AdminLog::OwnedItem _text1;
 	AdminLog::OwnedItem _text2;
@@ -82,5 +84,6 @@ private:
 	QPixmap _scaled;
 	Ui::RadialAnimation _radial;
 	base::binary_guard _generating;
+	std::optional<QColor> _serviceBg;
 
 };

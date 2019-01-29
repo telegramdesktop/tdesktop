@@ -154,7 +154,8 @@ QImage PrepareScaledFromFull(
 			std::move(result),
 			Data::PatternColor(*patternBackground));
 	}
-	return result;
+	return std::move(result).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
 }
 
 } // namespace
@@ -380,6 +381,7 @@ void BackgroundPreviewBox::prepare() {
 	if (_paper.hasShareUrl()) {
 		addLeftButton(langFactory(lng_background_share), [=] { share(); });
 	}
+	updateServiceBg(_paper.backgroundColor());
 
 	_paper.loadThumbnail();
 	_paper.loadDocument();
@@ -493,10 +495,31 @@ void BackgroundPreviewBox::paintTexts(Painter &p, TimeMs ms) {
 		- height2
 		- st::historyPaddingBottom;
 	p.translate(0, top);
+	paintDate(p);
 	_text1->draw(p, rect(), TextSelection(), ms);
 	p.translate(0, height1);
 	_text2->draw(p, rect(), TextSelection(), ms);
 	p.translate(0, height2);
+}
+
+void BackgroundPreviewBox::paintDate(Painter &p) {
+	const auto date = _text1->Get<HistoryView::DateBadge>();
+	if (!date || !_serviceBg) {
+		return;
+	}
+	const auto text = date->text;
+	const auto bubbleHeight = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	const auto bubbleTop = st::msgServiceMargin.top();
+	const auto textWidth = st::msgServiceFont->width(text);
+	const auto bubbleWidth = st::msgServicePadding.left() + textWidth + st::msgServicePadding.right();
+	const auto bubbleLeft = (width() - bubbleWidth) / 2;
+	const auto radius = bubbleHeight / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(*_serviceBg);
+	p.drawRoundedRect(bubbleLeft, bubbleTop, bubbleWidth, bubbleHeight, radius, radius);
+	p.setPen(st::msgServiceFg);
+	p.setFont(st::msgServiceFont);
+	p.drawText(bubbleLeft + st::msgServicePadding.left(), bubbleTop + st::msgServicePadding.top() + st::msgServiceFont->ascent, text);
 }
 
 void BackgroundPreviewBox::step_radial(TimeMs ms, bool timer) {
@@ -531,7 +554,16 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 }
 
 void BackgroundPreviewBox::setScaledFromImage(QImage &&image) {
+	updateServiceBg(Window::Theme::CountAverageColor(image));
 	_scaled = App::pixmapFromImageInPlace(std::move(image));
+}
+
+void BackgroundPreviewBox::updateServiceBg(std::optional<QColor> background) {
+	if (background) {
+		_serviceBg = Window::Theme::AdjustedColor(
+			st::msgServiceBg->c,
+			*background);
+	}
 }
 
 std::optional<QColor> BackgroundPreviewBox::patternBackgroundColor() const {

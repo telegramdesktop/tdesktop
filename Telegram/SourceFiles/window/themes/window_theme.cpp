@@ -104,6 +104,21 @@ std::optional<QColor> ColorFromString(const QString &string) {
 		255);
 }
 
+QString StringFromColor(QColor color) {
+	const auto component = [](int value) {
+		const auto hex = [](int value) {
+			value = std::clamp(value, 0, 15);
+			return (value > 9)
+				? ('a' + (value - 10))
+				: ('0' + value);
+		};
+		return QString() + hex(value / 16) + hex(value % 16);
+	};
+	return component(color.red())
+		+ component(color.green())
+		+ component(color.blue());
+}
+
 } // namespace
 
 WallPaper::WallPaper(WallPaperId id) : _id(id) {
@@ -155,9 +170,32 @@ bool WallPaper::hasShareUrl() const {
 }
 
 QString WallPaper::shareUrl() const {
-	return hasShareUrl()
-		? Core::App().createInternalLinkFull("bg/" + _slug)
-		: QString();
+	if (!hasShareUrl()) {
+		return QString();
+	}
+	const auto base = Core::App().createInternalLinkFull("bg/" + _slug);
+	auto params = QStringList();
+	if (isPattern()) {
+		if (_backgroundColor) {
+			params.push_back("bg_color=" + StringFromColor(*_backgroundColor));
+		}
+		if (_intensity) {
+			params.push_back("intensity=" + QString::number(_intensity));
+		}
+	}
+	auto mode = QStringList();
+	if (_settings & MTPDwallPaperSettings::Flag::f_blur) {
+		mode.push_back("blur");
+	}
+	if (_settings & MTPDwallPaperSettings::Flag::f_motion) {
+		mode.push_back("motion");
+	}
+	if (!mode.isEmpty()) {
+		params.push_back("mode=" + mode.join('+'));
+	}
+	return params.isEmpty()
+		? base
+		: base + '?' + params.join('&');
 }
 
 void WallPaper::loadThumbnail() const {
@@ -815,12 +853,6 @@ QImage validateBackgroundImage(QImage image) {
 	return image;
 }
 
-void adjustColor(style::color color, float64 hue, float64 saturation) {
-	auto original = color->c;
-	original.setHslF(hue, saturation, original.lightnessF(), original.alphaF());
-	color.set(original.red(), original.green(), original.blue(), original.alpha());
-}
-
 void WriteAppliedTheme() {
 	auto saved = Saved();
 	saved.pathRelative = GlobalApplying.pathRelative;
@@ -1029,34 +1061,18 @@ bool ChatBackground::adjustPaletteRequired() {
 }
 
 void ChatBackground::adjustPaletteUsingBackground(const QImage &image) {
-	uint64 components[3] = { 0 };
-	uint64 componentsScroll[3] = { 0 };
-	const auto w = image.width();
-	const auto h = image.height();
-	const auto size = w * h;
-	if (const auto pix = image.constBits()) {
-		for (auto i = 0, l = size * 4; i != l; i += 4) {
-			components[2] += pix[i + 0];
-			components[1] += pix[i + 1];
-			components[0] += pix[i + 2];
-		}
-	}
-
-	if (size) {
-		for (auto i = 0; i != 3; ++i) {
-			components[i] /= size;
-		}
-	}
-
-	adjustPaletteUsingColor(
-		QColor(components[0], components[1], components[2]));
+	adjustPaletteUsingColor(CountAverageColor(image));
 }
 
 void ChatBackground::adjustPaletteUsingColor(QColor color) {
-	const auto hue = color.hslHueF();
-	const auto saturation = color.hslSaturationF();
-	for (const auto &color : _adjustableColors) {
-		adjustColor(color.item, hue, saturation);
+	const auto prepared = color.toHsl();
+	for (const auto &adjustable : _adjustableColors) {
+		const auto adjusted = AdjustedColor(adjustable.item->c, prepared);
+		adjustable.item.set(
+			adjusted.red(),
+			adjusted.green(),
+			adjusted.blue(),
+			adjusted.alpha());
 	}
 }
 
@@ -1528,6 +1544,38 @@ bool IsPaletteTestingPath(const QString &path) {
 		return QFileInfo(path).exists();
 	}
 	return false;
+}
+
+QColor CountAverageColor(const QImage &image) {
+	Expects(image.format() == QImage::Format_ARGB32_Premultiplied);
+
+	uint64 components[3] = { 0 };
+	uint64 componentsScroll[3] = { 0 };
+	const auto w = image.width();
+	const auto h = image.height();
+	const auto size = w * h;
+	if (const auto pix = image.constBits()) {
+		for (auto i = 0, l = size * 4; i != l; i += 4) {
+			components[2] += pix[i + 0];
+			components[1] += pix[i + 1];
+			components[0] += pix[i + 2];
+		}
+	}
+	if (size) {
+		for (auto i = 0; i != 3; ++i) {
+			components[i] /= size;
+		}
+	}
+	return QColor(components[0], components[1], components[2]);
+}
+
+QColor AdjustedColor(QColor original, QColor background) {
+	return QColor::fromHslF(
+		background.hslHueF(),
+		background.hslSaturationF(),
+		original.lightnessF(),
+		original.alphaF()
+	).toRgb();
 }
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from) {
