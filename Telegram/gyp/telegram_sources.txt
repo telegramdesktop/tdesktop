@@ -275,6 +275,8 @@
 <(src_loc)/history/media/history_media_sticker.cpp
 <(src_loc)/history/media/history_media_video.h
 <(src_loc)/history/media/history_media_video.cpp
+<(src_loc)/history/media/history_media_wall_paper.h
+<(src_loc)/history/media/history_media_wall_paper.cpp
 <(src_loc)/history/media/history_media_web_page.h
 <(src_loc)/history/media/history_media_web_page.cpp
 <(src_loc)/history/view/history_view_context_menu.cpp

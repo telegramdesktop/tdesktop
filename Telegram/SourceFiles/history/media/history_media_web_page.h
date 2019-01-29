@@ -74,6 +74,7 @@ public:
 	bool allowsFastShare() const override {
 		return true;
 	}
+	bool enforceBubbleWidth() const override;
 
 	HistoryMedia *attach() const {
 		return _attach.get();
@@ -91,6 +92,9 @@ private:
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
 	bool isLogEntryOriginal() const;
+
+	QString displayedSiteName() const;
+	ClickHandlerPtr replaceAttachLink(const ClickHandlerPtr &link) const;
 
 	not_null<WebPageData*> _data;
 	std::vector<std::unique_ptr<Data::Media>> _collage;

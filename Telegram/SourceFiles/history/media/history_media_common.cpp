@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_document.h"
 #include "history/media/history_media_sticker.h"
 #include "history/media/history_media_video.h"
+#include "history/media/history_media_wall_paper.h"
 #include "styles/style_history.h"
 
 int documentMaxStatusWidth(DocumentData *document) {
@@ -60,25 +61,27 @@ std::unique_ptr<HistoryMedia> CreateAttach(
 		not_null<HistoryView::Element*> parent,
 		DocumentData *document,
 		PhotoData *photo,
-		const std::vector<std::unique_ptr<Data::Media>> &collage) {
+		const std::vector<std::unique_ptr<Data::Media>> &collage,
+		const QString &webpageUrl) {
 	if (!collage.empty()) {
 		return std::make_unique<HistoryGroupedMedia>(parent, collage);
 	} else if (document) {
 		if (document->sticker()) {
 			return std::make_unique<HistorySticker>(parent, document);
 		} else if (document->isAnimation()) {
-			return std::make_unique<HistoryGif>(
-				parent,
-				document);
+			return std::make_unique<HistoryGif>(parent, document);
 		} else if (document->isVideoFile()) {
 			return std::make_unique<HistoryVideo>(
 				parent,
 				parent->data(),
 				document);
+		} else if (document->isWallPaper()) {
+			return std::make_unique<HistoryWallPaper>(
+				parent,
+				document,
+				webpageUrl);
 		}
-		return std::make_unique<HistoryDocument>(
-			parent,
-			document);
+		return std::make_unique<HistoryDocument>(parent, document);
 	} else if (photo) {
 		return std::make_unique<HistoryPhoto>(
 			parent,

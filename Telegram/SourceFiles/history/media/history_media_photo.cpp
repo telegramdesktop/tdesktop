@@ -34,11 +34,6 @@ HistoryPhoto::HistoryPhoto(
 : HistoryFileMedia(parent, realParent)
 , _data(photo)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto fullId = realParent->fullId();
-	setLinks(
-		std::make_shared<PhotoOpenClickHandler>(_data, fullId),
-		std::make_shared<PhotoSaveClickHandler>(_data, fullId),
-		std::make_shared<PhotoCancelClickHandler>(_data, fullId));
 	_caption = createCaption(realParent);
 	create(realParent->fullId());
 }

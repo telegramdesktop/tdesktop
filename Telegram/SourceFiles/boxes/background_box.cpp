@@ -152,7 +152,7 @@ QImage PrepareScaledFromFull(
 	if (patternBackground) {
 		result = ColorizePattern(
 			std::move(result),
-			Window::Theme::PatternColor(*patternBackground));
+			Data::PatternColor(*patternBackground));
 	}
 	return result;
 }

@@ -294,6 +294,7 @@ class DocumentClickHandler;
 class DocumentSaveClickHandler;
 class DocumentOpenClickHandler;
 class DocumentCancelClickHandler;
+class DocumentWrappedClickHandler;
 class GifOpenClickHandler;
 class VoiceSeekClickHandler;
 

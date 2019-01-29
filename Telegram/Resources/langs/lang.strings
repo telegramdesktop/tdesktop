@@ -1037,6 +1037,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_animation_title" = "Animated GIFs";
 "lng_media_size_limit" = "Limit by size";
 "lng_media_size_up_to" = "up to {size}";
+"lng_media_chat_background" = "Chat background";
 
 "lng_emoji_category1" = "People";
 "lng_emoji_category2" = "Nature";

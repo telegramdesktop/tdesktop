@@ -81,6 +81,13 @@ private:
 [[nodiscard]] WallPaper DefaultWallPaper();
 [[nodiscard]] bool IsDefaultWallPaper(const WallPaper &paper);
 
+QColor PatternColor(QColor background);
+QImage PreparePatternImage(
+	QImage image,
+	QColor bg,
+	QColor fg,
+	int intensity);
+
 namespace details {
 
 [[nodiscard]] WallPaper UninitializedWallPaper();
@@ -146,8 +153,6 @@ void Revert();
 
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
 bool IsPaletteTestingPath(const QString &path);
-
-QColor PatternColor(QColor background);
 
 struct BackgroundUpdate {
 	enum class Type {

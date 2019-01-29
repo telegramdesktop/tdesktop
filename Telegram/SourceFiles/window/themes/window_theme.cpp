@@ -104,63 +104,6 @@ std::optional<QColor> ColorFromString(const QString &string) {
 		255);
 }
 
-QImage PreparePatternImage(QImage image, QColor bg, QColor fg, int intensity) {
-	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
-		image = std::move(image).convertToFormat(
-			QImage::Format_ARGB32_Premultiplied);
-	}
-	// Similar to ColorizePattern.
-	// But here we set bg to all 'alpha=0' pixels and fg to opaque ones.
-
-	const auto width = image.width();
-	const auto height = image.height();
-	const auto alpha = anim::interpolate(
-		0,
-		255,
-		fg.alphaF() * std::clamp(intensity / 100., 0., 1.));
-	if (!alpha) {
-		image.fill(bg);
-		return image;
-	}
-	fg.setAlpha(255);
-	const auto patternBg = anim::shifted(bg);
-	const auto patternFg = anim::shifted(fg);
-
-	const auto resultBytesPerPixel = (image.depth() >> 3);
-	constexpr auto resultIntsPerPixel = 1;
-	const auto resultIntsPerLine = (image.bytesPerLine() >> 2);
-	const auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;
-	auto resultInts = reinterpret_cast<uint32*>(image.bits());
-	Assert(resultIntsAdded >= 0);
-	Assert(image.depth() == static_cast<int>((resultIntsPerPixel * sizeof(uint32)) << 3));
-	Assert(image.bytesPerLine() == (resultIntsPerLine << 2));
-
-	const auto maskBytesPerPixel = (image.depth() >> 3);
-	const auto maskBytesPerLine = image.bytesPerLine();
-	const auto maskBytesAdded = maskBytesPerLine - width * maskBytesPerPixel;
-
-	// We want to read the last byte of four available.
-	// This is the difference with style::colorizeImage.
-	auto maskBytes = image.constBits() + (maskBytesPerPixel - 1);
-	Assert(maskBytesAdded >= 0);
-	Assert(image.depth() == (maskBytesPerPixel << 3));
-	for (auto y = 0; y != height; ++y) {
-		for (auto x = 0; x != width; ++x) {
-			const auto maskOpacity = static_cast<anim::ShiftedMultiplier>(
-				*maskBytes) + 1;
-			const auto fgOpacity = (maskOpacity * alpha) >> 8;
-			const auto bgOpacity = 256 - fgOpacity;
-			*resultInts = anim::unshifted(
-				patternBg * bgOpacity + patternFg * fgOpacity);
-			maskBytes += maskBytesPerPixel;
-			resultInts += resultIntsPerPixel;
-		}
-		maskBytes += maskBytesAdded;
-		resultInts += resultIntsAdded;
-	}
-	return image;
-}
-
 } // namespace
 
 WallPaper::WallPaper(WallPaperId id) : _id(id) {
@@ -258,7 +201,7 @@ WallPaper WallPaper::withUrlParams(
 	if (const auto string = params.value("intensity"); !string.isEmpty()) {
 		auto ok = false;
 		const auto intensity = string.toInt(&ok);
-		if (ok && base::in_range(intensity, 0, 100)) {
+		if (ok && base::in_range(intensity, 0, 101)) {
 			result._intensity = intensity;
 		}
 	}
@@ -440,6 +383,81 @@ WallPaper DefaultWallPaper() {
 
 bool IsDefaultWallPaper(const WallPaper &paper) {
 	return (paper.id() == kDefaultBackground);
+}
+
+QColor PatternColor(QColor background) {
+	const auto hue = background.hueF();
+	const auto saturation = background.saturationF();
+	const auto value = background.valueF();
+	return QColor::fromHsvF(
+		hue,
+		std::min(1.0, saturation + 0.05 + 0.1 * (1. - saturation)),
+		(value > 0.5
+			? std::max(0., value * 0.65)
+			: std::max(0., std::min(1., 1. - value * 0.65))),
+		0.4
+	).toRgb();
+}
+
+QImage PreparePatternImage(
+		QImage image,
+		QColor bg,
+		QColor fg,
+		int intensity) {
+	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	// Similar to ColorizePattern.
+	// But here we set bg to all 'alpha=0' pixels and fg to opaque ones.
+
+	const auto width = image.width();
+	const auto height = image.height();
+	const auto alpha = anim::interpolate(
+		0,
+		255,
+		fg.alphaF() * std::clamp(intensity / 100., 0., 1.));
+	if (!alpha) {
+		image.fill(bg);
+		return image;
+	}
+	fg.setAlpha(255);
+	const auto patternBg = anim::shifted(bg);
+	const auto patternFg = anim::shifted(fg);
+
+	const auto resultBytesPerPixel = (image.depth() >> 3);
+	constexpr auto resultIntsPerPixel = 1;
+	const auto resultIntsPerLine = (image.bytesPerLine() >> 2);
+	const auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;
+	auto resultInts = reinterpret_cast<uint32*>(image.bits());
+	Assert(resultIntsAdded >= 0);
+	Assert(image.depth() == static_cast<int>((resultIntsPerPixel * sizeof(uint32)) << 3));
+	Assert(image.bytesPerLine() == (resultIntsPerLine << 2));
+
+	const auto maskBytesPerPixel = (image.depth() >> 3);
+	const auto maskBytesPerLine = image.bytesPerLine();
+	const auto maskBytesAdded = maskBytesPerLine - width * maskBytesPerPixel;
+
+	// We want to read the last byte of four available.
+	// This is the difference with style::colorizeImage.
+	auto maskBytes = image.constBits() + (maskBytesPerPixel - 1);
+	Assert(maskBytesAdded >= 0);
+	Assert(image.depth() == (maskBytesPerPixel << 3));
+	for (auto y = 0; y != height; ++y) {
+		for (auto x = 0; x != width; ++x) {
+			const auto maskOpacity = static_cast<anim::ShiftedMultiplier>(
+				*maskBytes) + 1;
+			const auto fgOpacity = (maskOpacity * alpha) >> 8;
+			const auto bgOpacity = 256 - fgOpacity;
+			*resultInts = anim::unshifted(
+				patternBg * bgOpacity + patternFg * fgOpacity);
+			maskBytes += maskBytesPerPixel;
+			resultInts += resultIntsPerPixel;
+		}
+		maskBytes += maskBytesAdded;
+		resultInts += resultIntsAdded;
+	}
+	return image;
 }
 
 namespace details {
@@ -907,7 +925,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 					Data::PreparePatternImage(
 						image,
 						*fill,
-						PatternColor(*fill),
+						Data::PatternColor(*fill),
 						_paper.patternIntensity()));
 				setPreparedImage(std::move(image), std::move(prepared));
 			} else {
@@ -1590,20 +1608,6 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		}
 	}
 	return true;
-}
-
-QColor PatternColor(QColor background) {
-	const auto hue = background.hueF();
-	const auto saturation = background.saturationF();
-	const auto value = background.valueF();
-	return QColor::fromHsvF(
-		hue,
-		std::min(1.0, saturation + 0.05 + 0.1 * (1. - saturation)),
-		(value > 0.5
-			? std::max(0., value * 0.65)
-			: std::max(0., std::min(1., 1. - value * 0.65))),
-		0.4
-	).toRgb();
 }
 
 } // namespace Theme

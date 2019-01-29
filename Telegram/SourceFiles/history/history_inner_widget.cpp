@@ -1503,13 +1503,48 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 	};
-
+	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
+		_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+			savePhotoToFile(photo);
+		}));
+		_menu->addAction(lang(lng_context_copy_image), [=] {
+			copyContextImage(photo);
+		});
+	};
+	const auto addDocumentActions = [&](not_null<DocumentData*> document) {
+		if (document->loading()) {
+			_menu->addAction(lang(lng_context_cancel_download), [=] {
+				cancelContextDownload(document);
+			});
+			return;
+		}
+		const auto item = _dragStateItem;
+		const auto itemId = item ? item->fullId() : FullMsgId();
+		const auto lnkIsVideo = document->isVideoFile();
+		const auto lnkIsVoice = document->isVoiceMessage();
+		const auto lnkIsAudio = document->isAudioFile();
+		if (document->loaded() && document->isGifv()) {
+			if (!cAutoPlayGif()) {
+				_menu->addAction(lang(lng_context_open_gif), [=] {
+					openContextGif(itemId);
+				});
+			}
+			_menu->addAction(lang(lng_context_save_gif), [=] {
+				saveContextGif(itemId);
+			});
+		}
+		if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+			_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
+				showContextInFolder(document);
+			});
+		}
+		_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+			saveDocumentToFile(itemId, document);
+		}));
+	};
 	const auto link = ClickHandler::getActive();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(link.get());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(link.get());
-	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
-	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
-	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
@@ -1522,39 +1557,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		addItemActions(item);
 		if (lnkPhoto) {
-			const auto photo = lnkPhoto->photo();
-			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-				savePhotoToFile(photo);
-			}));
-			_menu->addAction(lang(lng_context_copy_image), [=] {
-				copyContextImage(photo);
-			});
+			addPhotoActions(lnkPhoto->photo());
 		} else {
-			auto document = lnkDocument->document();
-			if (document->loading()) {
-				_menu->addAction(lang(lng_context_cancel_download), [=] {
-					cancelContextDownload(document);
-				});
-			} else {
-				if (document->loaded() && document->isGifv()) {
-					if (!cAutoPlayGif()) {
-						_menu->addAction(lang(lng_context_open_gif), [=] {
-							openContextGif(itemId);
-						});
-					}
-					_menu->addAction(lang(lng_context_save_gif), [=] {
-						saveContextGif(itemId);
-					});
-				}
-				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
-						showContextInFolder(document);
-					});
-				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-					saveDocumentToFile(itemId, document);
-				}));
-			}
+			addDocumentActions(lnkDocument->document());
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {

@@ -593,6 +593,7 @@ bool DocumentData::checkWallPaperProperties() {
 		return false;
 	}
 	type = WallPaperDocument;
+	validateGoodThumbnail();
 	return true;
 }
 
@@ -613,6 +614,10 @@ void DocumentData::updateThumbnails(
 
 bool DocumentData::isWallPaper() const {
 	return (type == WallPaperDocument);
+}
+
+bool DocumentData::isPatternWallPaper() const {
+	return isWallPaper() && hasMimeType(qstr("image/png"));
 }
 
 bool DocumentData::hasThumbnail() const {
@@ -642,7 +647,7 @@ Image *DocumentData::goodThumbnail() const {
 }
 
 void DocumentData::validateGoodThumbnail() {
-	if (!isVideoFile() && !isAnimation()) {
+	if (!isVideoFile() && !isAnimation() && !isWallPaper()) {
 		_goodThumbnail = nullptr;
 	} else if (!_goodThumbnail && hasRemoteLocation()) {
 		_goodThumbnail = std::make_unique<Image>(

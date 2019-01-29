@@ -166,6 +166,7 @@ public:
 	}
 	bool checkWallPaperProperties();
 	[[nodiscard]] bool isWallPaper() const;
+	[[nodiscard]] bool isPatternWallPaper() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
 	void loadThumbnail(Data::FileOrigin origin);
@@ -339,6 +340,26 @@ public:
 protected:
 	void onClickImpl() const override {
 	}
+
+};
+
+class DocumentWrappedClickHandler : public DocumentClickHandler {
+public:
+	DocumentWrappedClickHandler(
+		ClickHandlerPtr wrapped,
+		not_null<DocumentData*> document,
+		FullMsgId context = FullMsgId())
+	: DocumentClickHandler(document, context)
+	, _wrapped(wrapped) {
+	}
+
+protected:
+	void onClickImpl() const override {
+		_wrapped->onClick({ Qt::LeftButton });
+	}
+
+private:
+	ClickHandlerPtr _wrapped;
 
 };
 

@@ -1017,7 +1017,7 @@ WebPageData *MediaWebPage::webpage() const {
 
 bool MediaWebPage::hasReplyPreview() const {
 	if (const auto document = MediaWebPage::document()) {
-		return document->hasThumbnail();
+		return document->hasThumbnail() && !document->isPatternWallPaper();
 	} else if (const auto photo = MediaWebPage::photo()) {
 		return !photo->isNull();
 	}

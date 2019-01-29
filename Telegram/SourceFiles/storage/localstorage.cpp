@@ -52,7 +52,7 @@ constexpr auto kSavedBackgroundFormat = QImage::Format_ARGB32_Premultiplied;
 
 constexpr auto kWallPaperLegacySerializeTagId = int32(-111);
 constexpr auto kWallPaperSerializeTagId = int32(-112);
-constexpr auto kWallPaperSidesLimit = 10000;
+constexpr auto kWallPaperSidesLimit = 10'000;
 
 constexpr auto kSinglePeerTypeUser = qint32(1);
 constexpr auto kSinglePeerTypeChat = qint32(2);
