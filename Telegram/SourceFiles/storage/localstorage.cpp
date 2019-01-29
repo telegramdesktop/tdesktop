@@ -4076,16 +4076,16 @@ bool readBackground() {
 		|| Data::IsDefaultWallPaper(*paper)) {
 		_backgroundCanWrite = false;
 		if (isOldEmptyImage || bg.version < 8005) {
-			Window::Theme::Background()->setImage(Data::DefaultWallPaper());
+			Window::Theme::Background()->set(Data::DefaultWallPaper());
 			Window::Theme::Background()->setTile(false);
 		} else {
-			Window::Theme::Background()->setImage(*paper);
+			Window::Theme::Background()->set(*paper);
 		}
 		_backgroundCanWrite = true;
 		return true;
 	} else if (Data::IsThemeWallPaper(*paper) && imageData.isEmpty()) {
 		_backgroundCanWrite = false;
-		Window::Theme::Background()->setImage(*paper);
+		Window::Theme::Background()->set(*paper);
 		_backgroundCanWrite = true;
 		return true;
 	}
@@ -4132,9 +4132,9 @@ bool readBackground() {
 			image = QImage();
 		}
 	}
-	if (!image.isNull()|| paper->backgroundColor()) {
+	if (!image.isNull() || paper->backgroundColor()) {
 		_backgroundCanWrite = false;
-		Window::Theme::Background()->setImage(*paper, std::move(image));
+		Window::Theme::Background()->set(*paper, std::move(image));
 		_backgroundCanWrite = true;
 		return true;
 	}

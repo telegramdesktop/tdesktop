@@ -177,7 +177,7 @@ public:
 
 	// This method is setting the default (themed) image if none was set yet.
 	void start();
-	void setImage(const Data::WallPaper &paper, QImage &&image = QImage());
+	void set(const Data::WallPaper &paper, QImage image = QImage());
 	void setTile(bool tile);
 	void setTileDayValue(bool tile);
 	void setTileNightValue(bool tile);
@@ -215,12 +215,13 @@ private:
 
 	void ensureStarted();
 	void saveForRevert();
-	void setPreparedImage(QImage &&image);
+	void setPreparedImage(QImage original, QImage prepared);
+	void preparePixmaps(QImage image);
 	void writeNewBackgroundSettings();
 	void setPaper(const Data::WallPaper &paper);
 
 	[[nodiscard]] bool adjustPaletteRequired();
-	void adjustPaletteUsingBackground(const QImage &img);
+	void adjustPaletteUsingBackground(const QImage &image);
 	void adjustPaletteUsingColor(QColor color);
 	void restoreAdjustableColors();
 
@@ -240,6 +241,7 @@ private:
 
 	Data::WallPaper _paper = Data::details::UninitializedWallPaper();
 	std::optional<QColor> _paperColor;
+	QImage _original;
 	QPixmap _pixmap;
 	QPixmap _pixmapForTiled;
 	bool _nightMode = false;
@@ -252,7 +254,7 @@ private:
 
 	Data::WallPaper _paperForRevert
 		= Data::details::UninitializedWallPaper();
-	QImage _imageForRevert;
+	QImage _originalForRevert;
 	bool _tileForRevert = false;
 
 	std::vector<AdjustableColor> _adjustableColors;

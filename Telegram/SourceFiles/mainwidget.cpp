@@ -1596,7 +1596,7 @@ void MainWidget::setReadyChatBackground(
 		? Data::DefaultWallPaper()
 		: background;
 
-	Background()->setImage(ready, std::move(image));
+	Background()->set(ready, std::move(image));
 	const auto tile = Data::IsLegacy1DefaultWallPaper(ready);
 	Background()->setTile(tile);
 	Ui::ForceFullRepaint(this);
