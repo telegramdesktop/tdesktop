@@ -69,7 +69,32 @@ bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
 	return result;
 }
 
-std::vector<DnsEntry> ParseDnsResponse(const QByteArray &response) {
+QString GenerateRandomPadding() {
+	constexpr char kValid[] = "abcdefghijklmnopqrstuvwxyz"
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+	auto result = QString();
+	const auto count = [&] {
+		constexpr auto kMinPadding = 13;
+		constexpr auto kMaxPadding = 128;
+		while (true) {
+			const auto result = 1 + (rand_value<uchar>() / 2);
+			Assert(result <= kMaxPadding);
+			if (result >= kMinPadding) {
+				return result;
+			}
+		}
+	}();
+	result.resize(count);
+	for (auto &ch : result) {
+		ch = kValid[rand_value<uchar>() % (sizeof(kValid) - 1)];
+	}
+	return result;
+}
+
+std::vector<DnsEntry> ParseDnsResponse(
+		const QByteArray &bytes,
+		std::optional<int> typeRestriction = std::nullopt) {
 	// Read and store to "result" all the data bytes from the response:
 	// { ..,
 	//   "Answer": [
@@ -77,47 +102,62 @@ std::vector<DnsEntry> ParseDnsResponse(const QByteArray &response) {
 	//     { .., "data": "bytes2", "TTL": int, .. }
 	//   ],
 	// .. }
-	auto result = std::vector<DnsEntry>();
 	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-	auto document = QJsonDocument::fromJson(response, &error);
+	const auto document = QJsonDocument::fromJson(bytes, &error);
 	if (error.error != QJsonParseError::NoError) {
 		LOG(("Config Error: Failed to parse dns response JSON, error: %1"
 			).arg(error.errorString()));
+		return {};
 	} else if (!document.isObject()) {
 		LOG(("Config Error: Not an object received in dns response JSON."));
-	} else {
-		auto response = document.object();
-		auto answerIt = response.find(qsl("Answer"));
-		if (answerIt == response.constEnd()) {
-			LOG(("Config Error: Could not find Answer "
-				"in dns response JSON."));
-		} else if (!(*answerIt).isArray()) {
-			LOG(("Config Error: Not an array received "
-				"in Answer in dns response JSON."));
-		} else {
-			for (auto elem : (*answerIt).toArray()) {
-				if (!elem.isObject()) {
-					LOG(("Config Error: Not an object found "
-						"in Answer array in dns response JSON."));
-				} else {
-					auto object = elem.toObject();
-					auto dataIt = object.find(qsl("data"));
-					auto ttlIt = object.find(qsl("TTL"));
-					auto ttl = (ttlIt != object.constEnd())
-						? int64(std::round((*ttlIt).toDouble()))
-						: int64(0);
-					if (dataIt == object.constEnd()) {
-						LOG(("Config Error: Could not find data "
-							"in Answer array entry in dns response JSON."));
-					} else if (!(*dataIt).isString()) {
-						LOG(("Config Error: Not a string data found "
-							"in Answer array entry in dns response JSON."));
-					} else {
-						result.push_back({ (*dataIt).toString(), ttl });
-					}
-				}
+		return {};
+	}
+	const auto response = document.object();
+	const auto answerIt = response.find(qsl("Answer"));
+	if (answerIt == response.constEnd()) {
+		LOG(("Config Error: Could not find Answer in dns response JSON."));
+		return {};
+	} else if (!(*answerIt).isArray()) {
+		LOG(("Config Error: Not an array received "
+			"in Answer in dns response JSON."));
+		return {};
+	}
+
+	auto result = std::vector<DnsEntry>();
+	for (const auto elem : (*answerIt).toArray()) {
+		if (!elem.isObject()) {
+			LOG(("Config Error: Not an object found "
+				"in Answer array in dns response JSON."));
+			continue;
+		}
+		const auto object = elem.toObject();
+		if (typeRestriction) {
+			const auto typeIt = object.find(qsl("type"));
+			const auto type = int(std::round((*typeIt).toDouble()));
+			if (!(*typeIt).isDouble()) {
+				LOG(("Config Error: Not a number in type field "
+					"in Answer array in dns response JSON."));
+				continue;
+			} else if (type != *typeRestriction) {
+				continue;
 			}
 		}
+		const auto dataIt = object.find(qsl("data"));
+		if (dataIt == object.constEnd()) {
+			LOG(("Config Error: Could not find data "
+				"in Answer array entry in dns response JSON."));
+			continue;
+		} else if (!(*dataIt).isString()) {
+			LOG(("Config Error: Not a string data found "
+				"in Answer array entry in dns response JSON."));
+			continue;
+		}
+
+		const auto ttlIt = object.find(qsl("TTL"));
+		const auto ttl = (ttlIt != object.constEnd())
+			? int64(std::round((*ttlIt).toDouble()))
+			: int64(0);
+		result.push_back({ (*dataIt).toString(), ttl });
 	}
 	return result;
 }
@@ -215,7 +255,9 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	} break;
 	case Type::Dns: {
 		url.setPath(qsl("/resolve"));
-		url.setQuery(qsl("name=%1&type=16").arg(Global::TxtDomainString()));
+		url.setQuery(qsl("name=%1&type=ANY&random_padding=%2"
+		).arg(Global::TxtDomainString()
+		).arg(GenerateRandomPadding()));
 		request.setRawHeader("Host", "dns.google.com");
 	} break;
 	default: Unexpected("Type in SpecialConfigRequest::performRequest.");
@@ -236,8 +278,11 @@ void SpecialConfigRequest::requestFinished(
 	const auto result = finalizeRequest(reply);
 	switch (type) {
 	case Type::App: handleResponse(result); break;
-	case Type::Dns: handleResponse(
-		ConcatenateDnsTxtFields(ParseDnsResponse(result))); break;
+	case Type::Dns: {
+		constexpr auto kTypeRestriction = 16; // TXT
+		handleResponse(ConcatenateDnsTxtFields(
+			ParseDnsResponse(result, kTypeRestriction)));
+	} break;
 	default: Unexpected("Type in SpecialConfigRequest::requestFinished.");
 	}
 }
