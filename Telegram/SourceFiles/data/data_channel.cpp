@@ -342,7 +342,9 @@ bool ChannelData::hiddenPreHistory() const {
 }
 
 bool ChannelData::canAddMembers() const {
-	return !amRestricted(ChatRestriction::f_invite_users);
+	return isMegagroup()
+		? !amRestricted(ChatRestriction::f_invite_users)
+		: ((adminRights() & AdminRight::f_invite_users) || amCreator());
 }
 
 bool ChannelData::canSendPolls() const {
