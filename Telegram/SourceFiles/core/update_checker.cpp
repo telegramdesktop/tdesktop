@@ -1129,9 +1129,10 @@ void Updater::check() {
 void Updater::handleReady() {
 	stop();
 	_action = Action::Ready;
-
-	cSetLastUpdateCheck(unixtime());
-	Local::writeSettings();
+	if (!App::quitting()) {
+		cSetLastUpdateCheck(unixtime());
+		Local::writeSettings();
+	}
 }
 
 void Updater::handleFailed() {
@@ -1156,10 +1157,11 @@ void Updater::handleProgress() {
 
 void Updater::scheduleNext() {
 	stop();
-
-	cSetLastUpdateCheck(unixtime());
-	Local::writeSettings();
-	start(true);
+	if (!App::quitting()) {
+		cSetLastUpdateCheck(unixtime());
+		Local::writeSettings();
+		start(true);
+	}
 }
 
 auto Updater::state() const -> State {
