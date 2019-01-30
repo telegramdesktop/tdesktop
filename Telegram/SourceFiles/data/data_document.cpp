@@ -1573,16 +1573,18 @@ bool IsExecutableName(const QString &filepath) {
 action app bin command csh osx workflow terminal url caction mpkg pkg xhtm \
 webarchive");
 #elif defined Q_OS_LINUX // Q_OS_MAC
-			qsl("bin csh ksh out run");
+			qsl("bin csh deb desktop ksh out pet pkg pup rpm run shar slp");
 #else // Q_OS_MAC || Q_OS_LINUX
 			qsl("\
-ade adp app asp bas bat bin cer chm cmd cnt com cpl crt csh der diagcab \
-exe fxp gadget grp hlp hpj hta inf ins inx isp isu its jar jnlp job js jse \
-ksh lnk mad maf mag mam maq mar mas mat mau mav maw mcf mda mdb mde mdt \
-mdw mdz msc msh msh1 msh2 msh1xml msh2xml mshxml msi msp mst ops osd \
-paf pcd pif pl plg prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 pst reg rgs scf \
-scr sct shb shs tmp u3p url vb vbe vbp vbs vbscript vsmacros vsw ws wsc \
-wsf wsh xbap xll xnk");
+ad ade adp app application appref-ms asp asx bas bat bin cer cfg chi chm \
+cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget grp hlp \
+hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse ksh lnk local \
+mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda mdb mde mdt \
+mdw mdz mht mhtml mmc mof msc msg msh msh1 msh2 msh1xml msh2xml mshxml msi \
+msp mst ops osd paf pcd pif pl plg prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
+pst reg rgs scf scr sct search-ms settingcontent-ms shb shs slk sys tmp \
+u3p url vb vbe vbp vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx \
+vst vstm vstx vsw vsx vtx website ws wsc wsf wsh xbap xll xnk");
 #endif // !Q_OS_MAC && !Q_OS_LINUX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
