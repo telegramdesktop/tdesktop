@@ -1377,13 +1377,19 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 			crl::guard(this, [=] { showAdmin(user); }));
 	}
 	if (_additional.canRestrictUser(user)) {
-		const auto isGroup = _peer->isChat() || _peer->isMegagroup();
-		if (isGroup) {
+		const auto canRestrictWithoutKick = [&] {
+			if (const auto chat = _peer->asChat()) {
+				return chat->amCreator();
+			}
+			return _peer->isMegagroup();
+		}();
+		if (canRestrictWithoutKick) {
 			result->addAction(
 				lang(lng_context_restrict_user),
 				crl::guard(this, [=] { showRestricted(user); }));
 		}
 		if (!_additional.isKicked(user)) {
+			const auto isGroup = _peer->isChat() || _peer->isMegagroup();
 			result->addAction(
 				lang(isGroup
 					? lng_context_remove_from_group
