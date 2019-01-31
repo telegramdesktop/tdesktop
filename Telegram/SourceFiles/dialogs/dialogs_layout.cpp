@@ -241,7 +241,8 @@ void paintRow(
 		namewidth,
 		st::msgNameFont->height);
 
-	const auto promoted = chat.entry()->useProxyPromotion();
+	const auto promoted = chat.entry()->useProxyPromotion()
+		&& !(flags & (Flag::SearchResult | Flag::FeedSearchResult));
 	if (promoted) {
 		const auto text = lang(lng_proxy_sponsor);
 		paintRowTopRight(p, text, rectForName, active, selected);
