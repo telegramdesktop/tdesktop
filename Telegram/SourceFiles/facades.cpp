@@ -154,14 +154,11 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	if (const auto m = App::main()) {
 		Ui::hideSettingsAndLayer();
 		Core::App().hideMediaView();
-		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
-			inPeer = nullptr;
-		}
 		m->searchMessages(
 			tag + ' ',
-			(inPeer
+			(inPeer && !inPeer->isUser())
 				? inPeer->owner().history(inPeer).get()
-				: Dialogs::Key()));
+				: Dialogs::Key());
 	}
 }
 
