@@ -179,6 +179,26 @@ void SaveChannelRestriction(
 	}).send();
 }
 
+void SaveChatParticipantKick(
+		not_null<ChatData*> chat,
+		not_null<UserData*> user,
+		Fn<void()> onDone,
+		Fn<void()> onFail) {
+	chat->session().api().request(MTPmessages_DeleteChatUser(
+		chat->inputChat,
+		user->inputUser
+	)).done([=](const MTPUpdates &result) {
+		chat->session().api().applyUpdates(result);
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=](const RPCError &error) {
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+}
+
 } // namespace
 
 Fn<void(
@@ -249,7 +269,9 @@ Fn<void(
 					const MTPDchatBannedRights &data) {
 				return data.vflags.v;
 			});
-			if (!flags) {
+			if (flags & MTPDchatBannedRights::Flag::f_view_messages) {
+				SaveChatParticipantKick(chat, user, done, onFail);
+			} else if (!flags) {
 				done();
 			} else {
 				peer->session().api().migrateChat(chat, saveForChannel);
@@ -1333,8 +1355,6 @@ void ParticipantsBoxController::rowActionClicked(
 		kickMember(user);
 	} else if (_role == Role::Admins) {
 		removeAdmin(user);
-	} else if (_role == Role::Restricted) {
-		showRestricted(user);
 	} else {
 		removeKicked(row, user);
 	}
@@ -1628,6 +1648,10 @@ void ParticipantsBoxController::removeKicked(
 		not_null<PeerListRow*> row,
 		not_null<UserData*> user) {
 	delegate()->peerListRemoveRow(row);
+	if (_role != Role::Kicked
+		&& !delegate()->peerListFullRowsCount()) {
+		setDescriptionText(lang(lng_blocked_list_not_found));
+	}
 	delegate()->peerListRefreshRows();
 	removeKicked(user);
 }
@@ -1692,8 +1716,10 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(
 		&& _additional.adminRights(user).has_value()
 		&& _additional.canEditAdmin(user)) {
 		row->setActionLink(lang(lng_profile_kick));
-	} else if (_role == Role::Kicked) {
-		row->setActionLink(lang(lng_profile_delete_removed));
+	} else if (_role == Role::Kicked || _role == Role::Restricted) {
+		if (_additional.canRestrictUser(user)) {
+			row->setActionLink(lang(lng_profile_delete_removed));
+		}
 	} else if (_role == Role::Members) {
 		if ((chat ? chat->canBanMembers() : channel->canBanMembers())
 			&& !_additional.isCreator(user)

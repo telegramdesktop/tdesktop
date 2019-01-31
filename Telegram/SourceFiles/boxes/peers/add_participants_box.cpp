@@ -710,27 +710,30 @@ void AddSpecialBoxController::kickUser(
 	// Finally kick him.
 	if (!sure) {
 		const auto text = ((_peer->isChat() || _peer->isMegagroup())
-			? lng_sure_remove_user_group
-			: lng_sure_remove_user_channel)(lt_user, App::peerName(user));
+			? lng_profile_sure_kick
+			: lng_profile_sure_kick_channel)(lt_user, App::peerName(user));
 		_editBox = Ui::show(
 			Box<ConfirmBox>(text, kickUserSure),
 			LayerOption::KeepOther);
 		return;
 	}
 
-	_editBox = nullptr;
 	const auto restrictedRights = _additional.restrictedRights(user);
 	const auto currentRights = restrictedRights
 		? *restrictedRights
 		: MTPChatBannedRights(MTP_chatBannedRights(
 			MTP_flags(0),
 			MTP_int(0)));
-	auto &session = _peer->session();
-	if (const auto chat = _peer->asChat()) {
-		session.api().kickParticipant(chat, user);
-	} else if (const auto channel = _peer->asChannel()) {
-		session.api().kickParticipant(channel, user, currentRights);
-	}
+
+	const auto done = crl::guard(this, [=](
+			const MTPChatBannedRights &newRights) {
+		editRestrictedDone(user, newRights);
+	});
+	const auto fail = crl::guard(this, [=] {
+		_editBox = nullptr;
+	});
+	const auto callback = SaveRestrictedCallback(_peer, user, done, fail);
+	callback(currentRights, ChannelData::KickedRestrictedRights());
 }
 
 bool AddSpecialBoxController::appendRow(not_null<UserData*> user) {

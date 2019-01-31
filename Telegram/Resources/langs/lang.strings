@@ -145,8 +145,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_add_admin_invite_channel" = "This user is not a subscriber of this channel. Add them to the channel and promote them to admin?";
 "lng_sure_add_admin_unremove" = "This user is currently restricted or removed. Are you sure you want to promote them?";
 "lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
-"lng_sure_remove_user_group" = "Remove {user} from the group?";
-"lng_sure_remove_user_channel" = "Remove {user} from the channel?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
 

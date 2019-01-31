@@ -95,10 +95,6 @@ private:
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights);
 	void kickUser(not_null<UserData*> user, bool sure = false);
-	void restrictUserSure(
-		not_null<UserData*> user,
-		const MTPChatBannedRights &oldRights,
-		const MTPChatBannedRights &newRights);
 	bool appendRow(not_null<UserData*> user);
 	bool prependRow(not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
