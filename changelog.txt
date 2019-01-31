@@ -1,3 +1,7 @@
+1.5.9 (31.01.19)
+
+- Bug fixes and other minor improvements.
+
 1.5.8 (21.01.19)
 
 - Global permissions for groups. Restrict all members in any group from posting certain types of content.
