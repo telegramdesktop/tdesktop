@@ -300,6 +300,8 @@ public:
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_historyMuteUpdated(History *history);
 
+	bool isQuitPrevent();
+
 	~MainWidget();
 
 signals:
@@ -444,6 +446,9 @@ private:
 
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
+
+	void updateStatusDone(const MTPBool &result);
+	bool updateStatusFail(const RPCError &error);
 
 	void refreshResizeAreas();
 	template <typename MoveCallback, typename FinishCallback>
