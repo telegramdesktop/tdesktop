@@ -1798,10 +1798,14 @@ void MediaView::initAnimation() {
 	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		auto w = _doc->dimensions.width();
 		auto h = _doc->dimensions.height();
-		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = (_doc->hasThumbnail()
+			? _doc->thumbnail()
+			: Image::Blank().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = (_doc->hasThumbnail()
+			? _doc->thumbnail()
+			: Image::Blank().get())->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1814,10 +1818,14 @@ void MediaView::createClipReader() {
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = (_doc->hasThumbnail()
+			? _doc->thumbnail()
+			: Image::Blank().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = (_doc->hasThumbnail()
+			? _doc->thumbnail()
+			: Image::Blank().get())->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideoFile() || _doc->isVideoMessage())
 		? Media::Clip::Reader::Mode::Video

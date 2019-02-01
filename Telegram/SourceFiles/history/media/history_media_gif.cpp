@@ -349,7 +349,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			}
 			if (const auto normal = _data->thumbnail()) {
 				if (normal->loaded()) {
-					p.drawPixmap(rthumb.topLeft(), _data->thumbnail()->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
+					p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else if (const auto blurred = _data->thumbnailInline()) {
 					p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				}
