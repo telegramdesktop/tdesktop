@@ -301,7 +301,9 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	if (!_state.is<ProcessingState>()) {
 		LOG(("Export Info: Stop Panel Without Confirmation."));
 		stopExport();
-		callback();
+		if (callback) {
+			callback();
+		}
 		return;
 	}
 	auto stop = [=, callback = std::move(callback)]() mutable {
