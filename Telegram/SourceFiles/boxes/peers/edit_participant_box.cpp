@@ -212,7 +212,9 @@ void EditAdminBox::prepare() {
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
 	const auto prepareRights = hadRights ? _oldRights : Defaults(peer());
-	const auto disabledByDefaults = DisabledByDefaultRestrictions(peer());
+	const auto disabledByDefaults = (channel && !channel->isMegagroup())
+		? MTPDchatAdminRights::Flags(0)
+		: DisabledByDefaultRestrictions(peer());
 	const auto filterByMyRights = canSave()
 		&& !hadRights
 		&& channel

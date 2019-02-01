@@ -350,16 +350,12 @@ bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
 		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
 	} else if (const auto chat = asChat()) {
-		return chat->amIn()
-			&& ((chat->adminRights() & ChatAdminRight::f_pin_messages)
-				|| chat->amCreator());
+		return chat->amIn() && !chat->amRestricted(ChatRestriction::f_pin_messages);
 	} else if (const auto channel = asChannel()) {
-		if (channel->isMegagroup()) {
-			return (channel->adminRights() & ChatAdminRight::f_pin_messages)
-				|| channel->amCreator();
-		}
-		return (channel->adminRights() & ChatAdminRight::f_edit_messages)
-			|| channel->amCreator();
+		return channel->isMegagroup()
+			? !channel->amRestricted(ChatRestriction::f_pin_messages)
+			: ((channel->adminRights() & ChatAdminRight::f_edit_messages)
+				|| channel->amCreator());
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
 }
@@ -613,9 +609,13 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		}
 	};
 	if (const auto channel = asChannel()) {
+		const auto defaultRestrictions = channel->defaultRestrictions()
+			| (channel->isPublic()
+				? (ChatRestriction::f_pin_messages | ChatRestriction::f_change_info)
+				: ChatRestrictions(0));
 		return (channel->amCreator() || allowByAdminRights(right, channel))
 			? Result::Allowed()
-			: (channel->defaultRestrictions() & right)
+			: (defaultRestrictions & right)
 			? Result::WithEveryone()
 			: (channel->restrictions() & right)
 			? Result::Explicit()
