@@ -620,7 +620,16 @@ not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 }
 
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
-	_content = std::move(content);
+	if (auto old = std::exchange(_content, std::move(content))) {
+		old->hide();
+
+		// Content destructor may invoke closeBox() that will try to
+		// start layer animation. If we won't detach old content from
+		// its parent WrapWidget layer animation will be started with a
+		// partially destructed grand-child widget and result in a crash.
+		old->setParent(nullptr);
+		old.destroy();
+	}
 	_content->show();
 	_additionalScroll = 0;
 	//_anotherTabMemento = nullptr;
