@@ -404,7 +404,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				}
 			}
 		}
-		if (!_filterResults.isEmpty()) {
+		if (!_filterResults.empty()) {
 			auto skip = filteredOffset();
 			auto from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _filterResults.size());
 			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _filterResults.size());
@@ -795,7 +795,7 @@ void DialogsInner::selectByMouse(QPoint globalPosition) {
 			}
 			_hashtagDeleteSelected = (_hashtagSelected >= 0) && (local.x() >= w - st::mentionHeight);
 		}
-		if (!_filterResults.isEmpty()) {
+		if (!_filterResults.empty()) {
 			auto skip = filteredOffset();
 			auto filteredSelected = (mouseY >= skip) ? ((mouseY - skip) / st::dialogsRowHeight) : -1;
 			if (filteredSelected < 0 || filteredSelected >= _filterResults.size()) {
@@ -1367,7 +1367,7 @@ void DialogsInner::repaintDialogRow(
 		}
 	} else if (_state == State::Filtered) {
 		if (list == Dialogs::Mode::All) {
-			for (auto i = 0, l = _filterResults.size(); i != l; ++i) {
+			for (auto i = 0, l = int(_filterResults.size()); i != l; ++i) {
 				if (_filterResults[i]->key() == row->key()) {
 					update(
 						0,
@@ -1439,7 +1439,7 @@ void DialogsInner::updateDialogRow(
 		}
 	} else if (_state == State::Filtered) {
 		if ((sections & UpdateRowSection::Filtered)
-			&& !_filterResults.isEmpty()) {
+			&& !_filterResults.empty()) {
 			const auto add = filteredOffset();
 			auto index = 0;
 			for (const auto result : _filterResults) {
@@ -1503,7 +1503,7 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 		}
 	} else if (_state == State::Filtered) {
 		if (key) {
-			for (auto i = 0, l = _filterResults.size(); i != l; ++i) {
+			for (auto i = 0, l = int(_filterResults.size()); i != l; ++i) {
 				if (_filterResults[i]->key() == key) {
 					update(0, filteredOffset() + i * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
 					break;
@@ -1928,13 +1928,33 @@ bool DialogsInner::uniqueSearchResults() const {
 		&& !_searchInChat;
 }
 
-bool DialogsInner::hasHistoryInSearchResults(not_null<History*> history) const {
+bool DialogsInner::hasHistoryInResults(not_null<History*> history) const {
 	using Result = std::unique_ptr<Dialogs::FakeRow>;
-	return ranges::find(
+	const auto inSearchResults = ranges::find(
 		_searchResults,
 		history,
 		[](const Result &result) { return result->item()->history(); }
 	) != end(_searchResults);
+	if (inSearchResults) {
+		return true;
+	}
+	const auto inFilteredResults = ranges::find(
+		_filterResults,
+		history.get(),
+		[](Dialogs::Row *row) { return row->history(); }
+	) != end(_filterResults);
+	if (inFilteredResults) {
+		return true;
+	}
+	const auto inPeerSearchResults = ranges::find(
+		_peerSearchResults,
+		history->peer,
+		[](const auto &result) { return result->peer; }
+	) != end(_peerSearchResults);
+	if (inPeerSearchResults) {
+		return true;
+	}
+	return false;
 }
 
 bool DialogsInner::searchReceived(
@@ -1959,7 +1979,7 @@ bool DialogsInner::searchReceived(
 					message,
 					NewMessageExisting);
 				const auto history = item->history();
-				if (!uniquePeers || !hasHistoryInSearchResults(history)) {
+				if (!uniquePeers || !hasHistoryInResults(history)) {
 					_searchResults.push_back(
 						std::make_unique<Dialogs::FakeRow>(
 							_searchInChat,
@@ -2189,7 +2209,7 @@ DialogsInner::State DialogsInner::state() const {
 }
 
 bool DialogsInner::hasFilteredResults() const {
-	return !_filterResults.isEmpty() && _hashtagResults.empty();
+	return !_filterResults.empty() && _hashtagResults.empty();
 }
 
 void DialogsInner::searchInChat(Dialogs::Key key, UserData *from) {
@@ -2313,14 +2333,14 @@ void DialogsInner::selectSkip(int32 direction) {
 			emit mustScrollTo(fromY, fromY + st::dialogsRowHeight);
 		}
 	} else if (_state == State::Filtered) {
-		if (_hashtagResults.empty() && _filterResults.isEmpty() && _peerSearchResults.empty() && _searchResults.empty()) return;
+		if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _searchResults.empty()) return;
 		if ((_hashtagSelected < 0 || _hashtagSelected >= _hashtagResults.size()) &&
 			(_filteredSelected < 0 || _filteredSelected >= _filterResults.size()) &&
 			(_peerSearchSelected < 0 || _peerSearchSelected >= _peerSearchResults.size()) &&
 			(_searchedSelected < 0 || _searchedSelected >= _searchResults.size())) {
-			if (_hashtagResults.empty() && _filterResults.isEmpty() && _peerSearchResults.empty()) {
+			if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty()) {
 				_searchedSelected = 0;
-			} else if (_hashtagResults.empty() && _filterResults.isEmpty()) {
+			} else if (_hashtagResults.empty() && _filterResults.empty()) {
 				_peerSearchSelected = 0;
 			} else if (_hashtagResults.empty()) {
 				_filteredSelected = 0;
@@ -2377,7 +2397,7 @@ void DialogsInner::scrollToEntry(const Dialogs::RowDescriptor &entry) {
 			}
 		}
 		if (fromY < 0) {
-			for (auto i = 0, c = _filterResults.size(); i != c; ++i) {
+			for (auto i = 0, c = int(_filterResults.size()); i != c; ++i) {
 				if (_filterResults[i]->key() == entry.key) {
 					fromY = filteredOffset() + (i * st::dialogsRowHeight);
 					break;
@@ -2658,7 +2678,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 		}
 		if (isSearchResultActive(_searchResults[0].get(), which)) {
 			if (_peerSearchResults.empty()) {
-				if (_filterResults.isEmpty()) {
+				if (_filterResults.empty()) {
 					return Dialogs::RowDescriptor();
 				}
 				return Dialogs::RowDescriptor(
@@ -2672,7 +2692,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 	}
 	if (!_peerSearchResults.empty()
 		&& _peerSearchResults[0]->peer == whichHistory->peer) {
-		if (_filterResults.isEmpty()) {
+		if (_filterResults.empty()) {
 			return Dialogs::RowDescriptor();
 		}
 		return Dialogs::RowDescriptor(
@@ -2688,7 +2708,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 			}
 		}
 	}
-	if (_filterResults.isEmpty() || _filterResults[0]->key() == which.key) {
+	if (_filterResults.empty() || _filterResults[0]->key() == which.key) {
 		return Dialogs::RowDescriptor();
 	}
 

@@ -132,13 +132,8 @@ protected:
 
 private:
 	struct ImportantSwitch;
-	using DialogsList = std::unique_ptr<Dialogs::IndexedList>;
-	using FilteredDialogs = QVector<Dialogs::Row*>;
-	using SearchResults = std::vector<std::unique_ptr<Dialogs::FakeRow>>;
 	struct HashtagResult;
-	using HashtagResults = std::vector<std::unique_ptr<HashtagResult>>;
 	struct PeerSearchResult;
-	using PeerSearchResults = std::vector<std::unique_ptr<PeerSearchResult>>;
 
 	enum class JumpSkip {
 		PreviousOrBegin,
@@ -190,7 +185,7 @@ private:
 		not_null<PeerData*> peer,
 		const base::flat_set<QChar> &oldLetters);
 	bool uniqueSearchResults() const;
-	bool hasHistoryInSearchResults(not_null<History*> history) const;
+	bool hasHistoryInResults(not_null<History*> history) const;
 
 	void setupShortcuts();
 	Dialogs::RowDescriptor computeJump(
@@ -293,11 +288,11 @@ private:
 
 	not_null<Window::Controller*> _controller;
 
-	DialogsList _dialogs;
-	DialogsList _dialogsImportant;
+	std::unique_ptr<Dialogs::IndexedList> _dialogs;
+	std::unique_ptr<Dialogs::IndexedList> _dialogsImportant;
 
-	DialogsList _contactsNoDialogs;
-	DialogsList _contacts;
+	std::unique_ptr<Dialogs::IndexedList> _contactsNoDialogs;
+	std::unique_ptr<Dialogs::IndexedList> _contacts;
 
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
@@ -328,13 +323,13 @@ private:
 	int _visibleBottom = 0;
 	QString _filter, _hashtagFilter;
 
-	HashtagResults _hashtagResults;
+	std::vector<std::unique_ptr<HashtagResult>> _hashtagResults;
 	int _hashtagSelected = -1;
 	int _hashtagPressed = -1;
 	bool _hashtagDeleteSelected = false;
 	bool _hashtagDeletePressed = false;
 
-	FilteredDialogs _filterResults;
+	std::vector<Dialogs::Row*> _filterResults;
 	base::flat_map<
 		not_null<PeerData*>,
 		std::unique_ptr<Dialogs::Row>> _filterResultsGlobal;
@@ -344,11 +339,11 @@ private:
 	bool _waitingForSearch = false;
 
 	QString _peerSearchQuery;
-	PeerSearchResults _peerSearchResults;
+	std::vector<std::unique_ptr<PeerSearchResult>> _peerSearchResults;
 	int _peerSearchSelected = -1;
 	int _peerSearchPressed = -1;
 
-	SearchResults _searchResults;
+	std::vector<std::unique_ptr<Dialogs::FakeRow>> _searchResults;
 	int _searchedCount = 0;
 	int _searchedMigratedCount = 0;
 	int _searchedSelected = -1;
