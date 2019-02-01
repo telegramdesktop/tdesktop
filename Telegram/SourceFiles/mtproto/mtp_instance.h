@@ -35,6 +35,8 @@ public:
 
 		DcId mainDcId = kNotSetMainDc;
 		AuthKeysList keys;
+		QString deviceModel;
+		QString systemVersion;
 	};
 	enum class Mode {
 		Normal,
@@ -54,6 +56,10 @@ public:
 	QString systemLangCode() const;
 	QString cloudLangCode() const;
 	QString langPackName() const;
+
+	// Thread safe.
+	QString deviceModel() const;
+	QString systemVersion() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
 	AuthKeysList getKeysForWrite() const;

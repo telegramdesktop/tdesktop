@@ -24,7 +24,6 @@ public:
 	QString argumentsString() const;
 	bool customWorkingDir() const;
 
-	// Thread safe.
 	QString deviceModel() const;
 	QString systemVersion() const;
 	uint64 installationTag() const;

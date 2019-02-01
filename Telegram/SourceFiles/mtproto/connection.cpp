@@ -820,10 +820,10 @@ void ConnectionPrivate::tryToSend() {
 		const auto langPackName = _connectionOptions->langPackName;
 		const auto deviceModel = (_dcType == DcType::Cdn)
 			? "n/a"
-			: Core::App().launcher()->deviceModel();
+			: _instance->deviceModel();
 		const auto systemVersion = (_dcType == DcType::Cdn)
 			? "n/a"
-			: Core::App().launcher()->systemVersion();
+			: _instance->systemVersion();
 #if defined OS_MAC_STORE || defined OS_WIN_STORE
 		const auto appVersion = QString::fromLatin1(AppVersionStr)
 			+ " store";
