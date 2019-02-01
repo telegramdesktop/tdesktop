@@ -55,7 +55,7 @@ AdminLog::OwnedItem GenerateTextItem(
 	Expects(history->peer->isUser());
 
 	using Flag = MTPDmessage::Flag;
-	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 3) + (out ? 1 : 0);
+	static auto id = ServerMaxMsgId + (ServerMaxMsgId / 3);
 	const auto flags = Flag::f_entities
 		| Flag::f_from_id
 		| (out ? Flag::f_out : Flag(0));
@@ -63,7 +63,7 @@ AdminLog::OwnedItem GenerateTextItem(
 	const auto viaBotId = 0;
 	const auto item = new HistoryMessage(
 		history,
-		id,
+		++id,
 		flags,
 		replyTo,
 		viaBotId,
