@@ -780,7 +780,8 @@ bool LayerStackWidget::takeToThirdSection() {
 }
 
 void LayerStackWidget::clearLayers() {
-	for (auto &layer : base::take(_layers)) {
+	for (auto list = base::take(_layers); !list.empty(); list.pop_back()) {
+		const auto layer = std::move(list.back());
 		if (layer->inFocusChain()) {
 			setFocus();
 		}
