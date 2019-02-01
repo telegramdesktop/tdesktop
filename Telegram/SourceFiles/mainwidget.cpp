@@ -3752,7 +3752,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	if (this != App::main()) return;
 	InvokeQueued(this, [=] { session().checkAutoLock(); });
 
-	bool isOnline = App::wnd()->isActive();
+	bool isOnline = !App::quitting() && App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
 	if (isOnline) {
 		auto idle = psIdleTime();

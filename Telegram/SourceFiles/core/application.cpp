@@ -1047,7 +1047,7 @@ void Application::preventWindowActivation() {
 void Application::QuitAttempt() {
 	auto prevents = false;
 	if (AuthSession::Exists() && !Sandbox::Instance().isSavingSession()) {
-		if (auto mainwidget = App::main()) {
+		if (const auto mainwidget = App::main()) {
 			if (mainwidget->isQuitPrevent()) {
 				prevents = true;
 			}
