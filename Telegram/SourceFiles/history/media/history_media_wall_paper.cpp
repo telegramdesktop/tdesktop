@@ -214,8 +214,8 @@ void HistoryWallPaper::prepareThumbnailFrom(
 	}
 	original = Images::prepare(
 		std::move(original),
-		_pixw,
-		(_pixw * th) / tw,
+		_pixw * cIntRetinaFactor(),
+		((_pixw * th) / tw) * cIntRetinaFactor(),
 		options,
 		_pixw,
 		_pixh);
