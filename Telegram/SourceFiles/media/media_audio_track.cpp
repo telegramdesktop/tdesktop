@@ -258,9 +258,9 @@ Instance::Instance() {
 		}
 	});
 
-	_detachFromDeviceTimer.setCallback([this] {
+	_detachFromDeviceTimer.setCallback([=] {
 		_detachFromDeviceForce = false;
-		Player::internal::DetachFromDevice();
+		Player::internal::DetachFromDevice(this);
 	});
 }
 

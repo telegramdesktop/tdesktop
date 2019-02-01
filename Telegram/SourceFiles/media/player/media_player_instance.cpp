@@ -36,18 +36,18 @@ constexpr auto kIdsPreloadAfter = 28;
 
 } // namespace
 
-void start() {
-	Audio::Start();
+void start(not_null<Audio::Instance*> instance) {
+	Audio::Start(instance);
 	Capture::Start();
 
 	SingleInstance = new Instance();
 }
 
-void finish() {
+void finish(not_null<Audio::Instance*> instance) {
 	delete base::take(SingleInstance);
 
 	Capture::Finish();
-	Audio::Finish();
+	Audio::Finish(instance);
 }
 
 Instance::Instance()

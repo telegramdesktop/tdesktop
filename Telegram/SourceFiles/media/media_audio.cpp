@@ -183,7 +183,7 @@ bool CreatePlaybackDevice() {
 }
 
 // Thread: Main. Must be locked: AudioMutex.
-void ClosePlaybackDevice() {
+void ClosePlaybackDevice(not_null<Instance*> instance) {
 	if (!AudioDevice) return;
 
 	LOG(("Audio Info: Closing audio playback device."));
@@ -201,7 +201,7 @@ void ClosePlaybackDevice() {
 	if (Player::mixer()) {
 		Player::mixer()->detachTracks();
 	}
-	Current().detachTracks();
+	instance->detachTracks();
 
 	DestroyPlaybackDevice();
 }
@@ -209,7 +209,7 @@ void ClosePlaybackDevice() {
 } // namespace
 
   // Thread: Main.
-void Start() {
+void Start(not_null<Instance*> instance) {
 	Assert(AudioDevice == nullptr);
 
 	qRegisterMetaType<AudioMsgId>();
@@ -221,13 +221,13 @@ void Start() {
 	EnumeratePlaybackDevices();
 	EnumerateCaptureDevices();
 
-	MixerInstance = new Player::Mixer();
+	MixerInstance = new Player::Mixer(instance);
 
 	Platform::Audio::Init();
 }
 
 // Thread: Main.
-void Finish() {
+void Finish(not_null<Instance*> instance) {
 	Platform::Audio::DeInit();
 
 	// MixerInstance variable should be modified under AudioMutex protection.
@@ -235,7 +235,7 @@ void Finish() {
 	delete MixerInstance;
 
 	// No sync required already.
-	ClosePlaybackDevice();
+	ClosePlaybackDevice(instance);
 }
 
 // Thread: Main. Locks: AudioMutex.
@@ -489,8 +489,9 @@ void Mixer::Track::resetStream() {
 
 Mixer::Track::~Track() = default;
 
-Mixer::Mixer()
-: _volumeVideo(kVolumeRound)
+Mixer::Mixer(not_null<Audio::Instance*> instance)
+: _instance(instance)
+, _volumeVideo(kVolumeRound)
 , _volumeSong(kVolumeRound)
 , _fader(new Fader(&_faderThread))
 , _loader(new Loaders(&_loaderThread)) {
@@ -530,7 +531,7 @@ Mixer::~Mixer() {
 		}
 		_videoTrack.clear();
 
-		Audio::ClosePlaybackDevice();
+		Audio::ClosePlaybackDevice(_instance);
 		Audio::MixerInstance = nullptr;
 	}
 
@@ -1467,9 +1468,9 @@ bool CheckAudioDeviceConnected() {
 }
 
 // Thread: Main. Locks: AudioMutex.
-void DetachFromDevice() {
+void DetachFromDevice(not_null<Audio::Instance*> instance) {
 	QMutexLocker lock(&AudioMutex);
-	Audio::ClosePlaybackDevice();
+	Audio::ClosePlaybackDevice(instance);
 	if (mixer()) {
 		mixer()->reattachIfNeeded();
 	}

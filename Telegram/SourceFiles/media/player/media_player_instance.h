@@ -12,10 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class AudioMsgId;
 
 namespace Media {
+namespace Audio {
+class Instance;
+} // namespace Audio
+
 namespace Player {
 
-void start();
-void finish();
+void start(not_null<Audio::Instance*> instance);
+void finish(not_null<Audio::Instance*> instance);
 
 class Instance;
 Instance *instance();
@@ -125,7 +129,7 @@ public:
 
 private:
 	Instance();
-	friend void start();
+	friend void start(not_null<Audio::Instance*> instance);
 
 	void setupShortcuts();
 

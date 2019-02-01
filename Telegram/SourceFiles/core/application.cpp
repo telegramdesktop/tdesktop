@@ -111,7 +111,7 @@ void Application::run() {
 	anim::startManager();
 	Ui::InitTextOptions();
 	Ui::Emoji::Init();
-	Media::Player::start();
+	Media::Player::start(_audio.get());
 
 	DEBUG_LOG(("Application Info: inited..."));
 
@@ -1117,7 +1117,7 @@ Application::~Application() {
 
 	Window::Theme::Unload();
 
-	Media::Player::finish();
+	Media::Player::finish(_audio.get());
 	style::stopManager();
 
 	Local::finish();

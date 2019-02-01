@@ -16,9 +16,11 @@ struct VideoSoundPart;
 namespace Media {
 namespace Audio {
 
+class Instance;
+
 // Thread: Main.
-void Start();
-void Finish();
+void Start(not_null<Instance*> instance);
+void Finish(not_null<Instance*> instance);
 
 // Thread: Main. Locks: AudioMutex.
 bool IsAttachedToDevice();
@@ -104,7 +106,7 @@ class Mixer : public QObject, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	Mixer();
+	explicit Mixer(not_null<Audio::Instance*> instance);
 
 	void play(const AudioMsgId &audio, TimeMs positionMs = 0);
 	void play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, TimeMs positionMs = 0);
@@ -229,6 +231,8 @@ private:
 	int *currentIndex(AudioMsgId::Type type);
 	const int *currentIndex(AudioMsgId::Type type) const;
 
+	not_null<Audio::Instance*> _instance;
+
 	int _audioCurrent = 0;
 	Track _audioTracks[kTogetherLimit];
 
@@ -309,7 +313,7 @@ namespace internal {
 bool CheckAudioDeviceConnected();
 
 // Thread: Main. Locks: AudioMutex.
-void DetachFromDevice();
+void DetachFromDevice(not_null<Audio::Instance*> instance);
 
 // Thread: Any.
 QMutex *audioPlayerMutex();
