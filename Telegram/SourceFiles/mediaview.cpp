@@ -137,7 +137,11 @@ MediaView::MediaView()
 	});
 	handleAuthSessionChange();
 
+#ifdef OS_MAC_OLD
+	setWindowFlags(Qt::FramelessWindowHint);
+#else // OS_MAC_OLD
 	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);
+#endif // OS_MAC_OLD
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
