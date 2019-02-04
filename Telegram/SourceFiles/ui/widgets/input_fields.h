@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
 class UserData;
@@ -110,8 +111,8 @@ private:
 
 	bool _focused = false;
 	bool _placeholderVisible = true;
-	Animation _a_placeholderFocused;
-	Animation _a_placeholderVisible;
+	Animations::Simple _a_placeholderFocused;
+	Animations::Simple _a_placeholderVisible;
 	bool _lastPreEditTextNotEmpty = false;
 
 	const style::FlatInput &_st;

@@ -542,19 +542,18 @@ void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 
 CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : RippleButton(parent, st.ripple)
 , _st(st)
-, _a_loading(animation(this, &CrossButton::step_loading)) {
+, _a_loading([=](crl::time duration) { return loadingCallback(duration); }) {
 	resize(_st.width, _st.height);
 	setCursor(style::cur_pointer);
 	setVisible(false);
 }
 
-void CrossButton::step_loading(crl::time ms, bool timer) {
-	if (stopLoadingAnimation(ms)) {
-		_a_loading.stop();
-		update();
-	} else if (timer && !anim::Disabled()) {
+bool CrossButton::loadingCallback(crl::time duration) {
+	const auto result = !stopLoadingAnimation(duration);
+	if (!result || !anim::Disabled()) {
 		update();
 	}
+	return result;
 }
 
 void CrossButton::toggle(bool visible, anim::type animated) {
@@ -565,7 +564,7 @@ void CrossButton::toggle(bool visible, anim::type animated) {
 				setVisible(true);
 			}
 			_a_show.start(
-				[this] { animationCallback(); },
+				[=] { animationCallback(); },
 				_shown ? 0. : 1.,
 				_shown ? 1. : 0.,
 				_st.duration);
@@ -588,14 +587,15 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 
 	auto ms = crl::now();
 	auto over = isOver();
-	auto shown = _a_show.current(ms, _shown ? 1. : 0.);
+	auto shown = _a_show.value(_shown ? 1. : 0.);
 	p.setOpacity(shown);
 
 	paintRipple(p, _st.crossPosition.x(), _st.crossPosition.y(), ms);
 
 	auto loading = 0.;
 	if (_a_loading.animating()) {
-		if (stopLoadingAnimation(ms)) {
+		const auto duration = (ms - _loadingStartMs);
+		if (stopLoadingAnimation(duration)) {
 			_a_loading.stop();
 		} else if (anim::Disabled()) {
 			CrossAnimation::paintStaticLoading(
@@ -608,7 +608,7 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 				shown);
 			return;
 		} else {
-			loading = ((ms - _loadingStartMs) % _st.loadingPeriod)
+			loading = (duration % _st.loadingPeriod)
 				/ float64(_st.loadingPeriod);
 		}
 	}
@@ -623,12 +623,13 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 		loading);
 }
 
-bool CrossButton::stopLoadingAnimation(crl::time ms) {
+bool CrossButton::stopLoadingAnimation(crl::time duration) {
 	if (!_loadingStopMs) {
 		return false;
 	}
-	auto stopPeriod = (_loadingStopMs - _loadingStartMs) / _st.loadingPeriod;
-	auto currentPeriod = (ms - _loadingStartMs) / _st.loadingPeriod;
+	const auto stopPeriod = (_loadingStopMs - _loadingStartMs)
+		/ _st.loadingPeriod;
+	const auto currentPeriod = duration / _st.loadingPeriod;
 	if (currentPeriod != stopPeriod) {
 		Assert(currentPeriod > stopPeriod);
 		return true;

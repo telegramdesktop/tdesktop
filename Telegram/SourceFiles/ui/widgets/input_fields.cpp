@@ -972,8 +972,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = crl::now();
-	auto placeholderFocused = _a_placeholderFocused.current(ms, _focused ? 1. : 0.);
-
+	auto placeholderFocused = _a_placeholderFocused.value(_focused ? 1. : 0.);
 	auto pen = anim::pen(_st.borderColor, _st.borderActive, placeholderFocused);
 	pen.setWidth(_st.borderWidth);
 	p.setPen(pen);
@@ -987,7 +986,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 		_st.icon.paint(p, 0, 0, width());
 	}
 
-	auto placeholderOpacity = _a_placeholderVisible.current(ms, _placeholderVisible ? 1. : 0.);
+	auto placeholderOpacity = _a_placeholderVisible.value(_placeholderVisible ? 1. : 0.);
 	if (placeholderOpacity > 0.) {
 		p.setOpacity(placeholderOpacity);
 
@@ -1007,7 +1006,11 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 void FlatInput::focusInEvent(QFocusEvent *e) {
 	if (!_focused) {
 		_focused = true;
-		_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
+		_a_placeholderFocused.start(
+			[=] { update(); },
+			0.,
+			1.,
+			_st.phDuration);
 		update();
 	}
 	QLineEdit::focusInEvent(e);
@@ -1017,7 +1020,11 @@ void FlatInput::focusInEvent(QFocusEvent *e) {
 void FlatInput::focusOutEvent(QFocusEvent *e) {
 	if (_focused) {
 		_focused = false;
-		_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
+		_a_placeholderFocused.start(
+			[=] { update(); },
+			1.,
+			0.,
+			_st.phDuration);
 		update();
 	}
 	QLineEdit::focusOutEvent(e);
@@ -1069,7 +1076,11 @@ void FlatInput::updatePlaceholder() {
 	auto placeholderVisible = !hasText;
 	if (_placeholderVisible != placeholderVisible) {
 		_placeholderVisible = placeholderVisible;
-		_a_placeholderVisible.start([this] { update(); }, _placeholderVisible ? 0. : 1., _placeholderVisible ? 1. : 0., _st.phDuration);
+		_a_placeholderVisible.start(
+			[=] { update(); },
+			_placeholderVisible ? 0. : 1.,
+			_placeholderVisible ? 1. : 0.,
+			_st.phDuration);
 	}
 }
 

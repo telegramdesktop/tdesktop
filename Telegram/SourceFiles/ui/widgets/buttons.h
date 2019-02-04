@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/abstract_button.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
 #include <memory>
@@ -216,7 +217,7 @@ public:
 		return toggle(false, animated);
 	}
 	void finishAnimating() {
-		_a_show.finish();
+		_a_show.stop();
 		animationCallback();
 	}
 
@@ -234,18 +235,18 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void step_loading(crl::time ms, bool timer);
-	bool stopLoadingAnimation(crl::time ms);
+	bool loadingCallback(crl::time duration);
+	bool stopLoadingAnimation(crl::time duration);
 	void animationCallback();
 
 	const style::CrossButton &_st;
 
 	bool _shown = false;
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 
 	crl::time _loadingStartMs = 0;
 	crl::time _loadingStopMs = 0;
-	BasicAnimation _a_loading;
+	Ui::Animations::Basic _a_loading;
 
 };
 

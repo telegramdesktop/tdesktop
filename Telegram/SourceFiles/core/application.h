@@ -30,6 +30,12 @@ namespace App {
 void quit();
 } // namespace App
 
+namespace Ui {
+namespace Animations {
+class Manager;
+} // namespace Animations
+} // namespace Ui
+
 namespace MTP {
 class DcOptions;
 class Instance;
@@ -73,6 +79,10 @@ public:
 	}
 
 	void run();
+
+	Ui::Animations::Manager &animationManager() const {
+		return *_animationsManager;
+	}
 
 	// Windows interface.
 	MainWindow *getActiveWindow() const;
@@ -222,6 +232,9 @@ protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+	friend bool IsAppLaunched();
+	friend Application &App();
+
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void allKeysDestroyed();
 
@@ -239,6 +252,8 @@ private:
 	void clearPasscodeLock();
 	void loggedOut();
 
+	static Application *Instance;
+
 	not_null<Launcher*> _launcher;
 
 	// Some fields are just moved from the declaration.
@@ -247,10 +262,11 @@ private:
 
 	QWidget _globalShortcutParent;
 
-	std::unique_ptr<Storage::Databases> _databases;
+	const std::unique_ptr<Storage::Databases> _databases;
+	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
 	std::unique_ptr<MainWindow> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
-	std::unique_ptr<Lang::Instance> _langpack;
+	const std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	std::unique_ptr<Lang::Translator> _translator;
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
@@ -261,9 +277,9 @@ private:
 	base::Observable<void> _passcodedChanged;
 	QPointer<BoxContent> _badProxyDisableBox;
 
-	std::unique_ptr<Media::Audio::Instance> _audio;
-	QImage _logo;
-	QImage _logoNoMargin;
+	const std::unique_ptr<Media::Audio::Instance> _audio;
+	const QImage _logo;
+	const QImage _logoNoMargin;
 
 	rpl::variable<bool> _passcodeLock;
 	rpl::event_stream<bool> _termsLockChanges;
@@ -289,6 +305,7 @@ private:
 
 };
 
-Application &App();
+[[nodiscard]] bool IsAppLaunched();
+[[nodiscard]] Application &App();
 
 } // namespace Core

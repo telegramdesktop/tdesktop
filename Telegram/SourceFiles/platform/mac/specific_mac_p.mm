@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
-#include "core/sandbox.h"
 #include "core/crash_reports.h"
 #include "storage/localstorage.h"
 #include "media/audio/media_audio.h"
@@ -142,13 +141,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
 	ApplicationIsActive = true;
-	if (Core::Sandbox::Instance().applicationLaunched()) {
-		if (!_ignoreActivation) {
-			Core::App().handleAppActivated();
-			if (auto window = App::wnd()) {
-				if (window->isHidden()) {
-					window->showFromTray();
-				}
+	if (Core::IsAppLaunched() && !_ignoreActivation) {
+		Core::App().handleAppActivated();
+		if (auto window = App::wnd()) {
+			if (window->isHidden()) {
+				window->showFromTray();
 			}
 		}
 	}
@@ -159,7 +156,7 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) receiveWakeNote:(NSNotification*)aNotification {
-	if (Core::Sandbox::Instance().applicationLaunched()) {
+	if (Core::IsAppLaunched()) {
 		Core::App().checkLocalTime();
 	}
 

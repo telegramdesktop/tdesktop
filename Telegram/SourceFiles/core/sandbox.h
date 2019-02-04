@@ -47,15 +47,6 @@ public:
 		return *static_cast<Sandbox*>(QApplication::instance());
 	}
 
-	bool applicationLaunched() const {
-		return _application != nullptr;
-	}
-	Application &application() const {
-		Expects(_application != nullptr);
-
-		return *_application;
-	}
-
 	~Sandbox();
 
 protected:

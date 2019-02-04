@@ -784,7 +784,7 @@ void BackgroundPreviewBox::elementAnimationAutoplayAsync(
 
 crl::time BackgroundPreviewBox::elementHighlightTime(
 		not_null<const Element*> element) {
-	return crl::time();
+	return crl::time(0);
 }
 
 bool BackgroundPreviewBox::elementInSelectionMode() {

@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
-#include "core/sandbox.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "auth_session.h"
@@ -87,12 +86,7 @@ void ConvertIconToBlack(QImage &image) {
 }
 
 QIcon CreateOfficialIcon() {
-	auto image = [&] {
-		if (Core::Sandbox::Instance().applicationLaunched()) {
-			return Core::App().logo();
-		}
-		return LoadLogo();
-	}();
+	auto image = Core::IsAppLaunched() ? Core::App().logo() : LoadLogo();
 	if (AuthSession::Exists() && Auth().supportMode()) {
 		ConvertIconToBlack(image);
 	}

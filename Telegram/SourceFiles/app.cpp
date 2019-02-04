@@ -117,10 +117,9 @@ namespace App {
 	}
 
 	MainWindow *wnd() {
-		if (Core::Sandbox::Instance().applicationLaunched()) {
-			return Core::App().getActiveWindow();
-		}
-		return nullptr;
+		return Core::IsAppLaunched()
+			? Core::App().getActiveWindow()
+			: nullptr;
 	}
 
 	MainWidget *main() {

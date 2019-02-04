@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/effects/animations.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
 #include "base/qthelp_regex.h"
@@ -63,6 +64,8 @@ constexpr auto kQuitPreventTimeoutMs = 1500;
 
 } // namespace
 
+Application *Application::Instance = nullptr;
+
 struct Application::Private {
 	UserId authSessionUserId = 0;
 	QByteArray authSessionUserSerialized;
@@ -78,12 +81,16 @@ Application::Application(not_null<Launcher*> launcher)
 , _launcher(launcher)
 , _private(std::make_unique<Private>())
 , _databases(std::make_unique<Storage::Databases>())
+, _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
 , _logoNoMargin(Window::LoadLogoNoMargin()) {
 	Expects(!_logo.isNull());
 	Expects(!_logoNoMargin.isNull());
+	Expects(Instance == nullptr);
+
+	Instance = this;
 }
 
 void Application::run() {
@@ -1157,10 +1164,18 @@ Application::~Application() {
 	Local::finish();
 	Global::finish();
 	ThirdParty::finish();
+
+	Instance = nullptr;
+}
+
+bool IsAppLaunched() {
+	return (Application::Instance != nullptr);
 }
 
 Application &App() {
-	return Sandbox::Instance().application();
+	Expects(Application::Instance != nullptr);
+
+	return *Application::Instance;
 }
 
 } // namespace Core

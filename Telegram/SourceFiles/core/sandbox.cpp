@@ -13,15 +13,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 #include "core/crash_reports.h"
+#include "core/crash_report_window.h"
 #include "core/application.h"
 #include "core/launcher.h"
 #include "core/local_url_handlers.h"
+#include "core/update_checker.h"
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
-#include "core/update_checker.h"
-#include "core/crash_report_window.h"
+#include "ui/effects/animations.h"
 
 namespace Core {
 namespace {
@@ -498,6 +499,10 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	}
 
 	const auto wrap = createEventNestingLevel();
+	const auto type = e->type();
+	if ((type == QEvent::UpdateRequest) && _application) {
+		_application->animationManager().update();
+	}
 	return QApplication::notify(receiver, e);
 }
 

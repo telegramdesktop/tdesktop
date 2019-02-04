@@ -594,7 +594,7 @@ void ConfirmContactBox::elementAnimationAutoplayAsync(
 
 crl::time ConfirmContactBox::elementHighlightTime(
 		not_null<const Element*> element) {
-	return crl::time();
+	return crl::time(0);
 }
 
 bool ConfirmContactBox::elementInSelectionMode() {

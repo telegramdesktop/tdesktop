@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
-#include "core/sandbox.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
 #include "info/info_memento.h"
@@ -1384,7 +1383,7 @@ Updater::~Updater() {
 
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
-	if (Sandbox::Instance().applicationLaunched()) {
+	if (IsAppLaunched()) {
 		if (const auto mtproto = Core::App().mtp()) {
 			_updater->setMtproto(mtproto);
 		}

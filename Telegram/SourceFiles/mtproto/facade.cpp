@@ -9,15 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "core/application.h"
-#include "core/sandbox.h"
 
 namespace MTP {
 namespace internal {
-namespace {
+//namespace {
 
 int PauseLevel = 0;
 
-} // namespace
+//} // namespace
 
 bool paused() {
 	return PauseLevel > 0;
@@ -39,9 +38,7 @@ void unpause() {
 } // namespace internal
 
 Instance *MainInstance() {
-	return Core::Sandbox::Instance().applicationLaunched()
-		? Core::App().mtp()
-		: nullptr;
+	return Core::IsAppLaunched() ? Core::App().mtp() : nullptr;
 }
 
 } // namespace MTP

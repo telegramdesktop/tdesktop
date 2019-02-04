@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "core/application.h"
-#include "core/sandbox.h"
 #include "core/changelogs.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
@@ -430,8 +429,7 @@ AuthSession::AuthSession(const MTPUser &user)
 }
 
 bool AuthSession::Exists() {
-	return Core::Sandbox::Instance().applicationLaunched()
-		&& (Core::App().authSession() != nullptr);
+	return Core::IsAppLaunched() && (Core::App().authSession() != nullptr);
 }
 
 base::Observable<void> &AuthSession::downloaderTaskFinished() {
