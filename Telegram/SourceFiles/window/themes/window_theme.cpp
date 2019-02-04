@@ -38,26 +38,6 @@ constexpr auto kCustomBackground = FromLegacyBackgroundId(-1);
 constexpr auto kLegacy1DefaultBackground = FromLegacyBackgroundId(0);
 constexpr auto kDefaultBackground = FromLegacyBackgroundId(105);
 
-[[nodiscard]] bool ValidateFlags(MTPDwallPaper::Flags flags) {
-	using Flag = MTPDwallPaper::Flag;
-	const auto all = Flag(0)
-		| Flag::f_creator
-		| Flag::f_default
-		| Flag::f_pattern
-		| Flag::f_settings;
-	return !(flags & ~all);
-}
-
-[[nodiscard]] bool ValidateFlags(MTPDwallPaperSettings::Flags flags) {
-	using Flag = MTPDwallPaperSettings::Flag;
-	const auto all = Flag(0)
-		| Flag::f_background_color
-		| Flag::f_blur
-		| Flag::f_intensity
-		| Flag::f_motion;
-	return !(flags & ~all);
-}
-
 quint32 SerializeMaybeColor(std::optional<QColor> color) {
 	return color
 		? ((quint32(std::clamp(color->red(), 0, 255)) << 16)
@@ -351,9 +331,6 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 	result._settings = MTPDwallPaperSettings::Flags::from_raw(settings);
 	result._backgroundColor = MaybeColorFromSerialized(backgroundColor);
 	result._intensity = intensity;
-	if (!ValidateFlags(result._flags) || !ValidateFlags(result._settings)) {
-		return std::nullopt;
-	}
 	return result;
 }
 
@@ -367,9 +344,6 @@ std::optional<WallPaper> WallPaper::FromLegacySerialized(
 	result._flags = MTPDwallPaper::Flags::from_raw(flags);
 	result._slug = slug;
 	result._backgroundColor = ColorFromString(slug);
-	if (!ValidateFlags(result._flags)) {
-		return std::nullopt;
-	}
 	return result;
 }
 
@@ -897,10 +871,7 @@ void ChatBackground::start() {
 }
 
 void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
-	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
-		image = std::move(image).convertToFormat(
-			QImage::Format_ARGB32_Premultiplied);
-	}
+	image = ProcessBackgroundImage(std::move(image));
 
 	const auto needResetAdjustable = Data::IsDefaultWallPaper(paper)
 		&& !Data::IsDefaultWallPaper(_paper)
@@ -1576,6 +1547,32 @@ QColor AdjustedColor(QColor original, QColor background) {
 		original.lightnessF(),
 		original.alphaF()
 	).toRgb();
+}
+
+QImage ProcessBackgroundImage(QImage image) {
+	constexpr auto kMaxSize = 2960;
+
+	if (image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	if (image.width() > 40 * image.height()) {
+		const auto width = 40 * image.height();
+		const auto height = image.height();
+		image = image.copy((image.width() - width) / 2, 0, width, height);
+	} else if (image.height() > 40 * image.width()) {
+		const auto width = image.width();
+		const auto height = 40 * image.width();
+		image = image.copy(0, (image.height() - height) / 2, width, height);
+	}
+	if (image.width() > kMaxSize || image.height() > kMaxSize) {
+		image = image.scaled(
+			kMaxSize,
+			kMaxSize,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	return image;
 }
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from) {

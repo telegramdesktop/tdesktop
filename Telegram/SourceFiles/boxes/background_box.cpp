@@ -573,8 +573,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		|| _generating) {
 		return;
 	}
-	_generating = Data::ReadImageAsync(document, [=](
-			QImage &&image) mutable {
+	const auto generateCallback = [=](QImage &&image) {
 		auto [left, right] = base::make_binary_guard();
 		_generating = std::move(left);
 		crl::async([
@@ -598,7 +597,11 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 				update();
 			});
 		});
-	});
+	};
+	_generating = Data::ReadImageAsync(
+		document,
+		Window::Theme::ProcessBackgroundImage,
+		generateCallback);
 }
 
 bool BackgroundPreviewBox::Start(

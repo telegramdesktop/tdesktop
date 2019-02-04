@@ -155,6 +155,7 @@ bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
 bool IsPaletteTestingPath(const QString &path);
 QColor CountAverageColor(const QImage &image);
 QColor AdjustedColor(QColor original, QColor background);
+QImage ProcessBackgroundImage(QImage image);
 
 struct BackgroundUpdate {
 	enum class Type {
