@@ -26,8 +26,6 @@ protected:
 	void prepare() override;
 
 private:
-	void backgroundChosen(int index);
-
 	class Inner;
 	QPointer<Inner> _inner;
 

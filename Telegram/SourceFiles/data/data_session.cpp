@@ -3064,23 +3064,13 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	_wallpapersHash = hash;
 
 	_wallpapers.clear();
-	_wallpapers.reserve(data.size() + 1);
+	_wallpapers.reserve(data.size() + 2);
 
-	const auto defaultBackground = Images::Create(
-		qsl(":/gui/art/bg.jpg"),
-		"JPG");
-	if (defaultBackground) {
-		_wallpapers.push_back(Data::DefaultWallPaper());
-		_wallpapers.back().setLocalImageAsThumbnail(
-			defaultBackground.get());
-	}
-	const auto oldBackground = Images::Create(
+	_wallpapers.push_back(Data::Legacy1DefaultWallPaper());
+	_wallpapers.back().setLocalImageAsThumbnail(Images::Create(
 		qsl(":/gui/art/bg_initial.jpg"),
-		"JPG");
-	if (oldBackground) {
-		_wallpapers.push_back(Data::Legacy1DefaultWallPaper());
-		_wallpapers.back().setLocalImageAsThumbnail(oldBackground.get());
-	}
+		"JPG"
+	).get());
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
 			if (paper.is_pattern()) {
@@ -3089,6 +3079,16 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 				_wallpapers.push_back(*parsed);
 			}
 		});
+	}
+	const auto defaultFound = ranges::find_if(
+		_wallpapers,
+		Data::IsDefaultWallPaper);
+	if (defaultFound == end(_wallpapers)) {
+		_wallpapers.push_back(Data::DefaultWallPaper());
+		_wallpapers.back().setLocalImageAsThumbnail(Images::Create(
+			qsl(":/gui/arg/bg.jpg"),
+			"JPG"
+		).get());
 	}
 }
 

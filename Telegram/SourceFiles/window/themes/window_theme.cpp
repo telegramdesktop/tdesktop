@@ -36,7 +36,8 @@ constexpr auto kTestingEditorBackground = FromLegacyBackgroundId(-664);
 constexpr auto kThemeBackground = FromLegacyBackgroundId(-2);
 constexpr auto kCustomBackground = FromLegacyBackgroundId(-1);
 constexpr auto kLegacy1DefaultBackground = FromLegacyBackgroundId(0);
-constexpr auto kDefaultBackground = FromLegacyBackgroundId(105);
+constexpr auto kDefaultBackground = 5947530738516623361;
+constexpr auto kIncorrectDefaultBackground = FromLegacyBackgroundId(105);
 
 quint32 SerializeMaybeColor(std::optional<QColor> color) {
 	return color
@@ -139,6 +140,14 @@ bool WallPaper::isDefault() const {
 
 bool WallPaper::isCreator() const {
 	return _flags & MTPDwallPaper::Flag::f_creator;
+}
+
+bool WallPaper::isDark() const {
+	return _flags & MTPDwallPaper::Flag::f_dark;
+}
+
+bool WallPaper::isLocal() const {
+	return !document() && thumbnail();
 }
 
 int WallPaper::patternIntensity() const {
@@ -394,7 +403,8 @@ WallPaper DefaultWallPaper() {
 }
 
 bool IsDefaultWallPaper(const WallPaper &paper) {
-	return (paper.id() == kDefaultBackground);
+	return (paper.id() == kDefaultBackground)
+		|| (paper.id() == kIncorrectDefaultBackground);
 }
 
 QColor PatternColor(QColor background) {

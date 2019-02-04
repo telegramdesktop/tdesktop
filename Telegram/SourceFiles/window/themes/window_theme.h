@@ -26,6 +26,8 @@ public:
 	[[nodiscard]] bool isPattern() const;
 	[[nodiscard]] bool isDefault() const;
 	[[nodiscard]] bool isCreator() const;
+	[[nodiscard]] bool isDark() const;
+	[[nodiscard]] bool isLocal() const;
 	[[nodiscard]] int patternIntensity() const;
 	[[nodiscard]] bool hasShareUrl() const;
 	[[nodiscard]] QString shareUrl() const;

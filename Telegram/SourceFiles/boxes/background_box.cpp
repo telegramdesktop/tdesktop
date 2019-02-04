@@ -167,9 +167,8 @@ class BackgroundBox::Inner
 public:
 	Inner(QWidget *parent);
 
-	void setBackgroundChosenCallback(Fn<void(int index)> callback) {
-		_backgroundChosenCallback = std::move(callback);
-	}
+	void setBackgroundChosenCallback(
+		Fn<void(const Data::WallPaper &)> callback);
 
 	~Inner();
 
@@ -180,14 +179,16 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
-	void updateWallpapers();
+	void updatePapers();
+	void sortPapers();
 	void paintPaper(
 		Painter &p,
 		const Data::WallPaper &paper,
 		int column,
 		int row) const;
 
-	Fn<void(int index)> _backgroundChosenCallback;
+	Fn<void(const Data::WallPaper &)> _backgroundChosenCallback;
+	std::vector<Data::WallPaper> _papers;
 
 	int _over = -1;
 	int _overDown = -1;
@@ -207,18 +208,11 @@ void BackgroundBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_inner = setInnerWidget(object_ptr<Inner>(this), st::backgroundScroll);
-	_inner->setBackgroundChosenCallback([=](int index) {
-		backgroundChosen(index);
-	});
-}
-
-void BackgroundBox::backgroundChosen(int index) {
-	const auto &papers = Auth().data().wallpapers();
-	if (index >= 0 && index < papers.size()) {
+	_inner->setBackgroundChosenCallback([](const Data::WallPaper &paper) {
 		Ui::show(
-			Box<BackgroundPreviewBox>(papers[index]),
+			Box<BackgroundPreviewBox>(paper),
 			LayerOption::KeepOther);
-	}
+	});
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
@@ -227,35 +221,58 @@ BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 	if (Auth().data().wallpapers().empty()) {
 		resize(kBackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 	} else {
-		updateWallpapers();
+		updatePapers();
 	}
 	request(MTPaccount_GetWallPapers(
 		MTP_int(Auth().data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {
 		if (Auth().data().updateWallpapers(result)) {
-			updateWallpapers();
+			updatePapers();
 		}
 	}).send();
 
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
-	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &update) {
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [=](const Update &update) {
 		if (update.paletteChanged()) {
 			_check->invalidateCache();
+		} else if (update.type == Update::Type::New) {
+			sortPapers();
+			this->update();
 		}
 	});
 	setMouseTracking(true);
 }
 
-void BackgroundBox::Inner::updateWallpapers() {
-	const auto &papers = Auth().data().wallpapers();
-	const auto count = papers.size();
+void BackgroundBox::Inner::setBackgroundChosenCallback(
+		Fn<void(const Data::WallPaper &)> callback) {
+	_backgroundChosenCallback = std::move(callback);
+}
+
+void BackgroundBox::Inner::sortPapers() {
+	using Paper = Data::WallPaper;
+	const auto current = Window::Theme::Background()->id();
+	const auto night = Window::Theme::IsNightMode();
+	ranges::stable_sort(_papers, std::greater<>(), [&](const Paper &paper) {
+		return std::make_tuple(
+			paper.id() == current,
+			night ? paper.isDark() : !paper.isDark(),
+			!paper.isDefault() && !paper.isLocal(),
+			!paper.isDefault() && paper.isLocal());
+	});
+}
+
+void BackgroundBox::Inner::updatePapers() {
+	_papers = Auth().data().wallpapers();
+	sortPapers();
+	const auto count = _papers.size();
 	const auto rows = (count / kBackgroundsInRow)
 		+ (count % kBackgroundsInRow ? 1 : 0);
 
 	resize(kBackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, rows * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 
 	const auto preload = kBackgroundsInRow * 3;
-	for (const auto &paper : papers | ranges::view::take(preload)) {
+	for (const auto &paper : _papers | ranges::view::take(preload)) {
 		paper.loadThumbnail();
 	}
 }
@@ -264,8 +281,7 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
-	const auto &papers = Auth().data().wallpapers();
-	if (papers.empty()) {
+	if (_papers.empty()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
@@ -273,7 +289,7 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 	auto row = 0;
 	auto column = 0;
-	for (const auto &paper : papers) {
+	for (const auto &paper : _papers) {
 		const auto increment = gsl::finally([&] {
 			++column;
 			if (column == kBackgroundsInRow) {
@@ -327,7 +343,7 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 			return -1;
 		}
 		const auto result = row * kBackgroundsInRow + column;
-		return (result < Auth().data().wallpapers().size()) ? result : -1;
+		return (result < _papers.size()) ? result : -1;
 	}();
 	if (_over != newOver) {
 		_over = newOver;
@@ -342,9 +358,9 @@ void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 }
 
 void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	if (_overDown == _over && _over >= 0) {
+	if (_overDown == _over && _over >= 0 && _over < _papers.size()) {
 		if (_backgroundChosenCallback) {
-			_backgroundChosenCallback(_over);
+			_backgroundChosenCallback(_papers[_over]);
 		}
 	} else if (_over < 0) {
 		setCursor(style::cur_default);
