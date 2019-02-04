@@ -368,8 +368,6 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	true))
 , _paper(paper)
 , _radial(animation(this, &BackgroundPreviewBox::step_radial)) {
-	Expects(_paper.thumbnail() != nullptr);
-
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 }
 
@@ -540,10 +538,8 @@ void BackgroundPreviewBox::step_radial(TimeMs ms, bool timer) {
 }
 
 bool BackgroundPreviewBox::setScaledFromThumb() {
-	Expects(_paper.thumbnail() != nullptr);
-
 	const auto thumbnail = _paper.thumbnail();
-	if (!thumbnail->loaded()) {
+	if (!thumbnail || !thumbnail->loaded()) {
 		return false;
 	}
 	setScaledFromImage(PrepareScaledFromFull(
