@@ -1322,7 +1322,6 @@ void Widget::showSearchFrom() {
 	if (const auto peer = _searchInChat.peer()) {
 		const auto chat = _searchInChat;
 		ShowSearchFromBox(
-			controller(),
 			peer,
 			crl::guard(this, [=](not_null<UserData*> user) {
 				Ui::hideLayer();
