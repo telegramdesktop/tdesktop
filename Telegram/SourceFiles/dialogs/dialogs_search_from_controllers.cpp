@@ -53,15 +53,16 @@ SearchFromController::SearchFromController(
 	not_null<Window::Navigation*> navigation,
 	not_null<PeerData*> peer,
 	Fn<void(not_null<UserData*>)> callback)
-: ParticipantsBoxController(
-	navigation,
+: AddSpecialBoxController(
 	peer,
-	ParticipantsBoxController::Role::Members)
+	ParticipantsBoxController::Role::Members,
+	AdminDoneCallback(),
+	BannedDoneCallback())
 , _callback(std::move(callback)) {
 }
 
 void SearchFromController::prepare() {
-	ParticipantsBoxController::prepare();
+	AddSpecialBoxController::prepare();
 	delegate()->peerListSetTitle(langFactory(lng_search_messages_from));
 }
 

@@ -281,6 +281,8 @@ void AddSpecialBoxController::prepare() {
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	const auto title = [&] {
 		switch (_role) {
+		case Role::Members:
+			return langFactory(lng_profile_participants_section);
 		case Role::Admins:
 			return langFactory(lng_channel_add_admin);
 		case Role::Restricted:
@@ -412,6 +414,7 @@ void AddSpecialBoxController::loadMoreRows() {
 void AddSpecialBoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	switch (_role) {
+	case Role::Members: return;
 	case Role::Admins: return showAdmin(user);
 	case Role::Restricted: return showRestricted(user);
 	case Role::Kicked: return kickUser(user);
