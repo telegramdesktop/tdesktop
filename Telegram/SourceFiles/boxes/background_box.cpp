@@ -158,6 +158,29 @@ QImage PrepareScaledFromFull(
 		QImage::Format_ARGB32_Premultiplied);
 }
 
+QImage TakeMiddleSample(QImage original, QSize size) {
+	size *= cIntRetinaFactor();
+	const auto from = original.size();
+	if (from.isEmpty()) {
+		auto result = original.scaled(size);
+		result.setDevicePixelRatio(cRetinaFactor());
+		return result;
+	}
+
+	const auto take = (from.width() * size.height()
+		> from.height() * size.width())
+		? QSize(size.width() * from.height() / size.height(), from.height())
+		: QSize(from.width(), size.height() * from.width() / size.width());
+	auto result = original.copy(
+		(from.width() - take.width()) / 2,
+		(from.height() - take.height()) / 2,
+		take.width(),
+		take.height()
+	).scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	result.setDevicePixelRatio(cRetinaFactor());
+	return result;
+}
+
 } // namespace
 
 class BackgroundBox::Inner
@@ -179,16 +202,21 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	struct Paper {
+		Data::WallPaper data;
+		mutable QPixmap thumbnail;
+	};
 	void updatePapers();
 	void sortPapers();
 	void paintPaper(
 		Painter &p,
-		const Data::WallPaper &paper,
+		const Paper &paper,
 		int column,
 		int row) const;
+	void validatePaperThumbnail(const Paper &paper) const;
 
 	Fn<void(const Data::WallPaper &)> _backgroundChosenCallback;
-	std::vector<Data::WallPaper> _papers;
+	std::vector<Paper> _papers;
 
 	int _over = -1;
 	int _overDown = -1;
@@ -250,20 +278,25 @@ void BackgroundBox::Inner::setBackgroundChosenCallback(
 }
 
 void BackgroundBox::Inner::sortPapers() {
-	using Paper = Data::WallPaper;
 	const auto current = Window::Theme::Background()->id();
 	const auto night = Window::Theme::IsNightMode();
 	ranges::stable_sort(_papers, std::greater<>(), [&](const Paper &paper) {
+		const auto &data = paper.data;
 		return std::make_tuple(
-			paper.id() == current,
-			night ? paper.isDark() : !paper.isDark(),
-			!paper.isDefault() && !paper.isLocal(),
-			!paper.isDefault() && paper.isLocal());
+			data.id() == current,
+			night ? data.isDark() : !data.isDark(),
+			!data.isDefault() && !data.isLocal(),
+			!data.isDefault() && data.isLocal());
 	});
 }
 
 void BackgroundBox::Inner::updatePapers() {
-	_papers = Auth().data().wallpapers();
+	_papers = Auth().data().wallpapers(
+	) | ranges::view::filter([](const Data::WallPaper &paper) {
+		return !paper.isPattern() || paper.backgroundColor().has_value();
+	}) | ranges::view::transform([](const Data::WallPaper &paper) {
+		return Paper{ paper };
+	}) | ranges::to_vector;
 	sortPapers();
 	const auto count = _papers.size();
 	const auto rows = (count / kBackgroundsInRow)
@@ -273,7 +306,7 @@ void BackgroundBox::Inner::updatePapers() {
 
 	const auto preload = kBackgroundsInRow * 3;
 	for (const auto &paper : _papers | ranges::view::take(preload)) {
-		paper.loadThumbnail();
+		paper.data.loadThumbnail();
 	}
 }
 
@@ -306,22 +339,45 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void BackgroundBox::Inner::validatePaperThumbnail(
+		const Paper &paper) const {
+	Expects(paper.data.thumbnail() != nullptr);
+
+	const auto thumbnail = paper.data.thumbnail();
+	if (!paper.thumbnail.isNull()) {
+		return;
+	} else if (!thumbnail->loaded()) {
+		thumbnail->load(paper.data.fileOrigin());
+		return;
+	}
+	auto original = thumbnail->original();
+	if (paper.data.isPattern()) {
+		const auto color = *paper.data.backgroundColor();
+		original = Data::PreparePatternImage(
+			std::move(original),
+			color,
+			Data::PatternColor(color),
+			paper.data.patternIntensity());
+	}
+	paper.thumbnail = App::pixmapFromImageInPlace(TakeMiddleSample(
+		original,
+		st::backgroundSize));
+	paper.thumbnail.setDevicePixelRatio(cRetinaFactor());
+}
+
 void BackgroundBox::Inner::paintPaper(
 		Painter &p,
-		const Data::WallPaper &paper,
+		const Paper &paper,
 		int column,
 		int row) const {
-	Expects(paper.thumbnail() != nullptr);
-
 	const auto x = st::backgroundPadding + column * (st::backgroundSize.width() + st::backgroundPadding);
 	const auto y = st::backgroundPadding + row * (st::backgroundSize.height() + st::backgroundPadding);
-	const auto &pixmap = paper.thumbnail()->pix(
-		paper.fileOrigin(),
-		st::backgroundSize.width(),
-		st::backgroundSize.height());
-	p.drawPixmap(x, y, pixmap);
+	validatePaperThumbnail(paper);
+	if (!paper.thumbnail.isNull()) {
+		p.drawPixmap(x, y, paper.thumbnail);
+	}
 
-	if (paper.id() == Window::Theme::Background()->id()) {
+	if (paper.data.id() == Window::Theme::Background()->id()) {
 		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
 		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
 		_check->paint(p, getms(), checkLeft, checkTop, width());
@@ -360,7 +416,7 @@ void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_overDown == _over && _over >= 0 && _over < _papers.size()) {
 		if (_backgroundChosenCallback) {
-			_backgroundChosenCallback(_papers[_over]);
+			_backgroundChosenCallback(_papers[_over].data);
 		}
 	} else if (_over < 0) {
 		setCursor(style::cur_default);

@@ -3073,9 +3073,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	).get());
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
-			if (paper.is_pattern()) {
-				return;
-			} else if (const auto parsed = Data::WallPaper::Create(paper)) {
+			if (const auto parsed = Data::WallPaper::Create(paper)) {
 				_wallpapers.push_back(*parsed);
 			}
 		});
