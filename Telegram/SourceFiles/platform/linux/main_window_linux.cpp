@@ -343,6 +343,10 @@ void MainWindow::unreadCounterChangedHook() {
 void MainWindow::updateIconCounters() {
 	updateWindowIcon();
 
+	foreach(QWidget *widget, qApp->topLevelWidgets()) {
+		QApplication::alert(widget);
+	}
+
 	const auto counter = Core::App().unreadBadge();
 
 	if (useUnityCount) {
