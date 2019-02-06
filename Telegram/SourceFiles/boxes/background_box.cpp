@@ -514,7 +514,10 @@ void BackgroundPreviewBox::paintImage(Painter &p) {
 		(size - height()) / 2 * factor,
 		size * factor,
 		height() * factor);
-	p.drawPixmap(rect(), _scaled, from);
+	p.drawPixmap(
+		rect(),
+		(!_blurred.isNull() && _paper.isBlurred()) ? _blurred : _scaled,
+		from);
 }
 
 void BackgroundPreviewBox::paintRadial(Painter &p, TimeMs ms) {
@@ -621,9 +624,12 @@ bool BackgroundPreviewBox::setScaledFromThumb() {
 	return true;
 }
 
-void BackgroundPreviewBox::setScaledFromImage(QImage &&image) {
+void BackgroundPreviewBox::setScaledFromImage(
+		QImage &&image,
+		QImage &&blurred) {
 	updateServiceBg(Window::Theme::CountAverageColor(image));
 	_scaled = App::pixmapFromImageInPlace(std::move(image));
+	_blurred = App::pixmapFromImageInPlace(std::move(blurred));
 }
 
 void BackgroundPreviewBox::updateServiceBg(std::optional<QColor> background) {
@@ -655,16 +661,23 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 			guard = std::move(right)
 		]() mutable {
 			auto scaled = PrepareScaledFromFull(image, patternBackground);
+			const auto ms = getms();
+			auto blurred = patternBackground
+				? QImage()
+				: PrepareScaledNonPattern(
+					Data::PrepareBlurredBackground(image),
+					Images::Option(0));
 			crl::on_main([
 				this,
 				image = std::move(image),
 				scaled = std::move(scaled),
+				blurred = std::move(blurred),
 				guard = std::move(guard)
 			]() mutable {
 				if (!guard) {
 					return;
 				}
-				setScaledFromImage(std::move(scaled));
+				setScaledFromImage(std::move(scaled), std::move(blurred));
 				_full = std::move(image);
 				update();
 			});

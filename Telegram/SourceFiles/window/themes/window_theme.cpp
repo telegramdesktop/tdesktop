@@ -150,6 +150,10 @@ bool WallPaper::isLocal() const {
 	return !document() && thumbnail();
 }
 
+bool WallPaper::isBlurred() const {
+	return _settings & MTPDwallPaperSettings::Flag::f_blur;
+}
+
 int WallPaper::patternIntensity() const {
 	return _intensity;
 }
@@ -480,6 +484,19 @@ QImage PreparePatternImage(
 		resultInts += resultIntsAdded;
 	}
 	return image;
+}
+
+QImage PrepareBlurredBackground(QImage image) {
+	constexpr auto kSize = 900;
+	constexpr auto kRadius = 24;
+	if (image.width() > kSize || image.height() > kSize) {
+		image = image.scaled(
+			kSize,
+			kSize,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	return Images::BlurLargeImage(image, kRadius);
 }
 
 namespace details {
@@ -973,6 +990,9 @@ void ChatBackground::setPreparedImage(QImage original, QImage prepared) {
 	Expects(prepared.width() > 0 && prepared.height() > 0);
 
 	_original = std::move(original);
+	if (!_paper.isPattern() && _paper.isBlurred()) {
+		prepared = Data::PrepareBlurredBackground(std::move(prepared));
+	}
 	if (adjustPaletteRequired()) {
 		adjustPaletteUsingBackground(prepared);
 	}

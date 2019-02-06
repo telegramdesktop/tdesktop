@@ -28,6 +28,7 @@ public:
 	[[nodiscard]] bool isCreator() const;
 	[[nodiscard]] bool isDark() const;
 	[[nodiscard]] bool isLocal() const;
+	[[nodiscard]] bool isBlurred() const;
 	[[nodiscard]] int patternIntensity() const;
 	[[nodiscard]] bool hasShareUrl() const;
 	[[nodiscard]] QString shareUrl() const;
@@ -89,6 +90,7 @@ QImage PreparePatternImage(
 	QColor bg,
 	QColor fg,
 	int intensity);
+QImage PrepareBlurredBackground(QImage image);
 
 namespace details {
 

@@ -67,7 +67,7 @@ private:
 
 	void checkLoadedDocument();
 	bool setScaledFromThumb();
-	void setScaledFromImage(QImage &&image);
+	void setScaledFromImage(QImage &&image, QImage &&blurred = QImage());
 	void updateServiceBg(std::optional<QColor> background);
 	std::optional<QColor> patternBackgroundColor() const;
 	void paintImage(Painter &p);
@@ -79,7 +79,7 @@ private:
 	AdminLog::OwnedItem _text2;
 	Data::WallPaper _paper;
 	QImage _full;
-	QPixmap _scaled;
+	QPixmap _scaled, _blurred;
 	Ui::RadialAnimation _radial;
 	base::binary_guard _generating;
 	std::optional<QColor> _serviceBg;

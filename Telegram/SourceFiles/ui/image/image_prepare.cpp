@@ -52,12 +52,11 @@ QImage prepareBlur(QImage img) {
 	if (img.isNull()) {
 		return img;
 	}
-	auto ratio = img.devicePixelRatio();
-	auto fmt = img.format();
+	const auto ratio = img.devicePixelRatio();
+	const auto fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
-		img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		img = std::move(img).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		img.setDevicePixelRatio(ratio);
-		Assert(!img.isNull());
 	}
 
 	uchar *pix = img.bits();
@@ -168,6 +167,238 @@ yi += stride;
 		}
 	}
 	return img;
+}
+
+QImage BlurLargeImage(QImage image, int radius) {
+	const auto width = image.width();
+	const auto height = image.height();
+	if (width <= radius || height <= radius || radius < 1) {
+		return image;
+	}
+
+	if (image.format() != QImage::Format_RGB32
+		&& image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	const auto pixels = image.bits();
+
+	const auto widthm = width - 1;
+	const auto heightm = height - 1;
+	const auto area = width * height;
+	const auto div = 2 * radius + 1;
+	const auto radius1 = radius + 1;
+	const auto divsum = radius1 * radius1;
+
+	const auto dvcount = 256 * divsum;
+	const auto buffers = (div * 3) // stack
+		+ std::max(width, height) // vmin
+		+ area * 3 // rgb
+		+ dvcount; // dv
+	auto storage = std::vector<int>(buffers);
+	auto taken = 0;
+	const auto take = [&](int size) {
+		const auto result = gsl::make_span(storage).subspan(taken, size);
+		taken += size;
+		return result;
+	};
+
+	// Small buffers
+	const auto stack = take(div * 3).data();
+	const auto vmin = take(std::max(width, height)).data();
+
+	// Large buffers
+	const auto rgb = take(area * 3).data();
+	const auto dvs = take(dvcount);
+
+	auto &&ints = ranges::view::ints(0);
+	for (auto &&[value, index] : ranges::view::zip(dvs, ints)) {
+		value = (index / divsum);
+	}
+	const auto dv = dvs.data();
+
+	// Variables
+	auto yp = 0;
+	auto stackpointer = 0;
+	auto stackstart = 0;
+	auto rbs = 0;
+	auto yw = 0;
+	auto yi = 0;
+	auto yi3 = 0;
+	for (const auto y : ranges::view::ints(0, height)) {
+		const auto yw = y * width;
+		auto rinsum = 0;
+		auto ginsum = 0;
+		auto binsum = 0;
+		auto routsum = 0;
+		auto goutsum = 0;
+		auto boutsum = 0;
+		auto rsum = 0;
+		auto gsum = 0;
+		auto bsum = 0;
+
+		for (const auto i : ranges::view::ints(-radius, radius + 1)) {
+			const auto sir = &stack[(i + radius) * 3];
+			const auto offset = (yi + std::min(area, std::max(i, 0))) * 4;
+			sir[0] = pixels[offset];
+			sir[1] = pixels[offset + 1];
+			sir[2] = pixels[offset + 2];
+
+			rbs = radius1 - abs(i);
+			rsum += sir[0] * rbs;
+			gsum += sir[1] * rbs;
+			bsum += sir[2] * rbs;
+			if (i > 0) {
+				rinsum += sir[0];
+				ginsum += sir[1];
+				binsum += sir[2];
+			} else {
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+			}
+		}
+		stackpointer = radius;
+
+		for (const auto x : ranges::view::ints(0, width)) {
+			rgb[yi3] = dv[rsum];
+			rgb[yi3 + 1] = dv[gsum];
+			rgb[yi3 + 2] = dv[bsum];
+
+			rsum -= routsum;
+			gsum -= goutsum;
+			bsum -= boutsum;
+
+			stackstart = stackpointer - radius + div;
+			const auto sir = &stack[(stackstart % div) * 3];
+
+			routsum -= sir[0];
+			goutsum -= sir[1];
+			boutsum -= sir[2];
+
+			if (y == 0) {
+				vmin[x] = std::min(x + radius + 1, area);
+			}
+
+			const auto offset = (yw + vmin[x]) * 4;
+			sir[0] = pixels[offset];
+			sir[1] = pixels[offset + 1];
+			sir[2] = pixels[offset + 2];
+			rinsum += sir[0];
+			ginsum += sir[1];
+			binsum += sir[2];
+
+			rsum += rinsum;
+			gsum += ginsum;
+			bsum += binsum;
+			{
+				stackpointer = (stackpointer + 1) % div;
+				const auto sir = &stack[(stackpointer % div) * 3];
+
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+
+				rinsum -= sir[0];
+				ginsum -= sir[1];
+				binsum -= sir[2];
+			}
+			yi++;
+			yi3 = yi * 3;
+		}
+	}
+
+	for (const auto x : ranges::view::ints(0, width)) {
+		auto rinsum = 0;
+		auto ginsum = 0;
+		auto binsum = 0;
+		auto routsum = 0;
+		auto goutsum = 0;
+		auto boutsum = 0;
+		auto rsum = 0;
+		auto gsum = 0;
+		auto bsum = 0;
+		yp = -radius * width;
+		for (const auto i : ranges::view::ints(-radius, radius + 1)) {
+			yi = std::max(0, yp) + x;
+			yi3 = yi * 3;
+
+			const auto sir = &stack[(i + radius) * 3];
+
+			sir[0] = rgb[yi3];
+			sir[1] = rgb[yi3 + 1];
+			sir[2] = rgb[yi3 + 2];
+
+			rbs = radius1 - std::abs(i);
+
+			rsum += rgb[yi3] * rbs;
+			gsum += rgb[yi3 + 1] * rbs;
+			bsum += rgb[yi3 + 2] * rbs;
+
+			if (i > 0) {
+				rinsum += sir[0];
+				ginsum += sir[1];
+				binsum += sir[2];
+			} else {
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+			}
+
+			if (i < heightm) {
+				yp += width;
+			}
+		}
+		yi = x;
+		stackpointer = radius;
+		for (const auto y : ranges::view::ints(0, height)) {
+			const auto offset = yi * 4;
+			pixels[offset] = dv[rsum];
+			pixels[offset + 1] = dv[gsum];
+			pixels[offset + 2] = dv[bsum];
+			rsum -= routsum;
+			gsum -= goutsum;
+			bsum -= boutsum;
+
+			stackstart = stackpointer - radius + div;
+			const auto sir = &stack[(stackstart % div) * 3];
+
+			routsum -= sir[0];
+			goutsum -= sir[1];
+			boutsum -= sir[2];
+
+			if (x == 0) {
+				vmin[y] = std::min(y + radius1, heightm) * width;
+			}
+			const auto p = (x + vmin[y]) * 3;
+
+			sir[0] = rgb[p];
+			sir[1] = rgb[p + 1];
+			sir[2] = rgb[p + 2];
+
+			rinsum += sir[0];
+			ginsum += sir[1];
+			binsum += sir[2];
+
+			rsum += rinsum;
+			gsum += ginsum;
+			bsum += binsum;
+			{
+				stackpointer = (stackpointer + 1) % div;
+				const auto sir = &stack[stackpointer * 3];
+
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+
+				rinsum -= sir[0];
+				ginsum -= sir[1];
+				binsum -= sir[2];
+			}
+			yi += width;
+		}
+	}
+	return image;
 }
 
 void prepareCircle(QImage &img) {
