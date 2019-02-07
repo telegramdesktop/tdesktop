@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_clear_legacy.h"
 
-#include <Windows.h>
+#include "platform/win/windows_h_wrapper.h"
 
 namespace Storage {
 namespace details {

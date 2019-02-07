@@ -39,6 +39,10 @@ public:
 
 	[[nodiscard]] WallPaper withUrlParams(
 		const QMap<QString, QString> &params) const;
+	[[nodiscard]] WallPaper withBlurred(bool blurred) const;
+	[[nodiscard]] WallPaper withPatternIntensity(int intensity) const;
+	[[nodiscard]] WallPaper withBackgroundColor(QColor color) const;
+	[[nodiscard]] WallPaper withParamsFrom(const WallPaper &other) const;
 
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		const MTPWallPaper &data);
@@ -202,6 +206,9 @@ public:
 	void setTestingDefaultTheme();
 	void revert();
 
+	[[nodiscard]] Data::WallPaper paper() const {
+		return _paper;
+	}
 	[[nodiscard]] WallPaperId id() const {
 		return _paper.id();
 	}

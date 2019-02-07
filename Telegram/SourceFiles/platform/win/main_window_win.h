@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_main_window.h"
+#include "platform/win/windows_h_wrapper.h"
 #include "base/flags.h"
-#include <windows.h>
 
 namespace Ui {
 class PopupMenu;

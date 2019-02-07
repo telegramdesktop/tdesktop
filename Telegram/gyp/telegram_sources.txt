@@ -22,6 +22,8 @@
 <(src_loc)/boxes/auto_download_box.h
 <(src_loc)/boxes/background_box.cpp
 <(src_loc)/boxes/background_box.h
+<(src_loc)/boxes/background_preview_box.cpp
+<(src_loc)/boxes/background_preview_box.h
 <(src_loc)/boxes/calendar_box.cpp
 <(src_loc)/boxes/calendar_box.h
 <(src_loc)/boxes/change_phone_box.cpp

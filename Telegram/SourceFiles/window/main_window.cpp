@@ -26,10 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
-#ifdef small
-#undef small
-#endif // small
-
 namespace Window {
 
 constexpr auto kInactivePressTimeout = TimeMs(200);

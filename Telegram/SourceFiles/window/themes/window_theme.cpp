@@ -227,16 +227,64 @@ WallPaper WallPaper::withUrlParams(
 		}
 	}
 	if (const auto color = ColorFromString(params.value("bg_color"))) {
+		result._settings |= Flag::f_background_color;
 		result._backgroundColor = color;
 	}
 	if (const auto string = params.value("intensity"); !string.isEmpty()) {
 		auto ok = false;
 		const auto intensity = string.toInt(&ok);
 		if (ok && base::in_range(intensity, 0, 101)) {
+			result._settings |= Flag::f_intensity;
 			result._intensity = intensity;
 		}
 	}
 
+	return result;
+}
+
+WallPaper WallPaper::withBlurred(bool blurred) const {
+	using Flag = MTPDwallPaperSettings::Flag;
+
+	auto result = *this;
+	if (blurred) {
+		result._settings |= Flag::f_blur;
+	} else {
+		result._settings &= ~Flag::f_blur;
+	}
+	return result;
+}
+
+WallPaper WallPaper::withPatternIntensity(int intensity) const {
+	using Flag = MTPDwallPaperSettings::Flag;
+
+	auto result = *this;
+	result._settings |= Flag::f_intensity;
+	result._intensity = intensity;
+	return result;
+}
+
+WallPaper WallPaper::withBackgroundColor(QColor color) const {
+	using Flag = MTPDwallPaperSettings::Flag;
+
+	auto result = *this;
+	result._settings |= Flag::f_background_color;
+	result._backgroundColor = color;
+	if (ColorFromString(_slug)) {
+		result._slug = StringFromColor(color);
+	}
+	return result;
+}
+
+WallPaper WallPaper::withParamsFrom(const WallPaper &other) const {
+	auto result = *this;
+	result._settings = other._settings;
+	if (other._backgroundColor || !ColorFromString(_slug)) {
+		result._backgroundColor = other._backgroundColor;
+		if (ColorFromString(_slug)) {
+			result._slug = StringFromColor(*result._backgroundColor);
+		}
+	}
+	result._intensity = other._intensity;
 	return result;
 }
 

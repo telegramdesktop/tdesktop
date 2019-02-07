@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <windows.h>
+#include "platform/win/windows_h_wrapper.h"
 
 namespace Platform {
 

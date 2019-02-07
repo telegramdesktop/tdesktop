@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "zip.h"
 #include "unzip.h"
 
+#ifdef small
+#undef small
+#endif // small
+
 namespace zlib {
 namespace internal {
 

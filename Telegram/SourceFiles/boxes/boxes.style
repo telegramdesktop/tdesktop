@@ -13,6 +13,19 @@ using "intro/intro.style";
 boxDuration: 200;
 boxRadius: 3px;
 
+ServiceCheck {
+	margin: margins;
+	diameter: pixels;
+	shift: pixels;
+	thickness: pixels;
+	tip: point;
+	small: pixels;
+	large: pixels;
+	stroke: pixels;
+	color: color;
+	duration: int;
+}
+
 boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton(defaultLightButton) {
 	width: -24px;
@@ -910,4 +923,30 @@ callSettingsButton: IconButton {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
+}
+
+backgroundCheckbox: Checkbox(defaultCheckbox) {
+	textFg: msgServiceFg;
+	textFgActive: msgServiceFg;
+
+	width: -50px;
+	margin: margins(0px, 0px, 0px, 0px);
+
+	textPosition: point(0px, 8px);
+	checkPosition: point(0px, 0px);
+
+	style: semiboldTextStyle;
+}
+
+backgroundCheck: ServiceCheck {
+	margin: margins(12px, 8px, 8px, 8px);
+	diameter: 18px;
+	shift: 2px;
+	thickness: 2px;
+	tip: point(8px, 13px);
+	small: 3px;
+	large: 6px;
+	stroke: 2px;
+	color: msgServiceFg;
+	duration: 200;
 }

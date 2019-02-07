@@ -402,6 +402,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_apply" = "Apply";
 "lng_background_share" = "Share";
 "lng_background_link_copied" = "Link copied to clipboard";
+"lng_background_blur" = "Blurred";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";

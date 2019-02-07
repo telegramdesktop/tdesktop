@@ -28,6 +28,10 @@ extern "C" {
 #include <openssl/rand.h>
 } // extern "C"
 
+#ifdef small
+#undef small
+#endif // small
+
 namespace MTP {
 namespace internal {
 namespace {

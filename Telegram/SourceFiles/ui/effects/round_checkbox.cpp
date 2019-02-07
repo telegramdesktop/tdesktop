@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-static constexpr int kWideScale = 3;
+constexpr auto kWideScale = 3;
 
 class CheckCaches : public QObject {
 public:

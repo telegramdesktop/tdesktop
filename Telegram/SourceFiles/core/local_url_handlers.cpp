@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "boxes/confirm_phone_box.h"
-#include "boxes/background_box.h"
+#include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
 #include "boxes/connection_box.h"

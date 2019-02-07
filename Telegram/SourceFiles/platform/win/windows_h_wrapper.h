@@ -7,17 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include <windows.h>
 
-class BackgroundBox : public BoxContent {
-public:
-	BackgroundBox(QWidget*);
-
-protected:
-	void prepare() override;
-
-private:
-	class Inner;
-	QPointer<Inner> _inner;
-
-};
+#ifdef small
+#undef small
+#endif // small
