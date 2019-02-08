@@ -476,7 +476,15 @@ void BackgroundPreviewBox::createBlurCheckbox() {
 }
 
 void BackgroundPreviewBox::apply() {
+	const auto install = (_paper.id() != Window::Theme::Background()->id())
+		&& Data::IsCloudWallPaper(_paper);
 	App::main()->setChatBackground(_paper, std::move(_full));
+	if (install) {
+		Auth().api().request(MTPaccount_InstallWallPaper(
+			_paper.mtpInput(),
+			_paper.mtpSettings()
+		)).send();
+	}
 	closeBox();
 }
 

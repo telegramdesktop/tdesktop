@@ -36,6 +36,8 @@ public:
 	void loadDocument() const;
 	void loadThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
+
+	[[nodiscard]] MTPInputWallPaper mtpInput() const;
 	[[nodiscard]] MTPWallPaperSettings mtpSettings() const;
 
 	[[nodiscard]] WallPaper withUrlParams(
@@ -89,6 +91,7 @@ private:
 [[nodiscard]] bool IsLegacy1DefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] WallPaper DefaultWallPaper();
 [[nodiscard]] bool IsDefaultWallPaper(const WallPaper &paper);
+[[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);
 
 QColor PatternColor(QColor background);
 QImage PreparePatternImage(

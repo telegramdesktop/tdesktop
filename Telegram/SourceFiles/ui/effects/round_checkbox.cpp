@@ -317,12 +317,16 @@ void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
 		return;
 	}
 	_checked = newChecked;
-	_checkedProgress.start(
-		_updateCallback,
-		_checked ? 0. : 1.,
-		_checked ? 1. : 0.,
-		_st.duration,
-		anim::linear);
+	if (speed == SetStyle::Animated) {
+		_checkedProgress.start(
+			_updateCallback,
+			_checked ? 0. : 1.,
+			_checked ? 1. : 0.,
+			_st.duration,
+			anim::linear);
+	} else {
+		_checkedProgress.finish();
+	}
 }
 
 void RoundCheckbox::invalidateCache() {

@@ -206,6 +206,10 @@ FileOrigin WallPaper::fileOrigin() const {
 	return FileOriginWallpaper(_id, _accessHash);
 }
 
+MTPInputWallPaper WallPaper::mtpInput() const {
+	return MTP_inputWallPaper(MTP_long(_id), MTP_long(_accessHash));
+}
+
 MTPWallPaperSettings WallPaper::mtpSettings() const {
 	return MTP_wallPaperSettings(
 		MTP_flags(_settings),
@@ -470,6 +474,17 @@ WallPaper DefaultWallPaper() {
 bool IsDefaultWallPaper(const WallPaper &paper) {
 	return (paper.id() == kDefaultBackground)
 		|| (paper.id() == kIncorrectDefaultBackground);
+}
+
+bool IsCloudWallPaper(const WallPaper &paper) {
+	return (paper.id() != kIncorrectDefaultBackground)
+		&& !IsThemeWallPaper(paper)
+		&& !IsCustomWallPaper(paper)
+		&& !IsLegacy1DefaultWallPaper(paper)
+		&& !details::IsUninitializedWallPaper(paper)
+		&& !details::IsTestingThemeWallPaper(paper)
+		&& !details::IsTestingDefaultWallPaper(paper)
+		&& !details::IsTestingEditorWallPaper(paper);
 }
 
 QColor PatternColor(QColor background) {
