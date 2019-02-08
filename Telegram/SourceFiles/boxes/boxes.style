@@ -943,7 +943,7 @@ backgroundCheck: ServiceCheck {
 	diameter: 18px;
 	shift: 2px;
 	thickness: 2px;
-	tip: point(8px, 13px);
+	tip: point(7px, 13px);
 	small: 3px;
 	large: 6px;
 	stroke: 2px;

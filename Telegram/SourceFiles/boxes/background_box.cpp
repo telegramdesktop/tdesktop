@@ -110,7 +110,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (Auth().data().wallpapers().empty()) {
-		resize(kBackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
+		resize(st::boxWideWidth, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 	} else {
 		updatePapers();
 	}
@@ -169,7 +169,7 @@ void BackgroundBox::Inner::updatePapers() {
 	const auto rows = (count / kBackgroundsInRow)
 		+ (count % kBackgroundsInRow ? 1 : 0);
 
-	resize(kBackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, rows * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
+	resize(st::boxWideWidth, rows * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 
 	const auto preload = kBackgroundsInRow * 3;
 	for (const auto &paper : _papers | ranges::view::take(preload)) {
