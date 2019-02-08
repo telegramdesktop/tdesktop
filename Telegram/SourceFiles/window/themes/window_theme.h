@@ -17,7 +17,7 @@ class WallPaper {
 public:
 	explicit WallPaper(WallPaperId id);
 
-	void setLocalImageAsThumbnail(not_null<Image*> image);
+	void setLocalImageAsThumbnail(std::shared_ptr<Image> image);
 
 	[[nodiscard]] WallPaperId id() const;
 	[[nodiscard]] std::optional<QColor> backgroundColor() const;
@@ -43,6 +43,7 @@ public:
 	[[nodiscard]] WallPaper withPatternIntensity(int intensity) const;
 	[[nodiscard]] WallPaper withBackgroundColor(QColor color) const;
 	[[nodiscard]] WallPaper withParamsFrom(const WallPaper &other) const;
+	[[nodiscard]] WallPaper withoutImageData() const;
 
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		const MTPWallPaper &data);
@@ -75,7 +76,7 @@ private:
 	int _intensity = kDefaultIntensity;
 
 	DocumentData *_document = nullptr;
-	Image *_thumbnail = nullptr;
+	std::shared_ptr<Image> _thumbnail;
 
 };
 

@@ -105,13 +105,13 @@ QString StringFromColor(QColor color) {
 WallPaper::WallPaper(WallPaperId id) : _id(id) {
 }
 
-void WallPaper::setLocalImageAsThumbnail(not_null<Image*> image) {
+void WallPaper::setLocalImageAsThumbnail(std::shared_ptr<Image> image) {
 	Expects(IsDefaultWallPaper(*this)
 		|| IsLegacy1DefaultWallPaper(*this)
 		|| IsCustomWallPaper(*this));
 	Expects(_thumbnail == nullptr);
 
-	_thumbnail = image;
+	_thumbnail = std::move(image);
 }
 
 WallPaperId WallPaper::id() const {
@@ -127,7 +127,11 @@ DocumentData *WallPaper::document() const {
 }
 
 Image *WallPaper::thumbnail() const {
-	return _thumbnail;
+	return _thumbnail
+		? _thumbnail.get()
+		: _document
+		? _document->thumbnail()
+		: nullptr;
 }
 
 bool WallPaper::isPattern() const {
@@ -194,6 +198,9 @@ QString WallPaper::shareUrl() const {
 void WallPaper::loadThumbnail() const {
 	if (_thumbnail) {
 		_thumbnail->load(fileOrigin());
+	}
+	if (_document) {
+		_document->loadThumbnail(fileOrigin());
 	}
 }
 
@@ -288,6 +295,12 @@ WallPaper WallPaper::withParamsFrom(const WallPaper &other) const {
 	return result;
 }
 
+WallPaper WallPaper::withoutImageData() const {
+	auto result = *this;
+	result._thumbnail = nullptr;
+	return result;
+}
+
 std::optional<WallPaper> WallPaper::Create(const MTPWallPaper &data) {
 	return data.match([](const MTPDwallPaper &data) {
 		return Create(data);
@@ -307,7 +320,6 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaper &data) {
 	result._flags = data.vflags.v;
 	result._slug = qs(data.vslug);
 	result._document = document;
-	result._thumbnail = document->thumbnail();
 	if (data.has_settings()) {
 		const auto isPattern = ((result._flags & Flag::f_pattern) != 0);
 		data.vsettings.match([&](const MTPDwallPaperSettings &data) {
@@ -988,7 +1000,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 			}
 		} else if (Data::IsDefaultWallPaper(_paper)
 			|| (!_paper.backgroundColor() && image.isNull())) {
-			setPaper(Data::DefaultWallPaper());
+			setPaper(Data::DefaultWallPaper().withParamsFrom(_paper));
 			image.load(qsl(":/gui/art/bg.jpg"));
 		}
 		Local::writeBackground(
@@ -1082,7 +1094,7 @@ void ChatBackground::preparePixmaps(QImage image) {
 }
 
 void ChatBackground::setPaper(const Data::WallPaper &paper) {
-	_paper = paper;
+	_paper = paper.withoutImageData();
 }
 
 bool ChatBackground::adjustPaletteRequired() {

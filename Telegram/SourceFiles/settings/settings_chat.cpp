@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/background_box.h"
+#include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
 #include "ui/wrap/vertical_layout.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
@@ -395,24 +397,13 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 			: App::readImage(result.remoteContent);
 		if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
 			return;
-		} else if (image.width() > 4096 * image.height()) {
-			image = image.copy(
-				(image.width() - 4096 * image.height()) / 2,
-				0,
-				4096 * image.height(),
-				image.height());
-		} else if (image.height() > 4096 * image.width()) {
-			image = image.copy(
-				0,
-				(image.height() - 4096 * image.width()) / 2,
-				image.width(),
-				4096 * image.width());
 		}
-
-		Window::Theme::Background()->set(
-			Data::CustomWallPaper(),
-			std::move(image));
-		Window::Theme::Background()->setTile(false);
+		auto local = Data::CustomWallPaper();
+		local.setLocalImageAsThumbnail(std::make_shared<Image>(
+			std::make_unique<Images::ImageSource>(
+				std::move(image),
+				"JPG")));
+		Ui::show(Box<BackgroundPreviewBox>(local));
 	};
 	FileDialog::GetOpenPath(
 		parent.get(),

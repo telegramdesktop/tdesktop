@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/crash_reports.h" // for CrashReports::SetAnnotation
 #include "ui/image/image.h"
+#include "ui/image/image_source.h" // for Images::LocalFileSource
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
@@ -3067,10 +3068,11 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	_wallpapers.reserve(data.size() + 2);
 
 	_wallpapers.push_back(Data::Legacy1DefaultWallPaper());
-	_wallpapers.back().setLocalImageAsThumbnail(Images::Create(
-		qsl(":/gui/art/bg_initial.jpg"),
-		"JPG"
-	).get());
+	_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
+		std::make_unique<Images::LocalFileSource>(
+			qsl(":/gui/art/bg_initial.jpg"),
+			QByteArray(),
+			"JPG")));
 	for (const auto &paper : data) {
 		paper.match([&](const MTPDwallPaper &paper) {
 			if (const auto parsed = Data::WallPaper::Create(paper)) {
@@ -3083,10 +3085,11 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 		Data::IsDefaultWallPaper);
 	if (defaultFound == end(_wallpapers)) {
 		_wallpapers.push_back(Data::DefaultWallPaper());
-		_wallpapers.back().setLocalImageAsThumbnail(Images::Create(
-			qsl(":/gui/arg/bg.jpg"),
-			"JPG"
-		).get());
+		_wallpapers.back().setLocalImageAsThumbnail(std::make_shared<Image>(
+			std::make_unique<Images::LocalFileSource>(
+				qsl(":/gui/arg/bg.jpg"),
+				QByteArray(),
+				"JPG")));
 	}
 }
 
