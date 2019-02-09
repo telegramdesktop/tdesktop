@@ -141,7 +141,7 @@ void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection,
 			auto over = _animation->a_thumbOver.current();
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _openl);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 
@@ -246,7 +246,7 @@ TextState HistoryWallPaper::textState(QPoint point, StateRequest request) const 
 		} else if (_data->loading()) {
 			result.link = _cancell;
 		} else {
-			result.link = _savel;
+			result.link = _openl;
 		}
 	}
 	return result;

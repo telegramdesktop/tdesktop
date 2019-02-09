@@ -383,7 +383,7 @@ void DocumentOpenClickHandler::Open(
 
 	QString filename;
 	if (!data->saveToCache()
-		|| (location.isEmpty() || (!data->data().isEmpty()))) {
+		|| (location.isEmpty() && (!data->data().isEmpty()))) {
 		filename = documentSaveFilename(data);
 		if (filename.isEmpty()) return;
 	}
