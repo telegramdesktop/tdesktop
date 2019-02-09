@@ -539,6 +539,7 @@ public:
 	}
 
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
+	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
 	int32 wallpapersHash() const;
 

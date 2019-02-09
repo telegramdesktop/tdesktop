@@ -3093,6 +3093,13 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 	}
 }
 
+void Session::removeWallpaper(const WallPaper &paper) {
+	const auto i = ranges::find(_wallpapers, paper.id(), &WallPaper::id);
+	if (i != end(_wallpapers)) {
+		_wallpapers.erase(i);
+	}
+}
+
 const std::vector<WallPaper> &Session::wallpapers() const {
 	return _wallpapers;
 }

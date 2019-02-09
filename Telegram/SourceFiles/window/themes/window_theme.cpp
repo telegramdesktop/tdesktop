@@ -409,7 +409,9 @@ void ChatBackground::checkUploadWallPaper() {
 	if (const auto id = base::take(_wallPaperRequestId)) {
 		_session->api().request(id).cancel();
 	}
-	if (!Data::IsCustomWallPaper(_paper) || _original.isNull()) {
+	if (!Data::IsCustomWallPaper(_paper)
+		|| _original.isNull()
+		|| testingPalette()) {
 		return;
 	}
 
@@ -439,8 +441,9 @@ void ChatBackground::checkUploadWallPaper() {
 					data.vdocument);
 			});
 			if (const auto paper = Data::WallPaper::Create(result)) {
-				_paper = *paper;
+				setPaper(*paper);
 				writeNewBackgroundSettings();
+				notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
 			}
 		}).send();
 	});
@@ -596,12 +599,6 @@ bool ChatBackground::adjustPaletteRequired() {
 		return Data::IsDefaultWallPaper(_paper)
 			|| Data::details::IsTestingDefaultWallPaper(_paper);
 	};
-	const auto testingPalette = [&] {
-		const auto path = AreTestingTheme()
-			? GlobalApplying.pathAbsolute
-			: _themeAbsolutePath;
-		return IsPaletteTestingPath(path);
-	};
 
 	if (testingPalette()) {
 		return false;
@@ -609,6 +606,13 @@ bool ChatBackground::adjustPaletteRequired() {
 		return !usingThemeBackground();
 	}
 	return !usingDefaultBackground();
+}
+
+bool ChatBackground::testingPalette() const {
+	const auto path = AreTestingTheme()
+		? GlobalApplying.pathAbsolute
+		: _themeAbsolutePath;
+	return IsPaletteTestingPath(path);
 }
 
 void ChatBackground::adjustPaletteUsingBackground(const QImage &image) {

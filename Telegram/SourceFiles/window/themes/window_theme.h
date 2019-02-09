@@ -155,6 +155,7 @@ private:
 	[[nodiscard]] bool isNonDefaultBackground();
 	void refreshSession();
 	void checkUploadWallPaper();
+	[[nodiscard]] bool testingPalette() const;
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);

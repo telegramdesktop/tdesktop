@@ -11,11 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "mtproto/sender.h"
 #include "data/data_session.h"
 #include "boxes/background_preview_box.h"
+#include "boxes/confirm_box.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 
 namespace {
 
@@ -53,8 +56,10 @@ class BackgroundBox::Inner
 public:
 	Inner(QWidget *parent);
 
-	void setBackgroundChosenCallback(
-		Fn<void(const Data::WallPaper &)> callback);
+	rpl::producer<Data::WallPaper> chooseEvents() const;
+	rpl::producer<Data::WallPaper> removeRequests() const;
+
+	void removePaper(const Data::WallPaper &data);
 
 	~Inner();
 
@@ -69,7 +74,31 @@ private:
 		Data::WallPaper data;
 		mutable QPixmap thumbnail;
 	};
+	struct Selected {
+		int index = 0;
+		inline bool operator==(const Selected &other) const {
+			return index == other.index;
+		}
+		inline bool operator!=(const Selected &other) const {
+			return !(*this == other);
+		}
+	};
+	struct DeleteSelected {
+		int index = 0;
+		inline bool operator==(const DeleteSelected &other) const {
+			return index == other.index;
+		}
+		inline bool operator!=(const DeleteSelected &other) const {
+			return !(*this == other);
+		}
+	};
+	using Selection = base::optional_variant<Selected, DeleteSelected>;
+
+	int getSelectionIndex(const Selection &selection) const;
+	void repaintPaper(int index);
+	void resizeToContentAndPreload();
 	void updatePapers();
+	void requestPapers();
 	void sortPapers();
 	void paintPaper(
 		Painter &p,
@@ -78,13 +107,14 @@ private:
 		int row) const;
 	void validatePaperThumbnail(const Paper &paper) const;
 
-	Fn<void(const Data::WallPaper &)> _backgroundChosenCallback;
 	std::vector<Paper> _papers;
 
-	int _over = -1;
-	int _overDown = -1;
+	Selection _over;
+	Selection _overDown;
 
 	std::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
+	rpl::event_stream<Data::WallPaper> _backgroundChosen;
+	rpl::event_stream<Data::WallPaper> _backgroundRemove;
 
 };
 
@@ -99,11 +129,41 @@ void BackgroundBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_inner = setInnerWidget(object_ptr<Inner>(this), st::backgroundScroll);
-	_inner->setBackgroundChosenCallback([](const Data::WallPaper &paper) {
-		Ui::show(
-			Box<BackgroundPreviewBox>(paper),
-			LayerOption::KeepOther);
-	});
+
+	_inner->chooseEvents(
+	) | rpl::start_with_next([](const Data::WallPaper &paper) {
+		Ui::show(Box<BackgroundPreviewBox>(paper), LayerOption::KeepOther);
+	}, _inner->lifetime());
+
+	_inner->removeRequests(
+	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
+		removePaper(paper);
+	}, _inner->lifetime());
+}
+
+void BackgroundBox::removePaper(const Data::WallPaper &paper) {
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto remove = [=, weak = make_weak(this)]{
+		if (*box) {
+			(*box)->closeBox();
+		}
+		if (weak) {
+			weak->_inner->removePaper(paper);
+		}
+		Auth().data().removeWallpaper(paper);
+		Auth().api().request(MTPaccount_SaveWallPaper(
+			paper.mtpInput(),
+			MTP_bool(true),
+			paper.mtpSettings()
+		)).send();
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(
+			lang(lng_background_sure_delete),
+			lang(lng_selected_delete),
+			lang(lng_cancel),
+			remove),
+		LayerOption::KeepOther);
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
@@ -114,13 +174,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 	} else {
 		updatePapers();
 	}
-	request(MTPaccount_GetWallPapers(
-		MTP_int(Auth().data().wallpapersHash())
-	)).done([=](const MTPaccount_WallPapers &result) {
-		if (Auth().data().updateWallpapers(result)) {
-			updatePapers();
-		}
-	}).send();
+	requestPapers();
 
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 	using Update = Window::Theme::BackgroundUpdate;
@@ -129,15 +183,21 @@ BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 			_check->invalidateCache();
 		} else if (update.type == Update::Type::New) {
 			sortPapers();
+			requestPapers();
 			this->update();
 		}
 	});
 	setMouseTracking(true);
 }
 
-void BackgroundBox::Inner::setBackgroundChosenCallback(
-		Fn<void(const Data::WallPaper &)> callback) {
-	_backgroundChosenCallback = std::move(callback);
+void BackgroundBox::Inner::requestPapers() {
+	request(MTPaccount_GetWallPapers(
+		MTP_int(Auth().data().wallpapersHash())
+	)).done([=](const MTPaccount_WallPapers &result) {
+		if (Auth().data().updateWallpapers(result)) {
+			updatePapers();
+		}
+	}).send();
 }
 
 void BackgroundBox::Inner::sortPapers() {
@@ -158,6 +218,8 @@ void BackgroundBox::Inner::sortPapers() {
 }
 
 void BackgroundBox::Inner::updatePapers() {
+	_over = _overDown = Selection();
+
 	_papers = Auth().data().wallpapers(
 	) | ranges::view::filter([](const Data::WallPaper &paper) {
 		return !paper.isPattern() || paper.backgroundColor().has_value();
@@ -165,6 +227,10 @@ void BackgroundBox::Inner::updatePapers() {
 		return Paper{ paper };
 	}) | ranges::to_vector;
 	sortPapers();
+	resizeToContentAndPreload();
+}
+
+void BackgroundBox::Inner::resizeToContentAndPreload() {
 	const auto count = _papers.size();
 	const auto rows = (count / kBackgroundsInRow)
 		+ (count % kBackgroundsInRow ? 1 : 0);
@@ -175,6 +241,7 @@ void BackgroundBox::Inner::updatePapers() {
 	for (const auto &paper : _papers | ranges::view::take(preload)) {
 		paper.data.loadThumbnail();
 	}
+	update();
 }
 
 void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
@@ -244,10 +311,22 @@ void BackgroundBox::Inner::paintPaper(
 		p.drawPixmap(x, y, paper.thumbnail);
 	}
 
+	const auto over = _overDown ? _overDown : _over;
 	if (paper.data.id() == Window::Theme::Background()->id()) {
 		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
 		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
 		_check->paint(p, getms(), checkLeft, checkTop, width());
+	} else if (Data::IsCloudWallPaper(paper.data)
+		&& !Data::IsDefaultWallPaper(paper.data)
+		&& over.has_value()
+		&& (&paper == &_papers[getSelectionIndex(over)])) {
+		const auto deleteSelected = over.is<DeleteSelected>();
+		const auto deletePos = QPoint(x + st::backgroundSize.width() - st::stickerPanDeleteIconBg.width(), y);
+		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityBgOver : st::stickerPanDeleteOpacityBg);
+		st::stickerPanDeleteIconBg.paint(p, deletePos, width());
+		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityFgOver : st::stickerPanDeleteOpacityFg);
+		st::stickerPanDeleteIconFg.paint(p, deletePos, width());
+		p.setOpacity(1.);
 	}
 }
 
@@ -260,33 +339,104 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		const auto skip = st::backgroundPadding;
 		const auto row = int((y - skip) / (height + skip));
 		const auto column = int((x - skip) / (width + skip));
-		if (y - row * (height + skip) > skip + height) {
-			return -1;
-		} else if (x - column * (width + skip) > skip + width) {
-			return -1;
-		}
 		const auto result = row * kBackgroundsInRow + column;
-		return (result < _papers.size()) ? result : -1;
+		if (y - row * (height + skip) > skip + height) {
+			return Selection();
+		} else if (x - column * (width + skip) > skip + width) {
+			return Selection();
+		} else if (result >= _papers.size()) {
+			return Selection();
+		}
+		const auto deleteLeft = (column + 1) * (width + skip)
+			- st::stickerPanDeleteIconBg.width();
+		const auto deleteBottom = row * (height + skip) + skip
+			+ st::stickerPanDeleteIconBg.height();
+		const auto currentId = Window::Theme::Background()->id();
+		const auto inDelete = (x >= deleteLeft)
+			&& (y < deleteBottom)
+			&& Data::IsCloudWallPaper(_papers[result].data)
+			&& !Data::IsDefaultWallPaper(_papers[result].data)
+			&& (currentId != _papers[result].data.id());
+		return (result >= _papers.size())
+			? Selection()
+			: inDelete
+			? Selection(DeleteSelected{ result })
+			: Selection(Selected{ result });
 	}();
 	if (_over != newOver) {
+		repaintPaper(getSelectionIndex(_over));
 		_over = newOver;
-		setCursor((_over >= 0 || _overDown >= 0)
+		repaintPaper(getSelectionIndex(_over));
+		setCursor((_over.has_value() || _overDown.has_value())
 			? style::cur_pointer
 			: style::cur_default);
 	}
+}
+
+void BackgroundBox::Inner::repaintPaper(int index) {
+	if (index < 0 || index >= _papers.size()) {
+		return;
+	}
+	const auto row = (index / kBackgroundsInRow);
+	const auto column = (index % kBackgroundsInRow);
+	const auto width = st::backgroundSize.width();
+	const auto height = st::backgroundSize.height();
+	const auto skip = st::backgroundPadding;
+	update(
+		(width + skip) * column + skip,
+		(height + skip) * row + skip,
+		width,
+		height);
 }
 
 void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 	_overDown = _over;
 }
 
+int BackgroundBox::Inner::getSelectionIndex(
+		const Selection &selection) const {
+	return selection.match([](const Selected &data) {
+		return data.index;
+	}, [](const DeleteSelected &data) {
+		return data.index;
+	}, [](std::nullopt_t) {
+		return -1;
+	});
+}
+
 void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	if (_overDown == _over && _over >= 0 && _over < _papers.size()) {
-		if (_backgroundChosenCallback) {
-			_backgroundChosenCallback(_papers[_over].data);
+	if (base::take(_overDown) == _over && _over.has_value()) {
+		const auto index = getSelectionIndex(_over);
+		if (index >= 0 && index < _papers.size()) {
+			if (base::get_if<DeleteSelected>(&_over)) {
+				_backgroundRemove.fire_copy(_papers[index].data);
+			} else if (base::get_if<Selected>(&_over)) {
+				_backgroundChosen.fire_copy(_papers[index].data);
+			}
 		}
-	} else if (_over < 0) {
+	} else if (!_over.has_value()) {
 		setCursor(style::cur_default);
+	}
+}
+
+rpl::producer<Data::WallPaper> BackgroundBox::Inner::chooseEvents() const {
+	return _backgroundChosen.events();
+}
+
+auto BackgroundBox::Inner::removeRequests() const
+-> rpl::producer<Data::WallPaper> {
+	return _backgroundRemove.events();
+}
+
+void BackgroundBox::Inner::removePaper(const Data::WallPaper &data) {
+	const auto i = ranges::find(
+		_papers,
+		data.id(),
+		[](const Paper &paper) { return paper.data.id(); });
+	if (i != end(_papers)) {
+		_papers.erase(i);
+		_over = _overDown = Selection();
+		resizeToContentAndPreload();
 	}
 }
 
