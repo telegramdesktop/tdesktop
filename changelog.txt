@@ -1,3 +1,8 @@
+1.5.12 (09.02.19)
+
+- Apply blur effects to backgrounds.
+- Use the backgrounds you set in Telegram Desktop in all other Telegram apps.
+
 1.5.11 (01.02.19)
 
 - Bug fixes and other minor improvements.
