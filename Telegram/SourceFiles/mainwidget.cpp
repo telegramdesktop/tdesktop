@@ -501,7 +501,7 @@ AuthSession &MainWidget::session() const {
 
 void MainWidget::setupConnectingWidget() {
 	using namespace rpl::mappers;
-	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+	_connecting = std::make_unique<Window::ConnectionState>(
 		this,
 		Window::AdaptiveIsOneColumn() | rpl::map(!_1));
 }

@@ -137,10 +137,27 @@ int Sandbox::start() {
 }
 
 void Sandbox::launchApplication() {
-	if (_application) {
-		return;
-	}
+	InvokeQueued(this, [=] {
+		if (App::quitting()) {
+			quit();
+		} else if (_application) {
+			return;
+		}
+		setupScreenScale();
 
+		_application = std::make_unique<Application>(_launcher);
+
+		// Ideally this should go to constructor.
+		// But we want to catch all native events and Application installs
+		// its own filter that can filter out some of them. So we install
+		// our filter after the Application constructor installs his.
+		installNativeEventFilter(this);
+
+		_application->run();
+	});
+}
+
+void Sandbox::setupScreenScale() {
 	const auto dpi = Sandbox::primaryScreen()->logicalDotsPerInch();
 	LOG(("Primary screen DPI: %1").arg(dpi));
 	if (dpi <= 108) {
@@ -170,8 +187,6 @@ void Sandbox::launchApplication() {
 		cSetIntRetinaFactor(int32(ratio));
 		cSetScreenScale(kInterfaceScaleDefault);
 	}
-
-	runApplication();
 }
 
 Sandbox::~Sandbox() = default;
@@ -407,20 +422,6 @@ void Sandbox::checkForQuit() {
 	if (App::quitting()) {
 		quit();
 	}
-}
-
-void Sandbox::runApplication() {
-	Expects(!App::quitting());
-
-	_application = std::make_unique<Application>(_launcher);
-
-	// Ideally this should go to constructor.
-	// But we want to catch all native events and Application installs
-	// its own filter that can filter out some of them. So we install
-	// our filter after the Application constructor installs his.
-	installNativeEventFilter(this);
-
-	_application->run();
 }
 
 void Sandbox::refreshGlobalProxy() {

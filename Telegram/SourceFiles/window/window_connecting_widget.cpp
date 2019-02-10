@@ -42,7 +42,7 @@ Progress::Progress(QWidget *parent)
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	resize(st::connectingRadial.size);
-	_animation.start();
+	_animation.start(st::connectingRadial.sineDuration);
 }
 
 void Progress::paintEvent(QPaintEvent *e) {
@@ -66,7 +66,41 @@ void Progress::step(TimeMs ms, bool timer) {
 
 } // namespace
 
-class ConnectingWidget::ProxyIcon
+class ConnectionState::Widget : public Ui::AbstractButton {
+public:
+	Widget(QWidget *parent, const Layout &layout);
+
+	void refreshRetryLink(bool hasRetry);
+	void setLayout(const Layout &layout);
+	void setProgressVisibility(bool visible);
+
+	rpl::producer<> refreshStateRequests() const;
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(State was, StateChangeSource source) override;
+
+private:
+	class ProxyIcon;
+	using State = ConnectionState::State;
+	using Layout = ConnectionState::Layout;
+
+	void updateRetryGeometry();
+	QRect innerRect() const;
+	QRect contentRect() const;
+	QRect textRect() const;
+
+	Layout _currentLayout;
+	base::unique_qptr<Ui::LinkButton> _retry;
+	QPointer<Ui::RpWidget> _progress;
+	QPointer<ProxyIcon> _proxyIcon;
+	rpl::event_stream<> _refreshStateRequests;
+
+};
+
+class ConnectionState::Widget::ProxyIcon
 	: public Ui::RpWidget
 	, private base::Subscriber {
 public:
@@ -88,7 +122,7 @@ private:
 
 };
 
-ConnectingWidget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent) {
+ConnectionState::Widget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent) {
 	resize(
 		std::max(
 			st::connectingRadial.size.width(),
@@ -107,7 +141,7 @@ ConnectingWidget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent) {
 	refreshCacheImages();
 }
 
-void ConnectingWidget::ProxyIcon::refreshCacheImages() {
+void ConnectionState::Widget::ProxyIcon::refreshCacheImages() {
 	const auto prepareCache = [&](const style::icon &icon) {
 		auto image = QImage(
 			size() * cIntRetinaFactor(),
@@ -128,14 +162,14 @@ void ConnectingWidget::ProxyIcon::refreshCacheImages() {
 	_cacheOff = prepareCache(st::connectingProxyOff);
 }
 
-void ConnectingWidget::ProxyIcon::setToggled(bool toggled) {
+void ConnectionState::Widget::ProxyIcon::setToggled(bool toggled) {
 	if (_toggled != toggled) {
 		_toggled = toggled;
 		update();
 	}
 }
 
-void ConnectingWidget::ProxyIcon::setOpacity(float64 opacity) {
+void ConnectionState::Widget::ProxyIcon::setOpacity(float64 opacity) {
 	_opacity = opacity;
 	if (_opacity == 0.) {
 		hide();
@@ -145,29 +179,35 @@ void ConnectingWidget::ProxyIcon::setOpacity(float64 opacity) {
 	update();
 }
 
-void ConnectingWidget::ProxyIcon::paintEvent(QPaintEvent *e) {
+void ConnectionState::Widget::ProxyIcon::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setOpacity(_opacity);
 	p.drawPixmap(0, 0, _toggled ? _cacheOn : _cacheOff);
 }
 
-bool ConnectingWidget::State::operator==(const State &other) const {
+bool ConnectionState::Widget::State::operator==(const State &other) const {
 	return (type == other.type)
 		&& (useProxy == other.useProxy)
 		&& (underCursor == other.underCursor)
 		&& (waitTillRetry == other.waitTillRetry);
 }
 
-ConnectingWidget::ConnectingWidget(QWidget *parent)
-: AbstractButton(parent)
+ConnectionState::ConnectionState(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<bool> shown)
+: _parent(parent)
 , _refreshTimer([=] { refreshState(); })
 , _currentLayout(computeLayout(_state)) {
-	_proxyIcon = Ui::CreateChild<ProxyIcon>(this);
-	_progress = Ui::CreateChild<Progress>(this);
-
-	addClickHandler([=] {
-		Ui::show(ProxiesBoxController::CreateOwningBox());
-	});
+	rpl::combine(
+		std::move(shown),
+		visibility()
+	) | rpl::start_with_next([=](bool shown, float64 visible) {
+		if (!shown || visible == 0.) {
+			_widget = nullptr;
+		} else if (!_widget) {
+			createWidget();
+		}
+	}, _lifetime);
 
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		refreshState();
@@ -175,11 +215,35 @@ ConnectingWidget::ConnectingWidget(QWidget *parent)
 	refreshState();
 }
 
-rpl::producer<float64> ConnectingWidget::visibility() const {
-	return _visibilityValues.events_starting_with(currentVisibility());
+void ConnectionState::createWidget() {
+	_widget = base::make_unique_q<Widget>(_parent, _currentLayout);
+	_widget->setVisible(!_forceHidden);
+
+	updateWidth();
+
+	rpl::combine(
+		visibility(),
+		_parent->heightValue()
+	) | rpl::start_with_next([=](float64 visible, int height) {
+		_widget->moveToLeft(0, anim::interpolate(
+			height - st::connectingMargin.top(),
+			height - _widget->height(),
+			visible));
+	}, _widget->lifetime());
+
+	_widget->refreshStateRequests(
+	) | rpl::start_with_next([=] {
+		refreshState();
+	}, _widget->lifetime());
 }
 
-void ConnectingWidget::finishAnimating() {
+void ConnectionState::raise() {
+	if (_widget) {
+		_widget->raise();
+	}
+}
+
+void ConnectionState::finishAnimating() {
 	if (_contentWidth.animating()) {
 		_contentWidth.finish();
 		updateWidth();
@@ -190,160 +254,16 @@ void ConnectingWidget::finishAnimating() {
 	}
 }
 
-void ConnectingWidget::setForceHidden(bool hidden) {
-	if (_forceHidden == hidden) {
-		return;
-	}
-	if (hidden) {
-		const auto real = isHidden();
-		if (!real) {
-			hide();
-		}
-		_realHidden = real;
-	}
+void ConnectionState::setForceHidden(bool hidden) {
 	_forceHidden = hidden;
-	if (!hidden && isHidden() != _realHidden) {
-		setVisible(!_realHidden);
+	if (_widget) {
+		_widget->setVisible(!hidden);
 	}
 }
 
-void ConnectingWidget::setVisibleHook(bool visible) {
-	if (_forceHidden) {
-		_realHidden = !visible;
-		return;
-	}
-	QWidget::setVisible(visible);
-}
-
-base::unique_qptr<ConnectingWidget> ConnectingWidget::CreateDefaultWidget(
-		Ui::RpWidget *parent,
-		rpl::producer<bool> shown) {
-	auto result = base::make_unique_q<Window::ConnectingWidget>(parent);
-	const auto weak = result.get();
-	rpl::combine(
-		result->visibility(),
-		parent->heightValue()
-	) | rpl::start_with_next([=](float64 visible, int height) {
-		const auto hidden = (visible == 0.);
-		if (weak->isHidden() != hidden) {
-			weak->setVisible(!hidden);
-		}
-		const auto size = weak->size();
-		weak->moveToLeft(0, anim::interpolate(
-			height - st::connectingMargin.top(),
-			height - weak->height(),
-			visible));
-	}, weak->lifetime());
-	std::move(
-		shown
-	) | rpl::start_with_next([=](bool shown) {
-		weak->setForceHidden(!shown);
-	}, weak->lifetime());
-	result->finishAnimating();
-	return result;
-}
-
-void ConnectingWidget::onStateChanged(
-		AbstractButton::State was,
-		StateChangeSource source) {
-	crl::on_main(this, [=] { refreshState(); });
-}
-
-void ConnectingWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	PainterHighQualityEnabler hq(p);
-
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::windowBg);
-	const auto inner = innerRect();
-	const auto content = contentRect();
-	const auto text = textRect();
-	const auto left = inner.topLeft();
-	const auto right = content.topLeft() + QPoint(content.width(), 0);
-	st::connectingLeftShadow.paint(p, left, width());
-	st::connectingLeft.paint(p, left, width());
-	st::connectingRightShadow.paint(p, right, width());
-	st::connectingRight.paint(p, right, width());
-	st::connectingBodyShadow.fill(p, content);
-	st::connectingBody.fill(p, content);
-
-	const auto available = text.width();
-	if (available > 0 && !_currentLayout.text.isEmpty()) {
-		p.setFont(st::normalFont);
-		p.setPen(st::windowSubTextFg);
-		if (available >= _currentLayout.textWidth) {
-			p.drawTextLeft(
-				text.x(),
-				text.y(),
-				width(),
-				_currentLayout.text,
-				_currentLayout.textWidth);
-		} else {
-			p.drawTextLeft(
-				text.x(),
-				text.y(),
-				width(),
-				st::normalFont->elided(_currentLayout.text, available));
-		}
-	}
-}
-
-QRect ConnectingWidget::innerRect() const {
-	return rect().marginsRemoved(
-		st::connectingMargin
-	);
-}
-
-QRect ConnectingWidget::contentRect() const {
-	return innerRect().marginsRemoved(style::margins(
-		st::connectingLeft.width(),
-		0,
-		st::connectingRight.width(),
-		0));
-}
-
-QRect ConnectingWidget::textRect() const {
-	return contentRect().marginsRemoved(
-		st::connectingTextPadding
-	);
-}
-
-void ConnectingWidget::resizeEvent(QResizeEvent *e) {
-	{
-		const auto xShift = (height() - _progress->width()) / 2;
-		const auto yShift = (height() - _progress->height()) / 2;
-		_progress->moveToLeft(xShift, yShift);
-	}
-	{
-		const auto xShift = (height() - _proxyIcon->width()) / 2;
-		const auto yShift = (height() - _proxyIcon->height()) / 2;
-		_proxyIcon->moveToRight(xShift, yShift);
-	}
-	updateRetryGeometry();
-}
-
-void ConnectingWidget::updateRetryGeometry() {
-	if (!_retry) {
-		return;
-	}
-	const auto text = textRect();
-	const auto available = text.width() - _currentLayout.textWidth;
-	if (available <= 0) {
-		_retry->hide();
-	} else {
-		_retry->show();
-		_retry->resize(
-			std::min(available, _retry->naturalWidth()),
-			innerRect().height());
-		_retry->moveToLeft(
-			text.x() + text.width() - _retry->width(),
-			st::connectingMargin.top());
-	}
-}
-
-void ConnectingWidget::refreshState() {
+void ConnectionState::refreshState() {
 	const auto state = [&]() -> State {
-		const auto under = isOver();
+		const auto under = _widget && _widget->isOver();
 		const auto mtp = MTP::dcstate();
 		const auto throughProxy
 			= (Global::ProxySettings() == ProxyData::Settings::Enabled);
@@ -385,12 +305,9 @@ void ConnectingWidget::refreshState() {
 	applyState(state);
 }
 
-void ConnectingWidget::applyState(const State &state) {
+void ConnectionState::applyState(const State &state) {
 	const auto newLayout = computeLayout(state);
-	const auto guard = gsl::finally([&] {
-		updateWidth();
-		update();
-	});
+	const auto guard = gsl::finally([&] { updateWidth(); });
 
 	_state = state;
 	if (_currentLayout.visible != newLayout.visible) {
@@ -416,10 +333,9 @@ void ConnectingWidget::applyState(const State &state) {
 		_currentLayout.text = saved.text;
 		_currentLayout.textWidth = saved.textWidth;
 	}
-	refreshRetryLink(_currentLayout.hasRetry);
 }
 
-void ConnectingWidget::changeVisibilityWithLayout(const Layout &layout) {
+void ConnectionState::changeVisibilityWithLayout(const Layout &layout) {
 	Expects(_currentLayout.visible != layout.visible);
 
 	const auto changeLayout = !_currentLayout.visible;
@@ -442,29 +358,22 @@ void ConnectingWidget::changeVisibilityWithLayout(const Layout &layout) {
 	}
 }
 
-void ConnectingWidget::setLayout(const Layout &layout) {
+void ConnectionState::setLayout(const Layout &layout) {
 	_currentLayout = layout;
-	_proxyIcon->setToggled(_currentLayout.proxyEnabled);
-	_progress->setVisible(_contentWidth.animating()
-		|| _currentLayout.progressShown);
+	if (_widget) {
+		_widget->setLayout(layout);
+	}
+	refreshProgressVisibility();
 }
 
-void ConnectingWidget::refreshRetryLink(bool hasRetry) {
-	if (hasRetry && !_retry) {
-		_retry = base::make_unique_q<Ui::LinkButton>(
-			this,
-			lang(lng_reconnecting_try_now),
-			st::connectingRetryLink);
-		_retry->addClickHandler([=] {
-			MTP::restart();
-		});
-		updateRetryGeometry();
-	} else if (!hasRetry) {
-		_retry = nullptr;
+void ConnectionState::refreshProgressVisibility() {
+	if (_widget) {
+		_widget->setProgressVisibility(_contentWidth.animating()
+			|| _currentLayout.progressShown);
 	}
 }
 
-void ConnectingWidget::updateVisibility() {
+void ConnectionState::updateVisibility() {
 	const auto value = currentVisibility();
 	if (value == 0. && _contentWidth.animating()) {
 		_contentWidth.finish();
@@ -473,11 +382,15 @@ void ConnectingWidget::updateVisibility() {
 	_visibilityValues.fire_copy(value);
 }
 
-float64 ConnectingWidget::currentVisibility() const {
+float64 ConnectionState::currentVisibility() const {
 	return _visibility.current(_currentLayout.visible ? 1. : 0.);
 }
 
-auto ConnectingWidget::computeLayout(const State &state) const -> Layout {
+rpl::producer<float64> ConnectionState::visibility() const {
+	return _visibilityValues.events_starting_with(currentVisibility());
+}
+
+auto ConnectionState::computeLayout(const State &state) const -> Layout {
 	auto result = Layout();
 	result.proxyEnabled = state.useProxy;
 	result.progressShown = (state.type != State::Type::Connected);
@@ -513,7 +426,7 @@ auto ConnectingWidget::computeLayout(const State &state) const -> Layout {
 	return result;
 }
 
-void ConnectingWidget::updateWidth() {
+void ConnectionState::updateWidth() {
 	const auto current = _contentWidth.current(_currentLayout.contentWidth);
 	const auto height = st::connectingLeft.height();
 	const auto desired = QRect(0, 0, current, height).marginsAdded(
@@ -525,11 +438,153 @@ void ConnectingWidget::updateWidth() {
 	).marginsAdded(
 		st::connectingMargin
 	);
-	resize(desired.size());
-	if (!_contentWidth.animating()) {
-		_progress->setVisible(_currentLayout.progressShown);
+	if (_widget) {
+		_widget->resize(desired.size());
+		_widget->update();
 	}
-	update();
+	refreshProgressVisibility();
+}
+
+ConnectionState::Widget::Widget(QWidget *parent, const Layout &layout)
+: AbstractButton(parent)
+, _currentLayout(layout) {
+	_proxyIcon = Ui::CreateChild<ProxyIcon>(this);
+	_progress = Ui::CreateChild<Progress>(this);
+
+	addClickHandler([=] {
+		Ui::show(ProxiesBoxController::CreateOwningBox());
+	});
+}
+
+void ConnectionState::Widget::onStateChanged(
+		AbstractButton::State was,
+		StateChangeSource source) {
+	Ui::PostponeCall(crl::guard(this, [=] {
+		_refreshStateRequests.fire({});
+	}));
+}
+
+rpl::producer<> ConnectionState::Widget::refreshStateRequests() const {
+	return _refreshStateRequests.events();
+}
+
+void ConnectionState::Widget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	PainterHighQualityEnabler hq(p);
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBg);
+	const auto inner = innerRect();
+	const auto content = contentRect();
+	const auto text = textRect();
+	const auto left = inner.topLeft();
+	const auto right = content.topLeft() + QPoint(content.width(), 0);
+	st::connectingLeftShadow.paint(p, left, width());
+	st::connectingLeft.paint(p, left, width());
+	st::connectingRightShadow.paint(p, right, width());
+	st::connectingRight.paint(p, right, width());
+	st::connectingBodyShadow.fill(p, content);
+	st::connectingBody.fill(p, content);
+
+	const auto available = text.width();
+	if (available > 0 && !_currentLayout.text.isEmpty()) {
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		if (available >= _currentLayout.textWidth) {
+			p.drawTextLeft(
+				text.x(),
+				text.y(),
+				width(),
+				_currentLayout.text,
+				_currentLayout.textWidth);
+		} else {
+			p.drawTextLeft(
+				text.x(),
+				text.y(),
+				width(),
+				st::normalFont->elided(_currentLayout.text, available));
+		}
+	}
+}
+
+QRect ConnectionState::Widget::innerRect() const {
+	return rect().marginsRemoved(
+		st::connectingMargin
+	);
+}
+
+QRect ConnectionState::Widget::contentRect() const {
+	return innerRect().marginsRemoved(style::margins(
+		st::connectingLeft.width(),
+		0,
+		st::connectingRight.width(),
+		0));
+}
+
+QRect ConnectionState::Widget::textRect() const {
+	return contentRect().marginsRemoved(
+		st::connectingTextPadding
+	);
+}
+
+void ConnectionState::Widget::resizeEvent(QResizeEvent *e) {
+	{
+		const auto xShift = (height() - _progress->width()) / 2;
+		const auto yShift = (height() - _progress->height()) / 2;
+		_progress->moveToLeft(xShift, yShift);
+	}
+	{
+		const auto xShift = (height() - _proxyIcon->width()) / 2;
+		const auto yShift = (height() - _proxyIcon->height()) / 2;
+		_proxyIcon->moveToRight(xShift, yShift);
+	}
+	updateRetryGeometry();
+}
+
+void ConnectionState::Widget::updateRetryGeometry() {
+	if (!_retry) {
+		return;
+	}
+	const auto text = textRect();
+	const auto available = text.width() - _currentLayout.textWidth;
+	if (available <= 0) {
+		_retry->hide();
+	} else {
+		_retry->show();
+		_retry->resize(
+			std::min(available, _retry->naturalWidth()),
+			innerRect().height());
+		_retry->moveToLeft(
+			text.x() + text.width() - _retry->width(),
+			st::connectingMargin.top());
+	}
+}
+
+void ConnectionState::Widget::setLayout(const Layout &layout) {
+	_currentLayout = layout;
+	_proxyIcon->setToggled(_currentLayout.proxyEnabled);
+	refreshRetryLink(_currentLayout.hasRetry);
+}
+
+void ConnectionState::Widget::setProgressVisibility(bool visible) {
+	if (_progress->isHidden() == visible) {
+		_progress->setVisible(visible);
+	}
+}
+
+void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
+	if (hasRetry && !_retry) {
+		_retry = base::make_unique_q<Ui::LinkButton>(
+			this,
+			lang(lng_reconnecting_try_now),
+			st::connectingRetryLink);
+		_retry->addClickHandler([=] {
+			MTP::restart();
+		});
+		updateRetryGeometry();
+	} else if (!hasRetry) {
+		_retry = nullptr;
+	}
 }
 
 rpl::producer<bool> AdaptiveIsOneColumn() {

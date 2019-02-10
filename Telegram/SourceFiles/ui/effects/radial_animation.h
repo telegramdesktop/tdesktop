@@ -69,7 +69,7 @@ public:
 		return _animation.animating();
 	}
 
-	void start();
+	void start(TimeMs skip = 0);
 	void stop();
 
 	void step(TimeMs ms);

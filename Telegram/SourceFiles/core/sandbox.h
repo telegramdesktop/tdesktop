@@ -81,7 +81,7 @@ private:
 	void processPostponedCalls(int level);
 	void singleInstanceChecked();
 	void launchApplication();
-	void runApplication();
+	void setupScreenScale();
 	void execExternal(const QString &cmd);
 
 	// Single instance application

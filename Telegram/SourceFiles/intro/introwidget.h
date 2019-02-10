@@ -24,7 +24,7 @@ class FadeWrap;
 } // namespace Ui
 
 namespace Window {
-class ConnectingWidget;
+class ConnectionState;
 } // namespace Window
 
 namespace Intro {
@@ -281,7 +281,7 @@ private:
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _terms = { nullptr };
 
-	base::unique_qptr<Window::ConnectingWidget> _connecting;
+	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	mtpRequestId _resetRequest = 0;
 

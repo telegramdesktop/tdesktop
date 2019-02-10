@@ -15,7 +15,7 @@ class SettingsSlider;
 } // namespace Ui
 
 namespace Window {
-class ConnectingWidget;
+class ConnectionState;
 } // namespace Window
 
 namespace Info {
@@ -69,7 +69,7 @@ private:
 
 	object_ptr<WrapWidget> _content;
 	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
-	base::unique_qptr<Window::ConnectingWidget> _connecting;
+	std::unique_ptr<Window::ConnectionState> _connecting;
 
 };
 

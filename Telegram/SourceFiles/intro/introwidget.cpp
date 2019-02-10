@@ -114,7 +114,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 }
 
 void Widget::setupConnectingWidget() {
-	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+	_connecting = std::make_unique<Window::ConnectionState>(
 		this,
 		rpl::single(true));
 }

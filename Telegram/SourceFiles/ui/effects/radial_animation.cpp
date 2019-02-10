@@ -116,10 +116,10 @@ InfiniteRadialAnimation::InfiniteRadialAnimation(
 , _animation(std::move(callbacks)) {
 }
 
-void InfiniteRadialAnimation::start() {
+void InfiniteRadialAnimation::start(TimeMs skip) {
 	const auto now = getms();
 	if (_workFinished <= now && (_workFinished || !_workStarted)) {
-		_workStarted = now + _st.sineDuration;
+		_workStarted = std::max(now + _st.sineDuration - skip, TimeMs(1));
 		_workFinished = 0;
 	}
 	if (!_animation.animating()) {

@@ -37,6 +37,8 @@ SectionWidget::SectionWidget(
 }
 
 void SectionWidget::init() {
+	Expects(_connecting == nullptr);
+
 	sizeValue(
 	) | rpl::start_with_next([wrap = _content.data()](QSize size) {
 		auto wrapGeometry = QRect{ { 0, 0 }, size };
@@ -44,14 +46,14 @@ void SectionWidget::init() {
 		wrap->updateGeometry(wrapGeometry, additionalScroll);
 	}, _content->lifetime());
 
-	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+	_connecting = std::make_unique<Window::ConnectionState>(
 		_content.data(),
 		Window::AdaptiveIsOneColumn());
 
 	_content->contentChanged(
 	) | rpl::start_with_next([=] {
 		_connecting->raise();
-	}, _connecting->lifetime());
+	}, _content->lifetime());
 }
 
 Dialogs::RowDescriptor SectionWidget::activeChat() const {
