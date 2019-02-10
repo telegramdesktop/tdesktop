@@ -41,6 +41,7 @@ void ImageSource::loadEvenCancelled(
 }
 
 QImage ImageSource::takeLoaded() {
+	load({}, false, false);
 	return _data;
 }
 
