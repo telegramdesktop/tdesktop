@@ -1810,10 +1810,10 @@ void MediaView::initAnimation() {
 			? _doc->thumbnail()
 			: Image::Blank().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
+	} else if (_doc->hasThumbnail()) {
+		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else {
-		_current = (_doc->hasThumbnail()
-			? _doc->thumbnail()
-			: Image::Blank().get())->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = Image::Blank().get()->pixNoCache({}, Image::Blank()->width(), Image::Blank()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
