@@ -2992,7 +2992,8 @@ void Session::insertCheckedServiceNotification(
 	}
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
-		| MTPDmessage_ClientFlag::f_clientside_unread;
+		| MTPDmessage_ClientFlag::f_clientside_unread
+		| MTPDmessage::Flag::f_media;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		addNewMessage(

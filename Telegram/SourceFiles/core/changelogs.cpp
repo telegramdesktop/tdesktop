@@ -87,7 +87,7 @@ Changelogs::Changelogs(not_null<AuthSession*> session, int oldVersion)
 , _oldVersion(oldVersion) {
 	_chatsSubscription = subscribe(
 		_session->data().moreChatsLoaded(),
-		[this] { requestCloudLogs(); });
+		[=] { requestCloudLogs(); });
 }
 
 std::unique_ptr<Changelogs> Changelogs::Create(
@@ -150,9 +150,7 @@ void Changelogs::addLocalLogs() {
 void Changelogs::addLocalLog(const QString &text) {
 	auto textWithEntities = TextWithEntities{ text };
 	TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
-	_session->data().serviceNotification(
-		textWithEntities,
-		MTP_messageMediaEmpty());
+	_session->data().serviceNotification(textWithEntities);
 	_addedSomeLocal = true;
 };
 
