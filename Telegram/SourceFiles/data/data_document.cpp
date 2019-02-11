@@ -845,6 +845,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 			ActiveCache().decrement(that->_data.size());
 			that->_data = _loader->bytes();
 			ActiveCache().increment(that->_data.size());
+
 			if (that->sticker()
 				&& !that->sticker()->image
 				&& !_loader->imageData().isNull()) {
@@ -856,12 +857,13 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 						_loader->imageData()));
 				ActiveCache().increment(ComputeUsage(that->sticker()));
 			}
-			if (!that->_data.isEmpty() || that->getStickerLarge()) {
-				ActiveCache().up(that);
-			}
 
 			that->refreshGoodThumbnail();
 			destroyLoader();
+
+			if (!that->_data.isEmpty() || that->getStickerLarge()) {
+				ActiveCache().up(that);
+			}
 		}
 		_owner->notifyDocumentLayoutChanged(this);
 	}
