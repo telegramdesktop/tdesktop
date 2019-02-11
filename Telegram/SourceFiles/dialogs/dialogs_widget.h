@@ -91,6 +91,8 @@ public:
 
 	void notify_historyMuteUpdated(History *history);
 
+	~DialogsWidget();
+
 signals:
 	void cancelled();
 

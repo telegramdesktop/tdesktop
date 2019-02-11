@@ -185,7 +185,7 @@ void ConnectionState::Widget::ProxyIcon::paintEvent(QPaintEvent *e) {
 	p.drawPixmap(0, 0, _toggled ? _cacheOn : _cacheOff);
 }
 
-bool ConnectionState::Widget::State::operator==(const State &other) const {
+bool ConnectionState::State::operator==(const State &other) const {
 	return (type == other.type)
 		&& (useProxy == other.useProxy)
 		&& (underCursor == other.underCursor)

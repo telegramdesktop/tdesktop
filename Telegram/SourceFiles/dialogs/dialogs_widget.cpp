@@ -1555,3 +1555,5 @@ void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
 		_scroll->scrollToY(st + st::dialogsRowHeight);
 	}
 }
+
+DialogsWidget::~DialogsWidget() = default;
