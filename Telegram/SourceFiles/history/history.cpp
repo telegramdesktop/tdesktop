@@ -2086,8 +2086,13 @@ void History::markFullyLoaded() {
 }
 
 void History::setLastMessage(HistoryItem *item) {
-	if (_lastMessage && *_lastMessage == item) {
-		return;
+	if (_lastMessage) {
+		if (*_lastMessage == item) {
+			return;
+		} else if (!IsServerMsgId((*_lastMessage)->id)
+				&& (*_lastMessage)->date() > item->date()) {
+			return;
+		}
 	}
 	_lastMessage = item;
 	_chatListMessage = std::nullopt;
