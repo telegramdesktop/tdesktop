@@ -1409,7 +1409,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_formatting_link_edit" = "Edit link";
 "lng_menu_formatting_clear" = "Plain text";
 "lng_formatting_link_create_title" = "Create link";
-"lng_formatting_link_edit_title" = "Create link";
+"lng_formatting_link_edit_title" = "Edit link";
 "lng_formatting_link_text" = "Text";
 "lng_formatting_link_url" = "URL";
 "lng_formatting_link_create" = "Create";
