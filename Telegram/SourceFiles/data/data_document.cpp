@@ -722,14 +722,15 @@ void DocumentData::automaticLoad(
 	const auto filename = toCache
 		? QString()
 		: documentSaveFilename(this);
-	const auto shouldLoadFromCloud = item
-		? Data::AutoDownload::Should(
-			Auth().settings().autoDownload(),
-			item->history()->peer,
-			this)
-		: Data::AutoDownload::Should(
-			Auth().settings().autoDownload(),
-			this);
+	const auto shouldLoadFromCloud = !Data::IsExecutableName(filename)
+		&& (item
+			? Data::AutoDownload::Should(
+				Auth().settings().autoDownload(),
+				item->history()->peer,
+				this)
+			: Data::AutoDownload::Should(
+				Auth().settings().autoDownload(),
+				this));
 	const auto loadFromCloud = shouldLoadFromCloud
 		? LoadFromCloudOrLocal
 		: LoadFromLocalOnly;
