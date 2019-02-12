@@ -3107,7 +3107,9 @@ void OverlayWidget::touchEvent(QTouchEvent *e) {
 }
 
 bool OverlayWidget::eventHook(QEvent *e) {
-	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
+	if (e->type() == QEvent::UpdateRequest) {
+		_wasRepainted = true;
+	} else if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
 			if (ev->type() != QEvent::TouchBegin || ev->touchPoints().isEmpty() || !childAt(mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()))) {
@@ -3175,6 +3177,25 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		a_cOpacity = anim::value(1, 1);
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
+#if defined Q_OS_MAC && !defined MAC_OS_OLD
+		// QOpenGLWidget can't properly destroy a child widget if
+		// it is hidden exactly after that, so it must be repainted
+		// before it is hidden without the child widget.
+		if (!isHidden() && _clipController) {
+			_clipController.destroy();
+			_wasRepainted = false;
+			repaint();
+			if (!_wasRepainted) {
+				// Qt has some optimization to prevent too frequent repaints.
+				// If the previous repaint was less than 1/60 second it silently
+				// converts repaint() call to an update() call. But we have to
+				// repaint right now, before hide(), with _clipController destroyed.
+				auto event = QEvent(QEvent::UpdateRequest);
+				QApplication::sendEvent(this, &event);
+			}
+		}
+#endif // Q_OS_MAC && !MAC_OS_OLD
+
 	}
 	OverlayParent::setVisibleHook(visible);
 	if (visible) {

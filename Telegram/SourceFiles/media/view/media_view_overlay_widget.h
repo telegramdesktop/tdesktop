@@ -417,6 +417,8 @@ private:
 	object_ptr<Ui::RoundButton> _themeApply = { nullptr };
 	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
 
+	bool _wasRepainted = false;
+
 };
 
 } // namespace View
