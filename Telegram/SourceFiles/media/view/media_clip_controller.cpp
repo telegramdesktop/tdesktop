@@ -232,7 +232,7 @@ void Controller::paintEvent(QPaintEvent *e) {
 }
 
 void Controller::mousePressEvent(QMouseEvent *e) {
-	e->accept(); // Don't pass event to the MediaView.
+	e->accept(); // Don't pass event to the Media::View::OverlayWidget.
 }
 
 Controller::~Controller() = default;

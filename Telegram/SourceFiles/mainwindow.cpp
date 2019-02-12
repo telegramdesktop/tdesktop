@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/connection_box.h"
 #include "observer_peer.h"
-#include "mediaview.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_intro.h"

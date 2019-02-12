@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class BoxContent;
-class MediaView;
 
 namespace Window {
 

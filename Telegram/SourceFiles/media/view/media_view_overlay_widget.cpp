@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mediaview.h"
+#include "media/view/media_view_overlay_widget.h"
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_mediaview.h"
 #include "styles/style_history.h"
 
+namespace Media {
+namespace View {
 namespace {
 
 constexpr auto kPreloadCount = 4;
@@ -57,7 +59,7 @@ Images::Options VideoThumbOptions(not_null<DocumentData*> document) {
 
 } // namespace
 
-struct MediaView::SharedMedia {
+struct OverlayWidget::SharedMedia {
 	SharedMedia(SharedMediaKey key) : key(key) {
 	}
 
@@ -65,7 +67,7 @@ struct MediaView::SharedMedia {
 	rpl::lifetime lifetime;
 };
 
-struct MediaView::UserPhotos {
+struct OverlayWidget::UserPhotos {
 	UserPhotos(UserPhotosKey key) : key(key) {
 	}
 
@@ -73,23 +75,23 @@ struct MediaView::UserPhotos {
 	rpl::lifetime lifetime;
 };
 
-struct MediaView::Collage {
+struct OverlayWidget::Collage {
 	Collage(CollageKey key) : key(key) {
 	}
 
 	CollageKey key;
 };
 
-MediaView::MediaView()
-: TWidget(nullptr)
+OverlayWidget::OverlayWidget()
+: OverlayParent(nullptr)
 , _transparentBrush(style::transparentPlaceholderBrush())
 , _animStarted(getms())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
 , _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
-, _radial(animation(this, &MediaView::step_radial))
+, _radial(animation(this, &OverlayWidget::step_radial))
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
-, _a_state(animation(this, &MediaView::step_state))
+, _a_state(animation(this, &OverlayWidget::step_state))
 , _dropdown(this, st::mediaviewDropdownMenu)
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
@@ -176,11 +178,11 @@ MediaView::MediaView()
 	connect(_dropdownShowTimer, SIGNAL(timeout()), this, SLOT(onDropdown()));
 }
 
-void MediaView::refreshLang() {
+void OverlayWidget::refreshLang() {
 	InvokeQueued(this, [this] { updateThemePreviewGeometry(); });
 }
 
-void MediaView::moveToScreen() {
+void OverlayWidget::moveToScreen() {
 	auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (auto handle = widget ? widget->windowHandle() : nullptr) {
 			return handle->screen();
@@ -210,22 +212,22 @@ void MediaView::moveToScreen() {
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
 
-bool MediaView::fileShown() const {
+bool OverlayWidget::fileShown() const {
 	return !_current.isNull() || gifShown();
 }
 
-bool MediaView::fileBubbleShown() const {
+bool OverlayWidget::fileBubbleShown() const {
 	return (!_photo && !_doc) || (_doc && !fileShown() && !_themePreviewShown);
 }
 
-bool MediaView::gifShown() const {
+bool OverlayWidget::gifShown() const {
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
 			const auto streamVideo = _doc
 				&& (_doc->isVideoFile() || _doc->isVideoMessage());
 			const auto pauseOnStart = (_autoplayVideoDocument != _doc);
 			if (streamVideo && pauseOnStart && !_gif->videoPaused()) {
-				const_cast<MediaView*>(this)->toggleVideoPaused();
+				const_cast<OverlayWidget*>(this)->toggleVideoPaused();
 			}
 			const auto rounding = (_doc && _doc->isVideoMessage())
 				? ImageRoundRadius::Ellipse
@@ -237,7 +239,7 @@ bool MediaView::gifShown() const {
 				_gif->height() / cIntRetinaFactor(),
 				rounding,
 				RectPart::AllCorners);
-			const_cast<MediaView*>(this)->_current = QPixmap();
+			const_cast<OverlayWidget*>(this)->_current = QPixmap();
 			updateMixerVideoVolume();
 			Global::RefVideoVolumeChanged().notify();
 		}
@@ -246,7 +248,7 @@ bool MediaView::gifShown() const {
 	return false;
 }
 
-void MediaView::stopGif() {
+void OverlayWidget::stopGif() {
 	_gif = nullptr;
 	_videoPaused = _videoStopped = _videoIsSilent = false;
 	_fullScreenVideo = false;
@@ -254,7 +256,7 @@ void MediaView::stopGif() {
 	disconnect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
-void MediaView::documentUpdated(DocumentData *doc) {
+void OverlayWidget::documentUpdated(DocumentData *doc) {
 	if (fileBubbleShown() && _doc && _doc == doc) {
 		if ((_doc->loading() && _docCancel->isHidden()) || (!_doc->loading() && !_docCancel->isHidden())) {
 			updateControls();
@@ -265,14 +267,14 @@ void MediaView::documentUpdated(DocumentData *doc) {
 	}
 }
 
-void MediaView::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
+void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
 	if (row->fullId() == _msgid) {
 		_msgid = FullMsgId(_msgid.channel, newId);
 		refreshMediaViewer();
 	}
 }
 
-void MediaView::updateDocSize() {
+void OverlayWidget::updateDocSize() {
 	if (!_doc || !fileBubbleShown()) return;
 
 	if (_doc->loading()) {
@@ -305,7 +307,7 @@ void MediaView::updateDocSize() {
 	}
 }
 
-void MediaView::refreshNavVisibility() {
+void OverlayWidget::refreshNavVisibility() {
 	if (_sharedMediaData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index && (*_index + 1 < _sharedMediaData->size());
@@ -321,7 +323,7 @@ void MediaView::refreshNavVisibility() {
 	}
 }
 
-void MediaView::updateControls() {
+void OverlayWidget::updateControls() {
 	if (_doc && fileBubbleShown()) {
 		if (_doc->loading()) {
 			_docDownload->hide();
@@ -392,7 +394,7 @@ void MediaView::updateControls() {
 	update();
 }
 
-void MediaView::resizeCenteredControls() {
+void OverlayWidget::resizeCenteredControls() {
 	const auto bottomSkip = std::max(
 		_dateNav.left() + _dateNav.width(),
 		_headerNav.left() + _headerNav.width())
@@ -410,7 +412,7 @@ void MediaView::resizeCenteredControls() {
 	refreshCaptionGeometry();
 }
 
-void MediaView::refreshCaptionGeometry() {
+void OverlayWidget::refreshCaptionGeometry() {
 	if (_caption.isEmpty()) {
 		_captionRect = QRect();
 		return;
@@ -445,7 +447,7 @@ void MediaView::refreshCaptionGeometry() {
 		captionHeight);
 }
 
-void MediaView::updateActions() {
+void OverlayWidget::updateActions() {
 	_actions.clear();
 
 	if (_doc && _doc->loading()) {
@@ -487,7 +489,7 @@ void MediaView::updateActions() {
 	}
 }
 
-auto MediaView::computeOverviewType() const
+auto OverlayWidget::computeOverviewType() const
 -> std::optional<SharedMediaType> {
 	if (const auto mediaType = sharedMediaType()) {
 		if (const auto overviewType = SharedMediaOverviewType(*mediaType)) {
@@ -503,7 +505,7 @@ auto MediaView::computeOverviewType() const
 	return std::nullopt;
 }
 
-void MediaView::step_state(TimeMs ms, bool timer) {
+void OverlayWidget::step_state(TimeMs ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::mediaviewShowDuration + st::mediaviewHideDuration;
 	}
@@ -559,13 +561,13 @@ void MediaView::step_state(TimeMs ms, bool timer) {
 	}
 }
 
-void MediaView::updateCursor() {
+void OverlayWidget::updateCursor() {
 	setCursor(_controlsState == ControlsHidden
 		? Qt::BlankCursor
 		: (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
 
-float64 MediaView::radialProgress() const {
+float64 OverlayWidget::radialProgress() const {
 	if (_doc) {
 		return _doc->progress();
 	} else if (_photo) {
@@ -574,7 +576,7 @@ float64 MediaView::radialProgress() const {
 	return 1.;
 }
 
-bool MediaView::radialLoading() const {
+bool OverlayWidget::radialLoading() const {
 	if (_doc) {
 		return _doc->loading();
 	} else if (_photo) {
@@ -583,7 +585,7 @@ bool MediaView::radialLoading() const {
 	return false;
 }
 
-QRect MediaView::radialRect() const {
+QRect OverlayWidget::radialRect() const {
 	if (_doc) {
 		return _docIconRect;
 	} else if (_photo) {
@@ -592,7 +594,7 @@ QRect MediaView::radialRect() const {
 	return QRect();
 }
 
-void MediaView::radialStart() {
+void OverlayWidget::radialStart() {
 	if (radialLoading() && !_radial.animating()) {
 		_radial.start(radialProgress());
 		if (auto shift = radialTimeShift()) {
@@ -601,11 +603,11 @@ void MediaView::radialStart() {
 	}
 }
 
-TimeMs MediaView::radialTimeShift() const {
+TimeMs OverlayWidget::radialTimeShift() const {
 	return _photo ? st::radialDuration : 0;
 }
 
-void MediaView::step_radial(TimeMs ms, bool timer) {
+void OverlayWidget::step_radial(TimeMs ms, bool timer) {
 	if (!_doc && !_photo) {
 		_radial.stop();
 		return;
@@ -641,7 +643,7 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 	}
 }
 
-void MediaView::zoomIn() {
+void OverlayWidget::zoomIn() {
 	int32 newZoom = _zoom;
 	if (newZoom == ZoomToScreenLevel) {
 		if (qCeil(_zoomToScreen) <= MaxZoomLevel) {
@@ -657,7 +659,7 @@ void MediaView::zoomIn() {
 	zoomUpdate(newZoom);
 }
 
-void MediaView::zoomOut() {
+void OverlayWidget::zoomOut() {
 	int32 newZoom = _zoom;
 	if (newZoom == ZoomToScreenLevel) {
 		if (qFloor(_zoomToScreen) >= -MaxZoomLevel) {
@@ -673,7 +675,7 @@ void MediaView::zoomOut() {
 	zoomUpdate(newZoom);
 }
 
-void MediaView::zoomReset() {
+void OverlayWidget::zoomReset() {
 	int32 newZoom = _zoom;
 	if (_zoom == 0) {
 		if (qFloor(_zoomToScreen) == qCeil(_zoomToScreen) && qRound(_zoomToScreen) >= -MaxZoomLevel && qRound(_zoomToScreen) <= MaxZoomLevel) {
@@ -700,7 +702,7 @@ void MediaView::zoomReset() {
 	zoomUpdate(newZoom);
 }
 
-void MediaView::zoomUpdate(int32 &newZoom) {
+void OverlayWidget::zoomUpdate(int32 &newZoom) {
 	if (newZoom != ZoomToScreenLevel) {
 		while ((newZoom < 0 && (-newZoom + 1) > _w) || (-newZoom + 1) > _h) {
 			++newZoom;
@@ -709,7 +711,7 @@ void MediaView::zoomUpdate(int32 &newZoom) {
 	setZoomLevel(newZoom);
 }
 
-void MediaView::clearData() {
+void OverlayWidget::clearData() {
 	if (!isHidden()) {
 		hide();
 	}
@@ -729,35 +731,35 @@ void MediaView::clearData() {
 	_caption.clear();
 }
 
-MediaView::~MediaView() {
+OverlayWidget::~OverlayWidget() {
 	delete base::take(_menu);
 }
 
-void MediaView::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+void OverlayWidget::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	setCursor((active || ClickHandler::getPressed()) ? style::cur_pointer : style::cur_default);
 	update(QRegion(_saveMsg) + _captionRect);
 }
 
-void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+void OverlayWidget::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 	setCursor((pressed || ClickHandler::getActive()) ? style::cur_pointer : style::cur_default);
 	update(QRegion(_saveMsg) + _captionRect);
 }
 
-void MediaView::showSaveMsgFile() {
+void OverlayWidget::showSaveMsgFile() {
 	File::ShowInFolder(_saveMsgFilename);
 }
 
-void MediaView::updateMixerVideoVolume() const {
+void OverlayWidget::updateMixerVideoVolume() const {
 	if (_doc && (_doc->isVideoFile() || _doc->isVideoMessage())) {
 		Media::Player::mixer()->setVideoVolume(Global::VideoVolume());
 	}
 }
 
-void MediaView::close() {
+void OverlayWidget::close() {
 	Core::App().hideMediaView();
 }
 
-void MediaView::activateControls() {
+void OverlayWidget::activateControls() {
 	if (!_menu && !_mousePressed) {
 		_controlsHideTimer.start(int(st::mediaviewWaitHide));
 	}
@@ -774,7 +776,7 @@ void MediaView::activateControls() {
 	}
 }
 
-void MediaView::onHideControls(bool force) {
+void OverlayWidget::onHideControls(bool force) {
 	if (!force) {
 		if (!_dropdown->isHidden()
 			|| _menu
@@ -797,7 +799,7 @@ void MediaView::onHideControls(bool force) {
 	if (!_a_state.animating()) _a_state.start();
 }
 
-void MediaView::dropdownHidden() {
+void OverlayWidget::dropdownHidden() {
 	setFocus();
 	_ignoringDropdown = true;
 	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
@@ -808,7 +810,7 @@ void MediaView::dropdownHidden() {
 	}
 }
 
-void MediaView::onScreenResized(int screen) {
+void OverlayWidget::onScreenResized(int screen) {
 	if (isHidden()) return;
 
 	bool ignore = false;
@@ -831,14 +833,14 @@ void MediaView::onScreenResized(int screen) {
 	}
 }
 
-void MediaView::onToMessage() {
+void OverlayWidget::onToMessage() {
 	if (auto item = _msgid ? App::histItemById(_msgid) : 0) {
 		close();
 		Ui::showPeerHistoryAtItem(item);
 	}
 }
 
-void MediaView::onSaveAs() {
+void OverlayWidget::onSaveAs() {
 	QString file;
 	if (_doc) {
 		const FileLocation &location(_doc->location(true));
@@ -913,7 +915,7 @@ void MediaView::onSaveAs() {
 	setFocus();
 }
 
-void MediaView::onDocClick() {
+void OverlayWidget::onDocClick() {
 	if (_doc->loading()) {
 		onSaveCancel();
 	} else {
@@ -928,7 +930,7 @@ void MediaView::onDocClick() {
 	}
 }
 
-void MediaView::clipCallback(Media::Clip::Notification notification) {
+void OverlayWidget::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 
 	if (!_gif) return;
@@ -973,11 +975,11 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-PeerData *MediaView::ui_getPeerForMouseAction() {
+PeerData *OverlayWidget::ui_getPeerForMouseAction() {
 	return _history ? _history->peer.get() : nullptr;
 }
 
-void MediaView::onDownload() {
+void OverlayWidget::onDownload() {
 	if (Global::AskDownloadPath()) {
 		return onSaveAs();
 	}
@@ -1036,13 +1038,13 @@ void MediaView::onDownload() {
 	}
 }
 
-void MediaView::onSaveCancel() {
+void OverlayWidget::onSaveCancel() {
 	if (_doc && _doc->loading()) {
 		_doc->cancel();
 	}
 }
 
-void MediaView::onShowInFolder() {
+void OverlayWidget::onShowInFolder() {
 	if (!_doc) return;
 
 	auto filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
@@ -1051,7 +1053,7 @@ void MediaView::onShowInFolder() {
 	}
 }
 
-void MediaView::onForward() {
+void OverlayWidget::onForward() {
 	auto item = App::histItemById(_msgid);
 	if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
 		return;
@@ -1061,7 +1063,7 @@ void MediaView::onForward() {
 	Window::ShowForwardMessagesBox({ 1, item->fullId() });
 }
 
-void MediaView::onDelete() {
+void OverlayWidget::onDelete() {
 	close();
 	const auto deletingPeerPhoto = [this] {
 		if (!_msgid) {
@@ -1082,7 +1084,7 @@ void MediaView::onDelete() {
 	}
 }
 
-void MediaView::onOverview() {
+void OverlayWidget::onOverview() {
 	if (_menu) _menu->hideMenu(true);
 	update();
 	if (const auto overviewType = computeOverviewType()) {
@@ -1091,7 +1093,7 @@ void MediaView::onOverview() {
 	}
 }
 
-void MediaView::onCopy() {
+void OverlayWidget::onCopy() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_doc) {
 		if (!_current.isNull()) {
@@ -1106,7 +1108,7 @@ void MediaView::onCopy() {
 	}
 }
 
-std::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
+std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() const {
 	using Type = SharedMediaType;
 	if (const auto item = App::histItemById(_msgid)) {
 		if (const auto media = item->media()) {
@@ -1131,7 +1133,7 @@ std::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 	return std::nullopt;
 }
 
-std::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
+std::optional<OverlayWidget::SharedMediaKey> OverlayWidget::sharedMediaKey() const {
 	if (!_msgid && _peer && !_user && _photo && _peer->userpicPhotoId() == _photo->id) {
 		return SharedMediaKey {
 			_history->peer->id,
@@ -1155,7 +1157,7 @@ std::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 		| keyForType;
 }
 
-Data::FileOrigin MediaView::fileOrigin() const {
+Data::FileOrigin OverlayWidget::fileOrigin() const {
 	if (_msgid) {
 		return _msgid;
 	} else if (_photo && _user) {
@@ -1166,7 +1168,7 @@ Data::FileOrigin MediaView::fileOrigin() const {
 	return Data::FileOrigin();
 }
 
-bool MediaView::validSharedMedia() const {
+bool OverlayWidget::validSharedMedia() const {
 	if (auto key = sharedMediaKey()) {
 		if (!_sharedMedia) {
 			return false;
@@ -1201,7 +1203,7 @@ bool MediaView::validSharedMedia() const {
 	return (_sharedMedia == nullptr);
 }
 
-void MediaView::validateSharedMedia() {
+void OverlayWidget::validateSharedMedia() {
 	if (auto key = sharedMediaKey()) {
 		_sharedMedia = std::make_unique<SharedMedia>(*key);
 		auto viewer = (key->type == SharedMediaType::ChatPhoto)
@@ -1222,7 +1224,7 @@ void MediaView::validateSharedMedia() {
 	}
 }
 
-void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
+void OverlayWidget::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	if ((!_photo && !_doc) || !_sharedMedia) {
 		_sharedMediaData = std::nullopt;
 		_sharedMediaDataKey = std::nullopt;
@@ -1235,7 +1237,7 @@ void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	preloadData(0);
 }
 
-std::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
+std::optional<OverlayWidget::UserPhotosKey> OverlayWidget::userPhotosKey() const {
 	if (!_msgid && _user && _photo) {
 		return UserPhotosKey {
 			_user->bareId(),
@@ -1245,7 +1247,7 @@ std::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
 	return std::nullopt;
 }
 
-bool MediaView::validUserPhotos() const {
+bool OverlayWidget::validUserPhotos() const {
 	if (const auto key = userPhotosKey()) {
 		if (!_userPhotos) {
 			return false;
@@ -1267,7 +1269,7 @@ bool MediaView::validUserPhotos() const {
 	return (_userPhotos == nullptr);
 }
 
-void MediaView::validateUserPhotos() {
+void OverlayWidget::validateUserPhotos() {
 	if (const auto key = userPhotosKey()) {
 		_userPhotos = std::make_unique<UserPhotos>(*key);
 		UserPhotosReversedViewer(
@@ -1284,7 +1286,7 @@ void MediaView::validateUserPhotos() {
 	}
 }
 
-void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
+void OverlayWidget::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 	if (!_photo || !_userPhotos) {
 		_userPhotosData = std::nullopt;
 	} else {
@@ -1295,7 +1297,7 @@ void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 	preloadData(0);
 }
 
-std::optional<MediaView::CollageKey> MediaView::collageKey() const {
+std::optional<OverlayWidget::CollageKey> OverlayWidget::collageKey() const {
 	if (const auto item = App::histItemById(_msgid)) {
 		if (const auto media = item->media()) {
 			if (const auto page = media->webpage()) {
@@ -1310,7 +1312,7 @@ std::optional<MediaView::CollageKey> MediaView::collageKey() const {
 	return std::nullopt;
 }
 
-bool MediaView::validCollage() const {
+bool OverlayWidget::validCollage() const {
 	if (const auto key = collageKey()) {
 		if (!_collage) {
 			return false;
@@ -1338,7 +1340,7 @@ bool MediaView::validCollage() const {
 	return (_collage == nullptr);
 }
 
-void MediaView::validateCollage() {
+void OverlayWidget::validateCollage() {
 	if (const auto key = collageKey()) {
 		_collage = std::make_unique<Collage>(*key);
 		_collageData = WebPageCollage();
@@ -1355,7 +1357,7 @@ void MediaView::validateCollage() {
 	}
 }
 
-void MediaView::refreshMediaViewer() {
+void OverlayWidget::refreshMediaViewer() {
 	if (!validSharedMedia()) {
 		validateSharedMedia();
 	}
@@ -1370,7 +1372,7 @@ void MediaView::refreshMediaViewer() {
 	preloadData(0);
 }
 
-void MediaView::refreshCaption(HistoryItem *item) {
+void OverlayWidget::refreshCaption(HistoryItem *item) {
 	_caption = Text();
 	if (!item) {
 		return;
@@ -1396,7 +1398,7 @@ void MediaView::refreshCaption(HistoryItem *item) {
 		Ui::ItemTextOptions(item));
 }
 
-void MediaView::refreshGroupThumbs() {
+void OverlayWidget::refreshGroupThumbs() {
 	const auto existed = (_groupThumbs != nullptr);
 	if (_index && _sharedMediaData) {
 		Media::View::GroupThumbs::Refresh(
@@ -1425,7 +1427,7 @@ void MediaView::refreshGroupThumbs() {
 	}
 }
 
-void MediaView::initGroupThumbs() {
+void OverlayWidget::initGroupThumbs() {
 	Expects(_groupThumbs != nullptr);
 
 	_groupThumbs->updateRequests(
@@ -1461,7 +1463,7 @@ void MediaView::initGroupThumbs() {
 		height() - _groupThumbsTop);
 }
 
-void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
+void OverlayWidget::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	if (context) {
 		setContext(context);
 	} else {
@@ -1490,7 +1492,7 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	activateControls();
 }
 
-void MediaView::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context) {
+void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context) {
 	setContext(context);
 
 	_firstOpenedPeerPhoto = true;
@@ -1513,7 +1515,7 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> contex
 	activateControls();
 }
 
-void MediaView::showDocument(not_null<DocumentData*> document, HistoryItem *context) {
+void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *context) {
 	if (context) {
 		setContext(context);
 	} else {
@@ -1541,7 +1543,7 @@ void MediaView::showDocument(not_null<DocumentData*> document, HistoryItem *cont
 	activateControls();
 }
 
-void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
+void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	if (photo->isNull()) {
 		displayDocument(nullptr, item);
 		return;
@@ -1591,7 +1593,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	displayFinished();
 }
 
-void MediaView::destroyThemePreview() {
+void OverlayWidget::destroyThemePreview() {
 	_themePreviewId = 0;
 	_themePreviewShown = false;
 	_themePreview.reset();
@@ -1599,7 +1601,7 @@ void MediaView::destroyThemePreview() {
 	_themeCancel.destroy();
 }
 
-void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
+void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
 	auto documentChanged = (!doc || doc != _doc || (item && item->fullId() != _msgid));
 	if (documentChanged || (!doc->isAnimation() && !doc->isVideoFile())) {
 		_fullScreenVideo = false;
@@ -1757,7 +1759,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	displayFinished();
 }
 
-void MediaView::updateThemePreviewGeometry() {
+void OverlayWidget::updateThemePreviewGeometry() {
 	if (_themePreviewShown) {
 		auto previewRect = QRect((width() - st::themePreviewSize.width()) / 2, (height() - st::themePreviewSize.height()) / 2, st::themePreviewSize.width(), st::themePreviewSize.height());
 		_themePreviewRect = previewRect.marginsAdded(st::themePreviewMargin);
@@ -1777,7 +1779,7 @@ void MediaView::updateThemePreviewGeometry() {
 	}
 }
 
-void MediaView::displayFinished() {
+void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		psUpdateOverlayed(this);
@@ -1793,7 +1795,7 @@ void MediaView::displayFinished() {
 	}
 }
 
-void MediaView::initAnimation() {
+void OverlayWidget::initAnimation() {
 	Expects(_doc != nullptr);
 	Expects(_doc->isAnimation() || _doc->isVideoFile());
 
@@ -1817,7 +1819,7 @@ void MediaView::initAnimation() {
 	}
 }
 
-void MediaView::createClipReader() {
+void OverlayWidget::createClipReader() {
 	if (_gif) return;
 
 	Expects(_doc != nullptr);
@@ -1850,7 +1852,7 @@ void MediaView::createClipReader() {
 	createClipController();
 }
 
-void MediaView::initThemePreview() {
+void OverlayWidget::initThemePreview() {
 	Assert(_doc && _doc->isTheme());
 
 	auto &location = _doc->location();
@@ -1901,7 +1903,7 @@ void MediaView::initThemePreview() {
 	}
 }
 
-void MediaView::createClipController() {
+void OverlayWidget::createClipController() {
 	Expects(_doc != nullptr);
 	if (!_doc->isVideoFile() && !_doc->isVideoMessage()) return;
 
@@ -1920,7 +1922,7 @@ void MediaView::createClipController() {
 	connect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
-void MediaView::refreshClipControllerGeometry() {
+void OverlayWidget::refreshClipControllerGeometry() {
 	if (!_clipController) {
 		return;
 	}
@@ -1940,7 +1942,7 @@ void MediaView::refreshClipControllerGeometry() {
 	Ui::SendPendingMoveResizeEvents(_clipController);
 }
 
-void MediaView::onVideoPauseResume() {
+void OverlayWidget::onVideoPauseResume() {
 	if (!_gif) return;
 
 	if (auto item = App::histItemById(_msgid)) {
@@ -1958,7 +1960,7 @@ void MediaView::onVideoPauseResume() {
 	}
 }
 
-void MediaView::toggleVideoPaused() {
+void OverlayWidget::toggleVideoPaused() {
 	_gif->pauseResumeVideo();
 	_videoPaused = _gif->videoPaused();
 	if (_videoIsSilent) {
@@ -1966,7 +1968,7 @@ void MediaView::toggleVideoPaused() {
 	}
 }
 
-void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
+void OverlayWidget::restartVideoAtSeekPosition(TimeMs positionMs) {
 	// Seek works bad: it seeks to the next keyframe after positionMs.
 	// At least let user to seek to the beginning of the video.
 	if (positionMs < 1000
@@ -1996,23 +1998,23 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	updateVideoPlaybackState(state);
 }
 
-void MediaView::onVideoSeekProgress(TimeMs positionMs) {
+void OverlayWidget::onVideoSeekProgress(TimeMs positionMs) {
 	if (!_videoPaused && !_videoStopped) {
 		onVideoPauseResume();
 	}
 }
 
-void MediaView::onVideoSeekFinished(TimeMs positionMs) {
+void OverlayWidget::onVideoSeekFinished(TimeMs positionMs) {
 	restartVideoAtSeekPosition(positionMs);
 }
 
-void MediaView::onVideoVolumeChanged(float64 volume) {
+void OverlayWidget::onVideoVolumeChanged(float64 volume) {
 	Global::SetVideoVolume(volume);
 	updateMixerVideoVolume();
 	Global::RefVideoVolumeChanged().notify();
 }
 
-void MediaView::onVideoToggleFullScreen() {
+void OverlayWidget::onVideoToggleFullScreen() {
 	if (!_clipController) return;
 
 	_fullScreenVideo = !_fullScreenVideo;
@@ -2029,7 +2031,7 @@ void MediaView::onVideoToggleFullScreen() {
 	update();
 }
 
-void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
+void OverlayWidget::onVideoPlayProgress(const AudioMsgId &audioId) {
 	if (!_gif || _gif->audioMsgId() != audioId) {
 		return;
 	}
@@ -2043,7 +2045,7 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 	}
 }
 
-void MediaView::updateVideoPlaybackState(const Media::Player::TrackState &state) {
+void OverlayWidget::updateVideoPlaybackState(const Media::Player::TrackState &state) {
 	if (state.frequency) {
 		if (Media::Player::IsStopped(state.state)) {
 			_videoStopped = true;
@@ -2055,7 +2057,7 @@ void MediaView::updateVideoPlaybackState(const Media::Player::TrackState &state)
 	}
 }
 
-void MediaView::updateSilentVideoPlaybackState() {
+void OverlayWidget::updateSilentVideoPlaybackState() {
 	Media::Player::TrackState state;
 	if (_videoPaused) {
 		state.state = Media::Player::State::Paused;
@@ -2070,7 +2072,7 @@ void MediaView::updateSilentVideoPlaybackState() {
 	updateVideoPlaybackState(state);
 }
 
-void MediaView::validatePhotoImage(Image *image, bool blurred) {
+void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	if (!image || !image->loaded()) {
 		if (!blurred) {
 			image->load(fileOrigin());
@@ -2091,7 +2093,7 @@ void MediaView::validatePhotoImage(Image *image, bool blurred) {
 	_blurred = blurred;
 }
 
-void MediaView::validatePhotoCurrentImage() {
+void OverlayWidget::validatePhotoCurrentImage() {
 	validatePhotoImage(_photo->large(), false);
 	validatePhotoImage(_photo->thumbnail(), true);
 	validatePhotoImage(_photo->thumbnailSmall(), true);
@@ -2102,7 +2104,7 @@ void MediaView::validatePhotoCurrentImage() {
 	}
 }
 
-void MediaView::paintEvent(QPaintEvent *e) {
+void OverlayWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	QRegion region(e->region());
 	QVector<QRect> rs(region.rects());
@@ -2394,13 +2396,13 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	checkGroupThumbsAnimation();
 }
 
-void MediaView::checkGroupThumbsAnimation() {
+void OverlayWidget::checkGroupThumbsAnimation() {
 	if (_groupThumbs && (!_gif || _gif->started())) {
 		_groupThumbs->checkForAnimationStart();
 	}
 }
 
-void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity) {
+void OverlayWidget::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity) {
 	float64 o = overLevel(OverIcon);
 	if (radial || (_doc && !_doc->loaded())) {
 		QRect inner(QPoint(_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2), _docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)), st::radialSize);
@@ -2432,7 +2434,7 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 	}
 }
 
-void MediaView::paintThemePreview(Painter &p, QRect clip) {
+void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 	auto fill = _themePreviewRect.intersected(clip);
 	if (!fill.isEmpty()) {
 		if (_themePreview) {
@@ -2482,7 +2484,7 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 	}
 }
 
-void MediaView::keyPressEvent(QKeyEvent *e) {
+void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 	const auto ctrl = e->modifiers().testFlag(Qt::ControlModifier);
 	if (_clipController) {
 		auto toggle1 = (e->key() == Qt::Key_F && ctrl);
@@ -2537,7 +2539,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void MediaView::wheelEvent(QWheelEvent *e) {
+void OverlayWidget::wheelEvent(QWheelEvent *e) {
 #ifdef OS_MAC_OLD
 	constexpr auto step = 120;
 #else // OS_MAC_OLD
@@ -2572,7 +2574,7 @@ void MediaView::wheelEvent(QWheelEvent *e) {
 	}
 }
 
-void MediaView::setZoomLevel(int newZoom) {
+void OverlayWidget::setZoomLevel(int newZoom) {
 	if (_zoom == newZoom) return;
 
 	float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
@@ -2602,7 +2604,7 @@ void MediaView::setZoomLevel(int newZoom) {
 	update();
 }
 
-MediaView::Entity MediaView::entityForUserPhotos(int index) const {
+OverlayWidget::Entity OverlayWidget::entityForUserPhotos(int index) const {
 	Expects(_userPhotosData.has_value());
 
 	if (index < 0 || index >= _userPhotosData->size()) {
@@ -2614,7 +2616,7 @@ MediaView::Entity MediaView::entityForUserPhotos(int index) const {
 	return { std::nullopt, nullptr };
 }
 
-MediaView::Entity MediaView::entityForSharedMedia(int index) const {
+OverlayWidget::Entity OverlayWidget::entityForSharedMedia(int index) const {
 	Expects(_sharedMediaData.has_value());
 
 	if (index < 0 || index >= _sharedMediaData->size()) {
@@ -2630,7 +2632,7 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 	return { std::nullopt, nullptr };
 }
 
-MediaView::Entity MediaView::entityForCollage(int index) const {
+OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 	Expects(_collageData.has_value());
 
 	const auto item = App::histItemById(_msgid);
@@ -2646,7 +2648,7 @@ MediaView::Entity MediaView::entityForCollage(int index) const {
 	return { std::nullopt, nullptr };
 }
 
-MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
+OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) const {
 	if (const auto item = App::histItemById(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
@@ -2660,7 +2662,7 @@ MediaView::Entity MediaView::entityForItemId(const FullMsgId &itemId) const {
 	return { std::nullopt, nullptr };
 }
 
-MediaView::Entity MediaView::entityByIndex(int index) const {
+OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
 	if (_sharedMediaData) {
 		return entityForSharedMedia(index);
 	} else if (_userPhotosData) {
@@ -2671,7 +2673,7 @@ MediaView::Entity MediaView::entityByIndex(int index) const {
 	return { std::nullopt, nullptr };
 }
 
-void MediaView::setContext(base::optional_variant<
+void OverlayWidget::setContext(base::optional_variant<
 		not_null<HistoryItem*>,
 		not_null<PeerData*>> context) {
 	if (auto item = base::get_if<not_null<HistoryItem*>>(&context)) {
@@ -2703,7 +2705,7 @@ void MediaView::setContext(base::optional_variant<
 	_user = _peer ? _peer->asUser() : nullptr;
 }
 
-bool MediaView::moveToNext(int delta) {
+bool OverlayWidget::moveToNext(int delta) {
 	if (!_index) {
 		return false;
 	}
@@ -2711,7 +2713,7 @@ bool MediaView::moveToNext(int delta) {
 	return moveToEntity(entityByIndex(newIndex));
 }
 
-bool MediaView::moveToEntity(const Entity &entity, int preloadDelta) {
+bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 	if (!entity.data && !entity.item) {
 		return false;
 	}
@@ -2734,7 +2736,7 @@ bool MediaView::moveToEntity(const Entity &entity, int preloadDelta) {
 	return true;
 }
 
-void MediaView::preloadData(int delta) {
+void OverlayWidget::preloadData(int delta) {
 	if (!_index) {
 		return;
 	}
@@ -2767,7 +2769,7 @@ void MediaView::preloadData(int delta) {
 	}
 }
 
-void MediaView::mousePressEvent(QMouseEvent *e) {
+void OverlayWidget::mousePressEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 	if (_menu || !_receiveMouse) return;
 
@@ -2811,7 +2813,7 @@ void MediaView::mousePressEvent(QMouseEvent *e) {
 	activateControls();
 }
 
-void MediaView::mouseDoubleClickEvent(QMouseEvent *e) {
+void OverlayWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 
 	if (_over == OverVideo) {
@@ -2819,11 +2821,11 @@ void MediaView::mouseDoubleClickEvent(QMouseEvent *e) {
 		onVideoPauseResume();
 	} else {
 		e->ignore();
-		return TWidget::mouseDoubleClickEvent(e);
+		return OverlayParent::mouseDoubleClickEvent(e);
 	}
 }
 
-void MediaView::snapXY() {
+void OverlayWidget::snapXY() {
 	int32 xmin = width() - _w, xmax = 0;
 	int32 ymin = height() - _h, ymax = 0;
 	if (xmin > (width() - _w) / 2) xmin = (width() - _w) / 2;
@@ -2836,7 +2838,7 @@ void MediaView::snapXY() {
 	if (_y > ymax) _y = ymax;
 }
 
-void MediaView::mouseMoveEvent(QMouseEvent *e) {
+void OverlayWidget::mouseMoveEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 	if (_lastAction.x() >= 0 && (e->pos() - _lastAction).manhattanLength() >= st::mediaviewDeltaFromLastAction) {
 		_lastAction = QPoint(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction);
@@ -2861,7 +2863,7 @@ void MediaView::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void MediaView::updateOverRect(OverState state) {
+void OverlayWidget::updateOverRect(OverState state) {
 	switch (state) {
 	case OverLeftNav: update(_leftNav); break;
 	case OverRightNav: update(_rightNav); break;
@@ -2875,7 +2877,7 @@ void MediaView::updateOverRect(OverState state) {
 	}
 }
 
-bool MediaView::updateOverState(OverState newState) {
+bool OverlayWidget::updateOverState(OverState newState) {
 	bool result = true;
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
@@ -2913,7 +2915,7 @@ bool MediaView::updateOverState(OverState newState) {
 	return result;
 }
 
-void MediaView::updateOver(QPoint pos) {
+void OverlayWidget::updateOver(QPoint pos) {
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
 	if (_saveMsgStarted && _saveMsg.contains(pos)) {
@@ -2976,7 +2978,7 @@ void MediaView::updateOver(QPoint pos) {
 	}
 }
 
-void MediaView::mouseReleaseEvent(QMouseEvent *e) {
+void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 
 	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
@@ -3030,7 +3032,7 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void MediaView::contextMenuEvent(QContextMenuEvent *e) {
+void OverlayWidget::contextMenuEvent(QContextMenuEvent *e) {
 	if (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _h).contains(e->pos())) {
 		if (_menu) {
 			_menu->deleteLater();
@@ -3048,7 +3050,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-void MediaView::touchEvent(QTouchEvent *e) {
+void OverlayWidget::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
@@ -3104,7 +3106,7 @@ void MediaView::touchEvent(QTouchEvent *e) {
 	}
 }
 
-bool MediaView::event(QEvent *e) {
+bool OverlayWidget::eventHook(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
@@ -3129,10 +3131,10 @@ bool MediaView::event(QEvent *e) {
 			}
 		}
 	}
-	return TWidget::event(e);
+	return OverlayParent::eventHook(e);
 }
 
-bool MediaView::eventFilter(QObject *obj, QEvent *e) {
+bool OverlayWidget::eventFilter(QObject *obj, QEvent *e) {
 	auto type = e->type();
 	if ((type == QEvent::MouseMove || type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease) && obj->isWidgetType()) {
 		if (isAncestorOf(static_cast<QWidget*>(obj))) {
@@ -3155,10 +3157,10 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 			}
 		}
 	}
-	return TWidget::eventFilter(obj, e);
+	return OverlayParent::eventFilter(obj, e);
 }
 
-void MediaView::setVisible(bool visible) {
+void OverlayWidget::setVisibleHook(bool visible) {
 	if (!visible) {
 		_sharedMedia = nullptr;
 		_sharedMediaData = std::nullopt;
@@ -3174,7 +3176,7 @@ void MediaView::setVisible(bool visible) {
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
 	}
-	TWidget::setVisible(visible);
+	OverlayParent::setVisibleHook(visible);
 	if (visible) {
 		QCoreApplication::instance()->installEventFilter(this);
 	} else {
@@ -3190,7 +3192,7 @@ void MediaView::setVisible(bool visible) {
 	}
 }
 
-void MediaView::onMenuDestroy(QObject *obj) {
+void OverlayWidget::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
 		activateControls();
@@ -3199,11 +3201,11 @@ void MediaView::onMenuDestroy(QObject *obj) {
 	QTimer::singleShot(0, this, SLOT(receiveMouse()));
 }
 
-void MediaView::receiveMouse() {
+void OverlayWidget::receiveMouse() {
 	_receiveMouse = true;
 }
 
-void MediaView::onDropdown() {
+void OverlayWidget::onDropdown() {
 	updateActions();
 	_dropdown->clearActions();
 	for_const (auto &action, _actions) {
@@ -3214,15 +3216,15 @@ void MediaView::onDropdown() {
 	_dropdown->setFocus();
 }
 
-void MediaView::onTouchTimer() {
+void OverlayWidget::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-void MediaView::updateImage() {
+void OverlayWidget::updateImage() {
 	update(_saveMsg);
 }
 
-void MediaView::findCurrent() {
+void OverlayWidget::findCurrent() {
 	using namespace rpl::mappers;
 	if (_sharedMediaData) {
 		_index = _msgid
@@ -3252,7 +3254,7 @@ void MediaView::findCurrent() {
 	}
 }
 
-void MediaView::updateHeader() {
+void OverlayWidget::updateHeader() {
 	auto index = _fullIndex ? *_fullIndex : -1;
 	auto count = _fullCount ? *_fullCount : -1;
 	if (index >= 0 && index < count && count > 1) {
@@ -3286,7 +3288,10 @@ void MediaView::updateHeader() {
 	_headerNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewHeaderTop, hwidth, st::mediaviewThickFont->height);
 }
 
-float64 MediaView::overLevel(OverState control) const {
+float64 OverlayWidget::overLevel(OverState control) const {
 	auto i = _animOpacities.constFind(control);
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
 }
+
+} // namespace View
+} // namespace Media

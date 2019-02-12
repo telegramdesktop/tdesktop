@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
-#include "mediaview.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwindow.h"

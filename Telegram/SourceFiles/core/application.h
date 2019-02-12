@@ -16,7 +16,6 @@ class AuthSessionSettings;
 class MainWidget;
 class FileUploader;
 class Translator;
-class MediaView;
 class BoxContent;
 
 namespace Storage {
@@ -43,6 +42,9 @@ namespace Media {
 namespace Audio {
 class Instance;
 } // namespace Audio
+namespace View {
+class OverlayWidget;
+} // namespace View
 } // namespace Media
 
 namespace Lang {
@@ -81,7 +83,7 @@ public:
 		return &_globalShortcutParent;
 	}
 
-	// MediaView interface.
+	// Media view interface.
 	void checkMediaViewActivation();
 	bool hideMediaView();
 	void showPhoto(not_null<const PhotoOpenClickHandler*> link);
@@ -244,7 +246,7 @@ private:
 
 	std::unique_ptr<Storage::Databases> _databases;
 	std::unique_ptr<MainWindow> _window;
-	std::unique_ptr<MediaView> _mediaView;
+	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	std::unique_ptr<Lang::Translator> _translator;

@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "storage/storage_databases.h"
 #include "mainwidget.h"
-#include "mediaview.h"
+#include "media/view/media_view_overlay_widget.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "media/player/media_player_instance.h"
@@ -129,7 +129,7 @@ void Application::run() {
 	_window->init();
 
 	auto currentGeometry = _window->geometry();
-	_mediaView = std::make_unique<MediaView>();
+	_mediaView = std::make_unique<Media::View::OverlayWidget>();
 	_window->setGeometry(currentGeometry);
 
 	QCoreApplication::instance()->installEventFilter(this);

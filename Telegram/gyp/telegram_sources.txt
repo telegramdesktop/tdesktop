@@ -438,6 +438,8 @@
 <(src_loc)/media/view/media_clip_playback.h
 <(src_loc)/media/view/media_view_group_thumbs.cpp
 <(src_loc)/media/view/media_view_group_thumbs.h
+<(src_loc)/media/view/media_view_overlay_widget.cpp
+<(src_loc)/media/view/media_view_overlay_widget.h
 <(src_loc)/media/media_audio.cpp
 <(src_loc)/media/media_audio.h
 <(src_loc)/media/media_audio_capture.cpp
@@ -824,8 +826,6 @@
 <(src_loc)/mainwidget.h
 <(src_loc)/mainwindow.cpp
 <(src_loc)/mainwindow.h
-<(src_loc)/mediaview.cpp
-<(src_loc)/mediaview.h
 <(src_loc)/observer_peer.cpp
 <(src_loc)/observer_peer.h
 <(src_loc)/qt_static_plugins.cpp

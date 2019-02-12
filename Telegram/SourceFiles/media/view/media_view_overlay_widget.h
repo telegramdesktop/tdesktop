@@ -7,23 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/rp_widget.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
 #include "data/data_shared_media.h"
 #include "data/data_user_photos.h"
 #include "data/data_web_page.h"
-
-namespace Media {
-namespace Player {
-struct TrackState;
-} // namespace Player
-namespace Clip {
-class Controller;
-} // namespace Clip
-namespace View {
-class GroupThumbs;
-} // namespace View
-} // namespace Media
 
 namespace Ui {
 class PopupMenu;
@@ -41,13 +30,29 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-class MediaView : public TWidget, private base::Subscriber, public ClickHandlerHost {
+
+namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+namespace Clip {
+class Controller;
+} // namespace Clip
+namespace View {
+
+class GroupThumbs;
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget>;
+#else // Q_OS_MAC && !OS_MAC_OLD
+using OverlayParent = Ui::RpWidget;
+#endif // Q_OS_MAC && !OS_MAC_OLD
+
+class OverlayWidget final : public OverlayParent, private base::Subscriber, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-	MediaView();
-
-	void setVisible(bool visible) override;
+	OverlayWidget();
 
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
 	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
@@ -70,26 +75,11 @@ public:
 
 	void clearData();
 
-	~MediaView();
+	~OverlayWidget();
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void wheelEvent(QWheelEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-
-	bool event(QEvent *e) override;
-	bool eventFilter(QObject *obj, QEvent *e) override;
 
 private slots:
 	void onHideControls(bool force = false);
@@ -135,17 +125,34 @@ private:
 		OverIcon,
 		OverVideo,
 	};
-
-	void updateOver(QPoint mpos);
-	void moveToScreen();
-	bool moveToNext(int delta);
-	void preloadData(int delta);
 	struct Entity {
 		base::optional_variant<
 			not_null<PhotoData*>,
 			not_null<DocumentData*>> data;
 		HistoryItem *item;
 	};
+
+	void paintEvent(QPaintEvent *e) override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+
+	bool eventHook(QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+	void setVisibleHook(bool visible) override;
+
+	void updateOver(QPoint mpos);
+	void moveToScreen();
+	bool moveToNext(int delta);
+	void preloadData(int delta);
+
 	Entity entityForUserPhotos(int index) const;
 	Entity entityForSharedMedia(int index) const;
 	Entity entityForCollage(int index) const;
@@ -411,3 +418,6 @@ private:
 	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
 
 };
+
+} // namespace View
+} // namespace Media
