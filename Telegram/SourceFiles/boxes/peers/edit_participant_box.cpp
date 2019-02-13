@@ -327,11 +327,12 @@ void EditRestrictedBox::prepare() {
 	const auto prepareRights = (_oldRights.c_chatBannedRights().vflags.v
 		? _oldRights
 		: Defaults(peer()));
-	const auto prepareFlags = prepareRights.c_chatBannedRights().vflags.v
+	const auto prepareFlags = FixDependentRestrictions(
+		prepareRights.c_chatBannedRights().vflags.v
 		| defaultRestrictions
 		| ((channel && channel->isPublic())
 			? (Flag::f_change_info | Flag::f_pin_messages)
-			: Flags(0));
+			: Flags(0)));
 	const auto disabledMessages = [&] {
 		auto result = std::map<Flags, QString>();
 		if (!canSave()) {
@@ -339,10 +340,11 @@ void EditRestrictedBox::prepare() {
 				~Flags(0),
 				lang(lng_rights_about_restriction_cant_edit));
 		} else {
-			const auto disabled = defaultRestrictions
+			const auto disabled = FixDependentRestrictions(
+				defaultRestrictions
 				| ((channel && channel->isPublic())
 					? (Flag::f_change_info | Flag::f_pin_messages)
-					: Flags(0));
+					: Flags(0)));
 			result.emplace(
 				disabled,
 				lang(lng_rights_restriction_for_all));

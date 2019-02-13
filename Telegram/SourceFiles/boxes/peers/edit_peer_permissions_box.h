@@ -57,3 +57,4 @@ EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 	bool anyoneCanAddMembers);
 
 ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer);
+ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions);
