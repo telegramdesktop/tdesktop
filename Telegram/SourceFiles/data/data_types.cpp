@@ -173,6 +173,13 @@ bool ReplyPreview::empty() const {
 
 } // namespace Data
 
+AudioMsgId AudioMsgId::ForVideo() {
+	auto result = AudioMsgId();
+	result._playId = rand_value<uint32>();
+	result._type = Type::Video;
+	return result;
+}
+
 void AudioMsgId::setTypeFromAudio() {
 	if (_audio->isVoiceMessage() || _audio->isVideoMessage()) {
 		_type = Type::Voice;

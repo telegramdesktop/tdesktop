@@ -21,7 +21,7 @@ class Loaders : public QObject {
 
 public:
 	Loaders(QThread *thread);
-	void feedFromVideo(VideoSoundPart &&part);
+	void feedFromVideo(const VideoSoundPart &part);
 	~Loaders();
 
 signals:

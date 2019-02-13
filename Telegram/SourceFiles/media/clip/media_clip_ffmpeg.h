@@ -84,7 +84,6 @@ private:
 	uchar *_ioBuffer = nullptr;
 	AVIOContext *_ioContext = nullptr;
 	AVFormatContext *_fmtContext = nullptr;
-	AVCodec *_codec = nullptr;
 	AVCodecContext *_codecContext = nullptr;
 	int _streamId = 0;
 	AVFrame *_frame = nullptr;
@@ -100,7 +99,6 @@ private:
 	crl::time _lastReadAudioMs = 0;
 
 	QQueue<FFMpeg::AVPacketDataWrap> _packetQueue;
-	AVPacket _packetNull; // for final decoding
 	int _packetStartedSize = 0;
 	uint8_t *_packetStartedData = nullptr;
 	bool _packetStarted = false;

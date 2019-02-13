@@ -21,7 +21,7 @@ Loaders::Loaders(QThread *thread) : _fromVideoNotify([this] { videoSoundAdded();
 	connect(thread, SIGNAL(finished()), this, SLOT(deleteLater()));
 }
 
-void Loaders::feedFromVideo(VideoSoundPart &&part) {
+void Loaders::feedFromVideo(const VideoSoundPart &part) {
 	auto invoke = false;
 	{
 		QMutexLocker lock(&_fromVideoMutex);

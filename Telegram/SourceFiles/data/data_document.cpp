@@ -28,6 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 
+// #TODO streaming
+#include "media/streaming/media_streaming_file.h"
+#include "media/streaming/media_streaming_loader_mtproto.h"
+
 namespace {
 
 constexpr auto kMemoryForCache = 32 * 1024 * 1024;
@@ -302,6 +306,24 @@ void DocumentOpenClickHandler::Open(
 			location.accessDisable();
 			return;
 		}
+	}
+	if (playMusic || playVideo) {
+		AssertIsDebug();
+		if (auto loader = data->createStreamingLoader(origin)) {
+			static auto file = std::unique_ptr<Media::Streaming::File>();
+			file = std::make_unique<Media::Streaming::File>(
+				&data->owner(),
+				std::move(loader));
+			data->session().lifetime().add([] {
+				file = nullptr;
+			});
+			file->start(
+				(playMusic
+					? Media::Streaming::Mode::Audio
+					: Media::Streaming::Mode::Video),
+				0);
+		}
+		return;
 	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
 		using State = Media::Player::State;
@@ -1284,6 +1306,21 @@ const VoiceData *DocumentData::voice() const {
 
 bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
+}
+
+auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
+-> std::unique_ptr<Media::Streaming::Loader> {
+	return hasRemoteLocation()
+		? std::make_unique<Media::Streaming::LoaderMtproto>(
+			&session().api(),
+			_dc,
+			MTP_inputDocumentFileLocation(
+				MTP_long(id),
+				MTP_long(_access),
+				MTP_bytes(_fileReference)),
+			size,
+			origin)
+		: nullptr;
 }
 
 bool DocumentData::hasWebLocation() const {

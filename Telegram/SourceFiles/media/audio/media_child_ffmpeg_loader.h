@@ -17,15 +17,14 @@ struct VideoSoundData {
 };
 
 struct VideoSoundPart {
-	AVPacket *packet = nullptr;
+	const AVPacket *packet = nullptr;
 	AudioMsgId audio;
-	uint32 playId = 0;
 };
 
 namespace FFMpeg {
 
 // AVPacket has a deprecated field, so when you copy an AVPacket
-// variable (e.g. inside QQueue), a compile warning is emited.
+// variable (e.g. inside QQueue), a compile warning is emitted.
 // We wrap full AVPacket data in a new AVPacketDataWrap struct.
 // All other fields are copied from AVPacket without modifications.
 struct AVPacketDataWrap {

@@ -369,6 +369,7 @@ public:
 	, _playId(playId) {
 		setTypeFromAudio();
 	}
+	[[nodiscard]] static AudioMsgId ForVideo();
 
 	Type type() const {
 		return _type;

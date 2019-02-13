@@ -47,9 +47,6 @@ bool isAlignedImage(const QImage &image) {
 FFMpegReaderImplementation::FFMpegReaderImplementation(FileLocation *location, QByteArray *data, const AudioMsgId &audio) : ReaderImplementation(location, data)
 , _audioMsgId(audio) {
 	_frame = av_frame_alloc();
-	av_init_packet(&_packetNull);
-	_packetNull.data = nullptr;
-	_packetNull.size = 0;
 }
 
 ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
@@ -317,7 +314,6 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		LOG(("Gif Error: Unable to av_find_best_stream %1, error %2, %3").arg(logData()).arg(_streamId).arg(av_make_error_string(err, sizeof(err), _streamId)));
 		return false;
 	}
-	_packetNull.stream_index = _streamId;
 
 	auto rotateTag = av_dict_get(_fmtContext->streams[_streamId]->metadata, "rotate", NULL, 0);
 	if (rotateTag && *rotateTag->value) {
@@ -341,7 +337,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 	av_codec_set_pkt_timebase(_codecContext, _fmtContext->streams[_streamId]->time_base);
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 
-	_codec = avcodec_find_decoder(_codecContext->codec_id);
+	const auto codec = avcodec_find_decoder(_codecContext->codec_id);
 
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
 	if (_mode == Mode::Inspecting) {
@@ -351,7 +347,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		_audioStreamId = -1;
 	}
 
-	if ((res = avcodec_open2(_codecContext, _codec, 0)) < 0) {
+	if ((res = avcodec_open2(_codecContext, codec, 0)) < 0) {
 		LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return false;
 	}
@@ -370,7 +366,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		av_codec_set_pkt_timebase(audioContext, _fmtContext->streams[_audioStreamId]->time_base);
 		av_opt_set_int(audioContext, "refcounted_frames", 1, 0);
 
-		auto audioCodec = avcodec_find_decoder(audioContext->codec_id);
+		const auto audioCodec = avcodec_find_decoder(audioContext->codec_id);
 		if ((res = avcodec_open2(audioContext, audioCodec, 0)) < 0) {
 			avcodec_free_context(&audioContext);
 			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
@@ -490,10 +486,11 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 		if (res == AVERROR_EOF) {
 			if (_audioStreamId >= 0) {
 				// queue terminating packet to audio player
-				VideoSoundPart part;
-				part.packet = &_packetNull;
-				part.audio = _audioMsgId;
-				Player::mixer()->feedFromVideo(std::move(part));
+				auto drain = AVPacket();
+				av_init_packet(&drain);
+				drain.data = nullptr;
+				drain.size = 0;
+				Player::mixer()->feedFromVideo({ &drain, _audioMsgId });
 			}
 			return PacketResult::EndOfFile;
 		}
@@ -516,10 +513,7 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 			_lastReadAudioMs = countPacketMs(packet);
 
 			// queue packet to audio player
-			VideoSoundPart part;
-			part.packet = packet;
-			part.audio = _audioMsgId;
-			Player::mixer()->feedFromVideo(std::move(part));
+			Player::mixer()->feedFromVideo({ packet, _audioMsgId });
 		}
 	} else {
 		av_packet_unref(packet);

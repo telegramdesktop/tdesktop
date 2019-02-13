@@ -1,0 +1,68 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+#include "media/streaming/media_streaming_loader.h"
+#include "mtproto/sender.h"
+#include "data/data_file_origin.h"
+
+class ApiWrap;
+
+namespace Media {
+namespace Streaming {
+
+class LoaderMtproto : public Loader, public base::has_weak_ptr {
+public:
+	LoaderMtproto(
+		not_null<ApiWrap*> api,
+		MTP::DcId dcId,
+		const MTPInputFileLocation &location,
+		int size,
+		Data::FileOrigin origin);
+
+	//[[nodiscard]] Storage::Cache::Key baseCacheKey() const override;
+	[[nodiscard]] int size() const override;
+
+	void load(int offset, int till = -1) override;
+	void stop() override;
+
+	// Parts will be sent from the main thread.
+	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
+
+	~LoaderMtproto();
+
+private:
+	void cancelRequestsBefore(int offset);
+	void sendNext(int possibleOffset);
+
+	void requestDone(int offset, const MTPupload_File &result);
+	void requestFailed(int offset, const RPCError &error);
+	void changeCdnParams(
+		int offset,
+		MTP::DcId dcId,
+		const QByteArray &token,
+		const QByteArray &encryptionKey,
+		const QByteArray &encryptionIV,
+		const QVector<MTPFileHash> &hashes);
+
+	const not_null<ApiWrap*> _api;
+	const MTP::DcId _dcId = 0;
+	const MTPInputFileLocation _location;
+	const int _size = 0;
+	const Data::FileOrigin _origin;
+
+	int _till = -1;
+	MTP::Sender _sender;
+
+	base::flat_map<int, mtpRequestId> _requests;
+	rpl::event_stream<LoadedPart> _parts;
+
+};
+
+} // namespace Streaming
+} // namespace Media

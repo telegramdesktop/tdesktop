@@ -772,8 +772,8 @@ void Mixer::play(
 	}
 }
 
-void Mixer::feedFromVideo(VideoSoundPart &&part) {
-	_loader->feedFromVideo(std::move(part));
+void Mixer::feedFromVideo(const VideoSoundPart &part) {
+	_loader->feedFromVideo(part);
 }
 
 crl::time Mixer::getVideoCorrectedTime(const AudioMsgId &audio, crl::time frameMs, crl::time systemMs) {

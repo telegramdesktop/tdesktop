@@ -20,6 +20,12 @@ struct Key;
 } // namespace Cache
 } // namespace Storage
 
+namespace Media {
+namespace Streaming {
+class Loader;
+} // namespace Streaming
+} // namespace Media
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -216,6 +222,9 @@ public:
 		const QString &songTitle,
 		const QString &songPerformer);
 	[[nodiscard]] QString composeNameString() const;
+
+	[[nodiscard]] auto createStreamingLoader(Data::FileOrigin origin) const
+		-> std::unique_ptr<Media::Streaming::Loader>;
 
 	~DocumentData();
 

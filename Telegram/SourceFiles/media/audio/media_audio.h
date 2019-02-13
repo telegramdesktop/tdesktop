@@ -120,7 +120,7 @@ public:
 	void stop(const AudioMsgId &audio, State state);
 
 	// Video player audio stream interface.
-	void feedFromVideo(VideoSoundPart &&part);
+	void feedFromVideo(const VideoSoundPart &part);
 	crl::time getVideoCorrectedTime(
 		const AudioMsgId &id,
 		crl::time frameMs,
