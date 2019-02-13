@@ -5,13 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/media_clip_reader.h"
+#include "media/clip/media_clip_reader.h"
 
 #include "data/data_document.h"
 #include "storage/file_download.h"
-#include "media/media_clip_ffmpeg.h"
-#include "media/media_clip_qtgif.h"
-#include "media/media_clip_check_streaming.h"
+#include "media/clip/media_clip_ffmpeg.h"
+#include "media/clip/media_clip_check_streaming.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -485,7 +484,6 @@ public:
 		}
 
 		_implementation = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _audioMsgId);
-//		_implementation = new QtGifReaderImplementation(_location, &_data);
 
 		auto implementationMode = [this]() {
 			using ImplementationMode = internal::ReaderImplementation::Mode;

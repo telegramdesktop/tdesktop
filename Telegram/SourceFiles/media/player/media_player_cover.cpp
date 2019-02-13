@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "media/view/media_clip_playback.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"

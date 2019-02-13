@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_volume_controller.h"
 
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"

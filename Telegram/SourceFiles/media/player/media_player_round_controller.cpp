@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_round_controller.h"
 
-#include "media/media_clip_reader.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
+#include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_clip_playback.h"
 #include "history/history_item.h"

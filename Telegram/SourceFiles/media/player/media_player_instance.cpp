@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
-#include "media/media_audio.h"
-#include "media/media_audio_capture.h"
+#include "media/audio/media_audio.h"
+#include "media/audio/media_audio_capture.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"

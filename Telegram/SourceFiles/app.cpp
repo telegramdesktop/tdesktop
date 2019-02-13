@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "ui/image/image.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "core/crash_reports.h"

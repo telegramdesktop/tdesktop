@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "animation.h"
 
-#include "media/media_clip_reader.h"
+#include "media/clip/media_clip_reader.h"
 
 namespace Media {
 namespace Clip {

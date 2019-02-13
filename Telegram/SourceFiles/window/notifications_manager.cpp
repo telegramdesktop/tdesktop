@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
-#include "media/media_audio_track.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio_track.h"
+#include "media/audio/media_audio.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/feed/history_feed_section.h"

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/media_active_cache.h"
 #include "core/mime_type.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "history/history.h"

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/media_audio_loader.h"
+#include "media/audio/media_audio_loader.h"
 
 AudioPlayerLoader::AudioPlayerLoader(const FileLocation &file, const QByteArray &data, bytes::vector &&buffer)
 : _file(file)

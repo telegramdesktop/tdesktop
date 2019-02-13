@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_clip_controller.h"
 
+#include "media/audio/media_audio.h"
 #include "media/view/media_clip_playback.h"
-#include "styles/style_mediaview.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
-#include "media/media_audio.h"
 #include "layout.h"
+#include "styles/style_mediaview.h"
 
 namespace Media {
 namespace Clip {

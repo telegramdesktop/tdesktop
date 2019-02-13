@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
 #include "data/data_document.h"
-#include "media/media_clip_reader.h"
+#include "media/clip/media_clip_reader.h"
 #include "window/window_controller.h"
 #include "layout.h"
 #include "styles/style_history.h"

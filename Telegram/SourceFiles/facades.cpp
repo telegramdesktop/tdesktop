@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
-#include "media/media_clip_reader.h"
+#include "media/clip/media_clip_reader.h"
 #include "window/window_controller.h"
 #include "history/history_item_components.h"
 #include "data/data_peer.h"

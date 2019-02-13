@@ -63,7 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/download_path_box.h"
 #include "boxes/connection_box.h"
 #include "storage/localstorage.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
 #include "media/player/media_player_volume_controller.h"

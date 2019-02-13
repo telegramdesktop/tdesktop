@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
-#include "media/media_clip_reader.h"
+#include "media/clip/media_clip_reader.h"
 #include "boxes/abstract_box.h"
 #include "mainwindow.h"
 #include "mainwidget.h"

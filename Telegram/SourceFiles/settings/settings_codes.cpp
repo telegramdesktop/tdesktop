@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
-#include "media/media_audio_track.h"
+#include "media/audio/media_audio_track.h"
 
 namespace Settings {
 

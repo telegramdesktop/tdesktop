@@ -5,11 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/media_audio_loaders.h"
+#include "media/audio/media_audio_loaders.h"
 
-#include "media/media_audio.h"
-#include "media/media_audio_ffmpeg_loader.h"
-#include "media/media_child_ffmpeg_loader.h"
+#include "media/audio/media_audio.h"
+#include "media/audio/media_audio_ffmpeg_loader.h"
+#include "media/audio/media_child_ffmpeg_loader.h"
 
 namespace Media {
 namespace Player {

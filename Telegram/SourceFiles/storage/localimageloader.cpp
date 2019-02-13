@@ -10,16 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
+#include "media/clip/media_clip_reader.h"
 #include "history/history_item.h"
 #include "boxes/send_files_box.h"
-#include "media/media_clip_reader.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
-#include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "lang/lang_keys.h"
 #include "storage/file_download.h"
 #include "storage/storage_media_prepare.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
 
 namespace {
 

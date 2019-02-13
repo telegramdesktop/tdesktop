@@ -13,8 +13,8 @@ extern "C" {
 
 } // extern "C"
 
-#include "media/media_clip_implementation.h"
-#include "media/media_child_ffmpeg_loader.h"
+#include "media/clip/media_clip_implementation.h"
+#include "media/audio/media_child_ffmpeg_loader.h"
 
 namespace Media {
 namespace Clip {

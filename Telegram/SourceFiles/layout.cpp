@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "history/view/history_view_cursor_state.h"
 

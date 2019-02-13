@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
 #include "lang/lang_keys.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "media/view/media_clip_playback.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"

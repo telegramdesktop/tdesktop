@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
-#include "media/media_clip_reader.h"
+#include "media/clip/media_clip_reader.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_media_types.h"

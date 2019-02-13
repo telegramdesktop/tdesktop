@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/media_clip_check_streaming.h"
+#include "media/clip/media_clip_check_streaming.h"
 
 
 namespace Media {

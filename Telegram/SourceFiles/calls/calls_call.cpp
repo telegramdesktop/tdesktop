@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/connection.h"
-#include "media/media_audio_track.h"
+#include "media/audio/media_audio_track.h"
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"

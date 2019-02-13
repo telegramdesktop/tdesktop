@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/media_audio_ffmpeg_loader.h"
+#include "media/audio/media_audio_ffmpeg_loader.h"
 
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;

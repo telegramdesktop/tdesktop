@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/media_audio.h"
-#include "media/media_audio_loader.h"
+#include "media/audio/media_audio.h"
+#include "media/audio/media_audio_loader.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>

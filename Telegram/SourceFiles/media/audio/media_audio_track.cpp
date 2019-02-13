@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/media_audio_track.h"
+#include "media/audio/media_audio_track.h"
 
-#include "media/media_audio_ffmpeg_loader.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio_ffmpeg_loader.h"
+#include "media/audio/media_audio.h"
 #include "core/application.h"
 
 #include <AL/al.h>

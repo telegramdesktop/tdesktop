@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "mtproto/dc_options.h"
 #include "core/application.h"
 #include "apiwrap.h"

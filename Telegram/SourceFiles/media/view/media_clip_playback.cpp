@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_clip_playback.h"
 
+#include "media/audio/media_audio.h"
 #include "styles/style_mediaview.h"
-#include "media/media_audio.h"
 
 namespace Media {
 namespace Clip {
