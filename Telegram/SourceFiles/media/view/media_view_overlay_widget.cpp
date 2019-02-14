@@ -2487,9 +2487,9 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 	const auto ctrl = e->modifiers().testFlag(Qt::ControlModifier);
 	if (_clipController) {
-		auto toggle1 = (e->key() == Qt::Key_F && ctrl);
-		auto toggle2 = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || ctrl);
-		if (toggle1 || toggle2) {
+		// Ctrl + F for full screen toggle is in eventFilter().
+		const auto toggleFull = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || ctrl);
+		if (toggleFull) {
 			onVideoToggleFullScreen();
 			return;
 		}
@@ -3138,6 +3138,14 @@ bool OverlayWidget::eventHook(QEvent *e) {
 
 bool OverlayWidget::eventFilter(QObject *obj, QEvent *e) {
 	auto type = e->type();
+	if (type == QEvent::ShortcutOverride) {
+		const auto keyEvent = static_cast<QKeyEvent*>(e);
+		const auto ctrl = keyEvent->modifiers().testFlag(Qt::ControlModifier);
+		if (keyEvent->key() == Qt::Key_F && ctrl) {
+			onVideoToggleFullScreen();
+		}
+		return true;
+	}
 	if ((type == QEvent::MouseMove || type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease) && obj->isWidgetType()) {
 		if (isAncestorOf(static_cast<QWidget*>(obj))) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e);
