@@ -18,8 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <shellapi.h>
 
 #include <roapi.h>
-#include <wrl\client.h>
-#include <wrl\implements.h>
+#include <wrl/client.h>
+#include "platform/win/wrapper_wrl_implements_h.h"
 #include <windows.ui.notifications.h>
 
 #include <strsafe.h>
@@ -196,7 +196,7 @@ typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ::IInsp
 typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastDismissedEventArgs*> DesktopToastDismissedEventHandler;
 typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFailedEventArgs*> DesktopToastFailedEventHandler;
 
-class ToastEventHandler : public Implements<
+class ToastEventHandler final : public Implements<
 	DesktopToastActivatedEventHandler,
 	DesktopToastDismissedEventHandler,
 	DesktopToastFailedEventHandler> {
@@ -210,7 +210,6 @@ public:
 	, _msgId(msg)
 	, _weak(guarded) {
 	}
-	~ToastEventHandler() = default;
 
 	void performOnMainQueue(FnMut<void(Manager *manager)> task) {
 		const auto weak = _weak;

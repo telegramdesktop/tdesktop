@@ -580,6 +580,8 @@
 <(src_loc)/platform/win/windows_dlls.h
 <(src_loc)/platform/win/windows_event_filter.cpp
 <(src_loc)/platform/win/windows_event_filter.h
+<(src_loc)/platform/win/wrapper_windows_h.h
+<(src_loc)/platform/win/wrapper_wrl_implements_h.h
 <(src_loc)/platform/platform_audio.h
 <(src_loc)/platform/platform_file_utilities.h
 <(src_loc)/platform/platform_launcher.h

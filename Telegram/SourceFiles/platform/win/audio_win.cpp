@@ -13,7 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 
-#include <wrl\client.h>
+#include <wrl/client.h>
+
 using namespace Microsoft::WRL;
 
 namespace Platform {

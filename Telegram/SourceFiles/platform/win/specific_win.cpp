@@ -23,16 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <shellapi.h>
 
 #include <roapi.h>
-#include <wrl\client.h>
-#include <wrl\implements.h>
+#include <wrl/client.h>
+#include "platform/win/wrapper_wrl_implements_h.h"
 #include <windows.ui.notifications.h>
 
-#pragma warning(push)
-#pragma warning(disable:4091)
 #include <dbghelp.h>
 #include <shlobj.h>
-#pragma warning(pop)
-
 #include <Shlwapi.h>
 #include <Strsafe.h>
 #include <Windowsx.h>

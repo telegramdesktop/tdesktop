@@ -132,6 +132,8 @@ public:
 		return _filterWheelEvent.events();
 	}
 
+	virtual ~FloatDelegate() = default;
+
 protected:
 	void floatPlayerCheckVisibility() {
 		_checkVisibility.fire({});

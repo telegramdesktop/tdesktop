@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_file_lock.h"
 
 #include "platform/win/windows_dlls.h"
-#include "platform/win/windows_h_wrapper.h"
+#include "platform/win/wrapper_windows_h.h"
 
 #include <io.h>
 #include <fileapi.h>
