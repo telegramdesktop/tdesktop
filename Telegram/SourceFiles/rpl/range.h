@@ -31,9 +31,9 @@ inline auto single() {
 	});
 }
 
-template <typename Value>
+template <typename Value, typename Error = no_error>
 inline auto vector(std::vector<Value> &&values) {
-	return make_producer<Value>([
+	return make_producer<Value, Error>([
 		values = std::move(values)
 	](const auto &consumer) mutable {
 		for (auto &value : values) {
@@ -44,8 +44,9 @@ inline auto vector(std::vector<Value> &&values) {
 	});
 }
 
+template <typename Error = no_error>
 inline auto vector(std::vector<bool> &&values) {
-	return make_producer<bool>([
+	return make_producer<bool, Error>([
 		values = std::move(values)
 	](const auto &consumer) {
 		for (auto value : values) {
