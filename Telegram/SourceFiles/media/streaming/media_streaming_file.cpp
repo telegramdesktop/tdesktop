@@ -100,7 +100,7 @@ void File::Context::initStream(StreamWrap &wrap, AVMediaType type) {
 		type,
 		-1,
 		-1,
-		0,
+		nullptr,
 		0);
 	if (wrap.id < 0) {
 		return;
@@ -108,27 +108,15 @@ void File::Context::initStream(StreamWrap &wrap, AVMediaType type) {
 
 	wrap.info = _formatContext->streams[wrap.id];
 	if (type == AVMEDIA_TYPE_VIDEO) {
-		const auto rotateTag = av_dict_get(
-			wrap.info->metadata,
-			"rotate",
-			nullptr,
-			0);
-		if (rotateTag && *rotateTag->value) {
-			const auto stringRotateTag = QString::fromUtf8(rotateTag->value);
-			auto toIntSucceeded = false;
-			const auto rotateDegrees = stringRotateTag.toInt(&toIntSucceeded);
-			if (toIntSucceeded) {
-				//_rotation = rotationFromDegrees(rotateDegrees); // #TODO streaming
-			}
-		}
+		wrap.stream.rotation = ReadRotationFromMetadata(wrap.info);
 	}
 
-	wrap.stream.codec = CodecPointer::FromStream(wrap.info);
+	wrap.stream.codec = MakeCodecPointer(wrap.info);
 	if (!wrap.stream.codec) {
 		ClearStream(wrap);
 		return;
 	}
-	wrap.stream.frame.reset(FrameDeleter::create());
+	wrap.stream.frame = MakeFramePointer();
 	if (!wrap.stream.frame) {
 		ClearStream(wrap);
 		return;
@@ -289,6 +277,12 @@ void File::Context::readInformation(crl::time positionTime) {
 	information.cover = readFirstVideoFrame();
 	if (unroll()) {
 		return;
+	} else if (!information.cover.isNull()) {
+		information.video = information.cover.size();
+		information.rotation = _video.stream.rotation;
+		if (RotationSwapWidthHeight(information.rotation)) {
+			information.video.transpose();
+		}
 	}
 
 	information.audio = (_audio.info != nullptr);
@@ -342,7 +336,7 @@ base::variant<QImage, AvErrorWrap> File::Context::tryReadFirstVideoFrame() {
 		}
 		return *error;
 	}
-	return QImage(); // #TODO streaming decode frame
+	return ConvertFrame(_video.stream, QSize(), QImage());
 }
 
 void File::Context::enqueueEofPackets() {
@@ -373,7 +367,7 @@ void File::Context::processPacket(Packet &&packet) {
 		return false;
 	};
 
-	check(_audio) && check(_video);
+	check(_audio) || check(_video);
 }
 
 void File::Context::readNextPacket() {
@@ -445,9 +439,6 @@ File::Context::~Context() {
 	ClearStream(_audio);
 	ClearStream(_video);
 
-	//if (_swsContext) {
-	//	sws_freeContext(_swsContext);
-	//}
 	if (_opened) {
 		avformat_close_input(&_formatContext);
 	}

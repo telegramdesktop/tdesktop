@@ -10,12 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
 } // extern "C"
 
 namespace Media {
 namespace Streaming {
-
-[[nodiscard]] crl::time PtsToTime(int64_t pts, const AVRational &timeBase);
 
 enum class Mode {
 	Both,
@@ -33,6 +32,7 @@ struct Information {
 
 	crl::time started = 0;
 	QImage cover;
+	int rotation = 0;
 };
 
 class AvErrorWrap {
@@ -60,9 +60,6 @@ private:
 	int _code = 0;
 
 };
-
-void LogError(QLatin1String method);
-void LogError(QLatin1String method, AvErrorWrap error);
 
 class Packet {
 public:
@@ -118,35 +115,26 @@ private:
 
 };
 
-class CodecPointer {
-public:
-	CodecPointer(std::nullptr_t = nullptr);
-	CodecPointer(CodecPointer &&other);
-	CodecPointer &operator=(CodecPointer &&other);
-	CodecPointer &operator=(std::nullptr_t);
-	~CodecPointer();
-
-	[[nodiscard]] static CodecPointer FromStream(
-		not_null<AVStream*> stream);
-
-	[[nodiscard]] AVCodecContext *get() const;
-	[[nodiscard]] AVCodecContext *operator->() const;
-	[[nodiscard]] operator AVCodecContext*() const;
-	[[nodiscard]] AVCodecContext* release();
-
-private:
-	void destroy();
-
-	AVCodecContext *_context = nullptr;
-
+struct CodecDeleter {
+	void operator()(AVCodecContext *value);
 };
+using CodecPointer = std::unique_ptr<AVCodecContext, CodecDeleter>;
+CodecPointer MakeCodecPointer(not_null<AVStream*> stream);
 
 struct FrameDeleter {
-	using pointer = AVFrame*;
-	[[nodiscard]] static pointer create();
-	void operator()(pointer value);
+	void operator()(AVFrame *value);
 };
-using FramePointer = std::unique_ptr<FrameDeleter::pointer, FrameDeleter>;
+using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
+FramePointer MakeFramePointer();
+
+struct SwsContextDeleter {
+	void operator()(SwsContext *value);
+};
+using SwsContextPointer = std::unique_ptr<SwsContext, SwsContextDeleter>;
+SwsContextPointer MakeSwsContextPointer(
+	not_null<AVFrame*> frame,
+	QSize resize,
+	SwsContextPointer *existing = nullptr);
 
 struct Stream {
 	CodecPointer codec;
@@ -154,9 +142,23 @@ struct Stream {
 	std::deque<Packet> queue;
 	crl::time lastReadPositionTime = 0;
 	int invalidDataPackets = 0;
+
+	// Video only.
+	int rotation = 0;
+	SwsContextPointer swsContext;
 };
 
+void LogError(QLatin1String method);
+void LogError(QLatin1String method, AvErrorWrap error);
+
+[[nodiscard]] crl::time PtsToTime(int64_t pts, const AVRational &timeBase);
+[[nodiscard]] int ReadRotationFromMetadata(not_null<AVStream*> stream);
+[[nodiscard]] bool RotationSwapWidthHeight(int rotation);
 [[nodiscard]] std::optional<AvErrorWrap> ReadNextFrame(Stream &stream);
+[[nodiscard]] QImage ConvertFrame(
+	Stream& stream,
+	QSize resize,
+	QImage storage);
 
 } // namespace Streaming
 } // namespace Media

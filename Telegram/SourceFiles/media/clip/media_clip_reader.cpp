@@ -369,7 +369,7 @@ public:
 		if (!_implementation && !init()) {
 			return error();
 		}
-		if (frame() && frame()->original.isNull()) {
+		if (frame()->original.isNull()) {
 			auto readResult = _implementation->readFramesTill(-1, ms);
 			if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile && _seekPositionMs > 0) {
 				// If seek was done to the end: try to read the first frame,
@@ -460,7 +460,8 @@ public:
 	}
 
 	bool renderFrame() {
-		Assert(frame() != 0 && _request.valid());
+		Expects(_request.valid());
+
 		if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize(_request.framew, _request.frameh))) {
 			return false;
 		}
@@ -573,7 +574,7 @@ private:
 	};
 	Frame _frames[3];
 	int _frame = 0;
-	Frame *frame() {
+	not_null<Frame*> frame() {
 		return _frames + _frame;
 	}
 

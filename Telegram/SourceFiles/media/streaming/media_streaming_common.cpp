@@ -15,109 +15,58 @@ namespace Media {
 namespace Streaming {
 namespace {
 
-constexpr int kSkipInvalidDataPackets = 10;
+constexpr auto kSkipInvalidDataPackets = 10;
+constexpr auto kAlignImageBy = 16;
+constexpr auto kPixelBytesSize = 4;
+
+void AlignedImageBufferCleanupHandler(void* data) {
+	const auto buffer = static_cast<uchar*>(data);
+	delete[] buffer;
+}
+
+// Create a QImage of desired size where all the data is properly aligned.
+QImage CreateAlignedImage(QSize size) {
+	const auto width = size.width();
+	const auto height = size.height();
+	const auto widthAlign = kAlignImageBy / kPixelBytesSize;
+	const auto neededWidth = width + ((width % widthAlign)
+		? (widthAlign - (width % widthAlign))
+		: 0);
+	const auto perLine = neededWidth * kPixelBytesSize;
+	const auto buffer = new uchar[perLine * height + kAlignImageBy];
+	const auto cleanupData = static_cast<void*>(buffer);
+	const auto address = reinterpret_cast<uintptr_t>(buffer);
+	const auto alignedBuffer = buffer + ((address % kAlignImageBy)
+		? (kAlignImageBy - (address % kAlignImageBy))
+		: 0);
+	return QImage(
+		alignedBuffer,
+		width,
+		height,
+		perLine,
+		QImage::Format_ARGB32_Premultiplied,
+		AlignedImageBufferCleanupHandler,
+		cleanupData);
+}
+
+bool IsAlignedImage(const QImage &image) {
+	return !(reinterpret_cast<uintptr_t>(image.bits()) % kAlignImageBy)
+		&& !(image.bytesPerLine() % kAlignImageBy);
+}
+
+void ClearFrameMemory(AVFrame *frame) {
+	if (frame && frame->data[0]) {
+		av_frame_unref(frame);
+	}
+}
 
 } // namespace
 
-void LogError(QLatin1String method) {
-	LOG(("Streaming Error: Error in %1.").arg(method));
-}
-
-void LogError(QLatin1String method, AvErrorWrap error) {
-	LOG(("Streaming Error: Error in %1 (code: %2, text: %3)."
-		).arg(method
-		).arg(error.code()
-		).arg(error.text()));
-}
-
-crl::time PtsToTime(int64_t pts, const AVRational &timeBase) {
-	return (pts == AV_NOPTS_VALUE)
-		? Information::kDurationUnknown
-		: ((pts * 1000LL * timeBase.num) / timeBase.den);
-}
-
-std::optional<AvErrorWrap> ReadNextFrame(Stream &stream) {
-	Expects(stream.frame != nullptr);
-
+CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 	auto error = AvErrorWrap();
 
-	if (stream.frame->data) {
-		av_frame_unref(stream.frame.get());
-	}
-	do {
-		error = avcodec_receive_frame(stream.codec, stream.frame.get());
-		if (!error) {
-			//processReadFrame(); // #TODO streaming
-			return std::nullopt;
-		}
-
-		if (error.code() != AVERROR(EAGAIN) || stream.queue.empty()) {
-			return error;
-		}
-
-		const auto packet = &stream.queue.front().fields();
-		const auto guard = gsl::finally([
-			&,
-			size = packet->size,
-			data = packet->data
-		] {
-			packet->size = size;
-			packet->data = data;
-			stream.queue.pop_front();
-		});
-
-		error = avcodec_send_packet(
-			stream.codec,
-			packet->data ? packet : nullptr); // Drain on eof.
-		if (!error) {
-			continue;
-		}
-		LogError(qstr("avcodec_send_packet"), error);
-		if (error.code() == AVERROR_INVALIDDATA
-			// There is a sample voice message where skipping such packet
-			// results in a crash (read_access to nullptr) in swr_convert().
-			&& stream.codec->codec_id != AV_CODEC_ID_OPUS) {
-			if (++stream.invalidDataPackets < kSkipInvalidDataPackets) {
-				continue; // Try to skip a bad packet.
-			}
-		}
-		return error;
-	} while (true);
-
-	[[unreachable]];
-}
-
-CodecPointer::CodecPointer(std::nullptr_t) {
-}
-
-CodecPointer::CodecPointer(CodecPointer &&other)
-: _context(base::take(other._context)) {
-}
-
-CodecPointer &CodecPointer::operator=(CodecPointer &&other) {
-	if (this != &other) {
-		destroy();
-		_context = base::take(other._context);
-	}
-	return *this;
-}
-
-CodecPointer &CodecPointer::operator=(std::nullptr_t) {
-	destroy();
-	return *this;
-}
-
-void CodecPointer::destroy() {
-	if (_context) {
-		avcodec_free_context(&_context);
-	}
-}
-
-CodecPointer CodecPointer::FromStream(not_null<AVStream*> stream) {
-	auto error = AvErrorWrap();
-
-	auto result = CodecPointer();
-	const auto context = result._context = avcodec_alloc_context3(nullptr);
+	auto result = CodecPointer(avcodec_alloc_context3(nullptr));
+	const auto context = result.get();
 	if (!context) {
 		LogError(qstr("avcodec_alloc_context3"));
 		return {};
@@ -141,34 +90,229 @@ CodecPointer CodecPointer::FromStream(not_null<AVStream*> stream) {
 	return result;
 }
 
-AVCodecContext *CodecPointer::get() const {
-	return _context;
+void CodecDeleter::operator()(AVCodecContext *value) {
+	if (value) {
+		avcodec_free_context(&value);
+	}
 }
 
-AVCodecContext *CodecPointer::operator->() const {
-	Expects(_context != nullptr);
-
-	return get();
+FramePointer MakeFramePointer() {
+	return FramePointer(av_frame_alloc());
 }
 
-CodecPointer::operator AVCodecContext*() const {
-	return get();
-}
-
-AVCodecContext* CodecPointer::release() {
-	return base::take(_context);
-}
-
-CodecPointer::~CodecPointer() {
-	destroy();
-}
-
-FrameDeleter::pointer FrameDeleter::create() {
-	return av_frame_alloc();
-}
-
-void FrameDeleter::operator()(pointer value) {
+void FrameDeleter::operator()(AVFrame *value) {
 	av_frame_free(&value);
+}
+
+SwsContextPointer MakeSwsContextPointer(
+		not_null<AVFrame*> frame,
+		QSize resize,
+		SwsContextPointer *existing) {
+	const auto result = sws_getCachedContext(
+		existing ? existing->release() : nullptr,
+		frame->width,
+		frame->height,
+		AVPixelFormat(frame->format),
+		resize.width(),
+		resize.height(),
+		AV_PIX_FMT_BGRA,
+		0,
+		nullptr,
+		nullptr,
+		nullptr);
+	if (!result) {
+		LogError(qstr("sws_getCachedContext"));
+	}
+	return SwsContextPointer(result);
+}
+
+void SwsContextDeleter::operator()(SwsContext *value) {
+	if (value) {
+		sws_freeContext(value);
+	}
+}
+
+void LogError(QLatin1String method) {
+	LOG(("Streaming Error: Error in %1.").arg(method));
+}
+
+void LogError(QLatin1String method, AvErrorWrap error) {
+	LOG(("Streaming Error: Error in %1 (code: %2, text: %3)."
+		).arg(method
+		).arg(error.code()
+		).arg(error.text()));
+}
+
+crl::time PtsToTime(int64_t pts, const AVRational &timeBase) {
+	return (pts == AV_NOPTS_VALUE)
+		? Information::kDurationUnknown
+		: ((pts * 1000LL * timeBase.num) / timeBase.den);
+}
+
+int ReadRotationFromMetadata(not_null<AVStream*> stream) {
+	const auto tag = av_dict_get(stream->metadata, "rotate", nullptr, 0);
+	if (tag && *tag->value) {
+		const auto string = QString::fromUtf8(tag->value);
+		auto ok = false;
+		const auto degrees = string.toInt(&ok);
+		if (ok && (degrees == 90 || degrees == 180 || degrees == 270)) {
+			return degrees;
+		}
+	}
+	return 90;
+}
+
+bool RotationSwapWidthHeight(int rotation) {
+	return (rotation == 90 || rotation == 270);
+}
+
+std::optional<AvErrorWrap> ReadNextFrame(Stream &stream) {
+	Expects(stream.frame != nullptr);
+
+	auto error = AvErrorWrap();
+
+	ClearFrameMemory(stream.frame.get());
+	do {
+		error = avcodec_receive_frame(stream.codec.get(), stream.frame.get());
+		if (!error) {
+			//processReadFrame(); // #TODO streaming
+			return std::nullopt;
+		}
+
+		if (error.code() != AVERROR(EAGAIN) || stream.queue.empty()) {
+			return error;
+		}
+
+		const auto packet = &stream.queue.front().fields();
+		const auto guard = gsl::finally([
+			&,
+			size = packet->size,
+			data = packet->data
+		] {
+			packet->size = size;
+			packet->data = data;
+			stream.queue.pop_front();
+		});
+
+		error = avcodec_send_packet(
+			stream.codec.get(),
+			packet->data ? packet : nullptr); // Drain on eof.
+		if (!error) {
+			continue;
+		}
+		LogError(qstr("avcodec_send_packet"), error);
+		if (error.code() == AVERROR_INVALIDDATA
+			// There is a sample voice message where skipping such packet
+			// results in a crash (read_access to nullptr) in swr_convert().
+			&& stream.codec->codec_id != AV_CODEC_ID_OPUS) {
+			if (++stream.invalidDataPackets < kSkipInvalidDataPackets) {
+				continue; // Try to skip a bad packet.
+			}
+		}
+		return error;
+	} while (true);
+
+	[[unreachable]];
+}
+
+QImage ConvertFrame(
+		Stream &stream,
+		QSize resize,
+		QImage storage) {
+	Expects(stream.frame != nullptr);
+
+	const auto frame = stream.frame.get();
+	const auto frameSize = QSize(frame->width, frame->height);
+	if (frameSize.isEmpty()) {
+		LOG(("Streaming Error: Bad frame size %1,%2"
+			).arg(resize.width()
+			).arg(resize.height()));
+		return QImage();
+	} else if (!frame->data[0]) {
+		LOG(("Streaming Error: Bad frame data."));
+		return QImage();
+	}
+	if (resize.isEmpty()) {
+		resize = frameSize;
+	} else if (RotationSwapWidthHeight(stream.rotation)) {
+		resize.transpose();
+	}
+	if (storage.isNull()
+		|| storage.size() != resize
+		|| !storage.isDetached()
+		|| !IsAlignedImage(storage)) {
+		storage = CreateAlignedImage(resize);
+	}
+	const auto format = AV_PIX_FMT_BGRA;
+	const auto hasDesiredFormat = (frame->format == format)
+		|| ((frame->format == -1) && (stream.codec->pix_fmt == format));
+	if (frameSize == storage.size() && hasDesiredFormat) {
+		static_assert(sizeof(uint32) == kPixelBytesSize);
+		auto to = reinterpret_cast<uint32*>(storage.bits());
+		auto from = reinterpret_cast<const uint32*>(frame->data[0]);
+		const auto deltaTo = (storage.bytesPerLine() / kPixelBytesSize)
+			- storage.width();
+		const auto deltaFrom = (frame->linesize[0] / kPixelBytesSize)
+			- frame->width;
+		for (const auto y : ranges::view::ints(0, frame->height)) {
+			for (const auto x : ranges::view::ints(0, frame->width)) {
+				// Wipe out possible alpha values.
+				*to++ = 0x000000FFU | *from++;
+			}
+			to += deltaTo;
+			from += deltaFrom;
+		}
+	} else {
+		stream.swsContext = MakeSwsContextPointer(
+			frame,
+			resize,
+			&stream.swsContext);
+		if (!stream.swsContext) {
+			return QImage();
+		}
+
+		// AV_NUM_DATA_POINTERS defined in AVFrame struct
+		uint8_t *data[AV_NUM_DATA_POINTERS] = { storage.bits(), nullptr };
+		int linesize[AV_NUM_DATA_POINTERS] = { storage.bytesPerLine(), 0 };
+
+		const auto lines = sws_scale(
+			stream.swsContext.get(),
+			frame->data,
+			frame->linesize,
+			0,
+			frame->height,
+			data,
+			linesize);
+		if (lines != resize.height()) {
+			LOG(("Streaming Error: "
+				"Unable to sws_scale to good size %1, got %2."
+				).arg(resize.height()
+				).arg(lines));
+			return QImage();
+		}
+	}
+	if (stream.rotation == 180) {
+		storage = std::move(storage).mirrored(true, true);
+	} else if (stream.rotation != 0) {
+		auto transform = QTransform();
+		transform.rotate(stream.rotation);
+		storage = storage.transformed(transform);
+	}
+
+	// Read some future packets for audio stream.
+	//if (_audioStreamId >= 0) {
+	//	while (_frameMs + 5000 > _lastReadAudioMs
+	//		&& _frameMs + 15000 > _lastReadVideoMs) {
+	//		auto packetResult = readAndProcessPacket();
+	//		if (packetResult != PacketResult::Ok) {
+	//			break;
+	//		}
+	//	}
+	//}
+	// #TODO streaming
+
+	ClearFrameMemory(stream.frame.get());
+	return std::move(storage);
 }
 
 } // namespace Streaming
