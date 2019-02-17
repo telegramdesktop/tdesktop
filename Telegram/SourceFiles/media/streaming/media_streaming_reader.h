@@ -23,8 +23,6 @@ class Reader final {
 public:
 	Reader(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
 
-	static constexpr auto kPartSize = 128 * 1024;
-
 	int size() const;
 	bool fill(
 		bytes::span buffer,

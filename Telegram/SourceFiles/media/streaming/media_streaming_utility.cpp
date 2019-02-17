@@ -5,6 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
+#include "media/streaming/media_streaming_utility.h"
+
 #include "media/streaming/media_streaming_common.h"
 
 extern "C" {
@@ -143,10 +145,16 @@ void LogError(QLatin1String method, AvErrorWrap error) {
 		).arg(error.text()));
 }
 
-crl::time PtsToTime(int64_t pts, const AVRational &timeBase) {
-	return (pts == AV_NOPTS_VALUE)
-		? Information::kDurationUnknown
+crl::time PtsToTime(int64_t pts, AVRational timeBase) {
+	return (pts == AV_NOPTS_VALUE || !timeBase.den)
+		? kTimeUnknown
 		: ((pts * 1000LL * timeBase.num) / timeBase.den);
+}
+
+int64_t TimeToPts(crl::time time, AVRational timeBase) {
+	return (time == kTimeUnknown || !timeBase.num)
+		? AV_NOPTS_VALUE
+		: (time * timeBase.den) / (1000LL * timeBase.num);
 }
 
 int ReadRotationFromMetadata(not_null<AVStream*> stream) {
@@ -291,13 +299,13 @@ QImage ConvertFrame(
 			return QImage();
 		}
 	}
-	if (stream.rotation == 180) {
-		storage = std::move(storage).mirrored(true, true);
-	} else if (stream.rotation != 0) {
-		auto transform = QTransform();
-		transform.rotate(stream.rotation);
-		storage = storage.transformed(transform);
-	}
+	//if (stream.rotation == 180) {
+	//	storage = std::move(storage).mirrored(true, true);
+	//} else if (stream.rotation != 0) {
+	//	auto transform = QTransform();
+	//	transform.rotate(stream.rotation);
+	//	storage = storage.transformed(transform);
+	//}
 
 	// Read some future packets for audio stream.
 	//if (_audioStreamId >= 0) {
@@ -312,7 +320,7 @@ QImage ConvertFrame(
 	// #TODO streaming
 
 	ClearFrameMemory(stream.frame.get());
-	return std::move(storage);
+	return storage;
 }
 
 } // namespace Streaming

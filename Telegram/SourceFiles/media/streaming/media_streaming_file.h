@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "media/streaming/media_streaming_common.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "media/streaming/media_streaming_reader.h"
 #include "base/bytes.h"
 #include "base/weak_ptr.h"
@@ -22,6 +23,7 @@ namespace Media {
 namespace Streaming {
 
 class Loader;
+class FileDelegate;
 
 class File final {
 public:
@@ -30,41 +32,28 @@ public:
 	File(const File &other) = delete;
 	File &operator=(const File &other) = delete;
 
-	void start(Mode mode, crl::time positionTime);
-
-	//rpl::producer<Information> information() const;
-	//rpl::producer<Packet> video() const;
-	//rpl::producer<Packet> audio() const;
+	void start(not_null<FileDelegate*> delegate, crl::time position);
+	void wake();
+	void stop();
 
 	~File();
 
 private:
-	void finish();
-
 	class Context final : public base::has_weak_ptr {
 	public:
-		Context(not_null<Reader*> reader);
+		Context(not_null<FileDelegate*> delegate, not_null<Reader*> reader);
 
-		void start(Mode mode, crl::time positionTime);
+		void start(crl::time position);
 		void readNextPacket();
 
 		void interrupt();
 		[[nodiscard]] bool interrupted() const;
 		[[nodiscard]] bool failed() const;
-		[[nodiscard]] bool started() const;
 		[[nodiscard]] bool finished() const;
-		[[nodiscard]] const Information &information() const;
 
 		~Context();
 
 	private:
-		struct StreamWrap {
-			int id = -1;
-			AVStream *info = nullptr;
-			Stream stream;
-			QMutex mutex;
-		};
-
 		static int Read(void *opaque, uint8_t *buffer, int bufferSize);
 		static int64_t Seek(void *opaque, int64_t offset, int whence);
 
@@ -76,36 +65,19 @@ private:
 		void logError(QLatin1String method, AvErrorWrap error);
 		void logFatal(QLatin1String method);
 		void logFatal(QLatin1String method, AvErrorWrap error);
+		void fail();
 
-		void initStream(StreamWrap &wrap, AVMediaType type);
-		void seekToPosition(crl::time positionTime);
+		Stream initStream(AVMediaType type);
+		void seekToPosition(crl::time position);
 
-		// #TODO base::expected.
+		// TODO base::expected.
 		[[nodiscard]] base::variant<Packet, AvErrorWrap> readPacket();
 
-		void processPacket(Packet &&packet);
-		[[nodiscard]] const StreamWrap &mainStreamUnchecked() const;
-		[[nodiscard]] const StreamWrap &mainStream() const;
-		[[nodiscard]] StreamWrap &mainStream();
-		void readInformation(crl::time positionTime);
+		void handleEndOfFile();
 
-		[[nodiscard]] QImage readFirstVideoFrame();
-		[[nodiscard]] auto tryReadFirstVideoFrame()
-			-> base::variant<QImage, AvErrorWrap>;
+		const not_null<FileDelegate*> _delegate;
+		const not_null<Reader*> _reader;
 
-		void enqueueEofPackets();
-
-		static void ClearStream(StreamWrap &wrap);
-		[[nodiscard]] static crl::time CountPacketPositionTime(
-			not_null<const AVStream*> info,
-			const Packet &packet);
-		[[nodiscard]] static crl::time CountPacketPositionTime(
-			const StreamWrap &wrap,
-			const Packet &packet);
-		static void Enqueue(StreamWrap &wrap, Packet &&packet);
-
-		not_null<Reader*> _reader;
-		Mode _mode = Mode::Both;
 		int _offset = 0;
 		int _size = 0;
 		bool _failed = false;
@@ -113,22 +85,16 @@ private:
 		bool _readTillEnd = false;
 		crl::semaphore _semaphore;
 		std::atomic<bool> _interrupted = false;
-		std::optional<Information> _information;
 
 		uchar *_ioBuffer = nullptr;
 		AVIOContext *_ioContext = nullptr;
 		AVFormatContext *_formatContext = nullptr;
 
-		StreamWrap _video;
-		StreamWrap _audio;
-
-		AudioMsgId _audioMsgId;
-
 	};
 
-	std::thread _thread;
+	std::optional<Context> _context;
 	Reader _reader;
-	std::unique_ptr<Context> _context;
+	std::thread _thread;
 
 };
 

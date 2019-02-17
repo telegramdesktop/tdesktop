@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 
 // #TODO streaming
-#include "media/streaming/media_streaming_file.h"
+#include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
 
 namespace {
@@ -307,18 +307,18 @@ void DocumentOpenClickHandler::Open(
 			return;
 		}
 	}
-	if (playMusic || playVideo) {
+	if (data->isAudioFile() || data->isVideoFile()) {
 		AssertIsDebug();
 		if (auto loader = data->createStreamingLoader(origin)) {
-			static auto file = std::unique_ptr<Media::Streaming::File>();
-			file = std::make_unique<Media::Streaming::File>(
+			static auto player = std::unique_ptr<Media::Streaming::Player>();
+			player = std::make_unique<Media::Streaming::Player>(
 				&data->owner(),
 				std::move(loader));
 			data->session().lifetime().add([] {
-				file = nullptr;
+				player = nullptr;
 			});
-			file->start(
-				(playMusic
+			player->init(
+				(data->isAudioFile()
 					? Media::Streaming::Mode::Audio
 					: Media::Streaming::Mode::Video),
 				0);
@@ -430,6 +430,25 @@ void DocumentSaveClickHandler::Save(
 		not_null<DocumentData*> data,
 		bool forceSavingAs) {
 	if (!data->date) return;
+
+	if (data->isAudioFile() || data->isVideoFile()) {
+		AssertIsDebug();
+		if (auto loader = data->createStreamingLoader(origin)) {
+			static auto player = std::unique_ptr<Media::Streaming::Player>();
+			player = std::make_unique<Media::Streaming::Player>(
+				&data->owner(),
+				std::move(loader));
+			data->session().lifetime().add([] {
+				player = nullptr;
+			});
+			player->init(
+				(data->isAudioFile()
+					? Media::Streaming::Mode::Audio
+					: Media::Streaming::Mode::Video),
+				0);
+		}
+		return;
+	}
 
 	auto filepath = data->filepath(
 		DocumentData::FilePathResolveSaveFromDataSilent,

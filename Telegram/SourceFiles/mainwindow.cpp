@@ -302,13 +302,18 @@ void MainWindow::destroyLayer() {
 	if (!_layer) {
 		return;
 	}
-	const auto resetFocus = Ui::InFocusChain(_layer);
-	if (resetFocus) setFocus();
-	_layer = nullptr;
+	auto layer = base::take(_layer);
+	const auto resetFocus = Ui::InFocusChain(layer);
+	if (resetFocus) {
+		setFocus();
+	}
+	layer = nullptr;
 	if (controller()) {
 		controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
 	}
-	if (resetFocus) setInnerFocus();
+	if (resetFocus) {
+		setInnerFocus();
+	}
 	InvokeQueued(this, [=] {
 		checkHistoryActivation();
 	});
