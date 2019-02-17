@@ -754,7 +754,7 @@ void Session::startExport(const MTPInputPeer &singlePeer) {
 		_exportPanel->activatePanel();
 		return;
 	}
-	_export = std::make_unique<Export::ControllerWrap>(singlePeer);
+	_export = std::make_unique<Export::Controller>(singlePeer);
 	_exportPanel = std::make_unique<Export::View::PanelController>(
 		_export.get());
 

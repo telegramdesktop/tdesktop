@@ -124,7 +124,7 @@ void ResolveSettings(Settings &settings) {
 	}
 }
 
-PanelController::PanelController(not_null<ControllerWrap*> process)
+PanelController::PanelController(not_null<Controller*> process)
 : _process(process)
 , _settings(std::make_unique<Settings>(Local::ReadExportSettings()))
 , _saveSettingsTimer([=] { saveSettings(); }) {

@@ -35,7 +35,7 @@ class Reader;
 } // namespace Media
 
 namespace Export {
-class ControllerWrap;
+class Controller;
 namespace View {
 class PanelController;
 } // namespace View
@@ -669,7 +669,7 @@ private:
 
 	Storage::DatabasePointer _cache;
 
-	std::unique_ptr<Export::ControllerWrap> _export;
+	std::unique_ptr<Export::Controller> _export;
 	std::unique_ptr<Export::View::PanelController> _exportPanel;
 	rpl::event_stream<Export::View::PanelController*> _exportViewChanges;
 	TimeId _exportAvailableAt = 0;
