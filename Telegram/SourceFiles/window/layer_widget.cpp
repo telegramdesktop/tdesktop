@@ -618,15 +618,16 @@ void LayerStackWidget::replaceBox(
 		object_ptr<BoxContent> box,
 		anim::type animated) {
 	const auto pointer = pushBox(std::move(box), animated);
-	while (!_layers.empty() && _layers.front().get() != pointer) {
-		auto removingLayer = std::move(_layers.front());
-		_layers.erase(begin(_layers));
-
-		if (removingLayer->inFocusChain()) {
-			setFocus();
-		}
-		removingLayer->setClosing();
-	}
+	const auto removeTill = ranges::find(
+		_layers,
+		pointer,
+		&std::unique_ptr<LayerWidget>::get);
+	_closingLayers.insert(
+		end(_closingLayers),
+		std::make_move_iterator(begin(_layers)),
+		std::make_move_iterator(removeTill));
+	_layers.erase(begin(_layers), removeTill);
+	clearClosingLayers();
 }
 
 void LayerStackWidget::prepareForAnimation() {
@@ -780,12 +781,35 @@ bool LayerStackWidget::takeToThirdSection() {
 }
 
 void LayerStackWidget::clearLayers() {
-	for (auto list = base::take(_layers); !list.empty(); list.pop_back()) {
-		const auto layer = std::move(list.back());
+	_closingLayers.insert(
+		end(_closingLayers),
+		std::make_move_iterator(begin(_layers)),
+		std::make_move_iterator(end(_layers)));
+	_layers.clear();
+	clearClosingLayers();
+}
+
+void LayerStackWidget::clearClosingLayers() {
+	const auto weak = make_weak(this);
+	while (!_closingLayers.empty()) {
+		const auto index = _closingLayers.size() - 1;
+		const auto layer = _closingLayers.back().get();
 		if (layer->inFocusChain()) {
 			setFocus();
 		}
+
+		// This may destroy LayerStackWidget (by calling Ui::hideLayer).
+		// So each time we check a weak pointer (if we are still alive).
 		layer->setClosing();
+		if (weak) {
+			// We could enqueue more closing layers, so we remove by index.
+			Assert(index < _closingLayers.size());
+			Assert(_closingLayers[index].get() == layer);
+			_closingLayers.erase(begin(_closingLayers) + index);
+		} else {
+			// All layers were already destroyed in ~LayerStackWidget.
+			break;
+		}
 	}
 }
 

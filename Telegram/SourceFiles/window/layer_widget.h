@@ -169,6 +169,7 @@ private:
 	void updateLayerBoxes();
 	void fixOrder();
 	void sendFakeMouseEvent();
+	void clearClosingLayers();
 
 	LayerWidget *currentLayer() {
 		return _layers.empty() ? nullptr : _layers.back().get();
@@ -178,6 +179,7 @@ private:
 	}
 
 	std::vector<std::unique_ptr<LayerWidget>> _layers;
+	std::vector<std::unique_ptr<LayerWidget>> _closingLayers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
 	object_ptr<MainMenu> _mainMenu = { nullptr };
