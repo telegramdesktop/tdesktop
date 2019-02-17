@@ -99,6 +99,13 @@ protected:
 		QByteArray &result,
 		int64 &samplesAdded);
 
+	// Streaming player provides the first frame to the ChildFFMpegLoader
+	// so we replace our allocated frame with the one provided.
+	ReadResult replaceFrameAndRead(
+		not_null<AVFrame*> frame,
+		QByteArray &result,
+		int64 &samplesAdded);
+
 	int sampleSize() const {
 		return _outputSampleSize;
 	}

@@ -110,6 +110,20 @@ SwsContextPointer MakeSwsContextPointer(
 		not_null<AVFrame*> frame,
 		QSize resize,
 		SwsContextPointer *existing) {
+	// We have to use custom caching for SwsContext, because
+	// sws_getCachedContext checks passed flags with existing context flags,
+	// and re-creates context if they're different, but in the process of
+	// context creation the passed flags are modified before being written
+	// to the resulting context, so the caching doesn't work.
+	if (existing && (*existing) != nullptr) {
+		const auto &deleter = existing->get_deleter();
+		if (deleter.resize == resize
+			&& deleter.frameSize == QSize(frame->width, frame->height)
+			&& deleter.frameFormat == frame->format) {
+			return std::move(*existing);
+		}
+	}
+
 	const auto result = sws_getCachedContext(
 		existing ? existing->release() : nullptr,
 		frame->width,
@@ -125,7 +139,9 @@ SwsContextPointer MakeSwsContextPointer(
 	if (!result) {
 		LogError(qstr("sws_getCachedContext"));
 	}
-	return SwsContextPointer(result);
+	return SwsContextPointer(
+		result,
+		{ resize, QSize{ frame->width, frame->height }, frame->format });
 }
 
 void SwsContextDeleter::operator()(SwsContext *value) {
@@ -157,6 +173,15 @@ int64_t TimeToPts(crl::time time, AVRational timeBase) {
 		: (time * timeBase.den) / (1000LL * timeBase.num);
 }
 
+crl::time FramePosition(Stream &stream) {
+	const auto pts = !stream.frame
+		? AV_NOPTS_VALUE
+		: (stream.frame->pts == AV_NOPTS_VALUE)
+		? stream.frame->pkt_dts
+		: stream.frame->pts;
+	return PtsToTime(pts, stream.timeBase);
+}
+
 int ReadRotationFromMetadata(not_null<AVStream*> stream) {
 	const auto tag = av_dict_get(stream->metadata, "rotate", nullptr, 0);
 	if (tag && *tag->value) {
@@ -167,60 +192,66 @@ int ReadRotationFromMetadata(not_null<AVStream*> stream) {
 			return degrees;
 		}
 	}
-	return 90;
+	return 0;
 }
 
 bool RotationSwapWidthHeight(int rotation) {
 	return (rotation == 90 || rotation == 270);
 }
 
-std::optional<AvErrorWrap> ReadNextFrame(Stream &stream) {
-	Expects(stream.frame != nullptr);
+AvErrorWrap ProcessPacket(Stream &stream, Packet &&packet) {
+	Expects(stream.codec != nullptr);
 
 	auto error = AvErrorWrap();
 
-	ClearFrameMemory(stream.frame.get());
-	do {
-		error = avcodec_receive_frame(stream.codec.get(), stream.frame.get());
-		if (!error) {
-			//processReadFrame(); // #TODO streaming
-			return std::nullopt;
-		}
+	const auto native = &packet.fields();
+	const auto guard = gsl::finally([
+		&,
+		size = native->size,
+		data = native->data
+	] {
+		native->size = size;
+		native->data = data;
+		packet = Packet();
+	});
 
-		if (error.code() != AVERROR(EAGAIN) || stream.queue.empty()) {
-			return error;
-		}
-
-		const auto packet = &stream.queue.front().fields();
-		const auto guard = gsl::finally([
-			&,
-			size = packet->size,
-			data = packet->data
-		] {
-			packet->size = size;
-			packet->data = data;
-			stream.queue.pop_front();
-		});
-
-		error = avcodec_send_packet(
-			stream.codec.get(),
-			packet->data ? packet : nullptr); // Drain on eof.
-		if (!error) {
-			continue;
-		}
+	error = avcodec_send_packet(
+		stream.codec.get(),
+		native->data ? native : nullptr); // Drain on eof.
+	if (error) {
 		LogError(qstr("avcodec_send_packet"), error);
 		if (error.code() == AVERROR_INVALIDDATA
 			// There is a sample voice message where skipping such packet
 			// results in a crash (read_access to nullptr) in swr_convert().
 			&& stream.codec->codec_id != AV_CODEC_ID_OPUS) {
 			if (++stream.invalidDataPackets < kSkipInvalidDataPackets) {
-				continue; // Try to skip a bad packet.
+				return AvErrorWrap(); // Try to skip a bad packet.
 			}
 		}
-		return error;
-	} while (true);
+	}
+	return error;
+}
 
-	[[unreachable]];
+AvErrorWrap ReadNextFrame(Stream &stream) {
+	Expects(stream.frame != nullptr);
+
+	auto error = AvErrorWrap();
+
+	do {
+		error = avcodec_receive_frame(
+			stream.codec.get(),
+			stream.frame.get());
+		if (!error
+			|| error.code() != AVERROR(EAGAIN)
+			|| stream.queue.empty()) {
+			return error;
+		}
+
+		error = ProcessPacket(stream, std::move(stream.queue.front()));
+		stream.queue.pop_front();
+	} while (!error);
+
+	return error;
 }
 
 QImage ConvertFrame(

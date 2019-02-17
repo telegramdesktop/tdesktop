@@ -259,6 +259,16 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 	return true;
 }
 
+auto AbstractAudioFFMpegLoader::replaceFrameAndRead(
+	not_null<AVFrame*> frame,
+	QByteArray &result,
+	int64 &samplesAdded)
+-> ReadResult {
+	av_frame_free(&_frame);
+	_frame = frame;
+	return readFromReadyFrame(result, samplesAdded);
+}
+
 auto AbstractAudioFFMpegLoader::readFromReadyContext(
 	not_null<AVCodecContext*> context,
 	QByteArray &result,

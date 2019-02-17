@@ -287,6 +287,90 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	return FileNameForSave(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
+void StartStreaming(
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin) {
+	AssertIsDebug();
+
+	using namespace Media::Streaming;
+	if (auto loader = document->createStreamingLoader(origin)) {
+		class Panel
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+			: public Ui::RpWidgetWrap<QOpenGLWidget> {
+			using Parent = Ui::RpWidgetWrap<QOpenGLWidget>;
+#else // Q_OS_MAC && !OS_MAC_OLD
+			: public Ui::RpWidget {
+			using Parent = Ui::RpWidget;
+#endif // Q_OS_MAC && !OS_MAC_OLD
+
+		public:
+			Panel() : Parent(nullptr) {
+			}
+
+		protected:
+			void paintEvent(QPaintEvent *e) override {
+			}
+
+		};
+
+		static auto player = std::unique_ptr<Player>();
+		static auto video = base::unique_qptr<Panel>();
+		player = std::make_unique<Player>(
+			&document->owner(),
+			std::move(loader));
+		video = nullptr;
+		document->session().lifetime().add([] {
+			base::take(player) = nullptr;
+			base::take(video) = nullptr;
+		});
+
+		player->init(
+			(document->isAudioFile() ? Mode::Audio : Mode::Both),
+			0);
+		player->updates(
+		) | rpl::start_with_next_error_done([=](Update &&update) {
+			update.data.match([&](Information &update) {
+				if (!update.videoCover.isNull()) {
+					video = base::make_unique_q<Panel>();
+					video->setAttribute(Qt::WA_OpaquePaintEvent);
+					video->paintRequest(
+					) | rpl::start_with_next([=](QRect rect) {
+						Painter(video.get()).drawImage(
+							video->rect(),
+							player->frame(FrameRequest()));
+					}, video->lifetime());
+					const auto size = QSize(
+						ConvertScale(update.videoSize.width()),
+						ConvertScale(update.videoSize.height()));
+					const auto center = App::wnd()->geometry().center();
+					video->setGeometry(QRect(
+						center - QPoint(size.width(), size.height()) / 2,
+						size));
+					video->show();
+					video->shownValue(
+					) | rpl::start_with_next([=](bool shown) {
+						if (!shown) {
+							base::take(player) = nullptr;
+						}
+					}, video->lifetime());
+				}
+				player->start();
+			}, [&](UpdateVideo &update) {
+				Expects(video != nullptr);
+
+				video->update();
+			}, [&](UpdateAudio &update) {
+			}, [&](WaitingForData &update) {
+			}, [&](MutedByOther &update) {
+			});
+		}, [=](const Error &error) {
+			base::take(video) = nullptr;
+		}, [=] {
+			base::take(video) = nullptr;
+		}, player->lifetime());
+	}
+}
+
 void DocumentOpenClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
@@ -308,21 +392,7 @@ void DocumentOpenClickHandler::Open(
 		}
 	}
 	if (data->isAudioFile() || data->isVideoFile()) {
-		AssertIsDebug();
-		if (auto loader = data->createStreamingLoader(origin)) {
-			static auto player = std::unique_ptr<Media::Streaming::Player>();
-			player = std::make_unique<Media::Streaming::Player>(
-				&data->owner(),
-				std::move(loader));
-			data->session().lifetime().add([] {
-				player = nullptr;
-			});
-			player->init(
-				(data->isAudioFile()
-					? Media::Streaming::Mode::Audio
-					: Media::Streaming::Mode::Video),
-				0);
-		}
+		StartStreaming(data, origin);
 		return;
 	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
@@ -432,21 +502,7 @@ void DocumentSaveClickHandler::Save(
 	if (!data->date) return;
 
 	if (data->isAudioFile() || data->isVideoFile()) {
-		AssertIsDebug();
-		if (auto loader = data->createStreamingLoader(origin)) {
-			static auto player = std::unique_ptr<Media::Streaming::Player>();
-			player = std::make_unique<Media::Streaming::Player>(
-				&data->owner(),
-				std::move(loader));
-			data->session().lifetime().add([] {
-				player = nullptr;
-			});
-			player->init(
-				(data->isAudioFile()
-					? Media::Streaming::Mode::Audio
-					: Media::Streaming::Mode::Video),
-				0);
-		}
+		StartStreaming(data, origin);
 		return;
 	}
 

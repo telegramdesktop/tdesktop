@@ -256,56 +256,6 @@ void File::Context::start(crl::time position) {
 //	information.audio = (_audio.info != nullptr);
 //	_information = std::move(information);
 //}
-//
-//QImage File::Context::readFirstVideoFrame() {
-//	auto result = QImage();
-//	while (_video.info && result.isNull()) {
-//		auto frame = tryReadFirstVideoFrame();
-//		if (unroll()) {
-//			return QImage();
-//		}
-//		frame.match([&](QImage &image) {
-//			if (!image.isNull()) {
-//				result = std::move(image);
-//			} else {
-//				_video = StreamWrap();
-//			}
-//		}, [&](const AvErrorWrap &error) {
-//			if (error.code() == AVERROR(EAGAIN)) {
-//				readNextPacket();
-//			} else {
-//				_video = StreamWrap();
-//			}
-//		});
-//	}
-//	if (!_video.info && _mode == Mode::Video) {
-//		logFatal(qstr("RequiredStreamEmpty"));
-//		return QImage();
-//	}
-//	return result;
-//}
-//
-//base::variant<QImage, AvErrorWrap> File::Context::tryReadFirstVideoFrame() {
-//	Expects(_video.info != nullptr);
-//
-//	if (unroll()) {
-//		return AvErrorWrap();
-//	}
-//	const auto error = ReadNextFrame(_video.stream);
-//	if (error) {
-//		if (error->code() == AVERROR_EOF) {
-//			// No valid video stream.
-//			if (_mode == Mode::Video) {
-//				logFatal(qstr("RequiredStreamEmpty"));
-//			}
-//			return QImage();
-//		} else if (error->code() != AVERROR(EAGAIN)) {
-//			fail();
-//		}
-//		return *error;
-//	}
-//	return ConvertFrame(_video.stream, QSize(), QImage());
-//}
 
 void File::Context::readNextPacket() {
 	auto result = readPacket();
@@ -377,7 +327,7 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 	stop();
 
 	_context.emplace(delegate, &_reader);
-	_thread = std::thread([=, context = &_context.value()] {
+	_thread = std::thread([=, context = &*_context] {
 		context->start(position);
 		while (!context->finished()) {
 			context->readNextPacket();

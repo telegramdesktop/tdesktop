@@ -454,6 +454,8 @@
 <(src_loc)/media/player/media_player_volume_controller.h
 <(src_loc)/media/player/media_player_widget.cpp
 <(src_loc)/media/player/media_player_widget.h
+<(src_loc)/media/streaming/media_streaming_audio_track.cpp
+<(src_loc)/media/streaming/media_streaming_audio_track.h
 <(src_loc)/media/streaming/media_streaming_common.h
 <(src_loc)/media/streaming/media_streaming_file.cpp
 <(src_loc)/media/streaming/media_streaming_file.h
@@ -468,6 +470,8 @@
 <(src_loc)/media/streaming/media_streaming_reader.h
 <(src_loc)/media/streaming/media_streaming_utility.cpp
 <(src_loc)/media/streaming/media_streaming_utility.h
+<(src_loc)/media/streaming/media_streaming_video_track.cpp
+<(src_loc)/media/streaming/media_streaming_video_track.h
 <(src_loc)/media/view/media_clip_controller.cpp
 <(src_loc)/media/view/media_clip_controller.h
 <(src_loc)/media/view/media_clip_playback.cpp

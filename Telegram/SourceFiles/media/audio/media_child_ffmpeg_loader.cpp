@@ -27,10 +27,12 @@ bool IsPlanarFormat(int format) {
 } // namespace
 
 VideoSoundData::~VideoSoundData() {
+	if (frame) {
+		av_frame_free(&frame);
+	}
 	if (context) {
 		avcodec_close(context);
 		avcodec_free_context(&context);
-		context = nullptr;
 	}
 }
 
@@ -49,9 +51,28 @@ bool ChildFFMpegLoader::open(crl::time positionMs) {
 		_parentData->frequency);
 }
 
+AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromInitialFrame(
+		QByteArray &result,
+		int64 &samplesAdded) {
+	if (!_parentData->frame) {
+		return ReadResult::Wait;
+	}
+	return replaceFrameAndRead(
+		base::take(_parentData->frame),
+		result,
+		samplesAdded);
+}
+
 AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
 		QByteArray &result,
 		int64 &samplesAdded) {
+	const auto initialFrameResult = readFromInitialFrame(
+		result,
+		samplesAdded);
+	if (initialFrameResult != ReadResult::Wait) {
+		return initialFrameResult;
+	}
+
 	const auto readResult = readFromReadyContext(
 		_parentData->context,
 		result,

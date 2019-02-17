@@ -25,8 +25,11 @@ public:
 	AvErrorWrap(int code = 0) : _code(code) {
 	}
 
-	[[nodiscard]] explicit operator bool() const {
+	[[nodiscard]] bool failed() const {
 		return (_code < 0);
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return failed();
 	}
 
 	[[nodiscard]] int code() const {
@@ -113,6 +116,10 @@ using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
 FramePointer MakeFramePointer();
 
 struct SwsContextDeleter {
+	QSize resize;
+	QSize frameSize;
+	int frameFormat = int(AV_PIX_FMT_NONE);
+
 	void operator()(SwsContext *value);
 };
 using SwsContextPointer = std::unique_ptr<SwsContext, SwsContextDeleter>;
@@ -128,7 +135,6 @@ struct Stream {
 	CodecPointer codec;
 	FramePointer frame;
 	std::deque<Packet> queue;
-	crl::time lastReadPosition = 0;
 	int invalidDataPackets = 0;
 
 	// Audio only.
@@ -143,10 +149,12 @@ void LogError(QLatin1String method);
 void LogError(QLatin1String method, AvErrorWrap error);
 
 [[nodiscard]] crl::time PtsToTime(int64_t pts, AVRational timeBase);
-[[nodiscard]] int64_t TimeToPts(int64_t pts, AVRational timeBase);
+[[nodiscard]] int64_t TimeToPts(crl::time time, AVRational timeBase);
+[[nodiscard]] crl::time FramePosition(Stream &stream);
 [[nodiscard]] int ReadRotationFromMetadata(not_null<AVStream*> stream);
 [[nodiscard]] bool RotationSwapWidthHeight(int rotation);
-[[nodiscard]] std::optional<AvErrorWrap> ReadNextFrame(Stream &stream);
+[[nodiscard]] AvErrorWrap ProcessPacket(Stream &stream, Packet &&packet);
+[[nodiscard]] AvErrorWrap ReadNextFrame(Stream &stream);
 [[nodiscard]] QImage ConvertFrame(
 	Stream& stream,
 	QSize resize,

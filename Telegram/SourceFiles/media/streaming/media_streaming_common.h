@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Streaming {
 
-constexpr auto kTimeUnknown = crl::time(-1);
+constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 
 enum class Mode {
 	Both,
@@ -19,19 +19,33 @@ enum class Mode {
 	Inspection,
 };
 
+struct TrackState {
+	crl::time position = kTimeUnknown;
+	crl::time receivedTill = kTimeUnknown;
+};
+
+struct State {
+	TrackState video;
+	TrackState audio;
+};
+
 struct Information {
-	crl::time videoStarted = kTimeUnknown;
+	State state;
+
 	crl::time videoDuration = kTimeUnknown;
 	QSize videoSize;
 	QImage videoCover;
-	int videoCoverRotation = 0;
+	int videoRotation = 0;
 
-	crl::time audioStarted = kTimeUnknown;
 	crl::time audioDuration = kTimeUnknown;
 };
 
-struct RepaintRequest {
-	crl::time position;
+struct UpdateVideo {
+	crl::time position = 0;
+};
+
+struct UpdateAudio {
+	crl::time position = 0;
 };
 
 struct WaitingForData {
@@ -43,12 +57,34 @@ struct MutedByOther {
 struct Update {
 	base::variant<
 		Information,
-		RepaintRequest,
+		UpdateVideo,
+		UpdateAudio,
 		WaitingForData,
 		MutedByOther> data;
 };
 
 struct Error {
+};
+
+struct FrameRequest {
+	QSize resize;
+	QSize outer;
+	ImageRoundRadius radius = ImageRoundRadius();
+	RectParts corners = RectPart::AllCorners;
+
+	bool empty() const {
+		return resize.isEmpty();
+	}
+
+	bool operator==(const FrameRequest &other) const {
+		return (resize == other.resize)
+			&& (outer == other.outer)
+			&& (radius == other.radius)
+			&& (corners == other.corners);
+	}
+	bool operator!=(const FrameRequest &other) const {
+		return !(*this == other);
+	}
 };
 
 } // namespace Streaming

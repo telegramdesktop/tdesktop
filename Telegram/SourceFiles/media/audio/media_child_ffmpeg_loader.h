@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
+	AVFrame *frame = nullptr;
 	int32 frequency = Media::Player::kDefaultFrequency;
 	int64 length = 0;
 	~VideoSoundData();
@@ -77,6 +78,13 @@ public:
 	~ChildFFMpegLoader();
 
 private:
+	// Streaming player reads first frame by itself and provides it together
+	// with the codec context. So we first read data from this frame and
+	// only after that we try to read next packets.
+	ReadResult readFromInitialFrame(
+		QByteArray &result,
+		int64 &samplesAdded);
+
 	std::unique_ptr<VideoSoundData> _parentData;
 	QQueue<FFMpeg::AVPacketDataWrap> _queue;
 	bool _eofReached = false;
