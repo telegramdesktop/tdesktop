@@ -757,9 +757,6 @@ namespace App {
 				window->hide();
 			}
 		}
-		if (auto mainwidget = App::main()) {
-			mainwidget->saveDraftToCloud();
-		}
 		Core::Application::QuitAttempt();
 	}
 
