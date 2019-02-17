@@ -18,12 +18,20 @@ public:
 
 	using value_type = typename Container::value_type;
 	using difference_type = typename Container::difference_type;
-	using pointer = typename Container::pointer;
-	using reference = typename Container::reference;
+	using pointer = std::conditional_t<
+		std::is_const_v<Container>,
+		typename Container::const_pointer,
+		typename Container::pointer>;
+	using reference = std::conditional_t<
+		std::is_const_v<Container>,
+		typename Container::const_reference,
+		typename Container::reference>;
+	using base_type = std::conditional_t<
+		std::is_const_v<Container>,
+		typename Container::const_iterator,
+		typename Container::iterator>;
 
-	index_based_iterator(
-		Container *container,
-		typename Container::iterator impl)
+	index_based_iterator(Container *container, base_type impl)
 		: _container(container)
 		, _index(impl - _container->begin()) {
 	}
@@ -99,7 +107,7 @@ public:
 		return !(*this < other);
 	}
 
-	typename Container::iterator base() const {
+	base_type base() const {
 		return _container->begin() + _index;
 	}
 
