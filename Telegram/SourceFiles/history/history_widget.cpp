@@ -510,7 +510,9 @@ HistoryWidget::HistoryWidget(
 	}, _topBar->lifetime());
 
 	Auth().api().sendActions(
-	) | rpl::start_with_next([this](const ApiWrap::SendOptions &options) {
+	) | rpl::filter([=](const ApiWrap::SendOptions &options) {
+		return (options.history == _history);
+	}) | rpl::start_with_next([=](const ApiWrap::SendOptions &options) {
 		fastShowAtEnd(options.history);
 		const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
 			options.history->channelId(),
