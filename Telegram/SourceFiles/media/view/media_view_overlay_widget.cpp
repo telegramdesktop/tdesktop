@@ -1810,12 +1810,12 @@ void OverlayWidget::initAnimation() {
 		auto h = _doc->dimensions.height();
 		_current = (_doc->hasThumbnail()
 			? _doc->thumbnail()
-			: Image::Blank().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+			: Image::Empty().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
 	} else if (_doc->hasThumbnail()) {
 		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else {
-		_current = Image::Blank().get()->pixNoCache({}, Image::Blank()->width(), Image::Blank()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = Image::Empty()->pixNoCache({}, Image::Empty()->width(), Image::Empty()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1830,12 +1830,12 @@ void OverlayWidget::createClipReader() {
 		int h = _doc->dimensions.height();
 		_current = (_doc->hasThumbnail()
 			? _doc->thumbnail()
-			: Image::Blank().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
+			: Image::Empty().get())->pixNoCache(fileOrigin(), w, h, VideoThumbOptions(_doc), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		_current.setDevicePixelRatio(cRetinaFactor());
 	} else if (_doc->hasThumbnail()) {
 		_current = _doc->thumbnail()->pixNoCache(fileOrigin(), _doc->thumbnail()->width(), _doc->thumbnail()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else {
-		_current = Image::Blank()->pixNoCache({}, Image::Blank()->width(), Image::Blank()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = Image::Empty()->pixNoCache({}, Image::Empty()->width(), Image::Empty()->height(), VideoThumbOptions(_doc), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideoFile() || _doc->isVideoMessage())
 		? Media::Clip::Reader::Mode::Video
@@ -2100,7 +2100,7 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	validatePhotoImage(_photo->thumbnailInline(), true);
 	if (_current.isNull()) {
 		_photo->loadThumbnailSmall(fileOrigin());
-		validatePhotoImage(Image::Blank().get(), true);
+		validatePhotoImage(Image::Empty(), true);
 	}
 }
 

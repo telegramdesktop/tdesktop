@@ -528,7 +528,7 @@ void HistoryPhoto::validateGroupedCache(
 		? _data->thumbnailSmall().get()
 		: _data->thumbnailInline()
 		? _data->thumbnailInline()
-		: Image::Blank().get();
+		: Image::BlankMedia().get();
 
 	*cacheKey = key;
 	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);

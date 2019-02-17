@@ -100,7 +100,8 @@ public:
 
 	void replaceSource(std::unique_ptr<Images::Source> &&source);
 
-	static ImagePtr Blank();
+	static not_null<Image*> Empty(); // 1x1 transparent
+	static not_null<Image*> BlankMedia(); // 1x1 black
 
 	QImage original() const;
 
