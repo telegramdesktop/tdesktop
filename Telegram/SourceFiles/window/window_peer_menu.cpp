@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
 
@@ -636,7 +637,14 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 		if (std::exchange(*lock, true)) {
 			return;
 		}
-		const auto options = ApiWrap::SendOptions(peer->owner().history(peer));
+		auto options = ApiWrap::SendOptions(peer->owner().history(peer));
+		if (const auto id = App::main()->currentReplyToIdFor(options.history)) {
+			options.replyTo = id;
+		}
+		if (const auto localDraft = options.history->localDraft()) {
+			options.clearDraft = localDraft->textWithTags.text.isEmpty();
+		}
+
 		Auth().api().createPoll(result, options, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=](const RPCError &error) {

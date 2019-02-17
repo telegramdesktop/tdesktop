@@ -217,6 +217,8 @@ public:
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 	bool historyInSelectionMode() const;
 
+	MsgId currentReplyToIdFor(not_null<History*> history) const;
+
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
