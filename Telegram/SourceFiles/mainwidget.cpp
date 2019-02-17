@@ -1118,6 +1118,15 @@ bool MainWidget::historyInSelectionMode() const {
 	return _history->inSelectionMode();
 }
 
+MsgId MainWidget::currentReplyToIdFor(not_null<History*> history) const {
+	if (_history->history() == history) {
+		return _history->replyToId();
+	} else if (const auto localDraft = history->localDraft()) {
+		return localDraft->msgId;
+	}
+	return 0;
+}
+
 void MainWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	_history->sendBotCommand(peer, bot, cmd, replyTo);
 }

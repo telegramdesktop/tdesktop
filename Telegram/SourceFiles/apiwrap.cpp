@@ -5437,6 +5437,11 @@ void ApiWrap::createPoll(
 	if (options.replyTo) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
+	if (options.clearDraft) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
+		history->clearLocalDraft();
+		history->clearCloudDraft();
+	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 	const auto silentPost = channelPost
 		&& _session->data().notifySilentPosts(peer);
