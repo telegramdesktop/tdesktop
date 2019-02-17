@@ -947,12 +947,11 @@ void Instance::generateCache() {
 		universal = Universal,
 		guard = std::move(right)
 	]() mutable {
-		crl::on_main([
+		crl::on_main(std::move(guard), [
 			=,
-			image = universal->generate(size, index),
-			guard = std::move(guard)
+			image = universal->generate(size, index)
 		]() mutable {
-			if (!guard || universal != Universal) {
+			if (universal != Universal) {
 				return;
 			}
 			pushSprite(std::move(image));

@@ -81,3 +81,21 @@ inline std::pair<binary_guard, binary_guard> make_binary_guard() {
 }
 
 } // namespace base
+
+namespace crl {
+
+template <typename T, typename Enable>
+struct guard_traits;
+
+template <>
+struct guard_traits<base::binary_guard, void> {
+	static base::binary_guard create(base::binary_guard value) {
+		return value;
+	}
+	static bool check(const base::binary_guard &guard) {
+		return guard.alive();
+	}
+
+};
+
+} // namespace crl

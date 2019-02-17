@@ -722,16 +722,12 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 				: PrepareScaledNonPattern(
 					Data::PrepareBlurredBackground(image),
 					Images::Option(0));
-			crl::on_main([
+			crl::on_main(std::move(guard), [
 				this,
 				image = std::move(image),
 				scaled = std::move(scaled),
-				blurred = std::move(blurred),
-				guard = std::move(guard)
+				blurred = std::move(blurred)
 			]() mutable {
-				if (!guard) {
-					return;
-				}
 				_full = std::move(image);
 				setScaledFromImage(std::move(scaled), std::move(blurred));
 				update();

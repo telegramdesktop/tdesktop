@@ -426,16 +426,12 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 			QByteArray &&value,
 			QImage &&image,
 			QByteArray &&format) mutable {
-		crl::on_main([
+		crl::on_main(std::move(guard), [
 			=,
 			value = std::move(value),
 			image = std::move(image),
-			format = std::move(format),
-			guard = std::move(guard)
+			format = std::move(format)
 		]() mutable {
-			if (!guard) {
-				return;
-			}
 			localLoaded(
 				StorageImageSaved(std::move(value)),
 				format,

@@ -107,15 +107,11 @@ void GoodThumbSource::ready(
 		QImage &&image,
 		int bytesSize,
 		QByteArray &&bytesForCache) {
-	crl::on_main([
+	crl::on_main(std::move(guard), [
 		=,
-		guard = std::move(guard),
 		image = std::move(image),
 		bytes = std::move(bytesForCache)
 	]() mutable {
-		if (!guard) {
-			return;
-		}
 		if (image.isNull()) {
 			_empty = true;
 			return;

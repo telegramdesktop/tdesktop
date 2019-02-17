@@ -1624,14 +1624,10 @@ base::binary_guard ReadImageAsync(
 		if (postprocess) {
 			image = postprocess(std::move(image));
 		}
-		crl::on_main([
-			guard = std::move(guard),
+		crl::on_main(std::move(guard), [
 			image = std::move(image),
 			callback = std::move(callback)
 		]() mutable {
-			if (!guard) {
-				return;
-			}
 			callback(std::move(image));
 		});
 	});

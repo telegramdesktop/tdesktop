@@ -92,10 +92,7 @@ void Databases::destroy(Cache::Database *database) {
 			kept.destroying = std::move(first);
 			database->close();
 			database->waitForCleaner([=, guard = std::move(second)]() mutable {
-				crl::on_main([=, guard = std::move(guard)]{
-					if (!guard) {
-						return;
-					}
+				crl::on_main(std::move(guard), [=] {
 					_map.erase(path);
 				});
 			});
