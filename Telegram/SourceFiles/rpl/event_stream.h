@@ -260,7 +260,7 @@ public:
 			auto maybeError = std::optional<Error>();
 			auto collecting = stream->events().start(
 				[&](Value && value) { values.push_back(std::move(value)); },
-				[](Error &&error) { maybeError = std::move(error); },
+				[&](Error &&error) { maybeError = std::move(error); },
 				[] {});
 			std::move(initial) | start_to_stream(*stream, _lifetime);
 			collecting.destroy();
