@@ -130,7 +130,7 @@ class Sender {
 		void setToDC(ShiftedDcId dcId) noexcept {
 			_dcId = dcId;
 		}
-		void setCanWait(TimeMs ms) noexcept {
+		void setCanWait(crl::time ms) noexcept {
 			_canWait = ms;
 		}
 		void setDoneHandler(RPCDoneHandlerPtr &&handler) noexcept {
@@ -152,7 +152,7 @@ class Sender {
 		ShiftedDcId takeDcId() const noexcept {
 			return _dcId;
 		}
-		TimeMs takeCanWait() const noexcept {
+		crl::time takeCanWait() const noexcept {
 			return _canWait;
 		}
 		RPCDoneHandlerPtr takeOnDone() noexcept {
@@ -180,7 +180,7 @@ class Sender {
 	private:
 		not_null<Sender*> _sender;
 		ShiftedDcId _dcId = 0;
-		TimeMs _canWait = 0;
+		crl::time _canWait = 0;
 		RPCDoneHandlerPtr _done;
 		base::variant<FailPlainHandler, FailRequestIdHandler> _fail;
 		FailSkipPolicy _failSkipPolicy = FailSkipPolicy::Simple;
@@ -205,7 +205,7 @@ public:
 			setToDC(dcId);
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &afterDelay(TimeMs ms) noexcept {
+		[[nodiscard]] SpecificRequestBuilder &afterDelay(crl::time ms) noexcept {
 			setCanWait(ms);
 			return *this;
 		}

@@ -134,7 +134,7 @@ private:
 
 	UserData *_inlineBot = nullptr;
 	PeerData *_inlineQueryPeer = nullptr;
-	TimeMs _lastScrolled = 0;
+	crl::time _lastScrolled = 0;
 	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
 

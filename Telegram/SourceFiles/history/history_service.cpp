@@ -580,13 +580,13 @@ void HistoryService::setServiceText(const PreparedText &prepared) {
 void HistoryService::markMediaAsReadHook() {
 	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
 		if (!selfdestruct->destructAt) {
-			selfdestruct->destructAt = getms(true) + selfdestruct->timeToLive;
+			selfdestruct->destructAt = crl::now() + selfdestruct->timeToLive;
 			history()->owner().selfDestructIn(this, selfdestruct->timeToLive);
 		}
 	}
 }
 
-TimeMs HistoryService::getSelfDestructIn(TimeMs now) {
+crl::time HistoryService::getSelfDestructIn(crl::time now) {
 	if (auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
 		if (selfdestruct->destructAt > 0) {
 			if (selfdestruct->destructAt <= now) {

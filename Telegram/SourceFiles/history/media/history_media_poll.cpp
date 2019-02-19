@@ -483,7 +483,7 @@ void HistoryPoll::updateAnswerVotes() {
 	}
 }
 
-void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 
@@ -561,7 +561,7 @@ void HistoryPoll::resetAnswersAnimation() const {
 	}
 }
 
-void HistoryPoll::step_radial(TimeMs ms, bool timer) {
+void HistoryPoll::step_radial(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		history()->owner().requestViewRepaint(_parent);
 	}
@@ -576,7 +576,7 @@ int HistoryPoll::paintAnswer(
 		int width,
 		int outerWidth,
 		TextSelection selection,
-		TimeMs ms) const {
+		crl::time ms) const {
 	const auto height = countAnswerHeight(answer, width);
 	const auto outbg = _parent->hasOutLayout();
 	const auto aleft = left + st::historyPollAnswerPadding.left();

@@ -201,7 +201,7 @@ void AnimationManager::registerClip(not_null<Media::Clip::Manager*> clip) {
 
 void AnimationManager::step() {
 	_iterating = true;
-	const auto ms = getms();
+	const auto ms = crl::now();
 	for (const auto object : _objects) {
 		if (!_stopping.contains(object)) {
 			object->step(ms, true);

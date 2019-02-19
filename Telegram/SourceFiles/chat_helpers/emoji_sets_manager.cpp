@@ -119,12 +119,12 @@ private:
 	void setupPreview(const Set &set);
 	void setupAnimation();
 	void paintPreview(Painter &p) const;
-	void paintRadio(Painter &p, TimeMs ms);
-	void updateAnimation(TimeMs ms);
+	void paintRadio(Painter &p, crl::time ms);
+	void updateAnimation(crl::time ms);
 	void setupHandler();
 	void load();
 
-	void step_radial(TimeMs ms, bool timer);
+	void step_radial(crl::time ms, bool timer);
 
 	int _id = 0;
 	bool _switching = false;
@@ -355,7 +355,7 @@ void Row::paintEvent(QPaintEvent *e) {
 	const auto bg = over ? st::windowBgOver : st::windowBg;
 	p.fillRect(rect(), bg);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	paintRipple(p, 0, 0, ms);
 
 	paintPreview(p);
@@ -377,7 +377,7 @@ void Row::paintPreview(Painter &p) const {
 	}
 }
 
-void Row::paintRadio(Painter &p, TimeMs ms) {
+void Row::paintRadio(Painter &p, crl::time ms) {
 	updateAnimation(ms);
 
 	const auto loading = _loading
@@ -582,7 +582,7 @@ void Row::setupPreview(const Set &set) {
 	}
 }
 
-void Row::step_radial(TimeMs ms, bool timer) {
+void Row::step_radial(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		update();
 	}
@@ -625,7 +625,7 @@ void Row::setupAnimation() {
 	updateStatusColorOverride();
 }
 
-void Row::updateAnimation(TimeMs ms) {
+void Row::updateAnimation(crl::time ms) {
 	const auto state = _state.current();
 	if (const auto loading = base::get_if<Loading>(&state)) {
 		const auto progress = (loading->size > 0)
@@ -636,10 +636,10 @@ void Row::updateAnimation(TimeMs ms) {
 				animation(this, &Row::step_radial));
 			_loading->start(progress);
 		} else {
-			_loading->update(progress, false, getms());
+			_loading->update(progress, false, crl::now());
 		}
 	} else if (_loading) {
-		_loading->update(state.is<Failed>() ? 0. : 1., true, getms());
+		_loading->update(state.is<Failed>() ? 0. : 1., true, crl::now());
 	} else {
 		_loading = nullptr;
 	}

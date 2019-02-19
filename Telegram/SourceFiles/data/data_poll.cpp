@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kShortPollTimeout = 30 * TimeMs(1000);
+constexpr auto kShortPollTimeout = 30 * crl::time(1000);
 
 const PollAnswer *AnswerByOption(
 		const std::vector<PollAnswer> &list,
@@ -80,7 +80,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 
 bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
-		lastResultsUpdate = getms();
+		lastResultsUpdate = crl::now();
 
 		const auto newTotalVoters = results.has_total_voters()
 			? results.vtotal_voters.v
@@ -102,7 +102,7 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	});
 }
 
-void PollData::checkResultsReload(not_null<HistoryItem*> item, TimeMs now) {
+void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
 	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
 		return;
 	} else if (closed) {

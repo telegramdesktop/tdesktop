@@ -77,7 +77,7 @@ void Button::setColorOverride(std::optional<QColor> textColorOverride) {
 void Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto paintOver = (isOver() || isDown()) && !isDisabled();
 	p.fillRect(e->rect(), paintOver ? _st.textBgOver : _st.textBg);
 

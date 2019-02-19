@@ -72,7 +72,7 @@ public:
 	, _check(st, _updateCallback) {
 	}
 
-	void paint(Painter &p, TimeMs ms, QPoint position, int outerWidth, bool selected, bool selecting);
+	void paint(Painter &p, crl::time ms, QPoint position, int outerWidth, bool selected, bool selecting);
 
 	void setActive(bool active);
 	void setPressed(bool pressed);
@@ -93,7 +93,7 @@ private:
 
 };
 
-void Checkbox::paint(Painter &p, TimeMs ms, QPoint position, int outerWidth, bool selected, bool selecting) {
+void Checkbox::paint(Painter &p, crl::time ms, QPoint position, int outerWidth, bool selected, bool selecting) {
 	_check.setDisplayInactive(selecting);
 	_check.setChecked(selected);
 	const auto pression = _pression.current(ms, (_active && _pressed) ? 1. : 0.);
@@ -235,7 +235,7 @@ void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&sav
 	_cancell = std::move(cancell);
 }
 
-void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
+void RadialProgressItem::step_radial(crl::time ms, bool timer) {
 	const auto updateRadial = [&] {
 		return _radial->update(dataProgress(), dataFinished(), ms);
 	};
@@ -265,7 +265,7 @@ void RadialProgressItem::checkRadialFinished() {
 
 RadialProgressItem::~RadialProgressItem() = default;
 
-void StatusText::update(int newSize, int fullSize, int duration, TimeMs realDuration) {
+void StatusText::update(int newSize, int fullSize, int duration, crl::time realDuration) {
 	setSize(newSize);
 	if (_size == FileStatusSizeReady) {
 		_text = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));

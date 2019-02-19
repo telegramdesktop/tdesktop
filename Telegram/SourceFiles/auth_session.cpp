@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
+constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 } // namespace
@@ -470,7 +470,7 @@ void AuthSession::moveSettingsFrom(AuthSessionSettings &&other) {
 	}
 }
 
-void AuthSession::saveSettingsDelayed(TimeMs delay) {
+void AuthSession::saveSettingsDelayed(crl::time delay) {
 	Expects(this == &Auth());
 
 	_saveDataTimer.callOnce(delay);
@@ -483,7 +483,7 @@ void AuthSession::checkAutoLock() {
 	}
 
 	Core::App().checkLocalTime();
-	auto now = getms(true);
+	auto now = crl::now();
 	auto shouldLockInMs = Global::AutoLock() * 1000LL;
 	auto idleForMs = psIdleTime();
 	auto notPlayingVideoForMs = now - settings().lastTimeVideoPlayedAt();
@@ -496,7 +496,7 @@ void AuthSession::checkAutoLock() {
 	}
 }
 
-void AuthSession::checkAutoLockIn(TimeMs time) {
+void AuthSession::checkAutoLockIn(crl::time time) {
 	if (_autoLockTimer.isActive()) {
 		auto remain = _autoLockTimer.remainingTime();
 		if (remain > 0 && remain <= time) return;

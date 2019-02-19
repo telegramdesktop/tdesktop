@@ -20,7 +20,7 @@ public:
 	template <typename Lambda>
 	void start(bool slideLeft, Lambda &&updateCallback, float64 duration);
 
-	void paintFrame(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+	void paintFrame(Painter &p, int x, int y, int outerWidth, crl::time ms);
 
 	bool animating() const {
 		return _animation.animating();

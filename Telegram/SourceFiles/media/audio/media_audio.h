@@ -108,17 +108,23 @@ class Mixer : public QObject, private base::Subscriber {
 public:
 	explicit Mixer(not_null<Audio::Instance*> instance);
 
-	void play(const AudioMsgId &audio, TimeMs positionMs = 0);
-	void play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, TimeMs positionMs = 0);
+	void play(const AudioMsgId &audio, crl::time positionMs = 0);
+	void play(
+		const AudioMsgId &audio,
+		std::unique_ptr<VideoSoundData> videoData,
+		crl::time positionMs = 0);
 	void pause(const AudioMsgId &audio, bool fast = false);
 	void resume(const AudioMsgId &audio, bool fast = false);
-	void seek(AudioMsgId::Type type, TimeMs positionMs); // type == AudioMsgId::Type::Song
+	void seek(AudioMsgId::Type type, crl::time positionMs); // type == AudioMsgId::Type::Song
 	void stop(const AudioMsgId &audio);
 	void stop(const AudioMsgId &audio, State state);
 
 	// Video player audio stream interface.
 	void feedFromVideo(VideoSoundPart &&part);
-	int64 getVideoCorrectedTime(const AudioMsgId &id, TimeMs frameMs, TimeMs systemMs);
+	int64 getVideoCorrectedTime(
+		const AudioMsgId &id,
+		crl::time frameMs,
+		crl::time systemMs);
 
 	void stopAndClear();
 
@@ -211,8 +217,8 @@ private:
 		Stream stream;
 		std::unique_ptr<VideoSoundData> videoData;
 
-		TimeMs lastUpdateWhen = 0;
-		TimeMs lastUpdateCorrectedMs = 0;
+		crl::time lastUpdateWhen = 0;
+		crl::time lastUpdateCorrectedMs = 0;
 
 	private:
 		void createStream(AudioMsgId::Type type);
@@ -299,9 +305,9 @@ private:
 	bool _suppressSongAnim = false;
 	anim::value _suppressVolumeAll;
 	anim::value _suppressVolumeSong;
-	TimeMs _suppressAllStart = 0;
-	TimeMs _suppressAllEnd = 0;
-	TimeMs _suppressSongStart = 0;
+	crl::time _suppressAllStart = 0;
+	crl::time _suppressAllEnd = 0;
+	crl::time _suppressSongStart = 0;
 
 };
 

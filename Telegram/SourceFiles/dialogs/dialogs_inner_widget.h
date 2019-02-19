@@ -236,12 +236,12 @@ private:
 		bool active,
 		bool selected,
 		bool onlyBackground,
-		TimeMs ms) const;
+		crl::time ms) const;
 	void paintSearchInChat(
 		Painter &p,
 		int fullWidth,
 		bool onlyBackground,
-		TimeMs ms) const;
+		crl::time ms) const;
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
@@ -283,7 +283,7 @@ private:
 	void stopReorderPinned();
 	int countPinnedIndex(Dialogs::Row *ofRow);
 	void savePinnedOrder();
-	void step_pinnedShifting(TimeMs ms, bool timer);
+	void step_pinnedShifting(crl::time ms, bool timer);
 	void handleChatMigration(not_null<ChatData*> chat);
 
 	not_null<Window::Controller*> _controller;
@@ -310,7 +310,7 @@ private:
 	QPoint _dragStart;
 	struct PinnedRow {
 		anim::value yadd;
-		TimeMs animStartTime = 0;
+		crl::time animStartTime = 0;
 	};
 	std::vector<PinnedRow> _pinnedRows;
 	BasicAnimation _a_pinnedShifting;

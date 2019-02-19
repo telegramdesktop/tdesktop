@@ -217,7 +217,7 @@ private:
 	QPixmap _buttonsCache;
 
 #ifdef Q_OS_WIN
-	TimeMs _started;
+	crl::time _started;
 #endif // Q_OS_WIN
 
 	History *_history;

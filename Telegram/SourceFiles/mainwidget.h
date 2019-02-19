@@ -166,7 +166,7 @@ public:
 	bool doWeReadServerHistory() const;
 	bool doWeReadMentions() const;
 	bool lastWasOnline() const;
-	TimeMs lastSetOnline() const;
+	crl::time lastSetOnline() const;
 
 	void saveDraftToCloud();
 	void applyCloudDraft(History *history);
@@ -214,7 +214,7 @@ public:
 	Dialogs::IndexedList *contactsNoDialogsList();
 
 	// While HistoryInner is not HistoryView::ListWidget.
-	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
+	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 	bool historyInSelectionMode() const;
 
 	MsgId currentReplyToIdFor(not_null<History*> history) const;
@@ -325,7 +325,7 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
-	using ChannelGetDifferenceTime = QMap<ChannelData*, TimeMs>;
+	using ChannelGetDifferenceTime = QMap<ChannelData*, crl::time>;
 	enum class ChannelDifferenceRequest {
 		Unknown,
 		PtsGapOrShortPoll,
@@ -444,7 +444,7 @@ private:
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
 	void floatPlayerClosed(FullMsgId itemId);
 
-	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
+	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, crl::time &curTime);
 
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
@@ -520,8 +520,8 @@ private:
 	PtsWaiter _ptsWaiter;
 
 	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;
-	TimeMs _getDifferenceTimeByPts = 0;
-	TimeMs _getDifferenceTimeAfterFail = 0;
+	crl::time _getDifferenceTimeByPts = 0;
+	crl::time _getDifferenceTimeAfterFail = 0;
 
 	base::Timer _byPtsTimer;
 
@@ -534,14 +534,14 @@ private:
 	base::Timer _onlineTimer;
 	base::Timer _idleFinishTimer;
 	bool _lastWasOnline = false;
-	TimeMs _lastSetOnline = 0;
+	crl::time _lastSetOnline = 0;
 	bool _isIdle = false;
 
 	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
 	QMap<ChannelData*, int32> _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
 	base::Timer _failDifferenceTimer;
 
-	TimeMs _lastUpdateTime = 0;
+	crl::time _lastUpdateTime = 0;
 	bool _handlingChannelDifference = false;
 
 	QPixmap _cachedBackground;

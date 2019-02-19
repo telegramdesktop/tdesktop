@@ -295,8 +295,8 @@ void Call::setMute(bool mute) {
 	_muteChanged.notify(_mute);
 }
 
-TimeMs Call::getDurationMs() const {
-	return _startTime ? (getms(true) - _startTime) : 0;
+crl::time Call::getDurationMs() const {
+	return _startTime ? (crl::now() - _startTime) : 0;
 }
 
 void Call::hangup() {
@@ -341,7 +341,7 @@ void Call::startWaitingTrack() {
 
 float64 Call::getWaitingSoundPeakValue() const {
 	if (_waitingTrack) {
-		auto when = getms() + kSoundSampleMs / 4;
+		auto when = crl::now() + kSoundSampleMs / 4;
 		return _waitingTrack->getPeakValue(when);
 	}
 	return 0.;
@@ -740,7 +740,7 @@ void Call::setState(State state) {
 		}
 		switch (_state) {
 		case State::Established:
-			_startTime = getms(true);
+			_startTime = crl::now();
 			break;
 		case State::ExchangingKeys:
 			_delegate->playSound(Delegate::Sound::Connecting);

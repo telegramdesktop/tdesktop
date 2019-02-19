@@ -24,7 +24,7 @@ ResolvingConnection::ResolvingConnection(
 , _instance(instance)
 , _timeoutTimer([=] { handleError(kErrorCodeOther); }) {
 	setChild(std::move(child));
-	if (proxy.resolvedExpireAt < getms(true)) {
+	if (proxy.resolvedExpireAt < crl::now()) {
 		const auto host = proxy.host;
 		connect(
 			instance,
@@ -179,13 +179,13 @@ void ResolvingConnection::handleConnected() {
 	emit connected();
 }
 
-TimeMs ResolvingConnection::pingTime() const {
+crl::time ResolvingConnection::pingTime() const {
 	Expects(_child != nullptr);
 
 	return _child->pingTime();
 }
 
-TimeMs ResolvingConnection::fullConnectTimeout() const {
+crl::time ResolvingConnection::fullConnectTimeout() const {
 	return kOneConnectionTimeout * qMax(int(_proxy.resolvedIPs.size()), 1);
 }
 

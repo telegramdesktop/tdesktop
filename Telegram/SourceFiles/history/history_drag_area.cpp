@@ -69,7 +69,7 @@ void DragArea::setText(const QString &text, const QString &subtext) {
 void DragArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.);
 	if (!_a_opacity.animating() && _hiding) {
 		return;

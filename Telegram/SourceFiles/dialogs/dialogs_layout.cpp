@@ -174,7 +174,7 @@ void paintRow(
 		QDateTime date,
 		int fullWidth,
 		base::flags<Flag> flags,
-		TimeMs ms,
+		crl::time ms,
 		PaintItemCallback &&paintItemCallback,
 		PaintCounterCallback &&paintCounterCallback) {
 	const auto supportMode = Auth().supportMode();
@@ -530,7 +530,7 @@ void RowPainter::paint(
 		bool active,
 		bool selected,
 		bool onlyBackground,
-		TimeMs ms) {
+		crl::time ms) {
 	const auto entry = row->entry();
 	const auto history = row->history();
 	const auto peer = history ? history->peer.get() : nullptr;
@@ -669,7 +669,7 @@ void RowPainter::paint(
 		bool active,
 		bool selected,
 		bool onlyBackground,
-		TimeMs ms,
+		crl::time ms,
 		bool displayUnreadInfo) {
 	auto item = row->item();
 	auto history = item->history();

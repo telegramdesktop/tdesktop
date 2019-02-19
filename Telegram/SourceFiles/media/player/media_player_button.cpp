@@ -21,7 +21,7 @@ void PlayButtonLayout::setState(State state) {
 	if (_nextState == state) return;
 
 	_nextState = state;
-	if (!_transformProgress.animating(getms())) {
+	if (!_transformProgress.animating(crl::now())) {
 		_oldState = _state;
 		_state = _nextState;
 		_transformBackward = false;
@@ -43,7 +43,7 @@ void PlayButtonLayout::finishTransform() {
 }
 
 void PlayButtonLayout::paint(Painter &p, const QBrush &brush) {
-	if (_transformProgress.animating(getms())) {
+	if (_transformProgress.animating(crl::now())) {
 		auto from = _oldState, to = _state;
 		auto backward = _transformBackward;
 		auto progress = _transformProgress.current(1.);

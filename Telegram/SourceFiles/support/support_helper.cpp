@@ -33,7 +33,7 @@ namespace Support {
 namespace {
 
 constexpr auto kOccupyFor = TimeId(60);
-constexpr auto kReoccupyEach = 30 * TimeMs(1000);
+constexpr auto kReoccupyEach = 30 * crl::time(1000);
 constexpr auto kMaxSupportInfoLength = MaxMessageSize * 4;
 
 class EditInfoBox : public BoxContent {
@@ -341,7 +341,7 @@ void Helper::checkOccupiedChats() {
 				Notify::PeerUpdate::Flag::UserOccupiedChanged);
 		} else {
 			_checkOccupiedTimer.callOnce(
-				(nearest->second - now) * TimeMs(1000));
+				(nearest->second - now) * crl::time(1000));
 			return;
 		}
 	}

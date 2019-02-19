@@ -170,7 +170,7 @@ void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 }
 
 void PwdCheckWidget::handleSrpIdInvalid() {
-	const auto now = getms(true);
+	const auto now = crl::now();
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
 		_request.id = 0;

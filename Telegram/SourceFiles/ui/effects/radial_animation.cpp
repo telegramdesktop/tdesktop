@@ -17,13 +17,13 @@ RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
 }
 
 void RadialAnimation::start(float64 prg) {
-	_firstStart = _lastStart = _lastTime = getms();
+	_firstStart = _lastStart = _lastTime = crl::now();
 	int32 iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength), iprgstrict = qRound(prg * AlmostFullArcLength);
 	a_arcEnd = anim::value(iprgstrict, iprg);
 	_animation.start();
 }
 
-bool RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
+bool RadialAnimation::update(float64 prg, bool finished, crl::time ms) {
 	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
 	const auto result = (iprg != qRound(a_arcEnd.to()));
 	if (_finished != finished) {
@@ -68,7 +68,7 @@ void RadialAnimation::stop() {
 	_animation.stop();
 }
 
-void RadialAnimation::step(TimeMs ms) {
+void RadialAnimation::step(crl::time ms) {
 	_animation.step(ms);
 }
 
@@ -116,10 +116,10 @@ InfiniteRadialAnimation::InfiniteRadialAnimation(
 , _animation(std::move(callbacks)) {
 }
 
-void InfiniteRadialAnimation::start(TimeMs skip) {
-	const auto now = getms();
+void InfiniteRadialAnimation::start(crl::time skip) {
+	const auto now = crl::now();
 	if (_workFinished <= now && (_workFinished || !_workStarted)) {
-		_workStarted = std::max(now + _st.sineDuration - skip, TimeMs(1));
+		_workStarted = std::max(now + _st.sineDuration - skip, crl::time(1));
 		_workFinished = 0;
 	}
 	if (!_animation.animating()) {
@@ -128,7 +128,7 @@ void InfiniteRadialAnimation::start(TimeMs skip) {
 }
 
 void InfiniteRadialAnimation::stop() {
-	const auto now = getms();
+	const auto now = crl::now();
 	if (anim::Disabled()) {
 		_workFinished = now;
 	}
@@ -145,7 +145,7 @@ void InfiniteRadialAnimation::stop() {
 	}
 }
 
-void InfiniteRadialAnimation::step(TimeMs ms) {
+void InfiniteRadialAnimation::step(crl::time ms) {
 	_animation.step(ms);
 }
 
@@ -196,7 +196,7 @@ void InfiniteRadialAnimation::draw(
 }
 
 RadialState InfiniteRadialAnimation::computeState() {
-	const auto now = getms();
+	const auto now = crl::now();
 	const auto linear = int(((now * FullArcLength) / _st.linearPeriod)
 		% FullArcLength);
 	if (!_workStarted || (_workFinished && _workFinished <= now)) {
@@ -294,14 +294,14 @@ RadialState InfiniteRadialAnimation::computeState() {
 	//const auto frontCurrent = time % st.sinePeriod;
 	//const auto frontProgress = anim::sineInOut(
 	//	st.arcMax - st.arcMin,
-	//	std::min(frontCurrent, TimeMs(st.sineDuration))
+	//	std::min(frontCurrent, crl::time(st.sineDuration))
 	//	/ float64(st.sineDuration));
 	//const auto backTime = std::max(time - st.sineShift, 0LL);
 	//const auto backPeriods = backTime / st.sinePeriod;
 	//const auto backCurrent = backTime % st.sinePeriod;
 	//const auto backProgress = anim::sineInOut(
 	//	st.arcMax - st.arcMin,
-	//	std::min(backCurrent, TimeMs(st.sineDuration))
+	//	std::min(backCurrent, crl::time(st.sineDuration))
 	//	/ float64(st.sineDuration));
 	//const auto front = linear + std::round((st.arcMin + frontProgress + frontPeriods * (st.arcMax - st.arcMin)) * FullArcLength);
 	//const auto from = linear + std::round((backProgress + backPeriods * (st.arcMax - st.arcMin)) * FullArcLength);

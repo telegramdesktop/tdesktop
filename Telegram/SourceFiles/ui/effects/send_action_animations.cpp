@@ -196,7 +196,7 @@ void SendActionAnimation::Impl::paint(
 		int x,
 		int y,
 		int outerWidth,
-		TimeMs ms) {
+		crl::time ms) {
 	paintFrame(
 		p,
 		color,

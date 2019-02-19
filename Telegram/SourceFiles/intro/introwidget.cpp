@@ -513,7 +513,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	setMouseTracking(true);
 
 	if (_coverShownAnimation.animating()) {
-		_coverShownAnimation.step(getms());
+		_coverShownAnimation.step(crl::now());
 	}
 
 	QPainter p(this);
@@ -521,7 +521,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 	p.fillRect(e->rect(), st::windowBg);
-	auto progress = _a_show.current(getms(), 1.);
+	auto progress = _a_show.current(crl::now(), 1.);
 	if (_a_show.animating()) {
 		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
 		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
@@ -709,7 +709,7 @@ void Widget::Step::showFinished() {
 
 bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 	if (_slideAnimation) {
-		_slideAnimation->paintFrame(p, (width() - st::introStepWidth) / 2, contentTop(), width(), getms());
+		_slideAnimation->paintFrame(p, (width() - st::introStepWidth) / 2, contentTop(), width(), crl::now());
 		if (!_slideAnimation->animating()) {
 			showFinished();
 			return false;
@@ -717,7 +717,7 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 		return true;
 	}
 
-	auto dt = _a_show.current(getms(), 1.);
+	auto dt = _a_show.current(crl::now(), 1.);
 	if (!_a_show.animating()) {
 		if (hasCover()) {
 			paintCover(p, 0);

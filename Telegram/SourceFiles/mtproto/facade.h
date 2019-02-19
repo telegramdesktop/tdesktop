@@ -170,7 +170,7 @@ inline mtpRequestId send(
 		const TRequest &request,
 		RPCResponseHandler &&callbacks = {},
 		ShiftedDcId dcId = 0,
-		TimeMs msCanWait = 0,
+		crl::time msCanWait = 0,
 		mtpRequestId after = 0) {
 	return MainInstance()->send(request, std::move(callbacks), dcId, msCanWait, after);
 }
@@ -181,12 +181,12 @@ inline mtpRequestId send(
 		RPCDoneHandlerPtr &&onDone,
 		RPCFailHandlerPtr &&onFail = nullptr,
 		ShiftedDcId dcId = 0,
-		TimeMs msCanWait = 0,
+		crl::time msCanWait = 0,
 		mtpRequestId after = 0) {
 	return MainInstance()->send(request, std::move(onDone), std::move(onFail), dcId, msCanWait, after);
 }
 
-inline void sendAnything(ShiftedDcId shiftedDcId = 0, TimeMs msCanWait = 0) {
+inline void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0) {
 	if (const auto instance = MainInstance()) {
 		instance->sendAnything(shiftedDcId, msCanWait);
 	}

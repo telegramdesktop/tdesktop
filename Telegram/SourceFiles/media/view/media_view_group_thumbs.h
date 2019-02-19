@@ -57,7 +57,7 @@ public:
 	bool hidden() const;
 	void checkForAnimationStart();
 
-	void paint(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+	void paint(Painter &p, int x, int y, int outerWidth, crl::time ms);
 	ClickHandlerPtr getState(QPoint point) const;
 
 	rpl::producer<QRect> updateRequests() const {

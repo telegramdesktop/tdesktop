@@ -31,7 +31,7 @@ namespace {
 using ListWidget = Info::Media::ListWidget;
 
 constexpr auto kPlaylistIdsLimit = 32;
-constexpr auto kDelayedHideTimeout = TimeMs(3000);
+constexpr auto kDelayedHideTimeout = crl::time(3000);
 
 } // namespace
 
@@ -156,7 +156,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_cache.isNull()) {
-		bool animating = _a_appearance.animating(getms());
+		bool animating = _a_appearance.animating(crl::now());
 		if (animating) {
 			p.setOpacity(_a_appearance.current(_hiding ? 0. : 1.));
 		} else if (_hiding || isHidden()) {
@@ -186,7 +186,7 @@ void Panel::enterEventHook(QEvent *e) {
 	if (_ignoringEnterEvents || contentTooSmall()) return;
 
 	_hideTimer.cancel();
-	if (_a_appearance.animating(getms())) {
+	if (_a_appearance.animating(crl::now())) {
 		startShow();
 	} else {
 		_showTimer.callOnce(0);
@@ -199,7 +199,7 @@ void Panel::leaveEventHook(QEvent *e) {
 		return;
 	}
 	_showTimer.cancel();
-	if (_a_appearance.animating(getms())) {
+	if (_a_appearance.animating(crl::now())) {
 		startHide();
 	} else {
 		_hideTimer.callOnce(300);
@@ -209,7 +209,7 @@ void Panel::leaveEventHook(QEvent *e) {
 
 void Panel::showFromOther() {
 	_hideTimer.cancel();
-	if (_a_appearance.animating(getms())) {
+	if (_a_appearance.animating(crl::now())) {
 		startShow();
 	} else {
 		_showTimer.callOnce(300);
@@ -218,7 +218,7 @@ void Panel::showFromOther() {
 
 void Panel::hideFromOther() {
 	_showTimer.cancel();
-	if (_a_appearance.animating(getms())) {
+	if (_a_appearance.animating(crl::now())) {
 		startHide();
 	} else {
 		_hideTimer.callOnce(0);

@@ -20,7 +20,7 @@ public:
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
-		TimeMs ms) const override;
+		crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	DocumentData *getDocument() const override {

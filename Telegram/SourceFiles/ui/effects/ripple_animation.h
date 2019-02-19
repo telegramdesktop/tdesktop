@@ -23,7 +23,7 @@ public:
 	void lastFinish();
 	void forceRepaint();
 
-	void paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride = nullptr);
+	void paint(QPainter &p, int x, int y, int outerWidth, crl::time ms, const QColor *colorOverride = nullptr);
 
 	bool empty() const {
 		return _ripples.empty();

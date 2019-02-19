@@ -42,7 +42,7 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_cache.isNull()) {
-		if (!_animation.animating(getms())) {
+		if (!_animation.animating(crl::now())) {
 			if (isHidden()) {
 				return;
 			}
@@ -52,7 +52,7 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 		if (!_animation.animating()) {
 			_cache = QPixmap();
 			showChildren();
-			_started = getms(true);
+			_started = crl::now();
 			_timer.callOnce(100);
 		}
 		return;
@@ -88,7 +88,7 @@ void WarningWidget::refreshLang() {
 }
 
 void WarningWidget::handleTimer() {
-	auto msPassed = getms(true) - _started;
+	auto msPassed = crl::now() - _started;
 	setSecondsLeft((kWaitBeforeRevertMs - msPassed) / 1000);
 }
 

@@ -119,7 +119,7 @@ private:
 	void preloadPhotos();
 	int rowWidth() const;
 
-	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove, TimeMs ms);
+	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove, crl::time ms);
 
 	const style::PeerListItem &_st;
 

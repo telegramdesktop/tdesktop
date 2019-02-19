@@ -69,7 +69,7 @@ public:
 	DomainResolver(Fn<void(
 		const QString &domain,
 		const QStringList &ips,
-		TimeMs expireAt)> callback);
+		crl::time expireAt)> callback);
 
 	void resolve(const QString &domain);
 
@@ -89,7 +89,7 @@ private:
 	};
 	struct CacheEntry {
 		QStringList ips;
-		TimeMs expireAt = 0;
+		crl::time expireAt = 0;
 
 	};
 
@@ -107,13 +107,13 @@ private:
 	Fn<void(
 		const QString &domain,
 		const QStringList &ips,
-		TimeMs expireAt)> _callback;
+		crl::time expireAt)> _callback;
 
 	QNetworkAccessManager _manager;
 	std::map<AttemptKey, std::vector<QString>> _attempts;
 	std::map<AttemptKey, std::vector<ServiceWebRequest>> _requests;
 	std::map<AttemptKey, CacheEntry> _cache;
-	TimeMs _lastTimestamp = 0;
+	crl::time _lastTimestamp = 0;
 
 };
 

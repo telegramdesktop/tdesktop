@@ -187,7 +187,7 @@ public:
 		_updateCallback = updateCallback;
 	}
 	void setText(const QString &text);
-	void paint(Painter &p, int outerWidth, TimeMs ms);
+	void paint(Painter &p, int outerWidth, crl::time ms);
 
 	void mouseMoveEvent(QPoint point);
 	void leaveEvent();
@@ -205,7 +205,7 @@ public:
 
 private:
 	void setOver(bool over);
-	void paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+	void paintOnce(Painter &p, int x, int y, int outerWidth, crl::time ms);
 	void paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity);
 	bool paintCached(Painter &p, int x, int y, int outerWidth);
 	void prepareCache();

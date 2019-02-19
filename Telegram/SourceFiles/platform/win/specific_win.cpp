@@ -130,12 +130,12 @@ namespace {
 
 namespace {
 
-TimeMs _lastUserAction = 0;
+crl::time _lastUserAction = 0;
 
 } // namespace
 
 void psUserActionDone() {
-	_lastUserAction = getms(true);
+	_lastUserAction = crl::now();
 	EventFilter::getInstance()->setSessionLoggedOff(false);
 }
 
@@ -145,10 +145,10 @@ bool psIdleSupported() {
 	return GetLastInputInfo(&lii);
 }
 
-TimeMs psIdleTime() {
+crl::time psIdleTime() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
-	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (getms(true) - _lastUserAction);
+	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (crl::now() - _lastUserAction);
 }
 
 QStringList psInitLogs() {
@@ -201,12 +201,12 @@ void psDoCleanup() {
 namespace {
 
 QRect _monitorRect;
-TimeMs _monitorLastGot = 0;
+crl::time _monitorLastGot = 0;
 
 } // namespace
 
 QRect psDesktopRect() {
-	auto tnow = getms();
+	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		HMONITOR hMonitor = MonitorFromWindow(App::wnd()->psHwnd(), MONITOR_DEFAULTTONEAREST);

@@ -68,7 +68,7 @@ struct Settings {
 	size_type maxBundledRecords = 16 * 1024;
 	size_type readBlockSize = 8 * 1024 * 1024;
 	size_type maxDataSize = (kDataSizeLimit - 1);
-	crl::time_type writeBundleDelay = 15 * 60 * crl::time_type(1000);
+	crl::time writeBundleDelay = 15 * 60 * crl::time(1000);
 	size_type staleRemoveChunk = 256;
 
 	int64 compactAfterExcess = 8 * 1024 * 1024;
@@ -78,8 +78,8 @@ struct Settings {
 	bool trackEstimatedTime = true;
 	int64 totalSizeLimit = 1024 * 1024 * 1024;
 	size_type totalTimeLimit = 31 * 24 * 60 * 60; // One month in seconds.
-	crl::time_type pruneTimeout = 5 * crl::time_type(1000);
-	crl::time_type maxPruneCheckTimeout = 3600 * crl::time_type(1000);
+	crl::time pruneTimeout = 5 * crl::time(1000);
+	crl::time maxPruneCheckTimeout = 3600 * crl::time(1000);
 
 	bool clearOnWrongKey = false;
 };

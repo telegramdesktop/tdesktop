@@ -28,7 +28,7 @@ CachedUserpics::CachedUserpics(Type type)
 }
 
 QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	auto i = _images.find(key);
 	if (i != _images.cend()) {
 		if (i->until) {
@@ -59,8 +59,8 @@ QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
 	return i->path;
 }
 
-TimeMs CachedUserpics::clear(TimeMs ms) {
-	TimeMs result = 0;
+crl::time CachedUserpics::clear(crl::time ms) {
+	crl::time result = 0;
 	for (auto i = _images.begin(); i != _images.end();) {
 		if (!i->until) {
 			++i;
@@ -92,7 +92,7 @@ void CachedUserpics::clearInMs(int ms) {
 }
 
 void CachedUserpics::onClear() {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	auto minuntil = clear(ms);
 	if (minuntil) {
 		clearInMs(int(minuntil - ms));
@@ -101,7 +101,7 @@ void CachedUserpics::onClear() {
 
 CachedUserpics::~CachedUserpics() {
 	if (_someSavedFlag) {
-		TimeMs result = 0;
+		crl::time result = 0;
 		for_const (auto &item, _images) {
 			QFile(item.path).remove();
 		}

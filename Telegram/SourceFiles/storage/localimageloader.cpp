@@ -299,7 +299,7 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 		0);
 }
 
-TaskQueue::TaskQueue(TimeMs stopTimeoutMs) {
+TaskQueue::TaskQueue(crl::time stopTimeoutMs) {
 	if (stopTimeoutMs > 0) {
 		_stopTimer = new QTimer(this);
 		connect(_stopTimer, SIGNAL(timeout()), this, SLOT(stop()));

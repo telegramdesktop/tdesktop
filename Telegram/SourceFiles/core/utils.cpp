@@ -8,8 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/utils.h"
 
 #include "base/qthelp_url.h"
-#include "base/timer.h"
-#include "base/concurrent_timer.h"
 #include "platform/platform_specific.h"
 
 extern "C" {
@@ -226,7 +224,7 @@ namespace {
 
 			timespec ts;
 			clock_gettime(CLOCK_MONOTONIC, &ts);
-			const auto seed = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
+			const auto seed = 1000LL * static_cast<crl::time>(ts.tv_sec) + (static_cast<crl::time>(ts.tv_nsec) / 1000000LL);
 #endif
 			srand((uint32)(seed & 0xFFFFFFFFL));
 		}
@@ -429,19 +427,6 @@ namespace ThirdParty {
 
 		Platform::ThirdParty::finish();
 	}
-}
-
-bool checkms() {
-	if (crl::adjust_time()) {
-		base::Timer::Adjust();
-		base::ConcurrentTimerEnvironment::Adjust();
-		return true;
-	}
-	return false;
-}
-
-TimeMs getms(bool checked) {
-	return crl::time();
 }
 
 uint64 msgid() {

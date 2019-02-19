@@ -137,7 +137,7 @@ public:
 	using SavedState = SearchController::SavedState;
 
 	void setQuery(const Query &query);
-	void setQuery(const Query &query, TimeMs delay);
+	void setQuery(const Query &query, crl::time delay);
 	void setQueryFast(const Query &query);
 
 	Query currentQuery() const {

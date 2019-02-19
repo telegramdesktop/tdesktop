@@ -396,7 +396,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//	updateListSize();
 	//}
 
-	//auto ms = getms();
+	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
 	SectionWidget::PaintBackground(this, e);

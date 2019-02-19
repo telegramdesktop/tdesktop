@@ -179,7 +179,7 @@ int SuggestionsWidget::countWidth(const Row &row) {
 void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto clip = e->rect();
 
 	auto topskip = QRect(0, 0, width(), _st->skip);

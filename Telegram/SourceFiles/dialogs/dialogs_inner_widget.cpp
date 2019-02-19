@@ -253,7 +253,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 	}
 	const auto activeEntry = _controller->activeChatEntryCurrent();
 	auto fullWidth = getFullWidth();
-	auto ms = getms();
+	auto ms = crl::now();
 	if (_state == State::Default) {
 		if (_a_pinnedShifting.animating()) {
 			_a_pinnedShifting.step(ms, false);
@@ -552,7 +552,7 @@ void DialogsInner::paintPeerSearchResult(
 		bool active,
 		bool selected,
 		bool onlyBackground,
-		TimeMs ms) const {
+		crl::time ms) const {
 	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	if (!active) {
@@ -608,7 +608,7 @@ void DialogsInner::paintSearchInChat(
 		Painter &p,
 		int fullWidth,
 		bool onlyBackground,
-		TimeMs ms) const {
+		crl::time ms) const {
 	auto height = searchInChatSkip();
 
 	auto top = st::searchedBarHeight;
@@ -900,7 +900,7 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 			} else {
 				_pinnedOrder = Auth().data().pinnedDialogsOrder();
 				_pinnedRows[_draggingIndex].yadd = anim::value(0, localPosition.y() - _dragStart.y());
-				_pinnedRows[_draggingIndex].animStartTime = getms();
+				_pinnedRows[_draggingIndex].animStartTime = crl::now();
 				_a_pinnedShifting.start();
 			}
 		}
@@ -1007,7 +1007,7 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 
 	auto yaddWas = _pinnedRows[_draggingIndex].yadd.current();
 	auto shift = 0;
-	auto ms = getms();
+	auto ms = crl::now();
 	auto rowHeight = st::dialogsRowHeight;
 	if (_dragStart.y() > localPosition.y() && _draggingIndex > 0) {
 		shift = -floorclamp(_dragStart.y() - localPosition.y() + (rowHeight / 2), rowHeight, 0, _draggingIndex);
@@ -1054,7 +1054,7 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 	return true;
 }
 
-void DialogsInner::step_pinnedShifting(TimeMs ms, bool timer) {
+void DialogsInner::step_pinnedShifting(crl::time ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::stickersRowDuration;
 	}
@@ -1119,7 +1119,7 @@ void DialogsInner::mousePressReleased(
 		updateReorderIndexGetCount();
 		if (_draggingIndex >= 0) {
 			_pinnedRows[_draggingIndex].yadd.start(0.);
-			_pinnedRows[_draggingIndex].animStartTime = getms();
+			_pinnedRows[_draggingIndex].animStartTime = crl::now();
 			if (!_a_pinnedShifting.animating()) {
 				_a_pinnedShifting.start();
 			}

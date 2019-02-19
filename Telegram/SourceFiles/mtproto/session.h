@@ -345,7 +345,7 @@ public:
 	// Nulls msgId and seqNo in request, if newRequest = true.
 	void sendPrepared(
 		const SecureRequest &request,
-		TimeMs msCanWait = 0,
+		crl::time msCanWait = 0,
 		bool newRequest = true);
 
 	~Session();
@@ -391,8 +391,8 @@ private:
 	ShiftedDcId dcWithShift = 0;
 	std::shared_ptr<Dcenter> dc;
 
-	TimeMs msSendCall = 0;
-	TimeMs msWait = 0;
+	crl::time msSendCall = 0;
+	crl::time msWait = 0;
 
 	bool _ping = false;
 

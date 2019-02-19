@@ -196,7 +196,7 @@ TextSelection HistoryGame::fromDescriptionSelection(
 	return HistoryView::ShiftItemSelection(selection, _title);
 }
 
-void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width(), painth = height();
 

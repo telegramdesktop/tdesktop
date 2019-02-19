@@ -72,7 +72,7 @@ public:
 		Painter &p,
 		const QRect &r,
 		TextSelection selection,
-		TimeMs ms) const = 0;
+		crl::time ms) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const;
 	[[nodiscard]] virtual TextState textState(
 		QPoint point,
@@ -141,7 +141,7 @@ public:
 			Painter &p,
 			const QRect &clip,
 			TextSelection selection,
-			TimeMs ms,
+			crl::time ms,
 			const QRect &geometry,
 			RectParts corners,
 			not_null<uint64*> cacheKey,

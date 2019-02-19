@@ -323,7 +323,7 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 void MainWindow::psUpdateIndicator() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	_psUpdateIndicatorTimer.stop();
-	_psLastIndicatorUpdate = getms();
+	_psLastIndicatorUpdate = crl::now();
 	QFileInfo iconFile(_trayIconImageFile());
 	if (iconFile.exists()) {
 		QByteArray path = QFile::encodeName(iconFile.absoluteFilePath()), name = QFile::encodeName(iconFile.fileName());
@@ -363,7 +363,7 @@ void MainWindow::updateIconCounters() {
 	if (noQtTrayIcon) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 		if (useAppIndicator) {
-			if (getms() > _psLastIndicatorUpdate + 1000) {
+			if (crl::now() > _psLastIndicatorUpdate + 1000) {
 				psUpdateIndicator();
 			} else if (!_psUpdateIndicatorTimer.isActive()) {
 				_psUpdateIndicatorTimer.start(100);

@@ -156,7 +156,7 @@ void FilledSlider::paintEvent(QPaintEvent *e) {
 	p.setPen(Qt::NoPen);
 
 	auto masterOpacity = fadeOpacity();
-	auto ms = getms();
+	auto ms = crl::now();
 	auto disabled = isDisabled();
 	auto over = getCurrentOverFactor(ms);
 	auto lineWidth = _st.lineWidth + ((_st.fullWidth - _st.lineWidth) * over);
@@ -212,7 +212,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	p.setOpacity(fadeOpacity());
 
 	auto horizontal = isHorizontal();
-	auto ms = getms();
+	auto ms = crl::now();
 	auto radius = _st.width / 2;
 	auto disabled = isDisabled();
 	auto over = getCurrentOverFactor(ms);

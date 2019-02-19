@@ -73,7 +73,7 @@ public:
 
 	void toggleAnimated(bool visible);
 	void toggleFast(bool visible);
-	void hideAfter(TimeMs timeout);
+	void hideAfter(crl::time timeout);
 
 	void setHiddenCallback(Fn<void()> callback) {
 		_hiddenCallback = std::move(callback);

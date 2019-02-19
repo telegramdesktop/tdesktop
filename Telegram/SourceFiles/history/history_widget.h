@@ -185,7 +185,7 @@ public:
 	bool touchScroll(const QPoint &delta);
 
 	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
-	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
+	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 	bool inSelectionMode() const;
 
 	MessageIdsList getSelectedItems() const;
@@ -549,7 +549,7 @@ private:
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
 	void drawRestrictedWrite(Painter &p, const QString &error);
-	bool paintShowAnimationFrame(TimeMs ms);
+	bool paintShowAnimationFrame(crl::time ms);
 
 	void updateMouseTracking();
 
@@ -701,10 +701,10 @@ private:
 	int _addToScroll = 0;
 
 	int _lastScrollTop = 0; // gifs optimization
-	TimeMs _lastScrolled = 0;
+	crl::time _lastScrolled = 0;
 	QTimer _updateHistoryItems;
 
-	TimeMs _lastUserScrolled = 0;
+	crl::time _lastUserScrolled = 0;
 	bool _synteticScrollEvent = false;
 	Animation _scrollToAnimation;
 
@@ -806,12 +806,12 @@ private:
 	MsgId _highlightedMessageId = 0;
 	std::deque<MsgId> _highlightQueue;
 	base::Timer _highlightTimer;
-	TimeMs _highlightStart = 0;
+	crl::time _highlightStart = 0;
 
 	QMap<QPair<not_null<History*>, SendAction::Type>, mtpRequestId> _sendActionRequests;
 	base::Timer _sendActionStopTimer;
 
-	TimeMs _saveDraftStart = 0;
+	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 

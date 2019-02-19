@@ -34,7 +34,7 @@ public:
 	QSize actionSize() const override;
 	void paintAction(
 		Painter &p,
-		TimeMs ms,
+		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,

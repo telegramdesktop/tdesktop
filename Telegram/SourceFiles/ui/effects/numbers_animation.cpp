@@ -23,7 +23,7 @@ NumbersAnimation::NumbersAnimation(
 }
 
 void NumbersAnimation::setText(const QString &text, int value) {
-	if (_a_ready.animating(getms())) {
+	if (_a_ready.animating(crl::now())) {
 		_delayedText = text;
 		_delayedValue = value;
 	} else {
@@ -96,7 +96,7 @@ int NumbersAnimation::maxWidth() const {
 	return std::max(_fromWidth, _toWidth);
 }
 
-void NumbersAnimation::stepAnimation(TimeMs ms) {
+void NumbersAnimation::stepAnimation(crl::time ms) {
 	_a_ready.step(ms);
 }
 
@@ -212,7 +212,7 @@ void LabelWithNumbers::finishAnimating() {
 void LabelWithNumbers::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	const auto beforeWidth = _beforeWidthAnimation.current(ms, _beforeWidth);
 	_numbers.stepAnimation(ms);
 

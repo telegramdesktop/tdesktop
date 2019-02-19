@@ -44,10 +44,10 @@ namespace Local {
 namespace {
 
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
-constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
+constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 constexpr auto kProxyTypeShift = 1024;
-constexpr auto kWriteMapTimeout = TimeMs(1000);
+constexpr auto kWriteMapTimeout = crl::time(1000);
 constexpr auto kSavedBackgroundFormat = QImage::Format_ARGB32_Premultiplied;
 
 constexpr auto kWallPaperLegacySerializeTagId = int32(-111);
@@ -2211,7 +2211,7 @@ void _readMtpData() {
 }
 
 ReadMapState _readMap(const QByteArray &pass) {
-	auto ms = getms();
+	auto ms = crl::now();
 	QByteArray dataNameUtf8 = (cDataFile() + (cTestMode() ? qsl(":/test/") : QString())).toUtf8();
 	FileKey dataNameHash[2];
 	hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
@@ -2412,7 +2412,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 		std::move(selfSerialized),
 		_oldMapVersion);
 
-	LOG(("Map read time: %1").arg(getms() - ms));
+	LOG(("Map read time: %1").arg(crl::now() - ms));
 	if (_oldSettingsVersion < AppVersion) {
 		writeSettings();
 	}

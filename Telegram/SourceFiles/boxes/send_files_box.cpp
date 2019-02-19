@@ -37,8 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMinPreviewWidth = 20;
-constexpr auto kShrinkDuration = TimeMs(150);
-constexpr auto kDragDuration = TimeMs(200);
+constexpr auto kShrinkDuration = crl::time(150);
+constexpr auto kDragDuration = crl::time(200);
 
 class SingleMediaPreview : public Ui::RpWidget {
 public:
@@ -123,7 +123,7 @@ public:
 		int top,
 		float64 shrinkProgress,
 		float64 moveProgress,
-		TimeMs ms);
+		crl::time ms);
 	void paintPhoto(Painter &p, int left, int top, int outerWidth);
 	void paintFile(Painter &p, int left, int top, int outerWidth);
 
@@ -291,7 +291,7 @@ void AlbumThumb::paintInAlbum(
 		int top,
 		float64 shrinkProgress,
 		float64 moveProgress,
-		TimeMs ms) {
+		crl::time ms) {
 	const auto shrink = anim::interpolate(0, _shrinkSize, shrinkProgress);
 	_suggestedMoveAnimation.step(ms);
 	_lastShrinkValue = shrink;
@@ -723,7 +723,7 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 	if (_gifPreview && _gifPreview->started()) {
 		auto s = QSize(_previewWidth, _previewHeight);
 		auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
-		auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
+		auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
 		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
 	} else {
 		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
@@ -1187,7 +1187,7 @@ void SendFilesBox::AlbumPreview::paintEvent(QPaintEvent *e) {
 }
 
 void SendFilesBox::AlbumPreview::paintAlbum(Painter &p) const {
-	const auto ms = getms();
+	const auto ms = crl::now();
 	const auto shrink = _shrinkAnimation.current(
 		ms,
 		_draggedThumb ? 1. : 0.);

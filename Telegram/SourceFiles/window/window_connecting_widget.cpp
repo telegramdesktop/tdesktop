@@ -17,10 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-constexpr auto kIgnoreStartConnectingFor = TimeMs(3000);
-constexpr auto kConnectingStateDelay = TimeMs(1000);
-constexpr auto kRefreshTimeout = TimeMs(200);
-constexpr auto kMinimalWaitingStateDuration = TimeMs(4000);
+constexpr auto kIgnoreStartConnectingFor = crl::time(3000);
+constexpr auto kConnectingStateDelay = crl::time(1000);
+constexpr auto kRefreshTimeout = crl::time(200);
+constexpr auto kMinimalWaitingStateDuration = crl::time(4000);
 
 class Progress : public Ui::RpWidget {
 public:
@@ -30,7 +30,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void step(TimeMs ms, bool timer);
+	void step(crl::time ms, bool timer);
 
 	Ui::InfiniteRadialAnimation _animation;
 
@@ -58,7 +58,7 @@ void Progress::paintEvent(QPaintEvent *e) {
 		width());
 }
 
-void Progress::step(TimeMs ms, bool timer) {
+void Progress::step(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		update();
 	}
@@ -288,7 +288,7 @@ void ConnectionState::refreshState() {
 		return;
 	} else if (state.type == State::Type::Connecting
 		&& _state.type == State::Type::Connected) {
-		const auto now = getms();
+		const auto now = crl::now();
 		if (!_connectingStartedAt) {
 			_connectingStartedAt = now;
 			_refreshTimer.callOnce(kConnectingStateDelay);

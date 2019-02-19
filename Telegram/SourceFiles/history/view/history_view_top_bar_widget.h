@@ -84,9 +84,9 @@ private:
 	void updateConnectingState();
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
-	void step_connecting(TimeMs ms, bool timer);
+	void step_connecting(crl::time ms, bool timer);
 
-	void paintTopBar(Painter &p, TimeMs ms);
+	void paintTopBar(Painter &p, crl::time ms);
 	void paintStatus(
 		Painter &p,
 		int left,
@@ -98,12 +98,12 @@ private:
 		int left,
 		int top,
 		int outerWidth,
-		TimeMs ms);
+		crl::time ms);
 	QRect getMembersShowAreaGeometry() const;
 	void updateMembersShowArea();
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
-	void updateOnlineDisplayIn(TimeMs timeout);
+	void updateOnlineDisplayIn(crl::time timeout);
 
 	void infoClicked();
 	void backClicked();

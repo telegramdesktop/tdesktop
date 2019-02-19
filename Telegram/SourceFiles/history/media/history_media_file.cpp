@@ -67,7 +67,7 @@ void HistoryFileMedia::setStatusSize(int newSize, int fullSize, int duration, qi
 	}
 }
 
-void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
+void HistoryFileMedia::step_radial(crl::time ms, bool timer) {
 	const auto updateRadial = [&] {
 		return _animation->radial.update(
 			dataProgress(),

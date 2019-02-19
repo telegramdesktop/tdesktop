@@ -442,7 +442,7 @@ public:
 
 protected:
 	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
+	void paintAdditionalPlaceholder(Painter &p, crl::time ms) override;
 
 	void wheelEvent(QWheelEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -501,7 +501,7 @@ void EditColorBox::Field::correctValue(const QString &was, int wasCursor, QStrin
 	}
 }
 
-void EditColorBox::Field::paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
+void EditColorBox::Field::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 	auto inner = QRect(_st.textMargins.right(), _st.textMargins.top(), width() - 2 * _st.textMargins.right(), height() - _st.textMargins.top() - _st.textMargins.bottom());
@@ -565,7 +565,7 @@ public:
 
 protected:
 	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
+	void paintAdditionalPlaceholder(Painter &p, crl::time ms) override;
 
 };
 
@@ -606,7 +606,7 @@ void EditColorBox::ResultField::correctValue(const QString &was, int wasCursor, 
 	}
 }
 
-void EditColorBox::ResultField::paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
+void EditColorBox::ResultField::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 	p.drawText(QRect(_st.textMargins.right(), _st.textMargins.top(), width(), height() - _st.textMargins.top() - _st.textMargins.bottom()), "#", style::al_topleft);

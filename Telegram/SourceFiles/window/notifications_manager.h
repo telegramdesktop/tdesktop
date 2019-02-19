@@ -83,16 +83,16 @@ private:
 
 	AuthSession *_authSession = nullptr;
 
-	QMap<History*, QMap<MsgId, TimeMs>> _whenMaps;
+	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
 
 	struct Waiter {
-		Waiter(MsgId msg, TimeMs when, PeerData *notifyBy)
+		Waiter(MsgId msg, crl::time when, PeerData *notifyBy)
 		: msg(msg)
 		, when(when)
 		, notifyBy(notifyBy) {
 		}
 		MsgId msg;
-		TimeMs when;
+		crl::time when;
 		PeerData *notifyBy;
 	};
 	using Waiters = QMap<History*, Waiter>;
@@ -100,7 +100,7 @@ private:
 	Waiters _settingWaiters;
 	base::Timer _waitTimer;
 
-	QMap<History*, QMap<TimeMs, PeerData*>> _whenAlerts;
+	QMap<History*, QMap<crl::time, PeerData*>> _whenAlerts;
 
 	std::unique_ptr<Manager> _manager;
 

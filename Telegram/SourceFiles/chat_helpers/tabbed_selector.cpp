@@ -494,7 +494,7 @@ void TabbedSelector::updateRestrictedLabelGeometry() {
 void TabbedSelector::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 
 	auto switching = (_slideAnimation != nullptr);
 	if (switching) {
@@ -509,7 +509,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void TabbedSelector::paintSlideFrame(Painter &p, TimeMs ms) {
+void TabbedSelector::paintSlideFrame(Painter &p, crl::time ms) {
 	if (_roundRadius > 0) {
 		if (full()) {
 			auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);

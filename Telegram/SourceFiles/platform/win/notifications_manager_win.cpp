@@ -651,10 +651,10 @@ void queryUserNotificationState() {
 }
 
 static constexpr auto kQuerySettingsEachMs = 1000;
-TimeMs LastSettingsQueryMs = 0;
+crl::time LastSettingsQueryMs = 0;
 
 void querySystemNotificationSettings() {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
 		return;
 	}

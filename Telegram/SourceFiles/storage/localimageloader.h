@@ -105,7 +105,7 @@ class TaskQueue : public QObject {
 	Q_OBJECT
 
 public:
-	explicit TaskQueue(TimeMs stopTimeoutMs = 0); // <= 0 - never stop worker
+	explicit TaskQueue(crl::time stopTimeoutMs = 0); // <= 0 - never stop worker
 
 	TaskId addTask(std::unique_ptr<Task> &&task);
 	void addTasks(std::vector<std::unique_ptr<Task>> &&tasks);

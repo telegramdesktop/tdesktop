@@ -26,7 +26,7 @@ namespace Export {
 namespace View {
 namespace {
 
-constexpr auto kSaveSettingsTimeout = TimeMs(1000);
+constexpr auto kSaveSettingsTimeout = crl::time(1000);
 
 class SuggestBox : public BoxContent {
 public:

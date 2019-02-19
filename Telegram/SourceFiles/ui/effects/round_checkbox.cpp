@@ -283,7 +283,7 @@ RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCa
 , _updateCallback(updateCallback) {
 }
 
-void RoundCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, float64 masterScale) {
+void RoundCheckbox::paint(Painter &p, crl::time ms, int x, int y, int outerWidth, float64 masterScale) {
 	if (!_checkedProgress.animating() && !_checked && !_displayInactive) {
 		return;
 	}
@@ -385,7 +385,7 @@ RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<v
 , _check(_st.check, _updateCallback) {
 }
 
-void RoundImageCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth) {
+void RoundImageCheckbox::paint(Painter &p, crl::time ms, int x, int y, int outerWidth) {
 	_selection.step(ms);
 
 	auto selectionLevel = _selection.current(checked() ? 1. : 0.);

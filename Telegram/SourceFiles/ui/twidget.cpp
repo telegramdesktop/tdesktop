@@ -253,7 +253,7 @@ void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton 
 			, Qt::MouseEventSynthesizedByApplication
 #endif // OS_MAC_OLD
 		);
-		ev.setTimestamp(getms());
+		ev.setTimestamp(crl::now());
 		QGuiApplication::sendEvent(windowHandle, &ev);
 	}
 }

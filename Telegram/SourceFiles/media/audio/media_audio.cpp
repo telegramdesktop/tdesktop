@@ -300,10 +300,10 @@ namespace {
 
 constexpr auto kVolumeRound = 10000;
 constexpr auto kPreloadSamples = 2LL * kDefaultFrequency; // preload next part if less than 2 seconds remains
-constexpr auto kFadeDuration = TimeMs(500);
-constexpr auto kCheckPlaybackPositionTimeout = TimeMs(100); // 100ms per check audio position
+constexpr auto kFadeDuration = crl::time(500);
+constexpr auto kCheckPlaybackPositionTimeout = crl::time(100); // 100ms per check audio position
 constexpr auto kCheckPlaybackPositionDelta = 2400LL; // update position called each 2400 samples
-constexpr auto kCheckFadingTimeout = TimeMs(7); // 7ms
+constexpr auto kCheckFadingTimeout = crl::time(7); // 7ms
 
 base::Observable<AudioMsgId> UpdatedObservable;
 
@@ -663,7 +663,7 @@ bool Mixer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 	return false;
 }
 
-void Mixer::play(const AudioMsgId &audio, TimeMs positionMs) {
+void Mixer::play(const AudioMsgId &audio, crl::time positionMs) {
 	setSongVolume(Global::SongVolume());
 	play(audio, nullptr, positionMs);
 }
@@ -671,7 +671,7 @@ void Mixer::play(const AudioMsgId &audio, TimeMs positionMs) {
 void Mixer::play(
 		const AudioMsgId &audio,
 		std::unique_ptr<VideoSoundData> videoData,
-		TimeMs positionMs) {
+		crl::time positionMs) {
 	Expects(!videoData || audio.playId() != 0);
 
 	auto type = audio.type();
@@ -776,14 +776,14 @@ void Mixer::feedFromVideo(VideoSoundPart &&part) {
 	_loader->feedFromVideo(std::move(part));
 }
 
-TimeMs Mixer::getVideoCorrectedTime(const AudioMsgId &audio, TimeMs frameMs, TimeMs systemMs) {
+crl::time Mixer::getVideoCorrectedTime(const AudioMsgId &audio, crl::time frameMs, crl::time systemMs) {
 	auto result = frameMs;
 
 	QMutexLocker lock(&AudioMutex);
 	auto type = audio.type();
 	auto track = trackForType(type);
 	if (track && track->state.id == audio && track->lastUpdateWhen > 0) {
-		result = static_cast<TimeMs>(track->lastUpdateCorrectedMs);
+		result = static_cast<crl::time>(track->lastUpdateCorrectedMs);
 		if (systemMs > track->lastUpdateWhen) {
 			result += (systemMs - track->lastUpdateWhen);
 		}
@@ -800,7 +800,7 @@ void Mixer::videoSoundProgress(const AudioMsgId &audio) {
 	auto current = trackForType(type);
 	if (current && current->state.length && current->state.frequency) {
 		if (current->state.id == audio && current->state.state == State::Playing) {
-			current->lastUpdateWhen = getms();
+			current->lastUpdateWhen = crl::now();
 			current->lastUpdateCorrectedMs = (current->state.position * 1000ULL) / current->state.frequency;
 		}
 	}
@@ -922,7 +922,7 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 	if (current) emit updated(current);
 }
 
-void Mixer::seek(AudioMsgId::Type type, TimeMs positionMs) {
+void Mixer::seek(AudioMsgId::Type type, crl::time positionMs) {
 	QMutexLocker lock(&AudioMutex);
 
 	const auto current = trackForType(type);
@@ -1211,7 +1211,7 @@ void Fader::onTimer() {
 	auto volumeChangedAll = false;
 	auto volumeChangedSong = false;
 	if (_suppressAll || _suppressSongAnim) {
-		auto ms = getms();
+		auto ms = crl::now();
 		if (_suppressAll) {
 			if (ms >= _suppressAllEnd || ms < _suppressAllStart) {
 				_suppressAll = _suppressAllAnim = false;
@@ -1333,7 +1333,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 		}
 	} else if (fading && state == AL_PLAYING) {
 		auto fadingForSamplesCount = (fullPosition - track->fadeStartPosition);
-		if (TimeMs(1000) * fadingForSamplesCount >= kFadeDuration * track->state.frequency) {
+		if (crl::time(1000) * fadingForSamplesCount >= kFadeDuration * track->state.frequency) {
 			fading = false;
 			alSourcef(track->stream.source, AL_GAIN, 1. * volumeMultiplier);
 			if (errorHappened()) return EmitError;
@@ -1356,7 +1356,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			} break;
 			}
 		} else {
-			auto newGain = TimeMs(1000) * fadingForSamplesCount / float64(kFadeDuration * track->state.frequency);
+			auto newGain = crl::time(1000) * fadingForSamplesCount / float64(kFadeDuration * track->state.frequency);
 			if (track->state.state == State::Pausing || track->state.state == State::Stopping) {
 				newGain = 1. - newGain;
 			}
@@ -1396,7 +1396,7 @@ void Fader::onSuppressSong() {
 	if (!_suppressSong) {
 		_suppressSong = true;
 		_suppressSongAnim = true;
-		_suppressSongStart = getms();
+		_suppressSongStart = crl::now();
 		_suppressVolumeSong.start(kSuppressRatioSong);
 		onTimer();
 	}
@@ -1406,7 +1406,7 @@ void Fader::onUnsuppressSong() {
 	if (_suppressSong) {
 		_suppressSong = false;
 		_suppressSongAnim = true;
-		_suppressSongStart = getms();
+		_suppressSongStart = crl::now();
 		_suppressVolumeSong.start(1.);
 		onTimer();
 	}
@@ -1414,7 +1414,7 @@ void Fader::onUnsuppressSong() {
 
 void Fader::onSuppressAll(qint64 duration) {
 	_suppressAll = true;
-	auto now = getms();
+	auto now = crl::now();
 	if (_suppressAllEnd < now + kFadeDuration) {
 		_suppressAllStart = now;
 	}
@@ -1487,7 +1487,7 @@ public:
 	: AbstractFFMpegLoader(file, data, bytes::vector()) {
 	}
 
-	bool open(TimeMs positionMs) override {
+	bool open(crl::time positionMs) override {
 		if (!AbstractFFMpegLoader::open(positionMs)) {
 			return false;
 		}
@@ -1595,7 +1595,7 @@ namespace Player {
 FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
 	auto result = FileMediaInformation::Song();
 	FFMpegAttributesReader reader(FileLocation(fname), data);
-	const auto positionMs = TimeMs(0);
+	const auto positionMs = crl::time(0);
 	if (reader.open(positionMs) && reader.samplesCount() > 0) {
 		result.duration = reader.samplesCount() / reader.samplesFrequency();
 		result.title = reader.title();
@@ -1613,7 +1613,7 @@ public:
 	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
 	}
 
-	bool open(TimeMs positionMs) override {
+	bool open(crl::time positionMs) override {
 		if (!FFMpegLoader::open(positionMs)) {
 			return false;
 		}
@@ -1694,7 +1694,7 @@ private:
 
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data) {
 	FFMpegWaveformCounter counter(file, data);
-	const auto positionMs = TimeMs(0);
+	const auto positionMs = crl::time(0);
 	if (counter.open(positionMs)) {
 		return counter.waveform();
 	}

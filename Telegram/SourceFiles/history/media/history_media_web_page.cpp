@@ -389,7 +389,7 @@ void HistoryWebPage::refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 }
 
-void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 

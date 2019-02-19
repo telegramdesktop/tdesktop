@@ -373,7 +373,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_thumbw, _thumbh);
 			auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
-			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
+			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), frame);
 		} else {
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), _thumb);

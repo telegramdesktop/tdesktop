@@ -46,7 +46,7 @@ private:
 	QRect _inner, _outer;
 
 	base::Timer _timer;
-	TimeMs _started = 0;
+	crl::time _started = 0;
 	int _secondsLeft = 0;
 	QString _text;
 

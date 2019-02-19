@@ -66,7 +66,7 @@ private:
 
 	DhConfig _dhConfig;
 
-	TimeMs _lastServerConfigUpdateTime = 0;
+	crl::time _lastServerConfigUpdateTime = 0;
 	mtpRequestId _serverConfigRequestId = 0;
 
 	std::unique_ptr<Call> _currentCall;

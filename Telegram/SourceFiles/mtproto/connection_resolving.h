@@ -24,8 +24,8 @@ public:
 
 	ConnectionPointer clone(const ProxyData &proxy) override;
 
-	TimeMs pingTime() const override;
-	TimeMs fullConnectTimeout() const override;
+	crl::time pingTime() const override;
+	crl::time fullConnectTimeout() const override;
 	void sendData(mtpBuffer &&buffer) override;
 	void disconnectFromServer() override;
 	void connectToServer(

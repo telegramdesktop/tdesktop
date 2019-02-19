@@ -33,7 +33,7 @@ void CoverDropArea::hideAnimated(HideFinishCallback &&callback) {
 void CoverDropArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_a_appearance.animating(getms())) {
+	if (_a_appearance.animating(crl::now())) {
 		p.setOpacity(_a_appearance.current());
 		p.drawPixmap(0, 0, _cache);
 		return;

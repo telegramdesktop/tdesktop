@@ -49,7 +49,7 @@ protected:
 		std::unique_ptr<RippleAnimation> ripple;
 	};
 
-	int getCurrentActiveLeft(TimeMs ms);
+	int getCurrentActiveLeft(crl::time ms);
 
 	int getSectionsCount() const {
 		return _sections.size();
@@ -89,7 +89,7 @@ private:
 	Animation _a_left;
 
 	int _timerId = -1;
-	TimeMs _callbackAfterMs = 0;
+	crl::time _callbackAfterMs = 0;
 
 };
 

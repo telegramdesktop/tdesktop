@@ -57,8 +57,8 @@ private:
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	TimeMs radialTimeShift() const;
-	void step_radial(TimeMs ms, bool timer);
+	crl::time radialTimeShift() const;
+	void step_radial(crl::time ms, bool timer);
 
 	QPixmap _background;
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
@@ -94,7 +94,7 @@ public:
 		int left,
 		int top,
 		int outerWidth,
-		TimeMs ms) override;
+		crl::time ms) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -142,7 +142,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 	bool radial = false;
 	float64 radialOpacity = 0;
 	if (_radial.animating()) {
-		_radial.step(getms());
+		_radial.step(crl::now());
 		radial = _radial.animating();
 		radialOpacity = _radial.opacity();
 	}
@@ -240,16 +240,16 @@ void BackgroundRow::radialStart() {
 			_radial.update(
 				radialProgress(),
 				!radialLoading(),
-				getms() + shift);
+				crl::now() + shift);
 		}
 	}
 }
 
-TimeMs BackgroundRow::radialTimeShift() const {
+crl::time BackgroundRow::radialTimeShift() const {
 	return st::radialDuration;
 }
 
-void BackgroundRow::step_radial(TimeMs ms, bool timer) {
+void BackgroundRow::step_radial(crl::time ms, bool timer) {
 	const auto updated = _radial.update(
 		radialProgress(),
 		!radialLoading(),
@@ -325,7 +325,7 @@ void DefaultTheme::paint(
 		int left,
 		int top,
 		int outerWidth,
-		TimeMs ms) {
+		crl::time ms) {
 	const auto received = QRect(
 		st::settingsThemeBubblePosition,
 		st::settingsThemeBubbleSize);
@@ -353,7 +353,7 @@ void DefaultTheme::paint(
 		(outerWidth - radio.width()) / 2,
 		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
 		outerWidth,
-		getms());
+		crl::now());
 }
 
 QImage DefaultTheme::prepareRippleMask() const {

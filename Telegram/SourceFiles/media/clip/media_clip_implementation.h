@@ -30,20 +30,20 @@ public:
 		Error,
 		EndOfFile,
 	};
-	// Read frames till current frame will have presentation time > frameMs, systemMs = getms().
-	virtual ReadResult readFramesTill(TimeMs frameMs, TimeMs systemMs) = 0;
+	// Read frames till current frame will have presentation time > frameMs, systemMs = crl::now().
+	virtual ReadResult readFramesTill(crl::time frameMs, crl::time systemMs) = 0;
 
 	// Get current frame real and presentation time.
-	virtual TimeMs frameRealTime() const = 0;
-	virtual TimeMs framePresentationTime() const = 0;
+	virtual crl::time frameRealTime() const = 0;
+	virtual crl::time framePresentationTime() const = 0;
 
 	// Render current frame to an image with specific size.
 	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 
-	virtual TimeMs durationMs() const = 0;
+	virtual crl::time durationMs() const = 0;
 	virtual bool hasAudio() const = 0;
 
-	virtual bool start(Mode mode, TimeMs &positionMs) = 0;
+	virtual bool start(Mode mode, crl::time &positionMs) = 0;
 
 	virtual ~ReaderImplementation() {
 	}

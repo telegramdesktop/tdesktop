@@ -471,14 +471,14 @@ struct SendAction {
 	};
 	SendAction(
 		Type type,
-		TimeMs until,
+		crl::time until,
 		int progress = 0)
 	: type(type)
 	, until(until)
 	, progress(progress) {
 	}
 	Type type = Type::Typing;
-	TimeMs until = 0;
+	crl::time until = 0;
 	int progress = 0;
 
 };

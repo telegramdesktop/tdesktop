@@ -36,7 +36,7 @@ namespace {
 
 constexpr auto kArchivedLimitFirstRequest = 10;
 constexpr auto kArchivedLimitPerPage = 30;
-constexpr auto kHandleMegagroupSetAddressChangeTimeout = TimeMs(1000);
+constexpr auto kHandleMegagroupSetAddressChangeTimeout = crl::time(1000);
 
 } // namespace
 
@@ -341,7 +341,7 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_slideAnimation) {
-		_slideAnimation->paintFrame(p, 0, getTopSkip(), width(), getms());
+		_slideAnimation->paintFrame(p, 0, getTopSkip(), width(), crl::now());
 		if (!_slideAnimation->animating()) {
 			_slideAnimation.reset();
 			setInnerVisible(true);
@@ -666,7 +666,7 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 
 	auto clip = e->rect();
-	auto ms = getms();
+	auto ms = crl::now();
 	p.fillRect(clip, st::boxBg);
 	p.setClipRect(clip);
 
@@ -741,7 +741,7 @@ QRect StickersBox::Inner::relativeButtonRect(bool removeButton) const {
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
-void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, TimeMs ms) {
+void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, crl::time ms) {
 	auto xadd = 0, yadd = qRound(set->yadd.current());
 	if (xadd || yadd) p.translate(xadd, yadd);
 
@@ -841,7 +841,7 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, TimeMs ms) {
 	if (xadd || yadd) p.translate(-xadd, -yadd);
 }
 
-void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index, TimeMs ms) {
+void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index, crl::time ms) {
 	auto removeButton = (_section == Section::Installed && !set->removed);
 	auto rect = relativeButtonRect(removeButton);
 	if (_section != Section::Installed && set->installed && !set->archived && !set->removed) {
@@ -1019,7 +1019,7 @@ void StickersBox::Inner::onUpdateSelected() {
 	auto local = mapFromGlobal(_mouse);
 	if (_dragging >= 0) {
 		auto shift = 0;
-		auto ms = getms();
+		auto ms = crl::now();
 		int firstSetIndex = 0;
 		if (_rows.at(firstSetIndex)->isRecentSet()) {
 			++firstSetIndex;
@@ -1129,7 +1129,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (_dragging >= 0) {
 		QPoint local(mapFromGlobal(_mouse));
 		_rows[_dragging]->yadd.start(0.);
-		_aboveShadowFadeStart = _animStartTimes[_dragging] = getms();
+		_aboveShadowFadeStart = _animStartTimes[_dragging] = crl::now();
 		_aboveShadowFadeOpacity = anim::value(aboveShadowOpacity(), 0);
 		if (!_a_shifting.animating()) {
 			_a_shifting.start();
@@ -1209,7 +1209,7 @@ void StickersBox::Inner::leaveToChildEvent(QEvent *e, QWidget *child) {
 	onUpdateSelected();
 }
 
-void StickersBox::Inner::step_shifting(TimeMs ms, bool timer) {
+void StickersBox::Inner::step_shifting(crl::time ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::stickersRowDuration;
 	}

@@ -29,7 +29,7 @@ namespace Notifications {
 namespace {
 
 // not more than one sound in 500ms from one peer - grouping
-constexpr auto kMinimalAlertDelay = TimeMs(500);
+constexpr auto kMinimalAlertDelay = crl::time(500);
 
 } // namespace
 
@@ -97,7 +97,7 @@ void System::schedule(History *history, HistoryItem *item) {
 
 	auto delay = item->Has<HistoryMessageForwarded>() ? 500 : 100;
 	auto t = unixtime();
-	auto ms = getms(true);
+	auto ms = crl::now();
 	bool isOnline = App::main()->lastWasOnline(), otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
 	bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - App::main()->lastSetOnline()) > t * 1000LL);
 	if (!isOnline && otherNotOld && otherLaterThanMe) {
@@ -214,7 +214,7 @@ void System::checkDelayed() {
 void System::showNext() {
 	if (App::quitting()) return;
 
-	auto ms = getms(true), nextAlert = 0LL;
+	auto ms = crl::now(), nextAlert = 0LL;
 	bool alert = false;
 	int32 now = unixtime();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
@@ -310,7 +310,7 @@ void System::showNext() {
 				auto forwardedItem = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
 				auto forwardedCount = 1;
 
-				auto ms = getms(true);
+				auto ms = crl::now();
 				auto history = notifyItem->history();
 				auto j = _whenMaps.find(history);
 				if (j == _whenMaps.cend()) {

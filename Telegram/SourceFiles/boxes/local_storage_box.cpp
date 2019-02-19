@@ -124,7 +124,7 @@ protected:
 private:
 	QString titleText(const Database::TaggedSummary &data) const;
 	QString sizeText(const Database::TaggedSummary &data) const;
-	void step_radial(TimeMs ms, bool timer);
+	void step_radial(crl::time ms, bool timer);
 
 	Fn<QString(size_type)> _titleFactory;
 	object_ptr<Ui::FlatLabel> _title;
@@ -186,7 +186,7 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 	}
 }
 
-void LocalStorageBox::Row::step_radial(TimeMs ms, bool timer) {
+void LocalStorageBox::Row::step_radial(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		RpWidget::update();
 	}
@@ -229,11 +229,10 @@ void LocalStorageBox::Row::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	Painter p(this);
-
 	const auto padding = st::localStorageRowPadding;
 	const auto height = st::localStorageRowHeight;
 	const auto bottom = height - padding.bottom() - _description->height();
-	_progress->step(crl::time());
+	_progress->step(crl::now());
 	_progress->draw(
 		p,
 		{

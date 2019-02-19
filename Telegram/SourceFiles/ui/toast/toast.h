@@ -45,7 +45,7 @@ private:
 	bool _hiding = false;
 	Animation _a_opacity;
 
-	const TimeMs _hideAtMs;
+	const crl::time _hideAtMs;
 
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;

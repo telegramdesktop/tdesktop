@@ -25,7 +25,7 @@ namespace Media {
 namespace View {
 namespace {
 
-constexpr auto kThumbDuration = TimeMs(150);
+constexpr auto kThumbDuration = crl::time(150);
 
 int Round(float64 value) {
 	return int(std::round(value));
@@ -666,7 +666,7 @@ void GroupThumbs::paint(
 		int x,
 		int y,
 		int outerWidth,
-		TimeMs ms) {
+		crl::time ms) {
 	const auto progress = _waitingForAnimationStart
 		? 0.
 		: _animation.current(ms, 1.);

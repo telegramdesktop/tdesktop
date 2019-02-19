@@ -27,7 +27,7 @@ namespace {
 using EditLinkAction = Ui::InputField::EditLinkAction;
 using EditLinkSelection = Ui::InputField::EditLinkSelection;
 
-constexpr auto kParseLinksTimeout = TimeMs(1000);
+constexpr auto kParseLinksTimeout = crl::time(1000);
 const auto kMentionTagStart = qstr("mention://user.");
 
 bool IsMentionLink(const QString &link) {

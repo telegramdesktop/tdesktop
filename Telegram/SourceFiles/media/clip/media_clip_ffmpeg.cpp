@@ -138,7 +138,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 void FFMpegReaderImplementation::processReadFrame() {
 	int64 duration = _frame->pkt_duration;
 	int64 framePts = _frame->pts;
-	TimeMs frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+	crl::time frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	_currentFrameDelay = _nextFrameDelay;
 	if (_frameMs + _currentFrameDelay < frameMs) {
 		_currentFrameDelay = int32(frameMs - _frameMs);
@@ -157,7 +157,7 @@ void FFMpegReaderImplementation::processReadFrame() {
 	_frameTime += _currentFrameDelay;
 }
 
-ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(TimeMs frameMs, TimeMs systemMs) {
+ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(crl::time frameMs, crl::time systemMs) {
 	if (_audioStreamId < 0) { // just keep up
 		if (_frameRead && _frameTime > frameMs) {
 			return ReadResult::Success;
@@ -193,15 +193,15 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(Time
 	return ReadResult::Success;
 }
 
-TimeMs FFMpegReaderImplementation::frameRealTime() const {
+crl::time FFMpegReaderImplementation::frameRealTime() const {
 	return _frameMs;
 }
 
-TimeMs FFMpegReaderImplementation::framePresentationTime() const {
+crl::time FFMpegReaderImplementation::framePresentationTime() const {
 	return qMax(_frameTime + _frameTimeCorrection, 0LL);
 }
 
-TimeMs FFMpegReaderImplementation::durationMs() const {
+crl::time FFMpegReaderImplementation::durationMs() const {
 	if (_fmtContext->streams[_streamId]->duration == AV_NOPTS_VALUE) return 0;
 	return (_fmtContext->streams[_streamId]->duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 }
@@ -280,7 +280,7 @@ FFMpegReaderImplementation::Rotation FFMpegReaderImplementation::rotationFromDeg
 	return Rotation::None;
 }
 
-bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
+bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 	_mode = mode;
 
 	initDevice();
@@ -414,7 +414,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	return true;
 }
 
-bool FFMpegReaderImplementation::inspectAt(TimeMs &positionMs) {
+bool FFMpegReaderImplementation::inspectAt(crl::time &positionMs) {
 	if (positionMs > 0) {
 		const auto timeBase = _fmtContext->streams[_streamId]->time_base;
 		const auto timeStamp = (positionMs * timeBase.den)
@@ -526,9 +526,9 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 	}
 }
 
-TimeMs FFMpegReaderImplementation::countPacketMs(AVPacket *packet) const {
+crl::time FFMpegReaderImplementation::countPacketMs(AVPacket *packet) const {
 	int64 packetPts = (packet->pts == AV_NOPTS_VALUE) ? packet->dts : packet->pts;
-	TimeMs packetMs = (packetPts * 1000LL * _fmtContext->streams[packet->stream_index]->time_base.num) / _fmtContext->streams[packet->stream_index]->time_base.den;
+	crl::time packetMs = (packetPts * 1000LL * _fmtContext->streams[packet->stream_index]->time_base.num) / _fmtContext->streams[packet->stream_index]->time_base.den;
 	return packetMs;
 }
 

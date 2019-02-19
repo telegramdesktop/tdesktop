@@ -42,7 +42,7 @@ ChildFFMpegLoader::ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data)
 , _parentData(std::move(data)) {
 }
 
-bool ChildFFMpegLoader::open(TimeMs positionMs) {
+bool ChildFFMpegLoader::open(crl::time positionMs) {
 	return initUsingContext(
 		_parentData->context,
 		_parentData->length,

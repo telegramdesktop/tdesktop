@@ -20,8 +20,8 @@ namespace Audio {
 namespace {
 
 constexpr auto kMaxFileSize = 10 * 1024 * 1024;
-constexpr auto kDetachDeviceTimeout = TimeMs(500); // destroy the audio device after 500ms of silence
-constexpr auto kTrackUpdateTimeout = TimeMs(100);
+constexpr auto kDetachDeviceTimeout = crl::time(500); // destroy the audio device after 500ms of silence
+constexpr auto kTrackUpdateTimeout = crl::time(100);
 
 ALuint CreateSource() {
 	auto source = ALuint(0);
@@ -45,7 +45,7 @@ Track::Track(not_null<Instance*> instance) : _instance(instance) {
 	_instance->registerTrack(this);
 }
 
-void Track::samplePeakEach(TimeMs peakDuration) {
+void Track::samplePeakEach(crl::time peakDuration) {
 	_peakDurationMs = peakDuration;
 }
 
@@ -108,7 +108,7 @@ void Track::fillFromData(bytes::vector &&data) {
 
 	_alFormat = loader.format();
 	_sampleRate = loader.samplesFrequency();
-	_lengthMs = (loader.samplesCount() * TimeMs(1000)) / _sampleRate;
+	_lengthMs = (loader.samplesCount() * crl::time(1000)) / _sampleRate;
 }
 
 void Track::fillFromFile(const FileLocation &location) {
@@ -191,7 +191,7 @@ void Track::updateState() {
 		return;
 	}
 
-	_stateUpdatedAt = getms();
+	_stateUpdatedAt = crl::now();
 	auto state = ALint(0);
 	alGetSourcei(_alSource, AL_SOURCE_STATE, &state);
 	if (state != AL_PLAYING) {
@@ -203,7 +203,7 @@ void Track::updateState() {
 	}
 }
 
-float64 Track::getPeakValue(TimeMs when) const {
+float64 Track::getPeakValue(crl::time when) const {
 	if (!isActive() || !_samplesCount || _peaks.empty() || _peakValueMin == _peakValueMax) {
 		return 0.;
 	}

@@ -23,7 +23,7 @@ public:
 
 	virtual bool check(const FileLocation &file, const QByteArray &data);
 
-	virtual bool open(TimeMs positionMs) = 0;
+	virtual bool open(crl::time positionMs) = 0;
 	virtual int64 samplesCount() = 0;
 	virtual int samplesFrequency() = 0;
 	virtual int format() = 0;

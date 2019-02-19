@@ -66,7 +66,7 @@ void AbstractCheckView::finishAnimating() {
 	_toggleAnimation.finish();
 }
 
-float64 AbstractCheckView::currentAnimationValue(TimeMs ms) {
+float64 AbstractCheckView::currentAnimationValue(crl::time ms) {
 	return ms ? _toggleAnimation.current(ms, _checked ? 1. : 0.) : _toggleAnimation.current(_checked ? 1. : 0.);
 }
 
@@ -90,7 +90,7 @@ void ToggleView::setStyle(const style::Toggle &st) {
 	_st = &st;
 }
 
-void ToggleView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) {
+void ToggleView::paint(Painter &p, int left, int top, int outerWidth, crl::time ms) {
 	left += _st->border;
 	top += _st->border;
 
@@ -241,7 +241,7 @@ void CheckView::setStyle(const style::Check &st) {
 	_st = &st;
 }
 
-void CheckView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) {
+void CheckView::paint(Painter &p, int left, int top, int outerWidth, crl::time ms) {
 	auto toggled = currentAnimationValue(ms);
 	auto pen = _untoggledOverride
 		? anim::pen(*_untoggledOverride, _st->toggledFg, toggled)
@@ -299,7 +299,7 @@ void RadioView::setStyle(const style::Radio &st) {
 	_st = &st;
 }
 
-void RadioView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) {
+void RadioView::paint(Painter &p, int left, int top, int outerWidth, crl::time ms) {
 	PainterHighQualityEnabler hq(p);
 
 	auto toggled = currentAnimationValue(ms);
@@ -487,7 +487,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto check = checkRect();
-	auto ms = getms();
+	auto ms = crl::now();
 	auto active = _check->currentAnimationValue(ms);
 	if (isDisabled()) {
 		p.setOpacity(_st.disabledOpacity);

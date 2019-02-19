@@ -17,7 +17,7 @@ namespace Layout {
 
 class PaintContext : public PaintContextBase {
 public:
-	PaintContext(TimeMs ms, bool selecting, bool paused, bool lastRow)
+	PaintContext(crl::time ms, bool selecting, bool paused, bool lastRow)
 		: PaintContextBase(ms, selecting)
 		, paused(paused)
 		, lastRow(lastRow) {

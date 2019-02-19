@@ -44,7 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * TimeMs(1000);
+constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
 constexpr auto kMaxWallpaperSize = 10 * 1024 * 1024;
 
 using ViewElement = HistoryView::Element;
@@ -722,13 +722,13 @@ void Session::registerSendAction(
 
 		const auto i = _sendActions.find(history);
 		if (!_sendActions.contains(history)) {
-			_sendActions.emplace(history, getms());
+			_sendActions.emplace(history, crl::now());
 			_a_sendActions.start();
 		}
 	}
 }
 
-void Session::step_typings(TimeMs ms, bool timer) {
+void Session::step_typings(crl::time ms, bool timer) {
 	for (auto i = begin(_sendActions); i != end(_sendActions);) {
 		if (i->first->updateSendActionNeedsAnimating(ms)) {
 			++i;
@@ -790,7 +790,7 @@ void Session::suggestStartExport() {
 		: (_exportAvailableAt - now);
 	if (left) {
 		App::CallDelayed(
-			std::min(left + 5, 3600) * TimeMs(1000),
+			std::min(left + 5, 3600) * crl::time(1000),
 			_session,
 			[=] { suggestStartExport(); });
 	} else if (_export) {
@@ -840,7 +840,7 @@ const Passport::SavedCredentials *Session::passportCredentials() const {
 
 void Session::rememberPassportCredentials(
 		Passport::SavedCredentials data,
-		TimeMs rememberFor) {
+		crl::time rememberFor) {
 	Expects(rememberFor > 0);
 
 	static auto generation = 0;
@@ -1359,7 +1359,7 @@ const NotifySettings &Session::defaultNotifySettings(
 
 void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 	const auto history = historyLoaded(peer->id);
-	auto changesIn = TimeMs(0);
+	auto changesIn = crl::time(0);
 	const auto muted = notifyIsMuted(peer, &changesIn);
 	if (history && history->changeMute(muted)) {
 		// Notification already sent.
@@ -1380,7 +1380,7 @@ void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 	}
 }
 
-void Session::unmuteByFinishedDelayed(TimeMs delay) {
+void Session::unmuteByFinishedDelayed(crl::time delay) {
 	accumulate_min(delay, kMaxNotifyCheckDelay);
 	if (!_unmuteByFinishedTimer.isActive()
 		|| _unmuteByFinishedTimer.remainingTime() > delay) {
@@ -1389,10 +1389,10 @@ void Session::unmuteByFinishedDelayed(TimeMs delay) {
 }
 
 void Session::unmuteByFinished() {
-	auto changesInMin = TimeMs(0);
+	auto changesInMin = crl::time(0);
 	for (auto i = begin(_mutedPeers); i != end(_mutedPeers);) {
 		const auto history = historyLoaded((*i)->id);
-		auto changesIn = TimeMs(0);
+		auto changesIn = crl::time(0);
 		const auto muted = notifyIsMuted(*i, &changesIn);
 		if (muted) {
 			if (history) {
@@ -1571,7 +1571,7 @@ void Session::unreadEntriesChanged(
 	}
 }
 
-void Session::selfDestructIn(not_null<HistoryItem*> item, TimeMs delay) {
+void Session::selfDestructIn(not_null<HistoryItem*> item, crl::time delay) {
 	_selfDestructItems.push_back(item->fullId());
 	if (!_selfDestructTimer.isActive()
 		|| _selfDestructTimer.remainingTime() > delay) {
@@ -1580,8 +1580,8 @@ void Session::selfDestructIn(not_null<HistoryItem*> item, TimeMs delay) {
 }
 
 void Session::checkSelfDestructItems() {
-	auto now = getms(true);
-	auto nextDestructIn = TimeMs(0);
+	auto now = crl::now();
+	auto nextDestructIn = crl::time(0);
 	for (auto i = _selfDestructItems.begin(); i != _selfDestructItems.cend();) {
 		if (auto item = App::histItemById(*i)) {
 			if (auto destructIn = item->getSelfDestructIn(now)) {
@@ -2863,13 +2863,13 @@ void Session::updateNotifySettings(
 
 bool Session::notifyIsMuted(
 		not_null<const PeerData*> peer,
-		TimeMs *changesIn) const {
+		crl::time *changesIn) const {
 	const auto resultFromUntil = [&](TimeId until) {
 		const auto now = unixtime();
 		const auto result = (until > now) ? (until - now) : 0;
 		if (changesIn) {
 			*changesIn = (result > 0)
-				? std::min(result * TimeMs(1000), kMaxNotifyCheckDelay)
+				? std::min(result * crl::time(1000), kMaxNotifyCheckDelay)
 				: kMaxNotifyCheckDelay;
 		}
 		return (result > 0);

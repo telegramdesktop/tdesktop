@@ -149,7 +149,7 @@ private:
 		SelectorTab type,
 		not_null<Window::Controller*> controller);
 
-	void paintSlideFrame(Painter &p, TimeMs ms);
+	void paintSlideFrame(Painter &p, crl::time ms);
 	void paintContent(Painter &p);
 
 	void checkRestrictedPeer();

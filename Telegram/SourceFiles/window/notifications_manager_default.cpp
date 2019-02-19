@@ -632,7 +632,7 @@ void Notification::paintEvent(QPaintEvent *e) {
 
 	auto buttonsLeft = st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft;
 	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
-	if (a_actionsOpacity.animating(getms())) {
+	if (a_actionsOpacity.animating(crl::now())) {
 		p.setOpacity(a_actionsOpacity.current());
 		p.drawPixmapRight(st::notifyBorderWidth, buttonsTop, width(), _buttonsCache);
 	} else if (_actionsVisible) {

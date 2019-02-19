@@ -65,7 +65,7 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void step_loading(TimeMs ms, bool timer);
+	void step_loading(crl::time ms, bool timer);
 
 	const style::IconButton &_st;
 
@@ -108,7 +108,7 @@ public:
 	}
 
 	float64 recordActiveRatio() {
-		return _a_recordActive.current(getms(), _recordActive ? 1. : 0.);
+		return _a_recordActive.current(crl::now(), _recordActive ? 1. : 0.);
 	}
 
 protected:

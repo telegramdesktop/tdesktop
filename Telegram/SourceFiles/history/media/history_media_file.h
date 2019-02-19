@@ -63,19 +63,19 @@ protected:
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const;
 
-	void step_radial(TimeMs ms, bool timer);
+	void step_radial(crl::time ms, bool timer);
 	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 
-	bool isRadialAnimation(TimeMs ms) const {
+	bool isRadialAnimation(crl::time ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
 
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
-	bool isThumbAnimation(TimeMs ms) const {
+	bool isThumbAnimation(crl::time ms) const {
 		if (_animation) {
 			if (_animation->a_thumbOver.animating(ms)) {
 				return true;

@@ -36,7 +36,7 @@ extern "C" {
 namespace Core {
 namespace {
 
-constexpr auto kUpdaterTimeout = 10 * TimeMs(1000);
+constexpr auto kUpdaterTimeout = 10 * crl::time(1000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
 
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
@@ -1227,7 +1227,7 @@ void Updater::start(bool forceWait) {
 
 		_checking.fire({});
 	} else {
-		_timer.callOnce((updateInSecs + 5) * TimeMs(1000));
+		_timer.callOnce((updateInSecs + 5) * crl::time(1000));
 	}
 }
 

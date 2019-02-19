@@ -66,7 +66,7 @@ protected:
 	float64 getCurrentValue() {
 		return _mouseDown ? _downValue : _value;
 	}
-	float64 getCurrentOverFactor(TimeMs ms) {
+	float64 getCurrentOverFactor(crl::time ms) {
 		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
 	}
 	Direction getDirection() const {

@@ -375,7 +375,7 @@ void PeerListRow::refreshStatus() {
 			if (Data::OnlineTextActive(user, time)) {
 				_statusType = StatusType::Online;
 			}
-			_statusValidTill = getms()
+			_statusValidTill = crl::now()
 				+ Data::OnlineChangeTimeout(user, time);
 		}
 	} else if (auto chat = peer()->asChat()) {
@@ -393,7 +393,7 @@ void PeerListRow::refreshStatus() {
 	}
 }
 
-TimeMs PeerListRow::refreshStatusTime() const {
+crl::time PeerListRow::refreshStatusTime() const {
 	return _statusValidTill;
 }
 
@@ -457,7 +457,7 @@ void PeerListRow::stopLastRipple() {
 	}
 }
 
-void PeerListRow::paintRipple(Painter &p, TimeMs ms, int x, int y, int outerWidth) {
+void PeerListRow::paintRipple(Painter &p, crl::time ms, int x, int y, int outerWidth) {
 	if (_ripple) {
 		_ripple->paint(p, x, y, outerWidth, ms);
 		if (_ripple->empty()) {
@@ -469,7 +469,7 @@ void PeerListRow::paintRipple(Painter &p, TimeMs ms, int x, int y, int outerWidt
 void PeerListRow::paintUserpic(
 		Painter &p,
 		const style::PeerListItem &st,
-		TimeMs ms,
+		crl::time ms,
 		int x,
 		int y,
 		int outerWidth) {
@@ -901,7 +901,7 @@ void PeerListContent::paintEvent(QPaintEvent *e) {
 	auto repaintAfterMin = repaintByStatusAfter;
 
 	auto rowsTopCached = rowsTop();
-	auto ms = getms();
+	auto ms = crl::now();
 	auto yFrom = clip.y() - rowsTopCached;
 	auto yTo = clip.y() + clip.height() - rowsTopCached;
 	p.translate(0, rowsTopCached);
@@ -1073,7 +1073,7 @@ void PeerListContent::setPressed(Selected pressed) {
 	_pressed = pressed;
 }
 
-TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
+crl::time PeerListContent::paintRow(Painter &p, crl::time ms, RowIndex index) {
 	auto row = getRow(index);
 	Assert(row != nullptr);
 

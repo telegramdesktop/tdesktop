@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kSaveSettingsDelayedTimeout = TimeMs(1000);
+constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
 
 class ProxyRow : public Ui::RippleButton {
 public:
@@ -52,8 +52,8 @@ protected:
 private:
 	void setupControls(View &&view);
 	int countAvailableWidth() const;
-	void step_radial(TimeMs ms, bool timer);
-	void paintCheck(Painter &p, TimeMs ms);
+	void step_radial(crl::time ms, bool timer);
+	void paintCheck(Painter &p, crl::time ms);
 	void showMenu();
 
 	View _view;
@@ -241,7 +241,7 @@ void ProxyRow::updateFields(View &&view) {
 	update();
 }
 
-void ProxyRow::step_radial(TimeMs ms, bool timer) {
+void ProxyRow::step_radial(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		update();
 	}
@@ -268,7 +268,7 @@ int ProxyRow::resizeGetHeight(int newWidth) {
 void ProxyRow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	if (!_view.deleted) {
 		paintRipple(p, 0, 0, ms);
 	}
@@ -341,7 +341,7 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 	top += st::normalFont->height + st::proxyRowPadding.bottom();
 }
 
-void ProxyRow::paintCheck(Painter &p, TimeMs ms) {
+void ProxyRow::paintCheck(Painter &p, crl::time ms) {
 	if (_progress) {
 		_progress->step(ms);
 	}

@@ -121,7 +121,7 @@ public:
 	void markMediaRead();
 
 	// Zero result means this message is not self-destructing right now.
-	virtual TimeMs getSelfDestructIn(TimeMs now) {
+	virtual crl::time getSelfDestructIn(crl::time now) {
 		return 0;
 	}
 

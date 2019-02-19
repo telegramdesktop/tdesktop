@@ -105,8 +105,8 @@ private slots:
 	void updateImage();
 
 	void onVideoPauseResume();
-	void onVideoSeekProgress(TimeMs positionMs);
-	void onVideoSeekFinished(TimeMs positionMs);
+	void onVideoSeekProgress(crl::time positionMs);
+	void onVideoSeekFinished(crl::time positionMs);
 	void onVideoVolumeChanged(float64 volume);
 	void onVideoToggleFullScreen();
 	void onVideoPlayProgress(const AudioMsgId &audioId);
@@ -213,7 +213,7 @@ private:
 
 	void updateVideoPlaybackState(const Media::Player::TrackState &state);
 	void updateSilentVideoPlaybackState();
-	void restartVideoAtSeekPosition(TimeMs positionMs);
+	void restartVideoAtSeekPosition(crl::time positionMs);
 	void toggleVideoPaused();
 
 	void createClipController();
@@ -235,13 +235,13 @@ private:
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	TimeMs radialTimeShift() const;
+	crl::time radialTimeShift() const;
 
 	void updateHeader();
 	void snapXY();
 
-	void step_state(TimeMs ms, bool timer);
-	void step_radial(TimeMs ms, bool timer);
+	void step_state(crl::time ms, bool timer);
+	void step_radial(crl::time ms, bool timer);
 
 	void zoomIn();
 	void zoomOut();
@@ -297,7 +297,7 @@ private:
 	Text _caption;
 	QRect _captionRect;
 
-	TimeMs _animStarted;
+	crl::time _animStarted;
 
 	int _width = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
@@ -315,8 +315,8 @@ private:
 	bool _videoIsSilent = false;
 	bool _videoPaused = false;
 	bool _videoStopped = false;
-	TimeMs _videoPositionMs = 0;
-	TimeMs _videoDurationMs = 0;
+	crl::time _videoPositionMs = 0;
+	crl::time _videoDurationMs = 0;
 	int32 _videoFrequencyMs = 1000; // 1000 ms per second.
 
 	bool fileShown() const;
@@ -374,7 +374,7 @@ private:
 		ControlsHidden,
 	};
 	ControlsState _controlsState = ControlsShown;
-	TimeMs _controlsAnimStarted = 0;
+	crl::time _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
 	anim::value a_cOpacity;
 	bool _mousePressed = false;
@@ -397,13 +397,13 @@ private:
 	QPoint _accumScroll;
 
 	QString _saveMsgFilename;
-	TimeMs _saveMsgStarted = 0;
+	crl::time _saveMsgStarted = 0;
 	anim::value _saveMsgOpacity;
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;
 
-	typedef QMap<OverState, TimeMs> Showing;
+	typedef QMap<OverState, crl::time> Showing;
 	Showing _animations;
 	typedef QMap<OverState, anim::value> ShowingOpacities;
 	ShowingOpacities _animOpacities;

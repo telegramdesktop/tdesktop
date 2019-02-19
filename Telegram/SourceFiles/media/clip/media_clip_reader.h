@@ -49,8 +49,8 @@ public:
 		Video,
 	};
 
-	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
-	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
+	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 
 	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
 
@@ -64,12 +64,12 @@ public:
 	AudioMsgId audioMsgId() const {
 		return _audioMsgId;
 	}
-	TimeMs seekPositionMs() const {
+	crl::time seekPositionMs() const {
 		return _seekPositionMs;
 	}
 
 	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners);
-	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners, TimeMs ms);
+	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners, crl::time ms);
 	QPixmap current();
 	QPixmap frameOriginal() const {
 		if (auto frame = frameToShow()) {
@@ -102,8 +102,8 @@ public:
 	bool ready() const;
 
 	bool hasAudio() const;
-	TimeMs getPositionMs() const;
-	TimeMs getDurationMs() const;
+	crl::time getPositionMs() const;
+	crl::time getDurationMs() const;
 	void pauseResumeVideo();
 
 	void stop();
@@ -126,8 +126,8 @@ private:
 
 	AudioMsgId _audioMsgId;
 	bool _hasAudio = false;
-	TimeMs _durationMs = 0;
-	TimeMs _seekPositionMs = 0;
+	crl::time _durationMs = 0;
+	crl::time _seekPositionMs = 0;
 
 	mutable int _width = 0;
 	mutable int _height = 0;
@@ -146,7 +146,7 @@ private:
 
 		// Should be counted from the end,
 		// so that positionMs <= _durationMs.
-		TimeMs positionMs = 0;
+		crl::time positionMs = 0;
 	};
 	mutable Frame _frames[3];
 	Frame *frameToShow(int *index = nullptr) const; // 0 means not ready
@@ -219,16 +219,16 @@ private:
 	ReaderPointers::const_iterator constUnsafeFindReaderPointer(ReaderPrivate *reader) const;
 	ReaderPointers::iterator unsafeFindReaderPointer(ReaderPrivate *reader);
 
-	bool handleProcessResult(ReaderPrivate *reader, ProcessResult result, TimeMs ms);
+	bool handleProcessResult(ReaderPrivate *reader, ProcessResult result, crl::time ms);
 
 	enum ResultHandleState {
 		ResultHandleRemove,
 		ResultHandleStop,
 		ResultHandleContinue,
 	};
-	ResultHandleState handleResult(ReaderPrivate *reader, ProcessResult result, TimeMs ms);
+	ResultHandleState handleResult(ReaderPrivate *reader, ProcessResult result, crl::time ms);
 
-	typedef QMap<ReaderPrivate*, TimeMs> Readers;
+	typedef QMap<ReaderPrivate*, crl::time> Readers;
 	Readers _readers;
 
 	QTimer _timer;

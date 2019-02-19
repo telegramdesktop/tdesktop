@@ -17,7 +17,7 @@ public:
 		not_null<Element*> parent,
 		not_null<PollData*> poll);
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
@@ -80,7 +80,7 @@ private:
 		int width,
 		int outerWidth,
 		TextSelection selection,
-		TimeMs ms) const;
+		crl::time ms) const;
 	void paintRadio(
 		Painter &p,
 		const Answer &answer,
@@ -109,7 +109,7 @@ private:
 	void saveStateInAnimation() const;
 	void startAnswersAnimation() const;
 	void resetAnswersAnimation() const;
-	void step_radial(TimeMs ms, bool timer);
+	void step_radial(crl::time ms, bool timer);
 
 	void toggleRipple(Answer &answer, bool pressed);
 

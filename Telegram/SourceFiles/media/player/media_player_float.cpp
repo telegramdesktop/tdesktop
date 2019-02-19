@@ -174,7 +174,7 @@ void Float::paintEvent(QPaintEvent *e) {
 	p.drawImage(inner.topLeft(), _frame);
 
 	const auto playback = getPlayback();
-	const auto progress = playback ? playback->value(getms()) : 1.;
+	const auto progress = playback ? playback->value(crl::now()) : 1.;
 	if (progress > 0.) {
 		auto pen = st::historyVideoMessageProgressFg->p;
 		auto was = p.pen();

@@ -40,8 +40,8 @@ public:
 signals:
 	void playPressed();
 	void pausePressed();
-	void seekProgress(TimeMs positionMs);
-	void seekFinished(TimeMs positionMs);
+	void seekProgress(crl::time positionMs);
+	void seekFinished(crl::time positionMs);
 	void volumeChanged(float64 volume);
 	void toFullScreenPressed();
 	void fromFullScreenPressed();
@@ -67,8 +67,8 @@ private:
 	bool _showPause = false;
 	bool _childrenHidden = false;
 	QString _timeAlready, _timeLeft;
-	TimeMs _seekPositionMs = -1;
-	TimeMs _lastDurationMs = 0;
+	crl::time _seekPositionMs = -1;
+	crl::time _lastDurationMs = 0;
 
 	object_ptr<Ui::IconButton> _playPauseResume;
 	object_ptr<Ui::MediaSlider> _playbackSlider;

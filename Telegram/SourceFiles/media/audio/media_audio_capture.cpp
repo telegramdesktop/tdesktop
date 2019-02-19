@@ -20,8 +20,8 @@ namespace Capture {
 namespace {
 
 constexpr auto kCaptureFrequency = Player::kDefaultFrequency;
-constexpr auto kCaptureSkipDuration = TimeMs(400);
-constexpr auto kCaptureFadeInDuration = TimeMs(300);
+constexpr auto kCaptureSkipDuration = crl::time(400);
+constexpr auto kCaptureFadeInDuration = crl::time(300);
 
 Instance *CaptureInstance = nullptr;
 

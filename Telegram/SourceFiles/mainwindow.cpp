@@ -668,13 +668,13 @@ void MainWindow::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 		} else {
 			showFromTray(reason);
 		}
-		_lastTrayClickTime = getms();
+		_lastTrayClickTime = crl::now();
 	}
 }
 
 bool MainWindow::skipTrayClick() const {
 	return (_lastTrayClickTime > 0)
-		&& (getms() - _lastTrayClickTime
+		&& (crl::now() - _lastTrayClickTime
 			< QApplication::doubleClickInterval());
 }
 

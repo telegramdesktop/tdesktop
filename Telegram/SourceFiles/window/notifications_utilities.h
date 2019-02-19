@@ -32,11 +32,11 @@ private slots:
 
 private:
 	void clearInMs(int ms);
-	TimeMs clear(TimeMs ms);
+	crl::time clear(crl::time ms);
 
 	Type _type = Type::Rounded;
 	struct Image {
-		TimeMs until;
+		crl::time until;
 		QString path;
 	};
 	using Images = QMap<StorageKey, Image>;

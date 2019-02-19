@@ -329,14 +329,14 @@ void Gif::ensureAnimation() const {
 	}
 }
 
-bool Gif::isRadialAnimation(TimeMs ms) const {
+bool Gif::isRadialAnimation(crl::time ms) const {
 	if (!_animation || !_animation->radial.animating()) return false;
 
 	_animation->radial.step(ms);
 	return _animation && _animation->radial.animating();
 }
 
-void Gif::step_radial(TimeMs ms, bool timer) {
+void Gif::step_radial(crl::time ms, bool timer) {
 	const auto document = getShownDocument();
 	const auto updateRadial = [&] {
 		return _animation->radial.update(
@@ -849,7 +849,7 @@ void File::thumbAnimationCallback() {
 	update();
 }
 
-void File::step_radial(TimeMs ms, bool timer) {
+void File::step_radial(crl::time ms, bool timer) {
 	const auto updateRadial = [&] {
 		return _animation->radial.update(
 			_document->progress(),
@@ -1372,14 +1372,14 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 		size.height());
 }
 
-bool Game::isRadialAnimation(TimeMs ms) const {
+bool Game::isRadialAnimation(crl::time ms) const {
 	if (!_radial || !_radial->animating()) return false;
 
 	_radial->step(ms);
 	return _radial && _radial->animating();
 }
 
-void Game::step_radial(TimeMs ms, bool timer) {
+void Game::step_radial(crl::time ms, bool timer) {
 	const auto document = getResultDocument();
 	const auto updateRadial = [&] {
 		return _radial->update(

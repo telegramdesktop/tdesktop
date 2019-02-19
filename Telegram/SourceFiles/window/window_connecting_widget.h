@@ -75,7 +75,7 @@ private:
 	base::Timer _refreshTimer;
 	State _state;
 	Layout _currentLayout;
-	TimeMs _connectingStartedAt = 0;
+	crl::time _connectingStartedAt = 0;
 	Animation _contentWidth;
 	Animation _visibility;
 

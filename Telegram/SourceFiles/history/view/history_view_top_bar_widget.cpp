@@ -159,7 +159,7 @@ void TopBarWidget::updateConnectingState() {
 	}
 }
 
-void TopBarWidget::step_connecting(TimeMs ms, bool timer) {
+void TopBarWidget::step_connecting(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		update();
 	}
@@ -284,11 +284,11 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 	}
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	_forward->stepNumbersAnimation(ms);
 	_delete->stepNumbersAnimation(ms);
 	auto hasSelected = (_selectedCount > 0);
-	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(getms(), hasSelected ? 1. : 0.));
+	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(crl::now(), hasSelected ? 1. : 0.));
 
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
 	if (selectedButtonsTop < 0) {
@@ -297,7 +297,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void TopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
+void TopBarWidget::paintTopBar(Painter &p, crl::time ms) {
 	if (!_activeChat) {
 		return;
 	}
@@ -359,7 +359,7 @@ bool TopBarWidget::paintConnectingState(
 		int left,
 		int top,
 		int outerWidth,
-		TimeMs ms) {
+		crl::time ms) {
 	if (_connecting) {
 		_connecting->step(ms);
 	}
@@ -818,7 +818,7 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 	if (!_activeChat.peer()) return;
 
 	const auto now = unixtime();
-	auto minTimeout = TimeMs(86400);
+	auto minTimeout = crl::time(86400);
 	const auto handleUser = [&](not_null<UserData*> user) {
 		auto hisTimeout = Data::OnlineChangeTimeout(user, now);
 		accumulate_min(minTimeout, hisTimeout);
@@ -834,7 +834,7 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 	updateOnlineDisplayIn(minTimeout);
 }
 
-void TopBarWidget::updateOnlineDisplayIn(TimeMs timeout) {
+void TopBarWidget::updateOnlineDisplayIn(crl::time timeout) {
 	_onlineUpdater.callOnce(timeout);
 }
 

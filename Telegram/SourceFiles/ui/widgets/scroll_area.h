@@ -57,7 +57,7 @@ public:
 	void recountSize();
 	void updateBar(bool force = false);
 
-	void hideTimeout(TimeMs dt);
+	void hideTimeout(crl::time dt);
 
 private slots:
 	void onValueChanged();
@@ -99,7 +99,7 @@ private:
 
 	int32 _startFrom, _scrollMax;
 
-	TimeMs _hideIn = 0;
+	crl::time _hideIn = 0;
 	QTimer _hideTimer;
 
 	Animation _a_over;
@@ -279,9 +279,9 @@ private:
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	TimeMs _touchSpeedTime = 0;
-	TimeMs _touchAccelerationTime = 0;
-	TimeMs _touchTime = 0;
+	crl::time _touchSpeedTime = 0;
+	crl::time _touchAccelerationTime = 0;
+	crl::time _touchTime = 0;
 	QTimer _touchScrollTimer;
 
 	bool _widgetAcceptsTouch = false;

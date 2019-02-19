@@ -117,7 +117,7 @@ private:
 	void showPreview();
 
 	Section _section = Section::Gifs;
-	TimeMs _lastScrolled = 0;
+	crl::time _lastScrolled = 0;
 	base::Timer _updateInlineItems;
 	bool _inlineWithThumb = false;
 

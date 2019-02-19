@@ -50,7 +50,7 @@ void PeerListWidget::visibleTopBottomUpdated(int visibleTop, int visibleBottom) 
 }
 
 void PeerListWidget::paintContents(Painter &p) {
-	auto ms = getms();
+	auto ms = crl::now();
 	auto left = getListLeft();
 	auto top = getListTop();
 	auto memberRowWidth = rowWidth();
@@ -68,7 +68,7 @@ void PeerListWidget::paintContents(Painter &p) {
 	}
 }
 
-void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedKick, TimeMs ms) {
+void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedKick, crl::time ms) {
 	if (_updateItemCallback) {
 		_updateItemCallback(item);
 	}

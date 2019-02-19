@@ -80,7 +80,7 @@ void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 }
 
 void Manager::hideByTimer() {
-	auto now = getms(true);
+	auto now = crl::now();
 	for (auto i = _toastByHideTime.begin(); i != _toastByHideTime.cend();) {
 		if (i.key() <= now) {
 			auto toast = i.value();
@@ -111,7 +111,7 @@ void Manager::onToastWidgetDestroyed(QObject *widget) {
 void Manager::startNextHideTimer() {
 	if (_toastByHideTime.isEmpty()) return;
 
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (ms >= _toastByHideTime.firstKey()) {
 		crl::on_main(this, [=] {
 			hideByTimer();

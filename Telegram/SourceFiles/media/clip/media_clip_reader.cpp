@@ -80,14 +80,14 @@ QPixmap PrepareFrame(const FrameRequest &request, const QImage &original, bool h
 
 } // namespace
 
-Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, TimeMs seekMs)
+Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, crl::time seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
 , _seekPositionMs(seekMs) {
 	init(FileLocation(filepath), QByteArray());
 }
 
-Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, TimeMs seekMs)
+Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, crl::time seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
 , _audioMsgId(document, msgId, (mode == Mode::Video) ? rand_value<uint32>() : 0)
@@ -211,7 +211,7 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 	}
 }
 
-QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners, TimeMs ms) {
+QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners, crl::time ms) {
 	Expects(outerw > 0);
 	Expects(outerh > 0);
 
@@ -291,14 +291,14 @@ bool Reader::hasAudio() const {
 	return ready() ? _hasAudio : false;
 }
 
-TimeMs Reader::getPositionMs() const {
+crl::time Reader::getPositionMs() const {
 	if (auto frame = frameToShow()) {
 		return frame->positionMs;
 	}
 	return _seekPositionMs;
 }
 
-TimeMs Reader::getDurationMs() const {
+crl::time Reader::getDurationMs() const {
 	return ready() ? _durationMs : 0;
 }
 
@@ -365,7 +365,7 @@ public:
 		_accessed = true;
 	}
 
-	ProcessResult start(TimeMs ms) {
+	ProcessResult start(crl::time ms) {
 		if (!_implementation && !init()) {
 			return error();
 		}
@@ -375,7 +375,7 @@ public:
 				// If seek was done to the end: try to read the first frame,
 				// get the frame size and return a black frame with that size.
 
-				auto firstFramePositionMs = TimeMs(0);
+				auto firstFramePositionMs = crl::time(0);
 				auto reader = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, AudioMsgId());
 				if (reader->start(internal::ReaderImplementation::Mode::Normal, firstFramePositionMs)) {
 					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
@@ -412,7 +412,7 @@ public:
 		return ProcessResult::Wait;
 	}
 
-	ProcessResult process(TimeMs ms) { // -1 - do nothing, 0 - update, 1 - reinit
+	ProcessResult process(crl::time ms) { // -1 - do nothing, 0 - update, 1 - reinit
 		if (_state == State::Error) {
 			return ProcessResult::Error;
 		} else if (_state == State::Finished) {
@@ -435,7 +435,7 @@ public:
 		return ProcessResult::Wait;
 	}
 
-	ProcessResult finishProcess(TimeMs ms) {
+	ProcessResult finishProcess(crl::time ms) {
 		auto frameMs = _seekPositionMs + ms - _animationStarted;
 		auto readResult = _implementation->readFramesTill(frameMs, ms);
 		if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile) {
@@ -495,11 +495,11 @@ public:
 		return _implementation->start(implementationMode(), _seekPositionMs);
 	}
 
-	void startedAt(TimeMs ms) {
+	void startedAt(crl::time ms) {
 		_animationStarted = _nextFrameWhen = ms;
 	}
 
-	void pauseVideo(TimeMs ms) {
+	void pauseVideo(crl::time ms) {
 		if (_videoPausedAtMs) return; // Paused already.
 
 		_videoPausedAtMs = ms;
@@ -508,7 +508,7 @@ public:
 		}
 	}
 
-	void resumeVideo(TimeMs ms) {
+	void resumeVideo(crl::time ms) {
 		if (!_videoPausedAtMs) return; // Not paused.
 
 		auto delta = ms - _videoPausedAtMs;
@@ -552,7 +552,7 @@ private:
 	State _state = State::Reading;
 	Reader::Mode _mode;
 	AudioMsgId _audioMsgId;
-	TimeMs _seekPositionMs = 0;
+	crl::time _seekPositionMs = 0;
 
 	QByteArray _data;
 	std::unique_ptr<FileLocation> _location;
@@ -566,10 +566,10 @@ private:
 		QPixmap pix;
 		QImage original, cache;
 		bool alpha = true;
-		TimeMs when = 0;
+		crl::time when = 0;
 
 		// Counted from the end, so that positionMs <= durationMs despite keep up delays.
-		TimeMs positionMs = 0;
+		crl::time positionMs = 0;
 	};
 	Frame _frames[3];
 	int _frame = 0;
@@ -581,14 +581,14 @@ private:
 	int _height = 0;
 
 	bool _hasAudio = false;
-	TimeMs _durationMs = 0;
-	TimeMs _animationStarted = 0;
-	TimeMs _nextFrameWhen = 0;
-	TimeMs _nextFramePositionMs = 0;
+	crl::time _durationMs = 0;
+	crl::time _animationStarted = 0;
+	crl::time _nextFrameWhen = 0;
+	crl::time _nextFramePositionMs = 0;
 
 	bool _autoPausedGif = false;
 	bool _started = false;
-	TimeMs _videoPausedAtMs = 0;
+	crl::time _videoPausedAtMs = 0;
 
 	friend class Manager;
 
@@ -655,7 +655,7 @@ Manager::ReaderPointers::const_iterator Manager::constUnsafeFindReaderPointer(Re
 	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.cend();
 }
 
-bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, TimeMs ms) {
+bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, crl::time ms) {
 	QMutexLocker lock(&_readerPointersMutex);
 	auto it = unsafeFindReaderPointer(reader);
 	if (result == ProcessResult::Error) {
@@ -717,7 +717,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, T
 	return true;
 }
 
-Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessResult result, TimeMs ms) {
+Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessResult result, crl::time ms) {
 	if (!handleProcessResult(reader, result, ms)) {
 		_loadLevel.fetchAndAddRelaxed(-1 * (reader->_width > 0 ? reader->_width * reader->_height : AverageGifSize));
 		delete reader;
@@ -761,7 +761,7 @@ void Manager::process() {
 	_processingInThread = thread();
 
 	bool checkAllReaders = false;
-	auto ms = getms(), minms = ms + 86400 * 1000LL;
+	auto ms = crl::now(), minms = ms + 86400 * 1000LL;
 	{
 		QMutexLocker lock(&_readerPointersMutex);
 		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
@@ -799,7 +799,7 @@ void Manager::process() {
 				_processingInThread = 0;
 				return;
 			}
-			ms = getms();
+			ms = crl::now();
 			if (reader->_videoPausedAtMs) {
 				i.value() = ms + 86400 * 1000ULL;
 			} else if (reader->_nextFrameWhen && reader->_started) {
@@ -823,7 +823,7 @@ void Manager::process() {
 		++i;
 	}
 
-	ms = getms();
+	ms = crl::now();
 	if (_needReProcess || minms <= ms) {
 		_needReProcess = false;
 		_timer.start(1);
@@ -878,7 +878,7 @@ FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteA
 			//	}
 			//}
 			auto hasAlpha = false;
-			auto readResult = reader->readFramesTill(-1, getms());
+			auto readResult = reader->readFramesTill(-1, crl::now());
 			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
 			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
 				if (hasAlpha) {

@@ -18,7 +18,7 @@ namespace Api {
 namespace {
 
 constexpr auto kSharedMediaLimit = 100;
-constexpr auto kDefaultSearchTimeoutMs = TimeMs(200);
+constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
 
@@ -379,7 +379,7 @@ void DelayedSearchController::setQuery(const Query &query) {
 
 void DelayedSearchController::setQuery(
 		const Query &query,
-		TimeMs delay) {
+		crl::time delay) {
 	if (currentQuery() == query) {
 		_timer.cancel();
 		return;

@@ -139,10 +139,10 @@ public:
 	bool smallDialogsList() const {
 		return _variables.smallDialogsList;
 	}
-	void setLastTimeVideoPlayedAt(TimeMs time) {
+	void setLastTimeVideoPlayedAt(crl::time time) {
 		_lastTimeVideoPlayedAt = time;
 	}
-	TimeMs lastTimeVideoPlayedAt() const {
+	crl::time lastTimeVideoPlayedAt() const {
 		return _lastTimeVideoPlayedAt;
 	}
 	void setSoundOverride(const QString &key, const QString &path) {
@@ -263,7 +263,7 @@ private:
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;
 
 	Variables _variables;
-	TimeMs _lastTimeVideoPlayedAt = 0;
+	crl::time _lastTimeVideoPlayedAt = 0;
 
 };
 
@@ -311,7 +311,7 @@ public:
 		return _settings;
 	}
 	void moveSettingsFrom(AuthSessionSettings &&other);
-	void saveSettingsDelayed(TimeMs delay = kDefaultSaveDelay);
+	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
 	ApiWrap &api() {
 		return *_api;
@@ -322,7 +322,7 @@ public:
 	}
 
 	void checkAutoLock();
-	void checkAutoLockIn(TimeMs time);
+	void checkAutoLockIn(crl::time time);
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -338,12 +338,12 @@ public:
 	~AuthSession();
 
 private:
-	static constexpr auto kDefaultSaveDelay = TimeMs(1000);
+	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 
 	AuthSessionSettings _settings;
 	base::Timer _saveDataTimer;
 
-	TimeMs _shouldLockAt = 0;
+	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;
 
 	const std::unique_ptr<ApiWrap> _api;

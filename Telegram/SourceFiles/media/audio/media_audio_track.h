@@ -19,7 +19,7 @@ class Track {
 public:
 	Track(not_null<Instance*> instance);
 
-	void samplePeakEach(TimeMs peakDuration);
+	void samplePeakEach(crl::time peakDuration);
 
 	void fillFromData(bytes::vector &&data);
 	void fillFromFile(const FileLocation &location);
@@ -45,7 +45,7 @@ public:
 	int64 getLengthMs() const {
 		return _lengthMs;
 	}
-	float64 getPeakValue(TimeMs when) const;
+	float64 getPeakValue(crl::time when) const;
 
 	void detachFromDevice();
 	void reattachToDevice();
@@ -69,14 +69,14 @@ private:
 	int32 _sampleRate = 0;
 	bytes::vector _samples;
 
-	TimeMs _peakDurationMs = 0;
+	crl::time _peakDurationMs = 0;
 	int _peakEachPosition = 0;
 	std::vector<uint16> _peaks;
 	uint16 _peakValueMin = 0;
 	uint16 _peakValueMax = 0;
 
-	TimeMs _lengthMs = 0;
-	TimeMs _stateUpdatedAt = 0;
+	crl::time _lengthMs = 0;
+	crl::time _stateUpdatedAt = 0;
 
 	int32 _alFormat = 0;
 	int64 _alPosition = 0;

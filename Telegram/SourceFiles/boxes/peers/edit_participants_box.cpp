@@ -35,7 +35,7 @@ constexpr auto kForwardMessagesOnAdd = 100;
 
 constexpr auto kParticipantsFirstPageCount = 16;
 constexpr auto kParticipantsPerPage = 200;
-constexpr auto kSortByOnlineDelay = TimeMs(1000);
+constexpr auto kSortByOnlineDelay = crl::time(1000);
 
 void RemoveAdmin(
 		not_null<ChannelData*> channel,

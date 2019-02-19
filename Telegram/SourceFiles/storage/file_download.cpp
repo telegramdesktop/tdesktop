@@ -25,7 +25,7 @@ namespace Storage {
 namespace {
 
 // How much time without download causes additional session kill.
-constexpr auto kKillSessionTimeout = TimeMs(5000);
+constexpr auto kKillSessionTimeout = crl::time(5000);
 
 } // namespace
 
@@ -56,7 +56,7 @@ void Downloader::killDownloadSessionsStart(MTP::DcId dcId) {
 	if (!_killDownloadSessionTimes.contains(dcId)) {
 		_killDownloadSessionTimes.emplace(
 			dcId,
-			getms() + MTP::kAckSendWaiting + kKillSessionTimeout);
+			crl::now() + MTP::kAckSendWaiting + kKillSessionTimeout);
 	}
 	if (!_killDownloadSessionsTimer.isActive()) {
 		_killDownloadSessionsTimer.callOnce(
@@ -73,7 +73,7 @@ void Downloader::killDownloadSessionsStop(MTP::DcId dcId) {
 }
 
 void Downloader::killDownloadSessions() {
-	auto ms = getms(), left = MTP::kAckSendWaiting + kKillSessionTimeout;
+	auto ms = crl::now(), left = MTP::kAckSendWaiting + kKillSessionTimeout;
 	for (auto i = _killDownloadSessionTimes.begin(); i != _killDownloadSessionTimes.end(); ) {
 		if (i->second <= ms) {
 			for (int j = 0; j < MTP::kDownloadSessionsCount; ++j) {

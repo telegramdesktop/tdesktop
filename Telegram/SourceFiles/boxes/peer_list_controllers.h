@@ -42,7 +42,7 @@ private:
 	QMargins actionMargins() const override;
 	void paintAction(
 		Painter &p,
-		TimeMs ms,
+		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,

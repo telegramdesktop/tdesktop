@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
-constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * TimeMs(1000);
+constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 } // namespace
 
@@ -184,12 +184,12 @@ void Instance::refreshServerConfig() {
 	if (_serverConfigRequestId) {
 		return;
 	}
-	if (_lastServerConfigUpdateTime && (getms(true) - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
+	if (_lastServerConfigUpdateTime && (crl::now() - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
 		return;
 	}
 	_serverConfigRequestId = request(MTPphone_GetCallConfig()).done([this](const MTPDataJSON &result) {
 		_serverConfigRequestId = 0;
-		_lastServerConfigUpdateTime = getms(true);
+		_lastServerConfigUpdateTime = crl::now();
 
 		const auto &json = result.c_dataJSON().vdata.v;
 		UpdateConfig(std::string(json.data(), json.size()));

@@ -24,7 +24,7 @@ int64 AbstractFFMpegLoader::Mul(int64 value, AVRational rational) {
 	return value * rational.num / rational.den;
 }
 
-bool AbstractFFMpegLoader::open(TimeMs positionMs) {
+bool AbstractFFMpegLoader::open(crl::time positionMs) {
 	if (!AudioPlayerLoader::openFile()) {
 		return false;
 	}
@@ -496,7 +496,7 @@ FFMpegLoader::FFMpegLoader(
 : AbstractAudioFFMpegLoader(file, data, std::move(buffer)) {
 }
 
-bool FFMpegLoader::open(TimeMs positionMs) {
+bool FFMpegLoader::open(crl::time positionMs) {
 	if (!AbstractFFMpegLoader::open(positionMs)) {
 		return false;
 	}
@@ -554,7 +554,7 @@ bool FFMpegLoader::openCodecContext() {
 	return true;
 }
 
-bool FFMpegLoader::seekTo(TimeMs positionMs) {
+bool FFMpegLoader::seekTo(crl::time positionMs) {
 	if (positionMs) {
 		const auto stream = fmtContext->streams[streamId];
 		const auto timeBase = stream->time_base;

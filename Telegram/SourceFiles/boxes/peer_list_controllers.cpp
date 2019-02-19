@@ -76,7 +76,7 @@ void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
 //void MembersAddButton::paintEvent(QPaintEvent *e) {
 //	Painter p(this);
 //
-//	auto ms = getms();
+//	auto ms = crl::now();
 //	auto over = isOver();
 //	auto down = isDown();
 //
@@ -122,7 +122,7 @@ QMargins PeerListRowWithLink::actionMargins() const {
 
 void PeerListRowWithLink::paintAction(
 		Painter &p,
-		TimeMs ms,
+		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kUpdateFullPeerTimeout = TimeMs(5000); // Not more than once in 5 seconds.
+constexpr auto kUpdateFullPeerTimeout = crl::time(5000); // Not more than once in 5 seconds.
 constexpr auto kUserpicSize = 160;
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
@@ -431,7 +431,7 @@ PeerData::~PeerData() = default;
 
 void PeerData::updateFull() {
 	if (!_lastFullUpdate
-		|| getms(true) > _lastFullUpdate + kUpdateFullPeerTimeout) {
+		|| crl::now() > _lastFullUpdate + kUpdateFullPeerTimeout) {
 		updateFullForced();
 	}
 }
@@ -446,7 +446,7 @@ void PeerData::updateFullForced() {
 }
 
 void PeerData::fullUpdated() {
-	_lastFullUpdate = getms(true);
+	_lastFullUpdate = crl::now();
 }
 
 UserData *PeerData::asUser() {

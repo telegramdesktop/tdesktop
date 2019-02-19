@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
-constexpr auto kUpdateDebugTimeoutMs = TimeMs(500);
+constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 
 class DebugInfoBox : public BoxContent {
 public:
@@ -162,7 +162,7 @@ void TopBar::updateDurationText() {
 	}
 }
 
-void TopBar::startDurationUpdateTimer(TimeMs currentDuration) {
+void TopBar::startDurationUpdateTimer(crl::time currentDuration) {
 	auto msTillNextSecond = 1000 - (currentDuration % 1000);
 	_updateDurationTimer.callOnce(msTillNextSecond + 5);
 }

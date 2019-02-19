@@ -36,7 +36,7 @@ void MultiSelect::Item::setText(const QString &text) {
 	accumulate_min(_width, _st.maxWidth);
 }
 
-void MultiSelect::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
+void MultiSelect::Item::paint(Painter &p, int outerWidth, crl::time ms) {
 	if (!_cache.isNull() && !_visibility.animating(ms)) {
 		if (_hiding) {
 			return;
@@ -48,7 +48,7 @@ void MultiSelect::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
 		paintOnce(p, _x, _y, outerWidth, ms);
 	} else {
 		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = qRound(i->x.current(getms(), _x));
+			auto x = qRound(i->x.current(crl::now(), _x));
 			auto y = i->y;
 			auto animating = i->x.animating();
 			if (animating || (y == _y)) {
@@ -64,7 +64,7 @@ void MultiSelect::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
 	}
 }
 
-void MultiSelect::Item::paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms) {
+void MultiSelect::Item::paintOnce(Painter &p, int x, int y, int outerWidth, crl::time ms) {
 	if (!_cache.isNull()) {
 		paintCached(p, x, y, outerWidth);
 		return;
@@ -210,7 +210,7 @@ void MultiSelect::Item::prepareCache() {
 	data.setDevicePixelRatio(cRetinaFactor());
 	{
 		Painter p(&data);
-		paintOnce(p, _width * (kWideScale - 1) / 2, _st.height  * (kWideScale - 1) / 2, cacheWidth, getms());
+		paintOnce(p, _width * (kWideScale - 1) / 2, _st.height  * (kWideScale - 1) / 2, cacheWidth, crl::now());
 	}
 	_cache = App::pixmapFromImageInPlace(std::move(data));
 }
@@ -487,7 +487,7 @@ int MultiSelect::Inner::resizeGetHeight(int newWidth) {
 void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	_height.step(ms);
 	_iconOpacity.step(ms);
 

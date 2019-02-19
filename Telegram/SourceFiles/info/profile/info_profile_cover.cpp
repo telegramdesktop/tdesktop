@@ -44,7 +44,7 @@ public:
 		int left,
 		int top,
 		int outerWidth,
-		TimeMs ms) override;
+		crl::time ms) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -72,7 +72,7 @@ void SectionToggle::paint(
 		int left,
 		int top,
 		int outerWidth,
-		TimeMs ms) {
+		crl::time ms) {
 	auto sqrt2 = sqrt(2.);
 	auto vLeft = rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
 	auto vTop = top + _st.skip + 0.;

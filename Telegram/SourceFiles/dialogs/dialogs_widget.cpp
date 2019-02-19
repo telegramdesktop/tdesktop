@@ -66,7 +66,7 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
-	void step_radial(TimeMs ms, bool timer);
+	void step_radial(crl::time ms, bool timer);
 
 	QString _text;
 	const style::FlatButton &_st;
@@ -95,7 +95,7 @@ void DialogsWidget::BottomButton::setText(const QString &text) {
 	update();
 }
 
-void DialogsWidget::BottomButton::step_radial(TimeMs ms, bool timer) {
+void DialogsWidget::BottomButton::step_radial(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled() && width() < st::columnMinimalWidthLeft) {
 		update();
 	}
@@ -125,7 +125,7 @@ void DialogsWidget::BottomButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(r, over ? _st.overBgColor : _st.bgColor);
 
 	if (!isDisabled()) {
-		paintRipple(p, 0, 0, getms());
+		paintRipple(p, 0, 0, crl::now());
 	}
 
 	p.setFont(over ? _st.overFont : _st.font);
@@ -1430,7 +1430,7 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	auto progress = _a_show.current(getms(), 1.);
+	auto progress = _a_show.current(crl::now(), 1.);
 	if (_a_show.animating()) {
 		auto retina = cIntRetinaFactor();
 		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);

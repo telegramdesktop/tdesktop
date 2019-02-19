@@ -21,7 +21,7 @@ public:
 		not_null<PhotoData*> photo,
 		int width);
 
-	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &clip, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
@@ -47,7 +47,7 @@ public:
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
-		TimeMs ms,
+		crl::time ms,
 		const QRect &geometry,
 		RectParts corners,
 		not_null<uint64*> cacheKey,

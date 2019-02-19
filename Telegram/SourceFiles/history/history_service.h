@@ -43,8 +43,8 @@ struct HistoryServiceSelfDestruct
 		Video,
 	};
 	Type type = Type::Photo;
-	TimeMs timeToLive = 0;
-	TimeMs destructAt = 0;
+	crl::time timeToLive = 0;
+	crl::time destructAt = 0;
 };
 
 namespace HistoryView {
@@ -86,7 +86,7 @@ public:
 	}
 
 	void applyEdition(const MTPDmessageService &message) override;
-	TimeMs getSelfDestructIn(TimeMs now) override;
+	crl::time getSelfDestructIn(crl::time now) override;
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 

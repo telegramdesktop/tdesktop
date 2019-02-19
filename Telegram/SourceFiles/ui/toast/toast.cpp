@@ -15,7 +15,7 @@ namespace Ui {
 namespace Toast {
 
 Instance::Instance(const Config &config, QWidget *widgetParent, const Private &)
-: _hideAtMs(getms(true) + config.durationMs) {
+: _hideAtMs(crl::now() + config.durationMs) {
 	_widget = std::make_unique<internal::Widget>(widgetParent, config);
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::toastFadeInDuration);
 }

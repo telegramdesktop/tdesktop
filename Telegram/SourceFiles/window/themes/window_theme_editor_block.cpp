@@ -623,7 +623,7 @@ void EditorBlock::paintEvent(QPaintEvent *e) {
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_theme_editor_no_keys));
 	}
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto cliptop = clip.y();
 	auto clipbottom = cliptop + clip.height();
 	enumerateRowsFrom(cliptop, [this, &p, clipbottom, ms](int index, const Row &row) {
@@ -635,7 +635,7 @@ void EditorBlock::paintEvent(QPaintEvent *e) {
 	});
 }
 
-void EditorBlock::paintRow(Painter &p, int index, const Row &row, TimeMs ms) {
+void EditorBlock::paintRow(Painter &p, int index, const Row &row, crl::time ms) {
 	auto rowTop = row.top() + st::themeEditorMargin.top();
 
 	auto rect = QRect(0, row.top(), width(), row.height());

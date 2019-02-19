@@ -432,7 +432,7 @@ class BasicAnimation;
 class AnimationImplementation {
 public:
 	virtual void start() {}
-	virtual void step(BasicAnimation *a, TimeMs ms, bool timer) = 0;
+	virtual void step(BasicAnimation *a, crl::time ms, bool timer) = 0;
 	virtual ~AnimationImplementation() {}
 
 };
@@ -451,7 +451,7 @@ public:
 	}
 
 	void start() { _implementation->start();  }
-	void step(BasicAnimation *a, TimeMs ms, bool timer) { _implementation->step(a, ms, timer); }
+	void step(BasicAnimation *a, crl::time ms, bool timer) { _implementation->step(a, ms, timer); }
 	~AnimationCallbacks() { delete base::take(_implementation); }
 
 private:
@@ -469,12 +469,12 @@ public:
 	void start();
 	void stop();
 
-	void step(TimeMs ms, bool timer = false) {
+	void step(crl::time ms, bool timer = false) {
 		_callbacks.step(this, ms, timer);
 	}
 
 	void step() {
-		step(getms(), false);
+		step(crl::now(), false);
 	}
 
 	bool animating() const {
@@ -500,15 +500,15 @@ public:
 	}
 
 	void start() {
-		_started = getms();
+		_started = crl::now();
 	}
 
-	void step(BasicAnimation *a, TimeMs ms, bool timer) {
-		(_obj->*_method)(qMax(ms - _started, TimeMs(0)), timer);
+	void step(BasicAnimation *a, crl::time ms, bool timer) {
+		(_obj->*_method)(qMax(ms - _started, crl::time(0)), timer);
 	}
 
 private:
-	TimeMs _started = 0;
+	crl::time _started = 0;
 	Type *_obj = nullptr;
 	Method _method = nullptr;
 
@@ -522,12 +522,12 @@ AnimationCallbacks animation(Type *obj, typename AnimationCallbacksRelative<Type
 template <typename Type>
 class AnimationCallbacksAbsolute : public AnimationImplementation {
 public:
-	typedef void (Type::*Method)(TimeMs, bool);
+	typedef void (Type::*Method)(crl::time, bool);
 
 	AnimationCallbacksAbsolute(Type *obj, Method method) : _obj(obj), _method(method) {
 	}
 
-	void step(BasicAnimation *a, TimeMs ms, bool timer) {
+	void step(BasicAnimation *a, crl::time ms, bool timer) {
 		(_obj->*_method)(ms, timer);
 	}
 
@@ -551,15 +551,15 @@ public:
 	}
 
 	void start() {
-		_started = getms();
+		_started = crl::now();
 	}
 
-	void step(BasicAnimation *a, TimeMs ms, bool timer) {
-		(_obj->*_method)(_param, qMax(ms - _started, TimeMs(0)), timer);
+	void step(BasicAnimation *a, crl::time ms, bool timer) {
+		(_obj->*_method)(_param, qMax(ms - _started, crl::time(0)), timer);
 	}
 
 private:
-	TimeMs _started = 0;
+	crl::time _started = 0;
 	Param _param;
 	Type *_obj = nullptr;
 	Method _method = nullptr;
@@ -574,12 +574,12 @@ AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacks
 template <typename Type, typename Param>
 class AnimationCallbacksAbsoluteWithParam : public AnimationImplementation {
 public:
-	typedef void (Type::*Method)(Param, TimeMs, bool);
+	typedef void (Type::*Method)(Param, crl::time, bool);
 
 	AnimationCallbacksAbsoluteWithParam(Param param, Type *obj, Method method) : _param(param), _obj(obj), _method(method) {
 	}
 
-	void step(BasicAnimation *a, TimeMs ms, bool timer) {
+	void step(BasicAnimation *a, crl::time ms, bool timer) {
 		(_obj->*_method)(_param, ms, timer);
 	}
 
@@ -597,7 +597,7 @@ AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacks
 
 class Animation {
 public:
-	void step(TimeMs ms) {
+	void step(crl::time ms) {
 		if (_data) {
 			_data->a_animation.step(ms);
 			if (_data && !_data->a_animation.animating()) {
@@ -615,7 +615,7 @@ public:
 		}
 		return false;
 	}
-	bool animating(TimeMs ms) {
+	bool animating(crl::time ms) {
 		step(ms);
 		return animating();
 	}
@@ -627,7 +627,7 @@ public:
 	float64 current(float64 def) const {
 		return animating() ? current() : def;
 	}
-	float64 current(TimeMs ms, float64 def) {
+	float64 current(crl::time ms, float64 def) {
 		return animating(ms) ? current() : def;
 	}
 

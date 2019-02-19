@@ -85,7 +85,7 @@ struct OverlayWidget::Collage {
 OverlayWidget::OverlayWidget()
 : OverlayParent(nullptr)
 , _transparentBrush(style::transparentPlaceholderBrush())
-, _animStarted(getms())
+, _animStarted(crl::now())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
 , _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
@@ -505,13 +505,13 @@ auto OverlayWidget::computeOverviewType() const
 	return std::nullopt;
 }
 
-void OverlayWidget::step_state(TimeMs ms, bool timer) {
+void OverlayWidget::step_state(crl::time ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::mediaviewShowDuration + st::mediaviewHideDuration;
 	}
 	bool result = false;
 	for (auto i = _animations.begin(); i != _animations.end();) {
-		TimeMs start = i.value();
+		crl::time start = i.value();
 		switch (i.key()) {
 		case OverLeftNav: update(_leftNav); break;
 		case OverRightNav: update(_rightNav); break;
@@ -598,16 +598,16 @@ void OverlayWidget::radialStart() {
 	if (radialLoading() && !_radial.animating()) {
 		_radial.start(radialProgress());
 		if (auto shift = radialTimeShift()) {
-			_radial.update(radialProgress(), !radialLoading(), getms() + shift);
+			_radial.update(radialProgress(), !radialLoading(), crl::now() + shift);
 		}
 	}
 }
 
-TimeMs OverlayWidget::radialTimeShift() const {
+crl::time OverlayWidget::radialTimeShift() const {
 	return _photo ? st::radialDuration : 0;
 }
 
-void OverlayWidget::step_radial(TimeMs ms, bool timer) {
+void OverlayWidget::step_radial(crl::time ms, bool timer) {
 	if (!_doc && !_photo) {
 		_radial.stop();
 		return;
@@ -770,7 +770,7 @@ void OverlayWidget::activateControls() {
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
 		_controlsState = ControlsShowing;
-		_controlsAnimStarted = getms();
+		_controlsAnimStarted = crl::now();
 		a_cOpacity.start(1);
 		if (!_a_state.animating()) _a_state.start();
 	}
@@ -794,7 +794,7 @@ void OverlayWidget::onHideControls(bool force) {
 
 	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
 	_controlsState = ControlsHiding;
-	_controlsAnimStarted = getms();
+	_controlsAnimStarted = crl::now();
 	a_cOpacity.start(0);
 	if (!_a_state.animating()) _a_state.start();
 }
@@ -1032,7 +1032,7 @@ void OverlayWidget::onDownload() {
 	}
 	if (!toName.isEmpty()) {
 		_saveMsgFilename = toName;
-		_saveMsgStarted = getms();
+		_saveMsgStarted = crl::now();
 		_saveMsgOpacity.start(1);
 		updateImage();
 	}
@@ -1913,8 +1913,8 @@ void OverlayWidget::createClipController() {
 
 	connect(_clipController, SIGNAL(playPressed()), this, SLOT(onVideoPauseResume()));
 	connect(_clipController, SIGNAL(pausePressed()), this, SLOT(onVideoPauseResume()));
-	connect(_clipController, SIGNAL(seekProgress(TimeMs)), this, SLOT(onVideoSeekProgress(TimeMs)));
-	connect(_clipController, SIGNAL(seekFinished(TimeMs)), this, SLOT(onVideoSeekFinished(TimeMs)));
+	connect(_clipController, SIGNAL(seekProgress(crl::time)), this, SLOT(onVideoSeekProgress(crl::time)));
+	connect(_clipController, SIGNAL(seekFinished(crl::time)), this, SLOT(onVideoSeekFinished(crl::time)));
 	connect(_clipController, SIGNAL(volumeChanged(float64)), this, SLOT(onVideoVolumeChanged(float64)));
 	connect(_clipController, SIGNAL(toFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 	connect(_clipController, SIGNAL(fromFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
@@ -1968,7 +1968,7 @@ void OverlayWidget::toggleVideoPaused() {
 	}
 }
 
-void OverlayWidget::restartVideoAtSeekPosition(TimeMs positionMs) {
+void OverlayWidget::restartVideoAtSeekPosition(crl::time positionMs) {
 	// Seek works bad: it seeks to the next keyframe after positionMs.
 	// At least let user to seek to the beginning of the video.
 	if (positionMs < 1000
@@ -1980,7 +1980,7 @@ void OverlayWidget::restartVideoAtSeekPosition(TimeMs positionMs) {
 
 	if (_current.isNull()) {
 		auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
-		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners, getms());
+		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners, crl::now());
 	}
 	_gif = Media::Clip::MakeReader(_doc, _msgid, [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
@@ -1998,13 +1998,13 @@ void OverlayWidget::restartVideoAtSeekPosition(TimeMs positionMs) {
 	updateVideoPlaybackState(state);
 }
 
-void OverlayWidget::onVideoSeekProgress(TimeMs positionMs) {
+void OverlayWidget::onVideoSeekProgress(crl::time positionMs) {
 	if (!_videoPaused && !_videoStopped) {
 		onVideoPauseResume();
 	}
 }
 
-void OverlayWidget::onVideoSeekFinished(TimeMs positionMs) {
+void OverlayWidget::onVideoSeekFinished(crl::time positionMs) {
 	restartVideoAtSeekPosition(positionMs);
 }
 
@@ -2041,7 +2041,7 @@ void OverlayWidget::onVideoPlayProgress(const AudioMsgId &audioId) {
 		if (state.length) {
 			updateVideoPlaybackState(state);
 		}
-		Auth().settings().setLastTimeVideoPlayedAt(getms(true));
+		Auth().settings().setLastTimeVideoPlayedAt(crl::now());
 	}
 }
 
@@ -2109,7 +2109,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 	QRegion region(e->region());
 	QVector<QRect> rs(region.rects());
 
-	auto ms = getms();
+	auto ms = crl::now();
 
 	Painter p(this);
 
@@ -2185,7 +2185,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 			}
 
 			if (_saveMsgStarted) {
-				auto ms = getms();
+				auto ms = crl::now();
 				float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
 				if (dt < st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + st::mediaviewSaveMsgHiding) {
 					if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
@@ -2888,7 +2888,7 @@ bool OverlayWidget::updateOverState(OverState newState) {
 		updateOverRect(_over);
 		updateOverRect(newState);
 		if (_over != OverNone) {
-			_animations[_over] = getms();
+			_animations[_over] = crl::now();
 			ShowingOpacities::iterator i = _animOpacities.find(_over);
 			if (i != _animOpacities.end()) {
 				i->start(0);
@@ -2901,7 +2901,7 @@ bool OverlayWidget::updateOverState(OverState newState) {
 		}
 		_over = newState;
 		if (newState != OverNone) {
-			_animations[_over] = getms();
+			_animations[_over] = crl::now();
 			ShowingOpacities::iterator i = _animOpacities.find(_over);
 			if (i != _animOpacities.end()) {
 				i->start(1);

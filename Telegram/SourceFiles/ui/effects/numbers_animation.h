@@ -25,7 +25,7 @@ public:
 		_widthChangedCallback = std::move(callback);
 	}
 	void setText(const QString &text, int value);
-	void stepAnimation(TimeMs ms);
+	void stepAnimation(crl::time ms);
 	void finishAnimating();
 
 	void paint(Painter &p, int x, int y, int outerWidth);

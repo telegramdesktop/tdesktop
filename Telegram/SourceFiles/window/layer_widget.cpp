@@ -217,7 +217,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	auto specialLayerBox = _specialLayerCache.isNull() ? _specialLayerBox : _specialLayerCacheBox;
 	auto layerBox = _layerCache.isNull() ? _layerBox : _layerCacheBox;
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto mainMenuProgress = _a_mainMenuShown.current(ms, -1);
 	auto mainMenuRight = (_mainMenuCache.isNull() || mainMenuProgress < 0) ? _mainMenuRight : (mainMenuProgress < 0) ? _mainMenuRight : anim::interpolate(0, _mainMenuCacheWidth, mainMenuProgress);
 	if (mainMenuRight) {
@@ -861,7 +861,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 
 	auto image = currentImage();
 	int w = image.width() / cIntRetinaFactor(), h = image.height() / cIntRetinaFactor();
-	auto shown = _a_shown.current(getms(), _hiding ? 0. : 1.);
+	auto shown = _a_shown.current(crl::now(), _hiding ? 0. : 1.);
 	if (!_a_shown.animating()) {
 		if (_hiding) {
 			hide();
@@ -1043,7 +1043,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_gif && _gif->started()) {
 				auto s = currentDimensions();
 				auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
-				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
+				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
 			}
 			if (_cacheStatus != CacheThumbLoaded
 				&& _document->hasThumbnail()) {

@@ -337,7 +337,7 @@ bool History::updateSendActionNeedsAnimating(
 		return false;
 	}
 
-	auto ms = getms();
+	auto ms = crl::now();
 	switch (action.type()) {
 	case mtpc_sendMessageTypingAction: _typing.insert(user, ms + kStatusShowClientsideTyping); break;
 	case mtpc_sendMessageRecordVideoAction: _sendActions.insert(user, { Type::RecordVideo, ms + kStatusShowClientsideRecordVideo }); break;
@@ -362,7 +362,7 @@ bool History::updateSendActionNeedsAnimating(
 }
 
 bool History::mySendActionUpdated(SendAction::Type type, bool doing) {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	auto i = _mySendActions.find(type);
 	if (doing) {
 		if (i == _mySendActions.cend()) {
@@ -391,7 +391,7 @@ bool History::paintSendAction(
 		int availableWidth,
 		int outerWidth,
 		style::color color,
-		TimeMs ms) {
+		crl::time ms) {
 	if (_sendActionAnimation) {
 		_sendActionAnimation.paint(
 			p,
@@ -410,7 +410,7 @@ bool History::paintSendAction(
 	return false;
 }
 
-bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
+bool History::updateSendActionNeedsAnimating(crl::time ms, bool force) {
 	auto changed = force;
 	for (auto i = _typing.begin(), e = _typing.end(); i != e;) {
 		if (ms >= i.value()) {
@@ -1111,15 +1111,15 @@ void History::applyServiceChanges(
 }
 
 void History::clearSendAction(not_null<UserData*> from) {
-	auto updateAtMs = TimeMs(0);
+	auto updateAtMs = crl::time(0);
 	auto i = _typing.find(from);
 	if (i != _typing.cend()) {
-		updateAtMs = getms();
+		updateAtMs = crl::now();
 		i.value() = updateAtMs;
 	}
 	auto j = _sendActions.find(from);
 	if (j != _sendActions.cend()) {
-		if (!updateAtMs) updateAtMs = getms();
+		if (!updateAtMs) updateAtMs = crl::now();
 		j.value().until = updateAtMs;
 	}
 	if (updateAtMs) {

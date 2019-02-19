@@ -118,7 +118,7 @@ void ConcurrentSender::RequestBuilder::setToDC(ShiftedDcId dcId) noexcept {
 	_dcId = dcId;
 }
 
-void ConcurrentSender::RequestBuilder::setCanWait(TimeMs ms) noexcept {
+void ConcurrentSender::RequestBuilder::setCanWait(crl::time ms) noexcept {
 	_canWait = ms;
 }
 

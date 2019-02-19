@@ -24,7 +24,7 @@ public:
 		return _checked;
 	}
 	void update();
-	float64 currentAnimationValue(TimeMs ms);
+	float64 currentAnimationValue(crl::time ms);
 	bool animating() const;
 
 	auto checkedChanges() const {
@@ -38,7 +38,7 @@ public:
 
 	// Zero instead of ms value means that animation was already updated for this time.
 	// It can be passed to currentAnimationValue() safely.
-	virtual void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) = 0;
+	virtual void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) = 0;
 	virtual QImage prepareRippleMask() const = 0;
 	virtual bool checkRippleStartPosition(QPoint position) const = 0;
 
@@ -72,7 +72,7 @@ public:
 	void setStyle(const style::Check &st);
 
 	QSize getSize() const override;
-	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+	void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -100,7 +100,7 @@ public:
 	void setUntoggledOverride(std::optional<QColor> untoggledOverride);
 
 	QSize getSize() const override;
-	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+	void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -123,7 +123,7 @@ public:
 	void setStyle(const style::Toggle &st);
 
 	QSize getSize() const override;
-	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+	void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 	void setLocked(bool locked);

@@ -155,7 +155,7 @@ void TabbedPanel::windowActiveChanged() {
 void TabbedPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 
 	// This call can finish _a_show animation and destroy _showAnimation.
 	auto opacityAnimating = _a_opacity.animating(ms);
@@ -208,7 +208,7 @@ void TabbedPanel::leaveEventHook(QEvent *e) {
 	if (preventAutoHide()) {
 		return;
 	}
-	auto ms = getms();
+	auto ms = crl::now();
 	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
 		hideAnimated();
 	} else {
@@ -226,7 +226,7 @@ void TabbedPanel::otherLeave() {
 		return;
 	}
 
-	auto ms = getms();
+	auto ms = crl::now();
 	if (_a_opacity.animating(ms)) {
 		hideByTimerOrLeave();
 	} else {

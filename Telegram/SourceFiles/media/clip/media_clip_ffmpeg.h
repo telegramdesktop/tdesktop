@@ -24,20 +24,20 @@ class FFMpegReaderImplementation : public ReaderImplementation {
 public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, const AudioMsgId &audio);
 
-	ReadResult readFramesTill(TimeMs frameMs, TimeMs systemMs) override;
+	ReadResult readFramesTill(crl::time frameMs, crl::time systemMs) override;
 
-	TimeMs frameRealTime() const override;
-	TimeMs framePresentationTime() const override;
+	crl::time frameRealTime() const override;
+	crl::time framePresentationTime() const override;
 
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 
-	TimeMs durationMs() const override;
+	crl::time durationMs() const override;
 	bool hasAudio() const override {
 		return (_audioStreamId >= 0);
 	}
 
-	bool start(Mode mode, TimeMs &positionMs) override;
-	bool inspectAt(TimeMs &positionMs);
+	bool start(Mode mode, crl::time &positionMs) override;
+	bool inspectAt(crl::time &positionMs);
 
 	QString logData() const;
 
@@ -56,7 +56,7 @@ private:
 	};
 	PacketResult readPacket(AVPacket *packet);
 	void processPacket(AVPacket *packet);
-	TimeMs countPacketMs(AVPacket *packet) const;
+	crl::time countPacketMs(AVPacket *packet) const;
 	PacketResult readAndProcessPacket();
 
 	enum class Rotation {
@@ -96,8 +96,8 @@ private:
 	bool _hasAudioStream = false;
 	int _audioStreamId = -1;
 	AudioMsgId _audioMsgId;
-	TimeMs _lastReadVideoMs = 0;
-	TimeMs _lastReadAudioMs = 0;
+	crl::time _lastReadVideoMs = 0;
+	crl::time _lastReadAudioMs = 0;
 
 	QQueue<FFMpeg::AVPacketDataWrap> _packetQueue;
 	AVPacket _packetNull; // for final decoding
@@ -110,12 +110,12 @@ private:
 	SwsContext *_swsContext = nullptr;
 	QSize _swsSize;
 
-	TimeMs _frameMs = 0;
+	crl::time _frameMs = 0;
 	int _nextFrameDelay = 0;
 	int _currentFrameDelay = 0;
 
-	TimeMs _frameTime = 0;
-	TimeMs _frameTimeCorrection = 0;
+	crl::time _frameTime = 0;
+	crl::time _frameTimeCorrection = 0;
 
 };
 

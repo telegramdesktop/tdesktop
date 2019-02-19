@@ -39,7 +39,7 @@ private:
 	void setInfoLabels();
 	void updateDurationText();
 	void updateControlsGeometry();
-	void startDurationUpdateTimer(TimeMs currentDuration);
+	void startDurationUpdateTimer(crl::time currentDuration);
 	void setMuted(bool mute);
 
 	base::weak_ptr<Call> _call;

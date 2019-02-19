@@ -20,7 +20,7 @@ namespace internal {
 namespace {
 
 constexpr auto kPacketSizeMax = int(0x01000000 * sizeof(mtpPrime));
-constexpr auto kFullConnectionTimeout = 8 * TimeMs(1000);
+constexpr auto kFullConnectionTimeout = 8 * crl::time(1000);
 constexpr auto kSmallBufferSize = 256 * 1024;
 constexpr auto kMinPacketBuffer = 256;
 
@@ -466,7 +466,7 @@ void TcpConnection::socketConnected() {
 		).arg(_protocolDcId
 		).arg(_address + ':' + QString::number(_port)));
 
-	_pingTime = getms();
+	_pingTime = crl::now();
 	sendData(std::move(buffer));
 }
 
@@ -609,11 +609,11 @@ void TcpConnection::connectToServer(
 	_socket.connectToHost(_address, _port);
 }
 
-TimeMs TcpConnection::pingTime() const {
-	return isConnected() ? _pingTime : TimeMs(0);
+crl::time TcpConnection::pingTime() const {
+	return isConnected() ? _pingTime : crl::time(0);
 }
 
-TimeMs TcpConnection::fullConnectTimeout() const {
+crl::time TcpConnection::fullConnectTimeout() const {
 	return kFullConnectionTimeout;
 }
 
@@ -645,7 +645,7 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 					&QTcpSocket::connected,
 					nullptr,
 					nullptr);
-				_pingTime = (getms() - _pingTime);
+				_pingTime = (crl::now() - _pingTime);
 				emit connected();
 			} else {
 				DEBUG_LOG(("Connection Error: "

@@ -17,7 +17,7 @@ void objc_bringToBack(WId winId);
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);
 bool objc_idleSupported();
-bool objc_idleTime(TimeMs &idleTime);
+bool objc_idleTime(crl::time &idleTime);
 
 void objc_start();
 void objc_ignoreApplicationActivationRightNow();

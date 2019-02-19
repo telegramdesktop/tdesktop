@@ -511,7 +511,7 @@ int ReplyKeyboard::naturalHeight() const {
 	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
 }
 
-void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const {
+void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, crl::time ms) const {
 	Assert(_st != nullptr);
 	Assert(_width > 0);
 
@@ -609,7 +609,7 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 
 	_animations.remove(-indexForAnimation);
 	if (!_animations.contains(indexForAnimation)) {
-		_animations.emplace(indexForAnimation, getms());
+		_animations.emplace(indexForAnimation, crl::now());
 	}
 
 	if (notStarted && !_a_selected.animating()) {
@@ -617,7 +617,7 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 	}
 }
 
-void ReplyKeyboard::step_selected(TimeMs ms, bool timer) {
+void ReplyKeyboard::step_selected(crl::time ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::botKbDuration;
 	}
@@ -667,7 +667,7 @@ void ReplyKeyboard::Style::paintButton(
 		Painter &p,
 		int outerWidth,
 		const ReplyKeyboard::Button &button,
-		TimeMs ms) const {
+		crl::time ms) const {
 	const QRect &rect = button.rect;
 	paintButtonBg(p, rect, button.howMuchOver);
 	if (button.ripple) {

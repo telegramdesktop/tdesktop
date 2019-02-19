@@ -110,7 +110,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
 		p.translate(x, st::botKbScroll.deltat);
-		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat), getms());
+		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat), crl::now());
 	}
 }
 

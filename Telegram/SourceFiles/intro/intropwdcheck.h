@@ -61,7 +61,7 @@ private:
 	void serverError();
 
 	Core::CloudPasswordCheckRequest _request;
-	TimeMs _lastSrpIdInvalidTime = 0;
+	crl::time _lastSrpIdInvalidTime = 0;
 	bytes::vector _passwordHash;
 	bool _hasRecovery = false;
 	bool _notEmptyPassport = false;

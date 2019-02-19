@@ -17,11 +17,11 @@ namespace internal {
 namespace {
 
 // How much time passed from send till we resend request or check its state.
-constexpr auto kCheckResendTimeout = TimeMs(10000);
+constexpr auto kCheckResendTimeout = crl::time(10000);
 
 // How much time to wait for some more requests,
 // when resending request or checking its state.
-constexpr auto kCheckResendWaiting = TimeMs(1000);
+constexpr auto kCheckResendWaiting = crl::time(1000);
 
 // How much ints should message contain for us not to resend,
 // but instead to check its state.
@@ -244,7 +244,7 @@ void Session::sendAnything(qint64 msCanWait) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
 		return;
 	}
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (msSendCall) {
 		if (ms > msSendCall + msWait) {
 			msWait = 0;
@@ -315,7 +315,7 @@ void Session::checkRequestsByTimer() {
 		QReadLocker locker(data.haveSentMutex());
 		auto &haveSent = data.haveSentMap();
 		const auto haveSentCount = haveSent.size();
-		auto ms = getms(true);
+		auto ms = crl::now();
 		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
 			auto &req = i.value();
 			if (req->msDate > 0) {
@@ -489,7 +489,7 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		}
 		return 0xFFFFFFFF;
 	} else if (!request.isStateRequest()) {
-		request->msDate = forceContainer ? 0 : getms(true);
+		request->msDate = forceContainer ? 0 : crl::now();
 		sendPrepared(request, msCanWait, false);
 		{
 			QWriteLocker locker(data.toResendMutex());
@@ -526,7 +526,7 @@ void Session::resendAll() {
 
 void Session::sendPrepared(
 		const SecureRequest &request,
-		TimeMs msCanWait,
+		crl::time msCanWait,
 		bool newRequest) {
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));

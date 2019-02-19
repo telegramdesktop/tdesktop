@@ -59,7 +59,7 @@ public:
 	~RippleButton();
 
 protected:
-	void paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColor *colorOverride = nullptr);
+	void paintRipple(QPainter &p, int x, int y, crl::time ms, const QColor *colorOverride = nullptr);
 
 	void onStateChanged(State was, StateChangeSource source) override;
 
@@ -115,7 +115,7 @@ public:
 		setNumbersText(QString::number(numbers), numbers);
 	}
 	void setWidthChangedCallback(Fn<void()> callback);
-	void stepNumbersAnimation(TimeMs ms);
+	void stepNumbersAnimation(crl::time ms);
 	void finishNumbersAnimation();
 
 	int contentWidth() const;
@@ -234,8 +234,8 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void step_loading(TimeMs ms, bool timer);
-	bool stopLoadingAnimation(TimeMs ms);
+	void step_loading(crl::time ms, bool timer);
+	bool stopLoadingAnimation(crl::time ms);
 	void animationCallback();
 
 	const style::CrossButton &_st;
@@ -243,8 +243,8 @@ private:
 	bool _shown = false;
 	Animation _a_show;
 
-	TimeMs _loadingStartMs = 0;
-	TimeMs _loadingStopMs = 0;
+	crl::time _loadingStartMs = 0;
+	crl::time _loadingStopMs = 0;
 	BasicAnimation _a_loading;
 
 };

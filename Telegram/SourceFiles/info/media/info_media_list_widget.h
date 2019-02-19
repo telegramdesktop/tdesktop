@@ -308,7 +308,7 @@ private:
 	rpl::lifetime _actionBoxWeakLifetime;
 
 	QPoint _trippleClickPoint;
-	TimeMs _trippleClickStartTime = 0;
+	crl::time _trippleClickStartTime = 0;
 
 	rpl::lifetime _viewerLifetime;
 

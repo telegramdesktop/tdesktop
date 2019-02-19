@@ -216,10 +216,10 @@ public:
 	void setHasPendingResizedItems();
 
 	bool mySendActionUpdated(SendAction::Type type, bool doing);
-	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, TimeMs ms);
+	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, crl::time ms);
 
 	// Interface for Histories
-	bool updateSendActionNeedsAnimating(TimeMs ms, bool force = false);
+	bool updateSendActionNeedsAnimating(crl::time ms, bool force = false);
 	bool updateSendActionNeedsAnimating(
 		not_null<UserData*> user,
 		const MTPSendMessageAction &action);
@@ -488,14 +488,14 @@ private:
 	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
 
-	using TypingUsers = QMap<UserData*, TimeMs>;
+	using TypingUsers = QMap<UserData*, crl::time>;
 	TypingUsers _typing;
 	using SendActionUsers = QMap<UserData*, SendAction>;
 	SendActionUsers _sendActions;
 	QString _sendActionString;
 	Text _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
-	QMap<SendAction::Type, TimeMs> _mySendActions;
+	QMap<SendAction::Type, crl::time> _mySendActions;
 
 	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
 

@@ -117,7 +117,7 @@ void RippleButton::setForceRippled(
 	update();
 }
 
-void RippleButton::paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColor *colorOverride) {
+void RippleButton::paintRipple(QPainter &p, int x, int y, crl::time ms, const QColor *colorOverride) {
 	if (_ripple) {
 		_ripple->paint(p, x, y, width(), ms, colorOverride);
 		if (_ripple->empty()) {
@@ -207,7 +207,7 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	QRect r(0, height() - _st.height, width(), _st.height);
 	p.fillRect(r, isOver() ? _st.overBgColor : _st.bgColor);
 
-	paintRipple(p, 0, 0, getms());
+	paintRipple(p, 0, 0, crl::now());
 
 	p.setFont(isOver() ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
@@ -257,7 +257,7 @@ void RoundButton::setWidthChangedCallback(Fn<void()> callback) {
 	_numbers->setWidthChangedCallback(std::move(callback));
 }
 
-void RoundButton::stepNumbersAnimation(TimeMs ms) {
+void RoundButton::stepNumbersAnimation(crl::time ms) {
 	if (_numbers) {
 		_numbers->stepAnimation(ms);
 	}
@@ -357,7 +357,7 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		drawRect(_st.textBgOver);
 	}
 
-	auto ms = getms();
+	auto ms = crl::now();
 	paintRipple(p, rounded.x(), rounded.y(), ms);
 
 	p.setFont(_st.font);
@@ -428,12 +428,12 @@ void IconButton::setRippleColorOverride(const style::color *colorOverride) {
 void IconButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleColorOverride ? &(*_rippleColorOverride)->c : nullptr);
 
 	auto down = isDown();
-	auto overIconOpacity = (down || forceRippled()) ? 1. : _a_over.current(getms(), isOver() ? 1. : 0.);
+	auto overIconOpacity = (down || forceRippled()) ? 1. : _a_over.current(crl::now(), isOver() ? 1. : 0.);
 	auto overIcon = [this] {
 		if (_iconOverrideOver) {
 			return _iconOverrideOver;
@@ -532,7 +532,7 @@ void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 	auto down = isDown();
 	if (width() > _st.outlineWidth) {
 		p.fillRect(rtlrect(_st.outlineWidth, 0, width() - _st.outlineWidth, height(), width()), (over || down) ? _st.textBgOver : _st.textBg);
-		paintRipple(p, 0, 0, getms());
+		paintRipple(p, 0, 0, crl::now());
 		p.fillRect(rtlrect(0, 0, _st.outlineWidth, height(), width()), (over || down) ? _st.outlineFgOver : _st.outlineFg);
 	}
 	p.setFont(_st.font);
@@ -548,7 +548,7 @@ CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : Ripple
 	setVisible(false);
 }
 
-void CrossButton::step_loading(TimeMs ms, bool timer) {
+void CrossButton::step_loading(crl::time ms, bool timer) {
 	if (stopLoadingAnimation(ms)) {
 		_a_loading.stop();
 		update();
@@ -586,7 +586,7 @@ void CrossButton::animationCallback() {
 void CrossButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto over = isOver();
 	auto shown = _a_show.current(ms, _shown ? 1. : 0.);
 	p.setOpacity(shown);
@@ -623,7 +623,7 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 		loading);
 }
 
-bool CrossButton::stopLoadingAnimation(TimeMs ms) {
+bool CrossButton::stopLoadingAnimation(crl::time ms) {
 	if (!_loadingStopMs) {
 		return false;
 	}
@@ -640,11 +640,11 @@ void CrossButton::setLoadingAnimation(bool enabled) {
 	if (enabled) {
 		_loadingStopMs = 0;
 		if (!_a_loading.animating()) {
-			_loadingStartMs = getms();
+			_loadingStartMs = crl::now();
 			_a_loading.start();
 		}
 	} else if (_a_loading.animating()) {
-		_loadingStopMs = getms();
+		_loadingStopMs = crl::now();
 		if (!((_loadingStopMs - _loadingStartMs) % _st.loadingPeriod)) {
 			_a_loading.stop();
 		}

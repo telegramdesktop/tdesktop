@@ -377,7 +377,7 @@ void SeparatePanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (!_animationCache.isNull()) {
 		auto opacity = _opacityAnimation.current(
-			getms(),
+			crl::now(),
 			_visible ? 1. : 0.);
 		if (!_opacityAnimation.animating()) {
 			finishAnimating();

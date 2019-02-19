@@ -676,7 +676,7 @@ void DateRow::paintEvent(QPaintEvent *e) {
 	if (_st.border) {
 		p.fillRect(0, height - _st.border, width, _st.border, _st.borderFg);
 	}
-	const auto ms = getms();
+	const auto ms = crl::now();
 	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
 	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
 	auto borderShownDegree = _a_borderShown.current(ms, 1.);
@@ -1115,7 +1115,7 @@ void PanelDetailsRow::finishAnimating() {
 void PanelDetailsRow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	const auto error = _errorAnimation.current(ms, _errorShown ? 1. : 0.);
 	p.setFont(st::semiboldFont);
 	p.setPen(anim::pen(

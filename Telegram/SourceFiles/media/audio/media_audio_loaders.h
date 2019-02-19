@@ -58,11 +58,11 @@ private:
 		SetupErrorLoadedFull = 2,
 		SetupNoErrorStarted = 3,
 	};
-	void loadData(AudioMsgId audio, TimeMs positionMs);
+	void loadData(AudioMsgId audio, crl::time positionMs);
 	AudioPlayerLoader *setupLoader(
 		const AudioMsgId &audio,
 		SetupError &err,
-		TimeMs positionMs);
+		crl::time positionMs);
 	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 };

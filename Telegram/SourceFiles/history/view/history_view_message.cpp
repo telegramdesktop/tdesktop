@@ -374,7 +374,7 @@ void Message::draw(
 		Painter &p,
 		QRect clip,
 		TextSelection selection,
-		TimeMs ms) const {
+		crl::time ms) const {
 	auto g = countGeometry();
 	if (g.width() < 1) {
 		return;

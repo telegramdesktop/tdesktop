@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kUsernameCheckTimeout = TimeMs(200);
+constexpr auto kUsernameCheckTimeout = crl::time(200);
 constexpr auto kMinUsernameLength = 5;
 constexpr auto kMaxGroupChannelTitle = 255; // See also add_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.

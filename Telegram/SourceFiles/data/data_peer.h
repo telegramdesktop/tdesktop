@@ -317,7 +317,7 @@ private:
 	base::flat_set<QString> _nameWords; // for filtering
 	base::flat_set<QChar> _nameFirstLetters;
 
-	TimeMs _lastFullUpdate = 0;
+	crl::time _lastFullUpdate = 0;
 	MsgId _pinnedMessageId = 0;
 
 	QString _about;

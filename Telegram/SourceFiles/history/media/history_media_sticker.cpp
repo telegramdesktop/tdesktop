@@ -87,7 +87,7 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 	return { newWidth, minHeight() };
 }
 
-void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	auto sticker = _data->sticker();
 	if (!sticker) return;
 

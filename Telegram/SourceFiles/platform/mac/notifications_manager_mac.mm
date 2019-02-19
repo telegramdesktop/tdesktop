@@ -23,7 +23,7 @@ auto DoNotDisturbEnabled = false;
 auto LastSettingsQueryMs = 0;
 
 void queryDoNotDisturbState() {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
 		return;
 	}

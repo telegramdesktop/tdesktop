@@ -98,7 +98,7 @@ private:
 	template <typename Callback>
 	void enumerateVisibleIcons(Callback callback);
 
-	void step_icons(TimeMs ms, bool timer);
+	void step_icons(crl::time ms, bool timer);
 	void setSelectedIcon(
 		int newSelected,
 		ValidateIconAnimations animations);
@@ -136,7 +136,7 @@ private:
 	int _iconsMax = 0;
 	anim::value _iconsX;
 	anim::value _iconSelX;
-	TimeMs _iconsStartAnim = 0;
+	crl::time _iconsStartAnim = 0;
 
 	bool _horizontal = false;
 
@@ -312,7 +312,7 @@ void StickersListWidget::Footer::setSelectedIcon(
 		_a_icons.stop();
 	} else {
 		_iconsX.start(iconsXFinal);
-		_iconsStartAnim = getms();
+		_iconsStartAnim = crl::now();
 		_a_icons.start();
 	}
 	updateSelected();
@@ -656,7 +656,7 @@ void StickersListWidget::Footer::paintSetIcon(
 	}
 }
 
-void StickersListWidget::Footer::step_icons(TimeMs ms, bool timer) {
+void StickersListWidget::Footer::step_icons(crl::time ms, bool timer) {
 	if (anim::Disabled()) {
 		ms += st::stickerIconMove;
 	}
@@ -1151,7 +1151,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		toColumn = _columnCount - toColumn;
 	}
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto &sets = shownSets();
 	auto selectedSticker = base::get_if<OverSticker>(&_selected);
 	auto selectedButton = base::get_if<OverButton>(_pressed ? &_pressed : &_selected);
@@ -1309,7 +1309,7 @@ int StickersListWidget::megagroupSetInfoLeft() const {
 	return st::emojiPanHeaderLeft - st::buttonRadius;
 }
 
-void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected, TimeMs ms) {
+void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected, crl::time ms) {
 	auto infoLeft = megagroupSetInfoLeft();
 	_megagroupSetAbout.drawLeft(p, infoLeft, y, width() - infoLeft, width());
 

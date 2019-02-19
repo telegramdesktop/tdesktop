@@ -113,7 +113,7 @@ private:
 	mtpRequestId _setRequest = 0;
 
 	Core::CloudPasswordCheckRequest _curRequest;
-	TimeMs _lastSrpIdInvalidTime = 0;
+	crl::time _lastSrpIdInvalidTime = 0;
 	Core::CloudPasswordAlgo _newAlgo;
 	Core::SecureSecretAlgo _newSecureSecretAlgo;
 	bool _hasRecovery = false;

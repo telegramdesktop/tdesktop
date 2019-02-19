@@ -127,7 +127,7 @@ int PanelForm::Row::countAvailableWidth() const {
 void PanelForm::Row::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	paintRipple(p, 0, 0, ms);
 
 	const auto left = st::passportRowPadding.left();

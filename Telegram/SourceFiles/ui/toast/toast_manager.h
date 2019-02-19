@@ -40,9 +40,9 @@ private:
 	void hideByTimer();
 
 	base::Timer _hideTimer;
-	TimeMs _nextHide = 0;
+	crl::time _nextHide = 0;
 
-	QMultiMap<TimeMs, Instance*> _toastByHideTime;
+	QMultiMap<crl::time, Instance*> _toastByHideTime;
 	QMap<Widget*, Instance*> _toastByWidget;
 	QList<Instance*> _toasts;
 	OrderedSet<QPointer<QWidget>> _toastParents;

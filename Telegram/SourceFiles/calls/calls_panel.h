@@ -102,7 +102,7 @@ private:
 	void stateChanged(State state);
 	void showControls();
 	void updateStatusText(State state);
-	void startDurationUpdateTimer(TimeMs currentDuration);
+	void startDurationUpdateTimer(crl::time currentDuration);
 	void fillFingerprint();
 	void toggleOpacityAnimation(bool visible);
 	void finishAnimating();

@@ -23,7 +23,7 @@ bool FadeAnimation::paint(Painter &p) {
 	if (_cache.isNull()) return false;
 
 	const auto cache = _cache;
-	auto opacity = _animation.current(getms(), _visible ? 1. : 0.);
+	auto opacity = _animation.current(crl::now(), _visible ? 1. : 0.);
 	p.setOpacity(opacity);
 	if (_scale < 1.) {
 		PainterHighQualityEnabler hq(p);

@@ -135,7 +135,7 @@ auto _monitorLastGot = 0LL;
 } // namespace
 
 QRect psDesktopRect() {
-	auto tnow = getms();
+	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
@@ -200,15 +200,15 @@ auto _lastUserAction = 0LL;
 } // namespace
 
 void psUserActionDone() {
-	_lastUserAction = getms(true);
+	_lastUserAction = crl::now();
 }
 
 bool psIdleSupported() {
 	return false;
 }
 
-TimeMs psIdleTime() {
-	return getms(true) - _lastUserAction;
+crl::time psIdleTime() {
+	return crl::now() - _lastUserAction;
 }
 
 void psActivateProcess(uint64 pid) {

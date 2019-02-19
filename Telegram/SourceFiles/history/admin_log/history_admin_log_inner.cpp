@@ -516,9 +516,9 @@ void InnerWidget::elementAnimationAutoplayAsync(
 	});
 }
 
-TimeMs InnerWidget::elementHighlightTime(
+crl::time InnerWidget::elementHighlightTime(
 		not_null<const HistoryView::Element*> element) {
-	return TimeMs(0);
+	return crl::time(0);
 }
 
 bool InnerWidget::elementInSelectionMode() {
@@ -755,7 +755,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto clip = e->rect();
 
 	if (_items.empty() && _upLoaded && _downLoaded) {

@@ -26,7 +26,7 @@ public:
 		Painter &p,
 		QRect clip,
 		TextSelection selection,
-		TimeMs ms) const override;
+		crl::time ms) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(
 		QPoint point,
@@ -50,12 +50,12 @@ private:
 int WideChatWidth();
 
 struct PaintContext {
-	PaintContext(TimeMs ms, const QRect &clip, TextSelection selection)
+	PaintContext(crl::time ms, const QRect &clip, TextSelection selection)
 		: ms(ms)
 		, clip(clip)
 		, selection(selection) {
 	}
-	TimeMs ms;
+	crl::time ms;
 	const QRect &clip;
 	TextSelection selection;
 };

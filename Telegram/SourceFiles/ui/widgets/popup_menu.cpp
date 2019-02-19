@@ -121,7 +121,7 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 		Platform::StartTranslucentPaint(p, e);
 	}
 
-	auto ms = getms();
+	auto ms = crl::now();
 	if (_a_show.animating(ms)) {
 		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
 			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);

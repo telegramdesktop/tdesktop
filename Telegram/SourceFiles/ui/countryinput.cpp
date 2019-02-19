@@ -345,7 +345,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	p.setClipRect(r);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	int l = countriesNow->size();
 	if (l) {
 		if (r.intersects(QRect(0, 0, width(), st::countriesSkip))) {

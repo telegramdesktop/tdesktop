@@ -120,10 +120,10 @@ void Loaders::emitError(AudioMsgId::Type type) {
 }
 
 void Loaders::onLoad(const AudioMsgId &audio) {
-	loadData(audio, TimeMs(0));
+	loadData(audio, crl::time(0));
 }
 
-void Loaders::loadData(AudioMsgId audio, TimeMs positionMs) {
+void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 	auto err = SetupNoErrorStarted;
 	auto type = audio.type();
 	auto l = setupLoader(audio, err, positionMs);
@@ -282,7 +282,7 @@ void Loaders::loadData(AudioMsgId audio, TimeMs positionMs) {
 AudioPlayerLoader *Loaders::setupLoader(
 		const AudioMsgId &audio,
 		SetupError &err,
-		TimeMs positionMs) {
+		crl::time positionMs) {
 	err = SetupErrorAtStart;
 	QMutexLocker lock(internal::audioPlayerMutex());
 	if (!mixer()) return nullptr;

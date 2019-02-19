@@ -148,7 +148,7 @@ void NotificationsCount::paintEvent(QPaintEvent *e) {
 		if (corner == static_cast<int>(_chosenCorner)) {
 			auto count = _oldCount;
 			for (int i = 0; i != kMaxNotificationsCount; ++i) {
-				auto opacity = _sampleOpacities[i].current(getms(), (i < count) ? 1. : 0.);
+				auto opacity = _sampleOpacities[i].current(crl::now(), (i < count) ? 1. : 0.);
 				p.setOpacity(opacity);
 				p.drawPixmapLeft(sampleLeft, sampleTop, width(), _notificationSampleSmall);
 				sampleTop += (isTop ? 1 : -1) * (st::notificationSampleSize.height() + st::notificationsSampleMargin);

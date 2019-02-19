@@ -19,7 +19,7 @@ public:
 	int width() const {
 		return _impl ? _impl->width() : 0;
 	}
-	void paint(Painter &p, style::color color, int x, int y, int outerWidth, TimeMs ms) {
+	void paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time ms) {
 		if (_impl) {
 			_impl->paint(p, color, x, y, outerWidth, ms);
 		}
@@ -33,7 +33,7 @@ public:
 	public:
 		using Type = SendAction::Type;
 
-		Impl(int period) : _period(period), _started(getms()) {
+		Impl(int period) : _period(period), _started(crl::now()) {
 		}
 
 		struct MetaData {
@@ -50,7 +50,7 @@ public:
 			int x,
 			int y,
 			int outerWidth,
-			TimeMs ms);
+			crl::time ms);
 
 		virtual ~Impl() = default;
 
@@ -58,7 +58,7 @@ public:
 		virtual void paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) = 0;
 
 		int _period = 1;
-		TimeMs _started = 0;
+		crl::time _started = 0;
 
 	};
 

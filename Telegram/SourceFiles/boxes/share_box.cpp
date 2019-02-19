@@ -93,7 +93,7 @@ private:
 
 	int displayedChatsCount() const;
 
-	void paintChat(Painter &p, TimeMs ms, not_null<Chat*> chat, int index);
+	void paintChat(Painter &p, crl::time ms, not_null<Chat*> chat, int index);
 	void updateChat(not_null<PeerData*> peer);
 	void updateChatName(not_null<Chat*> chat, not_null<PeerData*> peer);
 	void repaintChat(not_null<PeerData*> peer);
@@ -732,7 +732,7 @@ void ShareBox::Inner::setActive(int active) {
 
 void ShareBox::Inner::paintChat(
 		Painter &p,
-		TimeMs ms,
+		crl::time ms,
 		not_null<Chat*> chat,
 		int index) {
 	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
@@ -761,7 +761,7 @@ ShareBox::Inner::Chat::Chat(PeerData *peer, Fn<void()> updateCallback)
 void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto r = e->rect();
 	p.setClipRect(r);
 	p.fillRect(r, st::boxBg);

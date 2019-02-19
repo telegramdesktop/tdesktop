@@ -151,7 +151,7 @@ QPoint HistoryDownButton::prepareRippleStartPosition() const {
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	const auto over = isOver();
 	const auto down = isDown();
 	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
@@ -189,7 +189,7 @@ EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st)
 void EmojiButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleOverride ? &(*_rippleOverride)->c : nullptr);
@@ -242,7 +242,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void EmojiButton::step_loading(TimeMs ms, bool timer) {
+void EmojiButton::step_loading(crl::time ms, bool timer) {
 	if (timer && !anim::Disabled()) {
 		update();
 	}
@@ -334,7 +334,7 @@ void SendButton::mouseMoveEvent(QMouseEvent *e) {
 void SendButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
+	auto ms = crl::now();
 	auto over = (isDown() || isOver());
 	auto changed = _a_typeChanged.current(ms, 1.);
 	if (changed < 1.) {
@@ -579,7 +579,7 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 	auto photoLeft = photoPosition.x();
 	auto photoTop = photoPosition.y();
 
-	auto ms = getms();
+	auto ms = crl::now();
 	if (showSavedMessages()) {
 		Ui::EmptyUserpic::PaintSavedMessages(
 			p,

@@ -772,7 +772,7 @@ int Rows::countAvailableWidth() const {
 void Rows::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	const auto clip = e->rect();
 
 	const auto checkLeft = st::passportRowPadding.left();

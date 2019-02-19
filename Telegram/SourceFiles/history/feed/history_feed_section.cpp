@@ -536,7 +536,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//	updateListSize();
 	//}
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	_scrollDownShown.step(ms);
 
 	SectionWidget::PaintBackground(this, e);
@@ -554,7 +554,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 			p,
 			clip.translated(-left, -top),
 			TextSelection(),
-			getms());
+			crl::now());
 	}
 }
 

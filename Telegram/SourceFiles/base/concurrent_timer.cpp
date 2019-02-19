@@ -26,16 +26,16 @@ QMutex EnvironmentMutex;
 class CallDelayedEvent : public QEvent {
 public:
 	CallDelayedEvent(
-		crl::time_type timeout,
+		crl::time timeout,
 		Qt::TimerType type,
 		FnMut<void()> method);
 
-	crl::time_type timeout() const;
+	crl::time timeout() const;
 	Qt::TimerType type() const;
 	FnMut<void()> takeMethod();
 
 private:
-	crl::time_type _timeout = 0;
+	crl::time _timeout = 0;
 	Qt::TimerType _type = Qt::PreciseTimer;
 	FnMut<void()> _method;
 
@@ -48,7 +48,7 @@ public:
 };
 
 CallDelayedEvent::CallDelayedEvent(
-	crl::time_type timeout,
+	crl::time timeout,
 	Qt::TimerType type,
 	FnMut<void()> method)
 : QEvent(kCallDelayedEvent)
@@ -58,7 +58,7 @@ CallDelayedEvent::CallDelayedEvent(
 	Expects(_timeout >= 0 && _timeout < std::numeric_limits<int>::max());
 }
 
-crl::time_type CallDelayedEvent::timeout() const {
+crl::time CallDelayedEvent::timeout() const {
 	return _timeout;
 }
 
@@ -178,7 +178,7 @@ TimerObjectWrap::~TimerObjectWrap() {
 }
 
 void TimerObjectWrap::call(
-		crl::time_type timeout,
+		crl::time timeout,
 		Qt::TimerType type,
 		FnMut<void()> method) {
 	sendEvent(std::make_unique<CallDelayedEvent>(
@@ -281,7 +281,7 @@ Fn<void()> ConcurrentTimer::createAdjuster() {
 }
 
 void ConcurrentTimer::start(
-		TimeMs timeout,
+		crl::time timeout,
 		Qt::TimerType type,
 		Repeat repeat) {
 	_type = type;
@@ -290,7 +290,7 @@ void ConcurrentTimer::start(
 	setTimeout(timeout);
 
 	cancelAndSchedule(_timeout);
-	_next = crl::time() + _timeout;
+	_next = crl::now() + _timeout;
 }
 
 void ConcurrentTimer::cancelAndSchedule(int timeout) {
@@ -319,7 +319,7 @@ void ConcurrentTimer::timerEvent() {
 		if (_adjusted) {
 			start(_timeout, _type, repeat());
 		} else {
-			_next = crl::time() + _timeout;
+			_next = crl::now() + _timeout;
 		}
 	} else {
 		cancel();
@@ -338,12 +338,12 @@ void ConcurrentTimer::cancel() {
 	}
 }
 
-TimeMs ConcurrentTimer::remainingTime() const {
+crl::time ConcurrentTimer::remainingTime() const {
 	if (!isActive()) {
 		return -1;
 	}
-	const auto now = crl::time();
-	return (_next > now) ? (_next - now) : TimeMs(0);
+	const auto now = crl::now();
+	return (_next > now) ? (_next - now) : crl::time(0);
 }
 
 void ConcurrentTimer::adjust() {
@@ -354,7 +354,7 @@ void ConcurrentTimer::adjust() {
 	}
 }
 
-void ConcurrentTimer::setTimeout(TimeMs timeout) {
+void ConcurrentTimer::setTimeout(crl::time timeout) {
 	Expects(timeout >= 0 && timeout <= std::numeric_limits<int>::max());
 
 	_timeout = static_cast<unsigned int>(timeout);

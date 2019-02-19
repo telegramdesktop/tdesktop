@@ -110,7 +110,7 @@ public:
 		return _muteChanged;
 	}
 
-	TimeMs getDurationMs() const;
+	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
 	void answer();
@@ -190,7 +190,7 @@ private:
 	base::Observable<State> _stateChanged;
 	int _signalBarCount = kSignalBarStarting;
 	base::Observable<int> _signalBarCountChanged;
-	TimeMs _startTime = 0;
+	crl::time _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
 	base::Timer _discardByTimeoutTimer;
 

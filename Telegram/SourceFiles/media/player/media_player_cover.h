@@ -62,8 +62,8 @@ private:
 	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
 
-	TimeMs _seekPositionMs = -1;
-	TimeMs _lastDurationMs = 0;
+	crl::time _seekPositionMs = -1;
+	crl::time _lastDurationMs = 0;
 	QString _time;
 
 	class PlayButton;

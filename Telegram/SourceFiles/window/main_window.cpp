@@ -27,8 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-constexpr auto kInactivePressTimeout = TimeMs(200);
-constexpr auto kSaveWindowPositionTimeout = TimeMs(1000);
+constexpr auto kInactivePressTimeout = crl::time(200);
+constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
 QImage LoadLogo() {
 	return QImage(qsl(":/gui/art/logo_256.png"));

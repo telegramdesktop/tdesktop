@@ -169,7 +169,7 @@ void HistoryGroupedMedia::draw(
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
-		TimeMs ms) const {
+		crl::time ms) const {
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto partSelection = (selection == FullSelection)

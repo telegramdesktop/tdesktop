@@ -46,7 +46,6 @@ using uint64 = quint64;
 using float32 = float;
 using float64 = double;
 
-using TimeMs = int64;
 using TimeId = int32;
 
 // Define specializations for QByteArray for Qt 5.3.2, because
