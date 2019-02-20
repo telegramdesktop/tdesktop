@@ -149,8 +149,13 @@ void LogError(QLatin1String method);
 void LogError(QLatin1String method, AvErrorWrap error);
 
 [[nodiscard]] crl::time PtsToTime(int64_t pts, AVRational timeBase);
+// Used for full duration conversion.
+[[nodiscard]] crl::time PtsToTimeCeil(int64_t pts, AVRational timeBase);
 [[nodiscard]] int64_t TimeToPts(crl::time time, AVRational timeBase);
-[[nodiscard]] crl::time FramePosition(Stream &stream);
+[[nodiscard]] crl::time PacketPosition(
+	const Packet &packet,
+	AVRational timeBase);
+[[nodiscard]] crl::time FramePosition(const Stream &stream);
 [[nodiscard]] int ReadRotationFromMetadata(not_null<AVStream*> stream);
 [[nodiscard]] bool RotationSwapWidthHeight(int rotation);
 [[nodiscard]] AvErrorWrap ProcessPacket(Stream &stream, Packet &&packet);

@@ -36,6 +36,7 @@ AVRational AudioTrack::streamTimeBase() const {
 }
 
 void AudioTrack::process(Packet &&packet) {
+	_noMoreData = packet.empty();
 	if (_audioMsgId.playId()) {
 		mixerEnqueue(std::move(packet));
 	} else if (!tryReadFirstFrame(std::move(packet))) {
@@ -45,14 +46,18 @@ void AudioTrack::process(Packet &&packet) {
 
 bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 	// #TODO streaming fix seek to the end.
-	const auto last = packet.empty();
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
 		return false;
 	}
 	if (const auto error = ReadNextFrame(_stream)) {
-		return !last && (error.code() == AVERROR(EAGAIN));
-	}
-	if (!fillStateFromFrame()) {
+		if (error.code() == AVERROR_EOF) {
+			// #TODO streaming fix seek to the end.
+			return false;
+		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+			return false;
+		}
+		return true;
+	} else if (!fillStateFromFrame()) {
 		return false;
 	}
 	mixerInit();
@@ -61,8 +66,8 @@ bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 }
 
 bool AudioTrack::fillStateFromFrame() {
-	_state.position = _state.receivedTill = FramePosition(_stream);
-	return (_state.position != kTimeUnknown);
+	_startedPosition = FramePosition(_stream);
+	return (_startedPosition != kTimeUnknown);
 }
 
 void AudioTrack::mixerInit() {
@@ -77,16 +82,19 @@ void AudioTrack::mixerInit() {
 	Media::Player::mixer()->play(
 		_audioMsgId,
 		std::move(data),
-		_state.position);
+		_startedPosition);
 }
 
 void AudioTrack::callReady() {
 	Expects(_ready != nullptr);
 
-	auto data = Information();
-	data.audioDuration = _stream.duration;
-	data.state.audio = _state;
-	base::take(_ready)(data);
+	auto data = AudioInformation();
+	data.state.duration = _stream.duration;
+	data.state.position = _startedPosition;
+	data.state.receivedTill = _noMoreData
+		? _stream.duration
+		: _startedPosition;
+	base::take(_ready)({ VideoInformation(), data });
 }
 
 void AudioTrack::mixerEnqueue(Packet &&packet) {
@@ -100,24 +108,49 @@ void AudioTrack::mixerEnqueue(Packet &&packet) {
 void AudioTrack::start() {
 	Expects(_ready == nullptr);
 	Expects(_audioMsgId.playId() != 0);
+
 	// #TODO streaming support start() when paused.
 	Media::Player::mixer()->resume(_audioMsgId, true);
 }
 
-rpl::producer<TrackState, Error> AudioTrack::state() {
+rpl::producer<crl::time> AudioTrack::playPosition() {
 	Expects(_ready == nullptr);
 
 	if (!_subscription) {
-		auto &updated = Media::Player::instance()->updatedNotifier();
-		_subscription = updated.add_subscription([=](
-				const Media::Player::TrackState &state) {
-//			_state = state;
+		_subscription = Media::Player::Updated(
+		).add_subscription([=](const AudioMsgId &id) {
+			using State = Media::Player::State;
+			if (id != _audioMsgId) {
+				return;
+			}
+			const auto type = AudioMsgId::Type::Video;
+			const auto state = Media::Player::mixer()->currentState(type);
+			if (state.id != _audioMsgId) {
+				// #TODO streaming muted by other
+				return;
+			} else switch (state.state) {
+			case State::Stopped:
+			case State::StoppedAtEnd:
+			case State::PausedAtEnd:
+				_playPosition.reset();
+				return;
+			case State::StoppedAtError:
+			case State::StoppedAtStart:
+				_error();
+				return;
+			case State::Starting:
+			case State::Playing:
+			case State::Stopping:
+			case State::Pausing:
+			case State::Resuming:
+				_playPosition = state.position * 1000 / state.frequency;
+				return;
+			case State::Paused:
+				return;
+			}
 		});
-		//) | rpl::filter([](const State &state) {
-		//	return !!state.id;
-		//});
 	}
-	return rpl::single<const TrackState&, Error>(_state);
+	return _playPosition.value();
 }
 
 AudioTrack::~AudioTrack() {

@@ -34,7 +34,8 @@ public:
 
 	// Called from the main thread.
 	void start();
-	void markFrameDisplayed(crl::time now);
+	// Returns the position of the displayed frame.
+	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 	[[nodiscard]] rpl::producer<crl::time> renderNextFrame() const;
 
@@ -47,7 +48,7 @@ private:
 	struct Frame {
 		QImage original;
 		crl::time position = kTimeUnknown;
-		//crl::time presentation = kTimeUnknown;
+		crl::time displayPosition = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 
 		FrameRequest request;
@@ -62,7 +63,7 @@ private:
 			PrepareFrame,
 			PrepareNextCheck>;
 		struct PresentFrame {
-			crl::time position = kTimeUnknown;
+			crl::time displayPosition = kTimeUnknown;
 			crl::time nextCheckDelay = 0;
 		};
 
@@ -74,7 +75,8 @@ private:
 		[[nodiscard]] PresentFrame presentFrame(crl::time trackTime);
 
 		// Called from the main thread.
-		[[nodiscard]] bool markFrameDisplayed(crl::time now);
+		// Returns the position of the displayed frame.
+		[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
 		[[nodiscard]] not_null<Frame*> frameForPaint();
 
 	private:

@@ -73,10 +73,10 @@ public:
 		});
 	}
 	auto events_starting_with(Value &&value) const {
-		return single(std::move(value)) | then(events());
+		return single<Value&&, Error>(std::move(value)) | then(events());
 	}
 	auto events_starting_with_copy(const Value &value) const {
-		return single(value) | then(events());
+		return single<const Value&, Error>(value) | then(events());
 	}
 	bool has_consumers() const {
 		return (_data != nullptr) && !_data->consumers.empty();

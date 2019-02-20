@@ -16,25 +16,45 @@ namespace Media {
 namespace Streaming {
 namespace {
 
-void SaveValidInformation(Information &to, Information &&from) {
-	if (from.state.audio.position != kTimeUnknown) {
-		to.state.audio = from.state.audio;
+void SaveValidStateInformation(TrackState &to, TrackState &&from) {
+	Expects(from.position != kTimeUnknown);
+	Expects(from.receivedTill != kTimeUnknown);
+	Expects(from.duration != kTimeUnknown);
+
+	to.duration = from.duration;
+	to.position = from.position;
+	to.receivedTill = (to.receivedTill == kTimeUnknown)
+		? from.receivedTill
+		: std::clamp(
+			std::max(from.receivedTill, to.receivedTill),
+			to.position,
+			to.duration);
+}
+
+void SaveValidAudioInformation(
+		AudioInformation &to,
+		AudioInformation &&from) {
+	SaveValidStateInformation(to.state, std::move(from.state));
+}
+
+void SaveValidVideoInformation(
+		VideoInformation &to,
+		VideoInformation &&from) {
+	Expects(!from.size.isEmpty());
+	Expects(!from.cover.isNull());
+
+	SaveValidStateInformation(to.state, std::move(from.state));
+	to.size = from.size;
+	to.cover = std::move(from.cover);
+	to.rotation = from.rotation;
+}
+
+void SaveValidStartInformation(Information &to, Information &&from) {
+	if (from.audio.state.duration != kTimeUnknown) {
+		SaveValidAudioInformation(to.audio, std::move(from.audio));
 	}
-	if (from.audioDuration != kTimeUnknown) {
-		to.audioDuration = from.audioDuration;
-	}
-	if (from.state.video.position != kTimeUnknown) {
-		to.state.video = from.state.video;
-	}
-	if (from.videoDuration != kTimeUnknown) {
-		to.videoDuration = from.videoDuration;
-	}
-	if (!from.videoSize.isEmpty()) {
-		to.videoSize = from.videoSize;
-	}
-	if (!from.videoCover.isNull()) {
-		to.videoCover = std::move(from.videoCover);
-		to.videoRotation = from.videoRotation;
+	if (from.video.state.duration != kTimeUnknown) {
+		SaveValidVideoInformation(to.video, std::move(from.video));
 	}
 }
 
@@ -55,16 +75,21 @@ void Player::start() {
 	Expects(_stage == Stage::Ready);
 
 	_stage = Stage::Started;
-	//if (_audio) {
-	//	_audio->state(
-	//	) | rpl::start_with_next([](const TrackState & state) {
-	//	}, _lifetime);
-	//}
+	if (_audio) {
+		_audio->playPosition(
+		) | rpl::start_with_next_done([=](crl::time position) {
+			audioPlayedTill(position);
+		}, [=] {
+			// audio finished
+		}, _lifetime);
+	}
 	if (_video) {
 		_video->renderNextFrame(
-		) | rpl::start_with_next([=](crl::time when) {
+		) | rpl::start_with_next_done([=](crl::time when) {
 			_nextFrameTime = when;
 			checkNextFrame();
+		}, [=] {
+			// video finished
 		}, _lifetime);
 	}
 	if (_audio) {
@@ -89,9 +114,67 @@ void Player::checkNextFrame() {
 
 void Player::renderFrame(crl::time now) {
 	if (_video) {
-		_video->markFrameDisplayed(now);
-		_updates.fire({ UpdateVideo{ _nextFrameTime } });
+		const auto position = _video->markFrameDisplayed(now);
+		if (position != kTimeUnknown) {
+			videoPlayedTill(position);
+		}
 	}
+}
+
+template <typename Track>
+void Player::trackReceivedTill(
+		const Track &track,
+		TrackState &state,
+		crl::time position) {
+	if (position == kTimeUnknown) {
+		return;
+	} else if (state.duration != kTimeUnknown) {
+		position = std::clamp(position, 0LL, state.duration);
+		if (state.receivedTill < position) {
+			state.receivedTill = position;
+			_updates.fire({ PreloadedUpdate<Track>{ position } });
+		}
+	} else {
+		state.receivedTill = position;
+	}
+}
+
+template <typename Track>
+void Player::trackPlayedTill(
+		const Track &track,
+		TrackState &state,
+		crl::time position) {
+	const auto guard = base::make_weak(&_sessionGuard);
+	trackReceivedTill(track, state, position);
+	if (guard && position != kTimeUnknown) {
+		position = std::clamp(position, 0LL, state.duration);
+		state.position = position;
+		_updates.fire({ PlaybackUpdate<Track>{ position } });
+	}
+}
+
+void Player::audioReceivedTill(crl::time position) {
+	Expects(_audio != nullptr);
+
+	trackReceivedTill(*_audio, _information.audio.state, position);
+}
+
+void Player::audioPlayedTill(crl::time position) {
+	Expects(_audio != nullptr);
+
+	trackPlayedTill(*_audio, _information.audio.state, position);
+}
+
+void Player::videoReceivedTill(crl::time position) {
+	Expects(_video != nullptr);
+
+	trackReceivedTill(*_video, _information.video.state, position);
+}
+
+void Player::videoPlayedTill(crl::time position) {
+	Expects(_video != nullptr);
+
+	trackPlayedTill(*_video, _information.video.state, position);
 }
 
 void Player::fileReady(Stream &&video, Stream &&audio) {
@@ -142,14 +225,28 @@ bool Player::fileProcessPacket(Packet &&packet) {
 	if (packet.empty()) {
 		_readTillEnd = true;
 		if (_audio) {
+			crl::on_main(&_sessionGuard, [=] {
+				audioReceivedTill(kReceivedTillEnd);
+			});
 			_audio->process(Packet());
 		}
 		if (_video) {
+			crl::on_main(&_sessionGuard, [=] {
+				videoReceivedTill(kReceivedTillEnd);
+			});
 			_video->process(Packet());
 		}
 	} else if (_audio && _audio->streamIndex() == native.stream_index) {
+		const auto time = PacketPosition(packet, _audio->streamTimeBase());
+		crl::on_main(&_sessionGuard, [=] {
+			audioReceivedTill(time);
+		});
 		_audio->process(std::move(packet));
 	} else if (_video && _video->streamIndex() == native.stream_index) {
+		const auto time = PacketPosition(packet, _video->streamTimeBase());
+		crl::on_main(&_sessionGuard, [=] {
+			videoReceivedTill(time);
+		});
 		_video->process(std::move(packet));
 	}
 	return fileReadMore();
@@ -161,7 +258,7 @@ bool Player::fileReadMore() {
 }
 
 void Player::streamReady(Information &&information) {
-	SaveValidInformation(_information, std::move(information));
+	SaveValidStartInformation(_information, std::move(information));
 	provideStartInformation();
 }
 
@@ -176,8 +273,8 @@ void Player::streamFailed() {
 void Player::provideStartInformation() {
 	Expects(_stage == Stage::Initializing);
 
-	if ((_audio && _information.audioDuration == kTimeUnknown)
-		|| (_video && _information.videoDuration == kTimeUnknown)) {
+	if ((_audio && _information.audio.state.duration == kTimeUnknown)
+		|| (_video && _information.video.state.duration == kTimeUnknown)) {
 		return; // Not ready yet.
 	} else if ((!_audio && !_video)
 		|| (!_audio && _mode == Mode::Audio)
@@ -185,7 +282,12 @@ void Player::provideStartInformation() {
 		fail();
 	} else {
 		_stage = Stage::Ready;
-		_updates.fire(Update{ std::move(_information) });
+
+		// Don't keep the reference to the video cover.
+		auto copy = _information;
+		_information.video.cover = QImage();
+
+		_updates.fire(Update{ std::move(copy) });
 	}
 }
 

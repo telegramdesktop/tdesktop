@@ -330,7 +330,7 @@ void StartStreaming(
 		player->updates(
 		) | rpl::start_with_next_error_done([=](Update &&update) {
 			update.data.match([&](Information &update) {
-				if (!update.videoCover.isNull()) {
+				if (!update.video.cover.isNull()) {
 					video = base::make_unique_q<Panel>();
 					video->setAttribute(Qt::WA_OpaquePaintEvent);
 					video->paintRequest(
@@ -340,8 +340,8 @@ void StartStreaming(
 							player->frame(FrameRequest()));
 					}, video->lifetime());
 					const auto size = QSize(
-						ConvertScale(update.videoSize.width()),
-						ConvertScale(update.videoSize.height()));
+						ConvertScale(update.video.size.width()),
+						ConvertScale(update.video.size.height()));
 					const auto center = App::wnd()->geometry().center();
 					video->setGeometry(QRect(
 						center - QPoint(size.width(), size.height()) / 2,
@@ -355,10 +355,12 @@ void StartStreaming(
 					}, video->lifetime());
 				}
 				player->start();
+			}, [&](PreloadedVideo &update) {
 			}, [&](UpdateVideo &update) {
 				Expects(video != nullptr);
 
 				video->update();
+			}, [&](PreloadedAudio &update) {
 			}, [&](UpdateAudio &update) {
 			}, [&](WaitingForData &update) {
 			}, [&](MutedByOther &update) {

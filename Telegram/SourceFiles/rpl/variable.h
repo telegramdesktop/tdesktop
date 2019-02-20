@@ -61,7 +61,7 @@ constexpr bool supports_equality_compare_v
 
 } // namespace details
 
-template <typename Type>
+template <typename Type, typename Error = no_error>
 class variable final {
 public:
 	variable() : _data{} {
@@ -127,6 +127,30 @@ public:
 		return _changes.events();
 	}
 
+	// Send 'done' to all subscribers and unsubscribe them.
+	template <
+		typename OtherType,
+		typename = std::enable_if_t<
+			std::is_assignable_v<Type&, OtherType>>>
+	void reset(OtherType &&data) {
+		_data = std::forward<OtherType>(data);
+		_changes = event_stream<Type, Error>();
+	}
+	void reset() {
+		reset(Type());
+	}
+
+	template <
+		typename OtherError,
+		typename = std::enable_if_t<
+			std::is_constructible_v<Error, OtherError&&>>>
+	void reset_with_error(OtherError &&error) {
+		_changes.fire_error(std::forward<OtherError>(error));
+	}
+	void reset_with_error() {
+		reset_with_error(Error());
+	}
+
 private:
 	template <typename OtherType>
 	variable &assign(OtherType &&data) {
@@ -149,7 +173,7 @@ private:
 	}
 
 	Type _data;
-	event_stream<Type> _changes;
+	event_stream<Type, Error> _changes;
 	lifetime _lifetime;
 
 };

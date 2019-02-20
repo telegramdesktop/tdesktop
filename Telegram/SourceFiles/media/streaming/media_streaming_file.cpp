@@ -128,8 +128,11 @@ Stream File::Context::initStream(AVMediaType type) {
 	}
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
-		? PtsToTime(info->duration, result.timeBase)
-		: PtsToTime(_formatContext->duration, kUniversalTimeBase);
+		? PtsToTimeCeil(info->duration, result.timeBase)
+		: PtsToTimeCeil(_formatContext->duration, kUniversalTimeBase);
+	if (result.duration == kTimeUnknown || !result.duration) {
+		return {};
+	}
 	return result;
 }
 
@@ -217,52 +220,17 @@ void File::Context::start(crl::time position) {
 	_delegate->fileReady(std::move(video), std::move(audio));
 }
 
-//void File::Context::readInformation(crl::time position) {
-//	auto information = Information();
-//	auto result = readPacket();
-//	const auto packet = base::get_if<Packet>(&result);
-//	if (unroll()) {
-//		return;
-//	} else if (packet) {
-//		if (position > 0) {
-//			const auto time = CountPacketPosition(
-//				_formatContext->streams[packet->fields().stream_index],
-//				*packet);
-//			information.started = (time == Information::kDurationUnknown)
-//				? position
-//				: time;
-//		}
-//	} else {
-//		information.started = position;
-//	}
-//
-//	if (packet) {
-//		processPacket(std::move(*packet));
-//	} else {
-//		enqueueEofPackets();
-//	}
-//
-//	information.cover = readFirstVideoFrame();
-//	if (unroll()) {
-//		return;
-//	} else if (!information.cover.isNull()) {
-//		information.video = information.cover.size();
-//		information.rotation = _video.stream.rotation;
-//		if (RotationSwapWidthHeight(information.rotation)) {
-//			information.video.transpose();
-//		}
-//	}
-//
-//	information.audio = (_audio.info != nullptr);
-//	_information = std::move(information);
-//}
-
 void File::Context::readNextPacket() {
 	auto result = readPacket();
 	if (unroll()) {
 		return;
 	} else if (const auto packet = base::get_if<Packet>(&result)) {
 		const auto more = _delegate->fileProcessPacket(std::move(*packet));
+		if (!more) {
+			do {
+				_semaphore.acquire();
+			} while (!unroll() && !_delegate->fileReadMore());
+		}
 	} else {
 		// Still trying to read by drain.
 		Assert(result.is<AvErrorWrap>());
@@ -271,13 +239,17 @@ void File::Context::readNextPacket() {
 	}
 }
 void File::Context::handleEndOfFile() {
-	// #TODO streaming looping
 	const auto more = _delegate->fileProcessPacket(Packet());
+	// #TODO streaming looping
 	_readTillEnd = true;
 }
 
 void File::Context::interrupt() {
 	_interrupted = true;
+	_semaphore.release();
+}
+
+void File::Context::wake() {
 	_semaphore.release();
 }
 
@@ -337,6 +309,12 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 			Ui::Toast::Show("Finished loading.");
 		});
 	});
+}
+
+void File::wake() {
+	Expects(_context.has_value());
+
+	_context->wake();
 }
 
 void File::stop() {

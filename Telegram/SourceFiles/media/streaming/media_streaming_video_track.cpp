@@ -48,6 +48,9 @@ private:
 	void presentFrameIfNeeded();
 	void callReady();
 
+	// Force frame position to be clamped to [0, duration] and monotonic.
+	[[nodiscard]] crl::time currentFramePosition() const;
+
 	[[nodiscard]] crl::time trackTime() const;
 
 	const crl::weak_on_queue<VideoTrackObject> _weak;
@@ -62,7 +65,8 @@ private:
 	Fn<void()> _error;
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _startedPosition = kTimeUnknown;
-	rpl::variable<crl::time> _nextFramePosition = kTimeUnknown;
+	mutable crl::time _previousFramePosition = kTimeUnknown;
+	rpl::variable<crl::time> _nextFrameDisplayPosition = kTimeUnknown;
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -86,8 +90,9 @@ VideoTrackObject::VideoTrackObject(
 }
 
 rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
-	return _nextFramePosition.value() | rpl::map([=](crl::time position) {
-		return _startedTime + (position - _startedPosition);
+	return _nextFrameDisplayPosition.value(
+	) | rpl::map([=](crl::time displayPosition) {
+		return _startedTime + (displayPosition - _startedPosition);
 	});
 }
 
@@ -143,7 +148,7 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 		}
 		return false;
 	}
-	const auto position = FramePosition(_stream);
+	const auto position = currentFramePosition();
 	if (position == kTimeUnknown) {
 		interrupt();
 		_error();
@@ -154,6 +159,7 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 		QSize(),
 		std::move(frame->original));
 	frame->position = position;
+	frame->displayPosition = position; // #TODO streaming adjust / sync
 	frame->displayed = kTimeUnknown;
 
 	//frame->request
@@ -164,8 +170,8 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 
 void VideoTrackObject::presentFrameIfNeeded() {
 	const auto presented = _shared->presentFrame(trackTime());
-	if (presented.position != kTimeUnknown) {
-		_nextFramePosition = presented.position;
+	if (presented.displayPosition != kTimeUnknown) {
+		_nextFrameDisplayPosition = presented.displayPosition;
 	}
 	queueReadFrames(presented.nextCheckDelay);
 }
@@ -210,9 +216,21 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	return true;
 }
 
+crl::time VideoTrackObject::currentFramePosition() const {
+	const auto position = std::min(
+		FramePosition(_stream),
+		_stream.duration);
+	if (_previousFramePosition != kTimeUnknown
+		&& position <= _previousFramePosition) {
+		return kTimeUnknown;
+	}
+	_previousFramePosition = position;
+	return position;
+}
+
 bool VideoTrackObject::fillStateFromFrame() {
-	_startedPosition = FramePosition(_stream);
-	_nextFramePosition = _startedPosition;
+	_startedPosition = currentFramePosition();
+	_nextFrameDisplayPosition = _startedPosition;
 	return (_startedPosition != kTimeUnknown);
 }
 
@@ -222,16 +240,19 @@ void VideoTrackObject::callReady() {
 	const auto frame = _shared->frameForPaint();
 	Assert(frame != nullptr);
 
-	auto data = Information();
-	data.videoDuration = _stream.duration;
-	data.videoSize = frame->original.size();
+	auto data = VideoInformation();
+	data.size = frame->original.size();
 	if (RotationSwapWidthHeight(_stream.rotation)) {
-		data.videoSize.transpose();
+		data.size.transpose();
 	}
-	data.videoCover = frame->original;
-	data.videoRotation = _stream.rotation;
-	data.state.video.position = _startedPosition;
-	base::take(_ready)(data);
+	data.cover = frame->original;
+	data.rotation = _stream.rotation;
+	data.state.duration = _stream.duration;
+	data.state.position = _startedPosition;
+	data.state.receivedTill = _noMoreData
+		? _stream.duration
+		: _startedPosition;
+	base::take(_ready)({ data });
 }
 
 crl::time VideoTrackObject::trackTime() const {
@@ -248,6 +269,7 @@ void VideoTrack::Shared::init(QImage &&cover, crl::time position) {
 
 	_frames[0].original = std::move(cover);
 	_frames[0].position = position;
+	_frames[0].displayPosition = position;
 
 	// Usually main thread sets displayed time before _counter increment.
 	// But in this case we update _counter, so we set a fake displayed time.
@@ -271,7 +293,7 @@ not_null<VideoTrack::Frame*> VideoTrack::Shared::getFrame(int index) {
 }
 
 bool VideoTrack::Shared::IsPrepared(not_null<Frame*> frame) {
-	return (frame->position != kTimeUnknown)
+	return (frame->displayPosition != kTimeUnknown)
 		&& (frame->displayed == kTimeUnknown)
 		&& !frame->original.isNull();
 }
@@ -281,7 +303,7 @@ bool VideoTrack::Shared::IsStale(
 		crl::time trackTime) {
 	Expects(IsPrepared(frame));
 
-	return (frame->position < trackTime);
+	return (frame->displayPosition < trackTime);
 }
 
 auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
@@ -297,7 +319,7 @@ auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
 		} else if (!IsPrepared(next)) {
 			return next;
 		} else {
-			return PrepareNextCheck(frame->position - trackTime + 1);
+			return PrepareNextCheck(frame->displayPosition - trackTime + 1);
 		}
 	};
 	const auto finishPrepare = [&](int index) {
@@ -323,8 +345,9 @@ auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
 	const auto present = [&](int counter, int index) -> PresentFrame {
 		const auto frame = getFrame(index);
 		Assert(IsPrepared(frame));
-		const auto position = frame->position;
+		const auto position = frame->displayPosition;
 
+		// Release this frame to the main thread for rendering.
 		_counter.store(
 			(counter + 1) % (2 * kFramesCount),
 			std::memory_order_release);
@@ -338,7 +361,7 @@ auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
 			|| IsStale(frame, trackTime)) {
 			return { kTimeUnknown, crl::time(0) };
 		}
-		return { kTimeUnknown, (trackTime - frame->position + 1) };
+		return { kTimeUnknown, (trackTime - frame->displayPosition + 1) };
 	};
 
 	switch (counter()) {
@@ -354,27 +377,27 @@ auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
 	Unexpected("Counter value in VideoTrack::Shared::prepareState.");
 }
 
-bool VideoTrack::Shared::markFrameDisplayed(crl::time now) {
+crl::time VideoTrack::Shared::markFrameDisplayed(crl::time now) {
 	const auto markAndJump = [&](int counter, int index) {
 		const auto frame = getFrame(index);
-		if (frame->displayed == kTimeUnknown) {
-			frame->displayed = now;
-		}
+		Assert(frame->displayed == kTimeUnknown);
+
+		frame->displayed = now;
 		_counter.store(
 			(counter + 1) % (2 * kFramesCount),
 			std::memory_order_release);
-		return true;
+		return frame->position;
 	};
 
 
 	switch (counter()) {
-	case 0: return false;
+	case 0: return kTimeUnknown;
 	case 1: return markAndJump(1, 1);
-	case 2: return false;
+	case 2: return kTimeUnknown;
 	case 3: return markAndJump(3, 2);
-	case 4: return false;
+	case 4: return kTimeUnknown;
 	case 5: return markAndJump(5, 3);
-	case 6: return false;
+	case 6: return kTimeUnknown;
 	case 7: return markAndJump(7, 0);
 	}
 	Unexpected("Counter value in VideoTrack::Shared::markFrameDisplayed.");
@@ -422,13 +445,14 @@ void VideoTrack::start() {
 	});
 }
 
-void VideoTrack::markFrameDisplayed(crl::time now) {
-	if (!_shared->markFrameDisplayed(now)) {
-		return;
+crl::time VideoTrack::markFrameDisplayed(crl::time now) {
+	const auto position = _shared->markFrameDisplayed(now);
+	if (position != kTimeUnknown) {
+		_wrapped.with([](Implementation &unwrapped) {
+			unwrapped.frameDisplayed();
+		});
 	}
-	_wrapped.with([](Implementation &unwrapped) {
-		unwrapped.frameDisplayed();
-	});
+	return position;
 }
 
 QImage VideoTrack::frame(const FrameRequest &request) const {

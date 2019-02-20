@@ -12,6 +12,9 @@ namespace Streaming {
 
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 
+class VideoTrack;
+class AudioTrack;
+
 enum class Mode {
 	Both,
 	Audio,
@@ -22,31 +25,39 @@ enum class Mode {
 struct TrackState {
 	crl::time position = kTimeUnknown;
 	crl::time receivedTill = kTimeUnknown;
+	crl::time duration = kTimeUnknown;
 };
 
-struct State {
-	TrackState video;
-	TrackState audio;
+struct VideoInformation {
+	TrackState state;
+	QSize size;
+	QImage cover;
+	int rotation = 0;
+};
+
+struct AudioInformation {
+	TrackState state;
 };
 
 struct Information {
-	State state;
-
-	crl::time videoDuration = kTimeUnknown;
-	QSize videoSize;
-	QImage videoCover;
-	int videoRotation = 0;
-
-	crl::time audioDuration = kTimeUnknown;
+	VideoInformation video;
+	AudioInformation audio;
 };
 
-struct UpdateVideo {
-	crl::time position = 0;
+template <typename Track>
+struct PreloadedUpdate {
+	crl::time till = kTimeUnknown;
 };
 
-struct UpdateAudio {
-	crl::time position = 0;
+template <typename Track>
+struct PlaybackUpdate {
+	crl::time position = kTimeUnknown;
 };
+
+using PreloadedVideo = PreloadedUpdate<VideoTrack>;
+using UpdateVideo = PlaybackUpdate<VideoTrack>;
+using PreloadedAudio = PreloadedUpdate<AudioTrack>;
+using UpdateAudio = PlaybackUpdate<AudioTrack>;
 
 struct WaitingForData {
 };
@@ -57,7 +68,9 @@ struct MutedByOther {
 struct Update {
 	base::variant<
 		Information,
+		PreloadedVideo,
 		UpdateVideo,
+		PreloadedAudio,
 		UpdateAudio,
 		WaitingForData,
 		MutedByOther> data;

@@ -47,6 +47,7 @@ private:
 		void readNextPacket();
 
 		void interrupt();
+		void wake();
 		[[nodiscard]] bool interrupted() const;
 		[[nodiscard]] bool failed() const;
 		[[nodiscard]] bool finished() const;

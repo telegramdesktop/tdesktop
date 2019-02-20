@@ -27,7 +27,6 @@ class VideoTrack;
 class Player final : private FileDelegate {
 public:
 	// Public interfaces is used from the main thread.
-
 	Player(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
 
 	// Because we remember 'this' in calls to crl::on_main.
@@ -77,8 +76,27 @@ private:
 	void fail();
 	void checkNextFrame();
 	void renderFrame(crl::time now);
+	void audioReceivedTill(crl::time position);
+	void audioPlayedTill(crl::time position);
+	void videoReceivedTill(crl::time position);
+	void videoPlayedTill(crl::time position);
+
+	template <typename Track>
+	void trackReceivedTill(
+		const Track &track,
+		TrackState &state,
+		crl::time position);
+
+	template <typename Track>
+	void trackPlayedTill(
+		const Track &track,
+		TrackState &state,
+		crl::time position);
 
 	const std::unique_ptr<File> _file;
+
+	static constexpr auto kReceivedTillEnd
+		= std::numeric_limits<crl::time>::max();
 
 	// Immutable while File is active.
 	std::unique_ptr<AudioTrack> _audio;

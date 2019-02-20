@@ -167,13 +167,26 @@ crl::time PtsToTime(int64_t pts, AVRational timeBase) {
 		: ((pts * 1000LL * timeBase.num) / timeBase.den);
 }
 
+crl::time PtsToTimeCeil(int64_t pts, AVRational timeBase) {
+	return (pts == AV_NOPTS_VALUE || !timeBase.den)
+		? kTimeUnknown
+		: ((pts * 1000LL * timeBase.num + timeBase.den - 1) / timeBase.den);
+}
+
 int64_t TimeToPts(crl::time time, AVRational timeBase) {
 	return (time == kTimeUnknown || !timeBase.num)
 		? AV_NOPTS_VALUE
 		: (time * timeBase.den) / (1000LL * timeBase.num);
 }
 
-crl::time FramePosition(Stream &stream) {
+crl::time PacketPosition(const Packet &packet, AVRational timeBase) {
+	const auto &native = packet.fields();
+	return PtsToTime(
+		(native.pts == AV_NOPTS_VALUE) ? native.dts : native.pts,
+		timeBase);
+}
+
+crl::time FramePosition(const Stream &stream) {
 	const auto pts = !stream.frame
 		? AV_NOPTS_VALUE
 		: (stream.frame->pts == AV_NOPTS_VALUE)
