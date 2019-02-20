@@ -88,7 +88,7 @@ Go to ***BuildPath*** and run
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout openal-soft-1.19.1
+    git checkout v1.19
     cd build
     LDFLAGS='-stdlib=libc++' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make -j4
