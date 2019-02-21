@@ -17,6 +17,7 @@ class FileDelegate {
 public:
 	virtual void fileReady(Stream &&video, Stream &&audio) = 0;
 	virtual void fileError() = 0;
+	virtual void fileWaitingForData() = 0;
 
 	// Return true if reading and processing more packets is desired.
 	// Return false if sleeping until 'wake()' is called is desired.

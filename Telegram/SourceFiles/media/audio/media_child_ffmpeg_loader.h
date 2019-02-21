@@ -70,7 +70,10 @@ public:
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
-	void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) override;
+	void enqueuePackets(
+		QQueue<FFMpeg::AVPacketDataWrap> &&packets) override;
+	void setForceToBuffer(bool force) override;
+	bool forceToBuffer() const override;
 
 	bool eofReached() const {
 		return _eofReached;
@@ -88,6 +91,7 @@ private:
 
 	std::unique_ptr<VideoSoundData> _parentData;
 	QQueue<FFMpeg::AVPacketDataWrap> _queue;
+	bool _forceToBuffer = false;
 	bool _eofReached = false;
 
 };

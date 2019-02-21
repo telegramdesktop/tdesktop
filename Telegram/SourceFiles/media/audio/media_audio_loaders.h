@@ -22,6 +22,7 @@ class Loaders : public QObject {
 public:
 	Loaders(QThread *thread);
 	void feedFromVideo(const VideoSoundPart &part);
+	void forceToBufferVideo(const AudioMsgId &audioId);
 	~Loaders();
 
 signals:
@@ -45,7 +46,8 @@ private:
 	std::unique_ptr<AudioPlayerLoader> _videoLoader;
 
 	QMutex _fromVideoMutex;
-	QMap<AudioMsgId, QQueue<FFMpeg::AVPacketDataWrap>> _fromVideoQueues;
+	base::flat_map<AudioMsgId, QQueue<FFMpeg::AVPacketDataWrap>> _fromVideoQueues;
+	base::flat_set<AudioMsgId> _fromVideoForceToBuffer;
 	SingleQueuedInvokation _fromVideoNotify;
 
 	void emitError(AudioMsgId::Type type);
@@ -58,7 +60,7 @@ private:
 		SetupErrorLoadedFull = 2,
 		SetupNoErrorStarted = 3,
 	};
-	void loadData(AudioMsgId audio, crl::time positionMs);
+	void loadData(AudioMsgId audio, crl::time positionMs = 0);
 	AudioPlayerLoader *setupLoader(
 		const AudioMsgId &audio,
 		SetupError &err,

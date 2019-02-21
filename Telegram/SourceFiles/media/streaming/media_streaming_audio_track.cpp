@@ -50,6 +50,12 @@ void AudioTrack::process(Packet &&packet) {
 	}
 }
 
+void AudioTrack::waitForData() {
+	if (initialized()) {
+		mixerForceToBuffer();
+	}
+}
+
 bool AudioTrack::initialized() const {
 	return !_ready;
 }
@@ -113,6 +119,10 @@ void AudioTrack::mixerEnqueue(Packet &&packet) {
 		_audioId
 	});
 	packet.release();
+}
+
+void AudioTrack::mixerForceToBuffer() {
+	Media::Player::mixer()->forceToBufferVideo(_audioId);
 }
 
 void AudioTrack::start(crl::time startTime) {

@@ -111,9 +111,22 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
 	return ReadResult::Ok;
 }
 
-void ChildFFMpegLoader::enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
-	_queue += std::move(packets);
+void ChildFFMpegLoader::enqueuePackets(
+		QQueue<FFMpeg::AVPacketDataWrap> &&packets) {
+	if (_queue.empty()) {
+		_queue = std::move(packets);
+	} else {
+		_queue += std::move(packets);
+	}
 	packets.clear();
+}
+
+void ChildFFMpegLoader::setForceToBuffer(bool force) {
+	_forceToBuffer = force;
+}
+
+bool ChildFFMpegLoader::forceToBuffer() const {
+	return _forceToBuffer;
 }
 
 ChildFFMpegLoader::~ChildFFMpegLoader() {

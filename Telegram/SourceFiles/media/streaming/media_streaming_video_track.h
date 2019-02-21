@@ -33,6 +33,7 @@ public:
 
 	// Called from the same unspecified thread.
 	void process(Packet &&packet);
+	void waitForData();
 
 	// Called from the main thread.
 	void start(crl::time startTime);

@@ -326,7 +326,8 @@ void StartStreaming(
 
 		auto options = Media::Streaming::PlaybackOptions();
 		options.speed = 1.;
-		options.position = (document->duration() / 2) * crl::time(1000);
+		//options.syncVideoByAudio = false;
+		//options.position = (document->duration() / 2) * crl::time(1000);
 		player->init(options);
 		player->updates(
 		) | rpl::start_with_next_error_done([=](Update &&update) {

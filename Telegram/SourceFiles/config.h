@@ -48,7 +48,6 @@ enum {
 	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
-	AudioVoiceMsgBufferSize = 256 * 1024, // 256 Kb buffers (1.3 - 3.0 secs)
 
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
 

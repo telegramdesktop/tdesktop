@@ -28,13 +28,14 @@ Q_DECLARE_METATYPE(VoiceWaveform);
 
 namespace {
 
-QMutex AudioMutex;
-ALCdevice *AudioDevice = nullptr;
-ALCcontext *AudioContext = nullptr;
-
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
 constexpr auto kPlaybackSpeedMultiplier = 1.7;
+constexpr auto kWaveformCounterBufferSize = 256 * 1024;
+
+QMutex AudioMutex;
+ALCdevice *AudioDevice = nullptr;
+ALCcontext *AudioContext = nullptr;
 
 auto VolumeMultiplierAll = 1.;
 auto VolumeMultiplierSong = 1.;
@@ -821,6 +822,10 @@ void Mixer::play(
 
 void Mixer::feedFromVideo(const VideoSoundPart &part) {
 	_loader->feedFromVideo(part);
+}
+
+void Mixer::forceToBufferVideo(const AudioMsgId &audioId) {
+	_loader->forceToBufferVideo(audioId);
 }
 
 Mixer::TimeCorrection Mixer::getVideoTimeCorrection(
@@ -1683,7 +1688,7 @@ public:
 		}
 
 		QByteArray buffer;
-		buffer.reserve(AudioVoiceMsgBufferSize);
+		buffer.reserve(kWaveformCounterBufferSize);
 		int64 countbytes = sampleSize() * samplesCount();
 		int64 processed = 0;
 		int64 sumbytes = 0;

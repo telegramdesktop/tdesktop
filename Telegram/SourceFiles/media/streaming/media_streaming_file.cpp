@@ -41,6 +41,7 @@ int File::Context::read(bytes::span buffer) {
 	}
 	buffer = buffer.subspan(0, amount);
 	while (!_reader->fill(buffer, _offset, &_semaphore)) {
+		_delegate->fileWaitingForData();
 		_semaphore.acquire();
 		if (_interrupted) {
 			return -1;

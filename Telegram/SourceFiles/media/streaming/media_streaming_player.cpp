@@ -158,7 +158,6 @@ void Player::trackPlayedTill(
 void Player::audioReceivedTill(crl::time position) {
 	Expects(_audio != nullptr);
 
-	//LOG(("AUDIO TILL: %1").arg(position));
 	trackReceivedTill(*_audio, _information.audio.state, position);
 }
 
@@ -171,7 +170,6 @@ void Player::audioPlayedTill(crl::time position) {
 void Player::videoReceivedTill(crl::time position) {
 	Expects(_video != nullptr);
 
-	//LOG(("VIDEO TILL: %1").arg(position));
 	trackReceivedTill(*_video, _information.video.state, position);
 }
 
@@ -182,6 +180,8 @@ void Player::videoPlayedTill(crl::time position) {
 }
 
 void Player::fileReady(Stream &&video, Stream &&audio) {
+	_waitingForData = false;
+
 	const auto weak = base::make_weak(&_sessionGuard);
 	const auto ready = [=](const Information & data) {
 		crl::on_main(weak, [=, data = data]() mutable {
@@ -226,12 +226,32 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 }
 
 void Player::fileError() {
+	_waitingForData = false;
+
 	crl::on_main(&_sessionGuard, [=] {
 		fail();
 	});
 }
 
+void Player::fileWaitingForData() {
+	if (_waitingForData) {
+		return;
+	}
+	_waitingForData = true;
+	crl::on_main(&_sessionGuard, [=] {
+		_updates.fire({ WaitingForData() });
+	});
+	if (_audio) {
+		_audio->waitForData();
+	}
+	if (_video) {
+		_video->waitForData();
+	}
+}
+
 bool Player::fileProcessPacket(Packet &&packet) {
+	_waitingForData = false;
+
 	const auto &native = packet.fields();
 	const auto index = native.stream_index;
 	if (packet.empty()) {
@@ -250,12 +270,20 @@ bool Player::fileProcessPacket(Packet &&packet) {
 		}
 	} else if (_audio && _audio->streamIndex() == native.stream_index) {
 		const auto time = PacketPosition(packet, _audio->streamTimeBase());
+		//LOG(("[%2] AUDIO PACKET FOR %1ms"
+		//	).arg(time
+		//	).arg(crl::now() % 10000, 4, 10, QChar('0')));
+
 		crl::on_main(&_sessionGuard, [=] {
 			audioReceivedTill(time);
 		});
 		_audio->process(std::move(packet));
 	} else if (_video && _video->streamIndex() == native.stream_index) {
 		const auto time = PacketPosition(packet, _video->streamTimeBase());
+		//LOG(("[%2] VIDEO PACKET FOR %1ms"
+		//	).arg(time
+		//	).arg(crl::now() % 10000, 4, 10, QChar('0')));
+
 		crl::on_main(&_sessionGuard, [=] {
 			videoReceivedTill(time);
 		});
@@ -368,7 +396,16 @@ rpl::lifetime &Player::lifetime() {
 	return _lifetime;
 }
 
-Player::~Player() = default;
+Player::~Player() {
+	// The order of field destruction is important.
+	//
+	// We are forced to maintain the correct order in the stop() method,
+	// because it can be called even before the player destruction.
+	//
+	// So instead of maintaining it in the class definition as well we
+	// simply call stop() here, after that the destruction is trivial.
+	stop();
+}
 
 } // namespace Streaming
 } // namespace Media

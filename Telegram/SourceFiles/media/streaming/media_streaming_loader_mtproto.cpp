@@ -13,7 +13,7 @@ namespace Media {
 namespace Streaming {
 namespace {
 
-constexpr auto kMaxConcurrentRequests = 1; // #TODO streaming
+constexpr auto kMaxConcurrentRequests = 2; // #TODO streaming
 
 } // namespace
 

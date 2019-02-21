@@ -52,6 +52,9 @@ public:
 	~Player();
 
 private:
+	static constexpr auto kReceivedTillEnd
+		= std::numeric_limits<crl::time>::max();
+
 	enum class Stage {
 		Uninitialized,
 		Initializing,
@@ -66,6 +69,7 @@ private:
 	// FileDelegate methods are called only from the File thread.
 	void fileReady(Stream &&video, Stream &&audio) override;
 	void fileError() override;
+	void fileWaitingForData() override;
 	bool fileProcessPacket(Packet &&packet) override;
 	bool fileReadMore() override;
 
@@ -95,9 +99,6 @@ private:
 
 	const std::unique_ptr<File> _file;
 
-	static constexpr auto kReceivedTillEnd
-		= std::numeric_limits<crl::time>::max();
-
 	// Immutable while File is active after it is ready.
 	AudioMsgId _audioId;
 	std::unique_ptr<AudioTrack> _audio;
@@ -109,6 +110,7 @@ private:
 
 	// Belongs to the File thread while File is active.
 	bool _readTillEnd = false;
+	bool _waitingForData = false;
 
 	// Belongs to the main thread.
 	Information _information;

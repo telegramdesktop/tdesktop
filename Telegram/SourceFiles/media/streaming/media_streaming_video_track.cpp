@@ -277,7 +277,7 @@ VideoTrackObject::TrackTime VideoTrackObject::trackTime() const {
 		return result;
 	}
 
-	const auto correction = _audioId.playId()
+	const auto correction = (_options.syncVideoByAudio && _audioId.playId())
 		? Media::Player::mixer()->getVideoTimeCorrection(_audioId)
 		: Media::Player::Mixer::TimeCorrection();
 	const auto knownValue = correction
@@ -476,6 +476,9 @@ void VideoTrack::process(Packet &&packet) {
 	](Implementation &unwrapped) mutable {
 		unwrapped.process(std::move(packet));
 	});
+}
+
+void VideoTrack::waitForData() {
 }
 
 void VideoTrack::start(crl::time startTime) {

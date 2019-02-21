@@ -36,8 +36,15 @@ public:
 		EndOfFile,
 	};
 	virtual ReadResult readMore(QByteArray &samples, int64 &samplesCount) = 0;
-	virtual void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
+	virtual void enqueuePackets(
+			QQueue<FFMpeg::AVPacketDataWrap> &&packets) {
 		Unexpected("enqueuePackets() call on not ChildFFMpegLoader.");
+	}
+	virtual void setForceToBuffer(bool force) {
+		Unexpected("setForceToBuffer() call on not ChildFFMpegLoader.");
+	}
+	virtual bool forceToBuffer() const {
+		return false;
 	}
 
 	void saveDecodedSamples(QByteArray *samples, int64 *samplesCount);

@@ -22,6 +22,7 @@ namespace {
 constexpr auto kCaptureFrequency = Player::kDefaultFrequency;
 constexpr auto kCaptureSkipDuration = crl::time(400);
 constexpr auto kCaptureFadeInDuration = crl::time(300);
+constexpr auto kCaptureBufferSlice = 256 * 1024;
 
 Instance *CaptureInstance = nullptr;
 
@@ -323,7 +324,7 @@ void Instance::Inner::onStart() {
 
 	_timer.start(50);
 	_captured.clear();
-	_captured.reserve(AudioVoiceMsgBufferSize);
+	_captured.reserve(kCaptureBufferSlice);
 	DEBUG_LOG(("Audio Capture: started!"));
 }
 
@@ -489,8 +490,8 @@ void Instance::Inner::onTimeout() {
 		// Get samples from OpenAL
 		auto s = _captured.size();
 		auto news = s + static_cast<int>(samples * sizeof(short));
-		if (news / AudioVoiceMsgBufferSize > s / AudioVoiceMsgBufferSize) {
-			_captured.reserve(((news / AudioVoiceMsgBufferSize) + 1) * AudioVoiceMsgBufferSize);
+		if (news / kCaptureBufferSlice > s / kCaptureBufferSlice) {
+			_captured.reserve(((news / kCaptureBufferSlice) + 1) * kCaptureBufferSlice);
 		}
 		_captured.resize(news);
 		alcCaptureSamples(d->device, (ALCvoid *)(_captured.data() + s), samples);

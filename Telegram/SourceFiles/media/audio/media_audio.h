@@ -122,6 +122,7 @@ public:
 
 	// Video player audio stream interface.
 	void feedFromVideo(const VideoSoundPart &part);
+	void forceToBufferVideo(const AudioMsgId &audioId);
 	struct TimeCorrection {
 		crl::time audioPositionValue = kTimeUnknown;
 		crl::time audioPositionTime = kTimeUnknown;

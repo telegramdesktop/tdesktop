@@ -39,6 +39,7 @@ public:
 
 	// Called from the same unspecified thread.
 	void process(Packet &&packet);
+	void waitForData();
 
 	// Called from the main thread.
 	~AudioTrack();
@@ -50,6 +51,7 @@ private:
 	[[nodiscard]] bool fillStateFromFrame();
 	void mixerInit();
 	void mixerEnqueue(Packet &&packet);
+	void mixerForceToBuffer();
 	void callReady();
 
 	const PlaybackOptions _options;
