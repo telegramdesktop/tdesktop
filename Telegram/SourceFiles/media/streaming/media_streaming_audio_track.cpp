@@ -18,14 +18,17 @@ namespace Streaming {
 AudioTrack::AudioTrack(
 	const PlaybackOptions &options,
 	Stream &&stream,
+	AudioMsgId audioId,
 	FnMut<void(const Information &)> ready,
 	Fn<void()> error)
 : _options(options)
 , _stream(std::move(stream))
+, _audioId(audioId)
 , _ready(std::move(ready))
 , _error(std::move(error)) {
 	Expects(_ready != nullptr);
 	Expects(_error != nullptr);
+	Expects(_audioId.playId() != 0);
 }
 
 int AudioTrack::streamIndex() const {
@@ -39,11 +42,15 @@ AVRational AudioTrack::streamTimeBase() const {
 
 void AudioTrack::process(Packet &&packet) {
 	_noMoreData = packet.empty();
-	if (_audioMsgId.playId()) {
+	if (initialized()) {
 		mixerEnqueue(std::move(packet));
 	} else if (!tryReadFirstFrame(std::move(packet))) {
 		_error();
 	}
+}
+
+bool AudioTrack::initialized() const {
+	return !_ready;
 }
 
 bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
@@ -73,17 +80,16 @@ bool AudioTrack::fillStateFromFrame() {
 }
 
 void AudioTrack::mixerInit() {
-	Expects(!_audioMsgId.playId());
-
-	_audioMsgId = AudioMsgId::ForVideo();
+	Expects(!initialized());
 
 	auto data = std::make_unique<VideoSoundData>();
+	data->frame = _stream.frame.release();
 	data->context = _stream.codec.release();
 	data->frequency = _stream.frequency;
 	data->length = (_stream.duration * data->frequency) / 1000LL;
 	data->speed = _options.speed;
 	Media::Player::mixer()->play(
-		_audioMsgId,
+		_audioId,
 		std::move(data),
 		_startedPosition);
 }
@@ -103,17 +109,16 @@ void AudioTrack::callReady() {
 void AudioTrack::mixerEnqueue(Packet &&packet) {
 	Media::Player::mixer()->feedFromVideo({
 		&packet.fields(),
-		_audioMsgId
+		_audioId
 	});
 	packet.release();
 }
 
 void AudioTrack::start(crl::time startTime) {
-	Expects(_ready == nullptr);
-	Expects(_audioMsgId.playId() != 0);
+	Expects(initialized());
 
 	// #TODO streaming support start() when paused.
-	Media::Player::mixer()->resume(_audioMsgId, true);
+	Media::Player::mixer()->resume(_audioId, true);
 }
 
 rpl::producer<crl::time> AudioTrack::playPosition() {
@@ -123,12 +128,12 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 		_subscription = Media::Player::Updated(
 		).add_subscription([=](const AudioMsgId &id) {
 			using State = Media::Player::State;
-			if (id != _audioMsgId) {
+			if (id != _audioId) {
 				return;
 			}
 			const auto type = AudioMsgId::Type::Video;
 			const auto state = Media::Player::mixer()->currentState(type);
-			if (state.id != _audioMsgId) {
+			if (state.id != _audioId) {
 				// #TODO streaming muted by other
 				return;
 			} else switch (state.state) {
@@ -157,8 +162,8 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 }
 
 AudioTrack::~AudioTrack() {
-	if (_audioMsgId.playId()) {
-		Media::Player::mixer()->stop(_audioMsgId);
+	if (_audioId.playId()) {
+		Media::Player::mixer()->stop(_audioId);
 	}
 }
 

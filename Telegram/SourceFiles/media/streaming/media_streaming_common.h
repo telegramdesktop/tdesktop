@@ -8,9 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Media {
-namespace Streaming {
 
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+
+namespace Streaming {
 
 class VideoTrack;
 class AudioTrack;

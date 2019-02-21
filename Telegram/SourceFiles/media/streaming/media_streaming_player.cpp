@@ -158,6 +158,7 @@ void Player::trackPlayedTill(
 void Player::audioReceivedTill(crl::time position) {
 	Expects(_audio != nullptr);
 
+	//LOG(("AUDIO TILL: %1").arg(position));
 	trackReceivedTill(*_audio, _information.audio.state, position);
 }
 
@@ -170,6 +171,7 @@ void Player::audioPlayedTill(crl::time position) {
 void Player::videoReceivedTill(crl::time position) {
 	Expects(_video != nullptr);
 
+	//LOG(("VIDEO TILL: %1").arg(position));
 	trackReceivedTill(*_video, _information.video.state, position);
 }
 
@@ -196,16 +198,21 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 	};
 	const auto mode = _options.mode;
 	if (audio.codec && (mode == Mode::Audio || mode == Mode::Both)) {
+		_audioId = AudioMsgId::ForVideo();
 		_audio = std::make_unique<AudioTrack>(
 			_options,
 			std::move(audio),
+			_audioId,
 			ready,
 			error(_audio));
+	} else {
+		_audioId = AudioMsgId();
 	}
 	if (video.codec && (mode == Mode::Video || mode == Mode::Both)) {
 		_video = std::make_unique<VideoTrack>(
 			_options,
 			std::move(video),
+			_audioId,
 			ready,
 			error(_video));
 	}

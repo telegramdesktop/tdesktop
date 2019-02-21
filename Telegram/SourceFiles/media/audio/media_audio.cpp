@@ -441,7 +441,7 @@ void Mixer::Track::clear() {
 
 	setVideoData(nullptr);
 	lastUpdateWhen = 0;
-	lastUpdateCorrectedMs = 0;
+	lastUpdatePosition = 0;
 }
 
 void Mixer::Track::started() {
@@ -782,7 +782,7 @@ void Mixer::play(
 
 		current->state.id = audio;
 		current->lastUpdateWhen = 0;
-		current->lastUpdateCorrectedMs = 0;
+		current->lastUpdatePosition = 0;
 		if (videoData) {
 			current->setVideoData(std::move(videoData));
 		} else {
@@ -823,6 +823,23 @@ void Mixer::feedFromVideo(const VideoSoundPart &part) {
 	_loader->feedFromVideo(part);
 }
 
+Mixer::TimeCorrection Mixer::getVideoTimeCorrection(
+		const AudioMsgId &audio) const {
+	Expects(audio.type() == AudioMsgId::Type::Video);
+	Expects(audio.playId() != 0);
+
+	auto result = TimeCorrection();
+	const auto playId = audio.playId();
+
+	QMutexLocker lock(&AudioMutex);
+	const auto track = trackForType(AudioMsgId::Type::Video);
+	if (track->state.id.playId() == playId && track->lastUpdateWhen > 0) {
+		result.audioPositionValue = track->lastUpdatePosition;
+		result.audioPositionTime = track->lastUpdateWhen;
+	}
+	return result;
+}
+
 crl::time Mixer::getVideoCorrectedTime(const AudioMsgId &audio, crl::time frameMs, crl::time systemMs) {
 	auto result = frameMs;
 
@@ -830,7 +847,7 @@ crl::time Mixer::getVideoCorrectedTime(const AudioMsgId &audio, crl::time frameM
 	auto type = audio.type();
 	auto track = trackForType(type);
 	if (track && track->state.id == audio && track->lastUpdateWhen > 0) {
-		result = static_cast<crl::time>(track->lastUpdateCorrectedMs);
+		result = static_cast<crl::time>(track->lastUpdatePosition);
 		if (systemMs > track->lastUpdateWhen) {
 			result += (systemMs - track->lastUpdateWhen);
 		}
@@ -848,7 +865,7 @@ void Mixer::videoSoundProgress(const AudioMsgId &audio) {
 	if (current && current->state.length && current->state.frequency) {
 		if (current->state.id == audio && current->state.state == State::Playing) {
 			current->lastUpdateWhen = crl::now();
-			current->lastUpdateCorrectedMs = (current->state.position * 1000ULL) / current->state.frequency;
+			current->lastUpdatePosition = (current->state.position * 1000ULL) / current->state.frequency;
 		}
 	}
 }
@@ -906,7 +923,7 @@ void Mixer::pause(const AudioMsgId &audio, bool fast) {
 		emit faderOnTimer();
 
 		track->lastUpdateWhen = 0;
-		track->lastUpdateCorrectedMs = 0;
+		track->lastUpdatePosition = 0;
 	}
 	if (current) emit updated(current);
 }

@@ -98,9 +98,12 @@ private:
 	static constexpr auto kReceivedTillEnd
 		= std::numeric_limits<crl::time>::max();
 
-	// Immutable while File is active.
+	// Immutable while File is active after it is ready.
+	AudioMsgId _audioId;
 	std::unique_ptr<AudioTrack> _audio;
 	std::unique_ptr<VideoTrack> _video;
+
+	// Immutable while File is active.
 	base::has_weak_ptr _sessionGuard;
 	PlaybackOptions _options;
 

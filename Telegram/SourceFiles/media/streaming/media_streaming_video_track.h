@@ -23,6 +23,7 @@ public:
 	VideoTrack(
 		const PlaybackOptions &options,
 		Stream &&stream,
+		const AudioMsgId &audioId,
 		FnMut<void(const Information &)> ready,
 		Fn<void()> error);
 

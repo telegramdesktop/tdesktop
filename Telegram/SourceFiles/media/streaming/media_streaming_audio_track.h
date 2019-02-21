@@ -20,6 +20,7 @@ public:
 	AudioTrack(
 		const PlaybackOptions &options,
 		Stream &&stream,
+		AudioMsgId audioId,
 		FnMut<void(const Information &)> ready,
 		Fn<void()> error);
 
@@ -44,6 +45,7 @@ public:
 
 private:
 	// Called from the same unspecified thread.
+	[[nodiscard]] bool initialized() const;
 	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
 	void mixerInit();
@@ -54,6 +56,7 @@ private:
 
 	// Accessed from the same unspecified thread.
 	Stream _stream;
+	const AudioMsgId _audioId;
 	bool _noMoreData = false;
 
 	// Assumed to be thread-safe.
@@ -62,7 +65,6 @@ private:
 
 	// First set from the same unspecified thread before _ready is called.
 	// After that is immutable.
-	AudioMsgId _audioMsgId;
 	crl::time _startedPosition = kTimeUnknown;
 
 	// Accessed from the main thread.

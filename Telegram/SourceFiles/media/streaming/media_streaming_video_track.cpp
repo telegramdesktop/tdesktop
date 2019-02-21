@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_video_track.h"
 
+#include "media/audio/media_audio.h"
 #include "base/concurrent_timer.h"
 
 namespace Media {
@@ -28,6 +29,7 @@ public:
 		const PlaybackOptions &options,
 		not_null<Shared*> shared,
 		Stream &&stream,
+		const AudioMsgId &audioId,
 		FnMut<void(const Information &)> ready,
 		Fn<void()> error);
 
@@ -52,7 +54,11 @@ private:
 	// Force frame position to be clamped to [0, duration] and monotonic.
 	[[nodiscard]] crl::time currentFramePosition() const;
 
-	[[nodiscard]] crl::time trackTime() const;
+	struct TrackTime {
+		crl::time worldNow = kTimeUnknown;
+		crl::time trackNow = kTimeUnknown;
+	};
+	[[nodiscard]] TrackTime trackTime() const;
 
 	const crl::weak_on_queue<VideoTrackObject> _weak;
 	const PlaybackOptions _options;
@@ -62,13 +68,14 @@ private:
 	Shared *_shared = nullptr;
 
 	Stream _stream;
+	AudioMsgId _audioId;
 	bool _noMoreData = false;
 	FnMut<void(const Information &)> _ready;
 	Fn<void()> _error;
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _startedPosition = kTimeUnknown;
 	mutable crl::time _previousFramePosition = kTimeUnknown;
-	rpl::variable<crl::time> _nextFrameDisplayPosition = kTimeUnknown;
+	rpl::variable<crl::time> _nextFrameDisplayTime = kTimeUnknown;
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -80,12 +87,14 @@ VideoTrackObject::VideoTrackObject(
 	const PlaybackOptions &options,
 	not_null<Shared*> shared,
 	Stream &&stream,
+	const AudioMsgId &audioId,
 	FnMut<void(const Information &)> ready,
 	Fn<void()> error)
 : _weak(std::move(weak))
 , _options(options)
 , _shared(shared)
 , _stream(std::move(stream))
+, _audioId(audioId)
 , _ready(std::move(ready))
 , _error(std::move(error))
 , _readFramesTimer(_weak, [=] { readFrames(); }) {
@@ -94,12 +103,7 @@ VideoTrackObject::VideoTrackObject(
 }
 
 rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
-	return _nextFrameDisplayPosition.value(
-	) | rpl::map([=](crl::time displayPosition) {
-		return _startedTime
-			+ crl::time(std::round((displayPosition - _startedPosition)
-				/ _options.speed));
-	});
+	return _nextFrameDisplayTime.value();
 }
 
 void VideoTrackObject::process(Packet &&packet) {
@@ -130,7 +134,7 @@ void VideoTrackObject::readFrames() {
 	if (interrupted()) {
 		return;
 	}
-	const auto state = _shared->prepareState(trackTime());
+	const auto state = _shared->prepareState(trackTime().trackNow);
 	state.match([&](Shared::PrepareFrame frame) {
 		if (readFrame(frame)) {
 			presentFrameIfNeeded();
@@ -175,9 +179,12 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 }
 
 void VideoTrackObject::presentFrameIfNeeded() {
-	const auto presented = _shared->presentFrame(trackTime());
+	const auto time = trackTime();
+	const auto presented = _shared->presentFrame(time.trackNow);
 	if (presented.displayPosition != kTimeUnknown) {
-		_nextFrameDisplayPosition = presented.displayPosition;
+		const auto trackLeft = presented.displayPosition - time.trackNow;
+		_nextFrameDisplayTime = time.worldNow
+			+ crl::time(std::round(trackLeft / _options.speed));
 	}
 	queueReadFrames(presented.nextCheckDelay);
 }
@@ -236,7 +243,7 @@ crl::time VideoTrackObject::currentFramePosition() const {
 
 bool VideoTrackObject::fillStateFromFrame() {
 	_startedPosition = currentFramePosition();
-	_nextFrameDisplayPosition = _startedPosition;
+	_nextFrameDisplayTime = _startedTime;
 	return (_startedPosition != kTimeUnknown);
 }
 
@@ -261,11 +268,30 @@ void VideoTrackObject::callReady() {
 	base::take(_ready)({ data });
 }
 
-crl::time VideoTrackObject::trackTime() const {
-	return _startedPosition
-		+ crl::time((_startedTime != kTimeUnknown
-			? std::round((crl::now() - _startedTime) * _options.speed)
-			: 0.));
+VideoTrackObject::TrackTime VideoTrackObject::trackTime() const {
+	auto result = TrackTime();
+	const auto started = (_startedTime != kTimeUnknown);
+	if (!started) {
+		result.worldNow = crl::now();
+		result.trackNow = _startedPosition;
+		return result;
+	}
+
+	const auto correction = _audioId.playId()
+		? Media::Player::mixer()->getVideoTimeCorrection(_audioId)
+		: Media::Player::Mixer::TimeCorrection();
+	const auto knownValue = correction ? correction.audioPositionValue : 0;
+	const auto knownTime = correction
+		? correction.audioPositionTime
+		: _startedTime;
+	const auto worldNow = crl::now();
+	const auto sinceKnown = (worldNow - knownTime);
+
+	result.worldNow = worldNow;
+	result.trackNow = _startedPosition
+		+ knownValue
+		+ crl::time(std::round(sinceKnown * _options.speed));
+	return result;
 }
 
 void VideoTrackObject::interrupt() {
@@ -419,6 +445,7 @@ not_null<VideoTrack::Frame*> VideoTrack::Shared::frameForPaint() {
 VideoTrack::VideoTrack(
 	const PlaybackOptions &options,
 	Stream &&stream,
+	const AudioMsgId &audioId,
 	FnMut<void(const Information &)> ready,
 	Fn<void()> error)
 : _streamIndex(stream.index)
@@ -429,6 +456,7 @@ VideoTrack::VideoTrack(
 	options,
 	_shared.get(),
 	std::move(stream),
+	audioId,
 	std::move(ready),
 	std::move(error)) {
 }
