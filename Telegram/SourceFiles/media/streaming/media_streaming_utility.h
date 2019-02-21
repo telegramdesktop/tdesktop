@@ -20,6 +20,18 @@ namespace Streaming {
 
 constexpr auto kUniversalTimeBase = AVRational{ 1, AV_TIME_BASE };
 
+struct TimeCorrection {
+	crl::time trackTime = kTimeUnknown;
+	crl::time worldTime = kTimeUnknown;
+
+	bool valid() const {
+		return (trackTime != kTimeUnknown) && (worldTime != kTimeUnknown);
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+};
+
 class AvErrorWrap {
 public:
 	AvErrorWrap(int code = 0) : _code(code) {

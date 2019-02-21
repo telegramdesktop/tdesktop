@@ -71,37 +71,6 @@ not_null<FileDelegate*> Player::delegate() {
 	return static_cast<FileDelegate*>(this);
 }
 
-void Player::start() {
-	Expects(_stage == Stage::Ready);
-
-	_stage = Stage::Started;
-	if (_audio) {
-		_audio->playPosition(
-		) | rpl::start_with_next_done([=](crl::time position) {
-			audioPlayedTill(position);
-		}, [=] {
-			// audio finished
-		}, _lifetime);
-	}
-	if (_video) {
-		_video->renderNextFrame(
-		) | rpl::start_with_next_done([=](crl::time when) {
-			_nextFrameTime = when;
-			checkNextFrame();
-		}, [=] {
-			// video finished
-		}, _lifetime);
-	}
-
-	_startedTime = crl::now();
-	if (_audio) {
-		_audio->start(_startedTime);
-	}
-	if (_video) {
-		_video->start(_startedTime);
-	}
-}
-
 void Player::checkNextFrame() {
 	Expects(_nextFrameTime != kTimeUnknown);
 
@@ -238,9 +207,6 @@ void Player::fileWaitingForData() {
 		return;
 	}
 	_waitingForData = true;
-	crl::on_main(&_sessionGuard, [=] {
-		_updates.fire({ WaitingForData() });
-	});
 	if (_audio) {
 		_audio->waitForData();
 	}
@@ -328,6 +294,11 @@ void Player::provideStartInformation() {
 		_information.video.cover = QImage();
 
 		_updates.fire(Update{ std::move(copy) });
+
+		if (_stage == Stage::Ready && !_paused) {
+			_paused = true;
+			resume();
+		}
 	}
 }
 
@@ -338,7 +309,7 @@ void Player::fail() {
 	stopGuarded();
 }
 
-void Player::init(const PlaybackOptions &options) {
+void Player::play(const PlaybackOptions &options) {
 	Expects(options.speed >= 0.5 && options.speed <= 2.);
 
 	stop();
@@ -349,15 +320,67 @@ void Player::init(const PlaybackOptions &options) {
 }
 
 void Player::pause() {
+	Expects(_stage != Stage::Uninitialized && _stage != Stage::Failed);
+
+	if (_paused) {
+		return;
+	}
 	_paused = true;
-	// #TODO streaming pause
+	if (_stage == Stage::Started) {
+		_pausedTime = crl::now();
+		if (_audio) {
+			_audio->pause(_pausedTime);
+		}
+		if (_video) {
+			_video->pause(_pausedTime);
+		}
+	}
 }
 
 void Player::resume() {
+	Expects(_stage != Stage::Uninitialized && _stage != Stage::Failed);
+
+	if (!_paused) {
+		return;
+	}
 	_paused = false;
-	// #TODO streaming pause
+	if (_stage == Stage::Ready) {
+		start();
+	}
+	if (_stage == Stage::Started) {
+		_startedTime = crl::now();
+		if (_audio) {
+			_audio->resume(_startedTime);
+		}
+		if (_video) {
+			_video->resume(_startedTime);
+		}
+	}
 }
 
+void Player::start() {
+	Expects(_stage == Stage::Ready);
+
+	_stage = Stage::Started;
+	if (_audio) {
+		_audio->playPosition(
+		) | rpl::start_with_next_done([=](crl::time position) {
+			audioPlayedTill(position);
+		}, [=] {
+			// audio finished
+		}, _lifetime);
+	}
+	if (_video) {
+		_video->renderNextFrame(
+		) | rpl::start_with_next_done([=](crl::time when) {
+			_nextFrameTime = when;
+			checkNextFrame();
+		}, [=] {
+			// video finished
+		}, _lifetime);
+	}
+
+}
 void Player::stop() {
 	_file->stop();
 	_audio = nullptr;

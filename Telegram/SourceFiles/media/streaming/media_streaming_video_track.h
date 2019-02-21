@@ -36,7 +36,11 @@ public:
 	void waitForData();
 
 	// Called from the main thread.
-	void start(crl::time startTime);
+	// Must be called after 'ready' was invoked.
+	void pause(crl::time time);
+	void resume(crl::time time);
+
+	// Called from the main thread.
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;

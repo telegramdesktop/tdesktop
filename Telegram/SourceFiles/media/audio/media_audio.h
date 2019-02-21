@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/streaming/media_streaming_common.h"
 #include "storage/localimageloader.h"
 #include "base/bytes.h"
 
@@ -15,6 +14,10 @@ struct VideoSoundData;
 struct VideoSoundPart;
 
 namespace Media {
+namespace Streaming {
+struct TimeCorrection;
+} // namespace Streaming
+
 namespace Audio {
 
 class Instance;
@@ -123,15 +126,8 @@ public:
 	// Video player audio stream interface.
 	void feedFromVideo(const VideoSoundPart &part);
 	void forceToBufferVideo(const AudioMsgId &audioId);
-	struct TimeCorrection {
-		crl::time audioPositionValue = kTimeUnknown;
-		crl::time audioPositionTime = kTimeUnknown;
-
-		explicit operator bool() const {
-			return (audioPositionValue != kTimeUnknown);
-		}
-	};
-	TimeCorrection getVideoTimeCorrection(const AudioMsgId &audio) const;
+	Streaming::TimeCorrection getVideoTimeCorrection(
+		const AudioMsgId &audio) const;
 	crl::time getVideoCorrectedTime(
 		const AudioMsgId &id,
 		crl::time frameMs,
@@ -244,7 +240,7 @@ private:
 	private:
 		void createStream(AudioMsgId::Type type);
 		void destroyStream();
-		void destroySpeedEffect();
+		void resetSpeedEffect();
 		void resetStream();
 
 	};

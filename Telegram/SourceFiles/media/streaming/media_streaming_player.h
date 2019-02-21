@@ -33,8 +33,7 @@ public:
 	Player(const Player &other) = delete;
 	Player &operator=(const Player &other) = delete;
 
-	void init(const PlaybackOptions &options);
-	void start();
+	void play(const PlaybackOptions &options);
 	void pause();
 	void resume();
 	void stop();
@@ -76,6 +75,7 @@ private:
 	// Called from the main thread.
 	void streamReady(Information &&information);
 	void streamFailed();
+	void start();
 	void provideStartInformation();
 	void fail();
 	void checkNextFrame();
@@ -118,6 +118,7 @@ private:
 	bool _paused = false;
 
 	crl::time _startedTime = kTimeUnknown;
+	crl::time _pausedTime = kTimeUnknown;
 	crl::time _nextFrameTime = kTimeUnknown;
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;

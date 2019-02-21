@@ -37,7 +37,8 @@ public:
 
 	[[nodisacrd]] rpl::producer<crl::time> displayFrameAt() const;
 
-	void start(crl::time startTime);
+	void pause(crl::time time);
+	void resume(crl::time time);
 	void interrupt();
 	void frameDisplayed();
 
@@ -72,8 +73,9 @@ private:
 	bool _noMoreData = false;
 	FnMut<void(const Information &)> _ready;
 	Fn<void()> _error;
-	crl::time _startedTime = kTimeUnknown;
-	crl::time _startedPosition = kTimeUnknown;
+	crl::time _pausedTime = kTimeUnknown;
+	crl::time _resumedTime = kTimeUnknown;
+	mutable TimeCorrection _timeCorrection;
 	mutable crl::time _previousFramePosition = kTimeUnknown;
 	rpl::variable<crl::time> _nextFrameDisplayTime = kTimeUnknown;
 
@@ -179,6 +181,9 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 }
 
 void VideoTrackObject::presentFrameIfNeeded() {
+	if (_pausedTime != kTimeUnknown) {
+		return;
+	}
 	const auto time = trackTime();
 	const auto presented = _shared->presentFrame(time.trackNow);
 	if (presented.displayPosition != kTimeUnknown) {
@@ -189,9 +194,29 @@ void VideoTrackObject::presentFrameIfNeeded() {
 	queueReadFrames(presented.nextCheckDelay);
 }
 
-void VideoTrackObject::start(crl::time startTime) {
-	_startedTime = startTime;
+void VideoTrackObject::pause(crl::time time) {
+	Expects(_timeCorrection.valid());
+
+	if (_pausedTime == kTimeUnknown) {
+		_pausedTime = time;
+	}
+}
+
+void VideoTrackObject::resume(crl::time time) {
+	Expects(_timeCorrection.trackTime != kTimeUnknown);
+
+	// Resumed time used to validate sync to audio.
+	_resumedTime = time;
+	if (_pausedTime != kTimeUnknown) {
+		Assert(_pausedTime <= time);
+		_timeCorrection.worldTime += (time - _pausedTime);
+		_pausedTime = kTimeUnknown;
+	} else {
+		_timeCorrection.worldTime = time;
+	}
 	queueReadFrames();
+
+	Ensures(_timeCorrection.valid());
 }
 
 bool VideoTrackObject::interrupted() const {
@@ -221,7 +246,7 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	if (frame.isNull()) {
 		return false;
 	}
-	_shared->init(std::move(frame), _startedPosition);
+	_shared->init(std::move(frame), _timeCorrection.trackTime);
 	callReady();
 	if (!_stream.queue.empty()) {
 		queueReadFrames();
@@ -242,9 +267,14 @@ crl::time VideoTrackObject::currentFramePosition() const {
 }
 
 bool VideoTrackObject::fillStateFromFrame() {
-	_startedPosition = currentFramePosition();
-	_nextFrameDisplayTime = _startedTime;
-	return (_startedPosition != kTimeUnknown);
+	Expects(_timeCorrection.trackTime == kTimeUnknown);
+
+	const auto position = currentFramePosition();
+	if (position == kTimeUnknown) {
+		return false;
+	}
+	_nextFrameDisplayTime = _timeCorrection.trackTime = position;
+	return true;
 }
 
 void VideoTrackObject::callReady() {
@@ -261,36 +291,30 @@ void VideoTrackObject::callReady() {
 	data.cover = frame->original;
 	data.rotation = _stream.rotation;
 	data.state.duration = _stream.duration;
-	data.state.position = _startedPosition;
+	data.state.position = _timeCorrection.trackTime;
 	data.state.receivedTill = _noMoreData
 		? _stream.duration
-		: _startedPosition;
+		: _timeCorrection.trackTime;
 	base::take(_ready)({ data });
 }
 
 VideoTrackObject::TrackTime VideoTrackObject::trackTime() const {
 	auto result = TrackTime();
-	const auto started = (_startedTime != kTimeUnknown);
-	if (!started) {
-		result.worldNow = crl::now();
-		result.trackNow = _startedPosition;
+	result.worldNow = crl::now();
+	if (!_timeCorrection) {
+		result.trackNow = _timeCorrection.trackTime;
 		return result;
 	}
 
-	const auto correction = (_options.syncVideoByAudio && _audioId.playId())
-		? Media::Player::mixer()->getVideoTimeCorrection(_audioId)
-		: Media::Player::Mixer::TimeCorrection();
-	const auto knownValue = correction
-		? correction.audioPositionValue
-		: _startedPosition;
-	const auto knownTime = correction
-		? correction.audioPositionTime
-		: _startedTime;
-	const auto worldNow = crl::now();
-	const auto sinceKnown = (worldNow - knownTime);
-
-	result.worldNow = worldNow;
-	result.trackNow = knownValue
+	if (_options.syncVideoByAudio && _audioId.playId()) {
+		const auto mixer = Media::Player::mixer();
+		const auto correction = mixer->getVideoTimeCorrection(_audioId);
+		if (correction && correction.worldTime > _resumedTime) {
+			_timeCorrection = correction;
+		}
+	}
+	const auto sinceKnown = (result.worldNow - _timeCorrection.worldTime);
+	result.trackNow = _timeCorrection.trackTime
 		+ crl::time(std::round(sinceKnown * _options.speed));
 	return result;
 }
@@ -481,9 +505,15 @@ void VideoTrack::process(Packet &&packet) {
 void VideoTrack::waitForData() {
 }
 
-void VideoTrack::start(crl::time startTime) {
+void VideoTrack::pause(crl::time time) {
 	_wrapped.with([=](Implementation &unwrapped) {
-		unwrapped.start(startTime);
+		unwrapped.pause(time);
+	});
+}
+
+void VideoTrack::resume(crl::time time) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.resume(time);
 	});
 }
 

@@ -125,10 +125,15 @@ void AudioTrack::mixerForceToBuffer() {
 	Media::Player::mixer()->forceToBufferVideo(_audioId);
 }
 
-void AudioTrack::start(crl::time startTime) {
+void AudioTrack::pause(crl::time time) {
 	Expects(initialized());
 
-	// #TODO streaming support start() when paused.
+	Media::Player::mixer()->pause(_audioId, true);
+}
+
+void AudioTrack::resume(crl::time time) {
+	Expects(initialized());
+
 	Media::Player::mixer()->resume(_audioId, true);
 }
 

@@ -26,7 +26,8 @@ public:
 
 	// Called from the main thread.
 	// Must be called after 'ready' was invoked.
-	void start(crl::time startTime);
+	void pause(crl::time time);
+	void resume(crl::time time);
 
 	// Called from the main thread.
 	// Non-const, because we subscribe to changes on the first call.

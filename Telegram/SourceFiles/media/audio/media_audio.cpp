@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_child_ffmpeg_loader.h"
 #include "media/audio/media_audio_loaders.h"
 #include "media/audio/media_audio_track.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "platform/platform_audio.h"
@@ -374,10 +375,10 @@ void Mixer::Track::destroyStream() {
 	for (auto i = 0; i != 3; ++i) {
 		stream.buffers[i] = 0;
 	}
-	destroySpeedEffect();
+	resetSpeedEffect();
 }
 
-void Mixer::Track::destroySpeedEffect() {
+void Mixer::Track::resetSpeedEffect() {
 	if (!speedEffect) {
 		return;
 	} else if (alIsEffect(speedEffect->effect)) {
@@ -385,7 +386,7 @@ void Mixer::Track::destroySpeedEffect() {
 		alDeleteAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
 		alDeleteFilters(1, &speedEffect->filter);
 	}
-	speedEffect = nullptr;
+	speedEffect->effect = speedEffect->effectSlot = speedEffect->filter = 0;
 }
 
 void Mixer::Track::reattach(AudioMsgId::Type type) {
@@ -418,7 +419,6 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 void Mixer::Track::detach() {
 	resetStream();
 	destroyStream();
-	destroySpeedEffect();
 }
 
 void Mixer::Track::clear() {
@@ -519,11 +519,13 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 }
 
 void Mixer::Track::setVideoData(std::unique_ptr<VideoSoundData> data) {
-	destroySpeedEffect();
+	resetSpeedEffect();
 	if (data && data->speed != 1.) {
 		speedEffect = std::make_unique<SpeedEffect>();
 		speedEffect->speed = data->speed;
 		speedEffect->coarseTune = CoarseTuneForSpeed(data->speed);
+	} else {
+		speedEffect = nullptr;
 	}
 	videoData = std::move(data);
 }
@@ -787,6 +789,7 @@ void Mixer::play(
 		if (videoData) {
 			current->setVideoData(std::move(videoData));
 		} else {
+			current->setVideoData(nullptr);
 			current->file = audio.audio()->location(true);
 			current->data = audio.audio()->data();
 			notLoadedYet = (current->file.isEmpty() && current->data.isEmpty());
@@ -828,19 +831,19 @@ void Mixer::forceToBufferVideo(const AudioMsgId &audioId) {
 	_loader->forceToBufferVideo(audioId);
 }
 
-Mixer::TimeCorrection Mixer::getVideoTimeCorrection(
+Streaming::TimeCorrection Mixer::getVideoTimeCorrection(
 		const AudioMsgId &audio) const {
 	Expects(audio.type() == AudioMsgId::Type::Video);
 	Expects(audio.playId() != 0);
 
-	auto result = TimeCorrection();
+	auto result = Streaming::TimeCorrection();
 	const auto playId = audio.playId();
 
 	QMutexLocker lock(&AudioMutex);
 	const auto track = trackForType(AudioMsgId::Type::Video);
 	if (track->state.id.playId() == playId && track->lastUpdateWhen > 0) {
-		result.audioPositionValue = track->lastUpdatePosition;
-		result.audioPositionTime = track->lastUpdateWhen;
+		result.trackTime = track->lastUpdatePosition;
+		result.worldTime = track->lastUpdateWhen;
 	}
 	return result;
 }

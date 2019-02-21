@@ -294,6 +294,8 @@ void StartStreaming(
 
 	using namespace Media::Streaming;
 	if (auto loader = document->createStreamingLoader(origin)) {
+		static auto player = std::unique_ptr<Player>();
+
 		class Panel
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 			: public Ui::RpWidgetWrap<QOpenGLWidget> {
@@ -310,10 +312,18 @@ void StartStreaming(
 		protected:
 			void paintEvent(QPaintEvent *e) override {
 			}
+			void keyPressEvent(QKeyEvent *e) override {
+				if (e->key() == Qt::Key_Space) {
+					if (player->paused()) {
+						player->resume();
+					} else {
+						player->pause();
+					}
+				}
+			}
 
 		};
 
-		static auto player = std::unique_ptr<Player>();
 		static auto video = base::unique_qptr<Panel>();
 		player = std::make_unique<Player>(
 			&document->owner(),
@@ -325,10 +335,10 @@ void StartStreaming(
 		});
 
 		auto options = Media::Streaming::PlaybackOptions();
-		options.speed = 1.;
+		options.speed = 1.7;
 		//options.syncVideoByAudio = false;
-		//options.position = (document->duration() / 2) * crl::time(1000);
-		player->init(options);
+		options.position = (document->duration() / 2) * crl::time(1000);
+		player->play(options);
 		player->updates(
 		) | rpl::start_with_next_error_done([=](Update &&update) {
 			update.data.match([&](Information &update) {
@@ -356,7 +366,6 @@ void StartStreaming(
 						}
 					}, video->lifetime());
 				}
-				player->start();
 			}, [&](PreloadedVideo &update) {
 			}, [&](UpdateVideo &update) {
 				Expects(video != nullptr);
