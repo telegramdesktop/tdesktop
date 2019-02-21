@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "media/streaming/media_streaming_audio_track.h"
 #include "media/streaming/media_streaming_video_track.h"
+#include "media/audio/media_audio.h" // for SupportsSpeedControl()
 
 namespace Media {
 namespace Streaming {
@@ -315,12 +316,15 @@ void Player::play(const PlaybackOptions &options) {
 	stop();
 
 	_options = options;
+	if (!Media::Audio::SupportsSpeedControl()) {
+		_options.speed = 1.;
+	}
 	_stage = Stage::Initializing;
 	_file->start(delegate(), _options.position);
 }
 
 void Player::pause() {
-	Expects(_stage != Stage::Uninitialized && _stage != Stage::Failed);
+	Expects(valid());
 
 	if (_paused) {
 		return;
@@ -338,7 +342,7 @@ void Player::pause() {
 }
 
 void Player::resume() {
-	Expects(_stage != Stage::Uninitialized && _stage != Stage::Failed);
+	Expects(valid());
 
 	if (!_paused) {
 		return;
@@ -386,6 +390,7 @@ void Player::stop() {
 	_audio = nullptr;
 	_video = nullptr;
 	_paused = false;
+	_information = Information();
 	invalidate_weak_ptrs(&_sessionGuard);
 	if (_stage != Stage::Failed) {
 		_stage = Stage::Uninitialized;
@@ -403,6 +408,32 @@ bool Player::playing() const {
 
 bool Player::paused() const {
 	return _paused;
+}
+
+void Player::setSpeed(float64 speed) {
+	Expects(valid());
+	Expects(speed >= 0.5 && speed <= 2.);
+
+	if (!Media::Audio::SupportsSpeedControl()) {
+		speed = 1.;
+	}
+	if (_options.speed != speed) {
+		_options.speed = speed;
+		if (_audio) {
+			_audio->setSpeed(speed);
+		}
+		if (_video) {
+			_video->setSpeed(speed);
+		}
+	}
+}
+
+bool Player::valid() const {
+	return (_stage != Stage::Uninitialized) && (_stage != Stage::Failed);
+}
+
+bool Player::ready() const {
+	return valid() && (_stage != Stage::Initializing);
 }
 
 rpl::producer<Update, Error> Player::updates() const {

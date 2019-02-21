@@ -137,6 +137,11 @@ void AudioTrack::resume(crl::time time) {
 	Media::Player::mixer()->resume(_audioId, true);
 }
 
+void AudioTrack::setSpeed(float64 speed) {
+	_options.speed = speed;
+	Media::Player::mixer()->setSpeedFromVideo(_audioId, speed);
+}
+
 rpl::producer<crl::time> AudioTrack::playPosition() {
 	Expects(_ready == nullptr);
 

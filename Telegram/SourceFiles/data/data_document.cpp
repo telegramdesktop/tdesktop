@@ -295,6 +295,12 @@ void StartStreaming(
 	using namespace Media::Streaming;
 	if (auto loader = document->createStreamingLoader(origin)) {
 		static auto player = std::unique_ptr<Player>();
+		static auto pauseOnSeek = false;
+		static auto duration = crl::time(0);
+		static auto options = Media::Streaming::PlaybackOptions();
+		static auto subscribe = Fn<void()>();
+		static auto speed = 1.;
+		static auto step = pow(2., 1. / 12);
 
 		class Panel
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
@@ -319,68 +325,97 @@ void StartStreaming(
 					} else {
 						player->pause();
 					}
+				} else if (e->key() == Qt::Key_Plus) {
+					speed = std::min(speed * step, 2.);
+					player->setSpeed(speed);
+				} else if (e->key() == Qt::Key_Minus) {
+					speed = std::max(speed / step, 0.5);
+					player->setSpeed(speed);
 				}
+			}
+			void mousePressEvent(QMouseEvent *e) override {
+				pauseOnSeek = player->paused();
+				player->pause();
+			}
+			void mouseReleaseEvent(QMouseEvent *e) override {
+				options.position = std::clamp(
+					(duration * e->pos().x()) / width(),
+					crl::time(0),
+					crl::time(duration));
+				player->play(options);
+				subscribe();
 			}
 
 		};
 
 		static auto video = base::unique_qptr<Panel>();
+		subscribe = [] {
+			player->updates(
+			) | rpl::start_with_next_error_done([=](Update &&update) {
+				update.data.match([&](Information &update) {
+					duration = update.video.state.duration;
+					if (!video && !update.video.cover.isNull()) {
+						video = base::make_unique_q<Panel>();
+						video->setAttribute(Qt::WA_OpaquePaintEvent);
+						video->paintRequest(
+						) | rpl::start_with_next([=](QRect rect) {
+							if (player->ready()) {
+								Painter(video.get()).drawImage(
+									video->rect(),
+									player->frame(FrameRequest()));
+							} else {
+								Painter(video.get()).fillRect(
+									rect,
+									Qt::black);
+							}
+						}, video->lifetime());
+						const auto size = QSize(
+							ConvertScale(update.video.size.width()),
+							ConvertScale(update.video.size.height()));
+						const auto center = App::wnd()->geometry().center();
+						video->setGeometry(QRect(
+							center - QPoint(size.width(), size.height()) / 2,
+							size));
+						video->show();
+						video->shownValue(
+						) | rpl::start_with_next([=](bool shown) {
+							if (!shown) {
+								base::take(player) = nullptr;
+							}
+						}, video->lifetime());
+					}
+				}, [&](PreloadedVideo &update) {
+				}, [&](UpdateVideo &update) {
+					Expects(video != nullptr);
+
+					video->update();
+				}, [&](PreloadedAudio &update) {
+				}, [&](UpdateAudio &update) {
+				}, [&](WaitingForData &update) {
+				}, [&](MutedByOther &update) {
+				});
+			}, [=](const Error &error) {
+				base::take(video) = nullptr;
+			}, [=] {
+			}, player->lifetime());
+		};
+
 		player = std::make_unique<Player>(
 			&document->owner(),
 			std::move(loader));
-		video = nullptr;
-		document->session().lifetime().add([] {
-			base::take(player) = nullptr;
+		base::take(video) = nullptr;
+		player->lifetime().add([] {
 			base::take(video) = nullptr;
 		});
+		document->session().lifetime().add([] {
+			base::take(player) = nullptr;
+		});
 
-		auto options = Media::Streaming::PlaybackOptions();
-		options.speed = 1.7;
+		options.speed = speed;
 		//options.syncVideoByAudio = false;
-		options.position = (document->duration() / 2) * crl::time(1000);
+		options.position = 0;
 		player->play(options);
-		player->updates(
-		) | rpl::start_with_next_error_done([=](Update &&update) {
-			update.data.match([&](Information &update) {
-				if (!update.video.cover.isNull()) {
-					video = base::make_unique_q<Panel>();
-					video->setAttribute(Qt::WA_OpaquePaintEvent);
-					video->paintRequest(
-					) | rpl::start_with_next([=](QRect rect) {
-						Painter(video.get()).drawImage(
-							video->rect(),
-							player->frame(FrameRequest()));
-					}, video->lifetime());
-					const auto size = QSize(
-						ConvertScale(update.video.size.width()),
-						ConvertScale(update.video.size.height()));
-					const auto center = App::wnd()->geometry().center();
-					video->setGeometry(QRect(
-						center - QPoint(size.width(), size.height()) / 2,
-						size));
-					video->show();
-					video->shownValue(
-					) | rpl::start_with_next([=](bool shown) {
-						if (!shown) {
-							base::take(player) = nullptr;
-						}
-					}, video->lifetime());
-				}
-			}, [&](PreloadedVideo &update) {
-			}, [&](UpdateVideo &update) {
-				Expects(video != nullptr);
-
-				video->update();
-			}, [&](PreloadedAudio &update) {
-			}, [&](UpdateAudio &update) {
-			}, [&](WaitingForData &update) {
-			}, [&](MutedByOther &update) {
-			});
-		}, [=](const Error &error) {
-			base::take(video) = nullptr;
-		}, [=] {
-			base::take(video) = nullptr;
-		}, player->lifetime());
+		subscribe();
 	}
 }
 

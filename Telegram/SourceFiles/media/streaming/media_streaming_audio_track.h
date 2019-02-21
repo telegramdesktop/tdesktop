@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 
 namespace Media {
-
 namespace Streaming {
 
 class AudioTrack final {
@@ -28,6 +27,9 @@ public:
 	// Must be called after 'ready' was invoked.
 	void pause(crl::time time);
 	void resume(crl::time time);
+
+	// Called from the main thread.
+	void setSpeed(float64 speed);
 
 	// Called from the main thread.
 	// Non-const, because we subscribe to changes on the first call.
@@ -55,7 +57,7 @@ private:
 	void mixerForceToBuffer();
 	void callReady();
 
-	const PlaybackOptions _options;
+	PlaybackOptions _options;
 
 	// Accessed from the same unspecified thread.
 	Stream _stream;

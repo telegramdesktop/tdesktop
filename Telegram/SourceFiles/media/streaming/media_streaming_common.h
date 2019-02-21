@@ -11,7 +11,15 @@ namespace Media {
 
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 
+namespace Audio {
+bool SupportsSpeedControl();
+} // namespace Audio
+
 namespace Streaming {
+
+inline bool SupportsSpeedControl() {
+	return Media::Audio::SupportsSpeedControl();
+}
 
 class VideoTrack;
 class AudioTrack;

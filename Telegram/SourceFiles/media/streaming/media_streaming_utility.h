@@ -20,7 +20,7 @@ namespace Streaming {
 
 constexpr auto kUniversalTimeBase = AVRational{ 1, AV_TIME_BASE };
 
-struct TimeCorrection {
+struct TimePoint {
 	crl::time trackTime = kTimeUnknown;
 	crl::time worldTime = kTimeUnknown;
 

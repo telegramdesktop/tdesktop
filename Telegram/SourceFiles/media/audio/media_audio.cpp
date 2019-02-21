@@ -303,6 +303,14 @@ void StopDetachIfNotUsedSafe() {
 	});
 }
 
+bool SupportsSpeedControl() {
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return true;
+#else // TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return false;
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
+}
+
 } // namespace Audio
 
 namespace Player {
@@ -347,24 +355,39 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alGenBuffers(3, stream.buffers);
 	if (type == AudioMsgId::Type::Voice) {
 		mixer()->updatePlaybackSpeed(this);
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	} else if (speedEffect) {
+		applySourceSpeedEffect();
+	} else {
+		removeSourceSpeedEffect();
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
+	}
+}
+
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+void Mixer::Track::removeSourceSpeedEffect() {
+	alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
+	alSourcei(stream.source, AL_DIRECT_FILTER, AL_FILTER_NULL);
+}
+
+void Mixer::Track::applySourceSpeedEffect() {
+	Expects(speedEffect != nullptr);
+
+	if (!speedEffect->effect || !alIsEffect(speedEffect->effect)) {
 		alGenAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
 		alGenEffects(1, &speedEffect->effect);
 		alGenFilters(1, &speedEffect->filter);
 		alEffecti(speedEffect->effect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
-		alEffecti(speedEffect->effect, AL_PITCH_SHIFTER_COARSE_TUNE, speedEffect->coarseTune);
-		alAuxiliaryEffectSloti(speedEffect->effectSlot, AL_EFFECTSLOT_EFFECT, speedEffect->effect);
 		alFilteri(speedEffect->filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
 		alFilterf(speedEffect->filter, AL_LOWPASS_GAIN, 0.f);
-
-		alSourcef(stream.source, AL_PITCH, speedEffect->speed);
-		alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, speedEffect->effectSlot, 0, 0);
-		alSourcei(stream.source, AL_DIRECT_FILTER, speedEffect->filter);
-	} else {
-		alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
-		alSourcei(stream.source, AL_DIRECT_FILTER, AL_FILTER_NULL);
 	}
+	alEffecti(speedEffect->effect, AL_PITCH_SHIFTER_COARSE_TUNE, speedEffect->coarseTune);
+	alAuxiliaryEffectSloti(speedEffect->effectSlot, AL_EFFECTSLOT_EFFECT, speedEffect->effect);
+	alSourcef(stream.source, AL_PITCH, speedEffect->speed);
+	alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, speedEffect->effectSlot, 0, 0);
+	alSourcei(stream.source, AL_DIRECT_FILTER, speedEffect->filter);
 }
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 void Mixer::Track::destroyStream() {
 	if (isStreamCreated()) {
@@ -375,19 +398,28 @@ void Mixer::Track::destroyStream() {
 	for (auto i = 0; i != 3; ++i) {
 		stream.buffers[i] = 0;
 	}
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	resetSpeedEffect();
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 }
 
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 void Mixer::Track::resetSpeedEffect() {
 	if (!speedEffect) {
 		return;
-	} else if (alIsEffect(speedEffect->effect)) {
+	} else if (speedEffect->effect && alIsEffect(speedEffect->effect)) {
+		if (isStreamCreated()) {
+			removeSourceSpeedEffect();
+		}
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		alDeleteEffects(1, &speedEffect->effect);
 		alDeleteAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
 		alDeleteFilters(1, &speedEffect->filter);
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 	}
 	speedEffect->effect = speedEffect->effectSlot = speedEffect->filter = 0;
 }
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 void Mixer::Track::reattach(AudioMsgId::Type type) {
 	if (isStreamCreated() || !samplesCount[0]) {
@@ -519,16 +551,29 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 }
 
 void Mixer::Track::setVideoData(std::unique_ptr<VideoSoundData> data) {
-	resetSpeedEffect();
-	if (data && data->speed != 1.) {
-		speedEffect = std::make_unique<SpeedEffect>();
-		speedEffect->speed = data->speed;
-		speedEffect->coarseTune = CoarseTuneForSpeed(data->speed);
-	} else {
-		speedEffect = nullptr;
-	}
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+	changeSpeedEffect(data ? data->speed : 1.);
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 	videoData = std::move(data);
 }
+
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+void Mixer::Track::changeSpeedEffect(float64 speed) {
+	if (speed != 1.) {
+		if (!speedEffect) {
+			speedEffect = std::make_unique<SpeedEffect>();
+		}
+		speedEffect->speed = speed;
+		speedEffect->coarseTune = CoarseTuneForSpeed(speed);
+		if (isStreamCreated()) {
+			applySourceSpeedEffect();
+		}
+	} else if (speedEffect) {
+		resetSpeedEffect();
+		speedEffect = nullptr;
+	}
+}
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 void Mixer::Track::resetStream() {
 	if (isStreamCreated()) {
@@ -831,12 +876,22 @@ void Mixer::forceToBufferVideo(const AudioMsgId &audioId) {
 	_loader->forceToBufferVideo(audioId);
 }
 
-Streaming::TimeCorrection Mixer::getVideoTimeCorrection(
+void Mixer::setSpeedFromVideo(const AudioMsgId &audioId, float64 speed) {
+#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
+	QMutexLocker lock(&AudioMutex);
+	const auto track = trackForType(AudioMsgId::Type::Video);
+	if (track->state.id == audioId) {
+		track->changeSpeedEffect(speed);
+	}
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
+}
+
+Streaming::TimePoint Mixer::getVideoSyncTimePoint(
 		const AudioMsgId &audio) const {
 	Expects(audio.type() == AudioMsgId::Type::Video);
 	Expects(audio.playId() != 0);
 
-	auto result = Streaming::TimeCorrection();
+	auto result = Streaming::TimePoint();
 	const auto playId = audio.playId();
 
 	QMutexLocker lock(&AudioMutex);

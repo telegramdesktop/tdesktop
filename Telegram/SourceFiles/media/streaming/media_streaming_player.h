@@ -38,6 +38,12 @@ public:
 	void resume();
 	void stop();
 
+	bool valid() const;
+	bool ready() const;
+
+	float64 speed() const;
+	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
+
 	[[nodiscard]] bool failed() const;
 	[[nodiscard]] bool playing() const;
 	[[nodiscard]] bool paused() const;

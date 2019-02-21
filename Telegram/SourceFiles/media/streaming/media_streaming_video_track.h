@@ -41,6 +41,9 @@ public:
 	void resume(crl::time time);
 
 	// Called from the main thread.
+	void setSpeed(float64 speed);
+
+	// Called from the main thread.
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;

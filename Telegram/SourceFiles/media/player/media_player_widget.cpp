@@ -395,11 +395,8 @@ void Widget::checkForTypeChange() {
 }
 
 bool Widget::hasPlaybackSpeedControl() const {
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
-	return (_type == AudioMsgId::Type::Voice);
-#else // TDESKTOP_DISABLE_OPENAL_EFFECTS
-	return false;
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
+	return (_type == AudioMsgId::Type::Voice)
+		&& Media::Audio::SupportsSpeedControl();
 }
 
 void Widget::setType(AudioMsgId::Type type) {
