@@ -35,10 +35,18 @@ ALCcontext *AudioContext = nullptr;
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
 constexpr auto kPlaybackSpeedMultiplier = 1.7;
-constexpr auto kPlaybackSpeedTune = -9;
 
 auto VolumeMultiplierAll = 1.;
 auto VolumeMultiplierSong = 1.;
+
+// Value for AL_PITCH_SHIFTER_COARSE_TUNE effect, 0.5 <= speed <= 2.
+int CoarseTuneForSpeed(float64 speed) {
+	Expects(speed >= 0.5 && speed <= 2.);
+
+	constexpr auto kTuneSteps = 12;
+	const auto tuneRatio = std::log(speed) / std::log(2.);
+	return -int(std::round(kTuneSteps * tuneRatio));
+}
 
 } // namespace
 
@@ -165,7 +173,7 @@ bool CreatePlaybackDevice() {
 	// initialize the pitch shifter effect
 	alEffecti(_playbackSpeedData.uiEffect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
 	// 12 semitones = 1 octave
-	alEffecti(_playbackSpeedData.uiEffect, AL_PITCH_SHIFTER_COARSE_TUNE, kPlaybackSpeedTune);
+	alEffecti(_playbackSpeedData.uiEffect, AL_PITCH_SHIFTER_COARSE_TUNE, CoarseTuneForSpeed(kPlaybackSpeedMultiplier));
 	// connect the effect with the effect slot
 	alAuxiliaryEffectSloti(_playbackSpeedData.uiEffectSlot, AL_EFFECTSLOT_EFFECT, _playbackSpeedData.uiEffect);
 	// initialize a filter to disable the direct (dry) path
@@ -337,6 +345,22 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alGenBuffers(3, stream.buffers);
 	if (type == AudioMsgId::Type::Voice) {
 		mixer()->updatePlaybackSpeed(this);
+	} else if (speedEffect) {
+		alGenAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
+		alGenEffects(1, &speedEffect->effect);
+		alGenFilters(1, &speedEffect->filter);
+		alEffecti(speedEffect->effect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
+		alEffecti(speedEffect->effect, AL_PITCH_SHIFTER_COARSE_TUNE, speedEffect->coarseTune);
+		alAuxiliaryEffectSloti(speedEffect->effectSlot, AL_EFFECTSLOT_EFFECT, speedEffect->effect);
+		alFilteri(speedEffect->filter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+		alFilterf(speedEffect->filter, AL_LOWPASS_GAIN, 0.f);
+
+		alSourcef(stream.source, AL_PITCH, speedEffect->speed);
+		alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, speedEffect->effectSlot, 0, 0);
+		alSourcei(stream.source, AL_DIRECT_FILTER, speedEffect->filter);
+	} else {
+		alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
+		alSourcei(stream.source, AL_DIRECT_FILTER, AL_FILTER_NULL);
 	}
 }
 
@@ -349,6 +373,18 @@ void Mixer::Track::destroyStream() {
 	for (auto i = 0; i != 3; ++i) {
 		stream.buffers[i] = 0;
 	}
+	destroySpeedEffect();
+}
+
+void Mixer::Track::destroySpeedEffect() {
+	if (!speedEffect) {
+		return;
+	} else if (alIsEffect(speedEffect->effect)) {
+		alDeleteEffects(1, &speedEffect->effect);
+		alDeleteAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
+		alDeleteFilters(1, &speedEffect->filter);
+	}
+	speedEffect = nullptr;
 }
 
 void Mixer::Track::reattach(AudioMsgId::Type type) {
@@ -381,6 +417,7 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 void Mixer::Track::detach() {
 	resetStream();
 	destroyStream();
+	destroySpeedEffect();
 }
 
 void Mixer::Track::clear() {
@@ -402,7 +439,7 @@ void Mixer::Track::clear() {
 		bufferSamples[i] = QByteArray();
 	}
 
-	videoData = nullptr;
+	setVideoData(nullptr);
 	lastUpdateWhen = 0;
 	lastUpdateCorrectedMs = 0;
 }
@@ -478,6 +515,16 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 		}
 	}
 	return -1;
+}
+
+void Mixer::Track::setVideoData(std::unique_ptr<VideoSoundData> data) {
+	destroySpeedEffect();
+	if (data && data->speed != 1.) {
+		speedEffect = std::make_unique<SpeedEffect>();
+		speedEffect->speed = data->speed;
+		speedEffect->coarseTune = CoarseTuneForSpeed(data->speed);
+	}
+	videoData = std::move(data);
 }
 
 void Mixer::Track::resetStream() {
@@ -737,7 +784,7 @@ void Mixer::play(
 		current->lastUpdateWhen = 0;
 		current->lastUpdateCorrectedMs = 0;
 		if (videoData) {
-			current->videoData = std::move(videoData);
+			current->setVideoData(std::move(videoData));
 		} else {
 			current->file = audio.audio()->location(true);
 			current->data = audio.audio()->data();

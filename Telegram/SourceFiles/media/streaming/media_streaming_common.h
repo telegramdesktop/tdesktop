@@ -22,6 +22,12 @@ enum class Mode {
 	Inspection,
 };
 
+struct PlaybackOptions {
+	Mode mode = Mode::Both;
+	crl::time position = 0;
+	float64 speed = 1.; // Valid values between 0.5 and 2.
+};
+
 struct TrackState {
 	crl::time position = kTimeUnknown;
 	crl::time receivedTill = kTimeUnknown;

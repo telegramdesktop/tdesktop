@@ -92,11 +92,13 @@ void Player::start() {
 			// video finished
 		}, _lifetime);
 	}
+
+	_startedTime = crl::now();
 	if (_audio) {
-		_audio->start();
+		_audio->start(_startedTime);
 	}
 	if (_video) {
-		_video->start();
+		_video->start(_startedTime);
 	}
 }
 
@@ -192,23 +194,26 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 			});
 		};
 	};
-	if (audio.codec && (_mode == Mode::Audio || _mode == Mode::Both)) {
+	const auto mode = _options.mode;
+	if (audio.codec && (mode == Mode::Audio || mode == Mode::Both)) {
 		_audio = std::make_unique<AudioTrack>(
+			_options,
 			std::move(audio),
 			ready,
 			error(_audio));
 	}
-	if (video.codec && (_mode == Mode::Video || _mode == Mode::Both)) {
+	if (video.codec && (mode == Mode::Video || mode == Mode::Both)) {
 		_video = std::make_unique<VideoTrack>(
+			_options,
 			std::move(video),
 			ready,
 			error(_video));
 	}
-	if ((_mode == Mode::Audio && !_audio)
-		|| (_mode == Mode::Video && !_video)
+	if ((mode == Mode::Audio && !_audio)
+		|| (mode == Mode::Video && !_video)
 		|| (!_audio && !_video)) {
 		LOG(("Streaming Error: Required stream not found for mode %1."
-			).arg(int(_mode)));
+			).arg(int(mode)));
 		fileError();
 	}
 }
@@ -277,8 +282,8 @@ void Player::provideStartInformation() {
 		|| (_video && _information.video.state.duration == kTimeUnknown)) {
 		return; // Not ready yet.
 	} else if ((!_audio && !_video)
-		|| (!_audio && _mode == Mode::Audio)
-		|| (!_video && _mode == Mode::Video)) {
+		|| (!_audio && _options.mode == Mode::Audio)
+		|| (!_video && _options.mode == Mode::Video)) {
 		fail();
 	} else {
 		_stage = Stage::Ready;
@@ -298,12 +303,14 @@ void Player::fail() {
 	stopGuarded();
 }
 
-void Player::init(Mode mode, crl::time position) {
+void Player::init(const PlaybackOptions &options) {
+	Expects(options.speed >= 0.5 && options.speed <= 2.);
+
 	stop();
 
-	_mode = mode;
+	_options = options;
 	_stage = Stage::Initializing;
-	_file->start(delegate(), position);
+	_file->start(delegate(), _options.position);
 }
 
 void Player::pause() {

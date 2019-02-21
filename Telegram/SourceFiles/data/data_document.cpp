@@ -324,9 +324,9 @@ void StartStreaming(
 			base::take(video) = nullptr;
 		});
 
-		player->init(
-			(document->isAudioFile() ? Mode::Audio : Mode::Both),
-			0);
+		auto options = Media::Streaming::PlaybackOptions();
+		options.speed = 1.;
+		player->init(options);
 		player->updates(
 		) | rpl::start_with_next_error_done([=](Update &&update) {
 			update.data.match([&](Information &update) {

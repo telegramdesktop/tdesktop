@@ -16,10 +16,12 @@ namespace Media {
 namespace Streaming {
 
 AudioTrack::AudioTrack(
+	const PlaybackOptions &options,
 	Stream &&stream,
 	FnMut<void(const Information &)> ready,
 	Fn<void()> error)
-: _stream(std::move(stream))
+: _options(options)
+, _stream(std::move(stream))
 , _ready(std::move(ready))
 , _error(std::move(error)) {
 	Expects(_ready != nullptr);
@@ -79,6 +81,7 @@ void AudioTrack::mixerInit() {
 	data->context = _stream.codec.release();
 	data->frequency = _stream.frequency;
 	data->length = (_stream.duration * data->frequency) / 1000LL;
+	data->speed = _options.speed;
 	Media::Player::mixer()->play(
 		_audioMsgId,
 		std::move(data),
@@ -105,7 +108,7 @@ void AudioTrack::mixerEnqueue(Packet &&packet) {
 	packet.release();
 }
 
-void AudioTrack::start() {
+void AudioTrack::start(crl::time startTime) {
 	Expects(_ready == nullptr);
 	Expects(_audioMsgId.playId() != 0);
 

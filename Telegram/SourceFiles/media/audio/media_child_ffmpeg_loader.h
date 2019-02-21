@@ -14,6 +14,7 @@ struct VideoSoundData {
 	AVFrame *frame = nullptr;
 	int32 frequency = Media::Player::kDefaultFrequency;
 	int64 length = 0;
+	float64 speed = 1.; // 0.5 <= speed <= 2.
 	~VideoSoundData();
 };
 

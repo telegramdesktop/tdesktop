@@ -33,7 +33,7 @@ public:
 	Player(const Player &other) = delete;
 	Player &operator=(const Player &other) = delete;
 
-	void init(Mode mode, crl::time position);
+	void init(const PlaybackOptions &options);
 	void start();
 	void pause();
 	void resume();
@@ -102,7 +102,7 @@ private:
 	std::unique_ptr<AudioTrack> _audio;
 	std::unique_ptr<VideoTrack> _video;
 	base::has_weak_ptr _sessionGuard;
-	Mode _mode = Mode::Both;
+	PlaybackOptions _options;
 
 	// Belongs to the File thread while File is active.
 	bool _readTillEnd = false;
@@ -112,6 +112,7 @@ private:
 	Stage _stage = Stage::Uninitialized;
 	bool _paused = false;
 
+	crl::time _startedTime = kTimeUnknown;
 	crl::time _nextFrameTime = kTimeUnknown;
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;

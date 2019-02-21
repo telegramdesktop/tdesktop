@@ -25,6 +25,7 @@ public:
 
 	VideoTrackObject(
 		crl::weak_on_queue<VideoTrackObject> weak,
+		const PlaybackOptions &options,
 		not_null<Shared*> shared,
 		Stream &&stream,
 		FnMut<void(const Information &)> ready,
@@ -34,7 +35,7 @@ public:
 
 	[[nodisacrd]] rpl::producer<crl::time> displayFrameAt() const;
 
-	void start();
+	void start(crl::time startTime);
 	void interrupt();
 	void frameDisplayed();
 
@@ -54,6 +55,7 @@ private:
 	[[nodiscard]] crl::time trackTime() const;
 
 	const crl::weak_on_queue<VideoTrackObject> _weak;
+	const PlaybackOptions _options;
 
 	// Main thread wrapper destructor will set _shared back to nullptr.
 	// All queued method calls after that should be discarded.
@@ -75,11 +77,13 @@ private:
 
 VideoTrackObject::VideoTrackObject(
 	crl::weak_on_queue<VideoTrackObject> weak,
+	const PlaybackOptions &options,
 	not_null<Shared*> shared,
 	Stream &&stream,
 	FnMut<void(const Information &)> ready,
 	Fn<void()> error)
 : _weak(std::move(weak))
+, _options(options)
 , _shared(shared)
 , _stream(std::move(stream))
 , _ready(std::move(ready))
@@ -92,7 +96,9 @@ VideoTrackObject::VideoTrackObject(
 rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
 	return _nextFrameDisplayPosition.value(
 	) | rpl::map([=](crl::time displayPosition) {
-		return _startedTime + (displayPosition - _startedPosition);
+		return _startedTime
+			+ crl::time(std::round((displayPosition - _startedPosition)
+				/ _options.speed));
 	});
 }
 
@@ -176,8 +182,8 @@ void VideoTrackObject::presentFrameIfNeeded() {
 	queueReadFrames(presented.nextCheckDelay);
 }
 
-void VideoTrackObject::start() {
-	_startedTime = crl::now();
+void VideoTrackObject::start(crl::time startTime) {
+	_startedTime = startTime;
 	queueReadFrames();
 }
 
@@ -257,7 +263,9 @@ void VideoTrackObject::callReady() {
 
 crl::time VideoTrackObject::trackTime() const {
 	return _startedPosition
-		+ (_startedTime != kTimeUnknown ? (crl::now() - _startedTime) : 0);
+		+ crl::time((_startedTime != kTimeUnknown
+			? std::round((crl::now() - _startedTime) * _options.speed)
+			: 0.));
 }
 
 void VideoTrackObject::interrupt() {
@@ -409,6 +417,7 @@ not_null<VideoTrack::Frame*> VideoTrack::Shared::frameForPaint() {
 }
 
 VideoTrack::VideoTrack(
+	const PlaybackOptions &options,
 	Stream &&stream,
 	FnMut<void(const Information &)> ready,
 	Fn<void()> error)
@@ -417,6 +426,7 @@ VideoTrack::VideoTrack(
 //, _streamRotation(stream.rotation)
 , _shared(std::make_unique<Shared>())
 , _wrapped(
+	options,
 	_shared.get(),
 	std::move(stream),
 	std::move(ready),
@@ -439,9 +449,9 @@ void VideoTrack::process(Packet &&packet) {
 	});
 }
 
-void VideoTrack::start() {
-	_wrapped.with([](Implementation &unwrapped) {
-		unwrapped.start();
+void VideoTrack::start(crl::time startTime) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.start(startTime);
 	});
 }
 

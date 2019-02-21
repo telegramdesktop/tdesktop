@@ -21,6 +21,7 @@ public:
 	// Called from some unspecified thread.
 	// Callbacks are assumed to be thread-safe.
 	VideoTrack(
+		const PlaybackOptions &options,
 		Stream &&stream,
 		FnMut<void(const Information &)> ready,
 		Fn<void()> error);
@@ -33,7 +34,7 @@ public:
 	void process(Packet &&packet);
 
 	// Called from the main thread.
-	void start();
+	void start(crl::time startTime);
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;

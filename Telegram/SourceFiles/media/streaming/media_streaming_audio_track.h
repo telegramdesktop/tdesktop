@@ -18,13 +18,14 @@ public:
 	// Called from some unspecified thread.
 	// Callbacks are assumed to be thread-safe.
 	AudioTrack(
+		const PlaybackOptions &options,
 		Stream &&stream,
 		FnMut<void(const Information &)> ready,
 		Fn<void()> error);
 
 	// Called from the main thread.
 	// Must be called after 'ready' was invoked.
-	void start();
+	void start(crl::time startTime);
 
 	// Called from the main thread.
 	// Non-const, because we subscribe to changes on the first call.
@@ -48,6 +49,8 @@ private:
 	void mixerInit();
 	void mixerEnqueue(Packet &&packet);
 	void callReady();
+
+	const PlaybackOptions _options;
 
 	// Accessed from the same unspecified thread.
 	Stream _stream;

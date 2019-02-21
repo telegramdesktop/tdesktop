@@ -193,6 +193,8 @@ private:
 
 		int getNotQueuedBufferIndex();
 
+		void setVideoData(std::unique_ptr<VideoSoundData> data);
+
 		~Track();
 
 		TrackState state;
@@ -217,12 +219,21 @@ private:
 		Stream stream;
 		std::unique_ptr<VideoSoundData> videoData;
 
+		struct SpeedEffect {
+			uint32 effect = 0;
+			uint32 effectSlot = 0;
+			uint32 filter = 0;
+			int coarseTune = 0;
+			float64 speed = 1.;
+		};
+		std::unique_ptr<SpeedEffect> speedEffect;
 		crl::time lastUpdateWhen = 0;
 		crl::time lastUpdateCorrectedMs = 0;
 
 	private:
 		void createStream(AudioMsgId::Type type);
 		void destroyStream();
+		void destroySpeedEffect();
 		void resetStream();
 
 	};
