@@ -69,6 +69,8 @@ private:
 
 	// Accessed from the main thread.
 	base::Subscription _subscription;
+	// First set from the same unspecified thread before _ready is called.
+	// After that accessed from the main thread.
 	rpl::variable<crl::time> _playPosition;
 
 };

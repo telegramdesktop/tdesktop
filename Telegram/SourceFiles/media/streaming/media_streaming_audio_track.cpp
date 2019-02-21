@@ -25,7 +25,8 @@ AudioTrack::AudioTrack(
 , _stream(std::move(stream))
 , _audioId(audioId)
 , _ready(std::move(ready))
-, _error(std::move(error)) {
+, _error(std::move(error))
+, _playPosition(options.position) {
 	Expects(_ready != nullptr);
 	Expects(_error != nullptr);
 	Expects(_audioId.playId() != 0);

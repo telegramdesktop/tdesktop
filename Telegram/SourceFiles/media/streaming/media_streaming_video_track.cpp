@@ -280,7 +280,9 @@ VideoTrackObject::TrackTime VideoTrackObject::trackTime() const {
 	const auto correction = _audioId.playId()
 		? Media::Player::mixer()->getVideoTimeCorrection(_audioId)
 		: Media::Player::Mixer::TimeCorrection();
-	const auto knownValue = correction ? correction.audioPositionValue : 0;
+	const auto knownValue = correction
+		? correction.audioPositionValue
+		: _startedPosition;
 	const auto knownTime = correction
 		? correction.audioPositionTime
 		: _startedTime;
@@ -288,8 +290,7 @@ VideoTrackObject::TrackTime VideoTrackObject::trackTime() const {
 	const auto sinceKnown = (worldNow - knownTime);
 
 	result.worldNow = worldNow;
-	result.trackNow = _startedPosition
-		+ knownValue
+	result.trackNow = knownValue
 		+ crl::time(std::round(sinceKnown * _options.speed));
 	return result;
 }

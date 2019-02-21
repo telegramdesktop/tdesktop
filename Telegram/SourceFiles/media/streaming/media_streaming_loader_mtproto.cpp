@@ -138,6 +138,13 @@ void LoaderMtproto::cancelRequestsBefore(int offset) {
 		_sender.requestCanceller(),
 		&base::flat_map<int, mtpRequestId>::value_type::second);
 	_requests.erase(from, till);
+
+	if (!_requests.empty() && _requests.front().first > offset) {
+		ranges::for_each(
+			base::take(_requests),
+			_sender.requestCanceller(),
+			&base::flat_map<int, mtpRequestId>::value_type::second);
+	}
 }
 
 } // namespace Streaming
