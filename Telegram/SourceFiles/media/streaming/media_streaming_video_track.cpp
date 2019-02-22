@@ -47,6 +47,10 @@ private:
 	[[nodiscard]] bool interrupted() const;
 	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
+	[[nodiscard]] bool fillStateFromFakeLastFrame();
+	[[nodiscard]] bool fillStateFromFrameTime(crl::time frameTime);
+	[[nodiscard]] QImage createFakeLastFrame() const;
+	[[nodiscard]] bool processFirstFrame(QImage frame);
 	void queueReadFrames(crl::time delay = 0);
 	void readFrames();
 	[[nodiscard]] bool readFrame(not_null<Frame*> frame);
@@ -102,7 +106,9 @@ VideoTrackObject::VideoTrackObject(
 }
 
 rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
-	return _nextFrameDisplayTime.value();
+	return interrupted()
+		? rpl::complete<crl::time>()
+		: _nextFrameDisplayTime.value();
 }
 
 void VideoTrackObject::process(Packet &&packet) {
@@ -151,7 +157,8 @@ void VideoTrackObject::readFrames() {
 bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
-			// read till end
+			interrupt();
+			_nextFrameDisplayTime.reset(kTimeUnknown);
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			interrupt();
 			_error();
@@ -249,22 +256,42 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
 		return false;
 	}
+	auto frame = QImage();
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
-			// #TODO streaming fix seek to the end.
-			return false;
+			if (!fillStateFromFakeLastFrame()) {
+				return false;
+			}
+			return processFirstFrame(createFakeLastFrame());
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			return false;
+		} else {
+			// Waiting for more packets.
+			return true;
 		}
-		return true;
 	} else if (!fillStateFromFrame()) {
 		return false;
 	}
-	auto frame = ConvertFrame(_stream, QSize(), QImage());
+	return processFirstFrame(ConvertFrame(_stream, QSize(), QImage()));
+}
+
+QImage VideoTrackObject::createFakeLastFrame() const {
+	if (_stream.dimensions.isEmpty()) {
+		LOG(("Streaming Error: Can't seek to the end of the video "
+			"in case the codec doesn't provide valid dimensions."));
+		return QImage();
+	}
+	auto result = CreateImageForOriginalFrame(_stream.dimensions);
+	result.fill(Qt::black);
+	return result;
+}
+
+bool VideoTrackObject::processFirstFrame(QImage frame) {
 	if (frame.isNull()) {
 		return false;
 	}
 	_shared->init(std::move(frame), _syncTimePoint.trackTime);
+	_nextFrameDisplayTime.reset(_syncTimePoint.trackTime);
 	callReady();
 	if (!_stream.queue.empty()) {
 		queueReadFrames();
@@ -285,13 +312,20 @@ crl::time VideoTrackObject::currentFramePosition() const {
 }
 
 bool VideoTrackObject::fillStateFromFrame() {
+	return fillStateFromFrameTime(currentFramePosition());
+}
+
+bool VideoTrackObject::fillStateFromFakeLastFrame() {
+	return fillStateFromFrameTime(_stream.duration);
+}
+
+bool VideoTrackObject::fillStateFromFrameTime(crl::time frameTime) {
 	Expects(_syncTimePoint.trackTime == kTimeUnknown);
 
-	const auto position = currentFramePosition();
-	if (position == kTimeUnknown) {
+	if (frameTime == kTimeUnknown) {
 		return false;
 	}
-	_nextFrameDisplayTime = _syncTimePoint.trackTime = position;
+	_syncTimePoint.trackTime = frameTime;
 	return true;
 }
 

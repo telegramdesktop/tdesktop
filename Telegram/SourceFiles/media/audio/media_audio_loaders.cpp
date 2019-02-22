@@ -311,6 +311,14 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 					return;
 				}
 
+				if (state == AL_STOPPED) {
+					alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
+					if (!internal::audioCheckError()) {
+						setStoppedState(track, State::StoppedAtError);
+						emitError(type);
+						return;
+					}
+				}
 				alSourcePlay(track->stream.source);
 				if (!internal::audioCheckError()) {
 					setStoppedState(track, State::StoppedAtError);

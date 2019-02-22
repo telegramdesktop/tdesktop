@@ -1011,12 +1011,6 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 				resetFadeStartPosition(type);
 			} else {
 				Audio::AttachToDevice();
-				if (track->state.state == State::PausedAtEnd) {
-					if (track->isStreamCreated()) {
-						alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
-						if (!checkCurrentALError(type)) return;
-					}
-				}
 			}
 			track->state.state = fast ? State::Playing : State::Resuming;
 
@@ -1035,6 +1029,10 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 					alSourcef(track->stream.source, AL_GAIN, ComputeVolume(type));
 					if (!checkCurrentALError(type)) return;
 
+					if (state == AL_STOPPED) {
+						alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
+						if (!checkCurrentALError(type)) return;
+					}
 					alSourcePlay(track->stream.source);
 					if (!checkCurrentALError(type)) return;
 				}

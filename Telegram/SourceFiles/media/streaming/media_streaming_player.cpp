@@ -153,7 +153,7 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 	_waitingForData = false;
 
 	const auto weak = base::make_weak(&_sessionGuard);
-	const auto ready = [=](const Information & data) {
+	const auto ready = [=](const Information &data) {
 		crl::on_main(weak, [=, data = data]() mutable {
 			streamReady(std::move(data));
 		});
@@ -371,7 +371,12 @@ void Player::start() {
 		) | rpl::start_with_next_done([=](crl::time position) {
 			audioPlayedTill(position);
 		}, [=] {
-			// audio finished
+			if (_stage == Stage::Started) {
+				_audioFinished = true;
+				if (!_video || _videoFinished) {
+					_updates.fire({ Finished() });
+				}
+			}
 		}, _lifetime);
 	}
 	if (_video) {
@@ -380,22 +385,29 @@ void Player::start() {
 			_nextFrameTime = when;
 			checkNextFrame();
 		}, [=] {
-			// video finished
+			if (_stage == Stage::Started) {
+				_videoFinished = true;
+				if (!_audio || _audioFinished) {
+					_updates.fire({ Finished() });
+				}
+			}
 		}, _lifetime);
 	}
 
 }
 void Player::stop() {
 	_file->stop();
-	_audio = nullptr;
-	_video = nullptr;
-	_paused = false;
-	_information = Information();
-	invalidate_weak_ptrs(&_sessionGuard);
 	if (_stage != Stage::Failed) {
 		_stage = Stage::Uninitialized;
 	}
-	_updates = rpl::event_stream<Update, Error>();
+	_audio = nullptr;
+	_video = nullptr;
+	invalidate_weak_ptrs(&_sessionGuard);
+	_paused = false;
+	_audioFinished = false;
+	_videoFinished = false;
+	_readTillEnd = false;
+	_information = Information();
 }
 
 bool Player::failed() const {

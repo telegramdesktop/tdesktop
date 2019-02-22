@@ -122,6 +122,8 @@ private:
 	Information _information;
 	Stage _stage = Stage::Uninitialized;
 	bool _paused = false;
+	bool _audioFinished = false;
+	bool _videoFinished = false;
 
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _pausedTime = kTimeUnknown;

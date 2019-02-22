@@ -110,8 +110,15 @@ Stream File::Context::initStream(AVMediaType type) {
 	}
 
 	const auto info = _formatContext->streams[index];
+	result.codec = MakeCodecPointer(info);
+	if (!result.codec) {
+		return {};
+	}
+
 	if (type == AVMEDIA_TYPE_VIDEO) {
+		const auto codec = result.codec.get();
 		result.rotation = ReadRotationFromMetadata(info);
+		result.dimensions = QSize(codec->width, codec->height);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
@@ -119,10 +126,6 @@ Stream File::Context::initStream(AVMediaType type) {
 		}
 	}
 
-	result.codec = MakeCodecPointer(info);
-	if (!result.codec) {
-		return {};
-	}
 	result.frame = MakeFramePointer();
 	if (!result.frame) {
 		return {};
@@ -137,19 +140,35 @@ Stream File::Context::initStream(AVMediaType type) {
 	return result;
 }
 
-void File::Context::seekToPosition(crl::time position) {
+void File::Context::seekToPosition(
+		const Stream &stream,
+		crl::time position) {
 	auto error = AvErrorWrap();
 
 	if (!position) {
 		return;
 	}
-	const auto streamIndex = -1;
-	const auto seekFlags = 0;
+	//
+	// Non backward search reads the whole file if the position is after
+	// the last keyframe inside the index. So we search only backward.
+	//
+	//const auto seekFlags = 0;
+	//error = av_seek_frame(
+	//	_formatContext,
+	//	streamIndex,
+	//	TimeToPts(position, kUniversalTimeBase),
+	//	seekFlags);
+	//if (!error) {
+	//	return;
+	//}
+	//
 	error = av_seek_frame(
 		_formatContext,
-		streamIndex,
-		TimeToPts(position, kUniversalTimeBase),
-		seekFlags);
+		stream.index,
+		TimeToPts(
+			std::clamp(position, crl::time(0), stream.duration - 1),
+			stream.timeBase),
+		AVSEEK_FLAG_BACKWARD);
 	if (!error) {
 		return;
 	}
@@ -192,12 +211,20 @@ void File::Context::start(crl::time position) {
 	}
 	_formatContext->pb = _ioContext;
 
-	error = avformat_open_input(&_formatContext, nullptr, nullptr, nullptr);
+	auto options = (AVDictionary*)nullptr;
+	const auto guard = gsl::finally([&] { av_dict_free(&options); });
+	av_dict_set(&options, "usetoc", "1", 0);
+	error = avformat_open_input(
+		&_formatContext,
+		nullptr,
+		nullptr,
+		&options);
 	if (error) {
 		_ioBuffer = nullptr;
 		return logFatal(qstr("avformat_open_input"), error);
 	}
 	_opened = true;
+	_formatContext->flags |= AVFMT_FLAG_FAST_SEEK;
 
 	if ((error = avformat_find_stream_info(_formatContext, nullptr))) {
 		return logFatal(qstr("avformat_find_stream_info"), error);
@@ -213,7 +240,9 @@ void File::Context::start(crl::time position) {
 		return;
 	}
 
-	seekToPosition(position);
+	if (video.codec || audio.codec) {
+		seekToPosition(video.codec ? video : audio, position);
+	}
 	if (unroll()) {
 		return;
 	}

@@ -154,6 +154,7 @@ struct Stream {
 
 	// Video only.
 	int rotation = 0;
+	QSize dimensions;
 	SwsContextPointer swsContext;
 };
 
@@ -172,6 +173,8 @@ void LogError(QLatin1String method, AvErrorWrap error);
 [[nodiscard]] bool RotationSwapWidthHeight(int rotation);
 [[nodiscard]] AvErrorWrap ProcessPacket(Stream &stream, Packet &&packet);
 [[nodiscard]] AvErrorWrap ReadNextFrame(Stream &stream);
+
+[[nodiscard]] QImage CreateImageForOriginalFrame(QSize size);
 [[nodiscard]] QImage ConvertFrame(
 	Stream& stream,
 	QSize resize,

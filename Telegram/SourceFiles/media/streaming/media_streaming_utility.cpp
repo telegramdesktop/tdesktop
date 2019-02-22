@@ -26,8 +26,21 @@ void AlignedImageBufferCleanupHandler(void* data) {
 	delete[] buffer;
 }
 
+bool IsAlignedImage(const QImage &image) {
+	return !(reinterpret_cast<uintptr_t>(image.bits()) % kAlignImageBy)
+		&& !(image.bytesPerLine() % kAlignImageBy);
+}
+
+void ClearFrameMemory(AVFrame *frame) {
+	if (frame && frame->data[0]) {
+		av_frame_unref(frame);
+	}
+}
+
+} // namespace
+
 // Create a QImage of desired size where all the data is properly aligned.
-QImage CreateAlignedImage(QSize size) {
+QImage CreateImageForOriginalFrame(QSize size) {
 	const auto width = size.width();
 	const auto height = size.height();
 	const auto widthAlign = kAlignImageBy / kPixelBytesSize;
@@ -36,7 +49,7 @@ QImage CreateAlignedImage(QSize size) {
 		: 0);
 	const auto perLine = neededWidth * kPixelBytesSize;
 	const auto buffer = new uchar[perLine * height + kAlignImageBy];
-	const auto cleanupData = static_cast<void*>(buffer);
+	const auto cleanupData = static_cast<void *>(buffer);
 	const auto address = reinterpret_cast<uintptr_t>(buffer);
 	const auto alignedBuffer = buffer + ((address % kAlignImageBy)
 		? (kAlignImageBy - (address % kAlignImageBy))
@@ -50,19 +63,6 @@ QImage CreateAlignedImage(QSize size) {
 		AlignedImageBufferCleanupHandler,
 		cleanupData);
 }
-
-bool IsAlignedImage(const QImage &image) {
-	return !(reinterpret_cast<uintptr_t>(image.bits()) % kAlignImageBy)
-		&& !(image.bytesPerLine() % kAlignImageBy);
-}
-
-void ClearFrameMemory(AVFrame *frame) {
-	if (frame && frame->data[0]) {
-		av_frame_unref(frame);
-	}
-}
-
-} // namespace
 
 CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
 	auto error = AvErrorWrap();
@@ -293,7 +293,7 @@ QImage ConvertFrame(
 		|| storage.size() != resize
 		|| !storage.isDetached()
 		|| !IsAlignedImage(storage)) {
-		storage = CreateAlignedImage(resize);
+		storage = CreateImageForOriginalFrame(resize);
 	}
 	const auto format = AV_PIX_FMT_BGRA;
 	const auto hasDesiredFormat = (frame->format == format)

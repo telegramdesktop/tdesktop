@@ -69,7 +69,7 @@ private:
 		void fail();
 
 		Stream initStream(AVMediaType type);
-		void seekToPosition(crl::time position);
+		void seekToPosition(const Stream &stream, crl::time position);
 
 		// TODO base::expected.
 		[[nodiscard]] base::variant<Packet, AvErrorWrap> readPacket();

@@ -81,6 +81,9 @@ struct WaitingForData {
 struct MutedByOther {
 };
 
+struct Finished {
+};
+
 struct Update {
 	base::variant<
 		Information,
@@ -89,7 +92,8 @@ struct Update {
 		PreloadedAudio,
 		UpdateAudio,
 		WaitingForData,
-		MutedByOther> data;
+		MutedByOther,
+		Finished> data;
 };
 
 struct Error {

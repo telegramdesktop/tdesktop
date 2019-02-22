@@ -108,8 +108,8 @@ template <typename Value, typename Error>
 inline event_stream<Value, Error> &event_stream<Value, Error>::operator=(
 		event_stream &&other) {
 	if (this != &other) {
-		fire_done();
-		_data = details::take(other._data);
+		std::swap(_data, other._data);
+		other.fire_done();
 	}
 	return *this;
 }
