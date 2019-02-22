@@ -164,6 +164,10 @@ void AudioTrack::setSpeed(float64 speed) {
 	Media::Player::mixer()->setSpeedFromVideo(_audioId, speed);
 }
 
+rpl::producer<> AudioTrack::waitingForData() const {
+	return _waitingForData.events();
+}
+
 rpl::producer<crl::time> AudioTrack::playPosition() {
 	Expects(_ready == nullptr);
 
@@ -194,6 +198,9 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 			case State::Stopping:
 			case State::Pausing:
 			case State::Resuming:
+				if (state.waitingForData) {
+					_waitingForData.fire({});
+				}
 				_playPosition = state.position * 1000 / state.frequency;
 				return;
 			case State::Paused:

@@ -901,7 +901,7 @@ bool File::updateStatusText() const {
 			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
-				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+				showPause = Media::Player::ShowPauseIcon(state.state);
 			}
 		} else if (_document->isAudioFile()) {
 			statusSize = FileStatusSizeLoaded;
@@ -909,7 +909,7 @@ bool File::updateStatusText() const {
 			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
-				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+				showPause = Media::Player::ShowPauseIcon(state.state);
 			}
 			if (!showPause && (state.id == AudioMsgId(_document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
 				showPause = true;

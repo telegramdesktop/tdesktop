@@ -297,9 +297,10 @@ void StartStreaming(
 		static auto player = std::unique_ptr<Player>();
 		static auto pauseOnSeek = false;
 		static auto position = crl::time(0);
-		static auto preloaded = crl::time(0);
+		static auto preloadedAudio = crl::time(0);
+		static auto preloadedVideo = crl::time(0);
 		static auto duration = crl::time(0);
-		static auto options = Media::Streaming::PlaybackOptions();
+		static auto options = PlaybackOptions();
 		static auto speed = 1.;
 		static auto step = pow(2., 1. / 12);
 		static auto frame = QImage();
@@ -343,10 +344,14 @@ void StartStreaming(
 				if (player->ready()) {
 					frame = player->frame({});
 				}
-				preloaded = position = options.position = std::clamp(
-					(duration * e->pos().x()) / width(),
-					crl::time(0),
-					crl::time(duration));
+				preloadedAudio
+					= preloadedVideo
+					= position
+					= options.position
+					= std::clamp(
+						(duration * e->pos().x()) / width(),
+						crl::time(0),
+						crl::time(duration));
 				player->play(options);
 			}
 
@@ -367,7 +372,7 @@ void StartStreaming(
 
 		options.speed = speed;
 		//options.syncVideoByAudio = false;
-		preloaded = position = options.position = 0;
+		preloadedAudio = preloadedVideo = position = options.position = 0;
 		frame = QImage();
 		player->play(options);
 		player->updates(
@@ -391,7 +396,9 @@ void StartStreaming(
 							? (position * video->width() / duration)
 							: 0;
 						const auto till2 = duration
-							? (preloaded * video->width() / duration)
+							? (std::min(preloadedAudio, preloadedVideo)
+								* video->width()
+								/ duration)
 							: 0;
 						if (player->ready()) {
 							Painter(video.get()).drawImage(
@@ -437,9 +444,11 @@ void StartStreaming(
 					}, video->lifetime());
 				}
 			}, [&](PreloadedVideo &update) {
-				if (preloaded < update.till) {
-					preloaded = update.till;
-					video->update();
+				if (preloadedVideo < update.till) {
+					if (preloadedVideo < preloadedAudio) {
+						video->update();
+					}
+					preloadedVideo = update.till;
 				}
 			}, [&](UpdateVideo &update) {
 				Expects(video != nullptr);
@@ -449,11 +458,11 @@ void StartStreaming(
 				}
 				video->update();
 			}, [&](PreloadedAudio &update) {
-				if (preloaded < update.till) {
-					preloaded = update.till;
-					if (video) {
+				if (preloadedAudio < update.till) {
+					if (video && preloadedAudio < preloadedVideo) {
 						video->update();
 					}
+					preloadedAudio = update.till;
 				}
 			}, [&](UpdateAudio &update) {
 				if (position < update.position) {

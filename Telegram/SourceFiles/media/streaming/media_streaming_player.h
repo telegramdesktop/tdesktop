@@ -46,6 +46,7 @@ public:
 
 	[[nodiscard]] bool failed() const;
 	[[nodiscard]] bool playing() const;
+	[[nodiscard]] bool buffering() const;
 	[[nodiscard]] bool paused() const;
 
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
@@ -57,9 +58,6 @@ public:
 	~Player();
 
 private:
-	static constexpr auto kReceivedTillEnd
-		= std::numeric_limits<crl::time>::max();
-
 	enum class Stage {
 		Uninitialized,
 		Initializing,
@@ -91,11 +89,20 @@ private:
 	void videoReceivedTill(crl::time position);
 	void videoPlayedTill(crl::time position);
 
+	void updatePausedState();
+	[[nodiscard]] bool trackReceivedEnough(const TrackState &state) const;
+	void checkResumeFromWaitingForData();
+
 	template <typename Track>
 	void trackReceivedTill(
 		const Track &track,
 		TrackState &state,
 		crl::time position);
+
+	template <typename Track>
+	void trackSendReceivedTill(
+		const Track &track,
+		TrackState &state);
 
 	template <typename Track>
 	void trackPlayedTill(
@@ -121,6 +128,8 @@ private:
 	// Belongs to the main thread.
 	Information _information;
 	Stage _stage = Stage::Uninitialized;
+	bool _pausedByUser = false;
+	bool _pausedByWaitingForData = false;
 	bool _paused = false;
 	bool _audioFinished = false;
 	bool _videoFinished = false;
@@ -130,7 +139,9 @@ private:
 	crl::time _nextFrameTime = kTimeUnknown;
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;
+
 	rpl::lifetime _lifetime;
+	rpl::lifetime _sessionLifetime;
 
 };
 

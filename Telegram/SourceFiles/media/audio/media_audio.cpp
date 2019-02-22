@@ -436,7 +436,9 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 	}
 
 	alSourcei(stream.source, AL_SAMPLE_OFFSET, qMax(state.position - bufferedPosition, 0LL));
-	if (!IsStopped(state.state) && state.state != State::PausedAtEnd) {
+	if (!IsStopped(state.state)
+		&& (state.state != State::PausedAtEnd)
+		&& !state.waitingForData) {
 		alSourcef(stream.source, AL_GAIN, ComputeVolume(type));
 		alSourcePlay(stream.source);
 		if (IsPaused(state.state)) {
@@ -449,6 +451,7 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 }
 
 void Mixer::Track::detach() {
+	getNotQueuedBufferIndex();
 	resetStream();
 	destroyStream();
 }
@@ -711,20 +714,28 @@ void Mixer::resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered
 	if (positionInBuffered < 0) {
 		Audio::AttachToDevice();
 		if (track->isStreamCreated()) {
-			ALint currentPosition = 0;
-			alGetSourcei(track->stream.source, AL_SAMPLE_OFFSET, &currentPosition);
+			ALint alSampleOffset = 0;
+			ALint alState = AL_INITIAL;
+			alGetSourcei(track->stream.source, AL_SAMPLE_OFFSET, &alSampleOffset);
+			alGetSourcei(track->stream.source, AL_SOURCE_STATE, &alState);
 			if (Audio::PlaybackErrorHappened()) {
 				setStoppedState(track, State::StoppedAtError);
 				onError(track->state.id);
 				return;
-			}
-
-			if (currentPosition == 0 && !internal::CheckAudioDeviceConnected()) {
+			} else if ((alState == AL_STOPPED)
+				&& (alSampleOffset == 0)
+				&& !internal::CheckAudioDeviceConnected()) {
 				track->fadeStartPosition = track->state.position;
 				return;
 			}
 
-			positionInBuffered = currentPosition;
+			const auto stoppedAtEnd = (alState == AL_STOPPED)
+				&& (!IsStopped(track->state.state)
+					|| IsStoppedAtEnd(track->state.state))
+				|| track->state.waitingForData;
+			positionInBuffered = stoppedAtEnd
+				? track->bufferedLength
+				: alSampleOffset;
 		} else {
 			positionInBuffered = 0;
 		}
@@ -1406,10 +1417,7 @@ void Fader::onTimer() {
 }
 
 int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasFading, float64 volumeMultiplier, bool volumeChanged) {
-	auto playing = false;
-	auto fading = false;
-
-	auto errorHappened = [this, track] {
+	const auto errorHappened = [&] {
 		if (Audio::PlaybackErrorHappened()) {
 			setStoppedState(track, State::StoppedAtError);
 			return true;
@@ -1417,32 +1425,34 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 		return false;
 	};
 
-	ALint positionInBuffered = 0;
-	ALint state = AL_INITIAL;
-	alGetSourcei(track->stream.source, AL_SAMPLE_OFFSET, &positionInBuffered);
-	alGetSourcei(track->stream.source, AL_SOURCE_STATE, &state);
-	if (errorHappened()) return EmitError;
+	ALint alSampleOffset = 0;
+	ALint alState = AL_INITIAL;
+	alGetSourcei(track->stream.source, AL_SAMPLE_OFFSET, &alSampleOffset);
+	alGetSourcei(track->stream.source, AL_SOURCE_STATE, &alState);
+	if (errorHappened()) {
+		return EmitError;
+	} else if ((alState == AL_STOPPED)
+		&& (alSampleOffset == 0)
+		&& !internal::CheckAudioDeviceConnected()) {
+		return 0;
+	}
 
 	int32 emitSignals = 0;
+	const auto stoppedAtEnd = (alState == AL_STOPPED)
+		&& (!IsStopped(track->state.state)
+			|| IsStoppedAtEnd(track->state.state))
+		|| track->state.waitingForData;
+	const auto positionInBuffered = stoppedAtEnd
+		? track->bufferedLength
+		: alSampleOffset;
+	const auto waitingForDataOld = track->state.waitingForData;
+	track->state.waitingForData = stoppedAtEnd
+		&& (track->state.state != State::Stopping);
+	const auto fullPosition = track->bufferedPosition + positionInBuffered;
 
-	if (state == AL_STOPPED && positionInBuffered == 0 && !internal::CheckAudioDeviceConnected()) {
-		return emitSignals;
-	}
-
-	switch (track->state.state) {
-	case State::Stopping:
-	case State::Pausing:
-	case State::Starting:
-	case State::Resuming: {
-		fading = true;
-	} break;
-	case State::Playing: {
-		playing = true;
-	} break;
-	}
-
-	auto fullPosition = track->bufferedPosition + positionInBuffered;
-	if (state != AL_PLAYING && !track->loading) {
+	auto playing = (track->state.state == State::Playing);
+	auto fading = IsFading(track->state.state);
+	if (alState != AL_PLAYING && !track->loading) {
 		if (fading || playing) {
 			fading = false;
 			playing = false;
@@ -1456,7 +1466,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			if (errorHappened()) return EmitError;
 			emitSignals |= EmitStopped;
 		}
-	} else if (fading && state == AL_PLAYING) {
+	} else if (fading && alState == AL_PLAYING) {
 		auto fadingForSamplesCount = (fullPosition - track->fadeStartPosition);
 		if (crl::time(1000) * fadingForSamplesCount >= kFadeDuration * track->state.frequency) {
 			fading = false;
@@ -1466,7 +1476,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			switch (track->state.state) {
 			case State::Stopping: {
 				setStoppedState(track);
-				state = AL_STOPPED;
+				alState = AL_STOPPED;
 			} break;
 			case State::Pausing: {
 				alSourcePause(track->stream.source);
@@ -1488,14 +1498,21 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			alSourcef(track->stream.source, AL_GAIN, newGain * volumeMultiplier);
 			if (errorHappened()) return EmitError;
 		}
-	} else if (playing && state == AL_PLAYING) {
+	} else if (playing && alState == AL_PLAYING) {
 		if (volumeChanged) {
 			alSourcef(track->stream.source, AL_GAIN, 1. * volumeMultiplier);
 			if (errorHappened()) return EmitError;
 		}
 	}
-	if (state == AL_PLAYING && fullPosition >= track->state.position + kCheckPlaybackPositionDelta) {
+	if (alState == AL_PLAYING && fullPosition >= track->state.position + kCheckPlaybackPositionDelta) {
 		track->state.position = fullPosition;
+		emitSignals |= EmitPositionUpdated;
+	} else if (track->state.waitingForData && !waitingForDataOld) {
+		if (fullPosition > track->state.position) {
+			track->state.position = fullPosition;
+		}
+		// When stopped because of insufficient data while streaming,
+		// inform the player about the last position we were at.
 		emitSignals |= EmitPositionUpdated;
 	}
 	if (playing || track->state.state == State::Starting || track->state.state == State::Resuming) {

@@ -17,6 +17,24 @@ namespace Media {
 namespace Streaming {
 namespace {
 
+constexpr auto kReceivedTillEnd = std::numeric_limits<crl::time>::max();
+constexpr auto kBufferFor = crl::time(3000);
+
+[[nodiscard]] crl::time TrackClampReceivedTill(
+		crl::time position,
+		const TrackState &state) {
+	return (state.duration == kTimeUnknown || position == kTimeUnknown)
+		? position
+		: (position == kReceivedTillEnd)
+		? state.duration
+		: std::clamp(position, 0LL, state.duration - 1);
+}
+
+[[nodiscard]] bool FullTrackReceived(const TrackState &state) {
+	return (state.duration != kTimeUnknown)
+		&& (state.receivedTill == state.duration);
+}
+
 void SaveValidStateInformation(TrackState &to, TrackState &&from) {
 	Expects(from.position != kTimeUnknown);
 	Expects(from.receivedTill != kTimeUnknown);
@@ -74,6 +92,7 @@ not_null<FileDelegate*> Player::delegate() {
 
 void Player::checkNextFrame() {
 	Expects(_nextFrameTime != kTimeUnknown);
+	Expects(!_renderFrameTimer.isActive());
 
 	const auto now = crl::now();
 	if (now < _nextFrameTime) {
@@ -85,12 +104,12 @@ void Player::checkNextFrame() {
 }
 
 void Player::renderFrame(crl::time now) {
-	if (_video) {
-		const auto position = _video->markFrameDisplayed(now);
-		if (position != kTimeUnknown) {
-			videoPlayedTill(position);
-		}
-	}
+	Expects(_video != nullptr);
+
+	const auto position = _video->markFrameDisplayed(now);
+	Assert(position != kTimeUnknown);
+
+	videoPlayedTill(position);
 }
 
 template <typename Track>
@@ -104,7 +123,7 @@ void Player::trackReceivedTill(
 		position = std::clamp(position, 0LL, state.duration);
 		if (state.receivedTill < position) {
 			state.receivedTill = position;
-			_updates.fire({ PreloadedUpdate<Track>{ position } });
+			trackSendReceivedTill(track, state);
 		}
 	} else {
 		state.receivedTill = position;
@@ -125,10 +144,22 @@ void Player::trackPlayedTill(
 	}
 }
 
+template <typename Track>
+void Player::trackSendReceivedTill(
+		const Track &track,
+		TrackState &state) {
+	Expects(state.duration != kTimeUnknown);
+	Expects(state.receivedTill != kTimeUnknown);
+
+	_updates.fire({ PreloadedUpdate<Track>{ state.receivedTill } });
+}
+
 void Player::audioReceivedTill(crl::time position) {
 	Expects(_audio != nullptr);
 
+	position = TrackClampReceivedTill(position, _information.audio.state);
 	trackReceivedTill(*_audio, _information.audio.state, position);
+	checkResumeFromWaitingForData();
 }
 
 void Player::audioPlayedTill(crl::time position) {
@@ -140,6 +171,7 @@ void Player::audioPlayedTill(crl::time position) {
 void Player::videoReceivedTill(crl::time position) {
 	Expects(_video != nullptr);
 
+	position = TrackClampReceivedTill(position, _information.video.state);
 	trackReceivedTill(*_video, _information.video.state, position);
 }
 
@@ -298,12 +330,13 @@ void Player::provideStartInformation() {
 
 		if (_stage == Stage::Ready && !_paused) {
 			_paused = true;
-			resume();
+			updatePausedState();
 		}
 	}
 }
 
 void Player::fail() {
+	_sessionLifetime = rpl::lifetime();
 	const auto stopGuarded = crl::guard(&_sessionGuard, [=] { stop(); });
 	_stage = Stage::Failed;
 	_updates.fire_error({});
@@ -326,11 +359,35 @@ void Player::play(const PlaybackOptions &options) {
 void Player::pause() {
 	Expects(valid());
 
-	if (_paused) {
+	_pausedByUser = true;
+	updatePausedState();
+}
+
+void Player::resume() {
+	Expects(valid());
+
+	_pausedByUser = false;
+	updatePausedState();
+}
+
+void Player::updatePausedState() {
+	const auto paused = _pausedByUser || _pausedByWaitingForData;
+	if (_paused == paused) {
 		return;
 	}
-	_paused = true;
-	if (_stage == Stage::Started) {
+	_paused = paused;
+	if (!_paused && _stage == Stage::Ready) {
+		const auto guard = base::make_weak(&_sessionGuard);
+		start();
+		if (!guard) {
+			return;
+		}
+	}
+
+	if (_stage != Stage::Started) {
+		return;
+	}
+	if (_paused) {
 		_pausedTime = crl::now();
 		if (_audio) {
 			_audio->pause(_pausedTime);
@@ -338,20 +395,7 @@ void Player::pause() {
 		if (_video) {
 			_video->pause(_pausedTime);
 		}
-	}
-}
-
-void Player::resume() {
-	Expects(valid());
-
-	if (!_paused) {
-		return;
-	}
-	_paused = false;
-	if (_stage == Stage::Ready) {
-		start();
-	}
-	if (_stage == Stage::Started) {
+	} else {
 		_startedTime = crl::now();
 		if (_audio) {
 			_audio->resume(_startedTime);
@@ -362,48 +406,85 @@ void Player::resume() {
 	}
 }
 
+bool Player::trackReceivedEnough(const TrackState &state) const {
+	return FullTrackReceived(state)
+		|| (state.position + kBufferFor <= state.receivedTill);
+}
+
+void Player::checkResumeFromWaitingForData() {
+	if (_pausedByWaitingForData
+		&& (!_audio || trackReceivedEnough(_information.audio.state))
+		&& (!_video || trackReceivedEnough(_information.video.state))) {
+		_pausedByWaitingForData = false;
+		updatePausedState();
+	}
+}
+
 void Player::start() {
 	Expects(_stage == Stage::Ready);
 
 	_stage = Stage::Started;
-	if (_audio) {
+	const auto guard = base::make_weak(&_sessionGuard);
+
+	rpl::merge(
+		_audio ? _audio->waitingForData() : rpl::never(),
+		_video ? _video->waitingForData() : rpl::never()
+	) | rpl::filter([=] {
+		return !FullTrackReceived(_information.video.state)
+			|| !FullTrackReceived(_information.audio.state);
+	}) | rpl::start_with_next([=] {
+		_pausedByWaitingForData = true;
+		updatePausedState();
+		_updates.fire({ WaitingForData() });
+	}, _sessionLifetime);
+
+	if (guard && _audio) {
 		_audio->playPosition(
 		) | rpl::start_with_next_done([=](crl::time position) {
 			audioPlayedTill(position);
 		}, [=] {
-			if (_stage == Stage::Started) {
-				_audioFinished = true;
-				if (!_video || _videoFinished) {
-					_updates.fire({ Finished() });
-				}
+			Expects(_stage == Stage::Started);
+
+			_audioFinished = true;
+			if (!_video || _videoFinished) {
+				_updates.fire({ Finished() });
 			}
-		}, _lifetime);
+		}, _sessionLifetime);
 	}
-	if (_video) {
+
+	if (guard && _video) {
 		_video->renderNextFrame(
 		) | rpl::start_with_next_done([=](crl::time when) {
 			_nextFrameTime = when;
 			checkNextFrame();
 		}, [=] {
-			if (_stage == Stage::Started) {
-				_videoFinished = true;
-				if (!_audio || _audioFinished) {
-					_updates.fire({ Finished() });
-				}
-			}
-		}, _lifetime);
-	}
+			Expects(_stage == Stage::Started);
 
+			_videoFinished = true;
+			if (!_audio || _audioFinished) {
+				_updates.fire({ Finished() });
+			}
+		}, _sessionLifetime);
+	}
+	if (guard && _audio) {
+		trackSendReceivedTill(*_audio, _information.audio.state);
+	}
+	if (guard && _video) {
+		trackSendReceivedTill(*_video, _information.video.state);
+	}
 }
+
 void Player::stop() {
 	_file->stop();
+	_sessionLifetime = rpl::lifetime();
 	if (_stage != Stage::Failed) {
 		_stage = Stage::Uninitialized;
 	}
 	_audio = nullptr;
 	_video = nullptr;
 	invalidate_weak_ptrs(&_sessionGuard);
-	_paused = false;
+	_pausedByUser = _pausedByWaitingForData = _paused = false;
+	_renderFrameTimer.cancel();
 	_audioFinished = false;
 	_videoFinished = false;
 	_readTillEnd = false;
@@ -418,8 +499,12 @@ bool Player::playing() const {
 	return (_stage == Stage::Started) && !_paused;
 }
 
+bool Player::buffering() const {
+	return _pausedByWaitingForData;
+}
+
 bool Player::paused() const {
-	return _paused;
+	return _pausedByUser;
 }
 
 void Player::setSpeed(float64 speed) {

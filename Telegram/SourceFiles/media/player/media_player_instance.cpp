@@ -403,7 +403,7 @@ void Instance::playPauseCancelClicked(AudioMsgId::Type type) {
 
 	auto state = mixer()->currentState(type);
 	auto stopped = IsStoppedOrStopping(state.state);
-	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+	auto showPause = ShowPauseIcon(state.state);
 	auto audio = state.id.audio();
 	if (audio && audio->loading()) {
 		audio->cancel();

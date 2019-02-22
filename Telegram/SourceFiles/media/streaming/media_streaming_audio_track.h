@@ -30,6 +30,7 @@ public:
 
 	// Called from the main thread.
 	void setSpeed(float64 speed);
+	[[nodiscard]] rpl::producer<> waitingForData() const;
 
 	// Called from the main thread.
 	// Non-const, because we subscribe to changes on the first call.
@@ -75,6 +76,7 @@ private:
 
 	// Accessed from the main thread.
 	base::Subscription _subscription;
+	rpl::event_stream<> _waitingForData;
 	// First set from the same unspecified thread before _ready is called.
 	// After that accessed from the main thread.
 	rpl::variable<crl::time> _playPosition;

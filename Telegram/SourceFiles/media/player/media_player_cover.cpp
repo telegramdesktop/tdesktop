@@ -246,7 +246,7 @@ void CoverWidget::handleSongUpdate(const TrackState &state) {
 	}
 
 	auto stopped = IsStoppedOrStopping(state.state);
-	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+	auto showPause = ShowPauseIcon(state.state);
 	if (instance()->isSeeking(AudioMsgId::Type::Song)) {
 		showPause = true;
 	}

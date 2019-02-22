@@ -131,7 +131,7 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 }
 
 void Controller::updatePlayPauseResumeState(const Player::TrackState &state) {
-	auto showPause = (state.state == Player::State::Playing || state.state == Player::State::Resuming || _seekPositionMs >= 0);
+	auto showPause = ShowPauseIcon(state.state) || (_seekPositionMs >= 0);
 	if (showPause != _showPause) {
 		disconnect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 		_showPause = showPause;

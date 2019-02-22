@@ -88,6 +88,10 @@ inline bool IsPaused(State state) {
 		|| (state == State::PausedAtEnd);
 }
 
+inline bool IsPausedOrPausing(State state) {
+	return IsPaused(state) || (state == State::Pausing);
+}
+
 inline bool IsFading(State state) {
 	return (state == State::Starting)
 		|| (state == State::Stopping)
@@ -99,12 +103,18 @@ inline bool IsActive(State state) {
 	return !IsStopped(state) && !IsPaused(state);
 }
 
+inline bool ShowPauseIcon(State state) {
+	return !IsStoppedOrStopping(state)
+		&& !IsPausedOrPausing(state);
+}
+
 struct TrackState {
 	AudioMsgId id;
 	State state = State::Stopped;
 	int64 position = 0;
 	int64 length = 0;
 	int frequency = kDefaultFrequency;
+	bool waitingForData = false;
 };
 
 class Mixer : public QObject, private base::Subscriber {

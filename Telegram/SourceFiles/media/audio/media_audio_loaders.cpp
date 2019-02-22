@@ -227,9 +227,10 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		return;
 	}
 
-	if (started) {
+	if (started || samplesCount) {
 		Audio::AttachToDevice();
-
+	}
+	if (started) {
 		track->started();
 		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtStart);
@@ -263,12 +264,6 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			l->setForceToBuffer(false);
 		}
 
-		//LOG(("[%4] PUSHING %1 SAMPLES (%2 BYTES) %3ms"
-		//	).arg(samplesCount
-		//	).arg(samples.size()
-		//	).arg((samplesCount * 1000LL) / track->frequency
-		//	).arg(crl::now() % 10000, 4, 10, QChar('0')));
-
 		track->bufferSamples[bufferIndex] = samples;
 		track->samplesCount[bufferIndex] = samplesCount;
 		track->bufferedLength += samplesCount;
@@ -287,6 +282,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		}
 		finished = true;
 	}
+	track->state.waitingForData = false;
 
 	if (finished) {
 		track->loaded = true;
@@ -295,44 +291,47 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 	}
 
 	track->loading = false;
-	if (track->state.state == State::Resuming || track->state.state == State::Playing || track->state.state == State::Starting) {
-		ALint state = AL_INITIAL;
-		alGetSourcei(track->stream.source, AL_SOURCE_STATE, &state);
-		if (internal::audioCheckError()) {
-			if (state != AL_PLAYING) {
-				if (state == AL_STOPPED && !internal::CheckAudioDeviceConnected()) {
-					return;
-				}
+	if (IsPausedOrPausing(track->state.state)
+		|| IsStoppedOrStopping(track->state.state)) {
+		return;
+	}
+	ALint state = AL_INITIAL;
+	alGetSourcei(track->stream.source, AL_SOURCE_STATE, &state);
+	if (!internal::audioCheckError()) {
+		setStoppedState(track, State::StoppedAtError);
+		emitError(type);
+		return;
+	}
 
-				alSourcef(track->stream.source, AL_GAIN, ComputeVolume(type));
-				if (!internal::audioCheckError()) {
-					setStoppedState(track, State::StoppedAtError);
-					emitError(type);
-					return;
-				}
+	if (state == AL_PLAYING) {
+		return;
+	} else if (state == AL_STOPPED && !internal::CheckAudioDeviceConnected()) {
+		return;
+	}
 
-				if (state == AL_STOPPED) {
-					alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
-					if (!internal::audioCheckError()) {
-						setStoppedState(track, State::StoppedAtError);
-						emitError(type);
-						return;
-					}
-				}
-				alSourcePlay(track->stream.source);
-				if (!internal::audioCheckError()) {
-					setStoppedState(track, State::StoppedAtError);
-					emitError(type);
-					return;
-				}
+	alSourcef(track->stream.source, AL_GAIN, ComputeVolume(type));
+	if (!internal::audioCheckError()) {
+		setStoppedState(track, State::StoppedAtError);
+		emitError(type);
+		return;
+	}
 
-				emit needToCheck();
-			}
-		} else {
+	if (state == AL_STOPPED) {
+		alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
+		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtError);
 			emitError(type);
+			return;
 		}
 	}
+	alSourcePlay(track->stream.source);
+	if (!internal::audioCheckError()) {
+		setStoppedState(track, State::StoppedAtError);
+		emitError(type);
+		return;
+	}
+
+	emit needToCheck();
 }
 
 AudioPlayerLoader *Loaders::setupLoader(

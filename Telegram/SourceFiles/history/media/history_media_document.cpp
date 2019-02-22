@@ -645,7 +645,7 @@ bool HistoryDocument::updateStatusText() const {
 
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
-				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+				showPause = Media::Player::ShowPauseIcon(state.state);
 			} else {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
 					voice->checkPlaybackFinished();
@@ -660,7 +660,7 @@ bool HistoryDocument::updateStatusText() const {
 				&& !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
-				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+				showPause = Media::Player::ShowPauseIcon(state.state);
 			} else {
 			}
 			if (!showPause && (state.id == AudioMsgId(_data, _parent->data()->fullId()))) {

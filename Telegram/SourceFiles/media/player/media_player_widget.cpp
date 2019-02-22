@@ -436,7 +436,7 @@ void Widget::handleSongUpdate(const TrackState &state) {
 	}
 
 	auto stopped = IsStoppedOrStopping(state.state);
-	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+	auto showPause = ShowPauseIcon(state.state);
 	if (instance()->isSeeking(_type)) {
 		showPause = true;
 	}

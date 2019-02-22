@@ -36,6 +36,7 @@ public:
 	void process(Packet &&packet);
 
 	[[nodisacrd]] rpl::producer<crl::time> displayFrameAt() const;
+	[[nodisacrd]] rpl::producer<> waitingForData() const;
 
 	void pause(crl::time time);
 	void resume(crl::time time);
@@ -76,6 +77,7 @@ private:
 	mutable TimePoint _syncTimePoint;
 	mutable crl::time _previousFramePosition = kTimeUnknown;
 	rpl::variable<crl::time> _nextFrameDisplayTime = kTimeUnknown;
+	rpl::event_stream<> _waitingForData;
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -109,6 +111,10 @@ rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
 	return interrupted()
 		? rpl::complete<crl::time>()
 		: _nextFrameDisplayTime.value();
+}
+
+rpl::producer<> VideoTrackObject::waitingForData() const {
+	return interrupted() ? rpl::never() : _waitingForData.events();
 }
 
 void VideoTrackObject::process(Packet &&packet) {
@@ -162,6 +168,8 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			interrupt();
 			_error();
+		} else if (_stream.queue.empty()) {
+			_waitingForData.fire({});
 		}
 		return false;
 	}
@@ -601,6 +609,12 @@ QImage VideoTrack::frame(const FrameRequest &request) const {
 rpl::producer<crl::time> VideoTrack::renderNextFrame() const {
 	return _wrapped.producer_on_main([](const Implementation &unwrapped) {
 		return unwrapped.displayFrameAt();
+	});
+}
+
+rpl::producer<> VideoTrack::waitingForData() const {
+	return _wrapped.producer_on_main([](const Implementation &unwrapped) {
+		return unwrapped.waitingForData();
 	});
 }
 

@@ -48,6 +48,7 @@ public:
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 	[[nodiscard]] rpl::producer<crl::time> renderNextFrame() const;
+	[[nodiscard]] rpl::producer<> waitingForData() const;
 
 	// Called from the main thread.
 	~VideoTrack();
