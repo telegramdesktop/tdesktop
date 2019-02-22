@@ -52,6 +52,7 @@ private:
 	[[nodiscard]] bool initialized() const;
 	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
+	[[nodiscard]] bool processFirstFrame();
 	void mixerInit();
 	void mixerEnqueue(Packet &&packet);
 	void mixerForceToBuffer();
@@ -77,6 +78,9 @@ private:
 	// First set from the same unspecified thread before _ready is called.
 	// After that accessed from the main thread.
 	rpl::variable<crl::time> _playPosition;
+
+	// For initial frame skipping for an exact seek.
+	FramePointer _initialSkippingFrame;
 
 };
 

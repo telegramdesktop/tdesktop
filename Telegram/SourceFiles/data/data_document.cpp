@@ -302,6 +302,7 @@ void StartStreaming(
 		static auto options = Media::Streaming::PlaybackOptions();
 		static auto speed = 1.;
 		static auto step = pow(2., 1. / 12);
+		static auto frame = QImage();
 
 		class Panel
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
@@ -339,6 +340,9 @@ void StartStreaming(
 				player->pause();
 			}
 			void mouseReleaseEvent(QMouseEvent *e) override {
+				if (player->ready()) {
+					frame = player->frame({});
+				}
 				preloaded = position = options.position = std::clamp(
 					(duration * e->pos().x()) / width(),
 					crl::time(0),
@@ -364,6 +368,7 @@ void StartStreaming(
 		options.speed = speed;
 		//options.syncVideoByAudio = false;
 		preloaded = position = options.position = 0;
+		frame = QImage();
 		player->play(options);
 		player->updates(
 		) | rpl::start_with_next_error_done([=](Update &&update) {
@@ -391,7 +396,11 @@ void StartStreaming(
 						if (player->ready()) {
 							Painter(video.get()).drawImage(
 								video->rect(),
-								player->frame(FrameRequest()));
+								player->frame({}));
+						} else if (!frame.isNull()) {
+							Painter(video.get()).drawImage(
+								video->rect(),
+								frame);
 						} else {
 							Painter(video.get()).fillRect(
 								rect,

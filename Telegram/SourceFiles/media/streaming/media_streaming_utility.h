@@ -154,7 +154,6 @@ struct Stream {
 
 	// Video only.
 	int rotation = 0;
-	QSize dimensions;
 	SwsContextPointer swsContext;
 };
 

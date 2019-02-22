@@ -47,10 +47,7 @@ private:
 	[[nodiscard]] bool interrupted() const;
 	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
-	[[nodiscard]] bool fillStateFromFakeLastFrame();
-	[[nodiscard]] bool fillStateFromFrameTime(crl::time frameTime);
-	[[nodiscard]] QImage createFakeLastFrame() const;
-	[[nodiscard]] bool processFirstFrame(QImage frame);
+	[[nodiscard]] bool processFirstFrame();
 	void queueReadFrames(crl::time delay = 0);
 	void readFrames();
 	[[nodiscard]] bool readFrame(not_null<Frame*> frame);
@@ -82,6 +79,9 @@ private:
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
+
+	// For initial frame skipping for an exact seek.
+	FramePointer _initialSkippingFrame;
 
 };
 
@@ -259,10 +259,12 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	auto frame = QImage();
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
-			if (!fillStateFromFakeLastFrame()) {
+			if (!_initialSkippingFrame) {
 				return false;
 			}
-			return processFirstFrame(createFakeLastFrame());
+			// Return the last valid frame if we seek too far.
+			_stream.frame = std::move(_initialSkippingFrame);
+			return processFirstFrame();
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			return false;
 		} else {
@@ -271,22 +273,21 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 		}
 	} else if (!fillStateFromFrame()) {
 		return false;
+	} else if (_syncTimePoint.trackTime < _options.position) {
+		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
+		// Try skipping frames until one is after the requested position.
+		std::swap(_initialSkippingFrame, _stream.frame);
+		if (!_stream.frame) {
+			_stream.frame = MakeFramePointer();
+		}
+		return true;
+	} else {
+		return processFirstFrame();
 	}
-	return processFirstFrame(ConvertFrame(_stream, QSize(), QImage()));
 }
 
-QImage VideoTrackObject::createFakeLastFrame() const {
-	if (_stream.dimensions.isEmpty()) {
-		LOG(("Streaming Error: Can't seek to the end of the video "
-			"in case the codec doesn't provide valid dimensions."));
-		return QImage();
-	}
-	auto result = CreateImageForOriginalFrame(_stream.dimensions);
-	result.fill(Qt::black);
-	return result;
-}
-
-bool VideoTrackObject::processFirstFrame(QImage frame) {
+bool VideoTrackObject::processFirstFrame() {
+	auto frame = ConvertFrame(_stream, QSize(), QImage());
 	if (frame.isNull()) {
 		return false;
 	}
@@ -312,20 +313,11 @@ crl::time VideoTrackObject::currentFramePosition() const {
 }
 
 bool VideoTrackObject::fillStateFromFrame() {
-	return fillStateFromFrameTime(currentFramePosition());
-}
-
-bool VideoTrackObject::fillStateFromFakeLastFrame() {
-	return fillStateFromFrameTime(_stream.duration);
-}
-
-bool VideoTrackObject::fillStateFromFrameTime(crl::time frameTime) {
-	Expects(_syncTimePoint.trackTime == kTimeUnknown);
-
-	if (frameTime == kTimeUnknown) {
+	const auto position = currentFramePosition();
+	if (position == kTimeUnknown) {
 		return false;
 	}
-	_syncTimePoint.trackTime = frameTime;
+	_syncTimePoint.trackTime = position;
 	return true;
 }
 

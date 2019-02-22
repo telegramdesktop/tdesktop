@@ -110,20 +110,18 @@ Stream File::Context::initStream(AVMediaType type) {
 	}
 
 	const auto info = _formatContext->streams[index];
-	result.codec = MakeCodecPointer(info);
-	if (!result.codec) {
-		return {};
-	}
-
 	if (type == AVMEDIA_TYPE_VIDEO) {
-		const auto codec = result.codec.get();
 		result.rotation = ReadRotationFromMetadata(info);
-		result.dimensions = QSize(codec->width, codec->height);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
 			return {};
 		}
+	}
+
+	result.codec = MakeCodecPointer(info);
+	if (!result.codec) {
+		return {};
 	}
 
 	result.frame = MakeFramePointer();
