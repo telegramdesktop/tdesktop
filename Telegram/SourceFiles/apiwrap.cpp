@@ -4242,7 +4242,7 @@ void ApiWrap::forwardMessages(
 					? UserId(0)
 					: peerToUser(self->id);
 				const auto messagePostAuthor = channelPost
-					? (self->firstName + ' ' + self->lastName)
+					? App::peerName(self)
 					: QString();
 				history->addNewForwarded(
 					newId.msg,
@@ -4323,7 +4323,7 @@ void ApiWrap::sendSharedContact(
 	}
 	const auto messageFromId = channelPost ? 0 : _session->userId();
 	const auto messagePostAuthor = channelPost
-		? (_session->user()->firstName + ' ' + _session->user()->lastName)
+		? App::peerName(_session->user())
 		: QString();
 	const auto vcard = QString();
 	const auto views = 1;
