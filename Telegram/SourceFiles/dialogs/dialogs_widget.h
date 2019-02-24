@@ -199,6 +199,7 @@ private:
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
+	Animation _scrollToAnimation;
 	Animation _a_show;
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;

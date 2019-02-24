@@ -333,7 +333,25 @@ void DialogsWidget::dialogsToUp() {
 		return;
 	}
 	if (_filter->getLastText().trimmed().isEmpty() && !_searchInChat) {
-		_scroll->scrollToY(0);
+		_scrollToAnimation.finish();
+		auto scrollTop = _scroll->scrollTop();
+		const auto scrollTo = 0;
+		const auto maxAnimatedDelta = _scroll->height();
+		if (scrollTo + maxAnimatedDelta < scrollTop) {
+			scrollTop = scrollTo + maxAnimatedDelta;
+			_scroll->scrollToY(scrollTop);
+		}
+
+		const auto scroll = [&] {
+			_scroll->scrollToY(qRound(_scrollToAnimation.current()));
+		};
+
+		_scrollToAnimation.start(
+			scroll,
+			scrollTop,
+			scrollTo,
+			st::slideDuration,
+			anim::sineInOut);
 	}
 }
 
