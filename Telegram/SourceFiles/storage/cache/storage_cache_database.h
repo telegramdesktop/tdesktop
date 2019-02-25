@@ -72,6 +72,8 @@ public:
 	void clearByTag(uint8 tag, FnMut<void(Error)> &&done = nullptr);
 	void waitForCleaner(FnMut<void()> &&done = nullptr);
 
+	void sync();
+
 	~Database();
 
 private:

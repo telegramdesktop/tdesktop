@@ -668,6 +668,8 @@ FileKey _recentHashtagsAndBotsKey = 0;
 bool _recentHashtagsAndBotsWereRead = false;
 qint64 _cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
 qint32 _cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
+qint64 _cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
+qint32 _cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
 
 FileKey _exportSettingsKey = 0;
 
@@ -1081,6 +1083,8 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		_cacheTotalSizeLimit = size;
 		_cacheTotalTimeLimit = time;
+		_cacheBigFileTotalSizeLimit = size;
+		_cacheBigFileTotalTimeLimit = size;
 	} break;
 
 	case dbiAnimationsDisabled: {
@@ -2105,6 +2109,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit);
+	// #TODO streaming save _cacheBigFileTotal limits?..
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
@@ -2813,6 +2818,8 @@ void reset() {
 	_oldMapVersion = _oldSettingsVersion = 0;
 	_cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
 	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
+	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
+	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
 	StoredAuthSessionCache.reset();
 	_mapChanged = true;
 	_writeMap(WriteMapWhen::Now);
@@ -3176,16 +3183,20 @@ qint32 _storageAudioSize(qint32 rawlen) {
 	return result;
 }
 
-QString cachePath() {
-	Expects(!_userDbPath.isEmpty());
-
-	return _userDbPath + "cache";
-}
-
 Storage::EncryptionKey cacheKey() {
 	Expects(LocalKey != nullptr);
 
 	return Storage::EncryptionKey(bytes::make_vector(LocalKey->data()));
+}
+
+Storage::EncryptionKey cacheBigFileKey() {
+	return cacheKey();
+}
+
+QString cachePath() {
+	Expects(!_userDbPath.isEmpty());
+
+	return _userDbPath + "cache";
 }
 
 Storage::Cache::Database::Settings cacheSettings() {
@@ -3208,6 +3219,34 @@ void updateCacheSettings(Storage::Cache::Database::SettingsUpdate &update) {
 	_cacheTotalSizeLimit = update.totalSizeLimit;
 	_cacheTotalTimeLimit = update.totalTimeLimit;
 	_writeUserSettings();
+}
+
+QString cacheBigFilePath() {
+	Expects(!_userDbPath.isEmpty());
+
+	return _userDbPath + "media_cache";
+}
+
+Storage::Cache::Database::Settings cacheBigFileSettings() {
+	auto result = Storage::Cache::Database::Settings();
+	result.clearOnWrongKey = true;
+	result.totalSizeLimit = _cacheBigFileTotalSizeLimit;
+	result.totalTimeLimit = _cacheBigFileTotalTimeLimit;
+	result.maxDataSize = Storage::kMaxFileInMemory;
+	return result;
+}
+
+void updateCacheBigFileSettings(Storage::Cache::Database::SettingsUpdate &update) {
+	Expects(update.totalSizeLimit > Database::Settings().maxDataSize);
+	Expects(update.totalTimeLimit >= 0);
+
+	if (_cacheBigFileTotalSizeLimit == update.totalSizeLimit
+		&& _cacheBigFileTotalTimeLimit == update.totalTimeLimit) {
+		return;
+	}
+	_cacheBigFileTotalSizeLimit = update.totalSizeLimit;
+	_cacheBigFileTotalTimeLimit = update.totalTimeLimit;
+	//_writeUserSettings(); // #TODO streaming save those?..
 }
 
 class CountWaveformTask : public Task {

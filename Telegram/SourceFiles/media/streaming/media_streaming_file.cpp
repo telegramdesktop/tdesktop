@@ -37,8 +37,9 @@ int File::Context::read(bytes::span buffer) {
 	} else if (!amount) {
 		return amount;
 	}
+
 	buffer = buffer.subspan(0, amount);
-	while (!_reader->fill(buffer, _offset, &_semaphore)) {
+	while (!_reader->fill(_offset, buffer, &_semaphore)) {
 		_delegate->fileWaitingForData();
 		_semaphore.acquire();
 		if (_interrupted) {
@@ -236,6 +237,7 @@ void File::Context::start(crl::time position) {
 		return;
 	}
 
+	_reader->headerDone();
 	if (video.codec || audio.codec) {
 		seekToPosition(video.codec ? video : audio, position);
 	}

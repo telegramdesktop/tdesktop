@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_mtproto.h"
 
 #include "apiwrap.h"
+#include "storage/cache/storage_cache_types.h"
 
 namespace Media {
 namespace Streaming {
 namespace {
 
 constexpr auto kMaxConcurrentRequests = 2;
+constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
+constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
 
 } // namespace
 
@@ -30,27 +33,68 @@ LoaderMtproto::LoaderMtproto(
 , _origin(origin) {
 }
 
+std::optional<Storage::Cache::Key> LoaderMtproto::baseCacheKey() const {
+	return _location.match([&](const MTPDinputDocumentFileLocation &data) {
+		const auto id = data.vid.v;
+		const auto high = kDocumentBaseCacheTag
+			| ((uint64(_dcId) << 16) & kDocumentBaseCacheMask)
+			| (id >> 48);
+		const auto low = (id << 16);
+
+		Ensures((low & 0xFFULL) == 0);
+		return Storage::Cache::Key{ high, low };
+	}, [](auto &&) -> Storage::Cache::Key {
+		Unexpected("Not implemented file location type.");
+	});
+}
+
 int LoaderMtproto::size() const {
 	return _size;
 }
 
-void LoaderMtproto::load(int offset, int till) {
+void LoaderMtproto::load(int offset) {
 	crl::on_main(this, [=] {
-		cancelRequestsBefore(offset);
-		_till = till;
-		sendNext(offset);
+		if (_requests.contains(offset)) {
+			return;
+		} else if (_requested.add(offset)) {
+			sendNext();
+		}
 	});
 }
 
-void LoaderMtproto::sendNext(int possibleOffset) {
-	Expects((possibleOffset % kPartSize) == 0);
+void LoaderMtproto::stop() {
+	crl::on_main(this, [=] {
+		ranges::for_each(
+			base::take(_requests),
+			_sender.requestCanceller(),
+			&base::flat_map<int, mtpRequestId>::value_type::second);
+		_requested.clear();
+	});
+}
 
-	const auto offset = _requests.empty()
-		? possibleOffset
-		: _requests.back().first + kPartSize;
-	if ((_till >= 0 && offset >= _till) || (_size > 0 && offset >= _size)) {
+void LoaderMtproto::cancel(int offset) {
+	crl::on_main(this, [=] {
+		if (const auto requestId = _requests.take(offset)) {
+			_sender.request(*requestId).cancel();
+			sendNext();
+		} else {
+			_requested.remove(offset);
+		}
+	});
+}
+
+void LoaderMtproto::increasePriority() {
+	crl::on_main(this, [=] {
+		_requested.increasePriority();
+	});
+}
+
+void LoaderMtproto::sendNext() {
+	if (_requests.size() >= kMaxConcurrentRequests) {
 		return;
-	} else if (_requests.size() >= kMaxConcurrentRequests) {
+	}
+	const auto offset = _requested.take().value_or(-1);
+	if (offset < 0) {
 		return;
 	}
 
@@ -68,15 +112,13 @@ void LoaderMtproto::sendNext(int possibleOffset) {
 	).send();
 	_requests.emplace(offset, id);
 
-	sendNext(offset + kPartSize);
+	sendNext();
 }
 
 void LoaderMtproto::requestDone(int offset, const MTPupload_File &result) {
 	result.match([&](const MTPDupload_file &data) {
 		_requests.erase(offset);
-		if (data.vbytes.v.size() == kPartSize) {
-			sendNext(offset + kPartSize);
-		}
+		sendNext();
 		_parts.fire({ offset, data.vbytes.v });
 	}, [&](const MTPDupload_fileCdnRedirect &data) {
 		changeCdnParams(
@@ -111,41 +153,11 @@ void LoaderMtproto::requestFailed(int offset, const RPCError &error) {
 	_api->refreshFileReference(_origin, crl::guard(this, callback));
 }
 
-void LoaderMtproto::stop() {
-	crl::on_main(this, [=] {
-		for (const auto [offset, requestId] : base::take(_requests)) {
-			_sender.request(requestId).cancel();
-		}
-	});
-}
-
 rpl::producer<LoadedPart> LoaderMtproto::parts() const {
 	return _parts.events();
 }
 
 LoaderMtproto::~LoaderMtproto() = default;
-
-void LoaderMtproto::cancelRequestsBefore(int offset) {
-	const auto from = begin(_requests);
-	const auto till = ranges::lower_bound(
-		_requests,
-		offset,
-		ranges::less(),
-		[](auto pair) { return pair.first; });
-	ranges::for_each(
-		from,
-		till,
-		_sender.requestCanceller(),
-		&base::flat_map<int, mtpRequestId>::value_type::second);
-	_requests.erase(from, till);
-
-	if (!_requests.empty() && _requests.front().first > offset) {
-		ranges::for_each(
-			base::take(_requests),
-			_sender.requestCanceller(),
-			&base::flat_map<int, mtpRequestId>::value_type::second);
-	}
-}
 
 } // namespace Streaming
 } // namespace Media

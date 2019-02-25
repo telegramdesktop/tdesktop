@@ -21,16 +21,42 @@ class Loader {
 public:
 	static constexpr auto kPartSize = 128 * 1024;
 
-	//[[nodiscard]] virtual Storage::Cache::Key baseCacheKey() const = 0;
+	[[nodiscard]] virtual auto baseCacheKey() const
+	-> std::optional<Storage::Cache::Key> = 0;
 	[[nodiscard]] virtual int size() const = 0;
 
-	virtual void load(int offset, int till = -1) = 0;
+	virtual void load(int offset) = 0;
+	virtual void cancel(int offset) = 0;
+	virtual void increasePriority() = 0;
 	virtual void stop() = 0;
 
 	// Parts will be sent from the main thread.
 	[[nodiscard]] virtual rpl::producer<LoadedPart> parts() const = 0;
 
 	virtual ~Loader() = default;
+
+};
+
+class PriorityQueue {
+public:
+	bool add(int value);
+	bool remove(int value);
+	void increasePriority();
+	std::optional<int> front() const;
+	std::optional<int> take();
+	base::flat_set<int> takeInRange(int from, int till);
+	void clear();
+
+private:
+	struct Entry {
+		int value = 0;
+		int priority = 0;
+	};
+
+	friend bool operator<(const Entry &a, const Entry &b);
+
+	base::flat_set<Entry> _data;
+	int _priority = 0;
 
 };
 

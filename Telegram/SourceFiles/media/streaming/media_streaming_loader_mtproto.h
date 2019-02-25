@@ -25,10 +25,13 @@ public:
 		int size,
 		Data::FileOrigin origin);
 
-	//[[nodiscard]] Storage::Cache::Key baseCacheKey() const override;
+	[[nodiscard]] auto baseCacheKey() const
+	-> std::optional<Storage::Cache::Key> override;
 	[[nodiscard]] int size() const override;
 
-	void load(int offset, int till = -1) override;
+	void load(int offset) override;
+	void cancel(int offset) override;
+	void increasePriority() override;
 	void stop() override;
 
 	// Parts will be sent from the main thread.
@@ -37,8 +40,7 @@ public:
 	~LoaderMtproto();
 
 private:
-	void cancelRequestsBefore(int offset);
-	void sendNext(int possibleOffset);
+	void sendNext();
 
 	void requestDone(int offset, const MTPupload_File &result);
 	void requestFailed(int offset, const RPCError &error);
@@ -56,9 +58,9 @@ private:
 	const int _size = 0;
 	const Data::FileOrigin _origin;
 
-	int _till = -1;
 	MTP::Sender _sender;
 
+	PriorityQueue _requested;
 	base::flat_map<int, mtpRequestId> _requests;
 	rpl::event_stream<LoadedPart> _parts;
 

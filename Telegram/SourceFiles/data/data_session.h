@@ -60,7 +60,7 @@ public:
 	explicit Session(not_null<AuthSession*> session);
 	~Session();
 
-	AuthSession &session() const {
+	[[nodiscard]] AuthSession &session() const {
 		return *_session;
 	}
 
@@ -70,18 +70,21 @@ public:
 	void startExport(const MTPInputPeer &singlePeer);
 	void suggestStartExport(TimeId availableAt);
 	void clearExportSuggestion();
-	rpl::producer<Export::View::PanelController*> currentExportView() const;
+	[[nodiscard]] auto currentExportView() const
+	-> rpl::producer<Export::View::PanelController*>;
 	bool exportInProgress() const;
 	void stopExportWithConfirmation(FnMut<void()> callback);
 	void stopExport();
 
-	const Passport::SavedCredentials *passportCredentials() const;
+	[[nodiscard]] auto passportCredentials() const
+	-> const Passport::SavedCredentials*;
 	void rememberPassportCredentials(
 		Passport::SavedCredentials data,
 		crl::time rememberFor);
 	void forgetPassportCredentials();
 
-	Storage::Cache::Database &cache();
+	[[nodiscard]] Storage::Cache::Database &cache();
+	[[nodiscard]] Storage::Cache::Database &cacheBigFile();
 
 	[[nodiscard]] not_null<PeerData*> peer(PeerId id);
 	[[nodiscard]] not_null<PeerData*> peer(UserId id) = delete;
@@ -670,6 +673,7 @@ private:
 	not_null<AuthSession*> _session;
 
 	Storage::DatabasePointer _cache;
+	Storage::DatabasePointer _bigFileCache;
 
 	std::unique_ptr<Export::Controller> _export;
 	std::unique_ptr<Export::View::PanelController> _exportPanel;

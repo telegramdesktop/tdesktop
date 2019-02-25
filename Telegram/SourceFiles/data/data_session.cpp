@@ -145,11 +145,15 @@ Session::Session(not_null<AuthSession*> session)
 , _cache(Core::App().databases().get(
 	Local::cachePath(),
 	Local::cacheSettings()))
+, _bigFileCache(Core::App().databases().get(
+	Local::cacheBigFilePath(),
+	Local::cacheBigFileSettings()))
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _a_sendActions(animation(this, &Session::step_typings))
 , _groups(this)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 	_cache->open(Local::cacheKey());
+	_bigFileCache->open(Local::cacheBigFileKey());
 
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
@@ -743,6 +747,10 @@ void Session::step_typings(crl::time ms, bool timer) {
 
 Storage::Cache::Database &Session::cache() {
 	return *_cache;
+}
+
+Storage::Cache::Database &Session::cacheBigFile() {
+	return *_bigFileCache;
 }
 
 void Session::startExport(PeerData *peer) {

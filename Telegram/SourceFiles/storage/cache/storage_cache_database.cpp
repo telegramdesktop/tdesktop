@@ -176,6 +176,14 @@ void Database::clearByTag(uint8 tag, FnMut<void(Error)> &&done) {
 	});
 }
 
+void Database::sync() {
+	auto semaphore = crl::semaphore();
+	_wrapped.with([&](Implementation &) {
+		semaphore.release();
+	});
+	semaphore.acquire();
+}
+
 Database::~Database() = default;
 
 } // namespace Cache

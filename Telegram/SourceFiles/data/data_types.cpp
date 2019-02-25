@@ -71,7 +71,7 @@ Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location) {
 
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location) {
 	const auto dcId = uint64(location.dc()) & 0xFFULL;
-	const auto url = location.url();
+	const auto &url = location.url();
 	const auto hash = openssl::Sha256(bytes::make_span(url));
 	const auto bytes = bytes::make_span(hash);
 	const auto bytes1 = bytes.subspan(0, sizeof(uint32));

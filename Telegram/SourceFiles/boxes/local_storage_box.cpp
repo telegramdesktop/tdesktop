@@ -471,6 +471,7 @@ void LocalStorageBox::save() {
 	update.totalSizeLimit = _sizeLimit;
 	update.totalTimeLimit = _timeLimit;
 	Local::updateCacheSettings(update);
+	Local::updateCacheBigFileSettings(update);
 	Auth().data().cache().updateSettings(update);
 	closeBox();
 }
