@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 
-// #TODO streaming
+// #TODO streaming ui
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
 

@@ -343,26 +343,6 @@ QImage ConvertFrame(
 			return QImage();
 		}
 	}
-	//if (stream.rotation == 180) {
-	//	storage = std::move(storage).mirrored(true, true);
-	//} else if (stream.rotation != 0) {
-	//	auto transform = QTransform();
-	//	transform.rotate(stream.rotation);
-	//	storage = storage.transformed(transform);
-	//}
-
-	// Read some future packets for audio stream.
-	//if (_audioStreamId >= 0) {
-	//	while (_frameMs + 5000 > _lastReadAudioMs
-	//		&& _frameMs + 15000 > _lastReadVideoMs) {
-	//		auto packetResult = readAndProcessPacket();
-	//		if (packetResult != PacketResult::Ok) {
-	//			break;
-	//		}
-	//	}
-	//}
-	// #TODO streaming
-
 	ClearFrameMemory(stream.frame.get());
 	return storage;
 }

@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "media/streaming/media_streaming_file_delegate.h"
 
-#include "ui/toast/toast.h" // #TODO streaming
-
 namespace Media {
 namespace Streaming {
 
@@ -266,9 +264,10 @@ void File::Context::readNextPacket() {
 		handleEndOfFile();
 	}
 }
+
 void File::Context::handleEndOfFile() {
 	const auto more = _delegate->fileProcessPacket(Packet());
-	// #TODO streaming looping
+	// #TODO streaming later looping
 	_readTillEnd = true;
 }
 
@@ -314,7 +313,8 @@ File::Context::~Context() {
 }
 
 bool File::Context::finished() const {
-	return unroll() || _readTillEnd; // #TODO streaming looping
+	// #TODO streaming later looping
+	return unroll() || _readTillEnd;
 }
 
 File::File(
@@ -332,10 +332,6 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 		while (!context->finished()) {
 			context->readNextPacket();
 		}
-
-		crl::on_main(context, [] { AssertIsDebug();
-			Ui::Toast::Show("Finished loading.");
-		});
 	});
 }
 

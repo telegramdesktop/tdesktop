@@ -181,7 +181,7 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 			const auto type = AudioMsgId::Type::Video;
 			const auto state = Media::Player::mixer()->currentState(type);
 			if (state.id != _audioId) {
-				// #TODO streaming muted by other
+				// #TODO streaming later muted by other
 				return;
 			} else switch (state.state) {
 			case State::Stopped:

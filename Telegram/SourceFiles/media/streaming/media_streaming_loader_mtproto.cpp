@@ -96,7 +96,7 @@ void LoaderMtproto::changeCdnParams(
 		const QByteArray &encryptionKey,
 		const QByteArray &encryptionIV,
 		const QVector<MTPFileHash> &hashes) {
-	// #TODO streaming
+	// #TODO streaming cdn
 }
 
 void LoaderMtproto::requestFailed(int offset, const RPCError &error) {
@@ -106,7 +106,7 @@ void LoaderMtproto::requestFailed(int offset, const RPCError &error) {
 		return;
 	}
 	const auto callback = [=](const Data::UpdatedFileReferences &updated) {
-		// #TODO streaming
+		// #TODO streaming file_reference
 	};
 	_api->refreshFileReference(_origin, crl::guard(this, callback));
 }

@@ -59,7 +59,6 @@ private:
 	struct Frame {
 		QImage original;
 		crl::time position = kTimeUnknown;
-		crl::time displayPosition = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 
 		FrameRequest request;

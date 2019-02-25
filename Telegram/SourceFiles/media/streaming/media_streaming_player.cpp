@@ -98,7 +98,6 @@ void Player::checkNextFrame() {
 	if (now < _nextFrameTime) {
 		_renderFrameTimer.callOnce(_nextFrameTime - now);
 	} else {
-		_renderFrameTimer.cancel();
 		renderFrame(now);
 	}
 }
@@ -269,20 +268,12 @@ bool Player::fileProcessPacket(Packet &&packet) {
 		}
 	} else if (_audio && _audio->streamIndex() == native.stream_index) {
 		const auto time = PacketPosition(packet, _audio->streamTimeBase());
-		//LOG(("[%2] AUDIO PACKET FOR %1ms"
-		//	).arg(time
-		//	).arg(crl::now() % 10000, 4, 10, QChar('0')));
-
 		crl::on_main(&_sessionGuard, [=] {
 			audioReceivedTill(time);
 		});
 		_audio->process(std::move(packet));
 	} else if (_video && _video->streamIndex() == native.stream_index) {
 		const auto time = PacketPosition(packet, _video->streamTimeBase());
-		//LOG(("[%2] VIDEO PACKET FOR %1ms"
-		//	).arg(time
-		//	).arg(crl::now() % 10000, 4, 10, QChar('0')));
-
 		crl::on_main(&_sessionGuard, [=] {
 			videoReceivedTill(time);
 		});

@@ -76,7 +76,8 @@ private:
 	crl::time _resumedTime = kTimeUnknown;
 	mutable TimePoint _syncTimePoint;
 	mutable crl::time _previousFramePosition = kTimeUnknown;
-	rpl::variable<crl::time> _nextFrameDisplayTime = kTimeUnknown;
+	crl::time _nextFrameDisplayTime = kTimeUnknown;
+	rpl::event_stream<crl::time> _nextFrameTimeUpdates;
 	rpl::event_stream<> _waitingForData;
 
 	bool _queued = false;
@@ -110,7 +111,10 @@ VideoTrackObject::VideoTrackObject(
 rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
 	return interrupted()
 		? rpl::complete<crl::time>()
-		: _nextFrameDisplayTime.value();
+		: (_nextFrameDisplayTime == kTimeUnknown)
+		? _nextFrameTimeUpdates.events()
+		: _nextFrameTimeUpdates.events_starting_with_copy(
+			_nextFrameDisplayTime);
 }
 
 rpl::producer<> VideoTrackObject::waitingForData() const {
@@ -164,7 +168,7 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
 			interrupt();
-			_nextFrameDisplayTime.reset(kTimeUnknown);
+			_nextFrameTimeUpdates = rpl::event_stream<crl::time>();
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			interrupt();
 			_error();
@@ -184,9 +188,9 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 		QSize(),
 		std::move(frame->original));
 	frame->position = position;
-	frame->displayPosition = position; // #TODO streaming adjust / sync
 	frame->displayed = kTimeUnknown;
 
+	// #TODO streaming later prepare frame
 	//frame->request
 	//frame->prepared
 
@@ -201,8 +205,12 @@ void VideoTrackObject::presentFrameIfNeeded() {
 	const auto presented = _shared->presentFrame(time.trackTime);
 	if (presented.displayPosition != kTimeUnknown) {
 		const auto trackLeft = presented.displayPosition - time.trackTime;
+
+		// We don't use rpl::variable, because we want an event each time
+		// we assign a new value, even if the value really didn't change.
 		_nextFrameDisplayTime = time.worldTime
 			+ crl::time(std::round(trackLeft / _options.speed));
+		_nextFrameTimeUpdates.fire_copy(_nextFrameDisplayTime);
 	}
 	queueReadFrames(presented.nextCheckDelay);
 }
@@ -300,7 +308,6 @@ bool VideoTrackObject::processFirstFrame() {
 		return false;
 	}
 	_shared->init(std::move(frame), _syncTimePoint.trackTime);
-	_nextFrameDisplayTime.reset(_syncTimePoint.trackTime);
 	callReady();
 	if (!_stream.queue.empty()) {
 		queueReadFrames();
@@ -383,7 +390,6 @@ void VideoTrack::Shared::init(QImage &&cover, crl::time position) {
 
 	_frames[0].original = std::move(cover);
 	_frames[0].position = position;
-	_frames[0].displayPosition = position;
 
 	// Usually main thread sets displayed time before _counter increment.
 	// But in this case we update _counter, so we set a fake displayed time.
@@ -407,7 +413,7 @@ not_null<VideoTrack::Frame*> VideoTrack::Shared::getFrame(int index) {
 }
 
 bool VideoTrack::Shared::IsPrepared(not_null<Frame*> frame) {
-	return (frame->displayPosition != kTimeUnknown)
+	return (frame->position != kTimeUnknown)
 		&& (frame->displayed == kTimeUnknown)
 		&& !frame->original.isNull();
 }
@@ -417,7 +423,7 @@ bool VideoTrack::Shared::IsStale(
 		crl::time trackTime) {
 	Expects(IsPrepared(frame));
 
-	return (frame->displayPosition < trackTime);
+	return (frame->position < trackTime);
 }
 
 auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
@@ -433,7 +439,7 @@ auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
 		} else if (!IsPrepared(next)) {
 			return next;
 		} else {
-			return PrepareNextCheck(frame->displayPosition - trackTime + 1);
+			return PrepareNextCheck(frame->position - trackTime + 1);
 		}
 	};
 	const auto finishPrepare = [&](int index) {
@@ -459,7 +465,7 @@ auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
 	const auto present = [&](int counter, int index) -> PresentFrame {
 		const auto frame = getFrame(index);
 		Assert(IsPrepared(frame));
-		const auto position = frame->displayPosition;
+		const auto position = frame->position;
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
@@ -475,7 +481,7 @@ auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
 			|| IsStale(frame, trackTime)) {
 			return { kTimeUnknown, crl::time(0) };
 		}
-		return { kTimeUnknown, (trackTime - frame->displayPosition + 1) };
+		return { kTimeUnknown, (trackTime - frame->position + 1) };
 	};
 
 	switch (counter()) {
@@ -596,7 +602,7 @@ QImage VideoTrack::frame(const FrameRequest &request) const {
 	if (request.resize.isEmpty()) {
 		return frame->original;
 	} else if (frame->prepared.isNull() || frame->request != request) {
-		// #TODO streaming prepare frame
+		// #TODO streaming later prepare frame
 		//frame->request = request;
 		//frame->prepared = PrepareFrame(
 		//	frame->original,
