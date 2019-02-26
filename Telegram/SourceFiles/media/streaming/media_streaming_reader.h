@@ -127,6 +127,7 @@ private:
 		void applyHeaderCacheData();
 		int maxSliceSize(int sliceNumber) const;
 		SerializedSlice serializeAndUnloadSlice(int sliceNumber);
+		SerializedSlice serializeAndUnloadUnused();
 		void markSliceUsed(int sliceIndex);
 
 		std::vector<Slice> _data;

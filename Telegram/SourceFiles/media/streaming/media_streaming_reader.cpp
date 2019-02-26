@@ -357,19 +357,15 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		&& (fromSlice + 1 == tillSlice || fromSlice + 2 == tillSlice)
 		&& tillSlice <= _data.size());
 
+	const auto cacheNotLoaded = [&](int sliceIndex) {
+		return (_headerMode != HeaderMode::NoCache)
+			&& (_headerMode != HeaderMode::Unknown)
+			&& !(_data[sliceIndex].flags & Flag::LoadedFromCache);
+	};
 	const auto handlePrepareResult = [&](
 			int sliceIndex,
 			const Slice::PrepareFillResult &prepared) {
-		if (sliceIndex == _data.size()) {
-			return;
-		}
-		if (!(_data[sliceIndex].flags & Flag::LoadedFromCache)
-			&& _headerMode != HeaderMode::NoCache
-			&& _headerMode != HeaderMode::Unknown) {
-			if (!(_data[sliceIndex].flags & Flag::LoadingFromCache)) {
-				_data[sliceIndex].flags |= Flag::LoadingFromCache;
-				result.sliceNumbersFromCache.add(sliceIndex + 1);
-			}
+		if (cacheNotLoaded(sliceIndex)) {
 			return;
 		}
 		for (const auto offset : prepared.offsetsFromLoader.values()) {
@@ -379,7 +375,16 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 			}
 		}
 	};
-
+	const auto handleReadFromCache = [&](int sliceIndex) {
+		if (cacheNotLoaded(sliceIndex)
+			&& !(_data[sliceIndex].flags & Flag::LoadingFromCache)) {
+			_data[sliceIndex].flags |= Flag::LoadingFromCache;
+			if (sliceIndex == 23) {
+				int a = 0;
+			}
+			result.sliceNumbersFromCache.add(sliceIndex + 1);
+		}
+	};
 	const auto firstFrom = offset - fromSlice * kInSlice;
 	const auto firstTill = std::min(kInSlice, till - fromSlice * kInSlice);
 	const auto secondFrom = 0;
@@ -389,7 +394,9 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		? _data[fromSlice + 1].prepareFill(secondFrom, secondTill)
 		: Slice::PrepareFillResult();
 	handlePrepareResult(fromSlice, first);
-	handlePrepareResult(fromSlice + 1, second);
+	if (fromSlice + 1 < tillSlice) {
+		handlePrepareResult(fromSlice + 1, second);
+	}
 	if (first.ready && second.ready) {
 		markSliceUsed(fromSlice);
 		CopyLoaded(
@@ -405,18 +412,13 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 				secondFrom,
 				secondTill);
 		}
-		if (_usedSlices.size() > kSlicesInMemory
-			&& _headerMode != HeaderMode::Unknown) {
-			const auto purgeSlice = _usedSlices.front();
-			_usedSlices.pop_front();
-			if (_headerMode == HeaderMode::NoCache
-				|| !(_data[purgeSlice].flags & Flag::ChangedSinceCache)) {
-				_data[purgeSlice] = Slice();
-			} else {
-				result.toCache = serializeAndUnloadSlice(purgeSlice + 1);
-			}
-		}
+		result.toCache = serializeAndUnloadUnused();
 		result.filled = true;
+	} else {
+		handleReadFromCache(fromSlice);
+		if (fromSlice + 1 < tillSlice) {
+			handleReadFromCache(fromSlice + 1);
+		}
 	}
 	return result;
 }
@@ -440,6 +442,24 @@ int Reader::Slices::maxSliceSize(int sliceNumber) const {
 		: (sliceNumber > 0)
 		? kInSlice
 		: _size;
+}
+
+Reader::SerializedSlice Reader::Slices::serializeAndUnloadUnused() {
+	if (_headerMode == HeaderMode::Unknown
+		|| _usedSlices.size() <= kSlicesInMemory) {
+		return {};
+	}
+	const auto purgeSlice = _usedSlices.front();
+	_usedSlices.pop_front();
+	if (!(_data[purgeSlice].flags & Slice::Flag::LoadedFromCache)) {
+		// If the only data in this slice was from _header, just leave it.
+		return {};
+	} else if (_headerMode == HeaderMode::NoCache
+		|| !(_data[purgeSlice].flags & Slice::Flag::ChangedSinceCache)) {
+		_data[purgeSlice] = Slice();
+		return {};
+	}
+	return serializeAndUnloadSlice(purgeSlice + 1);
 }
 
 Reader::SerializedSlice Reader::Slices::serializeAndUnloadSlice(

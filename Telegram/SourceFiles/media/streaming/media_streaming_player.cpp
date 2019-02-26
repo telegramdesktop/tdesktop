@@ -137,6 +137,7 @@ void Player::trackReceivedTill(
 	}
 }
 
+static auto wakes = 0;
 template <typename Track>
 void Player::trackPlayedTill(
 		const Track &track,
@@ -152,6 +153,7 @@ void Player::trackPlayedTill(
 	if (_pauseReading && !bothReceivedEnough(kLoadInAdvanceFor)) {
 		_pauseReading = false;
 		_file->wake();
+		++wakes;
 	}
 }
 
@@ -417,7 +419,8 @@ bool Player::trackReceivedEnough(
 		const TrackState &state,
 		crl::time amount) const {
 	return FullTrackReceived(state)
-		|| (state.position + amount <= state.receivedTill);
+		|| (state.position != kTimeUnknown
+			&& state.position + amount <= state.receivedTill);
 }
 
 bool Player::bothReceivedEnough(crl::time amount) const {
@@ -569,6 +572,7 @@ Player::~Player() {
 	//
 	// So instead of maintaining it in the class definition as well we
 	// simply call stop() here, after that the destruction is trivial.
+	LOG(("WAKES: %1").arg(wakes));
 	stop();
 }
 
