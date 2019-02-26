@@ -126,12 +126,12 @@ private:
 
 		void applyHeaderCacheData();
 		int maxSliceSize(int sliceNumber) const;
-		SerializedSlice serializeAndUnloadSlice(
-			int sliceNumber,
-			Slice &slice) const;
+		SerializedSlice serializeAndUnloadSlice(int sliceNumber);
+		void markSliceUsed(int sliceIndex);
 
 		std::vector<Slice> _data;
 		Slice _header;
+		std::deque<int> _usedSlices;
 		int _size = 0;
 		HeaderMode _headerMode = HeaderMode::Unknown;
 
