@@ -602,36 +602,38 @@ public:
 	using parent::contains;
 	using parent::erase;
 
-	iterator insert(const Type &value) {
+	std::pair<iterator, bool> insert(const Type &value) {
 		if (this->empty() || this->compare()(value, this->front())) {
 			this->impl().push_front(value);
-			return this->begin();
+			return std::make_pair(this->begin(), true);
 		} else if (this->compare()(this->back(), value)) {
 			this->impl().push_back(value);
-			return (this->end() - 1);
+			return std::make_pair(this->end() - 1, true);
 		}
 		auto where = this->getLowerBound(value);
 		if (this->compare()(value, *where)) {
-			return this->impl().insert(where, value);
+			return std::make_pair(this->impl().insert(where, value), true);
 		}
-		return this->end();
+		return std::make_pair(where, false);
 	}
-	iterator insert(Type &&value) {
+	std::pair<iterator, bool> insert(Type &&value) {
 		if (this->empty() || this->compare()(value, this->front())) {
 			this->impl().push_front(std::move(value));
-			return this->begin();
+			return std::make_pair(this->begin(), true);
 		} else if (this->compare()(this->back(), value)) {
 			this->impl().push_back(std::move(value));
-			return (this->end() - 1);
+			return std::make_pair(this->end() - 1, true);
 		}
 		auto where = this->getLowerBound(value);
 		if (this->compare()(value, *where)) {
-			return this->impl().insert(where, std::move(value));
+			return std::make_pair(
+				this->impl().insert(where, std::move(value)),
+				true);
 		}
-		return this->end();
+		return std::make_pair(where, false);
 	}
 	template <typename... Args>
-	iterator emplace(Args&&... args) {
+	std::pair<iterator, bool> emplace(Args&&... args) {
 		return this->insert(Type(std::forward<Args>(args)...));
 	}
 

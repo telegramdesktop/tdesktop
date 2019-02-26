@@ -84,7 +84,8 @@ SparseIdsList::AddResult SparseIdsList::addRangeItemsAndCountNew(
 		std::end(messages) };
 	auto slice = _slices.emplace(
 		std::move(sliceMessages),
-		noSkipRange);
+		noSkipRange
+	).first;
 	update.messages = &slice->messages;
 	update.range = slice->range;
 	const auto count = int(slice->messages.size());
