@@ -90,7 +90,10 @@ private:
 	void videoPlayedTill(crl::time position);
 
 	void updatePausedState();
-	[[nodiscard]] bool trackReceivedEnough(const TrackState &state) const;
+	[[nodiscard]] bool trackReceivedEnough(
+		const TrackState &state,
+		crl::time amount) const;
+	[[nodiscard]] bool bothReceivedEnough(crl::time amount) const;
 	void checkResumeFromWaitingForData();
 
 	template <typename Track>
@@ -124,6 +127,8 @@ private:
 	// Belongs to the File thread while File is active.
 	bool _readTillEnd = false;
 	bool _waitingForData = false;
+
+	std::atomic<bool> _pauseReading = false;
 
 	// Belongs to the main thread.
 	Information _information;

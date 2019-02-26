@@ -18,7 +18,12 @@ namespace Streaming {
 namespace {
 
 constexpr auto kReceivedTillEnd = std::numeric_limits<crl::time>::max();
-constexpr auto kBufferFor = crl::time(3000);
+constexpr auto kBufferFor = 3 * crl::time(1000);
+constexpr auto kLoadInAdvanceFor = 64 * crl::time(1000);
+
+// If we played for 3 seconds and got stuck it looks like we're loading
+// slower than we're playing, so load full file in that case.
+constexpr auto kLoadFullIfStuckAfterPlayback = 3 * crl::time(1000);
 
 [[nodiscard]] crl::time TrackClampReceivedTill(
 		crl::time position,
@@ -127,6 +132,9 @@ void Player::trackReceivedTill(
 	} else {
 		state.receivedTill = position;
 	}
+	if (!_pauseReading && bothReceivedEnough(kLoadInAdvanceFor)) {
+		_pauseReading = true;
+	}
 }
 
 template <typename Track>
@@ -140,6 +148,10 @@ void Player::trackPlayedTill(
 		position = std::clamp(position, 0LL, state.duration);
 		state.position = position;
 		_updates.fire({ PlaybackUpdate<Track>{ position } });
+	}
+	if (_pauseReading && !bothReceivedEnough(kLoadInAdvanceFor)) {
+		_pauseReading = false;
+		_file->wake();
 	}
 }
 
@@ -284,7 +296,7 @@ bool Player::fileProcessPacket(Packet &&packet) {
 
 bool Player::fileReadMore() {
 	// return true if looping.
-	return !_readTillEnd;
+	return !_readTillEnd && !_pauseReading;
 }
 
 void Player::streamReady(Information &&information) {
@@ -380,6 +392,10 @@ void Player::updatePausedState() {
 	}
 	if (_paused) {
 		_pausedTime = crl::now();
+		//if (_pausedByWaitingForData
+		//	&& _pausedTime - _startedTime > kLoadFullIfStuckAfterPlayback) {
+		//	_loadFull = true;
+		//}
 		if (_audio) {
 			_audio->pause(_pausedTime);
 		}
@@ -397,15 +413,21 @@ void Player::updatePausedState() {
 	}
 }
 
-bool Player::trackReceivedEnough(const TrackState &state) const {
+bool Player::trackReceivedEnough(
+		const TrackState &state,
+		crl::time amount) const {
 	return FullTrackReceived(state)
-		|| (state.position + kBufferFor <= state.receivedTill);
+		|| (state.position + amount <= state.receivedTill);
+}
+
+bool Player::bothReceivedEnough(crl::time amount) const {
+	auto &info = _information;
+	return (!_audio || trackReceivedEnough(info.audio.state, amount))
+		&& (!_video || trackReceivedEnough(info.video.state, amount));
 }
 
 void Player::checkResumeFromWaitingForData() {
-	if (_pausedByWaitingForData
-		&& (!_audio || trackReceivedEnough(_information.audio.state))
-		&& (!_video || trackReceivedEnough(_information.video.state))) {
+	if (_pausedByWaitingForData && bothReceivedEnough(kBufferFor)) {
 		_pausedByWaitingForData = false;
 		updatePausedState();
 	}
@@ -478,6 +500,7 @@ void Player::stop() {
 	_renderFrameTimer.cancel();
 	_audioFinished = false;
 	_videoFinished = false;
+	_pauseReading = false;
 	_readTillEnd = false;
 	_information = Information();
 }
