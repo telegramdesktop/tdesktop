@@ -137,6 +137,10 @@ SwsContextPointer MakeSwsContextPointer(
 			return std::move(*existing);
 		}
 	}
+	if (frame->format <= AV_PIX_FMT_NONE || frame->format >= AV_PIX_FMT_NB) {
+		LogError(qstr("frame->format"));
+		return SwsContextPointer();
+	}
 
 	const auto result = sws_getCachedContext(
 		existing ? existing->release() : nullptr,
@@ -319,8 +323,7 @@ QImage ConvertFrame(
 		storage = CreateFrameStorage(resize);
 	}
 	const auto format = AV_PIX_FMT_BGRA;
-	const auto hasDesiredFormat = (frame->format == format)
-		|| ((frame->format == -1) && (stream.codec->pix_fmt == format));
+	const auto hasDesiredFormat = (frame->format == format);
 	if (frameSize == storage.size() && hasDesiredFormat) {
 		static_assert(sizeof(uint32) == kPixelBytesSize);
 		auto to = reinterpret_cast<uint32*>(storage.bits());
