@@ -15,9 +15,9 @@ class Controller;
 } // namespace Window
 
 namespace Media {
-namespace Clip {
-class Playback;
-} // namespace Clip
+namespace View {
+class PlaybackProgress;
+} // namespace View
 } // namespace Media
 
 namespace Media {
@@ -39,7 +39,7 @@ public:
 	FullMsgId contextId() const;
 	void pauseResume();
 	Clip::Reader *reader() const;
-	Clip::Playback *playback() const;
+	View::PlaybackProgress *playback() const;
 
 	rpl::lifetime &lifetime();
 
@@ -59,7 +59,7 @@ private:
 	not_null<DocumentData*> _data;
 	not_null<HistoryItem*> _context;
 	Clip::ReaderPointer _reader;
-	std::unique_ptr<Clip::Playback> _playback;
+	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
 
 	rpl::lifetime _lifetime;
 

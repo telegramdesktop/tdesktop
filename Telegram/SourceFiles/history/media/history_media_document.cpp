@@ -621,7 +621,6 @@ bool HistoryDocument::updateStatusText() const {
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
-		using State = Media::Player::State;
 		statusSize = FileStatusSizeLoaded;
 		if (_data->isVoiceMessage()) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);

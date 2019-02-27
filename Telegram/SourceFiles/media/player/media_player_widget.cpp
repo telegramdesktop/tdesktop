@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "lang/lang_keys.h"
 #include "media/audio/media_audio.h"
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_volume_controller.h"
@@ -86,7 +86,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
-, _playback(std::make_unique<Clip::Playback>()) {
+, _playbackProgress(std::make_unique<View::PlaybackProgress>()) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -94,24 +94,24 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_playback->setInLoadingStateChangedCallback([this](bool loading) {
+	_playbackProgress->setInLoadingStateChangedCallback([this](bool loading) {
 		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setValueChangedCallback([this](float64 value) {
+	_playbackProgress->setValueChangedCallback([this](float64 value) {
 		_playbackSlider->setValue(value);
 	});
 	_playbackSlider->setChangeProgressCallback([this](float64 value) {
 		if (_type != AudioMsgId::Type::Song) {
 			return; // Round video seek is not supported for now :(
 		}
-		_playback->setValue(value, false);
+		_playbackProgress->setValue(value, false);
 		handleSeekProgress(value);
 	});
 	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
 		if (_type != AudioMsgId::Type::Song) {
 			return; // Round video seek is not supported for now :(
 		}
-		_playback->setValue(value, false);
+		_playbackProgress->setValue(value, false);
 		handleSeekFinished(value);
 	});
 	_playPause->setClickedCallback([this] {
@@ -430,9 +430,9 @@ void Widget::handleSongUpdate(const TrackState &state) {
 	}
 
 	if (state.id.audio()->loading()) {
-		_playback->updateLoadingState(state.id.audio()->progress());
+		_playbackProgress->updateLoadingState(state.id.audio()->progress());
 	} else {
-		_playback->updateState(state);
+		_playbackProgress->updateState(state);
 	}
 
 	auto stopped = IsStoppedOrStopping(state.state);

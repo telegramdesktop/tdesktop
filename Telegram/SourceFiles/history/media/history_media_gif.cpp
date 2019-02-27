@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_round_controller.h"
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 #include "boxes/confirm_box.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
@@ -833,7 +833,7 @@ Media::Clip::Reader *HistoryGif::currentReader() const {
 	return (_gif && _gif->ready()) ? _gif.get() : nullptr;
 }
 
-Media::Clip::Playback *HistoryGif::videoPlayback() const {
+Media::View::PlaybackProgress *HistoryGif::videoPlayback() const {
 	if (const auto video = activeRoundVideo()) {
 		return video->playback();
 	}

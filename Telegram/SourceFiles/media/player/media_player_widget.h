@@ -20,10 +20,12 @@ class FilledSlider;
 } // namespace Ui
 
 namespace Media {
-namespace Clip {
-class Playback;
+namespace View {
+class PlaybackProgress;
 } // namespace Clip
+} // namespace Media
 
+namespace Media {
 namespace Player {
 
 class PlayButton;
@@ -109,11 +111,11 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
-	std::unique_ptr<Clip::Playback> _playback;
+	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
 
 	rpl::lifetime _playlistChangesLifetime;
 
 };
 
-} // namespace Clip
+} // namespace Player
 } // namespace Media

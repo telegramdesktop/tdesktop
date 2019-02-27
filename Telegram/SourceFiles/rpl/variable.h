@@ -90,11 +90,11 @@ public:
 
 	template <
 		typename OtherType,
-		typename Error,
+		typename OtherError,
 		typename Generator,
 		typename = std::enable_if_t<
 			std::is_assignable_v<Type&, OtherType>>>
-	variable(producer<OtherType, Error, Generator> &&stream) {
+	variable(producer<OtherType, OtherError, Generator> &&stream) {
 		std::move(stream)
 			| start_with_next([=](auto &&data) {
 				assign(std::forward<decltype(data)>(data));
@@ -103,12 +103,12 @@ public:
 
 	template <
 		typename OtherType,
-		typename Error,
+		typename OtherError,
 		typename Generator,
 		typename = std::enable_if_t<
 			std::is_assignable_v<Type&, OtherType>>>
 	variable &operator=(
-			producer<OtherType, Error, Generator> &&stream) {
+			producer<OtherType, OtherError, Generator> &&stream) {
 		_lifetime.destroy();
 		std::move(stream)
 			| start_with_next([=](auto &&data) {

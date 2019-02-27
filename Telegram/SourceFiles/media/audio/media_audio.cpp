@@ -729,10 +729,10 @@ void Mixer::resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered
 				return;
 			}
 
-			const auto stoppedAtEnd = (alState == AL_STOPPED)
-				&& (!IsStopped(track->state.state)
-					|| IsStoppedAtEnd(track->state.state))
-				|| track->state.waitingForData;
+			const auto stoppedAtEnd = track->state.waitingForData
+				|| ((alState == AL_STOPPED)
+					&& (!IsStopped(track->state.state)
+						|| IsStoppedAtEnd(track->state.state)));
 			positionInBuffered = stoppedAtEnd
 				? track->bufferedLength
 				: alSampleOffset;
@@ -1438,10 +1438,10 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 	}
 
 	int32 emitSignals = 0;
-	const auto stoppedAtEnd = (alState == AL_STOPPED)
-		&& (!IsStopped(track->state.state)
-			|| IsStoppedAtEnd(track->state.state))
-		|| track->state.waitingForData;
+	const auto stoppedAtEnd = track->state.waitingForData
+		|| ((alState == AL_STOPPED)
+			&& (!IsStopped(track->state.state)
+				|| IsStoppedAtEnd(track->state.state)));
 	const auto positionInBuffered = stoppedAtEnd
 		? track->bufferedLength
 		: alSampleOffset;

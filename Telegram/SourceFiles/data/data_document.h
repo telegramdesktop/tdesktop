@@ -223,6 +223,8 @@ public:
 		const QString &songPerformer);
 	[[nodiscard]] QString composeNameString() const;
 
+	[[nodiscard]] bool canBePlayed() const;
+	[[nodiscard]] bool canBeStreamed() const;
 	[[nodiscard]] auto createStreamingLoader(Data::FileOrigin origin) const
 		-> std::unique_ptr<Media::Streaming::Loader>;
 
@@ -303,6 +305,7 @@ public:
 	static void Save(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
+		HistoryItem *context,
 		bool forceSavingAs = false);
 
 protected:

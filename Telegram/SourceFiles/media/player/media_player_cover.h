@@ -19,9 +19,9 @@ class MediaSlider;
 } // namespace Ui
 
 namespace Media {
-namespace Clip {
-class Playback;
-} // namespace Clip
+namespace View {
+class PlaybackProgress;
+} // namespace View
 
 namespace Player {
 
@@ -71,7 +71,7 @@ private:
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::MediaSlider> _playbackSlider;
-	std::unique_ptr<Clip::Playback> _playback;
+	std::unique_ptr<View::PlaybackProgress> _playbackProgress;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
 	object_ptr<PlayButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
@@ -82,5 +82,5 @@ private:
 
 };
 
-} // namespace Clip
+} // namespace Player
 } // namespace Media

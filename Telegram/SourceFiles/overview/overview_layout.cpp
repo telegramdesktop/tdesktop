@@ -849,7 +849,6 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
-		using State = Media::Player::State;
 		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
 		if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.playId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 			statusSize = -1 - (state.position / state.frequency);
@@ -1220,7 +1219,6 @@ bool Document::updateStatusText() {
 	} else if (_data->loaded()) {
 		if (_data->isSong()) {
 			statusSize = FileStatusSizeLoaded;
-			using State = Media::Player::State;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
 			if (state.id == AudioMsgId(_data, parent()->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);

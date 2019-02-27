@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 
 #include "media/streaming/media_streaming_common.h"
+#include "ui/image/image_prepare.h"
 
 extern "C" {
 #include <libavutil/opt.h>
@@ -20,6 +21,7 @@ namespace {
 constexpr auto kSkipInvalidDataPackets = 10;
 constexpr auto kAlignImageBy = 16;
 constexpr auto kPixelBytesSize = 4;
+constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
 
 void AlignedImageBufferCleanupHandler(void* data) {
 	const auto buffer = static_cast<uchar*>(data);
@@ -39,8 +41,16 @@ void ClearFrameMemory(AVFrame *frame) {
 
 } // namespace
 
+bool GoodStorageForFrame(const QImage &storage, QSize size) {
+	return !storage.isNull()
+		&& (storage.format() == kImageFormat)
+		&& (storage.size() == size)
+		&& storage.isDetached()
+		&& IsAlignedImage(storage);
+}
+
 // Create a QImage of desired size where all the data is properly aligned.
-QImage CreateImageForOriginalFrame(QSize size) {
+QImage CreateFrameStorage(QSize size) {
 	const auto width = size.width();
 	const auto height = size.height();
 	const auto widthAlign = kAlignImageBy / kPixelBytesSize;
@@ -59,7 +69,7 @@ QImage CreateImageForOriginalFrame(QSize size) {
 		width,
 		height,
 		perLine,
-		QImage::Format_ARGB32_Premultiplied,
+		kImageFormat,
 		AlignedImageBufferCleanupHandler,
 		cleanupData);
 }
@@ -267,18 +277,26 @@ AvErrorWrap ReadNextFrame(Stream &stream) {
 	return error;
 }
 
-QImage ConvertFrame(
-		Stream &stream,
-		QSize resize,
-		QImage storage) {
+bool GoodForRequest(const QImage &image, const FrameRequest &request) {
+	if (request.resize.isEmpty()) {
+		return true;
+	} else if ((request.radius != ImageRoundRadius::None)
+		&& ((request.corners & RectPart::AllCorners) != 0)) {
+		return false;
+	}
+	return (request.resize == request.outer)
+		&& (request.resize == image.size());
+}
+
+QImage ConvertFrame(Stream &stream, QSize resize, QImage storage) {
 	Expects(stream.frame != nullptr);
 
 	const auto frame = stream.frame.get();
 	const auto frameSize = QSize(frame->width, frame->height);
 	if (frameSize.isEmpty()) {
 		LOG(("Streaming Error: Bad frame size %1,%2"
-			).arg(resize.width()
-			).arg(resize.height()));
+			).arg(frameSize.width()
+			).arg(frameSize.height()));
 		return QImage();
 	} else if (!frame->data[0]) {
 		LOG(("Streaming Error: Bad frame data."));
@@ -289,11 +307,9 @@ QImage ConvertFrame(
 	} else if (RotationSwapWidthHeight(stream.rotation)) {
 		resize.transpose();
 	}
-	if (storage.isNull()
-		|| storage.size() != resize
-		|| !storage.isDetached()
-		|| !IsAlignedImage(storage)) {
-		storage = CreateImageForOriginalFrame(resize);
+
+	if (!GoodStorageForFrame(storage, resize)) {
+		storage = CreateFrameStorage(resize);
 	}
 	const auto format = AV_PIX_FMT_BGRA;
 	const auto hasDesiredFormat = (frame->format == format)
@@ -343,7 +359,24 @@ QImage ConvertFrame(
 			return QImage();
 		}
 	}
-	ClearFrameMemory(stream.frame.get());
+	return storage;
+}
+
+QImage PrepareByRequest(
+		const QImage &original,
+		const FrameRequest &request,
+		QImage storage) {
+	Expects(!request.outer.isEmpty());
+
+	if (!GoodStorageForFrame(storage, request.outer)) {
+		storage = CreateFrameStorage(request.outer);
+	}
+	{
+		Painter p(&storage);
+		PainterHighQualityEnabler hq(p);
+		p.drawImage(QRect(QPoint(), request.outer), original);
+	}
+	// #TODO streaming later full prepare support.
 	return storage;
 }
 

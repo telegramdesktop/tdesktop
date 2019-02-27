@@ -118,5 +118,5 @@ private:
 
 };
 
-} // namespace Clip
+} // namespace Player
 } // namespace Media

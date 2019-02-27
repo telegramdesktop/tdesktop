@@ -14,11 +14,11 @@ namespace Player {
 struct TrackState;
 } // namespace Player
 
-namespace Clip {
+namespace View {
 
-class Playback {
+class PlaybackProgress {
 public:
-	Playback();
+	PlaybackProgress();
 
 	void setValueChangedCallback(Fn<void(float64)> callback) {
 		_valueChanged = std::move(callback);
@@ -52,5 +52,5 @@ private:
 
 };
 
-} // namespace Clip
+} // namespace View
 } // namespace Media

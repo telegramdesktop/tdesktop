@@ -472,10 +472,10 @@
 <(src_loc)/media/streaming/media_streaming_utility.h
 <(src_loc)/media/streaming/media_streaming_video_track.cpp
 <(src_loc)/media/streaming/media_streaming_video_track.h
-<(src_loc)/media/view/media_clip_controller.cpp
-<(src_loc)/media/view/media_clip_controller.h
-<(src_loc)/media/view/media_clip_playback.cpp
-<(src_loc)/media/view/media_clip_playback.h
+<(src_loc)/media/view/media_view_playback_controls.cpp
+<(src_loc)/media/view/media_view_playback_controls.h
+<(src_loc)/media/view/media_view_playback_progress.cpp
+<(src_loc)/media/view/media_view_playback_progress.h
 <(src_loc)/media/view/media_view_group_thumbs.cpp
 <(src_loc)/media/view/media_view_group_thumbs.h
 <(src_loc)/media/view/media_view_overlay_widget.cpp

@@ -513,7 +513,7 @@ bool Player::failed() const {
 }
 
 bool Player::playing() const {
-	return (_stage == Stage::Started) && !_paused;
+	return (_stage == Stage::Started) && !_paused && !finished();
 }
 
 bool Player::buffering() const {
@@ -522,6 +522,12 @@ bool Player::buffering() const {
 
 bool Player::paused() const {
 	return _pausedByUser;
+}
+
+bool Player::finished() const {
+	return (_stage == Stage::Started)
+		&& (!_audio || _audioFinished)
+		&& (!_video || _videoFinished);
 }
 
 void Player::setSpeed(float64 speed) {

@@ -200,6 +200,10 @@ inline T ConvertScale(T value) {
 	return ConvertScale(value, cScale());
 }
 
+inline QSize ConvertScale(QSize size) {
+	return QSize(ConvertScale(size.width()), ConvertScale(size.height()));
+}
+
 inline void SetScaleChecked(int scale) {
 	const auto checked = (scale == kInterfaceScaleAuto)
 		? kInterfaceScaleAuto

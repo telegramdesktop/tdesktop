@@ -44,10 +44,11 @@ public:
 	float64 speed() const;
 	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
 
-	[[nodiscard]] bool failed() const;
 	[[nodiscard]] bool playing() const;
 	[[nodiscard]] bool buffering() const;
 	[[nodiscard]] bool paused() const;
+	[[nodiscard]] bool failed() const;
+	[[nodiscard]] bool finished() const;
 
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
 

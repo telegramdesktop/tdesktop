@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 #include "history/history_item.h"
 #include "window/window_controller.h"
 #include "data/data_media_types.h"
@@ -56,8 +56,8 @@ RoundController::RoundController(
 		_context->fullId(),
 		[=](Clip::Notification notification) { callback(notification); },
 		Clip::Reader::Mode::Video);
-	_playback = std::make_unique<Clip::Playback>();
-	_playback->setValueChangedCallback([=](float64 value) {
+	_playbackProgress = std::make_unique<View::PlaybackProgress>();
+	_playbackProgress->setValueChangedCallback([=](float64 value) {
 		Auth().data().requestItemRepaint(_context);
 	});
 	Auth().data().markMediaRead(_data);
@@ -95,8 +95,8 @@ Clip::Reader *RoundController::reader() const {
 	return _reader ? _reader.get() : nullptr;
 }
 
-Clip::Playback *RoundController::playback() const {
-	return _playback.get();
+View::PlaybackProgress *RoundController::playback() const {
+	return _playbackProgress.get();
 }
 
 void RoundController::handleAudioUpdate(const TrackState &state) {
@@ -112,8 +112,8 @@ void RoundController::handleAudioUpdate(const TrackState &state) {
 	} else if (another) {
 		return;
 	}
-	if (_playback) {
-		_playback->updateState(state);
+	if (_playbackProgress) {
+		_playbackProgress->updateState(state);
 	}
 	if (IsPaused(state.state) || state.state == State::Pausing) {
 		if (!_reader->videoPaused()) {

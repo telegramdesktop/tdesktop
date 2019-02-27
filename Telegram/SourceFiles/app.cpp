@@ -422,14 +422,11 @@ namespace App {
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
 		if (!itemId) return nullptr;
 
-		auto data = fetchMsgsData(channelId, false);
+		const auto data = fetchMsgsData(channelId, false);
 		if (!data) return nullptr;
 
-		auto i = data->constFind(itemId);
-		if (i != data->cend()) {
-			return i.value();
-		}
-		return nullptr;
+		const auto i = data->constFind(itemId);
+		return (i != data->cend()) ? i.value() : nullptr;
 	}
 
 	HistoryItem *histItemById(const ChannelData *channel, MsgId itemId) {

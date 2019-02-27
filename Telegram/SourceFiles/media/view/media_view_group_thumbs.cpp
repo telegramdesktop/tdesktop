@@ -650,7 +650,7 @@ bool GroupThumbs::hidden() const {
 void GroupThumbs::checkForAnimationStart() {
 	if (_waitingForAnimationStart) {
 		_waitingForAnimationStart = false;
-		_animation.start([this] { update(); }, 0., 1., kThumbDuration);
+		_animation.start([=] { update(); }, 0., 1., kThumbDuration);
 	}
 }
 

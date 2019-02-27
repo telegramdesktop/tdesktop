@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "media/audio/media_audio.h"
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_volume_controller.h"
@@ -62,7 +62,7 @@ CoverWidget::CoverWidget(QWidget *parent) : RpWidget(parent)
 , _timeLabel(this, st::mediaPlayerTime)
 , _close(this, st::mediaPlayerPanelClose)
 , _playbackSlider(this, st::mediaPlayerPanelPlayback)
-, _playback(std::make_unique<Clip::Playback>())
+, _playbackProgress(std::make_unique<View::PlaybackProgress>())
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _volumeController(this)
@@ -76,18 +76,18 @@ CoverWidget::CoverWidget(QWidget *parent) : RpWidget(parent)
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	setMouseTracking(true);
 
-	_playback->setInLoadingStateChangedCallback([=](bool loading) {
+	_playbackProgress->setInLoadingStateChangedCallback([=](bool loading) {
 		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setValueChangedCallback([=](float64 value) {
+	_playbackProgress->setValueChangedCallback([=](float64 value) {
 		_playbackSlider->setValue(value);
 	});
 	_playbackSlider->setChangeProgressCallback([=](float64 value) {
-		_playback->setValue(value, false);
+		_playbackProgress->setValue(value, false);
 		handleSeekProgress(value);
 	});
 	_playbackSlider->setChangeFinishedCallback([=](float64 value) {
-		_playback->setValue(value, false);
+		_playbackProgress->setValue(value, false);
 		handleSeekFinished(value);
 	});
 	_playPause->setClickedCallback([=] {
@@ -240,9 +240,9 @@ void CoverWidget::handleSongUpdate(const TrackState &state) {
 	}
 
 	if (state.id.audio()->loading()) {
-		_playback->updateLoadingState(state.id.audio()->progress());
+		_playbackProgress->updateLoadingState(state.id.audio()->progress());
 	} else {
-		_playback->updateState(state);
+		_playbackProgress->updateState(state);
 	}
 
 	auto stopped = IsStoppedOrStopping(state.state);

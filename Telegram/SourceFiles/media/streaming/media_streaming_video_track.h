@@ -46,7 +46,7 @@ public:
 	// Called from the main thread.
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
-	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] QImage frame(const FrameRequest &request);
 	[[nodiscard]] rpl::producer<crl::time> renderNextFrame() const;
 	[[nodiscard]] rpl::producer<> waitingForData() const;
 
@@ -81,8 +81,15 @@ private:
 		void init(QImage &&cover, crl::time position);
 		[[nodiscard]] bool initialized() const;
 
-		[[nodiscard]] PrepareState prepareState(crl::time trackTime);
-		[[nodiscard]] PresentFrame presentFrame(crl::time trackTime);
+		[[nodiscard]] PrepareState prepareState(
+			crl::time trackTime,
+			bool dropStaleFrames);
+
+		// PrepareCallback(not_null<Frame*>).
+		template <typename PrepareCallback>
+		[[nodiscard]] PresentFrame presentFrame(
+			crl::time trackTime,
+			PrepareCallback &&prepare);
 
 		// Called from the main thread.
 		// Returns the position of the displayed frame.
@@ -91,10 +98,6 @@ private:
 
 	private:
 		[[nodiscard]] not_null<Frame*> getFrame(int index);
-		[[nodiscard]] static bool IsPrepared(not_null<Frame*> frame);
-		[[nodiscard]] static bool IsStale(
-			not_null<Frame*> frame,
-			crl::time trackTime);
 		[[nodiscard]] int counter() const;
 
 		static constexpr auto kCounterUninitialized = -1;
@@ -104,6 +107,15 @@ private:
 		std::array<Frame, kFramesCount> _frames;
 
 	};
+
+	static QImage PrepareFrameByRequest(
+		not_null<Frame*> frame,
+		bool useExistingPrepared = false);
+	[[nodiscard]] static bool IsDecoded(not_null<Frame*> frame);
+	[[nodiscard]] static bool IsPrepared(not_null<Frame*> frame);
+	[[nodiscard]] static bool IsStale(
+		not_null<Frame*> frame,
+		crl::time trackTime);
 
 	const int _streamIndex = 0;
 	const AVRational _streamTimeBase;

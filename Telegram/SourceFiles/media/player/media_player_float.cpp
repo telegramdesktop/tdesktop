@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_round_controller.h"
 #include "window/window_controller.h"
@@ -210,7 +210,7 @@ Clip::Reader *Float::getReader() const {
 	return nullptr;
 }
 
-Clip::Playback *Float::getPlayback() const {
+View::PlaybackProgress *Float::getPlayback() const {
 	if (detached()) {
 		return nullptr;
 	}

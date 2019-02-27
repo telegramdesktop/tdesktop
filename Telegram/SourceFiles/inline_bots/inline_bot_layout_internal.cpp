@@ -894,7 +894,6 @@ bool File::updateStatusText() const {
 	} else if (_document->loading()) {
 		statusSize = _document->loadOffset();
 	} else if (_document->loaded()) {
-		using State = Media::Player::State;
 		if (_document->isVoiceMessage()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);

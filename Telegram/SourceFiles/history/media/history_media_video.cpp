@@ -226,8 +226,9 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 		p.setOpacity(1);
 	}
 
-	auto icon = ([this, radial, selected, loaded]() -> const style::icon * {
-		if (loaded && !radial) {
+	const auto canPlay = _data->canBePlayed();
+	auto icon = [&]() -> const style::icon * {
+		if (canPlay && !radial) {
 			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		} else if (radial || _data->loading()) {
 			if (_parent->data()->id > 0 || _data->uploading()) {
@@ -236,7 +237,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 			return nullptr;
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-	})();
+	}();
 	if (icon) {
 		icon->paintInCenter(p, inner);
 	}
@@ -275,7 +276,7 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 	}
 
 	auto result = TextState(_parent);
-	bool loaded = _data->loaded();
+	const auto canPlay = _data->canBePlayed();
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
@@ -300,7 +301,7 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 		if (_data->uploading()) {
 			result.link = _cancell;
 		} else {
-			result.link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
+			result.link = canPlay ? _openl : (_data->loading() ? _cancell : _savel);
 		}
 	}
 	if (_caption.isEmpty() && _parent->media() == this) {
@@ -389,10 +390,11 @@ void HistoryVideo::drawGrouped(
 		p.drawEllipse(inner);
 	}
 
+	const auto canPlay = _data->canBePlayed();
 	auto icon = [&]() -> const style::icon * {
 		if (_data->waitingForAlbum()) {
 			return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
-		} else if (loaded && !radial) {
+		} else if (canPlay && !radial) {
 			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		} else if (radial || _data->loading()) {
 			if (_parent->data()->id > 0 || _data->uploading()) {
@@ -436,7 +438,7 @@ TextState HistoryVideo::getStateGrouped(
 	}
 	return TextState(_parent, _data->uploading()
 		? _cancell
-		: _data->loaded()
+		: _data->canBePlayed()
 		? _openl
 		: _data->loading()
 		? _cancell

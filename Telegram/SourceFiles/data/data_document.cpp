@@ -154,7 +154,7 @@ QString FileNameUnsafe(
 			if (QRegularExpression(qsl("^[a-zA-Z_0-9]+$")).match(ext).hasMatch()) {
 				QStringList filters = filter.split(sep);
 				if (filters.size() > 1) {
-					QString first = filters.at(0);
+					const auto &first = filters.at(0);
 					int32 start = first.indexOf(qsl("(*."));
 					if (start >= 0) {
 						if (!QRegularExpression(qsl("\\(\\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first).hasMatch()) {
@@ -287,202 +287,6 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	return FileNameForSave(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
-void StartStreaming(
-		not_null<DocumentData*> document,
-		Data::FileOrigin origin) {
-	AssertIsDebug();
-
-	using namespace Media::Streaming;
-	if (auto loader = document->createStreamingLoader(origin)) {
-		static auto player = std::unique_ptr<Player>();
-		static auto pauseOnSeek = false;
-		static auto position = crl::time(0);
-		static auto preloadedAudio = crl::time(0);
-		static auto preloadedVideo = crl::time(0);
-		static auto duration = crl::time(0);
-		static auto options = PlaybackOptions();
-		static auto speed = 1.;
-		static auto step = pow(2., 1. / 12);
-		static auto frame = QImage();
-
-		class Panel
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
-			: public Ui::RpWidgetWrap<QOpenGLWidget> {
-			using Parent = Ui::RpWidgetWrap<QOpenGLWidget>;
-#else // Q_OS_MAC && !OS_MAC_OLD
-			: public Ui::RpWidget {
-			using Parent = Ui::RpWidget;
-#endif // Q_OS_MAC && !OS_MAC_OLD
-
-		public:
-			Panel() : Parent(nullptr) {
-			}
-
-		protected:
-			void paintEvent(QPaintEvent *e) override {
-			}
-			void keyPressEvent(QKeyEvent *e) override {
-				if (e->key() == Qt::Key_Space) {
-					if (player->paused()) {
-						player->resume();
-					} else {
-						player->pause();
-					}
-				} else if (e->key() == Qt::Key_Plus) {
-					speed = std::min(speed * step, 2.);
-					player->setSpeed(speed);
-				} else if (e->key() == Qt::Key_Minus) {
-					speed = std::max(speed / step, 0.5);
-					player->setSpeed(speed);
-				}
-			}
-			void mousePressEvent(QMouseEvent *e) override {
-				pauseOnSeek = player->paused();
-				player->pause();
-			}
-			void mouseReleaseEvent(QMouseEvent *e) override {
-				if (player->ready()) {
-					frame = player->frame({});
-				}
-				preloadedAudio
-					= preloadedVideo
-					= position
-					= options.position
-					= std::clamp(
-						(duration * e->pos().x()) / width(),
-						crl::time(0),
-						crl::time(duration));
-				player->play(options);
-			}
-
-		};
-
-		static auto video = base::unique_qptr<Panel>();
-
-		player = std::make_unique<Player>(
-			&document->owner(),
-			std::move(loader));
-		base::take(video) = nullptr;
-		player->lifetime().add([] {
-			base::take(video) = nullptr;
-		});
-		document->session().lifetime().add([] {
-			base::take(player) = nullptr;
-		});
-
-		options.speed = speed;
-		//options.syncVideoByAudio = false;
-		preloadedAudio = preloadedVideo = position = options.position = 0;
-		frame = QImage();
-		player->play(options);
-		player->updates(
-		) | rpl::start_with_next_error_done([=](Update &&update) {
-			update.data.match([&](Information &update) {
-				duration = std::max(
-					update.video.state.duration,
-					update.audio.state.duration);
-				if (video) {
-					if (update.video.cover.isNull()) {
-						base::take(video) = nullptr;
-					} else {
-						video->update();
-					}
-				} else if (!update.video.cover.isNull()) {
-					video = base::make_unique_q<Panel>();
-					video->setAttribute(Qt::WA_OpaquePaintEvent);
-					video->paintRequest(
-					) | rpl::start_with_next([=](QRect rect) {
-						const auto till1 = duration
-							? (position * video->width() / duration)
-							: 0;
-						const auto till2 = duration
-							? (std::min(preloadedAudio, preloadedVideo)
-								* video->width()
-								/ duration)
-							: 0;
-						if (player->ready()) {
-							Painter(video.get()).drawImage(
-								video->rect(),
-								player->frame({}));
-						} else if (!frame.isNull()) {
-							Painter(video.get()).drawImage(
-								video->rect(),
-								frame);
-						} else {
-							Painter(video.get()).fillRect(
-								rect,
-								Qt::black);
-						}
-						Painter(video.get()).fillRect(
-							0,
-							0,
-							till1,
-							video->height(),
-							QColor(255, 255, 255, 64));
-						if (till2 > till1) {
-							Painter(video.get()).fillRect(
-								till1,
-								0,
-								till2 - till1,
-								video->height(),
-								QColor(255, 255, 255, 32));
-						}
-					}, video->lifetime());
-					const auto size = QSize(
-						ConvertScale(update.video.size.width()),
-						ConvertScale(update.video.size.height()));
-					const auto center = App::wnd()->geometry().center();
-					video->setGeometry(QRect(
-						center - QPoint(size.width(), size.height()) / 2,
-						size));
-					video->show();
-					video->shownValue(
-					) | rpl::start_with_next([=](bool shown) {
-						if (!shown) {
-							base::take(player) = nullptr;
-						}
-					}, video->lifetime());
-				}
-			}, [&](PreloadedVideo &update) {
-				if (preloadedVideo < update.till) {
-					if (preloadedVideo < preloadedAudio) {
-						video->update();
-					}
-					preloadedVideo = update.till;
-				}
-			}, [&](UpdateVideo &update) {
-				Expects(video != nullptr);
-
-				if (position < update.position) {
-					position = update.position;
-				}
-				video->update();
-			}, [&](PreloadedAudio &update) {
-				if (preloadedAudio < update.till) {
-					if (video && preloadedAudio < preloadedVideo) {
-						video->update();
-					}
-					preloadedAudio = update.till;
-				}
-			}, [&](UpdateAudio &update) {
-				if (position < update.position) {
-					position = update.position;
-					if (video) {
-						video->update();
-					}
-				}
-			}, [&](WaitingForData) {
-			}, [&](MutedByOther) {
-			}, [&](Finished) {
-				base::take(player) = nullptr;
-			});
-		}, [=](const Error &error) {
-			base::take(video) = nullptr;
-		}, [=] {
-		}, player->lifetime());
-	}
-}
-
 void DocumentOpenClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
@@ -503,8 +307,8 @@ void DocumentOpenClickHandler::Open(
 			return;
 		}
 	}
-	if (data->isAudioFile() || data->isVideoFile()) {
-		StartStreaming(data, origin);
+	if (data->canBePlayed()) {
+		Core::App().showDocument(data, context);
 		return;
 	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
@@ -536,25 +340,6 @@ void DocumentOpenClickHandler::Open(
 				Media::Player::mixer()->play(song);
 				Media::Player::Updated().notify(song);
 			}
-		} else if (playVideo) {
-			if (!data->data().isEmpty()) {
-				Core::App().showDocument(data, context);
-			} else if (location.accessEnable()) {
-				Core::App().showDocument(data, context);
-				location.accessDisable();
-			} else {
-				const auto filepath = location.name();
-				if (Data::IsValidMediaFile(filepath)) {
-					File::Launch(filepath);
-				}
-			}
-			data->owner().markMediaRead(data);
-		} else if (data->isVoiceMessage() || data->isAudioFile() || data->isVideoFile()) {
-			const auto filepath = location.name();
-			if (Data::IsValidMediaFile(filepath)) {
-				File::Launch(filepath);
-			}
-			data->owner().markMediaRead(data);
 		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
 				if (action == ActionOnLoadPlayInline && context) {
@@ -610,13 +395,9 @@ void GifOpenClickHandler::onClickImpl() const {
 void DocumentSaveClickHandler::Save(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
+		HistoryItem *context,
 		bool forceSavingAs) {
 	if (!data->date) return;
-
-	if (data->isAudioFile() || data->isVideoFile()) {
-		StartStreaming(data, origin);
-		return;
-	}
 
 	auto filepath = data->filepath(
 		DocumentData::FilePathResolveSaveFromDataSilent,
@@ -635,7 +416,7 @@ void DocumentSaveClickHandler::Save(
 }
 
 void DocumentSaveClickHandler::onClickImpl() const {
-	Save(context(), document());
+	Save(context(), document(), getActionItem());
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
@@ -683,51 +464,44 @@ AuthSession &DocumentData::session() const {
 	return _owner->session();
 }
 
-void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
+void DocumentData::setattributes(
+		const QVector<MTPDocumentAttribute> &attributes) {
 	_isImage = false;
 	_supportsStreaming = false;
-	for (int32 i = 0, l = attributes.size(); i < l; ++i) {
-		switch (attributes[i].type()) {
-		case mtpc_documentAttributeImageSize: {
-			auto &d = attributes[i].c_documentAttributeImageSize();
-			dimensions = QSize(d.vw.v, d.vh.v);
-		} break;
-		case mtpc_documentAttributeAnimated:
+	for (const auto &attribute : attributes) {
+		attribute.match([&](const MTPDdocumentAttributeImageSize & data) {
+			dimensions = QSize(data.vw.v, data.vh.v);
+		}, [&](const MTPDdocumentAttributeAnimated & data) {
 			if (type == FileDocument
 				|| type == StickerDocument
 				|| type == VideoDocument) {
 				type = AnimatedDocument;
 				_additional = nullptr;
-			} break;
-		case mtpc_documentAttributeSticker: {
-			auto &d = attributes[i].c_documentAttributeSticker();
+			}
+		}, [&](const MTPDdocumentAttributeSticker & data) {
 			if (type == FileDocument) {
 				type = StickerDocument;
 				_additional = std::make_unique<StickerData>();
 			}
 			if (sticker()) {
-				sticker()->alt = qs(d.valt);
+				sticker()->alt = qs(data.valt);
 				if (sticker()->set.type() != mtpc_inputStickerSetID
-					|| d.vstickerset.type() == mtpc_inputStickerSetID) {
-					sticker()->set = d.vstickerset;
+					|| data.vstickerset.type() == mtpc_inputStickerSetID) {
+					sticker()->set = data.vstickerset;
 				}
 			}
-		} break;
-		case mtpc_documentAttributeVideo: {
-			auto &d = attributes[i].c_documentAttributeVideo();
+		}, [&](const MTPDdocumentAttributeVideo & data) {
 			if (type == FileDocument) {
-				type = d.is_round_message()
+				type = data.is_round_message()
 					? RoundVideoDocument
 					: VideoDocument;
 			}
-			_duration = d.vduration.v;
-			_supportsStreaming = d.is_supports_streaming();
-			dimensions = QSize(d.vw.v, d.vh.v);
-		} break;
-		case mtpc_documentAttributeAudio: {
-			auto &d = attributes[i].c_documentAttributeAudio();
+			_duration = data.vduration.v;
+			_supportsStreaming = data.is_supports_streaming();
+			dimensions = QSize(data.vw.v, data.vh.v);
+		}, [&](const MTPDdocumentAttributeAudio & data) {
 			if (type == FileDocument) {
-				if (d.is_voice()) {
+				if (data.is_voice()) {
 					type = VoiceDocument;
 					_additional = std::make_unique<VoiceData>();
 				} else {
@@ -736,25 +510,19 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 				}
 			}
 			if (const auto voiceData = voice()) {
-				voiceData->duration = d.vduration.v;
-				VoiceWaveform waveform = documentWaveformDecode(qba(d.vwaveform));
-				uchar wavemax = 0;
-				for (int32 i = 0, l = waveform.size(); i < l; ++i) {
-					uchar waveat = waveform.at(i);
-					if (wavemax < waveat) wavemax = waveat;
-				}
-				voiceData->waveform = waveform;
-				voiceData->wavemax = wavemax;
+				voiceData->duration = data.vduration.v;
+				voiceData->waveform = documentWaveformDecode(
+					qba(data.vwaveform));
+				voiceData->wavemax = voiceData->waveform.empty()
+					? uchar(0)
+					: *ranges::max_element(voiceData->waveform);
 			} else if (const auto songData = song()) {
-				songData->duration = d.vduration.v;
-				songData->title = qs(d.vtitle);
-				songData->performer = qs(d.vperformer);
+				songData->duration = data.vduration.v;
+				songData->title = qs(data.vtitle);
+				songData->performer = qs(data.vperformer);
 			}
-		} break;
-		case mtpc_documentAttributeFilename: {
-			const auto &attribute = attributes[i];
-			_filename = qs(
-				attribute.c_documentAttributeFilename().vfile_name);
+		}, [&](const MTPDdocumentAttributeFilename & data) {
+			_filename = qs(data.vfile_name);
 
 			// We don't want LTR/RTL mark/embedding/override/isolate chars
 			// in filenames, because they introduce a security issue, when
@@ -772,8 +540,8 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			for (const auto ch : controls) {
 				_filename = std::move(_filename).replace(ch, "_");
 			}
-		} break;
-		}
+		}, [&](const MTPDdocumentAttributeHasStickers &data) {
+		});
 	}
 	if (type == StickerDocument) {
 		if (dimensions.width() <= 0
@@ -1495,8 +1263,27 @@ bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
 }
 
+bool DocumentData::canBeStreamed() const {
+	return hasRemoteLocation()
+		&& (isAudioFile()
+			|| ((isAnimation() || isVideoFile()) && supportsStreaming()));
+}
+
+bool DocumentData::canBePlayed() const {
+	return (isAnimation() || isVideoFile() || isAudioFile())
+		&& (loaded() || canBeStreamed());
+}
+
 auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 -> std::unique_ptr<Media::Streaming::Loader> {
+	// #TODO streaming create local file loader
+	//auto &location = this->location(true);
+	//if (!_doc->data().isEmpty()) {
+	//	initStreaming();
+	//} else if (location.accessEnable()) {
+	//	initStreaming();
+	//	location.accessDisable();
+	//}
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().api(),

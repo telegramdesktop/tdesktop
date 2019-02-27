@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/view/media_clip_controller.h"
+#include "media/view/media_view_playback_controls.h"
 
 #include "media/audio/media_audio.h"
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/fade_animation.h"
@@ -17,69 +17,89 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_mediaview.h"
 
 namespace Media {
-namespace Clip {
+namespace View {
 
-Controller::Controller(QWidget *parent) : TWidget(parent)
+PlaybackControls::PlaybackControls(QWidget *parent, not_null<Delegate *> delegate)
+: RpWidget(parent)
+, _delegate(delegate)
 , _playPauseResume(this, st::mediaviewPlayButton)
 , _playbackSlider(this, st::mediaviewPlayback)
-, _playback(std::make_unique<Playback>())
+, _playbackProgress(std::make_unique<PlaybackProgress>())
 , _volumeController(this, st::mediaviewPlayback)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
-	_fadeAnimation->setFinishedCallback([this] { fadeFinished(); });
-	_fadeAnimation->setUpdatedCallback([this](float64 opacity) { fadeUpdated(opacity); });
+	_fadeAnimation->setFinishedCallback([=] {
+		fadeFinished();
+	});
+	_fadeAnimation->setUpdatedCallback([=](float64 opacity) {
+		fadeUpdated(opacity);
+	});
 
 	_volumeController->setValue(Global::VideoVolume());
 	_volumeController->setChangeProgressCallback([=](float64 value) {
-		volumeChanged(value);
+		_delegate->playbackControlsVolumeChanged(value);
 	});
-	//_volumeController->setChangeFinishedCallback();
 
-	connect(_playPauseResume, SIGNAL(clicked()), this, SIGNAL(playPressed()));
-	connect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
-	//connect(_volumeController, SIGNAL(volumeChanged(float64)), this, SIGNAL(volumeChanged(float64)));
+	_playPauseResume->addClickHandler([=] {
+		if (_showPause) {
+			_delegate->playbackControlsPause();
+		} else {
+			_delegate->playbackControlsPlay();
+		}
+	});
+	_fullScreenToggle->addClickHandler([=] {
+		if (_inFullScreen) {
+			_delegate->playbackControlsFromFullScreen();
+		} else {
+			_delegate->playbackControlsToFullScreen();
+		}
+	});
 
-	_playback->setInLoadingStateChangedCallback([this](bool loading) {
+	_playbackProgress->setInLoadingStateChangedCallback([=](bool loading) {
 		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setValueChangedCallback([this](float64 value) {
+	_playbackProgress->setValueChangedCallback([=](float64 value) {
 		_playbackSlider->setValue(value);
 	});
-	_playbackSlider->setChangeProgressCallback([this](float64 value) {
-		_playback->setValue(value, false);
-		handleSeekProgress(value); // This may destroy Controller.
+	_playbackSlider->setChangeProgressCallback([=](float64 value) {
+		_playbackProgress->setValue(value, false);
+
+		// This may destroy PlaybackControls.
+		handleSeekProgress(value);
 	});
-	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
-		_playback->setValue(value, false);
+	_playbackSlider->setChangeFinishedCallback([=](float64 value) {
+		_playbackProgress->setValue(value, false);
 		handleSeekFinished(value);
 	});
 }
 
-void Controller::handleSeekProgress(float64 progress) {
+void PlaybackControls::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
 	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		refreshTimeTexts();
-		emit seekProgress(positionMs); // This may destroy Controller.
+
+		// This may destroy PlaybackControls.
+		_delegate->playbackControlsSeekProgress(positionMs);
 	}
 }
 
-void Controller::handleSeekFinished(float64 progress) {
+void PlaybackControls::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
 	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
-	emit seekFinished(positionMs);
+	_delegate->playbackControlsSeekFinished(positionMs);
 	refreshTimeTexts();
 }
 
 template <typename Callback>
-void Controller::startFading(Callback start) {
+void PlaybackControls::startFading(Callback start) {
 	if (!_fadeAnimation->animating()) {
 		showChildren();
 		_playbackSlider->disablePaint(true);
@@ -103,45 +123,42 @@ void Controller::startFading(Callback start) {
 	_volumeController->disablePaint(false);
 }
 
-void Controller::showAnimated() {
+void PlaybackControls::showAnimated() {
 	startFading([this]() {
 		_fadeAnimation->fadeIn(st::mediaviewShowDuration);
 	});
 }
 
-void Controller::hideAnimated() {
+void PlaybackControls::hideAnimated() {
 	startFading([this]() {
 		_fadeAnimation->fadeOut(st::mediaviewHideDuration);
 	});
 }
 
-void Controller::fadeFinished() {
+void PlaybackControls::fadeFinished() {
 	fadeUpdated(_fadeAnimation->visible() ? 1. : 0.);
 }
 
-void Controller::fadeUpdated(float64 opacity) {
+void PlaybackControls::fadeUpdated(float64 opacity) {
 	_playbackSlider->setFadeOpacity(opacity);
 	_volumeController->setFadeOpacity(opacity);
 }
 
-void Controller::updatePlayback(const Player::TrackState &state) {
+void PlaybackControls::updatePlayback(const Player::TrackState &state) {
 	updatePlayPauseResumeState(state);
-	_playback->updateState(state);
+	_playbackProgress->updateState(state);
 	updateTimeTexts(state);
 }
 
-void Controller::updatePlayPauseResumeState(const Player::TrackState &state) {
+void PlaybackControls::updatePlayPauseResumeState(const Player::TrackState &state) {
 	auto showPause = ShowPauseIcon(state.state) || (_seekPositionMs >= 0);
 	if (showPause != _showPause) {
-		disconnect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 		_showPause = showPause;
-		connect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
-
 		_playPauseResume->setIconOverride(_showPause ? &st::mediaviewPauseIcon : nullptr, _showPause ? &st::mediaviewPauseIconOver : nullptr);
 	}
 }
 
-void Controller::updateTimeTexts(const Player::TrackState &state) {
+void PlaybackControls::updateTimeTexts(const Player::TrackState &state) {
 	qint64 position = 0, length = state.length;
 
 	if (Player::IsStoppedAtEnd(state.state)) {
@@ -166,7 +183,7 @@ void Controller::updateTimeTexts(const Player::TrackState &state) {
 	}
 }
 
-void Controller::refreshTimeTexts() {
+void PlaybackControls::refreshTimeTexts() {
 	auto alreadyChanged = false, leftChanged = false;
 	auto timeAlready = _timeAlready;
 	auto timeLeft = _timeLeft;
@@ -189,16 +206,16 @@ void Controller::refreshTimeTexts() {
 	}
 }
 
-void Controller::setInFullScreen(bool inFullScreen) {
-	_fullScreenToggle->setIconOverride(inFullScreen ? &st::mediaviewFullScreenOutIcon : nullptr, inFullScreen ? &st::mediaviewFullScreenOutIconOver : nullptr);
-	disconnect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
-	disconnect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(fromFullScreenPressed()));
-
-	auto handler = inFullScreen ? SIGNAL(fromFullScreenPressed()) : SIGNAL(toFullScreenPressed());
-	connect(_fullScreenToggle, SIGNAL(clicked()), this, handler);
+void PlaybackControls::setInFullScreen(bool inFullScreen) {
+	if (_inFullScreen != inFullScreen) {
+		_inFullScreen = inFullScreen;
+		_fullScreenToggle->setIconOverride(
+			_inFullScreen ? &st::mediaviewFullScreenOutIcon : nullptr,
+			_inFullScreen ? &st::mediaviewFullScreenOutIconOver : nullptr);
+	}
 }
 
-void Controller::resizeEvent(QResizeEvent *e) {
+void PlaybackControls::resizeEvent(QResizeEvent *e) {
 	int playTop = (height() - _playPauseResume->height()) / 2;
 	_playPauseResume->moveToLeft(st::mediaviewPlayPauseLeft, playTop);
 
@@ -216,7 +233,7 @@ void Controller::resizeEvent(QResizeEvent *e) {
 	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - playbackWidth, st::mediaviewPlayProgressTop);
 }
 
-void Controller::paintEvent(QPaintEvent *e) {
+void PlaybackControls::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_fadeAnimation->paint(p)) {
@@ -231,11 +248,11 @@ void Controller::paintEvent(QPaintEvent *e) {
 	App::roundRect(p, rect(), st::mediaviewSaveMsgBg, MediaviewSaveCorners);
 }
 
-void Controller::mousePressEvent(QMouseEvent *e) {
+void PlaybackControls::mousePressEvent(QMouseEvent *e) {
 	e->accept(); // Don't pass event to the Media::View::OverlayWidget.
 }
 
-Controller::~Controller() = default;
+PlaybackControls::~PlaybackControls() = default;
 
-} // namespace Clip
+} // namespace View
 } // namespace Media

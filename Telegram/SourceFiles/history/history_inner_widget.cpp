@@ -1823,7 +1823,11 @@ void HistoryInner::showContextInFolder(not_null<DocumentData*> document) {
 void HistoryInner::saveDocumentToFile(
 		FullMsgId contextId,
 		not_null<DocumentData*> document) {
-	DocumentSaveClickHandler::Save(contextId, document, true);
+	DocumentSaveClickHandler::Save(
+		contextId,
+		document,
+		App::histItemById(contextId),
+		true);
 }
 
 void HistoryInner::openContextGif(FullMsgId itemId) {

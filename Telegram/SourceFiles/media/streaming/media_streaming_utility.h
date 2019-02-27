@@ -173,10 +173,18 @@ void LogError(QLatin1String method, AvErrorWrap error);
 [[nodiscard]] AvErrorWrap ProcessPacket(Stream &stream, Packet &&packet);
 [[nodiscard]] AvErrorWrap ReadNextFrame(Stream &stream);
 
-[[nodiscard]] QImage CreateImageForOriginalFrame(QSize size);
+[[nodiscard]] bool GoodForRequest(
+	const QImage &image,
+	const FrameRequest &request);
+[[nodiscard]] bool GoodStorageForFrame(const QImage &storage, QSize size);
+[[nodiscard]] QImage CreateFrameStorage(QSize size);
 [[nodiscard]] QImage ConvertFrame(
 	Stream& stream,
 	QSize resize,
+	QImage storage);
+[[nodiscard]] QImage PrepareByRequest(
+	const QImage &original,
+	const FrameRequest &request,
 	QImage storage);
 
 } // namespace Streaming

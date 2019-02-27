@@ -5,23 +5,23 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "media/view/media_clip_playback.h"
+#include "media/view/media_view_playback_progress.h"
 
 #include "media/audio/media_audio.h"
 #include "styles/style_mediaview.h"
 
 namespace Media {
-namespace Clip {
+namespace View {
 namespace {
 
 constexpr auto kPlaybackAnimationDurationMs = crl::time(200);
 
 } // namespace
 
-Playback::Playback() : _a_value(animation(this, &Playback::step_value)) {
+PlaybackProgress::PlaybackProgress() : _a_value(animation(this, &PlaybackProgress::step_value)) {
 }
 
-void Playback::updateState(const Player::TrackState &state) {
+void PlaybackProgress::updateState(const Player::TrackState &state) {
 	qint64 position = 0, length = state.length;
 
 	auto wasInLoadingState = _inLoadingState;
@@ -60,7 +60,7 @@ void Playback::updateState(const Player::TrackState &state) {
 	}
 }
 
-void Playback::updateLoadingState(float64 progress) {
+void PlaybackProgress::updateLoadingState(float64 progress) {
 	if (!_inLoadingState) {
 		_inLoadingState = true;
 		if (_inLoadingStateChanged) {
@@ -71,16 +71,16 @@ void Playback::updateLoadingState(float64 progress) {
 	setValue(progress, animated);
 }
 
-float64 Playback::value() const {
+float64 PlaybackProgress::value() const {
 	return qMin(a_value.current(), 1.);
 }
 
-float64 Playback::value(crl::time ms) {
+float64 PlaybackProgress::value(crl::time ms) {
 	_a_value.step(ms);
 	return value();
 }
 
-void Playback::setValue(float64 value, bool animated) {
+void PlaybackProgress::setValue(float64 value, bool animated) {
 	if (animated) {
 		a_value.start(value);
 		_a_value.start();
@@ -93,7 +93,7 @@ void Playback::setValue(float64 value, bool animated) {
 	}
 }
 
-void Playback::step_value(float64 ms, bool timer) {
+void PlaybackProgress::step_value(float64 ms, bool timer) {
 	auto dt = anim::Disabled() ? 1. : (ms / kPlaybackAnimationDurationMs);
 	if (dt >= 1.) {
 		_a_value.stop();
@@ -106,5 +106,5 @@ void Playback::step_value(float64 ms, bool timer) {
 	}
 }
 
-} // namespace Clip
+} // namespace View
 } // namespace Media

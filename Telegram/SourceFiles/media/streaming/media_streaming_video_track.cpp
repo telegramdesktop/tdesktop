@@ -43,6 +43,7 @@ public:
 	void setSpeed(float64 speed);
 	void interrupt();
 	void frameDisplayed();
+	void updateFrameRequest(const FrameRequest &request);
 
 private:
 	[[nodiscard]] bool interrupted() const;
@@ -79,6 +80,7 @@ private:
 	crl::time _nextFrameDisplayTime = kTimeUnknown;
 	rpl::event_stream<crl::time> _nextFrameTimeUpdates;
 	rpl::event_stream<> _waitingForData;
+	FrameRequest _request;
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -150,10 +152,15 @@ void VideoTrackObject::readFrames() {
 	if (interrupted()) {
 		return;
 	}
-	const auto state = _shared->prepareState(trackTime().trackTime);
+	const auto time = trackTime().trackTime;
+	const auto dropStaleFrames = _options.dropStaleFrames;
+	const auto state = _shared->prepareState(time, dropStaleFrames);
 	state.match([&](Shared::PrepareFrame frame) {
-		if (readFrame(frame)) {
-			presentFrameIfNeeded();
+		while (readFrame(frame)) {
+			if (!dropStaleFrames || !VideoTrack::IsStale(frame, time)) {
+				presentFrameIfNeeded();
+				break;
+			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) {
 		Expects(delay > 0);
@@ -183,17 +190,8 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 		_error();
 		return false;
 	}
-	frame->original = ConvertFrame(
-		_stream,
-		QSize(),
-		std::move(frame->original));
 	frame->position = position;
 	frame->displayed = kTimeUnknown;
-
-	// #TODO streaming later prepare frame
-	//frame->request
-	//frame->prepared
-
 	return true;
 }
 
@@ -202,7 +200,24 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		return;
 	}
 	const auto time = trackTime();
-	const auto presented = _shared->presentFrame(time.trackTime);
+	const auto prepare = [&](not_null<Frame*> frame) {
+		frame->request = _request;
+		frame->original = ConvertFrame(
+			_stream,
+			frame->request.resize,
+			std::move(frame->original));
+		if (frame->original.isNull()) {
+			frame->prepared = QImage();
+			interrupt();
+			_error();
+			return;
+		}
+
+		VideoTrack::PrepareFrameByRequest(frame);
+
+		Ensures(VideoTrack::IsPrepared(frame));
+	};
+	const auto presented = _shared->presentFrame(time.trackTime, prepare);
 	if (presented.displayPosition != kTimeUnknown) {
 		const auto trackLeft = presented.displayPosition - time.trackTime;
 
@@ -266,6 +281,10 @@ void VideoTrackObject::frameDisplayed() {
 		return;
 	}
 	queueReadFrames();
+}
+
+void VideoTrackObject::updateFrameRequest(const FrameRequest &request) {
+	_request = request;
 }
 
 bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
@@ -412,31 +431,20 @@ not_null<VideoTrack::Frame*> VideoTrack::Shared::getFrame(int index) {
 	return &_frames[index];
 }
 
-bool VideoTrack::Shared::IsPrepared(not_null<Frame*> frame) {
-	return (frame->position != kTimeUnknown)
-		&& (frame->displayed == kTimeUnknown)
-		&& !frame->original.isNull();
-}
-
-bool VideoTrack::Shared::IsStale(
-		not_null<Frame*> frame,
-		crl::time trackTime) {
-	Expects(IsPrepared(frame));
-
-	return (frame->position < trackTime);
-}
-
-auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
+auto VideoTrack::Shared::prepareState(
+	crl::time trackTime,
+	bool dropStaleFrames)
+-> PrepareState {
 	const auto prepareNext = [&](int index) -> PrepareState {
 		const auto frame = getFrame(index);
 		const auto next = getFrame((index + 1) % kFramesCount);
-		if (!IsPrepared(frame)) {
+		if (!IsDecoded(frame)) {
 			return frame;
-		} else if (IsStale(frame, trackTime)) {
+		} else if (dropStaleFrames && IsStale(frame, trackTime)) {
 			std::swap(*frame, *next);
 			next->displayed = kDisplaySkipped;
-			return IsPrepared(frame) ? next : frame;
-		} else if (!IsPrepared(next)) {
+			return IsDecoded(frame) ? next : frame;
+		} else if (!IsDecoded(next)) {
 			return next;
 		} else {
 			return PrepareNextCheck(frame->position - trackTime + 1);
@@ -445,7 +453,7 @@ auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
 	const auto finishPrepare = [&](int index) {
 		const auto frame = getFrame(index);
 		// If player already awaits next frame - we ignore if it's stale.
-		return IsPrepared(frame) ? std::nullopt : PrepareState(frame);
+		return IsDecoded(frame) ? std::nullopt : PrepareState(frame);
 	};
 
 	switch (counter()) {
@@ -461,11 +469,18 @@ auto VideoTrack::Shared::prepareState(crl::time trackTime) -> PrepareState {
 	Unexpected("Counter value in VideoTrack::Shared::prepareState.");
 }
 
-auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
+template <typename PrepareCallback>
+auto VideoTrack::Shared::presentFrame(
+	crl::time trackTime,
+	PrepareCallback &&prepare)
+-> PresentFrame {
 	const auto present = [&](int counter, int index) -> PresentFrame {
 		const auto frame = getFrame(index);
-		Assert(IsPrepared(frame));
 		const auto position = frame->position;
+		prepare(frame);
+		if (!IsPrepared(frame)) {
+			return { kTimeUnknown, crl::time(0) };
+		}
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
@@ -476,8 +491,8 @@ auto VideoTrack::Shared::presentFrame(crl::time trackTime) -> PresentFrame {
 	const auto nextCheckDelay = [&](int index) -> PresentFrame {
 		const auto frame = getFrame(index);
 		const auto next = getFrame((index + 1) % kFramesCount);
-		if (!IsPrepared(frame)
-			|| !IsPrepared(next)
+		if (!IsDecoded(frame)
+			|| !IsDecoded(next)
 			|| IsStale(frame, trackTime)) {
 			return { kTimeUnknown, crl::time(0) };
 		}
@@ -594,22 +609,48 @@ crl::time VideoTrack::markFrameDisplayed(crl::time now) {
 	return position;
 }
 
-QImage VideoTrack::frame(const FrameRequest &request) const {
+QImage VideoTrack::frame(const FrameRequest &request) {
 	const auto frame = _shared->frameForPaint();
-	Assert(frame != nullptr);
-	Assert(!frame->original.isNull());
+	const auto changed = (frame->request != request);
+	if (changed) {
+		frame->request = request;
+		_wrapped.with([=](Implementation &unwrapped) {
+			unwrapped.updateFrameRequest(request);
+		});
+	}
+	return PrepareFrameByRequest(frame, !changed);
+}
 
-	if (request.resize.isEmpty()) {
+QImage VideoTrack::PrepareFrameByRequest(
+		not_null<Frame*> frame,
+		bool useExistingPrepared) {
+	Expects(!frame->original.isNull());
+
+	if (GoodForRequest(frame->original, frame->request)) {
 		return frame->original;
-	} else if (frame->prepared.isNull() || frame->request != request) {
-		// #TODO streaming later prepare frame
-		//frame->request = request;
-		//frame->prepared = PrepareFrame(
-		//	frame->original,
-		//	request,
-		//	std::move(frame->prepared));
+	} else if (frame->prepared.isNull() || !useExistingPrepared) {
+		frame->prepared = PrepareByRequest(
+			frame->original,
+			frame->request,
+			std::move(frame->prepared));
 	}
 	return frame->prepared;
+}
+
+bool VideoTrack::IsDecoded(not_null<Frame*> frame) {
+	return (frame->position != kTimeUnknown)
+		&& (frame->displayed == kTimeUnknown);
+}
+
+bool VideoTrack::IsPrepared(not_null<Frame*> frame) {
+	return IsDecoded(frame)
+		&& !frame->original.isNull();
+}
+
+bool VideoTrack::IsStale(not_null<Frame*> frame, crl::time trackTime) {
+	Expects(IsDecoded(frame));
+
+	return (frame->position < trackTime);
 }
 
 rpl::producer<crl::time> VideoTrack::renderNextFrame() const {

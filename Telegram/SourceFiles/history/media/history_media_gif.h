@@ -14,9 +14,9 @@ struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 
 namespace Media {
-namespace Clip {
-class Playback;
-} // namespace Clip
+namespace View {
+class PlaybackProgress;
+} // namespace View
 
 namespace Player {
 class RoundController;
@@ -91,7 +91,7 @@ private:
 	Media::Player::RoundController *activeRoundVideo() const;
 	Media::Clip::Reader *activeRoundPlayer() const;
 	Media::Clip::Reader *currentReader() const;
-	Media::Clip::Playback *videoPlayback() const;
+	Media::View::PlaybackProgress *videoPlayback() const;
 	void clipCallback(Media::Clip::Notification notification);
 
 	bool needInfoDisplay() const;

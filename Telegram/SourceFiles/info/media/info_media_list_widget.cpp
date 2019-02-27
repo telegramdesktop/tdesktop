@@ -1277,6 +1277,7 @@ void ListWidget::showContextMenu(
 							DocumentSaveClickHandler::Save(
 								itemFullId,
 								document,
+								App::histItemById(itemFullId),
 								true);
 						});
 					_contextMenu->addAction(
