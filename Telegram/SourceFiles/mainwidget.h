@@ -365,8 +365,6 @@ private:
 
 	void setupConnectingWidget();
 	void createPlayer();
-	void switchToPanelPlayer();
-	void switchToFixedPlayer();
 	void closeBothPlayers();
 	void playerHeightUpdated();
 
@@ -501,7 +499,6 @@ private:
 		= { nullptr };
 	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
-	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
 
 	base::unique_qptr<Window::HistoryHider> _hider;

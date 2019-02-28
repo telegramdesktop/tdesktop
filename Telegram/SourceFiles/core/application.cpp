@@ -209,7 +209,9 @@ void Application::showPhoto(
 }
 
 void Application::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
-	if (cUseExternalVideoPlayer() && document->isVideoFile()) {
+	if (cUseExternalVideoPlayer()
+		&& document->isVideoFile()
+		&& document->loaded()) {
 		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
 	} else {
 		_mediaView->showDocument(document, item);
@@ -738,6 +740,11 @@ void Application::authSessionDestroy() {
 	if (_authSession) {
 		unlockTerms();
 		_mtproto->clearGlobalHandlers();
+
+		// Must be called before Auth().data() is destroyed,
+		// because streaming media holds pointers to it.
+		Media::Player::instance()->handleLogout();
+
 		_authSession = nullptr;
 		authSessionChanged().notify(true);
 		Notify::unreadCounterUpdated();

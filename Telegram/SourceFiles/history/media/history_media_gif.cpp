@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_round_controller.h"
+#include "media/player/media_player_instance.h"
 #include "media/view/media_view_playback_progress.h"
 #include "boxes/confirm_box.h"
 #include "history/history_item_components.h"
@@ -750,8 +751,8 @@ void HistoryGif::updateStatusText() const {
 		if (const auto video = activeRoundPlayer()) {
 			statusSize = -1 - _data->duration();
 
-			const auto state = Media::Player::mixer()->currentState(
-				AudioMsgId::Type::Voice);
+			const auto type = AudioMsgId::Type::Voice;
+			const auto state = Media::Player::instance()->getState(type);
 			if (state.id == video->audioMsgId() && state.length) {
 				auto position = int64(0);
 				if (Media::Player::IsStoppedAtEnd(state.state)) {

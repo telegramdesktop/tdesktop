@@ -10,14 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "base/bytes.h"
 
-struct VideoSoundData;
-struct VideoSoundPart;
+namespace Media {
+struct ExternalSoundData;
+struct ExternalSoundPart;
+} // namespace Media
 
 namespace Media {
 namespace Streaming {
 struct TimePoint;
 } // namespace Streaming
+} // namespace Media
 
+namespace Media {
 namespace Audio {
 
 class Instance;
@@ -126,7 +130,7 @@ public:
 	void play(const AudioMsgId &audio, crl::time positionMs = 0);
 	void play(
 		const AudioMsgId &audio,
-		std::unique_ptr<VideoSoundData> videoData,
+		std::unique_ptr<ExternalSoundData> externalData,
 		crl::time positionMs = 0);
 	void pause(const AudioMsgId &audio, bool fast = false);
 	void resume(const AudioMsgId &audio, bool fast = false);
@@ -134,13 +138,13 @@ public:
 	void stop(const AudioMsgId &audio);
 	void stop(const AudioMsgId &audio, State state);
 
-	// Video player audio stream interface.
-	void feedFromVideo(const VideoSoundPart &part);
-	void forceToBufferVideo(const AudioMsgId &audioId);
-	void setSpeedFromVideo(const AudioMsgId &audioId, float64 speed);
-	Streaming::TimePoint getVideoSyncTimePoint(
+	// External player audio stream interface.
+	void feedFromExternal(ExternalSoundPart &&part);
+	void forceToBufferExternal(const AudioMsgId &audioId);
+	void setSpeedFromExternal(const AudioMsgId &audioId, float64 speed);
+	Streaming::TimePoint getExternalSyncTimePoint(
 		const AudioMsgId &audio) const;
-	crl::time getVideoCorrectedTime(
+	crl::time getExternalCorrectedTime(
 		const AudioMsgId &id,
 		crl::time frameMs,
 		crl::time systemMs);
@@ -194,7 +198,7 @@ private:
 	void resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered = -1);
 	bool checkCurrentALError(AudioMsgId::Type type);
 
-	void videoSoundProgress(const AudioMsgId &audio);
+	void externalSoundProgress(const AudioMsgId &audio);
 
 	class Track {
 	public:
@@ -212,7 +216,7 @@ private:
 
 		int getNotQueuedBufferIndex();
 
-		void setVideoData(std::unique_ptr<VideoSoundData> data);
+		void setExternalData(std::unique_ptr<ExternalSoundData> data);
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		void changeSpeedEffect(float64 speed);
 #endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
@@ -239,7 +243,7 @@ private:
 			uint32 buffers[kBuffersCount] = { 0 };
 		};
 		Stream stream;
-		std::unique_ptr<VideoSoundData> videoData;
+		std::unique_ptr<ExternalSoundData> externalData;
 
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		struct SpeedEffect {

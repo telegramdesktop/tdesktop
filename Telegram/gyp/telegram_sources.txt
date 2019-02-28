@@ -440,8 +440,6 @@
 <(src_loc)/media/clip/media_clip_reader.h
 <(src_loc)/media/player/media_player_button.cpp
 <(src_loc)/media/player/media_player_button.h
-<(src_loc)/media/player/media_player_cover.cpp
-<(src_loc)/media/player/media_player_cover.h
 <(src_loc)/media/player/media_player_float.cpp
 <(src_loc)/media/player/media_player_float.h
 <(src_loc)/media/player/media_player_instance.cpp

@@ -855,5 +855,5 @@ void HistoryDocumentVoice::startSeeking() {
 
 void HistoryDocumentVoice::stopSeeking() {
 	_seeking = false;
-	Media::Player::instance()->stopSeeking(AudioMsgId::Type::Voice);
+	Media::Player::instance()->cancelSeeking(AudioMsgId::Type::Voice);
 }

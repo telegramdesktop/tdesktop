@@ -35,6 +35,7 @@ struct PlaybackOptions {
 	Mode mode = Mode::Both;
 	crl::time position = 0;
 	float64 speed = 1.; // Valid values between 0.5 and 2.
+	AudioMsgId audioId;
 	bool syncVideoByAudio = true;
 	bool dropStaleFrames = true;
 };

@@ -422,7 +422,8 @@ void Mixer::Track::resetSpeedEffect() {
 #endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 void Mixer::Track::reattach(AudioMsgId::Type type) {
-	if (isStreamCreated() || !samplesCount[0]) {
+	if (isStreamCreated()
+		|| (!samplesCount[0] && !state.id.externalPlayId())) {
 		return;
 	}
 
@@ -440,11 +441,13 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 		&& (state.state != State::PausedAtEnd)
 		&& !state.waitingForData) {
 		alSourcef(stream.source, AL_GAIN, ComputeVolume(type));
+		LOG(("alSourcePlay: reattach for %1").arg(state.id.externalPlayId()));
 		alSourcePlay(stream.source);
 		if (IsPaused(state.state)) {
 			// We must always start the source if we want the AL_SAMPLE_OFFSET to be applied.
 			// Otherwise it won't be read by alGetSource and we'll get a corrupt position.
 			// So in case of a paused source we start it and then immediately pause it.
+			LOG(("alSourcePause: reattach for %1").arg(state.id.externalPlayId()));
 			alSourcePause(stream.source);
 		}
 	}
@@ -475,7 +478,7 @@ void Mixer::Track::clear() {
 		bufferSamples[i] = QByteArray();
 	}
 
-	setVideoData(nullptr);
+	setExternalData(nullptr);
 	lastUpdateWhen = 0;
 	lastUpdatePosition = 0;
 }
@@ -553,11 +556,12 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 	return -1;
 }
 
-void Mixer::Track::setVideoData(std::unique_ptr<VideoSoundData> data) {
+void Mixer::Track::setExternalData(
+		std::unique_ptr<ExternalSoundData> data) {
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	changeSpeedEffect(data ? data->speed : 1.);
 #endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
-	videoData = std::move(data);
+	externalData = std::move(data);
 }
 
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
@@ -640,8 +644,8 @@ Mixer::~Mixer() {
 }
 
 void Mixer::onUpdated(const AudioMsgId &audio) {
-	if (audio.playId()) {
-		videoSoundProgress(audio);
+	if (audio.externalPlayId()) {
+		externalSoundProgress(audio);
 	}
 	Media::Player::Updated().notify(audio);
 }
@@ -740,7 +744,9 @@ void Mixer::resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered
 			positionInBuffered = 0;
 		}
 	}
-	auto fullPosition = track->bufferedPosition + positionInBuffered;
+	auto fullPosition = track->samplesCount[0]
+		? (track->bufferedPosition + positionInBuffered)
+		: track->state.position;
 	track->state.position = fullPosition;
 	track->fadeStartPosition = fullPosition;
 }
@@ -776,9 +782,9 @@ void Mixer::play(const AudioMsgId &audio, crl::time positionMs) {
 
 void Mixer::play(
 		const AudioMsgId &audio,
-		std::unique_ptr<VideoSoundData> videoData,
+		std::unique_ptr<ExternalSoundData> externalData,
 		crl::time positionMs) {
-	Expects(!videoData || audio.playId() != 0);
+	Expects((externalData != nullptr) == (audio.externalPlayId() != 0));
 
 	auto type = audio.type();
 	AudioMsgId stopped;
@@ -839,24 +845,33 @@ void Mixer::play(
 			}
 		}
 
-		current->state.id = audio;
+		if (current->state.id != audio) {
+			current->started(); // Clear all previous state.
+			current->state.id = audio;
+		}
 		current->lastUpdateWhen = 0;
 		current->lastUpdatePosition = 0;
-		if (videoData) {
-			current->setVideoData(std::move(videoData));
+		if (externalData) {
+			current->setExternalData(std::move(externalData));
 		} else {
-			current->setVideoData(nullptr);
+			current->setExternalData(nullptr);
 			current->file = audio.audio()->location(true);
 			current->data = audio.audio()->data();
 			notLoadedYet = (current->file.isEmpty() && current->data.isEmpty());
 		}
 		if (notLoadedYet) {
-			auto newState = (type == AudioMsgId::Type::Song) ? State::Stopped : State::StoppedAtError;
+			auto newState = (type == AudioMsgId::Type::Song)
+				? State::Stopped
+				: State::StoppedAtError;
 			setStoppedState(current, newState);
 		} else {
 			current->state.position = (positionMs * current->state.frequency)
 				/ 1000LL;
-			current->state.state = current->videoData ? State::Paused : fadedStart ? State::Starting : State::Playing;
+			current->state.state = current->externalData
+				? State::Paused
+				: fadedStart
+				? State::Starting
+				: State::Playing;
 			current->loading = true;
 			emit loaderOnStart(current->state.id, positionMs);
 			if (type == AudioMsgId::Type::Voice) {
@@ -879,63 +894,60 @@ void Mixer::play(
 	}
 }
 
-void Mixer::feedFromVideo(const VideoSoundPart &part) {
-	_loader->feedFromVideo(part);
+void Mixer::feedFromExternal(ExternalSoundPart &&part) {
+	_loader->feedFromExternal(std::move(part));
 }
 
-void Mixer::forceToBufferVideo(const AudioMsgId &audioId) {
-	_loader->forceToBufferVideo(audioId);
+void Mixer::forceToBufferExternal(const AudioMsgId &audioId) {
+	_loader->forceToBufferExternal(audioId);
 }
 
-void Mixer::setSpeedFromVideo(const AudioMsgId &audioId, float64 speed) {
+void Mixer::setSpeedFromExternal(const AudioMsgId &audioId, float64 speed) {
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 	QMutexLocker lock(&AudioMutex);
-	const auto track = trackForType(AudioMsgId::Type::Video);
+	const auto track = trackForType(audioId.type());
 	if (track->state.id == audioId) {
 		track->changeSpeedEffect(speed);
 	}
 #endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 }
 
-Streaming::TimePoint Mixer::getVideoSyncTimePoint(
+Streaming::TimePoint Mixer::getExternalSyncTimePoint(
 		const AudioMsgId &audio) const {
-	Expects(audio.type() == AudioMsgId::Type::Video);
-	Expects(audio.playId() != 0);
+	Expects(audio.externalPlayId() != 0);
 
 	auto result = Streaming::TimePoint();
-	const auto playId = audio.playId();
+	const auto type = audio.type();
 
 	QMutexLocker lock(&AudioMutex);
-	const auto track = trackForType(AudioMsgId::Type::Video);
-	if (track->state.id.playId() == playId && track->lastUpdateWhen > 0) {
+	const auto track = trackForType(type);
+	if (track && track->state.id == audio && track->lastUpdateWhen > 0) {
 		result.trackTime = track->lastUpdatePosition;
 		result.worldTime = track->lastUpdateWhen;
 	}
 	return result;
 }
 
-crl::time Mixer::getVideoCorrectedTime(const AudioMsgId &audio, crl::time frameMs, crl::time systemMs) {
+crl::time Mixer::getExternalCorrectedTime(const AudioMsgId &audio, crl::time frameMs, crl::time systemMs) {
 	auto result = frameMs;
+	const auto type = audio.type();
 
 	QMutexLocker lock(&AudioMutex);
-	auto type = audio.type();
-	auto track = trackForType(type);
+	const auto track = trackForType(type);
 	if (track && track->state.id == audio && track->lastUpdateWhen > 0) {
 		result = static_cast<crl::time>(track->lastUpdatePosition);
 		if (systemMs > track->lastUpdateWhen) {
 			result += (systemMs - track->lastUpdateWhen);
 		}
 	}
-
 	return result;
 }
 
-void Mixer::videoSoundProgress(const AudioMsgId &audio) {
-	auto type = audio.type();
+void Mixer::externalSoundProgress(const AudioMsgId &audio) {
+	const auto type = audio.type();
 
 	QMutexLocker lock(&AudioMutex);
-
-	auto current = trackForType(type);
+	const auto current = trackForType(type);
 	if (current && current->state.length && current->state.frequency) {
 		if (current->state.id == audio && current->state.state == State::Playing) {
 			current->lastUpdateWhen = crl::now();
@@ -947,7 +959,7 @@ void Mixer::videoSoundProgress(const AudioMsgId &audio) {
 bool Mixer::checkCurrentALError(AudioMsgId::Type type) {
 	if (!Audio::PlaybackErrorHappened()) return true;
 
-	auto data = trackForType(type);
+	const auto data = trackForType(type);
 	if (!data) {
 		setStoppedState(data, State::StoppedAtError);
 		onError(data->state.id);
@@ -1044,6 +1056,7 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 						alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
 						if (!checkCurrentALError(type)) return;
 					}
+					LOG(("alSourcePlay: resume for: %1").arg(track->state.id.externalPlayId()));
 					alSourcePlay(track->stream.source);
 					if (!checkCurrentALError(type)) return;
 				}
@@ -1134,12 +1147,13 @@ void Mixer::stop(const AudioMsgId &audio) {
 			return;
 		}
 
-		current = track->state.id;
+		current = audio;
 		fadedStop(type);
 		if (type == AudioMsgId::Type::Voice) {
 			emit unsuppressSong();
 		} else if (type == AudioMsgId::Type::Video) {
 			track->clear();
+			emit loaderOnCancel(audio);
 		}
 	}
 	if (current) emit updated(current);
@@ -1153,11 +1167,13 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 		QMutexLocker lock(&AudioMutex);
 		auto type = audio.type();
 		auto track = trackForType(type);
-		if (!track || track->state.id != audio || IsStopped(track->state.state)) {
+		if (!track
+			|| track->state.id != audio
+			|| IsStopped(track->state.state)) {
 			return;
 		}
 
-		current = track->state.id;
+		current = audio;
 		setStoppedState(track, state);
 		if (type == AudioMsgId::Type::Voice) {
 			emit unsuppressSong();
@@ -1247,6 +1263,7 @@ void Mixer::setStoppedState(Track *current, State state) {
 		alSourceStop(current->stream.source);
 		alSourcef(current->stream.source, AL_GAIN, 1);
 	}
+	emit loaderOnCancel(current->state.id);
 }
 
 void Mixer::clearStoppedAtStart(const AudioMsgId &audio) {
@@ -1508,6 +1525,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 		track->state.position = fullPosition;
 		emitSignals |= EmitPositionUpdated;
 	} else if (track->state.waitingForData && !waitingForDataOld) {
+		LOG(("WAITING FOR DATA FOR: %1.").arg(track->state.id.externalPlayId()));
 		if (fullPosition > track->state.position) {
 			track->state.position = fullPosition;
 		}
@@ -1621,7 +1639,6 @@ void DetachFromDevice(not_null<Audio::Instance*> instance) {
 } // namespace internal
 
 } // namespace Player
-} // namespace Media
 
 class FFMpegAttributesReader : public AbstractFFMpegLoader {
 public:
@@ -1675,7 +1692,7 @@ public:
 
 	void trySet(QString &to, AVDictionary *dict, const char *key) {
 		if (!to.isEmpty()) return;
-		if (AVDictionaryEntry* tag = av_dict_get(dict, key, 0, 0)) {
+		if (AVDictionaryEntry* tag = av_dict_get(dict, key, nullptr, 0)) {
 			to = QString::fromUtf8(tag->value);
 		}
 	}
@@ -1731,7 +1748,6 @@ private:
 
 };
 
-namespace Media {
 namespace Player {
 
 FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
@@ -1748,7 +1764,6 @@ FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteAr
 }
 
 } // namespace Player
-} // namespace Media
 
 class FFMpegWaveformCounter : public FFMpegLoader {
 public:
@@ -1834,8 +1849,12 @@ private:
 
 };
 
-VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data) {
-	FFMpegWaveformCounter counter(file, data);
+} // namespace Media
+
+VoiceWaveform audioCountWaveform(
+		const FileLocation &file,
+		const QByteArray &data) {
+	Media::FFMpegWaveformCounter counter(file, data);
 	const auto positionMs = crl::time(0);
 	if (counter.open(positionMs)) {
 		return counter.waveform();

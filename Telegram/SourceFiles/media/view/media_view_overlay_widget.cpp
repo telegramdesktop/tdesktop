@@ -45,7 +45,6 @@ namespace Media {
 namespace View {
 namespace {
 
-constexpr auto kMsFrequency = 1000; // 1000 ms per second.
 constexpr auto kPreloadCount = 4;
 
 // Preload X message ids before and after current.
@@ -319,30 +318,6 @@ QImage OverlayWidget::videoFrame() const {
 	return _streamed->player.ready()
 		? _streamed->player.frame(request)
 		: _streamed->info.video.cover;
-}
-
-crl::time OverlayWidget::streamedPosition() const {
-	Expects(_streamed != nullptr);
-
-	const auto result = std::max(
-		_streamed->info.audio.state.position,
-		_streamed->info.video.state.position);
-	return (result != kTimeUnknown) ? result : crl::time(0);
-}
-
-crl::time OverlayWidget::streamedDuration() const {
-	Expects(_streamed != nullptr);
-
-	const auto result = std::max(
-		_streamed->info.audio.state.duration,
-		_streamed->info.video.state.duration);
-	if (result != kTimeUnknown) {
-		return result;
-	}
-	const auto duration = _doc->song()
-		? _doc->song()->duration
-		: _doc->duration();
-	return (duration > 0) ? duration * crl::time(1000) : kTimeUnknown;
 }
 
 bool OverlayWidget::documentContentShown() const {
@@ -1892,7 +1867,7 @@ void OverlayWidget::initStreaming() {
 		handleStreamingUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
-	}, _streamed->controls.lifetime());
+	}, _streamed->player.lifetime());
 
 	restartAtSeekPosition(0);
 }
@@ -1938,6 +1913,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [&](UpdateVideo &update) {
 		_streamed->info.video.state.position = update.position;
 		this->update(contentRect());
+		Core::App().updateNonIdle();
 		updatePlaybackState();
 	}, [&](PreloadedAudio &update) {
 		_streamed->info.audio.state.receivedTill = update.till;
@@ -2134,15 +2110,17 @@ void OverlayWidget::playbackToggleFullScreen() {
 void OverlayWidget::updatePlaybackState() {
 	Expects(_streamed != nullptr);
 
-	auto state = Player::TrackState();
-	state.state = _streamed->player.finished()
-		? Player::State::StoppedAtEnd
-		: _streamed->player.paused()
-		? Player::State::Paused
-		: Player::State::Playing;
-	state.position = streamedPosition();
-	state.length = streamedDuration();
-	state.frequency = kMsFrequency;
+	auto state = _streamed->player.prepareLegacyState();
+	if (state.length == kTimeUnknown) {
+		const auto duration = _doc->song()
+			? _doc->song()->duration
+			: _doc->duration();
+		if (duration > 0) {
+			state.length = std::max(
+				duration * crl::time(1000),
+				state.position);
+		}
+	}
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
 		_streamed->controls.updatePlayback(state);
 	}

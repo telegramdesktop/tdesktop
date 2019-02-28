@@ -366,11 +366,7 @@ MainWidget::MainWidget(
 , _sideShadow(this)
 , _dialogs(this, _controller)
 , _history(this, _controller)
-, _playerPlaylist(
-	this,
-	_controller,
-	Media::Player::Panel::Layout::OnlyPlaylist)
-, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full)
+, _playerPlaylist(this, _controller)
 , _noUpdatesTimer([=] { sendPing(); })
 , _byPtsTimer([=] { getDifferenceByPts(); })
 , _bySeqTimer([=] { getDifference(); })
@@ -447,15 +443,6 @@ MainWidget::MainWidget(
 		}
 	});
 
-	_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
-	_playerPanel->setCloseCallback([this] { closeBothPlayers(); });
-	subscribe(Media::Player::instance()->titleButtonOver(), [this](bool over) {
-		if (over) {
-			_playerPanel->showFromOther();
-		} else {
-			_playerPanel->hideFromOther();
-		}
-	});
 	subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
 		if (over) {
 			if (_playerPlaylist->isHidden()) {
@@ -471,7 +458,7 @@ MainWidget::MainWidget(
 	});
 	subscribe(Media::Player::instance()->tracksFinishedNotifier(), [this](AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Voice) {
-			auto songState = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+			const auto songState = Media::Player::instance()->getState(AudioMsgId::Type::Song);
 			if (!songState.id || IsStoppedOrStopping(songState.state)) {
 				closeBothPlayers();
 			}
@@ -1189,7 +1176,7 @@ void MainWidget::messagesAffected(
 void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	using State = Media::Player::State;
 	const auto document = audioId.audio();
-	auto state = Media::Player::mixer()->currentState(audioId.type());
+	auto state = Media::Player::instance()->getState(audioId.type());
 	if (state.id == audioId && state.state == State::StoppedAtStart) {
 		state.state = State::Stopped;
 		Media::Player::mixer()->clearStoppedAtStart(audioId);
@@ -1220,47 +1207,12 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 }
 
-void MainWidget::switchToPanelPlayer() {
-	if (_playerUsingPanel) return;
-	_playerUsingPanel = true;
-
-	_player->hide(anim::type::normal);
-	_playerVolume.destroyDelayed();
-	_playerPlaylist->hideIgnoringEnterEvents();
-
-	Media::Player::instance()->usePanelPlayer().notify(true, true);
-}
-
-void MainWidget::switchToFixedPlayer() {
-	if (!_playerUsingPanel) return;
-	_playerUsingPanel = false;
-
-	if (!_player) {
-		createPlayer();
-	} else {
-		_player->show(anim::type::normal);
-		if (!_playerVolume) {
-			_playerVolume.create(this);
-			_player->entity()->volumeWidgetCreated(_playerVolume);
-			updateMediaPlayerPosition();
-		}
-	}
-
-	Media::Player::instance()->usePanelPlayer().notify(false, true);
-	_playerPanel->hideIgnoringEnterEvents();
-}
-
 void MainWidget::closeBothPlayers() {
-	if (_playerUsingPanel) {
-		_playerUsingPanel = false;
-		_player.destroyDelayed();
-	} else if (_player) {
+	if (_player) {
 		_player->hide(anim::type::normal);
 	}
 	_playerVolume.destroyDelayed();
 
-	Media::Player::instance()->usePanelPlayer().notify(false, true);
-	_playerPanel->hideIgnoringEnterEvents();
 	_playerPlaylist->hideIgnoringEnterEvents();
 	Media::Player::instance()->stop(AudioMsgId::Type::Voice);
 	Media::Player::instance()->stop(AudioMsgId::Type::Song);
@@ -1269,9 +1221,6 @@ void MainWidget::closeBothPlayers() {
 }
 
 void MainWidget::createPlayer() {
-	if (_playerUsingPanel) {
-		return;
-	}
 	if (!_player) {
 		_player.create(this, object_ptr<Media::Player::Widget>(this));
 		rpl::merge(
@@ -1314,7 +1263,7 @@ void MainWidget::playerHeightUpdated() {
 		updateControlsGeometry();
 	}
 	if (!_playerHeight && _player->isHidden()) {
-		auto state = Media::Player::mixer()->currentState(Media::Player::instance()->getActiveType());
+		const auto state = Media::Player::instance()->getState(Media::Player::instance()->getActiveType());
 		if (!state.id || Media::Player::IsStoppedOrStopping(state.state)) {
 			_playerVolume.destroyDelayed();
 			_player.destroyDelayed();
@@ -2042,10 +1991,6 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	if (playerVolumeVisible) {
 		_playerVolume->hide();
 	}
-	auto playerPanelVisible = !_playerPanel->isHidden();
-	if (playerPanelVisible) {
-		_playerPanel->hide();
-	}
 	auto playerPlaylistVisible = !_playerPlaylist->isHidden();
 	if (playerPlaylistVisible) {
 		_playerPlaylist->hide();
@@ -2072,9 +2017,6 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 
 	if (playerVolumeVisible) {
 		_playerVolume->show();
-	}
-	if (playerPanelVisible) {
-		_playerPanel->show();
 	}
 	if (playerPlaylistVisible) {
 		_playerPlaylist->show();
@@ -2330,7 +2272,6 @@ void MainWidget::orderWidgets() {
 	}
 	_connecting->raise();
 	_playerPlaylist->raise();
-	_playerPanel->raise();
 	floatPlayerRaiseAll();
 	if (_hider) _hider->raise();
 }
@@ -2351,10 +2292,6 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	auto playerVolumeVisible = _playerVolume && !_playerVolume->isHidden();
 	if (playerVolumeVisible) {
 		_playerVolume->hide();
-	}
-	auto playerPanelVisible = !_playerPanel->isHidden();
-	if (playerPanelVisible) {
-		_playerPanel->hide();
 	}
 	auto playerPlaylistVisible = !_playerPlaylist->isHidden();
 	if (playerPlaylistVisible) {
@@ -2385,9 +2322,6 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	}
 	if (playerVolumeVisible) {
 		_playerVolume->show();
-	}
-	if (playerPanelVisible) {
-		_playerPanel->show();
 	}
 	if (playerPlaylistVisible) {
 		_playerPlaylist->show();
@@ -2890,7 +2824,6 @@ void MainWidget::updateThirdColumnToCurrentChat(
 }
 
 void MainWidget::updateMediaPlayerPosition() {
-	_playerPanel->moveToRight(0, 0);
 	if (_player && _playerVolume) {
 		auto relativePosition = _player->entity()->getPositionForVolumeWidget();
 		auto playerMargins = _playerVolume->getMargin();
@@ -3524,7 +3457,6 @@ void MainWidget::openPeerByName(
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return (_history->contentOverlapped(globalRect)
-			|| _playerPanel->overlaps(globalRect)
 			|| _playerPlaylist->overlaps(globalRect)
 			|| (_playerVolume && _playerVolume->overlaps(globalRect)));
 }

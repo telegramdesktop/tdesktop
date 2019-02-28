@@ -156,8 +156,8 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	subscribe(instance()->tracksFinishedNotifier(), [this](AudioMsgId::Type type) {
 		if (type == AudioMsgId::Type::Voice) {
 			_voiceIsActive = false;
-			auto currentSong = instance()->current(AudioMsgId::Type::Song);
-			auto songState = mixer()->currentState(AudioMsgId::Type::Song);
+			const auto currentSong = instance()->current(AudioMsgId::Type::Song);
+			const auto songState = instance()->getState(AudioMsgId::Type::Song);
 			if (currentSong == songState.id && !IsStoppedOrStopping(songState.state)) {
 				setType(AudioMsgId::Type::Song);
 			}
@@ -191,8 +191,8 @@ void Widget::setCloseCallback(Fn<void()> callback) {
 void Widget::stopAndClose() {
 	_voiceIsActive = false;
 	if (_type == AudioMsgId::Type::Voice) {
-		auto songData = instance()->current(AudioMsgId::Type::Song);
-		auto songState = mixer()->currentState(AudioMsgId::Type::Song);
+		const auto songData = instance()->current(AudioMsgId::Type::Song);
+		const auto songState = instance()->getState(AudioMsgId::Type::Song);
 		if (songData == songState.id && !IsStoppedOrStopping(songState.state)) {
 			instance()->stop(AudioMsgId::Type::Voice);
 			return;
@@ -248,12 +248,7 @@ void Widget::handleSeekFinished(float64 progress) {
 	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 
-	auto state = mixer()->currentState(_type);
-	if (state.id && state.length && state.frequency) {
-		mixer()->seek(_type, qRound(progress * state.length * 1000. / state.frequency));
-	}
-
-	instance()->stopSeeking(_type);
+	instance()->finishSeeking(_type, progress);
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -382,8 +377,8 @@ void Widget::updatePlaybackSpeedIcon() {
 
 void Widget::checkForTypeChange() {
 	auto hasActiveType = [](AudioMsgId::Type type) {
-		auto current = instance()->current(type);
-		auto state = mixer()->currentState(type);
+		const auto current = instance()->current(type);
+		const auto state = instance()->getState(type);
 		return (current == state.id && !IsStoppedOrStopping(state.state));
 	};
 	if (hasActiveType(AudioMsgId::Type::Voice)) {
@@ -410,7 +405,7 @@ void Widget::setType(AudioMsgId::Type type) {
 		}
 		updateLabelsGeometry();
 		handleSongChange();
-		handleSongUpdate(mixer()->currentState(_type));
+		handleSongUpdate(instance()->getState(_type));
 		updateOverLabelsState(_labelsOver);
 		_playlistChangesLifetime = instance()->playlistChanges(
 			_type

@@ -15,7 +15,15 @@ namespace Media {
 namespace Audio {
 class Instance;
 } // namespace Audio
+namespace Streaming {
+class Loader;
+struct PlaybackOptions;
+struct Update;
+struct Error;
+} // namespace Streaming
+} // namespace Media
 
+namespace Media {
 namespace Player {
 
 void start(not_null<Audio::Instance*> instance);
@@ -59,6 +67,9 @@ public:
 	void playPauseCancelClicked(AudioMsgId::Type type);
 
 	void play(const AudioMsgId &audioId);
+	void playPause(const AudioMsgId &audioId);
+	TrackState getState(AudioMsgId::Type type) const;
+
 	AudioMsgId current(AudioMsgId::Type type) const {
 		if (auto data = getData(type)) {
 			return data->current;
@@ -86,7 +97,8 @@ public:
 		return false;
 	}
 	void startSeeking(AudioMsgId::Type type);
-	void stopSeeking(AudioMsgId::Type type);
+	void finishSeeking(AudioMsgId::Type type, float64 progress);
+	void cancelSeeking(AudioMsgId::Type type);
 
 	bool nextAvailable(AudioMsgId::Type type) const;
 	bool previousAvailable(AudioMsgId::Type type) const;
@@ -98,12 +110,6 @@ public:
 
 	base::Observable<Switch> &switchToNextNotifier() {
 		return _switchToNextNotifier;
-	}
-	base::Observable<bool> &usePanelPlayer() {
-		return _usePanelPlayer;
-	}
-	base::Observable<bool> &titleButtonOver() {
-		return _titleButtonOver;
 	}
 	base::Observable<bool> &playerWidgetOver() {
 		return _playerWidgetOver;
@@ -125,21 +131,17 @@ public:
 
 	void documentLoadProgress(DocumentData *document);
 
-	void clear();
+	void handleLogout();
 
 private:
-	Instance();
-	friend void start(not_null<Audio::Instance*> instance);
-
-	void setupShortcuts();
-
 	using SharedMediaType = Storage::SharedMediaType;
 	using SliceKey = SparseIdsMergedSlice::Key;
+	struct Streamed;
 	struct Data {
-		Data(AudioMsgId::Type type, SharedMediaType overview)
-		: type(type)
-		, overview(overview) {
-		}
+		Data(AudioMsgId::Type type, SharedMediaType overview);
+		Data(Data &&other);
+		Data &operator=(Data &&other);
+		~Data();
 
 		AudioMsgId::Type type;
 		Storage::SharedMediaType overview;
@@ -156,7 +158,22 @@ private:
 		bool repeatEnabled = false;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
+		std::unique_ptr<Streamed> streamed;
 	};
+
+	Instance();
+	~Instance();
+
+	friend void start(not_null<Audio::Instance*> instance);
+	friend void finish(not_null<Audio::Instance*> instance);
+
+	void setupShortcuts();
+	void playStreamed(
+		const AudioMsgId &audioId,
+		std::unique_ptr<Streaming::Loader> loader);
+	Streaming::PlaybackOptions streamingOptions(
+		const AudioMsgId &audioId,
+		crl::time position = 0);
 
 	// Observed notifications.
 	void handleSongUpdate(const AudioMsgId &audioId);
@@ -173,8 +190,15 @@ private:
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	void preloadNext(not_null<Data*> data);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
-	void handleLogout();
 
+	void handleStreamingUpdate(
+		not_null<Data*> data,
+		Streaming::Update &&update);
+	void handleStreamingError(
+		not_null<Data*> data,
+		Streaming::Error &&error);
+
+	void emitUpdate(AudioMsgId::Type type);
 	template <typename CheckCallback>
 	void emitUpdate(AudioMsgId::Type type, CheckCallback check);
 
@@ -200,8 +224,6 @@ private:
 	Data _voiceData;
 
 	base::Observable<Switch> _switchToNextNotifier;
-	base::Observable<bool> _usePanelPlayer;
-	base::Observable<bool> _titleButtonOver;
 	base::Observable<bool> _playerWidgetOver;
 	base::Observable<TrackState> _updatedNotifier;
 	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/media_active_cache.h"
 #include "core/mime_type.h"
 #include "media/audio/media_audio.h"
+#include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "history/history.h"
@@ -27,9 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 #include "mainwindow.h"
 #include "core/application.h"
-
-// #TODO streaming ui
-#include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
 
 namespace {
@@ -294,52 +292,26 @@ void DocumentOpenClickHandler::Open(
 		ActionOnLoad action) {
 	if (!data->date) return;
 
-	auto msgId = context ? context->fullId() : FullMsgId();
-	bool playVoice = data->isVoiceMessage();
-	bool playMusic = data->isAudioFile();
-	bool playVideo = data->isVideoFile();
-	bool playAnimation = data->isAnimation();
-	auto &location = data->location(true);
-	if (data->isTheme()) {
-		if (!location.isEmpty() && location.accessEnable()) {
-			Core::App().showDocument(data, context);
-			location.accessDisable();
-			return;
-		}
-	}
-	if (data->canBePlayed()) {
+	const auto msgId = context ? context->fullId() : FullMsgId();
+	const auto playVoice = data->isVoiceMessage();
+	const auto playAnimation = data->isAnimation();
+	const auto &location = data->location(true);
+	if (data->isTheme() && !location.isEmpty() && location.accessEnable()) {
 		Core::App().showDocument(data, context);
+		location.accessDisable();
+		return;
+	} else if (data->canBePlayed()) {
+		if (data->isAudioFile()) {
+			Media::Player::instance()->playPause({ data, msgId });
+		} else {
+			Core::App().showDocument(data, context);
+		}
 		return;
 	}
-	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
+	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playAnimation))) {
 		using State = Media::Player::State;
 		if (playVoice) {
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
-					Media::Player::mixer()->resume(state.id);
-				} else {
-					Media::Player::mixer()->pause(state.id);
-				}
-			} else {
-				auto audio = AudioMsgId(data, msgId);
-				Media::Player::mixer()->play(audio);
-				Media::Player::Updated().notify(audio);
-				data->owner().markMediaRead(data);
-			}
-		} else if (playMusic) {
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
-					Media::Player::mixer()->resume(state.id);
-				} else {
-					Media::Player::mixer()->pause(state.id);
-				}
-			} else {
-				auto song = AudioMsgId(data, msgId);
-				Media::Player::mixer()->play(song);
-				Media::Player::Updated().notify(song);
-			}
+			Media::Player::instance()->playPause({ data, msgId });
 		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
 				if (action == ActionOnLoadPlayInline && context) {
@@ -750,35 +722,8 @@ void DocumentData::performActionOnLoad() {
 		}
 	}
 	using State = Media::Player::State;
-	if (playVoice) {
-		if (loaded()) {
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
-					Media::Player::mixer()->resume(state.id);
-				} else {
-					Media::Player::mixer()->pause(state.id);
-				}
-			} else if (Media::Player::IsStopped(state.state)) {
-				Media::Player::mixer()->play(AudioMsgId(this, _actionOnLoadMsgId));
-				_owner->markMediaRead(this);
-			}
-		}
-	} else if (playMusic) {
-		if (loaded()) {
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
-					Media::Player::mixer()->resume(state.id);
-				} else {
-					Media::Player::mixer()->pause(state.id);
-				}
-			} else if (Media::Player::IsStopped(state.state)) {
-				auto song = AudioMsgId(this, _actionOnLoadMsgId);
-				Media::Player::mixer()->play(song);
-				Media::Player::Updated().notify(song);
-			}
-		}
+	if (playVoice || playMusic) {
+		DocumentOpenClickHandler::Open({}, this, item, ActionOnLoadNone);
 	} else if (playAnimation) {
 		if (loaded()) {
 			if (_actionOnLoad == ActionOnLoadPlayInline && item) {

@@ -894,31 +894,24 @@ bool File::updateStatusText() const {
 	} else if (_document->loading()) {
 		statusSize = _document->loadOffset();
 	} else if (_document->loaded()) {
-		if (_document->isVoiceMessage()) {
-			statusSize = FileStatusSizeLoaded;
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.length / state.frequency);
-				showPause = Media::Player::ShowPauseIcon(state.state);
-			}
-		} else if (_document->isAudioFile()) {
-			statusSize = FileStatusSizeLoaded;
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(_document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.length / state.frequency);
-				showPause = Media::Player::ShowPauseIcon(state.state);
-			}
-			if (!showPause && (state.id == AudioMsgId(_document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
-				showPause = true;
-			}
-		} else {
-			statusSize = FileStatusSizeLoaded;
-		}
+		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
+
+	if (_document->isVoiceMessage() || _document->isAudioFile()) {
+		const auto type = _document->isVoiceMessage() ? AudioMsgId::Type::Voice : AudioMsgId::Type::Song;
+		const auto state = Media::Player::instance()->getState(type);
+		if (state.id == AudioMsgId(_document, FullMsgId(), state.id.externalPlayId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+			statusSize = -1 - (state.position / state.frequency);
+			realDuration = (state.length / state.frequency);
+			showPause = Media::Player::ShowPauseIcon(state.state);
+		}
+		if (!showPause && (state.id == AudioMsgId(_document, FullMsgId(), state.id.externalPlayId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
+			showPause = true;
+		}
+	}
+
 	if (statusSize != _statusSize) {
 		int32 duration = _document->isSong()
 			? _document->song()->duration

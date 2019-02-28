@@ -90,7 +90,10 @@ Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, crl::tim
 Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, crl::time seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
-, _audioMsgId(document, msgId, (mode == Mode::Video) ? rand_value<uint32>() : 0)
+, _audioMsgId(
+	document,
+	msgId,
+	(mode == Mode::Video) ? AudioMsgId::CreateExternalPlayId() : 0)
 , _seekPositionMs(seekMs) {
 	init(document->location(), document->data());
 }

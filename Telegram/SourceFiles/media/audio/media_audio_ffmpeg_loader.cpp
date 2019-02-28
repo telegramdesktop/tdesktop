@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/bytes.h"
 
+namespace Media {
+
 uint64_t AbstractFFMpegLoader::ComputeChannelLayout(
-		uint64_t channel_layout,
-		int channels) {
+	uint64_t channel_layout,
+	int channels) {
 	if (channel_layout) {
 		if (av_get_channel_layout_nb_channels(channel_layout) == channels) {
 			return channel_layout;
@@ -32,13 +34,13 @@ bool AbstractFFMpegLoader::open(crl::time positionMs) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	ioBuffer = (uchar*)av_malloc(AVBlockSize);
+	ioBuffer = (uchar *)av_malloc(AVBlockSize);
 	if (!_data.isEmpty()) {
-		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void*>(this), &AbstractFFMpegLoader::_read_data, 0, &AbstractFFMpegLoader::_seek_data);
+		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_data, 0, &AbstractFFMpegLoader::_seek_data);
 	} else if (!_bytes.empty()) {
-		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void*>(this), &AbstractFFMpegLoader::_read_bytes, 0, &AbstractFFMpegLoader::_seek_bytes);
+		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_bytes, 0, &AbstractFFMpegLoader::_seek_bytes);
 	} else {
-		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void*>(this), &AbstractFFMpegLoader::_read_file, 0, &AbstractFFMpegLoader::_seek_file);
+		ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_file, 0, &AbstractFFMpegLoader::_seek_file);
 	}
 	fmtContext = avformat_alloc_context();
 	if (!fmtContext) {
@@ -97,7 +99,7 @@ AbstractFFMpegLoader::~AbstractFFMpegLoader() {
 }
 
 int AbstractFFMpegLoader::_read_data(void *opaque, uint8_t *buf, int buf_size) {
-	auto l = reinterpret_cast<AbstractFFMpegLoader*>(opaque);
+	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	auto nbytes = qMin(l->_data.size() - l->_dataPos, int32(buf_size));
 	if (nbytes <= 0) {
@@ -110,7 +112,7 @@ int AbstractFFMpegLoader::_read_data(void *opaque, uint8_t *buf, int buf_size) {
 }
 
 int64_t AbstractFFMpegLoader::_seek_data(void *opaque, int64_t offset, int whence) {
-	auto l = reinterpret_cast<AbstractFFMpegLoader*>(opaque);
+	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	int32 newPos = -1;
 	switch (whence) {
@@ -130,7 +132,7 @@ int64_t AbstractFFMpegLoader::_seek_data(void *opaque, int64_t offset, int whenc
 }
 
 int AbstractFFMpegLoader::_read_bytes(void *opaque, uint8_t *buf, int buf_size) {
-	auto l = reinterpret_cast<AbstractFFMpegLoader*>(opaque);
+	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	auto nbytes = qMin(static_cast<int>(l->_bytes.size()) - l->_dataPos, buf_size);
 	if (nbytes <= 0) {
@@ -143,14 +145,15 @@ int AbstractFFMpegLoader::_read_bytes(void *opaque, uint8_t *buf, int buf_size) 
 }
 
 int64_t AbstractFFMpegLoader::_seek_bytes(void *opaque, int64_t offset, int whence) {
-	auto l = reinterpret_cast<AbstractFFMpegLoader*>(opaque);
+	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	int32 newPos = -1;
 	switch (whence) {
 	case SEEK_SET: newPos = offset; break;
 	case SEEK_CUR: newPos = l->_dataPos + offset; break;
 	case SEEK_END: newPos = static_cast<int>(l->_bytes.size()) + offset; break;
-	case AVSEEK_SIZE: {
+	case AVSEEK_SIZE:
+	{
 		// Special whence for determining filesize without any seek.
 		return l->_bytes.size();
 	} break;
@@ -163,18 +166,19 @@ int64_t AbstractFFMpegLoader::_seek_bytes(void *opaque, int64_t offset, int when
 }
 
 int AbstractFFMpegLoader::_read_file(void *opaque, uint8_t *buf, int buf_size) {
-	auto l = reinterpret_cast<AbstractFFMpegLoader*>(opaque);
-	return int(l->_f.read((char*)(buf), buf_size));
+	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
+	return int(l->_f.read((char *)(buf), buf_size));
 }
 
 int64_t AbstractFFMpegLoader::_seek_file(void *opaque, int64_t offset, int whence) {
-	auto l = reinterpret_cast<AbstractFFMpegLoader*>(opaque);
+	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	switch (whence) {
 	case SEEK_SET: return l->_f.seek(offset) ? l->_f.pos() : -1;
 	case SEEK_CUR: return l->_f.seek(l->_f.pos() + offset) ? l->_f.pos() : -1;
 	case SEEK_END: return l->_f.seek(l->_f.size() + offset) ? l->_f.pos() : -1;
-	case AVSEEK_SIZE: {
+	case AVSEEK_SIZE:
+	{
 		// Special whence for determining filesize without any seek.
 		return l->_f.size();
 	} break;
@@ -186,14 +190,14 @@ AbstractAudioFFMpegLoader::AbstractAudioFFMpegLoader(
 	const FileLocation &file,
 	const QByteArray &data,
 	bytes::vector &&buffer)
-: AbstractFFMpegLoader(file, data, std::move(buffer)) {
-	_frame = av_frame_alloc();
+: AbstractFFMpegLoader(file, data, std::move(buffer))
+, _frame(Streaming::MakeFramePointer()) {
 }
 
 bool AbstractAudioFFMpegLoader::initUsingContext(
-		not_null<AVCodecContext*> context,
-		int64 initialCount,
-		int initialFrequency) {
+	not_null<AVCodecContext *> context,
+	int64 initialCount,
+	int initialFrequency) {
 	const auto layout = ComputeChannelLayout(
 		context->channel_layout,
 		context->channels);
@@ -260,22 +264,20 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 }
 
 auto AbstractAudioFFMpegLoader::replaceFrameAndRead(
-	not_null<AVFrame*> frame,
+	Streaming::FramePointer frame,
 	QByteArray &result,
 	int64 &samplesAdded)
 -> ReadResult {
-	av_frame_free(&_frame);
-	_frame = frame;
+	_frame = std::move(frame);
 	return readFromReadyFrame(result, samplesAdded);
 }
 
 auto AbstractAudioFFMpegLoader::readFromReadyContext(
-	not_null<AVCodecContext*> context,
+	not_null<AVCodecContext *> context,
 	QByteArray &result,
 	int64 &samplesAdded)
 -> ReadResult {
-	av_frame_unref(_frame);
-	const auto res = avcodec_receive_frame(context, _frame);
+	const auto res = avcodec_receive_frame(context, _frame.get());
 	if (res >= 0) {
 		return readFromReadyFrame(result, samplesAdded);
 	}
@@ -427,19 +429,19 @@ bool AbstractAudioFFMpegLoader::ensureResampleSpaceAvailable(int samples) {
 }
 
 void AbstractAudioFFMpegLoader::appendSamples(
-		QByteArray &result,
-		int64 &samplesAdded,
-		uint8_t **data,
-		int count) const {
+	QByteArray & result,
+	int64 & samplesAdded,
+	uint8_t * *data,
+	int count) const {
 	result.append(
-		reinterpret_cast<const char*>(data[0]),
+		reinterpret_cast<const char *>(data[0]),
 		count * _outputSampleSize);
 	samplesAdded += count;
 }
 
 AudioPlayerLoader::ReadResult AbstractAudioFFMpegLoader::readFromReadyFrame(
-		QByteArray &result,
-		int64 &samplesAdded) {
+	QByteArray & result,
+	int64 & samplesAdded) {
 	if (frameHasDesiredFormat()) {
 		appendSamples(
 			result,
@@ -463,7 +465,7 @@ AudioPlayerLoader::ReadResult AbstractAudioFFMpegLoader::readFromReadyFrame(
 		_swrContext,
 		_swrDstData,
 		maxSamples,
-		(const uint8_t**)_frame->extended_data,
+		(const uint8_t * *)_frame->extended_data,
 		_frame->nb_samples);
 	if (samples < 0) {
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -496,13 +498,12 @@ AbstractAudioFFMpegLoader::~AbstractAudioFFMpegLoader() {
 		}
 		av_freep(&_swrDstData);
 	}
-	av_frame_free(&_frame);
 }
 
 FFMpegLoader::FFMpegLoader(
-	const FileLocation &file,
-	const QByteArray &data,
-	bytes::vector &&buffer)
+	const FileLocation & file,
+	const QByteArray & data,
+	bytes::vector && buffer)
 : AbstractAudioFFMpegLoader(file, data, std::move(buffer)) {
 }
 
@@ -582,8 +583,8 @@ bool FFMpegLoader::seekTo(crl::time positionMs) {
 }
 
 AudioPlayerLoader::ReadResult FFMpegLoader::readMore(
-		QByteArray &result,
-		int64 &samplesAdded) {
+	QByteArray & result,
+	int64 & samplesAdded) {
 	const auto readResult = readFromReadyContext(
 		_codecContext,
 		result,
@@ -641,3 +642,5 @@ FFMpegLoader::~FFMpegLoader() {
 		avcodec_free_context(&_codecContext);
 	}
 }
+
+} // namespace Media

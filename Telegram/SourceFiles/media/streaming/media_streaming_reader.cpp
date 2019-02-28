@@ -379,9 +379,6 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		if (cacheNotLoaded(sliceIndex)
 			&& !(_data[sliceIndex].flags & Flag::LoadingFromCache)) {
 			_data[sliceIndex].flags |= Flag::LoadingFromCache;
-			if (sliceIndex == 23) {
-				int a = 0;
-			}
 			result.sliceNumbersFromCache.add(sliceIndex + 1);
 		}
 	};

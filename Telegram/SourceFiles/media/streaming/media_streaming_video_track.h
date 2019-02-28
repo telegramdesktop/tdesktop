@@ -57,6 +57,7 @@ private:
 	friend class VideoTrackObject;
 
 	struct Frame {
+		FramePointer decoded = MakeFramePointer();
 		QImage original;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;

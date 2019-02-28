@@ -15,6 +15,7 @@ extern "C" {
 
 #include "media/clip/media_clip_implementation.h"
 #include "media/audio/media_child_ffmpeg_loader.h"
+#include "media/streaming/media_streaming_utility.h"
 
 namespace Media {
 namespace Clip {
@@ -54,9 +55,9 @@ private:
 		EndOfFile,
 		Error,
 	};
-	PacketResult readPacket(AVPacket *packet);
-	void processPacket(AVPacket *packet);
-	crl::time countPacketMs(AVPacket *packet) const;
+	PacketResult readPacket(Streaming::Packet &packet);
+	void processPacket(Streaming::Packet &&packet);
+	crl::time countPacketMs(const Streaming::Packet &packet) const;
 	PacketResult readAndProcessPacket();
 
 	enum class Rotation {
@@ -70,10 +71,6 @@ private:
 		return (_rotation == Rotation::Degrees90) || (_rotation == Rotation::Degrees270);
 	}
 
-	void startPacket();
-	void finishPacket();
-	void clearPacketQueue();
-
 	static int _read(void *opaque, uint8_t *buf, int buf_size);
 	static int64_t _seek(void *opaque, int64_t offset, int whence);
 
@@ -86,7 +83,7 @@ private:
 	AVFormatContext *_fmtContext = nullptr;
 	AVCodecContext *_codecContext = nullptr;
 	int _streamId = 0;
-	AVFrame *_frame = nullptr;
+	Streaming::FramePointer _frame;
 	bool _opened = false;
 	bool _hadFrame = false;
 	bool _frameRead = false;
@@ -98,10 +95,7 @@ private:
 	crl::time _lastReadVideoMs = 0;
 	crl::time _lastReadAudioMs = 0;
 
-	QQueue<FFMpeg::AVPacketDataWrap> _packetQueue;
-	int _packetStartedSize = 0;
-	uint8_t *_packetStartedData = nullptr;
-	bool _packetStarted = false;
+	std::deque<Streaming::Packet> _packetQueue;
 
 	int _width = 0;
 	int _height = 0;

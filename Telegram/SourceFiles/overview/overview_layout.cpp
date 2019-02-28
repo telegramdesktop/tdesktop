@@ -849,15 +849,18 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
-		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-		if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.playId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
-			statusSize = -1 - (state.position / state.frequency);
-			realDuration = (state.length / state.frequency);
-			showPause = Media::Player::ShowPauseIcon(state.state);
-		}
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
+
+	const auto state = Media::Player::instance()->getState(AudioMsgId::Type::Voice);
+	if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.externalPlayId())
+		&& !Media::Player::IsStoppedOrStopping(state.state)) {
+		statusSize = -1 - (state.position / state.frequency);
+		realDuration = (state.length / state.frequency);
+		showPause = Media::Player::ShowPauseIcon(state.state);
+	}
+
 	if (statusSize != _status.size()) {
 		_status.update(statusSize, _data->size, duration(), realDuration);
 	}
@@ -943,7 +946,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (selected) {
 				p.setBrush(st::msgFileInBgSelected);
 			} else {
-				auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+				auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : _data->canBePlayed() ? _openl : _openl);
 				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 			}
 
@@ -961,10 +964,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			auto icon = [&] {
 				if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);
-				} else if (loaded) {
-					return &(selected ? _st.songPlaySelected : _st.songPlay);
-				} else if (_data->loading()) {
+				} else if (_data->loading() || _data->uploading()) {
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
+				} else if (_data->canBePlayed()) {
+					return &(selected ? _st.songPlaySelected : _st.songPlay);
 				}
 				return &(selected ? _st.songDownloadSelected : _st.songDownload);
 			}();
@@ -1100,10 +1103,10 @@ TextState Document::getState(
 			_st.songThumbSize,
 			_width);
 		if (inner.contains(point)) {
-			const auto link = loaded
-				? _openl
-				: (_data->loading() || _data->uploading())
+			const auto link = (_data->loading() || _data->uploading())
 				? _cancell
+				: _data->canBePlayed()
+				? _openl
 				: _openl;
 			return { parent(), link };
 		}
@@ -1217,23 +1220,23 @@ bool Document::updateStatusText() {
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
-		if (_data->isSong()) {
-			statusSize = FileStatusSizeLoaded;
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(_data, parent()->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
-				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.length / state.frequency);
-				showPause = Media::Player::ShowPauseIcon(state.state);
-			}
-			if (!showPause && (state.id == AudioMsgId(_data, parent()->fullId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
-				showPause = true;
-			}
-		} else {
-			statusSize = FileStatusSizeLoaded;
-		}
+		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
+
+	if (_data->isSong()) {
+		const auto state = Media::Player::instance()->getState(AudioMsgId::Type::Song);
+		if (state.id == AudioMsgId(_data, parent()->fullId(), state.id.externalPlayId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
+			statusSize = -1 - (state.position / state.frequency);
+			realDuration = (state.length / state.frequency);
+			showPause = Media::Player::ShowPauseIcon(state.state);
+		}
+		if (!showPause && (state.id == AudioMsgId(_data, parent()->fullId(), state.id.externalPlayId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
+			showPause = true;
+		}
+	}
+
 	if (statusSize != _status.size()) {
 		_status.update(statusSize, _data->size, _data->isSong() ? _data->song()->duration : -1, realDuration);
 	}

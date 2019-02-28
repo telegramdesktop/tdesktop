@@ -282,8 +282,6 @@ private:
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] bool videoIsGifv() const;
 	[[nodiscard]] QImage videoFrame() const;
-	[[nodiscard]] crl::time streamedPosition() const;
-	[[nodiscard]] crl::time streamedDuration() const;
 	[[nodiscard]] bool documentContentShown() const;
 	[[nodiscard]] bool documentBubbleShown() const;
 	void clearStreaming();

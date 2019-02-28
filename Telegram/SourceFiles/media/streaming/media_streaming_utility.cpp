@@ -33,12 +33,6 @@ bool IsAlignedImage(const QImage &image) {
 		&& !(image.bytesPerLine() % kAlignImageBy);
 }
 
-void ClearFrameMemory(AVFrame *frame) {
-	if (frame && frame->data[0]) {
-		av_frame_unref(frame);
-	}
-}
-
 } // namespace
 
 bool GoodStorageForFrame(const QImage &storage, QSize size) {
@@ -110,6 +104,16 @@ void CodecDeleter::operator()(AVCodecContext *value) {
 
 FramePointer MakeFramePointer() {
 	return FramePointer(av_frame_alloc());
+}
+
+bool FrameHasData(AVFrame *frame) {
+	return (frame && frame->data[0] != nullptr);
+}
+
+void ClearFrameMemory(AVFrame *frame) {
+	if (FrameHasData(frame)) {
+		av_frame_unref(frame);
+	}
 }
 
 void FrameDeleter::operator()(AVFrame *value) {
@@ -288,17 +292,20 @@ bool GoodForRequest(const QImage &image, const FrameRequest &request) {
 		&& (request.resize == image.size());
 }
 
-QImage ConvertFrame(Stream &stream, QSize resize, QImage storage) {
-	Expects(stream.frame != nullptr);
+QImage ConvertFrame(
+		Stream &stream,
+		AVFrame *frame,
+		QSize resize,
+		QImage storage) {
+	Expects(frame != nullptr);
 
-	const auto frame = stream.frame.get();
 	const auto frameSize = QSize(frame->width, frame->height);
 	if (frameSize.isEmpty()) {
 		LOG(("Streaming Error: Bad frame size %1,%2"
 			).arg(frameSize.width()
 			).arg(frameSize.height()));
 		return QImage();
-	} else if (!frame->data[0]) {
+	} else if (!FrameHasData(frame)) {
 		LOG(("Streaming Error: Bad frame data."));
 		return QImage();
 	}
@@ -359,6 +366,8 @@ QImage ConvertFrame(Stream &stream, QSize resize, QImage storage) {
 			return QImage();
 		}
 	}
+
+	ClearFrameMemory(frame);
 	return storage;
 }
 

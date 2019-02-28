@@ -20,46 +20,46 @@ constexpr auto kPlaybackBufferSize = 256 * 1024;
 } // namespace
 
 Loaders::Loaders(QThread *thread)
-: _fromVideoNotify([=] { videoSoundAdded(); }) {
+: _fromExternalNotify([=] { videoSoundAdded(); }) {
 	moveToThread(thread);
-	_fromVideoNotify.moveToThread(thread);
+	_fromExternalNotify.moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(onInit()));
 	connect(thread, SIGNAL(finished()), this, SLOT(deleteLater()));
 }
 
-void Loaders::feedFromVideo(const VideoSoundPart &part) {
+void Loaders::feedFromExternal(ExternalSoundPart &&part) {
 	auto invoke = false;
 	{
-		QMutexLocker lock(&_fromVideoMutex);
-		invoke = _fromVideoQueues.empty()
-			&& _fromVideoForceToBuffer.empty();
-		_fromVideoQueues[part.audio].enqueue(FFMpeg::dataWrapFromPacket(*part.packet));
+		QMutexLocker lock(&_fromExternalMutex);
+		invoke = _fromExternalQueues.empty()
+			&& _fromExternalForceToBuffer.empty();
+		_fromExternalQueues[part.audio].push_back(std::move(part.packet));
 	}
 	if (invoke) {
-		_fromVideoNotify.call();
+		_fromExternalNotify.call();
 	}
 }
 
-void Loaders::forceToBufferVideo(const AudioMsgId &audioId) {
+void Loaders::forceToBufferExternal(const AudioMsgId &audioId) {
 	auto invoke = false;
 	{
-		QMutexLocker lock(&_fromVideoMutex);
-		invoke = _fromVideoQueues.empty()
-			&& _fromVideoForceToBuffer.empty();
-		_fromVideoForceToBuffer.emplace(audioId);
+		QMutexLocker lock(&_fromExternalMutex);
+		invoke = _fromExternalQueues.empty()
+			&& _fromExternalForceToBuffer.empty();
+		_fromExternalForceToBuffer.emplace(audioId);
 	}
 	if (invoke) {
-		_fromVideoNotify.call();
+		_fromExternalNotify.call();
 	}
 }
 
 void Loaders::videoSoundAdded() {
-	auto queues = decltype(_fromVideoQueues)();
-	auto forces = decltype(_fromVideoForceToBuffer)();
+	auto queues = decltype(_fromExternalQueues)();
+	auto forces = decltype(_fromExternalForceToBuffer)();
 	{
-		QMutexLocker lock(&_fromVideoMutex);
-		queues = base::take(_fromVideoQueues);
-		forces = base::take(_fromVideoForceToBuffer);
+		QMutexLocker lock(&_fromExternalMutex);
+		queues = base::take(_fromExternalQueues);
+		forces = base::take(_fromExternalForceToBuffer);
 	}
 	for (const auto &audioId : forces) {
 		const auto tryLoader = [&](const auto &id, auto &loader) {
@@ -90,34 +90,9 @@ void Loaders::videoSoundAdded() {
 			}
 			return false;
 		};
-		const auto used = tryLoader(_audio, _audioLoader)
+		tryLoader(_audio, _audioLoader)
 			|| tryLoader(_song, _songLoader)
 			|| tryLoader(_video, _videoLoader);
-		if (!used) {
-			for (auto &packetData : packets) {
-				AVPacket packet;
-				FFMpeg::packetFromDataWrap(packet, packetData);
-				FFMpeg::freePacket(&packet);
-			}
-		}
-	}
-}
-
-Loaders::~Loaders() {
-	QMutexLocker lock(&_fromVideoMutex);
-	clearFromVideoQueue();
-}
-
-void Loaders::clearFromVideoQueue() {
-	auto queues = base::take(_fromVideoQueues);
-	for (auto &pair : queues) {
-		const auto audioId = pair.first;
-		auto &packets = pair.second;
-		for (auto &packetData : packets) {
-			AVPacket packet;
-			FFMpeg::packetFromDataWrap(packet, packetData);
-			FFMpeg::freePacket(&packet);
-		}
 	}
 }
 
@@ -144,7 +119,13 @@ AudioMsgId Loaders::clear(AudioMsgId::Type type) {
 	AudioMsgId result;
 	switch (type) {
 	case AudioMsgId::Type::Voice: std::swap(result, _audio); _audioLoader = nullptr; break;
-	case AudioMsgId::Type::Song: std::swap(result, _song); _songLoader = nullptr; break;
+	case AudioMsgId::Type::Song:
+		if (_songLoader) {
+			LOG(("SONG LOADER KILLED FOR: %1.").arg(_song.externalPlayId()));
+		}
+		std::swap(result, _song);
+		_songLoader = nullptr;
+		break;
 	case AudioMsgId::Type::Video: std::swap(result, _video); _videoLoader = nullptr; break;
 	}
 	return result;
@@ -324,6 +305,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			return;
 		}
 	}
+	LOG(("alSourcePlay: loader for: %1").arg(track->state.id.externalPlayId()));
 	alSourcePlay(track->stream.source);
 	if (!internal::audioCheckError()) {
 		setStoppedState(track, State::StoppedAtError);
@@ -371,17 +353,21 @@ AudioPlayerLoader *Loaders::setupLoader(
 		case AudioMsgId::Type::Video: _video = audio; loader = &_videoLoader; break;
 		}
 
-		if (audio.playId()) {
-			if (!track->videoData) {
+		if (audio.externalPlayId()) {
+			if (!track->externalData) {
 				clear(audio.type());
 				track->state.state = State::StoppedAtError;
 				emit error(audio);
 				LOG(("Audio Error: video sound data not ready"));
 				return nullptr;
 			}
-			*loader = std::make_unique<ChildFFMpegLoader>(std::move(track->videoData));
+			*loader = std::make_unique<ChildFFMpegLoader>(
+				std::move(track->externalData));
 		} else {
-			*loader = std::make_unique<FFMpegLoader>(track->file, track->data, bytes::vector());
+			*loader = std::make_unique<FFMpegLoader>(
+				track->file,
+				track->data,
+				bytes::vector());
 		}
 		l = loader->get();
 
@@ -443,6 +429,8 @@ void Loaders::onCancel(const AudioMsgId &audio) {
 		}
 	}
 }
+
+Loaders::~Loaders() = default;
 
 } // namespace Player
 } // namespace Media

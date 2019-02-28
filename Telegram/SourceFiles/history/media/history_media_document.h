@@ -61,6 +61,12 @@ protected:
 	bool dataLoaded() const override;
 
 private:
+	struct StateFromPlayback {
+		int statusSize = 0;
+		bool showPause = false;
+		int realDuration = 0;
+	};
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 

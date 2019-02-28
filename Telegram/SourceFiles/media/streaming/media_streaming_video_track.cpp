@@ -85,9 +85,6 @@ private:
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
 
-	// For initial frame skipping for an exact seek.
-	FramePointer _initialSkippingFrame;
-
 };
 
 VideoTrackObject::VideoTrackObject(
@@ -190,6 +187,7 @@ bool VideoTrackObject::readFrame(not_null<Frame*> frame) {
 		_error();
 		return false;
 	}
+	std::swap(frame->decoded, _stream.frame);
 	frame->position = position;
 	frame->displayed = kTimeUnknown;
 	return true;
@@ -204,6 +202,7 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		frame->request = _request;
 		frame->original = ConvertFrame(
 			_stream,
+			frame->decoded.get(),
 			frame->request.resize,
 			std::move(frame->original));
 		if (frame->original.isNull()) {
@@ -294,11 +293,7 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	auto frame = QImage();
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
-			if (!_initialSkippingFrame) {
-				return false;
-			}
 			// Return the last valid frame if we seek too far.
-			_stream.frame = std::move(_initialSkippingFrame);
 			return processFirstFrame();
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			return false;
@@ -311,10 +306,6 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	} else if (_syncTimePoint.trackTime < _options.position) {
 		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
 		// Try skipping frames until one is after the requested position.
-		std::swap(_initialSkippingFrame, _stream.frame);
-		if (!_stream.frame) {
-			_stream.frame = MakeFramePointer();
-		}
 		return true;
 	} else {
 		return processFirstFrame();
@@ -322,7 +313,11 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 }
 
 bool VideoTrackObject::processFirstFrame() {
-	auto frame = ConvertFrame(_stream, QSize(), QImage());
+	auto frame = ConvertFrame(
+		_stream,
+		_stream.frame.get(),
+		QSize(),
+		QImage());
 	if (frame.isNull()) {
 		return false;
 	}
@@ -387,9 +382,9 @@ TimePoint VideoTrackObject::trackTime() const {
 	}
 
 	Assert(_resumedTime != kTimeUnknown);
-	if (_options.syncVideoByAudio && _audioId.playId()) {
+	if (_options.syncVideoByAudio && _audioId.externalPlayId()) {
 		const auto mixer = Media::Player::mixer();
-		const auto point = mixer->getVideoSyncTimePoint(_audioId);
+		const auto point = mixer->getExternalSyncTimePoint(_audioId);
 		if (point && point.worldTime > _resumedTime) {
 			_syncTimePoint = point;
 		}

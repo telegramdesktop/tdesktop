@@ -29,7 +29,7 @@ AudioTrack::AudioTrack(
 , _playPosition(options.position) {
 	Expects(_ready != nullptr);
 	Expects(_error != nullptr);
-	Expects(_audioId.playId() != 0);
+	Expects(_audioId.externalPlayId() != 0);
 }
 
 int AudioTrack::streamIndex() const {
@@ -66,11 +66,7 @@ bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 	}
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
-			if (!_initialSkippingFrame) {
-				return false;
-			}
 			// Return the last valid frame if we seek too far.
-			_stream.frame = std::move(_initialSkippingFrame);
 			return processFirstFrame();
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			return false;
@@ -83,10 +79,6 @@ bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 	} else if (_startedPosition < _options.position) {
 		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
 		// Try skipping frames until one is after the requested position.
-		std::swap(_initialSkippingFrame, _stream.frame);
-		if (!_stream.frame) {
-			_stream.frame = MakeFramePointer();
-		}
 		return true;
 	} else {
 		return processFirstFrame();
@@ -111,12 +103,13 @@ bool AudioTrack::fillStateFromFrame() {
 void AudioTrack::mixerInit() {
 	Expects(!initialized());
 
-	auto data = std::make_unique<VideoSoundData>();
-	data->frame = _stream.frame.release();
-	data->context = _stream.codec.release();
+	auto data = std::make_unique<ExternalSoundData>();
+	data->frame = std::move(_stream.frame);
+	data->codec = std::move(_stream.codec);
 	data->frequency = _stream.frequency;
 	data->length = (_stream.duration * data->frequency) / 1000LL;
 	data->speed = _options.speed;
+
 	Media::Player::mixer()->play(
 		_audioId,
 		std::move(data),
@@ -136,15 +129,14 @@ void AudioTrack::callReady() {
 }
 
 void AudioTrack::mixerEnqueue(Packet &&packet) {
-	Media::Player::mixer()->feedFromVideo({
-		&packet.fields(),
-		_audioId
+	Media::Player::mixer()->feedFromExternal({
+		_audioId,
+		std::move(packet)
 	});
-	packet.release();
 }
 
 void AudioTrack::mixerForceToBuffer() {
-	Media::Player::mixer()->forceToBufferVideo(_audioId);
+	Media::Player::mixer()->forceToBufferExternal(_audioId);
 }
 
 void AudioTrack::pause(crl::time time) {
@@ -161,7 +153,7 @@ void AudioTrack::resume(crl::time time) {
 
 void AudioTrack::setSpeed(float64 speed) {
 	_options.speed = speed;
-	Media::Player::mixer()->setSpeedFromVideo(_audioId, speed);
+	Media::Player::mixer()->setSpeedFromExternal(_audioId, speed);
 }
 
 rpl::producer<> AudioTrack::waitingForData() const {
@@ -178,8 +170,8 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 			if (id != _audioId) {
 				return;
 			}
-			const auto type = AudioMsgId::Type::Video;
-			const auto state = Media::Player::mixer()->currentState(type);
+			const auto state = Media::Player::mixer()->currentState(
+				_audioId.type());
 			if (state.id != _audioId) {
 				// #TODO streaming later muted by other
 				return;
@@ -212,7 +204,8 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 }
 
 AudioTrack::~AudioTrack() {
-	if (_audioId.playId()) {
+	if (_audioId.externalPlayId()) {
+		LOG(("mixer()->stop with %1").arg(_audioId.externalPlayId()));
 		Media::Player::mixer()->stop(_audioId);
 	}
 }

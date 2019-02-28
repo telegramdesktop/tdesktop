@@ -363,12 +363,14 @@ public:
 	AudioMsgId(
 		DocumentData *audio,
 		const FullMsgId &msgId,
-		uint32 playId = 0)
+		uint32 externalPlayId = 0)
 	: _audio(audio)
 	, _contextId(msgId)
-	, _playId(playId) {
+	, _externalPlayId(externalPlayId) {
 		setTypeFromAudio();
 	}
+
+	[[nodiscard]] static uint32 CreateExternalPlayId();
 	[[nodiscard]] static AudioMsgId ForVideo();
 
 	Type type() const {
@@ -380,8 +382,8 @@ public:
 	FullMsgId contextId() const {
 		return _contextId;
 	}
-	uint32 playId() const {
-		return _playId;
+	uint32 externalPlayId() const {
+		return _externalPlayId;
 	}
 
 	explicit operator bool() const {
@@ -394,7 +396,7 @@ private:
 	DocumentData *_audio = nullptr;
 	Type _type = Type::Unknown;
 	FullMsgId _contextId;
-	uint32 _playId = 0;
+	uint32 _externalPlayId = 0;
 
 };
 
@@ -408,13 +410,13 @@ inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
 	} else if (b.contextId() < a.contextId()) {
 		return false;
 	}
-	return (a.playId() < b.playId());
+	return (a.externalPlayId() < b.externalPlayId());
 }
 
 inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
 	return (a.audio() == b.audio())
 		&& (a.contextId() == b.contextId())
-		&& (a.playId() == b.playId());
+		&& (a.externalPlayId() == b.externalPlayId());
 }
 
 inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {

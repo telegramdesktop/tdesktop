@@ -173,9 +173,14 @@ bool ReplyPreview::empty() const {
 
 } // namespace Data
 
+uint32 AudioMsgId::CreateExternalPlayId() {
+	static auto Result = uint32(0);
+	return ++Result ? Result : ++Result;
+}
+
 AudioMsgId AudioMsgId::ForVideo() {
 	auto result = AudioMsgId();
-	result._playId = rand_value<uint32>();
+	result._externalPlayId = CreateExternalPlayId();
 	result._type = Type::Video;
 	return result;
 }

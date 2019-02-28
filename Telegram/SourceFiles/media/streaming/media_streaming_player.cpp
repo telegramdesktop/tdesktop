@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_audio_track.h"
 #include "media/streaming/media_streaming_video_track.h"
 #include "media/audio/media_audio.h" // for SupportsSpeedControl()
+#include "data/data_document.h" // for DocumentData::duration()
 
 namespace Media {
 namespace Streaming {
@@ -20,6 +21,7 @@ namespace {
 constexpr auto kReceivedTillEnd = std::numeric_limits<crl::time>::max();
 constexpr auto kBufferFor = 3 * crl::time(1000);
 constexpr auto kLoadInAdvanceFor = 64 * crl::time(1000);
+constexpr auto kMsFrequency = 1000; // 1000 ms per second.
 
 // If we played for 3 seconds and got stuck it looks like we're loading
 // slower than we're playing, so load full file in that case.
@@ -132,7 +134,9 @@ void Player::trackReceivedTill(
 	} else {
 		state.receivedTill = position;
 	}
-	if (!_pauseReading && bothReceivedEnough(kLoadInAdvanceFor)) {
+	if (!_pauseReading
+		&& bothReceivedEnough(kLoadInAdvanceFor)
+		&& !receivedTillEnd()) {
 		_pauseReading = true;
 	}
 }
@@ -150,7 +154,8 @@ void Player::trackPlayedTill(
 		state.position = position;
 		_updates.fire({ PlaybackUpdate<Track>{ position } });
 	}
-	if (_pauseReading && !bothReceivedEnough(kLoadInAdvanceFor)) {
+	if (_pauseReading
+		&& (!bothReceivedEnough(kLoadInAdvanceFor) || receivedTillEnd())) {
 		_pauseReading = false;
 		_file->wake();
 		++wakes;
@@ -213,7 +218,14 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 	};
 	const auto mode = _options.mode;
 	if (audio.codec && (mode == Mode::Audio || mode == Mode::Both)) {
-		_audioId = AudioMsgId::ForVideo();
+		if (_options.audioId) {
+			_audioId = AudioMsgId(
+				_options.audioId.audio(),
+				_options.audioId.contextId(),
+				AudioMsgId::CreateExternalPlayId());
+		} else {
+			_audioId = AudioMsgId::ForVideo();
+		}
 		_audio = std::make_unique<AudioTrack>(
 			_options,
 			std::move(audio),
@@ -429,6 +441,11 @@ bool Player::bothReceivedEnough(crl::time amount) const {
 		&& (!_video || trackReceivedEnough(info.video.state, amount));
 }
 
+bool Player::receivedTillEnd() const {
+	return (!_video || FullTrackReceived(_information.video.state))
+		&& (!_audio || FullTrackReceived(_information.audio.state));
+}
+
 void Player::checkResumeFromWaitingForData() {
 	if (_pausedByWaitingForData && bothReceivedEnough(kBufferFor)) {
 		_pausedByWaitingForData = false;
@@ -446,8 +463,7 @@ void Player::start() {
 		_audio ? _audio->waitingForData() : rpl::never(),
 		_video ? _video->waitingForData() : rpl::never()
 	) | rpl::filter([=] {
-		return !FullTrackReceived(_information.video.state)
-			|| !FullTrackReceived(_information.audio.state);
+		return !receivedTillEnd();
 	}) | rpl::start_with_next([=] {
 		_pausedByWaitingForData = true;
 		updatePausedState();
@@ -564,6 +580,38 @@ QImage Player::frame(const FrameRequest &request) const {
 	Expects(_video != nullptr);
 
 	return _video->frame(request);
+}
+
+Media::Player::TrackState Player::prepareLegacyState() const {
+	using namespace Media::Player;
+
+	auto result = Media::Player::TrackState();
+	result.id = _audioId.externalPlayId() ? _audioId : _options.audioId;
+	result.state = finished()
+		? State::StoppedAtEnd
+		: paused()
+		? State::Paused
+		: State::Playing;
+	result.position = std::max(
+		_information.audio.state.position,
+		_information.video.state.position);
+	if (result.position == kTimeUnknown) {
+		result.position = _options.position;
+	}
+	result.length = std::max(
+		_information.audio.state.duration,
+		_information.video.state.duration);
+	if (result.length == kTimeUnknown && _options.audioId.audio()) {
+		const auto document = _options.audioId.audio();
+		const auto duration = document->song()
+			? document->song()->duration
+			: document->duration();
+		if (duration > 0) {
+			result.length = duration * crl::time(1000);
+		}
+	}
+	result.frequency = kMsFrequency;
+	return result;
 }
 
 rpl::lifetime &Player::lifetime() {

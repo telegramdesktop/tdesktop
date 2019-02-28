@@ -119,13 +119,15 @@ struct CodecDeleter {
 	void operator()(AVCodecContext *value);
 };
 using CodecPointer = std::unique_ptr<AVCodecContext, CodecDeleter>;
-CodecPointer MakeCodecPointer(not_null<AVStream*> stream);
+[[nodiscard]] CodecPointer MakeCodecPointer(not_null<AVStream*> stream);
 
 struct FrameDeleter {
 	void operator()(AVFrame *value);
 };
 using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
-FramePointer MakeFramePointer();
+[[nodiscard]] FramePointer MakeFramePointer();
+[[nodiscard]] bool FrameHasData(AVFrame *frame);
+void ClearFrameMemory(AVFrame *frame);
 
 struct SwsContextDeleter {
 	QSize resize;
@@ -135,7 +137,7 @@ struct SwsContextDeleter {
 	void operator()(SwsContext *value);
 };
 using SwsContextPointer = std::unique_ptr<SwsContext, SwsContextDeleter>;
-SwsContextPointer MakeSwsContextPointer(
+[[nodiscard]] SwsContextPointer MakeSwsContextPointer(
 	not_null<AVFrame*> frame,
 	QSize resize,
 	SwsContextPointer *existing = nullptr);
@@ -179,7 +181,8 @@ void LogError(QLatin1String method, AvErrorWrap error);
 [[nodiscard]] bool GoodStorageForFrame(const QImage &storage, QSize size);
 [[nodiscard]] QImage CreateFrameStorage(QSize size);
 [[nodiscard]] QImage ConvertFrame(
-	Stream& stream,
+	Stream &stream,
+	AVFrame *frame,
 	QSize resize,
 	QImage storage);
 [[nodiscard]] QImage PrepareByRequest(

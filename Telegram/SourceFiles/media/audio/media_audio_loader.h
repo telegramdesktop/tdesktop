@@ -8,10 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
+#include "media/streaming/media_streaming_utility.h"
 
-namespace FFMpeg {
-struct AVPacketDataWrap;
-} // namespace FFMpeg
+namespace Media {
 
 class AudioPlayerLoader {
 public:
@@ -35,9 +34,10 @@ public:
 		Wait,
 		EndOfFile,
 	};
-	virtual ReadResult readMore(QByteArray &samples, int64 &samplesCount) = 0;
-	virtual void enqueuePackets(
-			QQueue<FFMpeg::AVPacketDataWrap> &&packets) {
+	virtual ReadResult readMore(
+		QByteArray &samples,
+		int64 &samplesCount) = 0;
+	virtual void enqueuePackets(std::deque<Streaming::Packet> &&packets) {
 		Unexpected("enqueuePackets() call on not ChildFFMpegLoader.");
 	}
 	virtual void setForceToBuffer(bool force) {
@@ -47,8 +47,12 @@ public:
 		return false;
 	}
 
-	void saveDecodedSamples(QByteArray *samples, int64 *samplesCount);
-	void takeSavedDecodedSamples(QByteArray *samples, int64 *samplesCount);
+	void saveDecodedSamples(
+		not_null<QByteArray*> samples,
+		not_null<int64*> samplesCount);
+	void takeSavedDecodedSamples(
+		not_null<QByteArray*> samples,
+		not_null<int64*> samplesCount);
 	bool holdsSavedDecodedSamples() const;
 
 protected:
@@ -68,3 +72,5 @@ private:
 	bool _holdsSavedSamples = false;
 
 };
+
+} // namespace Media

@@ -17,6 +17,12 @@ class Session;
 } // namespace Data
 
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+} // namespace Media
+
+namespace Media {
 namespace Streaming {
 
 class Loader;
@@ -53,6 +59,8 @@ public:
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
 
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+
+	[[nodiscard]] Media::Player::TrackState prepareLegacyState() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -95,6 +103,7 @@ private:
 		const TrackState &state,
 		crl::time amount) const;
 	[[nodiscard]] bool bothReceivedEnough(crl::time amount) const;
+	[[nodiscard]] bool receivedTillEnd() const;
 	void checkResumeFromWaitingForData();
 
 	template <typename Track>
