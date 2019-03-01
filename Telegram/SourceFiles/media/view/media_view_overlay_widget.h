@@ -37,6 +37,7 @@ namespace Player {
 struct TrackState;
 } // namespace Player
 namespace Streaming {
+struct Information;
 struct Update;
 struct Error;
 } // namespace Streaming
@@ -236,6 +237,7 @@ private:
 
 	void initStreaming();
 	void initStreamingThumbnail();
+	void streamingReady(Streaming::Information &&info);
 	void createStreamingObjects();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
@@ -249,6 +251,7 @@ private:
 	void changingMsgId(not_null<HistoryItem*> row, MsgId newId);
 
 	QRect contentRect() const;
+	void contentSizeChanged();
 
 	// Radial animation interface.
 	float64 radialProgress() const;

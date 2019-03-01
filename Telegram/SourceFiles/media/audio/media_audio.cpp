@@ -1242,7 +1242,9 @@ void Mixer::setStoppedState(Track *current, State state) {
 		alSourceStop(current->stream.source);
 		alSourcef(current->stream.source, AL_GAIN, 1);
 	}
-	emit loaderOnCancel(current->state.id);
+	if (current->state.id) {
+		emit loaderOnCancel(current->state.id);
+	}
 }
 
 void Mixer::clearStoppedAtStart(const AudioMsgId &audio) {

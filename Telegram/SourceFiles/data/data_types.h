@@ -361,8 +361,8 @@ public:
 
 	AudioMsgId() = default;
 	AudioMsgId(
-		DocumentData *audio,
-		const FullMsgId &msgId,
+		not_null<DocumentData*> audio,
+		FullMsgId msgId,
 		uint32 externalPlayId = 0)
 	: _audio(audio)
 	, _contextId(msgId)
@@ -373,21 +373,20 @@ public:
 	[[nodiscard]] static uint32 CreateExternalPlayId();
 	[[nodiscard]] static AudioMsgId ForVideo();
 
-	Type type() const {
+	[[nodiscard]] Type type() const {
 		return _type;
 	}
-	DocumentData *audio() const {
+	[[nodiscard]] DocumentData *audio() const {
 		return _audio;
 	}
-	FullMsgId contextId() const {
+	[[nodiscard]] FullMsgId contextId() const {
 		return _contextId;
 	}
-	uint32 externalPlayId() const {
+	[[nodiscard]] uint32 externalPlayId() const {
 		return _externalPlayId;
 	}
-
-	explicit operator bool() const {
-		return _audio != nullptr;
+	[[nodiscard]] explicit operator bool() const {
+		return (_audio != nullptr) || (_externalPlayId != 0);
 	}
 
 private:

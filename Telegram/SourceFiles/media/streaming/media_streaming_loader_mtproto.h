@@ -43,7 +43,10 @@ private:
 	void sendNext();
 
 	void requestDone(int offset, const MTPupload_File &result);
-	void requestFailed(int offset, const RPCError &error);
+	void requestFailed(
+		int offset, 
+		const RPCError &error, 
+		const QByteArray &usedFileReference);
 	void changeCdnParams(
 		int offset,
 		MTP::DcId dcId,
@@ -52,9 +55,14 @@ private:
 		const QByteArray &encryptionIV,
 		const QVector<MTPFileHash> &hashes);
 
+	[[nodiscard]] QByteArray locationFileReference() const;
+
 	const not_null<ApiWrap*> _api;
 	const MTP::DcId _dcId = 0;
-	const MTPInputFileLocation _location;
+
+	// _location can be changed with an updated file_reference.
+	MTPInputFileLocation _location;
+
 	const int _size = 0;
 	const Data::FileOrigin _origin;
 

@@ -413,6 +413,8 @@ Mixer::Track *Loaders::checkLoader(AudioMsgId::Type type) {
 }
 
 void Loaders::onCancel(const AudioMsgId &audio) {
+	Expects(audio.type() != AudioMsgId::Type::Unknown);
+
 	switch (audio.type()) {
 	case AudioMsgId::Type::Voice: if (_audio == audio) clear(audio.type()); break;
 	case AudioMsgId::Type::Song: if (_song == audio) clear(audio.type()); break;

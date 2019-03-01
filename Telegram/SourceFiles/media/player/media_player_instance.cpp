@@ -112,10 +112,11 @@ Instance::Instance()
 Instance::~Instance() = default;
 
 AudioMsgId::Type Instance::getActiveType() const {
-	auto voiceData = getData(AudioMsgId::Type::Voice);
+	const auto voiceData = getData(AudioMsgId::Type::Voice);
 	if (voiceData->current) {
 		const auto state = getState(voiceData->type);
-		if (voiceData->current == state.id && !IsStoppedOrStopping(state.state)) {
+		if (voiceData->current == state.id
+			&& !IsStoppedOrStopping(state.state)) {
 			return voiceData->type;
 		}
 	}
@@ -149,11 +150,9 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		data->current = audioId;
 		data->isPlaying = false;
 
-		auto history = data->history;
-		auto migrated = data->migrated;
-		auto item = data->current
-			? App::histItemById(data->current.contextId())
-			: nullptr;
+		const auto history = data->history;
+		const auto migrated = data->migrated;
+		const auto item = App::histItemById(data->current.contextId());
 		if (item) {
 			data->history = item->history()->migrateToOrMe();
 			data->migrated = data->history->migrateFrom();
@@ -333,7 +332,7 @@ void Instance::play(AudioMsgId::Type type) {
 			} else {
 				mixer()->resume(state.id);
 			}
-		} else if (data->current) {
+		} else {
 			play(data->current);
 		}
 		data->resumeOnCallEnd = false;
@@ -342,7 +341,7 @@ void Instance::play(AudioMsgId::Type type) {
 
 void Instance::play(const AudioMsgId &audioId) {
 	const auto document = audioId.audio();
-	if (!audioId || !document) {
+	if (!document) {
 		return;
 	}
 	if (document->isAudioFile()) {
@@ -465,9 +464,7 @@ void Instance::playPause(AudioMsgId::Type type) {
 					mixer()->pause(state.id);
 				}
 			} else if (auto data = getData(type)) {
-				if (data->current) {
-					play(data->current);
-				}
+				play(data->current);
 			}
 		}
 		data->resumeOnCallEnd = false;

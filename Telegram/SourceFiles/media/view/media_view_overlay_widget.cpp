@@ -676,6 +676,39 @@ QRect OverlayWidget::contentRect() const {
 	return { _x, _y, _w, _h };
 }
 
+void OverlayWidget::contentSizeChanged() {
+	_width = _w;
+	_height = _h;
+	if (_w > 0 && _h > 0) {
+		_zoomToScreen = float64(width()) / _w;
+		if (_h * _zoomToScreen > height()) {
+			_zoomToScreen = float64(height()) / _h;
+		}
+		if (_zoomToScreen >= 1.) {
+			_zoomToScreen -= 1.;
+		} else {
+			_zoomToScreen = 1. - (1. / _zoomToScreen);
+		}
+	} else {
+		_zoomToScreen = 0;
+	}
+	if ((_w > width()) || (_h > height()) || _fullScreenVideo) {
+		_zoom = ZoomToScreenLevel;
+		if (_zoomToScreen >= 0) {
+			_w = qRound(_w * (_zoomToScreen + 1));
+			_h = qRound(_h * (_zoomToScreen + 1));
+		} else {
+			_w = qRound(_w / (-_zoomToScreen + 1));
+			_h = qRound(_h / (-_zoomToScreen + 1));
+		}
+		snapXY();
+	} else {
+		_zoom = 0;
+	}
+	_x = (width() - _w) / 2;
+	_y = (height() - _h) / 2;
+}
+
 float64 OverlayWidget::radialProgress() const {
 	if (_doc) {
 		return _doc->progress();
@@ -1645,18 +1678,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	if (isHidden()) {
 		moveToScreen();
 	}
-	if (_w > width()) {
-		_h = qRound(_h * width() / float64(_w));
-		_w = width();
-	}
-	if (_h > height()) {
-		_w = qRound(_w * height() / float64(_h));
-		_h = height();
-	}
-	_x = (width() - _w) / 2;
-	_y = (height() - _h) / 2;
-	_width = _w;
-	_height = _h;
+	contentSizeChanged();
 	if (_msgid && item) {
 		_from = item->senderOriginal();
 	} else {
@@ -1798,36 +1820,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 	if (isHidden()) {
 		moveToScreen();
 	}
-	_width = _w;
-	_height = _h;
-	if (_w > 0 && _h > 0) {
-		_zoomToScreen = float64(width()) / _w;
-		if (_h * _zoomToScreen > height()) {
-			_zoomToScreen = float64(height()) / _h;
-		}
-		if (_zoomToScreen >= 1.) {
-			_zoomToScreen -= 1.;
-		} else {
-			_zoomToScreen = 1. - (1. / _zoomToScreen);
-		}
-	} else {
-		_zoomToScreen = 0;
-	}
-	if ((_w > width()) || (_h > height()) || _fullScreenVideo) {
-		_zoom = ZoomToScreenLevel;
-		if (_zoomToScreen >= 0) {
-			_w = qRound(_w * (_zoomToScreen + 1));
-			_h = qRound(_h * (_zoomToScreen + 1));
-		} else {
-			_w = qRound(_w / (-_zoomToScreen + 1));
-			_h = qRound(_h / (-_zoomToScreen + 1));
-		}
-		snapXY();
-	} else {
-		_zoom = 0;
-	}
-	_x = (width() - _w) / 2;
-	_y = (height() - _h) / 2;
+	contentSizeChanged();
 	if (_msgid && item) {
 		_from = item->senderOriginal();
 	} else {
@@ -1927,6 +1920,19 @@ void OverlayWidget::initStreamingThumbnail() {
 	_current.setDevicePixelRatio(cRetinaFactor());
 }
 
+void OverlayWidget::streamingReady(Streaming::Information &&info) {
+	_streamed->info = std::move(info);
+	validateStreamedGoodThumbnail();
+	if (videoShown()) {
+		const auto contentSize = ConvertScale(videoSize());
+		_w = contentSize.width();
+		_h = contentSize.height();
+		contentSizeChanged();
+	}
+	this->update(contentRect());
+	playbackWaitingChange(false);
+}
+
 void OverlayWidget::createStreamingObjects() {
 	_streamed = std::make_unique<Streamed>(
 		&_doc->owner(),
@@ -1978,10 +1984,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
 	update.data.match([&](Information &update) {
-		_streamed->info = std::move(update);
-		validateStreamedGoodThumbnail();
-		this->update(contentRect());
-		playbackWaitingChange(false);
+		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 		_streamed->info.video.state.receivedTill = update.till;
 		//updatePlaybackState();

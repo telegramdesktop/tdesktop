@@ -218,7 +218,7 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 	};
 	const auto mode = _options.mode;
 	if (audio.codec && (mode == Mode::Audio || mode == Mode::Both)) {
-		if (_options.audioId) {
+		if (_options.audioId.audio() != nullptr) {
 			_audioId = AudioMsgId(
 				_options.audioId.audio(),
 				_options.audioId.contextId(),

@@ -99,6 +99,7 @@ void LoaderMtproto::sendNext() {
 	}
 
 	static auto DcIndex = 0;
+	const auto reference = locationFileReference();
 	const auto id = _sender.request(MTPupload_GetFile(
 		_location,
 		MTP_int(offset),
@@ -106,7 +107,7 @@ void LoaderMtproto::sendNext() {
 	)).done([=](const MTPupload_File &result) {
 		requestDone(offset, result);
 	}).fail([=](const RPCError &error) {
-		requestFailed(offset, error);
+		requestFailed(offset, error, reference);
 	}).toDC(
 		MTP::downloadDcId(_dcId, (++DcIndex) % MTP::kDownloadSessionsCount)
 	).send();
@@ -138,19 +139,55 @@ void LoaderMtproto::changeCdnParams(
 		const QByteArray &encryptionKey,
 		const QByteArray &encryptionIV,
 		const QVector<MTPFileHash> &hashes) {
-	// #TODO streaming cdn
+	// #TODO streaming later cdn
+	_parts.fire({ LoadedPart::kFailedOffset });
 }
 
-void LoaderMtproto::requestFailed(int offset, const RPCError &error) {
+void LoaderMtproto::requestFailed(
+		int offset,
+		const RPCError &error,
+		const QByteArray &usedFileReference) {
 	const auto &type = error.type();
-	if (error.code() != 400 || !type.startsWith(qstr("FILE_REFERENCE_"))) {
+	const auto fail = [=] {
 		_parts.fire({ LoadedPart::kFailedOffset });
-		return;
+	};
+	if (error.code() != 400 || !type.startsWith(qstr("FILE_REFERENCE_"))) {
+		return fail();
 	}
 	const auto callback = [=](const Data::UpdatedFileReferences &updated) {
-		// #TODO streaming file_reference
+		_location.match([&](const MTPDinputDocumentFileLocation &location) {
+			const auto i = updated.data.find(location.vid.v);
+			if (i == end(updated.data)) {
+				return fail();
+			}
+			const auto reference = i->second;
+			if (reference == usedFileReference) {
+				return fail();
+			} else if (reference != location.vfile_reference.v) {
+				_location = MTP_inputDocumentFileLocation(
+					MTP_long(location.vid.v),
+					MTP_long(location.vaccess_hash.v),
+					MTP_bytes(reference));
+			}
+			if (!_requests.take(offset)) {
+				// Request with such offset was already cancelled.
+				return;
+			}
+			_requested.add(offset);
+			sendNext();
+		}, [](auto &&) {
+			Unexpected("Not implemented file location type.");
+		});
 	};
 	_api->refreshFileReference(_origin, crl::guard(this, callback));
+}
+
+QByteArray LoaderMtproto::locationFileReference() const {
+	return _location.match([&](const MTPDinputDocumentFileLocation &data) {
+		return data.vfile_reference.v;
+	}, [](auto &&) -> QByteArray {
+		Unexpected("Not implemented file location type.");
+	});
 }
 
 rpl::producer<LoadedPart> LoaderMtproto::parts() const {
