@@ -315,10 +315,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		}
 
 		auto icon = [&] {
-			if (showPause) {
-				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
-			} else if (radial || _data->loading()) {
+			if (_data->loading() || _data->uploading()) {
 				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
+			} else if (showPause) {
+				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
 			} else if (loaded || _data->canBePlayed()) {
 				if (_data->canBePlayed()) {
 					return &(outbg ? (selected ? st::historyFileOutPlaySelected : st::historyFileOutPlay) : (selected ? st::historyFileInPlaySelected : st::historyFileInPlay));
@@ -335,7 +335,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	auto statuswidth = namewidth;
 
 	auto voiceStatusOverride = QString();
-	if (auto voice = Get<HistoryDocumentVoice>()) {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
 		const VoiceWaveform *wf = nullptr;
 		uchar norm_value = 0;
 		if (const auto voiceData = _data->voice()) {
@@ -463,6 +463,13 @@ TextState HistoryDocument::textState(QPoint point, StateRequest request) const {
 		nametop = st::msgFileThumbNameTop - topMinus;
 		linktop = st::msgFileThumbLinkTop - topMinus;
 		bottom = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() - topMinus;
+
+		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, width()));
+		if ((_data->loading() || _data->uploading()) && rthumb.contains(point)) {
+			result.link = _cancell;
+			return result;
+		}
+
 		if (_data->status != FileUploadFailed) {
 			if (rtlrect(nameleft, linktop, thumbed->_linkw, st::semiboldFont->height, width()).contains(point)) {
 				result.link = (_data->loading() || _data->uploading())
@@ -470,6 +477,17 @@ TextState HistoryDocument::textState(QPoint point, StateRequest request) const {
 					: thumbed->_linksavel;
 				return result;
 			}
+		}
+	} else {
+		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+		nameright = st::msgFilePadding.left();
+		nametop = st::msgFileNameTop - topMinus;
+		bottom = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() - topMinus;
+
+		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, st::msgFileSize, st::msgFileSize, width()));
+		if ((_data->loading() || _data->uploading()) && inner.contains(point)) {
+			result.link = _cancell;
+			return result;
 		}
 	}
 
@@ -490,7 +508,7 @@ TextState HistoryDocument::textState(QPoint point, StateRequest request) const {
 	}
 
 	auto painth = height();
-	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		if (point.y() >= bottom) {
 			result = TextState(_parent, captioned->_caption.getState(
 				point - QPoint(st::msgPadding.left(), bottom),
@@ -504,10 +522,11 @@ TextState HistoryDocument::textState(QPoint point, StateRequest request) const {
 			painth -= st::msgPadding.bottom();
 		}
 	}
-	if (QRect(0, 0, width(), painth).contains(point) && !_data->loading() && !_data->uploading() && !_data->isNull()) {
-		if (_data->loading() || _data->uploading()) {
-			result.link = _cancell;
-		} else if (loaded || _data->canBePlayed()) {
+	if (QRect(0, 0, width(), painth).contains(point)
+		&& !_data->loading()
+		&& !_data->uploading()
+		&& !_data->isNull()) {
+		if (loaded || _data->canBePlayed()) {
 			result.link = _openl;
 		} else {
 			result.link = _savel;

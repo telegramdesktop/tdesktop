@@ -201,7 +201,7 @@ void Uploader::upload(
 				std::move(file->thumb));
 		document->uploadingData = std::make_unique<Data::UploadState>(
 			document->size);
-		document->setGoodThumbnail(
+		document->setGoodThumbnailOnUpload(
 			std::move(file->goodThumbnail),
 			std::move(file->goodThumbnailBytes));
 		if (!file->content.isEmpty()) {

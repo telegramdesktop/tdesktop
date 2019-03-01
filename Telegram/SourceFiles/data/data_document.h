@@ -184,7 +184,7 @@ public:
 
 	[[nodiscard]] Image *goodThumbnail() const;
 	[[nodiscard]] Storage::Cache::Key goodThumbnailCacheKey() const;
-	void setGoodThumbnail(QImage &&image, QByteArray &&bytes);
+	void setGoodThumbnailOnUpload(QImage &&image, QByteArray &&bytes);
 	void refreshGoodThumbnail();
 	void replaceGoodThumbnail(std::unique_ptr<Images::Source> &&source);
 

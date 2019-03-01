@@ -693,12 +693,12 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 
 		auto icon = [&] {
-			if (showPause) {
+			if (_data->loading() || _data->uploading()) {
+				return &(selected ? _st.songCancelSelected : _st.songCancel);
+			} else if (showPause) {
 				return &(selected ? _st.songPauseSelected : _st.songPause);
 			} else if (_status.size() < 0 || _status.size() == FileStatusSizeLoaded) {
 				return &(selected ? _st.songPlaySelected : _st.songPlay);
-			} else if (_data->loading()) {
-				return &(selected ? _st.songCancelSelected : _st.songCancel);
 			}
 			return &(selected ? _st.songDownloadSelected : _st.songDownload);
 		}();
@@ -962,10 +962,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			}
 
 			auto icon = [&] {
-				if (showPause) {
-					return &(selected ? _st.songPauseSelected : _st.songPause);
-				} else if (_data->loading() || _data->uploading()) {
+				if (_data->loading() || _data->uploading()) {
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
+				} else if (showPause) {
+					return &(selected ? _st.songPauseSelected : _st.songPause);
 				} else if (_data->canBePlayed()) {
 					return &(selected ? _st.songPlaySelected : _st.songPlay);
 				}
@@ -1107,7 +1107,7 @@ TextState Document::getState(
 				? _cancell
 				: _data->canBePlayed()
 				? _openl
-				: _openl;
+				: _savel;
 			return { parent(), link };
 		}
 		const auto namerect = rtlrect(
@@ -1137,10 +1137,10 @@ TextState Document::getState(
 			_width);
 
 		if (rthumb.contains(point)) {
-			const auto link = loaded
-				? _openl
-				: (_data->loading() || _data->uploading())
+			const auto link = (_data->loading() || _data->uploading())
 				? _cancell
+				: loaded
+				? _openl
 				: _savel;
 			return { parent(), link };
 		}

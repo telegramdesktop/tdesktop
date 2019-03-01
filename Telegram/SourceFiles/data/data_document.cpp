@@ -301,7 +301,7 @@ void DocumentOpenClickHandler::Open(
 		location.accessDisable();
 		return;
 	} else if (data->canBePlayed()) {
-		if (data->isAudioFile()) {
+		if (data->isAudioFile() || data->isVoiceMessage()) {
 			Media::Player::instance()->playPause({ data, msgId });
 		} else {
 			Core::App().showDocument(data, context);
@@ -615,7 +615,9 @@ void DocumentData::replaceGoodThumbnail(
 	_goodThumbnail->replaceSource(std::move(source));
 }
 
-void DocumentData::setGoodThumbnail(QImage &&image, QByteArray &&bytes) {
+void DocumentData::setGoodThumbnailOnUpload(
+		QImage &&image,
+		QByteArray &&bytes) {
 	Expects(uploadingData != nullptr);
 
 	if (image.isNull()) {
@@ -1215,7 +1217,10 @@ bool DocumentData::canBeStreamed() const {
 }
 
 bool DocumentData::canBePlayed() const {
-	return (isAnimation() || isVideoFile() || isAudioFile())
+	return (isAnimation()
+		|| isVideoFile()
+		|| isAudioFile()
+		|| isVoiceMessage())
 		&& (loaded() || canBeStreamed());
 }
 

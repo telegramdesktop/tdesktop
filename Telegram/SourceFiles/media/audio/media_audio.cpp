@@ -798,27 +798,6 @@ void Mixer::play(
 		auto current = trackForType(type);
 		if (!current) return;
 
-		if (type == AudioMsgId::Type::Video) {
-			auto pauseType = [this](AudioMsgId::Type type) {
-				auto current = trackForType(type);
-				switch (current->state.state) {
-				case State::Starting:
-				case State::Resuming:
-				case State::Playing: {
-					current->state.state = State::Pausing;
-					resetFadeStartPosition(type);
-				} break;
-				case State::Stopping: {
-					current->state.state = State::Pausing;
-				} break;
-
-				}
-			};
-
-			pauseType(AudioMsgId::Type::Song);
-			pauseType(AudioMsgId::Type::Voice);
-		}
-
 		if (current->state.id != audio) {
 			if (fadedStop(type, &fadedStart)) {
 				stopped = current->state.id;

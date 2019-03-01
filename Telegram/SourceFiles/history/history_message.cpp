@@ -59,7 +59,8 @@ MTPDmessage::Flags NewForwardedFlags(
 				result &= ~MTPDmessage::Flag::f_media;
 			}
 		}
-		if (!peer->isChannel() && media->forwardedBecomesUnread()) {
+		if ((!peer->isChannel() || peer->isMegagroup())
+			&& media->forwardedBecomesUnread()) {
 			result |= MTPDmessage::Flag::f_media_unread;
 		}
 	}

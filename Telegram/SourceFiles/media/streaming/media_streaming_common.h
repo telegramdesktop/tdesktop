@@ -78,6 +78,7 @@ using PreloadedAudio = PreloadedUpdate<AudioTrack>;
 using UpdateAudio = PlaybackUpdate<AudioTrack>;
 
 struct WaitingForData {
+	bool waiting = false;
 };
 
 struct MutedByOther {

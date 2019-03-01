@@ -188,14 +188,14 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		p.setOpacity(radialOpacity * p.opacity());
 
 		p.setOpacity(radialOpacity);
-		auto icon = ([loaded, radial, loading] {
-			if (loaded && !radial) {
-				return &st::historyFileInPlay;
-			} else if (radial || loading) {
+		auto icon = [&] {
+			if (radial || loading) {
 				return &st::historyFileInCancel;
+			} else if (loaded) {
+				return &st::historyFileInPlay;
 			}
 			return &st::historyFileInDownload;
-		})();
+		}();
 		QRect inner((_width - st::msgFileSize) / 2, (height - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		icon->paintInCenter(p, inner);
 		if (radial) {
@@ -778,11 +778,11 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		_animation->radial.draw(p, radialCircle, st::msgFileRadialLine, st::historyFileInRadialFg);
 	}
 
-	auto icon = ([&] {
-		if (showPause) {
-			return &st::historyFileInPause;
-		} else if (radial || _document->loading()) {
+	auto icon = [&] {
+		if (radial || _document->loading()) {
 			return &st::historyFileInCancel;
+		} else if (showPause) {
+			return &st::historyFileInPause;
 		} else if (true || _document->loaded()) {
 			if (_document->isImage()) {
 				return &st::historyFileInImage;
@@ -793,7 +793,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 			return &st::historyFileInDocument;
 		}
 		return &st::historyFileInDownload;
-	})();
+	}();
 	icon->paintInCenter(p, inner);
 
 	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;

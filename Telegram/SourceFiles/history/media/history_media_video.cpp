@@ -226,15 +226,13 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 		p.setOpacity(1);
 	}
 
-	const auto canPlay = _data->canBePlayed();
 	auto icon = [&]() -> const style::icon * {
-		if (canPlay && !radial) {
-			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
-		} else if (radial || _data->loading()) {
-			if (_parent->data()->id > 0 || _data->uploading()) {
-				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-			}
+		if (_data->loading() || _data->uploading()) {
+			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+		} else if (!IsServerMsgId(_parent->data()->id)) {
 			return nullptr;
+		} else if (_data->canBePlayed()) {
+			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	}();
@@ -276,7 +274,6 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 	}
 
 	auto result = TextState(_parent);
-	const auto canPlay = _data->canBePlayed();
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
@@ -298,10 +295,13 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 		painth -= st::mediaCaptionSkip;
 	}
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
-		if (_data->uploading()) {
+		if (_data->loading() || _data->uploading()) {
 			result.link = _cancell;
+		} else if (!IsServerMsgId(_parent->data()->id)) {
+		} else if (_data->canBePlayed()) {
+			result.link = _openl;
 		} else {
-			result.link = canPlay ? _openl : (_data->loading() ? _cancell : _savel);
+			result.link = _savel;
 		}
 	}
 	if (_caption.isEmpty() && _parent->media() == this) {
@@ -394,13 +394,12 @@ void HistoryVideo::drawGrouped(
 	auto icon = [&]() -> const style::icon * {
 		if (_data->waitingForAlbum()) {
 			return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
-		} else if (canPlay && !radial) {
-			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
-		} else if (radial || _data->loading()) {
-			if (_parent->data()->id > 0 || _data->uploading()) {
-				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-			}
+		} else if (_data->loading() || _data->uploading()) {
+			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+		} else if (!IsServerMsgId(_realParent->id)) {
 			return nullptr;
+		} else if (_data->canBePlayed()) {
+			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	}();
@@ -436,12 +435,12 @@ TextState HistoryVideo::getStateGrouped(
 	if (!geometry.contains(point)) {
 		return {};
 	}
-	return TextState(_parent, _data->uploading()
+	return TextState(_parent, (_data->loading() || _data->uploading())
 		? _cancell
+		: !IsServerMsgId(_realParent->id)
+		? nullptr
 		: _data->canBePlayed()
 		? _openl
-		: _data->loading()
-		? _cancell
 		: _savel);
 }
 

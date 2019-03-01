@@ -70,7 +70,7 @@ public:
 	}
 
 	void start(crl::time skip = 0);
-	void stop();
+	void stop(anim::type animated = anim::type::normal);
 
 	void step(crl::time ms);
 	void step() {

@@ -4300,7 +4300,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTP_long(groupId)),
 			NewMessageUnread);
 	} else if (file->type == SendMediaType::Audio) {
-		if (!peer->isChannel()) {
+		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
 		}
 		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;

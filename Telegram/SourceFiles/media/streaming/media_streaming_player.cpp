@@ -450,6 +450,7 @@ void Player::checkResumeFromWaitingForData() {
 	if (_pausedByWaitingForData && bothReceivedEnough(kBufferFor)) {
 		_pausedByWaitingForData = false;
 		updatePausedState();
+		_updates.fire({ WaitingForData{ false } });
 	}
 }
 
@@ -467,7 +468,7 @@ void Player::start() {
 	}) | rpl::start_with_next([=] {
 		_pausedByWaitingForData = true;
 		updatePausedState();
-		_updates.fire({ WaitingForData() });
+		_updates.fire({ WaitingForData{ true } });
 	}, _sessionLifetime);
 
 	if (guard && _audio) {

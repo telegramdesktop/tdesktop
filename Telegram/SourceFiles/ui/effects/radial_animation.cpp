@@ -127,9 +127,9 @@ void InfiniteRadialAnimation::start(crl::time skip) {
 	}
 }
 
-void InfiniteRadialAnimation::stop() {
+void InfiniteRadialAnimation::stop(anim::type animated) {
 	const auto now = crl::now();
-	if (anim::Disabled()) {
+	if (anim::Disabled() || animated == anim::type::instant) {
 		_workFinished = now;
 	}
 	if (!_workFinished) {

@@ -161,6 +161,9 @@ private:
 	void playbackControlsFromFullScreen() override;
 	void playbackPauseResume();
 	void playbackToggleFullScreen();
+	void playbackPauseOnCall();
+	void playbackResumeOnCall();
+	void playbackWaitingChange(bool waiting);
 
 	void updateOver(QPoint mpos);
 	void moveToScreen();
@@ -227,7 +230,6 @@ private:
 
 	void updatePlaybackState();
 	void restartAtSeekPosition(crl::time position);
-	void togglePauseResume();
 
 	void refreshClipControllerGeometry();
 	void refreshCaptionGeometry();
@@ -237,6 +239,7 @@ private:
 	void createStreamingObjects();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
+	void validateStreamedGoodThumbnail();
 
 	void initThemePreview();
 	void destroyThemePreview();
@@ -259,6 +262,7 @@ private:
 
 	void step_state(crl::time ms, bool timer);
 	void step_radial(crl::time ms, bool timer);
+	void step_waiting(crl::time ms, bool timer);
 
 	void zoomIn();
 	void zoomOut();
