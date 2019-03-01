@@ -152,6 +152,7 @@ public:
 		setDirection(Ui::ContinuousSlider::Direction::Horizontal);
 
 		const auto sectionsCount = (valuesCount - 1);
+		setValue(1.);
 		for (auto index = index_type(); index != valuesCount; ++index) {
 			if (current <= convert(index)) {
 				setValue(index / float64(sectionsCount));

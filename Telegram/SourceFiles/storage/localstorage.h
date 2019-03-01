@@ -115,12 +115,13 @@ FileLocation readFileLocation(MediaKey location, bool check = true);
 Storage::EncryptionKey cacheKey();
 QString cachePath();
 Storage::Cache::Database::Settings cacheSettings();
-void updateCacheSettings(Storage::Cache::Database::SettingsUpdate &update);
+void updateCacheSettings(
+	Storage::Cache::Database::SettingsUpdate &update,
+	Storage::Cache::Database::SettingsUpdate &updateBig);
 
 Storage::EncryptionKey cacheBigFileKey();
 QString cacheBigFilePath();
 Storage::Cache::Database::Settings cacheBigFileSettings();
-void updateCacheBigFileSettings(Storage::Cache::Database::SettingsUpdate &update);
 
 void countVoiceWaveform(DocumentData *document);
 

@@ -570,7 +570,9 @@ void SetupLocalStorage(not_null<Ui::VerticalLayout*> container) {
 		lng_settings_manage_local_storage,
 		st::settingsButton
 	)->addClickHandler([] {
-		LocalStorageBox::Show(&Auth().data().cache());
+		LocalStorageBox::Show(
+			&Auth().data().cache(),
+			&Auth().data().cacheBigFile());
 	});
 }
 

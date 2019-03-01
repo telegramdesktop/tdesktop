@@ -602,12 +602,13 @@ enum {
 	dbiTxtDomainString = 0x53,
 	dbiThemeKey = 0x54,
 	dbiTileBackground = 0x55,
-	dbiCacheSettings = 0x56,
+	dbiCacheSettingsOld = 0x56,
 	dbiAnimationsDisabled = 0x57,
 	dbiScalePercent = 0x58,
 	dbiPlaybackSpeed = 0x59,
 	dbiLanguagesKey = 0x5a,
 	dbiCallSettings = 0x5b,
+	dbiCacheSettings = 0x5c,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1071,7 +1072,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetUseExternalVideoPlayer(v == 1);
 	} break;
 
-	case dbiCacheSettings: {
+	case dbiCacheSettingsOld: {
 		qint64 size;
 		qint32 time;
 		stream >> size >> time;
@@ -1080,11 +1081,28 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			|| time < 0) {
 			return false;
 		}
-
 		_cacheTotalSizeLimit = size;
 		_cacheTotalTimeLimit = time;
 		_cacheBigFileTotalSizeLimit = size;
-		_cacheBigFileTotalTimeLimit = size;
+		_cacheBigFileTotalTimeLimit = time;
+	} break;
+
+	case dbiCacheSettings: {
+		qint64 size, sizeBig;
+		qint32 time, timeBig;
+		stream >> size >> time >> sizeBig >> timeBig;
+		if (!_checkStreamStatus(stream)
+			|| size <= Database::Settings().maxDataSize
+			|| sizeBig <= Database::Settings().maxDataSize
+			|| time < 0
+			|| timeBig < 0) {
+			return false;
+		}
+
+		_cacheTotalSizeLimit = size;
+		_cacheTotalTimeLimit = time;
+		_cacheBigFileTotalSizeLimit = sizeBig;
+		_cacheBigFileTotalTimeLimit = timeBig;
 	} break;
 
 	case dbiAnimationsDisabled: {
@@ -2108,8 +2126,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
-	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit);
-	// #TODO streaming save _cacheBigFileTotal limits?..
+	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionSettings) << userData;
 	}
@@ -3208,16 +3225,24 @@ Storage::Cache::Database::Settings cacheSettings() {
 	return result;
 }
 
-void updateCacheSettings(Storage::Cache::Database::SettingsUpdate &update) {
+void updateCacheSettings(
+		Storage::Cache::Database::SettingsUpdate &update,
+		Storage::Cache::Database::SettingsUpdate &updateBig) {
 	Expects(update.totalSizeLimit > Database::Settings().maxDataSize);
 	Expects(update.totalTimeLimit >= 0);
+	Expects(updateBig.totalSizeLimit > Database::Settings().maxDataSize);
+	Expects(updateBig.totalTimeLimit >= 0);
 
 	if (_cacheTotalSizeLimit == update.totalSizeLimit
-		&& _cacheTotalTimeLimit == update.totalTimeLimit) {
+		&& _cacheTotalTimeLimit == update.totalTimeLimit
+		&& _cacheBigFileTotalSizeLimit == updateBig.totalSizeLimit
+		&& _cacheBigFileTotalTimeLimit == updateBig.totalTimeLimit) {
 		return;
 	}
 	_cacheTotalSizeLimit = update.totalSizeLimit;
 	_cacheTotalTimeLimit = update.totalTimeLimit;
+	_cacheBigFileTotalSizeLimit = updateBig.totalSizeLimit;
+	_cacheBigFileTotalTimeLimit = updateBig.totalTimeLimit;
 	_writeUserSettings();
 }
 
@@ -3234,19 +3259,6 @@ Storage::Cache::Database::Settings cacheBigFileSettings() {
 	result.totalTimeLimit = _cacheBigFileTotalTimeLimit;
 	result.maxDataSize = Storage::kMaxFileInMemory;
 	return result;
-}
-
-void updateCacheBigFileSettings(Storage::Cache::Database::SettingsUpdate &update) {
-	Expects(update.totalSizeLimit > Database::Settings().maxDataSize);
-	Expects(update.totalTimeLimit >= 0);
-
-	if (_cacheBigFileTotalSizeLimit == update.totalSizeLimit
-		&& _cacheBigFileTotalTimeLimit == update.totalTimeLimit) {
-		return;
-	}
-	_cacheBigFileTotalSizeLimit = update.totalSizeLimit;
-	_cacheBigFileTotalTimeLimit = update.totalTimeLimit;
-	//_writeUserSettings(); // #TODO streaming save those?..
 }
 
 class CountWaveformTask : public Task {
