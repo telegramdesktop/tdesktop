@@ -56,8 +56,13 @@ void AutoDownloadBox::setupContent() {
 		this,
 		std::move(wrap)));
 
+	static const auto kHidden = { Type::Video, Type::Music };
+
 	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
 	const auto add = [&](Type type, LangKey label) {
+		if (ranges::find(kHidden, type) != end(kHidden)) {
+			return;
+		}
 		const auto value = settings->bytesLimit(_source, type);
 		AddButton(
 			content,
@@ -111,16 +116,6 @@ void AutoDownloadBox::setupContent() {
 			*limit = value;
 			limits->fire_copy(value);
 		});
-	const auto save = [=](
-			Type type,
-			std::pair<bool, bool> pair) {
-		const auto limit = [](bool checked) {
-			return checked ? kMaxBytesLimit : 0;
-		};
-		settings->setBytesLimit(Source::User, type, limit(pair.first));
-		settings->setBytesLimit(Source::Group, type, limit(pair.second));
-		settings->setBytesLimit(Source::Channel, type, limit(pair.second));
-	};
 
 	addButton(langFactory(lng_connection_save), [=] {
 		auto allowMore = ranges::view::all(
@@ -143,11 +138,26 @@ void AutoDownloadBox::setupContent() {
 			return settings->bytesLimit(_source, type) != value;
 		}) != end(*values);
 
+		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type) {
+			const auto now = settings->bytesLimit(_source, type);
+			return (now > 0) && (now != *limit);
+		}) != end(kHidden);
+
 		if (changed) {
 			for (const auto [type, enabled] : *values) {
 				const auto value = enabled ? *limit : 0;
 				settings->setBytesLimit(_source, type, value);
 			}
+		}
+		if (hiddenChanged) {
+			for (const auto type : kHidden) {
+				const auto now = settings->bytesLimit(_source, type);
+				if (now > 0) {
+					settings->setBytesLimit(_source, type, *limit);
+				}
+			}
+		}
+		if (changed || hiddenChanged) {
 			Local::writeUserSettings();
 		}
 		if (allowMoreTypes.contains(Type::Photo)) {
