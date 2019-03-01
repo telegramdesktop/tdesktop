@@ -109,15 +109,17 @@ VideoTrackObject::VideoTrackObject(
 
 rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
 	return interrupted()
-		? rpl::complete<crl::time>()
+		? (rpl::complete<crl::time>() | rpl::type_erased())
 		: (_nextFrameDisplayTime == kTimeUnknown)
-		? _nextFrameTimeUpdates.events()
+		? (_nextFrameTimeUpdates.events() | rpl::type_erased())
 		: _nextFrameTimeUpdates.events_starting_with_copy(
 			_nextFrameDisplayTime);
 }
 
 rpl::producer<> VideoTrackObject::waitingForData() const {
-	return interrupted() ? rpl::never() : _waitingForData.events();
+	return interrupted()
+		? (rpl::never() | rpl::type_erased())
+		: _waitingForData.events();
 }
 
 void VideoTrackObject::process(Packet &&packet) {

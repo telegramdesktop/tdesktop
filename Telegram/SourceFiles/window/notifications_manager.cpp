@@ -235,7 +235,7 @@ void System::showNext() {
 		return false;
 	};
 
-	auto ms = crl::now(), nextAlert = 0LL;
+	auto ms = crl::now(), nextAlert = crl::time(0);
 	bool alert = false;
 	int32 now = unixtime();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {

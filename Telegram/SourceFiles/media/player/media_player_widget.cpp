@@ -233,7 +233,10 @@ Widget::~Widget() = default;
 void Widget::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	const auto positionMs = snap(
+		static_cast<crl::time>(progress * _lastDurationMs),
+		crl::time(0),
+		_lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
@@ -245,7 +248,10 @@ void Widget::handleSeekProgress(float64 progress) {
 void Widget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	const auto positionMs = snap(
+		static_cast<crl::time>(progress * _lastDurationMs),
+		crl::time(0),
+		_lastDurationMs);
 	_seekPositionMs = -1;
 
 	instance()->finishSeeking(_type, progress);

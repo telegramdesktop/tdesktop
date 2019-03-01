@@ -2252,7 +2252,7 @@ void OverlayWidget::updatePlaybackState() {
 		if (duration > 0) {
 			state.length = std::max(
 				duration * crl::time(1000),
-				state.position);
+				crl::time(state.position));
 		}
 	}
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {

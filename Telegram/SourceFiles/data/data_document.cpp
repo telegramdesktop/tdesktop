@@ -309,7 +309,6 @@ void DocumentOpenClickHandler::Open(
 		return;
 	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playAnimation))) {
-		using State = Media::Player::State;
 		if (playVoice) {
 			Media::Player::instance()->playPause({ data, msgId });
 		} else if (data->size < App::kImageSizeLimit) {
@@ -723,7 +722,6 @@ void DocumentData::performActionOnLoad() {
 			return;
 		}
 	}
-	using State = Media::Player::State;
 	if (playVoice || playMusic) {
 		DocumentOpenClickHandler::Open({}, this, item, ActionOnLoadNone);
 	} else if (playAnimation) {

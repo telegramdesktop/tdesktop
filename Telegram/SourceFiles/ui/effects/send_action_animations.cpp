@@ -203,7 +203,7 @@ void SendActionAnimation::Impl::paint(
 		x,
 		y,
 		outerWidth,
-		anim::Disabled() ? 0 : (qMax(ms - _started, 0LL) % _period));
+		anim::Disabled() ? 0 : (qMax(ms - _started, crl::time(0)) % _period));
 }
 
 

@@ -79,7 +79,10 @@ PlaybackControls::PlaybackControls(QWidget *parent, not_null<Delegate *> delegat
 void PlaybackControls::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	const auto positionMs = snap(
+		static_cast<crl::time>(progress * _lastDurationMs),
+		crl::time(0),
+		_lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		refreshTimeTexts();
@@ -92,7 +95,10 @@ void PlaybackControls::handleSeekProgress(float64 progress) {
 void PlaybackControls::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<crl::time>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	const auto positionMs = snap(
+		static_cast<crl::time>(progress * _lastDurationMs),
+		crl::time(0),
+		_lastDurationMs);
 	_seekPositionMs = -1;
 	_delegate->playbackControlsSeekFinished(positionMs);
 	refreshTimeTexts();
@@ -172,7 +178,7 @@ void PlaybackControls::updateTimeTexts(const Player::TrackState &state) {
 	auto playAlready = position / playFrequency;
 	auto playLeft = (state.length / playFrequency) - playAlready;
 
-	_lastDurationMs = (state.length * 1000LL) / playFrequency;
+	_lastDurationMs = (state.length * crl::time(1000)) / playFrequency;
 
 	_timeAlready = formatDurationText(playAlready);
 	auto minus = QChar(8722);
@@ -188,8 +194,8 @@ void PlaybackControls::refreshTimeTexts() {
 	auto timeAlready = _timeAlready;
 	auto timeLeft = _timeLeft;
 	if (_seekPositionMs >= 0) {
-		auto playAlready = _seekPositionMs / 1000LL;
-		auto playLeft = (_lastDurationMs / 1000LL) - playAlready;
+		auto playAlready = _seekPositionMs / crl::time(1000);
+		auto playLeft = (_lastDurationMs / crl::time(1000)) - playAlready;
 
 		timeAlready = formatDurationText(playAlready);
 		auto minus = QChar(8722);

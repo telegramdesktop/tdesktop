@@ -34,7 +34,7 @@ constexpr auto kLoadFullIfStuckAfterPlayback = 3 * crl::time(1000);
 		? position
 		: (position == kReceivedTillEnd)
 		? state.duration
-		: std::clamp(position, 0LL, state.duration - 1);
+		: std::clamp(position, crl::time(0), state.duration - 1);
 }
 
 [[nodiscard]] bool FullTrackReceived(const TrackState &state) {
@@ -126,7 +126,7 @@ void Player::trackReceivedTill(
 	if (position == kTimeUnknown) {
 		return;
 	} else if (state.duration != kTimeUnknown) {
-		position = std::clamp(position, 0LL, state.duration);
+		position = std::clamp(position, crl::time(0), state.duration);
 		if (state.receivedTill < position) {
 			state.receivedTill = position;
 			trackSendReceivedTill(track, state);
@@ -150,7 +150,7 @@ void Player::trackPlayedTill(
 	const auto guard = base::make_weak(&_sessionGuard);
 	trackReceivedTill(track, state, position);
 	if (guard && position != kTimeUnknown) {
-		position = std::clamp(position, 0LL, state.duration);
+		position = std::clamp(position, crl::time(0), state.duration);
 		state.position = position;
 		_updates.fire({ PlaybackUpdate<Track>{ position } });
 	}

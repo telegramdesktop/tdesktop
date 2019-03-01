@@ -206,7 +206,7 @@ crl::time FFMpegReaderImplementation::frameRealTime() const {
 }
 
 crl::time FFMpegReaderImplementation::framePresentationTime() const {
-	return qMax(_frameTime + _frameTimeCorrection, 0LL);
+	return qMax(_frameTime + _frameTimeCorrection, crl::time(0));
 }
 
 crl::time FFMpegReaderImplementation::durationMs() const {
