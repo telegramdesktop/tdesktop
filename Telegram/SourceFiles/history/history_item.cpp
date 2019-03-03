@@ -706,6 +706,9 @@ QString HistoryItem::notificationText() const {
 QString HistoryItem::inDialogsText(DrawInDialog way) const {
 	auto getText = [this]() {
 		if (_media) {
+			if (_groupId) {
+				return textcmdLink(1, TextUtilities::Clean(lang(lng_in_dlg_album)));
+			}
 			return _media->chatListText();
 		} else if (!emptyText()) {
 			return TextUtilities::Clean(_text.originalText());
