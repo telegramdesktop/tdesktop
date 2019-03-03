@@ -53,7 +53,7 @@ void SectionWidget::init() {
 	_content->contentChanged(
 	) | rpl::start_with_next([=] {
 		_connecting->raise();
-	}, _content->lifetime());
+	}, _connecting->lifetime());
 }
 
 Dialogs::RowDescriptor SectionWidget::activeChat() const {
