@@ -21,7 +21,7 @@ Go to ***BuildPath*** and run
     MACOSX_DEPLOYMENT_TARGET=10.8
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm pkg-config
+    brew install automake cmake fdk-aac git lame libass libtool libvorbis libvpx ninja opus sdl shtool texi2html theora wget x264 xvid yasm pkg-config
 
     sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
@@ -34,13 +34,6 @@ Go to ***BuildPath*** and run
     cd xz-5.0.5
     CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make
-    sudo make install
-    cd ..
-
-    git clone https://github.com/Kitware/CMake
-    cd CMake
-    ./bootstrap
-    make -j4
     sudo make install
     cd ..
 
