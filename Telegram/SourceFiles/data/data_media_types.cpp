@@ -301,14 +301,12 @@ QString MediaPhoto::notificationText() const {
 	return WithCaptionNotificationText(
 		lang(lng_in_dlg_photo),
 		parent()->originalText().text);
-	//return WithCaptionNotificationText(lang(lng_in_dlg_album), _caption);
 }
 
 QString MediaPhoto::chatListText() const {
 	return WithCaptionDialogsText(
 		lang(lng_in_dlg_photo),
 		parent()->originalText().text);
-	//return WithCaptionDialogsText(lang(lng_in_dlg_album), _caption);
 }
 
 QString MediaPhoto::pinnedTextSubstring() const {

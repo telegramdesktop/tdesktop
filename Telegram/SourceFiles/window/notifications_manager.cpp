@@ -307,12 +307,14 @@ void System::showNext() {
 				_waitTimer.callOnce(next - ms);
 				break;
 			} else {
-				auto forwardedItem = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
-				auto forwardedCount = 1;
+				const auto isForwarded = notifyItem->Has<HistoryMessageForwarded>();
+				const auto isAlbum = notifyItem->groupId();
 
-				auto ms = crl::now();
-				auto history = notifyItem->history();
-				auto j = _whenMaps.find(history);
+				auto groupedItem = (isForwarded || isAlbum) ? notifyItem : nullptr; // forwarded and album notify grouping
+				auto forwardedCount = isForwarded ? 1 : 0;
+
+				const auto history = notifyItem->history();
+				const auto j = _whenMaps.find(history);
 				if (j == _whenMaps.cend()) {
 					history->clearNotifications();
 				} else {
@@ -323,9 +325,9 @@ void System::showNext() {
 							break;
 						}
 
-						j.value().remove((forwardedItem ? forwardedItem : notifyItem)->id);
+						j.value().remove((groupedItem ? groupedItem : notifyItem)->id);
 						do {
-							auto k = j.value().constFind(history->currentNotification()->id);
+							const auto k = j.value().constFind(history->currentNotification()->id);
 							if (k != j.value().cend()) {
 								nextNotify = history->currentNotification();
 								_waiters.insert(notifyHistory, Waiter(k.key(), k.value(), 0));
@@ -334,19 +336,26 @@ void System::showNext() {
 							history->skipNotification();
 						} while (history->hasNotification());
 						if (nextNotify) {
-							if (forwardedItem) {
-								auto nextForwarded = nextNotify->Has<HistoryMessageForwarded>() ? nextNotify : nullptr;
-								if (nextForwarded
-									&& forwardedItem->author() == nextForwarded->author()
-									&& qAbs(int64(nextForwarded->date()) - int64(forwardedItem->date())) < 2) {
-									forwardedItem = nextForwarded;
-									++forwardedCount;
-								} else {
-									nextNotify = nullptr;
+							if (groupedItem) {
+								const auto canNextBeGrouped = (isForwarded && nextNotify->Has<HistoryMessageForwarded>())
+									|| (isAlbum && nextNotify->groupId());
+								const auto nextItem = canNextBeGrouped ? nextNotify : nullptr;
+								if (nextItem
+									&& qAbs(int64(nextItem->date()) - int64(groupedItem->date())) < 2) {
+									if (isForwarded
+										&& groupedItem->author() == nextItem->author()) {
+										++forwardedCount;
+										groupedItem = nextItem;
+										continue;
+									}
+									if (isAlbum
+										&& groupedItem->groupId() == nextItem->groupId()) {
+										groupedItem = nextItem;
+										continue;
+									}
 								}
-							} else {
-								nextNotify = nullptr;
 							}
+							nextNotify = nullptr;
 						}
 					} while (nextNotify);
 				}
@@ -464,7 +473,7 @@ void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
 	const auto text = options.hideMessageText
 		? lang(lng_notification_preview)
 		: (forwardedCount < 2
-			? item->notificationText()
+			? (item->groupId() ? lang(lng_in_dlg_album) : item->notificationText())
 			: lng_forward_messages(lt_count, forwardedCount));
 
 	doShowNativeNotification(
