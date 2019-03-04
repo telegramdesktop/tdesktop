@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
+#include "media/streaming/media_streaming_loader_local.h"
 
 namespace {
 
@@ -1214,14 +1215,14 @@ bool DocumentData::inappPlaybackFailed() const {
 
 auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 -> std::unique_ptr<Media::Streaming::Loader> {
-	// #TODO streaming create local file loader
-	//auto &location = this->location(true);
-	//if (!_doc->data().isEmpty()) {
-	//	initStreaming();
-	//} else if (location.accessEnable()) {
-	//	initStreaming();
-	//	location.accessDisable();
-	//}
+	const auto &location = this->location(true);
+	if (!data().isEmpty()) {
+		return Media::Streaming::MakeBytesLoader(data());
+	} else if (!location.isEmpty() && location.accessEnable()) {
+		auto result = Media::Streaming::MakeFileLoader(location.name());
+		location.accessDisable();
+		return result;
+	}
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().api(),
@@ -1590,7 +1591,7 @@ void HandleUnsupportedMedia(
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
 	document->setInappPlaybackFailed();
-	auto filepath = document->filepath(
+	const auto filepath = document->filepath(
 		DocumentData::FilePathResolveSaveFromData);
 	if (filepath.isEmpty()) {
 		const auto save = [=] {

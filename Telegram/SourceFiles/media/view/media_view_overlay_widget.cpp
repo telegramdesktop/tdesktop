@@ -1895,6 +1895,11 @@ void OverlayWidget::initStreamingThumbnail() {
 	const auto thumb = _doc->thumbnail();
 	const auto useThumb = (thumb && thumb->loaded());
 	const auto blurred = _doc->thumbnailInline();
+	if (good && !useGood) {
+		good->load({});
+	} else if (thumb && !useThumb) {
+		thumb->load(fileOrigin());
+	}
 	if (!useGood && !thumb && !blurred) {
 		return;
 	} else if (_doc->dimensions.isEmpty()) {

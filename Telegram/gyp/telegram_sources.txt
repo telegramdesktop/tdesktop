@@ -460,6 +460,8 @@
 <(src_loc)/media/streaming/media_streaming_file_delegate.h
 <(src_loc)/media/streaming/media_streaming_loader.cpp
 <(src_loc)/media/streaming/media_streaming_loader.h
+<(src_loc)/media/streaming/media_streaming_loader_local.cpp
+<(src_loc)/media/streaming/media_streaming_loader_local.h
 <(src_loc)/media/streaming/media_streaming_loader_mtproto.cpp
 <(src_loc)/media/streaming/media_streaming_loader_mtproto.h
 <(src_loc)/media/streaming/media_streaming_player.cpp
