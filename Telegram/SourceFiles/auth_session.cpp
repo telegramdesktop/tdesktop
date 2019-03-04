@@ -476,9 +476,17 @@ void AuthSession::saveSettingsDelayed(crl::time delay) {
 	_saveDataTimer.callOnce(delay);
 }
 
+void AuthSession::localPasscodeChanged() {
+	_shouldLockAt = 0;
+	_autoLockTimer.cancel();
+	checkAutoLock();
+}
+
 void AuthSession::checkAutoLock() {
 	if (!Global::LocalPasscode()
 		|| Core::App().passcodeLocked()) {
+		_shouldLockAt = 0;
+		_autoLockTimer.cancel();
 		return;
 	}
 
@@ -487,6 +495,8 @@ void AuthSession::checkAutoLock() {
 	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
 	const auto checkTimeMs = now - Core::App().lastNonIdleTime();
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
+		_shouldLockAt = 0;
+		_autoLockTimer.cancel();
 		Core::App().lockByPasscode();
 	} else {
 		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
