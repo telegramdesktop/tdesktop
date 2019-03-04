@@ -1384,6 +1384,9 @@ bool DocumentData::isAudioFile() const {
 	}
 	const auto prefix = qstr("audio/");
 	if (!_mimeString.startsWith(prefix, Qt::CaseInsensitive)) {
+		if (_filename.endsWith(qstr(".opus"), Qt::CaseInsensitive)) {
+			return true;
+		}
 		return false;
 	}
 	const auto left = _mimeString.midRef(prefix.size()).toString();
@@ -1510,15 +1513,15 @@ QString FileExtension(const QString &filepath) {
 bool IsValidMediaFile(const QString &filepath) {
 	static const auto kExtensions = [] {
 		const auto list = qsl("\
-webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf \
-amv mp4 m4p m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p \
-f4a f4b wma divx evo mk3d mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat \
-dsh dvr-ms m1v fla flr sol wrap smi swf wtv 8svx 16svx iff aiff aif aifc \
-au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka shn tak tta wv \
-brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
-dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 \
-minipsf psflib 2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym \
-jam mp1 mscz").split(' ');
+16svx 2sf 3g2 3gp 8svx aac aaf aif aifc aiff amr amv ape asf ast au aup \
+avchd avi brstm bwf cam cdda cust dat divx drc dsh dsf dts dtshd dtsma \
+dvr-ms dwd evo f4a f4b f4p f4v fla flac flr flv gif gifv gsf gsm gym iff \
+ifo it jam la ly m1v m2p m2ts m2v m4a m4p m4v mcf mid mk3d mka mks mkv mng \
+mov mp1 mp2 mp3 mp4 minipsf mod mpc mpe mpeg mpg mpv mscz mt2 mus mxf mxl \
+niff nsf nsv off ofr ofs ogg ogv opus ots pac ps psf psf2 psflib ptb qsf \
+qt ra raw rka rm rmj rmvb roq s3m shn sib sid smi smp sol spc spx ssf svi \
+swa swf tak ts tta txm usf vgm vob voc vox vqf wav webm wma wmv wrap wtv \
+wv xm xml ym yuv").split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();
 
