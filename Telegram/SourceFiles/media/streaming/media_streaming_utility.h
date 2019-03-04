@@ -115,6 +115,26 @@ private:
 
 };
 
+struct IODeleter {
+	void operator()(AVIOContext *value);
+};
+using IOPointer = std::unique_ptr<AVIOContext, IODeleter>;
+[[nodiscard]] IOPointer MakeIOPointer(
+	void *opaque,
+	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+	int64_t(*seek)(void *opaque, int64_t offset, int whence));
+
+struct FormatDeleter {
+	void operator()(AVFormatContext *value);
+};
+using FormatPointer = std::unique_ptr<AVFormatContext, FormatDeleter>;
+[[nodiscard]] FormatPointer MakeFormatPointer(
+	void *opaque,
+	int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+	int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+	int64_t(*seek)(void *opaque, int64_t offset, int whence));
+
 struct CodecDeleter {
 	void operator()(AVCodecContext *value);
 };
@@ -129,18 +149,18 @@ using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
 [[nodiscard]] bool FrameHasData(AVFrame *frame);
 void ClearFrameMemory(AVFrame *frame);
 
-struct SwsContextDeleter {
+struct SwscaleDeleter {
 	QSize resize;
 	QSize frameSize;
 	int frameFormat = int(AV_PIX_FMT_NONE);
 
 	void operator()(SwsContext *value);
 };
-using SwsContextPointer = std::unique_ptr<SwsContext, SwsContextDeleter>;
-[[nodiscard]] SwsContextPointer MakeSwsContextPointer(
+using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
+[[nodiscard]] SwscalePointer MakeSwscalePointer(
 	not_null<AVFrame*> frame,
 	QSize resize,
-	SwsContextPointer *existing = nullptr);
+	SwscalePointer *existing = nullptr);
 
 struct Stream {
 	int index = -1;
@@ -156,7 +176,7 @@ struct Stream {
 
 	// Video only.
 	int rotation = 0;
-	SwsContextPointer swsContext;
+	SwscalePointer swscale;
 };
 
 void LogError(QLatin1String method);

@@ -327,7 +327,9 @@ void Instance::play(AudioMsgId::Type type) {
 			if (IsStopped(state.state)) {
 				play(state.id);
 			} else if (data->streamed) {
-				data->streamed->player.resume();
+				if (data->streamed->player.active()) {
+					data->streamed->player.resume();
+				}
 				emitUpdate(type);
 			} else {
 				mixer()->resume(state.id);
@@ -414,7 +416,9 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 void Instance::pause(AudioMsgId::Type type) {
 	if (const auto data = getData(type)) {
 		if (data->streamed) {
-			data->streamed->player.pause();
+			if (data->streamed->player.active()) {
+				data->streamed->player.pause();
+			}
 			emitUpdate(type);
 		} else {
 			const auto state = getState(type);
@@ -442,12 +446,9 @@ void Instance::stop(AudioMsgId::Type type) {
 void Instance::playPause(AudioMsgId::Type type) {
 	if (const auto data = getData(type)) {
 		if (data->streamed) {
-			if (data->streamed->player.finished()
-				|| data->streamed->player.failed()) {
-				auto options = Streaming::PlaybackOptions();
-				options.mode = Streaming::Mode::Audio;
-				options.audioId = data->streamed->id;
-				data->streamed->player.play(options);
+			if (!data->streamed->player.active()) {
+				data->streamed->player.play(
+					streamingOptions(data->streamed->id));
 			} else if (data->streamed->player.paused()) {
 				data->streamed->player.resume();
 			} else {
@@ -702,12 +703,19 @@ void Instance::handleStreamingUpdate(
 		};
 		finishTrack(data->streamed->info.audio.state);
 		emitUpdate(data->type);
+		if (data->streamed && data->streamed->player.finished()) {
+			data->streamed = nullptr;
+		}
 	});
 }
 
 void Instance::handleStreamingError(
 		not_null<Data*> data,
 		Streaming::Error &&error) {
+	emitUpdate(data->type);
+	if (data->streamed && data->streamed->player.failed()) {
+		data->streamed = nullptr;
+	}
 }
 
 } // namespace Player

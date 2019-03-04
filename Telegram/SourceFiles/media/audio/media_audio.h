@@ -153,8 +153,6 @@ public:
 
 	TrackState currentState(AudioMsgId::Type type);
 
-	void clearStoppedAtStart(const AudioMsgId &audio);
-
 	// Thread: Main. Must be locked: AudioMutex.
 	void detachTracks();
 

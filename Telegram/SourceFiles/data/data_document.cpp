@@ -300,6 +300,9 @@ void DocumentOpenClickHandler::Open(
 		Core::App().showDocument(data, context);
 		location.accessDisable();
 		return;
+	} else if (data->inappPlaybackFailed()) {
+		::Data::HandleUnsupportedMedia(data, msgId);
+		return;
 	} else if (data->canBePlayed()) {
 		if (data->isAudioFile() || data->isVoiceMessage()) {
 			Media::Player::instance()->playPause({ data, msgId });
@@ -705,55 +708,32 @@ void DocumentData::performActionOnLoad() {
 		return;
 	}
 
-	auto loc = location(true);
-	auto already = loc.name();
-	auto item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
-	auto showImage = !isVideoFile() && (size < App::kImageSizeLimit);
-	auto playVoice = isVoiceMessage() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
-	auto playMusic = isAudioFile() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
-	auto playAnimation = isAnimation()
-		&& (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen)
+	const auto loc = location(true);
+	const auto &already = loc.name();
+	const auto item = _actionOnLoadMsgId.msg
+		? App::histItemById(_actionOnLoadMsgId)
+		: nullptr;
+	const auto showImage = !isVideoFile() && (size < App::kImageSizeLimit);
+	const auto playVoice = isVoiceMessage();
+	const auto playMusic = isAudioFile();
+	const auto playAnimation = isAnimation()
+		&& loaded()
 		&& showImage
 		&& item;
-	if (auto applyTheme = isTheme()) {
+	if (isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
 			Core::App().showDocument(this, item);
 			loc.accessDisable();
-			return;
 		}
-	}
-	if (playVoice || playMusic) {
-		DocumentOpenClickHandler::Open({}, this, item, ActionOnLoadNone);
-	} else if (playAnimation) {
-		if (loaded()) {
-			if (_actionOnLoad == ActionOnLoadPlayInline && item) {
-				_owner->requestAnimationPlayInline(item);
-			} else {
-				Core::App().showDocument(this, item);
-			}
-		}
-	} else {
-		if (already.isEmpty()) return;
-
-		if (_actionOnLoad == ActionOnLoadOpenWith) {
+	} else if (_actionOnLoad == ActionOnLoadOpenWith) {
+		if (!already.isEmpty()) {
 			File::OpenWith(already, QCursor::pos());
-		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
-			if (isVoiceMessage() || isAudioFile() || isVideoFile()) {
-				if (Data::IsValidMediaFile(already)) {
-					File::Launch(already);
-				}
-				_owner->markMediaRead(this);
-			} else if (loc.accessEnable()) {
-				if (showImage && QImageReader(loc.name()).canRead()) {
-					Core::App().showDocument(this, item);
-				} else {
-					LaunchWithWarning(already, item);
-				}
-				loc.accessDisable();
-			} else {
-				LaunchWithWarning(already, item);
-			}
 		}
+	} else if (playVoice
+		|| playMusic
+		|| playAnimation
+		|| !already.isEmpty()) {
+		DocumentOpenClickHandler::Open({}, this, item, _actionOnLoad);
 	}
 	_actionOnLoad = ActionOnLoadNone;
 }
@@ -1222,6 +1202,14 @@ bool DocumentData::canBePlayed() const {
 		&& (loaded() || canBeStreamed());
 }
 
+void DocumentData::setInappPlaybackFailed() {
+	_inappPlaybackFailed = true;
+}
+
+bool DocumentData::inappPlaybackFailed() const {
+	return _inappPlaybackFailed;
+}
+
 auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 -> std::unique_ptr<Media::Streaming::Loader> {
 	// #TODO streaming create local file loader
@@ -1594,6 +1582,30 @@ base::binary_guard ReadImageAsync(
 		});
 	});
 	return std::move(right);
+}
+
+void HandleUnsupportedMedia(
+		not_null<DocumentData*> document,
+		FullMsgId contextId) {
+	document->setInappPlaybackFailed();
+	auto filepath = document->filepath(
+		DocumentData::FilePathResolveSaveFromData);
+	if (filepath.isEmpty()) {
+		const auto save = [=] {
+			Ui::hideLayer();
+			DocumentSaveClickHandler::Save(
+				(contextId ? contextId : Data::FileOrigin()),
+				document,
+				App::histItemById(contextId));
+		};
+		Ui::show(Box<ConfirmBox>(
+			lang(lng_player_cant_play),
+			lang(lng_player_download),
+			lang(lng_cancel),
+			save));
+	} else if (IsValidMediaFile(filepath)) {
+		File::Launch(filepath);
+	}
 }
 
 } // namespace Data

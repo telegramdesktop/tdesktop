@@ -87,9 +87,7 @@ private:
 		crl::semaphore _semaphore;
 		std::atomic<bool> _interrupted = false;
 
-		uchar *_ioBuffer = nullptr;
-		AVIOContext *_ioContext = nullptr;
-		AVFormatContext *_formatContext = nullptr;
+		FormatPointer _format;
 
 	};
 

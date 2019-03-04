@@ -1247,14 +1247,6 @@ void Mixer::setStoppedState(Track *current, State state) {
 	}
 }
 
-void Mixer::clearStoppedAtStart(const AudioMsgId &audio) {
-	QMutexLocker lock(&AudioMutex);
-	auto track = trackForType(audio.type());
-	if (track && track->state.id == audio && track->state.state == State::StoppedAtStart) {
-		setStoppedState(track);
-	}
-}
-
 // Thread: Main. Must be locked: AudioMutex.
 void Mixer::detachTracks() {
 	for (auto i = 0; i != kTogetherLimit; ++i) {

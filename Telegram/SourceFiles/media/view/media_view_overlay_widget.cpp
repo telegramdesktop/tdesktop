@@ -1925,9 +1925,12 @@ void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	validateStreamedGoodThumbnail();
 	if (videoShown()) {
 		const auto contentSize = ConvertScale(videoSize());
-		_w = contentSize.width();
-		_h = contentSize.height();
-		contentSizeChanged();
+		if (_w != contentSize.width() || _h != contentSize.height()) {
+			update(contentRect());
+			_w = contentSize.width();
+			_h = contentSize.height();
+			contentSizeChanged();
+		}
 	}
 	this->update(contentRect());
 	playbackWaitingChange(false);
@@ -2014,6 +2017,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 
 void OverlayWidget::handleStreamingError(Streaming::Error &&error) {
 	playbackWaitingChange(false);
+	updatePlaybackState();
 }
 
 void OverlayWidget::playbackWaitingChange(bool waiting) {
@@ -2124,7 +2128,13 @@ void OverlayWidget::refreshClipControllerGeometry() {
 }
 
 void OverlayWidget::playbackControlsPlay() {
-	playbackPauseResume();
+	const auto legacy = _streamed->player.prepareLegacyState();
+	if (legacy.state == Player::State::StoppedAtStart) {
+		Data::HandleUnsupportedMedia(_doc, _msgid);
+		close();
+	} else {
+		playbackPauseResume();
+	}
 }
 
 void OverlayWidget::playbackControlsPause() {

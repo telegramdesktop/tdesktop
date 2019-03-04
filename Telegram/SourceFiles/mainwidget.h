@@ -42,6 +42,7 @@ namespace Player {
 class Widget;
 class VolumeWidget;
 class Panel;
+struct TrackState;
 } // namespace Player
 } // namespace Media
 
@@ -350,7 +351,7 @@ private:
 	void animationCallback();
 	void handleAdaptiveLayoutUpdate();
 	void updateWindowAdaptiveLayout();
-	void handleAudioUpdate(const AudioMsgId &audioId);
+	void handleAudioUpdate(const Media::Player::TrackState &state);
 	void updateMediaPlayerPosition();
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();

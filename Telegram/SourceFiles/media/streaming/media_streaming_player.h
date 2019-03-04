@@ -44,10 +44,10 @@ public:
 	void resume();
 	void stop();
 
-	bool valid() const;
-	bool ready() const;
+	[[nodiscard]] bool active() const;
+	[[nodiscard]] bool ready() const;
 
-	float64 speed() const;
+	[[nodiscard]] float64 speed() const;
 	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
 
 	[[nodiscard]] bool playing() const;
@@ -72,7 +72,6 @@ private:
 		Initializing,
 		Ready,
 		Started,
-		Failed
 	};
 
 	// Thread-safe.
@@ -143,6 +142,7 @@ private:
 	// Belongs to the main thread.
 	Information _information;
 	Stage _stage = Stage::Uninitialized;
+	Stage _lastFailureStage = Stage::Uninitialized;
 	bool _pausedByUser = false;
 	bool _pausedByWaitingForData = false;
 	bool _paused = false;

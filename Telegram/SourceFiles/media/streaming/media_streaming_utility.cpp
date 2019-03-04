@@ -22,6 +22,7 @@ constexpr auto kSkipInvalidDataPackets = 10;
 constexpr auto kAlignImageBy = 16;
 constexpr auto kPixelBytesSize = 4;
 constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
+constexpr auto kAvioBlockSize = 4096;
 
 void AlignedImageBufferCleanupHandler(void* data) {
 	const auto buffer = static_cast<uchar*>(data);
@@ -66,6 +67,82 @@ QImage CreateFrameStorage(QSize size) {
 		kImageFormat,
 		AlignedImageBufferCleanupHandler,
 		cleanupData);
+}
+
+IOPointer MakeIOPointer(
+		void *opaque,
+		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
+	auto buffer = reinterpret_cast<uchar*>(av_malloc(kAvioBlockSize));
+	if (!buffer) {
+		LogError(qstr("av_malloc"));
+		return {};
+	}
+	auto result = IOPointer(avio_alloc_context(
+		buffer,
+		kAvioBlockSize,
+		write ? 1 : 0,
+		opaque,
+		read,
+		write,
+		seek));
+	if (!result) {
+		av_freep(&buffer);
+		LogError(qstr("avio_alloc_context"));
+		return {};
+	}
+	return result;
+}
+
+void IODeleter::operator()(AVIOContext *value) {
+	if (value) {
+		av_freep(&value->buffer);
+		avio_context_free(&value);
+	}
+}
+
+FormatPointer MakeFormatPointer(
+		void *opaque,
+		int(*read)(void *opaque, uint8_t *buffer, int bufferSize),
+		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
+		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
+	auto io = MakeIOPointer(opaque, read, write, seek);
+	if (!io) {
+		return {};
+	}
+	auto result = avformat_alloc_context();
+	if (!result) {
+		LogError(qstr("avformat_alloc_context"));
+		return {};
+	}
+	result->pb = io.get();
+
+	auto options = (AVDictionary*)nullptr;
+	const auto guard = gsl::finally([&] { av_dict_free(&options); });
+	av_dict_set(&options, "usetoc", "1", 0);
+	const auto error = AvErrorWrap(avformat_open_input(
+		&result,
+		nullptr,
+		nullptr,
+		&options));
+	if (error) {
+		// avformat_open_input freed 'result' in case an error happened.
+		LogError(qstr("avformat_open_input"), error);
+		return {};
+	}
+	result->flags |= AVFMT_FLAG_FAST_SEEK;
+
+	// Now FormatPointer will own and free the IO context.
+	io.release();
+	return FormatPointer(result);
+}
+
+void FormatDeleter::operator()(AVFormatContext *value) {
+	if (value) {
+		const auto deleter = IOPointer(value->pb);
+		avformat_close_input(&value);
+	}
 }
 
 CodecPointer MakeCodecPointer(not_null<AVStream*> stream) {
@@ -120,10 +197,10 @@ void FrameDeleter::operator()(AVFrame *value) {
 	av_frame_free(&value);
 }
 
-SwsContextPointer MakeSwsContextPointer(
+SwscalePointer MakeSwscalePointer(
 		not_null<AVFrame*> frame,
 		QSize resize,
-		SwsContextPointer *existing) {
+		SwscalePointer *existing) {
 	// We have to use custom caching for SwsContext, because
 	// sws_getCachedContext checks passed flags with existing context flags,
 	// and re-creates context if they're different, but in the process of
@@ -139,7 +216,7 @@ SwsContextPointer MakeSwsContextPointer(
 	}
 	if (frame->format <= AV_PIX_FMT_NONE || frame->format >= AV_PIX_FMT_NB) {
 		LogError(qstr("frame->format"));
-		return SwsContextPointer();
+		return SwscalePointer();
 	}
 
 	const auto result = sws_getCachedContext(
@@ -157,12 +234,12 @@ SwsContextPointer MakeSwsContextPointer(
 	if (!result) {
 		LogError(qstr("sws_getCachedContext"));
 	}
-	return SwsContextPointer(
+	return SwscalePointer(
 		result,
 		{ resize, QSize{ frame->width, frame->height }, frame->format });
 }
 
-void SwsContextDeleter::operator()(SwsContext *value) {
+void SwscaleDeleter::operator()(SwsContext *value) {
 	if (value) {
 		sws_freeContext(value);
 	}
@@ -341,11 +418,11 @@ QImage ConvertFrame(
 			from += deltaFrom;
 		}
 	} else {
-		stream.swsContext = MakeSwsContextPointer(
+		stream.swscale = MakeSwscalePointer(
 			frame,
 			resize,
-			&stream.swsContext);
-		if (!stream.swsContext) {
+			&stream.swscale);
+		if (!stream.swscale) {
 			return QImage();
 		}
 
@@ -354,7 +431,7 @@ QImage ConvertFrame(
 		int linesize[AV_NUM_DATA_POINTERS] = { storage.bytesPerLine(), 0 };
 
 		const auto lines = sws_scale(
-			stream.swsContext.get(),
+			stream.swscale.get(),
 			frame->data,
 			frame->linesize,
 			0,

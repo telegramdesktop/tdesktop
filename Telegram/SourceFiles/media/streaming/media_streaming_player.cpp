@@ -355,7 +355,7 @@ void Player::provideStartInformation() {
 void Player::fail() {
 	_sessionLifetime = rpl::lifetime();
 	const auto stopGuarded = crl::guard(&_sessionGuard, [=] { stop(); });
-	_stage = Stage::Failed;
+	_lastFailureStage = _stage;
 	_updates.fire_error({});
 	stopGuarded();
 }
@@ -364,6 +364,7 @@ void Player::play(const PlaybackOptions &options) {
 	Expects(options.speed >= 0.5 && options.speed <= 2.);
 
 	stop();
+	_lastFailureStage = Stage::Uninitialized;
 
 	_options = options;
 	if (!Media::Audio::SupportsSpeedControl()) {
@@ -374,14 +375,14 @@ void Player::play(const PlaybackOptions &options) {
 }
 
 void Player::pause() {
-	Expects(valid());
+	Expects(active());
 
 	_pausedByUser = true;
 	updatePausedState();
 }
 
 void Player::resume() {
-	Expects(valid());
+	Expects(active());
 
 	_pausedByUser = false;
 	updatePausedState();
@@ -510,9 +511,7 @@ void Player::start() {
 void Player::stop() {
 	_file->stop();
 	_sessionLifetime = rpl::lifetime();
-	if (_stage != Stage::Failed) {
-		_stage = Stage::Uninitialized;
-	}
+	_stage = Stage::Uninitialized;
 	_audio = nullptr;
 	_video = nullptr;
 	invalidate_weak_ptrs(&_sessionGuard);
@@ -526,11 +525,14 @@ void Player::stop() {
 }
 
 bool Player::failed() const {
-	return (_stage == Stage::Failed);
+	return (_lastFailureStage != Stage::Uninitialized);
 }
 
 bool Player::playing() const {
-	return (_stage == Stage::Started) && !_paused && !finished();
+	return (_stage == Stage::Started)
+		&& !paused()
+		&& !finished()
+		&& !failed();
 }
 
 bool Player::buffering() const {
@@ -548,7 +550,7 @@ bool Player::finished() const {
 }
 
 void Player::setSpeed(float64 speed) {
-	Expects(valid());
+	Expects(active());
 	Expects(speed >= 0.5 && speed <= 2.);
 
 	if (!Media::Audio::SupportsSpeedControl()) {
@@ -565,12 +567,12 @@ void Player::setSpeed(float64 speed) {
 	}
 }
 
-bool Player::valid() const {
-	return (_stage != Stage::Uninitialized) && (_stage != Stage::Failed);
+bool Player::active() const {
+	return (_stage != Stage::Uninitialized) && !finished() && !failed();
 }
 
 bool Player::ready() const {
-	return valid() && (_stage != Stage::Initializing);
+	return (_stage != Stage::Uninitialized) && (_stage != Stage::Initializing);
 }
 
 rpl::producer<Update, Error> Player::updates() const {
@@ -588,7 +590,11 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 
 	auto result = Media::Player::TrackState();
 	result.id = _audioId.externalPlayId() ? _audioId : _options.audioId;
-	result.state = finished()
+	result.state = (_lastFailureStage == Stage::Started)
+		? State::StoppedAtError
+		: failed()
+		? State::StoppedAtStart
+		: finished()
 		? State::StoppedAtEnd
 		: paused()
 		? State::Paused
@@ -609,6 +615,8 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 			: document->duration();
 		if (duration > 0) {
 			result.length = duration * crl::time(1000);
+		} else {
+			result.length = std::max(result.position, crl::time(0));
 		}
 	}
 	result.frequency = kMsFrequency;

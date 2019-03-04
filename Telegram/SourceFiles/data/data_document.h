@@ -228,6 +228,9 @@ public:
 	[[nodiscard]] auto createStreamingLoader(Data::FileOrigin origin) const
 		-> std::unique_ptr<Media::Streaming::Loader>;
 
+	void setInappPlaybackFailed();
+	[[nodiscard]] bool inappPlaybackFailed() const;
+
 	~DocumentData();
 
 	DocumentId id = 0;
@@ -272,6 +275,7 @@ private:
 	int32 _duration = -1;
 	bool _isImage = false;
 	bool _supportsStreaming = false;
+	bool _inappPlaybackFailed = false;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
 	FullMsgId _actionOnLoadMsgId;
@@ -392,5 +396,9 @@ base::binary_guard ReadImageAsync(
 	not_null<DocumentData*> document,
 	FnMut<QImage(QImage)> postprocess,
 	FnMut<void(QImage&&)> done);
+
+void HandleUnsupportedMedia(
+	not_null<DocumentData*> document,
+	FullMsgId contextId);
 
 } // namespace Data

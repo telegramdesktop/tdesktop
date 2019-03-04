@@ -389,11 +389,9 @@ MainWidget::MainWidget(
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
-	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
-		if (audioId.type() != AudioMsgId::Type::Video) {
-			handleAudioUpdate(audioId);
-		}
-	});
+	subscribe(
+		Media::Player::instance()->updatedNotifier(),
+		[=](const Media::Player::TrackState &state) { handleAudioUpdate(state); });
 	subscribe(session().calls().currentCallChanged(), [this](Calls::Call *call) { setCurrentCall(call); });
 
 	session().data().currentExportView(
@@ -1173,29 +1171,17 @@ void MainWidget::messagesAffected(
 	}
 }
 
-void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
+void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 	using State = Media::Player::State;
-	const auto document = audioId.audio();
-	auto state = Media::Player::instance()->getState(audioId.type());
-	if (state.id == audioId && state.state == State::StoppedAtStart) {
-		state.state = State::Stopped;
-		Media::Player::mixer()->clearStoppedAtStart(audioId);
-
-		auto filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
-		if (!filepath.isEmpty()) {
-			if (Data::IsValidMediaFile(filepath)) {
-				File::Launch(filepath);
-			}
-		}
+	const auto document = state.id.audio();
+	if (!Media::Player::IsStoppedOrStopping(state.state)) {
+		createPlayer();
+	} else if (state.state == State::StoppedAtStart) {
+		Data::HandleUnsupportedMedia(document, state.id.contextId());
+		closeBothPlayers();
 	}
 
-	if (state.id == audioId) {
-		if (!Media::Player::IsStoppedOrStopping(state.state)) {
-			createPlayer();
-		}
-	}
-
-	if (const auto item = App::histItemById(audioId.contextId())) {
+	if (const auto item = App::histItemById(state.id.contextId())) {
 		session().data().requestItemRepaint(item);
 	}
 	if (const auto items = InlineBots::Layout::documentItems()) {

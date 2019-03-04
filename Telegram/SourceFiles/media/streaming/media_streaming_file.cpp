@@ -98,7 +98,7 @@ void File::Context::logFatal(QLatin1String method, AvErrorWrap error) {
 Stream File::Context::initStream(AVMediaType type) {
 	auto result = Stream();
 	const auto index = result.index = av_find_best_stream(
-		_formatContext,
+		_format.get(),
 		type,
 		-1,
 		-1,
@@ -108,7 +108,7 @@ Stream File::Context::initStream(AVMediaType type) {
 		return {};
 	}
 
-	const auto info = _formatContext->streams[index];
+	const auto info = _format->streams[index];
 	if (type == AVMEDIA_TYPE_VIDEO) {
 		result.rotation = ReadRotationFromMetadata(info);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
@@ -130,7 +130,7 @@ Stream File::Context::initStream(AVMediaType type) {
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? PtsToTimeCeil(info->duration, result.timeBase)
-		: PtsToTimeCeil(_formatContext->duration, kUniversalTimeBase);
+		: PtsToTimeCeil(_format->duration, kUniversalTimeBase);
 	if (result.duration == kTimeUnknown || !result.duration) {
 		return {};
 	}
@@ -151,7 +151,7 @@ void File::Context::seekToPosition(
 	//
 	//const auto seekFlags = 0;
 	//error = av_seek_frame(
-	//	_formatContext,
+	//	_format,
 	//	streamIndex,
 	//	TimeToPts(position, kUniversalTimeBase),
 	//	seekFlags);
@@ -160,7 +160,7 @@ void File::Context::seekToPosition(
 	//}
 	//
 	error = av_seek_frame(
-		_formatContext,
+		_format.get(),
 		stream.index,
 		TimeToPts(
 			std::clamp(position, crl::time(0), stream.duration - 1),
@@ -176,7 +176,7 @@ base::variant<Packet, AvErrorWrap> File::Context::readPacket() {
 	auto error = AvErrorWrap();
 
 	auto result = Packet();
-	error = av_read_frame(_formatContext, &result.fields());
+	error = av_read_frame(_format.get(), &result.fields());
 	if (unroll()) {
 		return AvErrorWrap();
 	} else if (!error) {
@@ -193,37 +193,16 @@ void File::Context::start(crl::time position) {
 	if (unroll()) {
 		return;
 	}
-	_ioBuffer = reinterpret_cast<uchar*>(av_malloc(AVBlockSize));
-	_ioContext = avio_alloc_context(
-		_ioBuffer,
-		AVBlockSize,
-		0,
-		static_cast<void*>(this),
+	_format = MakeFormatPointer(
+		static_cast<void *>(this),
 		&Context::Read,
 		nullptr,
 		&Context::Seek);
-	_formatContext = avformat_alloc_context();
-	if (!_formatContext) {
-		return logFatal(qstr("avformat_alloc_context"));
+	if (!_format) {
+		return fail();
 	}
-	_formatContext->pb = _ioContext;
 
-	auto options = (AVDictionary*)nullptr;
-	const auto guard = gsl::finally([&] { av_dict_free(&options); });
-	av_dict_set(&options, "usetoc", "1", 0);
-	error = avformat_open_input(
-		&_formatContext,
-		nullptr,
-		nullptr,
-		&options);
-	if (error) {
-		_ioBuffer = nullptr;
-		return logFatal(qstr("avformat_open_input"), error);
-	}
-	_opened = true;
-	_formatContext->flags |= AVFMT_FLAG_FAST_SEEK;
-
-	if ((error = avformat_find_stream_info(_formatContext, nullptr))) {
+	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
 		return logFatal(qstr("avformat_find_stream_info"), error);
 	}
 
@@ -299,20 +278,7 @@ void File::Context::fail() {
 	_delegate->fileError();
 }
 
-File::Context::~Context() {
-	if (_opened) {
-		avformat_close_input(&_formatContext);
-	}
-	if (_ioContext) {
-		av_freep(&_ioContext->buffer);
-		av_freep(&_ioContext);
-	} else if (_ioBuffer) {
-		av_freep(&_ioBuffer);
-	}
-	if (_formatContext) {
-		avformat_free_context(_formatContext);
-	}
-}
+File::Context::~Context() = default;
 
 bool File::Context::finished() const {
 	// #TODO streaming later looping
@@ -348,6 +314,7 @@ void File::stop() {
 		_context->interrupt();
 		_thread.join();
 	}
+	_reader.stop();
 	_context.reset();
 }
 

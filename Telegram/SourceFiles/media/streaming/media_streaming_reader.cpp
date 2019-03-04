@@ -540,6 +540,10 @@ Reader::Reader(
 	}
 }
 
+void Reader::stop() {
+	_waiting = nullptr;
+}
+
 std::shared_ptr<Reader::CacheHelper> Reader::InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey) {
 	if (!baseKey) {

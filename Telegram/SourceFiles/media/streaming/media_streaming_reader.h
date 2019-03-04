@@ -39,6 +39,8 @@ public:
 
 	void headerDone();
 
+	void stop();
+
 	~Reader();
 
 private:
