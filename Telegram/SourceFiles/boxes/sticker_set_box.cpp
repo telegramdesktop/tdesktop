@@ -253,6 +253,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 
 	if (_pack.isEmpty()) {
 		Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
+		return;
 	} else {
 		int32 rows = _pack.size() / kStickersPanelPerRow + ((_pack.size() % kStickersPanelPerRow) ? 1 : 0);
 		resize(st::stickersPadding.left() + kStickersPanelPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
