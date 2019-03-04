@@ -227,9 +227,10 @@ infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
 	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
 	iconPosition: point(5px, 11px);
 }
-infoLayerTopBarCall: IconButton(infoLayerTopBarNotifications) {
+infoLayerTopBarCall: IconButton(infoLayerTopBarMenu) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+	iconPosition: point(5px, -1px);
 }
 infoLayerTopBarSave: IconButton(infoLayerTopBarNotifications) {
 	icon: icon {{ "passport_ready", windowActiveTextFg }};
