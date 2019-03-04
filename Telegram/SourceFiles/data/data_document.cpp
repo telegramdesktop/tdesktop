@@ -304,7 +304,9 @@ void DocumentOpenClickHandler::Open(
 		::Data::HandleUnsupportedMedia(data, msgId);
 		return;
 	} else if (data->canBePlayed()) {
-		if (data->isAudioFile() || data->isVoiceMessage()) {
+		if (data->isAudioFile()
+			|| data->isVoiceMessage()
+			|| data->isVideoMessage()) {
 			Media::Player::instance()->playPause({ data, msgId });
 		} else {
 			Core::App().showDocument(data, context);
