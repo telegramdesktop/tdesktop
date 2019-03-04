@@ -442,7 +442,8 @@ void Instance::stop(AudioMsgId::Type type) {
 void Instance::playPause(AudioMsgId::Type type) {
 	if (const auto data = getData(type)) {
 		if (data->streamed) {
-			if (data->streamed->player.finished()) {
+			if (data->streamed->player.finished()
+				|| data->streamed->player.failed()) {
 				auto options = Streaming::PlaybackOptions();
 				options.mode = Streaming::Mode::Audio;
 				options.audioId = data->streamed->id;
