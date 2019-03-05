@@ -57,7 +57,7 @@ RoundController::RoundController(
 		[=](Clip::Notification notification) { callback(notification); },
 		Clip::Reader::Mode::Video);
 	_playbackProgress = std::make_unique<View::PlaybackProgress>();
-	_playbackProgress->setValueChangedCallback([=](float64 value) {
+	_playbackProgress->setValueChangedCallback([=](float64, float64) {
 		Auth().data().requestItemRepaint(_context);
 	});
 	Auth().data().markMediaRead(_data);

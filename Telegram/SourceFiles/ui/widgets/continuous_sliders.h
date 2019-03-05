@@ -31,6 +31,7 @@ public:
 
 	float64 value() const;
 	void setValue(float64 value);
+	void setValue(float64 value, float64 receivedTill);
 	void setFadeOpacity(float64 opacity);
 	void setDisabled(bool disabled);
 	bool isDisabled() const {
@@ -63,8 +64,11 @@ protected:
 	float64 fadeOpacity() const {
 		return _fadeOpacity;
 	}
-	float64 getCurrentValue() {
+	float64 getCurrentValue() const {
 		return _mouseDown ? _downValue : _value;
+	}
+	float64 getCurrentReceivedTill() const {
+		return _receivedTill;
 	}
 	float64 getCurrentOverFactor(crl::time ms) {
 		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
@@ -75,9 +79,10 @@ protected:
 	bool isHorizontal() const {
 		return (_direction == Direction::Horizontal);
 	}
+	QRect getSeekRect() const;
+	virtual QSize getSeekDecreaseSize() const = 0;
 
 private:
-	virtual QRect getSeekRect() const = 0;
 	virtual float64 getOverDuration() const = 0;
 
 	bool moveByWheel() const {
@@ -101,6 +106,7 @@ private:
 	Animation _a_over;
 
 	float64 _value = 0.;
+	float64 _receivedTill = 0.;
 
 	bool _mouseDown = false;
 	float64 _downValue = 0.;
@@ -117,7 +123,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	QRect getSeekRect() const override;
+	QSize getSeekDecreaseSize() const override;
 	float64 getOverDuration() const override;
 
 	const style::FilledSlider &_st;
@@ -176,7 +182,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	QRect getSeekRect() const override;
+	QSize getSeekDecreaseSize() const override;
 	float64 getOverDuration() const override;
 
 	const style::MediaSlider &_st;

@@ -105,6 +105,10 @@ private:
 	[[nodiscard]] bool bothReceivedEnough(crl::time amount) const;
 	[[nodiscard]] bool receivedTillEnd() const;
 	void checkResumeFromWaitingForData();
+	[[nodiscard]] crl::time getCurrentReceivedTill() const;
+	void savePreviousReceivedTill(
+		const PlaybackOptions &options,
+		crl::time previousReceivedTill);
 
 	template <typename Track>
 	void trackReceivedTill(
@@ -153,13 +157,15 @@ private:
 	bool _audioFinished = false;
 	bool _videoFinished = false;
 
-	crl::time _totalDuration = 0;
-	crl::time _loopingShift = 0;
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _nextFrameTime = kTimeUnknown;
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;
+
+	crl::time _totalDuration = 0;
+	crl::time _loopingShift = 0;
+	crl::time _previousReceivedTill = kTimeUnknown;
 
 	rpl::lifetime _lifetime;
 	rpl::lifetime _sessionLifetime;

@@ -2011,7 +2011,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
 		_streamed->info.video.state.receivedTill = update.till;
-		//updatePlaybackState();
+		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
 		_streamed->info.video.state.position = update.position;
 		this->update(contentRect());
@@ -2019,7 +2019,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 		updatePlaybackState();
 	}, [&](const PreloadedAudio &update) {
 		_streamed->info.audio.state.receivedTill = update.till;
-		//updatePlaybackState();
+		updatePlaybackState();
 	}, [&](const UpdateAudio &update) {
 		_streamed->info.audio.state.position = update.position;
 		updatePlaybackState();
@@ -2240,7 +2240,7 @@ void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
 
-	if (!videoShown()) {
+	if (!videoShown() || (videoIsGifv() && !_fullScreenVideo)) {
 		return;
 	}
 	_fullScreenVideo = !_fullScreenVideo;
@@ -2279,6 +2279,9 @@ void OverlayWidget::playbackResumeOnCall() {
 void OverlayWidget::updatePlaybackState() {
 	Expects(_streamed != nullptr);
 
+	if (videoIsGifv()) {
+		return;
+	}
 	auto state = _streamed->player.prepareLegacyState();
 	if (state.length == kTimeUnknown) {
 		const auto duration = _doc->song()

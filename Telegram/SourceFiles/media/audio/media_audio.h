@@ -116,6 +116,7 @@ struct TrackState {
 	AudioMsgId id;
 	State state = State::Stopped;
 	int64 position = 0;
+	int64 receivedTill = 0;
 	int64 length = 0;
 	int frequency = kDefaultFrequency;
 	bool waitingForData = false;

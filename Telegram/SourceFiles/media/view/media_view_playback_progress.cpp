@@ -18,13 +18,24 @@ constexpr auto kPlaybackAnimationDurationMs = crl::time(200);
 
 } // namespace
 
-PlaybackProgress::PlaybackProgress() : _a_value(animation(this, &PlaybackProgress::step_value)) {
+PlaybackProgress::PlaybackProgress()
+: _a_value(animation(this, &PlaybackProgress::step_value))
+, _a_receivedTill(animation(this, &PlaybackProgress::step_receivedTill)) {
 }
 
 void PlaybackProgress::updateState(const Player::TrackState &state) {
-	qint64 position = 0, length = state.length;
+	_playing = !Player::IsStopped(state.state);
+	const auto length = state.length;
+	const auto position = Player::IsStoppedAtEnd(state.state)
+		? state.length
+		: Player::IsStoppedOrStopping(state.state)
+		? 0
+		: state.position;
+	const auto receivedTill = (length && state.receivedTill > position)
+		? state.receivedTill
+		: -1;
 
-	auto wasInLoadingState = _inLoadingState;
+	const auto wasInLoadingState = _inLoadingState;
 	if (wasInLoadingState) {
 		_inLoadingState = false;
 		if (_inLoadingStateChanged) {
@@ -32,23 +43,16 @@ void PlaybackProgress::updateState(const Player::TrackState &state) {
 		}
 	}
 
-	_playing = !Player::IsStopped(state.state);
-	if (Player::IsStoppedAtEnd(state.state)) {
-		position = state.length;
-	} else if (!Player::IsStoppedOrStopping(state.state)) {
-		position = state.position;
-	} else {
-		position = 0;
-	}
-
-	auto progress = 0.;
-	if (position > length) {
-		progress = 1.;
-	} else if (length) {
-		progress = snap(float64(position) / length, 0., 1.);
-	}
-	auto animatedPosition = position + (state.frequency * kPlaybackAnimationDurationMs / 1000);
-	auto animatedProgress = length ? qMax(float64(animatedPosition) / length, 0.) : 0.;
+	const auto progress = (position > length)
+		? 1.
+		: length
+		? snap(float64(position) / length, 0., 1.)
+		: 0.;
+	const auto receivedTillProgress = (receivedTill > position)
+		? snap(float64(receivedTill) / length, 0., 1.)
+		: -1.;
+	const auto animatedPosition = position + (state.frequency * kPlaybackAnimationDurationMs / 1000);
+	const auto animatedProgress = length ? qMax(float64(animatedPosition) / length, 0.) : 0.;
 	if (length != _length || position != _position || wasInLoadingState) {
 		if (auto animated = (length && _length && animatedProgress > value())) {
 			setValue(animatedProgress, animated);
@@ -57,6 +61,10 @@ void PlaybackProgress::updateState(const Player::TrackState &state) {
 		}
 		_position = position;
 		_length = length;
+	}
+	if (receivedTill != _receivedTill) {
+		setReceivedTill(receivedTillProgress);
+		_receivedTill = receivedTill;
 	}
 }
 
@@ -88,9 +96,22 @@ void PlaybackProgress::setValue(float64 value, bool animated) {
 		a_value = anim::value(value, value);
 		_a_value.stop();
 	}
-	if (_valueChanged) {
-		_valueChanged(a_value.current());
+	emitUpdatedValue();
+}
+
+void PlaybackProgress::setReceivedTill(float64 value) {
+	const auto current = a_receivedTill.current();
+	if (value > current && current > 0.) {
+		a_receivedTill.start(value);
+		_a_receivedTill.start();
+	} else if (value > a_value.current()) {
+		a_receivedTill = anim::value(a_value.current(), value);
+		_a_receivedTill.start();
+	} else {
+		a_receivedTill = anim::value(-1., -1.);
+		_a_receivedTill.stop();
 	}
+	emitUpdatedValue();
 }
 
 void PlaybackProgress::step_value(float64 ms, bool timer) {
@@ -101,8 +122,29 @@ void PlaybackProgress::step_value(float64 ms, bool timer) {
 	} else {
 		a_value.update(dt, anim::linear);
 	}
-	if (timer && _valueChanged) {
-		_valueChanged(a_value.current());
+	if (timer) {
+		emitUpdatedValue();
+	}
+}
+
+void PlaybackProgress::step_receivedTill(float64 ms, bool timer) {
+	auto dt = anim::Disabled() ? 1. : (ms / kPlaybackAnimationDurationMs);
+	if (dt >= 1.) {
+		_a_receivedTill.stop();
+		a_receivedTill.finish();
+	} else {
+		a_receivedTill.update(dt, anim::linear);
+	}
+	if (timer) {
+		emitUpdatedValue();
+	}
+}
+
+void PlaybackProgress::emitUpdatedValue() {
+	if (_valueChanged) {
+		const auto value = a_value.current();
+		const auto receivedTill = a_receivedTill.current();
+		_valueChanged(value, std::max(value, receivedTill));
 	}
 }
 

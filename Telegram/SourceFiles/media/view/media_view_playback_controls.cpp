@@ -58,11 +58,10 @@ PlaybackControls::PlaybackControls(QWidget *parent, not_null<Delegate *> delegat
 		}
 	});
 
-	_playbackProgress->setInLoadingStateChangedCallback([=](bool loading) {
-		_playbackSlider->setDisabled(loading);
-	});
-	_playbackProgress->setValueChangedCallback([=](float64 value) {
-		_playbackSlider->setValue(value);
+	_playbackProgress->setValueChangedCallback([=](
+			float64 value,
+			float64 receivedTill) {
+		_playbackSlider->setValue(value, receivedTill);
 	});
 	_playbackSlider->setChangeProgressCallback([=](float64 value) {
 		_playbackProgress->setValue(value, false);

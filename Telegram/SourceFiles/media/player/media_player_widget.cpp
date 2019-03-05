@@ -97,7 +97,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	_playbackProgress->setInLoadingStateChangedCallback([this](bool loading) {
 		_playbackSlider->setDisabled(loading);
 	});
-	_playbackProgress->setValueChangedCallback([this](float64 value) {
+	_playbackProgress->setValueChangedCallback([this](float64 value, float64) {
 		_playbackSlider->setValue(value);
 	});
 	_playbackSlider->setChangeProgressCallback([this](float64 value) {

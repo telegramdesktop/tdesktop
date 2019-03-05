@@ -291,6 +291,7 @@ MediaSlider {
 	inactiveFgOver: color;
 	activeFgDisabled: color;
 	inactiveFgDisabled: color;
+	receivedTillFg: color;
 	seekSize: size;
 	duration: int;
 }
@@ -906,6 +907,7 @@ defaultContinuousSlider: MediaSlider {
 	inactiveFgOver: mediaPlayerInactiveFg;
 	activeFgDisabled: mediaPlayerInactiveFg;
 	inactiveFgDisabled: windowBg;
+	receivedTillFg: mediaPlayerInactiveFg;
 	seekSize: size(9px, 9px);
 	duration: 150;
 }

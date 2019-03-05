@@ -140,8 +140,8 @@ void Player::trackPlayedTill(
 	if (guard && position != kTimeUnknown) {
 		state.position = position;
 		const auto value = _options.loop
-			? position
-			: (position % _totalDuration);
+			? (position % _totalDuration)
+			: position;
 		_updates.fire({ PlaybackUpdate<Track>{ value } });
 	}
 	if (_pauseReading
@@ -159,9 +159,12 @@ void Player::trackSendReceivedTill(
 	Expects(state.duration != kTimeUnknown);
 	Expects(state.receivedTill != kTimeUnknown);
 
+	const auto receivedTill = std::max(
+		state.receivedTill,
+		_previousReceivedTill);
 	const auto value = _options.loop
-		? state.receivedTill
-		: (state.receivedTill % _totalDuration);
+		? (receivedTill % _totalDuration)
+		: receivedTill;
 	_updates.fire({ PreloadedUpdate<Track>{ value } });
 }
 
@@ -376,15 +379,29 @@ void Player::play(const PlaybackOptions &options) {
 	// Looping video with audio is not supported for now.
 	Expects(!options.loop || (options.mode != Mode::Both));
 
+	const auto previous = getCurrentReceivedTill();
+
 	stop();
 	_lastFailureStage = Stage::Uninitialized;
 
+	savePreviousReceivedTill(options, previous);
 	_options = options;
 	if (!Media::Audio::SupportsSpeedControl()) {
 		_options.speed = 1.;
 	}
 	_stage = Stage::Initializing;
 	_file->start(delegate(), _options.position);
+}
+
+void Player::savePreviousReceivedTill(
+		const PlaybackOptions &options,
+		crl::time previousReceivedTill) {
+	// Save previous 'receivedTill' values if we seek inside the range.
+	_previousReceivedTill = ((options.position >= _options.position)
+		&& (options.mode == _options.mode)
+		&& (options.position < previousReceivedTill))
+		? previousReceivedTill
+		: kTimeUnknown;
 }
 
 void Player::pause() {
@@ -626,6 +643,7 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 	} else if (_options.loop && _totalDuration > 0) {
 		result.position %= _totalDuration;
 	}
+	result.receivedTill = getCurrentReceivedTill();
 	result.length = _totalDuration;
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
@@ -642,6 +660,16 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 	}
 	result.frequency = kMsFrequency;
 	return result;
+}
+
+crl::time Player::getCurrentReceivedTill() const {
+	const auto previous = std::max(_previousReceivedTill, crl::time(0));
+	const auto result = std::min(
+		std::max(_information.audio.state.receivedTill, previous),
+		std::max(_information.video.state.receivedTill, previous));
+	return (result >= 0 && _totalDuration > 1 && _options.loop)
+		? (result % _totalDuration)
+		: result;
 }
 
 rpl::lifetime &Player::lifetime() {

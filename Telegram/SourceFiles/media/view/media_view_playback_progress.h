@@ -20,7 +20,7 @@ class PlaybackProgress {
 public:
 	PlaybackProgress();
 
-	void setValueChangedCallback(Fn<void(float64)> callback) {
+	void setValueChangedCallback(Fn<void(float64,float64)> callback) {
 		_valueChanged = std::move(callback);
 	}
 	void setInLoadingStateChangedCallback(Fn<void(bool)> callback) {
@@ -35,18 +35,23 @@ public:
 
 private:
 	void step_value(float64 ms, bool timer);
+	void step_receivedTill(float64 ms, bool timer);
+	void setReceivedTill(float64 value);
+	void emitUpdatedValue();
 
 	// This can animate for a very long time (like in music playing),
-	// so it should be a BasicAnimation, not an Animation.
-	anim::value a_value;
-	BasicAnimation _a_value;
-	Fn<void(float64)> _valueChanged;
+	// so it should be a BasicAnimation, not an Animation, because
+	// Animation pauses mtproto responses/updates handling while playing.
+	anim::value a_value, a_receivedTill;
+	BasicAnimation _a_value, _a_receivedTill;
+	Fn<void(float64,float64)> _valueChanged;
 
 	bool _inLoadingState = false;
 	Fn<void(bool)> _inLoadingStateChanged;
 
 	int64 _position = 0;
 	int64 _length = 0;
+	int64 _receivedTill = -1;
 
 	bool _playing = false;
 

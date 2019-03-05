@@ -78,6 +78,7 @@ private:
 	object_ptr<Ui::IconButton> _playPauseResume;
 	object_ptr<Ui::MediaSlider> _playbackSlider;
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
+	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::MediaSlider> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::LabelSimple> _playedAlready;

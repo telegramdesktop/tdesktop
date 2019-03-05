@@ -16,9 +16,10 @@ mediaviewPlayback: MediaSlider {
 	activeFg: mediaviewPlaybackActive;
 	inactiveFg: mediaviewPlaybackInactive;
 	activeFgOver: mediaviewPlaybackActiveOver;
-	inactiveFgOver: mediaviewPlaybackInactiveOver;
+	inactiveFgOver: mediaviewPlaybackInactive;
 	activeFgDisabled: mediaviewPlaybackActive;
 	inactiveFgDisabled: mediaviewPlaybackInactive;
+	receivedTillFg: mediaviewPlaybackInactiveOver;
 	seekSize: size(11px, 11px);
 	duration: mediaviewOverDuration;
 }
