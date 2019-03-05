@@ -23,15 +23,23 @@ constexpr auto kAlignImageBy = 16;
 constexpr auto kPixelBytesSize = 4;
 constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
 constexpr auto kAvioBlockSize = 4096;
+constexpr auto kMaxScaleByAspectRatio = 16;
 
 void AlignedImageBufferCleanupHandler(void* data) {
 	const auto buffer = static_cast<uchar*>(data);
 	delete[] buffer;
 }
 
-bool IsAlignedImage(const QImage &image) {
+[[nodiscard]] bool IsAlignedImage(const QImage &image) {
 	return !(reinterpret_cast<uintptr_t>(image.bits()) % kAlignImageBy)
 		&& !(image.bytesPerLine() % kAlignImageBy);
+}
+
+[[nodiscard]] bool IsValidAspectRatio(AVRational aspect) {
+	return (aspect.num > 0)
+		&& (aspect.den > 0)
+		&& (aspect.num <= aspect.den * kMaxScaleByAspectRatio)
+		&& (aspect.den <= aspect.num * kMaxScaleByAspectRatio);
 }
 
 } // namespace
@@ -301,6 +309,16 @@ int ReadRotationFromMetadata(not_null<AVStream*> stream) {
 		}
 	}
 	return 0;
+}
+
+AVRational ValidateAspectRatio(AVRational aspect) {
+	return IsValidAspectRatio(aspect) ? aspect : kNormalAspect;
+}
+
+QSize CorrectByAspect(QSize size, AVRational aspect) {
+	Expects(IsValidAspectRatio(aspect));
+
+	return QSize(size.width() * aspect.num / aspect.den, size.height());
 }
 
 bool RotationSwapWidthHeight(int rotation) {

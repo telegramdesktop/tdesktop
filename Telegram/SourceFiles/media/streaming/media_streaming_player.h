@@ -59,6 +59,7 @@ public:
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
 
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	//[[nodiscard]] int videoRotation() const;
 
 	[[nodiscard]] Media::Player::TrackState prepareLegacyState() const;
 

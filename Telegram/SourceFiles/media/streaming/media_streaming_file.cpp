@@ -111,6 +111,7 @@ Stream File::Context::initStream(AVMediaType type) {
 	const auto info = _format->streams[index];
 	if (type == AVMEDIA_TYPE_VIDEO) {
 		result.rotation = ReadRotationFromMetadata(info);
+		result.aspect = ValidateAspectRatio(info->sample_aspect_ratio);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {

@@ -123,6 +123,7 @@ private:
 	const AVRational _streamTimeBase;
 	const crl::time _streamDuration = 0;
 	//const int _streamRotation = 0;
+	//AVRational _streamAspect = kNormalAspect;
 	std::unique_ptr<Shared> _shared;
 
 	using Implementation = VideoTrackObject;

@@ -19,6 +19,7 @@ namespace Media {
 namespace Streaming {
 
 constexpr auto kUniversalTimeBase = AVRational{ 1, AV_TIME_BASE };
+constexpr auto kNormalAspect = AVRational{ 1, 1 };
 
 struct TimePoint {
 	crl::time trackTime = kTimeUnknown;
@@ -176,6 +177,7 @@ struct Stream {
 
 	// Video only.
 	int rotation = 0;
+	AVRational aspect = kNormalAspect;
 	SwscalePointer swscale;
 };
 
@@ -191,7 +193,9 @@ void LogError(QLatin1String method, AvErrorWrap error);
 	AVRational timeBase);
 [[nodiscard]] crl::time FramePosition(const Stream &stream);
 [[nodiscard]] int ReadRotationFromMetadata(not_null<AVStream*> stream);
+[[nodiscard]] AVRational ValidateAspectRatio(AVRational aspect);
 [[nodiscard]] bool RotationSwapWidthHeight(int rotation);
+[[nodiscard]] QSize CorrectByAspect(QSize size, AVRational aspect);
 [[nodiscard]] AvErrorWrap ProcessPacket(Stream &stream, Packet &&packet);
 [[nodiscard]] AvErrorWrap ReadNextFrame(Stream &stream);
 

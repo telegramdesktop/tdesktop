@@ -394,7 +394,7 @@ void VideoTrackObject::callReady() {
 	Assert(frame != nullptr);
 
 	auto data = VideoInformation();
-	data.size = frame->original.size();
+	data.size = CorrectByAspect(frame->original.size(), _stream.aspect);
 	if (RotationSwapWidthHeight(_stream.rotation)) {
 		data.size.transpose();
 	}
@@ -586,6 +586,7 @@ VideoTrack::VideoTrack(
 , _streamTimeBase(stream.timeBase)
 , _streamDuration(stream.duration)
 //, _streamRotation(stream.rotation)
+//, _streamAspect(stream.aspect)
 , _shared(std::make_unique<Shared>())
 , _wrapped(
 	options,

@@ -1199,7 +1199,15 @@ void OverlayWidget::onCopy() {
 		if (!_current.isNull()) {
 			QApplication::clipboard()->setPixmap(_current);
 		} else if (videoShown()) {
-			QApplication::clipboard()->setImage(videoFrame());
+			// #TODO streaming later apply rotation
+			auto image = videoFrame();
+			if (image.size() != _streamed->info.video.size) {
+				image = image.scaled(
+					_streamed->info.video.size,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+			}
+			QApplication::clipboard()->setImage(std::move(image));
 		}
 	} else {
 		if (!_photo || !_photo->loaded()) return;
@@ -1900,13 +1908,14 @@ void OverlayWidget::initStreamingThumbnail() {
 	} else if (thumb && !useThumb) {
 		thumb->load(fileOrigin());
 	}
+	const auto size = useGood ? good->size() : _doc->dimensions;
 	if (!useGood && !thumb && !blurred) {
 		return;
-	} else if (_doc->dimensions.isEmpty()) {
+	} else if (size.isEmpty()) {
 		return;
 	}
-	const auto w = _doc->dimensions.width();
-	const auto h = _doc->dimensions.height();
+	const auto w = size.width();
+	const auto h = size.height();
 	const auto options = VideoThumbOptions(_doc);
 	const auto goodOptions = (options & ~Images::Option::Blurred);
 	_current = (useGood
@@ -1962,9 +1971,16 @@ void OverlayWidget::validateStreamedGoodThumbnail() {
 	Expects(_doc != nullptr);
 
 	const auto good = _doc->goodThumbnail();
-	const auto &image = _streamed->info.video.cover;
+	auto image = _streamed->info.video.cover;
 	if (image.isNull() || (good && good->loaded()) || _doc->uploading()) {
 		return;
+	}
+	// #TODO streaming later apply rotation
+	if (image.size() != _streamed->info.video.size) {
+		image = image.scaled(
+			_streamed->info.video.size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
 	}
 	auto bytes = QByteArray();
 	{
@@ -1976,7 +1992,7 @@ void OverlayWidget::validateStreamedGoodThumbnail() {
 		LOG(("App Error: Bad thumbnail data for saving to cache."));
 	} else if (_doc->uploading()) {
 		_doc->setGoodThumbnailOnUpload(
-			base::duplicate(image),
+			std::move(image),
 			std::move(bytes));
 	} else {
 		_doc->owner().cache().putIfEmpty(
@@ -2187,7 +2203,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
-	if (_doc->isAnimation() || true) {
+	if (_doc->isAnimation()) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
 	}
@@ -2348,17 +2364,13 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		if (rect.intersects(r)) {
 			if (videoShown()) {
 				const auto image = videoFrame();
-				if (image.width() != _w) {
-					//if (_fullScreenVideo) {
-					//	const auto fill = rect.intersected(this->rect());
-					//	PaintImageProfile(p, image, rect, fill);
-					//} else {
-					PainterHighQualityEnabler hq(p);
-					p.drawImage(rect, image);
-					//}
-				} else {
-					p.drawImage(rect.topLeft(), image);
-				}
+				//if (_fullScreenVideo) {
+				//	const auto fill = rect.intersected(this->rect());
+				//	PaintImageProfile(p, image, rect, fill);
+				//} else {
+				PainterHighQualityEnabler hq(p);
+				p.drawImage(rect, image);
+				//}
 			} else if (!_current.isNull()) {
 				if ((!_doc || !_doc->getStickerLarge()) && _current.hasAlpha()) {
 					p.fillRect(rect, _transparentBrush);
