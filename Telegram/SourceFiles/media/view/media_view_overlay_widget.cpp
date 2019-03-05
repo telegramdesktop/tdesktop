@@ -2211,7 +2211,9 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
-	if (_doc->isAnimation()) {
+	options.audioId = AudioMsgId(_doc, _msgid);
+	if (_doc->isAnimation()
+		|| options.audioId.type() == AudioMsgId::Type::Unknown) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
 	}

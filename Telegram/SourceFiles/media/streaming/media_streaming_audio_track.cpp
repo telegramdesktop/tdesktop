@@ -199,7 +199,7 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 					_waitingForData.fire({});
 				}
 				_playPosition = std::clamp(
-					((state.position * 1000 + (state.frequency / 2))
+					crl::time((state.position * 1000 + (state.frequency / 2))
 						/ state.frequency),
 					crl::time(0),
 					_stream.duration - 1);
