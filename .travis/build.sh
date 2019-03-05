@@ -314,6 +314,7 @@ buildVdpau() {
   git clone git://anongit.freedesktop.org/vdpau/libvdpau
 
   cd "$EXTERNAL/libvdpau"
+  git checkout libvdpau-1.2
   ./autogen.sh --prefix=$VDPAU_PATH --enable-static
   make $MAKE_ARGS
   sudo make install

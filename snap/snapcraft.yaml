@@ -176,6 +176,7 @@ parts:
   libvdpau:
     source: git://anongit.freedesktop.org/vdpau/libvdpau
     source-depth: 1
+    source-branch: libvdpau-1.2
     plugin: autotools
     build-packages:
       - libx11-dev
