@@ -2187,6 +2187,10 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
+	if (_doc->isAnimation() || true) {
+		options.mode = Streaming::Mode::Video;
+		options.loop = true;
+	}
 	_streamed->player.play(options);
 
 	Media::Player::instance()->pause(AudioMsgId::Type::Voice);
@@ -2318,7 +2322,6 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		: rects;
 
 	auto ms = crl::now();
-	const auto guard = gsl::finally([&] { LOG(("FULL FRAME: %1").arg(crl::now() - ms)); });
 
 	Painter p(this);
 

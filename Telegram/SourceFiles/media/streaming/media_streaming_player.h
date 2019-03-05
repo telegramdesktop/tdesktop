@@ -78,7 +78,7 @@ private:
 	not_null<FileDelegate*> delegate();
 
 	// FileDelegate methods are called only from the File thread.
-	void fileReady(Stream &&video, Stream &&audio) override;
+	bool fileReady(Stream &&video, Stream &&audio) override;
 	void fileError() override;
 	void fileWaitingForData() override;
 	bool fileProcessPacket(Packet &&packet) override;
@@ -131,6 +131,9 @@ private:
 
 	// Immutable while File is active.
 	base::has_weak_ptr _sessionGuard;
+
+	// Immutable while File is active except '.speed'.
+	// '.speed' is changed from the main thread.
 	PlaybackOptions _options;
 
 	// Belongs to the File thread while File is active.
@@ -149,6 +152,8 @@ private:
 	bool _audioFinished = false;
 	bool _videoFinished = false;
 
+	crl::time _totalDuration = 0;
+	crl::time _loopingShift = 0;
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _nextFrameTime = kTimeUnknown;

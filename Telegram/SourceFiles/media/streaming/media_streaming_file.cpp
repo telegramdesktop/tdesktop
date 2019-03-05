@@ -129,11 +129,14 @@ Stream File::Context::initStream(AVMediaType type) {
 	}
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
-		? PtsToTimeCeil(info->duration, result.timeBase)
-		: PtsToTimeCeil(_format->duration, kUniversalTimeBase);
+		? PtsToTime(info->duration, result.timeBase)
+		: PtsToTime(_format->duration, kUniversalTimeBase);
 	if (result.duration == kTimeUnknown || !result.duration) {
 		return {};
 	}
+	// We want duration to be greater than any valid frame position.
+	// That way we can handle looping by advancing position by n * duration.
+	++result.duration;
 	return result;
 }
 
@@ -217,6 +220,9 @@ void File::Context::start(crl::time position) {
 	}
 
 	_reader->headerDone();
+	_totalDuration = std::max(
+		video.codec ? video.duration : kTimeUnknown,
+		audio.codec ? audio.duration : kTimeUnknown);
 	if (video.codec || audio.codec) {
 		seekToPosition(video.codec ? video : audio, position);
 	}
@@ -224,7 +230,9 @@ void File::Context::start(crl::time position) {
 		return;
 	}
 
-	_delegate->fileReady(std::move(video), std::move(audio));
+	if (!_delegate->fileReady(std::move(video), std::move(audio))) {
+		return fail();
+	}
 }
 
 void File::Context::readNextPacket() {
@@ -248,8 +256,19 @@ void File::Context::readNextPacket() {
 
 void File::Context::handleEndOfFile() {
 	const auto more = _delegate->fileProcessPacket(Packet());
-	// #TODO streaming later looping
-	_readTillEnd = true;
+	if (_delegate->fileReadMore()) {
+		_readTillEnd = false;
+		auto error = AvErrorWrap(av_seek_frame(
+			_format.get(),
+			-1, // stream_index
+			0, // timestamp
+			AVSEEK_FLAG_BACKWARD));
+		if (error) {
+			logFatal(qstr("av_seek_frame"));
+		}
+	} else {
+		_readTillEnd = true;
+	}
 }
 
 void File::Context::interrupt() {

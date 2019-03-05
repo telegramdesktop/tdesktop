@@ -30,6 +30,7 @@ public:
 	// Thread-safe.
 	[[nodiscard]] int streamIndex() const;
 	[[nodiscard]] AVRational streamTimeBase() const;
+	[[nodiscard]] crl::time streamDuration() const;
 
 	// Called from the same unspecified thread.
 	void process(Packet &&packet);
@@ -120,6 +121,7 @@ private:
 
 	const int _streamIndex = 0;
 	const AVRational _streamTimeBase;
+	const crl::time _streamDuration = 0;
 	//const int _streamRotation = 0;
 	std::unique_ptr<Shared> _shared;
 

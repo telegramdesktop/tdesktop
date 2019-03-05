@@ -40,6 +40,7 @@ public:
 	// Thread-safe.
 	[[nodiscard]] int streamIndex() const;
 	[[nodiscard]] AVRational streamTimeBase() const;
+	[[nodiscard]] crl::time streamDuration() const;
 
 	// Called from the same unspecified thread.
 	void process(Packet &&packet);

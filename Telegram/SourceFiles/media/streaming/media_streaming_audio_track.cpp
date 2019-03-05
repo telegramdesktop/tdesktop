@@ -27,6 +27,7 @@ AudioTrack::AudioTrack(
 , _ready(std::move(ready))
 , _error(std::move(error))
 , _playPosition(options.position) {
+	Expects(_stream.duration > 1);
 	Expects(_ready != nullptr);
 	Expects(_error != nullptr);
 	Expects(_audioId.externalPlayId() != 0);
@@ -39,6 +40,10 @@ int AudioTrack::streamIndex() const {
 
 AVRational AudioTrack::streamTimeBase() const {
 	return _stream.timeBase;
+}
+
+crl::time AudioTrack::streamDuration() const {
+	return _stream.duration;
 }
 
 void AudioTrack::process(Packet &&packet) {
@@ -193,7 +198,11 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 				if (state.waitingForData) {
 					_waitingForData.fire({});
 				}
-				_playPosition = state.position * 1000 / state.frequency;
+				_playPosition = std::clamp(
+					((state.position * 1000 + (state.frequency / 2))
+						/ state.frequency),
+					crl::time(0),
+					_stream.duration - 1);
 				return;
 			case State::Paused:
 				return;

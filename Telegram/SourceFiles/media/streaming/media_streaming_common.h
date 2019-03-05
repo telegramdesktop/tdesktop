@@ -38,6 +38,7 @@ struct PlaybackOptions {
 	AudioMsgId audioId;
 	bool syncVideoByAudio = true;
 	bool dropStaleFrames = true;
+	bool loop = false;
 };
 
 struct TrackState {

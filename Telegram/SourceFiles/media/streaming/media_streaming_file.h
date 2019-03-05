@@ -88,6 +88,7 @@ private:
 		std::atomic<bool> _interrupted = false;
 
 		FormatPointer _format;
+		crl::time _totalDuration = kTimeUnknown;
 
 	};
 

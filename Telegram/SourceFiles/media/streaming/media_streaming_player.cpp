@@ -18,7 +18,6 @@ namespace Media {
 namespace Streaming {
 namespace {
 
-constexpr auto kReceivedTillEnd = std::numeric_limits<crl::time>::max();
 constexpr auto kBufferFor = 3 * crl::time(1000);
 constexpr auto kLoadInAdvanceFor = 64 * crl::time(1000);
 constexpr auto kMsFrequency = 1000; // 1000 ms per second.
@@ -26,16 +25,6 @@ constexpr auto kMsFrequency = 1000; // 1000 ms per second.
 // If we played for 3 seconds and got stuck it looks like we're loading
 // slower than we're playing, so load full file in that case.
 constexpr auto kLoadFullIfStuckAfterPlayback = 3 * crl::time(1000);
-
-[[nodiscard]] crl::time TrackClampReceivedTill(
-		crl::time position,
-		const TrackState &state) {
-	return (state.duration == kTimeUnknown || position == kTimeUnknown)
-		? position
-		: (position == kReceivedTillEnd)
-		? state.duration
-		: std::clamp(position, crl::time(0), state.duration - 1);
-}
 
 [[nodiscard]] bool FullTrackReceived(const TrackState &state) {
 	return (state.duration != kTimeUnknown)
@@ -126,7 +115,6 @@ void Player::trackReceivedTill(
 	if (position == kTimeUnknown) {
 		return;
 	} else if (state.duration != kTimeUnknown) {
-		position = std::clamp(position, crl::time(0), state.duration);
 		if (state.receivedTill < position) {
 			state.receivedTill = position;
 			trackSendReceivedTill(track, state);
@@ -150,9 +138,11 @@ void Player::trackPlayedTill(
 	const auto guard = base::make_weak(&_sessionGuard);
 	trackReceivedTill(track, state, position);
 	if (guard && position != kTimeUnknown) {
-		position = std::clamp(position, crl::time(0), state.duration);
 		state.position = position;
-		_updates.fire({ PlaybackUpdate<Track>{ position } });
+		const auto value = _options.loop
+			? position
+			: (position % _totalDuration);
+		_updates.fire({ PlaybackUpdate<Track>{ value } });
 	}
 	if (_pauseReading
 		&& (!bothReceivedEnough(kLoadInAdvanceFor) || receivedTillEnd())) {
@@ -169,13 +159,15 @@ void Player::trackSendReceivedTill(
 	Expects(state.duration != kTimeUnknown);
 	Expects(state.receivedTill != kTimeUnknown);
 
-	_updates.fire({ PreloadedUpdate<Track>{ state.receivedTill } });
+	const auto value = _options.loop
+		? state.receivedTill
+		: (state.receivedTill % _totalDuration);
+	_updates.fire({ PreloadedUpdate<Track>{ value } });
 }
 
 void Player::audioReceivedTill(crl::time position) {
 	Expects(_audio != nullptr);
 
-	position = TrackClampReceivedTill(position, _information.audio.state);
 	trackReceivedTill(*_audio, _information.audio.state, position);
 	checkResumeFromWaitingForData();
 }
@@ -189,8 +181,8 @@ void Player::audioPlayedTill(crl::time position) {
 void Player::videoReceivedTill(crl::time position) {
 	Expects(_video != nullptr);
 
-	position = TrackClampReceivedTill(position, _information.video.state);
 	trackReceivedTill(*_video, _information.video.state, position);
+	checkResumeFromWaitingForData();
 }
 
 void Player::videoPlayedTill(crl::time position) {
@@ -199,7 +191,7 @@ void Player::videoPlayedTill(crl::time position) {
 	trackPlayedTill(*_video, _information.video.state, position);
 }
 
-void Player::fileReady(Stream &&video, Stream &&audio) {
+bool Player::fileReady(Stream &&video, Stream &&audio) {
 	_waitingForData = false;
 
 	const auto weak = base::make_weak(&_sessionGuard);
@@ -248,8 +240,14 @@ void Player::fileReady(Stream &&video, Stream &&audio) {
 		|| (!_audio && !_video)) {
 		LOG(("Streaming Error: Required stream not found for mode %1."
 			).arg(int(mode)));
-		fileError();
+		return false;
 	}
+	_totalDuration = std::max(
+		_audio ? _audio->streamDuration() : kTimeUnknown,
+		_video ? _video->streamDuration() : kTimeUnknown);
+
+	Ensures(_totalDuration > 1);
+	return true;
 }
 
 void Player::fileError() {
@@ -281,27 +279,35 @@ bool Player::fileProcessPacket(Packet &&packet) {
 	if (packet.empty()) {
 		_readTillEnd = true;
 		if (_audio) {
+			const auto till = _loopingShift + _audio->streamDuration();
 			crl::on_main(&_sessionGuard, [=] {
-				audioReceivedTill(kReceivedTillEnd);
+				audioReceivedTill(till);
 			});
 			_audio->process(Packet());
 		}
 		if (_video) {
+			const auto till = _loopingShift + _video->streamDuration();
 			crl::on_main(&_sessionGuard, [=] {
-				videoReceivedTill(kReceivedTillEnd);
+				videoReceivedTill(till);
 			});
 			_video->process(Packet());
 		}
 	} else if (_audio && _audio->streamIndex() == native.stream_index) {
-		const auto time = PacketPosition(packet, _audio->streamTimeBase());
+		const auto till = _loopingShift + std::clamp(
+			PacketPosition(packet, _audio->streamTimeBase()),
+			crl::time(0),
+			_audio->streamDuration() - 1);
 		crl::on_main(&_sessionGuard, [=] {
-			audioReceivedTill(time);
+			audioReceivedTill(till);
 		});
 		_audio->process(std::move(packet));
 	} else if (_video && _video->streamIndex() == native.stream_index) {
-		const auto time = PacketPosition(packet, _video->streamTimeBase());
+		const auto till = _loopingShift + std::clamp(
+			PacketPosition(packet, _video->streamTimeBase()),
+			crl::time(0),
+			_video->streamDuration() - 1);
 		crl::on_main(&_sessionGuard, [=] {
-			videoReceivedTill(time);
+			videoReceivedTill(till);
 		});
 		_video->process(std::move(packet));
 	}
@@ -309,7 +315,11 @@ bool Player::fileProcessPacket(Packet &&packet) {
 }
 
 bool Player::fileReadMore() {
-	// return true if looping.
+	if (_options.loop && _readTillEnd) {
+		_readTillEnd = false;
+		_loopingShift += _totalDuration;
+		return true;
+	}
 	return !_readTillEnd && !_pauseReading;
 }
 
@@ -362,6 +372,9 @@ void Player::fail() {
 
 void Player::play(const PlaybackOptions &options) {
 	Expects(options.speed >= 0.5 && options.speed <= 2.);
+
+	// Looping video with audio is not supported for now.
+	Expects(!options.loop || (options.mode != Mode::Both));
 
 	stop();
 	_lastFailureStage = Stage::Uninitialized;
@@ -431,18 +444,22 @@ void Player::updatePausedState() {
 bool Player::trackReceivedEnough(
 		const TrackState &state,
 		crl::time amount) const {
-	return FullTrackReceived(state)
+	return (!_options.loop && FullTrackReceived(state))
 		|| (state.position != kTimeUnknown
-			&& state.position + amount <= state.receivedTill);
+			&& (state.position + std::min(amount, state.duration)
+				<= state.receivedTill));
 }
 
 bool Player::bothReceivedEnough(crl::time amount) const {
-	auto &info = _information;
+	const auto &info = _information;
 	return (!_audio || trackReceivedEnough(info.audio.state, amount))
 		&& (!_video || trackReceivedEnough(info.video.state, amount));
 }
 
 bool Player::receivedTillEnd() const {
+	if (_options.loop) {
+		return false;
+	}
 	return (!_video || FullTrackReceived(_information.video.state))
 		&& (!_audio || FullTrackReceived(_information.audio.state));
 }
@@ -490,6 +507,7 @@ void Player::start() {
 		_video->renderNextFrame(
 		) | rpl::start_with_next_done([=](crl::time when) {
 			_nextFrameTime = when;
+			LOG(("RENDERING AT: %1").arg(when));
 			checkNextFrame();
 		}, [=] {
 			Expects(_stage == Stage::Started);
@@ -521,6 +539,7 @@ void Player::stop() {
 	_videoFinished = false;
 	_pauseReading = false;
 	_readTillEnd = false;
+	_loopingShift = 0;
 	_information = Information();
 }
 
@@ -604,13 +623,15 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 		_information.video.state.position);
 	if (result.position == kTimeUnknown) {
 		result.position = _options.position;
+	} else if (_options.loop && _totalDuration > 0) {
+		result.position %= _totalDuration;
 	}
-	result.length = std::max(
-		_information.audio.state.duration,
-		_information.video.state.duration);
-	if (result.length == kTimeUnknown && _options.audioId.audio()) {
+	result.length = _totalDuration;
+	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
-		const auto duration = document->song()
+		const auto duration = !document
+			? crl::time(0)
+			: document->song()
 			? document->song()->duration
 			: document->duration();
 		if (duration > 0) {

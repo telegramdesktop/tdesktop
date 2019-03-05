@@ -15,7 +15,9 @@ class Packet;
 
 class FileDelegate {
 public:
-	virtual void fileReady(Stream &&video, Stream &&audio) = 0;
+	[[nodiscard]] virtual bool fileReady(
+		Stream &&video,
+		Stream &&audio) = 0;
 	virtual void fileError() = 0;
 	virtual void fileWaitingForData() = 0;
 
