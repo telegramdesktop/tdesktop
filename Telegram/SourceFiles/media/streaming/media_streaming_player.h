@@ -53,7 +53,7 @@ public:
 	[[nodiscard]] bool playing() const;
 	[[nodiscard]] bool buffering() const;
 	[[nodiscard]] bool paused() const;
-	[[nodiscard]] bool failed() const;
+	[[nodiscard]] std::optional<Error> failed() const;
 	[[nodiscard]] bool finished() const;
 
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
@@ -80,17 +80,17 @@ private:
 
 	// FileDelegate methods are called only from the File thread.
 	bool fileReady(Stream &&video, Stream &&audio) override;
-	void fileError() override;
+	void fileError(Error error) override;
 	void fileWaitingForData() override;
 	bool fileProcessPacket(Packet &&packet) override;
 	bool fileReadMore() override;
 
 	// Called from the main thread.
 	void streamReady(Information &&information);
-	void streamFailed();
+	void streamFailed(Error error);
 	void start();
 	void provideStartInformation();
-	void fail();
+	void fail(Error error);
 	void checkNextFrame();
 	void renderFrame(crl::time now);
 	void audioReceivedTill(crl::time position);
@@ -109,6 +109,7 @@ private:
 	void savePreviousReceivedTill(
 		const PlaybackOptions &options,
 		crl::time previousReceivedTill);
+	[[nodiscard]] crl::time loadInAdvanceFor() const;
 
 	template <typename Track>
 	void trackReceivedTill(
@@ -150,12 +151,13 @@ private:
 	// Belongs to the main thread.
 	Information _information;
 	Stage _stage = Stage::Uninitialized;
-	Stage _lastFailureStage = Stage::Uninitialized;
+	std::optional<Error> _lastFailure;
 	bool _pausedByUser = false;
 	bool _pausedByWaitingForData = false;
 	bool _paused = false;
 	bool _audioFinished = false;
 	bool _videoFinished = false;
+	bool _remoteLoader = false;
 
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _pausedTime = kTimeUnknown;
@@ -163,7 +165,7 @@ private:
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;
 
-	crl::time _totalDuration = 0;
+	crl::time _totalDuration = kTimeUnknown;
 	crl::time _loopingShift = 0;
 	crl::time _previousReceivedTill = kTimeUnknown;
 

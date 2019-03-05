@@ -301,9 +301,6 @@ void DocumentOpenClickHandler::Open(
 		Core::App().showDocument(data, context);
 		location.accessDisable();
 		return;
-	} else if (data->inappPlaybackFailed()) {
-		::Data::HandleUnsupportedMedia(data, msgId);
-		return;
 	} else if (data->canBePlayed()) {
 		if (data->isAudioFile()
 			|| data->isVoiceMessage()
@@ -444,7 +441,7 @@ AuthSession &DocumentData::session() const {
 void DocumentData::setattributes(
 		const QVector<MTPDocumentAttribute> &attributes) {
 	_isImage = false;
-	_supportsStreaming = false;
+	_supportsStreaming = SupportsStreaming::Unknown;
 	for (const auto &attribute : attributes) {
 		attribute.match([&](const MTPDdocumentAttributeImageSize & data) {
 			dimensions = QSize(data.vw.v, data.vh.v);
@@ -474,7 +471,7 @@ void DocumentData::setattributes(
 					: VideoDocument;
 			}
 			_duration = data.vduration.v;
-			_supportsStreaming = data.is_supports_streaming();
+			setMaybeSupportsStreaming(data.is_supports_streaming());
 			dimensions = QSize(data.vw.v, data.vh.v);
 		}, [&](const MTPDdocumentAttributeAudio & data) {
 			if (type == FileDocument) {
@@ -531,6 +528,11 @@ void DocumentData::setattributes(
 		}
 	}
 	validateGoodThumbnail();
+	if (isAudioFile()
+		|| (isAnimation() && !isVideoMessage())
+		|| isVoiceMessage()) {
+		setMaybeSupportsStreaming(true);
+	}
 }
 
 bool DocumentData::checkWallPaperProperties() {
@@ -1192,16 +1194,15 @@ bool DocumentData::hasRemoteLocation() const {
 }
 
 bool DocumentData::canBeStreamed() const {
-	return hasRemoteLocation()
-		&& (isAudioFile()
-			|| ((isAnimation() || isVideoFile()) && supportsStreaming()));
+	return hasRemoteLocation() && supportsStreaming();
 }
 
 bool DocumentData::canBePlayed() const {
-	return (isAnimation()
-		|| isVideoFile()
-		|| isAudioFile()
-		|| isVoiceMessage())
+	return !_inappPlaybackFailed
+		&& (isAnimation()
+			|| isVideoFile()
+			|| isAudioFile()
+			|| isVoiceMessage())
 		&& (loaded() || canBeStreamed());
 }
 
@@ -1405,7 +1406,20 @@ bool DocumentData::isImage() const {
 }
 
 bool DocumentData::supportsStreaming() const {
-	return _supportsStreaming;
+	return (_supportsStreaming == SupportsStreaming::MaybeYes);
+}
+
+void DocumentData::setNotSupportsStreaming() {
+	_supportsStreaming = SupportsStreaming::No;
+}
+
+void DocumentData::setMaybeSupportsStreaming(bool supports) {
+	if (_supportsStreaming == SupportsStreaming::No) {
+		return;
+	}
+	_supportsStreaming = supports
+		? SupportsStreaming::MaybeYes
+		: SupportsStreaming::MaybeNo;
 }
 
 void DocumentData::recountIsImage() {
@@ -1587,28 +1601,30 @@ base::binary_guard ReadImageAsync(
 	return std::move(right);
 }
 
-void HandleUnsupportedMedia(
-		not_null<DocumentData*> document,
-		FullMsgId contextId) {
-	document->setInappPlaybackFailed();
-	const auto filepath = document->filepath(
-		DocumentData::FilePathResolveSaveFromData);
-	if (filepath.isEmpty()) {
-		const auto save = [=] {
-			Ui::hideLayer();
-			DocumentSaveClickHandler::Save(
-				(contextId ? contextId : Data::FileOrigin()),
-				document,
-				App::histItemById(contextId));
-		};
-		Ui::show(Box<ConfirmBox>(
-			lang(lng_player_cant_play),
-			lang(lng_player_download),
-			lang(lng_cancel),
-			save));
-	} else if (IsValidMediaFile(filepath)) {
-		File::Launch(filepath);
-	}
-}
+//void HandleUnsupportedMedia(
+//		not_null<DocumentData*> document,
+//		FullMsgId contextId) {
+//	using Error = ::Media::Streaming::Error;
+//
+//	document->setInappPlaybackFailed();
+//	const auto filepath = document->filepath(
+//		DocumentData::FilePathResolveSaveFromData);
+//	if (filepath.isEmpty()) {
+//		const auto save = [=] {
+//			Ui::hideLayer();
+//			DocumentSaveClickHandler::Save(
+//				(contextId ? contextId : Data::FileOrigin()),
+//				document,
+//				App::histItemById(contextId));
+//		};
+//		Ui::show(Box<ConfirmBox>(
+//			lang(lng_player_cant_stream),
+//			lang(lng_player_download),
+//			lang(lng_cancel),
+//			save));
+//	} else if (IsValidMediaFile(filepath)) {
+//		File::Launch(filepath);
+//	}
+//}
 
 } // namespace Data

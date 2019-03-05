@@ -19,7 +19,7 @@ namespace Streaming {
 class Loader;
 struct PlaybackOptions;
 struct Update;
-struct Error;
+enum class Error;
 } // namespace Streaming
 } // namespace Media
 
@@ -188,7 +188,6 @@ private:
 	void validatePlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
-	void preloadNext(not_null<Data*> data);
 	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 
 	void handleStreamingUpdate(
@@ -198,6 +197,7 @@ private:
 		not_null<Data*> data,
 		Streaming::Error &&error);
 
+	void clearStreamed(not_null<Data *> data);
 	void emitUpdate(AudioMsgId::Type type);
 	template <typename CheckCallback>
 	void emitUpdate(AudioMsgId::Type type, CheckCallback check);

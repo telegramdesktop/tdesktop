@@ -1177,7 +1177,6 @@ void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 	if (!Media::Player::IsStoppedOrStopping(state.state)) {
 		createPlayer();
 	} else if (state.state == State::StoppedAtStart) {
-		Data::HandleUnsupportedMedia(document, state.id.contextId());
 		closeBothPlayers();
 	}
 

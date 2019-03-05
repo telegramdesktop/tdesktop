@@ -36,6 +36,8 @@ public:
 	void wake();
 	void stop();
 
+	[[nodiscard]] bool isRemoteLoader() const;
+
 	~File();
 
 private:
@@ -66,10 +68,15 @@ private:
 		void logError(QLatin1String method, AvErrorWrap error);
 		void logFatal(QLatin1String method);
 		void logFatal(QLatin1String method, AvErrorWrap error);
-		void fail();
+		void fail(Error error);
 
-		Stream initStream(AVMediaType type);
-		void seekToPosition(const Stream &stream, crl::time position);
+		Stream initStream(
+			not_null<AVFormatContext *> format,
+			AVMediaType type);
+		void seekToPosition(
+			not_null<AVFormatContext *> format,
+			const Stream &stream,
+			crl::time position);
 
 		// TODO base::expected.
 		[[nodiscard]] base::variant<Packet, AvErrorWrap> readPacket();
@@ -88,7 +95,6 @@ private:
 		std::atomic<bool> _interrupted = false;
 
 		FormatPointer _format;
-		crl::time _totalDuration = kTimeUnknown;
 
 	};
 

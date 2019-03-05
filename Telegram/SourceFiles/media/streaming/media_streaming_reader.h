@@ -25,21 +25,24 @@ namespace Streaming {
 
 class Loader;
 struct LoadedPart;
+enum class Error;
 
 class Reader final {
 public:
 	Reader(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
 
-	int size() const;
-	bool fill(
+	[[nodiscard]] int size() const;
+	[[nodiscard]] bool fill(
 		int offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify);
-	bool failed() const;
+	[[nodiscard]] std::optional<Error> failed() const;
 
 	void headerDone();
 
 	void stop();
+
+	[[nodiscard]] bool isRemoteLoader() const;
 
 	~Reader();
 
@@ -111,9 +114,10 @@ private:
 		Slices(int size, bool useCache);
 
 		void headerDone(bool fromCache);
+		bool headerWontBeFilled() const;
 
 		bool processCacheResult(int sliceNumber, QByteArray &&result);
-		bool processPart(int offset, QByteArray &&bytes);
+		std::optional<Error> processPart(int offset, QByteArray &&bytes);
 
 		FillResult fill(int offset, bytes::span buffer);
 		SerializedSlice unloadToCache();
@@ -167,7 +171,7 @@ private:
 	PriorityQueue _loadingOffsets;
 
 	Slices _slices;
-	bool _failed = false;
+	std::optional<Error> _failed;
 	rpl::lifetime _lifetime;
 
 };

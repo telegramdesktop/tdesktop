@@ -12,13 +12,14 @@ namespace Streaming {
 
 struct Stream;
 class Packet;
+enum class Error;
 
 class FileDelegate {
 public:
 	[[nodiscard]] virtual bool fileReady(
 		Stream &&video,
 		Stream &&audio) = 0;
-	virtual void fileError() = 0;
+	virtual void fileError(Error error) = 0;
 	virtual void fileWaitingForData() = 0;
 
 	// Return true if reading and processing more packets is desired.

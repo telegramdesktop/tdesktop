@@ -100,7 +100,11 @@ struct Update {
 		Finished> data;
 };
 
-struct Error {
+enum class Error {
+	OpenFailed,
+	LoadFailed,
+	InvalidData,
+	NotStreamable,
 };
 
 struct FrameRequest {

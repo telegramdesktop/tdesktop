@@ -39,7 +39,7 @@ struct TrackState;
 namespace Streaming {
 struct Information;
 struct Update;
-struct Error;
+enum class Error;
 } // namespace Streaming
 } // namespace Media
 

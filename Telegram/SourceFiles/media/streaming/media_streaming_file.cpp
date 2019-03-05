@@ -44,8 +44,8 @@ int File::Context::read(bytes::span buffer) {
 		_semaphore.acquire();
 		if (_interrupted) {
 			return -1;
-		} else if (_reader->failed()) {
-			fail();
+		} else if (const auto error = _reader->failed()) {
+			fail(*error);
 			return -1;
 		}
 	}
@@ -84,21 +84,23 @@ void File::Context::logError(QLatin1String method, AvErrorWrap error) {
 void File::Context::logFatal(QLatin1String method) {
 	if (!unroll()) {
 		LogError(method);
-		fail();
+		fail(_format ? Error::InvalidData : Error::OpenFailed);
 	}
 }
 
 void File::Context::logFatal(QLatin1String method, AvErrorWrap error) {
 	if (!unroll()) {
 		LogError(method, error);
-		fail();
+		fail(_format ? Error::InvalidData : Error::OpenFailed);
 	}
 }
 
-Stream File::Context::initStream(AVMediaType type) {
+Stream File::Context::initStream(
+		not_null<AVFormatContext*> format,
+		AVMediaType type) {
 	auto result = Stream();
 	const auto index = result.index = av_find_best_stream(
-		_format.get(),
+		format,
 		type,
 		-1,
 		-1,
@@ -108,7 +110,7 @@ Stream File::Context::initStream(AVMediaType type) {
 		return {};
 	}
 
-	const auto info = _format->streams[index];
+	const auto info = format->streams[index];
 	if (type == AVMEDIA_TYPE_VIDEO) {
 		result.rotation = ReadRotationFromMetadata(info);
 		result.aspect = ValidateAspectRatio(info->sample_aspect_ratio);
@@ -131,7 +133,7 @@ Stream File::Context::initStream(AVMediaType type) {
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? PtsToTime(info->duration, result.timeBase)
-		: PtsToTime(_format->duration, kUniversalTimeBase);
+		: PtsToTime(format->duration, kUniversalTimeBase);
 	if (result.duration == kTimeUnknown || !result.duration) {
 		return {};
 	}
@@ -142,6 +144,7 @@ Stream File::Context::initStream(AVMediaType type) {
 }
 
 void File::Context::seekToPosition(
+		not_null<AVFormatContext*> format,
 		const Stream &stream,
 		crl::time position) {
 	auto error = AvErrorWrap();
@@ -155,7 +158,7 @@ void File::Context::seekToPosition(
 	//
 	//const auto seekFlags = 0;
 	//error = av_seek_frame(
-	//	_format,
+	//	format,
 	//	streamIndex,
 	//	TimeToPts(position, kUniversalTimeBase),
 	//	seekFlags);
@@ -164,7 +167,7 @@ void File::Context::seekToPosition(
 	//}
 	//
 	error = av_seek_frame(
-		_format.get(),
+		format,
 		stream.index,
 		TimeToPts(
 			std::clamp(position, crl::time(0), stream.duration - 1),
@@ -197,43 +200,41 @@ void File::Context::start(crl::time position) {
 	if (unroll()) {
 		return;
 	}
-	_format = MakeFormatPointer(
+	auto format = MakeFormatPointer(
 		static_cast<void *>(this),
 		&Context::Read,
 		nullptr,
 		&Context::Seek);
-	if (!_format) {
-		return fail();
+	if (!format) {
+		return fail(Error::OpenFailed);
 	}
 
-	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
+	if ((error = avformat_find_stream_info(format.get(), nullptr))) {
 		return logFatal(qstr("avformat_find_stream_info"), error);
 	}
 
-	auto video = initStream(AVMEDIA_TYPE_VIDEO);
+	auto video = initStream(format.get(), AVMEDIA_TYPE_VIDEO);
 	if (unroll()) {
 		return;
 	}
 
-	auto audio = initStream(AVMEDIA_TYPE_AUDIO);
+	auto audio = initStream(format.get(), AVMEDIA_TYPE_AUDIO);
 	if (unroll()) {
 		return;
 	}
 
 	_reader->headerDone();
-	_totalDuration = std::max(
-		video.codec ? video.duration : kTimeUnknown,
-		audio.codec ? audio.duration : kTimeUnknown);
 	if (video.codec || audio.codec) {
-		seekToPosition(video.codec ? video : audio, position);
+		seekToPosition(format.get(), video.codec ? video : audio, position);
 	}
 	if (unroll()) {
 		return;
 	}
 
 	if (!_delegate->fileReady(std::move(video), std::move(audio))) {
-		return fail();
+		return fail(Error::OpenFailed);
 	}
+	_format = std::move(format);
 }
 
 void File::Context::readNextPacket() {
@@ -293,15 +294,14 @@ bool File::Context::unroll() const {
 	return failed() || interrupted();
 }
 
-void File::Context::fail() {
+void File::Context::fail(Error error) {
 	_failed = true;
-	_delegate->fileError();
+	_delegate->fileError(error);
 }
 
 File::Context::~Context() = default;
 
 bool File::Context::finished() const {
-	// #TODO streaming later looping
 	return unroll() || _readTillEnd;
 }
 
@@ -336,6 +336,10 @@ void File::stop() {
 	}
 	_reader.stop();
 	_context.reset();
+}
+
+bool File::isRemoteLoader() const {
+	return _reader.isRemoteLoader();
 }
 
 File::~File() {

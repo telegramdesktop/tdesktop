@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_reader.h"
 
+#include "media/streaming/media_streaming_common.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
@@ -18,10 +19,13 @@ namespace {
 constexpr auto kPartSize = Loader::kPartSize;
 constexpr auto kPartsInSlice = 64;
 constexpr auto kInSlice = kPartsInSlice * kPartSize;
-constexpr auto kMaxPartsInHeader = 72;
-constexpr auto kMaxInHeader = kMaxPartsInHeader * kPartSize;
+constexpr auto kMaxPartsInHeader = 16;
 constexpr auto kMaxOnlyInHeader = 80 * kPartSize;
 constexpr auto kSlicesInMemory = 2;
+
+// 1 MB of header parts can be outside the first slice for us to still
+// put the whole first slice of the file in the header cache entry.
+//constexpr auto kMaxOutsideHeaderPartsForOptimizedMode = 8;
 
 // 1 MB of parts are requested from cloud ahead of reading demand.
 constexpr auto kPreloadPartsAhead = 8;
@@ -286,6 +290,11 @@ void Reader::Slices::headerDone(bool fromCache) {
 	}
 }
 
+bool Reader::Slices::headerWontBeFilled() const {
+	return (_headerMode == HeaderMode::Unknown)
+		&& (_header.parts.size() == kMaxPartsInHeader);
+}
+
 void Reader::Slices::applyHeaderCacheData() {
 	if (_header.parts.empty()) {
 		return;
@@ -318,21 +327,21 @@ bool Reader::Slices::processCacheResult(
 	return success;
 }
 
-bool Reader::Slices::processPart(int offset, QByteArray &&bytes) {
+std::optional<Error> Reader::Slices::processPart(
+		int offset,
+		QByteArray &&bytes) {
 	Expects(offset / kInSlice < _data.size());
 
 	const auto index = offset / kInSlice;
 	if (_headerMode == HeaderMode::Unknown) {
 		if (_header.parts.contains(offset)) {
-			return true;
-		} else if (_header.parts.size() == kMaxPartsInHeader) {
-			// #TODO streaming later unavailable, full load?
-			return false;
+			return {};
+		} else if (_header.parts.size() < kMaxPartsInHeader) {
+			_header.addPart(offset, bytes);
 		}
-		_header.addPart(offset, bytes);
 	}
 	_data[index].addPart(offset - index * kInSlice, std::move(bytes));
-	return true;
+	return {};
 }
 
 auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
@@ -544,6 +553,10 @@ void Reader::stop() {
 	_waiting = nullptr;
 }
 
+bool Reader::isRemoteLoader() const {
+	return _loader->baseCacheKey().has_value();
+}
+
 std::shared_ptr<Reader::CacheHelper> Reader::InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey) {
 	if (!baseKey) {
@@ -584,7 +597,7 @@ int Reader::size() const {
 	return _loader->size();
 }
 
-bool Reader::failed() const {
+std::optional<Error> Reader::failed() const {
 	return _failed;
 }
 
@@ -652,6 +665,10 @@ bool Reader::fillFromSlices(int offset, bytes::span buffer) {
 	using namespace rpl::mappers;
 
 	auto result = _slices.fill(offset, buffer);
+	if (!result.filled && _slices.headerWontBeFilled()) {
+		_failed = Error::NotStreamable;
+		return false;
+	}
 
 	for (const auto sliceNumber : result.sliceNumbersFromCache.values()) {
 		readFromCache(sliceNumber);
@@ -724,14 +741,16 @@ bool Reader::processLoadedParts() {
 		if (part.offset == LoadedPart::kFailedOffset
 			|| (part.bytes.size() != Loader::kPartSize
 				&& part.offset + part.bytes.size() != size())) {
-			_failed = true;
+			_failed = Error::LoadFailed;
 			return false;
 		} else if (!_loadingOffsets.remove(part.offset)) {
 			continue;
-		} else if (!_slices.processPart(
-				part.offset,
-				std::move(part.bytes))) {
-			_failed = true;
+		}
+		const auto error = _slices.processPart(
+			part.offset,
+			std::move(part.bytes));
+		if (error) {
+			_failed = *error;
 			return false;
 		}
 	}

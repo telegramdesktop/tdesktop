@@ -31,7 +31,7 @@ public:
 		Stream &&stream,
 		const AudioMsgId &audioId,
 		FnMut<void(const Information &)> ready,
-		Fn<void()> error);
+		Fn<void(Error)> error);
 
 	void process(Packet &&packet);
 
@@ -80,7 +80,7 @@ private:
 	AudioMsgId _audioId;
 	bool _noMoreData = false;
 	FnMut<void(const Information &)> _ready;
-	Fn<void()> _error;
+	Fn<void(Error)> _error;
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _resumedTime = kTimeUnknown;
 	mutable TimePoint _syncTimePoint;
@@ -103,7 +103,7 @@ VideoTrackObject::VideoTrackObject(
 	Stream &&stream,
 	const AudioMsgId &audioId,
 	FnMut<void(const Information &)> ready,
-	Fn<void()> error)
+	Fn<void(Error)> error)
 : _weak(std::move(weak))
 , _options(options)
 , _shared(shared)
@@ -141,7 +141,7 @@ void VideoTrackObject::process(Packet &&packet) {
 		_stream.queue.push_back(std::move(packet));
 		queueReadFrames();
 	} else if (!tryReadFirstFrame(std::move(packet))) {
-		_error();
+		_error(Error::InvalidData);
 	}
 }
 
@@ -209,7 +209,7 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 			}
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
 			interrupt();
-			_error();
+			_error(Error::InvalidData);
 			return FrameResult::Error;
 		}
 		Assert(_stream.queue.empty());
@@ -220,7 +220,7 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 	LOG(("GOT FRAME: %1 (queue %2)").arg(position).arg(_stream.queue.size()));
 	if (position == kTimeUnknown) {
 		interrupt();
-		_error();
+		_error(Error::InvalidData);
 		return FrameResult::Error;
 	}
 	std::swap(frame->decoded, _stream.frame);
@@ -244,7 +244,7 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		if (frame->original.isNull()) {
 			frame->prepared = QImage();
 			interrupt();
-			_error();
+			_error(Error::InvalidData);
 			return;
 		}
 
@@ -581,7 +581,7 @@ VideoTrack::VideoTrack(
 	Stream &&stream,
 	const AudioMsgId &audioId,
 	FnMut<void(const Information &)> ready,
-	Fn<void()> error)
+	Fn<void(Error)> error)
 : _streamIndex(stream.index)
 , _streamTimeBase(stream.timeBase)
 , _streamDuration(stream.duration)

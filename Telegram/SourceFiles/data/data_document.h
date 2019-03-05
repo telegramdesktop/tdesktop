@@ -167,6 +167,7 @@ public:
 	[[nodiscard]] bool isImage() const;
 	void recountIsImage();
 	[[nodiscard]] bool supportsStreaming() const;
+	void setNotSupportsStreaming();
 	void setData(const QByteArray &data) {
 		_data = data;
 	}
@@ -244,10 +245,17 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
+	enum class SupportsStreaming : uchar {
+		Unknown,
+		MaybeYes,
+		MaybeNo,
+		No,
+	};
 	friend class Serialize::Document;
 
 	LocationType locationType() const;
 	void validateGoodThumbnail();
+	void setMaybeSupportsStreaming(bool supports);
 
 	void destroyLoader(mtpFileLoader *newValue = nullptr) const;
 
@@ -274,7 +282,7 @@ private:
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 	bool _isImage = false;
-	bool _supportsStreaming = false;
+	SupportsStreaming _supportsStreaming = SupportsStreaming::Unknown;
 	bool _inappPlaybackFailed = false;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
@@ -396,9 +404,5 @@ base::binary_guard ReadImageAsync(
 	not_null<DocumentData*> document,
 	FnMut<QImage(QImage)> postprocess,
 	FnMut<void(QImage&&)> done);
-
-void HandleUnsupportedMedia(
-	not_null<DocumentData*> document,
-	FullMsgId contextId);
 
 } // namespace Data

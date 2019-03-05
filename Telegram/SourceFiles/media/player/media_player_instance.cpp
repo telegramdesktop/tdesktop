@@ -134,18 +134,17 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		if (data->current == audioId) {
 			return;
 		}
-		const auto trackChanged = (data->current.audio() != audioId.audio())
-			|| (data->current.contextId() != audioId.contextId());
+		const auto changed = [&](const AudioMsgId & check) {
+			return (check.audio() != audioId.audio())
+				|| (check.contextId() != audioId.contextId());
+		};
+		const auto trackChanged = changed(data->current);
+		if (trackChanged && data->streamed && changed(data->streamed->id)) {
+			clearStreamed(data);
+		}
 		data->current = audioId;
 		if (!trackChanged) {
 			return;
-		}
-		const auto streamedId = data->streamed
-			? data->streamed->id
-			: AudioMsgId();
-		if (streamedId.audio() != audioId.audio()
-			|| streamedId.contextId() != audioId.contextId()) {
-			data->streamed = nullptr;
 		}
 		data->current = audioId;
 		data->isPlaying = false;
@@ -163,6 +162,16 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		_trackChangedNotifier.notify(data->type, true);
 		refreshPlaylist(data);
 	}
+}
+
+void Instance::clearStreamed(not_null<Data*> data) {
+	if (!data->streamed) {
+		return;
+	}
+	data->streamed->player.stop();
+	data->isPlaying = false;
+	emitUpdate(data->type);
+	data->streamed = nullptr;
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -386,6 +395,9 @@ void Instance::playStreamed(
 
 	const auto data = getData(audioId.type());
 	Assert(data != nullptr);
+	if (data->streamed) {
+		clearStreamed(data);
+	}
 	data->streamed = std::make_unique<Streamed>(
 		audioId,
 		&audioId.audio()->owner(),
@@ -607,36 +619,8 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 				_tracksFinishedNotifier.notify(type);
 			}
 		}
-		auto isPlaying = !IsStopped(state.state);
-		if (data->isPlaying != isPlaying) {
-			data->isPlaying = isPlaying;
-			if (data->isPlaying) {
-				preloadNext(data);
-			}
-		}
+		data->isPlaying = !IsStopped(state.state);
 	}
-}
-
-void Instance::preloadNext(not_null<Data*> data) {
-	//if (!data->current || !data->playlistSlice || !data->playlistIndex) {
-	//	return;
-	//}
-	//const auto nextIndex = *data->playlistIndex + 1;
-	//if (const auto item = itemByIndex(data, nextIndex)) {
-	//	if (const auto media = item->media()) {
-	//		if (const auto document = media->document()) {
-	//			const auto isLoaded = document->loaded(
-	//				DocumentData::FilePathResolveSaveFromDataSilent);
-	//			if (!isLoaded) {
-	//				DocumentOpenClickHandler::Open(
-	//					item->fullId(),
-	//					document,
-	//					item,
-	//					ActionOnLoadNone);
-	//			}
-	//		}
-	//	}
-	//}
 }
 
 void Instance::handleLogout() {
@@ -712,6 +696,23 @@ void Instance::handleStreamingUpdate(
 void Instance::handleStreamingError(
 		not_null<Data*> data,
 		Streaming::Error &&error) {
+	Expects(data->streamed != nullptr);
+
+	const auto document = data->streamed->id.audio();
+	const auto contextId = data->streamed->id.contextId();
+	if (error == Streaming::Error::NotStreamable) {
+		document->setNotSupportsStreaming();
+		DocumentSaveClickHandler::Save(
+			(contextId ? contextId : ::Data::FileOrigin()),
+			document,
+			App::histItemById(contextId));
+	} else if (error == Streaming::Error::OpenFailed) {
+		document->setInappPlaybackFailed();
+		DocumentSaveClickHandler::Save(
+			(contextId ? contextId : ::Data::FileOrigin()),
+			document,
+			App::histItemById(contextId));
+	}
 	emitUpdate(data->type);
 	if (data->streamed && data->streamed->player.failed()) {
 		data->streamed = nullptr;

@@ -25,7 +25,7 @@ public:
 		Stream &&stream,
 		const AudioMsgId &audioId,
 		FnMut<void(const Information &)> ready,
-		Fn<void()> error);
+		Fn<void(Error)> error);
 
 	// Thread-safe.
 	[[nodiscard]] int streamIndex() const;

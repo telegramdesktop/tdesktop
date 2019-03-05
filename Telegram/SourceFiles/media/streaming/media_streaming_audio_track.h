@@ -21,7 +21,7 @@ public:
 		Stream &&stream,
 		AudioMsgId audioId,
 		FnMut<void(const Information &)> ready,
-		Fn<void()> error);
+		Fn<void(Error)> error);
 
 	// Called from the main thread.
 	// Must be called after 'ready' was invoked.
@@ -69,7 +69,7 @@ private:
 
 	// Assumed to be thread-safe.
 	FnMut<void(const Information &)> _ready;
-	const Fn<void()> _error;
+	const Fn<void(Error)> _error;
 
 	// First set from the same unspecified thread before _ready is called.
 	// After that is immutable.

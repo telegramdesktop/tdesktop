@@ -163,6 +163,7 @@ struct OverlayWidget::Streamed {
 	base::Timer timer;
 
 	bool resumeOnCallEnd = false;
+	std::optional<Streaming::Error> lastError;
 };
 
 OverlayWidget::Streamed::Streamed(
@@ -327,7 +328,7 @@ bool OverlayWidget::videoIsGifv() const {
 QImage OverlayWidget::videoFrame() const {
 	Expects(videoShown());
 
-	auto request = Media::Streaming::FrameRequest();
+	auto request = Streaming::FrameRequest();
 	//request.radius = (_doc && _doc->isVideoMessage())
 	//	? ImageRoundRadius::Ellipse
 	//	: ImageRoundRadius::None;
@@ -893,7 +894,7 @@ void OverlayWidget::showSaveMsgFile() {
 
 void OverlayWidget::updateMixerVideoVolume() const {
 	if (_streamed) {
-		Media::Player::mixer()->setVideoVolume(Global::VideoVolume());
+		Player::mixer()->setVideoVolume(Global::VideoVolume());
 	}
 }
 
@@ -1514,19 +1515,19 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 void OverlayWidget::refreshGroupThumbs() {
 	const auto existed = (_groupThumbs != nullptr);
 	if (_index && _sharedMediaData) {
-		Media::View::GroupThumbs::Refresh(
+		View::GroupThumbs::Refresh(
 			_groupThumbs,
 			*_sharedMediaData,
 			*_index,
 			_groupThumbsAvailableWidth);
 	} else if (_index && _userPhotosData) {
-		Media::View::GroupThumbs::Refresh(
+		View::GroupThumbs::Refresh(
 			_groupThumbs,
 			*_userPhotosData,
 			*_index,
 			_groupThumbsAvailableWidth);
 	} else if (_index && _collageData) {
-		Media::View::GroupThumbs::Refresh(
+		View::GroupThumbs::Refresh(
 			_groupThumbs,
 			{ _msgid, &*_collageData },
 			*_index,
@@ -1555,8 +1556,8 @@ void OverlayWidget::initGroupThumbs() {
 	}, _groupThumbs->lifetime());
 
 	_groupThumbs->activateRequests(
-	) | rpl::start_with_next([this](Media::View::GroupThumbs::Key key) {
-		using CollageKey = Media::View::GroupThumbs::CollageKey;
+	) | rpl::start_with_next([this](View::GroupThumbs::Key key) {
+		using CollageKey = View::GroupThumbs::CollageKey;
 		if (const auto photoId = base::get_if<PhotoId>(&key)) {
 			const auto photo = Auth().data().photo(*photoId);
 			moveToEntity({ photo, nullptr });
@@ -2027,7 +2028,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 		playbackWaitingChange(update.waiting);
 	}, [&](MutedByOther) {
 	}, [&](Finished) {
-		const auto finishTrack = [](Media::Streaming::TrackState &state) {
+		const auto finishTrack = [](Streaming::TrackState &state) {
 			state.position = state.receivedTill = state.duration;
 		};
 		finishTrack(_streamed->info.audio.state);
@@ -2037,8 +2038,19 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 }
 
 void OverlayWidget::handleStreamingError(Streaming::Error &&error) {
-	playbackWaitingChange(false);
-	updatePlaybackState();
+	if (error == Streaming::Error::NotStreamable) {
+		_doc->setNotSupportsStreaming();
+	} else if (error == Streaming::Error::OpenFailed) {
+		_doc->setInappPlaybackFailed();
+	}
+	if (!_doc->canBePlayed()) {
+		clearStreaming();
+		displayDocument(_doc, App::histItemById(_msgid));
+	} else {
+		_streamed->lastError = std::move(error);
+		playbackWaitingChange(false);
+		updatePlaybackState();
+	}
 }
 
 void OverlayWidget::playbackWaitingChange(bool waiting) {
@@ -2149,13 +2161,7 @@ void OverlayWidget::refreshClipControllerGeometry() {
 }
 
 void OverlayWidget::playbackControlsPlay() {
-	const auto legacy = _streamed->player.prepareLegacyState();
-	if (legacy.state == Player::State::StoppedAtStart) {
-		Data::HandleUnsupportedMedia(_doc, _msgid);
-		close();
-	} else {
-		playbackPauseResume();
-	}
+	playbackPauseResume();
 }
 
 void OverlayWidget::playbackControlsPause() {
@@ -2174,9 +2180,11 @@ void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
 	_streamed->resumeOnCallEnd = false;
+	_streamed->lastError = std::nullopt;
 	if (const auto item = App::histItemById(_msgid)) {
 		if (_streamed->player.failed()) {
-			displayDocument(_doc, item);
+			clearStreaming();
+			initStreaming();
 		} else if (_streamed->player.finished()) {
 			restartAtSeekPosition(0);
 		} else if (_streamed->player.paused()) {
@@ -2209,8 +2217,8 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	}
 	_streamed->player.play(options);
 
-	Media::Player::instance()->pause(AudioMsgId::Type::Voice);
-	Media::Player::instance()->pause(AudioMsgId::Type::Song);
+	Player::instance()->pause(AudioMsgId::Type::Voice);
+	Player::instance()->pause(AudioMsgId::Type::Song);
 
 	_streamed->info.audio.state.position
 		= _streamed->info.video.state.position

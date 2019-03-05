@@ -20,7 +20,7 @@ AudioTrack::AudioTrack(
 	Stream &&stream,
 	AudioMsgId audioId,
 	FnMut<void(const Information &)> ready,
-	Fn<void()> error)
+	Fn<void(Error)> error)
 : _options(options)
 , _stream(std::move(stream))
 , _audioId(audioId)
@@ -51,7 +51,7 @@ void AudioTrack::process(Packet &&packet) {
 	if (initialized()) {
 		mixerEnqueue(std::move(packet));
 	} else if (!tryReadFirstFrame(std::move(packet))) {
-		_error();
+		_error(Error::InvalidData);
 	}
 }
 
@@ -188,7 +188,7 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 				return;
 			case State::StoppedAtError:
 			case State::StoppedAtStart:
-				_error();
+				_error(Error::InvalidData);
 				return;
 			case State::Starting:
 			case State::Playing:

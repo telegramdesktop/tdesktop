@@ -19,7 +19,8 @@ namespace Streaming {
 namespace {
 
 constexpr auto kBufferFor = 3 * crl::time(1000);
-constexpr auto kLoadInAdvanceFor = 64 * crl::time(1000);
+constexpr auto kLoadInAdvanceForRemote = 64 * crl::time(1000);
+constexpr auto kLoadInAdvanceForLocal = 5 * crl::time(1000);
 constexpr auto kMsFrequency = 1000; // 1000 ms per second.
 
 // If we played for 3 seconds and got stuck it looks like we're loading
@@ -79,6 +80,7 @@ Player::Player(
 	not_null<Data::Session*> owner,
 	std::unique_ptr<Loader> loader)
 : _file(std::make_unique<File>(owner, std::move(loader)))
+, _remoteLoader(_file->isRemoteLoader())
 , _renderFrameTimer([=] { checkNextFrame(); }) {
 }
 
@@ -123,7 +125,7 @@ void Player::trackReceivedTill(
 		state.receivedTill = position;
 	}
 	if (!_pauseReading
-		&& bothReceivedEnough(kLoadInAdvanceFor)
+		&& bothReceivedEnough(loadInAdvanceFor())
 		&& !receivedTillEnd()) {
 		_pauseReading = true;
 	}
@@ -145,7 +147,7 @@ void Player::trackPlayedTill(
 		_updates.fire({ PlaybackUpdate<Track>{ value } });
 	}
 	if (_pauseReading
-		&& (!bothReceivedEnough(kLoadInAdvanceFor) || receivedTillEnd())) {
+		&& (!bothReceivedEnough(loadInAdvanceFor()) || receivedTillEnd())) {
 		_pauseReading = false;
 		_file->wake();
 		++wakes;
@@ -204,10 +206,10 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 		});
 	};
 	const auto error = [&](auto &stream) {
-		return [=, &stream] {
+		return [=, &stream](Error error) {
 			crl::on_main(weak, [=, &stream] {
 				stream = nullptr;
-				streamFailed();
+				streamFailed(error);
 			});
 		};
 	};
@@ -253,11 +255,11 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 	return true;
 }
 
-void Player::fileError() {
+void Player::fileError(Error error) {
 	_waitingForData = false;
 
 	crl::on_main(&_sessionGuard, [=] {
-		fail();
+		fail(error);
 	});
 }
 
@@ -331,11 +333,11 @@ void Player::streamReady(Information &&information) {
 	provideStartInformation();
 }
 
-void Player::streamFailed() {
+void Player::streamFailed(Error error) {
 	if (_stage == Stage::Initializing) {
 		provideStartInformation();
 	} else {
-		fail();
+		fail(error);
 	}
 }
 
@@ -348,7 +350,7 @@ void Player::provideStartInformation() {
 	} else if ((!_audio && !_video)
 		|| (!_audio && _options.mode == Mode::Audio)
 		|| (!_video && _options.mode == Mode::Video)) {
-		fail();
+		fail(Error::OpenFailed);
 	} else {
 		_stage = Stage::Ready;
 
@@ -365,11 +367,11 @@ void Player::provideStartInformation() {
 	}
 }
 
-void Player::fail() {
+void Player::fail(Error error) {
 	_sessionLifetime = rpl::lifetime();
 	const auto stopGuarded = crl::guard(&_sessionGuard, [=] { stop(); });
-	_lastFailureStage = _stage;
-	_updates.fire_error({});
+	_lastFailure = error;
+	_updates.fire_error(std::move(error));
 	stopGuarded();
 }
 
@@ -382,7 +384,7 @@ void Player::play(const PlaybackOptions &options) {
 	const auto previous = getCurrentReceivedTill();
 
 	stop();
-	_lastFailureStage = Stage::Uninitialized;
+	_lastFailure = std::nullopt;
 
 	savePreviousReceivedTill(options, previous);
 	_options = options;
@@ -402,6 +404,10 @@ void Player::savePreviousReceivedTill(
 		&& (options.position < previousReceivedTill))
 		? previousReceivedTill
 		: kTimeUnknown;
+}
+
+crl::time Player::loadInAdvanceFor() const {
+	return _remoteLoader ? kLoadInAdvanceForRemote : kLoadInAdvanceForLocal;
 }
 
 void Player::pause() {
@@ -560,8 +566,8 @@ void Player::stop() {
 	_information = Information();
 }
 
-bool Player::failed() const {
-	return (_lastFailureStage != Stage::Uninitialized);
+std::optional<Error> Player::failed() const {
+	return _lastFailure;
 }
 
 bool Player::playing() const {
@@ -626,10 +632,11 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 
 	auto result = Media::Player::TrackState();
 	result.id = _audioId.externalPlayId() ? _audioId : _options.audioId;
-	result.state = (_lastFailureStage == Stage::Started)
-		? State::StoppedAtError
-		: failed()
+	result.state = (_lastFailure == Error::OpenFailed
+		|| _lastFailure == Error::NotStreamable)
 		? State::StoppedAtStart
+		: _lastFailure
+		? State::StoppedAtError
 		: finished()
 		? State::StoppedAtEnd
 		: paused()
