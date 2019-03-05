@@ -89,7 +89,6 @@ private:
 		int _offset = 0;
 		int _size = 0;
 		bool _failed = false;
-		bool _opened = false;
 		bool _readTillEnd = false;
 		crl::semaphore _semaphore;
 		std::atomic<bool> _interrupted = false;
