@@ -214,7 +214,13 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 		};
 	};
 	const auto mode = _options.mode;
-	if (audio.codec && (mode == Mode::Audio || mode == Mode::Both)) {
+	if (mode != Mode::Audio && mode != Mode::Both) {
+		audio = Stream();
+	}
+	if (mode != Mode::Video && mode != Mode::Both) {
+		video = Stream();
+	}
+	if (audio.codec) {
 		if (_options.audioId.audio() != nullptr) {
 			_audioId = AudioMsgId(
 				_options.audioId.audio(),
@@ -229,16 +235,26 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 			_audioId,
 			ready,
 			error(_audio));
+	} else if (audio.index >= 0) {
+		LOG(("Streaming Error: No codec for audio stream %1, mode %2."
+			).arg(audio.index
+			).arg(int(mode)));
+		return false;
 	} else {
 		_audioId = AudioMsgId();
 	}
-	if (video.codec && (mode == Mode::Video || mode == Mode::Both)) {
+	if (video.codec) {
 		_video = std::make_unique<VideoTrack>(
 			_options,
 			std::move(video),
 			_audioId,
 			ready,
 			error(_video));
+	} else if (video.index >= 0) {
+		LOG(("Streaming Error: No codec for video stream %1, mode %2."
+			).arg(audio.index
+			).arg(int(mode)));
+		return false;
 	}
 	if ((mode == Mode::Audio && !_audio)
 		|| (mode == Mode::Video && !_video)

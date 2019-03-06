@@ -107,7 +107,7 @@ Stream File::Context::initStream(
 		nullptr,
 		0);
 	if (index < 0) {
-		return {};
+		return result;
 	}
 
 	const auto info = format->streams[index];
@@ -117,25 +117,27 @@ Stream File::Context::initStream(
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
-			return {};
+			return result;
 		}
 	}
 
 	result.codec = MakeCodecPointer(info);
 	if (!result.codec) {
-		return {};
+		return result;
 	}
 
 	result.frame = MakeFramePointer();
 	if (!result.frame) {
-		return {};
+		result.codec = nullptr;
+		return result;
 	}
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? PtsToTime(info->duration, result.timeBase)
 		: PtsToTime(format->duration, kUniversalTimeBase);
 	if (result.duration == kTimeUnknown || !result.duration) {
-		return {};
+		result.codec = nullptr;
+		return result;
 	}
 	// We want duration to be greater than any valid frame position.
 	// That way we can handle looping by advancing position by n * duration.
