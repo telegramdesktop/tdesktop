@@ -518,7 +518,7 @@ void HistoryVideo::validateGroupedCache(
 }
 
 void HistoryVideo::setStatusSize(int newSize) const {
-	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->duration(), 0);
+	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->getDuration(), 0);
 }
 
 TextWithEntities HistoryVideo::selectedText(TextSelection selection) const {

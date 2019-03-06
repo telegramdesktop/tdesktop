@@ -21,14 +21,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 int documentMaxStatusWidth(DocumentData *document) {
 	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
+	const auto duration = document->getDuration();
 	if (const auto song = document->song()) {
-		accumulate_max(result, st::normalFont->width(formatPlayedText(song->duration, song->duration)));
-		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(song->duration, document->size)));
+		accumulate_max(result, st::normalFont->width(formatPlayedText(duration, duration)));
+		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
 	} else if (const auto voice = document->voice()) {
-		accumulate_max(result, st::normalFont->width(formatPlayedText(voice->duration, voice->duration)));
-		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(voice->duration, document->size)));
+		accumulate_max(result, st::normalFont->width(formatPlayedText(duration, duration)));
+		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
 	} else if (document->isVideoFile()) {
-		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(document->duration(), document->size)));
+		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
 	} else {
 		accumulate_max(result, st::normalFont->width(formatSizeText(document->size)));
 	}

@@ -48,7 +48,7 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		}
 		writeStorageImageLocation(stream, document->sticker()->loc);
 	} else {
-		stream << qint32(document->duration());
+		stream << qint32(document->getDuration());
 		if (const auto thumb = document->thumbnail()) {
 			writeStorageImageLocation(stream, thumb->location());
 		} else {

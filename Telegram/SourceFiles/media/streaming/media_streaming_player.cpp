@@ -670,13 +670,7 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 	result.length = _totalDuration;
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
-		const auto duration = !document
-			? crl::time(0)
-			: document->song()
-			? document->song()->duration
-			: document->voice()
-			? document->voice()->duration
-			: document->duration();
+		const auto duration = document ? document->getDuration() : 0;
 		if (duration > 0) {
 			result.length = duration * crl::time(1000);
 		} else {

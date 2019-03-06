@@ -729,7 +729,7 @@ void HistoryGif::setStatusSize(int newSize) const {
 		if (newSize < 0) {
 			_statusText = formatDurationText(-newSize - 1);
 		} else {
-			_statusText = formatDurationText(_data->duration());
+			_statusText = formatDurationText(_data->getDuration());
 		}
 	} else {
 		HistoryFileMedia::setStatusSize(newSize, _data->size, -2, 0);
@@ -749,7 +749,7 @@ void HistoryGif::updateStatusText() const {
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 		if (const auto video = activeRoundPlayer()) {
-			statusSize = -1 - _data->duration();
+			statusSize = -1 - _data->getDuration();
 
 			const auto type = AudioMsgId::Type::Voice;
 			const auto state = Media::Player::instance()->getState(type);

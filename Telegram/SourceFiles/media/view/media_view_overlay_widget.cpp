@@ -2292,17 +2292,7 @@ void OverlayWidget::updatePlaybackState() {
 	if (videoIsGifv()) {
 		return;
 	}
-	auto state = _streamed->player.prepareLegacyState();
-	if (state.length == kTimeUnknown) {
-		const auto duration = _doc->song()
-			? _doc->song()->duration
-			: _doc->duration();
-		if (duration > 0) {
-			state.length = std::max(
-				duration * crl::time(1000),
-				crl::time(state.position));
-		}
-	}
+	const auto state = _streamed->player.prepareLegacyState();
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
 		_streamed->controls.updatePlayback(state);
 	}

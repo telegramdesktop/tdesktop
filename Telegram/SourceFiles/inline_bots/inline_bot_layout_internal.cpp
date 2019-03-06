@@ -73,12 +73,8 @@ int FileBase::content_height() const {
 
 int FileBase::content_duration() const {
 	if (const auto document = getShownDocument()) {
-		if (document->duration() > 0) {
-			return document->duration();
-		} else if (const auto song = document->song()) {
-			if (song->duration) {
-				return song->duration;
-			}
+		if (document->getDuration() > 0) {
+			return document->getDuration();
 		}
 	}
 	return getResultDuration();

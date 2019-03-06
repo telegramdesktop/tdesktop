@@ -1397,8 +1397,15 @@ bool DocumentData::isVideoFile() const {
 	return (type == VideoDocument);
 }
 
-int32 DocumentData::duration() const {
-	return (isAnimation() || isVideoFile()) ? _duration : -1;
+TimeId DocumentData::getDuration() const {
+	if (const auto song = this->song()) {
+		return std::max(song->duration, 0);
+	} else if (const auto voice = this->voice()) {
+		return std::max(voice->duration, 0);
+	} else if (isAnimation() || isVideoFile()) {
+		return std::max(_duration, 0);
+	}
+	return -1;
 }
 
 bool DocumentData::isImage() const {

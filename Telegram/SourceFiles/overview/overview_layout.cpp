@@ -400,7 +400,7 @@ Video::Video(
 	not_null<DocumentData*> video)
 : RadialProgressItem(parent)
 , _data(video)
-, _duration(formatDurationText(_data->duration())) {
+, _duration(formatDurationText(_data->getDuration())) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
 }
@@ -837,9 +837,7 @@ void Voice::updateName() {
 }
 
 int Voice::duration() const {
-	return _data->voice()
-		? _data->voice()->duration
-		: std::max(_data->duration(), 0);
+	return std::max(_data->getDuration(), 0);
 }
 
 bool Voice::updateStatusText() {
