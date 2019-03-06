@@ -292,9 +292,11 @@ crl::time PacketPosition(const Packet &packet, AVRational timeBase) {
 crl::time FramePosition(const Stream &stream) {
 	const auto pts = !stream.frame
 		? AV_NOPTS_VALUE
-		: (stream.frame->pts == AV_NOPTS_VALUE)
-		? stream.frame->pkt_dts
-		: stream.frame->pts;
+		: (stream.frame->best_effort_timestamp != AV_NOPTS_VALUE)
+		? stream.frame->best_effort_timestamp
+		: (stream.frame->pts != AV_NOPTS_VALUE)
+		? stream.frame->pts
+		: stream.frame->pkt_dts;
 	return PtsToTime(pts, stream.timeBase);
 }
 

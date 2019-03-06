@@ -15,6 +15,7 @@ namespace Streaming {
 namespace {
 
 constexpr auto kDisplaySkipped = crl::time(-1);
+constexpr auto kFinishedPosition = std::numeric_limits<crl::time>::max();
 static_assert(kDisplaySkipped != kTimeUnknown);
 
 } // namespace
@@ -53,12 +54,17 @@ private:
 		Looped,
 		Finished,
 	};
+	using ReadEnoughState = base::optional_variant<
+		FrameResult,
+		Shared::PrepareNextCheck>;
+
 	[[nodiscard]] bool interrupted() const;
 	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
 	[[nodiscard]] bool processFirstFrame();
 	void queueReadFrames(crl::time delay = 0);
 	void readFrames();
+	[[nodiscard]] ReadEnoughState readEnoughFrames(crl::time trackTime);
 	[[nodiscard]] FrameResult readFrame(not_null<Frame*> frame);
 	void presentFrameIfNeeded();
 	void callReady();
@@ -162,31 +168,49 @@ void VideoTrackObject::readFrames() {
 		return;
 	}
 	auto time = trackTime().trackTime;
+	while (true) {
+		const auto result = readEnoughFrames(time);
+		result.match([&](FrameResult result) {
+			if (result == FrameResult::Done
+				|| result == FrameResult::Finished) {
+				presentFrameIfNeeded();
+			} else if (result == FrameResult::Looped) {
+				time -= _stream.duration;
+			}
+		}, [&](Shared::PrepareNextCheck delay) {
+			Expects(delay == kTimeUnknown || delay > 0);
+			if (delay != kTimeUnknown) {
+				queueReadFrames(delay);
+			}
+		}, [](std::nullopt_t) {
+		});
+		if (result.has_value()) {
+			break;
+		}
+	}
+}
+
+auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
+-> ReadEnoughState {
 	const auto dropStaleFrames = _options.dropStaleFrames;
-	const auto state = _shared->prepareState(time, dropStaleFrames);
-	state.match([&](Shared::PrepareFrame frame) {
+	const auto state = _shared->prepareState(trackTime, dropStaleFrames);
+	return state.match([&](Shared::PrepareFrame frame) -> ReadEnoughState {
 		while (true) {
 			const auto result = readFrame(frame);
-			if (result == FrameResult::Looped) {
-				time -= _stream.duration;
-				continue;
-			} else if (result != FrameResult::Done) {
-				break;
+			if (result != FrameResult::Done) {
+				return result;
 			} else if (!dropStaleFrames
-				|| !VideoTrack::IsStale(frame, time)) {
-				LOG(("READ FRAMES, TRACK TIME: %1").arg(time));
-				presentFrameIfNeeded();
-				break;
+				|| !VideoTrack::IsStale(frame, trackTime)) {
+				LOG(("READ FRAMES, TRACK TIME: %1").arg(trackTime));
+				return std::nullopt;
 			} else {
-				LOG(("DROPPED FRAMES, TRACK TIME: %1").arg(time));
+				LOG(("DROPPED FRAMES, TRACK TIME: %1").arg(trackTime));
 			}
 		}
-	}, [&](Shared::PrepareNextCheck delay) {
-		Expects(delay > 0);
-
-		queueReadFrames(delay);
-	}, [&](std::nullopt_t) {
-		presentFrameIfNeeded();
+	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
+		return delay;
+	}, [&](std::nullopt_t) -> ReadEnoughState {
+		return FrameResult::Done;
 	});
 }
 
@@ -203,8 +227,8 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 				loopAround();
 				return FrameResult::Looped;
 			} else {
-				interrupt();
-				_nextFrameTimeUpdates = rpl::event_stream<crl::time>();
+				frame->position = kFinishedPosition;
+				frame->displayed = kTimeUnknown;
 				return FrameResult::Finished;
 			}
 		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
@@ -234,7 +258,9 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		return;
 	}
 	const auto time = trackTime();
-	const auto prepare = [&](not_null<Frame*> frame) {
+	const auto rasterize = [&](not_null<Frame*> frame) {
+		Expects(frame->position != kFinishedPosition);
+
 		frame->request = _request;
 		frame->original = ConvertFrame(
 			_stream,
@@ -250,10 +276,17 @@ void VideoTrackObject::presentFrameIfNeeded() {
 
 		VideoTrack::PrepareFrameByRequest(frame);
 
-		Ensures(VideoTrack::IsPrepared(frame));
+		Ensures(VideoTrack::IsRasterized(frame));
 	};
-	const auto presented = _shared->presentFrame(time.trackTime, prepare);
-	if (presented.displayPosition != kTimeUnknown) {
+	const auto presented = _shared->presentFrame(
+		time.trackTime,
+		_options.dropStaleFrames,
+		rasterize);
+	if (presented.displayPosition == kFinishedPosition) {
+		interrupt();
+		_nextFrameTimeUpdates = rpl::event_stream<crl::time>();
+		return;
+	} else if (presented.displayPosition != kTimeUnknown) {
 		const auto trackLeft = presented.displayPosition - time.trackTime;
 
 		// We don't use rpl::variable, because we want an event each time
@@ -263,7 +296,10 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		LOG(("NOW: %1, FRAME POSITION: %2, TRACK TIME: %3, TRACK LEFT: %4, NEXT: %5").arg(time.worldTime).arg(presented.displayPosition).arg(time.trackTime).arg(trackLeft).arg(_nextFrameDisplayTime));
 		_nextFrameTimeUpdates.fire_copy(_nextFrameDisplayTime);
 	}
-	queueReadFrames(presented.nextCheckDelay);
+	if (presented.nextCheckDelay != kTimeUnknown) {
+		Assert(presented.nextCheckDelay >= 0);
+		queueReadFrames(presented.nextCheckDelay);
+	}
 }
 
 void VideoTrackObject::pause(crl::time time) {
@@ -367,15 +403,19 @@ bool VideoTrackObject::processFirstFrame() {
 }
 
 crl::time VideoTrackObject::currentFramePosition() const {
-	const auto position = _framePositionShift + std::min(
-		FramePosition(_stream),
-		_stream.duration - 1);
-	if (_previousFramePosition != kTimeUnknown
-		&& position <= _previousFramePosition) {
+	const auto position = FramePosition(_stream);
+	LOG(("FRAME_POSITION: %1 (pts: %2, dts: %3, duration: %4)"
+		).arg(position
+		).arg(PtsToTime(_stream.frame->pts, _stream.timeBase)
+		).arg(PtsToTime(_stream.frame->pkt_dts, _stream.timeBase)
+		).arg(PtsToTime(_stream.frame->pkt_duration, _stream.timeBase)));
+	if (position == kTimeUnknown || position == kFinishedPosition) {
 		return kTimeUnknown;
 	}
-	_previousFramePosition = position;
-	return position;
+	return _framePositionShift + std::clamp(
+		position,
+		crl::time(0),
+		_stream.duration - 1);
 }
 
 bool VideoTrackObject::fillStateFromFrame() {
@@ -472,20 +512,28 @@ auto VideoTrack::Shared::prepareState(
 		const auto next = getFrame((index + 1) % kFramesCount);
 		if (!IsDecoded(frame)) {
 			return frame;
-		} else if (dropStaleFrames && IsStale(frame, trackTime)) {
+		} else if (!IsDecoded(next)) {
+			return next;
+		} else if (next->position < frame->position) {
+			LOG(("INVALID ORDER, SWAPPING"));
+			std::swap(*frame, *next);
+		}
+		if (next->position == kFinishedPosition || !dropStaleFrames) {
+			return PrepareNextCheck(kTimeUnknown);
+		} else if (IsStale(frame, trackTime)) {
 			std::swap(*frame, *next);
 			next->displayed = kDisplaySkipped;
-			return IsDecoded(frame) ? next : frame;
-		} else if (!IsDecoded(next)) {
+			LOG(("DROPPED FRAMES, TRACK TIME: %1").arg(trackTime));
 			return next;
 		} else {
 			return PrepareNextCheck(frame->position - trackTime + 1);
 		}
 	};
-	const auto finishPrepare = [&](int index) {
-		const auto frame = getFrame(index);
+	const auto finishPrepare = [&](int index) -> PrepareState {
 		// If player already awaits next frame - we ignore if it's stale.
-		return IsDecoded(frame) ? std::nullopt : PrepareState(frame);
+		dropStaleFrames = false;
+		const auto result = prepareNext(index);
+		return result.is<PrepareNextCheck>() ? PrepareState() : result;
 	};
 
 	switch (counter()) {
@@ -501,17 +549,22 @@ auto VideoTrack::Shared::prepareState(
 	Unexpected("Counter value in VideoTrack::Shared::prepareState.");
 }
 
-template <typename PrepareCallback>
+template <typename RasterizeCallback>
 auto VideoTrack::Shared::presentFrame(
 	crl::time trackTime,
-	PrepareCallback &&prepare)
+	bool dropStaleFrames,
+	RasterizeCallback &&rasterize)
 -> PresentFrame {
 	const auto present = [&](int counter, int index) -> PresentFrame {
 		const auto frame = getFrame(index);
 		const auto position = frame->position;
-		prepare(frame);
-		if (!IsPrepared(frame)) {
-			return { kTimeUnknown, crl::time(0) };
+		if (position == kFinishedPosition) {
+			return { kFinishedPosition, kTimeUnknown };
+		}
+		rasterize(frame);
+		if (!IsRasterized(frame)) {
+			// Error happened during frame prepare.
+			return { kTimeUnknown, kTimeUnknown };
 		}
 
 		// Release this frame to the main thread for rendering.
@@ -522,13 +575,18 @@ auto VideoTrack::Shared::presentFrame(
 	};
 	const auto nextCheckDelay = [&](int index) -> PresentFrame {
 		const auto frame = getFrame(index);
-		const auto next = getFrame((index + 1) % kFramesCount);
-		if (!IsDecoded(frame)
-			|| !IsDecoded(next)
-			|| IsStale(frame, trackTime)) {
-			return { kTimeUnknown, crl::time(0) };
+		if (frame->position == kFinishedPosition) {
+			return { kFinishedPosition, kTimeUnknown };
 		}
-		return { kTimeUnknown, (trackTime - frame->position + 1) };
+		const auto next = getFrame((index + 1) % kFramesCount);
+		if (!IsDecoded(frame) || !IsDecoded(next)) {
+			return { kTimeUnknown, crl::time(0) };
+		} else if (next->position == kFinishedPosition
+			|| !dropStaleFrames
+			|| IsStale(frame, trackTime)) {
+			return { kTimeUnknown, kTimeUnknown };
+		}
+		return { kTimeUnknown, (frame->position - trackTime + 1) };
 	};
 
 	LOG(("PRESENT COUNTER: %1").arg(counter()));
@@ -681,7 +739,7 @@ bool VideoTrack::IsDecoded(not_null<Frame*> frame) {
 		&& (frame->displayed == kTimeUnknown);
 }
 
-bool VideoTrack::IsPrepared(not_null<Frame*> frame) {
+bool VideoTrack::IsRasterized(not_null<Frame*> frame) {
 	return IsDecoded(frame)
 		&& !frame->original.isNull();
 }

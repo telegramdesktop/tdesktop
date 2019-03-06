@@ -87,11 +87,12 @@ private:
 			crl::time trackTime,
 			bool dropStaleFrames);
 
-		// PrepareCallback(not_null<Frame*>).
-		template <typename PrepareCallback>
+		// RasterizeCallback(not_null<Frame*>).
+		template <typename RasterizeCallback>
 		[[nodiscard]] PresentFrame presentFrame(
 			crl::time trackTime,
-			PrepareCallback &&prepare);
+			bool dropStaleFrames,
+			RasterizeCallback &&rasterize);
 
 		// Called from the main thread.
 		// Returns the position of the displayed frame.
@@ -114,7 +115,7 @@ private:
 		not_null<Frame*> frame,
 		bool useExistingPrepared = false);
 	[[nodiscard]] static bool IsDecoded(not_null<Frame*> frame);
-	[[nodiscard]] static bool IsPrepared(not_null<Frame*> frame);
+	[[nodiscard]] static bool IsRasterized(not_null<Frame*> frame);
 	[[nodiscard]] static bool IsStale(
 		not_null<Frame*> frame,
 		crl::time trackTime);
