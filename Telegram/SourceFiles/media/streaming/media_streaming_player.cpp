@@ -674,6 +674,8 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 			? crl::time(0)
 			: document->song()
 			? document->song()->duration
+			: document->voice()
+			? document->voice()->duration
 			: document->duration();
 		if (duration > 0) {
 			result.length = duration * crl::time(1000);

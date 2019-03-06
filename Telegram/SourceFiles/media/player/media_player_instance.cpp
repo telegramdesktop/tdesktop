@@ -115,8 +115,7 @@ AudioMsgId::Type Instance::getActiveType() const {
 	const auto voiceData = getData(AudioMsgId::Type::Voice);
 	if (voiceData->current) {
 		const auto state = getState(voiceData->type);
-		if (voiceData->current == state.id
-			&& !IsStoppedOrStopping(state.state)) {
+		if (!IsStoppedOrStopping(state.state)) {
 			return voiceData->type;
 		}
 	}
@@ -355,18 +354,12 @@ void Instance::play(const AudioMsgId &audioId) {
 	if (!document) {
 		return;
 	}
-	if (document->isAudioFile()) {
+	if (document->isAudioFile() || document->isVoiceMessage()) {
 		auto loader = document->createStreamingLoader(audioId.contextId());
 		if (!loader) {
 			return;
 		}
 		playStreamed(audioId, std::move(loader));
-	} else if (document->isVoiceMessage()) {
-		mixer()->play(audioId);
-		setCurrent(audioId);
-		if (document->loading()) {
-			documentLoadProgress(document);
-		}
 	} else if (document->isVideoMessage()) {
 		if (const auto item = App::histItemById(audioId.contextId())) {
 			App::wnd()->controller()->startRoundVideo(item);

@@ -56,7 +56,11 @@ void AutoDownloadBox::setupContent() {
 		this,
 		std::move(wrap)));
 
-	static const auto kHidden = { Type::Video, Type::Music };
+	static const auto kHidden = {
+		Type::Video,
+		Type::Music,
+		Type::VoiceMessage
+	};
 
 	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
 	const auto add = [&](Type type, LangKey label) {

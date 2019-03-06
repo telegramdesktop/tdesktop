@@ -181,7 +181,9 @@ void Full::setBytesLimit(Source source, Type type, int bytesLimit) {
 }
 
 bool Full::shouldDownload(Source source, Type type, int fileSize) const {
-	if (type == Type::Video || type == Type::Music) {
+	if (type == Type::Video
+		|| type == Type::Music
+		|| type == Type::VoiceMessage) {
 		// With streaming we disable autodownload and hide them in Settings.
 		return false;
 	}
