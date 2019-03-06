@@ -208,7 +208,9 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 	const auto error = [&](auto &stream) {
 		return [=, &stream](Error error) {
 			crl::on_main(weak, [=, &stream] {
-				stream = nullptr;
+				if (_stage == Stage::Initializing) {
+					stream = nullptr;
+				}
 				streamFailed(error);
 			});
 		};

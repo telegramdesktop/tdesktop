@@ -2152,11 +2152,10 @@ void OverlayWidget::refreshClipControllerGeometry() {
 	const auto controllerBottom = _groupThumbs
 		? _groupThumbsTop
 		: height();
-	_streamed->controls.setGeometry(
+	_streamed->controls.resize(st::mediaviewControllerSize);
+	_streamed->controls.move(
 		(width() - _streamed->controls.width()) / 2,
-		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height(),
-		st::mediaviewControllerSize.width(),
-		st::mediaviewControllerSize.height());
+		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height());
 	Ui::SendPendingMoveResizeEvents(&_streamed->controls);
 }
 
