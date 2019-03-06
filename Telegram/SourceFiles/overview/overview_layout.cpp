@@ -492,7 +492,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
 		} else {
-			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _savel));
+			auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : _data->canBePlayed() ? _openl : _savel);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
 
@@ -502,14 +502,14 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 
 		p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
-		auto icon = ([radial, loaded, selected] {
-			if (radial) {
+		const auto icon = [&] {
+			if (_data->loading() || _data->uploading()) {
 				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-			} else if (loaded) {
+			} else if (_data->canBePlayed()) {
 				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-		})();
+		}();
 		icon->paintInCenter(p, inner);
 		if (radial) {
 			p.setOpacity(1);
@@ -546,10 +546,10 @@ TextState Video::getState(
 	bool loaded = _data->loaded();
 
 	if (hasPoint(point)) {
-		const auto link = loaded
-			? _openl
-			: _data->loading()
+		const auto link = (_data->loading() || _data->uploading())
 			? _cancell
+			: _data->canBePlayed()
+			? _openl
 			: _savel;
 		return { parent(), link };
 	}

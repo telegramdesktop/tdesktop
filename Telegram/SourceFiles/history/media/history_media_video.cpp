@@ -213,7 +213,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 		auto over = _animation->a_thumbOver.current();
 		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 	} else {
-		bool over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+		bool over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : _savel);
 		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 	}
 
