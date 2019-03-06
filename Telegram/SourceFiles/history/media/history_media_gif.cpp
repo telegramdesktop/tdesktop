@@ -52,7 +52,7 @@ HistoryGif::HistoryGif(
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto item = parent->data();
-	setDocumentLinks(_data, item, true);
+	setDocumentLinks(_data, item, !_data->isVideoMessage());
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -350,9 +350,9 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 			}
 			const auto normal = _data->thumbnail();
 			if (normal && normal->loaded()) {
-				p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_realParent->fullId(), _thumbw, _thumbh, paintw, painth, roundRadius, roundCorners));
+				p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 			} else if (const auto blurred = _data->thumbnailInline()) {
-				p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, paintw, painth, roundRadius, roundCorners));
+				p.drawPixmap(rthumb.topLeft(), blurred->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 			} else if (!isRound) {
 				const auto roundTop = (roundCorners & RectPart::TopLeft);
 				const auto roundBottom = (roundCorners & RectPart::BottomLeft);

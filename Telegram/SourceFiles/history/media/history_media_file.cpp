@@ -112,8 +112,6 @@ void HistoryFileMedia::setDocumentLinks(
 	}
 	if (inlinegif) {
 		save = std::make_shared<GifOpenClickHandler>(document, context);
-	} else if (document->isVoiceMessage()) {
-		save = std::make_shared<DocumentOpenClickHandler>(document, context);
 	} else {
 		save = std::make_shared<DocumentSaveClickHandler>(document, context);
 	}
