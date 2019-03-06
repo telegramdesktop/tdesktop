@@ -114,19 +114,18 @@ private:
 		Slices(int size, bool useCache);
 
 		void headerDone(bool fromCache);
-		bool headerWontBeFilled() const;
+		[[nodiscard]] bool headerWontBeFilled() const;
 
-		bool processCacheResult(int sliceNumber, QByteArray &&result);
-		std::optional<Error> processPart(int offset, QByteArray &&bytes);
+		void processCacheResult(int sliceNumber, QByteArray &&result);
+		void processPart(int offset, QByteArray &&bytes);
 
-		FillResult fill(int offset, bytes::span buffer);
-		SerializedSlice unloadToCache();
+		[[nodiscard]] FillResult fill(int offset, bytes::span buffer);
+		[[nodiscard]] SerializedSlice unloadToCache();
 
 	private:
 		enum class HeaderMode {
 			Unknown,
 			Small,
-//			Full,
 			NoCache,
 		};
 
@@ -135,6 +134,8 @@ private:
 		SerializedSlice serializeAndUnloadSlice(int sliceNumber);
 		SerializedSlice serializeAndUnloadUnused();
 		void markSliceUsed(int sliceIndex);
+		bool fullInHeader() const;
+		FillResult fillFromHeader(int offset, bytes::span buffer);
 
 		std::vector<Slice> _data;
 		Slice _header;

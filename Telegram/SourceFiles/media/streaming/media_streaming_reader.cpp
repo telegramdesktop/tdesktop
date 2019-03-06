@@ -190,9 +190,8 @@ auto Reader::Slice::prepareFill(int from, int till) -> PrepareFillResult {
 	result.ready = false;
 	const auto fromOffset = (from / kPartSize) * kPartSize;
 	const auto tillPart = (till + kPartSize - 1) / kPartSize;
-	const auto preloadTillOffset = std::min(
-		(tillPart + kPreloadPartsAhead) * kPartSize,
-		kInSlice);
+	const auto preloadTillOffset = (tillPart + kPreloadPartsAhead)
+		* kPartSize;
 
 	const auto after = ranges::upper_bound(
 		parts,
@@ -262,23 +261,22 @@ Reader::Slices::Slices(int size, bool useCache)
 	_header.flags |= Slice::Flag::Header;
 	if (useCache) {
 		_header.flags |= Slice::Flag::LoadingFromCache;
-		// #TODO streaming HeaderMode::Full.
-		//if (_size <= kMaxOnlyInHeader) {
-		//	_headerMode = HeaderMode::Full;
-		//}
 	} else {
 		_headerMode = HeaderMode::NoCache;
 	}
+	if (!fullInHeader()) {
+		_data.resize((_size + kInSlice - 1) / kInSlice);
+	}
+}
 
-	const auto count = ((_size + kInSlice - 1) / kInSlice);
-	_data.resize(count);
+bool Reader::Slices::fullInHeader() const {
+	return (_size <= kMaxOnlyInHeader);
 }
 
 void Reader::Slices::headerDone(bool fromCache) {
 	if (_headerMode != HeaderMode::Unknown) {
 		return;
 	}
-	// #TODO streaming HeaderMode::Full.
 	_headerMode = HeaderMode::Small;
 	if (!fromCache) {
 		for (auto &slice : _data) {
@@ -292,11 +290,14 @@ void Reader::Slices::headerDone(bool fromCache) {
 
 bool Reader::Slices::headerWontBeFilled() const {
 	return (_headerMode == HeaderMode::Unknown)
-		&& (_header.parts.size() == kMaxPartsInHeader);
+		&& (_header.parts.size() >= kMaxPartsInHeader);
 }
 
 void Reader::Slices::applyHeaderCacheData() {
 	if (_header.parts.empty()) {
+		return;
+	} else if (fullInHeader()) {
+		headerDone(true);
 		return;
 	}
 	for (const auto &[offset, part] : _header.parts) {
@@ -308,7 +309,7 @@ void Reader::Slices::applyHeaderCacheData() {
 	headerDone(true);
 }
 
-bool Reader::Slices::processCacheResult(
+void Reader::Slices::processCacheResult(
 		int sliceNumber,
 		QByteArray &&result) {
 	Expects(sliceNumber >= 0 && sliceNumber <= _data.size());
@@ -316,7 +317,7 @@ bool Reader::Slices::processCacheResult(
 	auto &slice = (sliceNumber ? _data[sliceNumber - 1] : _header);
 	if (!(slice.flags &Slice::Flag::LoadingFromCache)) {
 		// We could've already unloaded this slice using LRU _usedSlices.
-		return true;
+		return;
 	}
 	const auto success = slice.processCacheData(
 		std::move(result),
@@ -324,24 +325,25 @@ bool Reader::Slices::processCacheResult(
 	if (!sliceNumber) {
 		applyHeaderCacheData();
 	}
-	return success;
 }
 
-std::optional<Error> Reader::Slices::processPart(
+void Reader::Slices::processPart(
 		int offset,
 		QByteArray &&bytes) {
-	Expects(offset / kInSlice < _data.size());
+	Expects(fullInHeader() || (offset / kInSlice < _data.size()));
 
-	const auto index = offset / kInSlice;
-	if (_headerMode == HeaderMode::Unknown) {
+	if (fullInHeader()) {
+		_header.addPart(offset, bytes);
+		return;
+	} else if (_headerMode == HeaderMode::Unknown) {
 		if (_header.parts.contains(offset)) {
-			return {};
+			return;
 		} else if (_header.parts.size() < kMaxPartsInHeader) {
 			_header.addPart(offset, bytes);
 		}
 	}
+	const auto index = offset / kInSlice;
 	_data[index].addPart(offset - index * kInSlice, std::move(bytes));
-	return {};
 }
 
 auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
@@ -356,6 +358,8 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		&& !(_header.flags & Flag::LoadedFromCache)) {
 		// Waiting for initial cache query.
 		return {};
+	} else if (fullInHeader()) {
+		return fillFromHeader(offset, buffer);
 	}
 
 	auto result = FillResult();
@@ -379,7 +383,7 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		}
 		for (const auto offset : prepared.offsetsFromLoader.values()) {
 			const auto full = offset + sliceIndex * kInSlice;
-			if (sliceIndex + 1 != _data.size() || full < _size) {
+			if (offset < kInSlice && full < _size) {
 				result.offsetsFromLoader.add(full);
 			}
 		}
@@ -429,6 +433,29 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 	return result;
 }
 
+auto Reader::Slices::fillFromHeader(int offset, bytes::span buffer)
+-> FillResult {
+	auto result = FillResult();
+	const auto from = offset;
+	const auto till = int(offset + buffer.size());
+
+	const auto prepared = _header.prepareFill(from, till);
+	for (const auto full : prepared.offsetsFromLoader.values()) {
+		if (full < _size) {
+			result.offsetsFromLoader.add(full);
+		}
+	}
+	if (prepared.ready) {
+		CopyLoaded(
+			buffer,
+			ranges::make_iterator_range(prepared.start, prepared.finish),
+			from,
+			till);
+		result.filled = true;
+	}
+	return result;
+}
+
 void Reader::Slices::markSliceUsed(int sliceIndex) {
 	const auto i = ranges::find(_usedSlices, sliceIndex);
 	const auto end = _usedSlices.end();
@@ -443,11 +470,11 @@ void Reader::Slices::markSliceUsed(int sliceIndex) {
 }
 
 int Reader::Slices::maxSliceSize(int sliceNumber) const {
-	return (sliceNumber == _data.size())
+	return !sliceNumber
+		? _size
+		: (sliceNumber == _data.size())
 		? (_size - (sliceNumber - 1) * kInSlice)
-		: (sliceNumber > 0)
-		? kInSlice
-		: _size;
+		: kInSlice;
 }
 
 Reader::SerializedSlice Reader::Slices::serializeAndUnloadUnused() {
@@ -746,13 +773,9 @@ bool Reader::processLoadedParts() {
 		} else if (!_loadingOffsets.remove(part.offset)) {
 			continue;
 		}
-		const auto error = _slices.processPart(
+		_slices.processPart(
 			part.offset,
 			std::move(part.bytes));
-		if (error) {
-			_failed = *error;
-			return false;
-		}
 	}
 	return !loaded.empty();
 }
