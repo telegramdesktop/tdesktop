@@ -289,8 +289,10 @@ private:
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] bool videoIsGifv() const;
 	[[nodiscard]] QImage videoFrame() const;
+	[[nodiscard]] QImage transformVideoFrame(QImage frame) const;
 	[[nodiscard]] bool documentContentShown() const;
 	[[nodiscard]] bool documentBubbleShown() const;
+	void paintTransformedVideoFrame(Painter &p);
 	void clearStreaming();
 
 	QBrush _transparentBrush;

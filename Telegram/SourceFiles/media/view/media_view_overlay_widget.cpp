@@ -1197,18 +1197,11 @@ void OverlayWidget::onOverview() {
 void OverlayWidget::onCopy() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_doc) {
-		if (!_current.isNull()) {
+		if (videoShown()) {
+			QApplication::clipboard()->setImage(
+				transformVideoFrame(videoFrame()));
+		} else if (!_current.isNull()) {
 			QApplication::clipboard()->setPixmap(_current);
-		} else if (videoShown()) {
-			// #TODO streaming later apply rotation
-			auto image = videoFrame();
-			if (image.size() != _streamed->info.video.size) {
-				image = image.scaled(
-					_streamed->info.video.size,
-					Qt::IgnoreAspectRatio,
-					Qt::SmoothTransformation);
-			}
-			QApplication::clipboard()->setImage(std::move(image));
 		}
 	} else {
 		if (!_photo || !_photo->loaded()) return;
@@ -1967,22 +1960,32 @@ void OverlayWidget::createStreamingObjects() {
 	}
 }
 
+QImage OverlayWidget::transformVideoFrame(QImage frame) const {
+	Expects(videoShown());
+
+	if (_streamed->info.video.rotation != 0) {
+		auto transform = QTransform();
+		transform.rotate(_streamed->info.video.rotation);
+		frame = frame.transformed(transform);
+	}
+	if (frame.size() != _streamed->info.video.size) {
+		frame = frame.scaled(
+			_streamed->info.video.size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	return frame;
+}
+
 void OverlayWidget::validateStreamedGoodThumbnail() {
 	Expects(_streamed != nullptr);
 	Expects(_doc != nullptr);
 
 	const auto good = _doc->goodThumbnail();
-	auto image = _streamed->info.video.cover;
-	if (image.isNull() || (good && good->loaded()) || _doc->uploading()) {
+	if (!videoShown() || (good && good->loaded()) || _doc->uploading()) {
 		return;
 	}
-	// #TODO streaming later apply rotation
-	if (image.size() != _streamed->info.video.size) {
-		image = image.scaled(
-			_streamed->info.video.size,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-	}
+	auto image = transformVideoFrame(_streamed->info.video.cover);
 	auto bytes = QByteArray();
 	{
 		auto buffer = QBuffer(&bytes);
@@ -2205,7 +2208,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 
 	if (videoShown()) {
 		_streamed->info.video.cover = videoFrame();
-		_current = Images::PixmapFast(videoFrame());
+		_current = Images::PixmapFast(transformVideoFrame(videoFrame()));
 		update(contentRect());
 	}
 	auto options = Streaming::PlaybackOptions();
@@ -2365,14 +2368,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		const auto rect = contentRect();
 		if (rect.intersects(r)) {
 			if (videoShown()) {
-				const auto image = videoFrame();
-				//if (_fullScreenVideo) {
-				//	const auto fill = rect.intersected(this->rect());
-				//	PaintImageProfile(p, image, rect, fill);
-				//} else {
-				PainterHighQualityEnabler hq(p);
-				p.drawImage(rect, image);
-				//}
+				paintTransformedVideoFrame(p);
 			} else if (!_current.isNull()) {
 				if ((!_doc || !_doc->getStickerLarge()) && _current.hasAlpha()) {
 					p.fillRect(rect, _transparentBrush);
@@ -2627,6 +2623,47 @@ void OverlayWidget::checkGroupThumbsAnimation() {
 	if (_groupThumbs && (!_streamed || _streamed->player.ready())) {
 		_groupThumbs->checkForAnimationStart();
 	}
+}
+
+void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
+	const auto rect = contentRect();
+	const auto image = videoFrame();
+	//if (_fullScreenVideo) {
+	//	const auto fill = rect.intersected(this->rect());
+	//	PaintImageProfile(p, image, rect, fill);
+	//} else {
+	PainterHighQualityEnabler hq(p);
+	const auto rotation = _streamed->info.video.rotation;
+	const auto rotated = [](QRect rect, int rotation) {
+		switch (rotation) {
+		case 0: return rect;
+		case 90: return QRect(
+			rect.y(),
+			-rect.x() - rect.width(),
+			rect.height(),
+			rect.width());
+		case 180: return QRect(
+			-rect.x() - rect.width(),
+			-rect.y() - rect.height(),
+			rect.width(),
+			rect.height());
+		case 270: return QRect(
+			-rect.y() - rect.height(),
+			rect.x(),
+			rect.height(),
+			rect.width());
+		}
+		Unexpected("Rotation in OverlayWidget::paintTransformedVideoFrame");
+	};
+	if (rotation) {
+		p.save();
+		p.rotate(rotation);
+	}
+	p.drawImage(rotated(rect, rotation), image);
+	if (rotation) {
+		p.restore();
+	}
+	//}
 }
 
 void OverlayWidget::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity) {
