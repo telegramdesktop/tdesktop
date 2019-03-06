@@ -161,6 +161,9 @@ void Player::trackSendReceivedTill(
 	Expects(state.duration != kTimeUnknown);
 	Expects(state.receivedTill != kTimeUnknown);
 
+	if (!_remoteLoader) {
+		return;
+	}
 	const auto receivedTill = std::max(
 		state.receivedTill,
 		_previousReceivedTill);
@@ -668,7 +671,7 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 	} else if (_options.loop && _totalDuration > 0) {
 		result.position %= _totalDuration;
 	}
-	result.receivedTill = getCurrentReceivedTill();
+	result.receivedTill = _remoteLoader ? getCurrentReceivedTill() : 0;
 	result.length = _totalDuration;
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
