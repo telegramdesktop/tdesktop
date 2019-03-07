@@ -47,8 +47,9 @@ public:
 	// Called from the main thread.
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
+	[[nodiscard]] crl::time nextFrameDisplayTime() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request);
-	[[nodiscard]] rpl::producer<crl::time> renderNextFrame() const;
+	[[nodiscard]] rpl::producer<> checkNextFrame() const;
 	[[nodiscard]] rpl::producer<> waitingForData() const;
 
 	// Called from the main thread.
@@ -62,6 +63,7 @@ private:
 		QImage original;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
+		crl::time display = kTimeUnknown;
 
 		FrameRequest request;
 		QImage prepared;
@@ -90,17 +92,21 @@ private:
 		// RasterizeCallback(not_null<Frame*>).
 		template <typename RasterizeCallback>
 		[[nodiscard]] PresentFrame presentFrame(
-			crl::time trackTime,
+			TimePoint trackTime,
+			float64 playbackSpeed,
 			bool dropStaleFrames,
 			RasterizeCallback &&rasterize);
+		[[nodiscard]] bool firstPresentHappened() const;
 
 		// Called from the main thread.
 		// Returns the position of the displayed frame.
 		[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
+		[[nodiscard]] crl::time nextFrameDisplayTime() const;
 		[[nodiscard]] not_null<Frame*> frameForPaint();
 
 	private:
 		[[nodiscard]] not_null<Frame*> getFrame(int index);
+		[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
 		[[nodiscard]] int counter() const;
 
 		static constexpr auto kCounterUninitialized = -1;

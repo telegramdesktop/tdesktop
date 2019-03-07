@@ -93,6 +93,8 @@ private:
 
 class Manager final : private QObject {
 public:
+	Manager();
+
 	void update();
 
 private:
@@ -113,6 +115,7 @@ private:
 	bool _scheduled = false;
 	std::vector<Basic*> _active;
 	std::vector<not_null<Basic*>> _starting;
+	rpl::lifetime _lifetime;
 
 };
 

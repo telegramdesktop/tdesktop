@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_video_track.h"
 #include "media/audio/media_audio.h" // for SupportsSpeedControl()
 #include "data/data_document.h" // for DocumentData::duration()
+#include "core/sandbox.h" // for widgetUpdateRequests() producer
 
 namespace Media {
 namespace Streaming {
@@ -81,22 +82,35 @@ Player::Player(
 	std::unique_ptr<Loader> loader)
 : _file(std::make_unique<File>(owner, std::move(loader)))
 , _remoteLoader(_file->isRemoteLoader())
-, _renderFrameTimer([=] { checkNextFrame(); }) {
+, _renderFrameTimer([=] { checkNextFrameRender(); }) {
 }
 
 not_null<FileDelegate*> Player::delegate() {
 	return static_cast<FileDelegate*>(this);
 }
 
-void Player::checkNextFrame() {
+void Player::checkNextFrameRender() {
 	Expects(_nextFrameTime != kTimeUnknown);
-	Expects(!_renderFrameTimer.isActive());
 
 	const auto now = crl::now();
 	if (now < _nextFrameTime) {
-		_renderFrameTimer.callOnce(_nextFrameTime - now);
+		if (!_renderFrameTimer.isActive()) {
+			_renderFrameTimer.callOnce(_nextFrameTime - now);
+		}
 	} else {
+		_renderFrameTimer.cancel();
+		_nextFrameTime = kTimeUnknown;
 		renderFrame(now);
+	}
+}
+
+void Player::checkNextFrameAvailability() {
+	Expects(_video != nullptr);
+
+	_nextFrameTime = _video->nextFrameDisplayTime();
+	if (_nextFrameTime != kTimeUnknown) {
+		LOG(("[%2] RENDERING AT: %1").arg(_nextFrameTime).arg(crl::now()));
+		checkVideoStep();
 	}
 }
 
@@ -454,6 +468,7 @@ void Player::updatePausedState() {
 	if (!_paused && _stage == Stage::Ready) {
 		const auto guard = base::make_weak(&_sessionGuard);
 		start();
+		LOG(("[%1] STARTED.").arg(crl::now()));
 		if (!guard) {
 			return;
 		}
@@ -548,18 +563,23 @@ void Player::start() {
 	}
 
 	if (guard && _video) {
-		_video->renderNextFrame(
-		) | rpl::start_with_next_done([=](crl::time when) {
-			_nextFrameTime = when;
-			LOG(("RENDERING AT: %1").arg(when));
-			checkNextFrame();
+		_video->checkNextFrame(
+		) | rpl::start_with_next_done([=] {
+			checkVideoStep();
 		}, [=] {
-			Expects(_stage == Stage::Started);
+			Assert(_stage == Stage::Started);
 
 			_videoFinished = true;
 			if (!_audio || _audioFinished) {
 				_updates.fire({ Finished() });
 			}
+		}, _sessionLifetime);
+
+		Core::Sandbox::Instance().widgetUpdateRequests(
+		) | rpl::filter([=] {
+			return !_videoFinished;
+		}) | rpl::start_with_next([=] {
+			checkVideoStep();
 		}, _sessionLifetime);
 	}
 	if (guard && _audio) {
@@ -567,6 +587,14 @@ void Player::start() {
 	}
 	if (guard && _video) {
 		trackSendReceivedTill(*_video, _information.video.state);
+	}
+}
+
+void Player::checkVideoStep() {
+	if (_nextFrameTime != kTimeUnknown) {
+		checkNextFrameRender();
+	} else {
+		checkNextFrameAvailability();
 	}
 }
 

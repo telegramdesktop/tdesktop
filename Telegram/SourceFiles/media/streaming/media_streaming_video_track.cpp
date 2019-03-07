@@ -36,7 +36,7 @@ public:
 
 	void process(Packet &&packet);
 
-	[[nodisacrd]] rpl::producer<crl::time> displayFrameAt() const;
+	[[nodisacrd]] rpl::producer<> checkNextFrame() const;
 	[[nodisacrd]] rpl::producer<> waitingForData() const;
 
 	void pause(crl::time time);
@@ -91,8 +91,7 @@ private:
 	crl::time _resumedTime = kTimeUnknown;
 	mutable TimePoint _syncTimePoint;
 	crl::time _framePositionShift = 0;
-	crl::time _nextFrameDisplayTime = kTimeUnknown;
-	rpl::event_stream<crl::time> _nextFrameTimeUpdates;
+	rpl::event_stream<> _checkNextFrame;
 	rpl::event_stream<> _waitingForData;
 	FrameRequest _request;
 
@@ -122,13 +121,12 @@ VideoTrackObject::VideoTrackObject(
 	Expects(_error != nullptr);
 }
 
-rpl::producer<crl::time> VideoTrackObject::displayFrameAt() const {
+rpl::producer<> VideoTrackObject::checkNextFrame() const {
 	return interrupted()
-		? (rpl::complete<crl::time>() | rpl::type_erased())
-		: (_nextFrameDisplayTime == kTimeUnknown)
-		? (_nextFrameTimeUpdates.events() | rpl::type_erased())
-		: _nextFrameTimeUpdates.events_starting_with_copy(
-			_nextFrameDisplayTime);
+		? (rpl::complete<>() | rpl::type_erased())
+		: !_shared->firstPresentHappened()
+		? (_checkNextFrame.events() | rpl::type_erased())
+		: _checkNextFrame.events_starting_with({});
 }
 
 rpl::producer<> VideoTrackObject::waitingForData() const {
@@ -200,10 +198,9 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 				return result;
 			} else if (!dropStaleFrames
 				|| !VideoTrack::IsStale(frame, trackTime)) {
-				LOG(("READ FRAMES, TRACK TIME: %1").arg(trackTime));
 				return std::nullopt;
 			} else {
-				LOG(("DROPPED FRAMES, TRACK TIME: %1").arg(trackTime));
+				LOG(("[%1] DROPPED FRAMES1, TRACK TIME: %2").arg(crl::now()).arg(trackTime));
 			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
@@ -240,7 +237,6 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 		return FrameResult::Waiting;
 	}
 	const auto position = currentFramePosition();
-	LOG(("GOT FRAME: %1 (queue %2)").arg(position).arg(_stream.queue.size()));
 	if (position == kTimeUnknown) {
 		interrupt();
 		_error(Error::InvalidData);
@@ -253,7 +249,7 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 }
 
 void VideoTrackObject::presentFrameIfNeeded() {
-	if (_pausedTime != kTimeUnknown) {
+	if (_pausedTime != kTimeUnknown || _resumedTime == kTimeUnknown) {
 		return;
 	}
 	const auto time = trackTime();
@@ -278,22 +274,16 @@ void VideoTrackObject::presentFrameIfNeeded() {
 		Ensures(VideoTrack::IsRasterized(frame));
 	};
 	const auto presented = _shared->presentFrame(
-		time.trackTime,
+		time,
+		_options.speed,
 		_options.dropStaleFrames,
 		rasterize);
 	if (presented.displayPosition == kFinishedPosition) {
 		interrupt();
-		_nextFrameTimeUpdates = rpl::event_stream<crl::time>();
+		_checkNextFrame = rpl::event_stream<>();
 		return;
 	} else if (presented.displayPosition != kTimeUnknown) {
-		const auto trackLeft = presented.displayPosition - time.trackTime;
-
-		// We don't use rpl::variable, because we want an event each time
-		// we assign a new value, even if the value really didn't change.
-		_nextFrameDisplayTime = time.worldTime
-			+ crl::time(std::round(trackLeft / _options.speed));
-		LOG(("NOW: %1, FRAME POSITION: %2, TRACK TIME: %3, TRACK LEFT: %4, NEXT: %5").arg(time.worldTime).arg(presented.displayPosition).arg(time.trackTime).arg(trackLeft).arg(_nextFrameDisplayTime));
-		_nextFrameTimeUpdates.fire_copy(_nextFrameDisplayTime);
+		_checkNextFrame.fire({});
 	}
 	if (presented.nextCheckDelay != kTimeUnknown) {
 		Assert(presented.nextCheckDelay >= 0);
@@ -403,11 +393,6 @@ bool VideoTrackObject::processFirstFrame() {
 
 crl::time VideoTrackObject::currentFramePosition() const {
 	const auto position = FramePosition(_stream);
-	LOG(("FRAME_POSITION: %1 (pts: %2, dts: %3, duration: %4)"
-		).arg(position
-		).arg(PtsToTime(_stream.frame->pts, _stream.timeBase)
-		).arg(PtsToTime(_stream.frame->pkt_dts, _stream.timeBase)
-		).arg(PtsToTime(_stream.frame->pkt_duration, _stream.timeBase)));
 	if (position == kTimeUnknown || position == kFinishedPosition) {
 		return kTimeUnknown;
 	}
@@ -502,6 +487,13 @@ not_null<VideoTrack::Frame*> VideoTrack::Shared::getFrame(int index) {
 	return &_frames[index];
 }
 
+not_null<const VideoTrack::Frame*> VideoTrack::Shared::getFrame(
+		int index) const {
+	Expects(index >= 0 && index < kFramesCount);
+
+	return &_frames[index];
+}
+
 auto VideoTrack::Shared::prepareState(
 	crl::time trackTime,
 	bool dropStaleFrames)
@@ -522,7 +514,7 @@ auto VideoTrack::Shared::prepareState(
 		} else if (IsStale(frame, trackTime)) {
 			std::swap(*frame, *next);
 			next->displayed = kDisplaySkipped;
-			LOG(("DROPPED FRAMES, TRACK TIME: %1").arg(trackTime));
+			LOG(("[%1] DROPPED FRAMES2, TRACK TIME: %2").arg(crl::now()).arg(trackTime));
 			return next;
 		} else {
 			return PrepareNextCheck(frame->position - trackTime + 1);
@@ -548,9 +540,20 @@ auto VideoTrack::Shared::prepareState(
 	Unexpected("Counter value in VideoTrack::Shared::prepareState.");
 }
 
+// Sometimes main thread subscribes to check frame requests before
+// the first frame is ready and presented and sometimes after.
+bool VideoTrack::Shared::firstPresentHappened() const {
+	switch (counter()) {
+	case 0: return false;
+	case 1: return true;
+	}
+	Unexpected("Counter value in VideoTrack::Shared::firstPresentHappened.");
+}
+
 template <typename RasterizeCallback>
 auto VideoTrack::Shared::presentFrame(
-	crl::time trackTime,
+	TimePoint time,
+	float64 playbackSpeed,
 	bool dropStaleFrames,
 	RasterizeCallback &&rasterize)
 -> PresentFrame {
@@ -565,6 +568,10 @@ auto VideoTrack::Shared::presentFrame(
 			// Error happened during frame prepare.
 			return { kTimeUnknown, kTimeUnknown };
 		}
+		const auto trackLeft = position - time.trackTime;
+		frame->display = time.worldTime
+			+ crl::time(std::round(trackLeft / playbackSpeed));
+		LOG(("[%1] SCHEDULE %5, FRAME POSITION: %2, TRACK TIME: %3, TRACK LEFT: %4").arg(time.worldTime).arg(position).arg(time.trackTime).arg(trackLeft).arg(frame->display));
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
@@ -582,13 +589,12 @@ auto VideoTrack::Shared::presentFrame(
 			return { kTimeUnknown, crl::time(0) };
 		} else if (next->position == kFinishedPosition
 			|| !dropStaleFrames
-			|| IsStale(frame, trackTime)) {
+			|| IsStale(frame, time.trackTime)) {
 			return { kTimeUnknown, kTimeUnknown };
 		}
-		return { kTimeUnknown, (frame->position - trackTime + 1) };
+		return { kTimeUnknown, (frame->position - time.trackTime + 1) };
 	};
 
-	LOG(("PRESENT COUNTER: %1").arg(counter()));
 	switch (counter()) {
 	case 0: return present(0, 1);
 	case 1: return nextCheckDelay(2);
@@ -602,6 +608,26 @@ auto VideoTrack::Shared::presentFrame(
 	Unexpected("Counter value in VideoTrack::Shared::prepareState.");
 }
 
+crl::time VideoTrack::Shared::nextFrameDisplayTime() const {
+	const auto frameDisplayTime = [&](int index) {
+		const auto frame = getFrame(index);
+		Assert(frame->displayed == kTimeUnknown);
+		return frame->display;
+	};
+
+	switch (counter()) {
+	case 0: return kTimeUnknown;
+	case 1: return frameDisplayTime(1);
+	case 2: return kTimeUnknown;
+	case 3: return frameDisplayTime(2);
+	case 4: return kTimeUnknown;
+	case 5: return frameDisplayTime(3);
+	case 6: return kTimeUnknown;
+	case 7: return frameDisplayTime(0);
+	}
+	Unexpected("Counter value in VideoTrack::Shared::nextFrameDisplayTime.");
+}
+
 crl::time VideoTrack::Shared::markFrameDisplayed(crl::time now) {
 	const auto markAndJump = [&](int counter, int index) {
 		const auto frame = getFrame(index);
@@ -613,7 +639,6 @@ crl::time VideoTrack::Shared::markFrameDisplayed(crl::time now) {
 			std::memory_order_release);
 		return frame->position;
 	};
-
 
 	switch (counter()) {
 	case 0: return kTimeUnknown;
@@ -695,6 +720,10 @@ void VideoTrack::setSpeed(float64 speed) {
 	});
 }
 
+crl::time VideoTrack::nextFrameDisplayTime() const {
+	return _shared->nextFrameDisplayTime();
+}
+
 crl::time VideoTrack::markFrameDisplayed(crl::time now) {
 	const auto position = _shared->markFrameDisplayed(now);
 	if (position != kTimeUnknown) {
@@ -749,9 +778,9 @@ bool VideoTrack::IsStale(not_null<Frame*> frame, crl::time trackTime) {
 	return (frame->position < trackTime);
 }
 
-rpl::producer<crl::time> VideoTrack::renderNextFrame() const {
+rpl::producer<> VideoTrack::checkNextFrame() const {
 	return _wrapped.producer_on_main([](const Implementation &unwrapped) {
-		return unwrapped.displayFrameAt();
+		return unwrapped.checkNextFrame();
 	});
 }
 

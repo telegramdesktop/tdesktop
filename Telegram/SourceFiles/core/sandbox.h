@@ -39,6 +39,8 @@ public:
 	void pauseDelayedWindowActivations();
 	void resumeDelayedWindowActivations();
 
+	rpl::producer<> widgetUpdateRequests() const;
+
 	ProxyData sandboxProxy() const;
 
 	static Sandbox &Instance() {
@@ -108,6 +110,8 @@ private:
 
 	QByteArray _lastCrashDump;
 	ProxyData _sandboxProxy;
+
+	rpl::event_stream<> _widgetUpdateRequests;
 
 };
 

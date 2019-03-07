@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 #include "core/application.h"
+#include "core/sandbox.h"
 
 namespace Ui {
 namespace Animations {
@@ -30,6 +31,13 @@ void Basic::stop() {
 		Core::App().animationManager().stop(this);
 		_started = -1;
 	}
+}
+
+Manager::Manager() {
+	Core::Sandbox::Instance().widgetUpdateRequests(
+	) | rpl::start_with_next([=] {
+		update();
+	}, _lifetime);
 }
 
 void Manager::start(not_null<Basic*> animation) {

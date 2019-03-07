@@ -91,7 +91,9 @@ private:
 	void start();
 	void provideStartInformation();
 	void fail(Error error);
-	void checkNextFrame();
+	void checkVideoStep();
+	void checkNextFrameRender();
+	void checkNextFrameAvailability();
 	void renderFrame(crl::time now);
 	void audioReceivedTill(crl::time position);
 	void audioPlayedTill(crl::time position);

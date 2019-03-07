@@ -55,12 +55,9 @@ void ContinuousSlider::setValue(float64 value) {
 
 void ContinuousSlider::setValue(float64 value, float64 receivedTill) {
 	if (_value != value || _receivedTill != receivedTill) {
-		LOG(("UPDATED"));
 		_value = value;
 		_receivedTill = receivedTill;
 		update();
-	} else {
-		LOG(("SKIPPED"));
 	}
 }
 
