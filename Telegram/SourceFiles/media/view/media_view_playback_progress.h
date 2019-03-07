@@ -28,22 +28,21 @@ public:
 	}
 	void setValue(float64 value, bool animated);
 	float64 value() const;
-	float64 value(crl::time ms);
 
 	void updateState(const Player::TrackState &state);
 	void updateLoadingState(float64 progress);
 
 private:
-	void step_value(float64 ms, bool timer);
-	void step_receivedTill(float64 ms, bool timer);
+	void step_value(float64 now);
+	void step_receivedTill(float64 now);
 	void setReceivedTill(float64 value);
 	void emitUpdatedValue();
 
 	// This can animate for a very long time (like in music playing),
-	// so it should be a BasicAnimation, not an Animation, because
-	// Animation pauses mtproto responses/updates handling while playing.
+	// so it should be a Basic, not a Simple animation, because
+	// Simple-s pauses mtproto responses/updates handling while playing.
 	anim::value a_value, a_receivedTill;
-	BasicAnimation _a_value, _a_receivedTill;
+	Ui::Animations::Basic _a_value, _a_receivedTill;
 	Fn<void(float64,float64)> _valueChanged;
 
 	bool _inLoadingState = false;

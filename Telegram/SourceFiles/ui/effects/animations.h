@@ -25,6 +25,7 @@ public:
 	void start();
 	void stop();
 
+	[[nodiscard]] crl::time started() const;
 	[[nodiscard]] bool animating() const;
 
 	~Basic();
@@ -159,13 +160,17 @@ inline void Basic::init(Callback &&callback) {
 	_callback = Prepare(std::forward<Callback>(callback));
 }
 
+TG_FORCE_INLINE crl::time Basic::started() const {
+	return _started;
+}
+
 TG_FORCE_INLINE bool Basic::animating() const {
 	return (_started >= 0);
 }
 
 TG_FORCE_INLINE bool Basic::call(crl::time now) const {
 	const auto onstack = _callback;
-	return onstack(now - _started);
+	return onstack(now);
 }
 
 inline Basic::~Basic() {
@@ -217,7 +222,8 @@ inline void Simple::start(
 	_data->animation.init([
 		that = _data.get(),
 		callback = Prepare(std::forward<Callback>(callback))
-	](crl::time time) {
+	](crl::time now) {
+		const auto time = (now - that->animation.started());
 		const auto finished = (time >= that->duration);
 		const auto progress = finished
 			? that->delta
@@ -243,7 +249,7 @@ inline void Simple::start(
 }
 
 inline void Simple::prepare(float64 from, crl::time duration) {
-	const auto isLong = (duration >= kLongAnimationDuration);
+	const auto isLong = (duration > kLongAnimationDuration);
 	if (!_data) {
 		_data = std::make_unique<Data>(from);
 	} else if (!isLong) {

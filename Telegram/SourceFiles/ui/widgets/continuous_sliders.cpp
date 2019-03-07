@@ -173,9 +173,8 @@ void FilledSlider::paintEvent(QPaintEvent *e) {
 	p.setPen(Qt::NoPen);
 
 	const auto masterOpacity = fadeOpacity();
-	const auto ms = crl::now();
 	const auto disabled = isDisabled();
-	const auto over = getCurrentOverFactor(ms);
+	const auto over = getCurrentOverFactor();
 	const auto lineWidth = _st.lineWidth + ((_st.fullWidth - _st.lineWidth) * over);
 	const auto lineWidthRounded = qFloor(lineWidth);
 	const auto lineWidthPartial = lineWidth - lineWidthRounded;
@@ -229,10 +228,9 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	p.setOpacity(fadeOpacity());
 
 	const auto horizontal = isHorizontal();
-	const auto ms = crl::now();
 	const auto radius = _st.width / 2;
 	const auto disabled = isDisabled();
-	const auto over = getCurrentOverFactor(ms);
+	const auto over = getCurrentOverFactor();
 	const auto seekRect = getSeekRect();
 
 	// invert colors and value for vertical

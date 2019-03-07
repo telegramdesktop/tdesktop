@@ -319,7 +319,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 		p.drawPixmap(rthumb.topLeft(), reader->current(_thumbw, _thumbh, usew, painth, roundRadius, roundCorners, paused ? 0 : ms));
 
 		if (const auto playback = videoPlayback()) {
-			const auto value = playback->value(ms);
+			const auto value = playback->value();
 			if (value > 0.) {
 				auto pen = st::historyVideoMessageProgressFg->p;
 				auto was = p.pen();

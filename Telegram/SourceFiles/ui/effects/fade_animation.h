@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 
@@ -52,7 +53,7 @@ private:
 	TWidget *_widget = nullptr;
 	float64 _scale = 1.;
 
-	Animation _animation;
+	Ui::Animations::Simple _animation;
 	QSize _size;
 	QPixmap _cache;
 	bool _visible = false;

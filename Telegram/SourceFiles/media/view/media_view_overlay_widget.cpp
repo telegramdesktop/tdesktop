@@ -185,7 +185,7 @@ OverlayWidget::OverlayWidget()
 , _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
 , _radial(animation(this, &OverlayWidget::step_radial))
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
-, _a_state(animation(this, &OverlayWidget::step_state))
+, _a_state([=](float64 now) { step_state(now); })
 , _dropdown(this, st::mediaviewDropdownMenu)
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
@@ -605,9 +605,9 @@ auto OverlayWidget::computeOverviewType() const
 	return std::nullopt;
 }
 
-void OverlayWidget::step_state(crl::time ms, bool timer) {
+void OverlayWidget::step_state(crl::time now) {
 	if (anim::Disabled()) {
-		ms += st::mediaviewShowDuration + st::mediaviewHideDuration;
+		now += st::mediaviewShowDuration + st::mediaviewHideDuration;
 	}
 	bool result = false;
 	for (auto i = _animations.begin(); i != _animations.end();) {
@@ -624,7 +624,7 @@ void OverlayWidget::step_state(crl::time ms, bool timer) {
 		case OverMore: update(_moreNav); break;
 		default: break;
 		}
-		float64 dt = float64(ms - start) / st::mediaviewFadeDuration;
+		const auto dt = float64(now - start) / st::mediaviewFadeDuration;
 		if (dt >= 1) {
 			_animOpacities.remove(i.key());
 			i = _animations.erase(i);
@@ -634,7 +634,7 @@ void OverlayWidget::step_state(crl::time ms, bool timer) {
 		}
 	}
 	if (_controlsState == ControlsShowing || _controlsState == ControlsHiding) {
-		float64 dt = float64(ms - _controlsAnimStarted) / (_controlsState == ControlsShowing ? st::mediaviewShowDuration : st::mediaviewHideDuration);
+		float64 dt = float64(now - _controlsAnimStarted) / (_controlsState == ControlsShowing ? st::mediaviewShowDuration : st::mediaviewHideDuration);
 		if (dt >= 1) {
 			a_cOpacity.finish();
 			_controlsState = (_controlsState == ControlsShowing ? ControlsShown : ControlsHidden);

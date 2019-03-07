@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace base {
@@ -70,8 +71,8 @@ protected:
 	float64 getCurrentReceivedTill() const {
 		return _receivedTill;
 	}
-	float64 getCurrentOverFactor(crl::time ms) {
-		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
+	float64 getCurrentOverFactor() {
+		return _disabled ? 0. : _a_over.value(_over ? 1. : 0.);
 	}
 	Direction getDirection() const {
 		return _direction;
@@ -103,7 +104,7 @@ private:
 	Fn<void(float64)> _changeFinishedCallback;
 
 	bool _over = false;
-	Animation _a_over;
+	Ui::Animations::Simple _a_over;
 
 	float64 _value = 0.;
 	float64 _receivedTill = 0.;

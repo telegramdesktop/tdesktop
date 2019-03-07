@@ -23,7 +23,7 @@ bool FadeAnimation::paint(Painter &p) {
 	if (_cache.isNull()) return false;
 
 	const auto cache = _cache;
-	auto opacity = _animation.current(crl::now(), _visible ? 1. : 0.);
+	auto opacity = _animation.value(_visible ? 1. : 0.);
 	p.setOpacity(opacity);
 	if (_scale < 1.) {
 		PainterHighQualityEnabler hq(p);
@@ -105,7 +105,7 @@ void FadeAnimation::hide() {
 }
 
 void FadeAnimation::stopAnimation() {
-	_animation.finish();
+	_animation.stop();
 	if (!_cache.isNull()) {
 		_cache = QPixmap();
 		if (_finishedCallback) {
@@ -149,7 +149,7 @@ void FadeAnimation::updateCallback() {
 	if (_animation.animating()) {
 		_widget->update();
 		if (_updatedCallback) {
-			_updatedCallback(_animation.current(_visible ? 1. : 0.));
+			_updatedCallback(_animation.value(_visible ? 1. : 0.));
 		}
 	} else {
 		stopAnimation();

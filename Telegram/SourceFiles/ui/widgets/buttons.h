@@ -244,7 +244,6 @@ private:
 	bool _shown = false;
 	Ui::Animations::Simple _a_show;
 
-	crl::time _loadingStartMs = 0;
 	crl::time _loadingStopMs = 0;
 	Ui::Animations::Basic _a_loading;
 

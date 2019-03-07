@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "data/data_shared_media.h"
 #include "data/data_user_photos.h"
@@ -263,7 +264,7 @@ private:
 	void updateHeader();
 	void snapXY();
 
-	void step_state(crl::time ms, bool timer);
+	void step_state(crl::time ms);
 	void step_radial(crl::time ms, bool timer);
 	void step_waiting(crl::time ms, bool timer);
 
@@ -385,7 +386,7 @@ private:
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown = false;
 
-	BasicAnimation _a_state;
+	Ui::Animations::Basic _a_state;
 
 	enum ControlsState {
 		ControlsShowing,

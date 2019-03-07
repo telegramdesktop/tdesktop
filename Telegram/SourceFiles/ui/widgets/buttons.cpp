@@ -594,7 +594,7 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 
 	auto loading = 0.;
 	if (_a_loading.animating()) {
-		const auto duration = (ms - _loadingStartMs);
+		const auto duration = (ms - _a_loading.started());
 		if (stopLoadingAnimation(duration)) {
 			_a_loading.stop();
 		} else if (anim::Disabled()) {
@@ -627,7 +627,7 @@ bool CrossButton::stopLoadingAnimation(crl::time duration) {
 	if (!_loadingStopMs) {
 		return false;
 	}
-	const auto stopPeriod = (_loadingStopMs - _loadingStartMs)
+	const auto stopPeriod = (_loadingStopMs - _a_loading.started())
 		/ _st.loadingPeriod;
 	const auto currentPeriod = duration / _st.loadingPeriod;
 	if (currentPeriod != stopPeriod) {
@@ -641,12 +641,11 @@ void CrossButton::setLoadingAnimation(bool enabled) {
 	if (enabled) {
 		_loadingStopMs = 0;
 		if (!_a_loading.animating()) {
-			_loadingStartMs = crl::now();
 			_a_loading.start();
 		}
 	} else if (_a_loading.animating()) {
 		_loadingStopMs = crl::now();
-		if (!((_loadingStopMs - _loadingStartMs) % _st.loadingPeriod)) {
+		if (!((_loadingStopMs - _a_loading.started()) % _st.loadingPeriod)) {
 			_a_loading.stop();
 		}
 	}

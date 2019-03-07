@@ -19,8 +19,8 @@ constexpr auto kPlaybackAnimationDurationMs = crl::time(200);
 } // namespace
 
 PlaybackProgress::PlaybackProgress()
-: _a_value(animation(this, &PlaybackProgress::step_value))
-, _a_receivedTill(animation(this, &PlaybackProgress::step_receivedTill)) {
+: _a_value([=](float64 ms) { step_value(ms); })
+, _a_receivedTill([=](float64 ms) { step_receivedTill(ms); }) {
 }
 
 void PlaybackProgress::updateState(const Player::TrackState &state) {
@@ -83,11 +83,6 @@ float64 PlaybackProgress::value() const {
 	return qMin(a_value.current(), 1.);
 }
 
-float64 PlaybackProgress::value(crl::time ms) {
-	_a_value.step(ms);
-	return value();
-}
-
 void PlaybackProgress::setValue(float64 value, bool animated) {
 	if (animated) {
 		a_value.start(value);
@@ -114,30 +109,32 @@ void PlaybackProgress::setReceivedTill(float64 value) {
 	emitUpdatedValue();
 }
 
-void PlaybackProgress::step_value(float64 ms, bool timer) {
-	auto dt = anim::Disabled() ? 1. : (ms / kPlaybackAnimationDurationMs);
+void PlaybackProgress::step_value(float64 now) {
+	const auto time = (now - _a_value.started());
+	const auto dt = anim::Disabled()
+		? 1.
+		: (time / kPlaybackAnimationDurationMs);
 	if (dt >= 1.) {
 		_a_value.stop();
 		a_value.finish();
 	} else {
 		a_value.update(dt, anim::linear);
 	}
-	if (timer) {
-		emitUpdatedValue();
-	}
+	emitUpdatedValue();
 }
 
-void PlaybackProgress::step_receivedTill(float64 ms, bool timer) {
-	auto dt = anim::Disabled() ? 1. : (ms / kPlaybackAnimationDurationMs);
+void PlaybackProgress::step_receivedTill(float64 now) {
+	const auto time = now - _a_receivedTill.started();
+	const auto dt = anim::Disabled()
+		? 1.
+		: (time / kPlaybackAnimationDurationMs);
 	if (dt >= 1.) {
 		_a_receivedTill.stop();
 		a_receivedTill.finish();
 	} else {
 		a_receivedTill.update(dt, anim::linear);
 	}
-	if (timer) {
-		emitUpdatedValue();
-	}
+	emitUpdatedValue();
 }
 
 void PlaybackProgress::emitUpdatedValue() {
