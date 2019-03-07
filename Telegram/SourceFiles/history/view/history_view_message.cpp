@@ -1375,6 +1375,7 @@ bool Message::displayFastShare() const {
 	} else if (const auto user = peer->asUser()) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			return !peer->isSelf()
+				&& !item->out()
 				&& forwarded->originalSender->isChannel()
 				&& !forwarded->originalSender->isMegagroup();
 		} else if (user->botInfo && !item->out()) {
