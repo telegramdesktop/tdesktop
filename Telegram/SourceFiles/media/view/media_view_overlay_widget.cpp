@@ -1933,7 +1933,7 @@ void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	validateStreamedGoodThumbnail();
 	if (videoShown()) {
 		const auto contentSize = ConvertScale(videoSize());
-		if (_w != contentSize.width() || _h != contentSize.height()) {
+		if (contentSize != QSize(_width, _height)) {
 			update(contentRect());
 			_w = contentSize.width();
 			_h = contentSize.height();
@@ -3489,6 +3489,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		// before it is hidden without the child widget.
 		if (!isHidden() && _streamed) {
 			_streamed->controls.hide();
+			_dropdown->hideFast();
 			_wasRepainted = false;
 			repaint();
 			if (!_wasRepainted) {

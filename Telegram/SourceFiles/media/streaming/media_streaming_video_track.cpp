@@ -90,7 +90,6 @@ private:
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _resumedTime = kTimeUnknown;
 	mutable TimePoint _syncTimePoint;
-	mutable crl::time _previousFramePosition = kTimeUnknown;
 	crl::time _framePositionShift = 0;
 	crl::time _nextFrameDisplayTime = kTimeUnknown;
 	rpl::event_stream<crl::time> _nextFrameTimeUpdates;
