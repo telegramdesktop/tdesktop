@@ -3491,9 +3491,9 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		// QOpenGLWidget can't properly destroy a child widget if
 		// it is hidden exactly after that, so it must be repainted
 		// before it is hidden without the child widget.
-		if (!isHidden() && _streamed) {
-			_streamed->controls.hide();
+		if (!isHidden()) {
 			_dropdown->hideFast();
+			hideChildren();
 			_wasRepainted = false;
 			repaint();
 			if (!_wasRepainted) {
