@@ -77,7 +77,6 @@ private:
 
 	struct Slice {
 		enum class Flag : uchar {
-			Header = 0x01,
 			LoadingFromCache = 0x02,
 			LoadedFromCache = 0x04,
 			ChangedSinceCache = 0x08,
@@ -92,10 +91,12 @@ private:
 			bool ready = true;
 		};
 
-		bool processCacheData(QByteArray &&data, int maxSliceSize);
-		bool processComplexCacheData(
+		bytes::const_span processCacheData(
 			bytes::const_span data,
-			int maxSliceSize);
+			int maxSize);
+		bytes::const_span processComplexCacheData(
+			bytes::const_span data,
+			int maxSize);
 		void addPart(int offset, QByteArray bytes);
 		PrepareFillResult prepareFill(int from, int till);
 
@@ -115,8 +116,11 @@ private:
 
 		void headerDone(bool fromCache);
 		[[nodiscard]] bool headerWontBeFilled() const;
+		[[nodiscard]] bool headerModeUnknown() const;
+		[[nodiscard]] bool isFullInHeader() const;
+		[[nodiscard]] bool isGoodHeader() const;
 
-		void processCacheResult(int sliceNumber, QByteArray &&result);
+		void processCacheResult(int sliceNumber, bytes::const_span result);
 		void processPart(int offset, QByteArray &&bytes);
 
 		[[nodiscard]] FillResult fill(int offset, bytes::span buffer);
@@ -126,16 +130,24 @@ private:
 		enum class HeaderMode {
 			Unknown,
 			Small,
+			Good,
+			Full,
 			NoCache,
 		};
 
 		void applyHeaderCacheData();
-		int maxSliceSize(int sliceNumber) const;
-		SerializedSlice serializeAndUnloadSlice(int sliceNumber);
-		SerializedSlice serializeAndUnloadUnused();
+		[[nodiscard]] int maxSliceSize(int sliceNumber) const;
+		[[nodiscard]] SerializedSlice serializeAndUnloadSlice(
+			int sliceNumber);
+		[[nodiscard]] SerializedSlice serializeAndUnloadUnused();
+		[[nodiscard]] QByteArray serializeComplexSlice(
+			const Slice &slice) const;
+		[[nodiscard]] QByteArray serializeAndUnloadFirstSliceNoHeader();
 		void markSliceUsed(int sliceIndex);
-		bool fullInHeader() const;
-		FillResult fillFromHeader(int offset, bytes::span buffer);
+		[[nodiscard]] bool computeIsGoodHeader() const;
+		[[nodiscard]] FillResult fillFromHeader(
+			int offset,
+			bytes::span buffer);
 
 		std::vector<Slice> _data;
 		Slice _header;
