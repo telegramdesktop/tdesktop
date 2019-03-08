@@ -19,8 +19,8 @@ constexpr auto kPlaybackAnimationDurationMs = crl::time(200);
 } // namespace
 
 PlaybackProgress::PlaybackProgress()
-: _a_value([=](float64 ms) { step_value(ms); })
-, _a_receivedTill([=](float64 ms) { step_receivedTill(ms); }) {
+: _a_value([=](crl::time now) { return valueAnimationCallback(now); })
+, _a_receivedTill([=](crl::time now) { return receivedTillAnimationCallback(now); }) {
 }
 
 void PlaybackProgress::updateState(const Player::TrackState &state) {
@@ -85,6 +85,7 @@ float64 PlaybackProgress::value() const {
 
 void PlaybackProgress::setValue(float64 value, bool animated) {
 	if (animated) {
+		valueAnimationCallback(crl::now());
 		a_value.start(value);
 		_a_value.start();
 	} else {
@@ -97,6 +98,7 @@ void PlaybackProgress::setValue(float64 value, bool animated) {
 void PlaybackProgress::setReceivedTill(float64 value) {
 	const auto current = a_receivedTill.current();
 	if (value > current && current > 0.) {
+		receivedTillAnimationCallback(crl::now());
 		a_receivedTill.start(value);
 		_a_receivedTill.start();
 	} else if (value > a_value.current()) {
@@ -109,32 +111,32 @@ void PlaybackProgress::setReceivedTill(float64 value) {
 	emitUpdatedValue();
 }
 
-void PlaybackProgress::step_value(float64 now) {
+bool PlaybackProgress::valueAnimationCallback(float64 now) {
 	const auto time = (now - _a_value.started());
 	const auto dt = anim::Disabled()
 		? 1.
 		: (time / kPlaybackAnimationDurationMs);
 	if (dt >= 1.) {
-		_a_value.stop();
 		a_value.finish();
 	} else {
 		a_value.update(dt, anim::linear);
 	}
 	emitUpdatedValue();
+	return (dt < 1.);
 }
 
-void PlaybackProgress::step_receivedTill(float64 now) {
+bool PlaybackProgress::receivedTillAnimationCallback(float64 now) {
 	const auto time = now - _a_receivedTill.started();
 	const auto dt = anim::Disabled()
 		? 1.
 		: (time / kPlaybackAnimationDurationMs);
 	if (dt >= 1.) {
-		_a_receivedTill.stop();
 		a_receivedTill.finish();
 	} else {
 		a_receivedTill.update(dt, anim::linear);
 	}
 	emitUpdatedValue();
+	return (dt < 1.);
 }
 
 void PlaybackProgress::emitUpdatedValue() {

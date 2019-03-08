@@ -58,6 +58,33 @@ QSize HistoryVideo::sizeForAspectRatio() const {
 	return { 1, 1 };
 }
 
+QSize HistoryVideo::countOptimalDimensions() const {
+	const auto desired = ConvertScale(_data->dimensions);
+	const auto size = desired.isEmpty() ? sizeForAspectRatio() : desired;
+	auto tw = size.width();
+	auto th = size.height();
+	if (!tw || !th) {
+		tw = th = 1;
+	} else if (tw >= th && tw > st::maxMediaSize) {
+		th = qRound((st::maxMediaSize / float64(tw)) * th);
+		tw = st::maxMediaSize;
+	} else if (tw < th && th > st::maxMediaSize) {
+		tw = qRound((st::maxMediaSize / float64(th)) * tw);
+		th = st::maxMediaSize;
+	} else if ((tw < st::msgVideoSize.width())
+		&& (tw * st::msgVideoSize.height()
+			>= th * st::msgVideoSize.width())) {
+		th = qRound((st::msgVideoSize.width() / float64(tw)) * th);
+		tw = st::msgVideoSize.width();
+	} else if ((th < st::msgVideoSize.height())
+		&& (tw * st::msgVideoSize.height()
+			< th * st::msgVideoSize.width())) {
+		tw = qRound((st::msgVideoSize.height() / float64(th)) * tw);
+		th = st::msgVideoSize.height();
+	}
+	return QSize(tw, th);
+}
+
 QSize HistoryVideo::countOptimalSize() {
 	if (_parent->media() != this) {
 		_caption = Text();
@@ -67,20 +94,9 @@ QSize HistoryVideo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	const auto size = sizeForAspectRatio();
-	auto tw = ConvertScale(size.width());
-	auto th = ConvertScale(size.height());
-	if (!tw || !th) {
-		tw = th = 1;
-	}
-	if (tw * st::msgVideoSize.height() > th * st::msgVideoSize.width()) {
-		th = qRound((st::msgVideoSize.width() / float64(tw)) * th);
-		tw = st::msgVideoSize.width();
-	} else {
-		tw = qRound((st::msgVideoSize.height() / float64(th)) * tw);
-		th = st::msgVideoSize.height();
-	}
-
+	const auto size = countOptimalDimensions();
+	const auto tw = size.width();
+	const auto th = size.height();
 	_thumbw = qMax(tw, 1);
 	_thumbh = qMax(th, 1);
 
@@ -101,20 +117,9 @@ QSize HistoryVideo::countOptimalSize() {
 }
 
 QSize HistoryVideo::countCurrentSize(int newWidth) {
-	const auto size = sizeForAspectRatio();
-	auto tw = ConvertScale(size.width());
-	auto th = ConvertScale(size.height());
-	if (!tw || !th) {
-		tw = th = 1;
-	}
-	if (tw * st::msgVideoSize.height() > th * st::msgVideoSize.width()) {
-		th = qRound((st::msgVideoSize.width() / float64(tw)) * th);
-		tw = st::msgVideoSize.width();
-	} else {
-		tw = qRound((st::msgVideoSize.height() / float64(th)) * tw);
-		th = st::msgVideoSize.height();
-	}
-
+	const auto size = countOptimalDimensions();
+	auto tw = size.width();
+	auto th = size.height();
 	if (newWidth < tw) {
 		th = qRound((newWidth / float64(tw)) * th);
 		tw = newWidth;

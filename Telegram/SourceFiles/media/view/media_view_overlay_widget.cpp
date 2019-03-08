@@ -2191,8 +2191,10 @@ void OverlayWidget::playbackPauseResume() {
 			restartAtSeekPosition(0);
 		} else if (_streamed->player.paused()) {
 			_streamed->player.resume();
+			updatePlaybackState();
 		} else {
 			_streamed->player.pause();
+			updatePlaybackState();
 		}
 	} else {
 		clearStreaming();
@@ -2275,8 +2277,9 @@ void OverlayWidget::playbackPauseOnCall() {
 	if (_streamed->player.finished() || _streamed->player.paused()) {
 		return;
 	}
-	_streamed->player.pause();
 	_streamed->resumeOnCallEnd = true;
+	_streamed->player.pause();
+	updatePlaybackState();
 }
 
 void OverlayWidget::playbackResumeOnCall() {
@@ -2285,6 +2288,7 @@ void OverlayWidget::playbackResumeOnCall() {
 	if (_streamed->resumeOnCallEnd) {
 		_streamed->resumeOnCallEnd = false;
 		_streamed->player.resume();
+		updatePlaybackState();
 	}
 }
 

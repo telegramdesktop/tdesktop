@@ -33,8 +33,8 @@ public:
 	void updateLoadingState(float64 progress);
 
 private:
-	void step_value(float64 now);
-	void step_receivedTill(float64 now);
+	bool valueAnimationCallback(float64 now);
+	bool receivedTillAnimationCallback(float64 now);
 	void setReceivedTill(float64 value);
 	void emitUpdatedValue();
 

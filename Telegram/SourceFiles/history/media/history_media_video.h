@@ -75,6 +75,7 @@ protected:
 private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
+	QSize countOptimalDimensions() const;
 
 	void validateGroupedCache(
 		const QRect &geometry,
