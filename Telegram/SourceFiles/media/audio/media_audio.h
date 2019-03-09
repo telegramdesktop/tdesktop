@@ -121,7 +121,7 @@ public:
 
 	// Video player audio stream interface.
 	void feedFromVideo(VideoSoundPart &&part);
-	int64 getVideoCorrectedTime(
+	crl::time getVideoCorrectedTime(
 		const AudioMsgId &id,
 		crl::time frameMs,
 		crl::time systemMs);
