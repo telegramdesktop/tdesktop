@@ -171,6 +171,7 @@ private:
 	//void createTabs();
 	void createTopBar();
 	void highlightTopBar();
+	void setupShortcuts();
 
 	not_null<RpWidget*> topWidget() const;
 

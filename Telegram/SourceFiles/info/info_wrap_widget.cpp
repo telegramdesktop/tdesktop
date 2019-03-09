@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
 #include "calls/calls_instance.h"
+#include "core/shortcuts.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
@@ -76,6 +77,19 @@ WrapWidget::WrapWidget(
 		});
 	}, lifetime());
 	restoreHistoryStack(memento->takeStack());
+}
+
+void WrapWidget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return requireTopBarSearch();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Search) && request->handle([=] {
+			_topBar->showSearch();
+			return true;
+		});
+	}, lifetime());
 }
 
 void WrapWidget::restoreHistoryStack(
@@ -377,6 +391,7 @@ void WrapWidget::createTopBar() {
 	} else if (requireTopBarSearch()) {
 		auto search = _controller->searchFieldController();
 		Assert(search != nullptr);
+		setupShortcuts();
 		_topBar->createSearchView(
 			search,
 			_controller->searchEnabledByContent(),

@@ -1321,7 +1321,7 @@ void HistoryWidget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		if (_history) {
-			request->check(Command::Search) && request->handle([=] {
+			request->check(Command::Search, 1) && request->handle([=] {
 				App::main()->searchInChat(_history);
 				return true;
 			});
