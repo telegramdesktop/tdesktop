@@ -4628,7 +4628,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			applyUpdates(result, randomId);
 			history->clearSentDraftText(QString());
 		}).fail([=](const RPCError &error) {
-			sendMessageFail(error);
+			if (error.type() == qstr("MESSAGE_EMPTY")) {
+				lastMessage->destroy();
+			} else {
+				sendMessageFail(error);
+			}
 			history->clearSentDraftText(QString());
 		}).afterRequest(history->sendRequestId
 		).send();
