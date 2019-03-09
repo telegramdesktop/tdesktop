@@ -201,6 +201,10 @@ public:
 		return false;
 	}
 
+	[[nodiscard]] virtual bool hidesForwardedInfo() const {
+		return false;
+	}
+
 	// Sometimes webpages can force the bubble to fit their size instead of
 	// allowing message text to be as wide as possible (like wallpapers).
 	[[nodiscard]] virtual bool enforceBubbleWidth() const {
