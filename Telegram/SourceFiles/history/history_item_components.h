@@ -37,6 +37,7 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, Hist
 	void refresh(const QString &date);
 	int maxWidth() const;
 
+	bool isElided = false;
 	QString author;
 	Text signature;
 };

@@ -50,11 +50,12 @@ void HistoryMessageVia::resize(int32 availw) const {
 }
 
 void HistoryMessageSigned::refresh(const QString &date) {
-	auto time = qsl(", ") + date;
 	auto name = author;
-	auto timew = st::msgDateFont->width(time);
-	auto namew = st::msgDateFont->width(name);
-	if (timew + namew > st::maxSignatureSize) {
+	const auto time = qsl(", ") + date;
+	const auto timew = st::msgDateFont->width(time);
+	const auto namew = st::msgDateFont->width(name);
+	isElided = (timew + namew > st::maxSignatureSize);
+	if (isElided) {
 		name = st::msgDateFont->elided(author, st::maxSignatureSize - timew);
 	}
 	signature.setText(

@@ -3055,6 +3055,11 @@ QString HistoryInner::tooltipText() const {
 						QLocale::system().dateTimeFormat(
 							QLocale::LongFormat)));
 			}
+			if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
+				if (msgsigned->isElided) {
+					dateText += '\n' + lng_signed_author(lt_user, msgsigned->author);
+				}
+			}
 			return dateText;
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
