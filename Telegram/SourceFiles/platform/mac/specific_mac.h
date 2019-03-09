@@ -19,6 +19,8 @@ inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 
 QString CurrentExecutablePath(int argc, char *argv[]);
 
+crl::time LastUserInputTime();
+
 void RemoveQuarantine(const QString &path);
 
 namespace ThirdParty {
@@ -52,7 +54,6 @@ void psDeleteDir(const QString &dir);
 
 void psUserActionDone();
 bool psIdleSupported();
-crl::time psIdleTime();
 
 QStringList psInitLogs();
 void psClearInitLogs();

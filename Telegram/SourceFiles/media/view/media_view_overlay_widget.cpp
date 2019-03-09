@@ -2041,7 +2041,7 @@ void OverlayWidget::onVideoPlayProgress(const AudioMsgId &audioId) {
 		if (state.length) {
 			updateVideoPlaybackState(state);
 		}
-		Auth().settings().setLastTimeVideoPlayedAt(crl::now());
+		Core::App().updateNonIdle();
 	}
 }
 

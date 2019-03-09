@@ -841,6 +841,14 @@ bool Application::passcodeLocked() const {
 	return _passcodeLock.current();
 }
 
+void Application::updateNonIdle() {
+	_lastNonIdleTime = crl::now();
+}
+
+crl::time Application::lastNonIdleTime() const {
+	return std::max(Platform::LastUserInputTime(), _lastNonIdleTime);
+}
+
 rpl::producer<bool> Application::passcodeLockChanges() const {
 	return _passcodeLock.changes();
 }

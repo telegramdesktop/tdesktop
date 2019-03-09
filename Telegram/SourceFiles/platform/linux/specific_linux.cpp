@@ -207,10 +207,6 @@ bool psIdleSupported() {
 	return false;
 }
 
-crl::time psIdleTime() {
-	return crl::now() - _lastUserAction;
-}
-
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }
@@ -447,6 +443,10 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		}) != end(options);
 	}
 	return true;
+}
+
+crl::time LastUserInputTime() {
+	return _lastUserAction;
 }
 
 namespace ThirdParty {
