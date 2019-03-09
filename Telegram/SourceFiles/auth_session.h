@@ -139,12 +139,6 @@ public:
 	bool smallDialogsList() const {
 		return _variables.smallDialogsList;
 	}
-	void setLastTimeVideoPlayedAt(crl::time time) {
-		_lastTimeVideoPlayedAt = time;
-	}
-	crl::time lastTimeVideoPlayedAt() const {
-		return _lastTimeVideoPlayedAt;
-	}
 	void setSoundOverride(const QString &key, const QString &path) {
 		_variables.soundOverrides.insert(key, path);
 	}
@@ -263,7 +257,6 @@ private:
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;
 
 	Variables _variables;
-	crl::time _lastTimeVideoPlayedAt = 0;
 
 };
 

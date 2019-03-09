@@ -3767,7 +3767,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	bool isOnline = !App::quitting() && App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
 	if (isOnline) {
-		auto idle = psIdleTime();
+		const auto idle = crl::now() - Platform::LastUserInputTime();
 		if (idle >= Global::OfflineIdleTimeout()) {
 			isOnline = false;
 			if (!_isIdle) {
@@ -3883,7 +3883,7 @@ void MainWidget::writeDrafts(History *history) {
 }
 
 void MainWidget::checkIdleFinish() {
-	if (psIdleTime() < Global::OfflineIdleTimeout()) {
+	if (crl::now() - Platform::LastUserInputTime() < Global::OfflineIdleTimeout()) {
 		_idleFinishTimer.cancel();
 		_isIdle = false;
 		updateOnline();

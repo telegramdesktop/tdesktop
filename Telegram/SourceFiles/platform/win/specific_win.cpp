@@ -145,12 +145,6 @@ bool psIdleSupported() {
 	return GetLastInputInfo(&lii);
 }
 
-crl::time psIdleTime() {
-	LASTINPUTINFO lii;
-	lii.cbSize = sizeof(LASTINPUTINFO);
-	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (crl::now() - _lastUserAction);
-}
-
 QStringList psInitLogs() {
     return _initLogs;
 }
@@ -348,6 +342,12 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 		return info.absoluteFilePath();
 	}
 	return QString();
+}
+
+crl::time LastUserInputTime() {
+	LASTINPUTINFO lii;
+	lii.cbSize = sizeof(LASTINPUTINFO);
+	return GetLastInputInfo(&lii) ? (crl::now() + lii.dwTime - GetTickCount()) : _lastUserAction;
 }
 
 namespace {

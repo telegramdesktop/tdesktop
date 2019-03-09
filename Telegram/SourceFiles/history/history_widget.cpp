@@ -1241,6 +1241,7 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 	if (samples < 0 || samples >= Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength) {
 		stopRecording(_peer && samples > 0 && _inField);
 	}
+	Core::App().updateNonIdle();
 	updateField();
 	if (_history) {
 		updateSendAction(_history, SendAction::Type::RecordVoice);

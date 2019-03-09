@@ -483,11 +483,9 @@ void AuthSession::checkAutoLock() {
 	}
 
 	Core::App().checkLocalTime();
-	auto now = crl::now();
-	auto shouldLockInMs = Global::AutoLock() * 1000LL;
-	auto idleForMs = psIdleTime();
-	auto notPlayingVideoForMs = now - settings().lastTimeVideoPlayedAt();
-	auto checkTimeMs = qMin(idleForMs, notPlayingVideoForMs);
+	const auto now = crl::now();
+	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
+	const auto checkTimeMs = now - Core::App().lastNonIdleTime();
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
 		Core::App().lockByPasscode();
 	} else {
