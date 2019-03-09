@@ -3054,6 +3054,13 @@ QString HistoryInner::tooltipText() const {
 					ParseDateTime(forwarded->originalDate).toString(
 						QLocale::system().dateTimeFormat(
 							QLocale::LongFormat)));
+				if (const auto media = view->media()) {
+					if (media->hidesForwardedInfo()) {
+						dateText += "\n" + lng_forwarded(
+							lt_user, 
+							forwarded->originalSender->shortName());
+					}
+				}
 			}
 			if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
 				if (msgsigned->isElided) {

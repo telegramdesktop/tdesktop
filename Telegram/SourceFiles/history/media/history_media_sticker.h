@@ -45,6 +45,9 @@ public:
 	QString emoji() const {
 		return _emoji;
 	}
+	bool hidesForwardedInfo() const override {
+		return true;
+	}
 
 private:
 	QSize countOptimalSize() override;
