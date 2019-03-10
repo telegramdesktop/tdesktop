@@ -161,6 +161,7 @@ struct OverlayWidget::Streamed {
 	Ui::InfiniteRadialAnimation radial;
 	Animation fading;
 	base::Timer timer;
+	QImage frameForDirectPaint;
 
 	bool resumeOnCallEnd = false;
 	std::optional<Streaming::Error> lastError;
@@ -335,6 +336,43 @@ QImage OverlayWidget::videoFrame() const {
 	return _streamed->player.ready()
 		? _streamed->player.frame(request)
 		: _streamed->info.video.cover;
+}
+
+QImage OverlayWidget::videoFrameForDirectPaint() const {
+	Expects(_streamed != nullptr);
+
+	const auto result = videoFrame();
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	const auto bytesPerLine = result.bytesPerLine();
+	if (bytesPerLine == result.width() * 4) {
+		return result;
+	}
+
+	// On macOS 10.8+ we use QOpenGLWidget as OverlayWidget base class.
+	// The OpenGL painter can't paint textures where byte data is with strides.
+	// So in that case we prepare a compact copy of the frame to render.
+	//
+	// See Qt commit ed557c037847e343caa010562952b398f806adcd
+	//
+	auto &cache = _streamed->frameForDirectPaint;
+	if (cache.size() != result.size()) {
+		cache = QImage(result.size(), result.format());
+	}
+	const auto height = result.height();
+	const auto line = cache.bytesPerLine();
+	Assert(line == result.width() * 4);
+	Assert(line < bytesPerLine);
+
+	auto from = result.bits();
+	auto to = cache.bits();
+	for (auto y = 0; y != height; ++y) {
+		memcpy(to, from, line);
+		to += line;
+		from += bytesPerLine;
+	}
+	return cache;
+#endif // Q_OS_MAC && !OS_MAC_OLD
+	return result;
 }
 
 bool OverlayWidget::documentContentShown() const {
@@ -2631,7 +2669,7 @@ void OverlayWidget::checkGroupThumbsAnimation() {
 
 void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	const auto rect = contentRect();
-	const auto image = videoFrame();
+	const auto image = videoFrameForDirectPaint();
 	//if (_fullScreenVideo) {
 	//	const auto fill = rect.intersected(this->rect());
 	//	PaintImageProfile(p, image, rect, fill);
