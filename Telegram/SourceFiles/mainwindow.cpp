@@ -484,7 +484,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 
 	case QEvent::MouseMove: {
 		if (_main && _main->isIdle()) {
-			psUserActionDone();
+			Core::App().updateNonIdle();
 			_main->checkIdleFinish();
 		}
 	} break;

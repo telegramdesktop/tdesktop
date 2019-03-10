@@ -128,17 +128,6 @@ namespace {
 	}
 }
 
-namespace {
-
-crl::time _lastUserAction = 0;
-
-} // namespace
-
-void psUserActionDone() {
-	_lastUserAction = crl::now();
-	EventFilter::getInstance()->setSessionLoggedOff(false);
-}
-
 bool psIdleSupported() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
@@ -347,7 +336,7 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 crl::time LastUserInputTime() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
-	return GetLastInputInfo(&lii) ? (crl::now() + lii.dwTime - GetTickCount()) : _lastUserAction;
+	return GetLastInputInfo(&lii) ? (crl::now() + lii.dwTime - GetTickCount()) : 0LL;
 }
 
 namespace {
