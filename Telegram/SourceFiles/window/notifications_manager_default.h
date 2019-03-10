@@ -216,9 +216,7 @@ private:
 	Animation a_actionsOpacity;
 	QPixmap _buttonsCache;
 
-#ifdef Q_OS_WIN
 	crl::time _started;
-#endif // Q_OS_WIN
 
 	History *_history;
 	PeerData *_peer;

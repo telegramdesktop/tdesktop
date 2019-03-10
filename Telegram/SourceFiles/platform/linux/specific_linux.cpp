@@ -193,16 +193,6 @@ void psDeleteDir(const QString &dir) {
 	_removeDirectory(dir);
 }
 
-namespace {
-
-auto _lastUserAction = 0LL;
-
-} // namespace
-
-void psUserActionDone() {
-	_lastUserAction = crl::now();
-}
-
 bool psIdleSupported() {
 	return false;
 }
@@ -446,7 +436,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 }
 
 crl::time LastUserInputTime() {
-	return _lastUserAction;
+	return 0LL;
 }
 
 namespace ThirdParty {

@@ -233,7 +233,7 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::MouseButtonPress:
 	case QEvent::TouchBegin:
 	case QEvent::Wheel: {
-		psUserActionDone();
+		updateNonIdle();
 	} break;
 
 	case QEvent::ShortcutOverride: {
@@ -252,7 +252,7 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 
 	case QEvent::ApplicationActivate: {
 		if (object == QCoreApplication::instance()) {
-			psUserActionDone();
+			updateNonIdle();
 		}
 	} break;
 

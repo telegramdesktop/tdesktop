@@ -59,7 +59,6 @@ void psWriteDump();
 
 void psDeleteDir(const QString &dir);
 
-void psUserActionDone();
 bool psIdleSupported();
 
 QStringList psInitLogs();
