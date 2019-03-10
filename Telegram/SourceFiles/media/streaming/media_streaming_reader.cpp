@@ -365,6 +365,7 @@ void Reader::Slices::processCacheResult(
 		}
 		// So just process whole result even if we didn't want header really.
 		slice.flags |= Slice::Flag::LoadingFromCache;
+		slice.flags &= ~Slice::Flag::LoadedFromCache;
 	}
 	if (!(slice.flags & Slice::Flag::LoadingFromCache)) {
 		// We could've already unloaded this slice using LRU _usedSlices.

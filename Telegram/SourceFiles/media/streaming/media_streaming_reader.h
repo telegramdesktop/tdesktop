@@ -77,9 +77,9 @@ private:
 
 	struct Slice {
 		enum class Flag : uchar {
-			LoadingFromCache = 0x02,
-			LoadedFromCache = 0x04,
-			ChangedSinceCache = 0x08,
+			LoadingFromCache = 0x01,
+			LoadedFromCache = 0x02,
+			ChangedSinceCache = 0x04,
 		};
 		friend constexpr inline bool is_flag_type(Flag) { return true; }
 		using Flags = base::flags<Flag>;
