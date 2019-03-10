@@ -79,6 +79,7 @@ public:
 
 private:
 	void showNext();
+	void showGrouped();
 	void ensureSoundCreated();
 
 	AuthSession *_authSession = nullptr;
@@ -99,6 +100,7 @@ private:
 	Waiters _waiters;
 	Waiters _settingWaiters;
 	base::Timer _waitTimer;
+	base::Timer _waitForAllGroupedTimer;
 
 	QMap<History*, QMap<crl::time, PeerData*>> _whenAlerts;
 
@@ -108,6 +110,9 @@ private:
 
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
 
+	int _lastForwardedCount = 0;
+	FullMsgId _lastHistoryItemId;
+	
 };
 
 class Manager {
