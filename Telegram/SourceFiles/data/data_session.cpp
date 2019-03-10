@@ -1661,6 +1661,7 @@ not_null<PhotoData*> Session::processPhoto(
 			data.vaccess_hash.v,
 			data.vfile_reference.v,
 			data.vdate.v,
+			data.is_has_stickers(),
 			thumbnailInline,
 			thumbnailSmall,
 			thumbnail,
@@ -1675,6 +1676,7 @@ not_null<PhotoData*> Session::photo(
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
+		bool hasSticker,
 		const ImagePtr &thumbnailInline,
 		const ImagePtr &thumbnailSmall,
 		const ImagePtr &thumbnail,
@@ -1685,6 +1687,7 @@ not_null<PhotoData*> Session::photo(
 		access,
 		fileReference,
 		date,
+		hasSticker,
 		thumbnailInline,
 		thumbnailSmall,
 		thumbnail,
@@ -1747,6 +1750,7 @@ PhotoData *Session::photoFromWeb(
 		uint64(0),
 		QByteArray(),
 		unixtime(),
+		false,
 		thumbnailInline,
 		thumbnailSmall,
 		thumbnail,
@@ -1796,6 +1800,7 @@ void Session::photoApplyFields(
 			data.vaccess_hash.v,
 			data.vfile_reference.v,
 			data.vdate.v,
+			data.is_has_stickers(),
 			thumbnailInline,
 			thumbnailSmall,
 			thumbnail,
@@ -1808,6 +1813,7 @@ void Session::photoApplyFields(
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
+		bool hasSticker,
 		const ImagePtr &thumbnailInline,
 		const ImagePtr &thumbnailSmall,
 		const ImagePtr &thumbnail,
@@ -1818,6 +1824,7 @@ void Session::photoApplyFields(
 	photo->access = access;
 	photo->fileReference = fileReference;
 	photo->date = date;
+	photo->hasSticker = hasSticker;
 	photo->updateImages(
 		thumbnailInline,
 		thumbnailSmall,

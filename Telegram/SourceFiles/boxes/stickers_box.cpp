@@ -145,6 +145,39 @@ StickersBox::StickersBox(QWidget*, not_null<ChannelData*> megagroup)
 	subscribe(_installed.widget()->scrollToY, [this](int y) { onScrollToY(y); });
 }
 
+StickersBox::StickersBox(QWidget*, const MTPVector<MTPStickerSetCovered> &attachedSets)
+: _section(Section::Attached)
+, _attached(0, this, Section::Attached)
+, _attachedSets(attachedSets) {
+}
+
+void StickersBox::showAttachedStickers() {
+	auto addedSet = false;
+	for (const auto &stickerSet : _attachedSets.v) {
+		const auto setData = stickerSet.match([&](const auto &data) {
+			return data.vset.match([&](const MTPDstickerSet &data) {
+				return &data;
+			});
+		});
+
+		if (const auto set = Stickers::FeedSet(*setData)) {
+			if (_attached.widget()->appendSet(*set)) {
+				addedSet = true;
+				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+					Auth().api().scheduleStickerSetRequest(set->id, set->access);
+				}
+			}
+		}
+	}
+	if (addedSet) {
+		_attached.widget()->updateSize();
+	}
+
+	if (_section == Section::Attached && addedSet) {
+		Auth().api().requestStickerSets();
+	}
+}
+
 void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result) {
 	_archivedRequestId = 0;
 	_archivedLoaded = true;
@@ -226,6 +259,8 @@ void StickersBox::prepare() {
 		}
 	} else if (_section == Section::Archived) {
 		requestArchivedSets();
+	} else if (_section == Section::Attached) {
+		setTitle(langFactory(lng_stickers_attached_sets));
 	}
 	if (_tabs) {
 		if (Auth().data().archivedStickerSetsOrder().isEmpty()) {
@@ -241,6 +276,7 @@ void StickersBox::prepare() {
 	if (_installed.widget() && _section != Section::Installed) _installed.widget()->hide();
 	if (_featured.widget() && _section != Section::Featured) _featured.widget()->hide();
 	if (_archived.widget() && _section != Section::Archived) _archived.widget()->hide();
+	if (_attached.widget() && _section != Section::Attached) _attached.widget()->hide();
 
 	if (_featured.widget()) {
 		_featured.widget()->setInstallSetCallback([this](uint64 setId) { installSet(setId); });
@@ -249,18 +285,25 @@ void StickersBox::prepare() {
 		_archived.widget()->setInstallSetCallback([this](uint64 setId) { installSet(setId); });
 		_archived.widget()->setLoadMoreCallback([this] { loadMoreArchived(); });
 	}
+	if (_attached.widget()) {
+		_attached.widget()->setInstallSetCallback([this](uint64 setId) { installSet(setId); });
+		_attached.widget()->setLoadMoreCallback([this] { showAttachedStickers(); });
+	}
 
 	if (_megagroupSet) {
 		addButton(langFactory(lng_settings_save), [this] { _installed.widget()->saveGroupSet(); closeBox(); });
 		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	} else {
-		addButton(langFactory(lng_about_done), [this] { closeBox(); });
+		const auto close = _section == Section::Attached;
+		addButton(langFactory(close ? lng_close : lng_about_done), [this] { closeBox(); });
 	}
 
 	if (_section == Section::Installed) {
 		_tab = &_installed;
 	} else if (_section == Section::Archived) {
 		_tab = &_archived;
+	} else if (_section == Section::Attached) {
+		_tab = &_attached;
 	} else { // _section == Section::Featured
 		_tab = &_featured;
 	}
@@ -448,7 +491,8 @@ void StickersBox::installSet(uint64 setId) {
 		_localRemoved.removeOne(setId);
 		if (_installed.widget()) _installed.widget()->setRemovedSets(_localRemoved);
 		if (_featured.widget()) _featured.widget()->setRemovedSets(_localRemoved);
-		_archived.widget()->setRemovedSets(_localRemoved);
+		if (_archived.widget()) _archived.widget()->setRemovedSets(_localRemoved);
+		if (_attached.widget()) _attached.widget()->setRemovedSets(_localRemoved);
 	}
 	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)
 		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
@@ -521,6 +565,7 @@ void StickersBox::resizeEvent(QResizeEvent *e) {
 	if (_installed.widget()) _installed.widget()->resize(width(), _installed.widget()->height());
 	if (_featured.widget()) _featured.widget()->resize(width(), _featured.widget()->height());
 	if (_archived.widget()) _archived.widget()->resize(width(), _archived.widget()->height());
+	if (_attached.widget()) _attached.widget()->resize(width(), _attached.widget()->height());
 }
 
 void StickersBox::handleStickersUpdated() {
@@ -537,6 +582,7 @@ void StickersBox::handleStickersUpdated() {
 }
 
 void StickersBox::rebuildList(Tab *tab) {
+	if (_section == Section::Attached) return;
 	if (!tab) tab = _tab;
 
 	if (tab == &_installed) {

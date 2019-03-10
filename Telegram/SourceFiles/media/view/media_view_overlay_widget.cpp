@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_overlay_widget.h"
 
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -461,6 +462,9 @@ void OverlayWidget::updateActions() {
 	}
 	if ((_doc && fileShown()) || (_photo && _photo->loaded())) {
 		_actions.push_back({ lang(lng_mediaview_copy), SLOT(onCopy()) });
+	}
+	if (_photo && _photo->hasSticker) {
+		_actions.push_back({ lang(lng_context_attached_stickers), SLOT(onAttachedStickers()) });
 	}
 	if (_canForwardItem) {
 		_actions.push_back({ lang(lng_mediaview_forward), SLOT(onForward()) });
@@ -1106,6 +1110,11 @@ void OverlayWidget::onCopy() {
 
 		QApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
 	}
+}
+
+void OverlayWidget::onAttachedStickers() {
+	close();
+	Auth().api().requestAttachedStickerSets(_photo);
 }
 
 std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() const {

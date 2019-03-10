@@ -97,6 +97,7 @@ private slots:
 	void onCopy();
 	void onMenuDestroy(QObject *obj);
 	void receiveMouse();
+	void onAttachedStickers();
 
 	void onDropdown();
 
