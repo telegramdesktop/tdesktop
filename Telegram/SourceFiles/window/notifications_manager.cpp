@@ -30,12 +30,14 @@ namespace {
 
 // not more than one sound in 500ms from one peer - grouping
 constexpr auto kMinimalAlertDelay = crl::time(500);
+constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 
 } // namespace
 
 System::System(AuthSession *session)
 : _authSession(session)
-, _waitTimer([=] { showNext(); }) {
+, _waitTimer([=] { showNext(); })
+, _waitForAllGroupedTimer([=] { showGrouped(); }) {
 	createManager();
 
 	subscribe(settingsChanged(), [=](ChangeType type) {
@@ -211,8 +213,27 @@ void System::checkDelayed() {
 	showNext();
 }
 
+void System::showGrouped() {
+	if (const auto lastItem = App::histItemById(_lastHistoryItemId)) {
+		_waitForAllGroupedTimer.cancel();
+		_manager->showNotification(lastItem, _lastForwardedCount);
+		_lastForwardedCount = 0;
+		_lastHistoryItemId = FullMsgId();
+	}
+}
+
 void System::showNext() {
 	if (App::quitting()) return;
+
+	const auto isSameGroup = [=](HistoryItem *item) {
+		if (!_lastHistoryItemId || !item) {
+			return false;
+		}
+		if (const auto lastItem = App::histItemById(_lastHistoryItemId)) {
+			return (lastItem->groupId() == item->groupId() || lastItem->author() == item->author());
+		}
+		return false;
+	};
 
 	auto ms = crl::now(), nextAlert = 0LL;
 	bool alert = false;
@@ -360,7 +381,33 @@ void System::showNext() {
 					} while (nextNotify);
 				}
 
-				_manager->showNotification(notifyItem, forwardedCount);
+				if (!_lastHistoryItemId && groupedItem) {
+					_lastHistoryItemId = groupedItem->fullId();
+				}
+
+				// If the current notification is grouped.
+				if (isAlbum || isForwarded) {
+					// If the previous notification is grouped
+					// then reset the timer.
+					if (_waitForAllGroupedTimer.isActive()) {
+						_waitForAllGroupedTimer.cancel();
+						// If this is not the same group
+						// then show the previous group immediately.
+						if (!isSameGroup(groupedItem)) {
+							showGrouped();
+						}
+					}
+					// We have to wait until all the messages in this group are loaded.
+					_lastForwardedCount += forwardedCount;
+					_lastHistoryItemId = groupedItem->fullId();
+					_waitForAllGroupedTimer.callOnce(kWaitingForAllGroupedDelay);
+				} else {
+					// If the current notification is not grouped
+					// then there is no reason to wait for the timer
+					// to show the previous notification.
+					showGrouped();
+					_manager->showNotification(notifyItem, forwardedCount);
+				}
 
 				if (!history->hasNotification()) {
 					_waiters.remove(history);
