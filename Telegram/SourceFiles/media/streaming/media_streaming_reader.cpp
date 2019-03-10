@@ -698,7 +698,7 @@ void Reader::readFromCache(int sliceNumber) {
 	Expects(!sliceNumber || !_slices.headerModeUnknown());
 
 	if (sliceNumber == 1 && _slices.isGoodHeader()) {
-		return readFromCache(1);
+		return readFromCache(0);
 	}
 	LOG(("READING FROM CACHE: %1").arg(sliceNumber));
 	const auto key = _cacheHelper->key(sliceNumber);
