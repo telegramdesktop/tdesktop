@@ -36,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
+#include "boxes/stickers_box.h"
+#include "boxes/sticker_set_box.h"
 #include "window/notifications_manager.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
@@ -2622,6 +2624,37 @@ void ApiWrap::resolveWebPages() {
 	if (m < INT_MAX) {
 		_webPagesTimer.callOnce(m * 1000);
 	}
+}
+
+void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
+	request(_attachedStickerSetsRequestId).cancel();
+	_attachedStickerSetsRequestId = request(MTPmessages_GetAttachedStickers(
+		MTP_inputStickeredMediaPhoto(photo->mtpInput())
+	)).done([=](const MTPVector<MTPStickerSetCovered> &result) {
+		if (result.v.isEmpty()) {
+			Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
+			return;
+		} else if (result.v.size() > 1) {
+			Ui::show(Box<StickersBox>(result));
+			return;
+		}
+		// Single attached sticker pack.
+		const auto setData = result.v.front().match([&](const auto &data) {
+			return data.vset.match([&](const MTPDstickerSet &data) {
+				return &data;
+			});
+		});
+
+		const auto setId = (setData->vid.v && setData->vaccess_hash.v) 
+			? MTP_inputStickerSetID(setData->vid, setData->vaccess_hash)
+			: MTP_inputStickerSetShortName(setData->vshort_name);
+		Ui::show(
+			Box<StickerSetBox>(setId),
+			LayerOption::KeepOther);
+
+	}).fail([=](const RPCError &error) {
+		Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
+	}).send();
 }
 
 void ApiWrap::requestParticipantsCountDelayed(

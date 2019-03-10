@@ -1510,6 +1510,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu->addAction(lang(lng_context_copy_image), [=] {
 			copyContextImage(photo);
 		});
+		if (photo->hasSticker) {
+			_menu->addAction(lang(lng_context_attached_stickers), [=] {
+				Auth().api().requestAttachedStickerSets(photo);
+			});
+		}
 	};
 	const auto addDocumentActions = [&](not_null<DocumentData*> document) {
 		if (document->loading()) {

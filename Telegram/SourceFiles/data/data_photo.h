@@ -75,6 +75,7 @@ public:
 	uint64 access = 0;
 	QByteArray fileReference;
 	TimeId date = 0;
+	bool hasSticker = false;
 
 	PeerData *peer = nullptr; // for chat and channel photos connection
 	// geo, caption

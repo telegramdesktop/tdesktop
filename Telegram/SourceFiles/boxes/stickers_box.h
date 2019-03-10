@@ -33,9 +33,11 @@ public:
 		Installed,
 		Featured,
 		Archived,
+		Attached,
 	};
 	StickersBox(QWidget*, Section section);
 	StickersBox(QWidget*, not_null<ChannelData*> megagroup);
+	StickersBox(QWidget*, const MTPVector<MTPStickerSetCovered> &attachedSets);
 
 	void setInnerFocus() override;
 
@@ -97,6 +99,7 @@ private:
 	void requestArchivedSets();
 	void loadMoreArchived();
 	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
+	void showAttachedStickers();
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
 	QList<Section> _tabIndices;
@@ -109,7 +112,10 @@ private:
 	Tab _installed;
 	Tab _featured;
 	Tab _archived;
+	Tab _attached;
 	Tab *_tab = nullptr;
+
+	const MTPVector<MTPStickerSetCovered> _attachedSets;
 
 	ChannelData *_megagroupSet = nullptr;
 
