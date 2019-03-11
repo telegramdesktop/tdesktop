@@ -197,8 +197,8 @@ void InfiniteRadialAnimation::draw(
 
 RadialState InfiniteRadialAnimation::computeState() {
 	const auto now = crl::now();
-	const auto linear = int(((now * FullArcLength) / _st.linearPeriod)
-		% FullArcLength);
+	const auto linear = FullArcLength
+		- int(((now * FullArcLength) / _st.linearPeriod) % FullArcLength);
 	if (!_workStarted || (_workFinished && _workFinished <= now)) {
 		const auto shown = 0.;
 		_animation.stop();
@@ -223,7 +223,7 @@ RadialState InfiniteRadialAnimation::computeState() {
 			anim::sineInOut(1., snap(shown, 0., 1.)));
 		return {
 			shown,
-			linear + (FullArcLength - length),
+			linear,
 			length };
 	} else if (!_workFinished || now <= _workFinished - _st.sineDuration) {
 		// _workStared .. _workFinished - _st.sineDuration
@@ -235,28 +235,29 @@ RadialState InfiniteRadialAnimation::computeState() {
 			- _st.sineShift
 			- _st.sineDuration;
 		const auto basic = int((linear
-			+ (FullArcLength - min)
-			+ cycles * (max - min)) % FullArcLength);
+			+ min
+			+ (cycles * (FullArcLength + min - max))) % FullArcLength);
 		if (relative <= smallDuration) {
 			// localZero .. growStart
 			return {
 				shown,
-				basic,
+				basic - min,
 				min };
 		} else if (relative <= smallDuration + _st.sineDuration) {
 			// growStart .. growEnd
 			const auto growLinear = (relative - smallDuration) /
 				float64(_st.sineDuration);
 			const auto growProgress = anim::sineInOut(1., growLinear);
+			const auto length = anim::interpolate(min, max, growProgress);
 			return {
 				shown,
-				basic,
-				anim::interpolate(min, max, growProgress) };
+				basic - length,
+				length };
 		} else if (relative <= _st.sinePeriod - _st.sineDuration) {
 			// growEnd .. shrinkStart
 			return {
 				shown,
-				basic,
+				basic - max,
 				max };
 		} else {
 			// shrinkStart .. shrinkEnd
@@ -270,7 +271,7 @@ RadialState InfiniteRadialAnimation::computeState() {
 				shrinkProgress);
 			return {
 				shown,
-				basic + shrink,
+				basic - max,
 				max - shrink }; // interpolate(max, min, shrinkProgress)
 		}
 	} else {
@@ -279,15 +280,15 @@ RadialState InfiniteRadialAnimation::computeState() {
 			/ float64(_st.sineDuration);
 		const auto cycles = (_workFinished - _workStarted) / _st.sinePeriod;
 		const auto basic = int((linear
-			+ (FullArcLength - min)
-			+ cycles * (max - min)) % FullArcLength);
+			+ min
+			+ cycles * (FullArcLength + min - max)) % FullArcLength);
 		const auto length = anim::interpolate(
 			min,
 			FullArcLength,
 			anim::sineInOut(1., snap(hidden, 0., 1.)));
 		return {
 			1. - hidden,
-			basic,
+			basic - length,
 			length };
 	}
 	//const auto frontPeriods = time / st.sinePeriod;
