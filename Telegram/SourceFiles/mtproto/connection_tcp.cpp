@@ -112,6 +112,7 @@ int TcpConnection::Protocol::Version0::readPacketLength(
 	if (bytes.empty()) {
 		return kUnknownSize;
 	}
+
 	const auto first = static_cast<char>(bytes[0]);
 	if (first == 0x7F) {
 		if (bytes.size() < 4) {

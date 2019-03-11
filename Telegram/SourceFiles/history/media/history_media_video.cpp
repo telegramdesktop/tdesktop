@@ -236,7 +236,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 		} else if (!IsServerMsgId(_parent->data()->id)) {
 			return nullptr;
-		} else if (_data->canBePlayed()) {
+		} else if (loaded || _data->canBePlayed()) {
 			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
@@ -303,7 +303,7 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 		if (_data->loading() || _data->uploading()) {
 			result.link = _cancell;
 		} else if (!IsServerMsgId(_parent->data()->id)) {
-		} else if (_data->canBePlayed()) {
+		} else if (_data->loaded() || _data->canBePlayed()) {
 			result.link = _openl;
 		} else {
 			result.link = _savel;
@@ -395,7 +395,6 @@ void HistoryVideo::drawGrouped(
 		p.drawEllipse(inner);
 	}
 
-	const auto canPlay = _data->canBePlayed();
 	auto icon = [&]() -> const style::icon * {
 		if (_data->waitingForAlbum()) {
 			return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
@@ -403,7 +402,7 @@ void HistoryVideo::drawGrouped(
 			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 		} else if (!IsServerMsgId(_realParent->id)) {
 			return nullptr;
-		} else if (_data->canBePlayed()) {
+		} else if (loaded || _data->canBePlayed()) {
 			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
@@ -444,7 +443,7 @@ TextState HistoryVideo::getStateGrouped(
 		? _cancell
 		: !IsServerMsgId(_realParent->id)
 		? nullptr
-		: _data->canBePlayed()
+		: (_data->loaded() || _data->canBePlayed())
 		? _openl
 		: _savel);
 }

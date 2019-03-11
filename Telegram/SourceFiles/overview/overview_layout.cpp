@@ -492,7 +492,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
 		} else {
-			auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : _data->canBePlayed() ? _openl : _savel);
+			auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
 
@@ -505,7 +505,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		const auto icon = [&] {
 			if (_data->loading() || _data->uploading()) {
 				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-			} else if (_data->canBePlayed()) {
+			} else if (loaded || _data->canBePlayed()) {
 				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
@@ -543,12 +543,10 @@ bool Video::iconAnimated() const {
 TextState Video::getState(
 		QPoint point,
 		StateRequest request) const {
-	bool loaded = _data->loaded();
-
 	if (hasPoint(point)) {
 		const auto link = (_data->loading() || _data->uploading())
 			? _cancell
-			: _data->canBePlayed()
+			: (_data->loaded() || _data->canBePlayed())
 			? _openl
 			: _savel;
 		return { parent(), link };
@@ -944,7 +942,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (selected) {
 				p.setBrush(st::msgFileInBgSelected);
 			} else {
-				auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : _data->canBePlayed() ? _openl : _openl);
+				auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
 				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 			}
 
@@ -964,7 +962,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				} else if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);
-				} else if (_data->canBePlayed()) {
+				} else if (loaded || _data->canBePlayed()) {
 					return &(selected ? _st.songPlaySelected : _st.songPlay);
 				}
 				return &(selected ? _st.songDownloadSelected : _st.songDownload);
@@ -1103,7 +1101,7 @@ TextState Document::getState(
 		if (inner.contains(point)) {
 			const auto link = (_data->loading() || _data->uploading())
 				? _cancell
-				: _data->canBePlayed()
+				: (loaded || _data->canBePlayed())
 				? _openl
 				: _savel;
 			return { parent(), link };

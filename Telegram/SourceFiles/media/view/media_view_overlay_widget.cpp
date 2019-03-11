@@ -1741,7 +1741,9 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 	const auto documentChanged = !doc
 		|| (doc != _doc)
 		|| (item && item->fullId() != _msgid);
-	if (documentChanged || (!doc->isAnimation() && !doc->isVideoFile())) {
+	if (documentChanged
+		|| (!doc->isAnimation() && !doc->isVideoFile())
+		|| !doc->canBePlayed()) {
 		_fullScreenVideo = false;
 		_current = QPixmap();
 		clearStreaming();
