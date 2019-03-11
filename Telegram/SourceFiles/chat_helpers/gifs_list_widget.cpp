@@ -363,11 +363,9 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		} else if (document->loading()) {
 			document->cancel();
 		} else {
-			DocumentOpenClickHandler::Open(
+			document->save(
 				document->stickerOrGifOrigin(),
-				document,
-				nullptr,
-				ActionOnLoadNone);
+				QString());
 		}
 	} else if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {

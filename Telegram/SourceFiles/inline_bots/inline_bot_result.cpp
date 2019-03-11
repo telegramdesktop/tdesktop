@@ -265,11 +265,9 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 			} else if (_document->loading()) {
 				_document->cancel();
 			} else {
-				DocumentOpenClickHandler::Open(
+				_document->save(
 					Data::FileOriginSavedGifs(),
-					_document,
-					nullptr,
-					ActionOnLoadNone);
+					QString());
 			}
 			return false;
 		}

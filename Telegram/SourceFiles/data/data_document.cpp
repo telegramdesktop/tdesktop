@@ -850,7 +850,7 @@ void DocumentData::save(
 				setLocation(FileLocation(toFile));
 				Local::writeFileLocation(mediaKey(), FileLocation(toFile));
 			} else if (l.accessEnable()) {
-				auto alreadyName = l.name();
+				const auto &alreadyName = l.name();
 				if (alreadyName != toFile) {
 					QFile(toFile).remove();
 					QFile(alreadyName).copy(toFile);
