@@ -28,6 +28,7 @@ enum class Command {
 	ChatNext,
 	ChatFirst,
 	ChatLast,
+	ChatSelf,
 	ChatPinned1,
 	ChatPinned2,
 	ChatPinned3,
