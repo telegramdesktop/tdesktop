@@ -1388,10 +1388,6 @@ void MainWidget::documentLoadProgress(FileLoader *loader) {
 }
 
 void MainWidget::documentLoadProgress(DocumentData *document) {
-	if (document->loaded()) {
-		document->performActionOnLoad();
-	}
-
 	session().data().requestDocumentViewRepaint(document);
 	session().documentUpdated.notify(document, true);
 

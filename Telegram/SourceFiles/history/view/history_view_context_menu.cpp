@@ -123,7 +123,10 @@ void AddSaveDocumentAction(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document) {
 	const auto save = [=] {
-		DocumentSaveClickHandler::Save(origin, document, nullptr, true);
+		DocumentSaveClickHandler::Save(
+			origin,
+			document,
+			DocumentSaveClickHandler::Mode::ToNewFile);
 	};
 	menu->addAction(
 		lang(document->isVideoFile()

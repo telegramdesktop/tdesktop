@@ -93,6 +93,7 @@ private:
 	// We switch to Type::Song only if _voiceIsActive == false.
 	// We change _voiceIsActive to false only manually or from tracksFinished().
 	AudioMsgId::Type _type = AudioMsgId::Type::Unknown;
+	AudioMsgId _lastSongId;
 	bool _voiceIsActive = false;
 	Fn<void()> _closeCallback;
 

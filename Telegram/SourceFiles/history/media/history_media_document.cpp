@@ -82,7 +82,7 @@ void HistoryDocument::createComponents(bool caption) {
 		mask |= HistoryDocumentCaptioned::Bit();
 	}
 	UpdateComponents(mask);
-	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
+	if (const auto thumbed = Get<HistoryDocumentThumbed>()) {
 		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(
 			_data,
 			_parent->data()->fullId());
@@ -90,7 +90,7 @@ void HistoryDocument::createComponents(bool caption) {
 			_data,
 			_parent->data()->fullId());
 	}
-	if (auto voice = Get<HistoryDocumentVoice>()) {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
 		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(
 			_data,
 			_parent->data()->fullId());
@@ -98,7 +98,7 @@ void HistoryDocument::createComponents(bool caption) {
 }
 
 void HistoryDocument::fillNamedFromData(HistoryDocumentNamed *named) {
-	auto nameString = named->_name = _data->composeNameString();
+	const auto nameString = named->_name = _data->composeNameString();
 	named->_namew = st::semiboldFont->width(nameString);
 }
 

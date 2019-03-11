@@ -1095,8 +1095,7 @@ void InnerWidget::saveDocumentToFile(DocumentData *document) {
 	DocumentSaveClickHandler::Save(
 		Data::FileOrigin(),
 		document,
-		nullptr,
-		true);
+		DocumentSaveClickHandler::Mode::ToNewFile);
 }
 
 void InnerWidget::copyContextImage(PhotoData *photo) {

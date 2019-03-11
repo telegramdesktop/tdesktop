@@ -101,23 +101,11 @@ void HistoryFileMedia::checkAnimationFinished() const {
 }
 void HistoryFileMedia::setDocumentLinks(
 		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent,
-		bool inlinegif) {
-	FileClickHandlerPtr open, save;
+		not_null<HistoryItem*> realParent) {
 	const auto context = realParent->fullId();
-	if (inlinegif) {
-		open = std::make_shared<GifOpenClickHandler>(document, context);
-	} else {
-		open = std::make_shared<DocumentOpenClickHandler>(document, context);
-	}
-	if (inlinegif) {
-		save = std::make_shared<GifOpenClickHandler>(document, context);
-	} else {
-		save = std::make_shared<DocumentSaveClickHandler>(document, context);
-	}
 	setLinks(
-		std::move(open),
-		std::move(save),
+		std::make_shared<DocumentOpenClickHandler>(document, context),
+		std::make_shared<DocumentSaveClickHandler>(document, context),
 		std::make_shared<DocumentCancelClickHandler>(document, context));
 }
 

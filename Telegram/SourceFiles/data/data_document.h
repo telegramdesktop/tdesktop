@@ -113,8 +113,6 @@ public:
 	void save(
 		Data::FileOrigin origin,
 		const QString &toFile,
-		ActionOnLoad action = ActionOnLoadNone,
-		const FullMsgId &actionMsgId = FullMsgId(),
 		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
 		bool autoLoading = false);
 	void cancel();
@@ -131,12 +129,9 @@ public:
 	void setLocation(const FileLocation &loc);
 
 	[[nodiscard]] QString filepath(
-		FilePathResolveType type = FilePathResolveCached,
-		bool forceSavingAs = false) const;
+		FilePathResolveType type = FilePathResolveCached) const;
 
 	[[nodiscard]] bool saveToCache() const;
-
-	void performActionOnLoad();
 
 	void unload();
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
@@ -285,8 +280,6 @@ private:
 	SupportsStreaming _supportsStreaming = SupportsStreaming::Unknown;
 	bool _inappPlaybackFailed = false;
 
-	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
-	FullMsgId _actionOnLoadMsgId;
 	mutable FileLoader *_loader = nullptr;
 
 };
@@ -313,12 +306,16 @@ private:
 
 class DocumentSaveClickHandler : public DocumentClickHandler {
 public:
+	enum class Mode {
+		ToCacheOrFile,
+		ToFile,
+		ToNewFile,
+	};
 	using DocumentClickHandler::DocumentClickHandler;
 	static void Save(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
-		HistoryItem *context,
-		bool forceSavingAs = false);
+		Mode mode = Mode::ToCacheOrFile);
 
 protected:
 	void onClickImpl() const override;
@@ -331,8 +328,7 @@ public:
 	static void Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
-		HistoryItem *context,
-		ActionOnLoad action = ActionOnLoadOpen);
+		HistoryItem *context);
 
 protected:
 	void onClickImpl() const override;
@@ -342,15 +338,6 @@ protected:
 class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class GifOpenClickHandler : public DocumentOpenClickHandler {
-public:
-	using DocumentOpenClickHandler::DocumentOpenClickHandler;
 
 protected:
 	void onClickImpl() const override;

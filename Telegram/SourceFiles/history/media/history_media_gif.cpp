@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "window/window_controller.h"
+#include "core/application.h" // for Application::showDocument.
 #include "ui/image/image.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -52,7 +53,7 @@ HistoryGif::HistoryGif(
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto item = parent->data();
-	setDocumentLinks(_data, item, !_data->isVideoMessage());
+	setDocumentLinks(_data, item);
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -68,12 +69,6 @@ QSize HistoryGif::countOptimalSize() {
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
 	}
-	if (!_openInMediaviewLink) {
-		_openInMediaviewLink = std::make_shared<DocumentOpenClickHandler>(
-			_data,
-			_parent->data()->fullId());
-	}
-
 	auto tw = 0;
 	auto th = 0;
 	if (_gif && _gif->state() == Media::Clip::State::Error) {
@@ -635,10 +630,12 @@ TextState HistoryGif::textState(QPoint point, StateRequest request) const {
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;
-		} else if (!_gif || !cAutoPlayGif() || _data->isVideoMessage()) {
-			result.link = _data->loaded() ? _openl : (_data->loading() ? _cancell : _savel);
 		} else {
-			result.link = _openInMediaviewLink;
+			result.link = _data->loaded()
+				? _openl :
+				_data->loading()
+				? _cancell
+				: _savel;
 		}
 	}
 	if (isRound || _caption.isEmpty()) {
@@ -771,15 +768,6 @@ void HistoryGif::updateStatusText() const {
 	}
 }
 
-void HistoryGif::refreshParentId(not_null<HistoryItem*> realParent) {
-	HistoryFileMedia::refreshParentId(realParent);
-
-	const auto fullId = realParent->fullId();
-	if (_openInMediaviewLink) {
-		_openInMediaviewLink->setMessageId(fullId);
-	}
-}
-
 QString HistoryGif::additionalInfoString() const {
 	if (_data->isVideoMessage()) {
 		updateStatusText();
@@ -878,6 +866,9 @@ void HistoryGif::playAnimation(bool autoplay) {
 	if (_data->isVideoMessage() && !autoplay) {
 		return;
 	} else if (_gif && autoplay) {
+		return;
+	} else if (_gif && cAutoPlayGif()) {
+		Core::App().showDocument(_data, _parent->data());
 		return;
 	}
 	using Mode = Media::Clip::Reader::Mode;

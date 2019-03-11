@@ -295,7 +295,6 @@ class DocumentSaveClickHandler;
 class DocumentOpenClickHandler;
 class DocumentCancelClickHandler;
 class DocumentWrappedClickHandler;
-class GifOpenClickHandler;
 class VoiceSeekClickHandler;
 
 using PhotoId = uint64;
@@ -312,13 +311,6 @@ using PreparedPhotoThumbs = base::flat_map<char, QImage>;
 
 // [0] == -1 -- counting, [0] == -2 -- could not count
 using VoiceWaveform = QVector<signed char>;
-
-enum ActionOnLoad {
-	ActionOnLoadNone,
-	ActionOnLoadOpen,
-	ActionOnLoadOpenWith,
-	ActionOnLoadPlayInline
-};
 
 enum LocationType {
 	UnknownFileLocation = 0,

@@ -188,35 +188,15 @@ ItemBase::~ItemBase() = default;
 void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document) {
 	const auto context = parent()->fullId();
-	const auto createSaveHandler = [&]() -> ClickHandlerPtr {
-		if (document->isVideoMessage()) {
-			return std::make_shared<GifOpenClickHandler>(
-				document,
-				context);
-		} else if (document->isVoiceMessage()) {
-			return std::make_shared<DocumentOpenClickHandler>(
-				document,
-				context);
-		}
-		return std::make_shared<DocumentSaveClickHandler>(
-			document,
-			context);
-	};
 	setLinks(
-		(document->isVideoMessage()
-			? std::make_shared<GifOpenClickHandler>(
-				document,
-				context)
-			: std::make_shared<DocumentOpenClickHandler>(
-				document,
-				context)),
-		createSaveHandler(),
-		std::make_shared<DocumentCancelClickHandler>(
-			document,
-			context));
+		std::make_shared<DocumentOpenClickHandler>(document, context),
+		std::make_shared<DocumentSaveClickHandler>(document, context),
+		std::make_shared<DocumentCancelClickHandler>(document, context));
 }
 
-void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+void RadialProgressItem::clickHandlerActiveChanged(
+		const ClickHandlerPtr &action,
+		bool active) {
 	ItemBase::clickHandlerActiveChanged(action, active);
 	if (action == _openl || action == _savel || action == _cancell) {
 		if (iconAnimated()) {
@@ -229,7 +209,10 @@ void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action
 	}
 }
 
-void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
+void RadialProgressItem::setLinks(
+		ClickHandlerPtr &&openl,
+		ClickHandlerPtr &&savel,
+		ClickHandlerPtr &&cancell) {
 	_openl = std::move(openl);
 	_savel = std::move(savel);
 	_cancell = std::move(cancell);
@@ -585,9 +568,7 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(parent)
 , _data(voice)
-, _namel(_data->isVideoMessage()
-	? std::make_shared<GifOpenClickHandler>(_data, parent->fullId())
-	: std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st) {
 	AddComponents(Info::Bit());
 
@@ -670,13 +651,18 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush(st::imageBg);
 			p.drawEllipse(inner);
 		}
+		const auto &checkLink = (_data->loading() || _data->uploading())
+			? _cancell
+			: (_data->canBePlayed() || loaded)
+			? _openl
+			: _savel;
 		if (selected) {
 			p.setBrush((thumbLoaded || blurred) ? st::msgDateImgBgSelected : st::msgFileInBgSelected);
 		} else if (_data->hasThumbnail()) {
-			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+			auto over = ClickHandler::showAsActive(checkLink);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		} else {
-			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
+			auto over = ClickHandler::showAsActive(checkLink);
 			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
 		{
@@ -690,12 +676,12 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, bg);
 		}
 
-		auto icon = [&] {
+		const auto icon = [&] {
 			if (_data->loading() || _data->uploading()) {
 				return &(selected ? _st.songCancelSelected : _st.songCancel);
 			} else if (showPause) {
 				return &(selected ? _st.songPauseSelected : _st.songPause);
-			} else if (_status.size() < 0 || _status.size() == FileStatusSizeLoaded) {
+			} else if (_data->canBePlayed()) {
 				return &(selected ? _st.songPlaySelected : _st.songPlay);
 			}
 			return &(selected ? _st.songDownloadSelected : _st.songDownload);
@@ -760,11 +746,11 @@ TextState Voice::getState(
 		_st.songThumbSize,
 		_width);
 	if (inner.contains(point)) {
-		const auto link = loaded
-			? _openl
-			: (_data->loading() || _data->uploading())
+		const auto link = (_data->loading() || _data->uploading())
 			? _cancell
-			: _openl;
+			: (_data->canBePlayed() || loaded)
+			? _openl
+			: _savel;
 		return { parent(), link };
 	}
 	auto result = TextState(parent());

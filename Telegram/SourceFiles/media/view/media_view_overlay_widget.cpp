@@ -1065,7 +1065,10 @@ void OverlayWidget::onSaveAs() {
 			if (_doc->data().isEmpty()) location.accessDisable();
 		} else {
 			if (!documentContentShown()) {
-				DocumentSaveClickHandler::Save(fileOrigin(), _doc, App::histItemById(_msgid), true);
+				DocumentSaveClickHandler::Save(
+					fileOrigin(),
+					_doc,
+					DocumentSaveClickHandler::Mode::ToNewFile);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -1109,8 +1112,7 @@ void OverlayWidget::onDocClick() {
 		DocumentOpenClickHandler::Open(
 			fileOrigin(),
 			_doc,
-			App::histItemById(_msgid),
-			ActionOnLoadNone);
+			App::histItemById(_msgid));
 		if (_doc->loading() && !_radial.animating()) {
 			_radial.start(_doc->progress());
 		}
@@ -1155,7 +1157,7 @@ void OverlayWidget::onDownload() {
 				DocumentSaveClickHandler::Save(
 					fileOrigin(),
 					_doc,
-					App::histItemById(_msgid));
+					DocumentSaveClickHandler::Mode::ToFile);
 				updateControls();
 			} else {
 				_saveVisible = false;
@@ -3145,22 +3147,15 @@ void OverlayWidget::mousePressEvent(QMouseEvent *e) {
 				_lastAction = e->pos();
 			} else if (_over == OverRightNav && moveToNext(1)) {
 				_lastAction = e->pos();
-			} else if (_over == OverName) {
-				_down = OverName;
-			} else if (_over == OverDate) {
-				_down = OverDate;
-			} else if (_over == OverHeader) {
-				_down = OverHeader;
-			} else if (_over == OverSave) {
-				_down = OverSave;
-			} else if (_over == OverIcon) {
-				_down = OverIcon;
-			} else if (_over == OverMore) {
-				_down = OverMore;
-			} else if (_over == OverClose) {
-				_down = OverClose;
-			} else if (_over == OverVideo) {
-				_down = OverVideo;
+			} else if (_over == OverName
+				|| _over == OverDate
+				|| _over == OverHeader
+				|| _over == OverSave
+				|| _over == OverIcon
+				|| _over == OverMore
+				|| _over == OverClose
+				|| _over == OverVideo) {
+				_down = _over;
 			} else if (!_saveMsg.contains(e->pos()) || !_saveMsgStarted) {
 				_pressed = true;
 				_dragging = 0;

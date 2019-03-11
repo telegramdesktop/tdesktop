@@ -137,13 +137,10 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 			return (check.audio() != audioId.audio())
 				|| (check.contextId() != audioId.contextId());
 		};
-		const auto trackChanged = changed(data->current);
-		if (trackChanged && data->streamed && changed(data->streamed->id)) {
+		if (changed(data->current)
+			&& data->streamed
+			&& changed(data->streamed->id)) {
 			clearStreamed(data);
-		}
-		data->current = audioId;
-		if (!trackChanged) {
-			return;
 		}
 		data->current = audioId;
 		data->isPlaying = false;
@@ -362,6 +359,7 @@ void Instance::play(const AudioMsgId &audioId) {
 		playStreamed(audioId, std::move(loader));
 	} else if (document->isVideoMessage()) {
 		if (const auto item = App::histItemById(audioId.contextId())) {
+			setCurrent(audioId);
 			App::wnd()->controller()->startRoundVideo(item);
 		}
 	}
@@ -378,7 +376,6 @@ void Instance::playPause(const AudioMsgId &audioId) {
 	} else {
 		play(audioId);
 	}
-
 }
 
 void Instance::playStreamed(
@@ -462,7 +459,9 @@ void Instance::playPause(AudioMsgId::Type type) {
 			emitUpdate(type);
 		} else {
 			const auto state = getState(type);
-			if (state.id) {
+			if (state.id
+				&& state.id.audio() == data->current.audio()
+				&& state.id.contextId() == data->current.contextId()) {
 				if (IsStopped(state.state)) {
 					play(state.id);
 				} else if (IsPaused(state.state) || state.state == State::Pausing) {
@@ -470,7 +469,7 @@ void Instance::playPause(AudioMsgId::Type type) {
 				} else {
 					mixer()->pause(state.id);
 				}
-			} else if (auto data = getData(type)) {
+			} else {
 				play(data->current);
 			}
 		}
@@ -697,14 +696,13 @@ void Instance::handleStreamingError(
 		document->setNotSupportsStreaming();
 		DocumentSaveClickHandler::Save(
 			(contextId ? contextId : ::Data::FileOrigin()),
-			document,
-			App::histItemById(contextId));
+			document);
 	} else if (error == Streaming::Error::OpenFailed) {
 		document->setInappPlaybackFailed();
 		DocumentSaveClickHandler::Save(
 			(contextId ? contextId : ::Data::FileOrigin()),
 			document,
-			App::histItemById(contextId));
+			DocumentSaveClickHandler::Mode::ToFile);
 	}
 	emitUpdate(data->type);
 	if (data->streamed && data->streamed->player.failed()) {

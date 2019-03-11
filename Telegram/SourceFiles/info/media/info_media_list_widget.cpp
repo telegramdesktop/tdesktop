@@ -1277,8 +1277,7 @@ void ListWidget::showContextMenu(
 							DocumentSaveClickHandler::Save(
 								itemFullId,
 								document,
-								App::histItemById(itemFullId),
-								true);
+								DocumentSaveClickHandler::Mode::ToNewFile);
 						});
 					_contextMenu->addAction(
 						lang(isVideo

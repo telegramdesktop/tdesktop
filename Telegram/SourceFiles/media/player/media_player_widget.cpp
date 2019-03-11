@@ -499,9 +499,13 @@ void Widget::updateTimeLabel() {
 void Widget::handleSongChange() {
 	const auto current = instance()->current(_type);
 	const auto document = current.audio();
-	if (!current || !document) {
+	if (!current
+		|| !document
+		|| ((_lastSongId.audio() == document)
+			&& (_lastSongId.contextId() == current.contextId()))) {
 		return;
 	}
+	_lastSongId = current;
 
 	TextWithEntities textWithEntities;
 	if (document->isVoiceMessage() || document->isVideoMessage()) {

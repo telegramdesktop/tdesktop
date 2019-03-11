@@ -289,108 +289,91 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 void DocumentOpenClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
-		HistoryItem *context,
-		ActionOnLoad action) {
-	if (!data->date) return;
+		HistoryItem *context) {
+	if (!data->date) {
+		return;
+	}
 
-	const auto msgId = context ? context->fullId() : FullMsgId();
-	const auto playVoice = data->isVoiceMessage();
-	const auto playAnimation = data->isAnimation();
 	const auto &location = data->location(true);
 	if (data->isTheme() && !location.isEmpty() && location.accessEnable()) {
 		Core::App().showDocument(data, context);
 		location.accessDisable();
-		return;
 	} else if (data->canBePlayed()) {
 		if (data->isAudioFile()
 			|| data->isVoiceMessage()
 			|| data->isVideoMessage()) {
+			const auto msgId = context ? context->fullId() : FullMsgId();
 			Media::Player::instance()->playPause({ data, msgId });
+		} else if (context && data->isAnimation()) {
+			data->owner().requestAnimationPlayInline(context);
 		} else {
 			Core::App().showDocument(data, context);
 		}
-		return;
-	}
-	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playAnimation))) {
-		if (playVoice) {
-			Media::Player::instance()->playPause({ data, msgId });
-		} else if (data->size < App::kImageSizeLimit) {
-			if (!data->data().isEmpty() && playAnimation) {
-				if (action == ActionOnLoadPlayInline && context) {
-					data->owner().requestAnimationPlayInline(context);
-				} else {
-					Core::App().showDocument(data, context);
-				}
-			} else if (location.accessEnable()) {
-				if (playAnimation || QImageReader(location.name()).canRead()) {
-					if (playAnimation && action == ActionOnLoadPlayInline && context) {
-						data->owner().requestAnimationPlayInline(context);
-					} else {
-						Core::App().showDocument(data, context);
-					}
-				} else {
-					LaunchWithWarning(location.name(), context);
-				}
+	} else if (!location.isEmpty()) {
+		if (data->size < App::kImageSizeLimit && location.accessEnable()) {
+			const auto guard = gsl::finally([&] {
 				location.accessDisable();
-			} else {
-				LaunchWithWarning(location.name(), context);
+			});
+			if (QImageReader(location.name()).canRead()) {
+				Core::App().showDocument(data, context);
+				return;
 			}
-		} else {
-			LaunchWithWarning(location.name(), context);
 		}
-		return;
+		LaunchWithWarning(location.name(), context);
+	} else if (data->status == FileReady
+		|| data->status == FileDownloadFailed) {
+		DocumentSaveClickHandler::Save(origin, data);
 	}
-
-	if (data->status != FileReady
-		&& data->status != FileDownloadFailed) return;
-
-	QString filename;
-	if (!data->saveToCache()
-		|| (location.isEmpty() && (!data->data().isEmpty()))) {
-		filename = documentSaveFilename(data);
-		if (filename.isEmpty()) return;
-	}
-
-	data->save(origin, filename, action, msgId);
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
-	const auto data = document();
-	const auto action = data->isVoiceMessage()
-		? ActionOnLoadNone
-		: ActionOnLoadOpen;
-	Open(context(), data, getActionItem(), action);
-}
-
-void GifOpenClickHandler::onClickImpl() const {
-	Open(context(), document(), getActionItem(), ActionOnLoadPlayInline);
+	Open(context(), document(), getActionItem());
 }
 
 void DocumentSaveClickHandler::Save(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
-		HistoryItem *context,
-		bool forceSavingAs) {
-	if (!data->date) return;
+		Mode mode) {
+	if (!data->date) {
+		return;
+	}
 
-	auto filepath = data->filepath(
-		DocumentData::FilePathResolveSaveFromDataSilent,
-		forceSavingAs);
-	if (!filepath.isEmpty() && !forceSavingAs) {
-		File::OpenWith(filepath, QCursor::pos());
-	} else {
-		auto fileinfo = QFileInfo(filepath);
-		auto filedir = filepath.isEmpty() ? QDir() : fileinfo.dir();
-		auto filename = filepath.isEmpty() ? QString() : fileinfo.fileName();
-		auto newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
-		if (!newfname.isEmpty()) {
-			data->save(origin, newfname, ActionOnLoadNone, FullMsgId());
+	if (mode == Mode::ToCacheOrFile
+		&& data->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
+		File::OpenWith(data->filepath(), QCursor::pos());
+		return;
+	}
+	auto savename = QString();
+	if (mode != Mode::ToCacheOrFile || !data->saveToCache()) {
+		const auto filepath = data->filepath(
+			DocumentData::FilePathResolveChecked);
+		if (mode != Mode::ToNewFile
+			&& (!filepath.isEmpty()
+				|| !data->filepath(
+					DocumentData::FilePathResolveSaveFromData).isEmpty())) {
+			return;
+		}
+		const auto fileinfo = QFileInfo(filepath);
+		const auto filedir = filepath.isEmpty()
+			? QDir()
+			: fileinfo.dir();
+		const auto filename = filepath.isEmpty()
+			? QString()
+			: fileinfo.fileName();
+		savename = documentSaveFilename(
+			data,
+			(mode == Mode::ToNewFile),
+			filename,
+			filedir);
+		if (savename.isEmpty()) {
+			return;
 		}
 	}
+	data->save(origin, savename);
 }
 
 void DocumentSaveClickHandler::onClickImpl() const {
-	Save(context(), document(), getActionItem());
+	Save(context(), document());
 }
 
 void DocumentCancelClickHandler::onClickImpl() const {
@@ -695,8 +678,6 @@ void DocumentData::automaticLoad(
 	save(
 		origin,
 		filename,
-		_actionOnLoad,
-		_actionOnLoadMsgId,
 		loadFromCloud,
 		true);
 }
@@ -706,41 +687,6 @@ void DocumentData::automaticLoadSettingsChanged() {
 		return;
 	}
 	_loader = nullptr;
-}
-
-void DocumentData::performActionOnLoad() {
-	if (_actionOnLoad == ActionOnLoadNone) {
-		return;
-	}
-
-	const auto loc = location(true);
-	const auto &already = loc.name();
-	const auto item = _actionOnLoadMsgId.msg
-		? App::histItemById(_actionOnLoadMsgId)
-		: nullptr;
-	const auto showImage = !isVideoFile() && (size < App::kImageSizeLimit);
-	const auto playVoice = isVoiceMessage();
-	const auto playMusic = isAudioFile();
-	const auto playAnimation = isAnimation()
-		&& loaded()
-		&& showImage
-		&& item;
-	if (isTheme()) {
-		if (!loc.isEmpty() && loc.accessEnable()) {
-			Core::App().showDocument(this, item);
-			loc.accessDisable();
-		}
-	} else if (_actionOnLoad == ActionOnLoadOpenWith) {
-		if (!already.isEmpty()) {
-			File::OpenWith(already, QCursor::pos());
-		}
-	} else if (playVoice
-		|| playMusic
-		|| playAnimation
-		|| !already.isEmpty()) {
-		DocumentOpenClickHandler::Open({}, this, item, _actionOnLoad);
-	}
-	_actionOnLoad = ActionOnLoadNone;
 }
 
 bool DocumentData::loaded(FilePathResolveType type) const {
@@ -834,8 +780,6 @@ bool DocumentData::waitingForAlbum() const {
 void DocumentData::save(
 		Data::FileOrigin origin,
 		const QString &toFile,
-		ActionOnLoad action,
-		const FullMsgId &actionMsgId,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
 	if (loaded(FilePathResolveChecked)) {
@@ -858,9 +802,6 @@ void DocumentData::save(
 				l.accessDisable();
 			}
 		}
-		_actionOnLoad = action;
-		_actionOnLoadMsgId = actionMsgId;
-		performActionOnLoad();
 		return;
 	}
 
@@ -874,8 +815,6 @@ void DocumentData::save(
 		}
 	}
 
-	_actionOnLoad = action;
-	_actionOnLoadMsgId = actionMsgId;
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
 			_loader->permitLoadFromCloud();
@@ -929,8 +868,6 @@ void DocumentData::cancel() {
 	destroyLoader(CancelledMtpFileLoader);
 	_owner->notifyDocumentLayoutChanged(this);
 	App::main()->documentLoadProgress(this);
-
-	_actionOnLoad = ActionOnLoadNone;
 }
 
 bool DocumentData::cancelled() const {
@@ -1009,19 +946,19 @@ void DocumentData::setLocation(const FileLocation &loc) {
 	}
 }
 
-QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) const {
+QString DocumentData::filepath(FilePathResolveType type) const {
 	bool check = (type != FilePathResolveCached);
 	QString result = (check && _location.name().isEmpty()) ? QString() : location(check).name();
 	bool saveFromData = result.isEmpty() && !data().isEmpty();
 	if (saveFromData) {
 		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
 			saveFromData = false;
-		} else if (type == FilePathResolveSaveFromDataSilent && (Global::AskDownloadPath() || forceSavingAs)) {
+		} else if (type == FilePathResolveSaveFromDataSilent && Global::AskDownloadPath()) {
 			saveFromData = false;
 		}
 	}
 	if (saveFromData) {
-		QString filename = documentSaveFilename(this, forceSavingAs);
+		QString filename = documentSaveFilename(this);
 		if (!filename.isEmpty()) {
 			QFile f(filename);
 			if (f.open(QIODevice::WriteOnly)) {
@@ -1194,7 +1131,8 @@ bool DocumentData::hasRemoteLocation() const {
 }
 
 bool DocumentData::canBeStreamed() const {
-	return hasRemoteLocation() && supportsStreaming();
+	// For now video messages are not streamed.
+	return hasRemoteLocation() && supportsStreaming() && !isVideoMessage();
 }
 
 bool DocumentData::canBePlayed() const {

@@ -29,8 +29,6 @@ public:
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
 
-	void refreshParentId(not_null<HistoryItem*> realParent) override;
-
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
@@ -104,7 +102,6 @@ private:
 	bool isSeparateRoundVideo() const;
 
 	not_null<DocumentData*> _data;
-	FileClickHandlerPtr _openInMediaviewLink;
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Text _caption;

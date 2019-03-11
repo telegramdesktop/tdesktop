@@ -1492,7 +1492,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_player_message_today" = "Today at {time}";
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
-"lng_player_cant_stream" = "This file can't be played before it is fully downloaded.\n\nWould you like to download it?";
+//"lng_player_cant_stream" = "This file can't be played before it is fully downloaded.\n\nWould you like to download it?";
 "lng_player_download" = "Download";
 
 "lng_rights_edit_admin" = "Manage permissions";

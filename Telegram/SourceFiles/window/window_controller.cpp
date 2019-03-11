@@ -644,7 +644,6 @@ void Controller::setDefaultFloatPlayerDelegate(
 	_defaultFloatPlayerDelegate = delegate;
 	_floatPlayers = std::make_unique<Media::Player::FloatController>(
 		delegate);
-	_floatPlayers->closeEvents();
 }
 
 void Controller::replaceFloatPlayerDelegate(

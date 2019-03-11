@@ -49,8 +49,7 @@ protected:
 		FileClickHandlerPtr &&cancell);
 	void setDocumentLinks(
 		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent,
-		bool inlinegif = false);
+		not_null<HistoryItem*> realParent);
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
 	// < 0 will contain played string, _statusSize = -(seconds + 1) played
