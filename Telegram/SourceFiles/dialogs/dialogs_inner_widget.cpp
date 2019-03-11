@@ -2915,6 +2915,10 @@ void DialogsInner::setupShortcuts() {
 		request->check(Command::ChatLast) && request->handle([=] {
 			return jumpToDialogRow(last);
 		});
+		request->check(Command::ChatSelf) && request->handle([] {
+			App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
+			return true;
+		});
 
 		static const auto kPinned = {
 			Command::ChatPinned1,
