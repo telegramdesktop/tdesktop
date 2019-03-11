@@ -20,17 +20,35 @@ constexpr auto kIgnoreUpdatesTimeout = crl::time(4);
 } // namespace
 
 void Basic::start() {
-	if (!animating()) {
+	if (animating()) {
+		restart();
+	} else {
 		Core::App().animationManager().start(this);
 	}
-	_started = crl::now();
 }
 
 void Basic::stop() {
 	if (animating()) {
 		Core::App().animationManager().stop(this);
-		_started = -1;
 	}
+}
+
+void Basic::restart() {
+	Expects(_started >= 0);
+
+	_started = crl::now();
+}
+
+void Basic::markStarted() {
+	Expects(_started < 0);
+
+	_started = crl::now();
+}
+
+void Basic::markStopped() {
+	Expects(_started >= 0);
+
+	_started = -1;
 }
 
 Manager::Manager() {
@@ -42,28 +60,30 @@ Manager::Manager() {
 
 void Manager::start(not_null<Basic*> animation) {
 	if (_updating) {
-		_starting.push_back(animation);
+		_starting.emplace_back(animation.get());
 	} else {
 		if (empty(_active)) {
 			updateQueued();
 		}
-		_active.push_back(animation);
+		_active.emplace_back(animation.get());
 	}
 }
 
 void Manager::stop(not_null<Basic*> animation) {
-	if (empty(_active)) {
+	if (empty(_active) && empty(_starting)) {
 		return;
 	}
+	const auto value = animation.get();
+	const auto proj = &ActiveBasicPointer::get;
+	auto &list = _updating ? _starting : _active;
+	list.erase(ranges::remove(list, value, proj), end(list));
+
 	if (_updating) {
-		const auto i = ranges::find(_active, animation.get());
+		const auto i = ranges::find(_active, value, proj);
 		if (i != end(_active)) {
 			*i = nullptr;
 		}
-		return;
-	}
-	_active.erase(ranges::remove(_active, animation.get()), end(_active));
-	if (empty(_active)) {
+	} else if (empty(_active)) {
 		stopTimer();
 	}
 }
@@ -82,13 +102,17 @@ void Manager::update() {
 	const auto guard = gsl::finally([&] { _updating = false; });
 
 	_lastUpdateTime = now;
-	_active.erase(ranges::remove_if(_active, [&](Basic *element) {
-		return !element || !element->call(now);
-	}), end(_active));
+	const auto isFinished = [&](const ActiveBasicPointer &element) {
+		return !element.call(now);
+	};
+	_active.erase(ranges::remove_if(_active, isFinished), end(_active));
 
 	if (!empty(_starting)) {
-		auto starting = std::move(_starting);
-		_active.insert(end(_active), begin(starting), end(starting));
+		_active.insert(
+			end(_active),
+			std::make_move_iterator(begin(_starting)),
+			std::make_move_iterator(end(_starting)));
+		_starting.clear();
 	}
 }
 

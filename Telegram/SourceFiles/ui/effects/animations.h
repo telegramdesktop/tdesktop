@@ -37,6 +37,10 @@ private:
 	[[nodiscard]] static Fn<bool(crl::time)> Prepare(Callback &&callback);
 
 	[[nodiscard]] bool call(crl::time now) const;
+	void restart();
+
+	void markStarted();
+	void markStopped();
 
 	crl::time _started = -1;
 	Fn<bool(crl::time)> _callback;
@@ -98,6 +102,50 @@ public:
 	void update();
 
 private:
+	class ActiveBasicPointer {
+	public:
+		ActiveBasicPointer(Basic *value = nullptr) : _value(value) {
+			if (_value) {
+				_value->markStarted();
+			}
+		}
+		ActiveBasicPointer(ActiveBasicPointer &&other)
+		: _value(base::take(other._value)) {
+		}
+		ActiveBasicPointer &operator=(ActiveBasicPointer &&other) {
+			if (_value != other._value) {
+				if (_value) {
+					_value->markStopped();
+				}
+				_value = base::take(other._value);
+			}
+			return *this;
+		}
+		~ActiveBasicPointer() {
+			if (_value) {
+				_value->markStopped();
+			}
+		}
+
+		[[nodiscard]] bool call(crl::time now) const {
+			return _value && _value->call(now);
+		}
+
+		friend inline bool operator==(
+				const ActiveBasicPointer &a,
+				const ActiveBasicPointer &b) {
+			return a._value == b._value;
+		}
+
+		Basic *get() const {
+			return _value;
+		}
+
+	private:
+		Basic *_value = nullptr;
+
+	};
+
 	friend class Basic;
 
 	void timerEvent(QTimerEvent *e) override;
@@ -113,8 +161,8 @@ private:
 	int _timerId = 0;
 	bool _updating = false;
 	bool _scheduled = false;
-	std::vector<Basic*> _active;
-	std::vector<not_null<Basic*>> _starting;
+	std::vector<ActiveBasicPointer> _active;
+	std::vector<ActiveBasicPointer> _starting;
 	rpl::lifetime _lifetime;
 
 };
