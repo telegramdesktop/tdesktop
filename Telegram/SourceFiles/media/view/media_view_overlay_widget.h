@@ -50,10 +50,14 @@ namespace View {
 class GroupThumbs;
 
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
-using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget>;
-#else // Q_OS_MAC && !OS_MAC_OLD
-using OverlayParent = Ui::RpWidget;
+#define USE_OPENGL_OVERLAY_WIDGET
 #endif // Q_OS_MAC && !OS_MAC_OLD
+
+#ifdef USE_OPENGL_OVERLAY_WIDGET
+using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget>;
+#else // USE_OPENGL_OVERLAY_WIDGET
+using OverlayParent = Ui::RpWidget;
+#endif // USE_OPENGL_OVERLAY_WIDGET
 
 class OverlayWidget final
 	: public OverlayParent
@@ -273,7 +277,12 @@ private:
 	void zoomReset();
 	void zoomUpdate(int32 &newZoom);
 
-	void paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity);
+	void paintRadialLoading(Painter &p, bool radial, float64 radialOpacity);
+	void paintRadialLoadingContent(
+		Painter &p,
+		QRect inner,
+		bool radial,
+		float64 radialOpacity) const;
 	void paintThemePreview(Painter &p, QRect clip);
 
 	void updateOverRect(OverState state);
@@ -358,6 +367,7 @@ private:
 
 	QRect _photoRadialRect;
 	Ui::RadialAnimation _radial;
+	QImage _radialCache;
 
 	History *_migrated = nullptr;
 	History *_history = nullptr; // if conversation photos or files overview

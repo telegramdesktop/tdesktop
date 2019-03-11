@@ -76,7 +76,7 @@ void RadialAnimation::draw(
 		Painter &p,
 		const QRect &inner,
 		int32 thickness,
-		style::color color) {
+		style::color color) const {
 	const auto state = computeState();
 
 	auto o = p.opacity();
@@ -97,7 +97,7 @@ void RadialAnimation::draw(
 	p.setOpacity(o);
 }
 
-RadialState RadialAnimation::computeState() {
+RadialState RadialAnimation::computeState() const {
 	auto length = MinArcLength + qRound(a_arcEnd.current());
 	auto from = QuarterArcLength
 		- length

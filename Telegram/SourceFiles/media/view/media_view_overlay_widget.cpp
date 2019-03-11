@@ -342,7 +342,8 @@ QImage OverlayWidget::videoFrameForDirectPaint() const {
 	Expects(_streamed != nullptr);
 
 	const auto result = videoFrame();
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
+
+#ifdef USE_OPENGL_OVERLAY_WIDGET
 	const auto bytesPerLine = result.bytesPerLine();
 	if (bytesPerLine == result.width() * 4) {
 		return result;
@@ -371,7 +372,8 @@ QImage OverlayWidget::videoFrameForDirectPaint() const {
 		from += bytesPerLine;
 	}
 	return cache;
-#endif // Q_OS_MAC && !OS_MAC_OLD
+#endif // USE_OPENGL_OVERLAY_WIDGET
+
 	return result;
 }
 
@@ -767,10 +769,14 @@ bool OverlayWidget::radialLoading() const {
 }
 
 QRect OverlayWidget::radialRect() const {
-	if (_doc) {
-		return _docIconRect;
-	} else if (_photo) {
+	if (_photo) {
 		return _photoRadialRect;
+	} else if (_doc) {
+		return QRect(
+			QPoint(
+				_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2),
+				_docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)),
+			st::radialSize);
 	}
 	return QRect();
 }
@@ -1787,7 +1793,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 				auto &location = _doc->location(true);
 				if (location.accessEnable()) {
 					if (QImageReader(location.name()).canRead()) {
-						_current = App::pixmapFromImageInPlace(App::readImage(location.name(), 0, false));
+						_current = App::pixmapFromImageInPlace(App::readImage(location.name(), nullptr, false));
 					}
 				}
 				location.accessDisable();
@@ -2432,26 +2438,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 				radial = _radial.animating();
 				radialOpacity = _radial.opacity();
 			}
-			if (_photo) {
-				if (radial) {
-					auto inner = radialRect();
-
-					p.setPen(Qt::NoPen);
-					p.setOpacity(radialOpacity);
-					p.setBrush(st::radialBg);
-
-					{
-						PainterHighQualityEnabler hq(p);
-						p.drawEllipse(inner);
-					}
-
-					p.setOpacity(1);
-					QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-					_radial.draw(p, arc, st::radialLine, st::radialFg);
-				}
-			} else if (_doc) {
-				paintDocRadialLoading(p, radial, radialOpacity);
-			}
+			paintRadialLoading(p, radial, radialOpacity);
 		}
 		if (_saveMsgStarted && _saveMsg.intersects(r)) {
 			float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
@@ -2508,7 +2495,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 					p.drawPixmap(_docIconRect.topLeft(), _doc->thumbnail()->pix(fileOrigin(), _docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
 				}
 
-				paintDocRadialLoading(p, radial, radialOpacity);
+				paintRadialLoading(p, radial, radialOpacity);
 			}
 
 			if (!_docIconRect.contains(r)) {
@@ -2710,47 +2697,87 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	//}
 }
 
-void OverlayWidget::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity) {
-	QRect inner(QPoint(_docIconRect.x() + ((_docIconRect.width() - st::radialSize.width()) / 2), _docIconRect.y() + ((_docIconRect.height() - st::radialSize.height()) / 2)), st::radialSize);
-
+void OverlayWidget::paintRadialLoading(
+		Painter &p,
+		bool radial,
+		float64 radialOpacity) {
 	if (_streamed) {
 		const auto ms = crl::now();
 		_streamed->radial.step(ms);
 		if (!_streamed->radial.animating()) {
 			return;
 		}
-		const auto fade = _streamed->fading.current(
-			ms,
-			_streamed->waiting ? 1. : 0.);
-		if (fade == 0.) {
+		_streamed->fading.step(ms);
+		if (!_streamed->fading.animating() && !_streamed->waiting) {
 			if (!_streamed->waiting) {
 				_streamed->radial.stop(anim::type::instant);
 			}
 			return;
 		}
-		p.setOpacity(fade);
+	} else if (!radial && (!_doc || _doc->loaded())) {
+		return;
+	}
+
+	const auto inner = radialRect();
+	Assert(!inner.isEmpty());
+
+#ifdef USE_OPENGL_OVERLAY_WIDGET
+	{
+		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
+			_radialCache = QImage(
+				inner.size() * cIntRetinaFactor(),
+				QImage::Format_ARGB32_Premultiplied);
+			_radialCache.setDevicePixelRatio(cRetinaFactor());
+		}
+		_radialCache.fill(Qt::transparent);
+
+		Painter q(&_radialCache);
+		const auto moved = inner.translated(-inner.topLeft());
+		paintRadialLoadingContent(q, moved, radial, radialOpacity);
+	}
+	p.drawImage(inner.topLeft(), _radialCache);
+#else // USE_OPENGL_OVERLAY_WIDGET
+	paintRadialLoadingContent(p, inner, radial, radialOpacity);
+#endif // USE_OPENGL_OVERLAY_WIDGET
+}
+
+void OverlayWidget::paintRadialLoadingContent(
+		Painter &p,
+		QRect inner,
+		bool radial,
+		float64 radialOpacity) const {
+	const auto arc = inner.marginsRemoved(QMargins(
+		st::radialLine,
+		st::radialLine,
+		st::radialLine,
+		st::radialLine));
+	const auto paintBg = [&](float64 opacity, QBrush brush) {
+		p.setOpacity(opacity);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::msgDateImgBg);
+		p.setBrush(brush);
 		{
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
 		}
-		QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-		_streamed->radial.draw(p, arc.topLeft(), arc.size(), width());// , st::radialLine, st::radialFg);
-	} else if (radial || (_doc && !_doc->loaded())) {
-		float64 o = overLevel(OverIcon);
-
-		p.setPen(Qt::NoPen);
-		p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
-		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, o));
-
-		{
-			PainterHighQualityEnabler hq(p);
-			p.drawEllipse(inner);
-		}
-
 		p.setOpacity(1.);
-		auto icon = [&]() -> const style::icon* {
+	};
+
+	if (_streamed) {
+		paintBg(
+			_streamed->fading.current(_streamed->waiting ? 1. : 0.),
+			st::radialBg);
+		_streamed->radial.draw(p, arc.topLeft(), arc.size(), width());
+		return;
+	}
+	if (_photo) {
+		paintBg(radialOpacity, st::radialBg);
+	} else {
+		const auto o = overLevel(OverIcon);
+		paintBg(
+			_doc->loaded() ? radialOpacity : 1.,
+			anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, o));
+
+		const auto icon = [&]() -> const style::icon * {
 			if (radial || _doc->loading()) {
 				return &st::historyFileThumbCancel;
 			}
@@ -2759,11 +2786,10 @@ void OverlayWidget::paintDocRadialLoading(Painter &p, bool radial, float64 radia
 		if (icon) {
 			icon->paintInCenter(p, inner);
 		}
-		if (radial) {
-			p.setOpacity(1);
-			QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-			_radial.draw(p, arc, st::radialLine, st::radialFg);
-		}
+	}
+	if (radial) {
+		p.setOpacity(1);
+		_radial.draw(p, arc, st::radialLine, st::radialFg);
 	}
 }
 
@@ -3527,7 +3553,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		a_cOpacity = anim::value(1, 1);
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
-#if defined Q_OS_MAC && !defined MAC_OS_OLD
+#ifdef USE_OPENGL_OVERLAY_WIDGET
 		// QOpenGLWidget can't properly destroy a child widget if
 		// it is hidden exactly after that, so it must be repainted
 		// before it is hidden without the child widget.
@@ -3545,8 +3571,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 				QApplication::sendEvent(this, &event);
 			}
 		}
-#endif // Q_OS_MAC && !MAC_OS_OLD
-
+#endif // USE_OPENGL_OVERLAY_WIDGET
 	}
 	OverlayParent::setVisibleHook(visible);
 	if (visible) {

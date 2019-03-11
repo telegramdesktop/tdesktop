@@ -43,9 +43,9 @@ public:
 		Painter &p,
 		const QRect &inner,
 		int32 thickness,
-		style::color color);
+		style::color color) const;
 
-	RadialState computeState();
+	RadialState computeState() const;
 
 private:
 	crl::time _firstStart = 0;
