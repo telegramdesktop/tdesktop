@@ -60,6 +60,7 @@ private:
 
 	void refreshDhConfig();
 	void refreshServerConfig();
+	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
 	bool alreadyInCall();
 	void handleCallUpdate(const MTPPhoneCall &call);

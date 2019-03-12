@@ -121,7 +121,7 @@ public:
 	bytes::vector getKeyShaForFingerprint() const;
 
 	QString getDebugLog() const;
-	
+
 	void setCurrentAudioDevice(bool input, std::string deviceID);
 	void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
