@@ -537,7 +537,7 @@ void Player::start() {
 		_audio ? _audio->waitingForData() : rpl::never(),
 		_video ? _video->waitingForData() : rpl::never()
 	) | rpl::filter([=] {
-		return !receivedTillEnd();
+		return !bothReceivedEnough(kBufferFor);
 	}) | rpl::start_with_next([=] {
 		_pausedByWaitingForData = true;
 		updatePausedState();
