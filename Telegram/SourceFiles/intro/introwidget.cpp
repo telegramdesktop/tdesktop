@@ -94,6 +94,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	show();
 	showControls();
 	getStep()->showFast();
+	setInnerFocus();
 
 	cSetPasswordRecovered(false);
 
