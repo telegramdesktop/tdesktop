@@ -1,3 +1,8 @@
+1.5.16 beta (12.03.19)
+
+- Play video files and listen to received music without waiting for them to download.
+- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages.
+
 1.5.15 (12.02.19)
 
 - Crash fix.

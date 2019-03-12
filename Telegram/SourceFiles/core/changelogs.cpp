@@ -62,6 +62,13 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Choose input and output devices for Telegram Calls "
 		"in Settings > Adavanced > Call Settings."
+	},
+	{
+		1005016,
+		"- Play video files and listen to received music "
+		"without waiting for them to download.\n"
+
+		"- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages."
 	}
 	};
 }
