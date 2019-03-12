@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_inner_widget.h"
 #include "dialogs/dialogs_indexed_list.h"
-#include "styles/style_dialogs.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -22,14 +21,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "storage/localstorage.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "calls/calls_instance.h"
+#include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_feed_messages.h"
+#include "support/support_helper.h"
 #include "data/data_channel_admins.h"
 #include "data/data_feed.h"
 #include "data/data_photo.h"
@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
+#include "styles/style_dialogs.h"
 
 namespace {
 
@@ -199,10 +200,11 @@ void History::takeLocalDraft(History *from) {
 }
 
 void History::createLocalDraftFromCloud() {
-	auto draft = cloudDraft();
-	if (Data::draftIsNull(draft)
-		|| !draft->date
-		|| session().supportMode()) {
+	const auto draft = cloudDraft();
+	if (!draft) {
+		clearLocalDraft();
+		return;
+	} else if (Data::draftIsNull(draft) || !draft->date) {
 		return;
 	}
 
@@ -300,6 +302,19 @@ void History::clearCloudDraft() {
 		_cloudDraft = nullptr;
 		cloudDraftTextCache.clear();
 		updateChatListSortPosition();
+	}
+}
+
+void History::applyCloudDraft() {
+	if (session().supportMode()) {
+		updateChatListEntry();
+		session().supportHelper().cloudDraftChanged(this);
+	} else {
+		createLocalDraftFromCloud();
+		updateChatListSortPosition();
+		if (const auto main = App::main()) {
+			main->applyCloudDraft(this);
+		}
 	}
 }
 

@@ -1464,6 +1464,8 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 }
 
 void HistoryWidget::applyCloudDraft(History *history) {
+	Expects(!Auth().supportMode());
+
 	if (_history == history && !_editMsgId) {
 		applyDraft(Ui::InputField::HistoryAction::NewEntry);
 

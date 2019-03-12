@@ -257,7 +257,6 @@ public:
 	}
 	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft);
 	void takeLocalDraft(History *from);
-	void createLocalDraftFromCloud();
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft);
 	Data::Draft *createCloudDraft(const Data::Draft *fromDraft);
 	bool skipCloudDraft(const QString &text, MsgId replyTo, TimeId date) const;
@@ -266,6 +265,7 @@ public:
 	void setEditDraft(std::unique_ptr<Data::Draft> &&draft);
 	void clearLocalDraft();
 	void clearCloudDraft();
+	void applyCloudDraft();
 	void clearEditDraft();
 	void draftSavedToCloud();
 	Data::Draft *draft() {
@@ -447,6 +447,8 @@ private:
 	HistoryBlock *prepareBlockForAddingItem();
 
 	void viewReplaced(not_null<const Element*> was, Element *now);
+
+	void createLocalDraftFromCloud();
 
 	not_null<Data::Session*> _owner;
 	Flags _flags = 0;

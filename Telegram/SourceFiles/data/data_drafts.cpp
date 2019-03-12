@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
-#include "support/support_helper.h"
 
 namespace Data {
 namespace {
@@ -66,17 +65,7 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	cloudDraft->date = draft.vdate.v;
 
 	history->setCloudDraft(std::move(cloudDraft));
-	history->createLocalDraftFromCloud();
-	if (Auth().supportMode()) {
-		history->updateChatListEntry();
-		Auth().supportHelper().cloudDraftChanged(history);
-	} else {
-		history->updateChatListSortPosition();
-	}
-
-	if (const auto main = App::main()) {
-		main->applyCloudDraft(history);
-	}
+	history->applyCloudDraft();
 }
 
 void clearPeerCloudDraft(PeerId peerId, TimeId date) {
@@ -86,18 +75,7 @@ void clearPeerCloudDraft(PeerId peerId, TimeId date) {
 	}
 
 	history->clearCloudDraft();
-	history->clearLocalDraft();
-
-	if (Auth().supportMode()) {
-		history->updateChatListEntry();
-		Auth().supportHelper().cloudDraftChanged(history);
-	} else {
-		history->updateChatListSortPosition();
-	}
-
-	if (auto main = App::main()) {
-		main->applyCloudDraft(history);
-	}
+	history->applyCloudDraft();
 }
 
 } // namespace Data
