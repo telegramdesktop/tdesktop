@@ -2314,7 +2314,8 @@ bool History::shouldBeInChatList() const {
 			|| !lastMessageKnown()
 			|| (lastMessage() != nullptr);
 	}
-	return true;
+	return !lastMessageKnown()
+		|| (lastMessage() != nullptr);
 }
 
 bool History::toImportant() const {
