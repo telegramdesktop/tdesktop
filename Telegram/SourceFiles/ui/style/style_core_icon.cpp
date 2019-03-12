@@ -30,24 +30,25 @@ QImage createIconMask(const IconMask *mask, int scale) {
 	// images are layouted like this:
 	// 100x 200x
 	// 300x
-	scale *= cIntRetinaFactor();
+	const auto factor = cIntRetinaFactor();
+	const auto realscale = scale * factor;
 	const auto width = maskImage.width() / 3;
 	const auto height = maskImage.height() / 5;
 	const auto one = QRect(0, 0, width, height);
 	const auto two = QRect(width, 0, width * 2, height * 2);
 	const auto three = QRect(0, height * 2, width * 3, height * 3);
-	if (scale == 100) {
+	if (realscale == 100) {
 		return maskImage.copy(one);
-	} else if (scale == 200) {
+	} else if (realscale == 200) {
 		return maskImage.copy(two);
-	} else if (scale == 300) {
+	} else if (realscale == 300) {
 		return maskImage.copy(three);
 	}
 	return maskImage.copy(
-		(scale > 200) ? three : two
+		(realscale > 200) ? three : two
 	).scaled(
-		ConvertScale(width, scale),
-		ConvertScale(height, scale),
+		ConvertScale(width, scale) * factor,
+		ConvertScale(height, scale) * factor,
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
 }
