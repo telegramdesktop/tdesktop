@@ -2065,7 +2065,7 @@ void ApiWrap::unblockUser(not_null<UserData*> user) {
 		)).done([=](const MTPBool &result) {
 			_blockRequests.erase(user);
 			user->setBlockStatus(UserData::BlockStatus::NotBlocked);
-			if (user->botInfo) {
+			if (user->isBot() && !user->isSupport()) {
 				sendBotStart(user);
 			}
 		}).fail([=](const RPCError &error) {
@@ -2645,7 +2645,7 @@ void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
 			});
 		});
 
-		const auto setId = (setData->vid.v && setData->vaccess_hash.v) 
+		const auto setId = (setData->vid.v && setData->vaccess_hash.v)
 			? MTP_inputStickerSetID(setData->vid, setData->vaccess_hash)
 			: MTP_inputStickerSetShortName(setData->vshort_name);
 		Ui::show(

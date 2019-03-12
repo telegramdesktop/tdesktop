@@ -210,9 +210,9 @@ void UserData::setNameOrPhone(const QString &newNameOrPhone) {
 }
 
 void UserData::madeAction(TimeId when) {
-	if (botInfo || isServiceUser(id) || when <= 0) return;
-
-	if (onlineTill <= 0 && -onlineTill < when) {
+	if (isBot() || isServiceUser() || when <= 0) {
+		return;
+	} else if (onlineTill <= 0 && -onlineTill < when) {
 		onlineTill = -when - SetOnlineAfterActivity;
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
 	} else if (onlineTill > 0 && onlineTill < when + 1) {

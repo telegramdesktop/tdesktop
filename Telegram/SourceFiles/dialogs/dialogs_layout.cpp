@@ -29,6 +29,10 @@ namespace {
 // Show all dates that are in the last 20 hours in time format.
 constexpr int kRecentlyInSeconds = 20 * 3600;
 
+bool ShowUserBotIcon(not_null<UserData*> user) {
+	return user->isBot() && !user->isSupport();
+}
+
 void paintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
 	const auto width = st::dialogsDateFont->width(text);
 	rectForName.setWidth(rectForName.width() - width - st::dialogsDateSkip);
@@ -38,21 +42,23 @@ void paintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool 
 }
 
 void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
-	auto now = QDateTime::currentDateTime();
-	auto lastTime = date;
-	auto nowDate = now.date();
-	auto lastDate = lastTime.date();
+	const auto now = QDateTime::currentDateTime();
+	const auto &lastTime = date;
+	const auto nowDate = now.date();
+	const auto lastDate = lastTime.date();
 
-	QString dt;
-	bool wasSameDay = (lastDate == nowDate);
-	bool wasRecently = qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds;
-	if (wasSameDay || wasRecently) {
-		dt = lastTime.toString(cTimeFormat());
-	} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
-		dt = langDayOfWeek(lastDate);
-	} else {
-		dt = lastDate.toString(qsl("d.MM.yy"));
-	}
+	const auto dt = [&] {
+		const auto wasSameDay = (lastDate == nowDate);
+		const auto wasRecently = qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds;
+		if (wasSameDay || wasRecently) {
+			return lastTime.toString(cTimeFormat());
+		} else if (lastDate.year() == nowDate.year()
+			&& lastDate.weekNumber() == nowDate.weekNumber()) {
+			return langDayOfWeek(lastDate);
+		} else {
+			return lastDate.toString(qsl("d.MM.yy"));
+		}
+	}();
 	paintRowTopRight(p, dt, rectForName, active, selected);
 }
 
@@ -434,7 +440,7 @@ const style::icon *ChatTypeIcon(
 				? st::dialogsChannelIconOver
 				: st::dialogsChannelIcon));
 	} else if (const auto user = peer->asUser()) {
-		if (user->isBot()) {
+		if (ShowUserBotIcon(user)) {
 			return &(active
 				? st::dialogsBotIconActive
 				: (selected

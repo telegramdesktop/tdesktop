@@ -2427,7 +2427,7 @@ bool History::clearUnreadOnClientSide() const {
 }
 
 bool History::skipUnreadUpdateForClientSideUnread() const {
-	if (peer->id != peerFromUser(ServiceUserId)) {
+	if (peer->id != PeerData::kServiceNotificationsId) {
 		return false;
 	} else if (!_unreadCount || !*_unreadCount) {
 		return false;

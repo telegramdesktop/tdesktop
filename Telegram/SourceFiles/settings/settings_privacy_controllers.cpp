@@ -219,7 +219,7 @@ bool BlockedBoxController::prependRow(not_null<UserData*> user) {
 std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink(lang(user->botInfo
+	row->setActionLink(lang((user->isBot() && !user->isSupport())
 		? lng_blocked_list_restart
 		: lng_blocked_list_unblock));
 	const auto status = [&] {

@@ -396,10 +396,10 @@ namespace App {
 				user->setContactStatus(UserData::ContactStatus::CanAdd);
 			}
 
-			const auto showPhone = !isServiceUser(user->id)
+			const auto showPhone = !user->isServiceUser()
 				&& !user->isSelf()
 				&& user->contactStatus() == UserData::ContactStatus::CanAdd;
-			const auto showPhoneChanged = !isServiceUser(user->id)
+			const auto showPhoneChanged = !user->isServiceUser()
 				&& !user->isSelf()
 				&& (showPhone != wasShowPhone);
 			if (showPhoneChanged) {

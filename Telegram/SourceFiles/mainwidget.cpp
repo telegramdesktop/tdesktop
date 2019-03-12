@@ -1700,7 +1700,7 @@ void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
 }
 
 void MainWidget::clearBotStartToken(PeerData *peer) {
-	if (peer && peer->isUser() && peer->asUser()->botInfo) {
+	if (peer && peer->isUser() && peer->asUser()->isBot()) {
 		peer->asUser()->botInfo->startToken = QString();
 	}
 }
@@ -4358,7 +4358,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					user->firstName,
 					user->lastName,
 					((user->contactStatus() == UserData::ContactStatus::Contact
-						|| isServiceUser(user->id)
+						|| user->isServiceUser()
 						|| user->isSelf()
 						|| user->phone().isEmpty())
 						? QString()

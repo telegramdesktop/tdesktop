@@ -314,7 +314,7 @@ void PeerData::clearUserpic() {
 	const auto photoId = PhotoId(0);
 	const auto loc = StorageImageLocation();
 	const auto photo = [&] {
-		if (id == peerFromUser(ServiceUserId)) {
+		if (isNotificationsUser()) {
 			auto image = Core::App().logoNoMargin().scaledToWidth(
 				kUserpicSize,
 				Qt::SmoothTransformation);

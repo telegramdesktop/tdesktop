@@ -233,6 +233,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 	}
 	if (version > 0) {
 		packRequestId(pack) = request(MTPlangpack_GetDifference(
+			MTP_string(CloudLangPackName()),
 			MTP_string(code),
 			MTP_int(version)
 		)).done([=](const MTPLangPackDifference &result) {

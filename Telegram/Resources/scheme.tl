@@ -214,7 +214,7 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#91d11eb dc_id:int volume_id:long local_id:int secret:long file_reference:bytes = FileLocation;
 
 userEmpty#200250ba id:int = User;
-user#2e13f4c3 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string lang_code:flags.22?string = User;
+user#2e13f4c3 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true support:flags.23?true id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?string bot_inline_placeholder:flags.19?string lang_code:flags.22?string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#d559d8c8 photo_id:long photo_small:FileLocation photo_big:FileLocation = UserProfilePhoto;
@@ -1419,7 +1419,7 @@ phone.saveCallDebug#277add7e peer:InputPhoneCall debug:DataJSON = Bool;
 
 langpack.getLangPack#f2f2330a lang_pack:string lang_code:string = LangPackDifference;
 langpack.getStrings#efea3803 lang_pack:string lang_code:string keys:Vector<string> = Vector<LangPackString>;
-langpack.getDifference#9d51e814 lang_code:string from_version:int = LangPackDifference;
+langpack.getDifference#cd984aa5 lang_pack:string lang_code:string from_version:int = LangPackDifference;
 langpack.getLanguages#42c6978f lang_pack:string = Vector<LangPackLanguage>;
 langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLanguage;
 

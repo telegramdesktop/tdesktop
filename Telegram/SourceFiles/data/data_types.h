@@ -138,43 +138,43 @@ constexpr auto PeerIdUserShift    = PeerId(0x000000000ULL);
 constexpr auto PeerIdChatShift    = PeerId(0x100000000ULL);
 constexpr auto PeerIdChannelShift = PeerId(0x200000000ULL);
 
-inline bool peerIsUser(const PeerId &id) {
+inline constexpr bool peerIsUser(const PeerId &id) {
 	return (id & PeerIdTypeMask) == PeerIdUserShift;
 }
-inline bool peerIsChat(const PeerId &id) {
+inline constexpr bool peerIsChat(const PeerId &id) {
 	return (id & PeerIdTypeMask) == PeerIdChatShift;
 }
-inline bool peerIsChannel(const PeerId &id) {
+inline constexpr bool peerIsChannel(const PeerId &id) {
 	return (id & PeerIdTypeMask) == PeerIdChannelShift;
 }
-inline PeerId peerFromUser(UserId user_id) {
+inline constexpr PeerId peerFromUser(UserId user_id) {
 	return PeerIdUserShift | uint64(uint32(user_id));
 }
-inline PeerId peerFromChat(ChatId chat_id) {
+inline constexpr PeerId peerFromChat(ChatId chat_id) {
 	return PeerIdChatShift | uint64(uint32(chat_id));
 }
-inline PeerId peerFromChannel(ChannelId channel_id) {
+inline constexpr PeerId peerFromChannel(ChannelId channel_id) {
 	return PeerIdChannelShift | uint64(uint32(channel_id));
 }
-inline PeerId peerFromUser(const MTPint &user_id) {
+inline constexpr PeerId peerFromUser(const MTPint &user_id) {
 	return peerFromUser(user_id.v);
 }
-inline PeerId peerFromChat(const MTPint &chat_id) {
+inline constexpr PeerId peerFromChat(const MTPint &chat_id) {
 	return peerFromChat(chat_id.v);
 }
-inline PeerId peerFromChannel(const MTPint &channel_id) {
+inline constexpr PeerId peerFromChannel(const MTPint &channel_id) {
 	return peerFromChannel(channel_id.v);
 }
-inline int32 peerToBareInt(const PeerId &id) {
+inline constexpr int32 peerToBareInt(const PeerId &id) {
 	return int32(uint32(id & PeerIdMask));
 }
-inline UserId peerToUser(const PeerId &id) {
+inline constexpr UserId peerToUser(const PeerId &id) {
 	return peerIsUser(id) ? peerToBareInt(id) : 0;
 }
-inline ChatId peerToChat(const PeerId &id) {
+inline constexpr ChatId peerToChat(const PeerId &id) {
 	return peerIsChat(id) ? peerToBareInt(id) : 0;
 }
-inline ChannelId peerToChannel(const PeerId &id) {
+inline constexpr ChannelId peerToChannel(const PeerId &id) {
 	return peerIsChannel(id) ? peerToBareInt(id) : NoChannel;
 }
 inline MTPint peerToBareMTPInt(const PeerId &id) {

@@ -558,12 +558,12 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 }
 
 void ActionsFiller::addReportAction() {
-	auto peer = _peer;
+	const auto peer = _peer;
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_profile_report),
 		rpl::single(true),
-		[peer] { Ui::show(Box<ReportBox>(peer)); },
+		[=] { Ui::show(Box<ReportBox>(peer)); },
 		st::infoBlockButton);
 }
 
@@ -574,12 +574,12 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	) | rpl::map([user] {
 		switch (user->blockStatus()) {
 		case UserData::BlockStatus::Blocked:
-			return Lang::Viewer(user->botInfo
+			return Lang::Viewer((user->isBot() && !user->isSupport())
 				? lng_profile_restart_bot
 				: lng_profile_unblock_user);
 		case UserData::BlockStatus::NotBlocked:
 		default:
-			return Lang::Viewer(user->botInfo
+			return Lang::Viewer((user->isBot() && !user->isSupport())
 				? lng_profile_block_bot
 				: lng_profile_block_user);
 		}
@@ -659,7 +659,7 @@ void ActionsFiller::fillUserActions(not_null<UserData*> user) {
 		_wrap->add(CreateSkipWidget(
 			_wrap,
 			st::infoBlockButtonSkip));
-		if (user->botInfo) {
+		if (user->isBot() && !user->isSupport()) {
 			addReportAction();
 		}
 		addBlockAction(user);

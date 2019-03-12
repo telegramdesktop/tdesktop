@@ -275,10 +275,10 @@ void Filler::addToggleUnreadMark() {
 void Filler::addBlockUser(not_null<UserData*> user) {
 	auto blockText = [](not_null<UserData*> user) {
 		return lang(user->isBlocked()
-			? (user->botInfo
+			? ((user->isBot() && !user->isSupport())
 				? lng_profile_restart_bot
 				: lng_profile_unblock_user)
-			: (user->botInfo
+			: ((user->isBot() && !user->isSupport())
 				? lng_profile_block_bot
 				: lng_profile_block_user));
 	};

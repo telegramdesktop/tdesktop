@@ -43,11 +43,13 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 }
 
 std::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
-	if (isNotificationsUser(user->id)) {
+	if (user->isNotificationsUser()) {
 		return lang(lng_status_service_notifications);
-	} else if (user->botInfo) {
+	} else if (user->isSupport()) {
+		return lang(lng_status_support);
+	} else if (user->isBot()) {
 		return lang(lng_status_bot);
-	} else if (isServiceUser(user->id)) {
+	} else if (user->isServiceUser()) {
 		return lang(lng_status_support);
 	}
 	return std::nullopt;
@@ -247,7 +249,7 @@ rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
 }
 
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
-	if (isServiceUser(user->id) || user->botInfo) {
+	if (user->isServiceUser() || user->isBot()) {
 		return -1;
 	}
 	const auto online = user->onlineTill;
@@ -283,7 +285,7 @@ crl::time OnlineChangeTimeout(TimeId online, TimeId now) {
 }
 
 crl::time OnlineChangeTimeout(not_null<UserData*> user, TimeId now) {
-	if (isServiceUser(user->id) || user->botInfo) {
+	if (user->isServiceUser() || user->botInfo) {
 		return kMaxOnlineChangeTimeout;
 	}
 	return OnlineChangeTimeout(user->onlineTill, now);
@@ -358,7 +360,7 @@ bool OnlineTextActive(TimeId online, TimeId now) {
 }
 
 bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
-	if (isServiceUser(user->id) || user->botInfo) {
+	if (user->isServiceUser() || user->botInfo) {
 		return false;
 	}
 	return OnlineTextActive(user->onlineTill, now);

@@ -174,7 +174,7 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		}
 		stream >> onlineTill >> contact >> botInfoVersion;
 
-		const auto showPhone = !isServiceUser(user->id)
+		const auto showPhone = !user->isServiceUser()
 			&& (user->id != Auth().userPeerId())
 			&& (contact <= 0);
 		const auto pname = (showPhone && !phone.isEmpty())

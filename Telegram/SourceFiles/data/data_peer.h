@@ -107,6 +107,8 @@ protected:
 public:
 	virtual ~PeerData();
 
+	static constexpr auto kServiceNotificationsId = peerFromUser(777000);
+
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] AuthSession &session() const;
 
@@ -124,6 +126,14 @@ public:
 	}
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isMegagroup() const;
+
+	[[nodiscard]] bool isNotificationsUser() const {
+		return (id == peerFromUser(333000))
+			|| (id == kServiceNotificationsId);
+	}
+	[[nodiscard]] bool isServiceUser() const {
+		return isUser() && !(id % 1000);
+	}
 
 	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
 		return _notify.muteUntil();

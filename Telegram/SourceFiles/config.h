@@ -63,7 +63,6 @@ enum {
 
 	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
-	ServiceUserId = 777000,
 	WebPageUserId = 701000,
 
 	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests
@@ -73,14 +72,6 @@ enum {
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };
-
-inline bool isNotificationsUser(uint64 id) {
-	return (id == 333000) || (id == ServiceUserId);
-}
-
-inline bool isServiceUser(uint64 id) {
-	return !(id % 1000);// (id == 333000) || (id == ServiceUserId);
-}
 
 #ifdef Q_OS_WIN
 inline const GUID &cGUID() {
