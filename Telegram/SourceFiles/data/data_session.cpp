@@ -1731,26 +1731,27 @@ void Session::photoConvert(
 
 PhotoData *Session::photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumbnailSmall,
+		ImagePtr thumbnail,
 		bool willBecomeNormal) {
 	const auto large = Images::Create(data);
 	const auto thumbnailInline = ImagePtr();
 	if (large->isNull()) {
 		return nullptr;
 	}
-	auto thumbnail = large;
+	auto thumbnailSmall = large;
 	if (willBecomeNormal) {
 		const auto width = large->width();
 		const auto height = large->height();
-		if (thumbnailSmall->isNull()) {
-			auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
-			thumbnailSmall = Images::Create(thumbsize.width(), thumbsize.height());
-		}
 
-		auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
-		thumbnail = Images::Create(mediumsize.width(), mediumsize.height());
-	} else if (thumbnailSmall->isNull()) {
-		thumbnailSmall = large;
+		auto thumbsize = shrinkToKeepAspect(width, height, 100, 100);
+		thumbnailSmall = Images::Create(thumbsize.width(), thumbsize.height());
+
+		if (thumbnail->isNull()) {
+			auto mediumsize = shrinkToKeepAspect(width, height, 320, 320);
+			thumbnail = Images::Create(mediumsize.width(), mediumsize.height());
+		}
+	} else if (thumbnail->isNull()) {
+		thumbnail = large;
 	}
 
 	return photo(

@@ -355,7 +355,7 @@ public:
 		const MTPPhoto &data);
 	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
-		ImagePtr thumbnailSmall = ImagePtr(),
+		ImagePtr thumbnail = ImagePtr(),
 		bool willBecomeNormal = false);
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
