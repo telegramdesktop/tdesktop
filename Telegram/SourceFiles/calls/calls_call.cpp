@@ -47,10 +47,10 @@ void AppendEndpoint(
 		if (data.vpeer_tag.v.length() != 16) {
 			return;
 		}
-		auto ipv4 = tgvoip::IPv4Address(std::string(
+		const auto ipv4 = tgvoip::IPv4Address(std::string(
 			data.vip.v.constData(),
 			data.vip.v.size()));
-		auto ipv6 = tgvoip::IPv6Address(std::string(
+		const auto ipv6 = tgvoip::IPv6Address(std::string(
 			data.vipv6.v.constData(),
 			data.vipv6.v.size()));
 		list.emplace_back(
