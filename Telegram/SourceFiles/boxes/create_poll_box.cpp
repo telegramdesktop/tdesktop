@@ -75,7 +75,7 @@ private:
 
 		not_null<Ui::InputField*> field() const;
 
-		[[nodiscard]] PollAnswer toPollAnswer(char id) const;
+		[[nodiscard]] PollAnswer toPollAnswer(int index) const;
 
 		[[nodiscard]] rpl::producer<Qt::MouseButton> removeClicks() const;
 
@@ -324,10 +324,12 @@ void Options::Option::removePlaceholder() const {
 	field()->setPlaceholder(nullptr);
 }
 
-PollAnswer Options::Option::toPollAnswer(char id) const {
+PollAnswer Options::Option::toPollAnswer(int index) const {
+	Expects(index >= 0 && index < kMaxOptionsCount);
+
 	return PollAnswer{
 		field()->getLastText().trimmed(),
-		QByteArray(1, id)
+		QByteArray(1, ('0' + index))
 	};
 }
 
@@ -388,9 +390,9 @@ void Options::Option::destroy(FnMut<void()> done) {
 std::vector<PollAnswer> Options::toPollAnswers() const {
 	auto result = std::vector<PollAnswer>();
 	result.reserve(_list.size());
-	auto counter = char(0);
+	auto counter = int(0);
 	const auto makeAnswer = [&](const Option &option) {
-		return option.toPollAnswer(++counter);
+		return option.toPollAnswer(counter++);
 	};
 	ranges::copy(
 		_list
