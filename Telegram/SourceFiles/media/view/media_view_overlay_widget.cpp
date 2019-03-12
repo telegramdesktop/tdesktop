@@ -1249,9 +1249,7 @@ void OverlayWidget::onCopy() {
 		} else if (!_current.isNull()) {
 			QApplication::clipboard()->setPixmap(_current);
 		}
-	} else {
-		if (!_photo || !_photo->loaded()) return;
-
+	} else if (_photo && _photo->loaded()) {
 		QApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
 	}
 }
@@ -2385,7 +2383,6 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	validatePhotoImage(_photo->thumbnailInline(), true);
 	if (_current.isNull()) {
 		_photo->loadThumbnailSmall(fileOrigin());
-		validatePhotoImage(Image::Empty(), true);
 	}
 }
 
@@ -2426,15 +2423,14 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		if (rect.intersects(r)) {
 			if (videoShown()) {
 				paintTransformedVideoFrame(p);
-			} else if (!_current.isNull()) {
-				if ((!_doc || !_doc->getStickerLarge()) && _current.hasAlpha()) {
+			} else {
+				if ((!_doc || !_doc->getStickerLarge())
+					&& (_current.isNull() || _current.hasAlpha())) {
 					p.fillRect(rect, _transparentBrush);
 				}
-				if (_current.width() != _w * cIntRetinaFactor()) {
+				if (!_current.isNull()) {
 					PainterHighQualityEnabler hq(p);
 					p.drawPixmap(rect, _current);
-				} else {
-					p.drawPixmap(rect.topLeft(), _current);
 				}
 			}
 
@@ -2670,7 +2666,6 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	//	const auto fill = rect.intersected(this->rect());
 	//	PaintImageProfile(p, image, rect, fill);
 	//} else {
-	PainterHighQualityEnabler hq(p);
 	const auto rotation = _streamed->info.video.rotation;
 	const auto rotated = [](QRect rect, int rotation) {
 		switch (rotation) {
@@ -2693,6 +2688,8 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 		}
 		Unexpected("Rotation in OverlayWidget::paintTransformedVideoFrame");
 	};
+
+	PainterHighQualityEnabler hq(p);
 	if (rotation) {
 		p.save();
 		p.rotate(rotation);
@@ -2947,7 +2944,7 @@ void OverlayWidget::setZoomLevel(int newZoom) {
 	float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
 	const auto contentSize = videoShown()
 		? ConvertScale(videoSize())
-		: ConvertScale(_current.size() / cIntRetinaFactor());
+		: QSize(_width, _height);
 	_w = contentSize.width();
 	_h = contentSize.height();
 	if (z >= 0) {

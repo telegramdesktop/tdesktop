@@ -292,6 +292,9 @@ Photo::Photo(
 : ItemBase(parent)
 , _data(photo)
 , _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
+	if (!_data->thumbnailInline()) {
+		_data->loadThumbnailSmall(parent->fullId());
+	}
 }
 
 void Photo::initDimensions() {
@@ -328,6 +331,8 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			if (blurred->loaded()) {
 				setPixFrom(blurred);
 			}
+		} else {
+			_data->loadThumbnailSmall(parent()->fullId());
 		}
 	}
 
@@ -364,7 +369,12 @@ void Photo::setPixFrom(not_null<Image*> image) {
 		img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
-	_data->unload();
+
+	// In case we have inline thumbnail we can unload all images and we still
+	// won't get a blank image in the media viewer when the photo is opened.
+	if (_data->thumbnailInline() != nullptr) {
+		_data->unload();
+	}
 
 	_pix = App::pixmapFromImageInPlace(std::move(img));
 }
