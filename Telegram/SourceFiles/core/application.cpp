@@ -171,7 +171,7 @@ void Application::run() {
 	DEBUG_LOG(("Application Info: showing."));
 	_window->firstShow();
 
-	if (cStartToSettings()) {
+	if (!locked() && cStartToSettings()) {
 		_window->showSettings();
 	}
 

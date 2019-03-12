@@ -241,7 +241,12 @@ void MainWindow::setupMain() {
 }
 
 void MainWindow::showSettings() {
-	if (isHidden()) showFromTray();
+	if (isHidden()) {
+		showFromTray();
+	}
+	if (_passcodeLock) {
+		return;
+	}
 
 	if (const auto controller = this->controller()) {
 		controller->showSettings();
@@ -253,7 +258,9 @@ void MainWindow::showSettings() {
 void MainWindow::showSpecialLayer(
 		object_ptr<Window::LayerWidget> layer,
 		anim::type animated) {
-	if (_passcodeLock) return;
+	if (_passcodeLock) {
+		return;
+	}
 
 	if (layer) {
 		ensureLayerCreated();
