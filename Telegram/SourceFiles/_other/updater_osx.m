@@ -266,18 +266,24 @@ int main(int argc, const char * argv[]) {
 		[args addObject:workDir];
 	}
 	writeLog([[NSArray arrayWithObjects:@"Running application '", appPath, @"' with args '", [args componentsJoinedByString:@"' '"], @"'..", nil] componentsJoinedByString:@""]);
-	NSError *error = nil;
-	NSRunningApplication *result = [[NSWorkspace sharedWorkspace]
+
+	for (int i = 0; i < 5; ++i) {
+		NSError *error = nil;
+		NSRunningApplication *result = [[NSWorkspace sharedWorkspace]
 					launchApplicationAtURL:[NSURL fileURLWithPath:appPath]
 					options:NSWorkspaceLaunchDefault
 					configuration:[NSDictionary
 								   dictionaryWithObject:args
 								   forKey:NSWorkspaceLaunchConfigurationArguments]
 					error:&error];
-	if (!result) {
+		if (result) {
+			closeLog();
+			return 0;
+		}
 		writeLog([[NSString stringWithFormat:@"Could not run application, error %ld: ", (long)[error code]] stringByAppendingString: error ? [error localizedDescription] : @"(nil)"]);
+		usleep(200000);
 	}
 	closeLog();
-	return result ? 0 : -1;
+	return -1;
 }
 
