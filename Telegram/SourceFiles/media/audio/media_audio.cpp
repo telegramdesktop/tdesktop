@@ -441,13 +441,11 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 		&& (state.state != State::PausedAtEnd)
 		&& !state.waitingForData) {
 		alSourcef(stream.source, AL_GAIN, ComputeVolume(type));
-		LOG(("alSourcePlay: reattach for %1").arg(state.id.externalPlayId()));
 		alSourcePlay(stream.source);
 		if (IsPaused(state.state)) {
 			// We must always start the source if we want the AL_SAMPLE_OFFSET to be applied.
 			// Otherwise it won't be read by alGetSource and we'll get a corrupt position.
 			// So in case of a paused source we start it and then immediately pause it.
-			LOG(("alSourcePause: reattach for %1").arg(state.id.externalPlayId()));
 			alSourcePause(stream.source);
 		}
 	}
@@ -1034,7 +1032,6 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 						alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
 						if (!checkCurrentALError(type)) return;
 					}
-					LOG(("alSourcePlay: resume for: %1").arg(track->state.id.externalPlayId()));
 					alSourcePlay(track->stream.source);
 					if (!checkCurrentALError(type)) return;
 				}
@@ -1499,7 +1496,6 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 		track->state.position = fullPosition;
 		emitSignals |= EmitPositionUpdated;
 	} else if (track->state.waitingForData && !waitingForDataOld) {
-		LOG(("WAITING FOR DATA FOR: %1.").arg(track->state.id.externalPlayId()));
 		if (fullPosition > track->state.position) {
 			track->state.position = fullPosition;
 		}

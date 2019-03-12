@@ -214,7 +214,6 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 
 AudioTrack::~AudioTrack() {
 	if (_audioId.externalPlayId()) {
-		LOG(("mixer()->stop with %1").arg(_audioId.externalPlayId()));
 		Media::Player::mixer()->stop(_audioId);
 	}
 }

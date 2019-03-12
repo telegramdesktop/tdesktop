@@ -199,8 +199,6 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 			} else if (!dropStaleFrames
 				|| !VideoTrack::IsStale(frame, trackTime)) {
 				return std::nullopt;
-			} else {
-				LOG(("[%1] DROPPED FRAMES1, TRACK TIME: %2").arg(crl::now()).arg(trackTime));
 			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
@@ -211,7 +209,6 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 }
 
 void VideoTrackObject::loopAround() {
-	LOG(("LOOPING AROUND"));
 	avcodec_flush_buffers(_stream.codec.get());
 	_framePositionShift += _stream.duration;
 }
@@ -506,7 +503,6 @@ auto VideoTrack::Shared::prepareState(
 		} else if (!IsDecoded(next)) {
 			return next;
 		} else if (next->position < frame->position) {
-			LOG(("INVALID ORDER, SWAPPING"));
 			std::swap(*frame, *next);
 		}
 		if (next->position == kFinishedPosition || !dropStaleFrames) {
@@ -514,7 +510,6 @@ auto VideoTrack::Shared::prepareState(
 		} else if (IsStale(frame, trackTime)) {
 			std::swap(*frame, *next);
 			next->displayed = kDisplaySkipped;
-			LOG(("[%1] DROPPED FRAMES2, TRACK TIME: %2").arg(crl::now()).arg(trackTime));
 			return next;
 		} else {
 			return PrepareNextCheck(frame->position - trackTime + 1);
@@ -571,7 +566,6 @@ auto VideoTrack::Shared::presentFrame(
 		const auto trackLeft = position - time.trackTime;
 		frame->display = time.worldTime
 			+ crl::time(std::round(trackLeft / playbackSpeed));
-		LOG(("[%1] SCHEDULE %5, FRAME POSITION: %2, TRACK TIME: %3, TRACK LEFT: %4").arg(time.worldTime).arg(position).arg(time.trackTime).arg(trackLeft).arg(frame->display));
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(

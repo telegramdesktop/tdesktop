@@ -109,7 +109,6 @@ void Player::checkNextFrameAvailability() {
 
 	_nextFrameTime = _video->nextFrameDisplayTime();
 	if (_nextFrameTime != kTimeUnknown) {
-		LOG(("[%2] RENDERING AT: %1").arg(_nextFrameTime).arg(crl::now()));
 		checkVideoStep();
 	}
 }
@@ -145,7 +144,6 @@ void Player::trackReceivedTill(
 	}
 }
 
-static auto wakes = 0;
 template <typename Track>
 void Player::trackPlayedTill(
 		const Track &track,
@@ -164,7 +162,6 @@ void Player::trackPlayedTill(
 		&& (!bothReceivedEnough(loadInAdvanceFor()) || receivedTillEnd())) {
 		_pauseReading = false;
 		_file->wake();
-		++wakes;
 	}
 }
 
@@ -468,7 +465,6 @@ void Player::updatePausedState() {
 	if (!_paused && _stage == Stage::Ready) {
 		const auto guard = base::make_weak(&_sessionGuard);
 		start();
-		LOG(("[%1] STARTED.").arg(crl::now()));
 		if (!guard) {
 			return;
 		}
@@ -736,7 +732,6 @@ Player::~Player() {
 	//
 	// So instead of maintaining it in the class definition as well we
 	// simply call stop() here, after that the destruction is trivial.
-	LOG(("WAKES: %1").arg(wakes));
 	stop();
 }
 

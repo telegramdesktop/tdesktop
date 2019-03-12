@@ -118,15 +118,18 @@ void Loaders::onStart(const AudioMsgId &audio, qint64 positionMs) {
 AudioMsgId Loaders::clear(AudioMsgId::Type type) {
 	AudioMsgId result;
 	switch (type) {
-	case AudioMsgId::Type::Voice: std::swap(result, _audio); _audioLoader = nullptr; break;
+	case AudioMsgId::Type::Voice:
+		std::swap(result, _audio);
+		_audioLoader = nullptr;
+		break;
 	case AudioMsgId::Type::Song:
-		if (_songLoader) {
-			LOG(("SONG LOADER KILLED FOR: %1.").arg(_song.externalPlayId()));
-		}
 		std::swap(result, _song);
 		_songLoader = nullptr;
 		break;
-	case AudioMsgId::Type::Video: std::swap(result, _video); _videoLoader = nullptr; break;
+	case AudioMsgId::Type::Video:
+		std::swap(result, _video);
+		_videoLoader = nullptr;
+		break;
 	}
 	return result;
 }
@@ -305,7 +308,6 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			return;
 		}
 	}
-	LOG(("alSourcePlay: loader for: %1").arg(track->state.id.externalPlayId()));
 	alSourcePlay(track->stream.source);
 	if (!internal::audioCheckError()) {
 		setStoppedState(track, State::StoppedAtError);

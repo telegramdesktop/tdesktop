@@ -701,7 +701,6 @@ void Reader::readFromCache(int sliceNumber) {
 	if (sliceNumber == 1 && _slices.isGoodHeader()) {
 		return readFromCache(0);
 	}
-	LOG(("READING FROM CACHE: %1").arg(sliceNumber));
 	const auto key = _cacheHelper->key(sliceNumber);
 	const auto weak = std::weak_ptr<CacheHelper>(_cacheHelper);
 	_owner->cacheBigFile().get(key, [=](QByteArray &&result) {
@@ -736,23 +735,12 @@ std::optional<Error> Reader::failed() const {
 void Reader::headerDone() {
 	_slices.headerDone(false);
 }
-static auto fills = 0;
-static auto several = 0;
-static auto fulltime = 0;
-static auto maxtime = 0;
+
 bool Reader::fill(
 		int offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify) {
 	Expects(offset + buffer.size() <= size());
-
-	const auto now = crl::now();
-	const auto guard = gsl::finally([&] {
-		const auto time = int(crl::now() - now);
-		fulltime += time;
-		maxtime = std::max(maxtime, time);
-	});
-	++fills;
 
 	const auto startWaiting = [&] {
 		if (_cacheHelper) {
@@ -806,8 +794,6 @@ bool Reader::fillFromSlices(int offset, bytes::span buffer) {
 		readFromCache(sliceNumber);
 	}
 
-	++several;
-
 	if (_cacheHelper && result.toCache.number >= 0) {
 		// If we put to cache the header (number == 0) that means we're in
 		// HeaderMode::Good and really are putting the first slice to cache.
@@ -832,14 +818,12 @@ void Reader::cancelLoadInRange(int from, int till) {
 	Expects(from < till);
 
 	for (const auto offset : _loadingOffsets.takeInRange(from, till)) {
-		LOG(("CANCEL LOAD: %1").arg(offset));
 		_loader->cancel(offset);
 	}
 }
 
 void Reader::checkLoadWillBeFirst(int offset) {
 	if (_loadingOffsets.front().value_or(offset) != offset) {
-		LOG(("CHANGING PRIORITY, WAS: %1, NOW: %2").arg(_loadingOffsets.front().value_or(offset)).arg(offset));
 		_loadingOffsets.increasePriority();
 		_loader->increasePriority();
 	}
@@ -887,15 +871,9 @@ bool Reader::processLoadedParts() {
 	return !loaded.empty();
 }
 
-static auto real = 0;
-static auto skip = 0;
 void Reader::loadAtOffset(int offset) {
 	if (_loadingOffsets.add(offset)) {
-		LOG(("START LOAD: %1").arg(offset));
 		_loader->load(offset);
-		++real;
-	} else {
-		++skip;
 	}
 }
 
@@ -916,9 +894,7 @@ void Reader::finalizeCache() {
 }
 
 Reader::~Reader() {
-	const auto now = crl::now();
 	finalizeCache();
-	LOG(("PARTS: %1, REAL: %2, SKIP: %3, FILLS: %4, TIME: %5, MAX: %6, FINALIZE: %7, REPEATED: %8").arg((_loader->size() + kPartSize - 1) / kPartSize).arg(real).arg(skip).arg(fills).arg(fulltime / float64(fills)).arg(maxtime).arg(crl::now() - now).arg(several));
 }
 
 } // namespace Streaming
