@@ -19,7 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace View {
 
-PlaybackControls::PlaybackControls(QWidget *parent, not_null<Delegate *> delegate)
+PlaybackControls::PlaybackControls(
+	QWidget *parent,
+	not_null<Delegate*> delegate)
 : RpWidget(parent)
 , _delegate(delegate)
 , _playPauseResume(this, st::mediaviewPlayButton)
@@ -38,7 +40,7 @@ PlaybackControls::PlaybackControls(QWidget *parent, not_null<Delegate *> delegat
 		fadeUpdated(opacity);
 	});
 
-	_volumeController->setValue(Global::VideoVolume());
+	_volumeController->setValue(_delegate->playbackControlsCurrentVolume());
 	_volumeController->setChangeProgressCallback([=](float64 value) {
 		_delegate->playbackControlsVolumeChanged(value);
 	});

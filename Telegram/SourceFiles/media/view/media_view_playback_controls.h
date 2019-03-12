@@ -34,6 +34,7 @@ public:
 		virtual void playbackControlsSeekProgress(crl::time position) = 0;
 		virtual void playbackControlsSeekFinished(crl::time position) = 0;
 		virtual void playbackControlsVolumeChanged(float64 volume) = 0;
+		[[nodiscard]] virtual float64 playbackControlsCurrentVolume() = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 	};

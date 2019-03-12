@@ -2297,6 +2297,11 @@ void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
 	Global::SetVideoVolume(volume);
 	updateMixerVideoVolume();
 	Global::RefVideoVolumeChanged().notify();
+	Auth().saveSettingsDelayed();
+}
+
+float64 OverlayWidget::playbackControlsCurrentVolume() {
+	return Global::VideoVolume();
 }
 
 void OverlayWidget::playbackToggleFullScreen() {

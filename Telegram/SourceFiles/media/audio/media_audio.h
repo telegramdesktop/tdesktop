@@ -128,14 +128,12 @@ class Mixer : public QObject, private base::Subscriber {
 public:
 	explicit Mixer(not_null<Audio::Instance*> instance);
 
-	void play(const AudioMsgId &audio, crl::time positionMs = 0);
 	void play(
 		const AudioMsgId &audio,
 		std::unique_ptr<ExternalSoundData> externalData,
-		crl::time positionMs = 0);
+		crl::time positionMs);
 	void pause(const AudioMsgId &audio, bool fast = false);
 	void resume(const AudioMsgId &audio, bool fast = false);
-	void seek(AudioMsgId::Type type, crl::time positionMs); // type == AudioMsgId::Type::Song
 	void stop(const AudioMsgId &audio);
 	void stop(const AudioMsgId &audio, State state);
 

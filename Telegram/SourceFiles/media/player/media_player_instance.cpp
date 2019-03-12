@@ -556,11 +556,13 @@ void Instance::finishSeeking(AudioMsgId::Type type, float64 progress) {
 					position));
 				emitUpdate(type);
 			}
-		} else {
-			const auto state = getState(type);
-			if (state.id && state.length && state.frequency) {
-				mixer()->seek(type, qRound(progress * state.length * 1000. / state.frequency));
-			}
+		//
+		// Right now all music is played in streaming player.
+		//} else {
+		//	const auto state = getState(type);
+		//	if (state.id && state.length && state.frequency) {
+		//		mixer()->seek(type, qRound(progress * state.length * 1000. / state.frequency));
+		//	}
 		}
 	}
 	cancelSeeking(type);

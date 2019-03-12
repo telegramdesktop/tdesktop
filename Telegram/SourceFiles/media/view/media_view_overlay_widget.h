@@ -163,6 +163,7 @@ private:
 	void playbackControlsSeekProgress(crl::time position) override;
 	void playbackControlsSeekFinished(crl::time position) override;
 	void playbackControlsVolumeChanged(float64 volume) override;
+	float64 playbackControlsCurrentVolume() override;
 	void playbackControlsToFullScreen() override;
 	void playbackControlsFromFullScreen() override;
 	void playbackPauseResume();

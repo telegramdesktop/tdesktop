@@ -775,16 +775,15 @@ bool Mixer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 	return false;
 }
 
-void Mixer::play(const AudioMsgId &audio, crl::time positionMs) {
-	setSongVolume(Global::SongVolume());
-	play(audio, nullptr, positionMs);
-}
-
 void Mixer::play(
 		const AudioMsgId &audio,
 		std::unique_ptr<ExternalSoundData> externalData,
 		crl::time positionMs) {
-	Expects((externalData != nullptr) == (audio.externalPlayId() != 0));
+	Expects(externalData != nullptr);
+	Expects(audio.externalPlayId() != 0);
+
+	setSongVolume(Global::SongVolume());
+	setVideoVolume(Global::VideoVolume());
 
 	auto type = audio.type();
 	AudioMsgId stopped;
@@ -1049,72 +1048,74 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 	}
 	if (current) emit updated(current);
 }
-
-void Mixer::seek(AudioMsgId::Type type, crl::time positionMs) {
-	QMutexLocker lock(&AudioMutex);
-
-	const auto current = trackForType(type);
-	const auto audio = current->state.id;
-
-	Audio::AttachToDevice();
-	const auto streamCreated = current->isStreamCreated();
-	const auto position = (positionMs * current->frequency) / 1000LL;
-	const auto fastSeek = [&] {
-		const auto loadedStart = current->bufferedPosition;
-		const auto loadedLength = current->bufferedLength;
-		const auto skipBack = (current->loaded ? 0 : kDefaultFrequency);
-		const auto availableEnd = loadedStart + loadedLength - skipBack;
-		if (position < loadedStart) {
-			return false;
-		} else if (position >= availableEnd) {
-			return false;
-		} else if (!streamCreated) {
-			return false;
-		} else if (IsStoppedOrStopping(current->state.state)) {
-			return false;
-		}
-		return true;
-	}();
-	if (fastSeek) {
-		alSourcei(current->stream.source, AL_SAMPLE_OFFSET, position - current->bufferedPosition);
-		if (!checkCurrentALError(type)) return;
-
-		alSourcef(current->stream.source, AL_GAIN, ComputeVolume(type));
-		if (!checkCurrentALError(type)) return;
-
-		resetFadeStartPosition(type, position - current->bufferedPosition);
-	} else {
-		setStoppedState(current);
-	}
-	switch (current->state.state) {
-	case State::Pausing:
-	case State::Paused:
-	case State::PausedAtEnd: {
-		if (current->state.state == State::PausedAtEnd) {
-			current->state.state = State::Paused;
-		}
-		lock.unlock();
-		return resume(audio, true);
-	} break;
-	case State::Starting:
-	case State::Resuming:
-	case State::Playing: {
-		current->state.state = State::Pausing;
-		resetFadeStartPosition(type);
-		if (type == AudioMsgId::Type::Voice) {
-			emit unsuppressSong();
-		}
-	} break;
-	case State::Stopping:
-	case State::Stopped:
-	case State::StoppedAtEnd:
-	case State::StoppedAtError:
-	case State::StoppedAtStart: {
-		lock.unlock();
-	} return play(audio, positionMs);
-	}
-	emit faderOnTimer();
-}
+//
+// Right now all the music is played in the streaming player.
+//
+//void Mixer::seek(AudioMsgId::Type type, crl::time positionMs) {
+//	QMutexLocker lock(&AudioMutex);
+//
+//	const auto current = trackForType(type);
+//	const auto audio = current->state.id;
+//
+//	Audio::AttachToDevice();
+//	const auto streamCreated = current->isStreamCreated();
+//	const auto position = (positionMs * current->frequency) / 1000LL;
+//	const auto fastSeek = [&] {
+//		const auto loadedStart = current->bufferedPosition;
+//		const auto loadedLength = current->bufferedLength;
+//		const auto skipBack = (current->loaded ? 0 : kDefaultFrequency);
+//		const auto availableEnd = loadedStart + loadedLength - skipBack;
+//		if (position < loadedStart) {
+//			return false;
+//		} else if (position >= availableEnd) {
+//			return false;
+//		} else if (!streamCreated) {
+//			return false;
+//		} else if (IsStoppedOrStopping(current->state.state)) {
+//			return false;
+//		}
+//		return true;
+//	}();
+//	if (fastSeek) {
+//		alSourcei(current->stream.source, AL_SAMPLE_OFFSET, position - current->bufferedPosition);
+//		if (!checkCurrentALError(type)) return;
+//
+//		alSourcef(current->stream.source, AL_GAIN, ComputeVolume(type));
+//		if (!checkCurrentALError(type)) return;
+//
+//		resetFadeStartPosition(type, position - current->bufferedPosition);
+//	} else {
+//		setStoppedState(current);
+//	}
+//	switch (current->state.state) {
+//	case State::Pausing:
+//	case State::Paused:
+//	case State::PausedAtEnd: {
+//		if (current->state.state == State::PausedAtEnd) {
+//			current->state.state = State::Paused;
+//		}
+//		lock.unlock();
+//		return resume(audio, true);
+//	} break;
+//	case State::Starting:
+//	case State::Resuming:
+//	case State::Playing: {
+//		current->state.state = State::Pausing;
+//		resetFadeStartPosition(type);
+//		if (type == AudioMsgId::Type::Voice) {
+//			emit unsuppressSong();
+//		}
+//	} break;
+//	case State::Stopping:
+//	case State::Stopped:
+//	case State::StoppedAtEnd:
+//	case State::StoppedAtError:
+//	case State::StoppedAtStart: {
+//		lock.unlock();
+//	} return play(audio, positionMs);
+//	}
+//	emit faderOnTimer();
+//}
 
 void Mixer::stop(const AudioMsgId &audio) {
 	AudioMsgId current;

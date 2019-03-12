@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 
 namespace Media {
 namespace Player {
@@ -29,6 +30,7 @@ VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
 			Global::SetRememberedSongVolume(volume);
 		}
 		applyVolumeChange(volume);
+		Auth().saveSettingsDelayed();
 	});
 	subscribe(Global::RefSongVolumeChanged(), [this] {
 		if (!_slider->isChanging()) {
