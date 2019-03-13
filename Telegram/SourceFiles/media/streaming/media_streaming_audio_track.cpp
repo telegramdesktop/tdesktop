@@ -69,28 +69,40 @@ bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
 		return false;
 	}
-	if (const auto error = ReadNextFrame(_stream)) {
-		if (error.code() == AVERROR_EOF) {
-			// Return the last valid frame if we seek too far.
-			return processFirstFrame();
-		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+	while (true) {
+		if (const auto error = ReadNextFrame(_stream)) {
+			if (error.code() == AVERROR_EOF) {
+				if (!_initialSkippingFrame) {
+					return false;
+				}
+				// Return the last valid frame if we seek too far.
+				_stream.frame = std::move(_initialSkippingFrame);
+				return processFirstFrame();
+			} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+				return false;
+			} else {
+				// Waiting for more packets.
+				return true;
+			}
+		} else if (!fillStateFromFrame()) {
 			return false;
-		} else {
-			// Waiting for more packets.
-			return true;
+		} else if (_startedPosition >= _options.position) {
+			return processFirstFrame();
 		}
-	} else if (!fillStateFromFrame()) {
-		return false;
-	} else if (_startedPosition < _options.position) {
+
 		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
 		// Try skipping frames until one is after the requested position.
-		return true;
-	} else {
-		return processFirstFrame();
+		std::swap(_initialSkippingFrame, _stream.frame);
+		if (!_stream.frame) {
+			_stream.frame = MakeFramePointer();
+		}
 	}
 }
 
 bool AudioTrack::processFirstFrame() {
+	if (!FrameHasData(_stream.frame.get())) {
+		return false;
+	}
 	mixerInit();
 	callReady();
 	return true;

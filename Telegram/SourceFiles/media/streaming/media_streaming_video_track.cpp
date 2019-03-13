@@ -98,6 +98,9 @@ private:
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
 
+	// For initial frame skipping for an exact seek.
+	FramePointer _initialSkippingFrame;
+
 };
 
 VideoTrackObject::VideoTrackObject(
@@ -349,25 +352,33 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
 		return false;
 	}
-	auto frame = QImage();
-	if (const auto error = ReadNextFrame(_stream)) {
-		if (error.code() == AVERROR_EOF) {
-			// Return the last valid frame if we seek too far.
-			return processFirstFrame();
-		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+	while (true) {
+		if (const auto error = ReadNextFrame(_stream)) {
+			if (error.code() == AVERROR_EOF) {
+				if (!_initialSkippingFrame) {
+					return false;
+				}
+				// Return the last valid frame if we seek too far.
+				_stream.frame = std::move(_initialSkippingFrame);
+				return processFirstFrame();
+			} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+				return false;
+			} else {
+				// Waiting for more packets.
+				return true;
+			}
+		} else if (!fillStateFromFrame()) {
 			return false;
-		} else {
-			// Waiting for more packets.
-			return true;
+		} else if (_syncTimePoint.trackTime >= _options.position) {
+			return processFirstFrame();
 		}
-	} else if (!fillStateFromFrame()) {
-		return false;
-	} else if (_syncTimePoint.trackTime < _options.position) {
+
 		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
 		// Try skipping frames until one is after the requested position.
-		return true;
-	} else {
-		return processFirstFrame();
+		std::swap(_initialSkippingFrame, _stream.frame);
+		if (!_stream.frame) {
+			_stream.frame = MakeFramePointer();
+		}
 	}
 }
 
@@ -382,9 +393,7 @@ bool VideoTrackObject::processFirstFrame() {
 	}
 	_shared->init(std::move(frame), _syncTimePoint.trackTime);
 	callReady();
-	if (!_stream.queue.empty()) {
-		queueReadFrames();
-	}
+	queueReadFrames();
 	return true;
 }
 
