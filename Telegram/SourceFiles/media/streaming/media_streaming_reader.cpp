@@ -19,7 +19,7 @@ namespace {
 constexpr auto kPartSize = Loader::kPartSize;
 constexpr auto kPartsInSlice = 64;
 constexpr auto kInSlice = kPartsInSlice * kPartSize;
-constexpr auto kMaxPartsInHeader = 16;
+constexpr auto kMaxPartsInHeader = 64;
 constexpr auto kMaxOnlyInHeader = 80 * kPartSize;
 constexpr auto kPartsOutsideFirstSliceGood = 8;
 constexpr auto kSlicesInMemory = 2;
