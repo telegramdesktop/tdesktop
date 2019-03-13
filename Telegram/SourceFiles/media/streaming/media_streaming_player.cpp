@@ -603,6 +603,7 @@ void Player::stop() {
 	invalidate_weak_ptrs(&_sessionGuard);
 	_pausedByUser = _pausedByWaitingForData = _paused = false;
 	_renderFrameTimer.cancel();
+	_nextFrameTime = kTimeUnknown;
 	_audioFinished = false;
 	_videoFinished = false;
 	_pauseReading = false;
