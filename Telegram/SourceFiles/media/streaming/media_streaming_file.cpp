@@ -135,13 +135,17 @@ Stream File::Context::initStream(
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? PtsToTime(info->duration, result.timeBase)
 		: PtsToTime(format->duration, kUniversalTimeBase);
-	if (result.duration == kTimeUnknown || !result.duration) {
+	if (!result.duration) {
 		result.codec = nullptr;
-		return result;
+	} else if (result.duration == kTimeUnknown) {
+		result.duration = kDurationUnavailable;
+	} else {
+		++result.duration;
+		if (result.duration > kDurationMax) {
+			result.duration = 0;
+			result.codec = nullptr;
+		}
 	}
-	// We want duration to be greater than any valid frame position.
-	// That way we can handle looping by advancing position by n * duration.
-	++result.duration;
 	return result;
 }
 
@@ -152,6 +156,9 @@ void File::Context::seekToPosition(
 	auto error = AvErrorWrap();
 
 	if (!position) {
+		return;
+	} else if (stream.duration == kDurationUnavailable) {
+		// Seek in files with unknown duration is not supported.
 		return;
 	}
 	//

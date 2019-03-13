@@ -28,6 +28,7 @@ AudioTrack::AudioTrack(
 , _error(std::move(error))
 , _playPosition(options.position) {
 	Expects(_stream.duration > 1);
+	Expects(_stream.duration != kDurationUnavailable); // Not supported.
 	Expects(_ready != nullptr);
 	Expects(_error != nullptr);
 	Expects(_audioId.externalPlayId() != 0);
@@ -47,7 +48,9 @@ crl::time AudioTrack::streamDuration() const {
 }
 
 void AudioTrack::process(Packet &&packet) {
-	_noMoreData = packet.empty();
+	if (packet.empty()) {
+		_readTillEnd = true;
+	}
 	if (initialized()) {
 		mixerEnqueue(std::move(packet));
 	} else if (!tryReadFirstFrame(std::move(packet))) {
@@ -78,7 +81,7 @@ bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 				// Return the last valid frame if we seek too far.
 				_stream.frame = std::move(_initialSkippingFrame);
 				return processFirstFrame();
-			} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+			} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
 				return false;
 			} else {
 				// Waiting for more packets.
@@ -139,7 +142,7 @@ void AudioTrack::callReady() {
 	auto data = AudioInformation();
 	data.state.duration = _stream.duration;
 	data.state.position = _startedPosition;
-	data.state.receivedTill = _noMoreData
+	data.state.receivedTill = _readTillEnd
 		? _stream.duration
 		: _startedPosition;
 	base::take(_ready)({ VideoInformation(), data });

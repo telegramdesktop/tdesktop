@@ -191,6 +191,12 @@ void LogError(QLatin1String method, AvErrorWrap error);
 [[nodiscard]] crl::time PacketPosition(
 	const Packet &packet,
 	AVRational timeBase);
+[[nodiscard]] crl::time PacketDuration(
+	const Packet &packet,
+	AVRational timeBase);
+[[nodiscard]] int DurationByPacket(
+	const Packet &packet,
+	AVRational timeBase);
 [[nodiscard]] crl::time FramePosition(const Stream &stream);
 [[nodiscard]] int ReadRotationFromMetadata(not_null<AVStream*> stream);
 [[nodiscard]] AVRational ValidateAspectRatio(AVRational aspect);

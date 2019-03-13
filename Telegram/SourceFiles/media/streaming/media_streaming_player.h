@@ -107,11 +107,20 @@ private:
 	[[nodiscard]] bool bothReceivedEnough(crl::time amount) const;
 	[[nodiscard]] bool receivedTillEnd() const;
 	void checkResumeFromWaitingForData();
-	[[nodiscard]] crl::time getCurrentReceivedTill() const;
+	[[nodiscard]] crl::time getCurrentReceivedTill(crl::time duration) const;
 	void savePreviousReceivedTill(
 		const PlaybackOptions &options,
 		crl::time previousReceivedTill);
 	[[nodiscard]] crl::time loadInAdvanceFor() const;
+
+	template <typename Track>
+	int durationByPacket(const Track &track, const Packet &packet);
+
+	// Valid after fileReady call ends. Thread-safe.
+	[[nodiscard]] crl::time computeAudioDuration() const;
+	[[nodiscard]] crl::time computeVideoDuration() const;
+	[[nodiscard]] crl::time computeTotalDuration() const;
+	void setDurationByPackets();
 
 	template <typename Track>
 	void trackReceivedTill(
@@ -170,6 +179,9 @@ private:
 	crl::time _totalDuration = kTimeUnknown;
 	crl::time _loopingShift = 0;
 	crl::time _previousReceivedTill = kTimeUnknown;
+	std::atomic<int> _durationByPackets = 0;
+	int _durationByLastAudioPacket = 0;
+	int _durationByLastVideoPacket = 0;
 
 	rpl::lifetime _lifetime;
 	rpl::lifetime _sessionLifetime;

@@ -289,6 +289,27 @@ crl::time PacketPosition(const Packet &packet, AVRational timeBase) {
 		timeBase);
 }
 
+crl::time PacketDuration(const Packet &packet, AVRational timeBase) {
+	return PtsToTime(packet.fields().duration, timeBase);
+}
+
+int DurationByPacket(const Packet &packet, AVRational timeBase) {
+	const auto position = PacketPosition(packet, timeBase);
+	const auto duration = std::max(
+		PacketDuration(packet, timeBase),
+		crl::time(1));
+	const auto bad = [](crl::time time) {
+		return (time < 0) || (time > kDurationMax);
+	};
+	if (bad(position) || bad(duration) || bad(position + duration + 1)) {
+		LOG(("Streaming Error: Wrong duration by packet: %1 + %2"
+			).arg(position
+			).arg(duration));
+		return -1;
+	}
+	return int(position + duration + 1);
+}
+
 crl::time FramePosition(const Stream &stream) {
 	const auto pts = !stream.frame
 		? AV_NOPTS_VALUE
@@ -432,7 +453,7 @@ QImage ConvertFrame(
 		for (const auto y : ranges::view::ints(0, frame->height)) {
 			for (const auto x : ranges::view::ints(0, frame->width)) {
 				// Wipe out possible alpha values.
-				*to++ = 0x000000FFU | *from++;
+				*to++ = 0xFF000000U | *from++;
 			}
 			to += deltaTo;
 			from += deltaFrom;

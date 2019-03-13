@@ -65,7 +65,7 @@ private:
 	// Accessed from the same unspecified thread.
 	Stream _stream;
 	const AudioMsgId _audioId;
-	bool _noMoreData = false;
+	bool _readTillEnd = false;
 
 	// Assumed to be thread-safe.
 	FnMut<void(const Information &)> _ready;

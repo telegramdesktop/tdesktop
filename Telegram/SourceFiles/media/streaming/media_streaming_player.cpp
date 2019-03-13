@@ -154,7 +154,7 @@ void Player::trackPlayedTill(
 	if (guard && position != kTimeUnknown) {
 		state.position = position;
 		const auto value = _options.loop
-			? (position % _totalDuration)
+			? (position % computeTotalDuration())
 			: position;
 		_updates.fire({ PlaybackUpdate<Track>{ value } });
 	}
@@ -179,7 +179,7 @@ void Player::trackSendReceivedTill(
 		state.receivedTill,
 		_previousReceivedTill);
 	const auto value = _options.loop
-		? (receivedTill % _totalDuration)
+		? (receivedTill % computeTotalDuration())
 		: receivedTill;
 	_updates.fire({ PreloadedUpdate<Track>{ value } });
 }
@@ -230,13 +230,17 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 		};
 	};
 	const auto mode = _options.mode;
-	if (mode != Mode::Audio && mode != Mode::Both) {
+	if ((mode != Mode::Audio && mode != Mode::Both)
+		|| audio.duration == kDurationUnavailable) {
 		audio = Stream();
 	}
 	if (mode != Mode::Video && mode != Mode::Both) {
 		video = Stream();
 	}
-	if (audio.codec) {
+	if (audio.duration == kDurationUnavailable) {
+		LOG(("Streaming Error: Audio stream with unknown duration."));
+		return false;
+	} else if (audio.codec) {
 		if (_options.audioId.audio() != nullptr) {
 			_audioId = AudioMsgId(
 				_options.audioId.audio(),
@@ -278,6 +282,11 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 		LOG(("Streaming Error: Required stream not found for mode %1."
 			).arg(int(mode)));
 		return false;
+	} else if (_audio
+		&& _video
+		&& _video->streamDuration() == kDurationUnavailable) {
+		LOG(("Streaming Error: Both streams with unknown video duration."));
+		return false;
 	}
 	_totalDuration = std::max(
 		_audio ? _audio->streamDuration() : kTimeUnknown,
@@ -315,34 +324,43 @@ bool Player::fileProcessPacket(Packet &&packet) {
 	const auto index = native.stream_index;
 	if (packet.empty()) {
 		_readTillEnd = true;
+		setDurationByPackets();
 		if (_audio) {
-			const auto till = _loopingShift + _audio->streamDuration();
+			const auto till = _loopingShift + computeAudioDuration();
 			crl::on_main(&_sessionGuard, [=] {
 				audioReceivedTill(till);
 			});
 			_audio->process(Packet());
 		}
 		if (_video) {
-			const auto till = _loopingShift + _video->streamDuration();
+			const auto till = _loopingShift + computeVideoDuration();
 			crl::on_main(&_sessionGuard, [=] {
 				videoReceivedTill(till);
 			});
 			_video->process(Packet());
 		}
 	} else if (_audio && _audio->streamIndex() == native.stream_index) {
+		accumulate_max(
+			_durationByLastAudioPacket,
+			durationByPacket(*_audio, packet));
+
 		const auto till = _loopingShift + std::clamp(
 			PacketPosition(packet, _audio->streamTimeBase()),
 			crl::time(0),
-			_audio->streamDuration() - 1);
+			computeAudioDuration() - 1);
 		crl::on_main(&_sessionGuard, [=] {
 			audioReceivedTill(till);
 		});
 		_audio->process(std::move(packet));
 	} else if (_video && _video->streamIndex() == native.stream_index) {
+		accumulate_max(
+			_durationByLastVideoPacket,
+			durationByPacket(*_video, packet));
+
 		const auto till = _loopingShift + std::clamp(
 			PacketPosition(packet, _video->streamTimeBase()),
 			crl::time(0),
-			_video->streamDuration() - 1);
+			computeVideoDuration() - 1);
 		crl::on_main(&_sessionGuard, [=] {
 			videoReceivedTill(till);
 		});
@@ -353,8 +371,15 @@ bool Player::fileProcessPacket(Packet &&packet) {
 
 bool Player::fileReadMore() {
 	if (_options.loop && _readTillEnd) {
+		const auto duration = computeTotalDuration();
+		if (duration == kDurationUnavailable) {
+			LOG(("Streaming Error: "
+				"Couldn't find out the real stream duration."));
+			fileError(Error::InvalidData);
+			return false;
+		}
+		_loopingShift += duration;
 		_readTillEnd = false;
-		_loopingShift += _totalDuration;
 		return true;
 	}
 	return !_readTillEnd && !_pauseReading;
@@ -370,6 +395,40 @@ void Player::streamFailed(Error error) {
 		provideStartInformation();
 	} else {
 		fail(error);
+	}
+}
+
+template <typename Track>
+int Player::durationByPacket(
+		const Track &track,
+		const Packet &packet) {
+	// We've set this value on the first cycle.
+	if (_loopingShift || _totalDuration != kDurationUnavailable) {
+		return 0;
+	}
+	const auto result = DurationByPacket(packet, track.streamTimeBase());
+	if (result < 0) {
+		fileError(Error::InvalidData);
+		return 0;
+	}
+
+	Ensures(result > 0);
+	return result;
+}
+
+void Player::setDurationByPackets() {
+	if (_loopingShift || _totalDuration != kDurationUnavailable) {
+		return;
+	}
+	const auto duration = std::max(
+		_durationByLastAudioPacket,
+		_durationByLastVideoPacket);
+	if (duration > 1) {
+		_durationByPackets = duration;
+	} else {
+		LOG(("Streaming Error: Bad total duration by packets: %1"
+			).arg(duration));
+		fileError(Error::InvalidData);
 	}
 }
 
@@ -413,7 +472,7 @@ void Player::play(const PlaybackOptions &options) {
 	// Looping video with audio is not supported for now.
 	Expects(!options.loop || (options.mode != Mode::Both));
 
-	const auto previous = getCurrentReceivedTill();
+	const auto previous = getCurrentReceivedTill(computeTotalDuration());
 
 	stop();
 	_lastFailure = std::nullopt;
@@ -440,6 +499,43 @@ void Player::savePreviousReceivedTill(
 
 crl::time Player::loadInAdvanceFor() const {
 	return _remoteLoader ? kLoadInAdvanceForRemote : kLoadInAdvanceForLocal;
+}
+
+crl::time Player::computeTotalDuration() const {
+	if (_totalDuration != kDurationUnavailable) {
+		return _totalDuration;
+	} else if (const auto byPackets = _durationByPackets.load()) {
+		return byPackets;
+	}
+	return kDurationUnavailable;
+}
+
+crl::time Player::computeAudioDuration() const {
+	Expects(_audio != nullptr);
+
+	const auto result = _audio->streamDuration();
+	if (result != kDurationUnavailable) {
+		return result;
+	} else if ((_loopingShift || _readTillEnd)
+		&& _durationByLastAudioPacket) {
+		// We looped, so it already holds full stream duration.
+		return _durationByLastAudioPacket;
+	}
+	return kDurationUnavailable;
+}
+
+crl::time Player::computeVideoDuration() const {
+	Expects(_video != nullptr);
+
+	const auto result = _video->streamDuration();
+	if (result != kDurationUnavailable) {
+		return result;
+	} else if ((_loopingShift || _readTillEnd)
+		&& _durationByLastVideoPacket) {
+		// We looped, so it already holds full stream duration.
+		return _durationByLastVideoPacket;
+	}
+	return kDurationUnavailable;
 }
 
 void Player::pause() {
@@ -609,6 +705,9 @@ void Player::stop() {
 	_pauseReading = false;
 	_readTillEnd = false;
 	_loopingShift = 0;
+	_durationByPackets = 0;
+	_durationByLastAudioPacket = 0;
+	_durationByLastVideoPacket = 0;
 	_information = Information();
 }
 
@@ -691,13 +790,17 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 	result.position = std::max(
 		_information.audio.state.position,
 		_information.video.state.position);
+	result.length = computeTotalDuration();
 	if (result.position == kTimeUnknown) {
 		result.position = _options.position;
-	} else if (_options.loop && _totalDuration > 0) {
-		result.position %= _totalDuration;
+	} else if (_options.loop && result.length > 0) {
+		result.position %= result.length;
 	}
-	result.receivedTill = _remoteLoader ? getCurrentReceivedTill() : 0;
-	result.length = _totalDuration;
+	result.receivedTill = _remoteLoader
+		? getCurrentReceivedTill(result.length)
+		: 0;
+	result.frequency = kMsFrequency;
+
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
 		const auto duration = document ? document->getDuration() : 0;
@@ -707,17 +810,16 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 			result.length = std::max(crl::time(result.position), crl::time(0));
 		}
 	}
-	result.frequency = kMsFrequency;
 	return result;
 }
 
-crl::time Player::getCurrentReceivedTill() const {
+crl::time Player::getCurrentReceivedTill(crl::time duration) const {
 	const auto previous = std::max(_previousReceivedTill, crl::time(0));
 	const auto result = std::min(
 		std::max(_information.audio.state.receivedTill, previous),
 		std::max(_information.video.state.receivedTill, previous));
-	return (result >= 0 && _totalDuration > 1 && _options.loop)
-		? (result % _totalDuration)
+	return (result >= 0 && duration > 1 && _options.loop)
+		? (result % duration)
 		: result;
 }
 

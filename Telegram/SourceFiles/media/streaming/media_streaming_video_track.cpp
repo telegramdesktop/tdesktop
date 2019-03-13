@@ -58,6 +58,7 @@ private:
 		FrameResult,
 		Shared::PrepareNextCheck>;
 
+	void fail(Error error);
 	[[nodiscard]] bool interrupted() const;
 	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
@@ -68,7 +69,9 @@ private:
 	[[nodiscard]] FrameResult readFrame(not_null<Frame*> frame);
 	void presentFrameIfNeeded();
 	void callReady();
-	void loopAround();
+	[[nodiscard]] bool loopAround();
+	[[nodiscard]] crl::time computeDuration() const;
+	[[nodiscard]] int durationByPacket(const Packet &packet);
 
 	// Force frame position to be clamped to [0, duration] and monotonic.
 	[[nodiscard]] crl::time currentFramePosition() const;
@@ -84,13 +87,14 @@ private:
 
 	Stream _stream;
 	AudioMsgId _audioId;
-	bool _noMoreData = false;
+	bool _readTillEnd = false;
 	FnMut<void(const Information &)> _ready;
 	Fn<void(Error)> _error;
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _resumedTime = kTimeUnknown;
+	int _durationByLastPacket = 0;
 	mutable TimePoint _syncTimePoint;
-	crl::time _framePositionShift = 0;
+	crl::time _loopingShift = 0;
 	rpl::event_stream<> _checkNextFrame;
 	rpl::event_stream<> _waitingForData;
 	FrameRequest _request;
@@ -142,13 +146,37 @@ void VideoTrackObject::process(Packet &&packet) {
 	if (interrupted()) {
 		return;
 	}
-	_noMoreData = packet.empty();
+	if (packet.empty()) {
+		_readTillEnd = true;
+	} else if (!_readTillEnd) {
+		accumulate_max(
+			_durationByLastPacket,
+			durationByPacket(packet));
+		if (interrupted()) {
+			return;
+		}
+	}
 	if (_shared->initialized()) {
 		_stream.queue.push_back(std::move(packet));
 		queueReadFrames();
 	} else if (!tryReadFirstFrame(std::move(packet))) {
-		_error(Error::InvalidData);
+		fail(Error::InvalidData);
 	}
+}
+
+int VideoTrackObject::durationByPacket(const Packet &packet) {
+	// We've set this value on the first cycle.
+	if (_loopingShift || _stream.duration != kDurationUnavailable) {
+		return 0;
+	}
+	const auto result = DurationByPacket(packet, _stream.timeBase);
+	if (result < 0) {
+		fail(Error::InvalidData);
+		return 0;
+	}
+
+	Ensures(result > 0);
+	return result;
 }
 
 void VideoTrackObject::queueReadFrames(crl::time delay) {
@@ -175,7 +203,9 @@ void VideoTrackObject::readFrames() {
 				|| result == FrameResult::Finished) {
 				presentFrameIfNeeded();
 			} else if (result == FrameResult::Looped) {
-				time -= _stream.duration;
+				const auto duration = computeDuration();
+				Assert(duration != kDurationUnavailable);
+				time -= duration;
 			}
 		}, [&](Shared::PrepareNextCheck delay) {
 			Expects(delay == kTimeUnknown || delay > 0);
@@ -211,25 +241,44 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 	});
 }
 
-void VideoTrackObject::loopAround() {
+bool VideoTrackObject::loopAround() {
+	const auto duration = computeDuration();
+	if (duration == kDurationUnavailable) {
+		LOG(("Streaming Error: "
+			"Couldn't find out the real video stream duration."));
+		return false;
+	}
 	avcodec_flush_buffers(_stream.codec.get());
-	_framePositionShift += _stream.duration;
+	_loopingShift += duration;
+	_readTillEnd = false;
+	return true;
+}
+
+crl::time VideoTrackObject::computeDuration() const {
+	if (_stream.duration != kDurationUnavailable) {
+		return _stream.duration;
+	} else if ((_loopingShift || _readTillEnd) && _durationByLastPacket) {
+		// We looped, so it already holds full stream duration.
+		return _durationByLastPacket;
+	}
+	return kDurationUnavailable;
 }
 
 auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 	if (const auto error = ReadNextFrame(_stream)) {
 		if (error.code() == AVERROR_EOF) {
-			if (_options.loop) {
-				loopAround();
-				return FrameResult::Looped;
-			} else {
+			if (!_options.loop) {
 				frame->position = kFinishedPosition;
 				frame->displayed = kTimeUnknown;
 				return FrameResult::Finished;
+			} else if (loopAround()) {
+				return FrameResult::Looped;
+			} else {
+				fail(Error::InvalidData);
+				return FrameResult::Error;
 			}
-		} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
-			interrupt();
-			_error(Error::InvalidData);
+		} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
+			fail(Error::InvalidData);
 			return FrameResult::Error;
 		}
 		Assert(_stream.queue.empty());
@@ -238,8 +287,7 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 	}
 	const auto position = currentFramePosition();
 	if (position == kTimeUnknown) {
-		interrupt();
-		_error(Error::InvalidData);
+		fail(Error::InvalidData);
 		return FrameResult::Error;
 	}
 	std::swap(frame->decoded, _stream.frame);
@@ -264,8 +312,7 @@ void VideoTrackObject::presentFrameIfNeeded() {
 			std::move(frame->original));
 		if (frame->original.isNull()) {
 			frame->prepared = QImage();
-			interrupt();
-			_error(Error::InvalidData);
+			fail(Error::InvalidData);
 			return;
 		}
 
@@ -361,7 +408,7 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 				// Return the last valid frame if we seek too far.
 				_stream.frame = std::move(_initialSkippingFrame);
 				return processFirstFrame();
-			} else if (error.code() != AVERROR(EAGAIN) || _noMoreData) {
+			} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
 				return false;
 			} else {
 				// Waiting for more packets.
@@ -402,10 +449,10 @@ crl::time VideoTrackObject::currentFramePosition() const {
 	if (position == kTimeUnknown || position == kFinishedPosition) {
 		return kTimeUnknown;
 	}
-	return _framePositionShift + std::clamp(
+	return _loopingShift + std::clamp(
 		position,
 		crl::time(0),
-		_stream.duration - 1);
+		computeDuration() - 1);
 }
 
 bool VideoTrackObject::fillStateFromFrame() {
@@ -431,7 +478,7 @@ void VideoTrackObject::callReady() {
 	data.rotation = _stream.rotation;
 	data.state.duration = _stream.duration;
 	data.state.position = _syncTimePoint.trackTime;
-	data.state.receivedTill = _noMoreData
+	data.state.receivedTill = _readTillEnd
 		? _stream.duration
 		: _syncTimePoint.trackTime;
 	base::take(_ready)({ data });
@@ -463,6 +510,11 @@ TimePoint VideoTrackObject::trackTime() const {
 
 void VideoTrackObject::interrupt() {
 	_shared = nullptr;
+}
+
+void VideoTrackObject::fail(Error error) {
+	interrupt();
+	_error(error);
 }
 
 void VideoTrack::Shared::init(QImage &&cover, crl::time position) {
