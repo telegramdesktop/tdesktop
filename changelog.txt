@@ -1,3 +1,7 @@
+1.5.17 beta (13.03.19)
+
+- Bug fixes and other minor improvements.
+
 1.5.16 beta (12.03.19)
 
 - Play video files and listen to received music without waiting for them to download.
