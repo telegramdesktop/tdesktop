@@ -120,10 +120,10 @@ private:
 	static QImage PrepareFrameByRequest(
 		not_null<Frame*> frame,
 		bool useExistingPrepared = false);
-	[[nodiscard]] static bool IsDecoded(not_null<Frame*> frame);
-	[[nodiscard]] static bool IsRasterized(not_null<Frame*> frame);
+	[[nodiscard]] static bool IsDecoded(not_null<const Frame*> frame);
+	[[nodiscard]] static bool IsRasterized(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsStale(
-		not_null<Frame*> frame,
+		not_null<const Frame*> frame,
 		crl::time trackTime);
 
 	const int _streamIndex = 0;

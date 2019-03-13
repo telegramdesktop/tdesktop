@@ -412,7 +412,6 @@ void VideoTrackObject::callReady() {
 	Expects(_ready != nullptr);
 
 	const auto frame = _shared->frameForPaint();
-	Assert(frame != nullptr);
 
 	auto data = VideoInformation();
 	data.size = CorrectByAspect(frame->original.size(), _stream.aspect);
@@ -603,9 +602,13 @@ auto VideoTrack::Shared::presentFrame(
 }
 
 crl::time VideoTrack::Shared::nextFrameDisplayTime() const {
-	const auto frameDisplayTime = [&](int index) {
+	const auto frameDisplayTime = [&](int counter) {
+		const auto next = (counter + 1) % (2 * kFramesCount);
+		const auto index = next / 2;
 		const auto frame = getFrame(index);
-		Assert(frame->displayed == kTimeUnknown);
+		Assert(IsRasterized(frame));
+		Assert(frame->display != kTimeUnknown);
+
 		return frame->display;
 	};
 
@@ -613,43 +616,50 @@ crl::time VideoTrack::Shared::nextFrameDisplayTime() const {
 	case 0: return kTimeUnknown;
 	case 1: return frameDisplayTime(1);
 	case 2: return kTimeUnknown;
-	case 3: return frameDisplayTime(2);
+	case 3: return frameDisplayTime(3);
 	case 4: return kTimeUnknown;
-	case 5: return frameDisplayTime(3);
+	case 5: return frameDisplayTime(5);
 	case 6: return kTimeUnknown;
-	case 7: return frameDisplayTime(0);
+	case 7: return frameDisplayTime(7);
 	}
 	Unexpected("Counter value in VideoTrack::Shared::nextFrameDisplayTime.");
 }
 
 crl::time VideoTrack::Shared::markFrameDisplayed(crl::time now) {
-	const auto markAndJump = [&](int counter, int index) {
+	const auto markAndJump = [&](int counter) {
+		const auto next = (counter + 1) % (2 * kFramesCount);
+		const auto index = next / 2;
 		const auto frame = getFrame(index);
+		Assert(frame->position != kTimeUnknown);
 		Assert(frame->displayed == kTimeUnknown);
 
 		frame->displayed = now;
 		_counter.store(
-			(counter + 1) % (2 * kFramesCount),
+			next,
 			std::memory_order_release);
 		return frame->position;
 	};
 
 	switch (counter()) {
-	case 0: return kTimeUnknown;
-	case 1: return markAndJump(1, 1);
-	case 2: return kTimeUnknown;
-	case 3: return markAndJump(3, 2);
-	case 4: return kTimeUnknown;
-	case 5: return markAndJump(5, 3);
-	case 6: return kTimeUnknown;
-	case 7: return markAndJump(7, 0);
+	case 0: Unexpected("Value 0 in VideoTrack::Shared::markFrameDisplayed.");
+	case 1: return markAndJump(1);
+	case 2: Unexpected("Value 2 in VideoTrack::Shared::markFrameDisplayed.");
+	case 3: return markAndJump(3);
+	case 4: Unexpected("Value 4 in VideoTrack::Shared::markFrameDisplayed.");
+	case 5: return markAndJump(5);
+	case 6: Unexpected("Value 6 in VideoTrack::Shared::markFrameDisplayed.");
+	case 7: return markAndJump(7);
 	}
 	Unexpected("Counter value in VideoTrack::Shared::markFrameDisplayed.");
 }
 
 not_null<VideoTrack::Frame*> VideoTrack::Shared::frameForPaint() {
-	// #TODO streaming optimize mark as displayed if possible
-	return getFrame(counter() / 2);
+	const auto result = getFrame(counter() / 2);
+	Assert(!result->original.isNull());
+	Assert(result->position != kTimeUnknown);
+	Assert(result->displayed != kTimeUnknown);
+
+	return result;
 }
 
 VideoTrack::VideoTrack(
@@ -719,13 +729,13 @@ crl::time VideoTrack::nextFrameDisplayTime() const {
 }
 
 crl::time VideoTrack::markFrameDisplayed(crl::time now) {
-	const auto position = _shared->markFrameDisplayed(now);
-	if (position != kTimeUnknown) {
-		_wrapped.with([](Implementation &unwrapped) {
-			unwrapped.frameDisplayed();
-		});
-	}
-	return position;
+	const auto result = _shared->markFrameDisplayed(now);
+	_wrapped.with([](Implementation &unwrapped) {
+		unwrapped.frameDisplayed();
+	});
+
+	Ensures(result != kTimeUnknown);
+	return result;
 }
 
 QImage VideoTrack::frame(const FrameRequest &request) {
@@ -756,17 +766,17 @@ QImage VideoTrack::PrepareFrameByRequest(
 	return frame->prepared;
 }
 
-bool VideoTrack::IsDecoded(not_null<Frame*> frame) {
+bool VideoTrack::IsDecoded(not_null<const Frame*> frame) {
 	return (frame->position != kTimeUnknown)
 		&& (frame->displayed == kTimeUnknown);
 }
 
-bool VideoTrack::IsRasterized(not_null<Frame*> frame) {
+bool VideoTrack::IsRasterized(not_null<const Frame*> frame) {
 	return IsDecoded(frame)
 		&& !frame->original.isNull();
 }
 
-bool VideoTrack::IsStale(not_null<Frame*> frame, crl::time trackTime) {
+bool VideoTrack::IsStale(not_null<const Frame*> frame, crl::time trackTime) {
 	Expects(IsDecoded(frame));
 
 	return (frame->position < trackTime);

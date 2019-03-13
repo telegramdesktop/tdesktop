@@ -268,7 +268,7 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 			error(_video));
 	} else if (video.index >= 0) {
 		LOG(("Streaming Error: No codec for video stream %1, mode %2."
-			).arg(audio.index
+			).arg(video.index
 			).arg(int(mode)));
 		return false;
 	}
