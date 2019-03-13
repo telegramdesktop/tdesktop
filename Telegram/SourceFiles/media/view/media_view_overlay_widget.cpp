@@ -466,7 +466,7 @@ void OverlayWidget::updateControls() {
 			_docCancel->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 			_docCancel->show();
 		} else {
-			if (_doc->loaded(DocumentData::FilePathResolveChecked)) {
+			if (_doc->loaded(DocumentData::FilePathResolve::Checked)) {
 				_docDownload->hide();
 				_docSaveAs->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 				_docSaveAs->show();
@@ -490,7 +490,7 @@ void OverlayWidget::updateControls() {
 	updateThemePreviewGeometry();
 
 	_saveVisible = (_photo && _photo->loaded())
-		|| (_doc && (_doc->loaded(DocumentData::FilePathResolveChecked)
+		|| (_doc && (_doc->loaded(DocumentData::FilePathResolve::Checked)
 			|| !documentContentShown()));
 	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_saveNavIcon = centerrect(_saveNav, st::mediaviewSave);
@@ -593,7 +593,7 @@ void OverlayWidget::updateActions() {
 	if (IsServerMsgId(_msgid.msg)) {
 		_actions.push_back({ lang(lng_context_to_msg), SLOT(onToMessage()) });
 	}
-	if (_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+	if (_doc && !_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
 		_actions.push_back({ lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), SLOT(onShowInFolder()) });
 	}
 	if ((_doc && documentContentShown()) || (_photo && _photo->loaded())) {
@@ -1194,7 +1194,7 @@ void OverlayWidget::onSaveCancel() {
 void OverlayWidget::onShowInFolder() {
 	if (!_doc) return;
 
-	auto filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
+	auto filepath = _doc->filepath(DocumentData::FilePathResolve::Checked);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
 	}

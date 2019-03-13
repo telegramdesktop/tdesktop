@@ -86,6 +86,9 @@ void HistoryDocument::createComponents(bool caption) {
 		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(
 			_data,
 			_parent->data()->fullId());
+		thumbed->_linkopenwithl = std::make_shared<DocumentOpenWithClickHandler>(
+			_data,
+			_parent->data()->fullId());
 		thumbed->_linkcancell = std::make_shared<DocumentCancelClickHandler>(
 			_data,
 			_parent->data()->fullId());
@@ -282,6 +285,8 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		if (_data->status != FileUploadFailed) {
 			const auto &lnk = (_data->loading() || _data->uploading())
 				? thumbed->_linkcancell
+				: _data->loaded()
+				? thumbed->_linkopenwithl
 				: thumbed->_linksavel;
 			bool over = ClickHandler::showAsActive(lnk);
 			p.setFont(over ? st::semiboldFont->underline() : st::semiboldFont);
@@ -474,6 +479,8 @@ TextState HistoryDocument::textState(QPoint point, StateRequest request) const {
 			if (rtlrect(nameleft, linktop, thumbed->_linkw, st::semiboldFont->height, width()).contains(point)) {
 				result.link = (_data->loading() || _data->uploading())
 					? thumbed->_linkcancell
+					: _data->loaded()
+					? thumbed->_linkopenwithl
 					: thumbed->_linksavel;
 				return result;
 			}

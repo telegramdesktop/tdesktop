@@ -99,14 +99,14 @@ public:
 		const HistoryItem *item);
 	void automaticLoadSettingsChanged();
 
-	enum FilePathResolveType {
-		FilePathResolveCached,
-		FilePathResolveChecked,
-		FilePathResolveSaveFromData,
-		FilePathResolveSaveFromDataSilent,
+	enum class FilePathResolve {
+		Cached,
+		Checked,
+		SaveFromData,
+		SaveFromDataSilent,
 	};
 	[[nodiscard]] bool loaded(
-		FilePathResolveType type = FilePathResolveCached) const;
+		FilePathResolve resolve = FilePathResolve::Cached) const;
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] QString loadingFilePath() const;
 	[[nodiscard]] bool displayLoading() const;
@@ -129,7 +129,7 @@ public:
 	void setLocation(const FileLocation &loc);
 
 	[[nodiscard]] QString filepath(
-		FilePathResolveType type = FilePathResolveCached) const;
+		FilePathResolve resolve = FilePathResolve::Cached) const;
 
 	[[nodiscard]] bool saveToCache() const;
 
@@ -338,6 +338,18 @@ protected:
 class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
+
+protected:
+	void onClickImpl() const override;
+
+};
+
+class DocumentOpenWithClickHandler : public DocumentClickHandler {
+public:
+	using DocumentClickHandler::DocumentClickHandler;
+	static void Open(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document);
 
 protected:
 	void onClickImpl() const override;

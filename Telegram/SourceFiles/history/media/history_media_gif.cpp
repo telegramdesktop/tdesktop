@@ -874,7 +874,7 @@ void HistoryGif::playAnimation(bool autoplay) {
 	using Mode = Media::Clip::Reader::Mode;
 	if (_gif) {
 		stopAnimation();
-	} else if (_data->loaded(DocumentData::FilePathResolveChecked)) {
+	} else if (_data->loaded(DocumentData::FilePathResolve::Checked)) {
 		if (!cAutoPlayGif()) {
 			history()->owner().stopAutoplayAnimations();
 		}

@@ -702,7 +702,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 	const auto document = _paper.document();
 	if (!_full.isNull()
 		|| !document
-		|| !document->loaded(DocumentData::FilePathResolveChecked)
+		|| !document->loaded(DocumentData::FilePathResolve::Checked)
 		|| _generating) {
 		return;
 	}

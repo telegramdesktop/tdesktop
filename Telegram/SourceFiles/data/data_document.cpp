@@ -35,6 +35,8 @@ namespace {
 
 constexpr auto kMemoryForCache = 32 * 1024 * 1024;
 
+using FilePathResolve = DocumentData::FilePathResolve;
+
 Core::MediaActiveCache<DocumentData> &ActiveCache() {
 	static auto Instance = Core::MediaActiveCache<DocumentData>(
 		kMemoryForCache,
@@ -294,6 +296,19 @@ void DocumentOpenClickHandler::Open(
 		return;
 	}
 
+	const auto openFile = [&] {
+		const auto &location = data->location(true);
+		if (data->size < App::kImageSizeLimit && location.accessEnable()) {
+			const auto guard = gsl::finally([&] {
+				location.accessDisable();
+			});
+			if (QImageReader(location.name()).canRead()) {
+				Core::App().showDocument(data, context);
+				return;
+			}
+		}
+		LaunchWithWarning(location.name(), context);
+	};
 	const auto &location = data->location(true);
 	if (data->isTheme() && !location.isEmpty() && location.accessEnable()) {
 		Core::App().showDocument(data, context);
@@ -309,17 +324,11 @@ void DocumentOpenClickHandler::Open(
 		} else {
 			Core::App().showDocument(data, context);
 		}
-	} else if (!location.isEmpty()) {
-		if (data->size < App::kImageSizeLimit && location.accessEnable()) {
-			const auto guard = gsl::finally([&] {
-				location.accessDisable();
-			});
-			if (QImageReader(location.name()).canRead()) {
-				Core::App().showDocument(data, context);
-				return;
-			}
-		}
-		LaunchWithWarning(location.name(), context);
+	} else if (!location.isEmpty()
+		|| (data->loaded()
+			&& !data->filepath(
+				FilePathResolve::SaveFromDataSilent).isEmpty())) {
+		openFile();
 	} else if (data->status == FileReady
 		|| data->status == FileDownloadFailed) {
 		DocumentSaveClickHandler::Save(origin, data);
@@ -338,19 +347,13 @@ void DocumentSaveClickHandler::Save(
 		return;
 	}
 
-	if (mode == Mode::ToCacheOrFile
-		&& data->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
-		File::OpenWith(data->filepath(), QCursor::pos());
-		return;
-	}
 	auto savename = QString();
 	if (mode != Mode::ToCacheOrFile || !data->saveToCache()) {
-		const auto filepath = data->filepath(
-			DocumentData::FilePathResolveChecked);
+		const auto filepath = data->filepath(FilePathResolve::Checked);
 		if (mode != Mode::ToNewFile
 			&& (!filepath.isEmpty()
 				|| !data->filepath(
-					DocumentData::FilePathResolveSaveFromData).isEmpty())) {
+					FilePathResolve::SaveFromData).isEmpty())) {
 			return;
 		}
 		const auto fileinfo = QFileInfo(filepath);
@@ -387,6 +390,31 @@ void DocumentCancelClickHandler::onClickImpl() const {
 	} else {
 		data->cancel();
 	}
+}
+
+void DocumentOpenWithClickHandler::Open(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> data) {
+	if (!data->date) {
+		return;
+	}
+
+	if (data->loaded()) {
+		const auto path = data->filepath(
+			FilePathResolve::SaveFromDataSilent);
+		if (!path.isEmpty()) {
+			File::OpenWith(path, QCursor::pos());
+			return;
+		}
+	}
+	DocumentSaveClickHandler::Save(
+		origin,
+		data,
+		DocumentSaveClickHandler::Mode::ToFile);
+}
+
+void DocumentOpenWithClickHandler::onClickImpl() const {
+	Open(context(), document());
 }
 
 Data::FileOrigin StickerData::setOrigin() const {
@@ -689,7 +717,7 @@ void DocumentData::automaticLoadSettingsChanged() {
 	_loader = nullptr;
 }
 
-bool DocumentData::loaded(FilePathResolveType type) const {
+bool DocumentData::loaded(FilePathResolve resolve) const {
 	if (loading() && _loader->finished()) {
 		if (_loader->cancelled()) {
 			destroyLoader(CancelledMtpFileLoader);
@@ -721,7 +749,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 		}
 		_owner->notifyDocumentLayoutChanged(this);
 	}
-	return !data().isEmpty() || !filepath(type).isEmpty();
+	return !data().isEmpty() || !filepath(resolve).isEmpty();
 }
 
 void DocumentData::destroyLoader(mtpFileLoader *newValue) const {
@@ -782,7 +810,7 @@ void DocumentData::save(
 		const QString &toFile,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	if (loaded(FilePathResolveChecked)) {
+	if (loaded(FilePathResolve::Checked)) {
 		auto &l = location(true);
 		if (!toFile.isEmpty()) {
 			if (!_data.isEmpty()) {
@@ -946,14 +974,16 @@ void DocumentData::setLocation(const FileLocation &loc) {
 	}
 }
 
-QString DocumentData::filepath(FilePathResolveType type) const {
-	bool check = (type != FilePathResolveCached);
+QString DocumentData::filepath(FilePathResolve resolve) const {
+	bool check = (resolve != FilePathResolve::Cached);
 	QString result = (check && _location.name().isEmpty()) ? QString() : location(check).name();
 	bool saveFromData = result.isEmpty() && !data().isEmpty();
 	if (saveFromData) {
-		if (type != FilePathResolveSaveFromData && type != FilePathResolveSaveFromDataSilent) {
+		if (resolve != FilePathResolve::SaveFromData
+			&& resolve != FilePathResolve::SaveFromDataSilent) {
 			saveFromData = false;
-		} else if (type == FilePathResolveSaveFromDataSilent && Global::AskDownloadPath()) {
+		} else if (resolve == FilePathResolve::SaveFromDataSilent
+			&& Global::AskDownloadPath()) {
 			saveFromData = false;
 		}
 	}
@@ -1284,7 +1314,7 @@ bool DocumentData::isVideoMessage() const {
 bool DocumentData::isAnimation() const {
 	return (type == AnimatedDocument)
 		|| isVideoMessage()
-		|| hasMimeType(qstr("image/gif"));
+		|| (hasMimeType(qstr("image/gif")) && !_inappPlaybackFailed);
 }
 
 bool DocumentData::isGifv() const {
@@ -1553,7 +1583,7 @@ base::binary_guard ReadImageAsync(
 //
 //	document->setInappPlaybackFailed();
 //	const auto filepath = document->filepath(
-//		DocumentData::FilePathResolveSaveFromData);
+//		DocumentData::FilePathResolve::SaveFromData);
 //	if (filepath.isEmpty()) {
 //		const auto save = [=] {
 //			Ui::hideLayer();
