@@ -95,6 +95,7 @@ private:
 
 	QString displayedSiteName() const;
 	ClickHandlerPtr replaceAttachLink(const ClickHandlerPtr &link) const;
+	bool asArticle() const;
 
 	not_null<WebPageData*> _data;
 	std::vector<std::unique_ptr<Data::Media>> _collage;

@@ -288,7 +288,7 @@ QSize HistoryWebPage::countCurrentSize(int newWidth) {
 	auto linesMax = isLogEntryOriginal() ? kMaxOriginalEntryLines : 5;
 	auto siteNameLines = _siteNameWidth ? 1 : 0;
 	auto siteNameHeight = _siteNameWidth ? lineHeight : 0;
-	if (_asArticle) {
+	if (asArticle()) {
 		_pixh = linesMax * lineHeight;
 		do {
 			_pixw = articleThumbWidth(_data->photo, _pixh);
@@ -406,7 +406,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, c
 	auto bshift = padding.bottom();
 	paintw -= padding.left() + padding.right();
 	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
-	if (_asArticle) {
+	if (asArticle()) {
 		bshift += bottomInfoPadding();
 	} else if (!attachAdditionalInfoText.isEmpty()) {
 		bshift += bottomInfoPadding();
@@ -418,7 +418,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, c
 	p.fillRect(bar, barfg);
 
 	auto lineHeight = unitedLineHeight();
-	if (_asArticle) {
+	if (asArticle()) {
 		const auto contextId = _parent->data()->fullId();
 		_data->photo->loadThumbnail(contextId);
 		bool full = _data->photo->thumbnail()->loaded();
@@ -525,6 +525,10 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, c
 	}
 }
 
+bool HistoryWebPage::asArticle() const {
+	return _asArticle && (_data->photo != nullptr);
+}
+
 TextState HistoryWebPage::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
@@ -537,14 +541,14 @@ TextState HistoryWebPage::textState(QPoint point, StateRequest request) const {
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
-	if (_asArticle || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right())) {
+	if (asArticle() || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right())) {
 		bshift += bottomInfoPadding();
 	}
 	paintw -= padding.left() + padding.right();
 
 	auto lineHeight = unitedLineHeight();
 	auto inThumb = false;
-	if (_asArticle) {
+	if (asArticle()) {
 		auto pw = qMax(_pixw, lineHeight);
 		if (rtlrect(padding.left() + paintw - pw, 0, pw, _pixh, width()).contains(point)) {
 			inThumb = true;
