@@ -586,7 +586,10 @@ void Notification::prepareActionsCache() {
 bool Notification::checkLastInput(bool hasReplyingNotifications) {
 	if (!_waitingForInput) return true;
 
-	if (Core::App().lastNonIdleTime() > _started) {
+	const auto waitForUserInput = Platform::LastUserInputTimeSupported()
+		? (Core::App().lastNonIdleTime() <= _started)
+		: false;
+	if (!waitForUserInput) {
 		_waitingForInput = false;
 		if (!hasReplyingNotifications) {
 			_hideTimer.start(st::notifyWaitLongHide);

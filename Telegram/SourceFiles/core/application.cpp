@@ -860,7 +860,9 @@ void Application::updateNonIdle() {
 }
 
 crl::time Application::lastNonIdleTime() const {
-	return std::max(Platform::LastUserInputTime(), _lastNonIdleTime);
+	return std::max(
+		Platform::LastUserInputTime().value_or(0),
+		_lastNonIdleTime);
 }
 
 rpl::producer<bool> Application::passcodeLockChanges() const {

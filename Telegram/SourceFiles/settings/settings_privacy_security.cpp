@@ -205,7 +205,7 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 		Ui::show(Box<PasscodeBox>(true));
 	});
 
-	const auto label = psIdleSupported()
+	const auto label = Platform::LastUserInputTimeSupported()
 		? lng_passcode_autolock_away
 		: lng_passcode_autolock_inactive;
 	auto value = PasscodeChanges(

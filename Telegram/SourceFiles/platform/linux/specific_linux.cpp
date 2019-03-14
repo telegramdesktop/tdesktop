@@ -193,10 +193,6 @@ void psDeleteDir(const QString &dir) {
 	_removeDirectory(dir);
 }
 
-bool psIdleSupported() {
-	return false;
-}
-
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }
@@ -433,10 +429,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		}) != end(options);
 	}
 	return true;
-}
-
-crl::time LastUserInputTime() {
-	return 0LL;
 }
 
 namespace ThirdParty {

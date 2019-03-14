@@ -343,64 +343,6 @@ void objc_outputDebugString(const QString &str) {
 	}
 }
 
-bool objc_idleSupported() {
-	auto idleTime = 0LL;
-	return objc_idleTime(idleTime);
-}
-
-bool objc_idleTime(crl::time &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
-	CFMutableDictionaryRef properties = 0;
-	CFTypeRef obj;
-	mach_port_t masterPort;
-	io_iterator_t iter;
-	io_registry_entry_t curObj;
-
-	IOMasterPort(MACH_PORT_NULL, &masterPort);
-
-	/* Get IOHIDSystem */
-	IOServiceGetMatchingServices(masterPort, IOServiceMatching("IOHIDSystem"), &iter);
-	if (iter == 0) {
-		return false;
-	} else {
-		curObj = IOIteratorNext(iter);
-	}
-	if (IORegistryEntryCreateCFProperties(curObj, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS && properties != NULL) {
-		obj = CFDictionaryGetValue(properties, CFSTR("HIDIdleTime"));
-		CFRetain(obj);
-	} else {
-		return false;
-	}
-
-	uint64 err = ~0L, result = err;
-	if (obj) {
-		CFTypeID type = CFGetTypeID(obj);
-
-		if (type == CFDataGetTypeID()) {
-			CFDataGetBytes((CFDataRef) obj, CFRangeMake(0, sizeof(result)), (UInt8*)&result);
-		} else if (type == CFNumberGetTypeID()) {
-			CFNumberGetValue((CFNumberRef)obj, kCFNumberSInt64Type, &result);
-		} else {
-			// error
-		}
-
-		CFRelease(obj);
-
-		if (result != err) {
-			result /= 1000000; // return as ms
-		}
-	} else {
-		// error
-	}
-
-	CFRelease((CFTypeRef)properties);
-	IOObjectRelease(curObj);
-	IOObjectRelease(iter);
-	if (result == err) return false;
-
-	idleTime = static_cast<crl::time>(result);
-	return true;
-}
-
 void objc_start() {
 	_sharedDelegate = [[ApplicationDelegate alloc] init];
 	[[NSApplication sharedApplication] setDelegate:_sharedDelegate];
