@@ -1779,12 +1779,10 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 		} else {
 			_doc->automaticLoad(fileOrigin(), item);
 
-			if (_doc->canBePlayed()) {
-				if (_doc->loading()) {
-					initStreamingThumbnail();
-				} else {
-					initStreaming();
-				}
+			if (_doc->canBePlayed() && !_doc->loading()) {
+				initStreaming();
+			} else if (_doc->isVideoFile()) {
+				initStreamingThumbnail();
 			} else if (_doc->isTheme()) {
 				initThemePreview();
 			} else {

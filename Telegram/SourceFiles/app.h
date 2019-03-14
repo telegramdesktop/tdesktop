@@ -35,6 +35,8 @@ enum RoundCorners {
 	SelectedOverlayLargeCorners,
 	DateCorners,
 	DateSelectedCorners,
+	OverviewVideoCorners,
+	OverviewVideoSelectedCorners,
 	ForwardCorners,
 	MediaviewSaveCorners,
 	EmojiHoverCorners,

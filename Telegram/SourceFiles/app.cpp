@@ -613,6 +613,8 @@ namespace App {
 		prepareCorners(SelectedOverlayLargeCorners, st::historyMessageRadius, st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
+		prepareCorners(OverviewVideoCorners, st::overviewVideoStatusRadius, st::msgDateImgBg);
+		prepareCorners(OverviewVideoSelectedCorners, st::overviewVideoStatusRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, st::historyMessageRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::historyMessageRadius, st::msgInShadowSelected);
 		prepareCorners(ForwardCorners, st::historyMessageRadius, st::historyForwardChooseBg);
