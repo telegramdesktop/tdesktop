@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 namespace Streaming {
+namespace {
+
+constexpr auto kMaxSingleReadAmount = 8 * 1024 * 1024;
+
+} // namespace
 
 File::Context::Context(
 	not_null<FileDelegate*> delegate,
@@ -32,7 +37,13 @@ int64_t File::Context::Seek(void *opaque, int64_t offset, int whence) {
 
 int File::Context::read(bytes::span buffer) {
 	const auto amount = std::min(size_type(_size - _offset), buffer.size());
-	if (unroll() || amount < 0) {
+	Assert(amount >= 0);
+
+	if (unroll()) {
+		return -1;
+	} else if (amount > kMaxSingleReadAmount) {
+		LOG(("Streaming Error: Read callback asked for too much data: %1"
+			).arg(amount));
 		return -1;
 	} else if (!amount) {
 		return amount;
