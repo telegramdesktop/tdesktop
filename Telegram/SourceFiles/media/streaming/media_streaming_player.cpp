@@ -219,15 +219,10 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 			streamReady(std::move(data));
 		});
 	};
-	const auto error = [&](auto &stream) {
-		return [=, &stream](Error error) {
-			crl::on_main(weak, [=, &stream] {
-				if (_stage == Stage::Initializing) {
-					stream = nullptr;
-				}
-				streamFailed(error);
-			});
-		};
+	const auto error = [=](Error error) {
+		crl::on_main(weak, [=] {
+			streamFailed(error);
+		});
 	};
 	const auto mode = _options.mode;
 	if ((mode != Mode::Audio && mode != Mode::Both)
@@ -254,7 +249,7 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 			std::move(audio),
 			_audioId,
 			ready,
-			error(_audio));
+			error);
 	} else if (audio.index >= 0) {
 		LOG(("Streaming Error: No codec for audio stream %1, mode %2."
 			).arg(audio.index
@@ -269,7 +264,7 @@ bool Player::fileReady(Stream &&video, Stream &&audio) {
 			std::move(video),
 			_audioId,
 			ready,
-			error(_video));
+			error);
 	} else if (video.index >= 0) {
 		LOG(("Streaming Error: No codec for video stream %1, mode %2."
 			).arg(video.index
@@ -391,11 +386,7 @@ void Player::streamReady(Information &&information) {
 }
 
 void Player::streamFailed(Error error) {
-	if (_stage == Stage::Initializing) {
-		provideStartInformation();
-	} else {
-		fail(error);
-	}
+	fail(error);
 }
 
 template <typename Track>
