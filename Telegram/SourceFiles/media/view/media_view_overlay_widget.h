@@ -174,7 +174,7 @@ private:
 	void playbackWaitingChange(bool waiting);
 
 	void updateOver(QPoint mpos);
-	void moveToScreen();
+	void moveToScreen(bool force = false);
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
@@ -227,10 +227,13 @@ private:
 	void updateControls();
 	void updateActions();
 	void resizeCenteredControls();
+	void resizeContentByScreenSize();
+	void checkLoadingWhileStreaming();
 
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void displayDocument(DocumentData *document, HistoryItem *item);
 	void displayFinished();
+	void redisplayContent();
 	void findCurrent();
 
 	void updateCursor();
