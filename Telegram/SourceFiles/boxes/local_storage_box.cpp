@@ -557,9 +557,9 @@ void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
 		TimeLimit,
 		LimitToValue(_timeLimit),
 		[=](not_null<Ui::LabelSimple*> label, size_type limit) {
-			const auto text = TimeLimitText(ValueToLimit(limit));
+			_timeLimit = ValueToLimit(limit);
+			const auto text = TimeLimitText(_timeLimit);
 			label->setText(lng_local_storage_time_limit(lt_limit, text));
-			_timeLimit = limit;
 			limitsChanged();
 		});
 }
@@ -594,7 +594,7 @@ void LocalStorageBox::save() {
 	update.totalTimeLimit = _timeLimit;
 	auto updateBig = Storage::Cache::Database::SettingsUpdate();
 	updateBig.totalSizeLimit = _mediaSizeLimit;
-	update.totalTimeLimit = _timeLimit;
+	updateBig.totalTimeLimit = _timeLimit;
 	Local::updateCacheSettings(update, updateBig);
 	Auth().data().cache().updateSettings(update);
 	closeBox();

@@ -186,9 +186,9 @@ struct FileReadDescriptor {
 	QDataStream stream;
 	~FileReadDescriptor() {
 		if (version) {
-			stream.setDevice(0);
+			stream.setDevice(nullptr);
 			if (buffer.isOpen()) buffer.close();
-			buffer.setBuffer(0);
+			buffer.setBuffer(nullptr);
 		}
 	}
 };
@@ -212,9 +212,9 @@ struct EncryptedDescriptor {
 	QBuffer buffer;
 	QDataStream stream;
 	void finish() {
-		if (stream.device()) stream.setDevice(0);
+		if (stream.device()) stream.setDevice(nullptr);
 		if (buffer.isOpen()) buffer.close();
-		buffer.setBuffer(0);
+		buffer.setBuffer(nullptr);
 	}
 	~EncryptedDescriptor() {
 		finish();
@@ -305,7 +305,7 @@ struct FileWriteDescriptor {
 	void finish() {
 		if (!file.isOpen()) return;
 
-		stream.setDevice(0);
+		stream.setDevice(nullptr);
 
 		md5.feed(&dataSize, sizeof(dataSize));
 		qint32 version = AppVersion;
@@ -473,9 +473,9 @@ bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOpti
 
 	EncryptedDescriptor data;
 	if (!decryptLocal(data, encrypted, key)) {
-		result.stream.setDevice(0);
+		result.stream.setDevice(nullptr);
 		if (result.buffer.isOpen()) result.buffer.close();
-		result.buffer.setBuffer(0);
+		result.buffer.setBuffer(nullptr);
 		result.data = QByteArray();
 		result.version = 0;
 		return false;
@@ -671,6 +671,14 @@ qint64 _cacheTotalSizeLimit = Database::Settings().totalSizeLimit;
 qint32 _cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 qint64 _cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
 qint32 _cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
+
+bool NoTimeLimit(qint32 storedLimitValue) {
+	// This is a workaround for a bug in storing the cache time limit.
+	// See https://github.com/telegramdesktop/tdesktop/issues/5611
+	return !storedLimitValue
+		|| (storedLimitValue == qint32(std::numeric_limits<int32>::max()))
+		|| (storedLimitValue == qint32(std::numeric_limits<int64>::max()));
+}
 
 FileKey _exportSettingsKey = 0;
 
@@ -1078,13 +1086,13 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> size >> time;
 		if (!_checkStreamStatus(stream)
 			|| size <= Database::Settings().maxDataSize
-			|| time < 0) {
+			|| (!NoTimeLimit(time) && time < 0)) {
 			return false;
 		}
 		_cacheTotalSizeLimit = size;
-		_cacheTotalTimeLimit = time;
+		_cacheTotalTimeLimit = NoTimeLimit(time) ? 0 : time;
 		_cacheBigFileTotalSizeLimit = size;
-		_cacheBigFileTotalTimeLimit = time;
+		_cacheBigFileTotalTimeLimit = NoTimeLimit(time) ? 0 : time;
 	} break;
 
 	case dbiCacheSettings: {
@@ -1094,15 +1102,15 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)
 			|| size <= Database::Settings().maxDataSize
 			|| sizeBig <= Database::Settings().maxDataSize
-			|| time < 0
-			|| timeBig < 0) {
+			|| (!NoTimeLimit(time) && time < 0)
+			|| (!NoTimeLimit(timeBig) && timeBig < 0)) {
 			return false;
 		}
 
 		_cacheTotalSizeLimit = size;
-		_cacheTotalTimeLimit = time;
+		_cacheTotalTimeLimit = NoTimeLimit(time) ? 0 : time;
 		_cacheBigFileTotalSizeLimit = sizeBig;
-		_cacheBigFileTotalTimeLimit = timeBig;
+		_cacheBigFileTotalTimeLimit = NoTimeLimit(timeBig) ? 0 : timeBig;
 	} break;
 
 	case dbiAnimationsDisabled: {
@@ -3269,21 +3277,18 @@ public:
 		, _data(doc->data())
 		, _wavemax(0) {
 		if (_data.isEmpty() && !_loc.accessEnable()) {
-			_doc = 0;
+			_doc = nullptr;
 		}
 	}
-	void process() {
+	void process() override {
 		if (!_doc) return;
 
 		_waveform = audioCountWaveform(_loc, _data);
-		uchar wavemax = 0;
-		for (int32 i = 0, l = _waveform.size(); i < l; ++i) {
-			uchar waveat = _waveform.at(i);
-			if (wavemax < waveat) wavemax = waveat;
-		}
-		_wavemax = wavemax;
+		_wavemax = _waveform.empty()
+			? char(0)
+			: *ranges::max_element(_waveform);
 	}
-	void finish() {
+	void finish() override {
 		if (const auto voice = _doc ? _doc->voice() : nullptr) {
 			if (!_waveform.isEmpty()) {
 				voice->waveform = _waveform;
@@ -3300,7 +3305,7 @@ public:
 			Auth().data().requestDocumentViewRepaint(_doc);
 		}
 	}
-	virtual ~CountWaveformTask() {
+	~CountWaveformTask() {
 		if (_data.isEmpty() && _doc) {
 			_loc.accessDisable();
 		}
