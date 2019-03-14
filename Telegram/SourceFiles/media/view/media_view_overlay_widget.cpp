@@ -811,9 +811,7 @@ void OverlayWidget::step_radial(crl::time ms, bool timer) {
 	const auto streamVideo = ready && (_doc->isAnimation() || _doc->isVideoFile());
 	const auto tryOpenImage = ready && (_doc->size < App::kImageSizeLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
-		if (_doc->isVideoFile() || _doc->isVideoMessage()) {
-			_autoplayVideoDocument = _doc;
-		}
+		_streamingStartPaused = false;
 		if (!_doc->data().isEmpty() && streamVideo) {
 			displayDocument(_doc, App::histItemById(_msgid));
 		} else {
@@ -1686,9 +1684,7 @@ void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
-	if (document->isVideoFile() || document->isVideoMessage()) {
-		_autoplayVideoDocument = document;
-	}
+	_streamingStartPaused = false;
 	displayDocument(document, context);
 	preloadData(0);
 	activateControls();
@@ -1701,7 +1697,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	}
 	clearStreaming();
 	destroyThemePreview();
-	_doc = _autoplayVideoDocument = nullptr;
+	_doc = nullptr;
 	_fullScreenVideo = false;
 	_photo = photo;
 	_radial.stop();
@@ -1764,10 +1760,6 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 	_radial.stop();
 
 	refreshMediaViewer();
-
-	if (_autoplayVideoDocument && _doc != _autoplayVideoDocument) {
-		_autoplayVideoDocument = nullptr;
-	}
 
 	if (documentChanged) {
 		refreshCaption(item);
@@ -2234,10 +2226,12 @@ void OverlayWidget::playbackPauseResume() {
 			clearStreaming();
 			initStreaming();
 		} else if (_streamed->player.finished()) {
+			_streamingStartPaused = false;
 			restartAtSeekPosition(0);
 		} else if (_streamed->player.paused()) {
 			_streamed->player.resume();
 			updatePlaybackState();
+			playbackPauseMusic();
 		} else {
 			_streamed->player.pause();
 			updatePlaybackState();
@@ -2252,8 +2246,6 @@ void OverlayWidget::playbackPauseResume() {
 void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	Expects(_streamed != nullptr);
 
-	_autoplayVideoDocument = _doc;
-
 	if (videoShown()) {
 		_streamed->info.video.cover = videoFrame();
 		_current = Images::PixmapFast(transformVideoFrame(videoFrame()));
@@ -2266,11 +2258,16 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		|| options.audioId.type() == AudioMsgId::Type::Unknown) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
+		_streamingPauseMusic = false;
+	} else {
+		_streamingPauseMusic = true;
 	}
 	_streamed->player.play(options);
-
-	Player::instance()->pause(AudioMsgId::Type::Voice);
-	Player::instance()->pause(AudioMsgId::Type::Song);
+	if (_streamingStartPaused) {
+		_streamed->player.pause();
+	} else {
+		playbackPauseMusic();
+	}
 
 	_streamed->info.audio.state.position
 		= _streamed->info.video.state.position
@@ -2288,6 +2285,7 @@ void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 }
 
 void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
+	_streamingStartPaused = false;
 	restartAtSeekPosition(position);
 }
 
@@ -2340,7 +2338,16 @@ void OverlayWidget::playbackResumeOnCall() {
 		_streamed->resumeOnCallEnd = false;
 		_streamed->player.resume();
 		updatePlaybackState();
+		playbackPauseMusic();
 	}
+}
+
+void OverlayWidget::playbackPauseMusic() {
+	if (!_streamingPauseMusic) {
+		return;
+	}
+	Player::instance()->pause(AudioMsgId::Type::Voice);
+	Player::instance()->pause(AudioMsgId::Type::Song);
 }
 
 void OverlayWidget::updatePlaybackState() {
@@ -3092,6 +3099,7 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 		setContext(std::nullopt);
 	}
 	clearStreaming();
+	_streamingStartPaused = true;
 	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 		displayPhoto(*photo, entity.item);
 	} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {

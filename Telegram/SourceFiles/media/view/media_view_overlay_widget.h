@@ -170,6 +170,7 @@ private:
 	void playbackToggleFullScreen();
 	void playbackPauseOnCall();
 	void playbackResumeOnCall();
+	void playbackPauseMusic();
 	void playbackWaitingChange(bool waiting);
 
 	void updateOver(QPoint mpos);
@@ -330,7 +331,8 @@ private:
 	QString _dateText;
 	QString _headerText;
 
-	DocumentData *_autoplayVideoDocument = nullptr;
+	bool _streamingStartPaused = false;
+	bool _streamingPauseMusic = false;
 	bool _fullScreenVideo = false;
 	int _fullScreenZoomCache = 0;
 
