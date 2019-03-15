@@ -4555,7 +4555,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChatPinnedMessage: {
 		const auto &d = update.c_updateChatPinnedMessage();
 		if (const auto chat = session().data().chatLoaded(d.vchat_id.v)) {
-			chat->setPinnedMessageId(d.vid.v);
+			const auto status = chat->applyUpdateVersion(d.vversion.v);
+			if (status == ChatData::UpdateStatus::Good) {
+				chat->setPinnedMessageId(d.vid.v);
+			}
 		}
 	} break;
 

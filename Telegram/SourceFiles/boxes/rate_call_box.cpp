@@ -116,6 +116,7 @@ void RateCallBox::send() {
 	}
 	auto comment = _comment ? _comment->getLastText().trimmed() : QString();
 	_requestId = request(MTPphone_SetCallRating(
+		MTP_flags(0),
 		MTP_inputPhoneCall(MTP_long(_callId), MTP_long(_callAccessHash)),
 		MTP_int(_rating),
 		MTP_string(comment)

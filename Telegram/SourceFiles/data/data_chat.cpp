@@ -162,7 +162,7 @@ auto ChatData::applyUpdateVersion(int version) -> UpdateStatus {
 		return UpdateStatus::TooOld;
 	} else if (_version + 1 < version) {
 		invalidateParticipants();
-		session().api().requestPeer(this);
+		session().api().requestFullPeer(this);
 		return UpdateStatus::Skipped;
 	}
 	setVersion(version);
