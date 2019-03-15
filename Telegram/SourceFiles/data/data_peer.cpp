@@ -644,6 +644,24 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 
 namespace Data {
 
+std::vector<ChatRestrictions> ListOfRestrictions() {
+	using Flag = ChatRestriction;
+
+	return {
+		Flag::f_send_messages,
+		Flag::f_send_media,
+		Flag::f_send_stickers
+		| Flag::f_send_gifs
+		| Flag::f_send_games
+		| Flag::f_send_inline,
+		Flag::f_embed_links,
+		Flag::f_send_polls,
+		Flag::f_invite_users,
+		Flag::f_pin_messages,
+		Flag::f_change_info,
+	};
+}
+
 std::optional<LangKey> RestrictionErrorKey(
 		not_null<PeerData*> peer,
 		ChatRestriction restriction) {

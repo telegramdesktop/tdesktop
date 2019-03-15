@@ -803,6 +803,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_exceptions" = "Exceptions";
 "lng_manage_peer_removed_users" = "Removed users";
 "lng_manage_peer_permissions" = "Permissions";
+
+"lng_manage_peer_group_type" = "Group type";
+"lng_manage_private_group_title" = "Private";
+
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";
 "lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";

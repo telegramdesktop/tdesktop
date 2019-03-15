@@ -338,6 +338,8 @@ private:
 
 namespace Data {
 
+std::vector<ChatRestrictions> ListOfRestrictions();
+
 std::optional<LangKey> RestrictionErrorKey(
 	not_null<PeerData*> peer,
 	ChatRestriction restriction);

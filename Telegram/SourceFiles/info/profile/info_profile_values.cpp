@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 
+#include "boxes/peers/edit_peer_permissions_box.h"
+
 namespace Info {
 namespace Profile {
 
@@ -213,6 +215,35 @@ rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 		});
 	}
 	Unexpected("User in AdminsCountValue().");
+}
+
+
+rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
+	const auto countOfRestrictions = [](ChatRestrictions restrictions) {
+		auto count = 0;
+		for (const auto f : Data::ListOfRestrictions()) {
+			if (restrictions & f) count++;
+		}
+		return int(Data::ListOfRestrictions().size()) - count;
+	};
+
+	using Flag = Notify::PeerUpdate::Flag;
+	if (const auto chat = peer->asChat()) {
+		return Notify::PeerUpdateValue(
+			chat,
+			Flag::RightsChanged
+		) | rpl::map([=] {
+			return countOfRestrictions(chat->defaultRestrictions());
+		});
+	} else if (const auto channel = peer->asChannel()) {
+		return Notify::PeerUpdateValue(
+			channel,
+			Flag::RightsChanged
+		) | rpl::map([=] {
+			return countOfRestrictions(channel->defaultRestrictions());
+		});
+	}
+	Unexpected("User in RestrictionsCountValue().");
 }
 
 rpl::producer<int> RestrictedCountValue(not_null<ChannelData*> channel) {

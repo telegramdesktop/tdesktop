@@ -80,21 +80,24 @@ void ApplyDependencies(
 }
 
 std::vector<std::pair<ChatRestrictions, LangKey>> RestrictionLabels() {
-	using Flag = ChatRestriction;
-
-	return {
-		{ Flag::f_send_messages, lng_rights_chat_send_text },
-		{ Flag::f_send_media, lng_rights_chat_send_media },
-		{ Flag::f_send_stickers
-		| Flag::f_send_gifs
-		| Flag::f_send_games
-		| Flag::f_send_inline, lng_rights_chat_send_stickers },
-		{ Flag::f_embed_links, lng_rights_chat_send_links },
-		{ Flag::f_send_polls, lng_rights_chat_send_polls },
-		{ Flag::f_invite_users, lng_rights_chat_add_members },
-		{ Flag::f_pin_messages, lng_rights_group_pin },
-		{ Flag::f_change_info, lng_rights_group_info },
+	const auto langKeys = {
+		lng_rights_chat_send_text,
+		lng_rights_chat_send_media,
+		lng_rights_chat_send_stickers,
+		lng_rights_chat_send_links,
+		lng_rights_chat_send_polls,
+		lng_rights_chat_add_members,
+		lng_rights_group_pin,
+		lng_rights_group_info,
 	};
+
+	std::vector<std::pair<ChatRestrictions, LangKey>> vector;
+	const auto restrictions = Data::ListOfRestrictions();
+	auto i = 0;
+	for (const auto key : langKeys) {
+		vector.push_back({restrictions[i++], key});
+	}
+	return vector;
 }
 
 std::vector<std::pair<ChatAdminRights, LangKey>> AdminRightLabels(

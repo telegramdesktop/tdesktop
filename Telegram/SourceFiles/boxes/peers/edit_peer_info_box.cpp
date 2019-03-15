@@ -38,6 +38,237 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
+#include "ui/rp_widget.h"
+#include "boxes/peers/edit_peer_permissions_box.h"
+
+#include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_values.h"
+
+#include "mainwindow.h"
+
+#include "boxes/peers/edit_peer_info_box.h"
+#include "boxes/peers/edit_peer_permissions_box.h"
+#include "boxes/peers/edit_participants_box.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/labels.h"
+#include "history/admin_log/history_admin_log_section.h"
+#include "window/window_controller.h"
+#include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_values.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "mainwindow.h"
+#include "auth_session.h"
+#include "apiwrap.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
+
+namespace {
+
+Fn<QString()> ManagePeerTitle(not_null<PeerData*> peer) {
+	return langFactory((peer->isChat() || peer->isMegagroup())
+		? lng_manage_group_title
+		: lng_manage_channel_title);
+}
+
+auto ToPositiveNumberString() {
+	return rpl::map([](int count) {
+		return count ? QString::number(count) : QString();
+	});
+}
+
+auto ToPositiveNumberStringRestrictions() {
+	return rpl::map([](int count) {
+		return QString::number(count)
+		+ QString("/")
+		+ QString::number(int(Data::ListOfRestrictions().size()));
+	});
+}
+
+Info::Profile::Button *AddButton(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		Fn<void()> callback,
+		const style::icon &icon) {
+	return ManagePeerBox::CreateButton(
+		parent,
+		std::move(text),
+		rpl::single(QString()),
+		std::move(callback),
+		st::manageGroupButton,
+		&icon);
+}
+
+void AddButtonWithCount(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<QString> &&count,
+		Fn<void()> callback,
+		const style::icon &icon) {
+	ManagePeerBox::CreateButton(
+		parent,
+		std::move(text),
+		std::move(count),
+		std::move(callback),
+		st::manageGroupButton,
+		&icon);
+}
+
+bool HasRecentActions(not_null<ChannelData*> channel) {
+	return channel->hasAdminRights() || channel->amCreator();
+}
+
+void ShowRecentActions(
+		not_null<Window::Navigation*> navigation,
+		not_null<ChannelData*> channel) {
+	navigation->showSection(AdminLog::SectionMemento(channel));
+}
+
+bool HasEditInfoBox(not_null<PeerData*> peer) {
+	if (const auto chat = peer->asChat()) {
+		if (chat->canEditInformation()) {
+			return true;
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		if (channel->canEditInformation()) {
+			return true;
+		} else if (!channel->isPublic() && channel->canAddMembers()) {
+			// Edit invite link.
+			return true;
+		}
+	}
+	return false;
+}
+
+void ShowEditPermissions(not_null<PeerData*> peer) {
+	const auto box = Ui::show(
+		Box<EditPeerPermissionsBox>(peer),
+		LayerOption::KeepOther);
+	box->saveEvents(
+	) | rpl::start_with_next([=](MTPDchatBannedRights::Flags restrictions) {
+		const auto callback = crl::guard(box, [=](bool success) {
+			if (success) {
+				box->closeBox();
+			}
+		});
+		peer->session().api().saveDefaultRestrictions(
+			peer->migrateToOrMe(),
+			MTP_chatBannedRights(MTP_flags(restrictions), MTP_int(0)),
+			callback);
+	}, box->lifetime());
+}
+
+void FillManageChatBox(
+		not_null<Window::Navigation*> navigation,
+		not_null<ChatData*> chat,
+		not_null<Ui::VerticalLayout*> content) {
+
+	if (chat->canEditPermissions()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_permissions),
+			Info::Profile::RestrictionsCountValue(chat)
+				| ToPositiveNumberStringRestrictions(),
+			[=] { ShowEditPermissions(chat); },
+			st::infoIconPermissions);
+	}
+	if (chat->amIn()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_administrators),
+			Info::Profile::AdminsCountValue(chat)
+				| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					chat,
+					ParticipantsBoxController::Role::Admins);
+			},
+			st::infoIconAdministrators);
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_members),
+			Info::Profile::MembersCountValue(chat)
+				| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					chat,
+					ParticipantsBoxController::Role::Members);
+			},
+			st::infoIconMembers);
+	}
+}
+
+void FillManageChannelBox(
+		not_null<Window::Navigation*> navigation,
+		not_null<ChannelData*> channel,
+		not_null<Ui::VerticalLayout*> content) {
+	auto isGroup = channel->isMegagroup();
+	if (channel->canEditPermissions()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_permissions),
+			Info::Profile::RestrictionsCountValue(channel)
+				| ToPositiveNumberStringRestrictions(),
+			[=] { ShowEditPermissions(channel); },
+			st::infoIconPermissions);
+	}
+	if (channel->canViewAdmins()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_administrators),
+			Info::Profile::AdminsCountValue(channel)
+				| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					channel,
+					ParticipantsBoxController::Role::Admins);
+			},
+			st::infoIconAdministrators);
+	}
+	if (channel->canViewMembers()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_members),
+			Info::Profile::MembersCountValue(channel)
+				| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					channel,
+					ParticipantsBoxController::Role::Members);
+			},
+			st::infoIconMembers);
+	}
+	if (!channel->isMegagroup()) {
+		AddButtonWithCount(
+			content,
+			Lang::Viewer(lng_manage_peer_removed_users),
+			Info::Profile::KickedCountValue(channel)
+			| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					channel,
+					ParticipantsBoxController::Role::Kicked);
+			},
+			st::infoIconBlacklist);
+	}
+	if (HasRecentActions(channel)) {
+		AddButton(
+			content,
+			Lang::Viewer(lng_manage_peer_recent_actions),
+			[=] { ShowRecentActions(navigation, channel); },
+			st::infoIconRecentActions);
+	}
+}
+
+} // namespace
+
 namespace {
 
 constexpr auto kUsernameCheckTimeout = crl::time(200);
@@ -112,6 +343,9 @@ private:
 	object_ptr<Ui::RpWidget> createSignaturesEdit();
 	object_ptr<Ui::RpWidget> createStickersEdit();
 	object_ptr<Ui::RpWidget> createDeleteButton();
+
+	object_ptr<Ui::RpWidget> createPrivaciesButtons();
+	object_ptr<Ui::RpWidget> createManageGroupButtons();
 
 	QString inviteLinkText() const;
 	void observeInviteLink();
@@ -221,8 +455,26 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap.reset(result.data());
 	_controls = Controls();
 
+	const auto addSkip = [](not_null<Ui::VerticalLayout*> container) {
+		container->add(object_ptr<Ui::FixedHeightWidget>(
+			container,
+			7 /*Create skip in style.*/));
+		container->add(object_ptr<BoxContentDivider>(container));
+		/*container->add(object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::editPeerPrivacyTopSkip));*/
+	};
+
 	_wrap->add(createPhotoAndTitleEdit());
 	_wrap->add(createDescriptionEdit());
+
+	addSkip(_wrap); // Divider.
+	_wrap->add(createPrivaciesButtons());
+	addSkip(_wrap); // Divider.
+
+	_wrap->add(createManageGroupButtons());
+	addSkip(_wrap); // Divider.
+
 	_wrap->add(createPrivaciesEdit());
 	_wrap->add(createInviteLinkCreate());
 	_wrap->add(createInviteLinkEdit());
@@ -425,6 +677,99 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesEdit() {
 	if (!isPublic) {
 		checkUsernameAvailability();
 	}
+
+	return std::move(result);
+}
+
+
+object_ptr<Ui::RpWidget> Controller::createPrivaciesButtons() {
+	Expects(_wrap != nullptr);
+
+	const auto canEditUsername = [&] {
+		if (const auto chat = _peer->asChat()) {
+			return chat->canEditUsername();
+		} else if (const auto channel = _peer->asChannel()) {
+			return channel->canEditUsername();
+		}
+		Unexpected("Peer type in Controller::createPrivaciesEdit.");
+	}();
+	if (!canEditUsername) {
+		return nullptr;
+	}
+	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap),
+		st::editHehMargins);
+	auto container = result->entity();
+
+	const auto addPrivaciesButton = [=, &container](LangKey privacyTextKey) {
+		const auto button = container->add(object_ptr<Info::Profile::Button>(
+			container,
+			std::move(Lang::Viewer(privacyTextKey)),
+			st::heeehButton
+		));
+	};
+
+	addPrivaciesButton(lng_manage_peer_group_type);
+	addPrivaciesButton(lng_manage_history_visibility_title);
+
+	// style::InfoProfileCountButton a = st::heehPermissionsButton;
+	// const auto name = Ui::CreateChild<Ui::FlatLabel>(
+	// 	button,
+	// 	std::move(rpl::single(QString("Heh"))),
+	// 	a.label);
+	// rpl::combine(
+	// 	button->widthValue(),
+	// 	std::move(rpl::single(QString("Heh"))),
+	// 	std::move(rpl::single(QString("Heh")))
+	// ) | rpl::start_with_next([=, &a](
+	// 		int width,
+	// 		const QString &button,
+	// 		const QString &text) {
+	// 	/*const auto available = width
+	// 		- a.padding.left()
+	// 		- a.padding.right()
+	// 		- a.font->width(button)
+	// 		- st::hehButtonRightSkip;
+	// 	name->setText(text);
+	// 	name->resizeToNaturalWidth(available);
+	// 	name->moveToRight(st::hehButtonRightSkip, st.padding.top());*/
+	// }, name->lifetime());
+	// name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	
+
+	// style::InfoProfileCountButton a = st::managePeerButton;
+	// const auto label = Ui::CreateChild<Ui::FlatLabel>(
+	// 	button,
+	// 	std::move(rpl::single(QString("5"))),
+	// 	a.label);
+	// label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	// rpl::combine(
+	// 	button->widthValue(),
+	// 	label->widthValue()
+	// ) | rpl::start_with_next([=, &a](int outerWidth, int width) {
+	// 	LOG(("POSITION: %1 %2").arg(a.labelPosition.x()).arg(a.labelPosition.y()));
+	// 	label->moveToRight(0, 0);
+	// }, label->lifetime());
+
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
+	Expects(_wrap != nullptr);
+
+	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap),
+		st::editHehMargins);
+	auto container = result->entity();
+
+	if (const auto chat = _peer->asChat()) {
+		FillManageChatBox(App::wnd()->controller(), chat, container);
+	} else if (const auto channel = _peer->asChannel()) {
+		FillManageChannelBox(App::wnd()->controller(), channel, container);
+	}
+	// setDimensionsToContent(st::boxWidth, content);
 
 	return std::move(result);
 }

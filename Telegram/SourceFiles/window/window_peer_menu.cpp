@@ -358,7 +358,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 		if (ManagePeerBox::Available(chat)) {
 			const auto text = lang(lng_manage_group_title);
 			_addAction(text, [=] {
-				Ui::show(Box<ManagePeerBox>(chat));
+				Ui::show(Box<EditPeerInfoBox>(chat));
 			});
 		}
 		if (chat->canAddMembers()) {
@@ -402,7 +402,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 				? lng_manage_group_title
 				: lng_manage_channel_title);
 			_addAction(text, [channel] {
-				Ui::show(Box<ManagePeerBox>(channel));
+				Ui::show(Box<EditPeerInfoBox>(channel));
 			});
 		}
 		if (channel->canAddMembers()) {

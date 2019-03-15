@@ -597,6 +597,26 @@ peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
 	iconPosition: point(24px, 5px);
 }
 
+
+manageGroupButton: InfoProfileCountButton(managePeerButton) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(72px, 12px, 24px, 10px);
+	}
+	iconPosition: point(20px, 5px);
+}
+
+heeehButton: InfoProfileButton(infoProfileButton) {
+	font: boxTextFont;
+	padding: margins(23px, 10px, 22px, 11px);
+}
+
+hehButtonRightSkip: 28px;
+hehButtonRight: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+	style: boxTextStyle;
+	maxHeight: 20px;
+}
+
 terminateSessionsButton: InfoProfileButton(infoBlockButton) {
 	padding: margins(23px, 12px, 23px, 10px);
 }
@@ -615,6 +635,8 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
 	textFg: windowSubTextFg;
 }
+
+editHehMargins: margins(0px, 10px, 0px, 0px);
 
 editPeerDeleteButtonMargins: margins(23px, 16px, 23px, 16px);
 editPeerDeleteButton: sessionTerminateAllButton;
