@@ -7,63 +7,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_info_box.h"
 
-#include <rpl/range.h>
-#include <rpl/flatten_latest.h>
-#include "info/profile/info_profile_button.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/widgets/input_fields.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/labels.h"
-#include "ui/toast/toast.h"
-#include "ui/special_buttons.h"
-#include "boxes/confirm_box.h"
-#include "boxes/photo_crop_box.h"
-#include "boxes/add_contact_box.h"
-#include "boxes/stickers_box.h"
-#include "boxes/peer_list_controllers.h"
-#include "boxes/peers/edit_participants_box.h"
-#include "data/data_peer.h"
-#include "data/data_chat.h"
-#include "data/data_channel.h"
-#include "chat_helpers/emoji_suggestions_widget.h"
-#include "mtproto/sender.h"
-#include "lang/lang_keys.h"
-#include "mainwidget.h"
-#include "core/application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "boxes/add_contact_box.h"
+#include "boxes/confirm_box.h"
+#include "boxes/peer_list_controllers.h"
+#include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_peer_group_type_box.h"
+#include "boxes/peers/edit_peer_history_visibility_box.h"
+#include "boxes/peers/edit_peer_permissions_box.h"
+#include "boxes/stickers_box.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_peer.h"
+#include "history/admin_log/history_admin_log_section.h"
+#include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_values.h"
+#include "lang/lang_keys.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
+#include "mtproto/sender.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
-
 #include "ui/rp_widget.h"
-#include "boxes/peers/edit_peer_permissions_box.h"
-
-#include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_icon.h"
-#include "info/profile/info_profile_values.h"
-
-#include "mainwindow.h"
-
-#include "boxes/peers/edit_peer_info_box.h"
-#include "boxes/peers/edit_peer_permissions_box.h"
-#include "boxes/peers/edit_participants_box.h"
-#include "ui/wrap/vertical_layout.h"
+#include "ui/special_buttons.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
-#include "history/admin_log/history_admin_log_section.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
-#include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_icon.h"
-#include "info/profile/info_profile_values.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
-#include "mainwindow.h"
-#include "auth_session.h"
-#include "apiwrap.h"
-#include "styles/style_boxes.h"
-#include "styles/style_info.h"
+#include <rpl/flatten_latest.h>
+#include <rpl/range.h>
 
 namespace {
 
@@ -114,6 +93,20 @@ void AddButtonWithCount(
 		std::move(callback),
 		st::manageGroupButton,
 		&icon);
+}
+
+void AddButtonWithText(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<QString> &&label,
+		Fn<void()> callback) {
+	ManagePeerBox::CreateButton(
+		parent,
+		std::move(text),
+		std::move(label),
+		std::move(callback),
+		st::manageGroupTopButtonWithText,
+		nullptr);
 }
 
 bool HasRecentActions(not_null<ChannelData*> channel) {
@@ -292,10 +285,6 @@ private:
 		Public,
 		Private,
 	};
-	enum class HistoryVisibility {
-		Visible,
-		Hidden,
-	};
 	enum class UsernameState {
 		Normal,
 		TooMany,
@@ -317,10 +306,10 @@ private:
 		Ui::SlideWrap<Ui::RpWidget> *editInviteLinkWrap = nullptr;
 		Ui::FlatLabel *inviteLink = nullptr;
 
-		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility;
-		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
-
 		Ui::Checkbox *signatures = nullptr;
+
+		std::optional<HistoryVisibility> historyVisibilitySavedValue = std::nullopt;
+		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
 	};
 	struct Saving {
 		std::optional<QString> username;
@@ -339,7 +328,6 @@ private:
 	object_ptr<Ui::RpWidget> createUsernameEdit();
 	object_ptr<Ui::RpWidget> createInviteLinkCreate();
 	object_ptr<Ui::RpWidget> createInviteLinkEdit();
-	object_ptr<Ui::RpWidget> createHistoryVisibilityEdit();
 	object_ptr<Ui::RpWidget> createSignaturesEdit();
 	object_ptr<Ui::RpWidget> createStickersEdit();
 	object_ptr<Ui::RpWidget> createDeleteButton();
@@ -471,14 +459,12 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	addSkip(_wrap); // Divider.
 	_wrap->add(createPrivaciesButtons());
 	addSkip(_wrap); // Divider.
-
 	_wrap->add(createManageGroupButtons());
 	addSkip(_wrap); // Divider.
 
 	_wrap->add(createPrivaciesEdit());
 	_wrap->add(createInviteLinkCreate());
 	_wrap->add(createInviteLinkEdit());
-	_wrap->add(createHistoryVisibilityEdit());
 	_wrap->add(createSignaturesEdit());
 	_wrap->add(createStickersEdit());
 	_wrap->add(createDeleteButton());
@@ -696,61 +682,62 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesButtons() {
 	if (!canEditUsername) {
 		return nullptr;
 	}
+
+	const auto channel = _peer->asChannel();
+	auto defaultValue = (!channel || channel->hiddenPreHistory())
+		? HistoryVisibility::Hidden
+		: HistoryVisibility::Visible;
+
+	const auto update = std::make_shared<rpl::event_stream<HistoryVisibility>>();
+
 	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 		_wrap,
 		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editHehMargins);
-	auto container = result->entity();
+		st::editPeerTopButtonsLayoutMargins);
+	auto resultContainer = result->entity();
+	AddButtonWithText(
+		resultContainer,
+		std::move(Lang::Viewer(lng_manage_peer_group_type)),
+		update->events(
+		) | rpl::map([](HistoryVisibility count) {
+			return HistoryVisibility::Visible == count ? QString("A") : QString("B");
+		}),
+		[] {LOG(("BUTTON")); });
 
-	const auto addPrivaciesButton = [=, &container](LangKey privacyTextKey) {
-		const auto button = container->add(object_ptr<Info::Profile::Button>(
+	const auto addPrivaciesButton = [=](LangKey privacyTextKey, Ui::VerticalLayout* container) {
+		const auto boxCallback = [=](HistoryVisibility checked) {
+			update->fire(std::move(checked));
+			_controls.historyVisibilitySavedValue = checked;
+		};
+		const auto buttonCallback = [=]{ 
+			Ui::show(Box<EditPeerHistoryVisibilityBox>(
+				_peer,
+				boxCallback,
+				_controls.historyVisibilitySavedValue
+			), LayerOption::KeepOther);
+		};
+		AddButtonWithText(
 			container,
 			std::move(Lang::Viewer(privacyTextKey)),
-			st::heeehButton
-		));
+			update->events(
+			) | rpl::map([](HistoryVisibility flag) {
+				return lang(HistoryVisibility::Visible == flag
+						? lng_manage_history_visibility_shown
+						: lng_manage_history_visibility_hidden);
+			}),
+			buttonCallback);
 	};
 
-	addPrivaciesButton(lng_manage_peer_group_type);
-	addPrivaciesButton(lng_manage_history_visibility_title);
+	auto wrapLayout = resultContainer->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		resultContainer,
+		object_ptr<Ui::VerticalLayout>(resultContainer),
+		st::boxOptionListPadding)); // Empty margins.
+	_controls.historyVisibilityWrap = wrapLayout;
 
-	// style::InfoProfileCountButton a = st::heehPermissionsButton;
-	// const auto name = Ui::CreateChild<Ui::FlatLabel>(
-	// 	button,
-	// 	std::move(rpl::single(QString("Heh"))),
-	// 	a.label);
-	// rpl::combine(
-	// 	button->widthValue(),
-	// 	std::move(rpl::single(QString("Heh"))),
-	// 	std::move(rpl::single(QString("Heh")))
-	// ) | rpl::start_with_next([=, &a](
-	// 		int width,
-	// 		const QString &button,
-	// 		const QString &text) {
-	// 	/*const auto available = width
-	// 		- a.padding.left()
-	// 		- a.padding.right()
-	// 		- a.font->width(button)
-	// 		- st::hehButtonRightSkip;
-	// 	name->setText(text);
-	// 	name->resizeToNaturalWidth(available);
-	// 	name->moveToRight(st::hehButtonRightSkip, st.padding.top());*/
-	// }, name->lifetime());
-	// name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	addPrivaciesButton(lng_manage_history_visibility_title, wrapLayout->entity());
 	
-
-	// style::InfoProfileCountButton a = st::managePeerButton;
-	// const auto label = Ui::CreateChild<Ui::FlatLabel>(
-	// 	button,
-	// 	std::move(rpl::single(QString("5"))),
-	// 	a.label);
-	// label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	// rpl::combine(
-	// 	button->widthValue(),
-	// 	label->widthValue()
-	// ) | rpl::start_with_next([=, &a](int outerWidth, int width) {
-	// 	LOG(("POSITION: %1 %2").arg(a.labelPosition.x()).arg(a.labelPosition.y()));
-	// 	label->moveToRight(0, 0);
-	// }, label->lifetime());
+	update->fire(std::move(defaultValue));
+	refreshHistoryVisibility();
 
 	return std::move(result);
 }
@@ -761,7 +748,7 @@ object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
 	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 		_wrap,
 		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editHehMargins);
+		st::editPeerBottomButtonsLayoutMargins);
 	auto container = result->entity();
 
 	if (const auto chat = _peer->asChat()) {
@@ -1172,76 +1159,6 @@ void Controller::refreshCreateInviteLink() {
 		anim::type::instant);
 }
 
-object_ptr<Ui::RpWidget> Controller::createHistoryVisibilityEdit() {
-	Expects(_wrap != nullptr);
-
-	const auto canEdit = [&] {
-		if (const auto chat = _peer->asChat()) {
-			return chat->canEditPreHistoryHidden();
-		} else if (const auto channel = _peer->asChannel()) {
-			return channel->canEditPreHistoryHidden();
-		}
-		Unexpected("User in Controller::createHistoryVisibilityEdit.");
-	}();
-	if (!canEdit) {
-		return nullptr;
-	}
-	const auto channel = _peer->asChannel();
-
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
-	_controls.historyVisibilityWrap = result.data();
-	auto container = result->entity();
-
-	_controls.historyVisibility
-		= std::make_shared<Ui::RadioenumGroup<HistoryVisibility>>(
-			(!channel || channel->hiddenPreHistory())
-				? HistoryVisibility::Hidden
-				: HistoryVisibility::Visible);
-	auto addButton = [&](
-			HistoryVisibility value,
-			LangKey groupTextKey,
-			LangKey groupAboutKey) {
-		container->add(object_ptr<Ui::FixedHeightWidget>(
-			container,
-			st::editPeerPrivacyTopSkip + st::editPeerPrivacyBottomSkip));
-		container->add(object_ptr<Ui::Radioenum<HistoryVisibility>>(
-			container,
-			_controls.historyVisibility,
-			value,
-			lang(groupTextKey),
-			st::defaultBoxCheckbox));
-		container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				Lang::Viewer(groupAboutKey),
-				st::editPeerPrivacyLabel),
-			st::editPeerPrivacyLabelMargins));
-	};
-
-	container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		Lang::Viewer(lng_manage_history_visibility_title),
-		st::editPeerSectionLabel));
-	addButton(
-		HistoryVisibility::Visible,
-		lng_manage_history_visibility_shown,
-		lng_manage_history_visibility_shown_about);
-	addButton(
-		HistoryVisibility::Hidden,
-		lng_manage_history_visibility_hidden,
-		(_peer->isChat()
-			? lng_manage_history_visibility_hidden_legacy
-			: lng_manage_history_visibility_hidden_about));
-
-	refreshHistoryVisibility();
-
-	return std::move(result);
-}
-
 void Controller::refreshHistoryVisibility() {
 	if (!_controls.historyVisibilityWrap) {
 		return;
@@ -1250,7 +1167,7 @@ void Controller::refreshHistoryVisibility() {
 		|| (_controls.privacy->value() == Privacy::Private);
 	_controls.historyVisibilityWrap->toggle(
 		historyVisibilityShown,
-		anim::type::instant);
+		anim::type::normal);
 }
 
 object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
@@ -1422,12 +1339,12 @@ bool Controller::validateDescription(Saving &to) const {
 }
 
 bool Controller::validateHistoryVisibility(Saving &to) const {
-	if (!_controls.historyVisibility
+	if (!_controls.historyVisibilityWrap->toggled()
 		|| (_controls.privacy && _controls.privacy->value() == Privacy::Public)) {
 		return true;
 	}
 	to.hiddenPreHistory
-		= (_controls.historyVisibility->value() == HistoryVisibility::Hidden);
+		= (_controls.historyVisibilitySavedValue == HistoryVisibility::Hidden);
 	return true;
 }
 

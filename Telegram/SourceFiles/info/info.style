@@ -359,8 +359,8 @@ infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
-infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg }};
-infoIconAdministrators: icon {{ "info_administrators", infoIconFg }};
+infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg, point(-2px, 0px) }};
+infoIconAdministrators: icon {{ "info_administrators", infoIconFg, point(-2px, -1px) }};
 infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
 infoIconPermissions: icon {{ "info_permissions", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
@@ -590,6 +590,7 @@ managePeerButton: InfoProfileCountButton {
 	}
 	labelPosition: point(25px, 12px);
 }
+
 peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
 	button: InfoProfileButton(infoProfileButton) {
 		padding: margins(24px, 12px, 24px, 10px);
@@ -600,22 +601,23 @@ peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
 
 manageGroupButton: InfoProfileCountButton(managePeerButton) {
 	button: InfoProfileButton(infoProfileButton) {
-		padding: margins(72px, 12px, 24px, 10px);
+		padding: margins(72px, 10px, 24px, 8px);
+		font: font(14px);
 	}
+	labelPosition: point(22px, 12px);
 	iconPosition: point(20px, 5px);
 }
 
-heeehButton: InfoProfileButton(infoProfileButton) {
-	font: boxTextFont;
-	padding: margins(23px, 10px, 22px, 11px);
+manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(22px, 10px, 24px, 8px);
+		font: font(14px);
+	}
+	labelPosition: point(22px, 11px);
+	iconPosition: point(0px, 0px);
 }
 
-hehButtonRightSkip: 28px;
-hehButtonRight: FlatLabel(defaultFlatLabel) {
-	textFg: windowActiveTextFg;
-	style: boxTextStyle;
-	maxHeight: 20px;
-}
+editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 
 terminateSessionsButton: InfoProfileButton(infoBlockButton) {
 	padding: margins(23px, 12px, 23px, 10px);
@@ -636,7 +638,10 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
-editHehMargins: margins(0px, 10px, 0px, 0px);
+editPeerBottomButtonsLayoutMargins: margins(0px, 11px, 0px, 7px);
+editPeerTopButtonsLayoutMargins: margins(0px, 12px, 0px, 6px);
+
+editPeerHistoryVisibilityTopSkip: 8px;
 
 editPeerDeleteButtonMargins: margins(23px, 16px, 23px, 16px);
 editPeerDeleteButton: sessionTerminateAllButton;
@@ -649,10 +654,10 @@ editPeerPrivaciesMargins: margins(23px, 10px, 23px, 0px);
 editPeerPrivacyTopSkip: 10px;
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 263px;
+	minWidth: 220px;
 	textFg: windowSubTextFg;
 }
-editPeerPrivacyLabelMargins: margins(34px, 0px, 0px, 0px);
+editPeerPrivacyLabelMargins: margins(34px, 0px, 48px, 0px);
 editPeerSectionLabel: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(15px semibold);
