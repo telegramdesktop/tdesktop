@@ -74,6 +74,10 @@ overviewSongCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
 overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
 overviewSongDownload: icon {{ "playlist_download", historyFileInIconFg }};
 overviewSongDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
+overviewSmallCancel: icon {{ "history_audio_cancel", historyFileInIconFg }};
+overviewSmallCancelSelected: icon {{ "history_audio_cancel", historyFileInIconFgSelected }};
+overviewSmallDownload: icon {{ "history_audio_download", historyFileInIconFg }};
+overviewSmallDownloadSelected: icon {{ "history_audio_download", historyFileInIconFgSelected }};
 overviewFileLayout: OverviewFileLayout {
 	maxWidth: 520px;
 	songPadding: margins(17px, 7px, 10px, 6px);

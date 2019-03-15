@@ -79,10 +79,12 @@ public:
 
 	UniversalMsgId minId() const {
 		Expects(!empty());
+
 		return _items.back().first;
 	}
 	UniversalMsgId maxId() const {
 		Expects(!empty());
+
 		return _items.front().first;
 	}
 

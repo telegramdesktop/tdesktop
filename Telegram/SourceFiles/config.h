@@ -61,8 +61,6 @@ enum {
 
 	MaxMessageSize = 4096,
 
-	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
-
 	WebPageUserId = 701000,
 
 	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests

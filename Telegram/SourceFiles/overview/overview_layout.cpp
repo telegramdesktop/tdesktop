@@ -898,6 +898,13 @@ Document::Document(
 	}
 }
 
+bool Document::downloadInCorner() const {
+	return _data->isAudioFile()
+		&& _data->canBeStreamed()
+		&& !_data->inappPlaybackFailed()
+		&& IsServerMsgId(parent()->id);
+}
+
 void Document::initDimensions() {
 	_maxw = _st.maxWidth;
 	if (_data->isSong()) {
@@ -909,6 +916,8 @@ void Document::initDimensions() {
 
 void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
+
+	const auto cornerDownload = downloadInCorner();
 
 	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
@@ -938,7 +947,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (selected) {
 				p.setBrush(st::msgFileInBgSelected);
 			} else {
-				auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
+				auto over = ClickHandler::showAsActive((!cornerDownload && (_data->loading() || _data->uploading())) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
 				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 			}
 
@@ -947,14 +956,8 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				p.drawEllipse(inner);
 			}
 
-			if (radial) {
-				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
-				auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
-				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
-			}
-
-			auto icon = [&] {
-				if (_data->loading() || _data->uploading()) {
+			const auto icon = [&] {
+				if (!cornerDownload && (_data->loading() || _data->uploading())) {
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				} else if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);
@@ -964,6 +967,14 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				return &(selected ? _st.songDownloadSelected : _st.songDownload);
 			}();
 			icon->paintInCenter(p, inner);
+
+			if (radial && !cornerDownload) {
+				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
+				auto &bg = selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg;
+				_radial->draw(p, rinner, st::msgFileRadialLine, bg);
+			}
+
+			drawCornerDownload(p, selected, context);
 		}
 	} else {
 		nameleft = _st.fileThumbSize + _st.filePadding.right();
@@ -1073,6 +1084,56 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
+void Document::drawCornerDownload(Painter &p, bool selected, const PaintContext *context) const {
+	if (_data->loaded() || !downloadInCorner()) {
+		return;
+	}
+	const auto size = st::overviewSmallCheck.size;
+	const auto shift = _st.songThumbSize + st::overviewCheckSkip - size;
+	const auto inner = rtlrect(_st.songPadding.left() + shift, _st.songPadding.top() + shift, size, size, _width);
+	auto pen = st::windowBg->p;
+	pen.setWidth(st::lineWidth);
+	p.setPen(pen);
+	if (selected) {
+		p.setBrush(st::msgFileInBgSelected);
+	} else {
+		p.setBrush(_st.songIconBg);
+	}
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(inner);
+	}
+	const auto icon = [&] {
+		if (_data->loading()) {
+			return &(selected ? st::overviewSmallCancelSelected : st::overviewSmallCancel);
+		}
+		return &(selected ? st::overviewSmallDownloadSelected : st::overviewSmallDownload);
+	}();
+	icon->paintInCenter(p, inner);
+	if (_radial && _radial->animating()) {
+		const auto rinner = inner.marginsRemoved(QMargins(st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine, st::historyAudioRadialLine));
+		auto fg = selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg;
+		_radial->draw(p, rinner, st::historyAudioRadialLine, fg);
+	}
+}
+
+TextState Document::cornerDownloadTextState(
+		QPoint point,
+		StateRequest request) const {
+	auto result = TextState(parent());
+	if (!downloadInCorner() || _data->loaded()) {
+		return result;
+	}
+	const auto size = st::overviewSmallCheck.size;
+	const auto shift = _st.songThumbSize + st::overviewCheckSkip - size;
+	const auto inner = rtlrect(_st.songPadding.left() + shift, _st.songPadding.top() + shift, size, size, _width);
+	if (inner.contains(point)) {
+		result.link = _data->loading() ? _cancell : _savel;
+	}
+	return result;
+
+}
+
 TextState Document::getState(
 		QPoint point,
 		StateRequest request) const {
@@ -1087,6 +1148,10 @@ TextState Document::getState(
 			_name.maxWidth());
 		const auto nametop = _st.songNameTop;
 		const auto statustop = _st.songStatusTop;
+
+		if (const auto state = cornerDownloadTextState(point, request); state.link) {
+			return state;
+		}
 
 		const auto inner = rtlrect(
 			_st.songPadding.left(),
