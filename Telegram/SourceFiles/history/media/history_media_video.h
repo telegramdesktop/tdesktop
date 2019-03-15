@@ -73,9 +73,15 @@ protected:
 	bool dataLoaded() const override;
 
 private:
-	QSize countOptimalSize() override;
-	QSize countCurrentSize(int newWidth) override;
-	QSize countOptimalDimensions() const;
+	[[nodiscard]] QSize countOptimalSize() override;
+	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] QSize countOptimalDimensions() const;
+	[[nodiscard]] bool downloadInCorner() const;
+
+	void drawCornerStatus(Painter &p, bool selected) const;
+	[[nodiscard]] TextState cornerStatusTextState(
+		QPoint point,
+		StateRequest request) const;
 
 	void validateGroupedCache(
 		const QRect &geometry,
@@ -90,5 +96,7 @@ private:
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Text _caption;
+
+	QString _downloadSize;
 
 };

@@ -822,7 +822,7 @@ void OverlayWidget::step_radial(crl::time ms, bool timer) {
 	const auto streamVideo = ready && _doc->canBePlayed();
 	const auto tryOpenImage = ready && (_doc->size < App::kImageSizeLimit);
 	if (ready && ((tryOpenImage && !_radial.animating()) || streamVideo)) {
-		_streamingStartPaused = true;
+		_streamingStartPaused = false;
 		if (streamVideo) {
 			redisplayContent();
 		} else {

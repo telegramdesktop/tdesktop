@@ -40,6 +40,7 @@ HistoryVideo::HistoryVideo(
 	setDocumentLinks(_data, realParent);
 
 	setStatusSize(FileStatusSizeReady);
+	_downloadSize = formatSizeText(_data->size);
 
 	_data->loadThumbnail(realParent->fullId());
 }
@@ -100,10 +101,10 @@ QSize HistoryVideo::countOptimalSize() {
 	_thumbw = qMax(tw, 1);
 	_thumbh = qMax(th, 1);
 
-	auto minWidth = qMax(st::minPhotoSize, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	auto minWidth = qMax(st::minVideoSize, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	minWidth = qMax(minWidth, documentMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	auto maxWidth = qMax(_thumbw, minWidth);
-	auto minHeight = qMax(th, st::minPhotoSize);
+	auto minHeight = qMax(th, st::minVideoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
 		const auto captionw = maxWidth
 			- st::msgPadding.left()
@@ -143,6 +144,12 @@ QSize HistoryVideo::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
+bool HistoryVideo::downloadInCorner() const {
+	return _data->canBeStreamed()
+		&& !_data->inappPlaybackFailed()
+		&& IsServerMsgId(_parent->data()->id);
+}
+
 void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
@@ -152,6 +159,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
+	const auto cornerDownload = downloadInCorner();
 
 	int captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 
@@ -227,12 +235,8 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 		p.drawEllipse(inner);
 	}
 
-	if (!selected && _animation) {
-		p.setOpacity(1);
-	}
-
-	auto icon = [&]() -> const style::icon * {
-		if (_data->loading() || _data->uploading()) {
+	const auto icon = [&]() -> const style::icon * {
+		if (!cornerDownload && (_data->loading() || _data->uploading())) {
 			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 		} else if (!IsServerMsgId(_parent->data()->id)) {
 			return nullptr;
@@ -244,18 +248,12 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 	if (icon) {
 		icon->paintInCenter(p, inner);
 	}
-	if (radial) {
+	if (radial && !cornerDownload) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 	}
 
-	auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
-	auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-	auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-	App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
-	p.setFont(st::normalFont);
-	p.setPen(st::msgDateImgFg);
-	p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
+	drawCornerStatus(p, selected);
 
 	// date
 	if (!_caption.isEmpty()) {
@@ -271,6 +269,56 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
+}
+
+void HistoryVideo::drawCornerStatus(Painter &p, bool selected) const {
+	const auto padding = st::msgDateImgPadding;
+	const auto radial = _animation && _animation->radial.animating();
+	const auto cornerDownload = downloadInCorner() && !_data->loaded();
+	const auto addWidth = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y() - padding.x()) : 0;
+	const auto downloadWidth = cornerDownload ? st::normalFont->width(_downloadSize) : 0;
+	const auto statusX = st::msgDateImgDelta + padding.x(), statusY = st::msgDateImgDelta + padding.y();
+	const auto statusW = std::max(downloadWidth, st::normalFont->width(_statusText)) + 2 * padding.x() + addWidth;
+	const auto statusH = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : (st::normalFont->height + 2 * padding.y());
+	const auto around = rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
+	App::roundRect(p, around, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+	p.setFont(st::normalFont);
+	p.setPen(st::msgDateImgFg);
+	p.drawTextLeft(statusX + addWidth, statusY, width(), _statusText, statusW - 2 * padding.x());
+	if (cornerDownload) {
+		p.drawTextLeft(statusX + addWidth, statusY + statusH - 2 * padding.y() - st::normalFont->height, width(), _downloadSize, statusW - 2 * padding.x());
+		const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
+		const auto icon = [&]() -> const style::icon * {
+			if (_data->loading()) {
+				return &(selected ? st::historyVideoCancelSelected : st::historyVideoCancel);
+			}
+			return &(selected ? st::historyVideoDownloadSelected : st::historyVideoDownload);
+		}();
+		if (icon) {
+			icon->paintInCenter(p, inner);
+		}
+		if (radial) {
+			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
+		}
+	}
+}
+
+TextState HistoryVideo::cornerStatusTextState(
+		QPoint point,
+		StateRequest request) const {
+	auto result = TextState(_parent);
+	if (!downloadInCorner() || _data->loaded()) {
+		return result;
+	}
+	const auto padding = st::msgDateImgPadding;
+	const auto addWidth = st::historyVideoDownloadSize + 2 * padding.y() - padding.x();
+	const auto statusX = st::msgDateImgDelta + padding.x(), statusY = st::msgDateImgDelta + padding.y();
+	const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
+	if (inner.contains(point)) {
+		result.link = _data->loading() ? _cancell : _savel;
+	}
+	return result;
 }
 
 TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
@@ -299,8 +347,11 @@ TextState HistoryVideo::textState(QPoint point, StateRequest request) const {
 		}
 		painth -= st::mediaCaptionSkip;
 	}
+	if (const auto state = cornerStatusTextState(point, request); state.link) {
+		return state;
+	}
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
-		if (_data->loading() || _data->uploading()) {
+		if (!downloadInCorner() && (_data->loading() || _data->uploading())) {
 			result.link = _cancell;
 		} else if (!IsServerMsgId(_parent->data()->id)) {
 		} else if (_data->loaded() || _data->canBePlayed()) {
@@ -556,9 +607,9 @@ void HistoryVideo::updateStatusText() const {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
-	} else if (_data->loading()) {
+	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
-	} else if (_data->loaded()) {
+	} else if (_data->canBePlayed()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
 		statusSize = FileStatusSizeReady;

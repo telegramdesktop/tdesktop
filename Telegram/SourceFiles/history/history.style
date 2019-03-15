@@ -10,6 +10,7 @@ using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
 minPhotoSize: 100px;
+minVideoSize: 160px;
 maxMediaSize: 430px;
 maxStickerSize: 256px;
 maxGifSize: 320px;
@@ -552,3 +553,9 @@ historyGroupAboutBulletSkip: 16px;
 historyGroupAboutHeaderSkip: 10px;
 historyGroupAboutTextSkip: 10px;
 historyGroupAboutSkip: 8px;
+
+historyVideoDownloadSize: 36px;
+historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
+historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
+historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
+historyVideoDownloadSelected: icon {{ "playlist_download", historyFileThumbIconFgSelected }};
