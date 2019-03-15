@@ -83,13 +83,14 @@ bool ApplyArchivedResultFake() {
 		if ((set.flags & MTPDstickerSet::Flag::f_installed_date)
 			&& !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
 			if (rand_value<uint32>() % 128 < 64) {
-				auto data = MTP_stickerSet(
+				const auto data = MTP_stickerSet(
 					MTP_flags(set.flags | MTPDstickerSet::Flag::f_archived),
 					MTP_int(set.installDate),
 					MTP_long(set.id),
 					MTP_long(set.access),
 					MTP_string(set.title),
 					MTP_string(set.shortName),
+					MTP_photoSizeEmpty(MTP_string("a")),
 					MTP_int(set.count),
 					MTP_int(set.hash));
 				sets.push_back(MTP_stickerSetCovered(

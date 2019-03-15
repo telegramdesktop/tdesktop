@@ -14,6 +14,7 @@ const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>
 const MTPMessageFwdHeader MTPnullFwdHeader = MTP_messageFwdHeader(
 	MTP_flags(0),
 	MTPint(),
+	MTPstring(),
 	MTPint(),
 	MTPint(),
 	MTPint(),
