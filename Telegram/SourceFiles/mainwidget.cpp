@@ -157,32 +157,29 @@ bool HasForceLogoutNotification(const MTPUpdates &updates) {
 bool ForwardedInfoDataLoaded(
 		not_null<AuthSession*> session,
 		const MTPMessageFwdHeader &header) {
-	if (header.type() != mtpc_messageFwdHeader) {
-		return true;
-	}
-	auto &info = header.c_messageFwdHeader();
-	if (info.has_channel_id()) {
-		if (!session->data().channelLoaded(info.vchannel_id.v)) {
-			return false;
-		}
-		if (info.has_from_id()) {
-			const auto from = session->data().user(info.vfrom_id.v);
-			if (from->loadedStatus == PeerData::NotLoaded) {
+	return header.match([&](const MTPDmessageFwdHeader &data) {
+		if (data.has_channel_id()) {
+			if (!session->data().channelLoaded(data.vchannel_id.v)) {
 				return false;
 			}
-		}
-	} else {
-		if (info.has_from_id() && !session->data().userLoaded(info.vfrom_id.v)) {
+			if (data.has_from_id()) {
+				const auto from = session->data().user(data.vfrom_id.v);
+				if (from->loadedStatus == PeerData::NotLoaded) {
+					return false;
+				}
+			}
+		} else if (data.has_from_id()
+			&& !session->data().userLoaded(data.vfrom_id.v)) {
 			return false;
 		}
-	}
-	return true;
+		return true;
+	});
 }
 
 bool MentionUsersLoaded(
 		not_null<AuthSession*> session,
 		const MTPVector<MTPMessageEntity> &entities) {
-	for_const (auto &entity, entities.v) {
+	for (const auto &entity : entities.v) {
 		auto type = entity.type();
 		if (type == mtpc_messageEntityMentionName) {
 			if (!session->data().userLoaded(entity.c_messageEntityMentionName().vuser_id.v)) {

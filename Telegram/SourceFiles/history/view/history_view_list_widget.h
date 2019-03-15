@@ -409,6 +409,8 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
+	ClickHandlerPtr hiddenUserpicLink(FullMsgId id);
+
 	static constexpr auto kMinimalIdsLimit = 24;
 
 	not_null<ListDelegate*> _delegate;

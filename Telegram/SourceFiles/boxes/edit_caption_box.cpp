@@ -529,7 +529,7 @@ void EditCaptionBox::save() {
 			MTP_int(item->id),
 			MTP_string(sending.text),
 			MTPInputMedia(),
-			MTPnullMarkup,
+			MTPReplyMarkup(),
 			sentEntities),
 		rpcDone(&EditCaptionBox::saveDone),
 		rpcFail(&EditCaptionBox::saveFail));

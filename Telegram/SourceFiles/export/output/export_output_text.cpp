@@ -342,6 +342,8 @@ QByteArray SerializeMessage(
 		push("Author", message.signature);
 		if (message.forwardedFromId) {
 			push("Forwarded from", wrapPeerName(message.forwardedFromId));
+		} else if (!message.forwardedFromName.isEmpty()) {
+			push("Forwarded from", message.forwardedFromName);
 		}
 		if (message.savedFromChatId) {
 			push("Saved from", wrapPeerName(message.savedFromChatId));

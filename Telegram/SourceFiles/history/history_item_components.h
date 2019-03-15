@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_item.h"
+#include "ui/empty_userpic.h"
 
 class HistoryDocument;
 struct WebPageData;
@@ -50,11 +51,30 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 	Text text;
 };
 
+struct HiddenSenderInfo {
+	explicit HiddenSenderInfo(const QString &name);
+
+	QString name;
+	QString firstName;
+	QString lastName;
+	PeerId colorPeerId = 0;
+	Ui::EmptyUserpic userpic;
+	Text nameText;
+
+	inline bool operator==(const HiddenSenderInfo &other) const {
+		return name == other.name;
+	}
+	inline bool operator!=(const HiddenSenderInfo &other) const {
+		return !(*this == other);
+	}
+};
+
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
 	void create(const HistoryMessageVia *via) const;
 
 	TimeId originalDate = 0;
 	PeerData *originalSender = nullptr;
+	std::unique_ptr<HiddenSenderInfo> hiddenSenderInfo;
 	QString originalAuthor;
 	MsgId originalId = 0;
 	mutable Text text = { 1 };

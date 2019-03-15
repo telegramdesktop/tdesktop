@@ -471,6 +471,10 @@ QByteArray SerializeMessage(
 			pushBare(
 				"forwarded_from",
 				wrapPeerName(message.forwardedFromId));
+		} else if (!message.forwardedFromName.isEmpty()) {
+			pushBare(
+				"forwarded_from",
+				StringAllowNull(message.forwardedFromName));
 		}
 		if (message.savedFromChatId) {
 			pushBare("saved_from", wrapPeerName(message.savedFromChatId));

@@ -145,6 +145,9 @@ namespace App {
 			existing->updateReplyMarkup(m.has_reply_markup()
 				? (&m.vreply_markup)
 				: nullptr);
+			existing->updateForwardedInfo(m.has_fwd_from()
+				? &m.vfwd_from
+				: nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->indexAsNewItem();
 			Auth().data().requestItemTextRefresh(existing);

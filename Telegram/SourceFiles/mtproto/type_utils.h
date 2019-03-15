@@ -142,6 +142,4 @@ enum class MTPDchannel_ClientFlag : uint32 {
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDchannel)
 
-extern const MTPReplyMarkup MTPnullMarkup;
 extern const MTPVector<MTPMessageEntity> MTPnullEntities;
-extern const MTPMessageFwdHeader MTPnullFwdHeader;

@@ -3407,7 +3407,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				d.vdate,
 				d.vmessage,
 				MTP_messageMediaEmpty(),
-				MTPnullMarkup,
+				MTPReplyMarkup(),
 				d.has_entities() ? d.ventities : MTPnullEntities,
 				MTPint(),
 				MTPint(),
@@ -3431,7 +3431,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				d.vdate,
 				d.vmessage,
 				MTP_messageMediaEmpty(),
-				MTPnullMarkup,
+				MTPReplyMarkup(),
 				d.has_entities() ? d.ventities : MTPnullEntities,
 				MTPint(),
 				MTPint(),
@@ -4366,7 +4366,7 @@ void ApiWrap::sendSharedContact(
 			MTP_int(newId.msg),
 			MTP_int(messageFromId),
 			peerToMTP(peer->id),
-			MTPnullFwdHeader,
+			MTPMessageFwdHeader(),
 			MTPint(),
 			MTP_int(options.replyTo),
 			MTP_int(unixtime()),
@@ -4377,7 +4377,7 @@ void ApiWrap::sendSharedContact(
 				MTP_string(lastName),
 				MTP_string(vcard),
 				MTP_int(userId)),
-			MTPnullMarkup,
+			MTPReplyMarkup(),
 			MTPnullEntities,
 			MTP_int(views),
 			MTPint(),
@@ -4636,13 +4636,13 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTP_int(newId.msg),
 				MTP_int(messageFromId),
 				peerToMTP(peer->id),
-				MTPnullFwdHeader,
+				MTPMessageFwdHeader(),
 				MTPint(),
 				MTP_int(message.replyTo),
 				MTP_int(unixtime()),
 				msgText,
 				media,
-				MTPnullMarkup,
+				MTPReplyMarkup(),
 				localEntities,
 				MTP_int(1),
 				MTPint(),
@@ -4655,7 +4655,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			MTP_int(message.replyTo),
 			msgText,
 			MTP_long(randomId),
-			MTPnullMarkup,
+			MTPReplyMarkup(),
 			sentEntities
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result, randomId);
@@ -4847,7 +4847,7 @@ void ApiWrap::sendExistingDocument(
 		messagePostAuthor,
 		document,
 		caption,
-		MTPnullMarkup);
+		MTPReplyMarkup());
 
 	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
 	auto performRequest = [=] {
@@ -4861,7 +4861,7 @@ void ApiWrap::sendExistingDocument(
 				MTPint()),
 			MTP_string(captionText),
 			MTP_long(randomId),
-			MTPnullMarkup,
+			MTPReplyMarkup(),
 			sentEntities
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result, randomId);
@@ -5011,7 +5011,7 @@ void ApiWrap::sendMediaWithRandomId(
 		media,
 		MTP_string(caption.text),
 		MTP_long(randomId),
-		MTPnullMarkup,
+		MTPReplyMarkup(),
 		sentEntities
 	)).done([=](const MTPUpdates &result) { applyUpdates(result);
 	}).fail([=](const RPCError &error) { sendMessageFail(error);

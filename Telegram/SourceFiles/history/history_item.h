@@ -54,6 +54,8 @@ enum class Context : char;
 class ElementDelegate;
 } // namespace HistoryView
 
+struct HiddenSenderInfo;
+
 class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
 	static not_null<HistoryItem*> Create(
@@ -166,6 +168,8 @@ public:
 	}
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}
+	virtual void updateForwardedInfo(const MTPMessageFwdHeader *fwd) {
+	}
 
 	virtual void addToUnreadMentions(UnreadMentionType type);
 	virtual void eraseFromUnreadMentions() {
@@ -257,7 +261,8 @@ public:
 	not_null<PeerData*> author() const;
 
 	TimeId dateOriginal() const;
-	not_null<PeerData*> senderOriginal() const;
+	PeerData *senderOriginal() const;
+	const HiddenSenderInfo *hiddenForwardedInfo() const;
 	not_null<PeerData*> fromOriginal() const;
 	QString authorOriginal() const;
 	MsgId idOriginal() const;

@@ -277,6 +277,7 @@ struct HistoryMessage::CreateConfig {
 	int viewsCount = -1;
 	QString author;
 	PeerId senderOriginal = 0;
+	QString senderNameOriginal;
 	MsgId originalId = 0;
 	PeerId savedFromPeer = 0;
 	MsgId savedFromMsgId = 0;
@@ -291,6 +292,24 @@ struct HistoryMessage::CreateConfig {
 	const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
 };
 
+void HistoryMessage::FillForwardedInfo(
+		CreateConfig &config,
+		const MTPDmessageFwdHeader &data) {
+	config.originalDate = data.vdate.v;
+	if (data.has_from_id() || data.has_channel_id()) {
+		config.senderOriginal = data.has_channel_id()
+			? peerFromChannel(data.vchannel_id)
+			: peerFromUser(data.vfrom_id);
+	}
+	if (data.has_from_name()) config.senderNameOriginal = qs(data.vfrom_name);
+	if (data.has_channel_post()) config.originalId = data.vchannel_post.v;
+	if (data.has_post_author()) config.authorOriginal = qs(data.vpost_author);
+	if (data.has_saved_from_peer() && data.has_saved_from_msg_id()) {
+		config.savedFromPeer = peerFromMTP(data.vsaved_from_peer);
+		config.savedFromMsgId = data.vsaved_from_msg_id.v;
+	}
+}
+
 HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	const MTPDmessage &data)
@@ -300,22 +319,12 @@ HistoryMessage::HistoryMessage(
 		data.vflags.v,
 		data.vdate.v,
 		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
-	CreateConfig config;
+	auto config = CreateConfig();
 
-	if (data.has_fwd_from() && data.vfwd_from.type() == mtpc_messageFwdHeader) {
-		auto &f = data.vfwd_from.c_messageFwdHeader();
-		config.originalDate = f.vdate.v;
-		if (f.has_from_id() || f.has_channel_id()) {
-			config.senderOriginal = f.has_channel_id()
-				? peerFromChannel(f.vchannel_id)
-				: peerFromUser(f.vfrom_id);
-			if (f.has_channel_post()) config.originalId = f.vchannel_post.v;
-			if (f.has_post_author()) config.authorOriginal = qs(f.vpost_author);
-			if (f.has_saved_from_peer() && f.has_saved_from_msg_id()) {
-				config.savedFromPeer = peerFromMTP(f.vsaved_from_peer);
-				config.savedFromMsgId = f.vsaved_from_msg_id.v;
-			}
-		}
+	if (data.has_fwd_from()) {
+		data.vfwd_from.match([&](const MTPDmessageFwdHeader &data) {
+			FillForwardedInfo(config, data);
+		});
 	}
 	if (data.has_reply_to_msg_id()) config.replyTo = data.vreply_to_msg_id.v;
 	if (data.has_via_bot_id()) config.viaBotId = data.vvia_bot_id.v;
@@ -350,7 +359,7 @@ HistoryMessage::HistoryMessage(
 		mtpCastFlags(data.vflags.v),
 		data.vdate.v,
 		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
-	CreateConfig config;
+	auto config = CreateConfig();
 
 	if (data.has_reply_to_msg_id()) config.replyTo = data.vreply_to_msg_id.v;
 
@@ -385,17 +394,22 @@ HistoryMessage::HistoryMessage(
 		from) {
 	const auto peer = history->peer;
 
-	CreateConfig config;
+	auto config = CreateConfig();
 
 	if (original->Has<HistoryMessageForwarded>() || !original->history()->peer->isSelf()) {
 		// Server doesn't add "fwd_from" to non-forwarded messages from chat with yourself.
 		config.originalDate = original->dateOriginal();
-		auto senderOriginal = original->senderOriginal();
-		config.senderOriginal = senderOriginal->id;
-		config.authorOriginal = original->authorOriginal();
-		if (senderOriginal->isChannel()) {
-			config.originalId = original->idOriginal();
+		if (const auto info = original->hiddenForwardedInfo()) {
+			config.senderNameOriginal = info->name;
+		} else if (const auto senderOriginal = original->senderOriginal()) {
+			config.senderOriginal = senderOriginal->id;
+			if (senderOriginal->isChannel()) {
+				config.originalId = original->idOriginal();
+			}
+		} else {
+			Unexpected("Corrupt forwarded information in message.");
 		}
+		config.authorOriginal = original->authorOriginal();
 	}
 	if (peer->isSelf()) {
 		//
@@ -455,7 +469,7 @@ HistoryMessage::HistoryMessage(
 	const QString &postAuthor,
 	const TextWithEntities &textWithEntities)
 : HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
-	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, MTPnullMarkup);
+	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, MTPReplyMarkup());
 
 	setText(textWithEntities);
 }
@@ -522,7 +536,7 @@ void HistoryMessage::createComponentsHelper(
 		UserId viaBotId,
 		const QString &postAuthor,
 		const MTPReplyMarkup &markup) {
-	CreateConfig config;
+	auto config = CreateConfig();
 
 	if (flags & MTPDmessage::Flag::f_via_bot_id) config.viaBotId = viaBotId;
 	if (flags & MTPDmessage::Flag::f_reply_to_msg_id) config.replyTo = replyTo;
@@ -540,10 +554,10 @@ int HistoryMessage::viewsCount() const {
 	return HistoryItem::viewsCount();
 }
 
-not_null<PeerData*> HistoryMessage::displayFrom() const {
+PeerData *HistoryMessage::displayFrom() const {
 	return history()->peer->isSelf()
 		? senderOriginal()
-		: author();
+		: author().get();
 }
 
 bool HistoryMessage::updateDependencyItem() {
@@ -636,7 +650,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (config.editDate != TimeId(0)) {
 		mask |= HistoryMessageEdited::Bit();
 	}
-	if (config.senderOriginal) {
+	if (config.originalDate != 0) {
 		mask |= HistoryMessageForwarded::Bit();
 	}
 	if (config.mtpMarkup) {
@@ -672,16 +686,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->author = config.author;
 	}
-	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		forwarded->originalDate = config.originalDate;
-		forwarded->originalSender = history()->owner().peer(
-			config.senderOriginal);
-		forwarded->originalId = config.originalId;
-		forwarded->originalAuthor = config.authorOriginal;
-		forwarded->savedFromPeer = history()->owner().peerLoaded(
-			config.savedFromPeer);
-		forwarded->savedFromMsgId = config.savedFromMsgId;
-	}
+	setupForwardedComponent(config);
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (config.mtpMarkup) {
 			markup->create(*config.mtpMarkup);
@@ -692,7 +697,28 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 			_flags |= MTPDmessage_ClientFlag::f_has_switch_inline_button;
 		}
 	}
-	_fromNameVersion = displayFrom()->nameVersion;
+	const auto from = displayFrom();
+	_fromNameVersion = from ? from->nameVersion : 1;
+}
+
+void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
+	const auto forwarded = Get<HistoryMessageForwarded>();
+	if (!forwarded) {
+		return;
+	}
+	forwarded->originalDate = config.originalDate;
+	forwarded->originalSender = config.senderOriginal
+		? history()->owner().peer(config.senderOriginal).get()
+		: nullptr;
+	if (!forwarded->originalSender) {
+		forwarded->hiddenSenderInfo = std::make_unique<HiddenSenderInfo>(
+			config.senderNameOriginal);
+	}
+	forwarded->originalId = config.originalId;
+	forwarded->originalAuthor = config.authorOriginal;
+	forwarded->savedFromPeer = history()->owner().peerLoaded(
+		config.savedFromPeer);
+	forwarded->savedFromMsgId = config.savedFromMsgId;
 }
 
 QString FormatViewsCount(int views) {
@@ -921,6 +947,25 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 		}
 	}
 	history()->owner().requestItemResize(this);
+}
+
+void HistoryMessage::updateForwardedInfo(const MTPMessageFwdHeader *fwd) {
+	const auto forwarded = Get<HistoryMessageForwarded>();
+	if (!fwd) {
+		if (forwarded) {
+			LOG(("API Error: Server removed forwarded information."));
+		}
+		return;
+	} else if (!forwarded) {
+		LOG(("API Error: Server added forwarded information."));
+		return;
+	}
+	fwd->match([&](const MTPDmessageFwdHeader &data) {
+		auto config = CreateConfig();
+		FillForwardedInfo(config, data);
+		setupForwardedComponent(config);
+		history()->owner().requestItemResize(this);
+	});
 }
 
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {

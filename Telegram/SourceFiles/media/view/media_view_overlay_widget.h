@@ -217,6 +217,7 @@ private:
 
 	Data::FileOrigin fileOrigin() const;
 
+	void refreshFromLabel(HistoryItem *item);
 	void refreshCaption(HistoryItem *item);
 	void refreshMediaViewer();
 	void refreshNavVisibility();
@@ -387,7 +388,8 @@ private:
 	bool _firstOpenedPeerPhoto = false;
 
 	PeerData *_from = nullptr;
-	Text _fromName;
+	QString _fromName;
+	Text _fromNameLabel;
 
 	std::optional<int> _index; // Index in current _sharedMedia data.
 	std::optional<int> _fullIndex; // Index in full shared media.

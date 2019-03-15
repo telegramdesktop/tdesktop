@@ -63,6 +63,12 @@ style::color PeerUserpicColor(PeerId peerId) {
 	return colors[PeerColorIndex(peerId)];
 }
 
+PeerId FakePeerIdForJustName(const QString &name) {
+	return peerFromUser(name.isEmpty()
+		? 777
+		: hashCrc32(name.constData(), name.size() * sizeof(QChar)));
+}
+
 } // namespace Data
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)

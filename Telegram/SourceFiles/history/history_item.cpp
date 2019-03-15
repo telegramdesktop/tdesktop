@@ -603,7 +603,7 @@ TimeId HistoryItem::dateOriginal() const {
 	return date();
 }
 
-not_null<PeerData*> HistoryItem::senderOriginal() const {
+PeerData *HistoryItem::senderOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		return forwarded->originalSender;
 	}
@@ -611,10 +611,19 @@ not_null<PeerData*> HistoryItem::senderOriginal() const {
 	return (peer->isChannel() && !peer->isMegagroup()) ? peer : from();
 }
 
+const HiddenSenderInfo *HistoryItem::hiddenForwardedInfo() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		return forwarded->hiddenSenderInfo.get();
+	}
+	return nullptr;
+}
+
 not_null<PeerData*> HistoryItem::fromOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		if (const auto user = forwarded->originalSender->asUser()) {
-			return user;
+		if (forwarded->originalSender) {
+			if (const auto user = forwarded->originalSender->asUser()) {
+				return user;
+			}
 		}
 	}
 	return from();

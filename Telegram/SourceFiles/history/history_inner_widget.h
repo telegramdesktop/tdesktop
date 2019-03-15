@@ -189,6 +189,8 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
+	ClickHandlerPtr hiddenUserpicLink(FullMsgId id);
+
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
 	bool canHaveFromUserpics() const;

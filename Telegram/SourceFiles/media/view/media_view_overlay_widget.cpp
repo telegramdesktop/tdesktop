@@ -521,9 +521,9 @@ void OverlayWidget::updateControls() {
 	} else {
 		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
-	if (_from) {
-		_fromName.setText(st::mediaviewTextStyle, (_from->migrateTo() ? _from->migrateTo() : _from)->name, Ui::NameTextOptions());
-		_nameNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mediaviewFont->height);
+	if (!_fromName.isEmpty()) {
+		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());
+		_nameNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);
 		_dateNav = myrtlrect(st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	} else {
 		_nameNav = QRect();
@@ -920,6 +920,7 @@ void OverlayWidget::clearData() {
 	_menu = nullptr;
 	setContext(std::nullopt);
 	_from = nullptr;
+	_fromName = QString();
 	_photo = nullptr;
 	_doc = nullptr;
 	_fullScreenVideo = false;
@@ -1523,6 +1524,22 @@ void OverlayWidget::refreshMediaViewer() {
 	preloadData(0);
 }
 
+void OverlayWidget::refreshFromLabel(HistoryItem *item) {
+	if (_msgid && item) {
+		_from = item->senderOriginal();
+		if (const auto info = item->hiddenForwardedInfo()) {
+			_fromName = info->name;
+		} else {
+			Assert(_from != nullptr);
+			_fromName = App::peerName(
+				_from->migrateTo() ? _from->migrateTo() : _from);
+		}
+	} else {
+		_from = _user;
+		_fromName = _user ? App::peerName(_user) : QString();
+	}
+}
+
 void OverlayWidget::refreshCaption(HistoryItem *item) {
 	_caption = Text();
 	if (!item) {
@@ -1720,11 +1737,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	_w = ConvertScale(photo->width());
 	_h = ConvertScale(photo->height());
 	contentSizeChanged();
-	if (_msgid && item) {
-		_from = item->senderOriginal();
-	} else {
-		_from = _user;
-	}
+	refreshFromLabel(item);
 	_photo->download(fileOrigin());
 	displayFinished();
 }
@@ -1860,11 +1873,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 		_h = contentSize.height();
 	}
 	contentSizeChanged();
-	if (_msgid && item) {
-		_from = item->senderOriginal();
-	} else {
-		_from = _user;
-	}
+	refreshFromLabel(item);
 	_blurred = false;
 	displayFinished();
 }
@@ -2614,10 +2623,10 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		p.setFont(st::mediaviewFont);
 
 		// name
-		if (_from && _nameNav.intersects(r)) {
-			float64 o = overLevel(OverName);
+		if (_nameNav.isValid() && _nameNav.intersects(r)) {
+			float64 o = _from ? overLevel(OverName) : 0.;
 			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			_fromName.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
+			_fromNameLabel.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
 
 			if (o > 0) {
 				p.setOpacity(o * co);
@@ -3330,7 +3339,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverLeftNav);
 	} else if (_rightNavVisible && _rightNav.contains(pos)) {
 		updateOverState(OverRightNav);
-	} else if (_nameNav.contains(pos)) {
+	} else if (_from && _nameNav.contains(pos)) {
 		updateOverState(OverName);
 	} else if (IsServerMsgId(_msgid.msg) && _dateNav.contains(pos)) {
 		updateOverState(OverDate);

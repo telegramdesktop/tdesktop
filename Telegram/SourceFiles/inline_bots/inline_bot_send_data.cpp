@@ -46,7 +46,7 @@ void SendDataCommon::addToHistory(
 			MTP_int(msgId),
 			MTP_int(fromId),
 			peerToMTP(history->peer->id),
-			MTPnullFwdHeader,
+			MTPMessageFwdHeader(),
 			MTP_int(viaBotId),
 			MTP_int(replyToId),
 			mtpDate,

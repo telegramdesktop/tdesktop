@@ -39,7 +39,7 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 					MTP_string(bot->botInfo->shareGameShortName))),
 			MTP_string(""),
 			MTP_long(randomId),
-			MTPnullMarkup,
+			MTPReplyMarkup(),
 			MTPnullEntities),
 		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 		App::main()->rpcFail(&MainWidget::sendMessageFail),

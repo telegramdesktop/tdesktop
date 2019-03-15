@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
@@ -1303,12 +1304,23 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				const auto message = view->data()->toHistoryMessage();
 				Assert(message != nullptr);
 
-				message->from()->paintUserpicLeft(
-					p,
-					st::historyPhotoLeft,
-					userpicTop,
-					view->width(),
-					st::msgPhotoSize);
+				if (const auto from = message->displayFrom()) {
+					from->paintUserpicLeft(
+						p,
+						st::historyPhotoLeft,
+						userpicTop,
+						view->width(),
+						st::msgPhotoSize);
+				} else if (const auto info = message->hiddenForwardedInfo()) {
+					info->userpic.paint(
+						p,
+						st::historyPhotoLeft,
+						userpicTop,
+						view->width(),
+						st::msgPhotoSize);
+				} else {
+					Unexpected("Corrupt forwarded information in message.");
+				}
 			}
 			return true;
 		});
@@ -2147,9 +2159,10 @@ void ListWidget::mouseActionUpdate() {
 							const auto message = view->data()->toHistoryMessage();
 							Assert(message != nullptr);
 
-							dragState = TextState(
-								nullptr,
-								message->displayFrom()->openLink());
+							const auto from = message->displayFrom();
+							dragState = TextState(nullptr, from
+								? from->openLink()
+								: hiddenUserpicLink(message->fullId()));
 							_overItemExact = App::histItemById(dragState.itemId);
 							lnkhost = view;
 							return false;
@@ -2219,6 +2232,13 @@ void ListWidget::mouseActionUpdate() {
 	//} else {
 	//	_widget->noSelectingScroll();
 	//} // #TODO select scroll
+}
+
+ClickHandlerPtr ListWidget::hiddenUserpicLink(FullMsgId id) {
+	static const auto result = std::make_shared<LambdaClickHandler>([] {
+		Ui::Toast::Show(lang(lng_forwarded_hidden));
+	});
+	return result;
 }
 
 style::cursor ListWidget::computeMouseCursor() const {

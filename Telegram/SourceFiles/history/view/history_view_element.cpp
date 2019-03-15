@@ -26,6 +26,25 @@ namespace {
 // A new message from the same sender is attached to previous within 15 minutes.
 constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
+bool IsAttachedToPreviousInSavedMessages(
+		not_null<HistoryItem*> previous,
+		not_null<HistoryItem*> item) {
+	const auto forwarded = previous->Has<HistoryMessageForwarded>();
+	const auto sender = previous->senderOriginal();
+	if (forwarded != item->Has<HistoryMessageForwarded>()) {
+		return false;
+	} else if (sender != item->senderOriginal()) {
+		return false;
+	} else if (!forwarded || sender) {
+		return true;
+	}
+	const auto previousInfo = previous->hiddenForwardedInfo();
+	const auto itemInfo = item->hiddenForwardedInfo();
+	Assert(previousInfo != nullptr);
+	Assert(itemInfo != nullptr);
+	return (*previousInfo == *itemInfo);
+}
+
 } // namespace
 
 TextSelection UnshiftItemSelection(
@@ -312,8 +331,7 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 				|| (!item->isPost() && !prev->isPost()));
 		if (possible) {
 			if (item->history()->peer->isSelf()) {
-				return prev->senderOriginal() == item->senderOriginal()
-					&& (prev->Has<HistoryMessageForwarded>() == item->Has<HistoryMessageForwarded>());
+				return IsAttachedToPreviousInSavedMessages(prev, item);
 			} else {
 				return prev->from() == item->from();
 			}

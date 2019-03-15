@@ -31,6 +31,7 @@ class Session;
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
 style::color PeerUserpicColor(PeerId peerId);
+PeerId FakePeerIdForJustName(const QString &name);
 
 } // namespace Data
 

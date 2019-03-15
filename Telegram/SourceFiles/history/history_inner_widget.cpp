@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
+#include "ui/toast/toast.h"
 #include "ui/text_options.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -686,12 +687,23 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
 					const auto message = view->data()->toHistoryMessage();
-					message->displayFrom()->paintUserpicLeft(
-						p,
-						st::historyPhotoLeft,
-						userpicTop,
-						width(),
-						st::msgPhotoSize);
+					if (const auto from = message->displayFrom()) {
+						from->paintUserpicLeft(
+							p,
+							st::historyPhotoLeft,
+							userpicTop,
+							width(),
+							st::msgPhotoSize);
+					} else if (const auto info = message->hiddenForwardedInfo()) {
+						info->userpic.paint(
+							p,
+							st::historyPhotoLeft,
+							userpicTop,
+							width(),
+							st::msgPhotoSize);
+					} else {
+						Unexpected("Corrupt forwarded information in message.");
+					}
 				}
 				return true;
 			});
@@ -2535,9 +2547,10 @@ void HistoryInner::mouseActionUpdate() {
 								const auto message = view->data()->toHistoryMessage();
 								Assert(message != nullptr);
 
-								dragState = TextState(
-									nullptr,
-									message->displayFrom()->openLink());
+								const auto from = message->displayFrom();
+								dragState = TextState(nullptr, from
+									? from->openLink()
+									: hiddenUserpicLink(message->fullId()));
 								_dragStateItem = App::histItemById(dragState.itemId);
 								lnkhost = view;
 								return false;
@@ -2676,6 +2689,13 @@ void HistoryInner::mouseActionUpdate() {
 	if (_mouseAction == MouseAction::None && (lnkChanged || cur != _cursor)) {
 		setCursor(_cursor = cur);
 	}
+}
+
+ClickHandlerPtr HistoryInner::hiddenUserpicLink(FullMsgId id) {
+	static const auto result = std::make_shared<LambdaClickHandler>([] {
+		Ui::Toast::Show(lang(lng_forwarded_hidden));
+	});
+	return result;
 }
 
 void HistoryInner::updateDragSelection(Element *dragSelFrom, Element *dragSelTo, bool dragSelecting) {
@@ -3066,7 +3086,9 @@ QString HistoryInner::tooltipText() const {
 					if (media->hidesForwardedInfo()) {
 						dateText += "\n" + lng_forwarded(
 							lt_user,
-							forwarded->originalSender->shortName());
+							(forwarded->originalSender
+								? forwarded->originalSender->shortName()
+								: forwarded->hiddenSenderInfo->firstName));
 					}
 				}
 			}

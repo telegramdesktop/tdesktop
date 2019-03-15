@@ -501,7 +501,9 @@ struct Message {
 	int32 fromId = 0;
 	PeerId toId = 0;
 	PeerId forwardedFromId = 0;
+	Utf8String forwardedFromName;
 	TimeId forwardedDate = 0;
+	bool forwarded = false;
 	PeerId savedFromChatId = 0;
 	Utf8String signature;
 	int32 viaBotId = 0;

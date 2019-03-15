@@ -1156,6 +1156,12 @@ Message ParseMessage(
 				}
 				return PeerId(0);
 			});
+			result.forwardedFromName = data.vfwd_from.match(
+			[](const MTPDmessageFwdHeader &data) {
+				return data.has_from_name()
+					? data.vfrom_name.v
+					: QByteArray();
+			});
 			result.forwardedDate = data.vfwd_from.match(
 			[](const MTPDmessageFwdHeader &data) {
 				return data.vdate.v;
@@ -1167,6 +1173,8 @@ Message ParseMessage(
 				}
 				return PeerId(0);
 			});
+			result.forwarded = result.forwardedFromId
+				|| !result.forwardedFromName.isEmpty();
 		}
 		if (data.has_post_author()) {
 			result.signature = ParseString(data.vpost_author);

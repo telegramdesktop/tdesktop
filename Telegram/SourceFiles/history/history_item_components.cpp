@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
+#include "ui/toast/toast.h"
 #include "ui/text_options.h"
 #include "history/history.h"
 #include "history/history_message.h"
@@ -77,17 +78,37 @@ int HistoryMessageEdited::maxWidth() const {
 	return text.maxWidth();
 }
 
+HiddenSenderInfo::HiddenSenderInfo(const QString &name)
+: name(name)
+, colorPeerId(Data::FakePeerIdForJustName(name))
+, userpic(Data::PeerUserpicColor(colorPeerId), name) {
+	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
+	const auto parts = name.trimmed().split(' ', QString::SkipEmptyParts);
+	firstName = parts[0];
+	for (const auto &part : parts.mid(1)) {
+		if (!lastName.isEmpty()) {
+			lastName.append(' ');
+		}
+		lastName.append(part);
+	}
+}
+
 void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	auto phrase = QString();
-	auto fromChannel = (originalSender->isChannel() && !originalSender->isMegagroup());
+	const auto fromChannel = originalSender
+		&& originalSender->isChannel()
+		&& !originalSender->isMegagroup();
+	const auto name = originalSender
+		? App::peerName(originalSender)
+		: hiddenSenderInfo->name;
 	if (!originalAuthor.isEmpty()) {
 		phrase = lng_forwarded_signed(
 			lt_channel,
-			App::peerName(originalSender),
+			name,
 			lt_user,
 			originalAuthor);
 	} else {
-		phrase = App::peerName(originalSender);
+		phrase = name;
 	}
 	if (via) {
 		if (fromChannel) {
@@ -121,9 +142,15 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		Qt::LayoutDirectionAuto
 	};
 	text.setText(st::fwdTextStyle, phrase, opts);
+	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
+		Ui::Toast::Show(lang(lng_forwarded_hidden));
+	});
+
 	text.setLink(1, fromChannel
 		? goToMessageClickHandler(originalSender, originalId)
-		: originalSender->openLink());
+		: originalSender
+		? originalSender->openLink()
+		: hidden);
 	if (via) {
 		text.setLink(2, via->link);
 	}

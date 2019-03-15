@@ -114,6 +114,7 @@ public:
 	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
 		setReplyMarkup(markup);
 	}
+	void updateForwardedInfo(const MTPMessageFwdHeader *fwd) override;
 
 	void addToUnreadMentions(UnreadMentionType type) override;
 	void eraseFromUnreadMentions() override;
@@ -125,7 +126,7 @@ public:
 	bool textHasLinks() const override;
 
 	int viewsCount() const override;
-	not_null<PeerData*> displayFrom() const;
+	PeerData *displayFrom() const;
 	bool updateDependencyItem() override;
 	MsgId dependencyMsgId() const override {
 		return replyToId();
@@ -164,6 +165,11 @@ private:
 	struct CreateConfig;
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
+	void setupForwardedComponent(const CreateConfig &config);
+
+	static void FillForwardedInfo(
+		CreateConfig &config,
+		const MTPDmessageFwdHeader &data);
 
 	void updateAdminBadgeState();
 	ClickHandlerPtr fastReplyLink() const;

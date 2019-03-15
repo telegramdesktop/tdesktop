@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
+#include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "data/data_channel.h"
@@ -175,6 +176,7 @@ void paintRow(
 		not_null<Entry*> entry,
 		Dialogs::Key chat,
 		PeerData *from,
+		const HiddenSenderInfo *hiddenSenderInfo,
 		HistoryItem *item,
 		const Data::Draft *draft,
 		QDateTime date,
@@ -215,6 +217,13 @@ void paintRow(
 			st::dialogsPhotoSize);
 	} else if (from) {
 		from->paintUserpicLeft(
+			p,
+			st::dialogsPadding.x(),
+			st::dialogsPadding.y(),
+			fullWidth,
+			st::dialogsPhotoSize);
+	} else if (hiddenSenderInfo) {
+		hiddenSenderInfo->userpic.paint(
 			p,
 			st::dialogsPadding.x(),
 			st::dialogsPadding.y(),
@@ -382,6 +391,8 @@ void paintRow(
 			icon->paint(p, rectForName.topLeft() + QPoint(qMin(from->dialogName().maxWidth(), rectForName.width()), 0), fullWidth);
 		}
 		from->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	} else if (hiddenSenderInfo) {
+		hiddenSenderInfo->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {
 		p.setFont(st::msgNameFont);
 		auto text = entry->chatListName(); // TODO feed name with emoji
@@ -658,6 +669,7 @@ void RowPainter::paint(
 		entry,
 		row->key(),
 		from,
+		nullptr,
 		item,
 		cloudDraft,
 		displayDate,
@@ -684,7 +696,7 @@ void RowPainter::paint(
 		if (const auto searchChat = row->searchInChat()) {
 			if (const auto peer = searchChat.peer()) {
 				if (peer->isSelf()) {
-					return item->senderOriginal().get();
+					return item->senderOriginal();
 				} else if (!peer->isChannel() || peer->isMegagroup()) {
 					return item->from().get();
 				}
@@ -693,6 +705,16 @@ void RowPainter::paint(
 		return history->peer->migrateTo()
 			? history->peer->migrateTo()
 			: history->peer.get();
+	}();
+	const auto hiddenSenderInfo = [&]() -> const HiddenSenderInfo* {
+		if (const auto searchChat = row->searchInChat()) {
+			if (const auto peer = searchChat.peer()) {
+				if (peer->isSelf()) {
+					return item->hiddenForwardedInfo();
+				}
+			}
+		}
+		return nullptr;
 	}();
 	const auto drawInDialogWay = [&] {
 		if (const auto searchChat = row->searchInChat()) {
@@ -775,6 +797,7 @@ void RowPainter::paint(
 		history,
 		history,
 		from,
+		hiddenSenderInfo,
 		item,
 		cloudDraft,
 		ItemDateTime(item),
