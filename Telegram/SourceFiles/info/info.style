@@ -684,7 +684,6 @@ editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
 editPeerUsernamePosition: point(35px, 3px);
 editPeerInviteLinkSkip: 10px;
 editPeerInviteLinkMargins: margins(15px, 10px, 14px, 16px);
-editPeerSignaturesMargins: margins(23px, 10px, 23px, 16px);
 editPeerInvitesMargins: margins(23px, 10px, 23px, 16px);
 editPeerInvitesTopSkip: 10px;
 editPeerInvitesSkip: 10px;

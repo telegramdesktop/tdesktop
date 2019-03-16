@@ -95,12 +95,12 @@ void AddButtonWithCount(
 		&icon);
 }
 
-void AddButtonWithText(
+Info::Profile::Button *AddButtonWithText(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&label,
 		Fn<void()> callback) {
-	ManagePeerBox::CreateButton(
+	return ManagePeerBox::CreateButton(
 		parent,
 		std::move(text),
 		std::move(label),
@@ -297,12 +297,12 @@ private:
 		Ui::SlideWrap<Ui::RpWidget> *editInviteLinkWrap = nullptr;
 		Ui::FlatLabel *inviteLink = nullptr;
 
-		Ui::Checkbox *signatures = nullptr;
-
 		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
 		std::optional<HistoryVisibility> historyVisibilitySavedValue = std::nullopt;
 		std::optional<Privacy> privacySavedValue = std::nullopt;
 		std::optional<QString> usernameSavedValue = std::nullopt;
+
+		std::optional<bool> signaturesSavedValue = std::nullopt;
 	};
 	struct Saving {
 		std::optional<QString> username;
@@ -321,7 +321,6 @@ private:
 	object_ptr<Ui::RpWidget> createUsernameEdit();
 	object_ptr<Ui::RpWidget> createInviteLinkCreate();
 	object_ptr<Ui::RpWidget> createInviteLinkEdit();
-	object_ptr<Ui::RpWidget> createSignaturesEdit();
 	object_ptr<Ui::RpWidget> createStickersEdit();
 	object_ptr<Ui::RpWidget> createDeleteButton();
 
@@ -458,7 +457,6 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createPrivaciesEdit());
 	_wrap->add(createInviteLinkCreate());
 	_wrap->add(createInviteLinkEdit());
-	_wrap->add(createSignaturesEdit());
 	_wrap->add(createStickersEdit());
 	_wrap->add(createDeleteButton());
 
@@ -759,6 +757,23 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesButtons() {
 	updateHistoryVisibility->fire(std::move(defaultValue));
 	updateType->fire(std::move(defaultValuePrivacy));
 	refreshHistoryVisibility();
+
+	// Draw Signatures toggle button.
+	if (!channel
+		|| !channel->canEditSignatures()
+		|| channel->isMegagroup()) {
+		return std::move(result);
+	}
+	AddButtonWithText(
+		resultContainer,
+		std::move(Lang::Viewer(lng_edit_sign_messages)),
+		rpl::single(QString()),
+		[=] {}
+	)->toggleOn(rpl::single(channel->addsSignature())
+	)->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_controls.signaturesSavedValue = toggled;
+	}, resultContainer->lifetime());
 
 	return std::move(result);
 }
@@ -1192,35 +1207,6 @@ void Controller::refreshHistoryVisibility() {
 		anim::type::normal);
 }
 
-object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
-	Expects(_wrap != nullptr);
-
-	auto channel = _peer->asChannel();
-	if (!channel
-		|| !channel->canEditSignatures()
-		|| channel->isMegagroup()) {
-		return nullptr;
-	}
-	auto result = object_ptr<Ui::VerticalLayout>(_wrap);
-	auto container = result.data();
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::defaultBoxCheckbox.margin.top()));
-	_controls.signatures = container->add(
-		object_ptr<Ui::PaddingWrap<Ui::Checkbox>>(
-			container,
-			object_ptr<Ui::Checkbox>(
-				container,
-				lang(lng_edit_sign_messages),
-				channel->addsSignature(),
-				st::defaultBoxCheckbox),
-			st::editPeerSignaturesMargins))->entity();
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::defaultBoxCheckbox.margin.bottom()));
-	return std::move(result);
-}
-
 object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
@@ -1375,10 +1361,10 @@ bool Controller::validateHistoryVisibility(Saving &to) const {
 }
 
 bool Controller::validateSignatures(Saving &to) const {
-	if (!_controls.signatures) {
+	if (!_controls.signaturesSavedValue.has_value()) {
 		return true;
 	}
-	to.signatures = _controls.signatures->checked();
+	to.signatures = _controls.signaturesSavedValue;
 	return true;
 }
 
