@@ -281,15 +281,6 @@ public:
 	void setFocus();
 
 private:
-	enum class Privacy {
-		Public,
-		Private,
-	};
-	enum class UsernameState {
-		Normal,
-		TooMany,
-		NotAvailable,
-	};
 	struct Controls {
 		Ui::InputField *title = nullptr;
 		Ui::InputField *description = nullptr;
@@ -308,8 +299,10 @@ private:
 
 		Ui::Checkbox *signatures = nullptr;
 
-		std::optional<HistoryVisibility> historyVisibilitySavedValue = std::nullopt;
 		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
+		std::optional<HistoryVisibility> historyVisibilitySavedValue = std::nullopt;
+		std::optional<Privacy> privacySavedValue = std::nullopt;
+		std::optional<QString> usernameSavedValue = std::nullopt;
 	};
 	struct Saving {
 		std::optional<QString> username;
@@ -638,7 +631,7 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesEdit() {
 				container,
 				Lang::Viewer(_isGroup ? groupAboutKey : channelAboutKey),
 				st::editPeerPrivacyLabel),
-			st::editPeerPrivacyLabelMargins));
+			st::editPeerHistoryVisibilityLabelMargins));
 		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
 			st::editPeerPrivacyBottomSkip));
@@ -683,30 +676,57 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesButtons() {
 		return nullptr;
 	}
 
+	// Bug with defaultValue here.
 	const auto channel = _peer->asChannel();
 	auto defaultValue = (!channel || channel->hiddenPreHistory())
 		? HistoryVisibility::Hidden
 		: HistoryVisibility::Visible;
 
-	const auto update = std::make_shared<rpl::event_stream<HistoryVisibility>>();
+	auto defaultValuePrivacy = (_peer->isChannel()
+		&& _peer->asChannel()->isPublic())
+		? Privacy::Public
+		: Privacy::Private;
+
+	const auto updateHistoryVisibility = std::make_shared<rpl::event_stream<HistoryVisibility>>();
+	const auto updateType = std::make_shared<rpl::event_stream<Privacy>>();
 
 	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 		_wrap,
 		object_ptr<Ui::VerticalLayout>(_wrap),
 		st::editPeerTopButtonsLayoutMargins);
 	auto resultContainer = result->entity();
+
+	const auto boxCallback = [=](Privacy checked, QString publicLink) {
+		updateType->fire(std::move(checked));
+		_controls.privacySavedValue = checked;
+		_controls.usernameSavedValue = publicLink;
+		refreshHistoryVisibility();
+	};
+	const auto buttonCallback = [=]{ 
+		Ui::show(Box<EditPeerGroupTypeBox>(
+			_peer,
+			boxCallback,
+			_controls.privacySavedValue,
+			_controls.usernameSavedValue
+		), LayerOption::KeepOther);
+	};
 	AddButtonWithText(
 		resultContainer,
-		std::move(Lang::Viewer(lng_manage_peer_group_type)),
-		update->events(
-		) | rpl::map([](HistoryVisibility count) {
-			return HistoryVisibility::Visible == count ? QString("A") : QString("B");
-		}),
-		[] {LOG(("BUTTON")); });
+		std::move(Lang::Viewer((_peer->isChat() || _peer->isMegagroup())
+			? lng_manage_peer_group_type
+			: lng_manage_peer_channel_type)),
 
-	const auto addPrivaciesButton = [=](LangKey privacyTextKey, Ui::VerticalLayout* container) {
+		updateType->events(
+		) | rpl::map([](Privacy flag) {
+			return lang(Privacy::Public == flag
+						? lng_manage_public_peer_title
+						: lng_manage_private_peer_title);
+		}),
+		buttonCallback);
+	
+	const auto addHistoryVisibilityButton = [=](LangKey privacyTextKey, Ui::VerticalLayout* container) {
 		const auto boxCallback = [=](HistoryVisibility checked) {
-			update->fire(std::move(checked));
+			updateHistoryVisibility->fire(std::move(checked));
 			_controls.historyVisibilitySavedValue = checked;
 		};
 		const auto buttonCallback = [=]{ 
@@ -719,7 +739,7 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesButtons() {
 		AddButtonWithText(
 			container,
 			std::move(Lang::Viewer(privacyTextKey)),
-			update->events(
+			updateHistoryVisibility->events(
 			) | rpl::map([](HistoryVisibility flag) {
 				return lang(HistoryVisibility::Visible == flag
 						? lng_manage_history_visibility_shown
@@ -734,9 +754,10 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesButtons() {
 		st::boxOptionListPadding)); // Empty margins.
 	_controls.historyVisibilityWrap = wrapLayout;
 
-	addPrivaciesButton(lng_manage_history_visibility_title, wrapLayout->entity());
+	addHistoryVisibilityButton(lng_manage_history_visibility_title, wrapLayout->entity());
 	
-	update->fire(std::move(defaultValue));
+	updateHistoryVisibility->fire(std::move(defaultValue));
+	updateType->fire(std::move(defaultValuePrivacy));
 	refreshHistoryVisibility();
 
 	return std::move(result);
@@ -1164,7 +1185,8 @@ void Controller::refreshHistoryVisibility() {
 		return;
 	}
 	auto historyVisibilityShown = !_controls.privacy
-		|| (_controls.privacy->value() == Privacy::Private);
+		|| (_controls.privacy->value() == Privacy::Private)
+		|| (_controls.privacySavedValue == Privacy::Private);
 	_controls.historyVisibilityWrap->toggle(
 		historyVisibilityShown,
 		anim::type::normal);
@@ -1302,11 +1324,15 @@ std::optional<Controller::Saving> Controller::validate() const {
 bool Controller::validateUsername(Saving &to) const {
 	if (!_controls.privacy) {
 		return true;
-	} else if (_controls.privacy->value() == Privacy::Private) {
+	} else if (_controls.privacySavedValue == Privacy::Private) {
 		to.username = QString();
 		return true;
 	}
-	auto username = _controls.username->getLastText().trimmed();
+	auto username = _controls.usernameSavedValue.value_or(
+		_peer->isChannel()
+			? _peer->asChannel()->username
+			: QString()
+	);
 	if (username.isEmpty()) {
 		_controls.username->showError();
 		_box->scrollToWidget(_controls.username);
