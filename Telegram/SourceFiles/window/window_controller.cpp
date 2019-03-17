@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_controller.h"
 
+#include "boxes/peers/edit_peer_info_box.h"
 #include "window/main_window.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -100,6 +101,18 @@ Controller::Controller(
 : Navigation(session)
 , _window(window) {
 	init();
+
+	subscribe(Auth().api().fullPeerUpdated(), [=](PeerData *peer) {
+		if (peer == _showEditPeer) {
+			_showEditPeer = nullptr;
+			Ui::show(Box<EditPeerInfoBox>(peer));
+		}
+	});
+}
+
+void Controller::showEditPeerBox(PeerData *peer) {
+	_showEditPeer = peer;
+	Auth().api().requestFullPeer(peer);
 }
 
 void Controller::init() {
