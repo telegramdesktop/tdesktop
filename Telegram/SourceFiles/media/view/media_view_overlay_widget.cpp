@@ -1661,7 +1661,7 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> co
 
 	refreshMediaViewer();
 
-	displayPhoto(photo, 0);
+	displayPhoto(photo, nullptr);
 	preloadData(0);
 	activateControls();
 }
@@ -1763,9 +1763,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 	_radial.stop();
 
 	refreshMediaViewer();
-	if ((item ? item->fullId() : FullMsgId()) != _msgid) {
-		refreshCaption(item);
-	}
+	refreshCaption(item);
 	if (_doc) {
 		if (_doc->sticker()) {
 			if (const auto image = _doc->getStickerLarge()) {
