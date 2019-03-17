@@ -764,7 +764,7 @@ EditPeerGroupTypeBox::EditPeerGroupTypeBox(
 	peer = p;
 	privacySavedValue = privacySaved;
 	usernameSavedValue = usernameSaved;
-	allowSave = !usernameSaved->isEmpty();
+	allowSave = !usernameSaved->isEmpty() && usernameSaved.has_value();
 }
 
 void EditPeerGroupTypeBox::prepare() {
@@ -773,7 +773,7 @@ void EditPeerGroupTypeBox::prepare() {
 	setTitle(langFactory((peer->isChat() || peer->isMegagroup())
 		? lng_manage_peer_group_type
 		: lng_manage_peer_channel_type));
-	
+
 	addButton(langFactory(lng_settings_save), [=] {
 		const auto v = privacyButtons->value();
 		if (!allowSave && (v == Privacy::Public)) {

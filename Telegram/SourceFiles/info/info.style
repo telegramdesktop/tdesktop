@@ -361,7 +361,7 @@ infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
 infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg, point(-2px, 0px) }};
 infoIconAdministrators: icon {{ "info_administrators", infoIconFg, point(-2px, -1px) }};
-infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
+infoIconBlacklist: icon {{ "info_blacklist", infoIconFg, point(-2px, -2px) }};
 infoIconPermissions: icon {{ "info_permissions", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
@@ -617,6 +617,7 @@ manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
 	iconPosition: point(0px, 0px);
 }
 
+editPeerSkip: 7px;
 editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 
 terminateSessionsButton: InfoProfileButton(infoBlockButton) {
