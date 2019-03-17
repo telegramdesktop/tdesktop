@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "ui/widgets/checkbox.h"
 
 namespace style {
 struct InfoProfileCountButton;
@@ -47,5 +48,6 @@ private:
 	FnMut<void(HistoryVisibility)> _savedCallback;
 
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
+	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> _historyVisibility = nullptr;
 
 };

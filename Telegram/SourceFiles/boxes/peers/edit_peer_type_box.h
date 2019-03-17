@@ -54,6 +54,9 @@ private:
 	not_null<PeerData*> _peer;
 	FnMut<void(Privacy, QString)> _savedCallback;
 
+	std::optional<Privacy> _privacySavedValue = std::nullopt;
+	std::optional<QString> _usernameSavedValue = std::nullopt;
+
 	rpl::event_stream<> _focusRequests;
 
 };

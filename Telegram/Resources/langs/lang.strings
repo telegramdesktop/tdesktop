@@ -866,6 +866,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_private_group_about" = "People can only join if they were invited or have an invite link";
 "lng_create_group_skip" = "Skip";
 
+"lng_create_channel_link_about" = "You can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
+
 "lng_create_channel_link_invalid" = "This link is invalid";
 "lng_create_channel_link_occupied" = "Sorry, this link is already occupied";
 "lng_create_channel_link_too_short" = "Sorry, this link is too short";

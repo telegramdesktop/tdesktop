@@ -46,7 +46,7 @@ protected:
 	void prepare() override;
 
 private:
-	not_null<PeerData*> _peer;
 	rpl::event_stream<> _focusRequests;
+	not_null<PeerData*> _peer;
 
 };

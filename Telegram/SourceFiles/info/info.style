@@ -639,8 +639,11 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
-editPeerBottomButtonsLayoutMargins: margins(0px, 11px, 0px, 7px);
+editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
 editPeerTopButtonsLayoutMargins: margins(0px, 12px, 0px, 6px);
+
+editPeerTopButtonsLayoutSkip: 13px;
+editPeerTopButtonsLayoutSkipToBottom: 12px;
 
 editPeerHistoryVisibilityTopSkip: 8px;
 
@@ -651,15 +654,20 @@ editPeerTitle: defaultInputField;
 editPeerTitleMargins: margins(27px, 21px, 23px, 8px);
 editPeerDescription: newGroupDescription;
 editPeerDescriptionMargins: margins(23px, 5px, 23px, 16px);
-editPeerPrivaciesMargins: margins(15px, 0px, 23px, 0px);
+editPeerPrivaciesMargins: margins(15px, 7px, 23px, 0px);
 editPeerPrivacyTopSkip: 10px;
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
 	textFg: windowSubTextFg;
 }
+editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
+	margin: margins(0px, 8px, 0px, 8px);
+	style: boxTextStyle;
+}
 editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
-editPeerPrivacyLabelMargins: margins(34px, 0px, 34px, 0px);
+editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
+editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
 editPeerSectionLabel: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(15px semibold);
@@ -667,6 +675,8 @@ editPeerSectionLabel: FlatLabel(boxTitle) {
 		linkFontOver: font(15px semibold underline);
 	}
 }
+editPeerUsernameTitleLabelMargins: margins(0px, 0px, 0px, 10px);
+editPeerUsernameAboutLabelMargins: margins(0px, 15px, 34px, 15px);
 editPeerUsername: setupChannelLink;
 editPeerUsernameSkip: 8px;
 editPeerInviteLink: FlatLabel(defaultFlatLabel) {
@@ -674,7 +684,7 @@ editPeerInviteLink: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 editPeerInviteLinkButton: boxLinkButton;
-editPeerUsernameMargins: margins(15px, 2px, 35px, 2px);
+editPeerUsernameMargins: margins(23px, 17px, 23px, 2px);
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
@@ -682,12 +692,12 @@ editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
 	textFg: boxTextFgError;
 }
-editPeerUsernamePosition: point(35px, 3px);
+editPeerUsernamePosition: point(23px, 18px);
 editPeerInviteLinkSkip: 10px;
-editPeerInviteLinkMargins: margins(15px, 10px, 14px, 16px);
-editPeerInvitesMargins: margins(23px, 10px, 23px, 16px);
+editPeerInvitesMargins: margins(23px, 17px, 23px, 16px);
 editPeerInvitesTopSkip: 10px;
 editPeerInvitesSkip: 10px;
+editPeerInviteLinkBoxBottomSkip: 15px;
 
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;
