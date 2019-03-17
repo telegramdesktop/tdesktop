@@ -354,14 +354,15 @@ void Controller::createContent() {
 	privacyButtons->setChangedCallback([this](Privacy value) {
 		privacyChanged(value);
 	});
-	if (privacyButtons->value() == Privacy::Private) {
-		checkUsernameAvailability();
-	}
 
 	// _wrap->add(createPrivaciesEdit());
 	_wrap->add(createInviteLinkCreate());
 	_wrap->add(createInviteLinkEdit());
 	_wrap->add(createUsernameEdit());
+
+	if (privacyButtons->value() == Privacy::Private) {
+		checkUsernameAvailability();
+	}
 }
 
 object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
