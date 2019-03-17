@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "boxes/peers/edit_participants_box.h"
-#include "boxes/peers/manage_peer_box.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
 #include "styles/style_boxes.h"
@@ -357,7 +357,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
 	const auto navigation = App::wnd()->controller();
-	ManagePeerBox::CreateButton(
+	EditPeerInfoBox::CreateButton(
 		container,
 		Lang::Viewer(lng_manage_peer_exceptions),
 		(channel
@@ -371,7 +371,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 		},
 		st::peerPermissionsButton);
 	if (channel) {
-		ManagePeerBox::CreateButton(
+		EditPeerInfoBox::CreateButton(
 			container,
 			Lang::Viewer(lng_manage_peer_removed_users),
 			Info::Profile::KickedCountValue(channel)

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/peers/edit_peer_group_type_box.h"
+#include "boxes/peers/edit_peer_type_box.h"
 
 #include "apiwrap.h"
 #include "apiwrap.h"
@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_participants_box.h"
-#include "boxes/peers/edit_peer_group_type_box.h"
+#include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/peers/edit_peer_history_visibility_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
@@ -754,7 +754,7 @@ void Controller::refreshCreateInviteLink() {
 
 } // namespace
 
-EditPeerGroupTypeBox::EditPeerGroupTypeBox(
+EditPeerTypeBox::EditPeerTypeBox(
 		QWidget*,
 		not_null<PeerData*> p,
 		FnMut<void(Privacy, QString)> savedCallback,
@@ -768,7 +768,7 @@ EditPeerGroupTypeBox::EditPeerGroupTypeBox(
 	allowSave = !usernameSaved->isEmpty() && usernameSaved.has_value();
 }
 
-void EditPeerGroupTypeBox::prepare() {
+void EditPeerTypeBox::prepare() {
 	_peer->updateFull();
 
 	setTitle(langFactory((peer->isChat() || peer->isMegagroup())
@@ -794,7 +794,7 @@ void EditPeerGroupTypeBox::prepare() {
 	setupContent();
 }
 
-void EditPeerGroupTypeBox::setupContent() {
+void EditPeerTypeBox::setupContent() {
 	isGroup = (_peer->isChat() || _peer->isMegagroup());
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);

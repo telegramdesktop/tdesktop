@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/peers/add_participants_box.h"
-#include "boxes/peers/manage_peer_box.h"
 #include "ui/toast/toast.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -37,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
+#include "boxes/peers/edit_peer_info_box.h"
 
 namespace Window {
 namespace {
@@ -354,7 +354,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
-		if (ManagePeerBox::Available(chat)) {
+		if (EditPeerInfoBox::Available(chat)) {
 			const auto text = lang(lng_manage_group_title);
 			_addAction(text, [=] {
 				App::wnd()->controller()->showEditPeerBox(chat);
@@ -396,7 +396,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		}
 	}
 	if (_source != PeerMenuSource::ChatsList) {
-		if (ManagePeerBox::Available(channel)) {
+		if (EditPeerInfoBox::Available(channel)) {
 			const auto text = lang(isGroup
 				? lng_manage_group_title
 				: lng_manage_channel_title);
