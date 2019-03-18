@@ -3110,7 +3110,7 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 		setContext(std::nullopt);
 	}
 	clearStreaming();
-	_streamingStartPaused = true;
+	_streamingStartPaused = false;
 	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
 		displayPhoto(*photo, entity.item);
 	} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
