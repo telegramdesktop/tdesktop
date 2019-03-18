@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 
+enum LangKey : int;
+
 namespace style {
 struct InfoProfileCountButton;
 } // namespace style
@@ -43,7 +45,8 @@ public:
 		not_null<PeerData*> p,
 		FnMut<void(Privacy, QString)> savedCallback,
 		std::optional<Privacy> privacySaved = std::nullopt,
-		std::optional<QString> usernameSaved = std::nullopt);
+		std::optional<QString> usernameSaved = std::nullopt,
+		std::optional<LangKey> usernameError = std::nullopt);
 
 protected:
 	void prepare() override;
@@ -56,6 +59,7 @@ private:
 
 	std::optional<Privacy> _privacySavedValue = std::nullopt;
 	std::optional<QString> _usernameSavedValue = std::nullopt;
+	std::optional<LangKey> _usernameError = std::nullopt;
 
 	rpl::event_stream<> _focusRequests;
 

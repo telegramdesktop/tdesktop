@@ -161,6 +161,7 @@ private:
 	object_ptr<Ui::RpWidget> createPhotoEdit();
 	object_ptr<Ui::RpWidget> createDescriptionEdit();
 	void refreshHistoryVisibility(bool instant);
+	void showEditPeerTypeBox(std::optional<LangKey> error = std::nullopt);
 	void fillPrivacyTypeButton();
 	void fillInviteLinkButton();
 	void fillSignaturesButton();
@@ -216,6 +217,8 @@ private:
 
 	std::deque<FnMut<void()>> _saveStagesQueue;
 	Saving _savingData;
+
+	const rpl::event_stream<Privacy> _updadePrivacyType;
 
 	rpl::lifetime _lifetime;
 
@@ -395,9 +398,25 @@ void Controller::refreshHistoryVisibility(bool instant = false) {
 		return;
 	}
 	_controls.historyVisibilityWrap->toggle(
-		_privacySavedValue == Privacy::Private,
+		_privacySavedValue != Privacy::Public,
 		instant ? anim::type::instant : anim::type::normal);
 };
+
+void Controller::showEditPeerTypeBox(std::optional<LangKey> error) {
+	const auto boxCallback = [=](Privacy checked, QString publicLink) {
+		_updadePrivacyType.fire(std::move(checked));
+		_privacySavedValue = checked;
+		_usernameSavedValue = publicLink;
+		refreshHistoryVisibility();
+	};
+	Ui::show(Box<EditPeerTypeBox>(
+		_peer,
+		boxCallback,
+		_privacySavedValue,
+		_usernameSavedValue,
+		error
+		), LayerOption::KeepOther);
+}
 
 void Controller::fillPrivacyTypeButton() {
 	Expects(_controls.buttonsLayout != nullptr);
@@ -407,21 +426,8 @@ void Controller::fillPrivacyTypeButton() {
 		? Privacy::Public
 		: Privacy::Private;
 
-	const auto updateType = std::make_shared<rpl::event_stream<Privacy>>();
-
-	const auto boxCallback = [=](Privacy checked, QString publicLink) {
-		updateType->fire(std::move(checked));
-		_privacySavedValue = checked;
-		_usernameSavedValue = publicLink;
-		refreshHistoryVisibility();
-	};
 	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerTypeBox>(
-			_peer,
-			boxCallback,
-			_privacySavedValue,
-			_usernameSavedValue
-			), LayerOption::KeepOther);
+		showEditPeerTypeBox();
 	};
 
 	AddButtonWithText(
@@ -430,7 +436,7 @@ void Controller::fillPrivacyTypeButton() {
 			? lng_manage_peer_group_type
 			: lng_manage_peer_channel_type)),
 
-		updateType->events(
+		_updadePrivacyType.events(
 		) | rpl::map([](Privacy flag) {
 		return lang(Privacy::Public == flag
 			? lng_manage_public_peer_title
@@ -438,7 +444,7 @@ void Controller::fillPrivacyTypeButton() {
 	}),
 		buttonCallback);
 
-	updateType->fire(std::move(_privacySavedValue.value()));
+	_updadePrivacyType.fire(std::move(_privacySavedValue.value()));
 }
 
 void Controller::fillInviteLinkButton() {
@@ -915,12 +921,12 @@ void Controller::saveUsername() {
 				return lng_create_channel_link_invalid;
 			} else if (type == qstr("USERNAME_OCCUPIED")
 				|| type == qstr("USERNAMES_UNAVAILABLE")) {
-				return lng_create_channel_link_invalid;
+				return lng_create_channel_link_occupied;
 			}
 			return lng_create_channel_link_invalid;
 		}();
-		// Probably never happend.
-		// showUsernameError(Lang::Viewer(errorKey));
+		// Very rare case.
+		showEditPeerTypeBox(errorKey);
 		cancelSave();
 	}).send();
 }
