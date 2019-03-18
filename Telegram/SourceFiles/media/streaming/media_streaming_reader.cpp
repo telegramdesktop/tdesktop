@@ -336,19 +336,32 @@ bool Reader::Slices::headerWontBeFilled() const {
 }
 
 void Reader::Slices::applyHeaderCacheData() {
-	if (_header.parts.empty() || _headerMode != HeaderMode::Unknown) {
+	using namespace rpl::mappers;
+
+	const auto applyWhile = [&](auto &&predicate) {
+		for (const auto &[offset, part] : _header.parts) {
+			const auto index = offset / kInSlice;
+			if (!predicate(index)) {
+				break;
+			}
+			_data[index].addPart(
+				offset - index * kInSlice,
+				base::duplicate(part));
+		}
+	};
+	if (_header.parts.empty()) {
+		return;
+	} else if (_headerMode == HeaderMode::Good) {
+		// Always apply data to first block if it is cached in the header.
+		applyWhile(_1 == 0);
+	} else if (_headerMode != HeaderMode::Unknown) {
 		return;
 	} else if (isFullInHeader()) {
 		headerDone(true);
-		return;
+	} else {
+		applyWhile(_1 < int(_data.size()));
+		headerDone(true);
 	}
-	for (const auto &[offset, part] : _header.parts) {
-		const auto index = offset / kInSlice;
-		_data[index].addPart(
-			offset - index * kInSlice,
-			base::duplicate(part));
-	}
-	headerDone(true);
 }
 
 void Reader::Slices::processCacheResult(
