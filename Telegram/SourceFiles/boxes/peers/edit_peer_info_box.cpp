@@ -145,8 +145,8 @@ private:
 		Ui::InputField *description = nullptr;
 		Ui::UserpicButton *photo = nullptr;
 		rpl::lifetime initialPhotoImageWaiting;
-		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
 		Ui::VerticalLayout *buttonsLayout = nullptr;
+		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
 	};
 	struct Saving {
 		std::optional<QString> username;
@@ -160,22 +160,17 @@ private:
 	object_ptr<Ui::RpWidget> createTitleEdit();
 	object_ptr<Ui::RpWidget> createPhotoEdit();
 	object_ptr<Ui::RpWidget> createDescriptionEdit();
+	object_ptr<Ui::RpWidget> createManageGroupButtons();
+	object_ptr<Ui::RpWidget> createStickersEdit();
+	object_ptr<Ui::RpWidget> createDeleteButton();
+
 	void refreshHistoryVisibility(bool instant);
 	void showEditPeerTypeBox(std::optional<LangKey> error = std::nullopt);
 	void fillPrivacyTypeButton();
 	void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
-	void fillManageSection(not_null<Window::Navigation*> navigation, not_null<PeerData*> peer);
-	object_ptr<Ui::RpWidget> createUsernameEdit();
-	object_ptr<Ui::RpWidget> createInviteLinkCreate();
-	object_ptr<Ui::RpWidget> createInviteLinkEdit();
-	object_ptr<Ui::RpWidget> createStickersEdit();
-	object_ptr<Ui::RpWidget> createDeleteButton();
-
-	object_ptr<Ui::RpWidget> createManageGroupButtons();
-
-	void observeInviteLink();
+	void fillManageSection();
 
 	void submitTitle();
 	void submitDescription();
@@ -252,7 +247,6 @@ void Controller::subscribeToMigration() {
 
 void Controller::migrate(not_null<ChannelData*> channel) {
 	_peer = channel;
-	// observeInviteLink();
 	_peer->updateFull();
 }
 
@@ -263,9 +257,7 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 
 	_wrap->add(createPhotoAndTitleEdit());
 	_wrap->add(createDescriptionEdit());
-
 	_wrap->add(createManageGroupButtons());
-
 	_wrap->add(createStickersEdit());
 	_wrap->add(createDeleteButton());
 
@@ -294,12 +286,12 @@ object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	}
 
 	auto result = object_ptr<Ui::RpWidget>(_wrap);
-	auto container = result.data();
+	const auto container = result.data();
 
-	auto photoWrap = Ui::AttachParentChild(
+	const auto photoWrap = Ui::AttachParentChild(
 		container,
 		createPhotoEdit());
-	auto titleEdit = Ui::AttachParentChild(
+	const auto titleEdit = Ui::AttachParentChild(
 		container,
 		createTitleEdit());
 	photoWrap->heightValue(
@@ -308,7 +300,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	}, photoWrap->lifetime());
 	container->widthValue(
 	) | rpl::start_with_next([titleEdit](int width) {
-		auto left = st::editPeerPhotoMargins.left()
+		const auto left = st::editPeerPhotoMargins.left()
 			+ st::defaultUserpicButton.size.width();
 		titleEdit->resizeToWidth(width - left);
 		titleEdit->moveToLeft(left, 0, width);
@@ -390,6 +382,84 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 		[=] { submitDescription(); });
 
 	_controls.description = result->entity();
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
+	Expects(_wrap != nullptr);
+
+	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap),
+		st::editPeerBottomButtonsLayoutMargins);
+	_controls.buttonsLayout = result->entity();
+
+	fillManageSection();
+
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
+	Expects(_wrap != nullptr);
+
+	const auto channel = _peer->asChannel();
+	if (!channel || !channel->canEditStickers()) {
+		return nullptr;
+	}
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap),
+		st::editPeerInvitesMargins);
+	const auto container = result->entity();
+
+	container->add(object_ptr<Ui::FlatLabel>(
+		container,
+		Lang::Viewer(lng_group_stickers),
+		st::editPeerSectionLabel));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::editPeerInviteLinkSkip));
+
+	container->add(object_ptr<Ui::FlatLabel>(
+		container,
+		Lang::Viewer(lng_group_stickers_description),
+		st::editPeerPrivacyLabel));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::editPeerInviteLinkSkip));
+
+	container->add(object_ptr<Ui::LinkButton>(
+		_wrap,
+		lang(lng_group_stickers_add),
+		st::editPeerInviteLinkButton)
+	)->addClickHandler([=] {
+		Ui::show(Box<StickersBox>(channel), LayerOption::KeepOther);
+	});
+
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createDeleteButton() {
+	Expects(_wrap != nullptr);
+
+	const auto channel = _peer->asChannel();
+	if (!channel || !channel->canDelete()) {
+		return nullptr;
+	}
+	const auto text = lang(_isGroup
+		? lng_profile_delete_group
+		: lng_profile_delete_channel);
+	auto result = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
+		_wrap,
+		object_ptr<Ui::LinkButton>(
+			_wrap,
+			text,
+			st::editPeerDeleteButton),
+		st::editPeerDeleteButtonMargins);
+	result->entity()->addClickHandler([this] {
+		deleteWithConfirmation();
+	});
 	return std::move(result);
 }
 
@@ -486,14 +556,14 @@ void Controller::fillSignaturesButton() {
 void Controller::fillHistoryVisibilityButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	auto wrapLayout = _controls.buttonsLayout->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+	const auto wrapLayout = _controls.buttonsLayout->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_controls.buttonsLayout,
 		object_ptr<Ui::VerticalLayout>(_controls.buttonsLayout),
 		st::boxOptionListPadding)); // Empty margins.
 	_controls.historyVisibilityWrap = wrapLayout;
 
 	const auto channel = _peer->asChannel();
-	auto container = wrapLayout->entity();
+	const auto container = wrapLayout->entity();
 
 	_historyVisibilitySavedValue = (!channel || channel->hiddenPreHistory())
 		? HistoryVisibility::Hidden
@@ -531,13 +601,12 @@ void Controller::fillHistoryVisibilityButton() {
 	refreshHistoryVisibility(true);
 }
 
-void Controller::fillManageSection(
-	not_null<Window::Navigation*> navigation,
-	not_null<PeerData*> peer) {
+void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
+	const auto navigation = App::wnd()->controller();
 
-	const auto chat = peer->asChat();
-	const auto channel = peer->asChannel();
+	const auto chat = _peer->asChat();
+	const auto channel = _peer->asChannel();
 	const auto isChannel = (!chat);
 	if (!chat && !channel) return;
 
@@ -604,29 +673,30 @@ void Controller::fillManageSection(
 		fillHistoryVisibilityButton();
 	}
 	if (canEditPreHistoryHidden || canEditSignatures || canEditInviteLink) {
-		// Perhaps should fix extra 1-pixel line for design.
-		AddSkip(_controls.buttonsLayout);
+		AddSkip(_controls.buttonsLayout, 
+			st::editPeerTopButtonsLayoutSkip,
+			st::editPeerTopButtonsLayoutSkipCustomBottom);
 	}
 
 	if (canEditPermissions) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			Lang::Viewer(lng_manage_peer_permissions),
-			Info::Profile::RestrictionsCountValue(peer)
+			Info::Profile::RestrictionsCountValue(_peer)
 			| ToPositiveNumberStringRestrictions(),
-			[=] { ShowEditPermissions(peer); },
+			[=] { ShowEditPermissions(_peer); },
 			st::infoIconPermissions);
 	}
 	if (canViewAdmins) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			Lang::Viewer(lng_manage_peer_administrators),
-			Info::Profile::AdminsCountValue(peer)
+			Info::Profile::AdminsCountValue(_peer)
 			| ToPositiveNumberString(),
 			[=] {
 			ParticipantsBoxController::Start(
 				navigation,
-				peer,
+				_peer,
 				ParticipantsBoxController::Role::Admins);
 		},
 			st::infoIconAdministrators);
@@ -635,12 +705,12 @@ void Controller::fillManageSection(
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			Lang::Viewer(lng_manage_peer_members),
-			Info::Profile::MembersCountValue(peer)
+			Info::Profile::MembersCountValue(_peer)
 			| ToPositiveNumberString(),
 			[=] {
 			ParticipantsBoxController::Start(
 				navigation,
-				peer,
+				_peer,
 				ParticipantsBoxController::Role::Members);
 		},
 			st::infoIconMembers);
@@ -654,7 +724,7 @@ void Controller::fillManageSection(
 			[=] {
 			ParticipantsBoxController::Start(
 				navigation,
-				peer,
+				_peer,
 				ParticipantsBoxController::Role::Kicked);
 		},
 			st::infoIconBlacklist);
@@ -670,85 +740,8 @@ void Controller::fillManageSection(
 			st::infoIconRecentActions);
 	}
 
-	AddSkip(_controls.buttonsLayout);
-}
-
-object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
-	Expects(_wrap != nullptr);
-
-	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerBottomButtonsLayoutMargins);
-	_controls.buttonsLayout = result->entity();
-
-	fillManageSection(App::wnd()->controller(), _peer);
-
-	return std::move(result);
-}
-
-object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
-	Expects(_wrap != nullptr);
-
-	auto channel = _peer->asChannel();
-	if (!channel || !channel->canEditStickers()) {
-		return nullptr;
-	}
-
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
-	auto container = result->entity();
-
-	container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		Lang::Viewer(lng_group_stickers),
-		st::editPeerSectionLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
-
-	container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		Lang::Viewer(lng_group_stickers_description),
-		st::editPeerPrivacyLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
-
-	container->add(object_ptr<Ui::LinkButton>(
-		_wrap,
-		lang(lng_group_stickers_add),
-		st::editPeerInviteLinkButton)
-	)->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(channel), LayerOption::KeepOther);
-	});
-
-	return std::move(result);
-}
-
-object_ptr<Ui::RpWidget> Controller::createDeleteButton() {
-	Expects(_wrap != nullptr);
-
-	auto channel = _peer->asChannel();
-	if (!channel || !channel->canDelete()) {
-		return nullptr;
-	}
-	auto text = lang(_isGroup
-		? lng_profile_delete_group
-		: lng_profile_delete_channel);
-	auto result = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
-		_wrap,
-		object_ptr<Ui::LinkButton>(
-			_wrap,
-			text,
-			st::editPeerDeleteButton),
-		st::editPeerDeleteButtonMargins);
-	result->entity()->addClickHandler([this] {
-		deleteWithConfirmation();
-	});
-	return std::move(result);
+	AddSkip(_controls.buttonsLayout,
+		st::editPeerTopButtonsLayoutSkipCustomTop);
 }
 
 void Controller::submitTitle() {
@@ -792,7 +785,7 @@ bool Controller::validateUsername(Saving &to) const {
 		to.username = QString();
 		return true;
 	}
-	auto username = _usernameSavedValue.value_or(
+	const auto username = _usernameSavedValue.value_or(
 		_peer->isChannel()
 			? _peer->asChannel()->username
 			: QString()
@@ -808,7 +801,7 @@ bool Controller::validateTitle(Saving &to) const {
 	if (!_controls.title) {
 		return true;
 	}
-	auto title = _controls.title->getLastText().trimmed();
+	const auto title = _controls.title->getLastText().trimmed();
 	if (title.isEmpty()) {
 		_controls.title->showError();
 		_box->scrollToWidget(_controls.title);
@@ -852,7 +845,7 @@ void Controller::save() {
 	if (!_saveStagesQueue.empty()) {
 		return;
 	}
-	if (auto saving = validate()) {
+	if (const auto saving = validate()) {
 		_savingData = *saving;
 		pushSaveStage([this] { saveUsername(); });
 		pushSaveStage([this] { saveTitle(); });
@@ -1120,7 +1113,7 @@ EditPeerInfoBox::EditPeerInfoBox(
 }
 
 void EditPeerInfoBox::prepare() {
-	auto controller = Ui::CreateChild<Controller>(this, this, _peer);
+	const auto controller = Ui::CreateChild<Controller>(this, this, _peer);
 	_focusRequests.events(
 	) | rpl::start_with_next(
 		[=] { controller->setFocus(); },

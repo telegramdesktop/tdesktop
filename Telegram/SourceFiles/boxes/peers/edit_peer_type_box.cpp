@@ -134,9 +134,6 @@ private:
 	bool inviteLinkShown();
 	QString inviteLinkText();
 
-	void subscribeToMigration();
-	void migrate(not_null<ChannelData*> channel);
-
 	not_null<PeerData*> _peer;
 	std::optional<Privacy> _privacySavedValue = std::nullopt;
 	std::optional<QString> _usernameSavedValue = std::nullopt;
@@ -171,20 +168,6 @@ Controller::Controller(
 , _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
 , _wrap(container)
 , _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
-	subscribeToMigration();
-	_peer->updateFull();
-}
-
-void Controller::subscribeToMigration() {
-	SubscribeToMigration(
-		_peer,
-		_lifetime,
-		[=](not_null<ChannelData*> channel) { migrate(channel); });
-}
-
-void Controller::migrate(not_null<ChannelData*> channel) {
-	_peer = channel;
-	observeInviteLink();
 	_peer->updateFull();
 }
 
@@ -208,7 +191,6 @@ void Controller::createContent() {
 	if (_controls.privacy->value() == Privacy::Private) {
 		checkUsernameAvailability();
 	}
-
 	if (_usernameError.has_value()) {
 		showUsernameError(Lang::Viewer(_usernameError.value()));
 		// Not focused actually.
@@ -263,7 +245,7 @@ void Controller::fillPrivaciesButtons(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),
 		st::editPeerPrivaciesMargins));
-	auto container = result->entity();
+	const auto container = result->entity();
 
 	const auto isPublic = _peer->isChannel()
 		&& _peer->asChannel()->isPublic();
@@ -288,12 +270,6 @@ void Controller::fillPrivaciesButtons(
 	_controls.privacy->setChangedCallback([=](Privacy value) {
 		privacyChanged(value);
 	});
-	
-	if (!isPublic) {
-		// checkUsernameAvailability();
-	}
-
-	// return std::move(result);
 }
 
 void Controller::setFocusUsername() {
@@ -327,7 +303,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		st::editPeerUsernameMargins);
 	_controls.usernameWrap = result.data();
 
-	auto container = result->entity();
+	const auto container = result->entity();
 	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		container,
 		object_ptr<Ui::FlatLabel>(
@@ -336,7 +312,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 			st::editPeerSectionLabel),
 		st::editPeerUsernameTitleLabelMargins));
 
-	auto placeholder = container->add(object_ptr<Ui::RpWidget>(
+	const auto placeholder = container->add(object_ptr<Ui::RpWidget>(
 		container));
 	placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_controls.usernameInput = Ui::AttachParentChild(
@@ -372,19 +348,19 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		&Ui::UsernameInput::changed,
 		[this] { usernameChanged(); });
 
-	auto shown = (_controls.privacy->value() == Privacy::Public);
+	const auto shown = (_controls.privacy->value() == Privacy::Public);
 	result->toggle(shown, anim::type::instant);
 
 	return std::move(result);
 }
 
 void Controller::privacyChanged(Privacy value) {
-	auto toggleEditUsername = [&] {
+	const auto toggleEditUsername = [&] {
 		_controls.usernameWrap->toggle(
 			(value == Privacy::Public),
 			anim::type::instant);
 	};
-	auto refreshVisibilities = [&] {
+	const auto refreshVisibilities = [&] {
 		// Now first we need to hide that was shown.
 		// Otherwise box will change own Y position.
 
@@ -425,8 +401,8 @@ void Controller::checkUsernameAvailability() {
 	if (!_controls.usernameInput) {
 		return;
 	}
-	auto initial = (_controls.privacy->value() != Privacy::Public);
-	auto checking = initial
+	const auto initial = (_controls.privacy->value() != Privacy::Public);
+	const auto checking = initial
 		? qsl(".bad.")
 		: getUsernameInput();
 	if (checking.size() < kMinUsernameLength) {
@@ -482,7 +458,7 @@ void Controller::checkUsernameAvailability() {
 
 void Controller::askUsernameRevoke() {
 	_controls.privacy->setValue(Privacy::Private);
-	auto revokeCallback = crl::guard(this, [this] {
+	const auto revokeCallback = crl::guard(this, [this] {
 		_usernameState = UsernameState::Normal;
 		_controls.privacy->setValue(Privacy::Public);
 		checkUsernameAvailability();
@@ -494,13 +470,13 @@ void Controller::askUsernameRevoke() {
 
 void Controller::usernameChanged() {
 	_isAllowSave = false;
-	auto username = getUsernameInput();
+	const auto username = getUsernameInput();
 	if (username.isEmpty()) {
 		_controls.usernameResult = nullptr;
 		_checkUsernameTimer.cancel();
 		return;
 	}
-	auto bad = ranges::find_if(username, [](QChar ch) {
+	const auto bad = ranges::find_if(username, [](QChar ch) {
 		return (ch < 'A' || ch > 'Z')
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < '0' || ch > '9')
@@ -540,7 +516,7 @@ void Controller::showUsernameResult(
 			_controls.usernameWrap,
 			_usernameResultTexts.events() | rpl::flatten_latest(),
 			*st);
-		auto label = _controls.usernameResult.get();
+		const auto label = _controls.usernameResult.get();
 		label->show();
 		label->widthValue(
 		) | rpl::start_with_next([label] {
@@ -563,8 +539,8 @@ void Controller::revokeInviteLink() {
 }
 
 void Controller::exportInviteLink(const QString &confirmation) {
-	auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
-	auto callback = crl::guard(this, [=] {
+	const auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
+	const auto callback = crl::guard(this, [=] {
 		if (const auto strong = *boxPointer) {
 			strong->closeBox();
 		}
@@ -591,7 +567,6 @@ void Controller::observeInviteLink() {
 	if (!_controls.editInviteLinkWrap) {
 		return;
 	}
-	// return; //
 	Notify::PeerUpdateValue(
 		_peer,
 		Notify::PeerUpdate::Flag::InviteLinkChanged
@@ -614,7 +589,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 		st::editPeerInvitesMargins);
 	_controls.editInviteLinkWrap = result.data();
 
-	auto container = result->entity();
+	const auto container = result->entity();
 	if (!_isInviteLink) {
 		container->add(object_ptr<Ui::FlatLabel>(
 			container,
@@ -652,11 +627,11 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 }
 
 void Controller::refreshEditInviteLink() {
-	auto link = inviteLinkText();
+	const auto link = inviteLinkText();
 	auto text = TextWithEntities();
 	if (!link.isEmpty()) {
 		text.text = link;
-		auto remove = qstr("https://");
+		const auto remove = qstr("https://");
 		if (text.text.startsWith(remove)) {
 			text.text.remove(0, remove.size());
 		}
@@ -687,7 +662,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 		_wrap,
 		object_ptr<Ui::VerticalLayout>(_wrap),
 		st::editPeerInvitesMargins);
-	auto container = result->entity();
+	const auto container = result->entity();
 
 	if (!_isInviteLink) {
 		container->add(object_ptr<Ui::FlatLabel>(
@@ -746,7 +721,7 @@ void EditPeerTypeBox::prepare() {
 	
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	auto controller = Ui::CreateChild<Controller>(
+	const auto controller = Ui::CreateChild<Controller>(
 		this,
 		content,
 		_peer,
@@ -780,9 +755,4 @@ void EditPeerTypeBox::prepare() {
 	addButton(langFactory(controller->isInviteLink() ? lng_close : lng_cancel), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWideWidth, content);
-}
-
-void EditPeerTypeBox::setupContent() {
-	
-	
 }

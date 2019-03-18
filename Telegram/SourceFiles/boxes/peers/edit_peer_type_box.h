@@ -52,8 +52,6 @@ protected:
 	void prepare() override;
 
 private:
-	void setupContent();
-
 	not_null<PeerData*> _peer;
 	FnMut<void(Privacy, QString)> _savedCallback;
 
