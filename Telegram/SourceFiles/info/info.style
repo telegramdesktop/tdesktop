@@ -617,6 +617,17 @@ manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
 	iconPosition: point(0px, 0px);
 }
 
+manageDeleteGroupButton: InfoProfileCountButton(manageGroupTopButtonWithText) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(25px, 11px, 24px, 8px);
+		font: font(14px);
+		textFg: attentionButtonFg;
+		textFgOver: attentionButtonFg;
+	}
+	labelPosition: point(22px, 11px);
+	iconPosition: point(0px, 0px);
+}
+
 editPeerSkip: 7px;
 editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 

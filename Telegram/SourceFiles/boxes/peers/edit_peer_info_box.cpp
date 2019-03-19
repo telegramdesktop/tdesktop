@@ -103,6 +103,19 @@ Info::Profile::Button *AddButtonWithText(
 		nullptr);
 }
 
+Info::Profile::Button *AddButtonDelete(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		Fn<void()> callback) {
+	return EditPeerInfoBox::CreateButton(
+		parent,
+		std::move(text),
+		rpl::single(QString()),
+		std::move(callback),
+		st::manageDeleteGroupButton,
+		nullptr);
+}
+
 void ShowEditPermissions(not_null<PeerData*> peer) {
 	const auto box = Ui::show(
 		Box<EditPeerPermissionsBox>(peer),
@@ -258,8 +271,8 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createPhotoAndTitleEdit());
 	_wrap->add(createDescriptionEdit());
 	_wrap->add(createManageGroupButtons());
-	_wrap->add(createStickersEdit());
-	_wrap->add(createDeleteButton());
+	// _wrap->add(createStickersEdit());
+	// _wrap->add(createDeleteButton());
 
 	return result;
 }
@@ -403,9 +416,9 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
-	if (!channel || !channel->canEditStickers()) {
-		return nullptr;
-	}
+	// if (!channel || !channel->canEditStickers()) {
+	// 	return nullptr;
+	// }
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
@@ -556,10 +569,11 @@ void Controller::fillSignaturesButton() {
 void Controller::fillHistoryVisibilityButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto wrapLayout = _controls.buttonsLayout->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_controls.buttonsLayout,
-		object_ptr<Ui::VerticalLayout>(_controls.buttonsLayout),
-		st::boxOptionListPadding)); // Empty margins.
+	const auto wrapLayout = _controls.buttonsLayout->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_controls.buttonsLayout,
+			object_ptr<Ui::VerticalLayout>(_controls.buttonsLayout),
+			st::boxOptionListPadding)); // Empty margins.
 	_controls.historyVisibilityWrap = wrapLayout;
 
 	const auto channel = _peer->asChannel();
@@ -569,7 +583,8 @@ void Controller::fillHistoryVisibilityButton() {
 		? HistoryVisibility::Hidden
 		: HistoryVisibility::Visible;
 
-	const auto updateHistoryVisibility = std::make_shared<rpl::event_stream<HistoryVisibility>>();
+	const auto updateHistoryVisibility =
+		std::make_shared<rpl::event_stream<HistoryVisibility>>();
 
 	const auto boxCallback = [=](HistoryVisibility checked) {
 		updateHistoryVisibility->fire(std::move(checked));
@@ -617,8 +632,10 @@ void Controller::fillManageSection() {
 	}();
 	const auto canEditInviteLink = [=] {
 		return isChannel
-			? (channel->amCreator() || (channel->adminRights() & ChatAdminRight::f_invite_users))
-			: (chat->amCreator() || (chat->adminRights() & ChatAdminRight::f_invite_users));
+			? (channel->amCreator()
+				|| (channel->adminRights() & ChatAdminRight::f_invite_users))
+			: (chat->amCreator()
+				|| (chat->adminRights() & ChatAdminRight::f_invite_users));
 	}();
 	const auto canEditSignatures = [=] {
 		return isChannel
@@ -655,6 +672,18 @@ void Controller::fillManageSection() {
 	const auto hasRecentActions = [=] {
 		return isChannel
 			? (channel->hasAdminRights() || channel->amCreator())
+			: false;
+	}();
+
+	const auto canEditStickers = [=] {
+		// return true;
+		return isChannel
+			? channel->canEditStickers()
+			: false;
+	}();
+	const auto canDeleteChannel = [=] {
+		return isChannel
+			? channel->canDelete()
 			: false;
 	}();
 
@@ -743,8 +772,24 @@ void Controller::fillManageSection() {
 			st::infoIconRecentActions);
 	}
 
-	AddSkip(_controls.buttonsLayout,
-		st::editPeerTopButtonsLayoutSkipCustomTop);
+	if (canEditStickers || canDeleteChannel) {
+		AddSkip(_controls.buttonsLayout,
+			st::editPeerTopButtonsLayoutSkipCustomTop);
+	}
+
+	if (canEditStickers) {
+		_controls.buttonsLayout->add(createStickersEdit());
+	}
+
+	if (canDeleteChannel) {
+		AddButtonDelete(
+			_controls.buttonsLayout,
+			std::move(Lang::Viewer(_isGroup
+				? lng_profile_delete_group
+				: lng_profile_delete_channel)),
+			[=]{ deleteWithConfirmation(); }
+		);
+	}
 }
 
 void Controller::submitTitle() {
