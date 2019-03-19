@@ -60,8 +60,8 @@ public:
 
 	LangKey getTitle() {
 		return _isInviteLink
-		? lng_profile_invite_link_section
-		: _isGroup
+			? lng_profile_invite_link_section
+			: _isGroup
 			? lng_manage_peer_group_type
 			: lng_manage_peer_channel_type;
 	}
@@ -84,7 +84,6 @@ public:
 	}
 
 private:
-
 	struct Controls {
 		std::shared_ptr<Ui::RadioenumGroup<Privacy>> privacy;
 		Ui::SlideWrap<Ui::RpWidget> *usernameWrap = nullptr;
@@ -165,7 +164,8 @@ Controller::Controller(
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
-, _isInviteLink(!_privacySavedValue.has_value() && !_usernameSavedValue.has_value())
+, _isInviteLink(!_privacySavedValue.has_value()
+	&& !_usernameSavedValue.has_value())
 , _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
 , _wrap(container)
 , _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
@@ -194,14 +194,13 @@ void Controller::createContent() {
 	}
 }
 
-
 void Controller::addRoundButton(
-	not_null<Ui::VerticalLayout*> container,
-	Privacy value,
-	LangKey groupTextKey,
-	LangKey channelTextKey,
-	LangKey groupAboutKey,
-	LangKey channelAboutKey) {
+		not_null<Ui::VerticalLayout*> container,
+		Privacy value,
+		LangKey groupTextKey,
+		LangKey channelTextKey,
+		LangKey groupAboutKey,
+		LangKey channelAboutKey) {
 	container->add(object_ptr<Ui::Radioenum<Privacy>>(
 		container,
 		_controls.privacy,
@@ -221,9 +220,8 @@ void Controller::addRoundButton(
 };
 
 void Controller::fillPrivaciesButtons(
-	not_null<Ui::VerticalLayout*> parent,
-	std::optional<Privacy> savedValue) {
-
+		not_null<Ui::VerticalLayout*> parent,
+		std::optional<Privacy> savedValue) {
 	const auto canEditUsername = [&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditUsername();
@@ -695,12 +693,12 @@ bool Controller::inviteLinkShown() {
 } // namespace
 
 EditPeerTypeBox::EditPeerTypeBox(
-		QWidget*,
-		not_null<PeerData*> peer,
-		FnMut<void(Privacy, QString)> savedCallback,
-		std::optional<Privacy> privacySaved,
-		std::optional<QString> usernameSaved,
-		std::optional<LangKey> usernameError)
+	QWidget*,
+	not_null<PeerData*> peer,
+	FnMut<void(Privacy, QString)> savedCallback,
+	std::optional<Privacy> privacySaved,
+	std::optional<QString> usernameSaved,
+	std::optional<LangKey> usernameError)
 : _peer(peer)
 , _savedCallback(std::move(savedCallback))
 , _privacySavedValue(privacySaved)

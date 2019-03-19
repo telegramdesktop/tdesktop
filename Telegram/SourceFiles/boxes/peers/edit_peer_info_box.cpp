@@ -492,40 +492,37 @@ void Controller::showEditPeerTypeBox(std::optional<LangKey> error) {
 		_usernameSavedValue = publicLink;
 		refreshHistoryVisibility();
 	};
-	Ui::show(Box<EditPeerTypeBox>(
-		_peer,
-		boxCallback,
-		_privacySavedValue,
-		_usernameSavedValue,
-		error
-		), LayerOption::KeepOther);
+	Ui::show(
+		Box<EditPeerTypeBox>(
+			_peer,
+			boxCallback,
+			_privacySavedValue,
+			_usernameSavedValue,
+			error),
+		LayerOption::KeepOther);
 }
 
 void Controller::fillPrivacyTypeButton() {
 	Expects(_controls.buttonsLayout != nullptr);
+
 	// Create Privacy Button.
 	_privacySavedValue = (_peer->isChannel()
 		&& _peer->asChannel()->isPublic())
 		? Privacy::Public
 		: Privacy::Private;
 
-	const auto buttonCallback = [=] {
-		showEditPeerTypeBox();
-	};
-
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		std::move(Lang::Viewer((_peer->isChat() || _peer->isMegagroup())
+		Lang::Viewer((_peer->isChat() || _peer->isMegagroup())
 			? lng_manage_peer_group_type
-			: lng_manage_peer_channel_type)),
-
+			: lng_manage_peer_channel_type),
 		_updadePrivacyType.events(
 		) | rpl::map([](Privacy flag) {
-		return lang(Privacy::Public == flag
-			? lng_manage_public_peer_title
-			: lng_manage_private_peer_title);
-	}),
-		buttonCallback);
+			return lang(Privacy::Public == flag
+				? lng_manage_public_peer_title
+				: lng_manage_private_peer_title);
+		}),
+		[=] { showEditPeerTypeBox(); });
 
 	_updadePrivacyType.fire(std::move(_privacySavedValue.value()));
 }
@@ -533,13 +530,13 @@ void Controller::fillPrivacyTypeButton() {
 void Controller::fillInviteLinkButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto boxCallback = [=](Privacy checked, QString publicLink) {};
+	const auto boxCallback = [=](Privacy checked, QString publicLink) {
+	};
 
 	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerTypeBox>(
-			_peer,
-			boxCallback
-			), LayerOption::KeepOther);
+		Ui::show(
+			Box<EditPeerTypeBox>(_peer, boxCallback),
+			LayerOption::KeepOther);
 	};
 
 	AddButtonWithText(
@@ -591,21 +588,22 @@ void Controller::fillHistoryVisibilityButton() {
 		_historyVisibilitySavedValue = checked;
 	};
 	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerHistoryVisibilityBox>(
-			_peer,
-			boxCallback,
-			_historyVisibilitySavedValue
-			), LayerOption::KeepOther);
+		Ui::show(
+			Box<EditPeerHistoryVisibilityBox>(
+				_peer,
+				boxCallback,
+				_historyVisibilitySavedValue),
+			LayerOption::KeepOther);
 	};
 	AddButtonWithText(
 		container,
 		std::move(Lang::Viewer(lng_manage_history_visibility_title)),
 		updateHistoryVisibility->events(
 		) | rpl::map([](HistoryVisibility flag) {
-		return lang(HistoryVisibility::Visible == flag
-			? lng_manage_history_visibility_shown
-			: lng_manage_history_visibility_hidden);
-	}),
+			return lang((HistoryVisibility::Visible == flag)
+				? lng_manage_history_visibility_shown
+				: lng_manage_history_visibility_hidden);
+		}),
 		buttonCallback);
 
 	updateHistoryVisibility->fire(
@@ -618,6 +616,7 @@ void Controller::fillHistoryVisibilityButton() {
 
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
+
 	const auto navigation = App::wnd()->controller();
 
 	const auto chat = _peer->asChat();
@@ -647,7 +646,6 @@ void Controller::fillManageSection() {
 			? channel->canEditPreHistoryHidden()
 			: chat->canEditPreHistoryHidden();
 	}();
-
 
 	const auto canEditPermissions = [=] {
 		return isChannel
@@ -705,7 +703,8 @@ void Controller::fillManageSection() {
 		|| canEditSignatures
 		|| canEditInviteLink
 		|| canEditUsername) {
-		AddSkip(_controls.buttonsLayout,
+		AddSkip(
+			_controls.buttonsLayout,
 			st::editPeerTopButtonsLayoutSkip,
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
 	}
@@ -726,10 +725,10 @@ void Controller::fillManageSection() {
 			Info::Profile::AdminsCountValue(_peer)
 			| ToPositiveNumberString(),
 			[=] {
-			ParticipantsBoxController::Start(
-				navigation,
-				_peer,
-				ParticipantsBoxController::Role::Admins);
+				ParticipantsBoxController::Start(
+					navigation,
+					_peer,
+					ParticipantsBoxController::Role::Admins);
 			},
 			st::infoIconAdministrators);
 	}
@@ -740,11 +739,11 @@ void Controller::fillManageSection() {
 			Info::Profile::MembersCountValue(_peer)
 			| ToPositiveNumberString(),
 			[=] {
-			ParticipantsBoxController::Start(
-				navigation,
-				_peer,
-				ParticipantsBoxController::Role::Members);
-		},
+				ParticipantsBoxController::Start(
+					navigation,
+					_peer,
+					ParticipantsBoxController::Role::Members);
+			},
 			st::infoIconMembers);
 	}
 	if (canViewKicked) {
@@ -754,11 +753,11 @@ void Controller::fillManageSection() {
 			Info::Profile::KickedCountValue(channel)
 			| ToPositiveNumberString(),
 			[=] {
-			ParticipantsBoxController::Start(
-				navigation,
-				_peer,
-				ParticipantsBoxController::Role::Kicked);
-		},
+				ParticipantsBoxController::Start(
+					navigation,
+					_peer,
+					ParticipantsBoxController::Role::Kicked);
+			},
 			st::infoIconBlacklist);
 	}
 	if (hasRecentActions) {
@@ -767,8 +766,8 @@ void Controller::fillManageSection() {
 			Lang::Viewer(lng_manage_peer_recent_actions),
 			rpl::single(QString()), //Empty count.
 			[=] {
-			navigation->showSection(AdminLog::SectionMemento(channel));
-		},
+				navigation->showSection(AdminLog::SectionMemento(channel));
+			},
 			st::infoIconRecentActions);
 	}
 
@@ -784,9 +783,9 @@ void Controller::fillManageSection() {
 	if (canDeleteChannel) {
 		AddButtonDelete(
 			_controls.buttonsLayout,
-			std::move(Lang::Viewer(_isGroup
+			Lang::Viewer(_isGroup
 				? lng_profile_delete_group
-				: lng_profile_delete_channel)),
+				: lng_profile_delete_channel),
 			[=]{ deleteWithConfirmation(); }
 		);
 	}
@@ -868,9 +867,8 @@ bool Controller::validateDescription(Saving &to) const {
 }
 
 bool Controller::validateHistoryVisibility(Saving &to) const {
-	if (!_controls.historyVisibilityWrap) return true;
-
-	if (!_controls.historyVisibilityWrap->toggled()
+	if (!_controls.historyVisibilityWrap
+		|| !_controls.historyVisibilityWrap->toggled()
 		|| (_privacySavedValue == Privacy::Public)) {
 		return true;
 	}
@@ -895,12 +893,12 @@ void Controller::save() {
 	}
 	if (const auto saving = validate()) {
 		_savingData = *saving;
-		pushSaveStage([this] { saveUsername(); });
-		pushSaveStage([this] { saveTitle(); });
-		pushSaveStage([this] { saveDescription(); });
-		pushSaveStage([this] { saveHistoryVisibility(); });
-		pushSaveStage([this] { saveSignatures(); });
-		pushSaveStage([this] { savePhoto(); });
+		pushSaveStage([=] { saveUsername(); });
+		pushSaveStage([=] { saveTitle(); });
+		pushSaveStage([=] { saveDescription(); });
+		pushSaveStage([=] { saveHistoryVisibility(); });
+		pushSaveStage([=] { saveSignatures(); });
+		pushSaveStage([=] { savePhoto(); });
 		continueSave();
 	}
 }
@@ -1136,9 +1134,9 @@ void Controller::deleteWithConfirmation() {
 }
 
 void Controller::deleteChannel() {
-	const auto channel = _peer->asChannel();
-	Assert(channel != nullptr);
+	Expects(_peer->isChannel());
 
+	const auto channel = _peer->asChannel();
 	const auto chat = channel->migrateFrom();
 
 	Ui::hideLayer();
@@ -1229,7 +1227,8 @@ bool EditPeerInfoBox::Available(not_null<PeerData*> peer) {
 			|| channel->canViewBanned()
 			|| channel->canEditInformation()
 			|| channel->canEditPermissions()
-			|| (channel->hasAdminRights() || channel->amCreator());
+			|| channel->hasAdminRights()
+			|| channel->amCreator();
 	} else {
 		return false;
 	}

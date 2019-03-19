@@ -39,7 +39,6 @@ enum class UsernameState {
 
 class EditPeerTypeBox : public BoxContent {
 public:
-
 	EditPeerTypeBox(
 		QWidget*,
 		not_null<PeerData*> p,
@@ -56,9 +55,9 @@ private:
 	not_null<PeerData*> _peer;
 	FnMut<void(Privacy, QString)> _savedCallback;
 
-	std::optional<Privacy> _privacySavedValue = std::nullopt;
-	std::optional<QString> _usernameSavedValue = std::nullopt;
-	std::optional<LangKey> _usernameError = std::nullopt;
+	std::optional<Privacy> _privacySavedValue;
+	std::optional<QString> _usernameSavedValue;
+	std::optional<LangKey> _usernameError;
 
 	rpl::event_stream<> _focusRequests;
 

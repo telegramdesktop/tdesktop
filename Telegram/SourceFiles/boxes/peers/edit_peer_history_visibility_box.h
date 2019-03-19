@@ -31,12 +31,11 @@ enum class HistoryVisibility {
 
 class EditPeerHistoryVisibilityBox : public BoxContent {
 public:
-
 	EditPeerHistoryVisibilityBox(
 		QWidget*,
 		not_null<PeerData*> peer,
 		FnMut<void(HistoryVisibility)> savedCallback,
-		std::optional<HistoryVisibility> historyVisibilitySavedValue = std::nullopt);
+		std::optional<HistoryVisibility> historyVisibilitySavedValue = {});
 
 protected:
 	void prepare() override;
@@ -48,6 +47,6 @@ private:
 	FnMut<void(HistoryVisibility)> _savedCallback;
 
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
-	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> _historyVisibility = nullptr;
+	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> _historyVisibility;
 
 };

@@ -23,12 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-void AddRoundButton(
-	not_null<Ui::VerticalLayout*> container,
-	HistoryVisibility value,
-	LangKey groupTextKey,
-	LangKey groupAboutKey,
-	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility) {
+void AddRadioButton(
+		not_null<Ui::VerticalLayout*> container,
+		HistoryVisibility value,
+		LangKey groupTextKey,
+		LangKey groupAboutKey,
+		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility) {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::editPeerHistoryVisibilityTopSkip));
@@ -48,11 +48,10 @@ void AddRoundButton(
 }
 
 void FillContent(
-	not_null<Ui::VerticalLayout*> parent,
-	not_null<PeerData*> peer,
-	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility,
-	std::optional<HistoryVisibility> savedValue = std::nullopt) {
-
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<PeerData*> peer,
+		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility,
+		std::optional<HistoryVisibility> savedValue = std::nullopt) {
 	const auto canEdit = [&] {
 		if (const auto chat = peer->asChat()) {
 			return chat->canEditPreHistoryHidden();
@@ -75,21 +74,22 @@ void FillContent(
 
 	historyVisibility->setValue(defaultValue);
 
-	const auto result = parent->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		parent,
-		object_ptr<Ui::VerticalLayout>(parent),
-		st::editPeerHistoryVisibilityMargins));
+	const auto result = parent->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			parent,
+			object_ptr<Ui::VerticalLayout>(parent),
+			st::editPeerHistoryVisibilityMargins));
 	const auto container = result->entity();
 
-	Expects(historyVisibility != nullptr);
+	Assert(historyVisibility != nullptr);
 
-	AddRoundButton(
+	AddRadioButton(
 		container,
 		HistoryVisibility::Visible,
 		lng_manage_history_visibility_shown,
 		lng_manage_history_visibility_shown_about,
 		historyVisibility);
-	AddRoundButton(
+	AddRadioButton(
 		container,
 		HistoryVisibility::Hidden,
 		lng_manage_history_visibility_hidden,
@@ -102,10 +102,10 @@ void FillContent(
 } // namespace
 
 EditPeerHistoryVisibilityBox::EditPeerHistoryVisibilityBox(
-		QWidget*,
-		not_null<PeerData*> peer,
-		FnMut<void(HistoryVisibility)> savedCallback,
-		std::optional<HistoryVisibility> historyVisibilitySavedValue)
+	QWidget*,
+	not_null<PeerData*> peer,
+	FnMut<void(HistoryVisibility)> savedCallback,
+	std::optional<HistoryVisibility> historyVisibilitySavedValue)
 : _peer(peer)
 , _savedCallback(std::move(savedCallback))
 , _historyVisibilitySavedValue(historyVisibilitySavedValue)
@@ -130,6 +130,10 @@ void EditPeerHistoryVisibilityBox::prepare() {
 
 void EditPeerHistoryVisibilityBox::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	FillContent(content, _peer, _historyVisibility, _historyVisibilitySavedValue);
+	FillContent(
+		content,
+		_peer,
+		_historyVisibility,
+		_historyVisibilitySavedValue);
 	setDimensionsToContent(st::boxWidth, content);
 }
