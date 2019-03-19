@@ -175,7 +175,6 @@ private:
 	object_ptr<Ui::RpWidget> createDescriptionEdit();
 	object_ptr<Ui::RpWidget> createManageGroupButtons();
 	object_ptr<Ui::RpWidget> createStickersEdit();
-	object_ptr<Ui::RpWidget> createDeleteButton();
 
 	void refreshHistoryVisibility(bool instant);
 	void showEditPeerTypeBox(std::optional<LangKey> error = std::nullopt);
@@ -271,8 +270,6 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createPhotoAndTitleEdit());
 	_wrap->add(createDescriptionEdit());
 	_wrap->add(createManageGroupButtons());
-	// _wrap->add(createStickersEdit());
-	// _wrap->add(createDeleteButton());
 
 	return result;
 }
@@ -416,9 +413,6 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
-	// if (!channel || !channel->canEditStickers()) {
-	// 	return nullptr;
-	// }
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
@@ -450,29 +444,6 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		Ui::show(Box<StickersBox>(channel), LayerOption::KeepOther);
 	});
 
-	return std::move(result);
-}
-
-object_ptr<Ui::RpWidget> Controller::createDeleteButton() {
-	Expects(_wrap != nullptr);
-
-	const auto channel = _peer->asChannel();
-	if (!channel || !channel->canDelete()) {
-		return nullptr;
-	}
-	const auto text = lang(_isGroup
-		? lng_profile_delete_group
-		: lng_profile_delete_channel);
-	auto result = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
-		_wrap,
-		object_ptr<Ui::LinkButton>(
-			_wrap,
-			text,
-			st::editPeerDeleteButton),
-		st::editPeerDeleteButtonMargins);
-	result->entity()->addClickHandler([this] {
-		deleteWithConfirmation();
-	});
 	return std::move(result);
 }
 
