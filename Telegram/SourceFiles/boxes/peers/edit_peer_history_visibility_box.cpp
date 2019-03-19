@@ -74,7 +74,7 @@ void FillContent(
 	);
 
 	historyVisibility->setValue(defaultValue);
-	
+
 	const auto result = parent->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),

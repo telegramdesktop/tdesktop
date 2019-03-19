@@ -52,15 +52,14 @@ public:
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		std::optional<Privacy> privacySavedValue,
-		std::optional<QString> usernameSavedValue,
-		std::optional<LangKey> usernameError);
+		std::optional<QString> usernameSavedValue);
 
 	void createContent();
 	QString getUsernameInput();
 	void setFocusUsername();
 
 	LangKey getTitle() {
-		return _isInviteLink 
+		return _isInviteLink
 		? lng_profile_invite_link_section
 		: _isGroup
 			? lng_manage_peer_group_type
@@ -77,6 +76,11 @@ public:
 
 	Privacy getPrivacy() {
 		return _controls.privacy->value();
+	}
+
+	void showError(LangKey key) {
+		_controls.usernameInput->showError();
+		showUsernameError(Lang::Viewer(key));
 	}
 
 private:
@@ -137,7 +141,6 @@ private:
 	not_null<PeerData*> _peer;
 	std::optional<Privacy> _privacySavedValue = std::nullopt;
 	std::optional<QString> _usernameSavedValue = std::nullopt;
-	std::optional<LangKey> _usernameError = std::nullopt;
 
 	bool _isGroup = false;
 	bool _isInviteLink = false;
@@ -157,12 +160,10 @@ Controller::Controller(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	std::optional<Privacy> privacySavedValue,
-	std::optional<QString> usernameSavedValue,
-	std::optional<LangKey> usernameError)
+	std::optional<QString> usernameSavedValue)
 : _peer(peer)
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
-, _usernameError(usernameError)
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
 , _isInviteLink(!_privacySavedValue.has_value() && !_usernameSavedValue.has_value())
 , _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
@@ -173,7 +174,7 @@ Controller::Controller(
 
 void Controller::createContent() {
 	_controls = Controls();
-	
+
 	if (_isInviteLink) {
 		_wrap->add(createInviteLinkCreate());
 		_wrap->add(createInviteLinkEdit());
@@ -190,12 +191,6 @@ void Controller::createContent() {
 
 	if (_controls.privacy->value() == Privacy::Private) {
 		checkUsernameAvailability();
-	}
-	if (_usernameError.has_value()) {
-		showUsernameError(Lang::Viewer(_usernameError.value()));
-		// Not focused actually.
-		_controls.usernameInput->setDisplayFocused(true);
-		setFocusUsername();
 	}
 }
 
@@ -387,14 +382,12 @@ void Controller::privacyChanged(Privacy value) {
 		}
 		refreshVisibilities();
 		_controls.usernameInput->setDisplayFocused(true);
-		setFocusUsername();
-		// _box->scrollToWidget(_controls.usernameInput);
 	} else {
 		request(base::take(_checkUsernameRequestId)).cancel();
 		_checkUsernameTimer.cancel();
 		refreshVisibilities();
-		setFocusUsername();
 	}
+	setFocusUsername();
 }
 
 void Controller::checkUsernameAvailability() {
@@ -443,7 +436,6 @@ void Controller::checkUsernameAvailability() {
 			if (_controls.privacy->value() == Privacy::Public) {
 				_controls.usernameResult = nullptr;
 				setFocusUsername();
-				// _box->scrollToWidget(_controls.usernameInput);
 			}
 		} else if (type == qstr("USERNAME_INVALID")) {
 			showUsernameError(
@@ -716,9 +708,13 @@ EditPeerTypeBox::EditPeerTypeBox(
 , _usernameError(usernameError) {
 }
 
+void EditPeerTypeBox::setInnerFocus() {
+	_focusRequests.fire({});
+}
+
 void EditPeerTypeBox::prepare() {
 	_peer->updateFull();
-	
+
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto controller = Ui::CreateChild<Controller>(
@@ -726,11 +722,16 @@ void EditPeerTypeBox::prepare() {
 		content,
 		_peer,
 		_privacySavedValue,
-		_usernameSavedValue,
-		_usernameError);
+		_usernameSavedValue);
 	_focusRequests.events(
 	) | rpl::start_with_next(
-		[=] { controller->setFocusUsername(); },
+		[=] {
+			controller->setFocusUsername();
+			if (_usernameError.has_value()) {
+				controller->showError(_usernameError.value());
+				_usernameError = std::nullopt;
+			}
+		},
 		lifetime());
 	controller->createContent();
 

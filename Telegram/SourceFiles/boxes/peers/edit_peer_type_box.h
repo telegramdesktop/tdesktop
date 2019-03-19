@@ -50,6 +50,7 @@ public:
 
 protected:
 	void prepare() override;
+	void setInnerFocus() override;
 
 private:
 	not_null<PeerData*> _peer;

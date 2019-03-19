@@ -672,8 +672,11 @@ void Controller::fillManageSection() {
 	if (canEditPreHistoryHidden) {
 		fillHistoryVisibilityButton();
 	}
-	if (canEditPreHistoryHidden || canEditSignatures || canEditInviteLink) {
-		AddSkip(_controls.buttonsLayout, 
+	if (canEditPreHistoryHidden
+		|| canEditSignatures
+		|| canEditInviteLink
+		|| canEditUsername) {
+		AddSkip(_controls.buttonsLayout,
 			st::editPeerTopButtonsLayoutSkip,
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
 	}
@@ -698,7 +701,7 @@ void Controller::fillManageSection() {
 				navigation,
 				_peer,
 				ParticipantsBoxController::Role::Admins);
-		},
+			},
 			st::infoIconAdministrators);
 	}
 	if (canViewMembers) {
@@ -821,7 +824,7 @@ bool Controller::validateDescription(Saving &to) const {
 
 bool Controller::validateHistoryVisibility(Saving &to) const {
 	if (!_controls.historyVisibilityWrap) return true;
-	
+
 	if (!_controls.historyVisibilityWrap->toggled()
 		|| (_privacySavedValue == Privacy::Public)) {
 		return true;
