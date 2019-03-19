@@ -390,18 +390,22 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
 	const Data::WallPaper &paper)
 : _text1(GenerateTextItem(
-	this,
+	delegate(),
 	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
 	lang(lng_background_text1),
 	false))
 , _text2(GenerateTextItem(
-	this,
+	delegate(),
 	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
 	lang(lng_background_text2),
 	true))
 , _paper(paper)
 , _radial(animation(this, &BackgroundPreviewBox::step_radial)) {
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
+}
+
+not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
+	return static_cast<HistoryView::ElementDelegate*>(this);
 }
 
 void BackgroundPreviewBox::prepare() {
@@ -765,7 +769,7 @@ HistoryView::Context BackgroundPreviewBox::elementContext() {
 
 std::unique_ptr<HistoryView::Element> BackgroundPreviewBox::elementCreate(
 		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(this, message);
+	return std::make_unique<HistoryView::Message>(delegate(), message);
 }
 
 std::unique_ptr<HistoryView::Element> BackgroundPreviewBox::elementCreate(

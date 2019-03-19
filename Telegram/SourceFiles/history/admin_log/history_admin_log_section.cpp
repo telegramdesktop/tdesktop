@@ -399,7 +399,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	//auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
-	SectionWidget::PaintBackground(this, e);
+	SectionWidget::PaintBackground(this, e->rect());
 }
 
 void Widget::onScroll() {

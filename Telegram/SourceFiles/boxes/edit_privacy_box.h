@@ -38,21 +38,30 @@ public:
 	public:
 		using Key = ApiWrap::Privacy::Key;
 
-		virtual Key key() = 0;
-		virtual MTPInputPrivacyKey apiKey() = 0;
+		[[nodiscard]] virtual Key key() = 0;
+		[[nodiscard]] virtual MTPInputPrivacyKey apiKey() = 0;
 
-		virtual QString title() = 0;
-		virtual bool hasOption(Option option) {
+		[[nodiscard]] virtual QString title() = 0;
+		[[nodiscard]] virtual bool hasOption(Option option) {
 			return true;
 		}
-		virtual LangKey optionsTitleKey() = 0;
-		virtual LangKey optionLabelKey(Option option);
-		virtual rpl::producer<QString> warning() {
+		[[nodiscard]] virtual LangKey optionsTitleKey() = 0;
+		[[nodiscard]] virtual LangKey optionLabelKey(Option option);
+		[[nodiscard]] virtual rpl::producer<QString> warning() {
 			return rpl::never<QString>();
 		}
-		virtual LangKey exceptionButtonTextKey(Exception exception) = 0;
-		virtual QString exceptionBoxTitle(Exception exception) = 0;
-		virtual rpl::producer<QString> exceptionsDescription() = 0;
+		[[nodiscard]] virtual LangKey exceptionButtonTextKey(
+			Exception exception) = 0;
+		[[nodiscard]] virtual QString exceptionBoxTitle(
+			Exception exception) = 0;
+		[[nodiscard]] virtual auto exceptionsDescription()
+			-> rpl::producer<QString> = 0;
+
+		[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
+				not_null<QWidget*> parent,
+				rpl::producer<Option> option) {
+			return { nullptr };
+		}
 
 		virtual void confirmSave(
 				bool someAreDisallowed,

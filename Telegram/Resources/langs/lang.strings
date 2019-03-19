@@ -650,6 +650,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_forwards_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_forwards_always_title" = "Always allow";
 "lng_edit_privacy_forwards_never_title" = "Never allow";
+"lng_edit_privacy_forwards_sample_message" = "Reinhardt, we need to find you some new tunes 🎶";
+"lng_edit_privacy_forwards_sample_everyone" = "Link to your account.";
+"lng_edit_privacy_forwards_sample_contacts" = "Link if allowed by settings below.";
+"lng_edit_privacy_forwards_sample_nobody" = "Not a link to your account.";
 
 "lng_edit_privacy_profile_photo_title" = "Profile photo privacy";
 "lng_edit_privacy_profile_photo_header" = "Who can see my profile photo";

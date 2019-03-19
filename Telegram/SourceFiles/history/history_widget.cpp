@@ -6563,7 +6563,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		updateListSize();
 	}
 
-	Window::SectionWidget::PaintBackground(this, e);
+	Window::SectionWidget::PaintBackground(this, e->rect());
 
 	Painter p(this);
 	const auto clip = e->rect();

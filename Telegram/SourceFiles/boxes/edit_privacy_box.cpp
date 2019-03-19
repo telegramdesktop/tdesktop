@@ -239,12 +239,12 @@ void EditPrivacyBox::setupContent() {
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>(
 		_value.option);
-	const auto toggle = Ui::CreateChild<rpl::event_stream<>>(content);
-
+	const auto toggle = Ui::CreateChild<rpl::event_stream<Option>>(content);
 	group->setChangedCallback([=](Option value) {
 		_value.option = value;
-		toggle->fire({});
+		toggle->fire_copy(value);
 	});
+	auto optionValue = toggle->events_starting_with_copy(_value.option);
 
 	const auto addOptionRow = [&](Option option) {
 		return (_controller->hasOption(option) || (_value.option == option))
@@ -275,8 +275,8 @@ void EditPrivacyBox::setupContent() {
 			std::move(label),
 			st::settingsButton,
 			text);
-		button->toggleOn(toggle->events_starting_with(
-			rpl::empty_value()
+		button->toggleOn(rpl::duplicate(
+			optionValue
 		) | rpl::map([=] {
 			return showExceptionLink(exception);
 		}))->entity()->addClickHandler([=] {
@@ -284,6 +284,13 @@ void EditPrivacyBox::setupContent() {
 		});
 		return button;
 	};
+
+	auto above = _controller->setupAboveWidget(
+		content,
+		std::move(optionValue));
+	if (above) {
+		content->add(std::move(above));
+	}
 
 	AddSubsectionTitle(content, _controller->optionsTitleKey());
 	addOptionRow(Option::Everyone);

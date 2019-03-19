@@ -539,7 +539,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	const auto ms = crl::now();
 	_scrollDownShown.step(ms);
 
-	SectionWidget::PaintBackground(this, e);
+	SectionWidget::PaintBackground(this, e->rect());
 
 	if (_emptyTextView) {
 		Painter p(this);

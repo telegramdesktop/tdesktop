@@ -122,7 +122,7 @@ public:
 		return nullptr;
 	}
 
-	static void PaintBackground(QWidget *widget, QPaintEvent *event);
+	static void PaintBackground(not_null<QWidget*> widget, QRect clip);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

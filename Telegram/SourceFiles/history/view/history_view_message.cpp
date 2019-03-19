@@ -583,7 +583,8 @@ void Message::paintFromName(
 
 void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const {
 	if (displayForwardedFrom()) {
-		style::font serviceFont(st::msgServiceFont), serviceName(st::msgServiceNameFont);
+		const auto &serviceFont = st::msgServiceFont;
+		const auto &serviceName = st::msgServiceNameFont;
 
 		const auto item = message();
 		const auto outbg = hasOutLayout();

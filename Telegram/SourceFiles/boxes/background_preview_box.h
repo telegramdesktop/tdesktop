@@ -20,7 +20,7 @@ class Checkbox;
 
 class BackgroundPreviewBox
 	: public BoxContent
-	, public HistoryView::ElementDelegate {
+	, private HistoryView::ElementDelegate {
 public:
 	BackgroundPreviewBox(QWidget*, const Data::WallPaper &paper);
 
@@ -28,7 +28,14 @@ public:
 		const QString &slug,
 		const QMap<QString, QString> &params);
 
+protected:
+	void prepare() override;
+
+	void paintEvent(QPaintEvent *e) override;
+
+private:
 	using Element = HistoryView::Element;
+	not_null<HistoryView::ElementDelegate*> delegate();
 	HistoryView::Context elementContext() override;
 	std::unique_ptr<Element> elementCreate(
 		not_null<HistoryMessage*> message) override;
@@ -41,12 +48,6 @@ public:
 		not_null<const Element*> element) override;
 	bool elementInSelectionMode() override;
 
-protected:
-	void prepare() override;
-
-	void paintEvent(QPaintEvent *e) override;
-
-private:
 	void apply();
 	void share();
 	void step_radial(crl::time ms, bool timer);

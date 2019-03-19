@@ -203,3 +203,8 @@ settingsAudioVolumeLabel: LabelSimple(defaultLabelSimple) {
 }
 settingsAudioVolumeLabelPadding: margins(22px, 11px, 22px, 11px);
 settingsLevelMeterPadding: margins(23px, 10px, 20px, 10px);
+
+settingsForwardPrivacyPadding: 8px;
+settingsForwardPrivacyArrowSkip: 32px;
+settingsForwardPrivacyArrowSize: 6px;
+settingsForwardPrivacyTooltipPadding: margins(8px, 6px, 8px, 6px);
