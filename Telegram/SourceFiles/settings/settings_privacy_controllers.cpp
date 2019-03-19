@@ -290,7 +290,11 @@ void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, FnMut<void()
 			Auth().settings().setLastSeenWarningSeen(true);
 			Local::writeUserSettings();
 		};
-		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_warning), lang(lng_continue), lang(lng_cancel), std::move(callback));
+		auto box = Box<ConfirmBox>(
+			lang(lng_edit_privacy_lastseen_warning),
+			lang(lng_continue),
+			lang(lng_cancel),
+			std::move(callback));
 		*weakBox = Ui::show(std::move(box), LayerOption::KeepOther);
 	} else {
 		saveCallback();
@@ -425,6 +429,86 @@ QString CallsPeer2PeerPrivacyController::exceptionBoxTitle(Exception exception) 
 
 rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() {
 	return Lang::Viewer(lng_edit_privacy_calls_p2p_exceptions);
+}
+
+ApiWrap::Privacy::Key ForwardsPrivacyController::key() {
+	return Key::Forwards;
+}
+
+MTPInputPrivacyKey ForwardsPrivacyController::apiKey() {
+	return MTP_inputPrivacyKeyForwards();
+}
+
+QString ForwardsPrivacyController::title() {
+	return lang(lng_edit_privacy_forwards_title);
+}
+
+LangKey ForwardsPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_forwards_header;
+}
+
+rpl::producer<QString> ForwardsPrivacyController::warning() {
+	return Lang::Viewer(lng_edit_privacy_forwards_warning);
+}
+
+LangKey ForwardsPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_forwards_always_empty;
+	case Exception::Never: return lng_edit_privacy_forwards_never_empty;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString ForwardsPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_forwards_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_forwards_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+auto ForwardsPrivacyController::exceptionsDescription()
+-> rpl::producer<QString> {
+	return Lang::Viewer(lng_edit_privacy_forwards_exceptions);
+}
+
+ApiWrap::Privacy::Key ProfilePhotoPrivacyController::key() {
+	return Key::ProfilePhoto;
+}
+
+MTPInputPrivacyKey ProfilePhotoPrivacyController::apiKey() {
+	return MTP_inputPrivacyKeyProfilePhoto();
+}
+
+QString ProfilePhotoPrivacyController::title() {
+	return lang(lng_edit_privacy_profile_photo_title);
+}
+
+LangKey ProfilePhotoPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_profile_photo_header;
+}
+
+LangKey ProfilePhotoPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_profile_photo_always_empty;
+	case Exception::Never: return lng_edit_privacy_profile_photo_never_empty;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString ProfilePhotoPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_profile_photo_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_profile_photo_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+auto ProfilePhotoPrivacyController::exceptionsDescription()
+-> rpl::producer<QString> {
+	return Lang::Viewer(lng_edit_privacy_profile_photo_exceptions);
 }
 
 } // namespace Settings

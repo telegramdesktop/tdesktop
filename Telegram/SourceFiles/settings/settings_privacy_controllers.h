@@ -36,7 +36,7 @@ private:
 
 };
 
-class LastSeenPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class LastSeenPrivacyController : public EditPrivacyBox::Controller {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -55,7 +55,7 @@ public:
 
 };
 
-class GroupsInvitePrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class GroupsInvitePrivacyController : public EditPrivacyBox::Controller {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -72,7 +72,7 @@ public:
 
 };
 
-class CallsPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class CallsPrivacyController : public EditPrivacyBox::Controller {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -88,7 +88,7 @@ public:
 
 };
 
-class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -100,6 +100,39 @@ public:
 	LangKey optionsTitleKey() override;
 	LangKey optionLabelKey(EditPrivacyBox::Option option) override;
 	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+};
+
+class ForwardsPrivacyController : public EditPrivacyBox::Controller {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	QString title() override;
+	LangKey optionsTitleKey() override;
+	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+};
+
+class ProfilePhotoPrivacyController : public EditPrivacyBox::Controller {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	QString title() override;
+	LangKey optionsTitleKey() override;
 	LangKey exceptionButtonTextKey(Exception exception) override;
 	QString exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;

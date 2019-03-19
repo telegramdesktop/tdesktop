@@ -379,6 +379,8 @@ public:
 			Calls,
 			Invites,
 			CallsPeer2Peer,
+			Forwards,
+			ProfilePhoto,
 		};
 		enum class Option {
 			Everyone,

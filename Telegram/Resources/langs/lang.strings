@@ -359,6 +359,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_calls_peer_to_peer" = "Peer-to-peer in calls";
 "lng_settings_groups_invite" = "Groups";
 "lng_settings_group_privacy_about" = "Change who can add you to groups and channels.";
+"lng_settings_forwards_privacy" = "Forwarded messages";
+"lng_settings_profile_photo_privacy" = "Profile photo";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable passcode";
 "lng_settings_password_disable" = "Disable cloud password";
@@ -639,6 +641,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_calls_p2p_everyone" = "Everybody";
 "lng_edit_privacy_calls_p2p_contacts" = "My contacts";
 "lng_edit_privacy_calls_p2p_nobody" = "Nobody";
+
+"lng_edit_privacy_forwards_title" = "Forwarded messages privacy";
+"lng_edit_privacy_forwards_header" = "Who can add link to my account when forwarding my messages";
+"lng_edit_privacy_forwards_warning" = "When forwarded to other chats, messages you send will not link back to your account.";
+"lng_edit_privacy_forwards_always_empty" = "Always allow";
+"lng_edit_privacy_forwards_never_empty" = "Never allow";
+"lng_edit_privacy_forwards_exceptions" = "These settings will override the values above.";
+"lng_edit_privacy_forwards_always_title" = "Always allow";
+"lng_edit_privacy_forwards_never_title" = "Never allow";
+
+"lng_edit_privacy_profile_photo_title" = "Profile photo privacy";
+"lng_edit_privacy_profile_photo_header" = "Who can see my profile photo";
+"lng_edit_privacy_profile_photo_always_empty" = "Always allow";
+"lng_edit_privacy_profile_photo_never_empty" = "Never allow";
+"lng_edit_privacy_profile_photo_exceptions" = "These settings will override the values above.";
+"lng_edit_privacy_profile_photo_always_title" = "Always allow";
+"lng_edit_privacy_profile_photo_never_title" = "Never allow";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
