@@ -726,7 +726,7 @@ void EditPeerTypeBox::prepare() {
 		[=] {
 			controller->setFocusUsername();
 			if (_usernameError.has_value()) {
-				controller->showError(_usernameError.value());
+				controller->showError(*_usernameError);
 				_usernameError = std::nullopt;
 			}
 		},

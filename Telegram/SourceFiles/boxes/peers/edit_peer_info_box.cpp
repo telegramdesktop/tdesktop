@@ -524,7 +524,7 @@ void Controller::fillPrivacyTypeButton() {
 		}),
 		[=] { showEditPeerTypeBox(); });
 
-	_updadePrivacyType.fire(std::move(_privacySavedValue.value()));
+	_updadePrivacyType.fire_copy(*_privacySavedValue);
 }
 
 void Controller::fillInviteLinkButton() {
@@ -553,7 +553,7 @@ void Controller::fillSignaturesButton() {
 
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		std::move(Lang::Viewer(lng_edit_sign_messages)),
+		Lang::Viewer(lng_edit_sign_messages),
 		rpl::single(QString()),
 		[=] {}
 	)->toggleOn(rpl::single(channel->addsSignature())
@@ -597,7 +597,7 @@ void Controller::fillHistoryVisibilityButton() {
 	};
 	AddButtonWithText(
 		container,
-		std::move(Lang::Viewer(lng_manage_history_visibility_title)),
+		Lang::Viewer(lng_manage_history_visibility_title),
 		updateHistoryVisibility->events(
 		) | rpl::map([](HistoryVisibility flag) {
 			return lang((HistoryVisibility::Visible == flag)
@@ -606,9 +606,7 @@ void Controller::fillHistoryVisibilityButton() {
 		}),
 		buttonCallback);
 
-	updateHistoryVisibility->fire(
-		std::move(_historyVisibilitySavedValue.value())
-	);
+	updateHistoryVisibility->fire_copy(*_historyVisibilitySavedValue);
 
 	//While appearing box we should use instant animation.
 	refreshHistoryVisibility(true);
