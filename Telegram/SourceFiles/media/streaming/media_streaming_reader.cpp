@@ -812,7 +812,7 @@ bool Reader::fillFromSlices(int offset, bytes::span buffer) {
 		// HeaderMode::Good and really are putting the first slice to cache.
 		Assert(result.toCache.number > 0 || _slices.isGoodHeader());
 
-		const auto index = std::min(result.toCache.number, 1) - 1;
+		const auto index = std::max(result.toCache.number, 1) - 1;
 		cancelLoadInRange(index * kInSlice, (index + 1) * kInSlice);
 		putToCache(std::move(result.toCache));
 	}
