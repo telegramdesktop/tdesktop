@@ -278,7 +278,7 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddSubsectionTitle(content, lng_settings_call_section_other);
 
-#ifdef Q_OS_MAC
+#if defined Q_OS_MAC && !defined OS_MAC_STORE
 	AddButton(
 		content,
 		lng_settings_call_audio_ducking,
@@ -294,7 +294,7 @@ void Calls::setupContent() {
 			call->setAudioDuckingEnabled(enabled);
 		}
 	}, content->lifetime());
-#endif // Q_OS_MAC
+#endif // Q_OS_MAC && !OS_MAC_STORE
 
 	AddButton(
 		content,
