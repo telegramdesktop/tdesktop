@@ -394,12 +394,12 @@ bool ChannelData::canEditPermissions() const {
 }
 
 bool ChannelData::canEditSignatures() const {
-	return canEditInformation();
+	return isChannel() && canEditInformation();
 }
 
 bool ChannelData::canEditPreHistoryHidden() const {
-	return canEditInformation()
-		&& isMegagroup()
+	return isMegagroup()
+		&& ((adminRights() & AdminRight::f_ban_users) || amCreator())
 		&& (!isPublic() || canEditUsername());
 }
 
