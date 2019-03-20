@@ -1,3 +1,7 @@
+1.6.1 (20.03.19)
+
+- Bug fixes and other minor improvements.
+
 1.6 (18.03.19)
 
 - Play video files and listen to music without waiting for them to fully download.
