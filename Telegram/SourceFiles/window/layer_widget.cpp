@@ -801,13 +801,15 @@ void LayerStackWidget::clearClosingLayers() {
 		// This may destroy LayerStackWidget (by calling Ui::hideLayer).
 		// So each time we check a weak pointer (if we are still alive).
 		layer->setClosing();
-		if (weak) {
+
+		// setClosing() could destroy 'this' or could call clearLayers().
+		if (weak && !_closingLayers.empty()) {
 			// We could enqueue more closing layers, so we remove by index.
 			Assert(index < _closingLayers.size());
 			Assert(_closingLayers[index].get() == layer);
 			_closingLayers.erase(begin(_closingLayers) + index);
 		} else {
-			// All layers were already destroyed in ~LayerStackWidget.
+			// Everything was destroyed in clearLayers or ~LayerStackWidget.
 			break;
 		}
 	}
