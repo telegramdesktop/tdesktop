@@ -11,12 +11,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 namespace Streaming {
+namespace {
+
+// This is the maximum file size in Telegram API.
+constexpr auto kMaxFileSize = 3000 * 512 * 1024;
+
+int ValidateLocalSize(int64 size) {
+	return (size > 0 && size <= kMaxFileSize) ? int(size) : 0;
+}
+
+} // namespace
 
 LoaderLocal::LoaderLocal(std::unique_ptr<QIODevice> device)
-: _device(std::move(device)) {
+: _device(std::move(device))
+, _size(ValidateLocalSize(_device->size())) {
 	Expects(_device != nullptr);
 
-	if (!_device->open(QIODevice::ReadOnly)) {
+	if (!_size || !_device->open(QIODevice::ReadOnly)) {
 		fail();
 	}
 }
@@ -26,7 +37,7 @@ std::optional<Storage::Cache::Key> LoaderLocal::baseCacheKey() const {
 }
 
 int LoaderLocal::size() const {
-	return _device->size();
+	return _size;
 }
 
 void LoaderLocal::load(int offset) {

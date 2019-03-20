@@ -35,7 +35,8 @@ public:
 private:
 	void fail();
 
-	std::unique_ptr<QIODevice> _device;
+	const std::unique_ptr<QIODevice> _device;
+	const int _size = 0;
 	rpl::event_stream<LoadedPart> _parts;
 
 };
