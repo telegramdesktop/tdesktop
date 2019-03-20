@@ -453,7 +453,7 @@ void DomainResolver::resolve(const AttemptKey &key) {
 	auto hosts = DnsDomains();
 	std::random_device rd;
 	ranges::shuffle(hosts, std::mt19937(rd()));
-	_attempts.emplace(key, std::move(hosts));
+	_attempts.emplace(key, Attempts{ std::move(hosts) });
 	sendNextRequest(key);
 }
 
@@ -478,12 +478,13 @@ void DomainResolver::sendNextRequest(const AttemptKey &key) {
 	if (i == end(_attempts)) {
 		return;
 	}
-	auto &hosts = i->second;
+	auto &attempts = i->second;
+	auto &hosts = attempts.hosts;
 	const auto host = hosts.back();
 	hosts.pop_back();
 
 	if (!hosts.empty()) {
-		App::CallDelayed(kSendNextTimeout, this, [=] {
+		App::CallDelayed(kSendNextTimeout, &attempts.guard, [=] {
 			sendNextRequest(key);
 		});
 	}

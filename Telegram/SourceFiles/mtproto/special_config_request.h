@@ -92,6 +92,11 @@ private:
 		crl::time expireAt = 0;
 
 	};
+	struct Attempts {
+		std::vector<QString> hosts;
+		base::has_weak_ptr guard;
+
+	};
 
 	void resolve(const AttemptKey &key);
 	void sendNextRequest(const AttemptKey &key);
@@ -110,7 +115,7 @@ private:
 		crl::time expireAt)> _callback;
 
 	QNetworkAccessManager _manager;
-	std::map<AttemptKey, std::vector<QString>> _attempts;
+	std::map<AttemptKey, Attempts> _attempts;
 	std::map<AttemptKey, std::vector<ServiceWebRequest>> _requests;
 	std::map<AttemptKey, CacheEntry> _cache;
 	crl::time _lastTimestamp = 0;
