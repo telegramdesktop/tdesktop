@@ -164,16 +164,17 @@ protected:
 
 private:
 	void deleteAndClear();
+	PeerData *checkFromSinglePeer() const;
+	QString revokeText(not_null<PeerData*> peer) const;
 
 	const MessageIdsList _ids;
-	const bool _singleItem = false;
 	UserData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;
 	bool _moderateBan = false;
 	bool _moderateDeleteAll = false;
 
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
-	object_ptr<Ui::Checkbox> _forEveryone = { nullptr };
+	object_ptr<Ui::Checkbox> _revoke = { nullptr };
 	object_ptr<Ui::Checkbox> _banUser = { nullptr };
 	object_ptr<Ui::Checkbox> _reportSpam = { nullptr };
 	object_ptr<Ui::Checkbox> _deleteAll = { nullptr };

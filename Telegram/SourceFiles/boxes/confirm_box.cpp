@@ -455,8 +455,7 @@ DeleteMessagesBox::DeleteMessagesBox(
 	QWidget*,
 	not_null<HistoryItem*> item,
 	bool suggestModerateActions)
-: _ids(1, item->fullId())
-, _singleItem(true) {
+: _ids(1, item->fullId()) {
 	if (suggestModerateActions) {
 		_moderateBan = item->suggestBanReport();
 		_moderateDeleteAll = item->suggestDeleteAllReport();
@@ -487,43 +486,22 @@ void DeleteMessagesBox::prepare() {
 			_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
 		}
 	} else {
-		text = _singleItem ? lang(lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, _ids.size());
-		auto canDeleteAllForEveryone = true;
-		auto now = unixtime();
-		auto deleteForUser = (UserData*)nullptr;
-		auto peer = (PeerData*)nullptr;
-		auto forEveryoneText = lang(lng_delete_for_everyone_check);
-		for (const auto fullId : std::as_const(_ids)) {
-			if (const auto item = App::histItemById(fullId)) {
-				peer = item->history()->peer;
-				if (!item->canDeleteForEveryone(now)) {
-					canDeleteAllForEveryone = false;
-					break;
-				} else if (auto user = item->history()->peer->asUser()) {
-					if (!deleteForUser || deleteForUser == user) {
-						deleteForUser = user;
-						forEveryoneText = lng_delete_for_other_check(
-							lt_user,
-							user->firstName);
-					} else {
-						forEveryoneText = lang(lng_delete_for_everyone_check);
-					}
+		text = (_ids.size() == 1)
+			? lang(lng_selected_delete_sure_this)
+			: lng_selected_delete_sure(lt_count, _ids.size());
+		if (const auto peer = checkFromSinglePeer()) {
+			auto count = int(_ids.size());
+			if (const auto revoke = revokeText(peer); !revoke.isEmpty()) {
+				_revoke.create(this, revoke, false, st::defaultBoxCheckbox);
+			} else if (peer && peer->isChannel()) {
+				if (peer->isMegagroup()) {
+					text += qsl("\n\n") + lng_delete_for_everyone_hint(lt_count, count);
 				}
-			} else {
-				canDeleteAllForEveryone = false;
+			} else if (peer->isChat()) {
+				text += qsl("\n\n") + lng_delete_for_me_chat_hint(lt_count, count);
+			} else if (!peer->isSelf()) {
+				text += qsl("\n\n") + lng_delete_for_me_hint(lt_count, count);
 			}
-		}
-		auto count = int(_ids.size());
-		if (canDeleteAllForEveryone) {
-			_forEveryone.create(this, forEveryoneText, false, st::defaultBoxCheckbox);
-		} else if (peer && peer->isChannel()) {
-			if (peer->isMegagroup()) {
-				text += qsl("\n\n") + lng_delete_for_everyone_hint(lt_count, count);
-			}
-		} else if (peer->isChat()) {
-			text += qsl("\n\n") + lng_delete_for_me_chat_hint(lt_count, count);
-		} else if (!peer->isSelf()) {
-			text += qsl("\n\n") + lng_delete_for_me_hint(lt_count, count);
 		}
 	}
 	_text.create(this, text, Ui::FlatLabel::InitType::Simple, st::boxLabel);
@@ -541,10 +519,63 @@ void DeleteMessagesBox::prepare() {
 		if (_deleteAll) {
 			fullHeight += st::boxLittleSkip + _deleteAll->heightNoMargins();
 		}
-	} else if (_forEveryone) {
-		fullHeight += st::boxMediumSkip + _forEveryone->heightNoMargins();
+	} else if (_revoke) {
+		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
 	}
 	setDimensions(st::boxWidth, fullHeight);
+}
+
+PeerData *DeleteMessagesBox::checkFromSinglePeer() const {
+	auto result = (PeerData*)nullptr;
+	for (const auto fullId : std::as_const(_ids)) {
+		if (const auto item = App::histItemById(fullId)) {
+			const auto peer = item->history()->peer;
+			if (!result) {
+				result = peer;
+			} else if (result != peer) {
+				return nullptr;
+			}
+		}
+	}
+	return result;
+}
+
+QString DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const {
+	const auto items = ranges::view::all(
+		_ids
+	) | ranges::view::transform([](FullMsgId id) {
+		return App::histItemById(id);
+	}) | ranges::view::filter([](HistoryItem *item) {
+		return (item != nullptr);
+	}) | ranges::to_vector;
+	if (items.size() != _ids.size()) {
+		// We don't have information about all messages.
+		return QString();
+	}
+
+	const auto now = unixtime();
+	const auto cannotRevoke = [&](HistoryItem *item) {
+		return !item->canDeleteForEveryone(now);
+	};
+	const auto canRevokeAll = ranges::find_if(
+		items,
+		cannotRevoke
+	) == end(items);
+	auto outgoing = items | ranges::view::filter(&HistoryItem::out);
+	const auto canRevokeAllOutgoing = canRevokeAll ? true : ranges::find_if(
+		outgoing,
+		cannotRevoke
+	) == end(outgoing);
+
+	return canRevokeAll
+		? (peer->isUser()
+			? lng_delete_for_other_check(
+				lt_user,
+				peer->asUser()->firstName)
+			: lang(lng_delete_for_everyone_check))
+		: (canRevokeAllOutgoing && (begin(outgoing) != end(outgoing)))
+		? lang(lng_delete_for_other_my)
+		: QString();
 }
 
 void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
@@ -562,10 +593,10 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 		if (_deleteAll) {
 			_deleteAll->moveToLeft(st::boxPadding.left(), top);
 		}
-	} else if (_forEveryone) {
-		auto availableWidth = width() - 2 * st::boxPadding.left();
-		_forEveryone->resizeToNaturalWidth(availableWidth);
-		_forEveryone->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+	} else if (_revoke) {
+		const auto availableWidth = width() - 2 * st::boxPadding.left();
+		_revoke->resizeToNaturalWidth(availableWidth);
+		_revoke->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
 	}
 }
 
@@ -621,7 +652,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		}
 	}
 
-	const auto revoke = _forEveryone ? _forEveryone->checked() : false;
+	const auto revoke = _revoke ? _revoke->checked() : false;
 	for (const auto &[peer, ids] : idsByPeer) {
 		App::main()->deleteMessages(peer, ids, revoke);
 	}

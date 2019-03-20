@@ -835,13 +835,6 @@ void MainWidget::showSendPathsLayer() {
 	}
 }
 
-void MainWidget::deleteLayer(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
-		const auto suggestModerateActions = true;
-		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
-	}
-}
-
 void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	session().uploader().pause(itemId);

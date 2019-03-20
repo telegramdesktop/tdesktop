@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
@@ -1227,8 +1228,9 @@ void OverlayWidget::onDelete() {
 
 	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
-	} else {
-		App::main()->deleteLayer(_msgid);
+	} else if (const auto item = App::histItemById(_msgid)) {
+		const auto suggestModerateActions = true;
+		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
 }
 
