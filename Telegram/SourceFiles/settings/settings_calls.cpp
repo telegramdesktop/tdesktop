@@ -348,8 +348,8 @@ void Calls::startTestingMicrophone() {
 	_micTester = std::make_unique<tgvoip::AudioInputTester>(
 		Global::CallInputDeviceID().toStdString());
 	if (_micTester->Failed()) {
-		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
 		stopTestingMicrophone();
+		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
 	}
 }
 
