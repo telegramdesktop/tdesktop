@@ -103,11 +103,11 @@ Info::Profile::Button *AddButtonWithText(
 		nullptr);
 }
 
-Info::Profile::Button *AddButtonDelete(
+void AddButtonDelete(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
 		Fn<void()> callback) {
-	return EditPeerInfoBox::CreateButton(
+	EditPeerInfoBox::CreateButton(
 		parent,
 		std::move(text),
 		rpl::single(QString()),
@@ -210,10 +210,10 @@ private:
 	void subscribeToMigration();
 	void migrate(not_null<ChannelData*> channel);
 
-	std::optional<Privacy> _privacySavedValue = std::nullopt;
-	std::optional<HistoryVisibility> _historyVisibilitySavedValue = std::nullopt;
-	std::optional<QString> _usernameSavedValue = std::nullopt;
-	std::optional<bool> _signaturesSavedValue = std::nullopt;
+	std::optional<Privacy> _privacySavedValue = {};
+	std::optional<HistoryVisibility> _historyVisibilitySavedValue = {};
+	std::optional<QString> _usernameSavedValue = {};
+	std::optional<bool> _signaturesSavedValue = {};
 
 	not_null<BoxContent*> _box;
 	not_null<PeerData*> _peer;
@@ -457,12 +457,13 @@ void Controller::refreshHistoryVisibility(bool instant = false) {
 };
 
 void Controller::showEditPeerTypeBox(std::optional<LangKey> error) {
-	const auto boxCallback = [=](Privacy checked, QString publicLink) {
+	const auto boxCallback = crl::guard(this, [=](
+			Privacy checked, QString publicLink) {
 		_updadePrivacyType.fire(std::move(checked));
 		_privacySavedValue = checked;
 		_usernameSavedValue = publicLink;
 		refreshHistoryVisibility();
-	};
+	});
 	Ui::show(
 		Box<EditPeerTypeBox>(
 			_peer,
@@ -501,12 +502,9 @@ void Controller::fillPrivacyTypeButton() {
 void Controller::fillInviteLinkButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto boxCallback = [=](Privacy checked, QString publicLink) {
-	};
-
 	const auto buttonCallback = [=] {
 		Ui::show(
-			Box<EditPeerTypeBox>(_peer, boxCallback),
+			Box<EditPeerTypeBox>(_peer),
 			LayerOption::KeepOther);
 	};
 
@@ -554,16 +552,16 @@ void Controller::fillHistoryVisibilityButton() {
 	const auto updateHistoryVisibility =
 		std::make_shared<rpl::event_stream<HistoryVisibility>>();
 
-	const auto boxCallback = [=](HistoryVisibility checked) {
+	const auto boxCallback = crl::guard(this, [=](HistoryVisibility checked) {
 		updateHistoryVisibility->fire(std::move(checked));
 		_historyVisibilitySavedValue = checked;
-	};
+	});
 	const auto buttonCallback = [=] {
 		Ui::show(
 			Box<EditPeerHistoryVisibilityBox>(
 				_peer,
 				boxCallback,
-				_historyVisibilitySavedValue),
+				*_historyVisibilitySavedValue),
 			LayerOption::KeepOther);
 	};
 	AddButtonWithText(

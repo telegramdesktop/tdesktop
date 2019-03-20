@@ -10,20 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "ui/widgets/checkbox.h"
 
-namespace style {
-struct InfoProfileCountButton;
-} // namespace style
-
-namespace Ui {
-class VerticalLayout;
-} // namespace Ui
-
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
-} // namespace Info
-
 enum class HistoryVisibility {
 	Visible,
 	Hidden,
@@ -35,7 +21,7 @@ public:
 		QWidget*,
 		not_null<PeerData*> peer,
 		FnMut<void(HistoryVisibility)> savedCallback,
-		std::optional<HistoryVisibility> historyVisibilitySavedValue = {});
+		HistoryVisibility historyVisibilitySavedValue);
 
 protected:
 	void prepare() override;
@@ -46,7 +32,7 @@ private:
 	not_null<PeerData*> _peer;
 	FnMut<void(HistoryVisibility)> _savedCallback;
 
-	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
+	HistoryVisibility _historyVisibilitySavedValue;
 	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> _historyVisibility;
 
 };

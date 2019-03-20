@@ -234,10 +234,11 @@ void Controller::fillPrivaciesButtons(
 		return;
 	}
 
-	const auto result = parent->add(object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
-		parent,
-		object_ptr<Ui::VerticalLayout>(parent),
-		st::editPeerPrivaciesMargins));
+	const auto result = parent->add(
+			object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+				parent,
+				object_ptr<Ui::VerticalLayout>(parent),
+				st::editPeerPrivaciesMargins));
 	const auto container = result->entity();
 
 	const auto isPublic = _peer->isChannel()
@@ -288,7 +289,8 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
-	const auto username = _usernameSavedValue.value_or(channel ? channel->username : QString());
+	const auto username =
+		_usernameSavedValue.value_or(channel ? channel->username : QString());
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
@@ -695,7 +697,7 @@ bool Controller::inviteLinkShown() {
 EditPeerTypeBox::EditPeerTypeBox(
 	QWidget*,
 	not_null<PeerData*> peer,
-	FnMut<void(Privacy, QString)> savedCallback,
+	std::optional<FnMut<void(Privacy, QString)>> savedCallback,
 	std::optional<Privacy> privacySaved,
 	std::optional<QString> usernameSaved,
 	std::optional<LangKey> usernameError)
@@ -735,7 +737,7 @@ void EditPeerTypeBox::prepare() {
 
 	setTitle(langFactory(controller->getTitle()));
 
-	if (!controller->isInviteLink()) {
+	if (!controller->isInviteLink() && _savedCallback.has_value()) {
 		addButton(langFactory(lng_settings_save), [=] {
 			const auto v = controller->getPrivacy();
 			if (!controller->isAllowSave() && (v == Privacy::Public)) {
@@ -743,7 +745,7 @@ void EditPeerTypeBox::prepare() {
 				return;
 			}
 
-			auto local = std::move(_savedCallback);
+			auto local = std::move(*_savedCallback);
 			local(v,
 				(v == Privacy::Public)
 					? controller->getUsernameInput()
@@ -751,7 +753,9 @@ void EditPeerTypeBox::prepare() {
 			closeBox();
 		});
 	}
-	addButton(langFactory(controller->isInviteLink() ? lng_close : lng_cancel), [=] { closeBox(); });
+	addButton(
+		langFactory(controller->isInviteLink() ? lng_close : lng_cancel),
+		[=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWideWidth, content);
 }

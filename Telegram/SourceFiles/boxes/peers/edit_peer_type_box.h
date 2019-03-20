@@ -42,10 +42,10 @@ public:
 	EditPeerTypeBox(
 		QWidget*,
 		not_null<PeerData*> p,
-		FnMut<void(Privacy, QString)> savedCallback,
-		std::optional<Privacy> privacySaved = std::nullopt,
-		std::optional<QString> usernameSaved = std::nullopt,
-		std::optional<LangKey> usernameError = std::nullopt);
+		std::optional<FnMut<void(Privacy, QString)>> savedCallback = {},
+		std::optional<Privacy> privacySaved = {},
+		std::optional<QString> usernameSaved = {},
+		std::optional<LangKey> usernameError = {});
 
 protected:
 	void prepare() override;
@@ -53,7 +53,7 @@ protected:
 
 private:
 	not_null<PeerData*> _peer;
-	FnMut<void(Privacy, QString)> _savedCallback;
+	std::optional<FnMut<void(Privacy, QString)>> _savedCallback;
 
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;

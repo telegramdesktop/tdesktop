@@ -51,7 +51,7 @@ void FillContent(
 		not_null<Ui::VerticalLayout*> parent,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility,
-		std::optional<HistoryVisibility> savedValue = std::nullopt) {
+		HistoryVisibility savedValue) {
 	const auto canEdit = [&] {
 		if (const auto chat = peer->asChat()) {
 			return chat->canEditPreHistoryHidden();
@@ -66,13 +66,7 @@ void FillContent(
 
 	const auto channel = peer->asChannel();
 
-	const auto defaultValue = savedValue.value_or(
-		(!channel || channel->hiddenPreHistory())
-			? HistoryVisibility::Hidden
-			: HistoryVisibility::Visible
-	);
-
-	historyVisibility->setValue(defaultValue);
+	historyVisibility->setValue(savedValue);
 
 	const auto result = parent->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -105,13 +99,13 @@ EditPeerHistoryVisibilityBox::EditPeerHistoryVisibilityBox(
 	QWidget*,
 	not_null<PeerData*> peer,
 	FnMut<void(HistoryVisibility)> savedCallback,
-	std::optional<HistoryVisibility> historyVisibilitySavedValue)
+	HistoryVisibility historyVisibilitySavedValue)
 : _peer(peer)
 , _savedCallback(std::move(savedCallback))
 , _historyVisibilitySavedValue(historyVisibilitySavedValue)
 , _historyVisibility(
 	std::make_shared<Ui::RadioenumGroup<HistoryVisibility>>(
-		_historyVisibilitySavedValue.value_or(HistoryVisibility::Hidden))) {
+		_historyVisibilitySavedValue)) {
 }
 
 void EditPeerHistoryVisibilityBox::prepare() {
