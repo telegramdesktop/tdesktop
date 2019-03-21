@@ -274,6 +274,8 @@ public:
 		setPinnedMessageId(0);
 	}
 
+	[[nodiscard]] bool canExportChatHistory() const;
+
 	// Returns true if about text was changed.
 	bool setAbout(const QString &newAbout);
 	const QString &about() const {

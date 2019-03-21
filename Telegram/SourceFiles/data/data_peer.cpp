@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_peer.h"
 
-#include <rpl/filter.h>
-#include <rpl/map.h>
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -26,6 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
+#include "history/history.h"
+#include "history/view/history_view_element.h"
+#include "history/history_item.h"
 
 namespace {
 
@@ -374,6 +375,17 @@ void PeerData::setPinnedMessageId(MsgId messageId) {
 			this,
 			Notify::PeerUpdate::Flag::PinnedMessageChanged);
 	}
+}
+
+bool PeerData::canExportChatHistory() const {
+	for (const auto &block : _owner->history(id)->blocks) {
+		for (const auto &message : block->messages) {
+			if (!message->data()->serviceMsg()) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 bool PeerData::setAbout(const QString &newAbout) {
