@@ -2411,7 +2411,7 @@ void History::dialogEntryApplied() {
 				}
 			}
 		} else {
-			App::main()->deleteConversation(peer, false);
+			clear();
 		}
 		return;
 	}

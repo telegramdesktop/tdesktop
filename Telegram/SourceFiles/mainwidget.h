@@ -195,17 +195,10 @@ public:
 
 	void deletePhotoLayer(PhotoData *photo);
 
-	bool leaveChatFailed(PeerData *peer, const RPCError &e);
-	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
 	void deleteMessages(
 		not_null<PeerData*> peer,
 		const QVector<MTPint> &ids,
 		bool revoke);
-	void deletedContact(UserData *user, const MTPcontacts_Link &result);
-	void deleteConversation(
-		not_null<PeerData*> peer,
-		bool deleteHistory = true);
-	void deleteAndExit(ChatData *chat);
 
 	bool sendMessageFail(const RPCError &error);
 
@@ -415,8 +408,6 @@ private:
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedUpdate(const MTPUpdate &update);
-
-	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
 
 	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);

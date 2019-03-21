@@ -4473,16 +4473,11 @@ void HistoryWidget::onReportSpamClear() {
 	Expects(_peer != nullptr);
 
 	InvokeQueued(App::main(), [peer = _peer] {
-		if (peer->isUser()) {
-			App::main()->deleteConversation(peer);
-		} else if (auto chat = peer->asChat()) {
-			App::main()->deleteAndExit(chat);
-		} else if (auto channel = peer->asChannel()) {
-			if (channel->migrateFrom()) {
-				App::main()->deleteConversation(channel->migrateFrom());
-			}
-			Auth().api().leaveChannel(channel);
+		Ui::showChatsList();
+		if (const auto from = peer->migrateFrom()) {
+			peer->session().api().deleteConversation(from, false);
 		}
+		peer->session().api().deleteConversation(peer, false);
 	});
 
 	// Invalidates _peer.

@@ -151,6 +151,7 @@ public:
 		not_null<HistoryItem*> item,
 		bool suggestModerateActions);
 	DeleteMessagesBox(QWidget*, MessageIdsList &&selected);
+	DeleteMessagesBox(QWidget*, not_null<PeerData*> peer, bool deleteChat);
 
 	void setDeleteConfirmedCallback(Fn<void()> callback) {
 		_deleteConfirmedCallback = std::move(callback);

@@ -211,7 +211,8 @@ public:
 		const MTPUserStatus &status,
 		int currentOnlineTill);
 
-	void clearHistory(not_null<PeerData*> peer);
+	void clearHistory(not_null<PeerData*> peer, bool revoke);
+	void deleteConversation(not_null<PeerData*> peer, bool revoke);
 
 	base::Observable<PeerData*> &fullPeerUpdated() {
 		return _fullPeerUpdated;
@@ -540,6 +541,10 @@ private:
 		UserId userId,
 		const SendOptions &options);
 
+	void deleteHistory(
+		not_null<PeerData*> peer,
+		bool justClear,
+		bool revoke);
 	void sendReadRequest(not_null<PeerData*> peer, MsgId upTo);
 	int applyAffectedHistory(
 		not_null<PeerData*> peer,

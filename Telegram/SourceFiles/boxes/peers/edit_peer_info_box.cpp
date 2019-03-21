@@ -1109,7 +1109,7 @@ void Controller::deleteChannel() {
 	Ui::hideLayer();
 	Ui::showChatsList();
 	if (chat) {
-		App::main()->deleteAndExit(chat);
+		chat->session().api().deleteConversation(chat, false);
 	}
 	MTP::send(
 		MTPchannels_DeleteChannel(channel->inputChannel),
