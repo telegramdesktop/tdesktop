@@ -164,9 +164,13 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	struct RevokeConfig {
+		QString checkbox;
+		TextWithEntities description;
+	};
 	void deleteAndClear();
 	PeerData *checkFromSinglePeer() const;
-	QString revokeText(not_null<PeerData*> peer) const;
+	std::optional<RevokeConfig> revokeText(not_null<PeerData*> peer) const;
 
 	const MessageIdsList _ids;
 	UserData *_moderateFrom = nullptr;

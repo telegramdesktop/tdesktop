@@ -474,10 +474,14 @@ DeleteMessagesBox::DeleteMessagesBox(
 }
 
 void DeleteMessagesBox::prepare() {
-	auto text = QString();
+	auto details = TextWithEntities();
+	const auto appendDetails = [&](TextWithEntities &&text) {
+		TextUtilities::Append(details, { "\n\n" });
+		TextUtilities::Append(details, std::move(text));
+	};
 	if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
-		text = lang(lng_selected_delete_sure_this);
+		details.text = lang(lng_selected_delete_sure_this);
 		if (_moderateBan) {
 			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
 		}
@@ -486,25 +490,26 @@ void DeleteMessagesBox::prepare() {
 			_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
 		}
 	} else {
-		text = (_ids.size() == 1)
+		details.text = (_ids.size() == 1)
 			? lang(lng_selected_delete_sure_this)
 			: lng_selected_delete_sure(lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
-			if (const auto revoke = revokeText(peer); !revoke.isEmpty()) {
-				_revoke.create(this, revoke, false, st::defaultBoxCheckbox);
+			if (auto revoke = revokeText(peer)) {
+				_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
+				appendDetails(std::move(revoke->description));
 			} else if (peer && peer->isChannel()) {
 				if (peer->isMegagroup()) {
-					text += qsl("\n\n") + lng_delete_for_everyone_hint(lt_count, count);
+					appendDetails({ lng_delete_for_everyone_hint(lt_count, count) });
 				}
 			} else if (peer->isChat()) {
-				text += qsl("\n\n") + lng_delete_for_me_chat_hint(lt_count, count);
+				appendDetails({ lng_delete_for_me_chat_hint(lt_count, count) });
 			} else if (!peer->isSelf()) {
-				text += qsl("\n\n") + lng_delete_for_me_hint(lt_count, count);
+				appendDetails({ lng_delete_for_me_hint(lt_count, count) });
 			}
 		}
 	}
-	_text.create(this, text, Ui::FlatLabel::InitType::Simple, st::boxLabel);
+	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
 	addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
@@ -540,7 +545,8 @@ PeerData *DeleteMessagesBox::checkFromSinglePeer() const {
 	return result;
 }
 
-QString DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const {
+auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
+-> std::optional<RevokeConfig> {
 	const auto items = ranges::view::all(
 		_ids
 	) | ranges::view::transform([](FullMsgId id) {
@@ -550,10 +556,13 @@ QString DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const {
 	}) | ranges::to_vector;
 	if (items.size() != _ids.size()) {
 		// We don't have information about all messages.
-		return QString();
+		return std::nullopt;
 	}
 
 	const auto now = unixtime();
+	const auto canRevoke = [&](HistoryItem * item) {
+		return item->canDeleteForEveryone(now);
+	};
 	const auto cannotRevoke = [&](HistoryItem *item) {
 		return !item->canDeleteForEveryone(now);
 	};
@@ -562,20 +571,47 @@ QString DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const {
 		cannotRevoke
 	) == end(items);
 	auto outgoing = items | ranges::view::filter(&HistoryItem::out);
-	const auto canRevokeAllOutgoing = canRevokeAll ? true : ranges::find_if(
-		outgoing,
-		cannotRevoke
-	) == end(outgoing);
+	const auto canRevokeOutgoingCount = canRevokeAll
+		? -1
+		: ranges::count_if(outgoing, canRevoke);
 
-	return canRevokeAll
-		? (peer->isUser()
+	auto result = RevokeConfig();
+	if (canRevokeAll) {
+		result.checkbox = peer->isUser()
 			? lng_delete_for_other_check(
 				lt_user,
 				peer->asUser()->firstName)
-			: lang(lng_delete_for_everyone_check))
-		: (canRevokeAllOutgoing && (begin(outgoing) != end(outgoing)))
-		? lang(lng_delete_for_other_my)
-		: QString();
+			: lang(lng_delete_for_everyone_check);
+		return result;
+	} else if (canRevokeOutgoingCount > 0) {
+		result.checkbox = lang(lng_delete_for_other_my);
+		if (const auto user = peer->asUser()) {
+			auto boldName = TextWithEntities{ user->firstName };
+			boldName.entities.push_back(
+				EntityInText(EntityInTextBold, 0, boldName.text.size()));
+			if (canRevokeOutgoingCount == 1) {
+				result.description = lng_selected_unsend_about_user_one__generic<TextWithEntities>(
+					lt_user,
+					boldName);
+			} else {
+				result.description = lng_selected_unsend_about_user__generic<TextWithEntities>(
+					lt_count,
+					canRevokeOutgoingCount,
+					lt_user,
+					boldName);
+			}
+		} else if (canRevokeOutgoingCount == 1) {
+			result.description = TextWithEntities{
+				lang(lng_selected_unsend_about_group_one) };
+		} else {
+			result.description = TextWithEntities{
+				lng_selected_unsend_about_group(
+					lt_count,
+					canRevokeOutgoingCount) };
+		}
+		return result;
+	}
+	return std::nullopt;
 }
 
 void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
