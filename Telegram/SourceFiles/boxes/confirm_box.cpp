@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "core/click_handler_types.h"
+#include "window/window_controller.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -473,13 +474,52 @@ DeleteMessagesBox::DeleteMessagesBox(
 	Expects(!_ids.empty());
 }
 
+DeleteMessagesBox::DeleteMessagesBox(
+	QWidget*,
+	not_null<PeerData*> peer,
+	bool justClear)
+: _wipeHistoryPeer(peer)
+, _wipeHistoryJustClear(justClear) {
+}
+
 void DeleteMessagesBox::prepare() {
 	auto details = TextWithEntities();
 	const auto appendDetails = [&](TextWithEntities &&text) {
 		TextUtilities::Append(details, { "\n\n" });
 		TextUtilities::Append(details, std::move(text));
 	};
-	if (_moderateFrom) {
+	auto deleteKey = lng_box_delete;
+	auto deleteStyle = &st::defaultBoxButton;
+	if (const auto peer = _wipeHistoryPeer) {
+		if (_wipeHistoryJustClear) {
+			details.text = peer->isSelf()
+				? lang(lng_sure_delete_saved_messages)
+				: peer->isUser()
+				? lng_sure_delete_history(lt_contact, peer->name)
+				: lng_sure_delete_group_history(lt_group, peer->name);
+			deleteStyle = &st::attentionBoxButton;
+		} else {
+			details.text = peer->isSelf()
+				? lang(lng_sure_delete_saved_messages)
+				: peer->isUser()
+				? lng_sure_delete_history(lt_contact, peer->name)
+				: peer->isChat()
+				? lng_sure_delete_and_exit(lt_group, peer->name)
+				: lang(peer->isMegagroup()
+					? lng_sure_leave_group
+					: lng_sure_leave_channel);
+			deleteKey = _wipeHistoryPeer->isUser()
+				? lng_box_delete
+				: lng_box_leave;
+			deleteStyle = &(peer->isChannel()
+				? st::defaultBoxButton
+				: st::attentionBoxButton);
+		}
+		if (auto revoke = revokeText(peer)) {
+			_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
+			appendDetails(std::move(revoke->description));
+		}
+	} else if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
 		details.text = lang(lng_selected_delete_sure_this);
 		if (_moderateBan) {
@@ -511,8 +551,11 @@ void DeleteMessagesBox::prepare() {
 	}
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
-	addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(
+		langFactory(deleteKey),
+		[=] { deleteAndClear(); },
+		*deleteStyle);
+	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
 	if (_moderateFrom) {
@@ -547,6 +590,20 @@ PeerData *DeleteMessagesBox::checkFromSinglePeer() const {
 
 auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 -> std::optional<RevokeConfig> {
+	auto result = RevokeConfig();
+	if (peer == _wipeHistoryPeer) {
+		if (!peer->canRevokeFullHistory()) {
+			return std::nullopt;
+		} else if (const auto user = peer->asUser()) {
+			result.checkbox = lng_delete_for_other_check(
+				lt_user,
+				user->firstName);
+		} else {
+			result.checkbox = lang(lng_delete_for_everyone_check);
+		}
+		return result;
+	}
+
 	const auto items = ranges::view::all(
 		_ids
 	) | ranges::view::transform([](FullMsgId id) {
@@ -554,6 +611,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 	}) | ranges::view::filter([](HistoryItem *item) {
 		return (item != nullptr);
 	}) | ranges::to_vector;
+
 	if (items.size() != _ids.size()) {
 		// We don't have information about all messages.
 		return std::nullopt;
@@ -575,13 +633,14 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		? -1
 		: ranges::count_if(outgoing, canRevoke);
 
-	auto result = RevokeConfig();
 	if (canRevokeAll) {
-		result.checkbox = peer->isUser()
-			? lng_delete_for_other_check(
+		if (const auto user = peer->asUser()) {
+			result.checkbox = lng_delete_for_other_check(
 				lt_user,
-				peer->asUser()->firstName)
-			: lang(lng_delete_for_everyone_check);
+				user->firstName);
+		} else {
+			result.checkbox = lang(lng_delete_for_everyone_check);
+		}
 		return result;
 	} else if (canRevokeOutgoingCount > 0) {
 		result.checkbox = lang(lng_delete_for_other_my);
@@ -645,6 +704,28 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void DeleteMessagesBox::deleteAndClear() {
+	const auto revoke = _revoke ? _revoke->checked() : false;
+	if (const auto peer = _wipeHistoryPeer) {
+		const auto justClear = _wipeHistoryJustClear;
+		closeBox();
+
+		if (justClear) {
+			peer->session().api().clearHistory(peer, revoke);
+		} else {
+			const auto controller = App::wnd()->controller();
+			if (controller->activeChatCurrent().peer() == peer) {
+				Ui::showChatsList();
+			}
+			// Don't delete old history by default,
+			// because Android app doesn't.
+			//
+			//if (const auto from = peer->migrateFrom()) {
+			//	peer->session().api().deleteConversation(from, false);
+			//}
+			peer->session().api().deleteConversation(peer, revoke);
+		}
+		return;
+	}
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
 			_moderateInChannel->session().api().kickParticipant(
@@ -688,9 +769,8 @@ void DeleteMessagesBox::deleteAndClear() {
 		}
 	}
 
-	const auto revoke = _revoke ? _revoke->checked() : false;
 	for (const auto &[peer, ids] : idsByPeer) {
-		App::main()->deleteMessages(peer, ids, revoke);
+		peer->session().api().deleteMessages(peer, ids, revoke);
 	}
 	Ui::hideLayer();
 	Auth().data().sendHistoryChangeNotifications();

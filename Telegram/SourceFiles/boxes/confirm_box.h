@@ -151,7 +151,7 @@ public:
 		not_null<HistoryItem*> item,
 		bool suggestModerateActions);
 	DeleteMessagesBox(QWidget*, MessageIdsList &&selected);
-	DeleteMessagesBox(QWidget*, not_null<PeerData*> peer, bool deleteChat);
+	DeleteMessagesBox(QWidget*, not_null<PeerData*> peer, bool justClear);
 
 	void setDeleteConfirmedCallback(Fn<void()> callback) {
 		_deleteConfirmedCallback = std::move(callback);
@@ -172,6 +172,8 @@ private:
 	PeerData *checkFromSinglePeer() const;
 	std::optional<RevokeConfig> revokeText(not_null<PeerData*> peer) const;
 
+	PeerData * const _wipeHistoryPeer = nullptr;
+	const bool _wipeHistoryJustClear = false;
 	const MessageIdsList _ids;
 	UserData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;

@@ -2446,6 +2446,30 @@ void ApiWrap::applyAffectedMessages(
 	App::main()->ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
 }
 
+void ApiWrap::deleteMessages(
+		not_null<PeerData*> peer,
+		const QVector<MTPint> &ids,
+		bool revoke) {
+	const auto done = [=](const MTPmessages_AffectedMessages & result) {
+		applyAffectedMessages(peer, result);
+		if (const auto history = peer->owner().historyLoaded(peer)) {
+			history->requestChatListMessage();
+		}
+	};
+	if (const auto channel = peer->asChannel()) {
+		request(MTPchannels_DeleteMessages(
+			channel->inputChannel,
+			MTP_vector<MTPint>(ids)
+		)).done(done).send();
+	} else {
+		using Flag = MTPmessages_DeleteMessages::Flag;
+		request(MTPmessages_DeleteMessages(
+			MTP_flags(revoke ? Flag::f_revoke : Flag(0)),
+			MTP_vector<MTPint>(ids)
+		)).done(done).send();
+	}
+}
+
 void ApiWrap::saveDraftsToCloud() {
 	for (auto i = _draftsSaveRequestIds.begin(), e = _draftsSaveRequestIds.end(); i != e; ++i) {
 		if (i->second) continue; // sent already

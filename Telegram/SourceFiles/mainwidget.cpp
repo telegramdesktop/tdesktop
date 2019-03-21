@@ -899,26 +899,6 @@ void MainWidget::dialogsActivate() {
 	_dialogs->activate();
 }
 
-void MainWidget::deleteMessages(
-		not_null<PeerData*> peer,
-		const QVector<MTPint> &ids,
-		bool revoke) {
-	if (const auto channel = peer->asChannel()) {
-		MTP::send(
-			MTPchannels_DeleteMessages(
-				channel->inputChannel,
-				MTP_vector<MTPint>(ids)),
-			rpcDone(&MainWidget::messagesAffected, peer));
-	} else {
-		using Flag = MTPmessages_DeleteMessages::Flag;
-		MTP::send(
-			MTPmessages_DeleteMessages(
-				MTP_flags(revoke ? Flag::f_revoke : Flag(0)),
-				MTP_vector<MTPint>(ids)),
-			rpcDone(&MainWidget::messagesAffected, peer));
-	}
-}
-
 void MainWidget::removeDialog(Dialogs::Key key) {
 	_dialogs->removeDialog(key);
 }
@@ -1052,21 +1032,6 @@ void MainWidget::checkLastUpdate(bool afterSleep) {
 	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? kNoUpdatesAfterSleepTimeout : kNoUpdatesTimeout)) {
 		_lastUpdateTime = n;
 		MTP::ping();
-	}
-}
-
-void MainWidget::messagesAffected(
-		not_null<PeerData*> peer,
-		const MTPmessages_AffectedMessages &result) {
-	const auto &data = result.c_messages_affectedMessages();
-	if (const auto channel = peer->asChannel()) {
-		channel->ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
-	} else {
-		ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
-	}
-
-	if (const auto history = session().data().historyLoaded(peer)) {
-		history->requestChatListMessage();
 	}
 }
 

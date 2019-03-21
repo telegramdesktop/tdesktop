@@ -213,6 +213,10 @@ public:
 
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);
+	void deleteMessages(
+		not_null<PeerData*> peer,
+		const QVector<MTPint> &ids,
+		bool revoke);
 
 	base::Observable<PeerData*> &fullPeerUpdated() {
 		return _fullPeerUpdated;

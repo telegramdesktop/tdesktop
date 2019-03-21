@@ -788,69 +788,13 @@ void PeerMenuAddMuteAction(
 
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [=] {
-		const auto weak = std::make_shared<QPointer<BoxContent>>();
-		const auto text = peer->isSelf()
-			? lang(lng_sure_delete_saved_messages)
-			: peer->isUser()
-			? lng_sure_delete_history(lt_contact, peer->name)
-			: lng_sure_delete_group_history(lt_group, peer->name);
-		const auto callback = [=] {
-			if (const auto strong = *weak) {
-				strong->closeBox();
-			}
-			peer->session().api().clearHistory(peer, false);
-		};
-		*weak = Ui::show(
-			Box<ConfirmBox>(
-				text,
-				lang(lng_box_delete),
-				st::attentionBoxButton,
-				callback),
-			LayerOption::KeepOther);
+		Ui::show(Box<DeleteMessagesBox>(peer, true), LayerOption::KeepOther);
 	};
 }
 
 Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 	return [=] {
-		const auto weak = std::make_shared<QPointer<BoxContent>>();
-		const auto text = peer->isSelf()
-			? lang(lng_sure_delete_saved_messages)
-			: peer->isUser()
-			? lng_sure_delete_history(lt_contact, peer->name)
-			: peer->isChat()
-			? lng_sure_delete_and_exit(lt_group, peer->name)
-			: lang(peer->isMegagroup()
-				? lng_sure_leave_group
-				: lng_sure_leave_channel);
-		const auto confirm = lang(peer->isUser()
-			? lng_box_delete
-			: lng_box_leave);
-		const auto &confirmStyle = peer->isChannel()
-			? st::defaultBoxButton
-			: st::attentionBoxButton;
-		const auto callback = [=] {
-			if (const auto strong = *weak) {
-				strong->closeBox();
-			}
-			const auto controller = App::wnd()->controller();
-			if (controller->activeChatCurrent().peer() == peer) {
-				Ui::showChatsList();
-			}
-			// Don't delete old history by default,
-			// because Android app doesn't.
-			//
-			//if (const auto from = peer->migrateFrom()) {
-			//	peer->session().api().deleteConversation(from, false);
-			//}
-			peer->session().api().deleteConversation(peer, false);
-		};
-		*weak = Ui::show(
-			Box<ConfirmBox>(
-				text,
-				confirm,
-				confirmStyle,
-				callback),
-			LayerOption::KeepOther);
+		Ui::show(Box<DeleteMessagesBox>(peer, false), LayerOption::KeepOther);
 	};
 }
 

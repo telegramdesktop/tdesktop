@@ -648,6 +648,12 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 	return Result::Allowed();
 }
 
+bool PeerData::canRevokeFullHistory() const {
+	return isUser()
+		&& Global::RevokePrivateInbox()
+		&& (Global::RevokePrivateTimeLimit() == 0x7FFFFFFF);
+}
+
 namespace Data {
 
 std::vector<ChatRestrictions> ListOfRestrictions() {

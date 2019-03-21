@@ -195,11 +195,6 @@ public:
 
 	void deletePhotoLayer(PhotoData *photo);
 
-	void deleteMessages(
-		not_null<PeerData*> peer,
-		const QVector<MTPint> &ids,
-		bool revoke);
-
 	bool sendMessageFail(const RPCError &error);
 
 	Dialogs::IndexedList *contactsList();
@@ -370,10 +365,6 @@ private:
 	void createExportTopBar(Export::View::Content &&data);
 	void destroyExportTopBar();
 	void exportTopBarHeightUpdated();
-
-	void messagesAffected(
-		not_null<PeerData*> peer,
-		const MTPmessages_AffectedMessages &result);
 
 	Window::SectionSlideParams prepareShowAnimation(
 		bool willHaveTopBarShadow);
