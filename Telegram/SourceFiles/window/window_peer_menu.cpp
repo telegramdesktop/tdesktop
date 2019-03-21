@@ -336,9 +336,11 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				lang(lng_profile_invite_to_group),
 				[user] { AddBotToGroupBoxController::Start(user); });
 		}
-		_addAction(
-			lang(lng_profile_export_chat),
-			[=] { PeerMenuExportChat(user); });
+		if (user->canExportChatHistory()) {
+			_addAction(
+				lang(lng_profile_export_chat),
+				[=] { PeerMenuExportChat(user); });
+		}
 	}
 	_addAction(
 		lang(lng_profile_delete_conversation),
@@ -369,9 +371,11 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 				lang(lng_polls_create),
 				[=] { PeerMenuCreatePoll(chat); });
 		}
-		_addAction(
-			lang(lng_profile_export_chat),
-			[=] { PeerMenuExportChat(chat); });
+		if (chat->canExportChatHistory()) {
+			_addAction(
+				lang(lng_profile_export_chat),
+				[=] { PeerMenuExportChat(chat); });
+		}
 	}
 	_addAction(
 		lang(lng_profile_clear_and_exit),
@@ -411,11 +415,13 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 				lang(lng_polls_create),
 				[=] { PeerMenuCreatePoll(channel); });
 		}
-		_addAction(
-			lang(isGroup
-				? lng_profile_export_chat
-				: lng_profile_export_channel),
-			[=] { PeerMenuExportChat(channel); });
+		if (channel->canExportChatHistory()) {
+			_addAction(
+				lang(isGroup
+					? lng_profile_export_chat
+					: lng_profile_export_channel),
+				[=] { PeerMenuExportChat(channel); });
+		}
 	}
 	if (channel->amIn()) {
 		if (isGroup && !channel->isPublic()) {
