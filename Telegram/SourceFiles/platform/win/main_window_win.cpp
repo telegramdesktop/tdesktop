@@ -767,12 +767,17 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::initHook() {
-	auto platformInterface = QGuiApplication::platformNativeInterface();
-	ps_hWnd = static_cast<HWND>(platformInterface->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()));
+	if (const auto native = QGuiApplication::platformNativeInterface()) {
+		ps_hWnd = static_cast<HWND>(native->nativeResourceForWindow(
+			QByteArrayLiteral("handle"),
+			windowHandle()));
+	}
+	if (!ps_hWnd) {
+		return;
+	}
 
-	if (!ps_hWnd) return;
-
-	handleSessionNotification = (Dlls::WTSRegisterSessionNotification != nullptr) && (Dlls::WTSUnRegisterSessionNotification != nullptr);
+	handleSessionNotification = (Dlls::WTSRegisterSessionNotification != nullptr)
+		&& (Dlls::WTSUnRegisterSessionNotification != nullptr);
 	if (handleSessionNotification) {
 		Dlls::WTSRegisterSessionNotification(ps_hWnd, NOTIFY_FOR_THIS_SESSION);
 	}
@@ -914,8 +919,12 @@ void MainWindow::psUpdateMargins() {
 		_deltaLeft = _deltaTop = _deltaRight = _deltaBottom = 0;
 	}
 
-	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
-	i->setWindowProperty(windowHandle()->handle(), qsl("WindowsCustomMargins"), QVariant::fromValue<QMargins>(margins));
+	if (const auto native = QGuiApplication::platformNativeInterface()) {
+		native->setWindowProperty(
+			windowHandle()->handle(),
+			qsl("WindowsCustomMargins"),
+			QVariant::fromValue<QMargins>(margins));
+	}
 	if (!_themeInited) {
 		_themeInited = true;
 		if (QSysInfo::WindowsVersion < QSysInfo::WV_WINDOWS8) {
@@ -953,13 +962,11 @@ void MainWindow::psDestroyIcons() {
 
 MainWindow::~MainWindow() {
 	if (handleSessionNotification) {
-		QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
-		if (HWND hWnd = static_cast<HWND>(i->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()))) {
-			Dlls::WTSUnRegisterSessionNotification(hWnd);
-		}
+		Dlls::WTSUnRegisterSessionNotification(ps_hWnd);
 	}
-
-	if (taskbarList) taskbarList.Reset();
+	if (taskbarList) {
+		taskbarList.Reset();
+	}
 
 	_shadowsWorking = false;
 	if (ps_menu) DestroyMenu(ps_menu);
