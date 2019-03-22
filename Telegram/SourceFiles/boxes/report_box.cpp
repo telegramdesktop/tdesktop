@@ -64,6 +64,7 @@ void ReportBox::prepare() {
 	};
 	createButton(_reasonSpam, Reason::Spam, lng_report_reason_spam);
 	createButton(_reasonViolence, Reason::Violence, lng_report_reason_violence);
+	createButton(_reasonChildAbuse, Reason::ChildAbuse, lng_report_reason_child_abuse);
 	createButton(_reasonPornography, Reason::Pornography, lng_report_reason_pornography);
 	createButton(_reasonOther, Reason::Other, lng_report_reason_other);
 	_reasonGroup->setChangedCallback([=](Reason value) {
@@ -78,6 +79,7 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 
 	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _reasonSpam->getMargins().top());
 	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
 	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
@@ -136,6 +138,7 @@ void ReportBox::report() {
 		switch (_reasonGroup->value()) {
 		case Reason::Spam: return MTP_inputReportReasonSpam();
 		case Reason::Violence: return MTP_inputReportReasonViolence();
+		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
 		case Reason::Other: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
 		}
