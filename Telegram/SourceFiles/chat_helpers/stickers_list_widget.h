@@ -135,6 +135,7 @@ private:
 			MTPDstickerSet::Flags flags,
 			const QString &title,
 			const QString &shortName,
+			ImagePtr thumbnail,
 			bool externalLayout,
 			int count,
 			const Stickers::Pack &pack = Stickers::Pack());
@@ -146,6 +147,7 @@ private:
 		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
 		QString title;
 		QString shortName;
+		ImagePtr thumbnail;
 		Stickers::Pack pack;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool externalLayout = false;
