@@ -334,6 +334,11 @@ Image::Image(std::unique_ptr<Source> &&source)
 }
 
 void Image::replaceSource(std::unique_ptr<Source> &&source) {
+	const auto width = _source->width();
+	const auto height = _source->height();
+	if (width > 0 && height > 0) {
+		source->setInformation(_source->bytesSize(), width, height);
+	}
 	_source = std::move(source);
 }
 
