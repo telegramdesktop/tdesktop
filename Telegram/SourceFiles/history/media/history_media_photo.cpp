@@ -240,16 +240,16 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, crl
 		}
 
 		p.setOpacity(radialOpacity);
-		auto icon = ([radial, this, selected]() -> const style::icon* {
+		auto icon = [&]() -> const style::icon* {
 			if (radial || _data->loading()) {
 				if (_data->uploading()
-					|| !_data->large()->location().isNull()) {
+					|| _data->large()->location().valid()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-		})();
+		}();
 		if (icon) {
 			icon->paintInCenter(p, inner);
 		}
@@ -311,7 +311,7 @@ TextState HistoryPhoto::textState(QPoint point, StateRequest request) const {
 		} else if (_data->loaded()) {
 			result.link = _openl;
 		} else if (_data->loading()) {
-			if (!_data->large()->location().isNull()) {
+			if (_data->large()->location().valid()) {
 				result.link = _cancell;
 			}
 		} else {
@@ -414,7 +414,8 @@ void HistoryPhoto::drawGrouped(
 			if (_data->waitingForAlbum()) {
 				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
 			} else if (radial || _data->loading()) {
-				if (_data->uploading() || !_data->large()->location().isNull()) {
+				if (_data->uploading()
+					|| _data->large()->location().valid()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -459,9 +460,9 @@ TextState HistoryPhoto::getStateGrouped(
 		: _data->loaded()
 		? _openl
 		: _data->loading()
-		? (_data->large()->location().isNull()
-			? ClickHandlerPtr()
-			: _cancell)
+		? (_data->large()->location().valid()
+			? _cancell
+			: nullptr)
 		: _savel);
 }
 

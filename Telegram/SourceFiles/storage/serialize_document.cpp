@@ -81,7 +81,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	}
 
 	qint32 duration = -1;
-	StorageImageLocation thumb;
+	std::optional<StorageImageLocation> thumb;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
@@ -131,9 +131,14 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		}
 	}
 
-	if (!dc && !access) {
+	if ((!dc && !access) || !thumb) {
 		return nullptr;
 	}
+	using LocationType = StorageFileLocation::Type;
+	const auto location = (thumb->valid()
+		&& thumb->type() == LocationType::Legacy)
+		? thumb->convertToModern(LocationType::Document, id, access)
+		: *thumb;
 	return Auth().data().document(
 		id,
 		access,
@@ -142,10 +147,10 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		attributes,
 		mime,
 		ImagePtr(),
-		thumb.isNull() ? ImagePtr() : Images::Create(thumb),
+		Images::Create(location),
 		dc,
 		size,
-		thumb);
+		location);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {

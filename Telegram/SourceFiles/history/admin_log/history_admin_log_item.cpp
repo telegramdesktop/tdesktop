@@ -103,40 +103,6 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	return { text, entities };
 }
 
-PhotoData *GenerateChatPhoto(
-		ChannelId channelId,
-		uint64 logEntryId,
-		TimeId date,
-		const MTPDchatPhoto &photo) {
-	// We try to make a unique photoId that will stay the same for each pair (channelId, logEntryId).
-	static const auto RandomIdPart = rand_value<uint64>();
-	auto mixinIdPart = (static_cast<uint64>(static_cast<uint32>(channelId)) << 32) ^ logEntryId;
-	auto photoId = RandomIdPart ^ mixinIdPart;
-
-	const auto fileReference = [&]() -> const MTPbytes * {
-		const auto takeFrom = [](const MTPFileLocation &location) {
-			return (location.type() == mtpc_fileLocation)
-				? &location.c_fileLocation().vfile_reference
-				: nullptr;
-		};
-		if (const auto result = takeFrom(photo.vphoto_big)) {
-			return result;
-		}
-		return takeFrom(photo.vphoto_small);
-	}();
-	auto photoSizes = QVector<MTPPhotoSize>();
-	photoSizes.reserve(2);
-	photoSizes.push_back(MTP_photoSize(MTP_string("a"), photo.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
-	photoSizes.push_back(MTP_photoSize(MTP_string("c"), photo.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
-	return Auth().data().processPhoto(MTP_photo(
-		MTP_flags(0),
-		MTP_long(photoId),
-		MTP_long(0),
-		fileReference ? (*fileReference) : MTP_bytes(QByteArray()),
-		MTP_int(date),
-		MTP_vector<MTPPhotoSize>(photoSizes)));
-}
-
 const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags) {
 	auto withPrefix = [&phraseMap](auto flags, QChar prefix) {
 		auto result = QString();
@@ -444,18 +410,14 @@ void GenerateItems(
 	};
 
 	auto createChangePhoto = [&](const MTPDchannelAdminLogEventActionChangePhoto &action) {
-		switch (action.vnew_photo.type()) {
-		case mtpc_chatPhoto: {
-			auto photo = GenerateChatPhoto(channel->bareId(), id, date, action.vnew_photo.c_chatPhoto());
+		action.vnew_photo.match([&](const MTPDphoto &data) {
+			auto photo = Auth().data().processPhoto(data);
 			auto text = (channel->isMegagroup() ? lng_admin_log_changed_photo_group : lng_admin_log_changed_photo_channel)(lt_from, fromLinkText);
 			addSimpleServiceMessage(text, photo);
-		} break;
-		case mtpc_chatPhotoEmpty: {
+		}, [&](const MTPDphotoEmpty &data) {
 			auto text = (channel->isMegagroup() ? lng_admin_log_removed_photo_group : lng_admin_log_removed_photo_channel)(lt_from, fromLinkText);
 			addSimpleServiceMessage(text);
-		} break;
-		default: Unexpected("ChatPhoto type in createChangePhoto()");
-		}
+		});
 	};
 
 	auto createToggleInvites = [&](const MTPDchannelAdminLogEventActionToggleInvites &action) {

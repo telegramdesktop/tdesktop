@@ -283,7 +283,9 @@ public:
 	void automaticLoadSettingsChanged() override;
 
 	bool loading() override {
-		return _location.isNull() ? _loadRequested : StorageSource::loading();
+		return _location.valid()
+			? StorageSource::loading()
+			: _loadRequested;
 	}
 	bool displayLoading() override;
 	void cancel() override;

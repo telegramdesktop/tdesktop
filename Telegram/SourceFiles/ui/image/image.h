@@ -30,6 +30,9 @@ ImagePtr Create(const StorageImageLocation &location, int size = 0);
 ImagePtr Create( // photoCachedSize
 	const StorageImageLocation &location,
 	const QByteArray &bytes);
+ImagePtr Create(const MTPDstickerSet &set, const MTPPhotoSize &size);
+ImagePtr Create(const MTPDphoto &photo, const MTPPhotoSize &size);
+ImagePtr Create(const MTPDdocument &document, const MTPPhotoSize &size);
 ImagePtr Create(const MTPWebDocument &location);
 ImagePtr Create(const MTPWebDocument &location, QSize box);
 ImagePtr Create(

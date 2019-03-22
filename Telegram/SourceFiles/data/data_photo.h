@@ -42,7 +42,13 @@ public:
 	void unload();
 	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
 
+	void setRemoteLocation(
+		int32 dc,
+		uint64 access,
+		const QByteArray &fileReference);
 	[[nodiscard]] MTPInputPhoto mtpInput() const;
+	[[nodiscard]] QByteArray fileReference() const;
+	void refreshFileReference(const QByteArray &value);
 
 	// When we have some client-side generated photo
 	// (for example for displaying an external inline bot result)
@@ -72,8 +78,6 @@ public:
 		ImagePtr large);
 
 	PhotoId id = 0;
-	uint64 access = 0;
-	QByteArray fileReference;
 	TimeId date = 0;
 	bool hasSticker = false;
 
@@ -88,6 +92,9 @@ private:
 	ImagePtr _thumbnail;
 	ImagePtr _large;
 
+	int32 _dc = 0;
+	uint64 _access = 0;
+	QByteArray _fileReference;
 	Data::ReplyPreview _replyPreview;
 
 	not_null<Data::Session*> _owner;

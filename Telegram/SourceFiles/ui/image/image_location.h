@@ -9,6 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class FileLoader;
 
+namespace Storage {
+namespace Cache {
+struct Key;
+} // namespace Cache
+} // namespace Storage
+
+namespace Data {
+struct UpdatedFileReferences;
+} // namespace Data
+
 enum LoadFromCloudSetting {
 	LoadFromCloudOrLocal,
 	LoadFromLocalOnly,
@@ -21,11 +31,27 @@ enum LoadToCacheSetting {
 
 using InMemoryKey = std::pair<uint64, uint64>;
 
+namespace std {
+
+template<>
+struct hash<InMemoryKey> {
+	size_t operator()(InMemoryKey value) const {
+		auto seed = hash<uint64>()(value.first);
+		seed ^= hash<uint64>()(value.second)
+			+ std::size_t(0x9e3779b9)
+			+ (seed << 6) + (seed >> 2);
+		return seed;
+	}
+
+};
+
+} // namespace std
+
 class StorageFileLocation {
 public:
 	// Those are used in serialization, don't change.
-	enum class Type : uchar {
-		General         = 0x00,
+	enum class Type : uint8 {
+		Legacy          = 0x00,
 		Encrypted       = 0x01,
 		Document        = 0x02,
 		Secure          = 0x03,
@@ -36,26 +62,33 @@ public:
 	};
 
 	StorageFileLocation() = default;
-	StorageFileLocation(MTP::DcId dcId, const MTPInputFileLocation &tl);
+	StorageFileLocation(
+		int32 dcId,
+		int32 self,
+		const MTPInputFileLocation &tl);
 
-	[[nodiscard]] MTP::DcId dcId() const;
-	[[nodiscard]] MTPInputFileLocation tl() const;
+	[[nodiscard]] StorageFileLocation convertToModern(
+		Type type,
+		uint64 id,
+		uint64 accessHash) const;
+
+	[[nodiscard]] int32 dcId() const;
+	[[nodiscard]] MTPInputFileLocation tl(int32 self) const;
 
 	[[nodiscard]] QByteArray serialize() const;
+	[[nodiscard]] int serializeSize() const;
 	[[nodiscard]] static std::optional<StorageFileLocation> FromSerialized(
 		const QByteArray &serialized);
 
+	[[nodiscard]] Type type() const;
 	[[nodiscard]] bool valid() const;
-	[[nodiscard]] InMemoryKey inMemoryKey() const;
+	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 
 	[[nodiscard]] QByteArray fileReference() const;
-	bool refreshFileReference(const QByteArray &data) {
-		if (data.isEmpty() || _fileReference == data) {
-			return false;
-		}
-		_fileReference = data;
-		return true;
-	}
+	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
+	bool refreshFileReference(const QByteArray &data);
+
+	[[nodiscard]] static const StorageFileLocation &Invalid();
 
 private:
 	friend bool operator==(
@@ -63,7 +96,7 @@ private:
 		const StorageFileLocation &b);
 
 	uint16 _dcId = 0;
-	Type _type = Type::General;
+	Type _type = Type::Legacy;
 	uint8 _sizeLetter = 0;
 	int32 _localId = 0;
 	uint64 _id = 0;
@@ -88,8 +121,19 @@ public:
 		int height);
 
 	[[nodiscard]] QByteArray serialize() const;
+	[[nodiscard]] int serializeSize() const;
 	[[nodiscard]] static std::optional<StorageImageLocation> FromSerialized(
 		const QByteArray &serialized);
+
+	[[nodiscard]] StorageImageLocation convertToModern(
+			StorageFileLocation::Type type,
+			uint64 id,
+			uint64 accessHash) const {
+		return StorageImageLocation(
+			_file.convertToModern(type, id, accessHash),
+			_width,
+			_height);
+	}
 
 	[[nodiscard]] const StorageFileLocation &file() const {
 		return _file;
@@ -106,17 +150,25 @@ public:
 		_height = height;
 	}
 
+	[[nodiscard]] StorageFileLocation::Type type() const {
+		return _file.type();
+	}
 	[[nodiscard]] bool valid() const {
 		return _file.valid();
-	}
-	[[nodiscard]] InMemoryKey inMemoryKey() const {
-		return _file.inMemoryKey();
 	}
 	[[nodiscard]] QByteArray fileReference() const {
 		return _file.fileReference();
 	}
 	bool refreshFileReference(const QByteArray &data) {
 		return _file.refreshFileReference(data);
+	}
+	bool refreshFileReference(const Data::UpdatedFileReferences &updates) {
+		return _file.refreshFileReference(updates);
+	}
+
+	[[nodiscard]] static const StorageImageLocation &Invalid() {
+		static auto result = StorageImageLocation();
+		return result;
 	}
 
 private:
@@ -224,12 +276,10 @@ private:
 
 };
 
-inline InMemoryKey inMemoryKey(const StorageFileLocation &location) {
-	return location.inMemoryKey();
-}
+InMemoryKey inMemoryKey(const StorageFileLocation &location);
 
 inline InMemoryKey inMemoryKey(const StorageImageLocation &location) {
-	return location.inMemoryKey();
+	return inMemoryKey(location.file());
 }
 
 inline InMemoryKey inMemoryKey(const WebFileLocation &location) {

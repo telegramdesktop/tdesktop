@@ -238,7 +238,7 @@ void WebPageData::replaceDocumentGoodThumbnail() {
 		return;
 	}
 	const auto &location = photo->large()->location();
-	if (!location.isNull()) {
+	if (location.valid()) {
 		document->replaceGoodThumbnail(
 			std::make_unique<Images::StorageSource>(
 				location,

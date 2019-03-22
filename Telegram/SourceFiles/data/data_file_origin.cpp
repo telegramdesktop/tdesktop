@@ -17,37 +17,18 @@ struct FileReferenceAccumulator {
 			push(item);
 		}
 	}
-	void push(const MTPFileLocation &data) {
-		data.match([&](const MTPDfileLocation &data) {
-			result.data.emplace(SimpleFileLocationId(
-				data.vvolume_id.v,
-				data.vdc_id.v,
-				data.vlocal_id.v), data.vfile_reference.v);
-		}, [](const MTPDfileLocationUnavailable &data) {
-		});
-	}
-	void push(const MTPPhotoSize &data) {
-		data.match([](const MTPDphotoSizeEmpty &) {
-		}, [](const MTPDphotoStrippedSize &) {
-		}, [&](const auto &data) {
-			push(data.vlocation);
-		});
-	}
 	void push(const MTPPhoto &data) {
 		data.match([&](const MTPDphoto &data) {
-			for (const auto &size : data.vsizes.v) {
-				push(size);
-			}
+			result.data.emplace(
+				PhotoFileLocationId{ data.vid.v },
+				data.vfile_reference.v);
 		}, [](const MTPDphotoEmpty &data) {
 		});
 	}
 	void push(const MTPDocument &data) {
 		data.match([&](const MTPDdocument &data) {
-			for (const auto &thumb : data.vthumbs.v) {
-				push(thumb);
-			}
 			result.data.emplace(
-				DocumentFileLocationId(data.vid.v),
+				DocumentFileLocationId{ data.vid.v },
 				data.vfile_reference.v);
 		}, [](const MTPDdocumentEmpty &data) {
 		});
@@ -55,36 +36,6 @@ struct FileReferenceAccumulator {
 	void push(const MTPWallPaper &data) {
 		data.match([&](const MTPDwallPaper &data) {
 			push(data.vdocument);
-		});
-	}
-	void push(const MTPUserProfilePhoto &data) {
-		data.match([&](const MTPDuserProfilePhoto &data) {
-			push(data.vphoto_small);
-			push(data.vphoto_big);
-		}, [](const MTPDuserProfilePhotoEmpty &data) {
-		});
-	}
-	void push(const MTPChatPhoto &data) {
-		data.match([&](const MTPDchatPhoto &data) {
-			push(data.vphoto_small);
-			push(data.vphoto_big);
-		}, [](const MTPDchatPhotoEmpty &data) {
-		});
-	}
-	void push(const MTPUser &data) {
-		data.match([&](const MTPDuser &data) {
-			if (data.has_photo()) {
-				push(data.vphoto);
-			}
-		}, [](const MTPDuserEmpty &data) {
-		});
-	}
-	void push(const MTPChat &data) {
-		data.match([](const MTPDchatEmpty &data) {
-		}, [](const MTPDchannelForbidden &data) {
-		}, [](const MTPDchatForbidden &data) {
-		}, [&](const auto &data) {
-			push(data.vphoto);
 		});
 	}
 	void push(const MTPWebPage &data) {
@@ -139,20 +90,12 @@ struct FileReferenceAccumulator {
 	void push(const MTPmessages_Messages &data) {
 		data.match([](const MTPDmessages_messagesNotModified &) {
 		}, [&](const auto &data) {
-			push(data.vusers);
-			push(data.vchats);
 			push(data.vmessages);
 		});
 	}
 	void push(const MTPphotos_Photos &data) {
 		data.match([&](const auto &data) {
-			push(data.vusers);
 			push(data.vphotos);
-		});
-	}
-	void push(const MTPmessages_Chats &data) {
-		data.match([&](const auto &data) {
-			push(data.vchats);
 		});
 	}
 	void push(const MTPmessages_RecentStickers &data) {
@@ -191,35 +134,11 @@ UpdatedFileReferences GetFileReferencesHelper(const Type &data) {
 
 } // namespace
 
-SimpleFileLocationId::SimpleFileLocationId(
-	uint64 volumeId,
-	int32 dcId,
-	int32 localId)
-: volumeId(volumeId)
-, dcId(dcId)
-, localId(localId) {
-}
-
-bool operator<(
-		const SimpleFileLocationId &a,
-		const SimpleFileLocationId &b) {
-	return std::tie(a.volumeId, a.dcId, a.localId)
-		< std::tie(b.volumeId, b.dcId, b.localId);
-}
-
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data) {
 	return GetFileReferencesHelper(data);
 }
 
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data) {
-	return GetFileReferencesHelper(data);
-}
-
-UpdatedFileReferences GetFileReferences(const MTPVector<MTPUser> &data) {
-	return GetFileReferencesHelper(data);
-}
-
-UpdatedFileReferences GetFileReferences(const MTPmessages_Chats &data) {
 	return GetFileReferencesHelper(data);
 }
 

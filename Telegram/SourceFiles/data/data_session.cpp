@@ -1700,6 +1700,7 @@ not_null<PhotoData*> Session::processPhoto(
 			data.vaccess_hash.v,
 			data.vfile_reference.v,
 			data.vdate.v,
+			data.vdc_id.v,
 			data.is_has_stickers(),
 			thumbnailInline,
 			thumbnailSmall,
@@ -1715,6 +1716,7 @@ not_null<PhotoData*> Session::photo(
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
+		int32 dc,
 		bool hasSticker,
 		const ImagePtr &thumbnailInline,
 		const ImagePtr &thumbnailSmall,
@@ -1726,6 +1728,7 @@ not_null<PhotoData*> Session::photo(
 		access,
 		fileReference,
 		date,
+		dc,
 		hasSticker,
 		thumbnailInline,
 		thumbnailSmall,
@@ -1790,6 +1793,7 @@ PhotoData *Session::photoFromWeb(
 		uint64(0),
 		QByteArray(),
 		unixtime(),
+		0,
 		false,
 		thumbnailInline,
 		thumbnailSmall,
@@ -1828,7 +1832,7 @@ void Session::photoApplyFields(
 	};
 	const auto image = [&](const QByteArray &levels) {
 		const auto i = find(levels);
-		return (i == sizes.end()) ? ImagePtr() : App::image(*i);
+		return (i == sizes.end()) ? ImagePtr() : Images::Create(data, *i);
 	};
 	const auto thumbnailInline = image(InlineLevels);
 	const auto thumbnailSmall = image(SmallLevels);
@@ -1840,6 +1844,7 @@ void Session::photoApplyFields(
 			data.vaccess_hash.v,
 			data.vfile_reference.v,
 			data.vdate.v,
+			data.vdc_id.v,
 			data.is_has_stickers(),
 			thumbnailInline,
 			thumbnailSmall,
@@ -1853,6 +1858,7 @@ void Session::photoApplyFields(
 		const uint64 &access,
 		const QByteArray &fileReference,
 		TimeId date,
+		int32 dc,
 		bool hasSticker,
 		const ImagePtr &thumbnailInline,
 		const ImagePtr &thumbnailSmall,
@@ -1861,8 +1867,7 @@ void Session::photoApplyFields(
 	if (!date) {
 		return;
 	}
-	photo->access = access;
-	photo->fileReference = fileReference;
+	photo->setRemoteLocation(dc, access, fileReference);
 	photo->date = date;
 	photo->hasSticker = hasSticker;
 	photo->updateImages(
@@ -2061,7 +2066,8 @@ void Session::documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDdocument &data) {
 	const auto thumbnailInline = FindDocumentInlineThumbnail(data);
-	const auto thumbnail = FindDocumentThumbnail(data);
+	const auto thumbnailSize = FindDocumentThumbnail(data);
+	const auto thumbnail = Images::Create(data, thumbnailSize);
 	documentApplyFields(
 		document,
 		data.vaccess_hash.v,
@@ -2069,11 +2075,11 @@ void Session::documentApplyFields(
 		data.vdate.v,
 		data.vattributes.v,
 		qs(data.vmime_type),
-		App::image(thumbnailInline),
-		App::image(thumbnail),
+		Images::Create(data, thumbnailInline),
+		thumbnail,
 		data.vdc_id.v,
 		data.vsize.v,
-		StorageImageLocation::FromMTP(thumbnail));
+		thumbnail->location());
 }
 
 void Session::documentApplyFields(
@@ -2101,8 +2107,8 @@ void Session::documentApplyFields(
 	document->size = size;
 	document->recountIsImage();
 	if (document->sticker()
-		&& document->sticker()->loc.isNull()
-		&& !thumbLocation.isNull()) {
+		&& !document->sticker()->loc.valid()
+		&& thumbLocation.valid()) {
 		document->sticker()->loc = thumbLocation;
 	}
 }

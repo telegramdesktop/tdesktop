@@ -62,11 +62,7 @@ Storage::Cache::Key DocumentThumbCacheKey(int32 dcId, uint64 id) {
 }
 
 Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location) {
-	const auto dcId = uint64(location.dc()) & 0xFFULL;
-	return Storage::Cache::Key{
-		Data::kStorageCacheTag | (dcId << 32) | uint32(location.local()),
-		location.volume()
-	};
+	return location.file().cacheKey();
 }
 
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location) {

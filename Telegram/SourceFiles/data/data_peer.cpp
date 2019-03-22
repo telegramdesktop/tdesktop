@@ -310,11 +310,24 @@ Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 
 void PeerData::updateUserpic(
 		PhotoId photoId,
+		MTP::DcId dcId,
 		const MTPFileLocation &location) {
 	const auto size = kUserpicSize;
-	const auto loc = StorageImageLocation::FromMTP(size, size, location);
-	const auto photo = loc.isNull() ? ImagePtr() : Images::Create(loc);
-	setUserpicChecked(photoId, loc, photo);
+	const auto loc = location.match([&](
+			const MTPDfileLocationToBeDeprecated &deprecated) {
+		return StorageImageLocation(
+			StorageFileLocation(
+				dcId,
+				session().userId(),
+				MTP_inputPeerPhotoFileLocation(
+					MTP_flags(0),
+					input,
+					deprecated.vvolume_id,
+					deprecated.vlocal_id)),
+			size,
+			size);
+	});
+	setUserpicChecked(photoId, loc, Images::Create(loc));
 }
 
 void PeerData::clearUserpic() {

@@ -135,11 +135,33 @@ Image *PhotoData::getReplyPreview(Data::FileOrigin origin) {
 	return _replyPreview.image();
 }
 
+void PhotoData::setRemoteLocation(
+		int32 dc,
+		uint64 access,
+		const QByteArray &fileReference) {
+	_fileReference = fileReference;
+	if (_dc != dc || _access != access) {
+		_dc = dc;
+		_access = access;
+	}
+}
+
 MTPInputPhoto PhotoData::mtpInput() const {
 	return MTP_inputPhoto(
 		MTP_long(id),
-		MTP_long(access),
-		MTP_bytes(fileReference));
+		MTP_long(_access),
+		MTP_bytes(_fileReference));
+}
+
+QByteArray PhotoData::fileReference() const {
+	return _fileReference;
+}
+
+void PhotoData::refreshFileReference(const QByteArray &value) {
+	_fileReference = value;
+	_thumbnailSmall->refreshFileReference(value);
+	_thumbnail->refreshFileReference(value);
+	_large->refreshFileReference(value);
 }
 
 void PhotoData::collectLocalData(not_null<PhotoData*> local) {
@@ -206,7 +228,7 @@ void PhotoData::updateImages(
 		if (!was) {
 			was = now;
 		} else if (was->isDelayedStorageImage()) {
-			if (const auto location = now->location(); !location.isNull()) {
+			if (const auto location = now->location(); location.valid()) {
 				was->setDelayedStorageLocation(
 					Data::FileOrigin(),
 					location);

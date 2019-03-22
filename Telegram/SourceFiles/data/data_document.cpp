@@ -1199,7 +1199,8 @@ auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 			MTP_inputDocumentFileLocation(
 				MTP_long(id),
 				MTP_long(_access),
-				MTP_bytes(_fileReference)),
+				MTP_bytes(_fileReference),
+				MTP_string(QString())),
 			size,
 			origin)
 		: nullptr;
@@ -1229,6 +1230,10 @@ QByteArray DocumentData::fileReference() const {
 
 void DocumentData::refreshFileReference(const QByteArray &value) {
 	_fileReference = value;
+	_thumbnail->refreshFileReference(value);
+	if (const auto data = sticker()) {
+		data->loc.refreshFileReference(value);
+	}
 }
 
 void DocumentData::refreshStickerThumbFileReference() {

@@ -3483,8 +3483,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 	qint32 version = 0;
 	stickers.stream >> versionTag >> version;
 	if (versionTag != kStickersVersionTag
-		|| version <= 0
-		|| version > kStickersSerializeVersion) {
+		|| version != kStickersSerializeVersion) {
 		// Old data, without sticker set thumbnails.
 		return failed();
 	}
@@ -3496,6 +3495,8 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		return failed();
 	}
 	for (auto i = 0; i != count; ++i) {
+		using LocationType = StorageFileLocation::Type;
+
 		quint64 setId = 0, setAccess = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
@@ -3514,11 +3515,19 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			>> setHash
 			>> setFlagsValue
 			>> setInstallDate;
-		setThumbnail = Serialize::readStorageImageLocation(
+		const auto thumbnail = Serialize::readStorageImageLocation(
 			stickers.version,
 			stickers.stream);
-		if (!_checkStreamStatus(stickers.stream)) {
+		if (!thumbnail || !_checkStreamStatus(stickers.stream)) {
 			return failed();
+		} else if (thumbnail->valid()
+			&& thumbnail->type() == LocationType::Legacy) {
+			setThumbnail = thumbnail->convertToModern(
+				LocationType::StickerSetThumb,
+				setId,
+				setAccess);
+		} else {
+			setThumbnail = *thumbnail;
 		}
 
 		setFlags = MTPDstickerSet::Flags::from_raw(setFlagsValue);
@@ -3551,7 +3560,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				setHash,
 				MTPDstickerSet::Flags(setFlags),
 				setInstallDate,
-				setThumbnail.isNull() ? ImagePtr() : Images::Create(setThumbnail)));
+				Images::Create(setThumbnail)));
 		}
 		auto &set = it.value();
 		auto inputSet = MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));

@@ -362,29 +362,36 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 			"or with ttl_seconds in updateSentMedia()"));
 		return false;
 	}
-	const auto &photo = mediaPhoto.vphoto;
-	parent()->history()->owner().photoConvert(_photo, photo);
+	parent()->history()->owner().photoConvert(_photo, mediaPhoto.vphoto);
 
-	if (photo.type() != mtpc_photo) {
+	if (mediaPhoto.vphoto.type() != mtpc_photo) {
 		return false;
 	}
+	const auto &photo = mediaPhoto.vphoto.c_photo();
+
 	struct SizeData {
-		char letter = 0;
+		MTPstring type = MTP_string(QString());
 		int width = 0;
 		int height = 0;
-		const MTPFileLocation *location = nullptr;
 		QByteArray bytes;
 	};
 	const auto saveImageToCache = [&](
 			not_null<Image*> image,
 			SizeData size) {
-		Expects(size.location != nullptr);
+		Expects(!size.type.v.isEmpty());
 
 		const auto key = StorageImageLocation(
+			StorageFileLocation(
+				photo.vdc_id.v,
+				_photo->session().userId(),
+				MTP_inputPhotoFileLocation(
+					photo.vid,
+					photo.vaccess_hash,
+					photo.vfile_reference,
+					size.type)),
 			size.width,
-			size.height,
-			size.location->c_fileLocation());
-		if (key.isNull() || image->isNull() || !image->loaded()) {
+			size.height);
+		if (!key.valid() || image->isNull() || !image->loaded()) {
 			return;
 		}
 		if (size.bytes.isEmpty()) {
@@ -403,24 +410,22 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		image->replaceSource(
 			std::make_unique<Images::StorageSource>(key, length));
 	};
-	auto &sizes = photo.c_photo().vsizes.v;
+	auto &sizes = photo.vsizes.v;
 	auto max = 0;
 	auto maxSize = SizeData();
 	for (const auto &data : sizes) {
 		const auto size = data.match([](const MTPDphotoSize &data) {
 			return SizeData{
-				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vtype,
 				data.vw.v,
 				data.vh.v,
-				&data.vlocation,
 				QByteArray()
 			};
 		}, [](const MTPDphotoCachedSize &data) {
 			return SizeData{
-				data.vtype.v.isEmpty() ? char(0) : data.vtype.v[0],
+				data.vtype,
 				data.vw.v,
 				data.vh.v,
-				&data.vlocation,
 				qba(data.vbytes)
 			};
 		}, [](const MTPDphotoSizeEmpty &) {
@@ -429,25 +434,26 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 			// No need to save stripped images to local cache.
 			return SizeData();
 		});
-		if (!size.location || size.location->type() != mtpc_fileLocation) {
+		const auto letter = size.type.v.isEmpty() ? char(0) : size.type.v[0];
+		if (!letter) {
 			continue;
 		}
-		if (size.letter == 's') {
+		if (letter == 's') {
 			saveImageToCache(_photo->thumbnailSmall(), size);
-		} else if (size.letter == 'm') {
+		} else if (letter == 'm') {
 			saveImageToCache(_photo->thumbnail(), size);
-		} else if (size.letter == 'x' && max < 1) {
+		} else if (letter == 'x' && max < 1) {
 			max = 1;
 			maxSize = size;
-		} else if (size.letter == 'y' && max < 2) {
+		} else if (letter == 'y' && max < 2) {
 			max = 2;
 			maxSize = size;
-		//} else if (size.letter == 'w' && max < 3) {
+		//} else if (letter == 'w' && max < 3) {
 		//	max = 3;
 		//	maxSize = size;
 		}
 	}
-	if (maxSize.location) {
+	if (!maxSize.type.v.isEmpty()) {
 		saveImageToCache(_photo->large(), maxSize);
 	}
 	return true;

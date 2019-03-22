@@ -303,7 +303,10 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
-	void updateUserpic(PhotoId photoId, const MTPFileLocation &location);
+	void updateUserpic(
+		PhotoId photoId,
+		MTP::DcId dcId,
+		const MTPFileLocation &location);
 	void clearUserpic();
 
 private:

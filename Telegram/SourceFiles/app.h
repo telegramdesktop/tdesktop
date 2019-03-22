@@ -77,8 +77,6 @@ namespace App {
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
-	ImagePtr image(const MTPPhotoSize &size);
-
 	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
 
 	[[nodiscard]] HistoryItem *histItemById(ChannelId channelId, MsgId itemId);

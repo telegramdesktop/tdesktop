@@ -90,7 +90,8 @@ bool ApplyArchivedResultFake() {
 					MTP_long(set.access),
 					MTP_string(set.title),
 					MTP_string(set.shortName),
-					MTP_photoSizeEmpty(MTP_string("a")),
+					MTP_photoSizeEmpty(MTP_string(QString())),
+					MTP_int(0),
 					MTP_int(set.count),
 					MTP_int(set.hash));
 				sets.push_back(MTP_stickerSetCovered(
@@ -595,7 +596,7 @@ void FeaturedSetsReceived(
 				? set->vinstalled_date.v
 				: TimeId(0);
 			const auto thumbnail = set->has_thumb()
-				? App::image(set->vthumb)
+				? Images::Create(*set, set->vthumb)
 				: ImagePtr();
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured
@@ -885,7 +886,7 @@ Set *FeedSet(const MTPDstickerSet &set) {
 			set.vhash.v,
 			set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded,
 			set.has_installed_date() ? set.vinstalled_date.v : TimeId(0),
-			set.has_thumb() ? App::image(set.vthumb) : ImagePtr()));
+			set.has_thumb() ? Images::Create(set, set.vthumb) : ImagePtr()));
 	} else {
 		it->access = set.vaccess_hash.v;
 		it->title = title;
@@ -901,7 +902,7 @@ Set *FeedSet(const MTPDstickerSet &set) {
 			? (set.vinstalled_date.v ? set.vinstalled_date.v : unixtime())
 			: TimeId(0);
 		it->thumbnail = set.has_thumb()
-			? App::image(set.vthumb)
+			? Images::Create(set, set.vthumb)
 			: ImagePtr();
 		if (it->count != set.vcount.v
 			|| it->hash != set.vhash.v

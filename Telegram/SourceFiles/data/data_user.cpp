@@ -79,7 +79,7 @@ void UserData::setContactStatus(ContactStatus status) {
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	if (photo.type() == mtpc_userProfilePhoto) {
 		const auto &data = photo.c_userProfilePhoto();
-		updateUserpic(data.vphoto_id.v, data.vphoto_small);
+		updateUserpic(data.vphoto_id.v, data.vdc_id.v, data.vphoto_small);
 	} else {
 		clearUserpic();
 	}

@@ -203,36 +203,14 @@ Utf8String FillLeft(const Utf8String &data, int length, char filler) {
 	return result;
 }
 
-FileLocation ParseLocation(const MTPFileLocation &data) {
-	return data.match([](const MTPDfileLocation &data) {
-		return FileLocation{
-			data.vdc_id.v,
-			MTP_inputFileLocation(
-				data.vvolume_id,
-				data.vlocal_id,
-				data.vsecret,
-				data.vfile_reference)
-		};
-	}, [](const MTPDfileLocationUnavailable &data) {
-		return FileLocation{
-			0,
-			MTP_inputFileLocation(
-				data.vvolume_id,
-				data.vlocal_id,
-				data.vsecret,
-				MTP_bytes(QByteArray()))
-		};
-	});
-}
-
 Image ParseMaxImage(
-		const MTPVector<MTPPhotoSize> &data,
+		const MTPDphoto &photo,
 		const QString &suggestedPath) {
 	auto result = Image();
 	result.file.suggestedPath = suggestedPath;
 
 	auto maxArea = int64(0);
-	for (const auto &size : data.v) {
+	for (const auto &size : photo.vsizes.v) {
 		size.match([](const MTPDphotoSizeEmpty &) {
 		}, [](const MTPDphotoStrippedSize &) {
 			// Max image size should not be a stripped image.
@@ -241,7 +219,13 @@ Image ParseMaxImage(
 			if (area > maxArea) {
 				result.width = data.vw.v;
 				result.height = data.vh.v;
-				result.file.location = ParseLocation(data.vlocation);
+				result.file.location = FileLocation{
+					photo.vdc_id.v,
+					MTP_inputPhotoFileLocation(
+						photo.vid,
+						photo.vaccess_hash,
+						photo.vfile_reference,
+						data.vtype) };
 				if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
 					result.file.content = data.vbytes.v;
 					result.file.size = result.file.content.size();
@@ -261,7 +245,7 @@ Photo ParsePhoto(const MTPPhoto &data, const QString &suggestedPath) {
 	data.match([&](const MTPDphoto &data) {
 		result.id = data.vid.v;
 		result.date = data.vdate.v;
-		result.image = ParseMaxImage(data.vsizes, suggestedPath);
+		result.image = ParseMaxImage(data, suggestedPath);
 	}, [&](const MTPDphotoEmpty &data) {
 		result.id = data.vid.v;
 	});
@@ -407,7 +391,7 @@ QString DocumentFolder(const Document &data) {
 }
 
 Image ParseDocumentThumb(
-		const QVector<MTPPhotoSize> &thumbs,
+		const MTPDdocument &document,
 		const QString &documentPath) {
 	const auto area = [](const MTPPhotoSize &size) {
 		return size.match([](const MTPDphotoSizeEmpty &) {
@@ -418,6 +402,7 @@ Image ParseDocumentThumb(
 			return data.vw.v * data.vh.v;
 		});
 	};
+	const auto &thumbs = document.vthumbs.v;
 	const auto i = ranges::max_element(thumbs, ranges::less(), area);
 	if (i == thumbs.end()) {
 		return Image();
@@ -430,7 +415,13 @@ Image ParseDocumentThumb(
 		auto result = Image();
 		result.width = data.vw.v;
 		result.height = data.vh.v;
-		result.file.location = ParseLocation(data.vlocation);
+		result.file.location = FileLocation{
+			document.vdc_id.v,
+			MTP_inputDocumentFileLocation(
+				document.vid,
+				document.vaccess_hash,
+				document.vfile_reference,
+				data.vtype) };
 		if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
 			result.file.content = data.vbytes.v;
 			result.file.size = result.file.content.size();
@@ -460,13 +451,14 @@ Document ParseDocument(
 		result.file.location.data = MTP_inputDocumentFileLocation(
 			data.vid,
 			data.vaccess_hash,
-			data.vfile_reference);
+			data.vfile_reference,
+			MTP_string(QString()));
 		result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
 			+ CleanDocumentName(ComputeDocumentName(context, result, date));
 
 		result.thumb = ParseDocumentThumb(
-			data.vthumbs.v,
+			data,
 			result.file.suggestedPath);
 	}, [&](const MTPDdocumentEmpty &data) {
 		result.id = data.vid.v;

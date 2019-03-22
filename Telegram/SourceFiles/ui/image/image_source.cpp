@@ -87,7 +87,7 @@ int ImageSource::loadOffset() {
 }
 
 const StorageImageLocation &ImageSource::location() {
-	return StorageImageLocation::Null;
+	return StorageImageLocation::Invalid();
 }
 
 void ImageSource::refreshFileReference(const QByteArray &data) {
@@ -222,7 +222,7 @@ int LocalFileSource::loadOffset() {
 }
 
 const StorageImageLocation &LocalFileSource::location() {
-	return StorageImageLocation::Null;
+	return StorageImageLocation::Invalid();
 }
 
 void LocalFileSource::refreshFileReference(const QByteArray &data) {
@@ -334,7 +334,7 @@ void RemoteSource::setImageBytes(const QByteArray &bytes) {
 	_loader->finishWithBytes(bytes);
 
 	const auto location = this->location();
-	if (!location.isNull()
+	if (location.valid()
 		&& !bytes.isEmpty()
 		&& bytes.size() <= Storage::kMaxFileInMemory) {
 		Auth().data().cache().putIfEmpty(
@@ -437,7 +437,7 @@ RemoteSource::~RemoteSource() {
 }
 
 const StorageImageLocation &RemoteSource::location() {
-	return StorageImageLocation::Null;
+	return StorageImageLocation::Invalid();
 }
 
 void RemoteSource::refreshFileReference(const QByteArray &data) {
@@ -472,9 +472,9 @@ const StorageImageLocation &StorageSource::location() {
 }
 
 std::optional<Storage::Cache::Key> StorageSource::cacheKey() {
-	return _location.isNull()
-		? std::nullopt
-		: base::make_optional(Data::StorageCacheKey(_location));
+	return _location.valid()
+		? base::make_optional(Data::StorageCacheKey(_location))
+		: std::nullopt;
 }
 
 int StorageSource::width() {
@@ -506,16 +506,15 @@ FileLoader *StorageSource::createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
-	if (_location.isNull()) {
-		return nullptr;
-	}
-	return new mtpFileLoader(
-		&_location,
-		origin,
-		_size,
-		fromCloud,
-		autoLoading,
-		Data::kImageCacheTag);
+	return _location.valid()
+		? new mtpFileLoader(
+			&_location,
+			origin,
+			_size,
+			fromCloud,
+			autoLoading,
+			Data::kImageCacheTag)
+		: nullptr;
 }
 
 WebCachedSource::WebCachedSource(
@@ -637,7 +636,7 @@ DelayedStorageSource::DelayedStorageSource()
 }
 
 DelayedStorageSource::DelayedStorageSource(int w, int h)
-: StorageSource(StorageImageLocation(w, h, 0, 0, 0, 0, {}), 0) {
+: StorageSource(StorageImageLocation(StorageFileLocation(), w, h), 0) {
 }
 
 void DelayedStorageSource::setDelayedStorageLocation(
@@ -663,22 +662,22 @@ void DelayedStorageSource::performDelayedLoad(Data::FileOrigin origin) {
 void DelayedStorageSource::automaticLoad(
 		Data::FileOrigin origin,
 		const HistoryItem *item) {
-	if (_location.isNull()) {
-		if (!_loadCancelled && item) {
-			const auto loadFromCloud = Data::AutoDownload::Should(
-				Auth().settings().autoDownload(),
-				item->history()->peer,
-				this);
-
-			if (_loadRequested) {
-				if (loadFromCloud) _loadFromCloud = loadFromCloud;
-			} else {
-				_loadFromCloud = loadFromCloud;
-				_loadRequested = true;
-			}
-		}
-	} else {
+	if (_location.valid()) {
 		StorageSource::automaticLoad(origin, item);
+		return;
+	} else if (_loadCancelled || !item) {
+		return;
+	}
+	const auto loadFromCloud = Data::AutoDownload::Should(
+		Auth().settings().autoDownload(),
+		item->history()->peer,
+		this);
+
+	if (_loadRequested) {
+		if (loadFromCloud) _loadFromCloud = loadFromCloud;
+	} else {
+		_loadFromCloud = loadFromCloud;
+		_loadRequested = true;
 	}
 }
 
@@ -691,10 +690,10 @@ void DelayedStorageSource::load(
 		Data::FileOrigin origin,
 		bool loadFirst,
 		bool prior) {
-	if (_location.isNull()) {
-		_loadRequested = _loadFromCloud = true;
-	} else {
+	if (_location.valid()) {
 		StorageSource::load(origin, loadFirst, prior);
+	} else {
+		_loadRequested = _loadFromCloud = true;
 	}
 }
 
@@ -707,7 +706,7 @@ void DelayedStorageSource::loadEvenCancelled(
 }
 
 bool DelayedStorageSource::displayLoading() {
-	return _location.isNull() ? true : StorageSource::displayLoading();
+	return _location.valid() ? StorageSource::displayLoading() : true;
 }
 
 void DelayedStorageSource::cancel() {

@@ -212,7 +212,7 @@ int GoodThumbSource::loadOffset() {
 }
 
 const StorageImageLocation &GoodThumbSource::location() {
-	return StorageImageLocation::Null;
+	return StorageImageLocation::Invalid();
 }
 
 void GoodThumbSource::refreshFileReference(const QByteArray &data) {

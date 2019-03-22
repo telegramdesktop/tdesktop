@@ -156,7 +156,8 @@ void LoaderMtproto::requestFailed(
 	}
 	const auto callback = [=](const Data::UpdatedFileReferences &updated) {
 		_location.match([&](const MTPDinputDocumentFileLocation &location) {
-			const auto i = updated.data.find(location.vid.v);
+			const auto i = updated.data.find(
+				Data::DocumentFileLocationId{ location.vid.v });
 			if (i == end(updated.data)) {
 				return fail();
 			}
@@ -167,7 +168,8 @@ void LoaderMtproto::requestFailed(
 				_location = MTP_inputDocumentFileLocation(
 					MTP_long(location.vid.v),
 					MTP_long(location.vaccess_hash.v),
-					MTP_bytes(reference));
+					MTP_bytes(reference),
+					MTP_string(QString()));
 			}
 			if (!_requests.take(offset)) {
 				// Request with such offset was already cancelled.

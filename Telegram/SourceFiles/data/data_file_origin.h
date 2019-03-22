@@ -107,31 +107,32 @@ struct FileOrigin {
 	Variant data;
 };
 
-// Volume_id, dc_id, local_id.
-struct SimpleFileLocationId {
-	SimpleFileLocationId(uint64 volumeId, int32 dcId, int32 localId);
-
-	uint64 volumeId = 0;
-	int32 dcId = 0;
-	int32 localId = 0;
+struct DocumentFileLocationId {
+	uint64 id = 0;
 };
 
-bool operator<(
-	const SimpleFileLocationId &a,
-	const SimpleFileLocationId &b);
+inline bool operator<(DocumentFileLocationId a, DocumentFileLocationId b) {
+	return a.id < b.id;
+}
 
-using DocumentFileLocationId = uint64;
+struct PhotoFileLocationId {
+	uint64 id = 0;
+};
+
+inline bool operator<(PhotoFileLocationId a, PhotoFileLocationId b) {
+	return a.id < b.id;
+}
+
 using FileLocationId = base::variant<
-	SimpleFileLocationId,
-	DocumentFileLocationId>;
+	DocumentFileLocationId,
+	PhotoFileLocationId>;
+
 struct UpdatedFileReferences {
 	std::map<FileLocationId, QByteArray> data;
 };
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);
-UpdatedFileReferences GetFileReferences(const MTPVector<MTPUser> &data);
-UpdatedFileReferences GetFileReferences(const MTPmessages_Chats &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_RecentStickers &data);
 UpdatedFileReferences GetFileReferences(

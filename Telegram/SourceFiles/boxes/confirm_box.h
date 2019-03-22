@@ -211,7 +211,7 @@ private:
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
-	ImagePtr _photo;
+	Image *_photo = nullptr;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	std::vector<not_null<UserData*>> _participants;
 	bool _isChannel = false;

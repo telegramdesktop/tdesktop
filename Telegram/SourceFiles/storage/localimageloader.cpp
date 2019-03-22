@@ -65,7 +65,7 @@ PreparedFileThumbnail PrepareFileThumbnail(QImage &&original) {
 		: std::move(original);
 	result.mtpSize = MTP_photoSize(
 		MTP_string(""),
-		MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)),
+		MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 		MTP_int(result.image.width()),
 		MTP_int(result.image.height()),
 		MTP_int(0));
@@ -192,10 +192,7 @@ SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 	const auto push = [&](const char *type, QImage &&image) {
 		photoSizes.push_back(MTP_photoSize(
 			MTP_string(type),
-			MTP_fileLocationUnavailable(
-				MTP_long(0),
-				MTP_int(0),
-				MTP_long(0)),
+			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
 		photoThumbs.emplace(type[0], std::move(image));
@@ -211,7 +208,8 @@ SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 		MTP_long(0),
 		MTP_bytes(QByteArray()),
 		MTP_int(unixtime()),
-		MTP_vector<MTPPhotoSize>(photoSizes));
+		MTP_vector<MTPPhotoSize>(photoSizes),
+		MTP_int(MTP::maindc()));
 
 	QString file, filename;
 	int32 filesize = 0;
@@ -252,10 +250,7 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 	const auto push = [&](const char *type, QImage &&image) {
 		sizes.push_back(MTP_photoSize(
 			MTP_string(type),
-			MTP_fileLocationUnavailable(
-				MTP_long(0),
-				MTP_int(0),
-				MTP_long(0)),
+			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
 		thumbnails.emplace(type[0], std::move(image));
@@ -861,15 +856,15 @@ void FileLoadTask::process() {
 			} else if (_type != SendMediaType::File) {
 				auto thumb = (w > 100 || h > 100) ? fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				photoThumbs.emplace('s', thumb);
-				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
+				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				photoThumbs.emplace('m', medium);
-				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
 				auto full = (w > 1280 || h > 1280) ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				photoThumbs.emplace('y', full);
-				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
+				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
 				{
 					QBuffer buffer(&filedata);
@@ -882,7 +877,8 @@ void FileLoadTask::process() {
 					MTP_long(0),
 					MTP_bytes(QByteArray()),
 					MTP_int(unixtime()),
-					MTP_vector<MTPPhotoSize>(photoSizes));
+					MTP_vector<MTPPhotoSize>(photoSizes),
+					MTP_int(MTP::maindc()));
 
 				if (filesize < 0) {
 					filesize = _result->filesize = filedata.size();

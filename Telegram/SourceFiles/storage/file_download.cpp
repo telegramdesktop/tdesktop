@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
@@ -540,7 +541,7 @@ mtpFileLoader::mtpFileLoader(
 	fromCloud,
 	autoLoading,
 	cacheTag)
-, _dcId(location->dc())
+, _dcId(location->file().dcId())
 , _location(location)
 , _origin(origin) {
 	auto shiftedDcId = MTP::downloadDcId(_dcId, 0);
@@ -645,25 +646,22 @@ void mtpFileLoader::refreshFileReferenceFrom(
 		const Data::UpdatedFileReferences &updates,
 		int requestId,
 		const QByteArray &current) {
-	const auto updated = [&] {
-		if (_location) {
-			const auto i = updates.data.find(Data::SimpleFileLocationId(
-				_location->volume(),
-				_location->dc(),
-				_location->local()));
-			return (i == end(updates.data)) ? QByteArray() : i->second;
-		}
-		const auto i = updates.data.find(_id);
-		return (i == end(updates.data)) ? QByteArray() : i->second;
-	}();
-	if (updated.isEmpty() || updated == current) {
-		cancel(true);
-		return;
-	}
 	if (_location) {
-		_location->refreshFileReference(updated);
+		_location->refreshFileReference(updates);
+		if (_location->fileReference() == current) {
+			cancel(true);
+			return;
+		}
 	} else {
-		_fileReference = updated;
+		const auto i = updates.data.find(
+			Data::DocumentFileLocationId{ _id });
+		if (i != end(updates.data) && !i->second.isEmpty()) {
+			_fileReference = i->second;
+		}
+		if (_fileReference == current) {
+			cancel(true);
+			return;
+		}
 	}
 	const auto offset = finishSentRequestGetOffset(requestId);
 	makeRequest(offset);
@@ -774,11 +772,7 @@ void mtpFileLoader::makeRequest(int offset) {
 
 MTPInputFileLocation mtpFileLoader::computeLocation() const {
 	if (_location) {
-		return MTP_inputFileLocation(
-			MTP_long(_location->volume()),
-			MTP_int(_location->local()),
-			MTP_long(_location->secret()),
-			MTP_bytes(_location->fileReference()));
+		return _location->file().tl(Auth().userId());
 	} else if (_locationType == SecureFileLocation) {
 		return MTP_inputSecureFileLocation(
 			MTP_long(_id),
@@ -787,7 +781,8 @@ MTPInputFileLocation mtpFileLoader::computeLocation() const {
 	return MTP_inputDocumentFileLocation(
 		MTP_long(_id),
 		MTP_long(_accessHash),
-		MTP_bytes(_fileReference));
+		MTP_bytes(_fileReference),
+		MTP_string(QString()));
 }
 
 void mtpFileLoader::requestMoreCdnFileHashes() {

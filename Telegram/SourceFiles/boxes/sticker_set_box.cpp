@@ -225,7 +225,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				}
 			});
 		}
-		data.vset.match([&](const MTPDstickerSet & set) {
+		data.vset.match([&](const MTPDstickerSet &set) {
 			_setTitle = Stickers::GetSetTitle(set);
 			_setShortName = qs(set.vshort_name);
 			_setId = set.vid.v;
@@ -237,7 +237,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				? set.vinstalled_date.v
 				: TimeId(0);
 			_setThumbnail = set.has_thumb()
-				? App::image(set.vthumb)
+				? Images::Create(set, set.vthumb)
 				: ImagePtr();
 			auto &sets = Auth().data().stickerSetsRef();
 			const auto it = sets.find(_setId);

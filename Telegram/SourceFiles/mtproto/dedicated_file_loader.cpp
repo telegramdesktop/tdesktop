@@ -72,7 +72,8 @@ std::optional<DedicatedLoader::File> ParseFile(
 	const auto location = MTP_inputDocumentFileLocation(
 		fields.vid,
 		fields.vaccess_hash,
-		fields.vfile_reference);
+		fields.vfile_reference,
+		MTP_string(QString()));
 	return DedicatedLoader::File{ name, size, fields.vdc_id.v, location };
 }
 

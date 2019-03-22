@@ -1057,11 +1057,11 @@ void History::applyServiceChanges(
 
 	case mtpc_messageActionChatEditPhoto: {
 		auto &d = action.c_messageActionChatEditPhoto();
-		if (d.vphoto.type() == mtpc_photo) {
-			auto &sizes = d.vphoto.c_photo().vsizes.v;
+		d.vphoto.match([&](const MTPDphoto &data) {
+			const auto &sizes = data.vsizes.v;
 			if (!sizes.isEmpty()) {
-				auto photo = _owner->processPhoto(d.vphoto.c_photo());
-				if (photo) photo->peer = peer;
+				auto photo = _owner->processPhoto(data);
+				photo->peer = peer;
 				auto &smallSize = sizes.front();
 				auto &bigSize = sizes.back();
 				const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
@@ -1074,16 +1074,21 @@ void History::applyServiceChanges(
 				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation; break;
 				}
 				if (smallLoc && bigLoc) {
-					const auto newPhotoId = photo ? photo->id : PhotoId();
 					if (const auto chat = peer->asChat()) {
-						chat->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
+						chat->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id));
 					} else if (const auto channel = peer->asChannel()) {
-						channel->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
+						channel->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id));
 					}
 					peer->loadUserpic();
 				}
 			}
-		}
+		}, [&](const MTPDphotoEmpty &data) {
+			if (const auto chat = peer->asChat()) {
+				chat->setPhoto(MTP_chatPhotoEmpty());
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setPhoto(MTP_chatPhotoEmpty());
+			}
+		});
 	} break;
 
 	case mtpc_messageActionChatEditTitle: {

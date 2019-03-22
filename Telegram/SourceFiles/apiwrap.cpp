@@ -89,9 +89,8 @@ constexpr auto kFeedReadTimeout = crl::time(1000);
 constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(60 * 60 * 1000);
 constexpr auto kNotifySettingSaveTimeout = crl::time(1000);
 
-using SimpleFileLocationId = Data::SimpleFileLocationId;
+using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
-using FileLocationId = Data::FileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
 
 bool IsSilentPost(not_null<HistoryItem*> item, bool silent) {
@@ -2840,7 +2839,13 @@ void ApiWrap::requestFileReference(
 				&origin);
 			if (documentId) {
 				_session->data().document(
-					*documentId
+					documentId->id
+				)->refreshFileReference(reference);
+			}
+			const auto photoId = base::get_if<PhotoFileLocationId>(&origin);
+			if (photoId) {
+				_session->data().photo(
+					photoId->id
 				)->refreshFileReference(reference);
 			}
 		}
@@ -2857,7 +2862,7 @@ void ApiWrap::requestFileReference(
 		auto handlers = std::move(i->second);
 		_fileReferenceHandlers.erase(i);
 		for (auto &handler : handlers) {
-			handler(Data::UpdatedFileReferences());
+			handler(UpdatedFileReferences());
 		}
 	}).send();
 }
@@ -2868,7 +2873,7 @@ void ApiWrap::refreshFileReference(
 		int requestId,
 		const QByteArray &current) {
 	return refreshFileReference(origin, crl::guard(loader, [=](
-			const Data::UpdatedFileReferences &data) {
+			const UpdatedFileReferences &data) {
 		loader->refreshFileReferenceFrom(data, requestId, current);
 	}));
 }
@@ -2894,7 +2899,7 @@ void ApiWrap::refreshFileReference(
 		}
 	};
 	const auto fail = [&] {
-		handler(Data::UpdatedFileReferences());
+		handler(UpdatedFileReferences());
 	};
 	origin.data.match([&](Data::FileOriginMessage data) {
 		if (const auto item = App::histItemById(data)) {
@@ -2924,22 +2929,7 @@ void ApiWrap::refreshFileReference(
 			fail();
 		}
 	}, [&](Data::FileOriginPeerPhoto data) {
-		if (const auto peer = _session->data().peer(data.peerId)) {
-			if (const auto user = peer->asUser()) {
-				request(MTPusers_GetUsers(
-					MTP_vector<MTPInputUser>(1, user->inputUser)));
-			} else if (const auto chat = peer->asChat()) {
-				request(MTPmessages_GetChats(
-					MTP_vector<MTPint>(1, chat->inputChat)));
-			} else if (const auto channel = peer->asChannel()) {
-				request(MTPchannels_GetChannels(
-					MTP_vector<MTPInputChannel>(1, channel->inputChannel)));
-			} else {
-				fail();
-			}
-		} else {
-			fail();
-		}
+		fail();
 	}, [&](Data::FileOriginStickerSet data) {
 		if (data.setId == Stickers::CloudRecentSetId
 			|| data.setId == Stickers::RecentSetId) {
@@ -3152,7 +3142,7 @@ void ApiWrap::toggleFavedSticker(
 		if (error.code() == 400
 			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
 			const auto current = document->fileReference();
-			auto refreshed = [=](const Data::UpdatedFileReferences &data) {
+			auto refreshed = [=](const UpdatedFileReferences &data) {
 				if (document->fileReference() != current) {
 					performRequest();
 				}
@@ -3190,7 +3180,7 @@ void ApiWrap::toggleSavedGif(
 		if (error.code() == 400
 			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
 			const auto current = document->fileReference();
-			auto refreshed = [=](const Data::UpdatedFileReferences &data) {
+			auto refreshed = [=](const UpdatedFileReferences &data) {
 				if (document->fileReference() != current) {
 					performRequest();
 				}
@@ -4937,7 +4927,7 @@ void ApiWrap::sendExistingDocument(
 		if (error.code() == 400
 			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
 			const auto current = document->fileReference();
-			auto refreshed = [=](const Data::UpdatedFileReferences &data) {
+			auto refreshed = [=](const UpdatedFileReferences &data) {
 				if (document->fileReference() != current) {
 					performRequest();
 				} else {
