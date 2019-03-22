@@ -84,6 +84,7 @@ private:
 	int32 _setHash = 0;
 	MTPDstickerSet::Flags _setFlags = 0;
 	TimeId _setInstallDate = TimeId(0);
+	ImagePtr _setThumbnail;
 
 	MTPInputStickerSet _input;
 
@@ -195,9 +196,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	_packOvers.clear();
 	_selected = -1;
 	setCursor(style::cur_default);
-	if (set.type() == mtpc_messages_stickerSet) {
-		auto &d = set.c_messages_stickerSet();
-		auto &v = d.vdocuments.v;
+	set.match([&](const MTPDmessages_stickerSet &data) {
+		const auto &v = data.vdocuments.v;
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (const auto &item : v) {
@@ -205,51 +205,58 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			if (!document->sticker()) continue;
 
 			_pack.push_back(document);
-			_packOvers.push_back(Animation());
+			_packOvers.emplace_back();
 		}
-		auto &packs = d.vpacks.v;
-		for (auto i = 0, l = packs.size(); i != l; ++i) {
-			if (packs.at(i).type() != mtpc_stickerPack) continue;
-			auto &pack = packs.at(i).c_stickerPack();
-			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
-				emoji = emoji->original();
-				auto &stickers = pack.vdocuments.v;
+		for (const auto &pack : data.vpacks.v) {
+			pack.match([&](const MTPDstickerPack &pack) {
+				if (const auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+					const auto original = emoji->original();
+					auto &stickers = pack.vdocuments.v;
 
-				Stickers::Pack p;
-				p.reserve(stickers.size());
-				for (auto j = 0, c = stickers.size(); j != c; ++j) {
-					auto doc = Auth().data().document(stickers[j].v);
-					if (!doc || !doc->sticker()) continue;
+					auto p = Stickers::Pack();
+					p.reserve(stickers.size());
+					for (auto j = 0, c = stickers.size(); j != c; ++j) {
+						auto doc = Auth().data().document(stickers[j].v);
+						if (!doc || !doc->sticker()) continue;
 
-					p.push_back(doc);
+						p.push_back(doc);
+					}
+					_emoji.insert(original, p);
 				}
-				_emoji.insert(emoji, p);
-			}
+			});
 		}
-		if (d.vset.type() == mtpc_stickerSet) {
-			auto &s = d.vset.c_stickerSet();
-			_setTitle = Stickers::GetSetTitle(s);
-			_setShortName = qs(s.vshort_name);
-			_setId = s.vid.v;
-			_setAccess = s.vaccess_hash.v;
-			_setCount = s.vcount.v;
-			_setHash = s.vhash.v;
-			_setFlags = s.vflags.v;
-			_setInstallDate = s.has_installed_date()
-				? s.vinstalled_date.v
+		data.vset.match([&](const MTPDstickerSet & set) {
+			_setTitle = Stickers::GetSetTitle(set);
+			_setShortName = qs(set.vshort_name);
+			_setId = set.vid.v;
+			_setAccess = set.vaccess_hash.v;
+			_setCount = set.vcount.v;
+			_setHash = set.vhash.v;
+			_setFlags = set.vflags.v;
+			_setInstallDate = set.has_installed_date()
+				? set.vinstalled_date.v
 				: TimeId(0);
+			_setThumbnail = set.has_thumb()
+				? App::image(set.vthumb)
+				: ImagePtr();
 			auto &sets = Auth().data().stickerSetsRef();
-			auto it = sets.find(_setId);
+			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
-				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_special);
+				using ClientFlag = MTPDstickerSet_ClientFlag;
+				const auto clientFlags = it->flags
+					& (ClientFlag::f_featured
+						| ClientFlag::f_not_loaded
+						| ClientFlag::f_unread
+						| ClientFlag::f_special);
 				_setFlags |= clientFlags;
 				it->flags = _setFlags;
 				it->installDate = _setInstallDate;
 				it->stickers = _pack;
 				it->emoji = _emoji;
+				it->thumbnail = _setThumbnail;
 			}
-		}
-	}
+		});
+	});
 
 	if (_pack.isEmpty()) {
 		Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
@@ -307,7 +314,8 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 				_setCount,
 				_setHash,
 				_setFlags,
-				_setInstallDate));
+				_setInstallDate,
+				_setThumbnail));
 	} else {
 		it->flags = _setFlags;
 		it->installDate = _setInstallDate;

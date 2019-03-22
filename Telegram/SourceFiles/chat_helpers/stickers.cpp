@@ -253,7 +253,8 @@ void SetIsFaved(not_null<DocumentData*> document, std::optional<std::vector<not_
 			0, // count
 			0, // hash
 			MTPDstickerSet_ClientFlag::f_special | 0,
-			TimeId(0)));
+			TimeId(0),
+			ImagePtr()));
 	}
 	auto index = it->stickers.indexOf(document);
 	if (index == 0) {
@@ -467,7 +468,8 @@ void SpecialSetReceived(
 				0, // count
 				0, // hash
 				MTPDstickerSet_ClientFlag::f_special | 0,
-				TimeId(0)));
+				TimeId(0),
+				ImagePtr()));
 		} else {
 			it->title = setTitle;
 		}
@@ -545,19 +547,28 @@ void SpecialSetReceived(
 	Auth().data().notifyStickersUpdated();
 }
 
-void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash) {
-	OrderedSet<uint64> unreadMap;
-	for_const (auto &unreadSetId, unread) {
-		unreadMap.insert(unreadSetId.v);
-	}
+void FeaturedSetsReceived(
+		const QVector<MTPStickerSetCovered> &data,
+		const QVector<MTPlong> &unread,
+		int32 hash) {
+	auto &&unreadIds = ranges::view::all(
+		unread
+	) | ranges::view::transform([](const MTPlong &id) {
+		return id.v;
+	});
+	const auto unreadMap = base::flat_set<uint64>{
+		unreadIds.begin(),
+		unreadIds.end()
+	};
 
 	auto &setsOrder = Auth().data().featuredStickerSetsOrderRef();
 	setsOrder.clear();
 
 	auto &sets = Auth().data().stickerSetsRef();
-	QMap<uint64, uint64> setsToRequest;
+	auto setsToRequest = base::flat_map<uint64, uint64>();
 	for (auto &set : sets) {
-		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
+		// Mark for removing.
+		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured;
 	}
 	for (int i = 0, l = data.size(); i != l; ++i) {
 		auto &setData = data[i];
@@ -583,6 +594,9 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 			const auto installDate = set->has_installed_date()
 				? set->vinstalled_date.v
 				: TimeId(0);
+			const auto thumbnail = set->has_thumb()
+				? App::image(set->vthumb)
+				: ImagePtr();
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured
 					| MTPDstickerSet_ClientFlag::f_not_loaded;
@@ -597,7 +611,8 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 					set->vcount.v,
 					set->vhash.v,
 					set->vflags.v | setClientFlags,
-					installDate));
+					installDate,
+					thumbnail));
 			} else {
 				it->access = set->vaccess_hash.v;
 				it->title = title;
@@ -606,6 +621,7 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 				it->flags = set->vflags.v | clientFlags;
 				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
 				it->installDate = installDate;
+				it->thumbnail = thumbnail;
 				if (unreadMap.contains(it->id)) {
 					it->flags |= MTPDstickerSet_ClientFlag::f_unread;
 				} else {
@@ -619,7 +635,7 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 			}
 			setsOrder.push_back(set->vid.v);
 			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-				setsToRequest.insert(set->vid.v, set->vaccess_hash.v);
+				setsToRequest.emplace(set->vid.v, set->vaccess_hash.v);
 			}
 		}
 	}
@@ -645,10 +661,10 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFeaturedStickersHash()));
 	}
 
-	if (!setsToRequest.isEmpty()) {
+	if (!setsToRequest.empty()) {
 		auto &api = Auth().api();
-		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			api.scheduleStickerSetRequest(i.key(), i.value());
+		for (const auto [setId, accessHash] : setsToRequest) {
+			api.scheduleStickerSetRequest(setId, accessHash);
 		}
 		api.requestStickerSets();
 	}
@@ -843,7 +859,7 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 		auto result = std::vector<not_null<EmojiPtr>>();
 		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
 			if (i->contains(document)) {
-				result.push_back(i.key());
+				result.emplace_back(i.key());
 			}
 		}
 		if (result.empty()) {
@@ -868,7 +884,8 @@ Set *FeedSet(const MTPDstickerSet &set) {
 			set.vcount.v,
 			set.vhash.v,
 			set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded,
-			set.has_installed_date() ? set.vinstalled_date.v : TimeId(0)));
+			set.has_installed_date() ? set.vinstalled_date.v : TimeId(0),
+			set.has_thumb() ? App::image(set.vthumb) : ImagePtr()));
 	} else {
 		it->access = set.vaccess_hash.v;
 		it->title = title;
@@ -881,8 +898,11 @@ Set *FeedSet(const MTPDstickerSet &set) {
 				| MTPDstickerSet_ClientFlag::f_special);
 		it->flags = set.vflags.v | clientFlags;
 		it->installDate = set.has_installed_date()
-			? set.vinstalled_date.v
+			? (set.vinstalled_date.v ? set.vinstalled_date.v : unixtime())
 			: TimeId(0);
+		it->thumbnail = set.has_thumb()
+			? App::image(set.vthumb)
+			: ImagePtr();
 		if (it->count != set.vcount.v
 			|| it->hash != set.vhash.v
 			|| it->emoji.isEmpty()) {
@@ -908,14 +928,23 @@ Set *FeedSet(const MTPDstickerSet &set) {
 Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	Expects(data.type() == mtpc_messages_stickerSet);
 	Expects(data.c_messages_stickerSet().vset.type() == mtpc_stickerSet);
-	auto &d = data.c_messages_stickerSet();
-	auto set = FeedSet(d.vset.c_stickerSet());
+
+	const auto &d = data.c_messages_stickerSet();
+	const auto &s = d.vset.c_stickerSet();
+
+	auto &sets = Auth().data().stickerSetsRef();
+	auto it = sets.find(s.vid.v);
+	const auto wasArchived = (it->flags & MTPDstickerSet::Flag::f_archived);
+
+	auto set = FeedSet(s);
 
 	set->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
-	auto &sets = Auth().data().stickerSetsRef();
 	auto &d_docs = d.vdocuments.v;
 	auto custom = sets.find(Stickers::CustomSetId);
+	auto inputSet = MTP_inputStickerSetID(
+		MTP_long(set->id),
+		MTP_long(set->access));
 
 	auto pack = Pack();
 	pack.reserve(d_docs.size());
@@ -924,6 +953,9 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 		if (!document->sticker()) continue;
 
 		pack.push_back(document);
+		if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
+			document->sticker()->set = inputSet;
+		}
 		if (custom != sets.cend()) {
 			const auto index = custom->stickers.indexOf(document);
 			if (index >= 0) {
@@ -982,19 +1014,50 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	if (set) {
+		const auto isArchived = (set->flags & MTPDstickerSet::Flag::f_archived);
 		if (set->flags & MTPDstickerSet::Flag::f_installed_date) {
-			if (!(set->flags & MTPDstickerSet::Flag::f_archived)) {
+			if (!isArchived) {
 				Local::writeInstalledStickers();
 			}
 		}
 		if (set->flags & MTPDstickerSet_ClientFlag::f_featured) {
 			Local::writeFeaturedStickers();
 		}
+		if (wasArchived != isArchived) {
+			Local::writeArchivedStickers();
+		}
 	}
 
 	Auth().data().notifyStickersUpdated();
 
 	return set;
+}
+
+void NewSetReceived(const MTPmessages_StickerSet &data) {
+	bool writeArchived = false;
+	const auto &set = data.c_messages_stickerSet();
+	const auto &s = set.vset.c_stickerSet();
+	if (!s.has_installed_date()) {
+		LOG(("API Error: "
+			"updateNewStickerSet without install_date flag."));
+		return;
+	} else if (s.is_archived()) {
+		LOG(("API Error: "
+			"updateNewStickerSet with archived flag."));
+		return;
+	} else if (s.is_masks()) {
+		return;
+	}
+	auto &order = Auth().data().stickerSetsOrderRef();
+	int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
+	if (currentIndex != insertAtIndex) {
+		if (currentIndex > 0) {
+			order.removeAt(currentIndex);
+		}
+		order.insert(insertAtIndex, s.vid.v);
+	}
+
+	FeedSetFull(data);
 }
 
 QString GetSetTitle(const MTPDstickerSet &s) {

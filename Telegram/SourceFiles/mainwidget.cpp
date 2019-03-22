@@ -3382,7 +3382,8 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 				0, // count
 				0, // hash
 				MTPDstickerSet_ClientFlag::f_special | 0,
-				TimeId(0)));
+				TimeId(0),
+				ImagePtr()));
 		} else {
 			it->title = lang(lng_recent_stickers);
 		}
@@ -4435,99 +4436,8 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	////// Cloud sticker sets
 	case mtpc_updateNewStickerSet: {
-		auto &d = update.c_updateNewStickerSet();
-		bool writeArchived = false;
-		if (d.vstickerset.type() == mtpc_messages_stickerSet) {
-			auto &set = d.vstickerset.c_messages_stickerSet();
-			if (set.vset.type() == mtpc_stickerSet) {
-				auto &s = set.vset.c_stickerSet();
-				if (!s.has_installed_date()) {
-					LOG(("API Error: "
-						"updateNewStickerSet without install_date flag."));
-				}
-				if (!s.is_masks()) {
-					auto &sets = session().data().stickerSetsRef();
-					auto it = sets.find(s.vid.v);
-					if (it == sets.cend()) {
-						it = sets.insert(s.vid.v, Stickers::Set(
-							s.vid.v,
-							s.vaccess_hash.v,
-							Stickers::GetSetTitle(s),
-							qs(s.vshort_name),
-							s.vcount.v,
-							s.vhash.v,
-							s.vflags.v | MTPDstickerSet::Flag::f_installed_date,
-							s.has_installed_date() ? s.vinstalled_date.v : unixtime()));
-					} else {
-						it->flags |= MTPDstickerSet::Flag::f_installed_date;
-						if (!it->installDate) {
-							it->installDate = unixtime();
-						}
-						if (it->flags & MTPDstickerSet::Flag::f_archived) {
-							it->flags &= ~MTPDstickerSet::Flag::f_archived;
-							writeArchived = true;
-						}
-					}
-					auto inputSet = MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access));
-					auto &v = set.vdocuments.v;
-					it->stickers.clear();
-					it->stickers.reserve(v.size());
-					for (const auto &item : v) {
-						const auto document = session().data().processDocument(
-							item);
-						if (!document->sticker()) continue;
-
-						it->stickers.push_back(document);
-						if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
-							document->sticker()->set = inputSet;
-						}
-					}
-					it->emoji.clear();
-					auto &packs = set.vpacks.v;
-					for (auto i = 0, l = packs.size(); i != l; ++i) {
-						if (packs[i].type() != mtpc_stickerPack) continue;
-						auto &pack = packs.at(i).c_stickerPack();
-						if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
-							emoji = emoji->original();
-							auto &stickers = pack.vdocuments.v;
-
-							Stickers::Pack p;
-							p.reserve(stickers.size());
-							for (auto j = 0, c = stickers.size(); j != c; ++j) {
-								auto doc = session().data().document(stickers[j].v);
-								if (!doc->sticker()) continue;
-
-								p.push_back(doc);
-							}
-							it->emoji.insert(emoji, p);
-						}
-					}
-
-					auto &order = session().data().stickerSetsOrderRef();
-					int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
-					if (currentIndex != insertAtIndex) {
-						if (currentIndex > 0) {
-							order.removeAt(currentIndex);
-						}
-						order.insert(insertAtIndex, s.vid.v);
-					}
-
-					auto custom = sets.find(Stickers::CustomSetId);
-					if (custom != sets.cend()) {
-						for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
-							int32 removeIndex = custom->stickers.indexOf(it->stickers.at(i));
-							if (removeIndex >= 0) custom->stickers.removeAt(removeIndex);
-						}
-						if (custom->stickers.isEmpty()) {
-							sets.erase(custom);
-						}
-					}
-					Local::writeInstalledStickers();
-					if (writeArchived) Local::writeArchivedStickers();
-					session().data().notifyStickersUpdated();
-				}
-			}
-		}
+		const auto &d = update.c_updateNewStickerSet();
+		Stickers::NewSetReceived(d.vstickerset);
 	} break;
 
 	case mtpc_updateStickerSetsOrder: {
