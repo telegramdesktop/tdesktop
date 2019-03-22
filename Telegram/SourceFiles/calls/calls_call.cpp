@@ -188,6 +188,7 @@ void Call::startOutgoing() {
 	Expects(_gaHash.size() == kSha256Size);
 
 	request(MTPphone_RequestCall(
+		MTP_flags(0),
 		_user->inputUser,
 		MTP_int(rand_value<int32>()),
 		MTP_bytes(_gaHash),
@@ -196,7 +197,7 @@ void Call::startOutgoing() {
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
 			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
-	)).done([this](const MTPphone_PhoneCall &result) {
+	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		setState(State::Waiting);
@@ -587,8 +588,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 
 	const auto &protocol = call.vprotocol.c_phoneCallProtocol();
 	auto endpoints = std::vector<tgvoip::Endpoint>();
-	AppendEndpoint(endpoints, call.vconnection);
-	for (const auto &connection : call.valternative_connections.v) {
+	for (const auto &connection : call.vconnections.v) {
 		AppendEndpoint(endpoints, connection);
 	}
 
@@ -844,6 +844,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
 	request(MTPphone_DiscardCall(
+		MTP_flags(0),
 		MTP_inputPhoneCall(
 			MTP_long(_id),
 			MTP_long(_accessHash)),

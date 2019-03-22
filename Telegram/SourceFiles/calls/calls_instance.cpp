@@ -242,7 +242,13 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
 		if (alreadyInCall() || !user || user->isSelf()) {
-			request(MTPphone_DiscardCall(MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash), MTP_int(0), MTP_phoneCallDiscardReasonBusy(), MTP_long(0))).send();
+			request(MTPphone_DiscardCall(
+				MTP_flags(0),
+				MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash),
+				MTP_int(0),
+				MTP_phoneCallDiscardReasonBusy(),
+				MTP_long(0)
+			)).send();
 		} else if (phoneCall.vdate.v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
 			LOG(("Ignoring too old call."));
 		} else {
