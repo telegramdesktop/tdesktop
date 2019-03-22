@@ -619,6 +619,7 @@ StickersBox::~StickersBox() = default;
 StickersBox::Inner::Row::Row(
 	uint64 id,
 	uint64 accessHash,
+	ImagePtr thumbnail,
 	DocumentData *sticker,
 	int32 count,
 	const QString &title,
@@ -632,6 +633,7 @@ StickersBox::Inner::Row::Row(
 	int32 pixh)
 : id(id)
 , accessHash(accessHash)
+, thumbnail(thumbnail)
 , sticker(sticker)
 , count(count)
 , title(title)
@@ -850,7 +852,10 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, crl::time ms)
 		const auto origin = Data::FileOriginStickerSet(
 			set->id,
 			set->accessHash);
-		if (const auto thumb = set->sticker->thumbnail()) {
+		const auto thumb = set->thumbnail
+			? set->thumbnail.get()
+			: set->sticker->thumbnail();
+		if (thumb) {
 			thumb->load(origin);
 			auto pix = thumb->pix(origin, set->pixw, set->pixh);
 			p.drawPixmapLeft(stickerx + (st::contactsPhotoSize - set->pixw) / 2, st::contactsPadding.top() + (st::contactsPhotoSize - set->pixh) / 2, width(), pix);
@@ -1227,6 +1232,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 
 void StickersBox::Inner::saveGroupSet() {
 	Expects(_megagroupSet != nullptr);
+
 	auto oldId = (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) ? _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid.v : 0;
 	auto newId = (_megagroupSetInput.type() == mtpc_inputStickerSetID) ? _megagroupSetInput.c_inputStickerSetID().vid.v : 0;
 	if (newId != oldId) {
@@ -1407,9 +1413,10 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	auto titleWidth = 0;
 	auto title = fillSetTitle(*it, maxNameWidth, &titleWidth);
 	auto count = fillSetCount(*it);
+	auto thumbnail = ImagePtr();
 	auto sticker = (DocumentData*)nullptr;
 	auto pixw = 0, pixh = 0;
-	fillSetCover(*it, &sticker, &pixw, &pixh);
+	fillSetCover(*it, &thumbnail, &sticker, &pixw, &pixh);
 	auto installed = true, official = false, unread = false, archived = false, removed = false;
 	if (!_megagroupSelectedSet || _megagroupSelectedSet->id != it->id) {
 		_megagroupSetField->setText(it->shortName);
@@ -1418,6 +1425,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	_megagroupSelectedSet = std::make_unique<Row>(
 		it->id,
 		it->access,
+		thumbnail,
 		sticker,
 		count,
 		title,
@@ -1525,10 +1533,12 @@ void StickersBox::Inner::updateRows() {
 		if (it != sets.cend()) {
 			auto &set = it.value();
 			if (!row->sticker) {
+				auto thumbnail = ImagePtr();
 				auto sticker = (DocumentData*)nullptr;
 				auto pixw = 0, pixh = 0;
-				fillSetCover(set, &sticker, &pixw, &pixh);
+				fillSetCover(set, &thumbnail, &sticker, &pixw, &pixh);
 				if (sticker) {
+					row->thumbnail = thumbnail;
 					row->sticker = sticker;
 					row->pixw = pixw;
 					row->pixh = pixh;
@@ -1590,9 +1600,10 @@ void StickersBox::Inner::rebuildAppendSet(const Stickers::Set &set, int maxNameW
 		return;
 	}
 
+	ImagePtr thumbnail;
 	DocumentData *sticker = nullptr;
 	int pixw = 0, pixh = 0;
-	fillSetCover(set, &sticker, &pixw, &pixh);
+	fillSetCover(set, &thumbnail, &sticker, &pixw, &pixh);
 
 	int titleWidth = 0;
 	QString title = fillSetTitle(set, maxNameWidth, &titleWidth);
@@ -1601,6 +1612,7 @@ void StickersBox::Inner::rebuildAppendSet(const Stickers::Set &set, int maxNameW
 	_rows.push_back(std::make_unique<Row>(
 		set.id,
 		set.access,
+		thumbnail,
 		sticker,
 		count,
 		title,
@@ -1615,7 +1627,8 @@ void StickersBox::Inner::rebuildAppendSet(const Stickers::Set &set, int maxNameW
 	_animStartTimes.push_back(0);
 }
 
-void StickersBox::Inner::fillSetCover(const Stickers::Set &set, DocumentData **outSticker, int *outWidth, int *outHeight) const {
+void StickersBox::Inner::fillSetCover(const Stickers::Set &set, ImagePtr *thumbnail, DocumentData **outSticker, int *outWidth, int *outHeight) const {
+	*thumbnail = set.thumbnail;
 	if (set.stickers.isEmpty()) {
 		*outSticker = nullptr;
 		*outWidth = *outHeight = 0;
@@ -1623,7 +1636,9 @@ void StickersBox::Inner::fillSetCover(const Stickers::Set &set, DocumentData **o
 	}
 	auto sticker = *outSticker = set.stickers.front();
 
-	const auto size = sticker->thumbnail()
+	const auto size = set.thumbnail
+		? set.thumbnail->size()
+		: sticker->thumbnail()
 		? sticker->thumbnail()->size()
 		: QSize(1, 1);
 	auto pixw = size.width();
@@ -1785,9 +1800,13 @@ void StickersBox::Inner::readVisibleSets() {
 		if (i * _rowHeight < itemsVisibleTop || (i + 1) * _rowHeight > itemsVisibleBottom) {
 			continue;
 		}
-		if (!_rows[i]->sticker
-			|| !_rows[i]->sticker->hasThumbnail()
-			|| _rows[i]->sticker->thumbnail()->loaded()
+		const auto thumbnail = !_rows[i]->sticker
+			? nullptr
+			: _rows[i]->thumbnail
+			? _rows[i]->thumbnail.get()
+			: _rows[i]->sticker->thumbnail();
+		if (!thumbnail
+			|| thumbnail->loaded()
 			|| _rows[i]->sticker->loaded()) {
 			Auth().api().readFeaturedSetDelayed(_rows[i]->id);
 		}

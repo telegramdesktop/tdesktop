@@ -199,6 +199,7 @@ private:
 		Row(
 			uint64 id,
 			uint64 accessHash,
+			ImagePtr thumbnail,
 			DocumentData *sticker,
 			int32 count,
 			const QString &title,
@@ -217,6 +218,7 @@ private:
 
 		uint64 id = 0;
 		uint64 accessHash = 0;
+		ImagePtr thumbnail;
 		DocumentData *sticker = nullptr;
 		int32 count = 0;
 		QString title;
@@ -279,7 +281,7 @@ private:
 
 	void updateControlsGeometry();
 	void rebuildAppendSet(const Stickers::Set &set, int maxNameWidth);
-	void fillSetCover(const Stickers::Set &set, DocumentData **outSticker, int *outWidth, int *outHeight) const;
+	void fillSetCover(const Stickers::Set &set, ImagePtr *thumbnail, DocumentData **outSticker, int *outWidth, int *outHeight) const;
 	int fillSetCount(const Stickers::Set &set) const;
 	QString fillSetTitle(const Stickers::Set &set, int maxNameWidth, int *outTitleWidth) const;
 	void fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived);
