@@ -213,7 +213,7 @@ private:
 	QPixmap _userpic, _oldUserpic;
 	bool _userpicHasImage = false;
 	bool _userpicCustom = false;
-	StorageKey _userpicUniqueKey;
+	InMemoryKey _userpicUniqueKey;
 	Animation _a_appearance;
 	QImage _result;
 

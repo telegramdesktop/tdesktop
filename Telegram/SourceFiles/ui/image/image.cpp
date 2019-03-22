@@ -22,11 +22,11 @@ namespace {
 // After 128 MB of unpacked images we try to clear some memory.
 constexpr auto kMemoryForCache = 128 * 1024 * 1024;
 
-QMap<QString, Image*> LocalFileImages;
-QMap<QString, Image*> WebUrlImages;
-QMap<StorageKey, Image*> StorageImages;
-QMap<StorageKey, Image*> WebCachedImages;
-QMap<StorageKey, Image*> GeoPointImages;
+std::map<QString, std::unique_ptr<Image>> LocalFileImages;
+std::map<QString, std::unique_ptr<Image>> WebUrlImages;
+std::unordered_map<InMemoryKey, std::unique_ptr<Image>> StorageImages;
+std::unordered_map<InMemoryKey, std::unique_ptr<Image>> WebCachedImages;
+std::unordered_map<InMemoryKey, std::unique_ptr<Image>> GeoPointImages;
 
 int64 ComputeUsage(QSize size) {
 	return int64(size.width()) * size.height() * 4;
@@ -60,25 +60,15 @@ uint64 SinglePixKey(Options options) {
 } // namespace
 
 void ClearRemote() {
-	for (auto image : base::take(StorageImages)) {
-		delete image;
-	}
-	for (auto image : base::take(WebUrlImages)) {
-		delete image;
-	}
-	for (auto image : base::take(WebCachedImages)) {
-		delete image;
-	}
-	for (auto image : base::take(GeoPointImages)) {
-		delete image;
-	}
+	base::take(StorageImages);
+	base::take(WebUrlImages);
+	base::take(WebCachedImages);
+	base::take(GeoPointImages);
 }
 
 void ClearAll() {
 	ActiveCache().clear();
-	for (auto image : base::take(LocalFileImages)) {
-		delete image;
-	}
+	base::take(LocalFileImages);
 	ClearRemote();
 }
 
@@ -86,54 +76,61 @@ ImagePtr Create(const QString &file, QByteArray format) {
 	if (file.startsWith(qstr("http://"), Qt::CaseInsensitive)
 		|| file.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
 		const auto &key = file;
-		auto i = WebUrlImages.constFind(key);
-		if (i == WebUrlImages.cend()) {
-			i = WebUrlImages.insert(
+		const auto i = WebUrlImages.find(key);
+		const auto image = (i != end(WebUrlImages))
+			? i->second.get()
+			: WebUrlImages.emplace(
 				key,
-				new Image(std::make_unique<WebUrlSource>(file)));
-		}
-		return ImagePtr(i.value());
-	} else {
-		QFileInfo f(file);
-		const auto key = qsl("//:%1//:%2//:"
-		).arg(f.size()
-		).arg(f.lastModified().toTime_t()
-		) + file;
-		auto i = LocalFileImages.constFind(key);
-		if (i == LocalFileImages.cend()) {
-			i = LocalFileImages.insert(
-				key,
-				new Image(std::make_unique<LocalFileSource>(
+				std::make_unique<Image>(std::make_unique<WebUrlSource>(file))
+			).first->second.get();
+		return ImagePtr(image);
+	}
+	QFileInfo f(file);
+	const auto key = qsl("//:%1//:%2//:"
+	).arg(f.size()
+	).arg(f.lastModified().toTime_t()
+	) + file;
+	const auto i = LocalFileImages.find(key);
+	const auto image = (i != end(LocalFileImages))
+		? i->second.get()
+		: LocalFileImages.emplace(
+			key,
+			std::make_unique<Image>(
+				std::make_unique<LocalFileSource>(
 					file,
 					QByteArray(),
-					format)));
-		}
-		return ImagePtr(i.value());
-	}
+					format))
+		).first->second.get();
+	return ImagePtr(image);
 }
 
 ImagePtr Create(const QString &url, QSize box) {
 	const auto key = qsl("//:%1//:%2//:").arg(box.width()).arg(box.height()) + url;
-	auto i = WebUrlImages.constFind(key);
-	if (i == WebUrlImages.cend()) {
-		i = WebUrlImages.insert(
+	const auto i = WebUrlImages.find(key);
+	const auto image = (i != end(WebUrlImages))
+		? i->second.get()
+		: WebUrlImages.emplace(
 			key,
-			new Image(std::make_unique<WebUrlSource>(url, box)));
-	}
-	return ImagePtr(i.value());
+			std::make_unique<Image>(std::make_unique<WebUrlSource>(url, box))
+		).first->second.get();
+	return ImagePtr(image);
 }
 
 ImagePtr Create(const QString &url, int width, int height) {
-	const auto key = url;
-	auto i = WebUrlImages.constFind(key);
-	if (i == WebUrlImages.cend()) {
-		i = WebUrlImages.insert(
+	const auto &key = url;
+	const auto i = WebUrlImages.find(key);
+	const auto found = (i != end(WebUrlImages));
+	const auto image = found
+		? i->second.get()
+		: WebUrlImages.emplace(
 			key,
-			new Image(std::make_unique<WebUrlSource>(url, width, height)));
-	} else {
-		i.value()->setInformation(0, width, height);
+			std::make_unique<Image>(
+				std::make_unique<WebUrlSource>(url, width, height))
+		).first->second.get();
+	if (found) {
+		image->setInformation(0, width, height);
 	}
-	return ImagePtr(i.value());
+	return ImagePtr(image);
 }
 
 ImagePtr Create(const QByteArray &filecontent, QByteArray format) {
@@ -165,34 +162,40 @@ ImagePtr Create(int width, int height) {
 }
 
 ImagePtr Create(const StorageImageLocation &location, int size) {
-	const auto key = storageKey(location);
-	auto i = StorageImages.constFind(key);
-	if (i == StorageImages.cend()) {
-		i = StorageImages.insert(
+	const auto key = inMemoryKey(location);
+	const auto i = StorageImages.find(key);
+	const auto found = (i != end(StorageImages));
+	const auto image = found
+		? i->second.get()
+		: StorageImages.emplace(
 			key,
-			new Image(std::make_unique<StorageSource>(location, size)));
-	} else {
-		i.value()->refreshFileReference(location.fileReference());
+			std::make_unique<Image>(
+				std::make_unique<StorageSource>(location, size))
+		).first->second.get();
+	if (found) {
+		image->refreshFileReference(location.fileReference());
 	}
-	return ImagePtr(i.value());
+	return ImagePtr(image);
 }
 
 ImagePtr Create(
 		const StorageImageLocation &location,
 		const QByteArray &bytes) {
-	const auto key = storageKey(location);
-	auto i = StorageImages.constFind(key);
-	if (i == StorageImages.cend()) {
-		i = StorageImages.insert(
+	const auto key = inMemoryKey(location);
+	const auto i = StorageImages.find(key);
+	const auto found = (i != end(StorageImages));
+	const auto image = found
+		? i->second.get()
+		: StorageImages.emplace(
 			key,
-			new Image(std::make_unique<StorageSource>(
-				location,
-				bytes.size())));
-	} else {
-		i.value()->refreshFileReference(location.fileReference());
+			std::make_unique<Image>(
+				std::make_unique<StorageSource>(location, bytes.size()))
+		).first->second.get();
+	if (found) {
+		image->refreshFileReference(location.fileReference());
 	}
-	i.value()->setImageBytes(bytes);
-	return ImagePtr(i.value());
+	image->setImageBytes(bytes);
+	return ImagePtr(image);
 }
 
 QSize getImageSize(const QVector<MTPDocumentAttribute> &attributes) {
@@ -284,17 +287,18 @@ ImagePtr Create(
 		const WebFileLocation &location,
 		QSize box,
 		int size) {
-	const auto key = storageKey(location);
-	auto i = WebCachedImages.constFind(key);
-	if (i == WebCachedImages.cend()) {
-		i = WebCachedImages.insert(
+	const auto key = inMemoryKey(location);
+	const auto i = WebCachedImages.find(key);
+	const auto image = (i != end(WebCachedImages))
+		? i->second.get()
+		: WebCachedImages.emplace(
 			key,
-			new Image(std::make_unique<WebCachedSource>(
+			std::make_unique<Image>(std::make_unique<WebCachedSource>(
 				location,
 				box,
-				size)));
-	}
-	return ImagePtr(i.value());
+				size))
+		).first->second.get();
+	return ImagePtr(image);
 }
 
 ImagePtr Create(
@@ -302,29 +306,32 @@ ImagePtr Create(
 		int width,
 		int height,
 		int size) {
-	const auto key = storageKey(location);
-	auto i = WebCachedImages.constFind(key);
-	if (i == WebCachedImages.cend()) {
-		i = WebCachedImages.insert(
+	const auto key = inMemoryKey(location);
+	const auto i = WebCachedImages.find(key);
+	const auto image = (i != end(WebCachedImages))
+		? i->second.get()
+		: WebCachedImages.emplace(
 			key,
-			new Image(std::make_unique<WebCachedSource>(
+			std::make_unique<Image>(std::make_unique<WebCachedSource>(
 				location,
 				width,
 				height,
-				size)));
-	}
-	return ImagePtr(i.value());
+				size))
+		).first->second.get();
+	return ImagePtr(image);
 }
 
 ImagePtr Create(const GeoPointLocation &location) {
-	const auto key = storageKey(location);
-	auto i = GeoPointImages.constFind(key);
-	if (i == GeoPointImages.cend()) {
-		i = GeoPointImages.insert(
+	const auto key = inMemoryKey(location);
+	const auto i = GeoPointImages.find(key);
+	const auto image = (i != end(GeoPointImages))
+		? i->second.get()
+		: GeoPointImages.emplace(
 			key,
-			new Image(std::make_unique<GeoPointSource>(location)));
-	}
-	return ImagePtr(i.value());
+			std::make_unique<Image>(
+				std::make_unique<GeoPointSource>(location))
+		).first->second.get();
+	return ImagePtr(image);
 }
 
 } // namespace Images

@@ -508,10 +508,10 @@ enum { // Local Storage Keys
 	lskUserMap = 0x00,
 	lskDraft = 0x01, // data: PeerId peer
 	lskDraftPosition = 0x02, // data: PeerId peer
-	lskImages = 0x03, // data: StorageKey location
+	lskLegacyImages = 0x03, // legacy
 	lskLocations = 0x04, // no data
-	lskStickerImages = 0x05, // data: StorageKey location
-	lskAudios = 0x06, // data: StorageKey location
+	lskLegacyStickerImages = 0x05, // legacy
+	lskLegacyAudios = 0x06, // legacy
 	lskRecentStickersOld = 0x07, // no data
 	lskBackgroundOld = 0x08, // no data
 	lskUserSettings = 0x09, // no data
@@ -2332,9 +2332,9 @@ ReadMapState _readMap(const QByteArray &pass) {
 				draftCursorsMap.insert(p, key);
 			}
 		} break;
-		case lskImages:
-		case lskStickerImages:
-		case lskAudios: {
+		case lskLegacyImages:
+		case lskLegacyStickerImages:
+		case lskLegacyAudios: {
 			quint32 count = 0;
 			map.stream >> count;
 			for (quint32 i = 0; i < count; ++i) {
@@ -3186,30 +3186,6 @@ FileLocation readFileLocation(MediaKey location, bool check) {
 		return i.value();
 	}
 	return FileLocation();
-}
-
-qint32 _storageImageSize(qint32 rawlen) {
-	// fulllen + storagekey + type + len + data
-	qint32 result = sizeof(uint32) + sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + rawlen;
-	if (result & 0x0F) result += 0x10 - (result & 0x0F);
-	result += tdfMagicLen + sizeof(qint32) + sizeof(quint32) + 0x10 + 0x10; // magic + version + len of encrypted + part of sha1 + md5
-	return result;
-}
-
-qint32 _storageStickerSize(qint32 rawlen) {
-	// fulllen + storagekey + len + data
-	qint32 result = sizeof(uint32) + sizeof(quint64) * 2 + sizeof(quint32) + rawlen;
-	if (result & 0x0F) result += 0x10 - (result & 0x0F);
-	result += tdfMagicLen + sizeof(qint32) + sizeof(quint32) + 0x10 + 0x10; // magic + version + len of encrypted + part of sha1 + md5
-	return result;
-}
-
-qint32 _storageAudioSize(qint32 rawlen) {
-	// fulllen + storagekey + len + data
-	qint32 result = sizeof(uint32) + sizeof(quint64) * 2 + sizeof(quint32) + rawlen;
-	if (result & 0x0F) result += 0x10 - (result & 0x0F);
-	result += tdfMagicLen + sizeof(qint32) + sizeof(quint32) + 0x10 + 0x10; // magic + version + len of encrypted + part of sha1 + md5
-	return result;
 }
 
 Storage::EncryptionKey cacheKey() {

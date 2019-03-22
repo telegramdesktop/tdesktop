@@ -234,7 +234,7 @@ public:
 	void loadUserpic(bool loadFirst = false, bool prior = true);
 	[[nodiscard]] bool userpicLoaded() const;
 	[[nodiscard]] bool useEmptyUserpic() const;
-	[[nodiscard]] StorageKey userpicUniqueKey() const;
+	[[nodiscard]] InMemoryKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
 	void saveUserpicRounded(const QString &path, int size) const;
 	[[nodiscard]] QPixmap genUserpic(int size) const;

@@ -247,19 +247,19 @@ bool PeerData::userpicLoaded() const {
 }
 
 bool PeerData::useEmptyUserpic() const {
-	return _userpicLocation.isNull()
+	return !_userpicLocation.valid()
 		|| !_userpic
 		|| !_userpic->loaded();
 }
 
-StorageKey PeerData::userpicUniqueKey() const {
+InMemoryKey PeerData::userpicUniqueKey() const {
 	if (useEmptyUserpic()) {
 		if (!_userpicEmpty) {
 			refreshEmptyUserpic();
 		}
 		return _userpicEmpty->uniqueKey();
 	}
-	return storageKey(_userpicLocation);
+	return inMemoryKey(_userpicLocation);
 }
 
 void PeerData::saveUserpic(const QString &path, int size) const {

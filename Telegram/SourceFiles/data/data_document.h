@@ -43,13 +43,6 @@ inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
 	return MediaKey(mediaMix32To64(type, dc), id);
 }
 
-inline StorageKey mediaKey(const MTPDfileLocation &location) {
-	return storageKey(
-		location.vdc_id.v,
-		location.vvolume_id.v,
-		location.vlocal_id.v);
-}
-
 struct DocumentAdditionalData {
 	virtual ~DocumentAdditionalData() = default;
 

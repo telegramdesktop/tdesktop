@@ -27,36 +27,115 @@ ImagePtr::operator bool() const {
 	return !_data->isNull();
 }
 
-StorageImageLocation StorageImageLocation::Null;
 WebFileLocation WebFileLocation::Null;
 
-StorageImageLocation::StorageImageLocation(
-	int32 width,
-	int32 height,
-	int32 dc,
-	const uint64 &volume,
-	int32 local,
-	const uint64 &secret,
-	const QByteArray &fileReference)
-: _widthheight(packIntInt(width, height))
-, _dclocal(packIntInt(dc, local))
-, _volume(volume)
-, _secret(secret)
-, _fileReference(fileReference) {
+bool StorageFileLocation::valid() const {
+	switch (_type) {
+	case Type::General:
+		return (_dcId != 0) && (_volumeId != 0) && (_localId != 0);
+
+	case Type::Encrypted:
+	case Type::Secure:
+	case Type::Document:
+		return (_dcId != 0) && (_id != 0);
+
+	case Type::Photo:
+		return (_dcId != 0) && (_id != 0) && (_sizeLetter != 0);
+
+	case Type::Takeout:
+		return true;
+
+	case Type::PeerPhoto:
+	case Type::StickerSetThumb:
+		return (_dcId != 0) && (_id != 0);
+	}
+	return false;
+}
+
+InMemoryKey StorageFileLocation::inMemoryKey() const {
+	switch (_type) {
+	case Type::General:
+	case Type::PeerPhoto:
+	case Type::StickerSetThumb:
+		return InMemoryKey(
+			(uint64(_type) << 56) | (uint64(_dcId) << 40) | uint32(_localId),
+			_volumeId);
+
+	case Type::Encrypted:
+	case Type::Secure:
+		return InMemoryKey(
+			(uint64(_type) << 56) | (uint64(_dcId) << 40),
+			_id);
+
+	case Type::Document:
+	case Type::Photo:
+		return InMemoryKey(
+			(uint64(_type) << 56) | (uint64(_dcId) << 40) | _sizeLetter,
+			_id);
+
+	case Type::Takeout:
+		return InMemoryKey(
+			(uint64(_type) << 56),
+			0);
+	}
+	return InMemoryKey();
+}
+
+bool operator==(const StorageFileLocation &a, const StorageFileLocation &b) {
+	const auto valid = a.valid();
+	if (valid != b.valid()) {
+		return false;
+	} else if (!valid) {
+		return true;
+	}
+	const auto type = a._type;
+	if (type != b._type) {
+		return false;
+	}
+
+	using Type = StorageFileLocation::Type;
+	switch (type) {
+	case Type::General:
+		return (a._dcId == b._dcId)
+			&& (a._volumeId == b._volumeId)
+			&& (a._localId == b._localId);
+
+	case Type::Encrypted:
+	case Type::Secure:
+		return (a._dcId == b._dcId) && (a._id == b._id);
+
+	case Type::Photo:
+	case Type::Document:
+		return (a._dcId == b._dcId)
+			&& (a._id == b._id)
+			&& (a._sizeLetter == b._sizeLetter);
+
+	case Type::Takeout:
+		return true;
+
+	case Type::PeerPhoto:
+		return (a._dcId == b._dcId)
+			&& (a._volumeId == b._volumeId)
+			&& (a._localId == b._localId)
+			&& (a._id == b._id)
+			&& (a._sizeLetter == b._sizeLetter);
+
+	case Type::StickerSetThumb:
+		return (a._dcId == b._dcId)
+			&& (a._volumeId == b._volumeId)
+			&& (a._localId == b._localId)
+			&& (a._id == b._id);
+	};
+	Unexpected("Type in StorageFileLocation::operator==.");
 }
 
 StorageImageLocation::StorageImageLocation(
-	int32 width,
-	int32 height,
-	const MTPDfileLocation &location)
-: StorageImageLocation(
-	width,
-	height,
-	location.vdc_id.v,
-	location.vvolume_id.v,
-	location.vlocal_id.v,
-	location.vsecret.v,
-	location.vfile_reference.v) {
+	const StorageFileLocation &file,
+	int width,
+	int height)
+: _file(file)
+, _width(width)
+, _height(height) {
 }
 
 ReadAccessEnabler::ReadAccessEnabler(const PsFileBookmark *bookmark)

@@ -23,7 +23,7 @@ public:
 	};
 	CachedUserpics(Type type);
 
-	QString get(const StorageKey &key, PeerData *peer);
+	QString get(const InMemoryKey &key, PeerData *peer);
 
 	~CachedUserpics();
 
@@ -39,7 +39,7 @@ private:
 		crl::time until;
 		QString path;
 	};
-	using Images = QMap<StorageKey, Image>;
+	using Images = QMap<InMemoryKey, Image>;
 	Images _images;
 	bool _someSavedFlag = false;
 	base::Timer _clearTimer;

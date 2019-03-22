@@ -459,14 +459,11 @@ bool Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QStri
 	hr = SetAudioSilent(toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
 
-	StorageKey key;
-	if (hideNameAndPhoto) {
-		key = StorageKey(0, 0);
-	} else {
-		key = peer->userpicUniqueKey();
-	}
-	auto userpicPath = _cachedUserpics.get(key, peer);
-	auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
+	const auto key = hideNameAndPhoto
+		? InMemoryKey()
+		: peer->userpicUniqueKey();
+	const auto userpicPath = _cachedUserpics.get(key, peer);
+	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
 	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;

@@ -440,12 +440,9 @@ void Manager::Private::showNextNotification() {
 		return;
 	}
 
-	StorageKey key;
-	if (data.hideNameAndPhoto) {
-		key = StorageKey(0, 0);
-	} else {
-		key = data.peer->userpicUniqueKey();
-	}
+	const auto key = data.hideNameAndPhoto
+		? InMemoryKey()
+		: data.peer->userpicUniqueKey();
 	notification->setImage(_cachedUserpics.get(key, data.peer));
 
 	auto i = _notifications.find(peerId);

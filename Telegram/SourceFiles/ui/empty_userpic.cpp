@@ -160,11 +160,12 @@ void EmptyUserpic::PaintSavedMessages(
 	}
 }
 
-StorageKey EmptyUserpic::uniqueKey() const {
-	auto first = 0xFFFFFFFF00000000ULL | anim::getPremultiplied(_color->c);
+InMemoryKey EmptyUserpic::uniqueKey() const {
+	const auto first = (uint64(0xFFFFFFFFU) << 32)
+		| anim::getPremultiplied(_color->c);
 	auto second = uint64(0);
 	memcpy(&second, _string.constData(), qMin(sizeof(second), _string.size() * sizeof(QChar)));
-	return StorageKey(first, second);
+	return InMemoryKey(first, second);
 }
 
 QPixmap EmptyUserpic::generate(int size) {

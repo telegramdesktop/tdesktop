@@ -32,7 +32,7 @@ public:
 		int outerWidth,
 		int size) const;
 	QPixmap generate(int size);
-	StorageKey uniqueKey() const;
+	InMemoryKey uniqueKey() const;
 
 	static void PaintSavedMessages(
 		Painter &p,

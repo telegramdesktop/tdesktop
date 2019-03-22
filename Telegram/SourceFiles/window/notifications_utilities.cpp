@@ -27,7 +27,7 @@ CachedUserpics::CachedUserpics(Type type)
 	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 }
 
-QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
+QString CachedUserpics::get(const InMemoryKey &key, PeerData *peer) {
 	auto ms = crl::now();
 	auto i = _images.find(key);
 	if (i != _images.cend()) {
@@ -102,7 +102,7 @@ void CachedUserpics::onClear() {
 CachedUserpics::~CachedUserpics() {
 	if (_someSavedFlag) {
 		crl::time result = 0;
-		for_const (auto &item, _images) {
+		for (const auto &item : std::as_const(_images)) {
 			QFile(item.path).remove();
 		}
 

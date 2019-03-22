@@ -885,7 +885,7 @@ void UserpicButton::prepareUserpicPixmap() {
 	});
 	_userpicUniqueKey = _userpicHasImage
 		? _peer->userpicUniqueKey()
-		: StorageKey();
+		: InMemoryKey();
 }
 
 FeedUserpicButton::FeedUserpicButton(

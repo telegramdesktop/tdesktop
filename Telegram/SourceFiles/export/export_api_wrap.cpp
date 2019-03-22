@@ -53,7 +53,11 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
 		result.id = data.vvolume_id.v;
 	}, [&](const MTPDinputDocumentFileLocation &data) {
+		const auto letter = data.vthumb_size.v.isEmpty()
+			? char(0)
+			: data.vthumb_size.v[0];
 		result.type |= (2ULL << 24);
+		result.type |= (uint64(uint32(letter)) << 16);
 		result.id = data.vid.v;
 	}, [&](const MTPDinputSecureFileLocation &data) {
 		result.type |= (3ULL << 24);
@@ -63,6 +67,23 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 		result.id = data.vid.v;
 	}, [&](const MTPDinputTakeoutFileLocation &data) {
 		result.type |= (5ULL << 24);
+	}, [&](const MTPDinputPhotoFileLocation &data) {
+		const auto letter = data.vthumb_size.v.isEmpty()
+			? char(0)
+			: data.vthumb_size.v[0];
+		result.type |= (6ULL << 24);
+		result.type |= (uint64(uint32(letter)) << 16);
+		result.id = data.vid.v;
+	}, [&](const MTPDinputPeerPhotoFileLocation &data) {
+		const auto letter = data.is_big() ? char(1) : char(0);
+		result.type |= (7ULL << 24);
+		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
+		result.type |= (uint64(uint32(letter)) << 16);
+		result.id = data.vvolume_id.v;
+	}, [&](const MTPDinputStickerSetThumb &data) {
+		result.type |= (8ULL << 24);
+		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
+		result.id = data.vvolume_id.v;
 	});
 	return result;
 }
