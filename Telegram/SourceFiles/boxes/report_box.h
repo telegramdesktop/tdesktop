@@ -32,6 +32,7 @@ private:
 	enum class Reason {
 		Spam,
 		Violence,
+		ChildAbuse,
 		Pornography,
 		Other,
 	};
