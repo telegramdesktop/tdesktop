@@ -64,7 +64,9 @@ void ReportBox::prepare() {
 	};
 	createButton(_reasonSpam, Reason::Spam, lng_report_reason_spam);
 	createButton(_reasonViolence, Reason::Violence, lng_report_reason_violence);
-	createButton(_reasonChildAbuse, Reason::ChildAbuse, lng_report_reason_child_abuse);
+	if (_ids) {
+		createButton(_reasonChildAbuse, Reason::ChildAbuse, lng_report_reason_child_abuse);
+	}
 	createButton(_reasonPornography, Reason::Pornography, lng_report_reason_pornography);
 	createButton(_reasonOther, Reason::Other, lng_report_reason_other);
 	_reasonGroup->setChangedCallback([=](Reason value) {
@@ -79,8 +81,13 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 
 	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _reasonSpam->getMargins().top());
 	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
-	_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
-	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonChildAbuse->bottomNoMargins() + st::boxOptionListSkip);
+	if (_ids) {
+		_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonChildAbuse->bottomNoMargins() + st::boxOptionListSkip);
+	}
+	else{
+		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	}
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
 	if (_reasonOtherText) {
@@ -183,7 +190,12 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + 5 * _reasonSpam->heightNoMargins() + 4 * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+
+	if (_ids) {
+		newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + 5 * _reasonSpam->heightNoMargins() + 4 * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+	}
+		
 	if (_reasonOtherText) {
 		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}
