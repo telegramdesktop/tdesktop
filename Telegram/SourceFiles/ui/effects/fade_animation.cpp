@@ -146,12 +146,11 @@ void FadeAnimation::startAnimation(int duration) {
 }
 
 void FadeAnimation::updateCallback() {
-	if (_animation.animating()) {
-		_widget->update();
-		if (_updatedCallback) {
-			_updatedCallback(_animation.value(_visible ? 1. : 0.));
-		}
-	} else {
+	_widget->update();
+	if (_updatedCallback) {
+		_updatedCallback(_animation.value(_visible ? 1. : 0.));
+	}
+	if (!_animation.animating()) {
 		stopAnimation();
 	}
 }
