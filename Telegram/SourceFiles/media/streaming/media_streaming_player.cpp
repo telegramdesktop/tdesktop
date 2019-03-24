@@ -805,10 +805,15 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 }
 
 crl::time Player::getCurrentReceivedTill(crl::time duration) const {
+	const auto forTrack = [&](const TrackState &state) {
+		return (state.duration > 0 && state.receivedTill == state.duration)
+			? std::max(state.receivedTill, duration)
+			: state.receivedTill;
+	};
 	const auto previous = std::max(_previousReceivedTill, crl::time(0));
 	const auto result = std::min(
-		std::max(_information.audio.state.receivedTill, previous),
-		std::max(_information.video.state.receivedTill, previous));
+		std::max(forTrack(_information.audio.state), previous),
+		std::max(forTrack(_information.video.state), previous));
 	return (result >= 0 && duration > 1 && _options.loop)
 		? (result % duration)
 		: result;
