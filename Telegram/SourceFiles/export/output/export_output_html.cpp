@@ -624,6 +624,7 @@ private:
 	[[nodiscard]] QByteArray pushPoll(const Data::Poll &data);
 
 	File _file;
+	QByteArray _composedStart;
 	bool _closed = false;
 	QByteArray _base;
 	Context _context;
@@ -677,6 +678,8 @@ HtmlWriter::Wrap::Wrap(
 	const auto left = path.mid(base.size());
 	const auto nesting = ranges::count(left, '/');
 	_base = QString("../").repeated(nesting).toUtf8();
+
+	_composedStart = composeStart();
 }
 
 bool HtmlWriter::Wrap::empty() const {
@@ -837,7 +840,7 @@ Result HtmlWriter::Wrap::writeBlock(const QByteArray &block) {
 		if (block.isEmpty()) {
 			return _file.writeBlock(block);
 		} else if (_file.empty()) {
-			return _file.writeBlock(composeStart() + block);
+			return _file.writeBlock(_composedStart + block);
 		}
 		return _file.writeBlock(block);
 	}();
@@ -1310,7 +1313,10 @@ QByteArray HtmlWriter::Wrap::pushStickerMedia(
 		generic.title = "Sticker";
 		generic.status = data.stickerEmoji;
 		if (data.file.relativePath.isEmpty()) {
-			generic.status += ", " + FormatFileSize(data.file.size);
+			if (!generic.status.isEmpty()) {
+				generic.status += ", ";
+			}
+			generic.status += FormatFileSize(data.file.size);
 		} else {
 			generic.link = data.file.relativePath;
 		}
