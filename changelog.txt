@@ -1,3 +1,10 @@
+1.6.2 (24.03.19)
+
+- Delete any message on both ends in any private chat, anytime.
+- Control whether your forwarded messages link back to your account.
+- Control who may see your profile picture.
+- Enjoy the new streamlined group management screen.
+
 1.6.1 (20.03.19)
 
 - Bug fixes and other minor improvements.
