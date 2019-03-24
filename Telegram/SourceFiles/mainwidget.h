@@ -111,6 +111,13 @@ public:
 
 	void start();
 
+	void setEditMedia(FullMsgId flag) {
+		_editMedia = flag;
+	}
+	FullMsgId getEditMedia() const {
+		return _editMedia;
+	}
+
 	void openPeerByName(
 		const QString &name,
 		MsgId msgId = ShowAtUnreadMsgId,
@@ -159,6 +166,8 @@ public:
 	void checkMainSectionToLayer();
 
 	void onSendFileConfirm(const std::shared_ptr<FileLoadResult> &file);
+	void onEditMedia(const std::shared_ptr<FileLoadResult> &file,
+		const FullMsgId &oldId);
 	bool onSendSticker(DocumentData *sticker);
 
 	void destroyData();
@@ -543,5 +552,7 @@ private:
 
 	bool _firstColumnResizing = false;
 	int _firstColumnResizingShift = 0;
+
+	FullMsgId _editMedia;
 
 };

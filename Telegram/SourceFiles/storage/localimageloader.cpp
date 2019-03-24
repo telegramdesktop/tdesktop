@@ -975,6 +975,9 @@ void FileLoadTask::finish() {
 				lng_send_image_too_large(lt_name, _filepath)),
 			LayerOption::KeepOther);
 		removeFromAlbum();
+	} else if (App::main()->getEditMedia()) {
+		LOG(("FINISH UPLOAD EDIT"));
+		App::main()->onEditMedia(_result, App::main()->getEditMedia());
 	} else if (App::main()) {
 		App::main()->onSendFileConfirm(_result);
 	}

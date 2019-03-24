@@ -160,7 +160,8 @@ public:
 
 	bool confirmSendingFiles(const QStringList &files);
 	bool confirmSendingFiles(not_null<const QMimeData*> data);
-	void sendFileConfirmed(const std::shared_ptr<FileLoadResult> &file);
+	void sendFileConfirmed(const std::shared_ptr<FileLoadResult> &file,
+		const std::optional<FullMsgId> &oldId = std::nullopt);
 
 	void updateControlsVisibility();
 	void updateControlsGeometry();
@@ -441,7 +442,7 @@ private:
 		MsgId replyTo,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 
-	void subscribeToUploader();
+	void subscribeToUploader(bool edit = false);
 
 	void photoUploaded(
 		const FullMsgId &msgId,
@@ -460,6 +461,16 @@ private:
 		const MTPInputFile &thumb);
 	void documentProgress(const FullMsgId &msgId);
 	void documentFailed(const FullMsgId &msgId);
+
+	void documentEdited(
+		const FullMsgId &msgId,
+		bool silent,
+		const MTPInputFile &file);
+
+	void photoEdited(
+		const FullMsgId &msgId,
+		bool silent,
+		const MTPInputFile &file);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 

@@ -94,6 +94,8 @@ private:
 	bool _previewCancelled = false;
 	mtpRequestId _saveRequestId = 0;
 
+	QString _newMediaPath;
+
 	QString _error;
 
 };

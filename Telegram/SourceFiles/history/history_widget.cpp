@@ -3054,6 +3054,7 @@ void HistoryWidget::chooseAttach() {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
 		} else {
+			LOG((result.paths[0]));
 			auto list = Storage::PrepareMediaList(
 				result.paths,
 				st::sendMediaPreviewSize);
@@ -4172,14 +4173,16 @@ void HistoryWidget::uploadFile(
 	Auth().api().sendFile(fileContent, type, options);
 }
 
-void HistoryWidget::subscribeToUploader() {
+void HistoryWidget::subscribeToUploader(bool edit) {
 	if (_uploaderSubscriptions) {
 		return;
 	}
 	using namespace Storage;
 	Auth().uploader().photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
-		photoUploaded(data.fullId, data.silent, data.file);
+		edit
+		? photoEdited(data.fullId, data.silent, data.file)
+		: photoUploaded(data.fullId, data.silent, data.file);
 	}, _uploaderSubscriptions);
 	Auth().uploader().photoProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
@@ -4191,7 +4194,9 @@ void HistoryWidget::subscribeToUploader() {
 	}, _uploaderSubscriptions);
 	Auth().uploader().documentReady(
 	) | rpl::start_with_next([=](const UploadedDocument &data) {
-		documentUploaded(data.fullId, data.silent, data.file);
+		edit
+		? documentEdited(data.fullId, data.silent, data.file)
+		: documentUploaded(data.fullId, data.silent, data.file);
 	}, _uploaderSubscriptions);
 	Auth().uploader().thumbDocumentReady(
 	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
@@ -4212,13 +4217,15 @@ void HistoryWidget::subscribeToUploader() {
 }
 
 void HistoryWidget::sendFileConfirmed(
-		const std::shared_ptr<FileLoadResult> &file) {
+		const std::shared_ptr<FileLoadResult> &file,
+		const std::optional<FullMsgId> &oldId) {
+	const auto isEditing = oldId.has_value();
 	const auto channelId = peerToChannel(file->to.peer);
 	const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
 		channelId,
 		file->to.replyTo));
 
-	const auto newId = FullMsgId(channelId, clientMsgId());
+	const auto newId = oldId.value_or(FullMsgId(channelId, clientMsgId()));
 	const auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
@@ -4230,7 +4237,7 @@ void HistoryWidget::sendFileConfirmed(
 		it->msgId = newId;
 	}
 
-	subscribeToUploader();
+	subscribeToUploader(isEditing);
 
 	Auth().uploader().upload(newId, file);
 
@@ -4363,6 +4370,10 @@ void HistoryWidget::sendFileConfirmed(
 		Unexpected("Type in sendFilesConfirmed.");
 	}
 
+	if (isEditing) {
+		return;
+	}
+
 	Auth().data().sendHistoryChangeNotifications();
 	if (_peer && file->to.peer == _peer->id) {
 		App::main()->historyToDown(_history);
@@ -4382,6 +4393,22 @@ void HistoryWidget::documentUploaded(
 		bool silent,
 		const MTPInputFile &file) {
 	Auth().api().sendUploadedDocument(newId, file, std::nullopt, silent);
+}
+
+void HistoryWidget::documentEdited(
+		const FullMsgId &newId,
+		bool silent,
+		const MTPInputFile &file) {
+	LOG(("DOCUMENT EDITED %1").arg(newId.msg));
+	Auth().api().editUploadedDocument(newId, file, std::nullopt, silent);
+}
+
+void HistoryWidget::photoEdited(
+		const FullMsgId &newId,
+		bool silent,
+		const MTPInputFile &file) {
+	LOG(("PHOTO EDITED %1").arg(newId.msg));
+	Auth().api().editUploadedPhoto(newId, file, silent);
 }
 
 void HistoryWidget::thumbDocumentUploaded(
@@ -4412,6 +4439,8 @@ void HistoryWidget::documentProgress(const FullMsgId &newId) {
 		const auto progress = (document && document->uploading())
 			? document->uploadingData->offset
 			: 0;
+
+		LOG(("ITEM EXISTS %1 TYPE: %2 PROGRESS: %3").arg(newId.msg).arg(sendAction == SendAction::Type::UploadFile).arg(progress));
 		updateSendAction(
 			item->history(),
 			sendAction,

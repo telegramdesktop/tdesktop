@@ -32,6 +32,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
+#include "storage/storage_media_prepare.h"
+
+#include "core/application.h"
+#include "mainwidget.h"
+
+#include "core/file_utilities.h"
+
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
 	not_null<Window::Controller*> controller,
@@ -308,6 +315,28 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 
 void EditCaptionBox::prepare() {
 	addButton(langFactory(lng_settings_save), [this] { save(); });
+	addButton(langFactory(lng_edit_media), [this] {
+		const auto callback = [=](const FileDialog::OpenResult &result) {
+			if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+				return;
+			}
+
+			if (!result.paths.isEmpty()) {
+				const auto filePath = result.paths.front();
+				LOG(("FILE PATH: %1").arg(filePath));
+				_newMediaPath = filePath;
+			}
+		};
+
+		auto filters = QStringList(qsl("Any File (*.*)"));
+		filters.push_back(FileDialog::AllFilesFilter());
+
+		FileDialog::GetOpenPath(
+			this,
+			lang(lng_choose_image),
+			filters.join(qsl(";;")),
+			crl::guard(this, callback));
+	});
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateBoxSize();
@@ -522,6 +551,33 @@ void EditCaptionBox::save() {
 	if (!sentEntities.v.isEmpty()) {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
+
+	if (!_newMediaPath.isEmpty()) {
+		App::main()->setEditMedia(item->fullId());
+		const auto textWithTags = _field->getTextWithAppliedMarkdown();
+		auto sending = TextWithEntities{
+			textWithTags.text,
+			ConvertTextTagsToEntities(textWithTags.tags)
+		};
+		item->setText(sending);
+
+		static const auto extensions = {
+			qstr(".jpg"),
+			qstr(".png"),
+		};
+		const auto isPhoto = std::find_if(std::begin(extensions), std::end(extensions), [=](auto &extension) {
+			return _newMediaPath.endsWith(extension, Qt::CaseInsensitive);
+		}) != std::end(extensions);
+
+		Auth().api().editMedia(
+			Storage::PrepareMediaList(QStringList(_newMediaPath), st::sendMediaPreviewSize),
+			isPhoto ? SendMediaType::Photo : SendMediaType::File,
+			_field->getTextWithAppliedMarkdown(),
+			ApiWrap::SendOptions(item->history()));
+		closeBox();
+		return;
+	}
+
 	_saveRequestId = MTP::send(
 		MTPmessages_EditMessage(
 			MTP_flags(flags),

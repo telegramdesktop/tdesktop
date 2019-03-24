@@ -842,11 +842,11 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 		Ui::hideLayer();
 		if (const auto item = App::histItemById(itemId)) {
 			const auto history = item->history();
-			item->destroy();
+			//item->destroy();
 			history->requestChatListMessage();
 			session().data().sendHistoryChangeNotifications();
 		}
-		session().uploader().unpause();
+		//session().uploader().unpause();
 	};
 	const auto continueUpload = [=] {
 		session().uploader().unpause();
@@ -1313,6 +1313,13 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 void MainWidget::onSendFileConfirm(
 		const std::shared_ptr<FileLoadResult> &file) {
 	_history->sendFileConfirmed(file);
+}
+
+void MainWidget::onEditMedia(
+		const std::shared_ptr<FileLoadResult> &file,
+		const FullMsgId &oldId) {
+	LOG(("ON EDIT MEDIA"));
+	_history->sendFileConfirmed(file, oldId);
 }
 
 bool MainWidget::onSendSticker(DocumentData *document) {
@@ -3706,6 +3713,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	switch (updates.type()) {
 	case mtpc_updates: {
+		LOG(("TYPE 1"));
 		auto &d = updates.c_updates();
 		if (d.vseq.v) {
 			if (d.vseq.v <= updSeq) {
@@ -3726,6 +3734,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updatesCombined: {
+		LOG(("TYPE 2"));
 		auto &d = updates.c_updatesCombined();
 		if (d.vseq_start.v) {
 			if (d.vseq_start.v <= updSeq) {
@@ -3746,6 +3755,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShort: {
+		LOG(("TYPE 3"));
 		auto &d = updates.c_updateShort();
 		feedUpdate(d.vupdate);
 
@@ -3753,6 +3763,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShortMessage: {
+		LOG(("TYPE 4"));
 		auto &d = updates.c_updateShortMessage();
 		if (!session().data().userLoaded(d.vuser_id.v)
 			|| (d.has_via_bot_id() && !session().data().userLoaded(d.vvia_bot_id.v))
@@ -3768,6 +3779,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShortChatMessage: {
+		LOG(("TYPE 5"));
 		auto &d = updates.c_updateShortChatMessage();
 		const auto noFrom = !session().data().userLoaded(d.vfrom_id.v);
 		const auto chat = session().data().chatLoaded(d.vchat_id.v);
@@ -3789,6 +3801,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updateShortSentMessage: {
+		LOG(("TYPE 6"));
 		auto &d = updates.c_updateShortSentMessage();
 		if (!IsServerMsgId(d.vid.v)) {
 			LOG(("API Error: Bad msgId got from server: %1").arg(d.vid.v));
@@ -3828,6 +3841,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 	} break;
 
 	case mtpc_updatesTooLong: {
+		LOG(("TYPE 7"));
 		MTP_LOG(0, ("getDifference { good - updatesTooLong received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		return getDifference();
 	} break;

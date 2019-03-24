@@ -328,6 +328,12 @@ public:
 		SendMediaType type,
 		const SendOptions &options);
 
+	void editMedia(
+		Storage::PreparedList &&list,
+		SendMediaType type,
+		TextWithTags &&caption,
+		const SendOptions &options);
+
 	void sendUploadedPhoto(
 		FullMsgId localId,
 		const MTPInputFile &file,
@@ -337,6 +343,16 @@ public:
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
 		bool silent);
+	void editUploadedDocument(
+		FullMsgId localId,
+		const MTPInputFile &file,
+		const std::optional<MTPInputFile> &thumb,
+		bool silent);
+	void editUploadedPhoto(
+		FullMsgId localId,
+		const MTPInputFile &file,
+		bool silent);
+
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
 	struct MessageToSend {

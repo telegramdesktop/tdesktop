@@ -4467,6 +4467,27 @@ void ApiWrap::sendVoiceMessage(
 		caption));
 }
 
+void ApiWrap::editMedia(
+		Storage::PreparedList &&list,
+		SendMediaType type,
+		TextWithTags &&caption,
+		const SendOptions &options) {
+	LOG(("EDIT MEDIA WITH TEXT %1").arg(caption.text));
+	const auto to = fileLoadTaskOptions(options);
+	auto tasks = std::vector<std::unique_ptr<Task>>();
+	tasks.reserve(list.files.size());
+	for (auto &file : list.files) {
+		tasks.push_back(std::make_unique<FileLoadTask>(
+			file.path,
+			file.content,
+			std::move(file.information),
+			type,
+			to,
+			caption));
+	}
+	_fileLoader->addTasks(std::move(tasks));
+}
+
 void ApiWrap::sendFiles(
 		Storage::PreparedList &&list,
 		SendMediaType type,
@@ -4585,6 +4606,96 @@ void ApiWrap::sendUploadedDocument(
 			} else {
 				sendMedia(item, media, silent);
 			}
+		}
+	}
+}
+
+void ApiWrap::editUploadedPhoto(
+		FullMsgId localId,
+		const MTPInputFile &file,
+		bool silent) {
+	if (const auto item = App::histItemById(localId)) {
+		const auto media = MTP_inputMediaUploadedPhoto(
+			MTP_flags(0),
+			file,
+			MTPVector<MTPInputDocument>(),
+			MTP_int(0));
+
+		auto flags2 = MTPmessages_EditMessage::Flag::f_message | 0;
+		flags2 |= MTPmessages_EditMessage::Flag::f_no_webpage;
+		flags2 |= MTPmessages_EditMessage::Flag::f_entities;
+		flags2 |= MTPmessages_EditMessage::Flag::f_media;
+
+		auto sentEntities = TextUtilities::EntitiesToMTP(
+			item->originalText().entities,
+			TextUtilities::ConvertOption::SkipLocal);
+
+		request(MTPmessages_EditMessage(
+			MTP_flags(flags2),
+			item->history()->peer->input,
+			MTP_int(item->id),
+			MTP_string(item->originalText().text),
+			media,
+			MTPReplyMarkup(),
+			sentEntities
+		)).done([=](const MTPUpdates &result) { LOG(("APPLY.")); applyUpdates(result);
+		}).fail([=](const RPCError &error) { LOG(("FAIL."));
+		}).send();
+	}
+}
+
+void ApiWrap::editUploadedDocument(
+		FullMsgId localId,
+		const MTPInputFile &file,
+		const std::optional<MTPInputFile> &thumb,
+		bool silent) {
+	if (const auto item = App::histItemById(localId)) {
+		QString filename = "file";
+		if (const auto document = item->media()->document()) {
+			filename = document->filename();
+
+			const auto filenameAttribute = MTP_documentAttributeFilename(
+				MTP_string(filename));
+			auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
+
+			const auto groupId = item->groupId();
+			const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
+				| (thumb
+					? MTPDinputMediaUploadedDocument::Flag::f_thumb
+					: MTPDinputMediaUploadedDocument::Flag(0))
+				| (groupId
+					? MTPDinputMediaUploadedDocument::Flag::f_nosound_video
+					: MTPDinputMediaUploadedDocument::Flag(0));
+			const auto media = MTP_inputMediaUploadedDocument(
+				MTP_flags(flags),
+				file,
+				thumb ? *thumb : MTPInputFile(),
+				MTP_string(document->mimeString()),
+				ComposeSendingDocumentAttributes(document),
+				MTPVector<MTPInputDocument>(),
+				MTP_int(0));
+
+			auto flags2 = MTPmessages_EditMessage::Flag::f_message | 0;
+			flags2 |= MTPmessages_EditMessage::Flag::f_no_webpage;
+			flags2 |= MTPmessages_EditMessage::Flag::f_entities;
+			flags2 |= MTPmessages_EditMessage::Flag::f_media;
+
+			auto sentEntities = TextUtilities::EntitiesToMTP(
+				item->originalText().entities,
+				TextUtilities::ConvertOption::SkipLocal);
+
+
+			request(MTPmessages_EditMessage(
+				MTP_flags(flags2),
+				item->history()->peer->input,
+				MTP_int(item->id),
+				MTP_string(item->originalText().text),
+				media,
+				MTPReplyMarkup(),
+				sentEntities
+			)).done([=](const MTPUpdates &result) { LOG(("APPLY.")); applyUpdates(result);
+			}).fail([=](const RPCError &error) { LOG(("FAIL."));
+			}).send();
 		}
 	}
 }
