@@ -154,6 +154,7 @@ infoNotificationsActive: icon {{
 infoTopBarCall: IconButton(infoTopBarNotifications) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+	iconPosition: point(5px, -1px);
 }
 infoTopBarSave: IconButton(infoTopBarNotifications) {
 	width: 48px;
