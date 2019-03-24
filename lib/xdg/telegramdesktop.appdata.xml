@@ -6,19 +6,46 @@
     <name>Telegram Desktop</name>
     <summary>Telegram Desktop messenger</summary>
     <description>
-       <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
+        <p>Telegram is a popular messaging protocol with encryption and security as its key focus.</p>
+        <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
     </description>
     <categories>
         <category>Network</category>
         <category>InstantMessaging</category>
     </categories>
+    <update_contact>johnprestonmail_at_gmail.com</update_contact>
+    <developer_name>John Prestons</developer_name>
     <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
+    <url type="help">https://github.com/telegramdesktop/tdesktop/issues</url>
     <screenshots>
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
       </screenshot>
     </screenshots>
+    <keywords>
+        <keyword>tg</keyword>
+        <keyword>telegram</keyword>
+        <keyword>tdesktoo</keyword>
+        <keyword>messaging</keyword>
+        <keyword>messenger</keyword>
+        <keyword>chat</keyword>
+        <keyword>sms</keyword>
+        <keyword>im</keyword>
+    </keywords>
+    <releases>
+        <release version="1.6.1" date="2019-03-20">
+            <description>
+                <p>Bug fixes and other minor improvements.</p>
+            </description>
+        </release>
+        <release version="1.6.0" date="2019-03-18">
+            <description>
+                <p>Play video files and listen to music without waiting for them to fully download.</p>
+                <p>Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages.</p>
+            </description>
+        </release>
+    </releases>
     <provides>
         <binary>telegram-desktop</binary>
     </provides>
