@@ -605,7 +605,7 @@ manageGroupButton: InfoProfileCountButton(managePeerButton) {
 		font: font(14px);
 	}
 	labelPosition: point(22px, 12px);
-	iconPosition: point(20px, 5px);
+	iconPosition: point(20px, 4px);
 }
 
 manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
