@@ -16,6 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
+constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
+
 MTPInputPeer GenerateInputPeer(uint64 id, uint64 accessHash, int32 self) {
 	const auto bareId = [&] {
 		return peerToBareMTPInt(id);
@@ -333,6 +336,36 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 		return Key{ shifted, 0 };
 	}
 	return Key();
+}
+
+Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
+	using Key = Storage::Cache::Key;
+
+	// Skip '1' and '2' for legacy document cache keys.
+	const auto shifted = ((uint64(_type) + 3) << 8);
+	const auto sliced = uint64(_dcId) & 0xFFULL;
+	switch (_type) {
+	case Type::Document: {
+		const auto high = kDocumentBaseCacheTag
+			| ((uint64(_dcId) << 16) & kDocumentBaseCacheMask)
+			| (_id >> 48);
+		const auto low = (_id << 16);
+
+		Ensures((low & 0xFFULL) == 0);
+		return Storage::Cache::Key{ high, low };
+	}
+
+	case Type::Legacy:
+	case Type::PeerPhoto:
+	case Type::StickerSetThumb:
+	case Type::Encrypted:
+	case Type::Secure:
+	case Type::Photo:
+	case Type::Takeout:
+		Unexpected("Not implemented file location type.");
+
+	};
+	Unexpected("Invalid file location type.");
 }
 
 QByteArray StorageFileLocation::fileReference() const {

@@ -83,6 +83,7 @@ public:
 	[[nodiscard]] Type type() const;
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
+	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 
 	[[nodiscard]] QByteArray fileReference() const;
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates);

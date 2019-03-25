@@ -8,44 +8,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_mtproto.h"
 
 #include "apiwrap.h"
+#include "auth_session.h"
 #include "storage/cache/storage_cache_types.h"
 
 namespace Media {
 namespace Streaming {
 namespace {
 
-constexpr auto kMaxConcurrentRequests = 2;
-constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
-constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
+constexpr auto kMaxConcurrentRequests = 4;
 
 } // namespace
 
 LoaderMtproto::LoaderMtproto(
 	not_null<ApiWrap*> api,
-	MTP::DcId dcId,
-	const MTPInputFileLocation &location,
+	const StorageFileLocation &location,
 	int size,
 	Data::FileOrigin origin)
 : _api(api)
-, _dcId(dcId)
 , _location(location)
 , _size(size)
 , _origin(origin) {
 }
 
 std::optional<Storage::Cache::Key> LoaderMtproto::baseCacheKey() const {
-	return _location.match([&](const MTPDinputDocumentFileLocation &data) {
-		const auto id = data.vid.v;
-		const auto high = kDocumentBaseCacheTag
-			| ((uint64(_dcId) << 16) & kDocumentBaseCacheMask)
-			| (id >> 48);
-		const auto low = (id << 16);
-
-		Ensures((low & 0xFFULL) == 0);
-		return Storage::Cache::Key{ high, low };
-	}, [](auto &&) -> Storage::Cache::Key {
-		Unexpected("Not implemented file location type.");
-	});
+	return _location.bigFileBaseCacheKey();
 }
 
 int LoaderMtproto::size() const {
@@ -99,18 +85,19 @@ void LoaderMtproto::sendNext() {
 	}
 
 	static auto DcIndex = 0;
-	const auto reference = locationFileReference();
+	const auto usedFileReference = _location.fileReference();
 	const auto id = _sender.request(MTPupload_GetFile(
-		_location,
+		_location.tl(Auth().userId()),
 		MTP_int(offset),
 		MTP_int(kPartSize)
 	)).done([=](const MTPupload_File &result) {
 		requestDone(offset, result);
 	}).fail([=](const RPCError &error) {
-		requestFailed(offset, error, reference);
-	}).toDC(
-		MTP::downloadDcId(_dcId, (++DcIndex) % MTP::kDownloadSessionsCount)
-	).send();
+		requestFailed(offset, error, usedFileReference);
+	}).toDC(MTP::downloadDcId(
+		_location.dcId(),
+		(++DcIndex) % MTP::kDownloadSessionsCount
+	)).send();
 	_requests.emplace(offset, id);
 
 	sendNext();
@@ -155,41 +142,18 @@ void LoaderMtproto::requestFailed(
 		return fail();
 	}
 	const auto callback = [=](const Data::UpdatedFileReferences &updated) {
-		_location.match([&](const MTPDinputDocumentFileLocation &location) {
-			const auto i = updated.data.find(
-				Data::DocumentFileLocationId{ location.vid.v });
-			if (i == end(updated.data)) {
-				return fail();
-			}
-			const auto reference = i->second;
-			if (reference == usedFileReference) {
-				return fail();
-			} else if (reference != location.vfile_reference.v) {
-				_location = MTP_inputDocumentFileLocation(
-					MTP_long(location.vid.v),
-					MTP_long(location.vaccess_hash.v),
-					MTP_bytes(reference),
-					MTP_string(QString()));
-			}
-			if (!_requests.take(offset)) {
-				// Request with such offset was already cancelled.
-				return;
-			}
+		_location.refreshFileReference(updated);
+		if (_location.fileReference() == usedFileReference) {
+			fail();
+		} else if (!_requests.take(offset)) {
+			// Request with such offset was already cancelled.
+			return;
+		} else {
 			_requested.add(offset);
 			sendNext();
-		}, [](auto &&) {
-			Unexpected("Not implemented file location type.");
-		});
+		}
 	};
 	_api->refreshFileReference(_origin, crl::guard(this, callback));
-}
-
-QByteArray LoaderMtproto::locationFileReference() const {
-	return _location.match([&](const MTPDinputDocumentFileLocation &data) {
-		return data.vfile_reference.v;
-	}, [](auto &&) -> QByteArray {
-		Unexpected("Not implemented file location type.");
-	});
 }
 
 rpl::producer<LoadedPart> LoaderMtproto::parts() const {

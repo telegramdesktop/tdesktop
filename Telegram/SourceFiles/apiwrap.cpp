@@ -3125,8 +3125,9 @@ void ApiWrap::toggleFavedSticker(
 		return;
 	}
 
-	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
+	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
 	auto performRequest = [=] {
+		const auto usedFileReference = document->fileReference();
 		request(MTPmessages_FaveSticker(
 			document->mtpInput(),
 			MTP_bool(!faved)
@@ -3134,16 +3135,15 @@ void ApiWrap::toggleFavedSticker(
 			if (mtpIsTrue(result)) {
 				Stickers::SetFaved(document, faved);
 			}
-		}).fail(
-			base::duplicate(*failHandler)
-		).send();
+		}).fail([=](const RPCError &error) {
+			(*failHandler)(error, usedFileReference);
+		}).send();
 	};
-	*failHandler = [=](const RPCError &error) {
+	*failHandler = [=](const RPCError &error, QByteArray usedFileReference) {
 		if (error.code() == 400
 			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			const auto current = document->fileReference();
 			auto refreshed = [=](const UpdatedFileReferences &data) {
-				if (document->fileReference() != current) {
+				if (document->fileReference() != usedFileReference) {
 					performRequest();
 				}
 			};
@@ -3161,8 +3161,9 @@ void ApiWrap::toggleSavedGif(
 		return;
 	}
 
-	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
+	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
 	auto performRequest = [=] {
+		const auto usedFileReference = document->fileReference();
 		request(MTPmessages_SaveGif(
 			document->mtpInput(),
 			MTP_bool(!saved)
@@ -3172,16 +3173,15 @@ void ApiWrap::toggleSavedGif(
 					App::addSavedGif(document);
 				}
 			}
-		}).fail(
-			base::duplicate(*failHandler)
-		).send();
+		}).fail([=](const RPCError &error) {
+			(*failHandler)(error, usedFileReference);
+		}).send();
 	};
-	*failHandler = [=](const RPCError &error) {
+	*failHandler = [=](const RPCError & error, QByteArray usedFileReference) {
 		if (error.code() == 400
 			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			const auto current = document->fileReference();
 			auto refreshed = [=](const UpdatedFileReferences &data) {
-				if (document->fileReference() != current) {
+				if (document->fileReference() != usedFileReference) {
 					performRequest();
 				}
 			};
@@ -4902,8 +4902,9 @@ void ApiWrap::sendExistingDocument(
 		caption,
 		MTPReplyMarkup());
 
-	auto failHandler = std::make_shared<Fn<void(const RPCError&)>>();
+	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
 	auto performRequest = [=] {
+		const auto usedFileReference = document->fileReference();
 		history->sendRequestId = request(MTPmessages_SendMedia(
 			MTP_flags(sendFlags),
 			peer->input,
@@ -4918,17 +4919,16 @@ void ApiWrap::sendExistingDocument(
 			sentEntities
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result, randomId);
-		}).fail(
-			base::duplicate(*failHandler)
-		).afterRequest(history->sendRequestId
+		}).fail([=](const RPCError &error) {
+			(*failHandler)(error, usedFileReference);
+		}).afterRequest(history->sendRequestId
 		).send();
 	};
-	*failHandler = [=](const RPCError &error) {
+	*failHandler = [=](const RPCError &error, QByteArray usedFileReference) {
 		if (error.code() == 400
 			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			const auto current = document->fileReference();
 			auto refreshed = [=](const UpdatedFileReferences &data) {
-				if (document->fileReference() != current) {
+				if (document->fileReference() != usedFileReference) {
 					performRequest();
 				} else {
 					sendMessageFail(error);

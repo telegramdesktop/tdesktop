@@ -20,8 +20,7 @@ class LoaderMtproto : public Loader, public base::has_weak_ptr {
 public:
 	LoaderMtproto(
 		not_null<ApiWrap*> api,
-		MTP::DcId dcId,
-		const MTPInputFileLocation &location,
+		const StorageFileLocation &location,
 		int size,
 		Data::FileOrigin origin);
 
@@ -44,8 +43,8 @@ private:
 
 	void requestDone(int offset, const MTPupload_File &result);
 	void requestFailed(
-		int offset, 
-		const RPCError &error, 
+		int offset,
+		const RPCError &error,
 		const QByteArray &usedFileReference);
 	void changeCdnParams(
 		int offset,
@@ -55,13 +54,11 @@ private:
 		const QByteArray &encryptionIV,
 		const QVector<MTPFileHash> &hashes);
 
-	[[nodiscard]] QByteArray locationFileReference() const;
-
 	const not_null<ApiWrap*> _api;
 	const MTP::DcId _dcId = 0;
 
 	// _location can be changed with an updated file_reference.
-	MTPInputFileLocation _location;
+	StorageFileLocation _location;
 
 	const int _size = 0;
 	const Data::FileOrigin _origin;

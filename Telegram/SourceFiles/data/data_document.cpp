@@ -1195,12 +1195,14 @@ auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().api(),
-			_dc,
-			MTP_inputDocumentFileLocation(
-				MTP_long(id),
-				MTP_long(_access),
-				MTP_bytes(_fileReference),
-				MTP_string(QString())),
+			StorageFileLocation(
+				_dc,
+				session().userId(),
+				MTP_inputDocumentFileLocation(
+					MTP_long(id),
+					MTP_long(_access),
+					MTP_bytes(_fileReference),
+					MTP_string(QString()))),
 			size,
 			origin)
 		: nullptr;
