@@ -338,7 +338,7 @@ void RemoteSource::setImageBytes(const QByteArray &bytes) {
 		&& !bytes.isEmpty()
 		&& bytes.size() <= Storage::kMaxFileInMemory) {
 		Auth().data().cache().putIfEmpty(
-			Data::StorageCacheKey(location),
+			location.file().cacheKey(),
 			Storage::Cache::Database::TaggedValue(
 				base::duplicate(bytes),
 				Data::kImageCacheTag));
@@ -473,7 +473,7 @@ const StorageImageLocation &StorageSource::location() {
 
 std::optional<Storage::Cache::Key> StorageSource::cacheKey() {
 	return _location.valid()
-		? base::make_optional(Data::StorageCacheKey(_location))
+		? base::make_optional(_location.file().cacheKey())
 		: std::nullopt;
 }
 
@@ -508,9 +508,12 @@ FileLoader *StorageSource::createLoader(
 		bool autoLoading) {
 	return _location.valid()
 		? new mtpFileLoader(
-			&_location,
+			_location.file(),
 			origin,
+			UnknownFileLocation,
+			QString(),
 			_size,
+			LoadToCacheAsWell,
 			fromCloud,
 			autoLoading,
 			Data::kImageCacheTag)
@@ -576,7 +579,7 @@ FileLoader *WebCachedSource::createLoader(
 	return _location.isNull()
 		? nullptr
 		: new mtpFileLoader(
-			&_location,
+			_location,
 			_size,
 			fromCloud,
 			autoLoading,
@@ -624,11 +627,11 @@ FileLoader *GeoPointSource::createLoader(
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) {
 	return new mtpFileLoader(
-			&_location,
-			_size,
-			fromCloud,
-			autoLoading,
-			Data::kImageCacheTag);
+		_location,
+		_size,
+		fromCloud,
+		autoLoading,
+		Data::kImageCacheTag);
 }
 
 DelayedStorageSource::DelayedStorageSource()

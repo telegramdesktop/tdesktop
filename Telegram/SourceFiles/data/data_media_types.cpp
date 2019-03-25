@@ -403,7 +403,7 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 			return;
 		}
 		parent()->history()->owner().cache().putIfEmpty(
-			Data::StorageCacheKey(key),
+			key.file().cacheKey(),
 			Storage::Cache::Database::TaggedValue(
 				std::move(size.bytes),
 				Data::kImageCacheTag));

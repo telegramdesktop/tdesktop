@@ -347,7 +347,6 @@ ImagePtr Create(const MTPDwebDocument &document) {
 	auto filesize = 0; // document.vsize.v;
 	return Create(
 		WebFileLocation(
-			Global::WebFileDcId(),
 			document.vurl.v,
 			document.vaccess_hash.v),
 		size.width(),
@@ -375,7 +374,6 @@ ImagePtr Create(const MTPDwebDocument &document, QSize box) {
 	auto filesize = 0; // document.vsize.v;
 	return Create(
 		WebFileLocation(
-			Global::WebFileDcId(),
 			document.vurl.v,
 			document.vaccess_hash.v),
 		box,

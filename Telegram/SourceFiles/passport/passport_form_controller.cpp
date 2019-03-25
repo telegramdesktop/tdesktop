@@ -1712,10 +1712,12 @@ void FormController::loadFile(File &file) {
 	const auto [j, ok] = _fileLoaders.emplace(
 		key,
 		std::make_unique<mtpFileLoader>(
-			file.dcId,
-			file.id,
-			file.accessHash,
-			QByteArray(), // file_reference
+			StorageFileLocation(
+				file.dcId,
+				Auth().userId(),
+				MTP_inputSecureFileLocation(
+					MTP_long(file.id),
+					MTP_long(file.accessHash))),
 			Data::FileOrigin(),
 			SecureFileLocation,
 			QString(),

@@ -73,6 +73,7 @@ public:
 		uint64 accessHash) const;
 
 	[[nodiscard]] int32 dcId() const;
+	[[nodiscard]] uint64 objectId() const;
 	[[nodiscard]] MTPInputFileLocation tl(int32 self) const;
 
 	[[nodiscard]] QByteArray serialize() const;
@@ -194,16 +195,12 @@ inline bool operator!=(
 class WebFileLocation {
 public:
 	WebFileLocation() = default;
-	WebFileLocation(int32 dc, const QByteArray &url, uint64 accessHash)
+	WebFileLocation(const QByteArray &url, uint64 accessHash)
 	: _accessHash(accessHash)
-	, _url(url)
-	, _dc(dc) {
+	, _url(url) {
 	}
 	bool isNull() const {
-		return !_dc;
-	}
-	int32 dc() const {
-		return _dc;
+		return _url.isEmpty();
 	}
 	uint64 accessHash() const {
 		return _accessHash;
@@ -217,13 +214,11 @@ public:
 private:
 	uint64 _accessHash = 0;
 	QByteArray _url;
-	int32 _dc = 0;
 
 	friend inline bool operator==(
 			const WebFileLocation &a,
 			const WebFileLocation &b) {
-		return (a._dc == b._dc)
-			&& (a._accessHash == b._accessHash)
+		return (a._accessHash == b._accessHash)
 			&& (a._url == b._url);
 	}
 
@@ -290,7 +285,6 @@ inline InMemoryKey inMemoryKey(const WebFileLocation &location) {
 	bytes::copy(
 		bytes::object_as_span(&result),
 		bytes::make_span(sha).subspan(0, sizeof(result)));
-	result.first |= (uint64(uint16(location.dc())) << 56);
 	return result;
 }
 

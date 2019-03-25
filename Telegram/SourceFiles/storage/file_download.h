@@ -205,17 +205,7 @@ class WebFileLocation;
 class mtpFileLoader : public FileLoader, public RPCSender {
 public:
 	mtpFileLoader(
-		not_null<StorageImageLocation*> location,
-		Data::FileOrigin origin,
-		int32 size,
-		LoadFromCloudSetting fromCloud,
-		bool autoLoading,
-		uint8 cacheTag);
-	mtpFileLoader(
-		int32 dc,
-		uint64 id,
-		uint64 accessHash,
-		const QByteArray &fileReference,
+		const StorageFileLocation &location,
 		Data::FileOrigin origin,
 		LocationType type,
 		const QString &toFile,
@@ -225,13 +215,13 @@ public:
 		bool autoLoading,
 		uint8 cacheTag);
 	mtpFileLoader(
-		const WebFileLocation *location,
+		const WebFileLocation &location,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
 	mtpFileLoader(
-		const GeoPointLocation *location,
+		const GeoPointLocation &location,
 		int32 size,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
@@ -240,9 +230,7 @@ public:
 	int32 currentOffset(bool includeSkipped = false) const override;
 	Data::FileOrigin fileOrigin() const override;
 
-	uint64 objId() const override {
-		return _id;
-	}
+	uint64 objId() const override;
 
 	void stop() override {
 		rpcInvalidate();
@@ -269,12 +257,11 @@ private:
 	std::optional<Storage::Cache::Key> cacheKey() const override;
 	void cancelRequests() override;
 
+	MTP::DcId dcId() const;
 	int partSize() const;
 	RequestData prepareRequest(int offset) const;
 	void makeRequest(int offset);
 
-	[[nodiscard]] MTPInputFileLocation computeLocation() const;
-	[[nodiscard]] QByteArray computeFileReference() const;
 	bool loadPart() override;
 	void normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId);
 	void webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId);
@@ -290,6 +277,7 @@ private:
 	bool normalPartFailed(QByteArray fileReference, const RPCError &error, mtpRequestId requestId);
 	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
 
+	mtpRequestId sendRequest(const RequestData &requestData);
 	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);
 	int finishSentRequestGetOffset(mtpRequestId requestId);
 	void switchToCDN(int offset, const MTPDupload_fileCdnRedirect &redirect);
@@ -309,15 +297,10 @@ private:
 	int32 _skippedBytes = 0;
 	int32 _nextRequestOffset = 0;
 
-	MTP::DcId _dcId = 0; // for photo locations
-	StorageImageLocation *_location = nullptr;
-
-	uint64 _id = 0; // for document locations
-	uint64 _accessHash = 0;
-	QByteArray _fileReference;
-
-	const WebFileLocation *_urlLocation = nullptr; // for webdocument locations
-	const GeoPointLocation *_geoLocation = nullptr; // for webdocument locations
+	base::variant<
+		StorageFileLocation,
+		WebFileLocation,
+		GeoPointLocation> _location;
 
 	Data::FileOrigin _origin;
 

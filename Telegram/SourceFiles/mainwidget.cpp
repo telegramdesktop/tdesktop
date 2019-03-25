@@ -1246,7 +1246,7 @@ void MainWidget::exportTopBarHeightUpdated() {
 }
 
 void MainWidget::documentLoadProgress(FileLoader *loader) {
-	if (auto documentId = loader ? loader->objId() : 0) {
+	if (const auto documentId = loader ? loader->objId() : 0) {
 		documentLoadProgress(session().data().document(documentId));
 	}
 }
@@ -1261,10 +1261,10 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 }
 
 void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
-	auto documentId = loader ? loader->objId() : 0;
+	const auto documentId = loader ? loader->objId() : 0;
 	if (!documentId) return;
 
-	auto document = session().data().document(documentId);
+	const auto document = session().data().document(documentId);
 	if (started) {
 		const auto origin = loader->fileOrigin();
 		const auto failedFileName = loader->fileName();

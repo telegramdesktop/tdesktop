@@ -851,7 +851,7 @@ void DocumentData::save(
 		status = FileReady;
 		if (hasWebLocation()) {
 			_loader = new mtpFileLoader(
-				&_urlLocation,
+				_urlLocation,
 				size,
 				fromCloud,
 				autoLoading,
@@ -865,10 +865,14 @@ void DocumentData::save(
 				cacheTag());
 		} else {
 			_loader = new mtpFileLoader(
-				_dc,
-				id,
-				_access,
-				_fileReference,
+				StorageFileLocation(
+					_dc,
+					session().userId(),
+					MTP_inputDocumentFileLocation(
+						MTP_long(id),
+						MTP_long(_access),
+						MTP_bytes(_fileReference),
+						MTP_string(QString()))),
 				origin,
 				locationType(),
 				toFile,
@@ -1209,7 +1213,7 @@ auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 }
 
 bool DocumentData::hasWebLocation() const {
-	return _urlLocation.dc() != 0 && _urlLocation.accessHash() != 0;
+	return !_urlLocation.url().isEmpty();
 }
 
 bool DocumentData::isNull() const {

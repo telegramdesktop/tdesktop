@@ -150,6 +150,10 @@ int32 StorageFileLocation::dcId() const {
 	return _dcId;
 }
 
+uint64 StorageFileLocation::objectId() const {
+	return _id;
+}
+
 MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 	switch (_type) {
 	case Type::Legacy:
