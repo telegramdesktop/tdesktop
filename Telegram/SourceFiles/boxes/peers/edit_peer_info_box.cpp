@@ -176,6 +176,7 @@ private:
 	object_ptr<Ui::RpWidget> createManageGroupButtons();
 	object_ptr<Ui::RpWidget> createStickersEdit();
 
+	bool canEditInformation() const;
 	void refreshHistoryVisibility(bool instant);
 	void showEditPeerTypeBox(std::optional<LangKey> error = std::nullopt);
 	void fillPrivacyTypeButton();
@@ -283,15 +284,7 @@ void Controller::setFocus() {
 object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	Expects(_wrap != nullptr);
 
-	const auto canEdit = [&] {
-		if (const auto channel = _peer->asChannel()) {
-			return channel->canEditInformation();
-		} else if (const auto chat = _peer->asChat()) {
-			return chat->canEditInformation();
-		}
-		return false;
-	}();
-	if (!canEdit) {
+	if (!canEditInformation()) {
 		return nullptr;
 	}
 
@@ -369,6 +362,10 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	Expects(_wrap != nullptr);
 
+	if (!canEditInformation()) {
+		return nullptr;
+	}
+
 	auto result = object_ptr<Ui::PaddingWrap<Ui::InputField>>(
 		_wrap,
 		object_ptr<Ui::InputField>(
@@ -445,6 +442,15 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	});
 
 	return std::move(result);
+}
+
+bool Controller::canEditInformation() const {
+	if (const auto channel = _peer->asChannel()) {
+		return channel->canEditInformation();
+	} else if (const auto chat = _peer->asChat()) {
+		return chat->canEditInformation();
+	}
+	return false;
 }
 
 void Controller::refreshHistoryVisibility(bool instant = false) {
@@ -795,7 +801,9 @@ std::optional<Controller::Saving> Controller::validate() const {
 }
 
 bool Controller::validateUsername(Saving &to) const {
-	if (_privacySavedValue != Privacy::Public) {
+	if (!_privacySavedValue) {
+		return true;
+	} else if (_privacySavedValue != Privacy::Public) {
 		to.username = QString();
 		return true;
 	}
