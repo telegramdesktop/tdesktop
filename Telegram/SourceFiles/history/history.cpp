@@ -2897,7 +2897,13 @@ void History::clearBlocks(bool leaveItems) {
 	if (leaveItems) {
 		_owner->notifyHistoryUnloaded(this);
 	} else {
-		setLastMessage(nullptr);
+		if (peer->isChannel()) {
+			// We left the channel.
+			_lastMessage = std::nullopt;
+		} else {
+			// History was deleted.
+			setLastMessage(nullptr);
+		}
 		notifies.clear();
 		_owner->notifyHistoryCleared(this);
 	}
@@ -2909,7 +2915,7 @@ void History::clearBlocks(bool leaveItems) {
 		if (auto channel = peer->asChannel()) {
 			channel->clearPinnedMessage();
 			if (const auto feed = channel->feed()) {
-				// Should be after setLastMessage(nullptr);
+				// Should be after resetting the _lastMessage.
 				feed->historyCleared(this);
 			}
 		}
