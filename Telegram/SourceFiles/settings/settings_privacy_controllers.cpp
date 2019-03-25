@@ -722,6 +722,10 @@ QString ProfilePhotoPrivacyController::title() {
 	return lang(lng_edit_privacy_profile_photo_title);
 }
 
+bool ProfilePhotoPrivacyController::hasOption(Option option) {
+	return (option != Option::Nobody);
+}
+
 LangKey ProfilePhotoPrivacyController::optionsTitleKey() {
 	return lng_edit_privacy_profile_photo_header;
 }

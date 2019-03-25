@@ -159,6 +159,7 @@ public:
 	MTPInputPrivacyKey apiKey() override;
 
 	QString title() override;
+	bool hasOption(Option option) override;
 	LangKey optionsTitleKey() override;
 	LangKey exceptionButtonTextKey(Exception exception) override;
 	QString exceptionBoxTitle(Exception exception) override;
