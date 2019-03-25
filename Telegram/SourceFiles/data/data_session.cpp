@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "mainwidget.h"
 #include "core/application.h"
 #include "core/crash_reports.h" // for CrashReports::SetAnnotation
 #include "ui/image/image.h"
@@ -715,6 +716,25 @@ not_null<History*> Session::history(not_null<const PeerData*> peer) {
 
 History *Session::historyLoaded(const PeerData *peer) {
 	return peer ? historyLoaded(peer->id) : nullptr;
+}
+
+void Session::deleteConversationLocally(not_null<PeerData*> peer) {
+	const auto history = historyLoaded(peer);
+	if (history) {
+		setPinnedDialog(history, false);
+		App::main()->removeDialog(history);
+		history->clear();
+	}
+	if (const auto channel = peer->asMegagroup()) {
+		channel->addFlags(MTPDchannel::Flag::f_left);
+		if (const auto from = channel->getMigrateFromChat()) {
+			if (const auto migrated = historyLoaded(from)) {
+				migrated->updateChatListExistence();
+			}
+		}
+	} else if (history) {
+		history->markFullyLoaded();
+	}
 }
 
 void Session::registerSendAction(

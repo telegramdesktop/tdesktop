@@ -2363,21 +2363,6 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 }
 
 void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
-	if (const auto history = _session->data().historyLoaded(peer->id)) {
-		_session->data().setPinnedDialog(history, false);
-		App::main()->removeDialog(history);
-		history->clear();
-		if (const auto channel = peer->asMegagroup()) {
-			channel->addFlags(MTPDchannel::Flag::f_left);
-			if (const auto from = channel->getMigrateFromChat()) {
-				if (const auto migrated = _session->data().historyLoaded(from)) {
-					migrated->updateChatListExistence();
-				}
-			}
-		} else {
-			history->markFullyLoaded();
-		}
-	}
 	if (const auto chat = peer->asChat()) {
 		request(MTPmessages_DeleteChatUser(
 			chat->inputChat,
@@ -2388,13 +2373,13 @@ void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
 		}).fail([=](const RPCError &error) {
 			deleteHistory(peer, false, revoke);
 		}).send();
-		return;
 	} else if (const auto channel = peer->asChannel()) {
 		channel->ptsWaitingForShortPoll(-1);
 		leaveChannel(channel);
 	} else {
 		deleteHistory(peer, false, revoke);
 	}
+	_session->data().deleteConversationLocally(peer);
 }
 
 void ApiWrap::deleteHistory(not_null<PeerData*> peer, bool justClear, bool revoke) {

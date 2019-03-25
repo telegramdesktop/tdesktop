@@ -125,6 +125,8 @@ public:
 	[[nodiscard]] not_null<History*> history(not_null<const PeerData*> peer);
 	[[nodiscard]] History *historyLoaded(const PeerData *peer);
 
+	void deleteConversationLocally(not_null<PeerData*> peer);
+
 	void registerSendAction(
 		not_null<History*> history,
 		not_null<UserData*> user,
