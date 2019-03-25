@@ -32,6 +32,7 @@ private:
 	enum class Reason {
 		Spam,
 		Violence,
+		ChildAbuse,
 		Pornography,
 		Other,
 	};
@@ -49,6 +50,7 @@ private:
 	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;
 	object_ptr<Ui::Radioenum<Reason>> _reasonSpam = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonViolence = { nullptr };
+	object_ptr<Ui::Radioenum<Reason>> _reasonChildAbuse = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonPornography = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonOther = { nullptr };
 	object_ptr<Ui::InputField> _reasonOtherText = { nullptr };

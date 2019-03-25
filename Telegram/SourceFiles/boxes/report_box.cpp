@@ -64,6 +64,9 @@ void ReportBox::prepare() {
 	};
 	createButton(_reasonSpam, Reason::Spam, lng_report_reason_spam);
 	createButton(_reasonViolence, Reason::Violence, lng_report_reason_violence);
+	if (_ids) {
+		createButton(_reasonChildAbuse, Reason::ChildAbuse, lng_report_reason_child_abuse);
+	}
 	createButton(_reasonPornography, Reason::Pornography, lng_report_reason_pornography);
 	createButton(_reasonOther, Reason::Other, lng_report_reason_other);
 	_reasonGroup->setChangedCallback([=](Reason value) {
@@ -78,7 +81,13 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 
 	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _reasonSpam->getMargins().top());
 	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
-	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	if (_ids) {
+		_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonChildAbuse->bottomNoMargins() + st::boxOptionListSkip);
+	}
+	else{
+		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	}
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
 	if (_reasonOtherText) {
@@ -136,6 +145,7 @@ void ReportBox::report() {
 		switch (_reasonGroup->value()) {
 		case Reason::Spam: return MTP_inputReportReasonSpam();
 		case Reason::Violence: return MTP_inputReportReasonViolence();
+		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
 		case Reason::Other: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
 		}
@@ -180,7 +190,9 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+	const auto buttonsCount = _ids ? 5 : 4;
+	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + buttonsCount * _reasonSpam->heightNoMargins() + (buttonsCount - 1) * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+			
 	if (_reasonOtherText) {
 		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}
