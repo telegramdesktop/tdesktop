@@ -273,7 +273,8 @@ private:
 	RequestData prepareRequest(int offset) const;
 	void makeRequest(int offset);
 
-	MTPInputFileLocation computeLocation() const;
+	[[nodiscard]] MTPInputFileLocation computeLocation() const;
+	[[nodiscard]] QByteArray computeFileReference() const;
 	bool loadPart() override;
 	void normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId);
 	void webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId);
@@ -286,6 +287,7 @@ private:
 	void partLoaded(int offset, bytes::const_span buffer);
 
 	bool partFailed(const RPCError &error, mtpRequestId requestId);
+	bool normalPartFailed(QByteArray fileReference, const RPCError &error, mtpRequestId requestId);
 	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
 
 	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);

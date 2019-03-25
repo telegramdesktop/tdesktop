@@ -762,7 +762,9 @@ void mtpFileLoader::makeRequest(int offset) {
 					MTP_int(offset),
 					MTP_int(limit)),
 				rpcDone(&mtpFileLoader::normalPartLoaded),
-				rpcFail(&mtpFileLoader::partFailed),
+				rpcFail(
+					&mtpFileLoader::normalPartFailed,
+					computeFileReference()),
 				shiftedDcId,
 				50);
 		}
@@ -783,6 +785,15 @@ MTPInputFileLocation mtpFileLoader::computeLocation() const {
 		MTP_long(_accessHash),
 		MTP_bytes(_fileReference),
 		MTP_string(QString()));
+}
+
+QByteArray mtpFileLoader::computeFileReference() const {
+	if (_location) {
+		return _location->fileReference();
+	} else if (_locationType == SecureFileLocation) {
+		return QByteArray();
+	}
+	return _fileReference;
 }
 
 void mtpFileLoader::requestMoreCdnFileHashes() {
@@ -1076,7 +1087,8 @@ void mtpFileLoader::partLoaded(int offset, bytes::const_span buffer) {
 	}
 }
 
-bool mtpFileLoader::partFailed(
+bool mtpFileLoader::normalPartFailed(
+		QByteArray fileReference,
 		const RPCError &error,
 		mtpRequestId requestId) {
 	if (MTP::isDefaultHandledError(error)) {
@@ -1088,8 +1100,18 @@ bool mtpFileLoader::partFailed(
 			_origin,
 			this,
 			requestId,
-			_location ? _location->fileReference() : _fileReference);
+			fileReference);
 		return true;
+	}
+	return partFailed(error, requestId);
+}
+
+
+bool mtpFileLoader::partFailed(
+		const RPCError &error,
+		mtpRequestId requestId) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
 	}
 	cancel(true);
 	return true;
