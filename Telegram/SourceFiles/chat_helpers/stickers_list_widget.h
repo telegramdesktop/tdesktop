@@ -246,6 +246,7 @@ private:
 	void showPreview();
 
 	ChannelData *_megagroupSet = nullptr;
+	uint64 _megagroupSetIdRequested = 0;
 	std::vector<Set> _mySets;
 	std::vector<Set> _featuredSets;
 	std::vector<Set> _searchSets;

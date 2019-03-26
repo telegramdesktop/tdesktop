@@ -2015,38 +2015,47 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	if (canEdit && hidden) {
 		removeHiddenForGroup();
 	}
-	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
-		auto &set = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID();
-		auto &sets = Auth().data().stickerSets();
-		auto it = sets.constFind(set.vid.v);
-		if (it != sets.cend()) {
-			auto isInstalled = (it->flags & MTPDstickerSet::Flag::f_installed_date)
-				&& !(it->flags & MTPDstickerSet::Flag::f_archived);
-			if (isInstalled && !canEdit) {
-				removeHiddenForGroup();
-			} else if (isShownHere(hidden)) {
-				const auto shortName = QString();
-				const auto thumbnail = ImagePtr();
-				const auto externalLayout = false;
-				_mySets.emplace_back(
-					Stickers::MegagroupSetId,
-					MTPDstickerSet_ClientFlag::f_special | 0,
-					lang(lng_group_stickers),
-					shortName,
-					thumbnail,
-					externalLayout,
-					it->count,
-					it->stickers);
-			}
-			return;
-		}
-	}
-	if (!isShownHere(hidden)) {
+	if (_megagroupSet->mgInfo->stickerSet.type() != mtpc_inputStickerSetID) {
 		return;
 	}
-	request(MTPmessages_GetStickerSet(_megagroupSet->mgInfo->stickerSet)).done([this](const MTPmessages_StickerSet &result) {
-		if (auto set = Stickers::FeedSetFull(result)) {
+	auto &set = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID();
+	auto &sets = Auth().data().stickerSets();
+	auto it = sets.constFind(set.vid.v);
+	if (it != sets.cend()) {
+		auto isInstalled = (it->flags & MTPDstickerSet::Flag::f_installed_date)
+			&& !(it->flags & MTPDstickerSet::Flag::f_archived);
+		if (isInstalled && !canEdit) {
+			removeHiddenForGroup();
+		} else if (isShownHere(hidden)) {
+			const auto shortName = QString();
+			const auto thumbnail = ImagePtr();
+			const auto externalLayout = false;
+			_mySets.emplace_back(
+				Stickers::MegagroupSetId,
+				MTPDstickerSet_ClientFlag::f_special | 0,
+				lang(lng_group_stickers),
+				shortName,
+				thumbnail,
+				externalLayout,
+				it->count,
+				it->stickers);
+		}
+		return;
+	} else if (!isShownHere(hidden)
+		|| _megagroupSetIdRequested == set.vid.v) {
+		return;
+	}
+	_megagroupSetIdRequested = set.vid.v;
+	request(MTPmessages_GetStickerSet(
+		_megagroupSet->mgInfo->stickerSet
+	)).done([=](const MTPmessages_StickerSet &result) {
+		if (const auto set = Stickers::FeedSetFull(result)) {
 			refreshStickers();
+			if (set->id == _megagroupSetIdRequested) {
+				_megagroupSetIdRequested = 0;
+			} else {
+				LOG(("API Error: Got different set."));
+			}
 		}
 	}).send();
 }
