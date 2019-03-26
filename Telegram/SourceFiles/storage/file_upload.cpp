@@ -329,7 +329,7 @@ void Uploader::sendNext() {
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
-					_photoReady.fire({ uploadingId, silent, file });
+					_photoReady.fire({ uploadingId, silent, file, uploadingData.file->edit });
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::WallPaper
 					|| uploadingData.type() == SendMediaType::Audio) {
@@ -364,7 +364,7 @@ void Uploader::sendNext() {
 							file,
 							thumb });
 					} else {
-						_documentReady.fire({ uploadingId, silent, file });
+						_documentReady.fire({ uploadingId, silent, file, uploadingData.file->edit });
 					}
 				} else if (uploadingData.type() == SendMediaType::Secure) {
 					_secureReady.fire({

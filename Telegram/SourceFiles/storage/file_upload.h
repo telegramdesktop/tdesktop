@@ -19,12 +19,14 @@ struct UploadedPhoto {
 	FullMsgId fullId;
 	bool silent = false;
 	MTPInputFile file;
+	bool edit = false;
 };
 
 struct UploadedDocument {
 	FullMsgId fullId;
 	bool silent = false;
 	MTPInputFile file;
+	bool edit = false;
 };
 
 struct UploadedThumbDocument {
@@ -32,6 +34,7 @@ struct UploadedThumbDocument {
 	bool silent = false;
 	MTPInputFile file;
 	MTPInputFile thumb;
+	bool edit = false;
 };
 
 struct UploadSecureProgress {

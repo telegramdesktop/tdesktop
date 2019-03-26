@@ -442,7 +442,7 @@ private:
 		MsgId replyTo,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 
-	void subscribeToUploader(bool edit = false);
+	void subscribeToUploader();
 
 	void photoUploaded(
 		const FullMsgId &msgId,

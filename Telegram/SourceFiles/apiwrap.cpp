@@ -4483,7 +4483,9 @@ void ApiWrap::editMedia(
 			std::move(file.information),
 			type,
 			to,
-			caption));
+			caption,
+			nullptr,
+			true));
 	}
 	_fileLoader->addTasks(std::move(tasks));
 }

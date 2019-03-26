@@ -4173,14 +4173,14 @@ void HistoryWidget::uploadFile(
 	Auth().api().sendFile(fileContent, type, options);
 }
 
-void HistoryWidget::subscribeToUploader(bool edit) {
+void HistoryWidget::subscribeToUploader() {
 	if (_uploaderSubscriptions) {
 		return;
 	}
 	using namespace Storage;
 	Auth().uploader().photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
-		edit
+		data.edit
 		? photoEdited(data.fullId, data.silent, data.file)
 		: photoUploaded(data.fullId, data.silent, data.file);
 	}, _uploaderSubscriptions);
@@ -4194,7 +4194,7 @@ void HistoryWidget::subscribeToUploader(bool edit) {
 	}, _uploaderSubscriptions);
 	Auth().uploader().documentReady(
 	) | rpl::start_with_next([=](const UploadedDocument &data) {
-		edit
+		data.edit
 		? documentEdited(data.fullId, data.silent, data.file)
 		: documentUploaded(data.fullId, data.silent, data.file);
 	}, _uploaderSubscriptions);
@@ -4236,9 +4236,8 @@ void HistoryWidget::sendFileConfirmed(
 
 		it->msgId = newId;
 	}
-
-	subscribeToUploader(isEditing);
-
+	subscribeToUploader();
+	file->edit = isEditing;
 	Auth().uploader().upload(newId, file);
 
 	const auto history = Auth().data().history(file->to.peer);

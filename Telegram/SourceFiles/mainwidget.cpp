@@ -1319,6 +1319,7 @@ void MainWidget::onEditMedia(
 		const std::shared_ptr<FileLoadResult> &file,
 		const FullMsgId &oldId) {
 	LOG(("ON EDIT MEDIA"));
+	App::main()->setEditMedia(FullMsgId());
 	_history->sendFileConfirmed(file, oldId);
 }
 

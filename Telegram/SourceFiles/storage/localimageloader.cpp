@@ -528,7 +528,8 @@ FileLoadTask::FileLoadTask(
 	SendMediaType type,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
-	std::shared_ptr<SendingAlbum> album)
+	std::shared_ptr<SendingAlbum> album,
+	std::optional<bool> edit)
 : _id(rand_value<uint64>())
 , _to(to)
 , _album(std::move(album))
@@ -536,7 +537,8 @@ FileLoadTask::FileLoadTask(
 , _content(content)
 , _information(std::move(information))
 , _type(type)
-, _caption(caption) {
+, _caption(caption)
+, _edit(edit) {
 }
 
 FileLoadTask::FileLoadTask(
@@ -696,6 +698,8 @@ void FileLoadTask::process() {
 		_to,
 		_caption,
 		_album);
+
+	_result->edit = _edit.value_or(false);
 
 	QString filename, filemime;
 	qint64 filesize = 0;
