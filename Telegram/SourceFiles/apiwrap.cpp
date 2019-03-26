@@ -109,7 +109,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
 	if (dimensions.width() > 0 && dimensions.height() > 0) {
 		const auto duration = document->getDuration();
-		if (duration >= 0) {
+		if (duration >= 0 && !document->hasMimeType(qstr("image/gif"))) {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
 			if (document->isVideoMessage()) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
