@@ -942,9 +942,11 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 		}
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else {
-		if (!media || !_media || !_media->updateSentMedia(*media)) {
+		const auto shouldUpdate = _isEditingMedia ? true : !_media->updateSentMedia(*media);
+		if (!media || !_media || shouldUpdate) {
 			refreshSentMedia(media);
 		}
+		_isEditingMedia = false;
 	}
 	history()->owner().requestItemResize(this);
 }

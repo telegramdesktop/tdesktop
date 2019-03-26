@@ -4290,6 +4290,11 @@ void HistoryWidget::sendFileConfirmed(
 	const auto messageType = isEditing
 		? NewMessageExisting
 		: NewMessageUnread;
+	if (isEditing) {
+		if (const auto itemToEdit = App::histItemById(newId)) {
+			itemToEdit->setIsEditingMedia(true);
+		}
+	}
 	if (file->type == SendMediaType::Photo) {
 		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
 		auto photo = MTP_messageMediaPhoto(

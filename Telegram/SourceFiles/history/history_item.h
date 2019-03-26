@@ -122,6 +122,10 @@ public:
 	bool hasUnreadMediaFlag() const;
 	void markMediaRead();
 
+	void setIsEditingMedia(bool edit) {
+		_isEditingMedia = edit;
+	}
+
 	// Zero result means this message is not self-destructing right now.
 	virtual crl::time getSelfDestructIn(crl::time now) {
 		return 0;
@@ -310,6 +314,7 @@ protected:
 	int _textWidth = -1;
 	int _textHeight = 0;
 
+	bool _isEditingMedia = false;
 	std::unique_ptr<Data::Media> _media;
 
 private:
