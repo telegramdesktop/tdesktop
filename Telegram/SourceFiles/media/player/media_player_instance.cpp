@@ -597,7 +597,6 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		}
 		setCurrent(state.id);
 		if (data->streamed && !data->streamed->info.video.size.isEmpty()) {
-			LOG(("ID: %1, PROGRESS: %1 / %2").arg(state.id.audio()->id).arg(state.position).arg(state.length));
 			data->streamed->progress.updateState(state);
 		}
 		_updatedNotifier.notify(state, true);

@@ -803,9 +803,7 @@ void Mixer::play(
 				emit loaderOnCancel(current->state.id);
 				emit faderOnTimer();
 			}
-			if (type == AudioMsgId::Type::Video) {
-				current->clear();
-			} else {
+			if (type != AudioMsgId::Type::Video) {
 				auto foundCurrent = currentIndex(type);
 				auto index = 0;
 				for (; index != kTogetherLimit; ++index) {
@@ -821,10 +819,8 @@ void Mixer::play(
 			}
 		}
 
-		if (current->state.id != audio) {
-			current->started(); // Clear all previous state.
-			current->state.id = audio;
-		}
+		current->clear(); // Clear all previous state.
+		current->state.id = audio;
 		current->lastUpdateWhen = 0;
 		current->lastUpdatePosition = 0;
 		if (externalData) {
