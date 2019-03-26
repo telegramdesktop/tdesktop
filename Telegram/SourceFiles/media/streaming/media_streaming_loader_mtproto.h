@@ -55,7 +55,6 @@ private:
 		const QVector<MTPFileHash> &hashes);
 
 	const not_null<ApiWrap*> _api;
-	const MTP::DcId _dcId = 0;
 
 	// _location can be changed with an updated file_reference.
 	StorageFileLocation _location;

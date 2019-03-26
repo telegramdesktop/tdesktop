@@ -524,7 +524,7 @@ ScopeRow ComputeScopeRow(const Scope &scope) {
 				}
 			}
 		}
-		return row;
+		return std::move(row);
 	};
 	switch (scope.type) {
 	case Scope::Type::PersonalDetails:

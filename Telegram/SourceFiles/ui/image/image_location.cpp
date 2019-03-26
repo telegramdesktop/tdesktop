@@ -343,8 +343,6 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 }
 
 Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
-	using Key = Storage::Cache::Key;
-
 	// Skip '1' and '2' for legacy document cache keys.
 	const auto shifted = ((uint64(_type) + 3) << 8);
 	const auto sliced = uint64(_dcId) & 0xFFULL;
