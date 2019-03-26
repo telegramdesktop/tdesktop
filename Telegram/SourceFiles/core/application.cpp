@@ -521,9 +521,6 @@ void Application::startMtp() {
 	if (_authSession) {
 		// Skip all pending self updates so that we won't Local::writeSelf.
 		Notify::peerUpdatedSendDelayed();
-
-		Media::Player::mixer()->setVoicePlaybackDoubled(
-			Global::VoiceMsgPlaybackDoubled());
 	}
 }
 
@@ -987,7 +984,6 @@ void Application::loggedOut() {
 	clearPasscodeLock();
 	Media::Player::mixer()->stopAndClear();
 	Global::SetVoiceMsgPlaybackDoubled(false);
-	Media::Player::mixer()->setVoicePlaybackDoubled(false);
 	if (const auto window = getActiveWindow()) {
 		window->tempDirDelete(Local::ClearManagerAll);
 		window->setupIntro();

@@ -31,7 +31,6 @@ namespace {
 
 constexpr auto kSuppressRatioAll = 0.2;
 constexpr auto kSuppressRatioSong = 0.05;
-constexpr auto kPlaybackSpeedMultiplier = 1.7;
 constexpr auto kWaveformCounterBufferSize = 256 * 1024;
 
 QMutex AudioMutex;
@@ -57,15 +56,6 @@ namespace Audio {
 namespace {
 
 Player::Mixer *MixerInstance = nullptr;
-
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
-struct PlaybackSpeedData {
-	ALuint uiEffectSlot = 0;
-	ALuint uiEffect = 0;
-	ALuint uiFilter = 0;
-};
-PlaybackSpeedData _playbackSpeedData;
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 // Thread: Any.
 bool ContextErrorHappened() {
@@ -167,26 +157,6 @@ bool CreatePlaybackDevice() {
 	alListener3f(AL_VELOCITY, 0.f, 0.f, 0.f);
 	alListenerfv(AL_ORIENTATION, v);
 
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
-	// playback speed related init
-	// generate an effect slot and an effect
-	alGenAuxiliaryEffectSlots(1, &_playbackSpeedData.uiEffectSlot);
-	alGenEffects(1, &_playbackSpeedData.uiEffect);
-	// initialize the pitch shifter effect
-	alEffecti(_playbackSpeedData.uiEffect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
-	// 12 semitones = 1 octave
-	alEffecti(_playbackSpeedData.uiEffect, AL_PITCH_SHIFTER_COARSE_TUNE, CoarseTuneForSpeed(kPlaybackSpeedMultiplier));
-	// connect the effect with the effect slot
-	alAuxiliaryEffectSloti(_playbackSpeedData.uiEffectSlot, AL_EFFECTSLOT_EFFECT, _playbackSpeedData.uiEffect);
-	// initialize a filter to disable the direct (dry) path
-	alGenFilters(1, &_playbackSpeedData.uiFilter);
-	alFilteri(_playbackSpeedData.uiFilter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-	// disable all frequencies
-	alFilterf(_playbackSpeedData.uiFilter, AL_LOWPASS_GAIN, 0.f);
-	// to use the modified playback speed:
-	// connect both the effect slot and filter with the stream source and set AL_PITCH
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
-
 	alDistanceModel(AL_NONE);
 
 	return true;
@@ -197,16 +167,6 @@ void ClosePlaybackDevice(not_null<Instance*> instance) {
 	if (!AudioDevice) return;
 
 	LOG(("Audio Info: Closing audio playback device."));
-
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
-	// playback speed related
-	alDeleteFilters(1, &_playbackSpeedData.uiFilter);
-	alDeleteEffects(1, &_playbackSpeedData.uiEffect);
-	alDeleteAuxiliaryEffectSlots(1, &_playbackSpeedData.uiEffectSlot);
-	_playbackSpeedData.uiFilter = 0;
-	_playbackSpeedData.uiEffect = 0;
-	_playbackSpeedData.uiEffectSlot = 0;
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 
 	if (Player::mixer()) {
 		Player::mixer()->detachTracks();
@@ -353,21 +313,20 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 	alSourcei(stream.source, AL_LOOPING, 0);
 	alSourcei(stream.source, AL_DIRECT_CHANNELS_SOFT, 1);
 	alGenBuffers(3, stream.buffers);
-	if (type == AudioMsgId::Type::Voice) {
-		mixer()->updatePlaybackSpeed(this);
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
-	} else if (speedEffect) {
+	if (speedEffect) {
 		applySourceSpeedEffect();
 	} else {
 		removeSourceSpeedEffect();
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 	}
+#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 }
 
 #ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 void Mixer::Track::removeSourceSpeedEffect() {
 	alSource3i(stream.source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
 	alSourcei(stream.source, AL_DIRECT_FILTER, AL_FILTER_NULL);
+	alSourcef(stream.source, AL_PITCH, 1.f);
 }
 
 void Mixer::Track::applySourceSpeedEffect() {
@@ -411,11 +370,9 @@ void Mixer::Track::resetSpeedEffect() {
 		if (isStreamCreated()) {
 			removeSourceSpeedEffect();
 		}
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
 		alDeleteEffects(1, &speedEffect->effect);
 		alDeleteAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
 		alDeleteFilters(1, &speedEffect->filter);
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
 	}
 	speedEffect->effect = speedEffect->effectSlot = speedEffect->filter = 0;
 }
@@ -1157,35 +1114,6 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 	if (current) emit updated(current);
 }
 
-// Thread: Any. Must be locked: AudioMutex.
-void Mixer::updatePlaybackSpeed(Track *track) {
-	const auto doubled = (_voicePlaybackDoubled.loadAcquire() == 1);
-	updatePlaybackSpeed(track, doubled);
-}
-
-void Mixer::updatePlaybackSpeed(Track *track, bool doubled) {
-	if (!track->isStreamCreated()) {
-		return;
-	}
-#ifndef TDESKTOP_DISABLE_OPENAL_EFFECTS
-	const auto source = track->stream.source;
-	// Note: This alters the playback speed AND the pitch
-	alSourcef(source, AL_PITCH, doubled ? kPlaybackSpeedMultiplier : 1.);
-	// fix the pitch using effects and filters
-	if (doubled) {
-		// connect the effect slot with the stream
-		alSource3i(source, AL_AUXILIARY_SEND_FILTER, Media::Audio::_playbackSpeedData.uiEffectSlot, 0, 0);
-		// connect the filter with the stream
-		alSourcei(source, AL_DIRECT_FILTER, Media::Audio::_playbackSpeedData.uiFilter);
-	} else {
-		// disconnect the effect slot
-		alSource3i(source, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, 0);
-		// disconnect the filter
-		alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
-	}
-#endif // TDESKTOP_DISABLE_OPENAL_EFFECTS
-}
-
 void Mixer::stopAndClear() {
 	Track *current_audio = nullptr, *current_song = nullptr;
 	{
@@ -1280,16 +1208,6 @@ void Mixer::reattachTracks() {
 		trackForType(AudioMsgId::Type::Song, i)->reattach(AudioMsgId::Type::Song);
 	}
 	_videoTrack.reattach(AudioMsgId::Type::Video);
-}
-
-// Thread: Any. Locks AudioMutex.
-void Mixer::setVoicePlaybackDoubled(bool doubled) {
-	_voicePlaybackDoubled.storeRelease(doubled ? 1 : 0);
-
-	QMutexLocker lock(&AudioMutex);
-	for (auto &track : _audioTracks) {
-		updatePlaybackSpeed(&track, doubled);
-	}
 }
 
 void Mixer::setSongVolume(float64 volume) {

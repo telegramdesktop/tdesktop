@@ -31,6 +31,8 @@ namespace {
 
 Instance *SingleInstance = nullptr;
 
+constexpr auto kVoicePlaybackSpeedMultiplier = 1.7;
+
 // Preload X message ids before and after current.
 constexpr auto kIdsLimit = 32;
 
@@ -408,6 +410,11 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 	result.mode = (document && document->isVideoMessage())
 		? Streaming::Mode::Both
 		: Streaming::Mode::Audio;
+	result.speed = (document
+		&& (document->isVoiceMessage() || document->isVideoMessage())
+		&& Global::VoiceMsgPlaybackDoubled())
+		? kVoicePlaybackSpeedMultiplier
+		: 1.;
 	result.audioId = audioId;
 	result.position = position;
 	return result;
@@ -541,6 +548,16 @@ void Instance::cancelSeeking(AudioMsgId::Type type) {
 		data->seeking = AudioMsgId();
 	}
 	emitUpdate(type);
+}
+
+void Instance::updateVoicePlaybackSpeed() {
+	if (const auto data = getData(AudioMsgId::Type::Voice)) {
+		if (const auto streamed = data->streamed.get()) {
+			streamed->player.setSpeed(Global::VoiceMsgPlaybackDoubled()
+				? kVoicePlaybackSpeedMultiplier
+				: 1.);
+		}
+	}
 }
 
 void Instance::documentLoadProgress(DocumentData *document) {

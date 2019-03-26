@@ -135,7 +135,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	_playbackSpeed->setClickedCallback([=] {
 		const auto doubled = !Global::VoiceMsgPlaybackDoubled();
 		Global::SetVoiceMsgPlaybackDoubled(doubled);
-		mixer()->setVoicePlaybackDoubled(doubled);
+		instance()->updateVoicePlaybackSpeed();
 		updatePlaybackSpeedIcon();
 		Local::writeUserSettings();
 	});
