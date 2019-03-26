@@ -1257,6 +1257,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_image" = "Choose an image";
+"lng_choose_file" = "Choose a file";
 "lng_choose_files" = "Choose files";
 "lng_game_tag" = "Game";
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "storage/storage_media_prepare.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -59,6 +60,8 @@ private:
 	void saveDone(const MTPUpdates &updates);
 	bool saveFail(const RPCError &error);
 
+	void setName(QString nameString, qint64 size);
+
 	int errorTopSkip() const;
 
 	not_null<Window::Controller*> _controller;
@@ -90,6 +93,8 @@ private:
 	int _gifw = 0;
 	int _gifh = 0;
 	int _gifx = 0;
+
+	Storage::PreparedList _preparedList;
 
 	bool _previewCancelled = false;
 	mtpRequestId _saveRequestId = 0;

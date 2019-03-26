@@ -7,38 +7,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/edit_caption_box.h"
 
-#include "ui/widgets/input_fields.h"
-#include "ui/image/image.h"
-#include "ui/text_options.h"
-#include "ui/special_buttons.h"
-#include "media/clip/media_clip_reader.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "data/data_media_types.h"
-#include "data/data_photo.h"
-#include "data/data_document.h"
-#include "data/data_user.h"
-#include "lang/lang_keys.h"
-#include "core/event_filter.h"
+#include "apiwrap.h"
+#include "auth_session.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
-#include "chat_helpers/emoji_suggestions_widget.h"
-#include "window/window_controller.h"
-#include "layout.h"
-#include "auth_session.h"
-#include "apiwrap.h"
-#include "styles/style_history.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat_helpers.h"
-
-#include "storage/storage_media_prepare.h"
-
-#include "core/application.h"
-#include "mainwidget.h"
-
+#include "core/event_filter.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "data/data_document.h"
+#include "data/data_media_types.h"
+#include "data/data_photo.h"
+#include "data/data_user.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "lang/lang_keys.h"
+#include "layout.h"
+#include "mainwidget.h"
+#include "media/clip/media_clip_reader.h"
+#include "storage/storage_media_prepare.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_history.h"
+#include "ui/image/image.h"
+#include "ui/special_buttons.h"
+#include "ui/text_options.h"
+#include "ui/widgets/input_fields.h"
+#include "window/window_controller.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
@@ -112,14 +108,7 @@ EditCaptionBox::EditCaptionBox(
 			const auto nameString = doc->isVoiceMessage()
 				? lang(lng_media_audio)
 				: doc->composeNameString();
-			_name.setText(
-				st::semiboldTextStyle,
-				nameString,
-				Ui::NameTextOptions());
-			_status = formatSizeText(doc->size);
-			_statusw = std::max(
-				_name.maxWidth(),
-				st::normalFont->width(_status));
+			setName(nameString, doc->size);
 			_isImage = doc->isImage();
 			_isAudio = (doc->isVoiceMessage() || doc->isAudioFile());
 		}
@@ -326,57 +315,39 @@ void EditCaptionBox::prepare() {
 				const auto filePath = result.paths.front();
 				LOG(("FILE PATH: %1").arg(filePath));
 				_newMediaPath = filePath;
-				const auto preparedFile = Storage::PrepareMediaList(
+				_preparedList = Storage::PrepareMediaList(
 					QStringList(_newMediaPath),
 					st::sendMediaPreviewSize);
 
-				const auto file = &preparedFile.files.front();
+				const auto file = &_preparedList.files.front();
 				const auto fileMedia = &file->information->media;
 
 				const auto fileinfo = QFileInfo(_newMediaPath);
 				const auto filename = fileinfo.fileName();
 				_isImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
 				_isAudio = false;
-
 				_animated = false;
 				_photo = false;
 				_doc = false;
 
-				if (const auto image = base::get_if<FileMediaInformation::Image>(
-					fileMedia)
+				using Info = FileMediaInformation;
+				if (const auto image = base::get_if<Info::Image>(fileMedia)
 					&& _isImage) {
 					_photo = true;
-				} else if (const auto video = base::get_if<FileMediaInformation::Video>(
-					fileMedia)) {
+				} else if (const auto video =
+						base::get_if<Info::Video>(fileMedia)) {
 					_animated = true;
-				} else if (const auto song = base::get_if<FileMediaInformation::Song>(
-					fileMedia)) {
-					const auto nameString = DocumentData::ComposeNameString(
-						filename,
-						song->title,
-						song->performer);
-
-					_name.setText(
-						st::semiboldTextStyle,
-						nameString,
-						Ui::NameTextOptions());
-					_status = formatSizeText(fileinfo.size());
-					_statusw = std::max(
-						_name.maxWidth(),
-						st::normalFont->width(_status));
-
-					_doc = true;
-					_isAudio = true;
 				} else {
-					_name.setText(
-						st::semiboldTextStyle,
-						filename,
-						Ui::NameTextOptions());
-					_status = formatSizeText(fileinfo.size());
-					_statusw = std::max(
-						_name.maxWidth(),
-						st::normalFont->width(_status));
-
+					auto nameString = filename;
+					if (const auto song =
+							base::get_if<Info::Song>(fileMedia)) {
+						nameString = DocumentData::ComposeNameString(
+							filename,
+							song->title,
+							song->performer);
+						_isAudio = true;
+					}
+					setName(nameString, fileinfo.size());
 					_doc = true;
 				}
 
@@ -393,18 +364,14 @@ void EditCaptionBox::prepare() {
 					_thumbh = _thumb.height();
 					_thumbx = (st::boxWideWidth - _thumbw) / 2;
 				}
-
 				captionResized();
-
 			}
 		};
 
-		auto filters = QStringList(qsl("Any File (*.*)"));
-		filters.push_back(FileDialog::AllFilesFilter());
-
+		const auto filters = QStringList(FileDialog::AllFilesFilter());
 		FileDialog::GetOpenPath(
 			this,
-			lang(lng_choose_image),
+			lang(lng_choose_file),
 			filters.join(qsl(";;")),
 			crl::guard(this, callback));
 	});
@@ -632,17 +599,9 @@ void EditCaptionBox::save() {
 		};
 		item->setText(sending);
 
-		static const auto extensions = {
-			qstr(".jpg"),
-			qstr(".png"),
-		};
-		const auto isPhoto = std::find_if(std::begin(extensions), std::end(extensions), [=](auto &extension) {
-			return _newMediaPath.endsWith(extension, Qt::CaseInsensitive);
-		}) != std::end(extensions);
-
 		Auth().api().editMedia(
-			Storage::PrepareMediaList(QStringList(_newMediaPath), st::sendMediaPreviewSize),
-			isPhoto ? SendMediaType::Photo : SendMediaType::File,
+			std::move(_preparedList),
+			_isImage ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
 			ApiWrap::SendOptions(item->history()));
 		closeBox();
@@ -686,4 +645,15 @@ bool EditCaptionBox::saveFail(const RPCError &error) {
 	}
 	update();
 	return true;
+}
+
+void EditCaptionBox::setName(QString nameString, qint64 size) {
+	_name.setText(
+		st::semiboldTextStyle,
+		nameString,
+		Ui::NameTextOptions());
+	_status = formatSizeText(size);
+	_statusw = std::max(
+		_name.maxWidth(),
+		st::normalFont->width(_status));
 }
