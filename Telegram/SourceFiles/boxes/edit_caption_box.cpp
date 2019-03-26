@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
@@ -325,6 +326,76 @@ void EditCaptionBox::prepare() {
 				const auto filePath = result.paths.front();
 				LOG(("FILE PATH: %1").arg(filePath));
 				_newMediaPath = filePath;
+				const auto preparedFile = Storage::PrepareMediaList(
+					QStringList(_newMediaPath),
+					st::sendMediaPreviewSize);
+
+				const auto file = &preparedFile.files.front();
+				const auto fileMedia = &file->information->media;
+
+				const auto fileinfo = QFileInfo(_newMediaPath);
+				const auto filename = fileinfo.fileName();
+				_isImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
+				_isAudio = false;
+
+				_animated = false;
+				_photo = false;
+				_doc = false;
+
+				if (const auto image = base::get_if<FileMediaInformation::Image>(
+					fileMedia)
+					&& _isImage) {
+					_photo = true;
+				} else if (const auto video = base::get_if<FileMediaInformation::Video>(
+					fileMedia)) {
+					_animated = true;
+				} else if (const auto song = base::get_if<FileMediaInformation::Song>(
+					fileMedia)) {
+					const auto nameString = DocumentData::ComposeNameString(
+						filename,
+						song->title,
+						song->performer);
+
+					_name.setText(
+						st::semiboldTextStyle,
+						nameString,
+						Ui::NameTextOptions());
+					_status = formatSizeText(fileinfo.size());
+					_statusw = std::max(
+						_name.maxWidth(),
+						st::normalFont->width(_status));
+
+					_doc = true;
+					_isAudio = true;
+				} else {
+					_name.setText(
+						st::semiboldTextStyle,
+						filename,
+						Ui::NameTextOptions());
+					_status = formatSizeText(fileinfo.size());
+					_statusw = std::max(
+						_name.maxWidth(),
+						st::normalFont->width(_status));
+
+					_doc = true;
+				}
+
+				_thumbw = 0;
+				_thumbh = 0;
+				_thumbx = 0;
+
+				if (!_doc) {
+					_thumb = App::pixmapFromImageInPlace(
+						file->preview.scaled(st::sendMediaPreviewSize,
+							st::confirmMaxHeight,
+							Qt::KeepAspectRatio));
+					_thumbw = _thumb.width();
+					_thumbh = _thumb.height();
+					_thumbx = (st::boxWideWidth - _thumbw) / 2;
+				}
+
+				captionResized();
+
 			}
 		};
 
