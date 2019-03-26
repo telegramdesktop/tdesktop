@@ -4288,6 +4288,9 @@ void HistoryWidget::sendFileConfirmed(
 	auto messagePostAuthor = channelPost
 		? App::peerName(Auth().user())
 		: QString();
+	const auto messageType = isEditing
+		? NewMessageExisting
+		: NewMessageUnread;
 	if (file->type == SendMediaType::Photo) {
 		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
 		auto photo = MTP_messageMediaPhoto(
@@ -4312,7 +4315,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
-			NewMessageUnread);
+			messageType);
 	} else if (file->type == SendMediaType::File) {
 		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
 		auto document = MTP_messageMediaDocument(
@@ -4337,7 +4340,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
-			NewMessageUnread);
+			messageType);
 	} else if (file->type == SendMediaType::Audio) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
@@ -4365,7 +4368,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
-			NewMessageUnread);
+			messageType);
 	} else {
 		Unexpected("Type in sendFilesConfirmed.");
 	}
