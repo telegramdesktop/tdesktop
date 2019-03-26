@@ -436,6 +436,7 @@ void StickersBox::switchTab() {
 		requestArchivedSets();
 	}
 	if (_tab == newTab) {
+		onScrollToY(0);
 		return;
 	}
 

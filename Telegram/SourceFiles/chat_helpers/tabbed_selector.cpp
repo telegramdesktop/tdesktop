@@ -782,6 +782,7 @@ void TabbedSelector::switchTab() {
 	Assert(tab >= 0 && tab < Tab::kCount);
 	auto newTabType = static_cast<SelectorTab>(tab);
 	if (_currentTabType == newTabType) {
+		_scroll->scrollToY(0);
 		return;
 	}
 

@@ -17,10 +17,8 @@ DiscreteSlider::DiscreteSlider(QWidget *parent) : RpWidget(parent) {
 }
 
 void DiscreteSlider::setActiveSection(int index) {
-	if (_activeIndex != index) {
-		_activeIndex = index;
-		activateCallback();
-	}
+	_activeIndex = index;
+	activateCallback();
 	setSelectedSection(index);
 }
 
