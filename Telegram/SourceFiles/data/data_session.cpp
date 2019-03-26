@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
 #include "storage/storage_encrypted_file.h"
+#include "media/player/media_player_instance.h" // for instance()->play().
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
@@ -1099,6 +1100,15 @@ void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 
 void Session::requestAnimationPlayInline(not_null<HistoryItem*> item) {
 	_animationPlayInlineRequest.fire_copy(item);
+
+	if (const auto media = item->media()) {
+		if (const auto data = media->document()) {
+			if (data && data->isVideoMessage()) {
+				const auto msgId = item->fullId();
+				::Media::Player::instance()->playPause({ data, msgId });
+			}
+		}
+	}
 }
 
 rpl::producer<not_null<HistoryItem*>> Session::animationPlayInlineRequest() const {

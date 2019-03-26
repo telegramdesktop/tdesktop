@@ -17,10 +17,12 @@ namespace Media {
 namespace View {
 class PlaybackProgress;
 } // namespace View
+} // namespace Media
 
-namespace Player {
-class RoundController;
-} // namespace Player
+namespace Media {
+namespace Streaming {
+class Player;
+} // namespace Streaming
 } // namespace Media
 
 class HistoryGif : public HistoryFileMedia {
@@ -86,8 +88,8 @@ private:
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
-	Media::Player::RoundController *activeRoundVideo() const;
-	Media::Clip::Reader *activeRoundPlayer() const;
+	QSize videoSize() const;
+	Media::Streaming::Player *activeRoundPlayer() const;
 	Media::Clip::Reader *currentReader() const;
 	Media::View::PlaybackProgress *videoPlayback() const;
 	void clipCallback(Media::Clip::Notification notification);

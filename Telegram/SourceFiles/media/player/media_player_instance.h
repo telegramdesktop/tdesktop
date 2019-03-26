@@ -15,7 +15,17 @@ namespace Media {
 namespace Audio {
 class Instance;
 } // namespace Audio
+} // namespace Media
+
+namespace Media {
+namespace View {
+class PlaybackProgress;
+} // namespace View
+} // namespace Media
+
+namespace Media {
 namespace Streaming {
+class Player;
 class Loader;
 struct PlaybackOptions;
 struct Update;
@@ -68,30 +78,35 @@ public:
 
 	void play(const AudioMsgId &audioId);
 	void playPause(const AudioMsgId &audioId);
-	TrackState getState(AudioMsgId::Type type) const;
+	[[nodiscard]] TrackState getState(AudioMsgId::Type type) const;
 
-	AudioMsgId current(AudioMsgId::Type type) const {
-		if (auto data = getData(type)) {
+	[[nodiscard]] Streaming::Player *roundVideoPlayer(
+		HistoryItem *item) const;
+	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
+		HistoryItem *item) const;
+
+	[[nodiscard]] AudioMsgId current(AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
 			return data->current;
 		}
 		return AudioMsgId();
 	}
 
-	bool repeatEnabled(AudioMsgId::Type type) const {
-		if (auto data = getData(type)) {
+	[[nodiscard]] bool repeatEnabled(AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
 			return data->repeatEnabled;
 		}
 		return false;
 	}
 	void toggleRepeat(AudioMsgId::Type type) {
-		if (auto data = getData(type)) {
+		if (const auto data = getData(type)) {
 			data->repeatEnabled = !data->repeatEnabled;
 			_repeatChangedNotifier.notify(type);
 		}
 	}
 
-	bool isSeeking(AudioMsgId::Type type) const {
-		if (auto data = getData(type)) {
+	[[nodiscard]] bool isSeeking(AudioMsgId::Type type) const {
+		if (const auto data = getData(type)) {
 			return (data->seeking == data->current);
 		}
 		return false;
@@ -100,8 +115,8 @@ public:
 	void finishSeeking(AudioMsgId::Type type, float64 progress);
 	void cancelSeeking(AudioMsgId::Type type);
 
-	bool nextAvailable(AudioMsgId::Type type) const;
-	bool previousAvailable(AudioMsgId::Type type) const;
+	[[nodiscard]] bool nextAvailable(AudioMsgId::Type type) const;
+	[[nodiscard]] bool previousAvailable(AudioMsgId::Type type) const;
 
 	struct Switch {
 		AudioMsgId from;
@@ -219,6 +234,10 @@ private:
 		}
 		return nullptr;
 	}
+
+	HistoryItem *roundVideoItem() const;
+	void requestRoundVideoResize() const;
+	void requestRoundVideoRepaint() const;
 
 	Data _songData;
 	Data _voiceData;

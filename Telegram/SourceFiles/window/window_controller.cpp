@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/feed/history_feed_section.h"
-#include "media/player/media_player_round_controller.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_feed.h"
 #include "data/data_channel.h"
@@ -116,15 +116,6 @@ void Controller::showEditPeerBox(PeerData *peer) {
 }
 
 void Controller::init() {
-	session().data().animationPlayInlineRequest(
-	) | rpl::start_with_next([=](auto item) {
-		if (const auto video = roundVideo(item)) {
-			video->pauseResume();
-		} else {
-			startRoundVideo(item);
-		}
-	}, lifetime());
-
 	if (session().supportMode()) {
 		initSupportMode();
 	}
@@ -614,40 +605,6 @@ void Controller::removeLayerBlackout() {
 
 not_null<MainWidget*> Controller::chats() const {
 	return App::wnd()->chatsWidget();
-}
-
-bool Controller::startRoundVideo(not_null<HistoryItem*> context) {
-	if (auto video = RoundController::TryStart(this, context)) {
-		enableGifPauseReason(Window::GifPauseReason::RoundPlaying);
-		_roundVideo = std::move(video);
-		return true;
-	}
-	return false;
-}
-
-auto Controller::currentRoundVideo() const -> RoundController* {
-	return _roundVideo.get();
-}
-
-auto Controller::roundVideo(not_null<const HistoryItem*> context) const
--> RoundController* {
-	return roundVideo(context->fullId());
-}
-
-auto Controller::roundVideo(FullMsgId contextId) const -> RoundController* {
-	if (const auto result = currentRoundVideo()) {
-		if (result->contextId() == contextId) {
-			return result;
-		}
-	}
-	return nullptr;
-}
-
-void Controller::roundVideoFinished(not_null<RoundController*> video) {
-	if (video == _roundVideo.get()) {
-		_roundVideo = nullptr;
-		disableGifPauseReason(Window::GifPauseReason::RoundPlaying);
-	}
 }
 
 void Controller::setDefaultFloatPlayerDelegate(

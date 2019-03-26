@@ -165,7 +165,6 @@ struct OverlayWidget::Streamed {
 	QImage frameForDirectPaint;
 
 	bool resumeOnCallEnd = false;
-	std::optional<Streaming::Error> lastError;
 };
 
 OverlayWidget::Streamed::Streamed(
@@ -2097,7 +2096,6 @@ void OverlayWidget::handleStreamingError(Streaming::Error &&error) {
 	if (!_doc->canBePlayed()) {
 		redisplayContent();
 	} else {
-		_streamed->lastError = std::move(error);
 		playbackWaitingChange(false);
 		updatePlaybackState();
 	}
@@ -2230,7 +2228,6 @@ void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
 	_streamed->resumeOnCallEnd = false;
-	_streamed->lastError = std::nullopt;
 	if (const auto item = App::histItemById(_msgid)) {
 		if (_streamed->player.failed()) {
 			clearStreaming();

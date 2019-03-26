@@ -114,6 +114,13 @@ struct FrameRequest {
 	QSize outer;
 	ImageRoundRadius radius = ImageRoundRadius();
 	RectParts corners = RectPart::AllCorners;
+	bool strict = true;
+
+	static FrameRequest NonStrict() {
+		auto result = FrameRequest();
+		result.strict = false;
+		return result;
+	}
 
 	bool empty() const {
 		return resize.isEmpty();

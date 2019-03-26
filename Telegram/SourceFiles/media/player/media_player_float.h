@@ -19,7 +19,15 @@ namespace Media {
 namespace View {
 class PlaybackProgress;
 } // namespace View
+} // namespace Media
 
+namespace Media {
+namespace Streaming {
+class Player;
+} // namespace Streaming
+} // namespace Media
+
+namespace Media {
 namespace Player {
 
 class Float : public Ui::RpWidget, private base::Subscriber {
@@ -44,7 +52,7 @@ public:
 		return outRatio();
 	}
 	bool isReady() const {
-		return (getReader() != nullptr);
+		return (getPlayer() != nullptr);
 	}
 	void detach();
 	bool detached() const {
@@ -69,7 +77,7 @@ protected:
 
 private:
 	float64 outRatio() const;
-	Clip::Reader *getReader() const;
+	Streaming::Player *getPlayer() const;
 	View::PlaybackProgress *getPlayback() const;
 	void repaintItem();
 	void prepareShadow();
@@ -77,6 +85,7 @@ private:
 	bool fillFrame();
 	QRect getInnerRect() const;
 	void finishDrag(bool closed);
+	void pauseResume();
 
 	not_null<Window::Controller*> _controller;
 	HistoryItem *_item = nullptr;

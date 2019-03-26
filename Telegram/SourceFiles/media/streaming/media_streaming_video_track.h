@@ -65,7 +65,7 @@ private:
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;
 
-		FrameRequest request;
+		FrameRequest request = FrameRequest::NonStrict();
 		QImage prepared;
 	};
 

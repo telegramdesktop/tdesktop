@@ -97,7 +97,7 @@ private:
 	crl::time _loopingShift = 0;
 	rpl::event_stream<> _checkNextFrame;
 	rpl::event_stream<> _waitingForData;
-	FrameRequest _request;
+	FrameRequest _request = FrameRequest::NonStrict();
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -801,7 +801,8 @@ crl::time VideoTrack::markFrameDisplayed(crl::time now) {
 
 QImage VideoTrack::frame(const FrameRequest &request) {
 	const auto frame = _shared->frameForPaint();
-	const auto changed = (frame->request != request);
+	const auto changed = (frame->request != request)
+		&& (request.strict || !frame->request.strict);
 	if (changed) {
 		frame->request = request;
 		_wrapped.with([=](Implementation &unwrapped) {

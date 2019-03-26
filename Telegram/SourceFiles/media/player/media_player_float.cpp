@@ -15,10 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
-#include "media/clip/media_clip_reader.h"
+#include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
-#include "media/player/media_player_round_controller.h"
 #include "window/window_controller.h"
 #include "window/section_widget.h"
 #include "auth_session.h"
@@ -105,9 +104,7 @@ float64 Float::outRatio() const {
 
 void Float::mouseReleaseEvent(QMouseEvent *e) {
 	if (base::take(_down) && _item) {
-		if (const auto controller = _controller->roundVideo(_item)) {
-			controller->pauseResume();
-		}
+		pauseResume();
 	}
 	if (_drag) {
 		finishDrag(outRatio() < 0.5);
@@ -124,10 +121,18 @@ void Float::finishDrag(bool closed) {
 void Float::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (_item) {
 		// Handle second click.
-		if (const auto controller = _controller->roundVideo(_item)) {
-			controller->pauseResume();
-		}
+		pauseResume();
 		Ui::showPeerHistoryAtItem(_item);
+	}
+}
+
+void Float::pauseResume() {
+	if (const auto player = instance()->roundVideoPlayer(_item)) {
+		if (player->paused()) {
+			player->resume();
+		} else {
+			player->pause();
+		}
 	}
 }
 
@@ -196,35 +201,16 @@ void Float::paintEvent(QPaintEvent *e) {
 	}
 }
 
-Clip::Reader *Float::getReader() const {
-	if (detached()) {
-		return nullptr;
-	}
-	if (const auto controller = _controller->roundVideo(_item)) {
-		if (const auto reader = controller->reader()) {
-			if (reader->started()) {
-				return reader;
-			}
-		}
-	}
-	return nullptr;
+Streaming::Player *Float::getPlayer() const {
+	return instance()->roundVideoPlayer(_item);
 }
 
 View::PlaybackProgress *Float::getPlayback() const {
-	if (detached()) {
-		return nullptr;
-	}
-	if (const auto controller = _controller->roundVideo(_item)) {
-		return controller->playback();
-	}
-	return nullptr;
+	return instance()->roundVideoPlayback(_item);
 }
 
 bool Float::hasFrame() const {
-	if (const auto reader = getReader()) {
-		return !reader->current().isNull();
-	}
-	return false;
+	return (getPlayer() != nullptr);
 }
 
 bool Float::fillFrame() {
@@ -238,14 +224,17 @@ bool Float::fillFrame() {
 	auto frameInner = [&] {
 		return QRect(QPoint(), _frame.size() / cIntRetinaFactor());
 	};
-	if (const auto reader = getReader()) {
-		auto frame = reader->current();
+	if (const auto player = getPlayer()) {
+		auto request = Streaming::FrameRequest::NonStrict();
+		request.outer = request.resize = _frame.size();
+		request.radius = ImageRoundRadius::Ellipse;
+		auto frame = player->frame(request);
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);
 
 			Painter p(&_frame);
 			PainterHighQualityEnabler hq(p);
-			p.drawPixmap(frameInner(), frame);
+			p.drawImage(frameInner(), frame);
 			return true;
 		}
 	}

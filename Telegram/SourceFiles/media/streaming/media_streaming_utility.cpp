@@ -506,6 +506,10 @@ QImage PrepareByRequest(
 		PainterHighQualityEnabler hq(p);
 		p.drawImage(QRect(QPoint(), request.outer), original);
 	}
+	if ((request.corners & RectPart::AllCorners)
+		&& (request.radius != ImageRoundRadius::None)) {
+		Images::prepareRound(storage, request.radius, request.corners);
+	}
 	// #TODO streaming later full prepare support.
 	return storage;
 }

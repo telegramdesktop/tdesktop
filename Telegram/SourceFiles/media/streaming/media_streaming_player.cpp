@@ -750,11 +750,16 @@ bool Player::active() const {
 }
 
 bool Player::ready() const {
-	return (_stage != Stage::Uninitialized) && (_stage != Stage::Initializing);
+	return (_stage != Stage::Uninitialized)
+		&& (_stage != Stage::Initializing);
 }
 
 rpl::producer<Update, Error> Player::updates() const {
 	return _updates.events();
+}
+
+QSize Player::videoSize() const {
+	return _information.video.size;
 }
 
 QImage Player::frame(const FrameRequest &request) const {
@@ -775,6 +780,8 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 		? State::StoppedAtError
 		: finished()
 		? State::StoppedAtEnd
+		: (_stage == Stage::Uninitialized)
+		? State::Stopped
 		: paused()
 		? State::Paused
 		: State::Playing;
