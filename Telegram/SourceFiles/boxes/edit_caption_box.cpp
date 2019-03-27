@@ -268,15 +268,26 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 		local.x() + _emojiToggle->width() * 3);
 }
 
-void EditCaptionBox::prepareGifPreview(not_null<DocumentData*> document) {
+void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 	if (_gifPreview) {
 		return;
-	} else if (document->isAnimation() && document->loaded()) {
-		_gifPreview = Media::Clip::MakeReader(document, _msgId, [this](Media::Clip::Notification notification) {
-			clipCallback(notification);
-		});
-		if (_gifPreview) _gifPreview->setAutoplay();
+	} else if (!document && _newMediaPath.isEmpty()) {
+		return;
 	}
+	const auto callback = [=](Media::Clip::Notification notification) {
+		clipCallback(notification);
+	};
+	if (document && document->isAnimation() && document->loaded()) {
+		_gifPreview = Media::Clip::MakeReader(
+			document,
+			_msgId,
+			callback);
+	} else if (!_newMediaPath.isEmpty()) {
+		_gifPreview = Media::Clip::MakeReader(
+			_newMediaPath,
+			callback);
+	}
+	if (_gifPreview) _gifPreview->setAutoplay();
 }
 
 void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
@@ -329,6 +340,11 @@ void EditCaptionBox::prepare() {
 				_animated = false;
 				_photo = false;
 				_doc = false;
+				_gifPreview = nullptr;
+				_thumbw = _thumbh = _thumbx = 0;
+				_gifw = _gifh = _gifx = 0;
+
+				auto isGif = false;
 
 				using Info = FileMediaInformation;
 				if (const auto image = base::get_if<Info::Image>(fileMedia)
@@ -337,6 +353,7 @@ void EditCaptionBox::prepare() {
 				} else if (const auto video =
 						base::get_if<Info::Video>(fileMedia)) {
 					_animated = true;
+					isGif = video->isGifv;
 				} else {
 					auto nameString = filename;
 					if (const auto song =
@@ -351,10 +368,6 @@ void EditCaptionBox::prepare() {
 					_doc = true;
 				}
 
-				_thumbw = 0;
-				_thumbh = 0;
-				_thumbx = 0;
-
 				if (!_doc) {
 					_thumb = App::pixmapFromImageInPlace(
 						file->preview.scaled(st::sendMediaPreviewSize,
@@ -363,6 +376,12 @@ void EditCaptionBox::prepare() {
 					_thumbw = _thumb.width();
 					_thumbh = _thumb.height();
 					_thumbx = (st::boxWideWidth - _thumbw) / 2;
+					if (isGif) {
+						_gifw = _thumbw;
+						_gifh = _thumbh;
+						_gifx = _thumbx;
+						prepareGifPreview();
+					}
 				}
 				captionResized();
 			}

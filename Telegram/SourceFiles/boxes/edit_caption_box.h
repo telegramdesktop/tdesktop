@@ -47,7 +47,7 @@ protected:
 
 private:
 	void updateBoxSize();
-	void prepareGifPreview(not_null<DocumentData*> document);
+	void prepareGifPreview(DocumentData* document = nullptr);
 	void clipCallback(Media::Clip::Notification notification);
 
 	void setupEmojiPanel();
