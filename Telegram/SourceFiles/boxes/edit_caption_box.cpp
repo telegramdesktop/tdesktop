@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "ui/widgets/input_fields.h"
 #include "window/window_controller.h"
+#include "ui/widgets/checkbox.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
@@ -247,6 +248,22 @@ EditCaptionBox::EditCaptionBox(
 	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
+
+	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+		this,
+		object_ptr<Ui::Checkbox>(
+			this,
+			lang(lng_send_file),
+			false,
+			st::defaultBoxCheckbox),
+		st::editMediaCheckboxMargins);
+	_wayWrap = r.data();
+	_wayWrap->toggle(false, anim::type::instant);
+
+	r->entity()->checkedChanges(
+	) | rpl::start_with_next([&](bool checked) {
+		_asFile = checked;
+	}, _wayWrap->lifetime());
 }
 
 bool EditCaptionBox::emojiFilter(not_null<QEvent*> event) {
@@ -345,6 +362,7 @@ void EditCaptionBox::prepare() {
 				_gifw = _gifh = _gifx = 0;
 
 				auto isGif = false;
+				_wayWrap->toggle(_isImage, anim::type::instant);
 
 				using Info = FileMediaInformation;
 				if (const auto image = base::get_if<Info::Image>(fileMedia)
@@ -450,6 +468,9 @@ void EditCaptionBox::setupEmojiPanel() {
 
 void EditCaptionBox::updateBoxSize() {
 	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
+	if (_isImage) {
+		newHeight += _wayWrap->height() / 2;
+	}
 	if (_photo || _animated) {
 		newHeight += std::max(_thumbh, _gifh);
 	} else if (_thumbw) {
@@ -564,6 +585,14 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 
 void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
+
+	if (_isImage) {
+		_wayWrap->resize(st::sendMediaPreviewSize, _wayWrap->height());
+		_wayWrap->moveToLeft(
+			st::boxPhotoPadding.left(),
+			st::boxPhotoPadding.top() + _thumbh);
+	}
+
 	_field->resize(st::sendMediaPreviewSize, _field->height());
 	_field->moveToLeft(st::boxPhotoPadding.left(), height() - st::normalFont->height - errorTopSkip() - _field->height());
 	_emojiToggle->moveToLeft(
@@ -620,7 +649,7 @@ void EditCaptionBox::save() {
 
 		Auth().api().editMedia(
 			std::move(_preparedList),
-			_isImage ? SendMediaType::Photo : SendMediaType::File,
+			(!_asFile && _isImage) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
 			ApiWrap::SendOptions(item->history()));
 		closeBox();

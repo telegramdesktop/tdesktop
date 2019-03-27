@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
+#include "ui/wrap/slide_wrap.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -25,6 +26,7 @@ class Media;
 namespace Ui {
 class InputField;
 class EmojiButton;
+class Checkbox;
 } // namespace Ui
 
 namespace Window {
@@ -99,6 +101,8 @@ private:
 	bool _previewCancelled = false;
 	mtpRequestId _saveRequestId = 0;
 
+	bool _asFile = false;
+	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
 
 	QString _error;

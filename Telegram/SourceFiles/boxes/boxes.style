@@ -643,6 +643,8 @@ usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
 }
 usernameDefaultFg: windowSubTextFg;
 
+editMediaCheckboxMargins: margins(0px, 15px, 23px, 15px);
+
 downloadPathSkip: 10px;
 
 colorEditWidth: 390px;
