@@ -317,6 +317,7 @@ public:
 	void checkAutoLock();
 	void checkAutoLockIn(crl::time time);
 	void localPasscodeChanged();
+	void termsDeleteNow();
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;

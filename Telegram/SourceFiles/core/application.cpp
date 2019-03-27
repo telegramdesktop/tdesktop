@@ -898,10 +898,6 @@ rpl::producer<bool> Application::termsLockValue() const {
 	) | rpl::then(termsLockChanges());
 }
 
-void Application::termsDeleteNow() {
-	MTP::send(MTPaccount_DeleteAccount(MTP_string("Decline ToS update")));
-}
-
 bool Application::locked() const {
 	return passcodeLocked() || termsLocked();
 }

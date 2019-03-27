@@ -202,12 +202,19 @@ void MainWindow::showTermsDecline() {
 
 void MainWindow::showTermsDelete() {
 	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto deleteByTerms = [=] {
+		if (AuthSession::Exists()) {
+			Auth().termsDeleteNow();
+		} else {
+			Ui::hideLayer();
+		}
+	};
 	*box = Ui::show(
 		Box<ConfirmBox>(
 			lang(lng_terms_delete_warning),
 			lang(lng_terms_delete_now),
 			st::attentionBoxButton,
-			[=] { Core::App().termsDeleteNow(); },
+			deleteByTerms,
 			[=] { if (*box) (*box)->closeBox(); }),
 		LayerOption::KeepOther);
 }

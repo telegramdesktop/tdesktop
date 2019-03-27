@@ -64,10 +64,7 @@ namespace Core {
 class Launcher;
 struct LocalUrlHandler;
 
-class Application final
-	: public QObject
-	, public RPCSender
-	, private base::Subscriber {
+class Application final : public QObject, private base::Subscriber {
 public:
 	Application(not_null<Launcher*> launcher);
 
@@ -188,7 +185,6 @@ public:
 	[[nodiscard]] std::optional<Window::TermsLock> termsLocked() const;
 	rpl::producer<bool> termsLockChanges() const;
 	rpl::producer<bool> termsLockValue() const;
-	void termsDeleteNow();
 
 	[[nodiscard]] bool locked() const;
 	rpl::producer<bool> lockChanges() const;

@@ -480,6 +480,12 @@ void AuthSession::localPasscodeChanged() {
 	checkAutoLock();
 }
 
+void AuthSession::termsDeleteNow() {
+	api().request(MTPaccount_DeleteAccount(
+		MTP_string("Decline ToS update")
+	)).send();
+}
+
 void AuthSession::checkAutoLock() {
 	if (!Global::LocalPasscode()
 		|| Core::App().passcodeLocked()) {
