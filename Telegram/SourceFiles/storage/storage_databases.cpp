@@ -88,10 +88,11 @@ void Databases::destroy(Cache::Database *database) {
 		auto &kept = entry.second;
 		if (kept.database.get() == database) {
 			Assert(!kept.destroying.alive());
-			auto [first, second] = base::make_binary_guard();
-			kept.destroying = std::move(first);
 			database->close();
-			database->waitForCleaner([=, guard = std::move(second)]() mutable {
+			database->waitForCleaner([
+				=,
+				guard = kept.destroying.make_guard()
+			]() mutable {
 				crl::on_main(std::move(guard), [=] {
 					_map.erase(path);
 				});

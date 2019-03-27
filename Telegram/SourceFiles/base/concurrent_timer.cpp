@@ -268,7 +268,6 @@ ConcurrentTimer::ConcurrentTimer(
 }
 
 Fn<void()> ConcurrentTimer::createAdjuster() {
-	auto guards = base::make_binary_guard();
 	_guard = std::make_shared<bool>(true);
 	return [=, runner = _runner, guard = std::weak_ptr<bool>(_guard)] {
 		runner([=] {
@@ -294,12 +293,10 @@ void ConcurrentTimer::start(
 }
 
 void ConcurrentTimer::cancelAndSchedule(int timeout) {
-	auto guards = base::make_binary_guard();
-	_running = std::move(guards.first);
 	auto method = [
 		=,
 		runner = _runner,
-		guard = std::move(guards.second)
+		guard = _running.make_guard()
 	]() mutable {
 		if (!guard) {
 			return;

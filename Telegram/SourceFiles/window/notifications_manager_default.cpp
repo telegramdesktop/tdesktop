@@ -408,13 +408,14 @@ void Widget::step_shift(float64 ms, bool timer) {
 void Widget::hideSlow() {
 	if (anim::Disabled()) {
 		_hiding = true;
-		auto [left, right] = base::make_binary_guard();
-		_hidingDelayed = std::move(left);
-		App::CallDelayed(st::notifySlowHide, this, [=, guard = std::move(right)] {
-			if (guard && _hiding) {
-				hideFast();
-			}
-		});
+		App::CallDelayed(
+			st::notifySlowHide,
+			this,
+			[=, guard = _hidingDelayed.make_guard()] {
+				if (guard && _hiding) {
+					hideFast();
+				}
+			});
 	} else {
 		hideAnimated(st::notifySlowHide, anim::easeInCirc);
 	}

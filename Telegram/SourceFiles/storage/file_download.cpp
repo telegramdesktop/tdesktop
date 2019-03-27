@@ -421,9 +421,7 @@ void FileLoader::start(bool loadFirst, bool prior) {
 
 void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 	const auto readImage = (_locationType != AudioFileLocation);
-	auto [first, second] = base::make_binary_guard();
-	_localLoading = std::move(first);
-	auto done = [=, guard = std::move(second)](
+	auto done = [=, guard = _localLoading.make_guard()](
 			QByteArray &&value,
 			QImage &&image,
 			QByteArray &&format) mutable {

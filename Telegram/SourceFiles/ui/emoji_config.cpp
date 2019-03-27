@@ -940,12 +940,10 @@ void Instance::generateCache() {
 
 	const auto size = _size;
 	const auto index = _sprites.size();
-	auto [left, right] = base::make_binary_guard();
-	_generating = std::move(left);
 	crl::async([
 		=,
 		universal = Universal,
-		guard = std::move(right)
+		guard = _generating.make_guard()
 	]() mutable {
 		crl::on_main(std::move(guard), [
 			=,

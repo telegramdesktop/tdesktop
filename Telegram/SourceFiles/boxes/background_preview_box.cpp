@@ -711,13 +711,11 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		return;
 	}
 	const auto generateCallback = [=](QImage &&image) {
-		auto [left, right] = base::make_binary_guard();
-		_generating = std::move(left);
 		crl::async([
 			this,
 			image = std::move(image),
 			patternBackground = patternBackgroundColor(),
-			guard = std::move(right)
+			guard = _generating.make_guard()
 		]() mutable {
 			auto scaled = PrepareScaledFromFull(image, patternBackground);
 			const auto ms = crl::now();

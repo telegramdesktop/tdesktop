@@ -1134,8 +1134,8 @@ base::binary_guard LanguageBox::Show() {
 
 	const auto manager = Core::App().langCloudManager();
 	if (manager->languageList().empty()) {
-		auto guard = std::make_shared<base::binary_guard>();
-		std::tie(result, *guard) = base::make_binary_guard();
+		auto guard = std::make_shared<base::binary_guard>(
+			result.make_guard());
 		auto alive = std::make_shared<std::unique_ptr<base::Subscription>>(
 			std::make_unique<base::Subscription>());
 		**alive = manager->languageListChanged().add_subscription([=] {

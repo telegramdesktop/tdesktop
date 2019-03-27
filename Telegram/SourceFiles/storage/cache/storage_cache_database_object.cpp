@@ -1160,8 +1160,6 @@ void DatabaseObject::writeBundles() {
 }
 
 void DatabaseObject::createCleaner() {
-	auto [left, right] = base::make_binary_guard();
-	_cleaner.guard = std::move(left);
 	auto done = [weak = _weak](Error error) {
 		weak.with([=](DatabaseObject &that) {
 			that.cleanerDone(error);
@@ -1169,7 +1167,7 @@ void DatabaseObject::createCleaner() {
 	};
 	_cleaner.object = std::make_unique<Cleaner>(
 		_base,
-		std::move(right),
+		_cleaner.guard.make_guard(),
 		std::move(done));
 	pushStatsDelayed();
 }
@@ -1196,11 +1194,9 @@ void DatabaseObject::checkCompactor() {
 	info.till = _binlog.size();
 	info.systemTime = _time.system;
 	info.keysCount = _map.size();
-	auto [first, second] = base::make_binary_guard();
-	_compactor.guard = std::move(first);
 	_compactor.object = std::make_unique<Compactor>(
 		_weak,
-		std::move(second),
+		_compactor.guard.make_guard(),
 		_path,
 		_settings,
 		base::duplicate(_key),

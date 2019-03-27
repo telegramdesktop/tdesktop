@@ -1555,12 +1555,12 @@ base::binary_guard ReadImageAsync(
 		not_null<DocumentData*> document,
 		FnMut<QImage(QImage)> postprocess,
 		FnMut<void(QImage&&)> done) {
-	auto [left, right] = base::make_binary_guard();
+	auto result = base::binary_guard();
 	crl::async([
 		bytes = document->data(),
 		path = document->filepath(),
 		postprocess = std::move(postprocess),
-		guard = std::move(left),
+		guard = result.make_guard(),
 		callback = std::move(done)
 	]() mutable {
 		auto format = QByteArray();
@@ -1584,7 +1584,7 @@ base::binary_guard ReadImageAsync(
 			callback(std::move(image));
 		});
 	});
-	return std::move(right);
+	return result;
 }
 
 //void HandleUnsupportedMedia(

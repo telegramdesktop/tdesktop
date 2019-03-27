@@ -20,17 +20,17 @@ public:
 	binary_guard &operator=(binary_guard &&other);
 	~binary_guard();
 
-	bool alive() const;
-
 	binary_guard &operator=(std::nullptr_t);
+
+	bool alive() const;
+	binary_guard make_guard();
+
 	explicit operator bool() const;
 
 private:
 	void destroy();
 
 	std::atomic<bool> *_bothAlive = nullptr;
-
-	friend std::pair<binary_guard, binary_guard> make_binary_guard();
 
 };
 
@@ -46,6 +46,10 @@ inline binary_guard &binary_guard::operator=(binary_guard &&other) {
 	return *this;
 }
 
+inline binary_guard::~binary_guard() {
+	destroy();
+}
+
 inline binary_guard &binary_guard::operator=(std::nullptr_t) {
 	destroy();
 	return *this;
@@ -59,10 +63,6 @@ inline bool binary_guard::alive() const {
 	return _bothAlive && _bothAlive->load();
 }
 
-inline binary_guard::~binary_guard() {
-	destroy();
-}
-
 inline void binary_guard::destroy() {
 	if (const auto both = base::take(_bothAlive)) {
 		auto old = true;
@@ -72,11 +72,11 @@ inline void binary_guard::destroy() {
 	}
 }
 
-inline std::pair<binary_guard, binary_guard> make_binary_guard() {
-	auto result = std::pair<binary_guard, binary_guard>();
-	result.first._bothAlive
-		= result.second._bothAlive
-		= new std::atomic<bool>(true);
+inline binary_guard binary_guard::make_guard() {
+	destroy();
+
+	auto result = binary_guard();
+	_bothAlive = result._bothAlive = new std::atomic<bool>(true);
 	return result;
 }
 

@@ -138,10 +138,7 @@ void GoodThumbSource::load(
 	if (loading() || _empty) {
 		return;
 	}
-	auto [left, right] = base::make_binary_guard();
-	_loading = std::move(left);
-
-	auto callback = [=, guard = std::move(right)](
+	auto callback = [=, guard = _loading.make_guard()](
 			QByteArray &&value) mutable {
 		if (value.isEmpty()) {
 			crl::on_main([=, guard = std::move(guard)]() mutable {
