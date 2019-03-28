@@ -419,8 +419,6 @@ struct Data {
 	crl::time LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
 
-	CircleMasksMap CircleMasks;
-
 	bool AskDownloadPath = false;
 	QString DownloadPath;
 	QByteArray DownloadPathBookmark;
@@ -552,8 +550,6 @@ DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
 DefineVar(Global, crl::time, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
-
-DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
 DefineVar(Global, bool, AskDownloadPath);
 DefineVar(Global, QString, DownloadPath);

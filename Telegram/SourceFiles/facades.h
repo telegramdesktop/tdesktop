@@ -264,9 +264,6 @@ DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
-typedef QMap<uint64, QPixmap> CircleMasksMap;
-DeclareRefVar(CircleMasksMap, CircleMasks);
-
 DeclareVar(bool, AskDownloadPath);
 DeclareVar(QString, DownloadPath);
 DeclareVar(QByteArray, DownloadPathBookmark);
