@@ -101,23 +101,19 @@ int RowsCount(int index) {
 		+ ((count % kImagesPerRow) ? 1 : 0);
 }
 
-QString CacheFileFolder() {
-	return cWorkingDir() + "tdata/emoji";
-}
-
 QString CacheFileNameMask(int size) {
 	return "cache_" + QString::number(size) + '_';
 }
 
 QString CacheFilePath(int size, int index) {
-	return CacheFileFolder()
+	return internal::CacheFileFolder()
 		+ '/'
 		+ CacheFileNameMask(size)
 		+ QString::number(index);
 }
 
 QString CurrentSettingPath() {
-	return CacheFileFolder() + "/current";
+	return internal::CacheFileFolder() + "/current";
 }
 
 bool IsValidSetId(int id) {
@@ -188,7 +184,7 @@ void SaveToFile(int id, const QImage &image, int size, int index) {
 
 	QFile f(CacheFilePath(size, index));
 	if (!f.open(QIODevice::WriteOnly)) {
-		if (!QDir::current().mkpath(CacheFileFolder())
+		if (!QDir::current().mkpath(internal::CacheFileFolder())
 			|| !f.open(QIODevice::WriteOnly)) {
 			LOG(("App Error: Could not open emoji cache '%1' for size %2_%3"
 				).arg(f.fileName()
@@ -500,6 +496,10 @@ void ClearUniversalChecked() {
 
 namespace internal {
 
+QString CacheFileFolder() {
+	return cWorkingDir() + "tdata/emoji";
+}
+
 QString SetDataPath(int id) {
 	Expects(IsValidSetId(id) && id != 0);
 
@@ -536,7 +536,7 @@ void ClearIrrelevantCache() {
 	Expects(SizeLarge > 0);
 
 	crl::async([] {
-		const auto folder = CacheFileFolder();
+		const auto folder = internal::CacheFileFolder();
 		const auto list = QDir(folder).entryList(QDir::Files);
 		const auto good1 = CacheFileNameMask(SizeNormal);
 		const auto good2 = CacheFileNameMask(SizeLarge);

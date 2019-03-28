@@ -14,6 +14,7 @@ namespace Ui {
 namespace Emoji {
 namespace internal {
 
+[[nodiscard]] QString CacheFileFolder();
 [[nodiscard]] QString SetDataPath(int id);
 
 } // namespace internal

@@ -174,6 +174,9 @@ private:
 
 };
 
+struct ZeroFlagsHelper {
+};
+
 } // namespace internal
 } // namespace MTP
 
@@ -400,13 +403,6 @@ inline MTPint MTP_int(int32 v) {
 }
 using MTPInt = MTPBoxed<MTPint>;
 
-namespace internal {
-
-struct ZeroFlagsHelper {
-};
-
-} // namespace internal
-
 template <typename Flags>
 class MTPflags {
 public:
@@ -416,7 +412,7 @@ public:
 		"MTPflags are allowed only wrapping int32 flag types!");
 
 	MTPflags() = default;
-	MTPflags(internal::ZeroFlagsHelper helper) {
+	MTPflags(MTP::internal::ZeroFlagsHelper helper) {
 	}
 
 	uint32 innerLength() const {
@@ -456,8 +452,8 @@ inline MTPflags<base::flags<T>> MTP_flags(T v) {
 	return MTPflags<base::flags<T>>(v);
 }
 
-inline internal::ZeroFlagsHelper MTP_flags(void(internal::ZeroFlagsHelper::*)()) {
-	return internal::ZeroFlagsHelper();
+inline MTP::internal::ZeroFlagsHelper MTP_flags(void(MTP::internal::ZeroFlagsHelper::*)()) {
+	return MTP::internal::ZeroFlagsHelper();
 }
 
 template <typename Flags>

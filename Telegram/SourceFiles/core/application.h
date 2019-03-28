@@ -26,6 +26,10 @@ namespace Window {
 struct TermsLock;
 } // namespace Window
 
+namespace ChatHelpers {
+class EmojiKeywords;
+} // namespace ChatHelpers
+
 namespace App {
 void quit();
 } // namespace App
@@ -67,9 +71,9 @@ struct LocalUrlHandler;
 class Application final : public QObject, private base::Subscriber {
 public:
 	Application(not_null<Launcher*> launcher);
-
 	Application(const Application &other) = delete;
 	Application &operator=(const Application &other) = delete;
+	~Application();
 
 	not_null<Launcher*> launcher() const {
 		return _launcher;
@@ -146,12 +150,6 @@ public:
 	AuthSession *authSession() {
 		return _authSession.get();
 	}
-	Lang::Instance &langpack() {
-		return *_langpack;
-	}
-	Lang::CloudManager *langCloudManager() {
-		return _langCloudManager.get();
-	}
 	void authSessionCreate(const MTPUser &user);
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
@@ -163,6 +161,17 @@ public:
 	// Media component.
 	Media::Audio::Instance &audio() {
 		return *_audio;
+	}
+
+	// Langpack and emoji keywords.
+	Lang::Instance &langpack() {
+		return *_langpack;
+	}
+	Lang::CloudManager *langCloudManager() {
+		return _langCloudManager.get();
+	}
+	ChatHelpers::EmojiKeywords &emojiKeywords() {
+		return *_emojiKeywords;
 	}
 
 	// Internal links.
@@ -222,8 +231,6 @@ public:
 		_callDelayedTimer.call(duration, std::move(lambda));
 	}
 
-	~Application();
-
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
@@ -264,6 +271,7 @@ private:
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::CloudManager> _langCloudManager;
+	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;

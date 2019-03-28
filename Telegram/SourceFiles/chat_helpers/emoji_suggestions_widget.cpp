@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_suggestions_widget.h"
 
+#include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
 #include "platform/platform_specific.h"
+#include "core/application.h"
 #include "core/event_filter.h"
 #include "styles/style_chat_helpers.h"
 
@@ -109,53 +111,58 @@ std::vector<SuggestionsWidget::Row> SuggestionsWidget::getRowsByQuery() const {
 	if (_query.isEmpty()) {
 		return result;
 	}
-	auto suggestions = GetSuggestions(QStringToUTF16(_query));
+	auto suggestions = std::vector<Row>();
+	const auto results = Core::App().emojiKeywords().query(_query.mid(1));
+	for (const auto &result : results) {
+		suggestions.emplace_back(
+			result.emoji,
+			result.label,
+			result.replacement);
+	}
 	if (suggestions.empty()) {
 		return result;
 	}
-	auto count = suggestions.size();
-	auto suggestionsEmoji = std::vector<EmojiPtr>(count, nullptr);
-	for (auto i = 0; i != count; ++i) {
-		suggestionsEmoji[i] = Find(QStringFromUTF16(suggestions[i].emoji()));
-	}
 	auto recents = 0;
-	auto &recent = GetRecent();
-	for (auto &item : recent) {
-		auto emoji = item.first->original();
-		if (!emoji) emoji = item.first;
-		auto it = std::find(suggestionsEmoji.begin(), suggestionsEmoji.end(), emoji);
-		if (it != suggestionsEmoji.end()) {
-			auto index = (it - suggestionsEmoji.begin());
-			if (index >= recents) {
-				if (index > recents) {
-					auto recentEmoji = suggestionsEmoji[index];
-					auto recentSuggestion = suggestions[index];
-					for (auto i = index; i != recents; --i) {
-						suggestionsEmoji[i] = suggestionsEmoji[i - 1];
-						suggestions[i] = suggestions[i - 1];
-					}
-					suggestionsEmoji[recents] = recentEmoji;
-					suggestions[recents] = recentSuggestion;
-				}
-				++recents;
-			}
+	const auto &recent = GetRecent();
+	for (const auto &item : recent) {
+		const auto emoji = item.first->original()
+			? item.first->original()
+			: item.first;
+		const auto it = ranges::find(suggestions, emoji, [](const Row &row) {
+			return row.emoji().get();
+		});
+		if (it == end(suggestions)) {
+			continue;
 		}
+		const auto index = (it - begin(suggestions));
+		if (index < recents) {
+			continue;
+		} else if (index > recents) {
+			auto recentSuggestion = std::move(suggestions[index]);
+			for (auto i = index; i != recents; --i) {
+				suggestions[i] = std::move(suggestions[i - 1]);
+			}
+			suggestions[recents] = std::move(recentSuggestion);
+		}
+		++recents;
 	}
 
 	result.reserve(kRowLimit);
 	auto index = 0;
-	for (auto &item : suggestions) {
-		if (auto emoji = suggestionsEmoji[index++]) {
-			if (emoji->hasVariants()) {
-				auto it = cEmojiVariants().constFind(emoji->nonColoredId());
-				if (it != cEmojiVariants().cend()) {
-					emoji = emoji->variant(it.value());
-				}
-			}
-			result.emplace_back(emoji, QStringFromUTF16(item.label()), QStringFromUTF16(item.replacement()));
-			if (result.size() == kRowLimit) {
-				break;
-			}
+	for (const auto &item : suggestions) {
+		const auto emoji = [&] {
+			const auto result = item.emoji();
+			const auto &variants = cEmojiVariants();
+			const auto i = result->hasVariants()
+				? variants.constFind(result->nonColoredId())
+				: variants.cend();
+			return (i != variants.cend())
+				? result->variant(i.value())
+				: result.get();
+		}();
+		result.emplace_back(emoji, item.label(), item.replacement());
+		if (result.size() == kRowLimit) {
+			break;
 		}
 	}
 	return result;
@@ -450,6 +457,10 @@ void SuggestionsController::setReplaceCallback(
 }
 
 void SuggestionsController::handleTextChange() {
+	if (Global::SuggestEmoji() && _field->textCursor().position() > 0) {
+		Core::App().emojiKeywords().refresh();
+	}
+
 	_ignoreCursorPositionChange = true;
 	InvokeQueued(_container, [=] { _ignoreCursorPositionChange = false; });
 

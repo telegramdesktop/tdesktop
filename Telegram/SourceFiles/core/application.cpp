@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
+#include "chat_helpers/emoji_keywords.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -83,6 +84,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _langpack(std::make_unique<Lang::Instance>())
+, _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
 , _logoNoMargin(Window::LoadLogoNoMargin()) {
@@ -91,6 +93,41 @@ Application::Application(not_null<Launcher*> launcher)
 	Expects(Instance == nullptr);
 
 	Instance = this;
+}
+
+Application::~Application() {
+	_window.reset();
+	_mediaView.reset();
+
+	// Some MTP requests can be cancelled from data clearing.
+	authSessionDestroy();
+
+	// The langpack manager should be destroyed before MTProto instance,
+	// because it is MTP::Sender and it may have pending requests.
+	_langCloudManager.reset();
+
+	_mtproto.reset();
+	_mtprotoForKeysDestroy.reset();
+
+	Shortcuts::Finish();
+
+	Ui::Emoji::Clear();
+
+	anim::stopManager();
+
+	stopWebLoadManager();
+	App::deinitMedia();
+
+	Window::Theme::Unload();
+
+	Media::Player::finish(_audio.get());
+	style::stopManager();
+
+	Local::finish();
+	Global::finish();
+	ThirdParty::finish();
+
+	Instance = nullptr;
 }
 
 void Application::run() {
@@ -1125,41 +1162,6 @@ void Application::startShortcuts() {
 			return closeActiveWindow();
 		});
 	}, _lifetime);
-}
-
-Application::~Application() {
-	_window.reset();
-	_mediaView.reset();
-
-	// Some MTP requests can be cancelled from data clearing.
-	authSessionDestroy();
-
-	// The langpack manager should be destroyed before MTProto instance,
-	// because it is MTP::Sender and it may have pending requests.
-	_langCloudManager.reset();
-
-	_mtproto.reset();
-	_mtprotoForKeysDestroy.reset();
-
-	Shortcuts::Finish();
-
-	Ui::Emoji::Clear();
-
-	anim::stopManager();
-
-	stopWebLoadManager();
-	App::deinitMedia();
-
-	Window::Theme::Unload();
-
-	Media::Player::finish(_audio.get());
-	style::stopManager();
-
-	Local::finish();
-	Global::finish();
-	ThirdParty::finish();
-
-	Instance = nullptr;
 }
 
 bool IsAppLaunched() {
