@@ -389,11 +389,7 @@ void ChatBackground::start() {
 }
 
 void ChatBackground::refreshSession() {
-	const auto session = AuthSession::Exists() ? &Auth() : nullptr;
-	if (_session != session) {
-		_session = session;
-		checkUploadWallPaper();
-	}
+	_session = AuthSession::Exists() ? &Auth() : nullptr;
 }
 
 void ChatBackground::checkUploadWallPaper() {
