@@ -89,6 +89,7 @@ public:
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
+	void returnSavedMedia() override;
 	void setMedia(const MTPMessageMedia &media);
 	static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryMessage*> item,

@@ -742,6 +742,7 @@ QString FormatViewsCount(int views) {
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 	_media = nullptr;
+	_savedMedia = nullptr;
 	if (media) {
 		setMedia(*media);
 	}
@@ -750,6 +751,19 @@ void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 void HistoryMessage::refreshSentMedia(const MTPMessageMedia *media) {
 	const auto wasGrouped = history()->owner().groups().isGrouped(this);
 	refreshMedia(media);
+	if (wasGrouped) {
+		history()->owner().groups().refreshMessage(this);
+	} else {
+		history()->owner().requestItemViewRefresh(this);
+	}
+}
+
+void HistoryMessage::returnSavedMedia() {
+	if (!_savedMedia) {
+		return;
+	}
+	const auto wasGrouped = history()->owner().groups().isGrouped(this);
+	_media = std::move(_savedMedia);
 	if (wasGrouped) {
 		history()->owner().groups().refreshMessage(this);
 	} else {
@@ -943,10 +957,13 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else {
 		const auto shouldUpdate = _isEditingMedia ? true : !_media->updateSentMedia(*media);
+		if (_isEditingMedia) {
+			_savedMedia = _media->clone(this);
+		}
 		if (!media || !_media || shouldUpdate) {
 			refreshSentMedia(media);
 		}
-		_isEditingMedia = false;
+		// _isEditingMedia = false;
 	}
 	history()->owner().requestItemResize(this);
 }

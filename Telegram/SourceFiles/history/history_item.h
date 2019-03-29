@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 #include "base/value_ordering.h"
+#include "data/data_media_types.h"
 
 enum class UnreadMentionType;
 struct HistoryMessageReplyMarkup;
@@ -122,9 +123,15 @@ public:
 	bool hasUnreadMediaFlag() const;
 	void markMediaRead();
 
+	bool isEditingMedia() const {
+		return _isEditingMedia;
+	}
 	void setIsEditingMedia(bool edit) {
 		_isEditingMedia = edit;
 	}
+
+	// For edit media in history_message.
+	virtual void returnSavedMedia() {};
 
 	// Zero result means this message is not self-destructing right now.
 	virtual crl::time getSelfDestructIn(crl::time now) {
@@ -315,6 +322,7 @@ protected:
 	int _textHeight = 0;
 
 	bool _isEditingMedia = false;
+	std::unique_ptr<Data::Media> _savedMedia;
 	std::unique_ptr<Data::Media> _media;
 
 private:

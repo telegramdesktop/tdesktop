@@ -842,11 +842,16 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 		Ui::hideLayer();
 		if (const auto item = App::histItemById(itemId)) {
 			const auto history = item->history();
-			//item->destroy();
-			history->requestChatListMessage();
+			if (!item->isEditingMedia()) {
+				item->destroy();
+				history->requestChatListMessage();
+			} else {
+				item->returnSavedMedia();
+				session().uploader().cancel(item->fullId());
+			}
 			session().data().sendHistoryChangeNotifications();
 		}
-		//session().uploader().unpause();
+		session().uploader().unpause();
 	};
 	const auto continueUpload = [=] {
 		session().uploader().unpause();
