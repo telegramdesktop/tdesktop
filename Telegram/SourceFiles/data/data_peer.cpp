@@ -318,7 +318,7 @@ void PeerData::updateUserpic(
 		return StorageImageLocation(
 			StorageFileLocation(
 				dcId,
-				session().userId(),
+				isSelf() ? peerToUser(id) : 0,
 				MTP_inputPeerPhotoFileLocation(
 					MTP_flags(0),
 					input,
