@@ -54,6 +54,8 @@ private:
 
 	void handleAuthSessionChanges();
 	void apiChanged(ApiWrap *api);
+	void refreshInputLanguages();
+	[[nodiscard]] std::vector<QString> languages();
 	void refreshRemoteList();
 	void setRemoteList(std::vector<QString> &&list);
 	void refreshFromRemoteList();
@@ -64,6 +66,7 @@ private:
 	mtpRequestId _langsRequestId = 0;
 	base::flat_map<QString, std::unique_ptr<LangPack>> _data;
 	std::deque<std::unique_ptr<LangPack>> _notUsedData;
+	std::deque<QStringList> _inputLanguages;
 	rpl::event_stream<> _refreshed;
 
 	rpl::lifetime _suggestedChangeLifetime;

@@ -20,7 +20,8 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kRefreshEach = 60 * 60 * crl::time(1000); // 1 hour.
-constexpr auto kKeepNotUsedLangPacksCount = 10;
+constexpr auto kKeepNotUsedLangPacksCount = 4;
+constexpr auto kKeepNotUsedInputLanguagesCount = 4;
 
 using namespace Ui::Emoji;
 
@@ -43,30 +44,6 @@ struct LangPackData {
 	}
 	const auto code = text[0].unicode();
 	return (code == 0x2122U) || (code == 0xA9U) || (code == 0xAEU);
-}
-
-[[nodiscard]] std::vector<QString> KeywordLanguages() {
-	if (!AuthSession::Exists()) {
-		return {};
-	}
-	auto result = std::vector<QString>();
-	const auto yield = [&](const QString &language) {
-		result.push_back(language);
-	};
-	const auto yieldLocale = [&](const QLocale &locale) {
-		for (const auto &language : locale.uiLanguages()) {
-			yield(language);
-		}
-	};
-	yield(Lang::Current().id());
-	yield(Lang::DefaultLanguageId());
-	yield(Lang::CurrentCloudManager().suggestedLanguage());
-	yield(Platform::SystemLanguage());
-	yieldLocale(QLocale::system());
-	if (const auto method = QGuiApplication::inputMethod()) {
-		yieldLocale(method->locale());
-	}
-	return result;
 }
 
 [[nodiscard]] QString CacheFilePath(QString id) {
@@ -461,12 +438,54 @@ void EmojiKeywords::apiChanged(ApiWrap *api) {
 }
 
 void EmojiKeywords::refresh() {
-	auto list = KeywordLanguages();
+	auto list = languages();
 	if (_localList != list) {
 		_localList = std::move(list);
 		refreshRemoteList();
 	} else {
 		refreshFromRemoteList();
+	}
+}
+
+std::vector<QString> EmojiKeywords::languages() {
+	if (!AuthSession::Exists()) {
+		return {};
+	}
+	refreshInputLanguages();
+
+	auto result = std::vector<QString>();
+	const auto yield = [&](const QString &language) {
+		result.push_back(language);
+	};
+	const auto yieldList = [&](const QStringList &list) {
+		result.insert(end(result), list.begin(), list.end());
+	};
+	yield(Lang::Current().id());
+	yield(Lang::DefaultLanguageId());
+	yield(Lang::CurrentCloudManager().suggestedLanguage());
+	yield(Platform::SystemLanguage());
+	yieldList(QLocale::system().uiLanguages());
+	for (const auto &list : _inputLanguages) {
+		yieldList(list);
+	}
+	ranges::sort(result);
+	return result;
+}
+
+void EmojiKeywords::refreshInputLanguages() {
+	const auto method = QGuiApplication::inputMethod();
+	if (!method) {
+		return;
+	}
+	const auto list = method->locale().uiLanguages();
+	const auto i = ranges::find(_inputLanguages, list);
+	if (i != end(_inputLanguages)) {
+		std::rotate(i, i + 1, end(_inputLanguages));
+	} else {
+		if (_inputLanguages.size() >= kKeepNotUsedInputLanguagesCount) {
+			_inputLanguages.pop_front();
+		}
+		_inputLanguages.push_back(list);
 	}
 }
 
@@ -553,7 +572,7 @@ void EmojiKeywords::setRemoteList(std::vector<QString> &&list) {
 		if (ranges::find(_remoteList, i->first) != end(_remoteList)) {
 			++i;
 		} else {
-			if (_notUsedData.size() > kKeepNotUsedLangPacksCount) {
+			if (_notUsedData.size() >= kKeepNotUsedLangPacksCount) {
 				_notUsedData.pop_front();
 			}
 			_notUsedData.push_back(std::move(i->second));
