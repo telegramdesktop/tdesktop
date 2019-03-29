@@ -426,7 +426,7 @@ void EmojiKeywords::apiChanged(ApiWrap *api) {
 			refresh();
 		}, _suggestedChangeLifetime);
 	} else {
-		_remoteListRequestId = 0;
+		_langsRequestId = 0;
 		_suggestedChangeLifetime.destroy();
 	}
 	for (const auto &[language, item] : _data) {
@@ -484,10 +484,25 @@ void EmojiKeywords::refreshRemoteList() {
 		setRemoteList({});
 		return;
 	}
-	_api->request(base::take(_remoteListRequestId)).cancel();
-	//_remoteListRequestId = _api->request() // #TODO emoji
-	setRemoteList(base::duplicate(_localList));
-	auto list = _localList;
+	_api->request(base::take(_langsRequestId)).cancel();
+	auto languages = QVector<MTPstring>();
+	for (const auto &id : _localList) {
+		languages.push_back(MTP_string(id));
+	}
+	_langsRequestId = _api->request(MTPmessages_GetEmojiKeywordsLanguages(
+		MTP_vector<MTPstring>(languages)
+	)).done([=](const MTPVector<MTPEmojiLanguage> &result) {
+		setRemoteList(ranges::view::all(
+			result.v
+		) | ranges::view::transform([](const MTPEmojiLanguage &language) {
+			return language.match([&](const MTPDemojiLanguage &language) {
+				return qs(language.vlang_code);
+			});
+		}) | ranges::to_vector);
+		_langsRequestId = 0;
+	}).fail([=](const RPCError &error) {
+		_langsRequestId = 0;
+	}).send();
 }
 
 void EmojiKeywords::setRemoteList(std::vector<QString> &&list) {

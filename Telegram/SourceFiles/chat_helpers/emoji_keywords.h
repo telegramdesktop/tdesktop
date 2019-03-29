@@ -60,7 +60,7 @@ private:
 	ApiWrap *_api = nullptr;
 	std::vector<QString> _localList;
 	std::vector<QString> _remoteList;
-	mtpRequestId _remoteListRequestId = 0;
+	mtpRequestId _langsRequestId = 0;
 	base::flat_map<QString, std::unique_ptr<LangPack>> _data;
 	rpl::event_stream<> _refreshed;
 
