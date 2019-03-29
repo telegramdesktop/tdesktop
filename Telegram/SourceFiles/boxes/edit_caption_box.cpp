@@ -45,6 +45,7 @@ EditCaptionBox::EditCaptionBox(
 , _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
+	_isAllowedEditMedia = item->media()->allowsEditMedia();
 
 	QSize dimensions;
 	auto image = (Image*)nullptr;
@@ -331,80 +332,78 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-void EditCaptionBox::prepare() {
-	addButton(langFactory(lng_settings_save), [this] { save(); });
-	addButton(langFactory(lng_edit_media), [this] {
-		const auto callback = [=](const FileDialog::OpenResult &result) {
-			if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-				return;
+void EditCaptionBox::createEditMediaButton() {
+	const auto callback = [=](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+
+		if (!result.paths.isEmpty()) {
+			const auto filePath = result.paths.front();
+			_newMediaPath = filePath;
+			_preparedList = Storage::PrepareMediaList(
+				QStringList(_newMediaPath),
+				st::sendMediaPreviewSize);
+
+			const auto file = &_preparedList.files.front();
+			const auto fileMedia = &file->information->media;
+
+			const auto fileinfo = QFileInfo(_newMediaPath);
+			const auto filename = fileinfo.fileName();
+			_isImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
+			_isAudio = false;
+			_animated = false;
+			_photo = false;
+			_doc = false;
+			_gifPreview = nullptr;
+			_thumbw = _thumbh = _thumbx = 0;
+			_gifw = _gifh = _gifx = 0;
+
+			auto isGif = false;
+			_wayWrap->toggle(_isImage, anim::type::instant);
+
+			using Info = FileMediaInformation;
+			if (const auto image = base::get_if<Info::Image>(fileMedia)
+				&& _isImage) {
+				_photo = true;
+			} else if (const auto video =
+					base::get_if<Info::Video>(fileMedia)) {
+				_animated = true;
+				isGif = video->isGifv;
+			} else {
+				auto nameString = filename;
+				if (const auto song =
+						base::get_if<Info::Song>(fileMedia)) {
+					nameString = DocumentData::ComposeNameString(
+						filename,
+						song->title,
+						song->performer);
+					_isAudio = true;
+				}
+				setName(nameString, fileinfo.size());
+				_doc = true;
 			}
 
-			if (!result.paths.isEmpty()) {
-				const auto filePath = result.paths.front();
-				LOG(("FILE PATH: %1").arg(filePath));
-				_newMediaPath = filePath;
-				_preparedList = Storage::PrepareMediaList(
-					QStringList(_newMediaPath),
-					st::sendMediaPreviewSize);
-
-				const auto file = &_preparedList.files.front();
-				const auto fileMedia = &file->information->media;
-
-				const auto fileinfo = QFileInfo(_newMediaPath);
-				const auto filename = fileinfo.fileName();
-				_isImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
-				_isAudio = false;
-				_animated = false;
-				_photo = false;
-				_doc = false;
-				_gifPreview = nullptr;
-				_thumbw = _thumbh = _thumbx = 0;
-				_gifw = _gifh = _gifx = 0;
-
-				auto isGif = false;
-				_wayWrap->toggle(_isImage, anim::type::instant);
-
-				using Info = FileMediaInformation;
-				if (const auto image = base::get_if<Info::Image>(fileMedia)
-					&& _isImage) {
-					_photo = true;
-				} else if (const auto video =
-						base::get_if<Info::Video>(fileMedia)) {
-					_animated = true;
-					isGif = video->isGifv;
-				} else {
-					auto nameString = filename;
-					if (const auto song =
-							base::get_if<Info::Song>(fileMedia)) {
-						nameString = DocumentData::ComposeNameString(
-							filename,
-							song->title,
-							song->performer);
-						_isAudio = true;
-					}
-					setName(nameString, fileinfo.size());
-					_doc = true;
+			if (!_doc) {
+				_thumb = App::pixmapFromImageInPlace(
+					file->preview.scaled(st::sendMediaPreviewSize,
+						st::confirmMaxHeight,
+						Qt::KeepAspectRatio));
+				_thumbw = _thumb.width();
+				_thumbh = _thumb.height();
+				_thumbx = (st::boxWideWidth - _thumbw) / 2;
+				if (isGif) {
+					_gifw = _thumbw;
+					_gifh = _thumbh;
+					_gifx = _thumbx;
+					prepareGifPreview();
 				}
-
-				if (!_doc) {
-					_thumb = App::pixmapFromImageInPlace(
-						file->preview.scaled(st::sendMediaPreviewSize,
-							st::confirmMaxHeight,
-							Qt::KeepAspectRatio));
-					_thumbw = _thumb.width();
-					_thumbh = _thumb.height();
-					_thumbx = (st::boxWideWidth - _thumbw) / 2;
-					if (isGif) {
-						_gifw = _thumbw;
-						_gifh = _thumbh;
-						_gifx = _thumbx;
-						prepareGifPreview();
-					}
-				}
-				captionResized();
 			}
-		};
+			captionResized();
+		}
+	};
 
+	addButton(langFactory(lng_edit_media), [=] {
 		const auto filters = QStringList(FileDialog::AllFilesFilter());
 		FileDialog::GetOpenPath(
 			this,
@@ -412,6 +411,15 @@ void EditCaptionBox::prepare() {
 			filters.join(qsl(";;")),
 			crl::guard(this, callback));
 	});
+}
+
+void EditCaptionBox::prepare() {
+	addButton(langFactory(lng_settings_save), [this] { save(); });
+	if (_isAllowedEditMedia) {
+		createEditMediaButton();
+	} else {
+		_newMediaPath = QString();
+	}
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateBoxSize();

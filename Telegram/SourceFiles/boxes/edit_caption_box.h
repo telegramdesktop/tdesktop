@@ -66,6 +66,8 @@ private:
 
 	int errorTopSkip() const;
 
+	void createEditMediaButton();
+
 	not_null<Window::Controller*> _controller;
 	FullMsgId _msgId;
 	Image *_thumbnailImage = nullptr;
@@ -104,6 +106,7 @@ private:
 	bool _asFile = false;
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
+	bool _isAllowedEditMedia = false;
 
 	QString _error;
 

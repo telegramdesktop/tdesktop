@@ -93,6 +93,7 @@ public:
 	virtual bool allowsForward() const;
 	virtual bool allowsEdit() const;
 	virtual bool allowsEditCaption() const;
+	virtual bool allowsEditMedia() const;
 	virtual bool allowsRevoke() const;
 	virtual bool forwardedBecomesUnread() const;
 	virtual QString errorTextForForward(not_null<PeerData*> peer) const;
@@ -141,6 +142,7 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
 	bool allowsEditCaption() const override;
+	bool allowsEditMedia() const override;
 	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
@@ -176,6 +178,7 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextWithEntities clipboardText() const override;
 	bool allowsEditCaption() const override;
+	bool allowsEditMedia() const override;
 	bool forwardedBecomesUnread() const override;
 	QString errorTextForForward(not_null<PeerData*> peer) const override;
 

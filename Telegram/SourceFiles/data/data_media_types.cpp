@@ -214,6 +214,10 @@ bool Media::allowsEditCaption() const {
 	return false;
 }
 
+bool Media::allowsEditMedia() const {
+	return false;
+}
+
 bool Media::allowsRevoke() const {
 	return true;
 }
@@ -320,6 +324,10 @@ TextWithEntities MediaPhoto::clipboardText() const {
 }
 
 bool MediaPhoto::allowsEditCaption() const {
+	return true;
+}
+
+bool MediaPhoto::allowsEditMedia() const {
 	return true;
 }
 
@@ -646,6 +654,13 @@ TextWithEntities MediaFile::clipboardText() const {
 
 bool MediaFile::allowsEditCaption() const {
 	return !_document->isVideoMessage() && !_document->sticker();
+}
+
+bool MediaFile::allowsEditMedia() const {
+	return !_document->isVideoMessage()
+		&& !_document->sticker()
+		&& !_document->isGifv()
+		&& !_document->isVoiceMessage();
 }
 
 bool MediaFile::forwardedBecomesUnread() const {
