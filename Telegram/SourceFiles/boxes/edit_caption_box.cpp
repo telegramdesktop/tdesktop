@@ -369,7 +369,6 @@ void EditCaptionBox::createEditMediaButton() {
 			_thumbw = _thumbh = _thumbx = 0;
 			_gifw = _gifh = _gifx = 0;
 
-			auto isGif = false;
 			_wayWrap->toggle(_isImage && _isNotAlbum, anim::type::instant);
 
 			using Info = FileMediaInformation;
@@ -379,7 +378,8 @@ void EditCaptionBox::createEditMediaButton() {
 			} else if (const auto video =
 					base::get_if<Info::Video>(fileMedia)) {
 				_animated = true;
-				isGif = video->isGifv;
+				// Never edit video as gif.
+				video->isGifv = false;
 			} else {
 				auto nameString = filename;
 				if (const auto song =
@@ -402,12 +402,6 @@ void EditCaptionBox::createEditMediaButton() {
 				_thumbw = _thumb.width();
 				_thumbh = _thumb.height();
 				_thumbx = (st::boxWideWidth - _thumbw) / 2;
-				if (isGif) {
-					_gifw = _thumbw;
-					_gifh = _thumbh;
-					_gifx = _thumbx;
-					prepareGifPreview();
-				}
 			}
 			captionResized();
 		}

@@ -4665,9 +4665,8 @@ void ApiWrap::editUploadedDocument(
 				| (thumb
 					? MTPDinputMediaUploadedDocument::Flag::f_thumb
 					: MTPDinputMediaUploadedDocument::Flag(0))
-				| (groupId
-					? MTPDinputMediaUploadedDocument::Flag::f_nosound_video
-					: MTPDinputMediaUploadedDocument::Flag(0));
+				// Never edit video as gif.
+				| MTPDinputMediaUploadedDocument::Flag::f_nosound_video;
 			const auto media = MTP_inputMediaUploadedDocument(
 				MTP_flags(flags),
 				file,
