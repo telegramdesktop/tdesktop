@@ -62,6 +62,7 @@ private:
 	std::vector<QString> _remoteList;
 	mtpRequestId _langsRequestId = 0;
 	base::flat_map<QString, std::unique_ptr<LangPack>> _data;
+	std::deque<std::unique_ptr<LangPack>> _notUsedData;
 	rpl::event_stream<> _refreshed;
 
 	rpl::lifetime _suggestedChangeLifetime;

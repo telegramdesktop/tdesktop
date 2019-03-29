@@ -112,7 +112,7 @@ std::vector<SuggestionsWidget::Row> SuggestionsWidget::getRowsByQuery() const {
 		return result;
 	}
 	auto suggestions = std::vector<Row>();
-	const auto results = Core::App().emojiKeywords().query(_query.mid(1));
+	const auto results = Core::App().emojiKeywords().query(_query);
 	for (const auto &result : results) {
 		suggestions.emplace_back(
 			result.emoji,
@@ -475,13 +475,13 @@ QString SuggestionsController::getEmojiQuery() {
 		return QString();
 	}
 
-	auto cursor = _field->textCursor();
+	const auto cursor = _field->textCursor();
 	if (cursor.hasSelection()) {
 		return QString();
 	}
 
-	auto position = cursor.position();
-	auto findTextPart = [this, &position] {
+	const auto position = cursor.position();
+	const auto findTextPart = [&] {
 		auto document = _field->document();
 		auto block = document->findBlock(position);
 		for (auto i = block.begin(); !i.atEnd(); ++i) {
@@ -496,18 +496,21 @@ QString SuggestionsController::getEmojiQuery() {
 			if (fragment.charFormat().isImageFormat()) {
 				continue;
 			}
-			position -= from;
 			_queryStartPosition = from;
 			return fragment.text();
 		}
 		return QString();
 	};
 
-	auto text = findTextPart();
+	const auto text = findTextPart();
 	if (text.isEmpty()) {
 		return QString();
 	}
-
+	for (auto i = position - _queryStartPosition; i != 0;) {
+		if (text[--i] == ':') {
+			return text.mid(i + 1);
+		}
+	}
 	const auto isUpperCaseLetter = [](QChar ch) {
 		return (ch >= 'A' && ch <= 'Z');
 	};
@@ -568,7 +571,7 @@ QString SuggestionsController::getEmojiQuery() {
 }
 
 void SuggestionsController::replaceCurrent(const QString &replacement) {
-	auto suggestion = getEmojiQuery();
+	const auto suggestion = getEmojiQuery();
 	if (suggestion.isEmpty()) {
 		_suggestions->showWithQuery(QString());
 	} else {

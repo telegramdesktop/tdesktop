@@ -20,6 +20,7 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kRefreshEach = 60 * 60 * crl::time(1000); // 1 hour.
+constexpr auto kKeepNotUsedLangPacksCount = 10;
 
 using namespace Ui::Emoji;
 
@@ -208,6 +209,8 @@ public:
 	LangPack &operator=(const LangPack &other) = delete;
 	~LangPack();
 
+	[[nodiscard]] QString id() const;
+
 	void refresh();
 	void apiChanged();
 
@@ -268,6 +271,10 @@ void EmojiKeywords::LangPack::readLocalCache() {
 			callback(std::move(result));
 		});
 	});
+}
+
+QString EmojiKeywords::LangPack::id() const {
+	return _id;
 }
 
 void EmojiKeywords::LangPack::refresh() {
@@ -417,14 +424,16 @@ void EmojiKeywords::handleAuthSessionChanges() {
 void EmojiKeywords::apiChanged(ApiWrap *api) {
 	_api = api;
 	if (_api) {
-		base::ObservableViewer(
-			Lang::CurrentCloudManager().firstLanguageSuggestion()
-		) | rpl::filter([=] {
-			// Refresh with the suggested language if we already were asked.
-			return !_data.empty();
-		}) | rpl::start_with_next([=] {
-			refresh();
-		}, _suggestedChangeLifetime);
+		crl::on_main(&Auth(), crl::guard(&_guard, [=] {
+			base::ObservableViewer(
+				Lang::CurrentCloudManager().firstLanguageSuggestion()
+			) | rpl::filter([=] {
+				// Refresh with the suggested language if we already were asked.
+				return !_data.empty();
+			}) | rpl::start_with_next([=] {
+				refresh();
+			}, _suggestedChangeLifetime);
+		}));
 	} else {
 		_langsRequestId = 0;
 		_suggestedChangeLifetime.destroy();
@@ -452,6 +461,9 @@ std::vector<Result> EmojiKeywords::query(
 		const QString &query,
 		bool exact) const {
 	const auto normalized = NormalizeQuery(query);
+	if (normalized.isEmpty()) {
+		return {};
+	}
 	auto result = std::vector<Result>();
 	for (const auto &[language, item] : _data) {
 		const auto oldcount = result.size();
@@ -514,6 +526,10 @@ void EmojiKeywords::setRemoteList(std::vector<QString> &&list) {
 		if (ranges::find(_remoteList, i->first) != end(_remoteList)) {
 			++i;
 		} else {
+			if (_notUsedData.size() > kKeepNotUsedLangPacksCount) {
+				_notUsedData.pop_front();
+			}
+			_notUsedData.push_back(std::move(i->second));
 			i = _data.erase(i);
 		}
 	}
@@ -524,6 +540,15 @@ void EmojiKeywords::refreshFromRemoteList() {
 	for (const auto &id : _remoteList) {
 		if (const auto i = _data.find(id); i != end(_data)) {
 			i->second->refresh();
+			continue;
+		}
+		const auto i = ranges::find(
+			_notUsedData,
+			id,
+			[](const std::unique_ptr<LangPack> &p) { return p->id(); });
+		if (i != end(_notUsedData)) {
+			_data.emplace(id, std::move(*i));
+			_notUsedData.erase(i);
 		} else {
 			_data.emplace(
 				id,
