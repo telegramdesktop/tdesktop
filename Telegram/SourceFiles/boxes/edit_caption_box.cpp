@@ -46,6 +46,7 @@ EditCaptionBox::EditCaptionBox(
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
 	_isAllowedEditMedia = item->media()->allowsEditMedia();
+	_isNotAlbum = !item->groupId();
 
 	QSize dimensions;
 	auto image = (Image*)nullptr;
@@ -350,6 +351,15 @@ void EditCaptionBox::createEditMediaButton() {
 
 			const auto fileinfo = QFileInfo(_newMediaPath);
 			const auto filename = fileinfo.fileName();
+
+			if (!_isNotAlbum) {
+				// This check only for users, who chose not valid file with absolute path.
+				if (!fileIsValidForAlbum(filename, Core::MimeTypeForFile(fileinfo).name())) {
+					_newMediaPath = QString();
+					return;
+				}
+			}
+
 			_isImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
 			_isAudio = false;
 			_animated = false;
@@ -360,7 +370,7 @@ void EditCaptionBox::createEditMediaButton() {
 			_gifw = _gifh = _gifx = 0;
 
 			auto isGif = false;
-			_wayWrap->toggle(_isImage, anim::type::instant);
+			_wayWrap->toggle(_isImage && _isNotAlbum, anim::type::instant);
 
 			using Info = FileMediaInformation;
 			if (const auto image = base::get_if<Info::Image>(fileMedia)
@@ -404,7 +414,9 @@ void EditCaptionBox::createEditMediaButton() {
 	};
 
 	addButton(langFactory(lng_edit_media), [=] {
-		const auto filters = QStringList(FileDialog::AllFilesFilter());
+		const auto filters = _isNotAlbum
+			? QStringList(FileDialog::AllFilesFilter())
+			: QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"));
 		FileDialog::GetOpenPath(
 			this,
 			lang(lng_choose_file),

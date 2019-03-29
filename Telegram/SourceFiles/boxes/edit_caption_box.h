@@ -107,6 +107,7 @@ private:
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
 	bool _isAllowedEditMedia = false;
+	bool _isNotAlbum;
 
 	QString _error;
 

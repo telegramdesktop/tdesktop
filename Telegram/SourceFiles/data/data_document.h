@@ -72,6 +72,7 @@ struct VoiceData : public DocumentAdditionalData {
 };
 
 bool fileIsImage(const QString &name, const QString &mime);
+bool fileIsValidForAlbum(const QString &name, const QString &mime);
 
 namespace Serialize {
 class Document;
