@@ -742,7 +742,6 @@ QString FormatViewsCount(int views) {
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 	_media = nullptr;
-	_savedMedia = nullptr;
 	if (media) {
 		setMedia(*media);
 	}

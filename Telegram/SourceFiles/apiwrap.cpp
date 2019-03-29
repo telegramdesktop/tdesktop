@@ -4640,8 +4640,17 @@ void ApiWrap::editUploadedPhoto(
 			media,
 			MTPReplyMarkup(),
 			sentEntities
-		)).done([=](const MTPUpdates &result) { LOG(("APPLY.")); applyUpdates(result);
-		}).fail([=](const RPCError &error) { LOG(("FAIL."));
+		)).done([=](const MTPUpdates &result) {
+			item->clearSavedMedia();
+			applyUpdates(result);
+		}).fail([=](const RPCError &error) {
+			QString err = error.type();
+			if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+				item->returnSavedMedia();
+				_session->data().sendHistoryChangeNotifications();
+			} else {
+				sendMessageFail(error);
+			}
 		}).send();
 	}
 }
@@ -4694,8 +4703,17 @@ void ApiWrap::editUploadedDocument(
 				media,
 				MTPReplyMarkup(),
 				sentEntities
-			)).done([=](const MTPUpdates &result) { LOG(("APPLY.")); applyUpdates(result);
-			}).fail([=](const RPCError &error) { LOG(("FAIL."));
+			)).done([=](const MTPUpdates &result) {
+				item->clearSavedMedia();
+				applyUpdates(result);
+			}).fail([=](const RPCError &error) {
+				QString err = error.type();
+				if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+					item->returnSavedMedia();
+					_session->data().sendHistoryChangeNotifications();
+				} else {
+					sendMessageFail(error);
+				}
 			}).send();
 		}
 	}
