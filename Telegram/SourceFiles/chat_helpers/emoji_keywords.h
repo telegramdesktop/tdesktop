@@ -43,6 +43,7 @@ public:
 	[[nodiscard]] std::vector<Result> query(
 		const QString &query,
 		bool exact = false) const;
+	[[nodiscard]] int maxQueryLength() const;
 
 private:
 	class LangPack;

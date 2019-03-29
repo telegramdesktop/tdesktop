@@ -112,7 +112,18 @@ std::vector<SuggestionsWidget::Row> SuggestionsWidget::getRowsByQuery() const {
 		return result;
 	}
 	auto suggestions = std::vector<Row>();
-	const auto results = Core::App().emojiKeywords().query(_query);
+	const auto middle = (_query[0] == ':');
+	const auto real = middle ? _query.mid(1) : _query;
+	const auto simple = [&] {
+		if (!middle || _query.size() > 2) {
+			return false;
+		}
+		// Suggest :D and :-P only as exact matches.
+		return ranges::find_if(_query, [](QChar ch) { return ch.isLower(); })
+			== _query.end();
+	}();
+	const auto exact = !middle || simple;
+	const auto results = Core::App().emojiKeywords().query(real, exact);
 	for (const auto &result : results) {
 		suggestions.emplace_back(
 			result.emoji,
@@ -480,6 +491,8 @@ QString SuggestionsController::getEmojiQuery() {
 		return QString();
 	}
 
+	const auto modernLimit = Core::App().emojiKeywords().maxQueryLength();
+	const auto legacyLimit = GetSuggestionMaxLength();
 	const auto position = cursor.position();
 	const auto findTextPart = [&] {
 		auto document = _field->document();
@@ -506,68 +519,32 @@ QString SuggestionsController::getEmojiQuery() {
 	if (text.isEmpty()) {
 		return QString();
 	}
-	for (auto i = position - _queryStartPosition; i != 0;) {
+	const auto length = position - _queryStartPosition;
+	for (auto i = length; i != 0;) {
 		if (text[--i] == ':') {
-			return text.mid(i + 1);
-		}
-	}
-	const auto isUpperCaseLetter = [](QChar ch) {
-		return (ch >= 'A' && ch <= 'Z');
-	};
-	const auto isLetter = [](QChar ch) {
-		return (ch >= 'a' && ch <= 'z')
-			|| (ch >= 'A' && ch <= 'Z')
-			|| (ch >= '0' && ch <= '9');
-	};
-	const auto isSuggestionChar = [](QChar ch) {
-		return (ch >= 'a' && ch <= 'z')
-			|| (ch >= 'A' && ch <= 'Z')
-			|| (ch >= '0' && ch <= '9')
-			|| (ch == '_')
-			|| (ch == '-')
-			|| (ch == '+');
-	};
-	const auto isGoodCharBeforeSuggestion = [&](QChar ch) {
-		return !isSuggestionChar(ch) || (ch == 0);
-	};
-	Assert(position > 0 && position <= text.size());
-	for (auto i = position; i != 0;) {
-		auto ch = text[--i];
-		if (ch == ':') {
-			auto beforeColon = (i < 1) ? QChar(0) : text[i - 1];
-			if (isGoodCharBeforeSuggestion(beforeColon)) {
-				// At least one letter after colon.
-				if (position > i + 1) {
-					// Skip colon and the first letter.
-					_queryStartPosition += i + 2;
-					const auto length = position - i;
-					auto result = text.mid(i, length);
-					const auto upperCaseLetters = std::count_if(
-						result.begin(),
-						result.end(),
-						isUpperCaseLetter);
-					const auto letters = std::count_if(
-						result.begin(),
-						result.end(),
-						isLetter);
-					if (letters == upperCaseLetters && letters == 1) {
-						// No upper case single letter suggestions.
-						// We don't want to suggest emoji on :D and :-P
-						return QString();
-					}
-					return result.toLower();
-				}
+			if (i + 1 == length) {
+				return QString();
 			}
-			return QString();
+			_queryStartPosition += i + 2;
+			return text.mid(i, length - i);
 		}
-		if (position - i > kSuggestionMaxLength) {
-			return QString();
-		}
-		if (!isSuggestionChar(ch)) {
+		if (length - i > legacyLimit && length - i > modernLimit) {
 			return QString();
 		}
 	}
-	return QString();
+
+	// Exact query should be full input field value.
+	const auto end = [&] {
+		auto cursor = _field->textCursor();
+		cursor.movePosition(QTextCursor::End);
+		return cursor.position();
+	}();
+	if ((length > modernLimit)
+		|| (_queryStartPosition != 0)
+		|| (position != end)) {
+		return QString();
+	}
+	return text.mid(0, length);
 }
 
 void SuggestionsController::replaceCurrent(const QString &replacement) {

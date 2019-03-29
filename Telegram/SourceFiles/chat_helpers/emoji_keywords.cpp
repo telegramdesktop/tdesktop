@@ -62,10 +62,10 @@ struct LangPackData {
 	yield(Lang::DefaultLanguageId());
 	yield(Lang::CurrentCloudManager().suggestedLanguage());
 	yield(Platform::SystemLanguage());
+	yieldLocale(QLocale::system());
 	if (const auto method = QGuiApplication::inputMethod()) {
 		yieldLocale(method->locale());
 	}
-	yieldLocale(QLocale::system());
 	return result;
 }
 
@@ -118,6 +118,18 @@ void AppendFoundEmoji(
 void AppendLegacySuggestions(
 		std::vector<Result> &result,
 		const QString &query) {
+	const auto badSuggestionChar = [](QChar ch) {
+		return (ch < 'a' || ch > 'z')
+			&& (ch < 'A' || ch > 'Z')
+			&& (ch < '0' || ch > '9')
+			&& (ch != '_')
+			&& (ch != '-')
+			&& (ch != '+');
+	};
+	if (ranges::find_if(query, badSuggestionChar) != query.end()) {
+		return;
+	}
+
 	const auto suggestions = GetSuggestions(QStringToUTF16(query));
 	auto &&add = ranges::view::all(
 		suggestions
@@ -217,6 +229,7 @@ public:
 	[[nodiscard]] std::vector<Result> query(
 		const QString &normalized,
 		bool exact) const;
+	[[nodiscard]] int maxQueryLength() const;
 
 private:
 	enum class State {
@@ -389,6 +402,10 @@ std::vector<Result> EmojiKeywords::LangPack::query(
 	return result;
 }
 
+int EmojiKeywords::LangPack::maxQueryLength() const {
+	return _data.maxKeyLength;
+}
+
 EmojiKeywords::EmojiKeywords() {
 	crl::on_main(&_guard, [=] {
 		handleAuthSessionChanges();
@@ -488,6 +505,16 @@ std::vector<Result> EmojiKeywords::query(
 		AppendLegacySuggestions(result, query);
 	}
 	return result;
+}
+
+int EmojiKeywords::maxQueryLength() const {
+	if (_data.empty()) {
+		return 0;
+	}
+	auto &&lengths = _data | ranges::view::transform([](const auto &pair) {
+		return pair.second->maxQueryLength();
+	});
+	return *ranges::max_element(lengths);
 }
 
 void EmojiKeywords::refreshRemoteList() {
