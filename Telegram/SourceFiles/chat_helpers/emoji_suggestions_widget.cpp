@@ -522,7 +522,10 @@ QString SuggestionsController::getEmojiQuery() {
 	const auto length = position - _queryStartPosition;
 	for (auto i = length; i != 0;) {
 		if (text[--i] == ':') {
-			if (i + 1 == length) {
+			const auto previous = (i > 0) ? text[i - 1] : QChar(0);
+			if (i > 0 && (previous.isLetter() || previous.isDigit())) {
+				return QString();
+			} else if (i + 1 == length || text[i + 1].isSpace()) {
 				return QString();
 			}
 			_queryStartPosition += i + 2;
@@ -539,7 +542,9 @@ QString SuggestionsController::getEmojiQuery() {
 		cursor.movePosition(QTextCursor::End);
 		return cursor.position();
 	}();
-	if ((length > modernLimit)
+	if (!length
+		|| text[0].isSpace()
+		|| (length > modernLimit)
 		|| (_queryStartPosition != 0)
 		|| (position != end)) {
 		return QString();

@@ -46,6 +46,10 @@ struct LangPackData {
 	return (code == 0x2122U) || (code == 0xA9U) || (code == 0xAEU);
 }
 
+void CreateCacheFilePath() {
+	QDir().mkpath(internal::CacheFileFolder() + qstr("/keywords"));
+}
+
 [[nodiscard]] QString CacheFilePath(QString id) {
 	static const auto BadSymbols = QRegularExpression("[^a-zA-Z0-9_\\.\\-]");
 	id.replace(BadSymbols, QString());
@@ -60,21 +64,78 @@ struct LangPackData {
 	if (!file.open(QIODevice::ReadOnly)) {
 		return {};
 	}
-	// #TODO emoji
 	auto result = LangPackData();
+	auto stream = QDataStream(&file);
+	stream.setVersion(QDataStream::Qt_5_1);
+	auto version = qint32();
+	auto count = qint32();
+	stream
+		>> version
+		>> count;
+	if (version < 0 || count < 0 || stream.status() != QDataStream::Ok) {
+		return {};
+	}
+	for (auto i = 0; i != count; ++i) {
+		auto key = QString();
+		auto size = qint32();
+		stream
+			>> key
+			>> size;
+		if (size < 0 || stream.status() != QDataStream::Ok) {
+			return {};
+		}
+		auto &list = result.emoji[key];
+		for (auto j = 0; j != size; ++j) {
+			auto text = QString();
+			stream >> text;
+			if (stream.status() != QDataStream::Ok) {
+				return {};
+			}
+			const auto emoji = MustAddPostfix(text)
+				? (text + QChar(Ui::Emoji::kPostfix))
+				: text;
+			const auto entry = LangPackEmoji{ Find(emoji), text };
+			if (!entry.emoji) {
+				return {};
+			}
+			list.push_back(entry);
+		}
+		result.maxKeyLength = std::max(result.maxKeyLength, key.size());
+	}
+	result.version = version;
 	return result;
 }
 
 void WriteLocalCache(const QString &id, const LangPackData &data) {
+	if (!data.version && data.emoji.empty()) {
+		return;
+	}
+	CreateCacheFilePath();
 	auto file = QFile(CacheFilePath(id));
 	if (!file.open(QIODevice::WriteOnly)) {
 		return;
 	}
-
+	auto stream = QDataStream(&file);
+	stream.setVersion(QDataStream::Qt_5_1);
+	stream
+		<< qint32(data.version)
+		<< qint32(data.emoji.size());
+	for (const auto &[key, list] : data.emoji) {
+		stream
+			<< key
+			<< qint32(list.size());
+		for (const auto &emoji : list) {
+			stream << emoji.text;
+		}
+	}
 }
 
 [[nodiscard]] QString NormalizeQuery(const QString &query) {
-	return query.toLower().trimmed();
+	return query.toLower();
+}
+
+[[nodiscard]] QString NormalizeKey(const QString &key) {
+	return key.toLower().trimmed();
 }
 
 void AppendFoundEmoji(
@@ -133,7 +194,7 @@ void ApplyDifference(
 	data.version = version;
 	for (const auto &keyword : keywords) {
 		keyword.match([&](const MTPDemojiKeyword &keyword) {
-			const auto word = NormalizeQuery(qs(keyword.vkeyword));
+			const auto word = NormalizeKey(qs(keyword.vkeyword));
 			if (word.isEmpty()) {
 				return;
 			}
@@ -156,7 +217,7 @@ void ApplyDifference(
 			});
 			list.insert(end(list), emoji.begin(), emoji.end());
 		}, [&](const MTPDemojiKeywordDeleted &keyword) {
-			const auto word = NormalizeQuery(qs(keyword.vkeyword));
+			const auto word = NormalizeKey(qs(keyword.vkeyword));
 			if (word.isEmpty()) {
 				return;
 			}
@@ -313,23 +374,19 @@ void EmojiKeywords::LangPack::applyDifference(
 			_data.version = 0;
 			_state = State::Refreshed;
 			return;
-		} else if (keywords.isEmpty()) {
-			if (_data.version < version) {
-				auto moved = std::move(_data);
-				moved.version = version;
-				applyData(std::move(moved));
-			} else {
-				_state = State::Refreshed;
-			}
+		} else if (keywords.isEmpty() && _data.version >= version) {
+			_state = State::Refreshed;
 			return;
 		}
+		const auto id = _id;
+		auto copy = _data;
 		auto callback = crl::guard(_guard.make_guard(), [=](
 				LangPackData &&result) {
 			applyData(std::move(result));
 		});
-		auto copy = _data;
 		crl::async([=, callback = std::move(callback)]() mutable {
 			ApplyDifference(copy, keywords, version);
+			WriteLocalCache(id, copy);
 			crl::on_main([
 				result = std::move(copy),
 				callback = std::move(callback)
