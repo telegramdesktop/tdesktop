@@ -85,8 +85,8 @@ rpl::producer<QString> SuggestionsWidget::triggered() const {
 	return _triggered.events();
 }
 
-void SuggestionsWidget::showWithQuery(const QString &query) {
-	if (_query == query) {
+void SuggestionsWidget::showWithQuery(const QString &query, bool force) {
+	if (!force && (_query == query)) {
 		return;
 	}
 	_query = query;
@@ -428,6 +428,10 @@ SuggestionsController::SuggestionsController(
 	) | rpl::start_with_next([=](QString replacement) {
 		replaceCurrent(replacement);
 	}, _lifetime);
+	Core::App().emojiKeywords().refreshed(
+	) | rpl::start_with_next([=] {
+		showFromTextChange(getEmojiQuery(), true);
+	}, _lifetime);
 
 	updateForceHidden();
 
@@ -477,8 +481,14 @@ void SuggestionsController::handleTextChange() {
 
 	const auto query = getEmojiQuery();
 	if (query.isEmpty() || _textChangeAfterKeyPress) {
-		_suggestions->showWithQuery(query);
+		showFromTextChange(query);
 	}
+}
+
+void SuggestionsController::showFromTextChange(
+		const QString &query,
+		bool force) {
+	_suggestions->showWithQuery(query, force);
 }
 
 QString SuggestionsController::getEmojiQuery() {

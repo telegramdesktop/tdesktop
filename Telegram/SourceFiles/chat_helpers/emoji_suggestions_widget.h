@@ -21,7 +21,7 @@ class SuggestionsWidget : public TWidget {
 public:
 	SuggestionsWidget(QWidget *parent, const style::Menu &st);
 
-	void showWithQuery(const QString &query);
+	void showWithQuery(const QString &query, bool force = false);
 	void handleKeyEvent(int key);
 
 	rpl::producer<bool> toggleAnimated() const;
@@ -88,6 +88,7 @@ public:
 private:
 	void handleCursorPositionChange();
 	void handleTextChange();
+	void showFromTextChange(const QString &query, bool force = false);
 	QString getEmojiQuery();
 	void suggestionsUpdated(bool visible);
 	void updateGeometry();
