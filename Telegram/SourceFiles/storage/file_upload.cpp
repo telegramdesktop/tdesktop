@@ -362,7 +362,8 @@ void Uploader::sendNext() {
 							uploadingId,
 							silent,
 							file,
-							thumb });
+							thumb,
+							uploadingData.file->edit });
 					} else {
 						_documentReady.fire({ uploadingId, silent, file, uploadingData.file->edit });
 					}

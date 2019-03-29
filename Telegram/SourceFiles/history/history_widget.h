@@ -458,7 +458,8 @@ private:
 		const FullMsgId &msgId,
 		bool silent,
 		const MTPInputFile &file,
-		const MTPInputFile &thumb);
+		const MTPInputFile &thumb,
+		bool edit = false);
 	void documentProgress(const FullMsgId &msgId);
 	void documentFailed(const FullMsgId &msgId);
 

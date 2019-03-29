@@ -4204,7 +4204,8 @@ void HistoryWidget::subscribeToUploader() {
 			data.fullId,
 			data.silent,
 			data.file,
-			data.thumb);
+			data.thumb,
+			data.edit);
 	}, _uploaderSubscriptions);
 	Auth().uploader().documentProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
@@ -4422,8 +4423,11 @@ void HistoryWidget::thumbDocumentUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file,
-		const MTPInputFile &thumb) {
-	Auth().api().sendUploadedDocument(newId, file, thumb, silent);
+		const MTPInputFile &thumb,
+		bool edit) {
+	edit
+	? Auth().api().editUploadedDocument(newId, file, thumb, silent)
+	: Auth().api().sendUploadedDocument(newId, file, thumb, silent);
 }
 
 void HistoryWidget::photoProgress(const FullMsgId &newId) {
