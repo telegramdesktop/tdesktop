@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/panel_animation.h"
+#include "ui/rp_widget.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
 
@@ -18,17 +19,26 @@ class InputField;
 
 namespace Emoji {
 
-class SuggestionsWidget : public TWidget {
+class SuggestionsWidget final : public Ui::RpWidget {
 public:
-	SuggestionsWidget(QWidget *parent, const style::Menu &st);
+	SuggestionsWidget(QWidget *parent);
 
 	void showWithQuery(const QString &query, bool force = false);
-	void handleKeyEvent(int key);
+	void selectFirstResult();
+	bool handleKeyEvent(int key);
 
 	rpl::producer<bool> toggleAnimated() const;
 	rpl::producer<QString> triggered() const;
 
-protected:
+private:
+	struct Row {
+		Row(not_null<EmojiPtr> emoji, const QString &replacement);
+
+		not_null<EmojiPtr> emoji;
+		QString replacement;
+	};
+
+	bool eventHook(QEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -37,33 +47,36 @@ protected:
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
-private:
-	class Row;
+	void scrollByWheelEvent(not_null<QWheelEvent*> e);
+	void paintFadings(Painter &p) const;
 
 	std::vector<Row> getRowsByQuery() const;
 	void resizeToRows();
-	int countWidth(const Row &row);
 	void setSelected(int selected);
 	void setPressed(int pressed);
 	void clearMouseSelection();
 	void clearSelection();
 	void updateSelectedItem();
-	int itemTop(int index);
 	void updateItem(int index);
+	[[nodiscard]] QRect inner() const;
+	[[nodiscard]] QPoint innerShift() const;
+	[[nodiscard]] QPoint mapToInner(QPoint globalPosition) const;
 	void selectByMouse(QPoint globalPosition);
-	void triggerSelectedRow();
-	void triggerRow(const Row &row);
-
-	not_null<const style::Menu*> _st;
+	bool triggerSelectedRow() const;
+	void triggerRow(const Row &row) const;
 
 	QString _query;
 	std::vector<Row> _rows;
 
-	int _rowHeight = 0;
 	std::optional<QPoint> _lastMousePosition;
 	bool _mouseSelection = false;
 	int _selected = -1;
 	int _pressed = -1;
+
+	int _scroll = 0;
+	int _scrollMax = 0;
+	int _oneWidth = 0;
+	QMargins _padding;
 
 	rpl::event_stream<bool> _toggleAnimated;
 	rpl::event_stream<QString> _triggered;
@@ -90,7 +103,7 @@ private:
 	void handleCursorPositionChange();
 	void handleTextChange();
 	void showWithQuery(const QString &query);
-	QString getEmojiQuery();
+	[[nodiscard]] QString getEmojiQuery();
 	void suggestionsUpdated(bool visible);
 	void updateGeometry();
 	void updateForceHidden();

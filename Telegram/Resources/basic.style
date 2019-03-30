@@ -294,4 +294,7 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 stickerIconLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal", emojiPanCategories }};
 
+emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
+emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
+
 transparentPlaceholderSize: 4px;
