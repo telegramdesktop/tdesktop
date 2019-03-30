@@ -44,7 +44,10 @@ public:
 		object_ptr<BoxContent> box,
 		LayerOptions options,
 		anim::type animated) = 0;
-	virtual void setDimensions(int newWidth, int maxHeight) = 0;
+	virtual void setDimensions(
+		int newWidth,
+		int maxHeight,
+		bool forceCenterPosition = false) = 0;
 	virtual void setNoContentMargin(bool noContentMargin) = 0;
 	virtual bool isBoxShown() const = 0;
 	virtual void closeBox() = 0;
@@ -158,8 +161,11 @@ protected:
 		}
 		getDelegate()->setNoContentMargin(noContentMargin);
 	}
-	void setDimensions(int newWidth, int maxHeight) {
-		getDelegate()->setDimensions(newWidth, maxHeight);
+	void setDimensions(
+		int newWidth,
+		int maxHeight,
+		bool forceCenterPosition = false) {
+		getDelegate()->setDimensions(newWidth, maxHeight, forceCenterPosition);
 	}
 	void setDimensionsToContent(
 		int newWidth,
@@ -264,7 +270,10 @@ public:
 	void updateButtonsPositions() override;
 	QPointer<QWidget> outerContainer() override;
 
-	void setDimensions(int newWidth, int maxHeight) override;
+	void setDimensions(
+		int newWidth,
+		int maxHeight,
+		bool forceCenterPosition = false) override;
 
 	void setNoContentMargin(bool noContentMargin) override {
 		if (_noContentMargin != noContentMargin) {

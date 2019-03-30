@@ -500,7 +500,7 @@ void EditCaptionBox::updateBoxSize() {
 	} else {
 		newHeight += st::boxTitleFont->height;
 	}
-	setDimensions(st::boxWideWidth, newHeight);
+	setDimensions(st::boxWideWidth, newHeight, true);
 }
 
 int EditCaptionBox::errorTopSkip() const {

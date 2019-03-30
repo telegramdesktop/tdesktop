@@ -436,7 +436,7 @@ QPointer<Ui::IconButton> AbstractBox::addTopButton(const style::IconButton &st, 
 	return result;
 }
 
-void AbstractBox::setDimensions(int newWidth, int maxHeight) {
+void AbstractBox::setDimensions(int newWidth, int maxHeight, bool forceCenterPosition) {
 	_maxContentHeight = maxHeight;
 
 	auto fullHeight = countFullHeight();
@@ -447,8 +447,13 @@ void AbstractBox::setDimensions(int newWidth, int maxHeight) {
 			resize(newWidth, countRealHeight());
 			auto newGeometry = geometry();
 			auto parentHeight = parentWidget()->height();
-			if (newGeometry.top() + newGeometry.height() + st::boxVerticalMargin > parentHeight) {
-				auto newTop = qMax(parentHeight - int(st::boxVerticalMargin) - newGeometry.height(), (parentHeight - newGeometry.height()) / 2);
+			if (newGeometry.top() + newGeometry.height() + st::boxVerticalMargin > parentHeight
+				|| forceCenterPosition) {
+				const auto top1 = parentHeight - int(st::boxVerticalMargin) - newGeometry.height();
+				const auto top2 = (parentHeight - newGeometry.height()) / 2;
+				const auto newTop = forceCenterPosition
+					? std::min(top1, top2)
+					: std::max(top1, top2);
 				if (newTop != newGeometry.top()) {
 					move(newGeometry.left(), newTop);
 				}
