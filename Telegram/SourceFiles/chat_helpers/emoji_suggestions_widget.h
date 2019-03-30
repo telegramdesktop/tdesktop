@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/panel_animation.h"
 #include "base/unique_qptr.h"
+#include "base/timer.h"
 
 namespace Ui {
 
@@ -88,7 +89,7 @@ public:
 private:
 	void handleCursorPositionChange();
 	void handleTextChange();
-	void showFromTextChange(const QString &query, bool force = false);
+	void showWithQuery(const QString &query);
 	QString getEmojiQuery();
 	void suggestionsUpdated(bool visible);
 	void updateGeometry();
@@ -111,6 +112,9 @@ private:
 	QPointer<SuggestionsWidget> _suggestions;
 	base::unique_qptr<QObject> _fieldFilter;
 	base::unique_qptr<QObject> _outerFilter;
+	base::Timer _showExactTimer;
+	bool _keywordsRefreshed = false;
+	QString _lastShownQuery;
 
 	rpl::lifetime _lifetime;
 

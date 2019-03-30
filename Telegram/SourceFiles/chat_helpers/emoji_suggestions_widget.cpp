@@ -23,6 +23,7 @@ namespace Ui {
 namespace Emoji {
 namespace {
 
+constexpr auto kShowExactDelay = crl::time(300);
 constexpr auto kRowLimit = 5;
 
 } // namespace
@@ -391,7 +392,8 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 SuggestionsController::SuggestionsController(
 	not_null<QWidget*> outer,
 	not_null<QTextEdit*> field)
-: _field(field) {
+: _field(field)
+, _showExactTimer([=] { showWithQuery(getEmojiQuery()); }) {
 	_container = base::make_unique_q<InnerDropdown>(
 		outer,
 		st::emojiSuggestionsDropdown);
@@ -430,7 +432,10 @@ SuggestionsController::SuggestionsController(
 	}, _lifetime);
 	Core::App().emojiKeywords().refreshed(
 	) | rpl::start_with_next([=] {
-		showFromTextChange(getEmojiQuery(), true);
+		_keywordsRefreshed = true;
+		if (!_showExactTimer.isActive()) {
+			showWithQuery(_lastShownQuery);
+		}
 	}, _lifetime);
 
 	updateForceHidden();
@@ -481,14 +486,20 @@ void SuggestionsController::handleTextChange() {
 
 	const auto query = getEmojiQuery();
 	if (query.isEmpty() || _textChangeAfterKeyPress) {
-		showFromTextChange(query);
+		const auto exact = (!query.isEmpty() && query[0] != ':');
+		if (exact && (_container->isHidden() || _container->isHiding())) {
+			_showExactTimer.callOnce(kShowExactDelay);
+		} else {
+			showWithQuery(query);
+		}
 	}
 }
 
-void SuggestionsController::showFromTextChange(
-		const QString &query,
-		bool force) {
-	_suggestions->showWithQuery(query, force);
+void SuggestionsController::showWithQuery(const QString &query) {
+	_showExactTimer.cancel();
+	const auto force = base::take(_keywordsRefreshed);
+	_lastShownQuery = query;
+	_suggestions->showWithQuery(_lastShownQuery, force);
 }
 
 QString SuggestionsController::getEmojiQuery() {
@@ -565,7 +576,7 @@ QString SuggestionsController::getEmojiQuery() {
 void SuggestionsController::replaceCurrent(const QString &replacement) {
 	const auto suggestion = getEmojiQuery();
 	if (suggestion.isEmpty()) {
-		_suggestions->showWithQuery(QString());
+		showWithQuery(QString());
 	} else {
 		const auto cursor = _field->textCursor();
 		const auto position = cursor.position();
@@ -579,7 +590,7 @@ void SuggestionsController::handleCursorPositionChange() {
 		if (_ignoreCursorPositionChange) {
 			return;
 		}
-		_suggestions->showWithQuery(QString());
+		showWithQuery(QString());
 	});
 }
 
@@ -676,7 +687,7 @@ bool SuggestionsController::fieldFilter(not_null<QEvent*> event) {
 
 		case Qt::Key_Escape:
 			if (_shown && !_forceHidden) {
-				_suggestions->showWithQuery(QString());
+				showWithQuery(QString());
 				return true;
 			}
 			break;
