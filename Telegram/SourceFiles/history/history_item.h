@@ -130,6 +130,13 @@ public:
 		_isEditingMedia = edit;
 	}
 
+	bool isLocalUpdateMedia() const {
+		return _isLocalUpdateMedia;
+	}
+	void setIsLocalUpdateMedia(bool flag) {
+		_isLocalUpdateMedia = flag;
+	}
+
 	// For edit media in history_message.
 	virtual void returnSavedMedia() {};
 	void clearSavedMedia() {
@@ -326,6 +333,7 @@ protected:
 	int _textHeight = 0;
 
 	bool _isEditingMedia = false;
+	bool _isLocalUpdateMedia = false;
 	std::unique_ptr<Data::Media> _savedMedia;
 	std::unique_ptr<Data::Media> _media;
 

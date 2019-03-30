@@ -4639,6 +4639,7 @@ void ApiWrap::editUploadedPhoto(
 			sentEntities
 		)).done([=](const MTPUpdates &result) {
 			item->clearSavedMedia();
+			item->setIsLocalUpdateMedia(true);
 			applyUpdates(result);
 		}).fail([=](const RPCError &error) {
 			QString err = error.type();
@@ -4702,6 +4703,7 @@ void ApiWrap::editUploadedDocument(
 				sentEntities
 			)).done([=](const MTPUpdates &result) {
 				item->clearSavedMedia();
+				item->setIsLocalUpdateMedia(true);
 				applyUpdates(result);
 			}).fail([=](const RPCError &error) {
 				QString err = error.type();

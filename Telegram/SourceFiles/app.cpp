@@ -159,9 +159,9 @@ namespace App {
 		return false;
 	}
 
-	void updateEditedMessage(const MTPMessage &message) {
-		message.match([](const MTPDmessageEmpty &) {
-		}, [](const auto &message) {
+	void updateEditedMessage(const MTPMessage &m) {
+		m.match([](const MTPDmessageEmpty &) {
+		}, [&m](const auto &message) {
 			auto peerId = peerFromMTP(message.vto_id);
 			if (message.has_from_id() && peerId == Auth().userPeerId()) {
 				peerId = peerFromUser(message.vfrom_id);
@@ -170,7 +170,16 @@ namespace App {
 				peerToChannel(peerId),
 				message.vid.v);
 			if (existing) {
-				existing->applyEdition(message);
+				auto update = true;
+				if (existing->isLocalUpdateMedia()) {
+					if (checkEntitiesAndViewsUpdate(m.c_message())) {
+						update = false;
+						existing->setIsLocalUpdateMedia(false);
+					}
+				}
+				if (update) {
+					existing->applyEdition(message);
+				}
 			}
 		});
 	}
