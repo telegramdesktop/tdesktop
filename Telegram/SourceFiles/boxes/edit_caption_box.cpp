@@ -407,7 +407,7 @@ void EditCaptionBox::createEditMediaButton() {
 		}
 	};
 
-	addButton(langFactory(lng_edit_media), [=] {
+	const auto buttonCallback = [=] {
 		const auto filters = _isNotAlbum
 			? QStringList(FileDialog::AllFilesFilter())
 			: QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"));
@@ -416,7 +416,13 @@ void EditCaptionBox::createEditMediaButton() {
 			lang(lng_choose_file),
 			filters.join(qsl(";;")),
 			crl::guard(this, callback));
-	});
+	};
+
+	_editMediaClicks.events() | rpl::start_with_next([=] {
+		buttonCallback();
+	}, lifetime());
+
+	addButton(langFactory(lng_edit_media), buttonCallback);
 }
 
 void EditCaptionBox::prepare() {
@@ -718,4 +724,13 @@ void EditCaptionBox::setName(QString nameString, qint64 size) {
 	_statusw = std::max(
 		_name.maxWidth(),
 		st::normalFont->width(_status));
+}
+
+void EditCaptionBox::keyPressEvent(QKeyEvent *e) {
+	if ((e->key() == Qt::Key_E || e->key() == Qt::Key_O)
+		 && e->modifiers() == Qt::ControlModifier) {
+		_editMediaClicks.fire({});
+	} else {
+		e->ignore();
+	}
 }

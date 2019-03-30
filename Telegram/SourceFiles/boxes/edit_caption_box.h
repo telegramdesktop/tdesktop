@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
+#include <rpl/event_stream.h>
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -46,6 +47,7 @@ protected:
 
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void updateBoxSize();
@@ -108,6 +110,7 @@ private:
 	QString _newMediaPath;
 	bool _isAllowedEditMedia = false;
 	bool _isNotAlbum;
+	rpl::event_stream<> _editMediaClicks;
 
 	QString _error;
 
