@@ -955,14 +955,12 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 		}
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else {
-		const auto shouldUpdate = _isEditingMedia ? true : !_media->updateSentMedia(*media);
 		if (_isEditingMedia) {
 			_savedMedia = _media->clone(this);
-		}
-		if (!media || !_media || shouldUpdate) {
+			refreshSentMedia(media);
+		} else if (!media || !_media || !_media->updateSentMedia(*media)) {
 			refreshSentMedia(media);
 		}
-		// _isEditingMedia = false;
 	}
 	history()->owner().requestItemResize(this);
 }

@@ -139,7 +139,6 @@ namespace App {
 			auto entities = m.has_entities()
 				? TextUtilities::EntitiesFromMTP(m.ventities.v)
 				: EntitiesInText();
-			const auto media = m.has_media() ? &m.vmedia : nullptr;
 			existing->setText({ text, entities });
 			existing->updateSentMedia(m.has_media() ? &m.vmedia : nullptr);
 			existing->updateReplyMarkup(m.has_reply_markup()

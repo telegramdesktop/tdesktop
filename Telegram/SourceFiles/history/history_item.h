@@ -132,7 +132,10 @@ public:
 
 	// For edit media in history_message.
 	virtual void returnSavedMedia() {};
-	virtual void clearSavedMedia() {};
+	void clearSavedMedia() {
+		_isEditingMedia = false;
+		_savedMedia = nullptr;
+	}
 
 	// Zero result means this message is not self-destructing right now.
 	virtual crl::time getSelfDestructIn(crl::time now) {

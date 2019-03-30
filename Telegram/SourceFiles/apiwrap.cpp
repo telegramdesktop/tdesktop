@@ -4472,22 +4472,19 @@ void ApiWrap::editMedia(
 		SendMediaType type,
 		TextWithTags &&caption,
 		const SendOptions &options) {
-	LOG(("EDIT MEDIA WITH TEXT %1").arg(caption.text));
+	if (list.files.empty()) return;
+
+	auto &file = list.files.front();
 	const auto to = fileLoadTaskOptions(options);
-	auto tasks = std::vector<std::unique_ptr<Task>>();
-	tasks.reserve(list.files.size());
-	for (auto &file : list.files) {
-		tasks.push_back(std::make_unique<FileLoadTask>(
-			file.path,
-			file.content,
-			std::move(file.information),
-			type,
-			to,
-			caption,
-			nullptr,
-			true));
-	}
-	_fileLoader->addTasks(std::move(tasks));
+	_fileLoader->addTask(std::make_unique<FileLoadTask>(
+		file.path,
+		file.content,
+		std::move(file.information),
+		type,
+		to,
+		caption,
+		nullptr,
+		true));
 }
 
 void ApiWrap::sendFiles(
