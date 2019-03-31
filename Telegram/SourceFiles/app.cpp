@@ -170,16 +170,11 @@ namespace App {
 				peerToChannel(peerId),
 				message.vid.v);
 			if (existing) {
-				auto update = true;
 				if (existing->isLocalUpdateMedia()) {
-					if (checkEntitiesAndViewsUpdate(m.c_message())) {
-						update = false;
-						existing->setIsLocalUpdateMedia(false);
-					}
+					checkEntitiesAndViewsUpdate(m.c_message());
 				}
-				if (update) {
-					existing->applyEdition(message);
-				}
+				existing->applyEdition(message);
+				existing->setIsLocalUpdateMedia(false);
 			}
 		});
 	}

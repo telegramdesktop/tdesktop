@@ -4324,6 +4324,7 @@ void HistoryWidget::sendFileConfirmed(
 			MTP_long(groupId));
 
 		if (itemToEdit) {
+			itemToEdit->savePreviousMedia();
 			itemToEdit->applyEdition(mtpMessage.c_message());
 		} else {
 			history->addNewMessage(mtpMessage, NewMessageUnread);
@@ -4354,6 +4355,7 @@ void HistoryWidget::sendFileConfirmed(
 			MTP_long(groupId));
 
 		if (itemToEdit) {
+			itemToEdit->savePreviousMedia();
 			itemToEdit->applyEdition(mtpMessage.c_message());
 		} else {
 			history->addNewMessage(mtpMessage, NewMessageUnread);

@@ -926,7 +926,9 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
 	}
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
-	refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
+	if (!_isLocalUpdateMedia) {
+		refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
+	}
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
 	setText(textWithEntities);
 

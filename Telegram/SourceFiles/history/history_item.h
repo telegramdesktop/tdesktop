@@ -139,6 +139,9 @@ public:
 
 	// For edit media in history_message.
 	virtual void returnSavedMedia() {};
+	void savePreviousMedia() {
+		_savedMedia = _media->clone(this);
+	}
 	void clearSavedMedia() {
 		_isEditingMedia = false;
 		_savedMedia = nullptr;
