@@ -4227,7 +4227,7 @@ void HistoryWidget::sendFileConfirmed(
 		file->to.replyTo));
 
 	const auto newId = oldId.value_or(FullMsgId(channelId, clientMsgId()));
-	const auto groupId = file->album ? file->album->groupId : uint64(0);
+	auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
 			return item.taskId;
@@ -4261,6 +4261,15 @@ void HistoryWidget::sendFileConfirmed(
 	TextUtilities::Trim(caption);
 	auto localEntities = TextUtilities::EntitiesToMTP(caption.entities);
 
+	if (isEditing) {
+		if (const auto itemToEdit = App::histItemById(newId)) {
+			itemToEdit->setIsEditingMedia(true);
+			if (const auto id = itemToEdit->groupId()) {
+				groupId = id.value;
+			}
+		}
+	}
+
 	auto flags = NewMessageFlags(peer)
 		| MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_media;
@@ -4291,11 +4300,7 @@ void HistoryWidget::sendFileConfirmed(
 	const auto messageType = isEditing
 		? NewMessageExisting
 		: NewMessageUnread;
-	if (isEditing) {
-		if (const auto itemToEdit = App::histItemById(newId)) {
-			itemToEdit->setIsEditingMedia(true);
-		}
-	}
+
 	if (file->type == SendMediaType::Photo) {
 		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
 		auto photo = MTP_messageMediaPhoto(
