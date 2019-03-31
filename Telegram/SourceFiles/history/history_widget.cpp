@@ -4241,6 +4241,8 @@ void HistoryWidget::sendFileConfirmed(
 	file->edit = isEditing;
 	Auth().uploader().upload(newId, file);
 
+	const auto itemToEdit = isEditing ? App::histItemById(newId) : nullptr;
+
 	const auto history = Auth().data().history(file->to.peer);
 	const auto peer = history->peer;
 
@@ -4261,12 +4263,10 @@ void HistoryWidget::sendFileConfirmed(
 	TextUtilities::Trim(caption);
 	auto localEntities = TextUtilities::EntitiesToMTP(caption.entities);
 
-	if (isEditing) {
-		if (const auto itemToEdit = App::histItemById(newId)) {
-			itemToEdit->setIsEditingMedia(true);
-			if (const auto id = itemToEdit->groupId()) {
-				groupId = id.value;
-			}
+	if (itemToEdit) {
+		itemToEdit->setIsEditingMedia(true);
+		if (const auto id = itemToEdit->groupId()) {
+			groupId = id.value;
 		}
 	}
 
@@ -4276,8 +4276,8 @@ void HistoryWidget::sendFileConfirmed(
 	if (file->to.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
-	bool channelPost = peer->isChannel() && !peer->isMegagroup();
-	bool silentPost = channelPost && file->to.silent;
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto silentPost = channelPost && file->to.silent;
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -4293,70 +4293,77 @@ void HistoryWidget::sendFileConfirmed(
 	if (groupId) {
 		flags |= MTPDmessage::Flag::f_grouped_id;
 	}
-	auto messageFromId = channelPost ? 0 : Auth().userId();
-	auto messagePostAuthor = channelPost
+	const auto messageFromId = channelPost ? 0 : Auth().userId();
+	const auto messagePostAuthor = channelPost
 		? App::peerName(Auth().user())
 		: QString();
-	const auto messageType = isEditing
-		? NewMessageExisting
-		: NewMessageUnread;
 
 	if (file->type == SendMediaType::Photo) {
-		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
-		auto photo = MTP_messageMediaPhoto(
+		const auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
+		const auto photo = MTP_messageMediaPhoto(
 			MTP_flags(photoFlags),
 			file->photo,
 			MTPint());
-		history->addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				MTP_int(newId.msg),
-				MTP_int(messageFromId),
-				peerToMTP(file->to.peer),
-				MTPMessageFwdHeader(),
-				MTPint(),
-				MTP_int(file->to.replyTo),
-				MTP_int(unixtime()),
-				MTP_string(caption.text),
-				photo,
-				MTPReplyMarkup(),
-				localEntities,
-				MTP_int(1),
-				MTPint(),
-				MTP_string(messagePostAuthor),
-				MTP_long(groupId)),
-			messageType);
+
+		const auto mtpMessage = MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId.msg),
+			MTP_int(messageFromId),
+			peerToMTP(file->to.peer),
+			MTPMessageFwdHeader(),
+			MTPint(),
+			MTP_int(file->to.replyTo),
+			MTP_int(unixtime()),
+			MTP_string(caption.text),
+			photo,
+			MTPReplyMarkup(),
+			localEntities,
+			MTP_int(1),
+			MTPint(),
+			MTP_string(messagePostAuthor),
+			MTP_long(groupId));
+
+		if (itemToEdit) {
+			itemToEdit->applyEdition(mtpMessage.c_message());
+		} else {
+			history->addNewMessage(mtpMessage, NewMessageUnread);
+		}
 	} else if (file->type == SendMediaType::File) {
-		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
-		auto document = MTP_messageMediaDocument(
+		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
+		const auto document = MTP_messageMediaDocument(
 			MTP_flags(documentFlags),
 			file->document,
 			MTPint());
-		history->addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				MTP_int(newId.msg),
-				MTP_int(messageFromId),
-				peerToMTP(file->to.peer),
-				MTPMessageFwdHeader(),
-				MTPint(),
-				MTP_int(file->to.replyTo),
-				MTP_int(unixtime()),
-				MTP_string(caption.text),
-				document,
-				MTPReplyMarkup(),
-				localEntities,
-				MTP_int(1),
-				MTPint(),
-				MTP_string(messagePostAuthor),
-				MTP_long(groupId)),
-			messageType);
+
+		const auto mtpMessage = MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId.msg),
+			MTP_int(messageFromId),
+			peerToMTP(file->to.peer),
+			MTPMessageFwdHeader(),
+			MTPint(),
+			MTP_int(file->to.replyTo),
+			MTP_int(unixtime()),
+			MTP_string(caption.text),
+			document,
+			MTPReplyMarkup(),
+			localEntities,
+			MTP_int(1),
+			MTPint(),
+			MTP_string(messagePostAuthor),
+			MTP_long(groupId));
+
+		if (itemToEdit) {
+			itemToEdit->applyEdition(mtpMessage.c_message());
+		} else {
+			history->addNewMessage(mtpMessage, NewMessageUnread);
+		}
 	} else if (file->type == SendMediaType::Audio) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
 		}
-		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
-		auto document = MTP_messageMediaDocument(
+		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
+		const auto document = MTP_messageMediaDocument(
 			MTP_flags(documentFlags),
 			file->document,
 			MTPint());
@@ -4378,7 +4385,8 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
-			messageType);
+			NewMessageUnread);
+		// Voices can't be edited.
 	} else {
 		Unexpected("Type in sendFilesConfirmed.");
 	}
