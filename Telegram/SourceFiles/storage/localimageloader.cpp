@@ -608,7 +608,12 @@ bool FileLoadTask::CheckForSong(
 		qstr(".ogg"),
 		qstr(".flac"),
 	};
-	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
+	if (!filepath.isEmpty()
+		&& !CheckMimeOrExtensions(
+			filepath,
+			result->filemime,
+			mimes,
+			extensions)) {
 		return false;
 	}
 
