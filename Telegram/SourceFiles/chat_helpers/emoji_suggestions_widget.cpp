@@ -56,6 +56,7 @@ void SuggestionsWidget::showWithQuery(const QString &query, bool force) {
 		_toggleAnimated.fire(false);
 	}
 	clearSelection();
+	setPressed(-1);
 	_rows = std::move(rows);
 	resizeToRows();
 	update();
@@ -318,6 +319,9 @@ void SuggestionsWidget::setPressed(int pressed) {
 	}
 	if (_pressed != pressed) {
 		_pressed = pressed;
+		if (_pressed >= 0) {
+			_mousePressPosition = QCursor::pos();
+		}
 	}
 }
 
@@ -361,6 +365,24 @@ QPoint SuggestionsWidget::mapToInner(QPoint globalPosition) const {
 
 void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 	const auto globalPosition = e->globalPos();
+	if (_dragScrollStart >= 0) {
+		const auto delta = (_mousePressPosition.x() - globalPosition.x());
+		const auto scroll = snap(
+			_dragScrollStart + (rtl() ? -1 : 1) * delta,
+			0,
+			_scrollMax);
+		if (_scroll != scroll) {
+			_scroll = scroll;
+			update();
+		}
+		return;
+	} else if ((_pressed >= 0)
+		&& (_scrollMax > 0)
+		&& ((_mousePressPosition - globalPosition).manhattanLength()
+			>= QApplication::startDragDistance())) {
+		_dragScrollStart = _scroll;
+		_mousePressPosition = globalPosition;
+	}
 	if (inner().contains(mapToInner(globalPosition))) {
 		if (!_lastMousePosition) {
 			_lastMousePosition = globalPosition;
@@ -385,23 +407,25 @@ void SuggestionsWidget::selectByMouse(QPoint globalPosition) {
 
 void SuggestionsWidget::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
-	if (_selected >= 0 && _selected < _rows.size()) {
+	if (_selected >= 0) {
 		setPressed(_selected);
 	}
 }
 
 void SuggestionsWidget::mouseReleaseEvent(QMouseEvent *e) {
-	if (_pressed >= 0 && _pressed < _rows.size()) {
-		auto pressed = _pressed;
+	if (_pressed >= 0) {
+		const auto pressed = _pressed;
 		setPressed(-1);
-		if (pressed == _selected) {
+		if (_dragScrollStart >= 0) {
+			_dragScrollStart = -1;
+		} else if (pressed == _selected) {
 			triggerRow(_rows[_selected]);
 		}
 	}
 }
 
 bool SuggestionsWidget::triggerSelectedRow() const {
-	if (_selected >= 0 && _selected < _rows.size()) {
+	if (_selected >= 0) {
 		triggerRow(_rows[_selected]);
 		return true;
 	}

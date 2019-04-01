@@ -78,6 +78,9 @@ private:
 	int _oneWidth = 0;
 	QMargins _padding;
 
+	QPoint _mousePressPosition;
+	int _dragScrollStart = -1;
+
 	rpl::event_stream<bool> _toggleAnimated;
 	rpl::event_stream<QString> _triggered;
 
