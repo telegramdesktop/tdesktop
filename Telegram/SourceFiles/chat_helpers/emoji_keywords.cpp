@@ -46,6 +46,25 @@ struct LangPackData {
 	return (code == 0x2122U) || (code == 0xA9U) || (code == 0xAEU);
 }
 
+[[nodiscard]] bool SkipExactKeyword(
+		const QString &language,
+		const QString &word) {
+	if (language != qstr("en")) {
+		return false;
+	} else if ((word.size() == 1)
+		&& (word[0] != '$')
+		&& (word[0].unicode() != 8364)) { // Euro.
+		return true;
+	} else if ((word.size() == 2)
+		&& (word != qstr("us"))
+		&& (word != qstr("uk"))
+		&& (word != qstr("hi"))
+		&& (word != qstr("ok"))) {
+		return true;
+	}
+	return false;
+}
+
 void CreateCacheFilePath() {
 	QDir().mkpath(internal::CacheFileFolder() + qstr("/keywords"));
 }
@@ -416,7 +435,9 @@ void EmojiKeywords::LangPack::apiChanged() {
 std::vector<Result> EmojiKeywords::LangPack::query(
 		const QString &normalized,
 		bool exact) const {
-	if (normalized.size() > _data.maxKeyLength || _data.emoji.empty()) {
+	if (normalized.size() > _data.maxKeyLength
+		|| _data.emoji.empty()
+		|| (exact && SkipExactKeyword(_id, normalized))) {
 		return {};
 	}
 
