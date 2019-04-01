@@ -65,6 +65,8 @@ private:
 	bool saveFail(const RPCError &error);
 
 	void setName(QString nameString, qint64 size);
+	bool fileFromClipboard(not_null<const QMimeData*> data);
+	void updateEditPreview();
 
 	int errorTopSkip() const;
 
@@ -109,7 +111,8 @@ private:
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
 	bool _isAllowedEditMedia = false;
-	bool _isNotAlbum;
+	bool _isNotAlbum = true;
+	bool _viaRemoteContent = false;
 	rpl::event_stream<> _editMediaClicks;
 
 	QString _error;

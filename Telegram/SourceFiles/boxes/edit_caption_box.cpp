@@ -333,78 +333,101 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
+void EditCaptionBox::updateEditPreview() {
+	using Info = FileMediaInformation;
+
+	const auto file = &_preparedList.files.front();
+	const auto fileMedia = &file->information->media;
+
+	const auto fileinfo = QFileInfo(_newMediaPath);
+	const auto filename = fileinfo.fileName();
+	const auto mimeType = Core::MimeTypeForFile(fileinfo).name();
+
+	if (!_isNotAlbum) {
+		// This check only for users, who chose not valid file with absolute path.
+		if ((!_newMediaPath.isEmpty()
+				&& !fileIsValidForAlbum(filename, mimeType))
+			// And for users, who send file via remoteContent.
+			|| _viaRemoteContent) {
+			_newMediaPath = QString();
+			_preparedList.files.clear();
+			return;
+		}
+	}
+
+	if (!_newMediaPath.isEmpty()) {
+		_isImage = fileIsImage(filename, mimeType);
+	}
+	_isAudio = false;
+	_animated = false;
+	_photo = false;
+	_doc = false;
+	_gifPreview = nullptr;
+	_thumbw = _thumbh = _thumbx = 0;
+	_gifw = _gifh = _gifx = 0;
+
+	if (const auto image = base::get_if<Info::Image>(fileMedia)) {
+		_photo = true;
+		_isImage = true;
+	} else if (const auto video = base::get_if<Info::Video>(fileMedia)) {
+		_animated = true;
+		// Never edit video as gif.
+		video->isGifv = false;
+	} else {
+		auto nameString = filename;
+		if (const auto song = base::get_if<Info::Song>(fileMedia)) {
+			nameString = DocumentData::ComposeNameString(
+				filename,
+				song->title,
+				song->performer);
+			_isAudio = true;
+		}
+		setName(
+			nameString.isEmpty()
+				? QString("file")
+				: nameString,
+			fileinfo.size()
+				? fileinfo.size()
+				: _preparedList.files.front().content.size());
+		_doc = true;
+	}
+
+	_wayWrap->toggle(_isImage && _isNotAlbum, anim::type::instant);
+
+	if (!_doc) {
+		_thumb = App::pixmapFromImageInPlace(
+			file->preview.scaled(st::sendMediaPreviewSize,
+				st::confirmMaxHeight,
+				Qt::KeepAspectRatio));
+		_thumbw = _thumb.width();
+		_thumbh = _thumb.height();
+		_thumbx = (st::boxWideWidth - _thumbw) / 2;
+	}
+	captionResized();
+}
+
 void EditCaptionBox::createEditMediaButton() {
-	const auto callback = [=](const FileDialog::OpenResult &result) {
+	const auto callback = [=](FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
-
-		if (!result.paths.isEmpty()) {
-			const auto filePath = result.paths.front();
-			_newMediaPath = filePath;
+		_viaRemoteContent = !result.remoteContent.isEmpty();
+		if (!result.remoteContent.isEmpty()) {
+			_newMediaPath = QString();
+			_preparedList = Storage::PrepareMediaFromImage(
+				Media::Clip::PrepareForSending(QString(), result.remoteContent).thumbnail,
+				std::move(result.remoteContent),
+				st::sendMediaPreviewSize);
+		} else if (!result.paths.isEmpty()) {
+			_newMediaPath = result.paths.front();
 			_preparedList = Storage::PrepareMediaList(
 				QStringList(_newMediaPath),
 				st::sendMediaPreviewSize);
-
-			const auto file = &_preparedList.files.front();
-			const auto fileMedia = &file->information->media;
-
-			const auto fileinfo = QFileInfo(_newMediaPath);
-			const auto filename = fileinfo.fileName();
-
-			if (!_isNotAlbum) {
-				// This check only for users, who chose not valid file with absolute path.
-				if (!fileIsValidForAlbum(filename, Core::MimeTypeForFile(fileinfo).name())) {
-					_newMediaPath = QString();
-					return;
-				}
-			}
-
-			_isImage = fileIsImage(filename, Core::MimeTypeForFile(fileinfo).name());
-			_isAudio = false;
-			_animated = false;
-			_photo = false;
-			_doc = false;
-			_gifPreview = nullptr;
-			_thumbw = _thumbh = _thumbx = 0;
-			_gifw = _gifh = _gifx = 0;
-
-			_wayWrap->toggle(_isImage && _isNotAlbum, anim::type::instant);
-
-			using Info = FileMediaInformation;
-			if (const auto image = base::get_if<Info::Image>(fileMedia)
-				&& _isImage) {
-				_photo = true;
-			} else if (const auto video =
-					base::get_if<Info::Video>(fileMedia)) {
-				_animated = true;
-				// Never edit video as gif.
-				video->isGifv = false;
-			} else {
-				auto nameString = filename;
-				if (const auto song =
-						base::get_if<Info::Song>(fileMedia)) {
-					nameString = DocumentData::ComposeNameString(
-						filename,
-						song->title,
-						song->performer);
-					_isAudio = true;
-				}
-				setName(nameString, fileinfo.size());
-				_doc = true;
-			}
-
-			if (!_doc) {
-				_thumb = App::pixmapFromImageInPlace(
-					file->preview.scaled(st::sendMediaPreviewSize,
-						st::confirmMaxHeight,
-						Qt::KeepAspectRatio));
-				_thumbw = _thumb.width();
-				_thumbh = _thumb.height();
-				_thumbx = (st::boxWideWidth - _thumbw) / 2;
-			}
-			captionResized();
+		} else {
+			return;
 		}
+
+		updateEditPreview();
 	};
 
 	const auto buttonCallback = [=] {
@@ -438,6 +461,30 @@ void EditCaptionBox::prepare() {
 	connect(_field, &Ui::InputField::submitted, [=] { save(); });
 	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
 	connect(_field, &Ui::InputField::resized, [=] { captionResized(); });
+	_field->setMimeDataHook([=](
+			not_null<const QMimeData*> data,
+			Ui::InputField::MimeAction action) {
+		if (action == Ui::InputField::MimeAction::Check) {
+			if (data->hasImage()) {
+				const auto image = qvariant_cast<QImage>(data->imageData());
+				if (!image.isNull()) {
+					return true;
+				}
+			}
+			if (const auto urls = data->urls(); !urls.empty()) {
+				if (ranges::find_if(
+					urls,
+					[](const QUrl &url) { return !url.isLocalFile(); }
+				) == urls.end()) {
+					return true;
+				}
+			}
+			return data->hasText();
+		} else if (action == Ui::InputField::MimeAction::Insert) {
+			return fileFromClipboard(data);
+		}
+		Unexpected("action in MimeData hook.");
+	});
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field);
@@ -447,6 +494,48 @@ void EditCaptionBox::prepare() {
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
+}
+
+bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
+	auto list = [&] {
+		auto url = QList<QUrl>();
+		auto canAddUrl = false;
+		// When we edit media, we need only 1 file.
+		if (data->hasUrls()) {
+			const auto first = data->urls().front();
+			url.push_front(first);
+			canAddUrl = first.isLocalFile();
+		}
+		auto result = canAddUrl
+			? Storage::PrepareMediaList(url, st::sendMediaPreviewSize)
+			: Storage::PreparedList(
+				Storage::PreparedList::Error::EmptyFile,
+				QString());
+		if (result.error == Storage::PreparedList::Error::None) {
+			return result;
+		} else if (data->hasImage()) {
+			auto image = qvariant_cast<QImage>(data->imageData());
+			if (!image.isNull()) {
+				_isImage = true;
+				_photo = true;
+				return Storage::PrepareMediaFromImage(
+					std::move(image),
+					QByteArray(),
+					st::sendMediaPreviewSize);
+			}
+		}
+		return result;
+	}();
+	_preparedList = std::move(list);
+	_newMediaPath = _preparedList.files.empty()
+		? QString()
+		: _preparedList.files.front().path;
+	if (_preparedList.files.empty()) {
+		return false;
+	}
+	_viaRemoteContent = false;
+	updateEditPreview();
+	return true;
 }
 
 void EditCaptionBox::captionResized() {
@@ -658,7 +747,7 @@ void EditCaptionBox::save() {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
 
-	if (!_newMediaPath.isEmpty()) {
+	if (!_preparedList.files.empty()) {
 		App::main()->setEditMedia(item->fullId());
 		const auto textWithTags = _field->getTextWithAppliedMarkdown();
 		auto sending = TextWithEntities{
