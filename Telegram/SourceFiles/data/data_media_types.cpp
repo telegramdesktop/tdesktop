@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
+#include "storage/file_upload.h"
 
 namespace Data {
 namespace {
@@ -262,6 +263,9 @@ MediaPhoto::MediaPhoto(
 }
 
 MediaPhoto::~MediaPhoto() {
+	if (uploading() && !App::quitting()) {
+		parent()->history()->session().uploader().cancel(parent()->fullId());
+	}
 	parent()->history()->owner().unregisterPhotoItem(_photo, parent());
 }
 
@@ -499,6 +503,9 @@ MediaFile::MediaFile(
 }
 
 MediaFile::~MediaFile() {
+	if (uploading() && !App::quitting()) {
+		parent()->history()->session().uploader().cancel(parent()->fullId());
+	}
 	parent()->history()->owner().unregisterDocumentItem(
 		_document,
 		parent());

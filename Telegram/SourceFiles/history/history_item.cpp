@@ -767,9 +767,6 @@ void HistoryItem::drawInDialog(
 HistoryItem::~HistoryItem() {
 	_history->owner().notifyItemRemoved(this);
 	App::historyUnregItem(this);
-	if (id < 0 && !App::quitting()) {
-		_history->session().uploader().cancel(fullId());
-	}
 }
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
