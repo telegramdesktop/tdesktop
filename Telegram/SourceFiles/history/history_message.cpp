@@ -619,7 +619,8 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 	return canStopPoll()
 		&& !isTooOldForEdit(now)
 		&& (!_media || _media->allowsEdit())
-		&& !isUnsupportedMessage();
+		&& !isUnsupportedMessage()
+		&& !_isEditingMedia;
 }
 
 bool HistoryMessage::uploading() const {
@@ -768,6 +769,7 @@ void HistoryMessage::returnSavedMedia() {
 	} else {
 		history()->owner().requestItemViewRefresh(this);
 	}
+	_isEditingMedia = false;
 }
 
 void HistoryMessage::setMedia(const MTPMessageMedia &media) {
@@ -1166,6 +1168,7 @@ std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
 
 HistoryMessage::~HistoryMessage() {
 	_media.reset();
+	_savedMedia.reset();
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
