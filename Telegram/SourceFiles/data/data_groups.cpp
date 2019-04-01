@@ -64,7 +64,7 @@ void Groups::unregisterMessage(not_null<const HistoryItem*> item) {
 	}
 }
 
-void Groups::refreshMessage(not_null<HistoryItem*> item) {
+void Groups::refreshMessage(not_null<HistoryItem*> item, bool forceRefresh) {
 	if (!isGrouped(item)) {
 		unregisterMessage(item);
 		return;
@@ -79,6 +79,12 @@ void Groups::refreshMessage(not_null<HistoryItem*> item) {
 		return;
 	}
 	auto &items = i->second.items;
+
+	if (forceRefresh) {
+		refreshViews(items);
+		return;
+	}
+
 	const auto position = findPositionForItem(items, item);
 	auto current = ranges::find(items, item);
 	if (current == end(items)) {

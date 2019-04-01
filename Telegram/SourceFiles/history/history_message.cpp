@@ -765,7 +765,7 @@ void HistoryMessage::returnSavedMedia() {
 	const auto wasGrouped = history()->owner().groups().isGrouped(this);
 	_media = std::move(_savedMedia);
 	if (wasGrouped) {
-		history()->owner().groups().refreshMessage(this);
+		history()->owner().groups().refreshMessage(this, true);
 	} else {
 		history()->owner().requestItemViewRefresh(this);
 	}
