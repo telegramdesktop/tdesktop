@@ -972,7 +972,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = crl::now();
-	auto placeholderFocused = _a_placeholderFocused.value(_focused ? 1. : 0.);
+	auto placeholderFocused = _placeholderFocusedAnimation.value(_focused ? 1. : 0.);
 	auto pen = anim::pen(_st.borderColor, _st.borderActive, placeholderFocused);
 	pen.setWidth(_st.borderWidth);
 	p.setPen(pen);
@@ -986,7 +986,8 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 		_st.icon.paint(p, 0, 0, width());
 	}
 
-	auto placeholderOpacity = _a_placeholderVisible.value(_placeholderVisible ? 1. : 0.);
+	const auto placeholderOpacity = _placeholderVisibleAnimation.value(
+		_placeholderVisible ? 1. : 0.);
 	if (placeholderOpacity > 0.) {
 		p.setOpacity(placeholderOpacity);
 
@@ -1006,7 +1007,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 void FlatInput::focusInEvent(QFocusEvent *e) {
 	if (!_focused) {
 		_focused = true;
-		_a_placeholderFocused.start(
+		_placeholderFocusedAnimation.start(
 			[=] { update(); },
 			0.,
 			1.,
@@ -1020,7 +1021,7 @@ void FlatInput::focusInEvent(QFocusEvent *e) {
 void FlatInput::focusOutEvent(QFocusEvent *e) {
 	if (_focused) {
 		_focused = false;
-		_a_placeholderFocused.start(
+		_placeholderFocusedAnimation.start(
 			[=] { update(); },
 			1.,
 			0.,
@@ -1076,7 +1077,7 @@ void FlatInput::updatePlaceholder() {
 	auto placeholderVisible = !hasText;
 	if (_placeholderVisible != placeholderVisible) {
 		_placeholderVisible = placeholderVisible;
-		_a_placeholderVisible.start(
+		_placeholderVisibleAnimation.start(
 			[=] { update(); },
 			_placeholderVisible ? 0. : 1.,
 			_placeholderVisible ? 1. : 0.,

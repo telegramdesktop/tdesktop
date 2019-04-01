@@ -151,7 +151,9 @@ Session::Session(not_null<AuthSession*> session)
 	Local::cacheBigFilePath(),
 	Local::cacheBigFileSettings()))
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
-, _a_sendActions(animation(this, &Session::step_typings))
+, _sendActionsAnimation([=](crl::time now) {
+	return sendActionsAnimationCallback(now);
+})
 , _groups(this)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 	_cache->open(Local::cacheKey());
@@ -241,7 +243,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		return data.vid.v;
 	}));
 	auto minimal = false;
-	const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
+	const MTPUserStatus *status = nullptr;
+	const MTPUserStatus emptyStatus = MTP_userStatusEmpty();
 
 	Notify::PeerUpdate update;
 	using UpdateFlag = Notify::PeerUpdate::Flag;
@@ -749,22 +752,20 @@ void Session::registerSendAction(
 		const auto i = _sendActions.find(history);
 		if (!_sendActions.contains(history)) {
 			_sendActions.emplace(history, crl::now());
-			_a_sendActions.start();
+			_sendActionsAnimation.start();
 		}
 	}
 }
 
-void Session::step_typings(crl::time ms, bool timer) {
+bool Session::sendActionsAnimationCallback(crl::time now) {
 	for (auto i = begin(_sendActions); i != end(_sendActions);) {
-		if (i->first->updateSendActionNeedsAnimating(ms)) {
+		if (i->first->updateSendActionNeedsAnimating(now)) {
 			++i;
 		} else {
 			i = _sendActions.erase(i);
 		}
 	}
-	if (_sendActions.empty()) {
-		_a_sendActions.stop();
-	}
+	return !_sendActions.empty();
 }
 
 Storage::Cache::Database &Session::cache() {

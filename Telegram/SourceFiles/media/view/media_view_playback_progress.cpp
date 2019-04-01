@@ -19,8 +19,12 @@ constexpr auto kPlaybackAnimationDurationMs = crl::time(200);
 } // namespace
 
 PlaybackProgress::PlaybackProgress()
-: _a_value([=](crl::time now) { return valueAnimationCallback(now); })
-, _a_receivedTill([=](crl::time now) { return receivedTillAnimationCallback(now); }) {
+: _valueAnimation([=](crl::time now) {
+	return valueAnimationCallback(now);
+})
+, _receivedTillAnimation([=](crl::time now) {
+	return receivedTillAnimationCallback(now);
+}) {
 }
 
 void PlaybackProgress::updateState(const Player::TrackState &state) {
@@ -87,10 +91,10 @@ void PlaybackProgress::setValue(float64 value, bool animated) {
 	if (animated) {
 		valueAnimationCallback(crl::now());
 		a_value.start(value);
-		_a_value.start();
+		_valueAnimation.start();
 	} else {
 		a_value = anim::value(value, value);
-		_a_value.stop();
+		_valueAnimation.stop();
 	}
 	emitUpdatedValue();
 }
@@ -100,19 +104,19 @@ void PlaybackProgress::setReceivedTill(float64 value) {
 	if (value > current && current > 0.) {
 		receivedTillAnimationCallback(crl::now());
 		a_receivedTill.start(value);
-		_a_receivedTill.start();
+		_receivedTillAnimation.start();
 	} else if (value > a_value.current()) {
 		a_receivedTill = anim::value(a_value.current(), value);
-		_a_receivedTill.start();
+		_receivedTillAnimation.start();
 	} else {
 		a_receivedTill = anim::value(-1., -1.);
-		_a_receivedTill.stop();
+		_receivedTillAnimation.stop();
 	}
 	emitUpdatedValue();
 }
 
 bool PlaybackProgress::valueAnimationCallback(float64 now) {
-	const auto time = (now - _a_value.started());
+	const auto time = (now - _valueAnimation.started());
 	const auto dt = anim::Disabled()
 		? 1.
 		: (time / kPlaybackAnimationDurationMs);
@@ -126,7 +130,7 @@ bool PlaybackProgress::valueAnimationCallback(float64 now) {
 }
 
 bool PlaybackProgress::receivedTillAnimationCallback(float64 now) {
-	const auto time = now - _a_receivedTill.started();
+	const auto time = now - _receivedTillAnimation.started();
 	const auto dt = anim::Disabled()
 		? 1.
 		: (time / kPlaybackAnimationDurationMs);

@@ -217,7 +217,7 @@ public:
 		return toggle(false, animated);
 	}
 	void finishAnimating() {
-		_a_show.stop();
+		_showAnimation.stop();
 		animationCallback();
 	}
 
@@ -235,17 +235,17 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	bool loadingCallback(crl::time duration);
-	bool stopLoadingAnimation(crl::time duration);
+	bool loadingCallback(crl::time now);
+	bool stopLoadingAnimation(crl::time now);
 	void animationCallback();
 
 	const style::CrossButton &_st;
 
 	bool _shown = false;
-	Ui::Animations::Simple _a_show;
+	Ui::Animations::Simple _showAnimation;
 
 	crl::time _loadingStopMs = 0;
-	Ui::Animations::Basic _a_loading;
+	Ui::Animations::Basic _loadingAnimation;
 
 };
 

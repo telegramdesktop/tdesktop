@@ -111,8 +111,8 @@ private:
 
 	bool _focused = false;
 	bool _placeholderVisible = true;
-	Animations::Simple _a_placeholderFocused;
-	Animations::Simple _a_placeholderVisible;
+	Animations::Simple _placeholderFocusedAnimation;
+	Animations::Simple _placeholderVisibleAnimation;
 	bool _lastPreEditTextNotEmpty = false;
 
 	const style::FlatInput &_st;

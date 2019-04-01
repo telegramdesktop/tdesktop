@@ -100,20 +100,22 @@ TopBarWidget::TopBarWidget(
 	if (Adaptive::OneColumn()) {
 		createUnreadBadge();
 	}
-	Auth().data().sendActionAnimationUpdated(
-	) | rpl::start_with_next([=](
-			const Data::Session::SendActionAnimationUpdate &update) {
-		if (update.history == _activeChat.history()) {
-			this->update();
-		}
-	}, lifetime());
+	{
+		using AnimationUpdate = Data::Session::SendActionAnimationUpdate;
+		Auth().data().sendActionAnimationUpdated(
+		) | rpl::filter([=](const AnimationUpdate &update) {
+			return (update.history == _activeChat.history());
+		}) | rpl::start_with_next([=] {
+			update();
+		}, lifetime());
+	}
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto flags = UpdateFlag::UserHasCalls
 		| UpdateFlag::UserOnlineChanged
 		| UpdateFlag::MembersChanged
 		| UpdateFlag::UserSupportInfoChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [this](const Notify::PeerUpdate &update) {
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(flags, [=](const Notify::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::UserHasCalls) {
 			if (update.peer->isUser()) {
 				updateControlsVisibility();

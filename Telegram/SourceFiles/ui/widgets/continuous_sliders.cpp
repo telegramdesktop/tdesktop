@@ -148,7 +148,7 @@ void ContinuousSlider::setOver(bool over) {
 
 	_over = over;
 	auto from = _over ? 0. : 1., to = _over ? 1. : 0.;
-	_a_over.start([this] { update(); }, from, to, getOverDuration());
+	_overAnimation.start([=] { update(); }, from, to, getOverDuration());
 }
 
 FilledSlider::FilledSlider(QWidget *parent, const style::FilledSlider &st) : ContinuousSlider(parent)

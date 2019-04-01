@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
+#include "ui/effects/animations.h"
 
 class Image;
 class HistoryItem;
@@ -670,7 +671,7 @@ private:
 		const MTPMessageMedia &media,
 		TimeId date);
 
-	void step_typings(crl::time ms, bool timer);
+	bool sendActionsAnimationCallback(crl::time now);
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, int32 hash);
 
@@ -733,7 +734,7 @@ private:
 
 	// When typing in this history started.
 	base::flat_map<not_null<History*>, crl::time> _sendActions;
-	BasicAnimation _a_sendActions;
+	Ui::Animations::Basic _sendActionsAnimation;
 
 	std::unordered_map<
 		PhotoId,

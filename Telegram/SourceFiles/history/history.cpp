@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
 #include "styles/style_dialogs.h"
+#include <memory>
 
 namespace {
 
@@ -352,45 +353,78 @@ bool History::updateSendActionNeedsAnimating(
 		return false;
 	}
 
-	auto ms = crl::now();
-	switch (action.type()) {
-	case mtpc_sendMessageTypingAction: _typing.insert(user, ms + kStatusShowClientsideTyping); break;
-	case mtpc_sendMessageRecordVideoAction: _sendActions.insert(user, { Type::RecordVideo, ms + kStatusShowClientsideRecordVideo }); break;
-	case mtpc_sendMessageUploadVideoAction: _sendActions.insert(user, { Type::UploadVideo, ms + kStatusShowClientsideUploadVideo, action.c_sendMessageUploadVideoAction().vprogress.v }); break;
-	case mtpc_sendMessageRecordAudioAction: _sendActions.insert(user, { Type::RecordVoice, ms + kStatusShowClientsideRecordVoice }); break;
-	case mtpc_sendMessageUploadAudioAction: _sendActions.insert(user, { Type::UploadVoice, ms + kStatusShowClientsideUploadVoice, action.c_sendMessageUploadAudioAction().vprogress.v }); break;
-	case mtpc_sendMessageRecordRoundAction: _sendActions.insert(user, { Type::RecordRound, ms + kStatusShowClientsideRecordRound }); break;
-	case mtpc_sendMessageUploadRoundAction: _sendActions.insert(user, { Type::UploadRound, ms + kStatusShowClientsideUploadRound }); break;
-	case mtpc_sendMessageUploadPhotoAction: _sendActions.insert(user, { Type::UploadPhoto, ms + kStatusShowClientsideUploadPhoto, action.c_sendMessageUploadPhotoAction().vprogress.v }); break;
-	case mtpc_sendMessageUploadDocumentAction: _sendActions.insert(user, { Type::UploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v }); break;
-	case mtpc_sendMessageGeoLocationAction: _sendActions.insert(user, { Type::ChooseLocation, ms + kStatusShowClientsideChooseLocation }); break;
-	case mtpc_sendMessageChooseContactAction: _sendActions.insert(user, { Type::ChooseContact, ms + kStatusShowClientsideChooseContact }); break;
-	case mtpc_sendMessageGamePlayAction: {
-		auto it = _sendActions.find(user);
-		if (it == _sendActions.end() || it->type == Type::PlayGame || it->until <= ms) {
-			_sendActions.insert(user, { Type::PlayGame, ms + kStatusShowClientsidePlayGame });
+	const auto now = crl::now();
+	const auto emplaceAction = [&](
+			Type type,
+			crl::time duration,
+			int progress = 0) {
+		_sendActions.emplace(user, type, now + duration, progress);
+	};
+	action.match([&](const MTPDsendMessageTypingAction &) {
+		_typing.emplace(user, now + kStatusShowClientsideTyping);
+	}, [&](const MTPDsendMessageRecordVideoAction &) {
+		emplaceAction(Type::RecordVideo, kStatusShowClientsideRecordVideo);
+	}, [&](const MTPDsendMessageRecordAudioAction &) {
+		emplaceAction(Type::RecordVoice, kStatusShowClientsideRecordVideo);
+	}, [&](const MTPDsendMessageRecordRoundAction &) {
+		emplaceAction(Type::RecordRound, kStatusShowClientsideRecordRound);
+	}, [&](const MTPDsendMessageGeoLocationAction &) {
+		emplaceAction(Type::ChooseLocation, kStatusShowClientsideChooseLocation);
+	}, [&](const MTPDsendMessageChooseContactAction &) {
+		emplaceAction(Type::ChooseContact, kStatusShowClientsideChooseContact);
+	}, [&](const MTPDsendMessageUploadVideoAction &data) {
+		emplaceAction(
+			Type::UploadVideo,
+			kStatusShowClientsideUploadVideo,
+			data.vprogress.v);
+	}, [&](const MTPDsendMessageUploadAudioAction &data) {
+		emplaceAction(
+			Type::UploadVoice,
+			kStatusShowClientsideUploadVoice,
+			data.vprogress.v);
+	}, [&](const MTPDsendMessageUploadRoundAction &data) {
+		emplaceAction(
+			Type::UploadRound,
+			kStatusShowClientsideUploadRound,
+			data.vprogress.v);
+	}, [&](const MTPDsendMessageUploadPhotoAction &data) {
+		emplaceAction(
+			Type::UploadPhoto,
+			kStatusShowClientsideUploadPhoto,
+			data.vprogress.v);
+	}, [&](const MTPDsendMessageUploadDocumentAction &data) {
+		emplaceAction(
+			Type::UploadFile,
+			kStatusShowClientsideUploadFile,
+			data.vprogress.v);
+	}, [&](const MTPDsendMessageGamePlayAction &) {
+		const auto i = _sendActions.find(user);
+		if ((i == end(_sendActions))
+			|| (i->second.type == Type::PlayGame)
+			|| (i->second.until <= now)) {
+			emplaceAction(Type::PlayGame, kStatusShowClientsidePlayGame);
 		}
-	} break;
-	default: return false;
-	}
-	return updateSendActionNeedsAnimating(ms, true);
+	}, [&](const MTPDsendMessageCancelAction &) {
+		Unexpected("CancelAction here.");
+	});
+	return updateSendActionNeedsAnimating(now, true);
 }
 
 bool History::mySendActionUpdated(SendAction::Type type, bool doing) {
-	auto ms = crl::now();
-	auto i = _mySendActions.find(type);
+	const auto now = crl::now();
+	const auto i = _mySendActions.find(type);
 	if (doing) {
-		if (i == _mySendActions.cend()) {
-			_mySendActions.insert(type, ms + kSetMyActionForMs);
-		} else if (i.value() > ms + (kSetMyActionForMs / 2)) {
+		if (i == end(_mySendActions)) {
+			_mySendActions.emplace(type, now + kSetMyActionForMs);
+		} else if (i->second > now + (kSetMyActionForMs / 2)) {
 			return false;
 		} else {
-			i.value() = ms + kSetMyActionForMs;
+			i->second = now + kSetMyActionForMs;
 		}
 	} else {
-		if (i == _mySendActions.cend()) {
+		if (i == end(_mySendActions)) {
 			return false;
-		} else if (i.value() <= ms) {
+		} else if (i->second <= now) {
 			return false;
 		} else {
 			_mySendActions.erase(i);
@@ -425,18 +459,18 @@ bool History::paintSendAction(
 	return false;
 }
 
-bool History::updateSendActionNeedsAnimating(crl::time ms, bool force) {
+bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 	auto changed = force;
-	for (auto i = _typing.begin(), e = _typing.end(); i != e;) {
-		if (ms >= i.value()) {
+	for (auto i = begin(_typing); i != end(_typing);) {
+		if (now >= i->second) {
 			i = _typing.erase(i);
 			changed = true;
 		} else {
 			++i;
 		}
 	}
-	for (auto i = _sendActions.begin(); i != _sendActions.cend();) {
-		if (ms >= i.value().until) {
+	for (auto i = begin(_sendActions); i != end(_sendActions);) {
+		if (now >= i->second.until) {
 			i = _sendActions.erase(i);
 			changed = true;
 		} else {
@@ -449,10 +483,18 @@ bool History::updateSendActionNeedsAnimating(crl::time ms, bool force) {
 		if (typingCount > 2) {
 			newTypingString = lng_many_typing(lt_count, typingCount);
 		} else if (typingCount > 1) {
-			newTypingString = lng_users_typing(lt_user, _typing.begin().key()->firstName, lt_second_user, (_typing.end() - 1).key()->firstName);
+			newTypingString = lng_users_typing(
+				lt_user,
+				begin(_typing)->first->firstName,
+				lt_second_user,
+				(end(_typing) - 1)->first->firstName);
 		} else if (typingCount) {
-			newTypingString = peer->isUser() ? lang(lng_typing) : lng_user_typing(lt_user, _typing.begin().key()->firstName);
-		} else if (!_sendActions.isEmpty()) {
+			newTypingString = peer->isUser()
+				? lang(lng_typing)
+				: lng_user_typing(
+					lt_user,
+					begin(_typing)->first->firstName);
+		} else if (!_sendActions.empty()) {
 			// Handles all actions except game playing.
 			using Type = SendAction::Type;
 			auto sendActionString = [](Type type, const QString &name) -> QString {
@@ -471,10 +513,12 @@ bool History::updateSendActionNeedsAnimating(crl::time ms, bool force) {
 				};
 				return QString();
 			};
-			for (auto i = _sendActions.cbegin(), e = _sendActions.cend(); i != e; ++i) {
-				newTypingString = sendActionString(i->type, peer->isUser() ? QString() : i.key()->firstName);
+			for (const auto [user, action] : _sendActions) {
+				newTypingString = sendActionString(
+					action.type,
+					peer->isUser() ? QString() : user->firstName);
 				if (!newTypingString.isEmpty()) {
-					_sendActionAnimation.start(i->type);
+					_sendActionAnimation.start(action.type);
 					break;
 				}
 			}
@@ -483,11 +527,21 @@ bool History::updateSendActionNeedsAnimating(crl::time ms, bool force) {
 			if (newTypingString.isEmpty()) {
 				int playingCount = _sendActions.size();
 				if (playingCount > 2) {
-					newTypingString = lng_many_playing_game(lt_count, playingCount);
+					newTypingString = lng_many_playing_game(
+						lt_count,
+						playingCount);
 				} else if (playingCount > 1) {
-					newTypingString = lng_users_playing_game(lt_user, _sendActions.begin().key()->firstName, lt_second_user, (_sendActions.end() - 1).key()->firstName);
+					newTypingString = lng_users_playing_game(
+						lt_user,
+						begin(_sendActions)->first->firstName,
+						lt_second_user,
+						(end(_sendActions) - 1)->first->firstName);
 				} else {
-					newTypingString = peer->isUser() ? lang(lng_playing_game) : lng_user_playing_game(lt_user, _sendActions.begin().key()->firstName);
+					newTypingString = peer->isUser()
+						? lang(lng_playing_game)
+						: lng_user_playing_game(
+							lt_user,
+							begin(_sendActions)->first->firstName);
 				}
 				_sendActionAnimation.start(Type::PlayGame);
 			}
@@ -505,7 +559,7 @@ bool History::updateSendActionNeedsAnimating(crl::time ms, bool force) {
 				Ui::NameTextOptions());
 		}
 	}
-	auto result = (!_typing.isEmpty() || !_sendActions.isEmpty());
+	const auto result = (!_typing.empty() || !_sendActions.empty());
 	if (changed || (result && !anim::Disabled())) {
 		_owner->updateSendActionAnimation({
 			this,
@@ -547,7 +601,7 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
 		const auto detachExistingItem = true;
 		if (const auto item = createItem(*--i, detachExistingItem)) {
-			result.push_back(item);
+			result.emplace_back(item);
 		}
 	}
 	return result;
@@ -1064,7 +1118,8 @@ void History::applyServiceChanges(
 				photo->peer = peer;
 				auto &smallSize = sizes.front();
 				auto &bigSize = sizes.back();
-				const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
+				const MTPFileLocation *smallLoc = nullptr;
+				const MTPFileLocation *bigLoc = nullptr;
 				switch (smallSize.type()) {
 				case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
 				case mtpc_photoCachedSize: smallLoc = &smallSize.c_photoCachedSize().vlocation; break;
@@ -1135,12 +1190,12 @@ void History::clearSendAction(not_null<UserData*> from) {
 	auto i = _typing.find(from);
 	if (i != _typing.cend()) {
 		updateAtMs = crl::now();
-		i.value() = updateAtMs;
+		i->second = updateAtMs;
 	}
 	auto j = _sendActions.find(from);
 	if (j != _sendActions.cend()) {
 		if (!updateAtMs) updateAtMs = crl::now();
-		j.value().until = updateAtMs;
+		j->second.until = updateAtMs;
 	}
 	if (updateAtMs) {
 		updateSendActionNeedsAnimating(updateAtMs, true);
@@ -1977,7 +2032,7 @@ void History::startBuildingFrontBlock(int expectedItemsCount) {
 	Assert(!isBuildingFrontBlock());
 	Assert(expectedItemsCount > 0);
 
-	_buildingFrontBlock.reset(new BuildingBlock());
+	_buildingFrontBlock = std::make_unique<BuildingBlock>();
 	_buildingFrontBlock->expectedItemsCount = expectedItemsCount;
 }
 
@@ -2624,10 +2679,9 @@ History *History::migrateFrom() const {
 MsgRange History::rangeForDifferenceRequest() const {
 	auto fromId = MsgId(0);
 	auto toId = MsgId(0);
-	for (auto blockIndex = 0, blocksCount = int(blocks.size()); blockIndex < blocksCount; ++blockIndex) {
-		const auto &block = blocks[blockIndex];
-		for (auto itemIndex = 0, itemsCount = int(block->messages.size()); itemIndex < itemsCount; ++itemIndex) {
-			const auto id = block->messages[itemIndex]->data()->id;
+	for (const auto &block : blocks) {
+		for (const auto &item : block->messages) {
+			const auto id = item->data()->id;
 			if (id > 0) {
 				fromId = id;
 				break;

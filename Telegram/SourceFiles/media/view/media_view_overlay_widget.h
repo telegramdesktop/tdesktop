@@ -274,9 +274,11 @@ private:
 	void updateHeader();
 	void snapXY();
 
-	void step_state(crl::time ms);
+	void clearControlsState();
+	bool stateAnimationCallback(crl::time ms);
 	void step_radial(crl::time ms, bool timer);
 	void step_waiting(crl::time ms, bool timer);
+	bool updateControlsAnimation(crl::time now);
 
 	void zoomIn();
 	void zoomOut();
@@ -405,7 +407,7 @@ private:
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown = false;
 
-	Ui::Animations::Basic _a_state;
+	Ui::Animations::Basic _stateAnimation;
 
 	enum ControlsState {
 		ControlsShowing,
@@ -416,7 +418,7 @@ private:
 	ControlsState _controlsState = ControlsShown;
 	crl::time _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
-	anim::value a_cOpacity;
+	anim::value _controlsOpacity;
 	bool _mousePressed = false;
 
 	Ui::PopupMenu *_menu = nullptr;
@@ -431,7 +433,9 @@ private:
 
 	bool _receiveMouse = true;
 
-	bool _touchPress = false, _touchMove = false, _touchRightButton = false;
+	bool _touchPress = false;
+	bool _touchMove = false;
+	bool _touchRightButton = false;
 	QTimer _touchTimer;
 	QPoint _touchStart;
 	QPoint _accumScroll;
@@ -443,10 +447,8 @@ private:
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;
 
-	typedef QMap<OverState, crl::time> Showing;
-	Showing _animations;
-	typedef QMap<OverState, anim::value> ShowingOpacities;
-	ShowingOpacities _animOpacities;
+	base::flat_map<OverState, crl::time> _animations;
+	base::flat_map<OverState, anim::value> _animationOpacities;
 
 	int _verticalWheelDelta = 0;
 

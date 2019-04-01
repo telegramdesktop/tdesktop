@@ -42,7 +42,7 @@ private:
 	// so it should be a Basic, not a Simple animation, because
 	// Simple-s pauses mtproto responses/updates handling while playing.
 	anim::value a_value, a_receivedTill;
-	Ui::Animations::Basic _a_value, _a_receivedTill;
+	Ui::Animations::Basic _valueAnimation, _receivedTillAnimation;
 	Fn<void(float64,float64)> _valueChanged;
 
 	bool _inLoadingState = false;

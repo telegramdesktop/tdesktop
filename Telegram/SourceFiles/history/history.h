@@ -216,10 +216,19 @@ public:
 	void setHasPendingResizedItems();
 
 	bool mySendActionUpdated(SendAction::Type type, bool doing);
-	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, crl::time ms);
+	bool paintSendAction(
+		Painter &p,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		style::color color,
+		crl::time now);
 
 	// Interface for Histories
-	bool updateSendActionNeedsAnimating(crl::time ms, bool force = false);
+	bool updateSendActionNeedsAnimating(
+		crl::time now,
+		bool force = false);
 	bool updateSendActionNeedsAnimating(
 		not_null<UserData*> user,
 		const MTPSendMessageAction &action);
@@ -490,14 +499,12 @@ private:
 	TimeId _lastSentDraftTime = 0;
 	MessageIdsList _forwardDraft;
 
-	using TypingUsers = QMap<UserData*, crl::time>;
-	TypingUsers _typing;
-	using SendActionUsers = QMap<UserData*, SendAction>;
-	SendActionUsers _sendActions;
+	base::flat_map<not_null<UserData*>, crl::time> _typing;
+	base::flat_map<not_null<UserData*>, SendAction> _sendActions;
 	QString _sendActionString;
 	Text _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
-	QMap<SendAction::Type, crl::time> _mySendActions;
+	base::flat_map<SendAction::Type, crl::time> _mySendActions;
 
 	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
 

@@ -72,7 +72,7 @@ protected:
 		return _receivedTill;
 	}
 	float64 getCurrentOverFactor() {
-		return _disabled ? 0. : _a_over.value(_over ? 1. : 0.);
+		return _disabled ? 0. : _overAnimation.value(_over ? 1. : 0.);
 	}
 	Direction getDirection() const {
 		return _direction;
@@ -104,7 +104,7 @@ private:
 	Fn<void(float64)> _changeFinishedCallback;
 
 	bool _over = false;
-	Ui::Animations::Simple _a_over;
+	Ui::Animations::Simple _overAnimation;
 
 	float64 _value = 0.;
 	float64 _receivedTill = 0.;
