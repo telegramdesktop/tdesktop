@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/panel_animation.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
@@ -52,7 +52,9 @@ private:
 
 	std::vector<Row> getRowsByQuery() const;
 	void resizeToRows();
-	void setSelected(int selected);
+	void setSelected(
+		int selected,
+		anim::type animated = anim::type::instant);
 	void setPressed(int pressed);
 	void clearMouseSelection();
 	void clearSelection();
@@ -65,6 +67,10 @@ private:
 	bool triggerSelectedRow() const;
 	void triggerRow(const Row &row) const;
 
+	[[nodiscard]] int scrollCurrent() const;
+	void scrollTo(int value, anim::type animated = anim::type::instant);
+	void stopAnimations();
+
 	QString _query;
 	std::vector<Row> _rows;
 
@@ -73,7 +79,9 @@ private:
 	int _selected = -1;
 	int _pressed = -1;
 
-	int _scroll = 0;
+	int _scrollValue = 0;
+	Ui::Animations::Simple _scrollAnimation;
+	Ui::Animations::Simple _selectedAnimation;
 	int _scrollMax = 0;
 	int _oneWidth = 0;
 	QMargins _padding;

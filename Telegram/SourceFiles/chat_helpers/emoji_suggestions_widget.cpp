@@ -25,6 +25,7 @@ namespace {
 
 constexpr auto kShowExactDelay = crl::time(300);
 constexpr auto kMaxNonScrolledEmoji = 7;
+constexpr auto kAnimationDuration = crl::time(120);
 
 } // namespace
 
@@ -145,7 +146,9 @@ void SuggestionsWidget::resizeToRows() {
 		? st::emojiSuggestionsScrolledWidth
 		: fullWidth;
 	_scrollMax = std::max(0, fullWidth - newWidth);
-	_scroll = std::min(_scroll, _scrollMax);
+	if (_scrollValue > _scrollMax || scrollCurrent() > _scrollMax) {
+		scrollTo(std::min(_scrollValue, _scrollMax));
+	}
 	resize(_padding.left() + newWidth + _padding.right(), height());
 	update();
 }
@@ -165,22 +168,23 @@ void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
 		|| (e->orientation() == Qt::Horizontal);
 	const auto vertical = (e->angleDelta().y() != 0)
 		|| (e->orientation() == Qt::Vertical);
+	const auto current = scrollCurrent();
 	const auto scroll = [&] {
 		if (horizontal) {
 			const auto delta = e->pixelDelta().x()
 				? e->pixelDelta().x()
 				: e->angleDelta().x();
-			return snap(_scroll - ((rtl() ? -1 : 1) * delta), 0, _scrollMax);
+			return snap(current - ((rtl() ? -1 : 1) * delta), 0, _scrollMax);
 		} else if (vertical) {
 			const auto delta = e->pixelDelta().y()
 				? e->pixelDelta().y()
 				: e->angleDelta().y();
-			return snap(_scroll - delta, 0, _scrollMax);
+			return snap(current - delta, 0, _scrollMax);
 		}
-		return _scroll;
+		return current;
 	}();
-	if (_scroll != scroll) {
-		_scroll = scroll;
+	if (current != scroll) {
+		scrollTo(scroll);
 		if (!_lastMousePosition) {
 			_lastMousePosition = QCursor::pos();
 		}
@@ -203,20 +207,23 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 		(paint.x() + paint.width() + _oneWidth - 1) / _oneWidth,
 		int(_rows.size()));
 
+	const auto selected = (_pressed >= 0)
+		? _pressed
+		: _selectedAnimation.value(_selected);
+	if (selected > -1.) {
+		App::roundRect(
+			p,
+			QRect(selected * _oneWidth, 0, _oneWidth, _oneWidth),
+			st::emojiPanHover,
+			StickerHoverCorners);
+	}
+
 	for (auto i = from; i != till; ++i) {
 		const auto &row = _rows[i];
 		const auto emoji = row.emoji;
 		const auto esize = Ui::Emoji::GetSizeLarge();
-		const auto selected = (i == _selected || i == _pressed);
 		const auto x = i * _oneWidth;
 		const auto y = 0;
-		if (selected) {
-			App::roundRect(
-				p,
-				QRect(x, y, _oneWidth, _oneWidth),
-				st::emojiPanHover,
-				StickerHoverCorners);
-		}
 		Ui::Emoji::Draw(
 			p,
 			emoji,
@@ -228,8 +235,9 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 }
 
 void SuggestionsWidget::paintFadings(Painter &p) const {
+	const auto scroll = scrollCurrent();
 	const auto o_left = snap(
-		_scroll / float64(st::emojiSuggestionsFadeAfter),
+		scroll / float64(st::emojiSuggestionsFadeAfter),
 		0.,
 		1.);
 	const auto shift = innerShift();
@@ -244,7 +252,7 @@ void SuggestionsWidget::paintFadings(Painter &p) const {
 		p.setOpacity(1.);
 	}
 	const auto o_right = snap(
-		(_scrollMax - _scroll) / float64(st::emojiSuggestionsFadeAfter),
+		(_scrollMax - scroll) / float64(st::emojiSuggestionsFadeAfter),
 		0.,
 		1.);
 	if (o_right > 0.) {
@@ -298,19 +306,61 @@ bool SuggestionsWidget::handleKeyEvent(int key) {
 
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
-	setSelected(newSelected);
+	setSelected(newSelected, anim::type::normal);
 	return true;
 }
 
-void SuggestionsWidget::setSelected(int selected) {
+void SuggestionsWidget::setSelected(int selected, anim::type animated) {
 	if (selected >= _rows.size()) {
 		selected = -1;
+	}
+	if (animated == anim::type::normal) {
+		_selectedAnimation.start(
+			[=] { update(); },
+			_selected,
+			selected,
+			kAnimationDuration,
+			anim::sineInOut);
+		if (_scrollMax > 0) {
+			const auto selectedMax = int(_rows.size()) - 3;
+			const auto selectedForScroll = std::min(
+				std::max(selected, 1) - 1,
+				selectedMax);
+			scrollTo((_scrollMax * selectedForScroll) / selectedMax, animated);
+		}
+	} else if (_selectedAnimation.animating()) {
+		_selectedAnimation.stop();
+		update();
 	}
 	if (_selected != selected) {
 		updateSelectedItem();
 		_selected = selected;
 		updateSelectedItem();
 	}
+}
+
+int SuggestionsWidget::scrollCurrent() const {
+	return _scrollAnimation.value(_scrollValue);
+}
+
+void SuggestionsWidget::scrollTo(int value, anim::type animated) {
+	if (animated == anim::type::instant) {
+		_scrollAnimation.stop();
+	} else {
+		_scrollAnimation.start(
+			[=] { update(); },
+			_scrollValue,
+			value,
+			kAnimationDuration,
+			anim::sineInOut);
+	}
+	_scrollValue = value;
+	update();
+}
+
+void SuggestionsWidget::stopAnimations() {
+	_scrollValue = _scrollAnimation.value(_scrollValue);
+	_scrollAnimation.stop();
 }
 
 void SuggestionsWidget::setPressed(int pressed) {
@@ -340,7 +390,7 @@ void SuggestionsWidget::clearSelection() {
 void SuggestionsWidget::updateItem(int index) {
 	if (index >= 0 && index < _rows.size()) {
 		update(
-			_padding.left() + index * _oneWidth - _scroll,
+			_padding.left() + index * _oneWidth - scrollCurrent(),
 			_padding.top(),
 			_oneWidth,
 			_oneWidth);
@@ -356,7 +406,7 @@ QRect SuggestionsWidget::inner() const {
 }
 
 QPoint SuggestionsWidget::innerShift() const {
-	return QPoint(_scroll - _padding.left(), -_padding.top());
+	return QPoint(scrollCurrent() - _padding.left(), -_padding.top());
 }
 
 QPoint SuggestionsWidget::mapToInner(QPoint globalPosition) const {
@@ -371,8 +421,8 @@ void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 			_dragScrollStart + (rtl() ? -1 : 1) * delta,
 			0,
 			_scrollMax);
-		if (_scroll != scroll) {
-			_scroll = scroll;
+		if (scrollCurrent() != scroll) {
+			scrollTo(scroll);
 			update();
 		}
 		return;
@@ -380,8 +430,9 @@ void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 		&& (_scrollMax > 0)
 		&& ((_mousePressPosition - globalPosition).manhattanLength()
 			>= QApplication::startDragDistance())) {
-		_dragScrollStart = _scroll;
+		_dragScrollStart = scrollCurrent();
 		_mousePressPosition = globalPosition;
+		scrollTo(_dragScrollStart);
 	}
 	if (inner().contains(mapToInner(globalPosition))) {
 		if (!_lastMousePosition) {
