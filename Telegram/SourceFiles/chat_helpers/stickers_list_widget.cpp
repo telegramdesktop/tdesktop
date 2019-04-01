@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "ui/widgets/buttons.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "boxes/stickers_box.h"
@@ -105,7 +106,7 @@ private:
 	template <typename Callback>
 	void enumerateVisibleIcons(Callback callback);
 
-	void step_icons(crl::time ms, bool timer);
+	bool iconsAnimationCallback(crl::time now);
 	void setSelectedIcon(
 		int newSelected,
 		ValidateIconAnimations animations);
@@ -134,7 +135,7 @@ private:
 	int _iconSel = 0;
 	OverState _iconDown = SpecialOver::None;
 	bool _iconsDragging = false;
-	BasicAnimation _a_icons;
+	Ui::Animations::Basic _iconsAnimation;
 	QPoint _iconsMousePos, _iconsMouseDown;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
@@ -180,7 +181,9 @@ StickersListWidget::Set::~Set() = default;
 
 StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
-, _a_icons(animation(this, &Footer::step_icons)) {
+, _iconsAnimation([=](crl::time now) {
+	return iconsAnimationCallback(now);
+}) {
 	setMouseTracking(true);
 
 	_iconsLeft = _iconsRight = st::emojiCategorySkip + st::stickerIconWidth;
@@ -323,11 +326,11 @@ void StickersListWidget::Footer::setSelectedIcon(
 		_iconsMax);
 	if (animations == ValidateIconAnimations::None) {
 		_iconsX = anim::value(iconsXFinal, iconsXFinal);
-		_a_icons.stop();
+		_iconsAnimation.stop();
 	} else {
 		_iconsX.start(iconsXFinal);
 		_iconsStartAnim = crl::now();
-		_a_icons.start();
+		_iconsAnimation.start();
 	}
 	updateSelected();
 	update();
@@ -336,7 +339,7 @@ void StickersListWidget::Footer::setSelectedIcon(
 void StickersListWidget::Footer::processHideFinished() {
 	_iconOver = _iconDown = SpecialOver::None;
 	_iconsStartAnim = 0;
-	_a_icons.stop();
+	_iconsAnimation.stop();
 	_iconsX.finish();
 	_iconSelX.finish();
 	_horizontal = false;
@@ -469,7 +472,7 @@ void StickersListWidget::Footer::mouseMoveEvent(QMouseEvent *e) {
 		if (newX != qRound(_iconsX.current())) {
 			_iconsX = anim::value(newX, newX);
 			_iconsStartAnim = 0;
-			_a_icons.stop();
+			_iconsAnimation.stop();
 			update();
 		}
 	}
@@ -504,7 +507,7 @@ void StickersListWidget::Footer::finishDragging() {
 	if (newX != qRound(_iconsX.current())) {
 		_iconsX = anim::value(newX, newX);
 		_iconsStartAnim = 0;
-		_a_icons.stop();
+		_iconsAnimation.stop();
 		update();
 	}
 	_iconsDragging = false;
@@ -539,7 +542,7 @@ void StickersListWidget::Footer::scrollByWheelEvent(
 	if (newX != qRound(_iconsX.current())) {
 		_iconsX = anim::value(newX, newX);
 		_iconsStartAnim = 0;
-		_a_icons.stop();
+		_iconsAnimation.stop();
 		updateSelected();
 		update();
 	}
@@ -601,7 +604,7 @@ void StickersListWidget::Footer::refreshIconsGeometry(
 	_iconsX.finish();
 	_iconSelX.finish();
 	_iconsStartAnim = 0;
-	_a_icons.stop();
+	_iconsAnimation.stop();
 	_iconsMax = std::max(
 		_iconsLeft + int(_icons.size()) * st::stickerIconWidth + _iconsRight - width(),
 		0);
@@ -673,13 +676,13 @@ void StickersListWidget::Footer::paintSetIcon(
 	}
 }
 
-void StickersListWidget::Footer::step_icons(crl::time ms, bool timer) {
+bool StickersListWidget::Footer::iconsAnimationCallback(crl::time now) {
 	if (anim::Disabled()) {
-		ms += st::stickerIconMove;
+		now += st::stickerIconMove;
 	}
 	if (_iconsStartAnim) {
-		auto dt = (ms - _iconsStartAnim) / float64(st::stickerIconMove);
-		if (dt >= 1) {
+		const auto dt = (now - _iconsStartAnim) / float64(st::stickerIconMove);
+		if (dt >= 1.) {
 			_iconsStartAnim = 0;
 			_iconsX.finish();
 			_iconSelX.finish();
@@ -689,11 +692,9 @@ void StickersListWidget::Footer::step_icons(crl::time ms, bool timer) {
 		}
 	}
 
-	if (timer) update();
+	update();
 
-	if (!_iconsStartAnim) {
-		_a_icons.stop();
-	}
+	return (_iconsStartAnim != 0);
 }
 
 StickersListWidget::StickersListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)

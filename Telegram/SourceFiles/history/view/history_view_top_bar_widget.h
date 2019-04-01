@@ -84,7 +84,7 @@ private:
 	void updateConnectingState();
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
-	void step_connecting(crl::time ms, bool timer);
+	void connectingAnimationCallback();
 
 	void paintTopBar(Painter &p, crl::time ms);
 	void paintStatus(

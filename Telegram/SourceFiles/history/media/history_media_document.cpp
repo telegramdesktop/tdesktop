@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
+
 using TextState = HistoryView::TextState;
 
 } // namespace
@@ -364,7 +366,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			if (voice->seeking()) {
 				return voice->seekingCurrent();
 			} else if (voice->_playback) {
-				return voice->_playback->a_progress.current();
+				return voice->_playback->progress.current();
 			}
 			return 0.;
 		})();
@@ -707,15 +709,15 @@ bool HistoryDocument::updateStatusText() const {
 			if (auto voice = Get<HistoryDocumentVoice>()) {
 				bool was = (voice->_playback != nullptr);
 				voice->ensurePlayback(this);
-				if (!was || state.position != voice->_playback->_position) {
+				if (!was || state.position != voice->_playback->position) {
 					auto prg = state.length ? snap(float64(state.position) / state.length, 0., 1.) : 0.;
-					if (voice->_playback->_position < state.position) {
-						voice->_playback->a_progress.start(prg);
+					if (voice->_playback->position < state.position) {
+						voice->_playback->progress.start(prg);
 					} else {
-						voice->_playback->a_progress = anim::value(0., prg);
+						voice->_playback->progress = anim::value(0., prg);
 					}
-					voice->_playback->_position = state.position;
-					voice->_playback->_a_progress.start();
+					voice->_playback->position = state.position;
+					voice->_playback->progressAnimation.start();
 				}
 				voice->_lastDurationMs = static_cast<int>((state.length * 1000LL) / state.frequency); // Bad :(
 			}
@@ -759,24 +761,25 @@ bool HistoryDocument::hideForwardedFrom() const {
 	return _data->isSong();
 }
 
-void HistoryDocument::step_voiceProgress(float64 ms, bool timer) {
+bool HistoryDocument::voiceProgressAnimationCallback(crl::time now) {
 	if (anim::Disabled()) {
-		ms += (2 * AudioVoiceMsgUpdateView);
+		now += (2 * kAudioVoiceMsgUpdateView);
 	}
-	if (auto voice = Get<HistoryDocumentVoice>()) {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
 		if (voice->_playback) {
-			float64 dt = ms / (2 * AudioVoiceMsgUpdateView);
-			if (dt >= 1) {
-				voice->_playback->_a_progress.stop();
-				voice->_playback->a_progress.finish();
+			const auto dt = (now - voice->_playback->progressAnimation.started())
+				/ float64(2 * kAudioVoiceMsgUpdateView);
+			if (dt >= 1.) {
+				voice->_playback->progressAnimation.stop();
+				voice->_playback->progress.finish();
 			} else {
-				voice->_playback->a_progress.update(qMin(dt, 1.), anim::linear);
+				voice->_playback->progress.update(qMin(dt, 1.), anim::linear);
 			}
-			if (timer) {
-				history()->owner().requestViewRepaint(_parent);
-			}
+			history()->owner().requestViewRepaint(_parent);
+			return (dt < 1.);
 		}
 	}
+	return false;
 }
 
 void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
@@ -793,8 +796,8 @@ void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool 
 					currentProgress);
 
 				voice->ensurePlayback(this);
-				voice->_playback->_position = 0;
-				voice->_playback->a_progress = anim::value(currentProgress, currentProgress);
+				voice->_playback->position = 0;
+				voice->_playback->progress = anim::value(currentProgress, currentProgress);
 			}
 			voice->stopSeeking();
 		}

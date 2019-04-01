@@ -46,7 +46,6 @@ enum {
 	MediaOverviewStartPerPage = 5,
 
 	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
-	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker

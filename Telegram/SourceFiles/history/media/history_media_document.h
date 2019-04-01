@@ -48,7 +48,7 @@ public:
 	QMargins bubbleMargins() const override;
 	bool hideForwardedFrom() const override;
 
-	void step_voiceProgress(float64 ms, bool timer);
+	bool voiceProgressAnimationCallback(crl::time now);
 
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 

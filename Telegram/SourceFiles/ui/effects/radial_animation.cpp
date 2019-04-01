@@ -11,27 +11,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
-: a_arcStart(0, FullArcLength)
-, _animation(std::move(callbacks)) {
-}
-
 void RadialAnimation::start(float64 prg) {
 	_firstStart = _lastStart = _lastTime = crl::now();
-	int32 iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength), iprgstrict = qRound(prg * AlmostFullArcLength);
-	a_arcEnd = anim::value(iprgstrict, iprg);
+	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
+	const auto iprgstrict = qRound(prg * AlmostFullArcLength);
+	_arcEnd = anim::value(iprgstrict, iprg);
 	_animation.start();
 }
 
 bool RadialAnimation::update(float64 prg, bool finished, crl::time ms) {
 	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
-	const auto result = (iprg != qRound(a_arcEnd.to()));
+	const auto result = (iprg != qRound(_arcEnd.to()));
 	if (_finished != finished) {
-		a_arcEnd.start(iprg);
+		_arcEnd.start(iprg);
 		_finished = finished;
 		_lastStart = _lastTime;
 	} else if (result) {
-		a_arcEnd.start(iprg);
+		_arcEnd.start(iprg);
 		_lastStart = _lastTime;
 	}
 	_lastTime = ms;
@@ -43,33 +39,29 @@ bool RadialAnimation::update(float64 prg, bool finished, crl::time ms) {
 		: fulldt;
 	_opacity = qMin(opacitydt / st::radialDuration, 1.);
 	if (anim::Disabled()) {
-		a_arcEnd.update(1., anim::linear);
+		_arcEnd.update(1., anim::linear);
 		if (finished) {
 			stop();
 		}
 	} else if (!finished) {
-		a_arcEnd.update(1. - (st::radialDuration / (st::radialDuration + dt)), anim::linear);
+		_arcEnd.update(1. - (st::radialDuration / (st::radialDuration + dt)), anim::linear);
 	} else if (dt >= st::radialDuration) {
-		a_arcEnd.update(1., anim::linear);
+		_arcEnd.update(1., anim::linear);
 		stop();
 	} else {
 		auto r = dt / st::radialDuration;
-		a_arcEnd.update(r, anim::linear);
+		_arcEnd.update(r, anim::linear);
 		_opacity *= 1 - r;
 	}
 	auto fromstart = fulldt / st::radialPeriod;
-	a_arcStart.update(fromstart - std::floor(fromstart), anim::linear);
+	_arcStart.update(fromstart - std::floor(fromstart), anim::linear);
 	return result;
 }
 
 void RadialAnimation::stop() {
 	_firstStart = _lastStart = _lastTime = 0;
-	a_arcEnd = anim::value();
+	_arcEnd = anim::value();
 	_animation.stop();
-}
-
-void RadialAnimation::step(crl::time ms) {
-	_animation.step(ms);
 }
 
 void RadialAnimation::draw(
@@ -98,22 +90,15 @@ void RadialAnimation::draw(
 }
 
 RadialState RadialAnimation::computeState() const {
-	auto length = MinArcLength + qRound(a_arcEnd.current());
+	auto length = MinArcLength + qRound(_arcEnd.current());
 	auto from = QuarterArcLength
 		- length
-		- (anim::Disabled() ? 0 : qRound(a_arcStart.current()));
+		- (anim::Disabled() ? 0 : qRound(_arcStart.current()));
 	if (rtl()) {
 		from = QuarterArcLength - (from - QuarterArcLength) - length;
 		if (from < 0) from += FullArcLength;
 	}
 	return { _opacity, from, length };
-}
-
-InfiniteRadialAnimation::InfiniteRadialAnimation(
-	AnimationCallbacks &&callbacks,
-	const style::InfiniteRadialAnimation &st)
-: _st(st)
-, _animation(std::move(callbacks)) {
 }
 
 void InfiniteRadialAnimation::start(crl::time skip) {
@@ -143,10 +128,6 @@ void InfiniteRadialAnimation::stop(anim::type animated) {
 	} else if (_workFinished <= now) {
 		_animation.stop();
 	}
-}
-
-void InfiniteRadialAnimation::step(crl::time ms) {
-	_animation.step(ms);
 }
 
 void InfiniteRadialAnimation::draw(

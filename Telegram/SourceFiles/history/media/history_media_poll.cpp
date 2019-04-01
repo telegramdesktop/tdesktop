@@ -142,9 +142,10 @@ struct HistoryPoll::AnswersAnimation {
 };
 
 struct HistoryPoll::SendingAnimation {
+	template <typename Callback>
 	SendingAnimation(
 		const QByteArray &option,
-		AnimationCallbacks &&callbacks);
+		Callback &&callback);
 
 	QByteArray option;
 	Ui::InfiniteRadialAnimation animation;
@@ -167,11 +168,14 @@ struct HistoryPoll::Answer {
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
 
+template <typename Callback>
 HistoryPoll::SendingAnimation::SendingAnimation(
 	const QByteArray &option,
-	AnimationCallbacks &&callbacks)
+	Callback &&callback)
 : option(option)
-, animation(std::move(callbacks), st::historyPollRadialAnimation) {
+, animation(
+	std::forward<Callback>(callback),
+	st::historyPollRadialAnimation) {
 }
 
 HistoryPoll::Answer::Answer() : text(st::msgMinWidth / 2) {
@@ -397,9 +401,7 @@ void HistoryPoll::checkSendingAnimation() const {
 	}
 	_sendingAnimation = std::make_unique<SendingAnimation>(
 		sending,
-		animation(
-			const_cast<HistoryPoll*>(this),
-			&HistoryPoll::step_radial));
+		[=] { radialAnimationCallback(); });
 	_sendingAnimation->animation.start();
 }
 
@@ -561,8 +563,8 @@ void HistoryPoll::resetAnswersAnimation() const {
 	}
 }
 
-void HistoryPoll::step_radial(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void HistoryPoll::radialAnimationCallback() const {
+	if (!anim::Disabled()) {
 		history()->owner().requestViewRepaint(_parent);
 	}
 }

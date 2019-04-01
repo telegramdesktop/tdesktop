@@ -242,8 +242,8 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void EmojiButton::step_loading(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void EmojiButton::loadingAnimationCallback() {
+	if (!anim::Disabled()) {
 		update();
 	}
 }
@@ -251,7 +251,7 @@ void EmojiButton::step_loading(crl::time ms, bool timer) {
 void EmojiButton::setLoading(bool loading) {
 	if (loading && !_loading) {
 		_loading = std::make_unique<Ui::InfiniteRadialAnimation>(
-			animation(this, &EmojiButton::step_loading),
+			[=] { loadingAnimationCallback(); },
 			st::defaultInfiniteRadialAnimation);
 	}
 	if (loading) {

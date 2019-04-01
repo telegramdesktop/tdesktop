@@ -105,6 +105,7 @@ constexpr auto kCancelTypingActionTimeout = crl::time(5000);
 constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
+constexpr auto kRecordingUpdateDelta = crl::time(100);
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -189,7 +190,10 @@ HistoryWidget::HistoryWidget(
 , _send(this)
 , _unblock(this, lang(lng_unblock_button).toUpper(), st::historyUnblock)
 , _botStart(this, lang(lng_bot_start).toUpper(), st::historyComposeButton)
-, _joinChannel(this, lang(lng_profile_join_channel).toUpper(), st::historyComposeButton)
+, _joinChannel(
+	this,
+	lang(lng_profile_join_channel).toUpper(),
+	st::historyComposeButton)
 , _muteUnmute(this, lang(lng_channel_mute).toUpper(), st::historyComposeButton)
 , _attachToggle(this, st::historyAttach)
 , _tabbedSelectorToggle(this, st::historyAttachEmoji)
@@ -202,7 +206,9 @@ HistoryWidget::HistoryWidget(
 	Ui::InputField::Mode::MultiLine,
 	langFactory(lng_message_ph))
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
-, _a_recording(animation(this, &HistoryWidget::step_recording))
+, _recordingAnimation([=](crl::time now) {
+	return recordingAnimationCallback(now);
+})
 , _kbScroll(this, st::botKbScroll)
 , _tabbedPanel(this, controller)
 , _tabbedSelector(_tabbedPanel->getSelector())
@@ -1235,8 +1241,8 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 		return;
 	}
 
-	a_recordingLevel.start(level);
-	_a_recording.start();
+	_recordingLevel.start(level);
+	_recordingAnimation.start();
 	_recordingSamples = samples;
 	if (samples < 0 || samples >= Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength) {
 		stopRecording(_peer && samples > 0 && _inField);
@@ -1364,7 +1370,7 @@ void HistoryWidget::setReplyReturns(PeerId peer, const QList<MsgId> &replyReturn
 
 	_replyReturns = replyReturns;
 	if (_replyReturns.isEmpty()) {
-		_replyReturn = 0;
+		_replyReturn = nullptr;
 	} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
 		_replyReturn = App::histItemById(0, -_replyReturns.back());
 	} else {
@@ -1373,7 +1379,7 @@ void HistoryWidget::setReplyReturns(PeerId peer, const QList<MsgId> &replyReturn
 	while (!_replyReturns.isEmpty() && !_replyReturn) {
 		_replyReturns.pop_back();
 		if (_replyReturns.isEmpty()) {
-			_replyReturn = 0;
+			_replyReturn = nullptr;
 		} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
 			_replyReturn = App::histItemById(0, -_replyReturns.back());
 		} else {
@@ -1383,11 +1389,11 @@ void HistoryWidget::setReplyReturns(PeerId peer, const QList<MsgId> &replyReturn
 }
 
 void HistoryWidget::calcNextReplyReturn() {
-	_replyReturn = 0;
+	_replyReturn = nullptr;
 	while (!_replyReturns.isEmpty() && !_replyReturn) {
 		_replyReturns.pop_back();
 		if (_replyReturns.isEmpty()) {
-			_replyReturn = 0;
+			_replyReturn = nullptr;
 		} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
 			_replyReturn = App::histItemById(0, -_replyReturns.back());
 		} else {
@@ -2784,7 +2790,7 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 		}
 	}
 
-	QString err = error.type();
+	const auto &err = error.type();
 	if (err == qstr("MESSAGE_ID_INVALID") || err == qstr("CHAT_ADMIN_REQUIRED") || err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
 		Ui::show(Box<InformBox>(lang(lng_edit_error)));
 	} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
@@ -2989,17 +2995,20 @@ void HistoryWidget::unreadMentionsAnimationFinish() {
 	updateUnreadMentionsPosition();
 }
 
-void HistoryWidget::step_recording(float64 ms, bool timer) {
-	const auto dt = anim::Disabled() ? 1. : (ms / AudioVoiceMsgUpdateView);
-	if (dt >= 1) {
-		_a_recording.stop();
-		a_recordingLevel.finish();
+bool HistoryWidget::recordingAnimationCallback(crl::time now) {
+	const auto dt = anim::Disabled()
+		? 1.
+		: ((now - _recordingAnimation.started())
+			/ float64(kRecordingUpdateDelta));
+	if (dt >= 1.) {
+		_recordingLevel.finish();
 	} else {
-		a_recordingLevel.update(dt, anim::linear);
+		_recordingLevel.update(dt, anim::linear);
 	}
-	if (timer && !anim::Disabled()) {
+	if (!anim::Disabled()) {
 		update(_attachToggle->geometry());
 	}
+	return (dt < 1.);
 }
 
 void HistoryWidget::chooseAttach() {
@@ -3080,7 +3089,9 @@ void HistoryWidget::leaveEventHook(QEvent *e) {
 		_attachDragState = DragState::None;
 		updateDragAreas();
 	}
-	if (hasMouseTracking()) mouseMoveEvent(0);
+	if (hasMouseTracking()) {
+		mouseMoveEvent(nullptr);
+	}
 }
 
 void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
@@ -3158,8 +3169,8 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 void HistoryWidget::stopRecording(bool send) {
 	emit Media::Capture::instance()->stop(send);
 
-	a_recordingLevel = anim::value();
-	_a_recording.stop();
+	_recordingLevel = anim::value();
+	_recordingAnimation.stop();
 
 	_recording = false;
 	_recordingSamples = 0;
@@ -3581,7 +3592,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 
 			_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
-			_kbReplyTo = 0;
+			_kbReplyTo = nullptr;
 			if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_editMsgId && !_replyToId) {
 				_fieldBarCancel->hide();
 				updateMouseTracking();
@@ -3604,7 +3615,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 
 		_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
-		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
+		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
+			? App::histItemById(_keyboard->forMsgId())
+			: nullptr;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
 			updateReplyEditText(_kbReplyTo);
@@ -3621,7 +3634,9 @@ void HistoryWidget::onKbToggle(bool manual) {
 		int32 maxh = qMin(_keyboard->height(), st::historyComposeFieldMaxHeight - (st::historyComposeFieldMaxHeight / 2));
 		_field->setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
 
-		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
+		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
+			? App::histItemById(_keyboard->forMsgId())
+			: nullptr;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
 			updateReplyEditText(_kbReplyTo);
@@ -6461,7 +6476,7 @@ void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::historyRecordSignalColor);
 
-	auto delta = qMin(a_recordingLevel.current() / 0x4000, 1.);
+	auto delta = qMin(_recordingLevel.current() / 0x4000, 1.);
 	auto d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
 	{
 		PainterHighQualityEnabler hq(p);

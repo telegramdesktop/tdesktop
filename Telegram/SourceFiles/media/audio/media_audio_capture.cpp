@@ -23,6 +23,7 @@ constexpr auto kCaptureFrequency = Player::kDefaultFrequency;
 constexpr auto kCaptureSkipDuration = crl::time(400);
 constexpr auto kCaptureFadeInDuration = crl::time(300);
 constexpr auto kCaptureBufferSlice = 256 * 1024;
+constexpr auto kCaptureUpdateDelta = crl::time(100);
 
 Instance *CaptureInstance = nullptr;
 
@@ -517,7 +518,7 @@ void Instance::Inner::onTimeout() {
 			}
 		}
 		qint32 samplesFull = d->fullSamples + _captured.size() / sizeof(short), samplesSinceUpdate = samplesFull - d->lastUpdate;
-		if (samplesSinceUpdate > AudioVoiceMsgUpdateView * kCaptureFrequency / 1000) {
+		if (samplesSinceUpdate > kCaptureUpdateDelta * kCaptureFrequency / 1000) {
 			emit updated(d->levelMax, samplesFull);
 			d->lastUpdate = samplesFull;
 			d->levelMax = 0;

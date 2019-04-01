@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/notifications_manager.h"
+#include "ui/effects/animations.h"
 #include "base/timer.h"
 
 namespace Ui {
@@ -115,7 +116,7 @@ public:
 	void updateOpacity();
 	void changeShift(int top);
 	int currentShift() const {
-		return a_shift.current();
+		return _shift.current();
 	}
 	void updatePosition(QPoint startPosition, Direction shiftDirection);
 	void addToHeight(int add);
@@ -139,7 +140,7 @@ private:
 	void destroyDelayed();
 	void moveByShift();
 	void hideAnimated(float64 duration, const anim::transition &func);
-	void step_shift(float64 ms, bool timer);
+	bool shiftAnimationCallback(crl::time now);
 
 	Manager *_manager = nullptr;
 
@@ -150,8 +151,8 @@ private:
 
 	QPoint _startPosition;
 	Direction _direction;
-	anim::value a_shift;
-	BasicAnimation _a_shift;
+	anim::value _shift;
+	Ui::Animations::Basic _shiftAnimation;
 
 };
 

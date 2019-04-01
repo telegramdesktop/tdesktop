@@ -44,8 +44,8 @@ int stickerPacksCount(bool includeArchivedOfficial) {
 	auto result = 0;
 	auto &order = Auth().data().stickerSetsOrder();
 	auto &sets = Auth().data().stickerSets();
-	for (auto i = 0, l = order.size(); i < l; ++i) {
-		auto it = sets.constFind(order.at(i));
+	for (const auto setId : order) {
+		const auto it = sets.constFind(setId);
 		if (it != sets.cend()) {
 			if (!(it->flags & MTPDstickerSet::Flag::f_archived) || ((it->flags & MTPDstickerSet::Flag::f_official) && includeArchivedOfficial)) {
 				++result;
@@ -653,7 +653,9 @@ StickersBox::Inner::Row::~Row() = default;
 StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidget(parent)
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _a_shifting(animation(this, &Inner::step_shifting))
+, _shiftingAnimation([=](crl::time now) {
+	return shiftingAnimationCallback(now);
+})
 , _itemsTop(st::membersMarginTop)
 , _addText(lang(lng_stickers_featured_add).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
@@ -665,7 +667,9 @@ StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidg
 StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : TWidget(parent)
 , _section(StickersBox::Section::Installed)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _a_shifting(animation(this, &Inner::step_shifting))
+, _shiftingAnimation([=](crl::time now) {
+	return shiftingAnimationCallback(now);
+})
 , _itemsTop(st::membersMarginTop)
 , _megagroupSet(megagroup)
 , _megagroupSetInput(_megagroupSet->mgInfo->stickerSet)
@@ -709,10 +713,6 @@ void StickersBox::Inner::setInnerFocus() {
 
 void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-
-	if (_a_shifting.animating()) {
-		_a_shifting.step();
-	}
 
 	auto clip = e->rect();
 	auto ms = crl::now();
@@ -1071,7 +1071,7 @@ void StickersBox::Inner::onUpdateSelected() {
 	auto local = mapFromGlobal(_mouse);
 	if (_dragging >= 0) {
 		auto shift = 0;
-		auto ms = crl::now();
+		auto now = crl::now();
 		int firstSetIndex = 0;
 		if (_rows.at(firstSetIndex)->isRecentSet()) {
 			++firstSetIndex;
@@ -1081,27 +1081,27 @@ void StickersBox::Inner::onUpdateSelected() {
 			for (int32 from = _dragging, to = _dragging + shift; from > to; --from) {
 				qSwap(_rows[from], _rows[from - 1]);
 				_rows[from]->yadd = anim::value(_rows[from]->yadd.current() - _rowHeight, 0);
-				_animStartTimes[from] = ms;
+				_shiftingStartTimes[from] = now;
 			}
 		} else if (_dragStart.y() < local.y() && _dragging + 1 < _rows.size()) {
 			shift = floorclamp(local.y() - _dragStart.y() + (_rowHeight / 2), _rowHeight, 0, _rows.size() - _dragging - 1);
 			for (int32 from = _dragging, to = _dragging + shift; from < to; ++from) {
 				qSwap(_rows[from], _rows[from + 1]);
 				_rows[from]->yadd = anim::value(_rows[from]->yadd.current() + _rowHeight, 0);
-				_animStartTimes[from] = ms;
+				_shiftingStartTimes[from] = now;
 			}
 		}
 		if (shift) {
 			_dragging += shift;
 			_above = _dragging;
 			_dragStart.setY(_dragStart.y() + shift * _rowHeight);
-			if (!_a_shifting.animating()) {
-				_a_shifting.start();
+			if (!_shiftingAnimation.animating()) {
+				_shiftingAnimation.start();
 			}
 		}
 		_rows[_dragging]->yadd = anim::value(local.y() - _dragStart.y(), local.y() - _dragStart.y());
-		_animStartTimes[_dragging] = 0;
-		_a_shifting.step(ms, true);
+		_shiftingStartTimes[_dragging] = 0;
+		shiftingAnimationCallback(now);
 
 		auto countDraggingScrollDelta = [this, local] {
 			if (local.y() < _visibleTop) {
@@ -1181,10 +1181,10 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (_dragging >= 0) {
 		QPoint local(mapFromGlobal(_mouse));
 		_rows[_dragging]->yadd.start(0.);
-		_aboveShadowFadeStart = _animStartTimes[_dragging] = crl::now();
+		_aboveShadowFadeStart = _shiftingStartTimes[_dragging] = crl::now();
 		_aboveShadowFadeOpacity = anim::value(aboveShadowOpacity(), 0);
-		if (!_a_shifting.animating()) {
-			_a_shifting.start();
+		if (!_shiftingAnimation.animating()) {
+			_shiftingAnimation.start();
 		}
 
 		_dragging = _started = -1;
@@ -1262,64 +1262,64 @@ void StickersBox::Inner::leaveToChildEvent(QEvent *e, QWidget *child) {
 	onUpdateSelected();
 }
 
-void StickersBox::Inner::step_shifting(crl::time ms, bool timer) {
+bool StickersBox::Inner::shiftingAnimationCallback(crl::time now) {
 	if (anim::Disabled()) {
-		ms += st::stickersRowDuration;
+		now += st::stickersRowDuration;
 	}
 	auto animating = false;
 	auto updateMin = -1;
 	auto updateMax = 0;
-	for (auto i = 0, l = _animStartTimes.size(); i < l; ++i) {
-		auto start = _animStartTimes.at(i);
+	for (auto i = 0, count = int(_shiftingStartTimes.size()); i != count; ++i) {
+		const auto start = _shiftingStartTimes[i];
 		if (start) {
-			if (updateMin < 0) updateMin = i;
+			if (updateMin < 0) {
+				updateMin = i;
+			}
 			updateMax = i;
-			if (start + st::stickersRowDuration > ms && ms >= start) {
-				_rows[i]->yadd.update(float64(ms - start) / st::stickersRowDuration, anim::sineInOut);
+			if (start + st::stickersRowDuration > now && now >= start) {
+				_rows[i]->yadd.update(float64(now - start) / st::stickersRowDuration, anim::sineInOut);
 				animating = true;
 			} else {
 				_rows[i]->yadd.finish();
-				_animStartTimes[i] = 0;
+				_shiftingStartTimes[i] = 0;
 			}
 		}
 	}
 	if (_aboveShadowFadeStart) {
 		if (updateMin < 0 || updateMin > _above) updateMin = _above;
 		if (updateMax < _above) updateMin = _above;
-		if (_aboveShadowFadeStart + st::stickersRowDuration > ms && ms > _aboveShadowFadeStart) {
-			_aboveShadowFadeOpacity.update(float64(ms - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
+		if (_aboveShadowFadeStart + st::stickersRowDuration > now && now > _aboveShadowFadeStart) {
+			_aboveShadowFadeOpacity.update(float64(now - _aboveShadowFadeStart) / st::stickersRowDuration, anim::sineInOut);
 			animating = true;
 		} else {
 			_aboveShadowFadeOpacity.finish();
 			_aboveShadowFadeStart = 0;
 		}
 	}
-	if (timer) {
-		if (_dragging >= 0) {
-			if (updateMin < 0 || updateMin > _dragging) {
-				updateMin = _dragging;
-			}
-			if (updateMax < _dragging) updateMax = _dragging;
+	if (_dragging >= 0) {
+		if (updateMin < 0 || updateMin > _dragging) {
+			updateMin = _dragging;
 		}
-		if (updateMin == 1 && _rows[0]->isRecentSet()) {
-			updateMin = 0; // Repaint from the very top of the content.
-		}
-		if (updateMin >= 0) {
-			update(0, _itemsTop + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
-		}
+		if (updateMax < _dragging) updateMax = _dragging;
+	}
+	if (updateMin == 1 && _rows[0]->isRecentSet()) {
+		updateMin = 0; // Repaint from the very top of the content.
+	}
+	if (updateMin >= 0) {
+		update(0, _itemsTop + _rowHeight * (updateMin - 1), width(), _rowHeight * (updateMax - updateMin + 3));
 	}
 	if (!animating) {
 		_above = _dragging;
-		_a_shifting.stop();
 	}
+	return animating;
 }
 
 void StickersBox::Inner::clear() {
 	_rows.clear();
-	_animStartTimes.clear();
+	_shiftingStartTimes.clear();
 	_aboveShadowFadeStart = 0;
 	_aboveShadowFadeOpacity = anim::value();
-	_a_shifting.stop();
+	_shiftingAnimation.stop();
 	_above = _dragging = _started = -1;
 	setSelected(SelectedRow());
 	setPressed(SelectedRow());
@@ -1476,7 +1476,7 @@ void StickersBox::Inner::rebuild() {
 		return Auth().data().archivedStickerSetsOrder();
 	})();
 	_rows.reserve(order.size() + 1);
-	_animStartTimes.reserve(order.size() + 1);
+	_shiftingStartTimes.reserve(order.size() + 1);
 
 	auto &sets = Auth().data().stickerSets();
 	if (_megagroupSet) {
@@ -1625,7 +1625,7 @@ void StickersBox::Inner::rebuildAppendSet(const Stickers::Set &set, int maxNameW
 		removed,
 		pixw,
 		pixh));
-	_animStartTimes.push_back(0);
+	_shiftingStartTimes.push_back(0);
 }
 
 void StickersBox::Inner::fillSetCover(const Stickers::Set &set, ImagePtr *thumbnail, DocumentData **outSticker, int *outWidth, int *outHeight) const {

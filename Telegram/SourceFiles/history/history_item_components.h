@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 #include "ui/empty_userpic.h"
+#include "ui/effects/animations.h"
 
 class HistoryDocument;
 struct WebPageData;
@@ -329,7 +330,7 @@ private:
 
 	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
 
-	void step_selected(crl::time ms, bool timer);
+	bool selectedAnimationCallback(crl::time now);
 
 	const not_null<const HistoryItem*> _item;
 	int _width = 0;
@@ -337,7 +338,7 @@ private:
 	std::vector<std::vector<Button>> _rows;
 
 	base::flat_map<int, crl::time> _animations;
-	BasicAnimation _a_selected;
+	Ui::Animations::Basic _selectedAnimation;
 	std::unique_ptr<Style> _st;
 
 	ClickHandlerPtr _savedPressed;
@@ -383,9 +384,9 @@ struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, Hist
 struct HistoryDocumentVoicePlayback {
 	HistoryDocumentVoicePlayback(const HistoryDocument *that);
 
-	int32 _position = 0;
-	anim::value a_progress;
-	BasicAnimation _a_progress;
+	int32 position = 0;
+	anim::value progress;
+	Ui::Animations::Basic progressAnimation;
 };
 
 class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryDocument> {

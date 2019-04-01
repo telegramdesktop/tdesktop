@@ -139,7 +139,7 @@ protected:
 private:
 	QString titleText(const Database::TaggedSummary &data) const;
 	QString sizeText(const Database::TaggedSummary &data) const;
-	void step_radial(crl::time ms, bool timer);
+	void radialAnimationCallback();
 
 	Fn<QString(size_type)> _titleFactory;
 	object_ptr<Ui::FlatLabel> _title;
@@ -186,7 +186,7 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 		_clearing.destroy();
 	} else if (!_progress) {
 		_progress = std::make_unique<Ui::InfiniteRadialAnimation>(
-			animation(this, &Row::step_radial),
+			[=] { radialAnimationCallback(); },
 			st::proxyCheckingAnimation);
 		_progress->start();
 		_clearing = object_ptr<Ui::FlatLabel>(
@@ -201,8 +201,8 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 	}
 }
 
-void LocalStorageBox::Row::step_radial(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void LocalStorageBox::Row::radialAnimationCallback() {
+	if (!anim::Disabled()) {
 		RpWidget::update();
 	}
 }
@@ -247,7 +247,6 @@ void LocalStorageBox::Row::paintEvent(QPaintEvent *e) {
 	const auto padding = st::localStorageRowPadding;
 	const auto height = st::localStorageRowHeight;
 	const auto bottom = height - padding.bottom() - _description->height();
-	_progress->step(crl::now());
 	_progress->draw(
 		p,
 		{

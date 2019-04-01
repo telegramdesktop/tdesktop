@@ -109,7 +109,7 @@ private:
 	void saveStateInAnimation() const;
 	void startAnswersAnimation() const;
 	void resetAnswersAnimation() const;
-	void step_radial(crl::time ms, bool timer);
+	void radialAnimationCallback() const;
 
 	void toggleRipple(Answer &answer, bool pressed);
 

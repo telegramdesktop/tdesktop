@@ -277,10 +277,11 @@ void Manager::removeWidget(internal::Widget *remove) {
 	if (remove == _hideAll.get()) {
 		_hideAll.reset();
 	} else if (remove) {
-		auto it = std::find_if(_notifications.cbegin(), _notifications.cend(), [remove](auto &item) {
-			return item.get() == remove;
-		});
-		if (it != _notifications.cend()) {
+		const auto it = ranges::find(
+			_notifications,
+			remove,
+			&std::unique_ptr<Notification>::get);
+		if (it != end(_notifications)) {
 			_notifications.erase(it);
 			_positionsOutdated = true;
 		}
@@ -289,13 +290,13 @@ void Manager::removeWidget(internal::Widget *remove) {
 }
 
 void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
-	_queuedNotifications.push_back(QueuedNotification(item, forwardedCount));
+	_queuedNotifications.emplace_back(item, forwardedCount);
 	showNextFromQueue();
 }
 
 void Manager::doClearAll() {
 	_queuedNotifications.clear();
-	for_const (auto &notification, _notifications) {
+	for (const auto &notification : _notifications) {
 		notification->unlinkHistory();
 	}
 	showNextFromQueue();
@@ -356,8 +357,10 @@ Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shif
 , _manager(manager)
 , _startPosition(startPosition)
 , _direction(shiftDirection)
-, a_shift(shift)
-, _a_shift(animation(this, &Widget::step_shift)) {
+, _shift(shift)
+, _shiftAnimation([=](crl::time now) {
+	return shiftAnimationCallback(now);
+}) {
 	setWindowOpacity(0.);
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint)
@@ -392,17 +395,19 @@ void Widget::opacityAnimationCallback() {
 	}
 }
 
-void Widget::step_shift(float64 ms, bool timer) {
+bool Widget::shiftAnimationCallback(crl::time now) {
 	if (anim::Disabled()) {
-		ms += st::notifyFastAnim;
+		now += st::notifyFastAnim;
 	}
-	float64 dt = ms / float64(st::notifyFastAnim);
-	if (dt >= 1) {
-		a_shift.finish();
+	const auto dt = (now - _shiftAnimation.started())
+		/ float64(st::notifyFastAnim);
+	if (dt >= 1.) {
+		_shift.finish();
 	} else {
-		a_shift.update(dt, anim::linear);
+		_shift.update(dt, anim::linear);
 	}
 	moveByShift();
+	return (dt < 1.);
 }
 
 void Widget::hideSlow() {
@@ -443,8 +448,8 @@ void Widget::updateOpacity() {
 }
 
 void Widget::changeShift(int top) {
-	a_shift.start(top);
-	_a_shift.start();
+	_shift.start(top);
+	_shiftAnimation.start();
 }
 
 void Widget::updatePosition(QPoint startPosition, Direction shiftDirection) {
@@ -466,7 +471,7 @@ void Widget::updateGeometry(int x, int y, int width, int height) {
 }
 
 void Widget::addToShift(int add) {
-	a_shift.add(add);
+	_shift.add(add);
 	moveByShift();
 }
 
@@ -475,7 +480,7 @@ void Widget::moveByShift() {
 }
 
 QPoint Widget::computePosition(int height) const {
-	auto realShift = qRound(a_shift.current());
+	auto realShift = qRound(_shift.current());
 	if (_direction == Direction::Up) {
 		realShift = -realShift - height;
 	}
@@ -678,7 +683,7 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		if (!options.hideMessageText) {
-			const HistoryItem *textCachedFor = 0;
+			const HistoryItem *textCachedFor = nullptr;
 			Text itemTextCache(itemWidth);
 			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
 			if (_item) {

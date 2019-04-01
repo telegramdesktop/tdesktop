@@ -276,8 +276,8 @@ private:
 
 	void clearControlsState();
 	bool stateAnimationCallback(crl::time ms);
-	void step_radial(crl::time ms, bool timer);
-	void step_waiting(crl::time ms, bool timer);
+	bool radialAnimationCallback(crl::time now);
+	void waitingAnimationCallback();
 	bool updateControlsAnimation(crl::time now);
 
 	void zoomIn();

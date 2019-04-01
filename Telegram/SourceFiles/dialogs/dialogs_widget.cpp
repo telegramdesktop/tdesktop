@@ -66,7 +66,7 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
-	void step_radial(crl::time ms, bool timer);
+	void radialAnimationCallback();
 
 	QString _text;
 	const style::FlatButton &_st;
@@ -95,8 +95,8 @@ void DialogsWidget::BottomButton::setText(const QString &text) {
 	update();
 }
 
-void DialogsWidget::BottomButton::step_radial(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled() && width() < st::columnMinimalWidthLeft) {
+void DialogsWidget::BottomButton::radialAnimationCallback() {
+	if (!anim::Disabled() && width() < st::columnMinimalWidthLeft) {
 		update();
 	}
 }
@@ -106,7 +106,7 @@ void DialogsWidget::BottomButton::onStateChanged(State was, StateChangeSource so
 	if ((was & StateFlag::Disabled) != (state() & StateFlag::Disabled)) {
 		_loading = isDisabled()
 			? std::make_unique<Ui::InfiniteRadialAnimation>(
-				animation(this, &BottomButton::step_radial),
+				[=] { radialAnimationCallback(); },
 				st::dialogsLoadMoreLoading)
 			: nullptr;
 		if (_loading) {

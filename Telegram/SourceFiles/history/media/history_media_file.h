@@ -62,17 +62,16 @@ protected:
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const;
 
-	void step_radial(crl::time ms, bool timer);
+	bool radialAnimationCallback(crl::time now) const;
 	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 
-	bool isRadialAnimation(crl::time ms) const {
-		if (!_animation || !_animation->radial.animating()) return false;
-
-		_animation->radial.step(ms);
-		return _animation && _animation->radial.animating();
+	bool isRadialAnimation(crl::time now) const {
+		return _animation
+			&& _animation->radial.animating()
+			&& radialAnimationCallback(now);
 	}
 	bool isThumbAnimation(crl::time ms) const {
 		if (_animation) {
@@ -89,9 +88,11 @@ protected:
 	virtual bool dataLoaded() const = 0;
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&radialCallbacks)
-			: radial(std::move(radialCallbacks)) {
+		template <typename Callback>
+		AnimationData(Callback &&radialCallback)
+		: radial(std::forward<Callback>(radialCallback)) {
 		}
+
 		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};

@@ -129,16 +129,15 @@ protected:
 		ClickHandlerPtr &&cancell);
 	void setDocumentLinks(not_null<DocumentData*> document);
 
-	void step_radial(crl::time ms, bool timer);
+	bool radialAnimationCallback(crl::time now) const;
 
 	void ensureRadial();
-	void checkRadialFinished();
+	void checkRadialFinished() const;
 
-	bool isRadialAnimation(crl::time ms) const {
-		if (!_radial || !_radial->animating()) return false;
-
-		_radial->step(ms);
-		return _radial && _radial->animating();
+	bool isRadialAnimation(crl::time now) const {
+		return _radial
+			&& _radial->animating()
+			&& radialAnimationCallback(now);
 	}
 
 	virtual float64 dataProgress() const = 0;
@@ -148,7 +147,7 @@ protected:
 		return false;
 	}
 
-	std::unique_ptr<Ui::RadialAnimation> _radial;
+	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
 	Animation _a_iconOver;
 
 };

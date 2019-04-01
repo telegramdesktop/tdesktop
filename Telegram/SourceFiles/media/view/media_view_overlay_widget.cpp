@@ -147,12 +147,13 @@ struct OverlayWidget::Collage {
 };
 
 struct OverlayWidget::Streamed {
+	template <typename Callback>
 	Streamed(
 		not_null<Data::Session*> owner,
 		std::unique_ptr<Streaming::Loader> loader,
 		QWidget *controlsParent,
 		not_null<PlaybackControls::Delegate*> controlsDelegate,
-		AnimationCallbacks loadingCallbacks);
+		Callback &&loadingCallback);
 
 	Streaming::Player player;
 	Streaming::Information info;
@@ -160,22 +161,25 @@ struct OverlayWidget::Streamed {
 
 	bool waiting = false;
 	Ui::InfiniteRadialAnimation radial;
-	Animation fading;
+	Ui::Animations::Simple fading;
 	base::Timer timer;
 	QImage frameForDirectPaint;
 
 	bool resumeOnCallEnd = false;
 };
 
+template <typename Callback>
 OverlayWidget::Streamed::Streamed(
 	not_null<Data::Session*> owner,
 	std::unique_ptr<Streaming::Loader> loader,
 	QWidget *controlsParent,
 	not_null<PlaybackControls::Delegate*> controlsDelegate,
-	AnimationCallbacks loadingCallbacks)
+	Callback &&loadingCallback)
 : player(owner, std::move(loader))
 , controls(controlsParent, controlsDelegate)
-, radial(std::move(loadingCallbacks), st::mediaviewStreamingRadial) {
+, radial(
+	std::forward<Callback>(loadingCallback),
+	st::mediaviewStreamingRadial) {
 }
 
 OverlayWidget::OverlayWidget()
@@ -184,7 +188,7 @@ OverlayWidget::OverlayWidget()
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
 , _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
-, _radial(animation(this, &OverlayWidget::step_radial))
+, _radial([=](crl::time now) { return radialAnimationCallback(now); })
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
 , _dropdown(this, st::mediaviewDropdownMenu)
@@ -704,8 +708,8 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 	return (dt < 1);
 }
 
-void OverlayWidget::step_waiting(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void OverlayWidget::waitingAnimationCallback() {
+	if (!anim::Disabled()) {
 		update(radialRect());
 	}
 }
@@ -802,17 +806,17 @@ crl::time OverlayWidget::radialTimeShift() const {
 	return _photo ? st::radialDuration : 0;
 }
 
-void OverlayWidget::step_radial(crl::time ms, bool timer) {
+bool OverlayWidget::radialAnimationCallback(crl::time now) {
 	if ((!_doc && !_photo) || _streamed) {
-		_radial.stop();
-		return;
+		return false;
 	}
 	const auto wasAnimating = _radial.animating();
 	const auto updated = _radial.update(
 		radialProgress(),
 		!radialLoading(),
-		ms + radialTimeShift());
-	if (timer && (wasAnimating || _radial.animating()) && (!anim::Disabled() || updated)) {
+		now + radialTimeShift());
+	if ((wasAnimating || _radial.animating())
+		&& (!anim::Disabled() || updated)) {
 		update(radialRect());
 	}
 	const auto ready = _doc && _doc->loaded();
@@ -833,6 +837,7 @@ void OverlayWidget::step_radial(crl::time ms, bool timer) {
 			}
 		}
 	}
+	return true;
 }
 
 void OverlayWidget::zoomIn() {
@@ -1986,7 +1991,7 @@ void OverlayWidget::createStreamingObjects() {
 		_doc->createStreamingLoader(fileOrigin()),
 		this,
 		static_cast<PlaybackControls::Delegate*>(this),
-		animation(this, &OverlayWidget::step_waiting));
+		[=] { waitingAnimationCallback(); });
 
 	if (videoIsGifv()) {
 		_streamed->controls.hide();
@@ -2449,13 +2454,8 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 				}
 			}
 
-			bool radial = false;
-			float64 radialOpacity = 0;
-			if (_radial.animating()) {
-				_radial.step(ms);
-				radial = _radial.animating();
-				radialOpacity = _radial.opacity();
-			}
+			const auto radial = _radial.animating();
+			const auto radialOpacity = radial ? _radial.opacity() : 0.;
 			paintRadialLoading(p, radial, radialOpacity);
 		}
 		if (_saveMsgStarted && _saveMsg.intersects(r)) {
@@ -2491,13 +2491,8 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		if (_docRect.intersects(r)) {
 			p.fillRect(_docRect, st::mediaviewFileBg);
 			if (_docIconRect.intersects(r)) {
-				bool radial = false;
-				float64 radialOpacity = 0;
-				if (_radial.animating()) {
-					_radial.step(ms);
-					radial = _radial.animating();
-					radialOpacity = _radial.opacity();
-				}
+				const auto radial = _radial.animating();
+				const auto radialOpacity = radial ? _radial.opacity() : 0.;
 				if (!_doc || !_doc->hasThumbnail()) {
 					p.fillRect(_docIconRect, _docIconColor);
 					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
@@ -2721,12 +2716,9 @@ void OverlayWidget::paintRadialLoading(
 		bool radial,
 		float64 radialOpacity) {
 	if (_streamed) {
-		const auto ms = crl::now();
-		_streamed->radial.step(ms);
 		if (!_streamed->radial.animating()) {
 			return;
 		}
-		_streamed->fading.step(ms);
 		if (!_streamed->fading.animating() && !_streamed->waiting) {
 			if (!_streamed->waiting) {
 				_streamed->radial.stop(anim::type::instant);
@@ -2783,7 +2775,7 @@ void OverlayWidget::paintRadialLoadingContent(
 
 	if (_streamed) {
 		paintBg(
-			_streamed->fading.current(_streamed->waiting ? 1. : 0.),
+			_streamed->fading.value(_streamed->waiting ? 1. : 0.),
 			st::radialBg);
 		_streamed->radial.draw(p, arc.topLeft(), arc.size(), width());
 		return;

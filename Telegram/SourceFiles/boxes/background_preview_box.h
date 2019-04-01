@@ -50,7 +50,7 @@ private:
 
 	void apply();
 	void share();
-	void step_radial(crl::time ms, bool timer);
+	void radialAnimationCallback(crl::time now);
 	QRect radialRect() const;
 
 	void checkLoadedDocument();

@@ -218,29 +218,29 @@ void RadialProgressItem::setLinks(
 	_cancell = std::move(cancell);
 }
 
-void RadialProgressItem::step_radial(crl::time ms, bool timer) {
-	const auto updateRadial = [&] {
-		return _radial->update(dataProgress(), dataFinished(), ms);
-	};
-	if (timer) {
-		if (!anim::Disabled() || updateRadial()) {
-			Auth().data().requestItemRepaint(parent());
-		}
-	} else {
-		updateRadial();
-		if (!_radial->animating()) {
-			checkRadialFinished();
-		}
+bool RadialProgressItem::radialAnimationCallback(crl::time now) const {
+	const auto radialUpdated = [&] {
+		return _radial->update(dataProgress(), dataFinished(), now);
+	}();
+	if (!anim::Disabled() || radialUpdated) {
+		Auth().data().requestItemRepaint(parent());
 	}
+	if (!_radial->animating()) {
+		checkRadialFinished();
+		return false;
+	}
+	return true;
 }
 
 void RadialProgressItem::ensureRadial() {
 	if (!_radial) {
-		_radial = std::make_unique<Ui::RadialAnimation>(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
+		_radial = std::make_unique<Ui::RadialAnimation>([=](crl::time now) {
+			return radialAnimationCallback(now);
+		});
 	}
 }
 
-void RadialProgressItem::checkRadialFinished() {
+void RadialProgressItem::checkRadialFinished() const {
 	if (_radial && !_radial->animating() && dataLoaded()) {
 		_radial.reset();
 	}

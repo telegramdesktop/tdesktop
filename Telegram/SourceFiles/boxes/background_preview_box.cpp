@@ -400,7 +400,7 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	lang(lng_background_text2),
 	true))
 , _paper(paper)
-, _radial(animation(this, &BackgroundPreviewBox::step_radial)) {
+, _radial([=](crl::time now) { return radialAnimationCallback(now); }) {
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 }
 
@@ -549,13 +549,8 @@ void BackgroundPreviewBox::paintImage(Painter &p, crl::time ms) {
 }
 
 void BackgroundPreviewBox::paintRadial(Painter &p, crl::time ms) {
-	bool radial = false;
-	float64 radialOpacity = 0;
-	if (_radial.animating()) {
-		_radial.step(ms);
-		radial = _radial.animating();
-		radialOpacity = _radial.opacity();
-	}
+	const auto radial = _radial.animating();
+	const auto radialOpacity = radial ? _radial.opacity() : 0.;
 	if (!radial) {
 		return;
 	}
@@ -623,7 +618,7 @@ void BackgroundPreviewBox::paintDate(Painter &p) {
 	p.drawText(bubbleLeft + st::msgServicePadding.left(), bubbleTop + st::msgServicePadding.top() + st::msgServiceFont->ascent, text);
 }
 
-void BackgroundPreviewBox::step_radial(crl::time ms, bool timer) {
+void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
 	Expects(_paper.document() != nullptr);
 
 	const auto document = _paper.document();
@@ -631,9 +626,8 @@ void BackgroundPreviewBox::step_radial(crl::time ms, bool timer) {
 	const auto updated = _radial.update(
 		document->progress(),
 		!document->loading(),
-		ms);
-	if (timer
-		&& (wasAnimating || _radial.animating())
+		now);
+	if ((wasAnimating || _radial.animating())
 		&& (!anim::Disabled() || updated)) {
 		update(radialRect());
 	}

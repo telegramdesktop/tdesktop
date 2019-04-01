@@ -78,7 +78,7 @@ public:
 
 	virtual void preload() const;
 
-	void update();
+	void update() const;
 	void layoutChanged();
 
 	// ClickHandlerHost interface

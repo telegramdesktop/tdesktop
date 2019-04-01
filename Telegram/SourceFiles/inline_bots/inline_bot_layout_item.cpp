@@ -91,7 +91,7 @@ void ItemBase::preload() const {
 	}
 }
 
-void ItemBase::update() {
+void ItemBase::update() const {
 	if (_position >= 0) {
 		context()->inlineItemRepaint(this);
 	}

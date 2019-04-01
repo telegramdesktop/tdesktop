@@ -124,7 +124,7 @@ private:
 	void setupHandler();
 	void load();
 
-	void step_radial(crl::time ms, bool timer);
+	void radialAnimationCallback();
 
 	int _id = 0;
 	bool _switching = false;
@@ -582,8 +582,8 @@ void Row::setupPreview(const Set &set) {
 	}
 }
 
-void Row::step_radial(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void Row::radialAnimationCallback() {
+	if (!anim::Disabled()) {
 		update();
 	}
 }
@@ -633,7 +633,7 @@ void Row::updateAnimation(crl::time ms) {
 			: 0.;
 		if (!_loading) {
 			_loading = std::make_unique<Ui::RadialAnimation>(
-				animation(this, &Row::step_radial));
+				[=] { radialAnimationCallback(); });
 			_loading->start(progress);
 		} else {
 			_loading->update(progress, false, crl::now());

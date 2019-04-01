@@ -65,7 +65,7 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void step_loading(crl::time ms, bool timer);
+	void loadingAnimationCallback();
 
 	const style::IconButton &_st;
 

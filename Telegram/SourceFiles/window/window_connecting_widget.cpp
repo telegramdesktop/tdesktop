@@ -30,7 +30,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void step(crl::time ms, bool timer);
+	void animationStep();
 
 	Ui::InfiniteRadialAnimation _animation;
 
@@ -38,7 +38,7 @@ private:
 
 Progress::Progress(QWidget *parent)
 : RpWidget(parent)
-, _animation(animation(this, &Progress::step), st::connectingRadial) {
+, _animation([=] { animationStep(); }, st::connectingRadial) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	resize(st::connectingRadial.size);
@@ -58,8 +58,8 @@ void Progress::paintEvent(QPaintEvent *e) {
 		width());
 }
 
-void Progress::step(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void Progress::animationStep() {
+	if (!anim::Disabled()) {
 		update();
 	}
 }

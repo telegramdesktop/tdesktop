@@ -154,15 +154,15 @@ void TopBarWidget::updateConnectingState() {
 		}
 	} else if (!_connecting) {
 		_connecting = std::make_unique<Ui::InfiniteRadialAnimation>(
-			animation(this, &TopBarWidget::step_connecting),
+			[=] { connectingAnimationCallback(); },
 			st::topBarConnectingAnimation);
 		_connecting->start();
 		update();
 	}
 }
 
-void TopBarWidget::step_connecting(crl::time ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void TopBarWidget::connectingAnimationCallback() {
+	if (!anim::Disabled()) {
 		update();
 	}
 }
@@ -362,9 +362,6 @@ bool TopBarWidget::paintConnectingState(
 		int top,
 		int outerWidth,
 		crl::time ms) {
-	if (_connecting) {
-		_connecting->step(ms);
-	}
 	if (!_connecting) {
 		return false;
 	}

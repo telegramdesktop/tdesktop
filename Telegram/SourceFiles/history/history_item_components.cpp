@@ -396,7 +396,9 @@ ReplyKeyboard::ReplyKeyboard(
 	not_null<const HistoryItem*> item,
 	std::unique_ptr<Style> &&s)
 : _item(item)
-, _a_selected(animation(this, &ReplyKeyboard::step_selected))
+, _selectedAnimation([=](crl::time now) {
+	return selectedAnimationCallback(now);
+})
 , _st(std::move(s)) {
 	if (const auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
 		const auto context = _item->fullId();
@@ -640,20 +642,20 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 		_animations.emplace(indexForAnimation, crl::now());
 	}
 
-	if (notStarted && !_a_selected.animating()) {
-		_a_selected.start();
+	if (notStarted && !_selectedAnimation.animating()) {
+		_selectedAnimation.start();
 	}
 }
 
-void ReplyKeyboard::step_selected(crl::time ms, bool timer) {
+bool ReplyKeyboard::selectedAnimationCallback(crl::time now) {
 	if (anim::Disabled()) {
-		ms += st::botKbDuration;
+		now += st::botKbDuration;
 	}
 	for (auto i = _animations.begin(); i != _animations.end();) {
 		const auto index = std::abs(i->first) - 1;
 		const auto row = (index / MatrixRowShift);
 		const auto col = index % MatrixRowShift;
-		const auto dt = float64(ms - i->second) / st::botKbDuration;
+		const auto dt = float64(now - i->second) / st::botKbDuration;
 		if (dt >= 1) {
 			_rows[row][col].howMuchOver = (i->first > 0) ? 1 : 0;
 			i = _animations.erase(i);
@@ -662,10 +664,8 @@ void ReplyKeyboard::step_selected(crl::time ms, bool timer) {
 			++i;
 		}
 	}
-	if (timer) _st->repaint(_item);
-	if (_animations.empty()) {
-		_a_selected.stop();
-	}
+	_st->repaint(_item);
+	return !_animations.empty();
 }
 
 void ReplyKeyboard::clearSelection() {
@@ -676,7 +676,7 @@ void ReplyKeyboard::clearSelection() {
 		_rows[row][col].howMuchOver = 0;
 	}
 	_animations.clear();
-	_a_selected.stop();
+	_selectedAnimation.stop();
 }
 
 int ReplyKeyboard::Style::buttonSkip() const {
@@ -857,19 +857,24 @@ HistoryDocumentCaptioned::HistoryDocumentCaptioned()
 : _caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
 }
 
-HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(const HistoryDocument *that)
-: a_progress(0., 0.)
-, _a_progress(animation(const_cast<HistoryDocument*>(that), &HistoryDocument::step_voiceProgress)) {
+HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
+	const HistoryDocument *that)
+: progress(0., 0.)
+, progressAnimation([=](crl::time now) {
+	const auto nonconst = const_cast<HistoryDocument*>(that);
+	return nonconst->voiceProgressAnimationCallback(now);
+}) {
 }
 
-void HistoryDocumentVoice::ensurePlayback(const HistoryDocument *that) const {
+void HistoryDocumentVoice::ensurePlayback(
+		const HistoryDocument *that) const {
 	if (!_playback) {
 		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}
 }
 
 void HistoryDocumentVoice::checkPlaybackFinished() const {
-	if (_playback && !_playback->_a_progress.animating()) {
+	if (_playback && !_playback->progressAnimation.animating()) {
 		_playback.reset();
 	}
 }

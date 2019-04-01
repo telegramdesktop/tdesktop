@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/flags.h"
 #include "base/timer.h"
@@ -219,7 +220,7 @@ public:
 	void updatePreview();
 	void previewCancel();
 
-	void step_recording(float64 ms, bool timer);
+	bool recordingAnimationCallback(crl::time now);
 	void stopRecording(bool send);
 
 	void onListEscapePressed();
@@ -768,9 +769,9 @@ private:
 	rpl::lifetime _uploaderSubscriptions;
 
 	// This can animate for a very long time (like in music playing),
-	// so it should be a BasicAnimation, not an Animation.
-	BasicAnimation _a_recording;
-	anim::value a_recordingLevel;
+	// so it should be a Basic, not a Simple animation.
+	Ui::Animations::Basic _recordingAnimation;
+	anim::value _recordingLevel;
 
 	bool kbWasHidden() const;
 

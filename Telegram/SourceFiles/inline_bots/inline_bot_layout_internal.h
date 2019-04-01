@@ -92,17 +92,17 @@ private:
 	void prepareThumbnail(QSize size, QSize frame) const;
 
 	void ensureAnimation() const;
-	bool isRadialAnimation(crl::time ms) const;
-	void step_radial(crl::time ms, bool timer);
+	bool isRadialAnimation(crl::time now) const;
+	bool radialAnimationCallback(crl::time now) const;
 
 	void clipCallback(Media::Clip::Notification notification);
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&callbacks)
-			: over(false)
-			, radial(std::move(callbacks)) {
+		template <typename Callback>
+		AnimationData(Callback &&callback)
+		: radial(std::forward<Callback>(callback)) {
 		}
-		bool over;
+		bool over = false;
 		Animation _a_over;
 		Ui::RadialAnimation radial;
 	};
@@ -250,17 +250,16 @@ public:
 
 private:
 	void thumbAnimationCallback();
-	void step_radial(crl::time ms, bool timer);
+	bool radialAnimationCallback(crl::time now) const;
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 	bool updateStatusText() const;
 
-	bool isRadialAnimation(crl::time ms) const {
-		if (!_animation || !_animation->radial.animating()) return false;
-
-		_animation->radial.step(ms);
-		return _animation && _animation->radial.animating();
+	bool isRadialAnimation(crl::time now) const {
+		return _animation
+			&& _animation->radial.animating()
+			&& radialAnimationCallback(now);
 	}
 	bool isThumbAnimation(crl::time ms) const {
 		if (_animation) {
@@ -273,7 +272,9 @@ private:
 	}
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&radialCallbacks) : radial(std::move(radialCallbacks)) {
+		template <typename Callback>
+		AnimationData(Callback &&radialCallback)
+		: radial(std::forward<Callback>(radialCallback)) {
 		}
 		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
@@ -360,8 +361,8 @@ private:
 	void prepareThumbnail(QSize size) const;
 	void validateThumbnail(Image *image, QSize size, bool good) const;
 
-	bool isRadialAnimation(crl::time ms) const;
-	void step_radial(crl::time ms, bool timer);
+	bool isRadialAnimation(crl::time now) const;
+	bool radialAnimationCallback(crl::time now) const;
 
 	void clipCallback(Media::Clip::Notification notification);
 
