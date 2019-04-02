@@ -59,12 +59,11 @@ Manager::Manager() {
 }
 
 void Manager::start(not_null<Basic*> animation) {
+	_forceImmediateUpdate = true;
 	if (_updating) {
 		_starting.emplace_back(animation.get());
 	} else {
-		if (empty(_active)) {
-			updateQueued();
-		}
+		schedule();
 		_active.emplace_back(animation.get());
 	}
 }
@@ -93,9 +92,11 @@ void Manager::update() {
 		return;
 	}
 	const auto now = crl::now();
-	if (_lastUpdateTime + kIgnoreUpdatesTimeout >= now) {
+	if (!_forceImmediateUpdate
+		&& (_lastUpdateTime + kIgnoreUpdatesTimeout >= now)) {
 		return;
 	}
+	_forceImmediateUpdate = false;
 	schedule();
 
 	_updating = true;
@@ -129,13 +130,17 @@ void Manager::schedule() {
 	_scheduled = true;
 	Ui::PostponeCall([=] {
 		_scheduled = false;
-
-		const auto next = _lastUpdateTime + kAnimationTimeout;
-		const auto now = crl::now();
-		if (now < next) {
-			_timerId = startTimer(next - now, Qt::PreciseTimer);
-		} else {
+		if (_forceImmediateUpdate) {
+			_forceImmediateUpdate = false;
 			updateQueued();
+		} else {
+			const auto next = _lastUpdateTime + kAnimationTimeout;
+			const auto now = crl::now();
+			if (now < next) {
+				_timerId = startTimer(next - now, Qt::PreciseTimer);
+			} else {
+				updateQueued();
+			}
 		}
 	});
 }

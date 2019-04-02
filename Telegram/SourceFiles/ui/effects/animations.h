@@ -161,6 +161,7 @@ private:
 	int _timerId = 0;
 	bool _updating = false;
 	bool _scheduled = false;
+	bool _forceImmediateUpdate = false;
 	std::vector<ActiveBasicPointer> _active;
 	std::vector<ActiveBasicPointer> _starting;
 	rpl::lifetime _lifetime;
@@ -274,7 +275,9 @@ inline void Simple::start(
 		that = _data.get(),
 		callback = Prepare(std::forward<Callback>(callback))
 	](crl::time now) {
-		const auto time = (now - that->animation.started());
+		const auto time = anim::Disabled()
+			? that->duration
+			: (now - that->animation.started());
 		const auto finished = (time >= that->duration);
 		const auto progress = finished
 			? that->delta
