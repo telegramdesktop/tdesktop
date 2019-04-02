@@ -402,6 +402,16 @@ void EditCaptionBox::createEditMediaButton() {
 			return;
 		}
 
+		const auto isWebp = [](QString mimeType) {
+			if (mimeType == qstr("image/webp")) {
+				Ui::show(
+					Box<InformBox>(lang(lng_edit_media_album_error)),
+					LayerOption::KeepOther);
+				return true;
+			}
+			return false;
+		};
+
 		if (!result.remoteContent.isEmpty()) {
 			// Don't use remoteContent to edit album item.
 			if (_isAlbum) {
@@ -412,10 +422,16 @@ void EditCaptionBox::createEditMediaButton() {
 				QString(),
 				result.remoteContent
 			).thumbnail;
-			_preparedList = Storage::PrepareMediaFromImage(
+			auto list = Storage::PrepareMediaFromImage(
 				std::move(image),
 				std::move(result.remoteContent),
 				st::sendMediaPreviewSize);
+
+			if (isWebp(list.files.front().mime)) {
+				return;
+			}
+
+			_preparedList = std::move(list);
 		} else if (!result.paths.isEmpty()) {
 			auto list = Storage::PrepareMediaList(
 				QStringList(result.paths.front()),
@@ -442,6 +458,11 @@ void EditCaptionBox::createEditMediaButton() {
 					return;
 				}
 			}
+			const auto info = QFileInfo(result.paths.front());
+			if (isWebp(Core::MimeTypeForFile(info).name())) {
+				return;
+			}
+
 			_preparedList = std::move(list);
 		} else {
 			return;

@@ -4644,7 +4644,8 @@ void ApiWrap::editUploadedPhoto(
 			applyUpdates(result);
 		}).fail([=](const RPCError &error) {
 			QString err = error.type();
-			if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+			if (err == qstr("MESSAGE_NOT_MODIFIED")
+				|| err == qstr("MEDIA_NEW_INVALID")) {
 				item->returnSavedMedia();
 				_session->data().sendHistoryChangeNotifications();
 			} else {
@@ -4707,7 +4708,8 @@ void ApiWrap::editUploadedDocument(
 				applyUpdates(result);
 			}).fail([=](const RPCError &error) {
 				QString err = error.type();
-				if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+				if (err == qstr("MESSAGE_NOT_MODIFIED")
+					|| err == qstr("MEDIA_NEW_INVALID")) {
 					item->returnSavedMedia();
 					_session->data().sendHistoryChangeNotifications();
 				} else {
