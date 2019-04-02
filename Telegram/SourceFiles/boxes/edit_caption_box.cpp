@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "window/window_controller.h"
 #include "ui/widgets/checkbox.h"
+#include "confirm_box.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
@@ -422,9 +423,22 @@ void EditCaptionBox::createEditMediaButton() {
 
 			// Don't rewrite _preparedList if new list is not valid for album.
 			if (_isAlbum) {
-				const auto fileMedia = &list.files.front().information->media;
-				if (!base::get_if<FileMediaInformation::Image>(fileMedia)
-					&& !base::get_if<FileMediaInformation::Video>(fileMedia)) {
+				using Info = FileMediaInformation;
+
+				const auto media = &list.files.front().information->media;
+				const auto valid = media->match([&](const Info::Image &data) {
+					return Storage::ValidateThumbDimensions(
+						data.data.width(),
+						data.data.height());
+				}, [&](const Info::Video &data) {
+					return true;
+				}, [](auto &&other) {
+					return false;
+				});
+				if (!valid) {
+					Ui::show(
+						Box<InformBox>(lang(lng_edit_media_album_error)),
+						LayerOption::KeepOther);
 					return;
 				}
 			}

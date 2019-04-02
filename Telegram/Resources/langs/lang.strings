@@ -163,6 +163,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_pinned_notify" = "Notify all members";
 
 "lng_edit_media" = "Edit media";
+"lng_edit_media_album_error" = "This file cannot be saved as a part of an album.";
 
 "lng_intro_about" = "Welcome to the official Telegram Desktop app.\nIt's fast and secure.";
 "lng_start_msgs" = "START MESSAGING";
