@@ -4471,7 +4471,8 @@ void ApiWrap::editMedia(
 		Storage::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
-		const SendOptions &options) {
+		const SendOptions &options,
+		MsgId msgIdToEdit) {
 	if (list.files.empty()) return;
 
 	auto &file = list.files.front();
@@ -4484,7 +4485,7 @@ void ApiWrap::editMedia(
 		to,
 		caption,
 		nullptr,
-		true));
+		msgIdToEdit));
 }
 
 void ApiWrap::sendFiles(
@@ -4620,17 +4621,17 @@ void ApiWrap::editUploadedPhoto(
 			MTPVector<MTPInputDocument>(),
 			MTP_int(0));
 
-		auto flags2 = MTPmessages_EditMessage::Flag::f_message | 0;
-		flags2 |= MTPmessages_EditMessage::Flag::f_no_webpage;
-		flags2 |= MTPmessages_EditMessage::Flag::f_entities;
-		flags2 |= MTPmessages_EditMessage::Flag::f_media;
+		auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
+		flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
+		flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
+		flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
 
 		auto sentEntities = TextUtilities::EntitiesToMTP(
 			item->originalText().entities,
 			TextUtilities::ConvertOption::SkipLocal);
 
 		request(MTPmessages_EditMessage(
-			MTP_flags(flags2),
+			MTP_flags(flagsEditMsg),
 			item->history()->peer->input,
 			MTP_int(item->id),
 			MTP_string(item->originalText().text),
@@ -4683,18 +4684,17 @@ void ApiWrap::editUploadedDocument(
 				MTPVector<MTPInputDocument>(),
 				MTP_int(0));
 
-			auto flags2 = MTPmessages_EditMessage::Flag::f_message | 0;
-			flags2 |= MTPmessages_EditMessage::Flag::f_no_webpage;
-			flags2 |= MTPmessages_EditMessage::Flag::f_entities;
-			flags2 |= MTPmessages_EditMessage::Flag::f_media;
+			auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
+			flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
+			flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
+			flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
 
 			auto sentEntities = TextUtilities::EntitiesToMTP(
 				item->originalText().entities,
 				TextUtilities::ConvertOption::SkipLocal);
 
-
 			request(MTPmessages_EditMessage(
-				MTP_flags(flags2),
+				MTP_flags(flagsEditMsg),
 				item->history()->peer->input,
 				MTP_int(item->id),
 				MTP_string(item->originalText().text),

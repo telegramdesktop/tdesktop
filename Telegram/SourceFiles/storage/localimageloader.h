@@ -276,7 +276,7 @@ public:
 		const FileLoadTo &to,
 		const TextWithTags &caption,
 		std::shared_ptr<SendingAlbum> album = nullptr,
-		std::optional<bool> edit = false);
+		MsgId msgIdToEdit = 0);
 	FileLoadTask(
 		const QByteArray &voice,
 		int32 duration,
@@ -323,7 +323,7 @@ private:
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	TextWithTags _caption;
-	std::optional<bool> _edit;
+	MsgId _msgIdToEdit;
 
 	std::shared_ptr<FileLoadResult> _result;
 

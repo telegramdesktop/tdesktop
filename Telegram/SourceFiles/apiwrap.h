@@ -332,7 +332,8 @@ public:
 		Storage::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
-		const SendOptions &options);
+		const SendOptions &options,
+		MsgId msgIdToEdit);
 
 	void sendUploadedPhoto(
 		FullMsgId localId,

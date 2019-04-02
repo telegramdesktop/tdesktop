@@ -64,7 +64,9 @@ void Groups::unregisterMessage(not_null<const HistoryItem*> item) {
 	}
 }
 
-void Groups::refreshMessage(not_null<HistoryItem*> item, bool forceRefresh) {
+void Groups::refreshMessage(
+	not_null<HistoryItem*> item,
+	bool justRefreshViews) {
 	if (!isGrouped(item)) {
 		unregisterMessage(item);
 		return;
@@ -80,7 +82,7 @@ void Groups::refreshMessage(not_null<HistoryItem*> item, bool forceRefresh) {
 	}
 	auto &items = i->second.items;
 
-	if (forceRefresh) {
+	if (justRefreshViews) {
 		refreshViews(items);
 		return;
 	}

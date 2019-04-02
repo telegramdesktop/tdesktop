@@ -3054,7 +3054,6 @@ void HistoryWidget::chooseAttach() {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
 		} else {
-			LOG((result.paths[0]));
 			auto list = Storage::PrepareMediaList(
 				result.paths,
 				st::sendMediaPreviewSize);
@@ -4422,7 +4421,6 @@ void HistoryWidget::documentEdited(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	LOG(("DOCUMENT EDITED %1").arg(newId.msg));
 	Auth().api().editUploadedDocument(newId, file, std::nullopt, silent);
 }
 
@@ -4430,7 +4428,6 @@ void HistoryWidget::photoEdited(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	LOG(("PHOTO EDITED %1").arg(newId.msg));
 	Auth().api().editUploadedPhoto(newId, file, silent);
 }
 
@@ -4466,7 +4463,6 @@ void HistoryWidget::documentProgress(const FullMsgId &newId) {
 			? document->uploadingData->offset
 			: 0;
 
-		LOG(("ITEM EXISTS %1 TYPE: %2 PROGRESS: %3").arg(newId.msg).arg(sendAction == SendAction::Type::UploadFile).arg(progress));
 		updateSendAction(
 			item->history(),
 			sendAction,

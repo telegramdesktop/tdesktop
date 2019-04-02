@@ -27,7 +27,7 @@ public:
 	void unregisterMessage(not_null<const HistoryItem*> item);
 	void refreshMessage(
 		not_null<HistoryItem*> item,
-		bool forceRefresh = false);
+		bool justRefreshViews = false);
 
 	const Group *find(not_null<HistoryItem*> item) const;
 

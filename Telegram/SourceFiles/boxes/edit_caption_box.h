@@ -72,6 +72,12 @@ private:
 
 	void createEditMediaButton();
 
+	inline QString getNewMediaPath() {
+		return _preparedList.files.empty()
+			? QString()
+			: _preparedList.files.front().path;
+	}
+
 	not_null<Window::Controller*> _controller;
 	FullMsgId _msgId;
 	Image *_thumbnailImage = nullptr;
@@ -111,8 +117,7 @@ private:
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
 	bool _isAllowedEditMedia = false;
-	bool _isNotAlbum = true;
-	bool _viaRemoteContent = false;
+	bool _isAlbum = false;
 	rpl::event_stream<> _editMediaClicks;
 
 	QString _error;

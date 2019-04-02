@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "mainwidget.h"
 #include "media/clip/media_clip_reader.h"
 #include "storage/storage_media_prepare.h"
 #include "styles/style_boxes.h"
@@ -45,8 +44,9 @@ EditCaptionBox::EditCaptionBox(
 , _msgId(item->fullId()) {
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
+
 	_isAllowedEditMedia = item->media()->allowsEditMedia();
-	_isNotAlbum = !item->groupId();
+	_isAlbum = !item->groupId().empty();
 
 	QSize dimensions;
 	auto image = (Image*)nullptr;
@@ -288,9 +288,10 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData* document) {
+	const auto newPath = getNewMediaPath();
 	if (_gifPreview) {
 		return;
-	} else if (!document && _newMediaPath.isEmpty()) {
+	} else if (!document && newPath.isEmpty()) {
 		return;
 	}
 	const auto callback = [=](Media::Clip::Notification notification) {
@@ -301,9 +302,9 @@ void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 			document,
 			_msgId,
 			callback);
-	} else if (!_newMediaPath.isEmpty()) {
+	} else if (!newPath.isEmpty()) {
 		_gifPreview = Media::Clip::MakeReader(
-			_newMediaPath,
+			newPath,
 			callback);
 	}
 	if (_gifPreview) _gifPreview->setAutoplay();
@@ -339,23 +340,11 @@ void EditCaptionBox::updateEditPreview() {
 	const auto file = &_preparedList.files.front();
 	const auto fileMedia = &file->information->media;
 
-	const auto fileinfo = QFileInfo(_newMediaPath);
+	const auto fileinfo = QFileInfo(file->path);
 	const auto filename = fileinfo.fileName();
 	const auto mimeType = Core::MimeTypeForFile(fileinfo).name();
 
-	if (!_isNotAlbum) {
-		// This check only for users, who chose not valid file with absolute path.
-		if ((!_newMediaPath.isEmpty()
-				&& !fileIsValidForAlbum(filename, mimeType))
-			// And for users, who send file via remoteContent.
-			|| _viaRemoteContent) {
-			_newMediaPath = QString();
-			_preparedList.files.clear();
-			return;
-		}
-	}
-
-	if (!_newMediaPath.isEmpty()) {
+	if (!file->path.isEmpty()) {
 		_isImage = fileIsImage(filename, mimeType);
 	}
 	_isAudio = false;
@@ -392,7 +381,7 @@ void EditCaptionBox::updateEditPreview() {
 		_doc = true;
 	}
 
-	_wayWrap->toggle(_isImage && _isNotAlbum, anim::type::instant);
+	_wayWrap->toggle(_isImage && !_isAlbum, anim::type::instant);
 
 	if (!_doc) {
 		_thumb = App::pixmapFromImageInPlace(
@@ -411,18 +400,35 @@ void EditCaptionBox::createEditMediaButton() {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
-		_viaRemoteContent = !result.remoteContent.isEmpty();
+
 		if (!result.remoteContent.isEmpty()) {
-			_newMediaPath = QString();
+			// Don't use remoteContent to edit album item.
+			if (_isAlbum) {
+				return;
+			}
+
+			auto image = Media::Clip::PrepareForSending(
+				QString(),
+				result.remoteContent
+			).thumbnail;
 			_preparedList = Storage::PrepareMediaFromImage(
-				Media::Clip::PrepareForSending(QString(), result.remoteContent).thumbnail,
+				std::move(image),
 				std::move(result.remoteContent),
 				st::sendMediaPreviewSize);
 		} else if (!result.paths.isEmpty()) {
-			_newMediaPath = result.paths.front();
-			_preparedList = Storage::PrepareMediaList(
-				QStringList(_newMediaPath),
+			auto list = Storage::PrepareMediaList(
+				QStringList(result.paths.front()),
 				st::sendMediaPreviewSize);
+
+			// Don't rewrite _preparedList if new list is not valid for album.
+			if (_isAlbum) {
+				const auto fileMedia = &list.files.front().information->media;
+				if (!base::get_if<FileMediaInformation::Image>(fileMedia)
+					&& !base::get_if<FileMediaInformation::Video>(fileMedia)) {
+					return;
+				}
+			}
+			_preparedList = std::move(list);
 		} else {
 			return;
 		}
@@ -431,9 +437,9 @@ void EditCaptionBox::createEditMediaButton() {
 	};
 
 	const auto buttonCallback = [=] {
-		const auto filters = _isNotAlbum
-			? QStringList(FileDialog::AllFilesFilter())
-			: QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"));
+		const auto filters = _isAlbum
+			? QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"))
+			: QStringList(FileDialog::AllFilesFilter());
 		FileDialog::GetOpenPath(
 			this,
 			lang(lng_choose_file),
@@ -453,7 +459,7 @@ void EditCaptionBox::prepare() {
 	if (_isAllowedEditMedia) {
 		createEditMediaButton();
 	} else {
-		_newMediaPath = QString();
+		_preparedList.files.clear();
 	}
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
@@ -465,6 +471,9 @@ void EditCaptionBox::prepare() {
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
 		if (action == Ui::InputField::MimeAction::Check) {
+			if (!data->hasText() && !_isAllowedEditMedia) {
+				return false;
+			}
 			if (data->hasImage()) {
 				const auto image = qvariant_cast<QImage>(data->imageData());
 				if (!image.isNull()) {
@@ -497,6 +506,10 @@ void EditCaptionBox::prepare() {
 }
 
 bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
+	if (!_isAllowedEditMedia) {
+		return false;
+	}
+
 	auto list = [&] {
 		auto url = QList<QUrl>();
 		auto canAddUrl = false;
@@ -527,13 +540,9 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		return result;
 	}();
 	_preparedList = std::move(list);
-	_newMediaPath = _preparedList.files.empty()
-		? QString()
-		: _preparedList.files.front().path;
 	if (_preparedList.files.empty()) {
 		return false;
 	}
-	_viaRemoteContent = false;
 	updateEditPreview();
 	return true;
 }
@@ -748,7 +757,6 @@ void EditCaptionBox::save() {
 	}
 
 	if (!_preparedList.files.empty()) {
-		App::main()->setEditMedia(item->fullId());
 		const auto textWithTags = _field->getTextWithAppliedMarkdown();
 		auto sending = TextWithEntities{
 			textWithTags.text,
@@ -760,7 +768,8 @@ void EditCaptionBox::save() {
 			std::move(_preparedList),
 			(!_asFile && _isImage) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
-			ApiWrap::SendOptions(item->history()));
+			ApiWrap::SendOptions(item->history()),
+			item->fullId().msg);
 		closeBox();
 		return;
 	}

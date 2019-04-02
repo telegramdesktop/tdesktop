@@ -98,8 +98,11 @@ struct MessageGroupId {
 		return static_cast<Type>(value);
 	}
 
+	bool empty() const {
+		return value == None;
+	}
 	explicit operator bool() const {
-		return value != None;
+		return !empty();
 	}
 	Underlying raw() const {
 		return static_cast<Underlying>(value);

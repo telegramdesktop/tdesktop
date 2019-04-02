@@ -122,22 +122,6 @@ bool fileIsImage(const QString &name, const QString &mime) {
 	return false;
 }
 
-bool fileIsValidForAlbum(const QString &name, const QString &mime) {
-	QString lowermime = mime.toLower(), namelower = name.toLower();
-	if (lowermime.startsWith(qstr("video/mp4"))
-		|| lowermime.startsWith(qstr("image/jpeg"))
-		|| lowermime.startsWith(qstr("image/jpg"))
-		|| lowermime.startsWith(qstr("image/png"))) {
-		return true;
-	} else if (namelower.endsWith(qstr(".mp4"))
-		|| namelower.endsWith(qstr(".jpg"))
-		|| namelower.endsWith(qstr(".jpeg"))
-		|| namelower.endsWith(qstr(".png"))) {
-		return true;
-	}
-	return false;
-}
-
 QString FileNameUnsafe(
 		const QString &title,
 		const QString &filter,

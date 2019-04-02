@@ -529,7 +529,7 @@ FileLoadTask::FileLoadTask(
 	const FileLoadTo &to,
 	const TextWithTags &caption,
 	std::shared_ptr<SendingAlbum> album,
-	std::optional<bool> edit)
+	MsgId msgIdToEdit)
 : _id(rand_value<uint64>())
 , _to(to)
 , _album(std::move(album))
@@ -538,7 +538,7 @@ FileLoadTask::FileLoadTask(
 , _information(std::move(information))
 , _type(type)
 , _caption(caption)
-, _edit(edit) {
+, _msgIdToEdit(msgIdToEdit) {
 }
 
 FileLoadTask::FileLoadTask(
@@ -704,7 +704,7 @@ void FileLoadTask::process() {
 		_caption,
 		_album);
 
-	_result->edit = _edit.value_or(false);
+	_result->edit = (_msgIdToEdit > 0);
 
 	QString filename, filemime;
 	qint64 filesize = 0;
@@ -984,11 +984,13 @@ void FileLoadTask::finish() {
 				lng_send_image_too_large(lt_name, _filepath)),
 			LayerOption::KeepOther);
 		removeFromAlbum();
-	} else if (App::main()->getEditMedia()) {
-		LOG(("FINISH UPLOAD EDIT"));
-		App::main()->onEditMedia(_result, App::main()->getEditMedia());
 	} else if (App::main()) {
-		App::main()->onSendFileConfirm(_result);
+		const auto fullId = _msgIdToEdit
+			? std::make_optional(FullMsgId(
+				peerToChannel(_to.peer),
+				_msgIdToEdit))
+			: std::nullopt;
+		App::main()->onSendFileConfirm(_result, fullId);
 	}
 }
 
