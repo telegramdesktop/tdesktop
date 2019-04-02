@@ -52,7 +52,8 @@ public:
 	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 
-	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
+	// Reader can be already deleted.
+	static void callback(Reader *reader, qint32 threadIndex, qint32 notification);
 
 	void setAutoplay() {
 		_autoplay = true;
@@ -228,12 +229,12 @@ private:
 	};
 	ResultHandleState handleResult(ReaderPrivate *reader, ProcessResult result, crl::time ms);
 
-	typedef QMap<ReaderPrivate*, crl::time> Readers;
+	using Readers = QMap<ReaderPrivate*, crl::time>;
 	Readers _readers;
 
 	QTimer _timer;
-	QThread *_processingInThread;
-	bool _needReProcess;
+	QThread *_processingInThread = nullptr;
+	bool _needReProcess = false;
 
 };
 

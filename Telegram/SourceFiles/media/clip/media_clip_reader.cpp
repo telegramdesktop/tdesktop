@@ -187,10 +187,10 @@ void Reader::moveToNextWrite() const {
 	}
 }
 
-void Reader::callback(Reader *reader, int32 threadIndex, Notification notification) {
-	// check if reader is not deleted already
+void Reader::callback(Reader *reader, qint32 threadIndex, qint32 notification) {
+	// Check if reader is not deleted already
 	if (managers.size() > threadIndex && managers.at(threadIndex)->carries(reader) && reader->_callback) {
-		reader->_callback(notification);
+		reader->_callback(Notification(notification));
 	}
 }
 
@@ -598,7 +598,7 @@ private:
 
 };
 
-Manager::Manager(QThread *thread) : _processingInThread(0), _needReProcess(false) {
+Manager::Manager(QThread *thread) {
 	moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(process()));
 	connect(thread, SIGNAL(finished()), this, SLOT(finish()));
@@ -608,7 +608,11 @@ Manager::Manager(QThread *thread) : _processingInThread(0), _needReProcess(false
 	_timer.moveToThread(thread);
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(process()));
 
-	anim::registerClipManager(this);
+	connect(
+		this,
+		&Manager::callback,
+		QCoreApplication::instance(),
+		&Reader::callback);
 }
 
 void Manager::append(Reader *reader, const FileLocation &location, const QByteArray &data) {
@@ -800,7 +804,7 @@ void Manager::process() {
 				i = _readers.erase(i);
 				continue;
 			} else if (state == ResultHandleStop) {
-				_processingInThread = 0;
+				_processingInThread = nullptr;
 				return;
 			}
 			ms = crl::now();
@@ -835,7 +839,7 @@ void Manager::process() {
 		_timer.start(minms - ms);
 	}
 
-	_processingInThread = 0;
+	_processingInThread = nullptr;
 }
 
 void Manager::finish() {

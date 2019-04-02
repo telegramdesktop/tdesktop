@@ -26,7 +26,6 @@ ReaderPointer::~ReaderPointer() {
 
 namespace {
 
-AnimationManager *_manager = nullptr;
 bool AnimationsDisabled = false;
 
 } // namespace
@@ -80,34 +79,12 @@ transition easeOutQuint = [](const float64 &delta, const float64 &dt) {
 	return delta * (t2 * t2 * t + 1);
 };
 
-void startManager() {
-	stopManager();
-
-	_manager = new AnimationManager();
-}
-
-void stopManager() {
-	delete _manager;
-	_manager = nullptr;
-
-	Media::Clip::Finish();
-}
-
-void registerClipManager(not_null<Media::Clip::Manager*> manager) {
-	Expects(_manager != nullptr);
-
-	_manager->registerClip(manager);
-}
-
 bool Disabled() {
 	return AnimationsDisabled;
 }
 
 void SetDisabled(bool disabled) {
 	AnimationsDisabled = disabled;
-	if (disabled && _manager) {
-		_manager->step();
-	}
 }
 
 void DrawStaticLoading(
@@ -139,100 +116,3 @@ void DrawStaticLoading(
 }
 
 } // anim
-
-void BasicAnimation::start() {
-	if (!_manager) return;
-
-	_callbacks.start();
-	_manager->start(this);
-	_animating = true;
-}
-
-void BasicAnimation::stop() {
-	if (!_manager) return;
-
-	_animating = false;
-	_manager->stop(this);
-}
-
-AnimationManager::AnimationManager() : _timer(this) {
-	_timer.setSingleShot(false);
-	connect(&_timer, &QTimer::timeout, this, &AnimationManager::step);
-}
-
-void AnimationManager::start(BasicAnimation *obj) {
-	if (_iterating) {
-		_starting.insert(obj);
-		if (!_stopping.empty()) {
-			_stopping.erase(obj);
-		}
-	} else {
-		if (_objects.empty()) {
-			_timer.start(AnimationTimerDelta);
-		}
-		_objects.insert(obj);
-	}
-}
-
-void AnimationManager::stop(BasicAnimation *obj) {
-	if (_iterating) {
-		_stopping.insert(obj);
-		if (!_starting.empty()) {
-			_starting.erase(obj);
-		}
-	} else {
-		auto i = _objects.find(obj);
-		if (i != _objects.cend()) {
-			_objects.erase(i);
-			if (_objects.empty()) {
-				_timer.stop();
-			}
-		}
-	}
-}
-
-void AnimationManager::registerClip(not_null<Media::Clip::Manager*> clip) {
-	connect(
-		clip,
-		&Media::Clip::Manager::callback,
-		this,
-		&AnimationManager::clipCallback);
-}
-
-void AnimationManager::step() {
-	_iterating = true;
-	const auto ms = crl::now();
-	for (const auto object : _objects) {
-		if (!_stopping.contains(object)) {
-			object->step(ms, true);
-		}
-	}
-	_iterating = false;
-
-	if (!_starting.empty()) {
-		for (const auto object : _starting) {
-			_objects.emplace(object);
-		}
-		_starting.clear();
-	}
-	if (!_stopping.empty()) {
-		for (const auto object : _stopping) {
-			_objects.erase(object);
-		}
-		_stopping.clear();
-	}
-	if (_objects.empty()) {
-		_timer.stop();
-	}
-}
-
-void AnimationManager::clipCallback(
-		Media::Clip::Reader *reader,
-		qint32 threadIndex,
-		qint32 notification) {
-	Media::Clip::Reader::callback(
-		reader,
-		threadIndex,
-		Media::Clip::Notification(notification));
-}
-

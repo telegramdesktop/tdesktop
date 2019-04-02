@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_track.h"
 #include "media/player/media_player_instance.h"
+#include "media/clip/media_clip_reader.h" // For Media::Clip::Finish().
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/window_lock_widgets.h"
@@ -112,8 +113,7 @@ Application::~Application() {
 	Shortcuts::Finish();
 
 	Ui::Emoji::Clear();
-
-	anim::stopManager();
+	Media::Clip::Finish();
 
 	stopWebLoadManager();
 	App::deinitMedia();
@@ -153,7 +153,6 @@ void Application::run() {
 	QCoreApplication::instance()->installTranslator(_translator.get());
 
 	style::startManager();
-	anim::startManager();
 	Ui::InitTextOptions();
 	Ui::Emoji::Init();
 	Media::Player::start(_audio.get());
@@ -841,7 +840,7 @@ QString Application::createInternalLinkFull(const QString &query) const {
 
 void Application::checkStartUrl() {
 	if (!cStartUrl().isEmpty() && !locked()) {
-		auto url = cStartUrl();
+		const auto url = cStartUrl();
 		cSetStartUrl(QString());
 		if (!openLocalUrl(url, {})) {
 			cSetStartUrl(url);
