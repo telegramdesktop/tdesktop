@@ -38,7 +38,7 @@ void AbstractCheckView::setChecked(bool checked, anim::type animated) {
 		}
 	} else if (changed) {
 		_toggleAnimation.start(
-			_updateCallback,
+			[=] { if (_updateCallback) _updateCallback(); },
 			_checked ? 0. : 1.,
 			_checked ? 1. : 0.,
 			_duration);
@@ -51,9 +51,6 @@ void AbstractCheckView::setChecked(bool checked, anim::type animated) {
 
 void AbstractCheckView::setUpdateCallback(Fn<void()> updateCallback) {
 	_updateCallback = std::move(updateCallback);
-	if (_toggleAnimation.animating()) {
-		_toggleAnimation.setUpdateCallback(_updateCallback);
-	}
 }
 
 void AbstractCheckView::update() {
@@ -63,11 +60,11 @@ void AbstractCheckView::update() {
 }
 
 void AbstractCheckView::finishAnimating() {
-	_toggleAnimation.finish();
+	_toggleAnimation.stop();
 }
 
-float64 AbstractCheckView::currentAnimationValue(crl::time ms) {
-	return ms ? _toggleAnimation.current(ms, _checked ? 1. : 0.) : _toggleAnimation.current(_checked ? 1. : 0.);
+float64 AbstractCheckView::currentAnimationValue() {
+	return _toggleAnimation.value(_checked ? 1. : 0.);
 }
 
 bool AbstractCheckView::animating() const {
@@ -90,12 +87,12 @@ void ToggleView::setStyle(const style::Toggle &st) {
 	_st = &st;
 }
 
-void ToggleView::paint(Painter &p, int left, int top, int outerWidth, crl::time ms) {
+void ToggleView::paint(Painter &p, int left, int top, int outerWidth) {
 	left += _st->border;
 	top += _st->border;
 
 	PainterHighQualityEnabler hq(p);
-	auto toggled = currentAnimationValue(ms);
+	auto toggled = currentAnimationValue();
 	auto fullWidth = _st->diameter + _st->width;
 	auto innerDiameter = _st->diameter - 2 * _st->shift;
 	auto innerRadius = float64(innerDiameter) / 2.;
@@ -241,8 +238,8 @@ void CheckView::setStyle(const style::Check &st) {
 	_st = &st;
 }
 
-void CheckView::paint(Painter &p, int left, int top, int outerWidth, crl::time ms) {
-	auto toggled = currentAnimationValue(ms);
+void CheckView::paint(Painter &p, int left, int top, int outerWidth) {
+	auto toggled = currentAnimationValue();
 	auto pen = _untoggledOverride
 		? anim::pen(*_untoggledOverride, _st->toggledFg, toggled)
 		: anim::pen(_st->untoggledFg, _st->toggledFg, toggled);
@@ -299,10 +296,10 @@ void RadioView::setStyle(const style::Radio &st) {
 	_st = &st;
 }
 
-void RadioView::paint(Painter &p, int left, int top, int outerWidth, crl::time ms) {
+void RadioView::paint(Painter &p, int left, int top, int outerWidth) {
 	PainterHighQualityEnabler hq(p);
 
-	auto toggled = currentAnimationValue(ms);
+	auto toggled = currentAnimationValue();
 	auto pen = _toggledOverride
 		? (_untoggledOverride
 			? anim::pen(*_untoggledOverride, *_toggledOverride, toggled)
@@ -488,7 +485,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 
 	auto check = checkRect();
 	auto ms = crl::now();
-	auto active = _check->currentAnimationValue(ms);
+	auto active = _check->currentAnimationValue();
 	if (isDisabled()) {
 		p.setOpacity(_st.disabledOpacity);
 	} else {
@@ -497,7 +494,6 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 			p,
 			check.x() + _st.rippleAreaPosition.x(),
 			check.y() + _st.rippleAreaPosition.y(),
-			ms,
 			&color);
 	}
 

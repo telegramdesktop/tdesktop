@@ -1170,7 +1170,6 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		toColumn = _columnCount - toColumn;
 	}
 
-	auto ms = crl::now();
 	auto &sets = shownSets();
 	auto selectedSticker = base::get_if<OverSticker>(&_selected);
 	auto selectedButton = base::get_if<OverButton>(_pressed ? &_pressed : &_selected);
@@ -1199,7 +1198,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 
 				App::roundRect(p, myrtlrect(add), textBg, ImageRoundRadius::Small);
 				if (set.ripple) {
-					set.ripple->paint(p, add.x(), add.y(), width(), ms);
+					set.ripple->paint(p, add.x(), add.y(), width());
 					if (set.ripple->empty()) {
 						set.ripple.reset();
 					}
@@ -1266,7 +1265,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				auto remove = removeButtonRect(info.section);
 				auto selected = selectedButton ? (selectedButton->section == info.section) : false;
 				if (set.ripple) {
-					set.ripple->paint(p, remove.x() + st::stickerPanRemoveSet.rippleAreaPosition.x(), remove.y() + st::stickerPanRemoveSet.rippleAreaPosition.y(), width(), ms);
+					set.ripple->paint(p, remove.x() + st::stickerPanRemoveSet.rippleAreaPosition.x(), remove.y() + st::stickerPanRemoveSet.rippleAreaPosition.y(), width());
 					if (set.ripple->empty()) {
 						set.ripple.reset();
 					}
@@ -1286,7 +1285,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		if (clip.top() + clip.height() > info.rowsTop) {
 			if (set.id == Stickers::MegagroupSetId && set.pack.empty()) {
 				auto buttonSelected = (base::get_if<OverGroupAdd>(&_selected) != nullptr);
-				paintMegagroupEmptySet(p, info.rowsTop, buttonSelected, ms);
+				paintMegagroupEmptySet(p, info.rowsTop, buttonSelected);
 			} else {
 				auto special = (set.flags & MTPDstickerSet::Flag::f_official) != 0;
 				auto fromRow = floorclamp(clip.y() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
@@ -1328,7 +1327,7 @@ int StickersListWidget::megagroupSetInfoLeft() const {
 	return st::emojiPanHeaderLeft - st::buttonRadius;
 }
 
-void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected, crl::time ms) {
+void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected) {
 	auto infoLeft = megagroupSetInfoLeft();
 	_megagroupSetAbout.drawLeft(p, infoLeft, y, width() - infoLeft, width());
 
@@ -1339,7 +1338,7 @@ void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSe
 	auto button = _megagroupSetButtonRect.translated(0, y);
 	App::roundRect(p, myrtlrect(button), textBg, ImageRoundRadius::Small);
 	if (_megagroupSetButtonRipple) {
-		_megagroupSetButtonRipple->paint(p, button.x(), button.y(), width(), ms);
+		_megagroupSetButtonRipple->paint(p, button.x(), button.y(), width());
 		if (_megagroupSetButtonRipple->empty()) {
 			_megagroupSetButtonRipple.reset();
 		}

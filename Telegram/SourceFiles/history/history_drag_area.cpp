@@ -69,8 +69,7 @@ void DragArea::setText(const QString &text, const QString &subtext) {
 void DragArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
-	auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.);
+	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (!_a_opacity.animating() && _hiding) {
 		return;
 	}
@@ -85,7 +84,7 @@ void DragArea::paintEvent(QPaintEvent *e) {
 	Ui::Shadow::paint(p, inner, width(), st::boxRoundShadow);
 	App::roundRect(p, inner, st::boxBg, BoxCorners);
 
-	p.setPen(anim::pen(st::dragColor, st::dragDropColor, _a_in.current(ms, _in ? 1. : 0.)));
+	p.setPen(anim::pen(st::dragColor, st::dragDropColor, _a_in.value(_in ? 1. : 0.)));
 
 	p.setFont(st::dragFont);
 	p.drawText(QRect(0, (height() - st::dragHeight) / 2, width(), st::dragFont->height), _text, QTextOption(style::al_top));
@@ -121,7 +120,7 @@ void DragArea::otherLeave() {
 }
 
 void DragArea::hideFast() {
-	_a_opacity.finish();
+	_a_opacity.stop();
 	hide();
 }
 
@@ -142,7 +141,7 @@ void DragArea::hideStart() {
 void DragArea::hideFinish() {
 	hide();
 	_in = false;
-	_a_in.finish();
+	_a_in.stop();
 }
 
 void DragArea::showStart() {

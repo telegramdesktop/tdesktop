@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 
@@ -86,19 +87,14 @@ private:
 	int countSelectedButtonsTop(float64 selectedShown);
 	void connectingAnimationCallback();
 
-	void paintTopBar(Painter &p, crl::time ms);
+	void paintTopBar(Painter &p);
 	void paintStatus(
 		Painter &p,
 		int left,
 		int top,
 		int availableWidth,
 		int outerWidth);
-	bool paintConnectingState(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth,
-		crl::time ms);
+	bool paintConnectingState(Painter &p, int left, int top, int outerWidth);
 	QRect getMembersShowAreaGeometry() const;
 	void updateMembersShowArea();
 	void updateOnlineDisplay();
@@ -118,7 +114,7 @@ private:
 	bool _canDelete = false;
 	bool _canForward = false;
 
-	Animation _selectedShown;
+	Ui::Animations::Simple _selectedShown;
 
 	object_ptr<Ui::RoundButton> _clear;
 	object_ptr<Ui::RoundButton> _forward, _delete;

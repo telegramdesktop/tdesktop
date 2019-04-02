@@ -72,7 +72,7 @@ public:
 	, _check(st, _updateCallback) {
 	}
 
-	void paint(Painter &p, crl::time ms, QPoint position, int outerWidth, bool selected, bool selecting);
+	void paint(Painter &p, QPoint position, int outerWidth, bool selected, bool selecting);
 
 	void setActive(bool active);
 	void setPressed(bool pressed);
@@ -87,18 +87,18 @@ private:
 	Fn<void()> _updateCallback;
 	Ui::RoundCheckbox _check;
 
-	Animation _pression;
+	Ui::Animations::Simple _pression;
 	bool _active = false;
 	bool _pressed = false;
 
 };
 
-void Checkbox::paint(Painter &p, crl::time ms, QPoint position, int outerWidth, bool selected, bool selecting) {
+void Checkbox::paint(Painter &p, QPoint position, int outerWidth, bool selected, bool selecting) {
 	_check.setDisplayInactive(selecting);
 	_check.setChecked(selected);
-	const auto pression = _pression.current(ms, (_active && _pressed) ? 1. : 0.);
+	const auto pression = _pression.value((_active && _pressed) ? 1. : 0.);
 	const auto masterScale = 1. - (1. - st::overviewCheckPressedSize) * pression;
-	_check.paint(p, ms, position.x(), position.y(), outerWidth, masterScale);
+	_check.paint(p, position.x(), position.y(), outerWidth, masterScale);
 }
 
 void Checkbox::setActive(bool active) {
@@ -167,7 +167,7 @@ void ItemBase::paintCheckbox(
 		ensureCheckboxCreated();
 	}
 	if (_check) {
-		_check->paint(p, context->ms, position, _width, selected, context->selecting);
+		_check->paint(p, position, _width, selected, context->selecting);
 	}
 }
 
@@ -491,7 +491,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush(st::msgDateImgBgSelected);
 		} else {
 			auto over = ClickHandler::showAsActive((_data->loading() || _data->uploading()) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
-			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.value(over ? 1. : 0.)));
 		}
 
 		{
@@ -670,10 +670,10 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush((thumbLoaded || blurred) ? st::msgDateImgBgSelected : st::msgFileInBgSelected);
 		} else if (_data->hasThumbnail()) {
 			auto over = ClickHandler::showAsActive(checkLink);
-			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.value(over ? 1. : 0.)));
 		} else {
 			auto over = ClickHandler::showAsActive(checkLink);
-			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
+			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, _a_iconOver.value(over ? 1. : 0.)));
 		}
 		{
 			PainterHighQualityEnabler hq(p);
@@ -948,7 +948,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				p.setBrush(st::msgFileInBgSelected);
 			} else {
 				auto over = ClickHandler::showAsActive((!cornerDownload && (_data->loading() || _data->uploading())) ? _cancell : (loaded || _data->canBePlayed()) ? _openl : _savel);
-				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.current(context->ms, over ? 1. : 0.)));
+				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.value(over ? 1. : 0.)));
 			}
 
 			{
@@ -1026,7 +1026,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
 					} else {
 						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
-						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), _a_iconOver.current(context->ms, over ? 1. : 0.)));
+						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), _a_iconOver.value(over ? 1. : 0.)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 

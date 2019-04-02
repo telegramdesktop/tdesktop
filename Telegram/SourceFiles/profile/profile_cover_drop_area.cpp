@@ -33,8 +33,8 @@ void CoverDropArea::hideAnimated(HideFinishCallback &&callback) {
 void CoverDropArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_a_appearance.animating(crl::now())) {
-		p.setOpacity(_a_appearance.current());
+	if (_a_appearance.animating()) {
+		p.setOpacity(_a_appearance.value(_hiding ? 0. : 1.));
 		p.drawPixmap(0, 0, _cache);
 		return;
 	}
@@ -82,7 +82,7 @@ void CoverDropArea::setupAnimation() {
 	}
 	auto from = _hiding ? 1. : 0., to = _hiding ? 0. : 1.;
 	_a_appearance.start(
-		[this] { update(); },
+		[=] { update(); },
 		from,
 		to,
 		st::profileDropAreaDuration);

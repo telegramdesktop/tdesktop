@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "calls/calls_instance.h"
 #include "ui/text_options.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "data/data_media_types.h"
@@ -138,7 +139,7 @@ struct HistoryPoll::AnswerAnimation {
 
 struct HistoryPoll::AnswersAnimation {
 	std::vector<AnswerAnimation> data;
-	Animation progress;
+	Ui::Animations::Simple progress;
 };
 
 struct HistoryPoll::SendingAnimation {
@@ -512,7 +513,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, crl:
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
 	const auto progress = _answersAnimation
-		? _answersAnimation->progress.current(ms, 1.)
+		? _answersAnimation->progress.value(1.)
 		: 1.;
 	if (progress == 1.) {
 		resetAnswersAnimation();
@@ -538,8 +539,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, crl:
 			tshift,
 			paintw,
 			width(),
-			selection,
-			ms);
+			selection);
 		tshift += height;
 	}
 	if (!_totalVotesLabel.isEmpty()) {
@@ -577,8 +577,7 @@ int HistoryPoll::paintAnswer(
 		int top,
 		int width,
 		int outerWidth,
-		TextSelection selection,
-		crl::time ms) const {
+		TextSelection selection) const {
 	const auto height = countAnswerHeight(answer, width);
 	const auto outbg = _parent->hasOutLayout();
 	const auto aleft = left + st::historyPollAnswerPadding.left();
@@ -588,7 +587,7 @@ int HistoryPoll::paintAnswer(
 
 	if (answer.ripple) {
 		p.setOpacity(st::historyPollRippleOpacity);
-		answer.ripple->paint(p, left - st::msgPadding.left(), top, outerWidth, ms);
+		answer.ripple->paint(p, left - st::msgPadding.left(), top, outerWidth);
 		if (answer.ripple->empty()) {
 			answer.ripple.reset();
 		}

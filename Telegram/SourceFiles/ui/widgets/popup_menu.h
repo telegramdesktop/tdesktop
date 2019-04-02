@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/menu.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 
 namespace Ui {
@@ -114,12 +115,12 @@ private:
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
 	std::unique_ptr<PanelAnimation> _showAnimation;
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 
 	bool _useTransparency = true;
 	bool _hiding = false;
 	QPixmap _cache;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	bool _deleteOnHide = true;
 	bool _triggering = false;

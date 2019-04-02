@@ -93,8 +93,7 @@ public:
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) override;
+		int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -319,8 +318,7 @@ void DefaultTheme::paint(
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) {
+		int outerWidth) {
 	const auto received = QRect(
 		st::settingsThemeBubblePosition,
 		st::settingsThemeBubbleSize);
@@ -347,8 +345,7 @@ void DefaultTheme::paint(
 		p,
 		(outerWidth - radio.width()) / 2,
 		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
-		outerWidth,
-		crl::now());
+		outerWidth);
 }
 
 QImage DefaultTheme::prepareRippleMask() const {
@@ -799,7 +796,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			return Type(-1);
 		}
 		const auto path = Window::Theme::Background()->themeAbsolutePath();
-		for (const auto scheme : schemes) {
+		for (const auto &scheme : schemes) {
 			if (path == scheme.path) {
 				return scheme.type;
 			}

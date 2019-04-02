@@ -202,7 +202,7 @@ void paintRow(
 		? st::dialogsRippleBgActive
 		: st::dialogsRippleBg;
 	p.fillRect(fullRect, bg);
-	row->paintRipple(p, 0, 0, fullWidth, ms, &ripple->c);
+	row->paintRipple(p, 0, 0, fullWidth, &ripple->c);
 
 	if (flags & Flag::OnlyBackground) {
 		return;

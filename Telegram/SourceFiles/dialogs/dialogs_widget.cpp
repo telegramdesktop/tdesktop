@@ -125,7 +125,7 @@ void DialogsWidget::BottomButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(r, over ? _st.overBgColor : _st.bgColor);
 
 	if (!isDisabled()) {
-		paintRipple(p, 0, 0, crl::now());
+		paintRipple(p, 0, 0);
 	}
 
 	p.setFont(over ? _st.overFont : _st.font);
@@ -333,7 +333,7 @@ void DialogsWidget::dialogsToUp() {
 		return;
 	}
 	if (_filter->getLastText().trimmed().isEmpty() && !_searchInChat) {
-		_scrollToAnimation.finish();
+		_scrollToAnimation.stop();
 		auto scrollTop = _scroll->scrollTop();
 		const auto scrollTo = 0;
 		const auto maxAnimatedDelta = _scroll->height();
@@ -342,8 +342,8 @@ void DialogsWidget::dialogsToUp() {
 			_scroll->scrollToY(scrollTop);
 		}
 
-		const auto scroll = [&] {
-			_scroll->scrollToY(qRound(_scrollToAnimation.current()));
+		const auto scroll = [=] {
+			_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
 		};
 
 		_scrollToAnimation.start(
@@ -394,7 +394,7 @@ void DialogsWidget::showFast() {
 void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
 	_showDirection = direction;
 
-	_a_show.finish();
+	_a_show.stop();
 
 	_cacheUnder = params.oldContentCache;
 	show();
@@ -1448,7 +1448,7 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	auto progress = _a_show.current(crl::now(), 1.);
+	auto progress = _a_show.value(1.);
 	if (_a_show.animating()) {
 		auto retina = cIntRetinaFactor();
 		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);

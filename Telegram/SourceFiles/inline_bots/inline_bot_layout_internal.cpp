@@ -174,8 +174,8 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 
 	if (radial || _gif.isBad() || (!_gif && !loaded && !loading)) {
 		auto radialOpacity = (radial && loaded) ? _animation->radial.opacity() : 1.;
-		if (_animation && _animation->_a_over.animating(context->ms)) {
-			auto over = _animation->_a_over.current();
+		if (_animation && _animation->_a_over.animating()) {
+			auto over = _animation->_a_over.value(1.);
 			p.fillRect(r, anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = (_state & StateFlag::Over);
@@ -400,7 +400,7 @@ void Sticker::preload() const {
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	bool loaded = getShownDocument()->loaded();
 
-	auto over = _a_over.current(context->ms, _active ? 1. : 0.);
+	auto over = _a_over.value(_active ? 1. : 0.);
 	if (over > 0) {
 		p.setOpacity(over);
 		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
@@ -755,8 +755,8 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	auto inner = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
 	p.setPen(Qt::NoPen);
-	if (isThumbAnimation(context->ms)) {
-		auto over = _animation->a_thumbOver.current();
+	if (isThumbAnimation()) {
+		auto over = _animation->a_thumbOver.value(1.);
 		p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
 	} else {
 		bool over = ClickHandler::showAsActive(_document->loading() ? _cancel : _open);

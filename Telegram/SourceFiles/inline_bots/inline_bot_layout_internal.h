@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text.h"
 
@@ -103,11 +104,11 @@ private:
 		: radial(std::forward<Callback>(callback)) {
 		}
 		bool over = false;
-		Animation _a_over;
+		Ui::Animations::Simple _a_over;
 		Ui::RadialAnimation radial;
 	};
 	mutable std::unique_ptr<AnimationData> _animation;
-	mutable Animation _a_deleteOver;
+	mutable Ui::Animations::Simple _a_deleteOver;
 
 };
 
@@ -174,7 +175,7 @@ public:
 private:
 	QSize getThumbSize() const;
 
-	mutable Animation _a_over;
+	mutable Ui::Animations::Simple _a_over;
 	mutable bool _active = false;
 
 	mutable QPixmap _thumb;
@@ -261,9 +262,9 @@ private:
 			&& _animation->radial.animating()
 			&& radialAnimationCallback(now);
 	}
-	bool isThumbAnimation(crl::time ms) const {
+	bool isThumbAnimation() const {
 		if (_animation) {
-			if (_animation->a_thumbOver.animating(ms)) {
+			if (_animation->a_thumbOver.animating()) {
 				return true;
 			}
 			checkAnimationFinished();
@@ -276,7 +277,7 @@ private:
 		AnimationData(Callback &&radialCallback)
 		: radial(std::forward<Callback>(radialCallback)) {
 		}
-		Animation a_thumbOver;
+		Ui::Animations::Simple a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
 	mutable std::unique_ptr<AnimationData> _animation;

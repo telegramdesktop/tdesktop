@@ -60,7 +60,7 @@ public:
 	~RippleButton();
 
 protected:
-	void paintRipple(QPainter &p, int x, int y, crl::time ms, const QColor *colorOverride = nullptr);
+	void paintRipple(QPainter &p, int x, int y, const QColor *colorOverride = nullptr);
 
 	void onStateChanged(State was, StateChangeSource source) override;
 
@@ -116,7 +116,6 @@ public:
 		setNumbersText(QString::number(numbers), numbers);
 	}
 	void setWidthChangedCallback(Fn<void()> callback);
-	void stepNumbersAnimation(crl::time ms);
 	void finishNumbersAnimation();
 
 	int contentWidth() const;
@@ -182,7 +181,7 @@ private:
 	const style::icon *_iconOverrideOver = nullptr;
 	const style::color *_rippleColorOverride = nullptr;
 
-	Animation _a_over;
+	Ui::Animations::Simple _a_over;
 
 };
 

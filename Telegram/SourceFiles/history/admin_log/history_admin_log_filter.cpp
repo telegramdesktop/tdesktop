@@ -99,10 +99,9 @@ void UserCheckbox::setChecked(bool checked, NotifyAboutChange notify) {
 void UserCheckbox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
-	auto active = _check->currentAnimationValue(ms);
+	auto active = _check->currentAnimationValue();
 	auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y() + (_checkRect.y() - st::defaultBoxCheckbox.margin.top()), ms, &color);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y() + (_checkRect.y() - st::defaultBoxCheckbox.margin.top()), &color);
 
 	auto realCheckRect = myrtlrect(_checkRect);
 	if (realCheckRect.intersects(e->rect())) {

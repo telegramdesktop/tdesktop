@@ -121,13 +121,12 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 		Platform::StartTranslucentPaint(p, e);
 	}
 
-	auto ms = crl::now();
-	if (_a_show.animating(ms)) {
-		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
-			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
+	if (_a_show.animating()) {
+		if (auto opacity = _a_opacity.value(_hiding ? 0. : 1.)) {
+			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.value(1.), opacity);
 		}
-	} else if (_a_opacity.animating(ms)) {
-		p.setOpacity(_a_opacity.current(0.));
+	} else if (_a_opacity.animating()) {
+		p.setOpacity(_a_opacity.value(0.));
 		p.drawPixmap(0, 0, _cache);
 	} else if (_hiding || isHidden()) {
 		hideFinished();
@@ -308,12 +307,12 @@ void PopupMenu::hideFast() {
 	if (isHidden()) return;
 
 	_hiding = false;
-	_a_opacity.finish();
+	_a_opacity.stop();
 	hideFinished();
 }
 
 void PopupMenu::hideFinished() {
-	_a_show.finish();
+	_a_show.stop();
 	_cache = QPixmap();
 	if (!isHidden()) {
 		hide();
@@ -334,7 +333,7 @@ void PopupMenu::prepareCache() {
 void PopupMenu::startOpacityAnimation(bool hiding) {
 	_hiding = false;
 	if (!_useTransparency) {
-		_a_opacity.finish();
+		_a_opacity.stop();
 		if (hiding) {
 			hideFinished();
 		} else {
@@ -361,7 +360,7 @@ void PopupMenu::showStarted() {
 
 void PopupMenu::startShowAnimation() {
 	if (!_useTransparency) {
-		_a_show.finish();
+		_a_show.stop();
 		update();
 		return;
 	}
@@ -433,8 +432,8 @@ void PopupMenu::popup(const QPoint &p) {
 void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source) {
 	if (!parent && InactiveMacApplication()) {
 		_hiding = false;
-		_a_opacity.finish();
-		_a_show.finish();
+		_a_opacity.stop();
+		_a_show.stop();
 		_cache = QPixmap();
 		hide();
 		if (_deleteOnHide) {

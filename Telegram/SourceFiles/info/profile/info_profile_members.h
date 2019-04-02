@@ -117,7 +117,7 @@ private:
 	Ui::IconButton *_search = nullptr;
 	//Ui::CrossButton *_cancelSearch = nullptr;
 
-	//Animation _searchShownAnimation;
+	//Ui::Animations::Simple _searchShownAnimation;
 	//bool _searchShown = false;
 	//base::Timer _searchTimer;
 

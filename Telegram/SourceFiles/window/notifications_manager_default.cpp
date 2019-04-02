@@ -132,7 +132,7 @@ void Manager::demoMasterOpacityCallback() {
 }
 
 float64 Manager::demoMasterOpacity() const {
-	return _demoMasterOpacity.current(Global::NotificationsDemoIsShown() ? 0. : 1.);
+	return _demoMasterOpacity.value(Global::NotificationsDemoIsShown() ? 0. : 1.);
 }
 
 void Manager::checkLastInput() {
@@ -444,7 +444,7 @@ void Widget::hideAnimated(float64 duration, const anim::transition &func) {
 }
 
 void Widget::updateOpacity() {
-	setWindowOpacity(_a_opacity.current(_hiding ? 0. : 1.) * _manager->demoMasterOpacity());
+	setWindowOpacity(_a_opacity.value(_hiding ? 0. : 1.) * _manager->demoMasterOpacity());
 }
 
 void Widget::changeShift(int top) {
@@ -632,8 +632,8 @@ void Notification::paintEvent(QPaintEvent *e) {
 
 	auto buttonsLeft = st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft;
 	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
-	if (a_actionsOpacity.animating(crl::now())) {
-		p.setOpacity(a_actionsOpacity.current());
+	if (a_actionsOpacity.animating()) {
+		p.setOpacity(a_actionsOpacity.value(1.));
 		p.drawPixmapRight(st::notifyBorderWidth, buttonsTop, width(), _buttonsCache);
 	} else if (_actionsVisible) {
 		p.drawPixmapRight(st::notifyBorderWidth, buttonsTop, width(), _buttonsCache);

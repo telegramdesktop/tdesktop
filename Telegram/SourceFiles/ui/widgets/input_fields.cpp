@@ -1557,7 +1557,6 @@ void InputField::handleTouchEvent(QTouchEvent *e) {
 void InputField::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto r = rect().intersected(e->rect());
 	if (_st.textBg->c.alphaF() > 0.) {
 		p.fillRect(r, _st.textBg);
@@ -1565,10 +1564,10 @@ void InputField::paintEvent(QPaintEvent *e) {
 	if (_st.border) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
 	}
-	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
-	auto borderShownDegree = _a_borderShown.current(ms, 1.);
-	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
+	auto errorDegree = _a_error.value(_error ? 1. : 0.);
+	auto focusedDegree = _a_focused.value(_focused ? 1. : 0.);
+	auto borderShownDegree = _a_borderShown.value(1.);
+	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
 		auto borderStart = snap(_borderAnimationStart, 0, width());
 		auto borderFrom = qRound(borderStart * (1. - borderShownDegree));
@@ -1582,7 +1581,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_st.placeholderScale > 0. && !_placeholderPath.isEmpty()) {
-		auto placeholderShiftDegree = _a_placeholderShifted.current(ms, _placeholderShifted ? 1. : 0.);
+		auto placeholderShiftDegree = _a_placeholderShifted.value(_placeholderShifted ? 1. : 0.);
 		p.save();
 		p.setClipRect(r);
 
@@ -1605,7 +1604,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 
 		p.restore();
 	} else if (!_placeholder.isEmpty()) {
-		auto placeholderHiddenDegree = _a_placeholderShifted.current(ms, _placeholderShifted ? 1. : 0.);
+		auto placeholderHiddenDegree = _a_placeholderShifted.value(_placeholderShifted ? 1. : 0.);
 		if (placeholderHiddenDegree < 1.) {
 			p.setOpacity(1. - placeholderHiddenDegree);
 			p.save();
@@ -2273,11 +2272,11 @@ void InputField::selectAll() {
 }
 
 void InputField::finishAnimating() {
-	_a_focused.finish();
-	_a_error.finish();
-	_a_placeholderShifted.finish();
-	_a_borderShown.finish();
-	_a_borderOpacity.finish();
+	_a_focused.stop();
+	_a_error.stop();
+	_a_placeholderShifted.stop();
+	_a_borderShown.stop();
+	_a_borderOpacity.stop();
 	update();
 }
 
@@ -3603,16 +3602,15 @@ QRect MaskedInputField::getTextRect() const {
 void MaskedInputField::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto r = rect().intersected(e->rect());
 	p.fillRect(r, _st.textBg);
 	if (_st.border) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}
-	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
-	auto borderShownDegree = _a_borderShown.current(ms, 1.);
-	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
+	auto errorDegree = _a_error.value(_error ? 1. : 0.);
+	auto focusedDegree = _a_focused.value(_focused ? 1. : 0.);
+	auto borderShownDegree = _a_borderShown.value(1.);
+	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
 		auto borderStart = snap(_borderAnimationStart, 0, width());
 		auto borderFrom = qRound(borderStart * (1. - borderShownDegree));
@@ -3627,7 +3625,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 
 	p.setClipRect(r);
 	if (_st.placeholderScale > 0. && !_placeholderPath.isEmpty()) {
-		auto placeholderShiftDegree = _a_placeholderShifted.current(ms, _placeholderShifted ? 1. : 0.);
+		auto placeholderShiftDegree = _a_placeholderShifted.value(_placeholderShifted ? 1. : 0.);
 		p.save();
 		p.setClipRect(r);
 
@@ -3650,7 +3648,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 
 		p.restore();
 	} else if (!_placeholder.isEmpty()) {
-		auto placeholderHiddenDegree = _a_placeholderShifted.current(ms, _placeholderShifted ? 1. : 0.);
+		auto placeholderHiddenDegree = _a_placeholderShifted.value(_placeholderShifted ? 1. : 0.);
 		if (placeholderHiddenDegree < 1.) {
 			p.setOpacity(1. - placeholderHiddenDegree);
 			p.save();
@@ -3671,7 +3669,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 		}
 	}
 
-	paintAdditionalPlaceholder(p, ms);
+	paintAdditionalPlaceholder(p);
 	QLineEdit::paintEvent(e);
 }
 
@@ -3685,9 +3683,9 @@ void MaskedInputField::startBorderAnimation() {
 			} else {
 				_a_borderShown.start([this] { update(); }, 0., 1., _st.duration);
 			}
-		} else if (qFuzzyCompare(_a_borderShown.current(1.), 0.)) {
-			_a_borderShown.finish();
-			_a_borderOpacity.finish();
+		} else if (qFuzzyCompare(_a_borderShown.value(1.), 0.)) {
+			_a_borderShown.stop();
+			_a_borderOpacity.stop();
 		} else {
 			_a_borderOpacity.start([this] { update(); }, 1., 0., _st.duration);
 		}
@@ -3786,11 +3784,11 @@ void MaskedInputField::setDisplayFocused(bool focused) {
 }
 
 void MaskedInputField::finishAnimating() {
-	_a_focused.finish();
-	_a_error.finish();
-	_a_placeholderShifted.finish();
-	_a_borderShown.finish();
-	_a_borderOpacity.finish();
+	_a_focused.stop();
+	_a_error.stop();
+	_a_placeholderShifted.stop();
+	_a_borderShown.stop();
+	_a_borderOpacity.stop();
 	update();
 }
 
@@ -3811,7 +3809,7 @@ QRect MaskedInputField::placeholderRect() const {
 	return rect().marginsRemoved(_textMargins + _st.placeholderMargins);
 }
 
-void MaskedInputField::placeholderAdditionalPrepare(Painter &p, crl::time ms) {
+void MaskedInputField::placeholderAdditionalPrepare(Painter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 }
@@ -3940,7 +3938,7 @@ void CountryCodeInput::correctValue(
 PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st) : MaskedInputField(parent, st/*, lang(lng_phone_ph)*/) {
 }
 
-void PhonePartInput::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
+void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
 	if (!_pattern.isEmpty()) {
 		auto t = getDisplayedText();
 		auto ph = _additionalPlaceholder.mid(t.size());
@@ -3950,7 +3948,7 @@ void PhonePartInput::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
 			int tw = phFont()->width(t);
 			if (tw < phRect.width()) {
 				phRect.setLeft(phRect.left() + tw);
-				placeholderAdditionalPrepare(p, ms);
+				placeholderAdditionalPrepare(p);
 				p.drawText(phRect, ph, style::al_topleft);
 			}
 		}
@@ -4051,9 +4049,9 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	_additionalPlaceholder = QString();
 	if (!_pattern.isEmpty()) {
 		_additionalPlaceholder.reserve(20);
-		for (int i = 0, l = _pattern.size(); i < l; ++i) {
+		for (const auto part : _pattern) {
 			_additionalPlaceholder.append(' ');
-			_additionalPlaceholder.append(QString(_pattern.at(i), QChar(0x2212)));
+			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
 		}
 	}
 	setPlaceholderHidden(!_additionalPlaceholder.isEmpty());
@@ -4141,7 +4139,7 @@ void UsernameInput::setLinkPlaceholder(const QString &placeholder) {
 	}
 }
 
-void UsernameInput::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
+void UsernameInput::paintAdditionalPlaceholder(Painter &p) {
 	if (!_linkPlaceholder.isEmpty()) {
 		p.setFont(_st.font);
 		p.setPen(_st.placeholderFg);
@@ -4205,7 +4203,7 @@ void PhoneInput::clearText() {
 	correctValue(QString(), 0, phone, pos);
 }
 
-void PhoneInput::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
+void PhoneInput::paintAdditionalPlaceholder(Painter &p) {
 	if (!_pattern.isEmpty()) {
 		auto t = getDisplayedText();
 		auto ph = _additionalPlaceholder.mid(t.size());
@@ -4215,7 +4213,7 @@ void PhoneInput::paintAdditionalPlaceholder(Painter &p, crl::time ms) {
 			int tw = phFont()->width(t);
 			if (tw < phRect.width()) {
 				phRect.setLeft(phRect.left() + tw);
-				placeholderAdditionalPrepare(p, ms);
+				placeholderAdditionalPrepare(p);
 				p.drawText(phRect, ph, style::al_topleft);
 			}
 		}

@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/variable.h>
-#include <rpl/event_stream.h>
 #include "window/section_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Storage {
 enum class SharedMediaType : signed char;
@@ -209,7 +208,7 @@ private:
 	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
 	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
-	Animation _topBarOverrideAnimation;
+	Ui::Animations::Simple _topBarOverrideAnimation;
 	bool _topBarOverrideShown = false;
 
 	object_ptr<Ui::FadeShadow> _topShadow;

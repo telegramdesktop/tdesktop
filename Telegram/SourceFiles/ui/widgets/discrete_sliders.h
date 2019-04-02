@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -49,7 +49,7 @@ protected:
 		std::unique_ptr<RippleAnimation> ripple;
 	};
 
-	int getCurrentActiveLeft(crl::time ms);
+	int getCurrentActiveLeft();
 
 	int getSectionsCount() const {
 		return _sections.size();
@@ -65,7 +65,7 @@ protected:
 	}
 
 	void stopAnimation() {
-		_a_left.finish();
+		_a_left.stop();
 	}
 
 	void setSelectOnPress(bool selectOnPress);
@@ -86,7 +86,7 @@ private:
 
 	int _pressed = -1;
 	int _selected = 0;
-	Animation _a_left;
+	Ui::Animations::Simple _a_left;
 
 	int _timerId = -1;
 	crl::time _callbackAfterMs = 0;

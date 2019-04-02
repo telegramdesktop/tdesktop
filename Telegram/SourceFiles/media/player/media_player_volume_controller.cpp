@@ -117,9 +117,9 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_cache.isNull()) {
-		bool animating = _a_appearance.animating(crl::now());
+		bool animating = _a_appearance.animating();
 		if (animating) {
-			p.setOpacity(_a_appearance.current(_hiding));
+			p.setOpacity(_a_appearance.value(_hiding ? 0. : 1.));
 		} else if (_hiding || isHidden()) {
 			hidingFinished();
 			return;
@@ -142,7 +142,7 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 
 void VolumeWidget::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
-	if (_a_appearance.animating(crl::now())) {
+	if (_a_appearance.animating()) {
 		onShowStart();
 	} else {
 		_showTimer.start(0);
@@ -152,7 +152,7 @@ void VolumeWidget::enterEventHook(QEvent *e) {
 
 void VolumeWidget::leaveEventHook(QEvent *e) {
 	_showTimer.stop();
-	if (_a_appearance.animating(crl::now())) {
+	if (_a_appearance.animating()) {
 		onHideStart();
 	} else {
 		_hideTimer.start(300);
@@ -162,7 +162,7 @@ void VolumeWidget::leaveEventHook(QEvent *e) {
 
 void VolumeWidget::otherEnter() {
 	_hideTimer.stop();
-	if (_a_appearance.animating(crl::now())) {
+	if (_a_appearance.animating()) {
 		onShowStart();
 	} else {
 		_showTimer.start(0);
@@ -171,7 +171,7 @@ void VolumeWidget::otherEnter() {
 
 void VolumeWidget::otherLeave() {
 	_showTimer.stop();
-	if (_a_appearance.animating(crl::now())) {
+	if (_a_appearance.animating()) {
 		onHideStart();
 	} else {
 		_hideTimer.start(0);
@@ -196,14 +196,16 @@ void VolumeWidget::onHideStart() {
 }
 
 void VolumeWidget::startAnimation() {
-	auto from = _hiding ? 1. : 0.;
-	auto to = _hiding ? 0. : 1.;
 	if (_cache.isNull()) {
 		showChildren();
 		_cache = Ui::GrabWidget(this);
 	}
 	hideChildren();
-	_a_appearance.start([this] { appearanceCallback(); }, from, to, st::defaultInnerDropdown.duration);
+	_a_appearance.start(
+		[=] { appearanceCallback(); },
+		_hiding ? 1. : 0.,
+		_hiding ? 0. : 1.,
+		st::defaultInnerDropdown.duration);
 }
 
 void VolumeWidget::appearanceCallback() {

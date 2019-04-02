@@ -31,9 +31,9 @@ void RippleRow::stopLastRipple() {
 	}
 }
 
-void RippleRow::paintRipple(Painter &p, int x, int y, int outerWidth, crl::time ms, const QColor *colorOverride) const {
+void RippleRow::paintRipple(Painter &p, int x, int y, int outerWidth, const QColor *colorOverride) const {
 	if (_ripple) {
-		_ripple->paint(p, x, y, outerWidth, ms, colorOverride);
+		_ripple->paint(p, x, y, outerWidth, colorOverride);
 		if (_ripple->empty()) {
 			_ripple.reset();
 		}

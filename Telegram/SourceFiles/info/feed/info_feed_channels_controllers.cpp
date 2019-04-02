@@ -39,7 +39,6 @@ public:
 	QMargins actionMargins() const override;
 	void paintAction(
 		Painter &p,
-		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,
@@ -77,7 +76,6 @@ QMargins ChannelsController::Row::actionMargins() const {
 
 void ChannelsController::Row::paintAction(
 		Painter &p,
-		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,

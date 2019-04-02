@@ -40,7 +40,7 @@ void Show(const QString &text) {
 }
 
 void Instance::opacityAnimationCallback() {
-	_widget->setShownLevel(_a_opacity.current(_hiding ? 0. : 1.));
+	_widget->setShownLevel(_a_opacity.value(_hiding ? 0. : 1.));
 	_widget->update();
 	if (!_a_opacity.animating()) {
 		if (_hiding) {

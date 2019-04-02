@@ -2652,8 +2652,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 				p,
 				_groupThumbsLeft,
 				_groupThumbsTop,
-				width(),
-				ms);
+				width());
 			if (_groupThumbs->hidden()) {
 				_groupThumbs = nullptr;
 				_groupThumbsRect = QRect();

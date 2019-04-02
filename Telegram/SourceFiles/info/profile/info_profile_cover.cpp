@@ -43,8 +43,7 @@ public:
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) override;
+		int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -71,8 +70,7 @@ void SectionToggle::paint(
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) {
+		int outerWidth) {
 	auto sqrt2 = sqrt(2.);
 	auto vLeft = rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
 	auto vTop = top + _st.skip + 0.;
@@ -89,7 +87,7 @@ void SectionToggle::paint(
 		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) + vStroke },
 	} };
 
-	auto toggled = currentAnimationValue(ms);
+	auto toggled = currentAnimationValue();
 	auto alpha = (toggled - 1.) * M_PI_2;
 	auto cosalpha = cos(alpha);
 	auto sinalpha = sin(alpha);

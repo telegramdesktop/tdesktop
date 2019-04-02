@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Window {
 class Controller;
@@ -200,11 +201,11 @@ private:
 		bool hiddenByHistory = false;
 		bool visible = false;
 		RectPart animationSide;
-		Animation visibleAnimation;
+		Ui::Animations::Simple visibleAnimation;
 		Window::Column column;
 		RectPart corner;
 		QPoint dragFrom;
-		Animation draggedAnimation;
+		Ui::Animations::Simple draggedAnimation;
 		bool hiddenByDrag = false;
 		object_ptr<Float> widget;
 	};

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 class RoundButton;
@@ -41,7 +42,7 @@ private:
 	void handleTimer();
 
 	bool _hiding = false;
-	Animation _animation;
+	Ui::Animations::Simple _animation;
 	QPixmap _cache;
 	QRect _inner, _outer;
 

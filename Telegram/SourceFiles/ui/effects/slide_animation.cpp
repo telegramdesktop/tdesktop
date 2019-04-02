@@ -18,8 +18,8 @@ void SlideAnimation::setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot) {
 	_rightSnapshot.setDevicePixelRatio(cRetinaFactor());
 }
 
-void SlideAnimation::paintFrame(Painter &p, int x, int y, int outerWidth, crl::time ms) {
-	auto dt = _animation.current(ms, 1.);
+void SlideAnimation::paintFrame(Painter &p, int x, int y, int outerWidth) {
+	auto dt = _animation.value(1.);
 	if (!animating()) return;
 
 	auto easeOut = anim::easeOutCirc(1., dt);

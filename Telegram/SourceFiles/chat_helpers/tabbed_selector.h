@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "auth_session.h"
@@ -149,7 +150,7 @@ private:
 		SelectorTab type,
 		not_null<Window::Controller*> controller);
 
-	void paintSlideFrame(Painter &p, crl::time ms);
+	void paintSlideFrame(Painter &p);
 	void paintContent(Painter &p);
 
 	void checkRestrictedPeer();
@@ -191,7 +192,7 @@ private:
 
 	class SlideAnimation;
 	std::unique_ptr<SlideAnimation> _slideAnimation;
-	Animation _a_slide;
+	Ui::Animations::Simple _a_slide;
 
 	object_ptr<Ui::SettingsSlider> _tabsSlider = { nullptr };
 	object_ptr<Ui::PlainShadow> _topShadow;

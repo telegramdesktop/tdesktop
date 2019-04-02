@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "calls/calls_call.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -126,7 +127,7 @@ private:
 	object_ptr<Ui::FadeWrap<Button>> _decline;
 	object_ptr<Ui::FadeWrap<Button>> _cancel;
 	bool _hangupShown = false;
-	Animation _hangupShownProgress;
+	Ui::Animations::Simple _hangupShownProgress;
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
@@ -142,7 +143,7 @@ private:
 	PhotoId _userPhotoId = 0;
 	bool _userPhotoFull = false;
 
-	Animation _opacityAnimation;
+	Ui::Animations::Simple _opacityAnimation;
 	QPixmap _animationCache;
 	QPixmap _bottomCache;
 	QPixmap _cache;

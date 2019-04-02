@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
+
 namespace Ui {
 
 class SlideAnimation {
@@ -20,14 +22,14 @@ public:
 	template <typename Lambda>
 	void start(bool slideLeft, Lambda &&updateCallback, float64 duration);
 
-	void paintFrame(Painter &p, int x, int y, int outerWidth, crl::time ms);
+	void paintFrame(Painter &p, int x, int y, int outerWidth);
 
 	bool animating() const {
 		return _animation.animating();
 	}
 
 private:
-	Animation _animation;
+	Ui::Animations::Simple _animation;
 	QPixmap _leftSnapshot;
 	QPixmap _rightSnapshot;
 	bool _slideLeft = false;

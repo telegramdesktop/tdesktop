@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/view/export_view_progress.h"
 
+#include "ui/effects/animations.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
@@ -35,10 +36,10 @@ private:
 		base::unique_qptr<Ui::FadeWrap<Ui::FlatLabel>> info;
 
 		float64 value = 0.;
-		Animation progress;
+		Ui::Animations::Simple progress;
 
 		bool hiding = true;
-		Animation opacity;
+		Ui::Animations::Simple opacity;
 	};
 
 	void fillCurrentInstance();
@@ -77,7 +78,7 @@ void ProgressWidget::Row::updateData(Content::Row &&data) {
 		_current.info->entity()->setText(_data.info);
 		setInstanceProgress(_current, _data.progress);
 		if (nowId != wasId) {
-			_current.progress.finish();
+			_current.progress.stop();
 		}
 	}
 	updateControlsGeometry(width());
@@ -105,7 +106,7 @@ void ProgressWidget::Row::fillCurrentInstance() {
 	setInstanceProgress(_current, _data.progress);
 	toggleInstance(_current, true);
 	if (_data.id == "main") {
-		_current.opacity.finish();
+		_current.opacity.stop();
 		_current.label->finishAnimating();
 		_current.info->finishAnimating();
 	}
@@ -131,7 +132,7 @@ void ProgressWidget::Row::setInstanceProgress(
 			st::exportProgressDuration,
 			anim::sineInOut);
 	} else if (_current.value > progress) {
-		_current.progress.finish();
+		_current.progress.stop();
 	}
 	_current.value = progress;
 }
@@ -194,7 +195,7 @@ void ProgressWidget::Row::paintEvent(QPaintEvent *e) {
 }
 
 void ProgressWidget::Row::paintInstance(Painter &p, const Instance &data) {
-	const auto opacity = data.opacity.current(data.hiding ? 0. : 1.);
+	const auto opacity = data.opacity.value(data.hiding ? 0. : 1.);
 
 	if (!opacity) {
 		return;
@@ -203,7 +204,7 @@ void ProgressWidget::Row::paintInstance(Painter &p, const Instance &data) {
 
 	const auto thickness = st::exportProgressWidth;
 	const auto top = height() - thickness;
-	const auto till = qRound(data.progress.current(data.value) * width());
+	const auto till = qRound(data.progress.value(data.value) * width());
 	if (till > 0) {
 		p.fillRect(0, top, till, thickness, st::exportProgressFg);
 	}

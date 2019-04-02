@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/abstract_button.h"
+#include "ui/effects/animations.h"
 #include "styles/style_media_player.h"
 
 namespace Media {
@@ -40,7 +41,7 @@ private:
 	State _state = State::Play;
 	State _oldState = State::Play;
 	State _nextState = State::Play;
-	Animation _transformProgress;
+	Ui::Animations::Simple _transformProgress;
 	bool _transformBackward = false;
 
 	Fn<void()> _callback;

@@ -47,7 +47,7 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto opacity = _a_opacity.current(crl::now(), _hiding ? 0. : 1.);
+	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity < 1.) {
 		if (opacity > 0.) {
 			p.setOpacity(opacity);
@@ -234,15 +234,15 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		bool listAllSuggestions = _filter.isEmpty();
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
-		for (auto i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
+		for (const auto &[tag, ratio] : recent) {
 			if (!listAllSuggestions
-				&& (i->first.size() == _filter.size()
-					|| !TextUtilities::RemoveAccents(i->first).startsWith(
+				&& (tag.size() == _filter.size()
+					|| !TextUtilities::RemoveAccents(tag).startsWith(
 						_filter,
 						Qt::CaseInsensitive))) {
 				continue;
 			}
-			hrows.push_back(i->first);
+			hrows.push_back(tag);
 		}
 	} else if (_type == Type::BotCommands) {
 		bool listAllSuggestions = _filter.isEmpty();
@@ -290,8 +290,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			brows.reserve(cnt);
 			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
-				for (auto i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
-					auto user = *i;
+				for (const auto &user : _chat->lastAuthors) {
 					if (!user->botInfo) continue;
 					if (!bots.contains(user)) continue;
 					if (!user->botInfo->inited) {
@@ -396,7 +395,7 @@ void FieldAutocomplete::recount(bool resetScroll) {
 }
 
 void FieldAutocomplete::hideFast() {
-	_a_opacity.finish();
+	_a_opacity.stop();
 	hideFinish();
 }
 

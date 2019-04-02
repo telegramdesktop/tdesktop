@@ -270,7 +270,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 	//auto searchShownLeft = st::infoIconPosition.x()
 	//	- st::infoMembersSearch.iconPosition.x();
 	//auto searchHiddenLeft = availableWidth - _search->width();
-	//auto searchShown = _searchShownAnimation.current(_searchShown ? 1. : 0.);
+	//auto searchShown = _searchShownAnimation.value(_searchShown ? 1. : 0.);
 	//auto searchCurrentLeft = anim::interpolate(
 	//	searchHiddenLeft,
 	//	searchShownLeft,

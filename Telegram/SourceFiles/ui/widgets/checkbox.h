@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/widgets/buttons.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
-#include <rpl/event_stream.h>
 
 namespace Ui {
 
@@ -24,7 +24,7 @@ public:
 		return _checked;
 	}
 	void update();
-	float64 currentAnimationValue(crl::time ms);
+	float64 currentAnimationValue();
 	bool animating() const;
 
 	auto checkedChanges() const {
@@ -36,16 +36,9 @@ public:
 
 	virtual QSize getSize() const = 0;
 
-	// Zero instead of ms value means that animation was already updated for this time.
-	// It can be passed to currentAnimationValue() safely.
-	virtual void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) = 0;
+	virtual void paint(Painter &p, int left, int top, int outerWidth) = 0;
 	virtual QImage prepareRippleMask() const = 0;
 	virtual bool checkRippleStartPosition(QPoint position) const = 0;
-
-	void paint(Painter &p, int left, int top, int outerWidth) {
-		// Pass zero in ms if the animation was already updated for this time.
-		paint(p, left, top, outerWidth, 0);
-	}
 
 	virtual ~AbstractCheckView() = default;
 
@@ -56,7 +49,7 @@ private:
 	int _duration = 0;
 	bool _checked = false;
 	Fn<void()> _updateCallback;
-	Animation _toggleAnimation;
+	Ui::Animations::Simple _toggleAnimation;
 
 	rpl::event_stream<bool> _checks;
 
@@ -72,7 +65,7 @@ public:
 	void setStyle(const style::Check &st);
 
 	QSize getSize() const override;
-	void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) override;
+	void paint(Painter &p, int left, int top, int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -100,7 +93,7 @@ public:
 	void setUntoggledOverride(std::optional<QColor> untoggledOverride);
 
 	QSize getSize() const override;
-	void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) override;
+	void paint(Painter &p, int left, int top, int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -123,7 +116,7 @@ public:
 	void setStyle(const style::Toggle &st);
 
 	QSize getSize() const override;
-	void paint(Painter &p, int left, int top, int outerWidth, crl::time ms) override;
+	void paint(Painter &p, int left, int top, int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 	void setLocked(bool locked);

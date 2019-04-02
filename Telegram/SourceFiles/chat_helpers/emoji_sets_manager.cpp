@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
@@ -119,8 +120,8 @@ private:
 	void setupPreview(const Set &set);
 	void setupAnimation();
 	void paintPreview(Painter &p) const;
-	void paintRadio(Painter &p, crl::time ms);
-	void updateAnimation(crl::time ms);
+	void paintRadio(Painter &p, crl::time now);
+	void updateAnimation(crl::time now);
 	void setupHandler();
 	void load();
 
@@ -131,8 +132,8 @@ private:
 	rpl::variable<SetState> _state;
 	Ui::FlatLabel *_status = nullptr;
 	std::array<QPixmap, 4> _preview;
-	Animation _toggled;
-	Animation _active;
+	Ui::Animations::Simple _toggled;
+	Ui::Animations::Simple _active;
 	std::unique_ptr<Ui::RadialAnimation> _loading;
 
 };
@@ -355,11 +356,9 @@ void Row::paintEvent(QPaintEvent *e) {
 	const auto bg = over ? st::windowBgOver : st::windowBg;
 	p.fillRect(rect(), bg);
 
-	const auto ms = crl::now();
-	paintRipple(p, 0, 0, ms);
-
+	paintRipple(p, 0, 0);
 	paintPreview(p);
-	paintRadio(p, ms);
+	paintRadio(p, crl::now());
 }
 
 void Row::paintPreview(Painter &p) const {
@@ -377,16 +376,16 @@ void Row::paintPreview(Painter &p) const {
 	}
 }
 
-void Row::paintRadio(Painter &p, crl::time ms) {
-	updateAnimation(ms);
+void Row::paintRadio(Painter &p, crl::time now) {
+	updateAnimation(now);
 
 	const auto loading = _loading
 		? _loading->computeState()
 		: Ui::RadialState{ 0., 0, FullArcLength };
 	const auto isToggledSet = _state.current().is<Active>();
 	const auto isActiveSet = isToggledSet || _state.current().is<Loading>();
-	const auto toggled = _toggled.current(ms, isToggledSet ? 1. : 0.);
-	const auto active = _active.current(ms, isActiveSet ? 1. : 0.);
+	const auto toggled = _toggled.value(isToggledSet ? 1. : 0.);
+	const auto active = _active.value(isActiveSet ? 1. : 0.);
 	const auto _st = &st::defaultRadio;
 
 	PainterHighQualityEnabler hq(p);
@@ -466,7 +465,7 @@ void Row::onStateChanged(State was, StateChangeSource source) {
 
 void Row::updateStatusColorOverride() {
 	const auto isToggledSet = _state.current().is<Active>();
-	const auto toggled = _toggled.current(isToggledSet ? 1. : 0.);
+	const auto toggled = _toggled.value(isToggledSet ? 1. : 0.);
 	const auto over = showOver();
 	if (toggled == 0. && !over) {
 		_status->setTextColorOverride(std::nullopt);
@@ -620,12 +619,12 @@ void Row::setupAnimation() {
 			st::defaultRadio.duration);
 	}, lifetime());
 
-	_toggled.finish();
-	_active.finish();
+	_toggled.stop();
+	_active.stop();
 	updateStatusColorOverride();
 }
 
-void Row::updateAnimation(crl::time ms) {
+void Row::updateAnimation(crl::time now) {
 	const auto state = _state.current();
 	if (const auto loading = base::get_if<Loading>(&state)) {
 		const auto progress = (loading->size > 0)
@@ -636,10 +635,10 @@ void Row::updateAnimation(crl::time ms) {
 				[=] { radialAnimationCallback(); });
 			_loading->start(progress);
 		} else {
-			_loading->update(progress, false, crl::now());
+			_loading->update(progress, false, now);
 		}
 	} else if (_loading) {
-		_loading->update(state.is<Failed>() ? 0. : 1., true, crl::now());
+		_loading->update(state.is<Failed>() ? 0. : 1., true, now);
 	} else {
 		_loading = nullptr;
 	}

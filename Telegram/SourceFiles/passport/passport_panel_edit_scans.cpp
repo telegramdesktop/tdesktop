@@ -119,7 +119,7 @@ struct EditScans::SpecialScan {
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> row;
 	QPointer<Info::Profile::Button> upload;
 	bool errorShown = false;
-	Animation errorAnimation;
+	Ui::Animations::Simple errorAnimation;
 	rpl::variable<bool> rowCreated;
 };
 
@@ -231,7 +231,7 @@ void EditScans::List::toggleError(bool shown) {
 }
 
 void EditScans::List::errorAnimationCallback() {
-	const auto error = errorAnimation.current(errorShown ? 1. : 0.);
+	const auto error = errorAnimation.value(errorShown ? 1. : 0.);
 	if (error == 0.) {
 		upload->setColorOverride(std::nullopt);
 	} else {
@@ -972,7 +972,7 @@ void EditScans::toggleSpecialScanError(FileType type, bool shown) {
 
 void EditScans::specialScanErrorAnimationCallback(FileType type) {
 	auto &scan = findSpecialScan(type);
-	const auto error = scan.errorAnimation.current(
+	const auto error = scan.errorAnimation.value(
 		scan.errorShown ? 1. : 0.);
 	if (error == 0.) {
 		scan.upload->setColorOverride(std::nullopt);

@@ -30,7 +30,7 @@ public:
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	void stopLastRipple();
 
-	void paintRipple(Painter &p, int x, int y, int outerWidth, crl::time ms, const QColor *colorOverride = nullptr) const;
+	void paintRipple(Painter &p, int x, int y, int outerWidth, const QColor *colorOverride = nullptr) const;
 
 private:
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;

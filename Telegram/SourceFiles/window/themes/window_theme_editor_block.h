@@ -107,7 +107,7 @@ private:
 	Row *findRow(const QString &name);
 	int findRowIndex(const Row *row);
 	void updateRow(const Row &row);
-	void paintRow(Painter &p, int index, const Row &row, crl::time ms);
+	void paintRow(Painter &p, int index, const Row &row);
 
 	void updateSelected(QPoint localPosition);
 	void setSelected(int selected);

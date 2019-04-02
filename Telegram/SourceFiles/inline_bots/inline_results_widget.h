@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/twidget.h"
 #include "ui/abstract_button.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
@@ -245,11 +246,11 @@ private:
 	int _bottom = 0;
 
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 
 	bool _hiding = false;
 	QPixmap _cache;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 	bool _inPanelGrab = false;
 
 	object_ptr<Ui::ScrollArea> _scroll;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_item_components.h"
+#include "ui/effects/animations.h"
 #include "base/weak_ptr.h"
 
 class SharedMediaWithLastSlice;
@@ -57,7 +58,7 @@ public:
 	bool hidden() const;
 	void checkForAnimationStart();
 
-	void paint(Painter &p, int x, int y, int outerWidth, crl::time ms);
+	void paint(Painter &p, int x, int y, int outerWidth);
 	ClickHandlerPtr getState(QPoint point) const;
 
 	rpl::producer<QRect> updateRequests() const {
@@ -112,7 +113,7 @@ private:
 
 	Context _context;
 	bool _waitingForAnimationStart = true;
-	Animation _animation;
+	Ui::Animations::Simple _animation;
 	std::vector<not_null<Thumb*>> _items;
 	std::vector<not_null<Thumb*>> _dying;
 	base::flat_map<Key, std::unique_ptr<Thumb>> _cache;

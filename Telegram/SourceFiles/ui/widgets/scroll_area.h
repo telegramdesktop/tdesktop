@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -102,9 +102,9 @@ private:
 	crl::time _hideIn = 0;
 	QTimer _hideTimer;
 
-	Animation _a_over;
-	Animation _a_barOver;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_over;
+	Ui::Animations::Simple _a_barOver;
+	Ui::Animations::Simple _a_opacity;
 
 	QRect _bar;
 };

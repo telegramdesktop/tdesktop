@@ -40,7 +40,7 @@ void LockWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	_showBack = back;
 	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
 
-	_a_show.finish();
+	_a_show.stop();
 
 	showChildren();
 	setInnerFocus();
@@ -71,7 +71,7 @@ void LockWidget::animationCallback() {
 void LockWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto progress = _a_show.current(crl::now(), 1.);
+	auto progress = _a_show.value(1.);
 	if (_a_show.animating()) {
 		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
 		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
@@ -258,9 +258,8 @@ void TermsBox::prepare() {
 	});
 
 	const auto errorAnimationCallback = [=] {
-		// lambda 'this' gets deleted in _ageErrorAnimation.current() call.
 		const auto check = ageCheck;
-		const auto error = _ageErrorAnimation.current(
+		const auto error = _ageErrorAnimation.value(
 			_ageErrorShown ? 1. : 0.);
 		if (error == 0.) {
 			check->setUntoggledOverride(std::nullopt);

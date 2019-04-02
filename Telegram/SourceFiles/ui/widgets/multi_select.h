@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 
@@ -132,7 +133,7 @@ private:
 	QMargins itemPaintMargins() const;
 
 	const style::MultiSelect &_st;
-	Animation _iconOpacity;
+	Ui::Animations::Simple _iconOpacity;
 
 	ScrollCallback _scrollCallback;
 
@@ -151,7 +152,7 @@ private:
 	object_ptr<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
-	Animation _height;
+	Ui::Animations::Simple _height;
 
 	Fn<void(const QString &query)> _queryChangedCallback;
 	Fn<void(Qt::KeyboardModifiers)> _submittedCallback;
@@ -187,7 +188,7 @@ public:
 		_updateCallback = updateCallback;
 	}
 	void setText(const QString &text);
-	void paint(Painter &p, int outerWidth, crl::time ms);
+	void paint(Painter &p, int outerWidth);
 
 	void mouseMoveEvent(QPoint point);
 	void leaveEvent();
@@ -205,7 +206,7 @@ public:
 
 private:
 	void setOver(bool over);
-	void paintOnce(Painter &p, int x, int y, int outerWidth, crl::time ms);
+	void paintOnce(Painter &p, int x, int y, int outerWidth);
 	void paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity);
 	bool paintCached(Painter &p, int x, int y, int outerWidth);
 	void prepareCache();
@@ -221,7 +222,7 @@ private:
 			, y(y) {
 			x.start(updateCallback, fromX, toX, duration);
 		}
-		Animation x;
+		Ui::Animations::Simple x;
 		int fromX, toX;
 		int y;
 	};
@@ -233,8 +234,8 @@ private:
 	style::color _color;
 	bool _over = false;
 	QPixmap _cache;
-	Animation _visibility;
-	Animation _overOpacity;
+	Ui::Animations::Simple _visibility;
+	Ui::Animations::Simple _overOpacity;
 	bool _overDelete = false;
 	bool _active = false;
 	PaintRoundImage _paintRoundImage;

@@ -124,7 +124,7 @@ private:
 	object_ptr<Ui::LinkButton> _link;
 	rpl::variable<QString> _value;
 	bool _errorShown = false;
-	Animation _errorAnimation;
+	Ui::Animations::Simple _errorAnimation;
 
 };
 
@@ -197,14 +197,14 @@ private:
 	rpl::variable<QString> _value;
 
 	style::cursor _cursor = style::cur_default;
-	Animation _a_borderShown;
+	Ui::Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Animation _a_borderOpacity;
+	Ui::Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Animation _a_error;
+	Ui::Animations::Simple _a_error;
 	bool _error = false;
-	Animation _a_focused;
+	Ui::Animations::Simple _a_focused;
 	bool _focused = false;
 
 };
@@ -248,7 +248,7 @@ private:
 	rpl::variable<QString> _value;
 
 	bool _errorShown = false;
-	Animation _errorAnimation;
+	Ui::Animations::Simple _errorAnimation;
 
 };
 
@@ -344,7 +344,7 @@ void CountryRow::showInnerError() {
 
 void CountryRow::finishInnerAnimating() {
 	if (_errorAnimation.animating()) {
-		_errorAnimation.finish();
+		_errorAnimation.stop();
 		errorAnimationCallback();
 	}
 }
@@ -365,7 +365,7 @@ void CountryRow::toggleError(bool shown) {
 }
 
 void CountryRow::errorAnimationCallback() {
-	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
+	const auto error = _errorAnimation.value(_errorShown ? 1. : 0.);
 	if (error == 0.) {
 		_link->setColorOverride(std::nullopt);
 	} else {
@@ -676,11 +676,10 @@ void DateRow::paintEvent(QPaintEvent *e) {
 	if (_st.border) {
 		p.fillRect(0, height - _st.border, width, _st.border, _st.borderFg);
 	}
-	const auto ms = crl::now();
-	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
-	auto borderShownDegree = _a_borderShown.current(ms, 1.);
-	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
+	auto errorDegree = _a_error.value(_error ? 1. : 0.);
+	auto focusedDegree = _a_focused.value(_focused ? 1. : 0.);
+	auto borderShownDegree = _a_borderShown.value(1.);
+	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
 		auto borderStart = snap(_borderAnimationStart, 0, width);
 		auto borderFrom = qRound(borderStart * (1. - borderShownDegree));
@@ -818,9 +817,9 @@ void DateRow::finishInnerAnimating() {
 	_day->finishAnimating();
 	_month->finishAnimating();
 	_year->finishAnimating();
-	_a_borderOpacity.finish();
-	_a_borderShown.finish();
-	_a_error.finish();
+	_a_borderOpacity.stop();
+	_a_borderShown.stop();
+	_a_error.stop();
 }
 
 void DateRow::startBorderAnimation() {
@@ -914,7 +913,7 @@ void GenderRow::showInnerError() {
 
 void GenderRow::finishInnerAnimating() {
 	if (_errorAnimation.animating()) {
-		_errorAnimation.finish();
+		_errorAnimation.stop();
 		errorAnimationCallback();
 	}
 }
@@ -935,7 +934,7 @@ void GenderRow::toggleError(bool shown) {
 }
 
 void GenderRow::errorAnimationCallback() {
-	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
+	const auto error = _errorAnimation.value(_errorShown ? 1. : 0.);
 	if (error == 0.) {
 		_maleRadio->setUntoggledOverride(std::nullopt);
 		_femaleRadio->setUntoggledOverride(std::nullopt);
@@ -1107,7 +1106,7 @@ void PanelDetailsRow::finishAnimating() {
 		_error->finishAnimating();
 	}
 	if (_errorAnimation.animating()) {
-		_errorAnimation.finish();
+		_errorAnimation.stop();
 		update();
 	}
 }
@@ -1115,8 +1114,7 @@ void PanelDetailsRow::finishAnimating() {
 void PanelDetailsRow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = crl::now();
-	const auto error = _errorAnimation.current(ms, _errorShown ? 1. : 0.);
+	const auto error = _errorAnimation.value(_errorShown ? 1. : 0.);
 	p.setFont(st::semiboldFont);
 	p.setPen(anim::pen(
 		st::passportDetailsField.placeholderFg,

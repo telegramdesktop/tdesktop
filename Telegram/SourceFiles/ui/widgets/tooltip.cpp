@@ -312,7 +312,7 @@ void ImportantTooltip::toggleFast(bool visible) {
 		setVisible(_visible);
 	}
 	if (_visibleAnimation.animating() || _visible != visible) {
-		_visibleAnimation.finish();
+		_visibleAnimation.stop();
 		_visible = visible;
 		checkAnimationFinish();
 	}
@@ -347,7 +347,7 @@ void ImportantTooltip::updateGeometry() {
 	accumulate_min(left, areaMiddle - _st.arrow - _st.arrowSkipMin);
 
 	auto countTop = [this] {
-		auto shift = anim::interpolate(_st.shift, 0, _visibleAnimation.current(_visible ? 1. : 0.));
+		auto shift = anim::interpolate(_st.shift, 0, _visibleAnimation.value(_visible ? 1. : 0.));
 		if (_side & RectPart::Top) {
 			return _area.y() - height() - shift;
 		}
@@ -375,7 +375,7 @@ void ImportantTooltip::paintEvent(QPaintEvent *e) {
 	auto inner = countInner();
 	if (_useTransparency) {
 		if (!_cache.isNull()) {
-			auto opacity = _visibleAnimation.current(_visible ? 1. : 0.);
+			auto opacity = _visibleAnimation.value(_visible ? 1. : 0.);
 			p.setOpacity(opacity);
 			p.drawPixmap(0, 0, _cache);
 		} else {

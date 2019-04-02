@@ -345,7 +345,6 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	p.setClipRect(r);
 
-	auto ms = crl::now();
 	int l = countriesNow->size();
 	if (l) {
 		if (r.intersects(QRect(0, 0, width(), st::countriesSkip))) {
@@ -359,7 +358,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 
 			p.fillRect(0, y, width(), _rowHeight, selected ? st::countryRowBgOver : st::countryRowBg);
 			if (_ripples.size() > i && _ripples[i]) {
-				_ripples[i]->paint(p, 0, y, width(), ms);
+				_ripples[i]->paint(p, 0, y, width());
 				if (_ripples[i]->empty()) {
 					_ripples[i].reset();
 				}

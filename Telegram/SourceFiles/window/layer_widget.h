@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "data/data_file_origin.h"
 
 namespace Window {
@@ -221,7 +222,7 @@ private:
 
 	not_null<Window::Controller*> _controller;
 
-	Animation _a_shown;
+	Ui::Animations::Simple _a_shown;
 	bool _hiding = false;
 	Data::FileOrigin _origin;
 	DocumentData *_document = nullptr;

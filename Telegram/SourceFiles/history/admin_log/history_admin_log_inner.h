@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/admin_log/history_admin_log_section.h"
-#include "ui/widgets/tooltip.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
+#include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
@@ -219,7 +220,7 @@ private:
 	int _visibleTopFromItem = 0;
 
 	bool _scrollDateShown = false;
-	Animation _scrollDateOpacity;
+	Ui::Animations::Simple _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
 	Element *_scrollDateLastItem = nullptr;

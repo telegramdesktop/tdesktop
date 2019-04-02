@@ -50,7 +50,6 @@ void PeerListWidget::visibleTopBottomUpdated(int visibleTop, int visibleBottom) 
 }
 
 void PeerListWidget::paintContents(Painter &p) {
-	auto ms = crl::now();
 	auto left = getListLeft();
 	auto top = getListTop();
 	auto memberRowWidth = rowWidth();
@@ -64,11 +63,11 @@ void PeerListWidget::paintContents(Painter &p) {
 		if (_pressed >= 0 && !_pressedRemove) {
 			selectedRemove = false;
 		}
-		paintItem(p, left, y, _items[i], selected, selectedRemove, ms);
+		paintItem(p, left, y, _items[i], selected, selectedRemove);
 	}
 }
 
-void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedKick, crl::time ms) {
+void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedKick) {
 	if (_updateItemCallback) {
 		_updateItemCallback(item);
 	}
@@ -78,7 +77,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 		paintOutlinedRect(p, x, y, memberRowWidth, _st.height);
 	}
 	if (auto &ripple = item->ripple) {
-		ripple->paint(p, x + _st.button.outlineWidth, y, width(), ms);
+		ripple->paint(p, x + _st.button.outlineWidth, y, width());
 		if (ripple->empty()) {
 			ripple.reset();
 		}

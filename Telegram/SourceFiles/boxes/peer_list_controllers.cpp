@@ -122,7 +122,6 @@ QMargins PeerListRowWithLink::actionMargins() const {
 
 void PeerListRowWithLink::paintAction(
 		Painter &p,
-		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,

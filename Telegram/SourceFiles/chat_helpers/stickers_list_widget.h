@@ -201,7 +201,7 @@ private:
 
 	void paintFeaturedStickers(Painter &p, QRect clip);
 	void paintStickers(Painter &p, QRect clip);
-	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected, crl::time ms);
+	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
 	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
 	void paintEmptySearchResults(Painter &p);
 

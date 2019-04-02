@@ -494,11 +494,9 @@ void TabbedSelector::updateRestrictedLabelGeometry() {
 void TabbedSelector::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
-
 	auto switching = (_slideAnimation != nullptr);
 	if (switching) {
-		paintSlideFrame(p, ms);
+		paintSlideFrame(p);
 		if (!_a_slide.animating()) {
 			_slideAnimation.reset();
 			afterShown();
@@ -509,7 +507,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void TabbedSelector::paintSlideFrame(Painter &p, crl::time ms) {
+void TabbedSelector::paintSlideFrame(Painter &p) {
 	if (_roundRadius > 0) {
 		if (full()) {
 			auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);
@@ -521,7 +519,7 @@ void TabbedSelector::paintSlideFrame(Painter &p, crl::time ms) {
 	} else if (full()) {
 		p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 	}
-	auto slideDt = _a_slide.current(ms, 1.);
+	auto slideDt = _a_slide.value(1.);
 	_slideAnimation->paintFrame(p, slideDt, 1.);
 }
 
@@ -621,7 +619,7 @@ void TabbedSelector::hideFinished() {
 		}
 		tab.widget()->panelHideFinished();
 	}
-	_a_slide.finish();
+	_a_slide.stop();
 	_slideAnimation.reset();
 }
 
@@ -631,7 +629,7 @@ void TabbedSelector::showStarted() {
 	}
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();
-	_a_slide.finish();
+	_a_slide.stop();
 	_slideAnimation.reset();
 	showAll();
 }

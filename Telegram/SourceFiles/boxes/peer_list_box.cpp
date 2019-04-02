@@ -457,9 +457,9 @@ void PeerListRow::stopLastRipple() {
 	}
 }
 
-void PeerListRow::paintRipple(Painter &p, crl::time ms, int x, int y, int outerWidth) {
+void PeerListRow::paintRipple(Painter &p, int x, int y, int outerWidth) {
 	if (_ripple) {
-		_ripple->paint(p, x, y, outerWidth, ms);
+		_ripple->paint(p, x, y, outerWidth);
 		if (_ripple->empty()) {
 			_ripple.reset();
 		}
@@ -469,14 +469,13 @@ void PeerListRow::paintRipple(Painter &p, crl::time ms, int x, int y, int outerW
 void PeerListRow::paintUserpic(
 		Painter &p,
 		const style::PeerListItem &st,
-		crl::time ms,
 		int x,
 		int y,
 		int outerWidth) {
 	if (_disabledState == State::DisabledChecked) {
 		paintDisabledCheckUserpic(p, st, x, y, outerWidth);
 	} else if (_checkbox) {
-		_checkbox->paint(p, ms, x, y, outerWidth);
+		_checkbox->paint(p, x, y, outerWidth);
 	} else if (_isSavedMessagesChat) {
 		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, st.photoSize);
 	} else {
@@ -1099,11 +1098,10 @@ crl::time PeerListContent::paintRow(Painter &p, crl::time ms, RowIndex index) {
 		? _st.item.button.textBgOver
 		: _st.item.button.textBg;
 	p.fillRect(0, 0, width(), _rowHeight, bg);
-	row->paintRipple(p, ms, 0, 0, width());
+	row->paintRipple(p, 0, 0, width());
 	row->paintUserpic(
 		p,
 		_st.item,
-		ms,
 		_st.item.photoPosition.x(),
 		_st.item.photoPosition.y(),
 		width());
@@ -1143,7 +1141,6 @@ crl::time PeerListContent::paintRow(Painter &p, crl::time ms, RowIndex index) {
 		auto actionTop = actionMargins.top();
 		row->paintAction(
 			p,
-			ms,
 			actionLeft,
 			actionTop,
 			width(),

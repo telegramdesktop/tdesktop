@@ -93,7 +93,7 @@ private:
 	};
 	std::deque<QueuedNotification> _queuedNotifications;
 
-	Animation _demoMasterOpacity;
+	Ui::Animations::Simple _demoMasterOpacity;
 
 	mutable QPixmap _hiddenUserpicPlaceholder;
 
@@ -147,7 +147,7 @@ private:
 	bool _hiding = false;
 	bool _deleted = false;
 	base::binary_guard _hidingDelayed;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	QPoint _startPosition;
 	Direction _direction;
@@ -214,7 +214,7 @@ private:
 
 	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
-	Animation a_actionsOpacity;
+	Ui::Animations::Simple a_actionsOpacity;
 	QPixmap _buttonsCache;
 
 	crl::time _started;

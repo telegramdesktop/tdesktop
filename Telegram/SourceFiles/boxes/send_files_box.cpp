@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/event_filter.h"
+#include "ui/effects/animations.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -122,8 +123,7 @@ public:
 		int left,
 		int top,
 		float64 shrinkProgress,
-		float64 moveProgress,
-		crl::time ms);
+		float64 moveProgress);
 	void paintPhoto(Painter &p, int left, int top, int outerWidth);
 	void paintFile(Painter &p, int left, int top, int outerWidth);
 
@@ -157,7 +157,7 @@ private:
 	int _statusWidth = 0;
 	bool _isVideo = false;
 	float64 _suggestedMove = 0.;
-	Animation _suggestedMoveAnimation;
+	Ui::Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
 
 };
@@ -290,10 +290,8 @@ void AlbumThumb::paintInAlbum(
 		int left,
 		int top,
 		float64 shrinkProgress,
-		float64 moveProgress,
-		crl::time ms) {
+		float64 moveProgress) {
 	const auto shrink = anim::interpolate(0, _shrinkSize, shrinkProgress);
-	_suggestedMoveAnimation.step(ms);
 	_lastShrinkValue = shrink;
 	const auto geometry = countCurrentGeometry(moveProgress);
 	const auto x = left + geometry.x();
@@ -540,7 +538,7 @@ void AlbumThumb::suggestMove(float64 delta, Fn<void()> callback) {
 
 QRect AlbumThumb::countRealGeometry() const {
 	const auto addLeft = int(std::round(
-		_suggestedMoveAnimation.current(_suggestedMove) * _lastShrinkValue));
+		_suggestedMoveAnimation.value(_suggestedMove) * _lastShrinkValue));
 	const auto current = _layout.geometry;
 	const auto realTopLeft = current.topLeft()
 		+ _albumPosition
@@ -562,7 +560,7 @@ QRect AlbumThumb::countCurrentGeometry(float64 progress) const {
 }
 
 void AlbumThumb::finishAnimations() {
-	_suggestedMoveAnimation.finish();
+	_suggestedMoveAnimation.stop();
 }
 
 SingleMediaPreview *SingleMediaPreview::Create(
@@ -961,9 +959,9 @@ private:
 	AlbumThumb *_paintedAbove = nullptr;
 	QPoint _draggedStartPosition;
 
-	mutable Animation _thumbsHeightAnimation;
-	mutable Animation _shrinkAnimation;
-	mutable Animation _finishDragAnimation;
+	mutable Ui::Animations::Simple _thumbsHeightAnimation;
+	mutable Ui::Animations::Simple _shrinkAnimation;
+	mutable Ui::Animations::Simple _finishDragAnimation;
 
 };
 
@@ -1087,9 +1085,9 @@ int SendFilesBox::AlbumPreview::orderIndex(
 }
 
 void SendFilesBox::AlbumPreview::cancelDrag() {
-	_thumbsHeightAnimation.finish();
-	_finishDragAnimation.finish();
-	_shrinkAnimation.finish();
+	_thumbsHeightAnimation.stop();
+	_finishDragAnimation.stop();
+	_shrinkAnimation.stop();
 	if (_draggedThumb) {
 		_draggedThumb->moveInAlbum({ 0, 0 });
 		_draggedThumb = nullptr;
@@ -1164,7 +1162,7 @@ void SendFilesBox::AlbumPreview::updateSize() {
 	const auto newHeight = [&] {
 		switch (_sendWay) {
 		case SendFilesWay::Album:
-			return int(std::round(_thumbsHeightAnimation.current(
+			return int(std::round(_thumbsHeightAnimation.value(
 				_thumbsHeight)));
 		case SendFilesWay::Photos: return _photosHeight;
 		case SendFilesWay::Files: return _filesHeight;
@@ -1187,20 +1185,17 @@ void SendFilesBox::AlbumPreview::paintEvent(QPaintEvent *e) {
 }
 
 void SendFilesBox::AlbumPreview::paintAlbum(Painter &p) const {
-	const auto ms = crl::now();
-	const auto shrink = _shrinkAnimation.current(
-		ms,
-		_draggedThumb ? 1. : 0.);
-	const auto moveProgress = _finishDragAnimation.current(ms, 1.);
+	const auto shrink = _shrinkAnimation.value(_draggedThumb ? 1. : 0.);
+	const auto moveProgress = _finishDragAnimation.value(1.);
 	const auto left = contentLeft();
 	const auto top = contentTop();
 	for (const auto &thumb : _thumbs) {
 		if (thumb.get() != _paintedAbove) {
-			thumb->paintInAlbum(p, left, top, shrink, moveProgress, ms);
+			thumb->paintInAlbum(p, left, top, shrink, moveProgress);
 		}
 	}
 	if (_paintedAbove) {
-		_paintedAbove->paintInAlbum(p, left, top, shrink, moveProgress, ms);
+		_paintedAbove->paintInAlbum(p, left, top, shrink, moveProgress);
 	}
 }
 

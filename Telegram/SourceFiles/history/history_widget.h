@@ -550,7 +550,7 @@ private:
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
 	void drawRestrictedWrite(Painter &p, const QString &error);
-	bool paintShowAnimationFrame(crl::time ms);
+	bool paintShowAnimationFrame();
 
 	void updateMouseTracking();
 
@@ -670,7 +670,7 @@ private:
 	int countAutomaticScrollTop();
 	void preloadHistoryByScroll();
 	void checkReplyReturns();
-	void scrollToAnimationCallback(FullMsgId attachToId);
+	void scrollToAnimationCallback(FullMsgId attachToId, int relativeTo);
 
 	bool readyToForward() const;
 	bool hasSilentToggle() const;
@@ -707,13 +707,13 @@ private:
 
 	crl::time _lastUserScrolled = 0;
 	bool _synteticScrollEvent = false;
-	Animation _scrollToAnimation;
+	Ui::Animations::Simple _scrollToAnimation;
 
-	Animation _historyDownShown;
+	Ui::Animations::Simple _historyDownShown;
 	bool _historyDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _historyDown;
 
-	Animation _unreadMentionsShown;
+	Ui::Animations::Simple _unreadMentionsShown;
 	bool _unreadMentionsIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _unreadMentions;
 
@@ -797,7 +797,7 @@ private:
 
 	QString _confirmSource;
 
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 

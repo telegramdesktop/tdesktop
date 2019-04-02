@@ -286,20 +286,17 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 	}
 	Painter p(this);
 
-	auto ms = crl::now();
-	_forward->stepNumbersAnimation(ms);
-	_delete->stepNumbersAnimation(ms);
 	auto hasSelected = (_selectedCount > 0);
-	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(crl::now(), hasSelected ? 1. : 0.));
+	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
 
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
 	if (selectedButtonsTop < 0) {
 		p.translate(0, selectedButtonsTop + st::topBarHeight);
-		paintTopBar(p, ms);
+		paintTopBar(p);
 	}
 }
 
-void TopBarWidget::paintTopBar(Painter &p, crl::time ms) {
+void TopBarWidget::paintTopBar(Painter &p) {
 	if (!_activeChat) {
 		return;
 	}
@@ -339,7 +336,7 @@ void TopBarWidget::paintTopBar(Painter &p, crl::time ms) {
 		history->peer->dialogName().drawElided(p, nameleft, nametop, namewidth);
 
 		p.setFont(st::dialogsTextFont);
-		if (paintConnectingState(p, nameleft, statustop, width(), ms)) {
+		if (paintConnectingState(p, nameleft, statustop, width())) {
 			return;
 		} else if (history->paintSendAction(
 				p,
@@ -348,7 +345,7 @@ void TopBarWidget::paintTopBar(Painter &p, crl::time ms) {
 				namewidth,
 				width(),
 				st::historyStatusFgTyping,
-				ms)) {
+				crl::now())) {
 			return;
 		} else {
 			paintStatus(p, nameleft, statustop, namewidth, width());
@@ -360,8 +357,7 @@ bool TopBarWidget::paintConnectingState(
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) {
+		int outerWidth) {
 	if (!_connecting) {
 		return false;
 	}
@@ -485,7 +481,7 @@ int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
 
 void TopBarWidget::updateControlsGeometry() {
 	auto hasSelected = (_selectedCount > 0);
-	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(hasSelected ? 1. : 0.));
+	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
 	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
 	auto buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
 	auto buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clear->width();
@@ -541,7 +537,7 @@ void TopBarWidget::updateControlsGeometry() {
 }
 
 void TopBarWidget::finishAnimating() {
-	_selectedShown.finish();
+	_selectedShown.stop();
 	updateControlsVisibility();
 }
 

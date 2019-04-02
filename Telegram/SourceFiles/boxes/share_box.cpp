@@ -85,7 +85,7 @@ private:
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
 		Text name;
-		Animation nameActive;
+		Ui::Animations::Simple nameActive;
 	};
 
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
@@ -93,7 +93,7 @@ private:
 
 	int displayedChatsCount() const;
 
-	void paintChat(Painter &p, crl::time ms, not_null<Chat*> chat, int index);
+	void paintChat(Painter &p, not_null<Chat*> chat, int index);
 	void updateChat(not_null<PeerData*> peer);
 	void updateChatName(not_null<Chat*> chat, not_null<PeerData*> peer);
 	void repaintChat(not_null<PeerData*> peer);
@@ -732,7 +732,6 @@ void ShareBox::Inner::setActive(int active) {
 
 void ShareBox::Inner::paintChat(
 		Painter &p,
-		crl::time ms,
 		not_null<Chat*> chat,
 		int index) {
 	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
@@ -741,9 +740,9 @@ void ShareBox::Inner::paintChat(
 	auto outerWidth = width();
 	auto photoLeft = (_rowWidth - (st::sharePhotoCheckbox.imageRadius * 2)) / 2;
 	auto photoTop = st::sharePhotoTop;
-	chat->checkbox.paint(p, ms, x + photoLeft, y + photoTop, outerWidth);
+	chat->checkbox.paint(p, x + photoLeft, y + photoTop, outerWidth);
 
-	auto nameActive = chat->nameActive.current(ms, (index == _active) ? 1. : 0.);
+	auto nameActive = chat->nameActive.value((index == _active) ? 1. : 0.);
 	p.setPen(anim::pen(st::shareNameFg, st::shareNameActiveFg, nameActive));
 
 	auto nameWidth = (_rowWidth - st::shareColumnSkip);
@@ -761,7 +760,6 @@ ShareBox::Inner::Chat::Chat(PeerData *peer, Fn<void()> updateCallback)
 void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto r = e->rect();
 	p.setClipRect(r);
 	p.fillRect(r, st::boxBg);
@@ -777,7 +775,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 				if (indexFrom >= indexTo) {
 					break;
 				}
-				paintChat(p, ms, getChat(*i), indexFrom);
+				paintChat(p, getChat(*i), indexFrom);
 				++indexFrom;
 			}
 		} else {
@@ -806,7 +804,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 					if (indexFrom >= _filtered.size()) {
 						break;
 					}
-					paintChat(p, ms, getChat(_filtered[indexFrom]), indexFrom);
+					paintChat(p, getChat(_filtered[indexFrom]), indexFrom);
 					++indexFrom;
 				}
 				indexFrom -= filteredSize;
@@ -820,7 +818,6 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 					}
 					paintChat(
 						p,
-						ms,
 						d_byUsernameFiltered[indexFrom].get(),
 						filteredSize + indexFrom);
 					++indexFrom;

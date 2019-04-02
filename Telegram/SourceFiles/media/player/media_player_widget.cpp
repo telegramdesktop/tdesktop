@@ -62,7 +62,7 @@ Widget::PlayButton::PlayButton(QWidget *parent) : Ui::RippleButton(parent, st::m
 void Widget::PlayButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	paintRipple(p, st::mediaPlayerButton.rippleAreaPosition.x(), st::mediaPlayerButton.rippleAreaPosition.y(), crl::now());
+	paintRipple(p, st::mediaPlayerButton.rippleAreaPosition.x(), st::mediaPlayerButton.rippleAreaPosition.y());
 	p.translate(st::mediaPlayerButtonPosition.x(), st::mediaPlayerButtonPosition.y());
 	_layout.paint(p, st::mediaPlayerActiveFg);
 }

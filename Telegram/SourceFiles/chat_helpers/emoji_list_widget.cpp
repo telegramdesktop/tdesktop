@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_list_widget.h"
 
+#include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/emoji_config.h"
@@ -62,7 +63,7 @@ private:
 
 	bool _hiding = false;
 	QPixmap _cache;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	rpl::event_stream<EmojiPtr> _chosen;
 	rpl::event_stream<> _hidden;
@@ -186,7 +187,7 @@ void EmojiColorPicker::updateSize() {
 void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto opacity = _a_opacity.current(crl::now(), _hiding ? 0. : 1.);
+	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity < 1.) {
 		if (opacity > 0.) {
 			p.setOpacity(opacity);
@@ -272,7 +273,7 @@ void EmojiColorPicker::animationCallback() {
 
 void EmojiColorPicker::hideFast() {
 	clearSelection();
-	_a_opacity.finish();
+	_a_opacity.stop();
 	_cache = QPixmap();
 	hide();
 	_hidden.fire({});

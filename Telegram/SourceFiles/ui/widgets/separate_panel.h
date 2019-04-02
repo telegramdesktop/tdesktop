@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "boxes/abstract_box.h"
 
 namespace Ui {
@@ -97,10 +98,10 @@ private:
 	QPoint _dragStartMousePosition;
 	QPoint _dragStartMyPosition;
 
-	Animation _titleLeft;
+	Ui::Animations::Simple _titleLeft;
 	bool _visible = false;
 
-	Animation _opacityAnimation;
+	Ui::Animations::Simple _opacityAnimation;
 	QPixmap _animationCache;
 	QPixmap _borderParts;
 

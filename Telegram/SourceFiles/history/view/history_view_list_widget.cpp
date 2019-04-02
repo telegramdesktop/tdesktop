@@ -369,7 +369,7 @@ void ListWidget::animatedScrollTo(
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type) {
-	_scrollToAnimation.finish();
+	_scrollToAnimation.stop();
 	if (!delta || _items.empty()) {
 		_delegate->listScrollTo(scrollTop);
 		return;
@@ -388,20 +388,23 @@ void ListWidget::animatedScrollTo(
 	const auto relativeStart = initial - attachToTop;
 	const auto relativeFinish = scrollTop - attachToTop;
 	_scrollToAnimation.start(
-		[=] { scrollToAnimationCallback(attachToId); },
+		[=] { scrollToAnimationCallback(attachToId, relativeFinish); },
 		relativeStart,
 		relativeFinish,
 		st::slideDuration,
 		transition);
 }
 
-void ListWidget::scrollToAnimationCallback(FullMsgId attachToId) {
+void ListWidget::scrollToAnimationCallback(
+		FullMsgId attachToId,
+		int relativeTo) {
 	const auto attachTo = App::histItemById(attachToId);
 	const auto attachToView = viewForItem(attachTo);
 	if (!attachToView) {
-		_scrollToAnimation.finish();
+		_scrollToAnimation.stop();
 	} else {
-		const auto current = int(std::round(_scrollToAnimation.current()));
+		const auto current = int(std::round(_scrollToAnimation.value(
+			relativeTo)));
 		_delegate->listScrollTo(itemTop(attachToView) + current);
 	}
 }
@@ -1326,7 +1329,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		});
 
 		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-		auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
+		auto scrollDateOpacity = _scrollDateOpacity.value(_scrollDateShown ? 1. : 0.);
 		enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
 			// stop the enumeration if the date is above the painted rect
 			if (dateTop + dateHeight <= clip.top()) {
@@ -1426,7 +1429,7 @@ TextWithEntities ListWidget::getSelectedText() const {
 		part.text.reserve(size);
 		part.text.append(item->author()->name).append(time);
 		TextUtilities::Append(part, std::move(unwrapped));
-		texts.push_back(std::make_pair(std::move(item), std::move(part)));
+		texts.emplace_back(std::move(item), std::move(part));
 		fullSize += size;
 	};
 	const auto addItem = [&](not_null<HistoryItem*> item) {
@@ -2092,7 +2095,7 @@ void ListWidget::mouseActionUpdate() {
 		const auto dateHeight = st::msgServicePadding.bottom()
 			+ st::msgServiceFont->height
 			+ st::msgServicePadding.top();
-		const auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
+		const auto scrollDateOpacity = _scrollDateOpacity.value(_scrollDateShown ? 1. : 0.);
 		enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
 			// stop enumeration if the date is above our point
 			if (dateTop + dateHeight <= point.y()) {

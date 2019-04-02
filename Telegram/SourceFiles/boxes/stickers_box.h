@@ -272,8 +272,8 @@ private:
 	void ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton);
 
 	bool shiftingAnimationCallback(crl::time now);
-	void paintRow(Painter &p, Row *set, int index, crl::time ms);
-	void paintFakeButton(Painter &p, Row *set, int index, crl::time ms);
+	void paintRow(Painter &p, Row *set, int index);
+	void paintFakeButton(Painter &p, Row *set, int index);
 	void clear();
 	void setActionSel(int32 actionSel);
 	float64 aboveShadowOpacity() const;

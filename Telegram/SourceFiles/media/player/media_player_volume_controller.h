@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
+
 namespace Ui {
 class IconButton;
 class MediaSlider;
@@ -66,7 +68,7 @@ private:
 	bool _hiding = false;
 
 	QPixmap _cache;
-	Animation _a_appearance;
+	Ui::Animations::Simple _a_appearance;
 
 	QTimer _hideTimer, _showTimer;
 

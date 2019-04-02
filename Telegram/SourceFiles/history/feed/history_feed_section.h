@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "history/view/history_view_list_widget.h"
 #include "window/section_widget.h"
 #include "window/section_memento.h"
@@ -138,7 +139,7 @@ private:
 	std::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
 	int _nextAnimatedScrollDelta = 0;
 
-	Animation _scrollDownShown;
+	Ui::Animations::Simple _scrollDownShown;
 	bool _scrollDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
 	std::shared_ptr<Window::DateClickHandler> _dateLink;

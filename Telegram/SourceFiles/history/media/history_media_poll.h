@@ -79,8 +79,7 @@ private:
 		int top,
 		int width,
 		int outerWidth,
-		TextSelection selection,
-		crl::time ms) const;
+		TextSelection selection) const;
 	void paintRadio(
 		Painter &p,
 		const Answer &answer,

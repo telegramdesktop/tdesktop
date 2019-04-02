@@ -772,7 +772,6 @@ int Rows::countAvailableWidth() const {
 void Rows::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = crl::now();
 	const auto clip = e->rect();
 
 	const auto checkLeft = st::passportRowPadding.left();
@@ -801,14 +800,14 @@ void Rows::paintEvent(QPaintEvent *e) {
 		}
 
 		if (row.ripple) {
-			row.ripple->paint(p, 0, 0, width(), ms);
+			row.ripple->paint(p, 0, 0, width());
 			if (row.ripple->empty()) {
 				row.ripple.reset();
 			}
 		}
 
 		const auto checkTop = (row.height - st::defaultRadio.diameter) / 2;
-		row.check->paint(p, checkLeft, checkTop, width(), ms);
+		row.check->paint(p, checkLeft, checkTop, width());
 
 		auto top = st::passportRowPadding.top();
 
@@ -829,7 +828,7 @@ void Rows::paintEvent(QPaintEvent *e) {
 				p.drawEllipse(menu);
 			}
 			if (row.menuToggleRipple) {
-				row.menuToggleRipple->paint(p, menu.x(), menu.y(), width(), ms);
+				row.menuToggleRipple->paint(p, menu.x(), menu.y(), width());
 				if (row.menuToggleRipple->empty()) {
 					row.menuToggleRipple.reset();
 				}

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/observer.h"
 #include "base/timer.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 
 namespace Dialogs {
@@ -99,6 +100,6 @@ private:
 	using PeopleQueries = QMap<mtpRequestId, QString>;
 	PeopleQueries _peopleQueries;
 
-	Animation _scrollAnimation;
+	Ui::Animations::Simple _scrollAnimation;
 
 };

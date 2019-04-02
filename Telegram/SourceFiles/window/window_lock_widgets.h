@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "boxes/abstract_box.h"
 #include "base/bytes.h"
 
@@ -35,7 +36,7 @@ protected:
 private:
 	void animationCallback();
 
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
 
@@ -113,7 +114,7 @@ private:
 	bool _attentionAgree = false;
 
 	bool _ageErrorShown = false;
-	Animation _ageErrorAnimation;
+	Ui::Animations::Simple _ageErrorAnimation;
 
 };
 

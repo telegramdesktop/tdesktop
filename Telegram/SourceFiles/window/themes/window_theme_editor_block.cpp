@@ -623,19 +623,18 @@ void EditorBlock::paintEvent(QPaintEvent *e) {
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_theme_editor_no_keys));
 	}
 
-	auto ms = crl::now();
 	auto cliptop = clip.y();
 	auto clipbottom = cliptop + clip.height();
-	enumerateRowsFrom(cliptop, [this, &p, clipbottom, ms](int index, const Row &row) {
+	enumerateRowsFrom(cliptop, [&](int index, const Row &row) {
 		if (row.top() >= clipbottom) {
 			return false;
 		}
-		paintRow(p, index, row, ms);
+		paintRow(p, index, row);
 		return true;
 	});
 }
 
-void EditorBlock::paintRow(Painter &p, int index, const Row &row, crl::time ms) {
+void EditorBlock::paintRow(Painter &p, int index, const Row &row) {
 	auto rowTop = row.top() + st::themeEditorMargin.top();
 
 	auto rect = QRect(0, row.top(), width(), row.height());
@@ -643,7 +642,7 @@ void EditorBlock::paintRow(Painter &p, int index, const Row &row, crl::time ms) 
 	auto active = (findRowIndex(&row) == _editing);
 	p.fillRect(rect, active ? st::dialogsBgActive : selected ? st::dialogsBgOver : st::dialogsBg);
 	if (auto ripple = row.ripple()) {
-		ripple->paint(p, 0, row.top(), width(), ms, &(active ? st::activeButtonBgRipple : st::windowBgRipple)->c);
+		ripple->paint(p, 0, row.top(), width(), &(active ? st::activeButtonBgRipple : st::windowBgRipple)->c);
 		if (ripple->empty()) {
 			row.resetRipple();
 		}

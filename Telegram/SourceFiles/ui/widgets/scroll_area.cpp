@@ -165,17 +165,16 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 		hide();
 		return;
 	}
-	auto ms = crl::now();
-	auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.);
+	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity == 0.) return;
 
 	Painter p(this);
 	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
 	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
-	auto bg = anim::color(_st->bg, _st->bgOver, _a_over.current(ms, (_over || _moving) ? 1. : 0.));
+	auto bg = anim::color(_st->bg, _st->bgOver, _a_over.value((_over || _moving) ? 1. : 0.));
 	bg.setAlpha(anim::interpolate(0, bg.alpha(), opacity));
-	auto bar = anim::color(_st->barBg, _st->barBgOver, _a_barOver.current(ms, (_overbar || _moving) ? 1. : 0.));
+	auto bar = anim::color(_st->barBg, _st->barBgOver, _a_barOver.value((_overbar || _moving) ? 1. : 0.));
 	bar.setAlpha(anim::interpolate(0, bar.alpha(), opacity));
 	if (_st->round) {
 		PainterHighQualityEnabler hq(p);

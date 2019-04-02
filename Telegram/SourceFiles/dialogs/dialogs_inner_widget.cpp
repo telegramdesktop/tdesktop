@@ -368,7 +368,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					auto &result = _hashtagResults[from];
 					bool selected = (from == (isPressed() ? _hashtagPressed : _hashtagSelected));
 					p.fillRect(0, 0, fullWidth, st::mentionHeight, selected ? st::mentionBgOver : st::dialogsBg);
-					result->row.paintRipple(p, 0, 0, fullWidth, ms);
+					result->row.paintRipple(p, 0, 0, fullWidth);
 					if (!paintingOther) {
 						auto &tag = result->tag;
 						if (selected) {
@@ -456,14 +456,14 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					const auto selected = (from == (isPressed()
 						? _peerSearchPressed
 						: _peerSearchSelected));
-					paintPeerSearchResult(p, result.get(), fullWidth, active, selected, paintingOther, ms);
+					paintPeerSearchResult(p, result.get(), fullWidth, active, selected, paintingOther);
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
 		}
 
 		if (_searchInChat) {
-			paintSearchInChat(p, fullWidth, paintingOther, ms);
+			paintSearchInChat(p, fullWidth, paintingOther);
 			p.translate(0, searchInChatSkip());
 			if (_waitingForSearch && _searchResults.empty()) {
 				p.fillRect(
@@ -549,12 +549,11 @@ void DialogsInner::paintPeerSearchResult(
 		int fullWidth,
 		bool active,
 		bool selected,
-		bool onlyBackground,
-		crl::time ms) const {
+		bool onlyBackground) const {
 	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	if (!active) {
-		result->row.paintRipple(p, 0, 0, fullWidth, ms);
+		result->row.paintRipple(p, 0, 0, fullWidth);
 	}
 	if (onlyBackground) return;
 
@@ -605,8 +604,7 @@ void DialogsInner::paintPeerSearchResult(
 void DialogsInner::paintSearchInChat(
 		Painter &p,
 		int fullWidth,
-		bool onlyBackground,
-		crl::time ms) const {
+		bool onlyBackground) const {
 	auto height = searchInChatSkip();
 
 	auto top = st::searchedBarHeight;

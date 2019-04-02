@@ -458,7 +458,7 @@ std::optional<bool> FloatController::filterWheelEvent(
 }
 
 void FloatController::updatePosition(not_null<Item*> instance) {
-	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
+	auto visible = instance->visibleAnimation.value(instance->visible ? 1. : 0.);
 	if (visible == 0. && !instance->visible) {
 		instance->widget->hide();
 		if (instance->widget->detached()) {
@@ -474,7 +474,7 @@ void FloatController::updatePosition(not_null<Item*> instance) {
 			instance->widget->show();
 		}
 
-		auto dragged = instance->draggedAnimation.current(1.);
+		auto dragged = instance->draggedAnimation.value(1.);
 		auto position = QPoint();
 		if (instance->hiddenByDrag) {
 			instance->widget->setOpacity(instance->widget->countOpacityByParent());
@@ -604,7 +604,7 @@ void FloatController::finishDrag(not_null<Item*> instance, bool closed) {
 	instance->column = Auth().settings().floatPlayerColumn();
 	instance->corner = Auth().settings().floatPlayerCorner();
 
-	instance->draggedAnimation.finish();
+	instance->draggedAnimation.stop();
 	instance->draggedAnimation.start(
 		[=] { updatePosition(instance); },
 		0.,

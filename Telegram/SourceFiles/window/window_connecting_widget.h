@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/unique_qptr.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 class RpWidget;
@@ -76,8 +77,8 @@ private:
 	State _state;
 	Layout _currentLayout;
 	crl::time _connectingStartedAt = 0;
-	Animation _contentWidth;
-	Animation _visibility;
+	Ui::Animations::Simple _contentWidth;
+	Ui::Animations::Simple _visibility;
 
 	rpl::event_stream<float64> _visibilityValues;
 	rpl::lifetime _lifetime;

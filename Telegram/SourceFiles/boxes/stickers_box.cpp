@@ -384,7 +384,7 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (_slideAnimation) {
-		_slideAnimation->paintFrame(p, 0, getTopSkip(), width(), crl::now());
+		_slideAnimation->paintFrame(p, 0, getTopSkip(), width());
 		if (!_slideAnimation->animating()) {
 			_slideAnimation.reset();
 			setInnerVisible(true);
@@ -715,14 +715,13 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
-	auto ms = crl::now();
 	p.fillRect(clip, st::boxBg);
 	p.setClipRect(clip);
 
 	if (_megagroupSelectedSet) {
 		auto setTop = _megagroupDivider->y() - _rowHeight;
 		p.translate(0, setTop);
-		paintRow(p, _megagroupSelectedSet.get(), -1, ms);
+		paintRow(p, _megagroupSelectedSet.get(), -1);
 		p.translate(0, -setTop);
 	}
 
@@ -740,13 +739,13 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 		p.translate(0, from * _rowHeight);
 		for (int32 i = from; i < to; ++i) {
 			if (i != _above) {
-				paintRow(p, _rows[i].get(), i, ms);
+				paintRow(p, _rows[i].get(), i);
 			}
 			p.translate(0, _rowHeight);
 		}
 		if (from <= _above && _above < to) {
 			p.translate(0, (_above - to) * _rowHeight);
-			paintRow(p, _rows[_above].get(), _above, ms);
+			paintRow(p, _rows[_above].get(), _above);
 		}
 	}
 }
@@ -790,7 +789,7 @@ QRect StickersBox::Inner::relativeButtonRect(bool removeButton) const {
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
-void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, crl::time ms) {
+void StickersBox::Inner::paintRow(Painter &p, Row *set, int index) {
 	auto xadd = 0, yadd = qRound(set->yadd.current());
 	if (xadd || yadd) p.translate(xadd, yadd);
 
@@ -804,7 +803,7 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, crl::time ms)
 		if (index >= 0 && index == selectedIndex) {
 			p.fillRect(0, 0, width(), _rowHeight, st::contactsBgOver);
 			if (set->ripple) {
-				set->ripple->paint(p, 0, 0, width(), ms);
+				set->ripple->paint(p, 0, 0, width());
 			}
 		}
 	}
@@ -827,13 +826,13 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, crl::time ms)
 			App::roundRect(p, row, st::boxBg, BoxCorners);
 
 			p.setOpacity(1. - current);
-			paintFakeButton(p, set, index, ms);
+			paintFakeButton(p, set, index);
 			p.setOpacity(1.);
 		} else if (!_megagroupSet) {
-			paintFakeButton(p, set, index, ms);
+			paintFakeButton(p, set, index);
 		}
 	} else if (!_megagroupSet) {
-		paintFakeButton(p, set, index, ms);
+		paintFakeButton(p, set, index);
 	}
 
 	if (set->removed && _section == Section::Installed) {
@@ -893,7 +892,7 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index, crl::time ms)
 	if (xadd || yadd) p.translate(-xadd, -yadd);
 }
 
-void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index, crl::time ms) {
+void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index) {
 	auto removeButton = (_section == Section::Installed && !set->removed);
 	auto rect = relativeButtonRect(removeButton);
 	if (_section != Section::Installed && set->installed && !set->archived && !set->removed) {
@@ -906,7 +905,7 @@ void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index, crl::t
 		if (removeButton) {
 			// Trash icon button when not disabled in Installed.
 			if (set->ripple) {
-				set->ripple->paint(p, rect.x(), rect.y(), width(), ms);
+				set->ripple->paint(p, rect.x(), rect.y(), width());
 				if (set->ripple->empty()) {
 					set->ripple.reset();
 				}
@@ -915,7 +914,7 @@ void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index, crl::t
 			auto position = st::stickersRemove.iconPosition;
 			if (position.x() < 0) position.setX((rect.width() - icon.width()) / 2);
 			if (position.y() < 0) position.setY((rect.height() - icon.height()) / 2);
-			icon.paint(p, rect.topLeft() + position, ms);
+			icon.paint(p, rect.topLeft() + position, width());
 		} else {
 			// Round button ADD when not installed from Trending or Archived.
 			// Or round button UNDO after disabled from Installed.
@@ -925,7 +924,7 @@ void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index, crl::t
 			auto &textBg = selected ? st.textBgOver : st.textBg;
 			App::roundRect(p, myrtlrect(rect), textBg, ImageRoundRadius::Small);
 			if (set->ripple) {
-				set->ripple->paint(p, rect.x(), rect.y(), width(), ms);
+				set->ripple->paint(p, rect.x(), rect.y(), width());
 				if (set->ripple->empty()) {
 					set->ripple.reset();
 				}

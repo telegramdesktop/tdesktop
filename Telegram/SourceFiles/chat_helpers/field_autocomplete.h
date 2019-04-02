@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "ui/twidget.h"
 #include "base/timer.h"
 #include "chat_helpers/stickers.h"
@@ -123,7 +124,7 @@ private:
 	int32 _width, _height;
 	bool _hiding = false;
 
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	friend class internal::FieldAutocompleteInner;
 

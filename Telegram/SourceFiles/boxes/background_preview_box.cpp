@@ -39,8 +39,7 @@ public:
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) override;
+		int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -241,14 +240,13 @@ void ServiceCheck::paint(
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		crl::time ms) {
+		int outerWidth) {
 	Frames().paintFrame(
 		p,
 		left + _st.margin.left(),
 		top + _st.margin.top(),
 		&_st,
-		currentAnimationValue(ms));
+		currentAnimationValue());
 }
 
 QImage ServiceCheck::prepareRippleMask() const {
@@ -507,20 +505,20 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 	}
 	if (!color || _paper.isPattern()) {
 		if (!_scaled.isNull() || setScaledFromThumb()) {
-			paintImage(p, ms);
-			paintRadial(p, ms);
+			paintImage(p);
+			paintRadial(p);
 		} else if (!color) {
 			p.fillRect(e->rect(), st::boxBg);
 			return;
 		} else {
 			// Progress of pattern loading.
-			paintRadial(p, ms);
+			paintRadial(p);
 		}
 	}
 	paintTexts(p, ms);
 }
 
-void BackgroundPreviewBox::paintImage(Painter &p, crl::time ms) {
+void BackgroundPreviewBox::paintImage(Painter &p) {
 	Expects(!_scaled.isNull());
 
 	const auto master = _paper.isPattern()
@@ -536,7 +534,7 @@ void BackgroundPreviewBox::paintImage(Painter &p, crl::time ms) {
 		height() * factor);
 	const auto guard = gsl::finally([&] { p.setOpacity(1.); });
 
-	const auto fade = _fadeIn.current(ms, 1.);
+	const auto fade = _fadeIn.value(1.);
 	if (fade < 1. && !_fadeOutThumbnail.isNull()) {
 		p.drawPixmap(rect(), _fadeOutThumbnail, from);
 	}
@@ -548,7 +546,7 @@ void BackgroundPreviewBox::paintImage(Painter &p, crl::time ms) {
 	checkBlurAnimationStart();
 }
 
-void BackgroundPreviewBox::paintRadial(Painter &p, crl::time ms) {
+void BackgroundPreviewBox::paintRadial(Painter &p) {
 	const auto radial = _radial.animating();
 	const auto radialOpacity = radial ? _radial.opacity() : 0.;
 	if (!radial) {

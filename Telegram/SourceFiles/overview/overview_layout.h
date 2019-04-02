@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "layout.h"
 #include "core/click_handler_types.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "styles/style_overview.h"
 
@@ -148,7 +149,7 @@ protected:
 	}
 
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
-	Animation _a_iconOver;
+	Ui::Animations::Simple _a_iconOver;
 
 };
 

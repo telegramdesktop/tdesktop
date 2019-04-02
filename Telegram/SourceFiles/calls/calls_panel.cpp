@@ -66,7 +66,7 @@ private:
 	QImage _iconMixedMask, _iconFrom, _iconTo, _iconMixed;
 
 	float64 _outerValue = 0.;
-	Animation _outerAnimation;
+	Ui::Animations::Simple _outerAnimation;
 
 };
 
@@ -186,12 +186,11 @@ void Panel::Button::setProgress(float64 progress) {
 void Panel::Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto bgPosition = myrtlpoint(_stFrom->button.rippleAreaPosition);
 	auto paintFrom = (_progress == 0.) || !_stTo;
 	auto paintTo = !paintFrom && (_progress == 1.);
 
-	auto outerValue = _outerAnimation.current(ms, _outerValue);
+	auto outerValue = _outerAnimation.value(_outerValue);
 	if (outerValue > 0.) {
 		auto outerRadius = paintFrom ? _stFrom->outerRadius : paintTo ? _stTo->outerRadius : (_stFrom->outerRadius * (1. - _progress) + _stTo->outerRadius * _progress);
 		auto outerPixels = outerValue * outerRadius;
@@ -228,7 +227,7 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 	} else {
 		rippleColorInterpolated = anim::color(_stFrom->button.ripple.color, _stTo->button.ripple.color, _progress);
 	}
-	paintRipple(p, _stFrom->button.rippleAreaPosition.x(), _stFrom->button.rippleAreaPosition.y(), ms, rippleColorOverride);
+	paintRipple(p, _stFrom->button.rippleAreaPosition.x(), _stFrom->button.rippleAreaPosition.y(), rippleColorOverride);
 
 	auto positionFrom = iconPosition(_stFrom);
 	if (paintFrom) {
@@ -681,7 +680,7 @@ void Panel::updateHangupGeometry() {
 	auto bothWidth = singleWidth + st::callControlsSkip + st::callCancel.button.width;
 	auto rightFrom = (width() - bothWidth) / 2;
 	auto rightTo = (width() - singleWidth) / 2;
-	auto hangupProgress = _hangupShownProgress.current(_hangupShown ? 1. : 0.);
+	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
 	auto controlsTop = _contentTop + st::callControlsTop;
 	_answerHangupRedial->moveToRight(hangupRight, controlsTop);
@@ -695,7 +694,7 @@ void Panel::updateStatusGeometry() {
 void Panel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (!_animationCache.isNull()) {
-		auto opacity = _opacityAnimation.current(crl::now(), _call ? 1. : 0.);
+		auto opacity = _opacityAnimation.value(_call ? 1. : 0.);
 		if (!_opacityAnimation.animating()) {
 			finishAnimating();
 			if (!_call || isHidden()) return;

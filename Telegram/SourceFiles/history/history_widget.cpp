@@ -675,7 +675,7 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 		return;
 	}
 
-	_scrollToAnimation.finish();
+	_scrollToAnimation.stop();
 	auto maxAnimatedDelta = _scroll->height();
 	auto transition = anim::sineInOut;
 	if (scrollTo > scrollTop + maxAnimatedDelta) {
@@ -692,15 +692,25 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 		// jump to the bottom of history in some updateHistoryGeometry() call.
 		synteticScrollToY(scrollTop);
 	}
-	_scrollToAnimation.start([this, itemId = attachTo->fullId()] { scrollToAnimationCallback(itemId); }, scrollTop - itemTop, scrollTo - itemTop, st::slideDuration, anim::sineInOut);
+	const auto itemId = attachTo->fullId();
+	const auto relativeFrom = scrollTop - itemTop;
+	const auto relativeTo = scrollTo - itemTop;
+	_scrollToAnimation.start(
+		[=] { scrollToAnimationCallback(itemId, relativeTo); },
+		relativeFrom,
+		relativeTo,
+		st::slideDuration,
+		anim::sineInOut);
 }
 
-void HistoryWidget::scrollToAnimationCallback(FullMsgId attachToId) {
+void HistoryWidget::scrollToAnimationCallback(
+		FullMsgId attachToId,
+		int relativeTo) {
 	auto itemTop = _list->itemTop(App::histItemById(attachToId));
 	if (itemTop < 0) {
-		_scrollToAnimation.finish();
+		_scrollToAnimation.stop();
 	} else {
-		synteticScrollToY(qRound(_scrollToAnimation.current()) + itemTop);
+		synteticScrollToY(qRound(_scrollToAnimation.value(relativeTo)) + itemTop);
 	}
 	if (!_scrollToAnimation.animating()) {
 		preloadHistoryByScroll();
@@ -1346,7 +1356,7 @@ void HistoryWidget::setupShortcuts() {
 
 void HistoryWidget::clearReplyReturns() {
 	_replyReturns.clear();
-	_replyReturn = 0;
+	_replyReturn = nullptr;
 }
 
 void HistoryWidget::pushReplyReturn(not_null<HistoryItem*> item) {
@@ -1575,7 +1585,7 @@ void HistoryWidget::showHistory(
 		destroyUnreadBar();
 		destroyPinnedBar();
 		_membersDropdown.destroy();
-		_scrollToAnimation.finish();
+		_scrollToAnimation.stop();
 		_history = _migrated = nullptr;
 		_list = nullptr;
 		_peer = nullptr;
@@ -2924,7 +2934,7 @@ void HistoryWidget::showAnimated(
 		const Window::SectionSlideParams &params) {
 	_showDirection = direction;
 
-	_a_show.finish();
+	_a_show.stop();
 
 	_cacheUnder = params.oldContentCache;
 	show();
@@ -2940,7 +2950,7 @@ void HistoryWidget::showAnimated(
 	if (_showDirection == Window::SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
 	}
-	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
+	_a_show.start([=] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 	if (_history) {
 		_topBar->show();
 		_topBar->setAnimatingMode(true);
@@ -2978,7 +2988,7 @@ void HistoryWidget::doneShow() {
 
 void HistoryWidget::finishAnimating() {
 	if (!_a_show.animating()) return;
-	_a_show.finish();
+	_a_show.stop();
 	_topShadow->setVisible(_peer != nullptr);
 	_topBar->setVisible(_peer != nullptr);
 	historyDownAnimationFinish();
@@ -2986,12 +2996,12 @@ void HistoryWidget::finishAnimating() {
 }
 
 void HistoryWidget::historyDownAnimationFinish() {
-	_historyDownShown.finish();
+	_historyDownShown.stop();
 	updateHistoryDownPosition();
 }
 
 void HistoryWidget::unreadMentionsAnimationFinish() {
-	_unreadMentionsShown.finish();
+	_unreadMentionsShown.stop();
 	updateUnreadMentionsPosition();
 }
 
@@ -4655,7 +4665,7 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 	if (_kbReplyTo && item == _kbReplyTo) {
 		onKbToggle();
-		_kbReplyTo = 0;
+		_kbReplyTo = nullptr;
 	}
 	auto found = ranges::find(_toForward, item);
 	if (found != _toForward.end()) {
@@ -4837,7 +4847,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 
 	if (initial) {
 		_historyInited = true;
-		_scrollToAnimation.finish();
+		_scrollToAnimation.stop();
 	}
 	auto newScrollTop = initial
 		? countInitialScrollTop()
@@ -4938,7 +4948,9 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	} else if (_replyToId && _replyEditMsg) {
 		changed = _keyboard->updateMarkup(_replyEditMsg, force);
 	} else {
-		HistoryItem *keyboardItem = _history->lastKeyboardId ? App::histItemById(_channel, _history->lastKeyboardId) : nullptr;
+		const auto keyboardItem = _history->lastKeyboardId
+			? App::histItemById(_channel, _history->lastKeyboardId)
+			: nullptr;
 		changed = _keyboard->updateMarkup(keyboardItem, force);
 	}
 	updateCmdStartShown();
@@ -4966,7 +4978,9 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			int32 maxh = hasMarkup ? qMin(_keyboard->height(), st::historyComposeFieldMaxHeight - (st::historyComposeFieldMaxHeight / 2)) : 0;
 			_field->setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
 			_kbShown = hasMarkup;
-			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
+			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
+				? App::histItemById(_keyboard->forMsgId())
+				: nullptr;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
 				updateReplyEditText(_kbReplyTo);
@@ -4981,7 +4995,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			}
 			_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 			_kbShown = false;
-			_kbReplyTo = 0;
+			_kbReplyTo = nullptr;
 			if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
 				_fieldBarCancel->hide();
 				updateMouseTracking();
@@ -4997,7 +5011,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		}
 		_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 		_kbShown = false;
-		_kbReplyTo = 0;
+		_kbReplyTo = nullptr;
 		if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId && !_editMsgId) {
 			_fieldBarCancel->hide();
 			updateMouseTracking();
@@ -5009,7 +5023,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 
 void HistoryWidget::updateHistoryDownPosition() {
 	// _historyDown is a child widget of _scroll, not me.
-	auto top = anim::interpolate(0, _historyDown->height() + st::historyToDownPosition.y(), _historyDownShown.current(_historyDownIsShown ? 1. : 0.));
+	auto top = anim::interpolate(0, _historyDown->height() + st::historyToDownPosition.y(), _historyDownShown.value(_historyDownIsShown ? 1. : 0.));
 	_historyDown->moveToRight(st::historyToDownPosition.x(), _scroll->height() - top);
 	auto shouldBeHidden = !_historyDownIsShown && !_historyDownShown.animating();
 	if (shouldBeHidden != _historyDown->isHidden()) {
@@ -5052,14 +5066,14 @@ void HistoryWidget::updateHistoryDownVisibility() {
 	auto historyDownIsShown = historyDownIsVisible();
 	if (_historyDownIsShown != historyDownIsShown) {
 		_historyDownIsShown = historyDownIsShown;
-		_historyDownShown.start([this] { updateHistoryDownPosition(); }, _historyDownIsShown ? 0. : 1., _historyDownIsShown ? 1. : 0., st::historyToDownDuration);
+		_historyDownShown.start([=] { updateHistoryDownPosition(); }, _historyDownIsShown ? 0. : 1., _historyDownIsShown ? 1. : 0., st::historyToDownDuration);
 	}
 }
 
 void HistoryWidget::updateUnreadMentionsPosition() {
 	// _unreadMentions is a child widget of _scroll, not me.
-	auto right = anim::interpolate(-_unreadMentions->width(), st::historyToDownPosition.x(), _unreadMentionsShown.current(_unreadMentionsIsShown ? 1. : 0.));
-	auto shift = anim::interpolate(0, _historyDown->height() + st::historyUnreadMentionsSkip, _historyDownShown.current(_historyDownIsShown ? 1. : 0.));
+	auto right = anim::interpolate(-_unreadMentions->width(), st::historyToDownPosition.x(), _unreadMentionsShown.value(_unreadMentionsIsShown ? 1. : 0.));
+	auto shift = anim::interpolate(0, _historyDown->height() + st::historyUnreadMentionsSkip, _historyDownShown.value(_historyDownIsShown ? 1. : 0.));
 	auto top = _scroll->height() - _unreadMentions->height() - st::historyToDownPosition.y() - shift;
 	_unreadMentions->moveToRight(right, top);
 	auto shouldBeHidden = !_unreadMentionsIsShown && !_unreadMentionsShown.animating();
@@ -5087,7 +5101,7 @@ void HistoryWidget::updateUnreadMentionsVisibility() {
 	}
 	if (_unreadMentionsIsShown != unreadMentionsIsShown) {
 		_unreadMentionsIsShown = unreadMentionsIsShown;
-		_unreadMentionsShown.start([this] { updateUnreadMentionsPosition(); }, _unreadMentionsIsShown ? 0. : 1., _unreadMentionsIsShown ? 1. : 0., st::historyToDownDuration);
+		_unreadMentionsShown.start([=] { updateUnreadMentionsPosition(); }, _unreadMentionsIsShown ? 0. : 1., _unreadMentionsIsShown ? 1. : 0., st::historyToDownDuration);
 	}
 }
 
@@ -6534,8 +6548,8 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 	}
 }
 
-bool HistoryWidget::paintShowAnimationFrame(crl::time ms) {
-	auto progress = _a_show.current(ms, 1.);
+bool HistoryWidget::paintShowAnimationFrame() {
+	auto progress = _a_show.value(1.);
 	if (!_a_show.animating()) {
 		return false;
 	}
@@ -6560,10 +6574,7 @@ bool HistoryWidget::paintShowAnimationFrame(crl::time ms) {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	auto ms = crl::now();
-	_historyDownShown.step(ms);
-	_unreadMentionsShown.step(ms);
-	if (paintShowAnimationFrame(ms)) {
+	if (paintShowAnimationFrame()) {
 		return;
 	}
 	if (Ui::skipPaintEvent(this, e)) {

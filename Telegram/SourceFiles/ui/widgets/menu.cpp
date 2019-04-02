@@ -178,7 +178,6 @@ void Menu::actionChanged() {
 void Menu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto clip = e->rect();
 
 	auto topskip = QRect(0, 0, width(), _st.skip);
@@ -205,7 +204,7 @@ void Menu::paintEvent(QPaintEvent *e) {
 				auto selected = ((i == _selected || i == _pressed) && enabled);
 				p.fillRect(0, 0, width(), actionHeight, selected ? _st.itemBgOver : _st.itemBg);
 				if (data.ripple) {
-					data.ripple->paint(p, 0, 0, width(), ms);
+					data.ripple->paint(p, 0, 0, width());
 					if (data.ripple->empty()) {
 						data.ripple.reset();
 					}
@@ -233,7 +232,7 @@ void Menu::paintEvent(QPaintEvent *e) {
 					p.drawTextRight(_st.itemPadding.right(), _st.itemPadding.top(), width(), data.shortcut);
 				} else if (data.toggle) {
 					auto toggleSize = data.toggle->getSize();
-					data.toggle->paint(p, width() - _st.itemPadding.right() - toggleSize.width() + _st.itemToggleShift, (_itemHeight - toggleSize.height()) / 2, width(), ms);
+					data.toggle->paint(p, width() - _st.itemPadding.right() - toggleSize.width() + _st.itemToggleShift, (_itemHeight - toggleSize.height()) / 2, width());
 				}
 			}
 		}

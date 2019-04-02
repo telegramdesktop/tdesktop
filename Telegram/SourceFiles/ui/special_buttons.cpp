@@ -151,11 +151,10 @@ QPoint HistoryDownButton::prepareRippleStartPosition() const {
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = crl::now();
 	const auto over = isOver();
 	const auto down = isDown();
 	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y());
 	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
 	if (_unreadCount > 0) {
 		auto unreadString = QString::number(_unreadCount);
@@ -189,10 +188,8 @@ EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st)
 void EmojiButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
-
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleOverride ? &(*_rippleOverride)->c : nullptr);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), _rippleOverride ? &(*_rippleOverride)->c : nullptr);
 
 	const auto over = isOver();
 	const auto loadingState = _loading
@@ -297,14 +294,14 @@ void SendButton::setType(Type type) {
 	if (_type != type) {
 		_contentFrom = grabContent();
 		_type = type;
-		_a_typeChanged.finish();
+		_a_typeChanged.stop();
 		_contentTo = grabContent();
 		_a_typeChanged.start([this] { update(); }, 0., 1., st::historyRecordVoiceDuration);
 		update();
 	}
 	if (_type != Type::Record) {
 		_recordActive = false;
-		_a_recordActive.finish();
+		_a_recordActive.stop();
 	}
 }
 
@@ -317,8 +314,8 @@ void SendButton::setRecordActive(bool recordActive) {
 }
 
 void SendButton::finishAnimating() {
-	_a_typeChanged.finish();
-	_a_recordActive.finish();
+	_a_typeChanged.stop();
+	_a_recordActive.stop();
 	update();
 }
 
@@ -334,9 +331,8 @@ void SendButton::mouseMoveEvent(QMouseEvent *e) {
 void SendButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
 	auto over = (isDown() || isOver());
-	auto changed = _a_typeChanged.current(ms, 1.);
+	auto changed = _a_typeChanged.value(1.);
 	if (changed < 1.) {
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(1. - changed);
@@ -351,7 +347,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	} else if (_type == Type::Record) {
 		auto recordActive = recordActiveRatio();
 		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), ms, &rippleColor);
+		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
 
 		auto fastIcon = [&] {
 			if (recordActive == 1.) {
@@ -371,7 +367,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 		auto &saveIcon = over ? st::historyEditSaveIconOver : st::historyEditSaveIcon;
 		saveIcon.paint(p, st::historySendIconPosition, width());
 	} else if (_type == Type::Cancel) {
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), ms);
+		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y());
 
 		auto &cancelIcon = over ? st::historyReplyCancelIconOver : st::historyReplyCancelIcon;
 		cancelIcon.paintInCenter(p, rect());
@@ -579,7 +575,6 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 	auto photoLeft = photoPosition.x();
 	auto photoTop = photoPosition.y();
 
-	auto ms = crl::now();
 	if (showSavedMessages()) {
 		Ui::EmptyUserpic::PaintSavedMessages(
 			p,
@@ -588,9 +583,9 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			width(),
 			_st.photoSize);
 	} else {
-		if (_a_appearance.animating(ms)) {
+		if (_a_appearance.animating()) {
 			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
-			p.setOpacity(_a_appearance.current());
+			p.setOpacity(_a_appearance.value(1.));
 		}
 		p.drawPixmapLeft(photoPosition, width(), _userpic);
 	}
@@ -613,7 +608,6 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			p,
 			photoLeft,
 			photoTop,
-			ms,
 			_userpicHasImage
 				? &st::shadowFg->c
 				: &_st.changeButton.ripple.color->c);
@@ -631,8 +625,7 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 				width());
 		}
 	} else if (_changeOverlayEnabled) {
-		auto current = _changeOverlayShown.current(
-			ms,
+		auto current = _changeOverlayShown.value(
 			(isOver() || isDown()) ? 1. : 0.);
 		auto barHeight = anim::interpolate(
 			0,
@@ -788,7 +781,7 @@ void UserpicButton::startNewPhotoShowing() {
 }
 
 void UserpicButton::startAnimation() {
-	_a_appearance.finish();
+	_a_appearance.stop();
 	_a_appearance.start([this] { update(); }, 0, 1, _st.duration);
 }
 
@@ -804,7 +797,7 @@ void UserpicButton::switchChangePhotoOverlay(bool enabled) {
 			updateCursorInChangeOverlay(
 				mapFromGlobal(QCursor::pos()));
 		} else {
-			_changeOverlayShown.finish();
+			_changeOverlayShown.stop();
 			update();
 		}
 	}

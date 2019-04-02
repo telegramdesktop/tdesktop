@@ -155,12 +155,10 @@ void TabbedPanel::windowActiveChanged() {
 void TabbedPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = crl::now();
-
 	// This call can finish _a_show animation and destroy _showAnimation.
-	auto opacityAnimating = _a_opacity.animating(ms);
+	auto opacityAnimating = _a_opacity.animating();
 
-	auto showAnimating = _a_show.animating(ms);
+	auto showAnimating = _a_show.animating();
 	if (_showAnimation && !showAnimating) {
 		_showAnimation.reset();
 		if (!opacityAnimating && !isDestroying()) {
@@ -171,11 +169,11 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 
 	if (showAnimating) {
 		Assert(_showAnimation != nullptr);
-		if (auto opacity = _a_opacity.current(_hiding ? 0. : 1.)) {
-			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
+		if (auto opacity = _a_opacity.value(_hiding ? 0. : 1.)) {
+			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.value(1.), opacity);
 		}
 	} else if (opacityAnimating) {
-		p.setOpacity(_a_opacity.current(_hiding ? 0. : 1.));
+		p.setOpacity(_a_opacity.value(_hiding ? 0. : 1.));
 		p.drawPixmap(0, 0, _cache);
 	} else if (_hiding || isHidden()) {
 		hideFinished();
@@ -208,8 +206,7 @@ void TabbedPanel::leaveEventHook(QEvent *e) {
 	if (preventAutoHide()) {
 		return;
 	}
-	auto ms = crl::now();
-	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
+	if (_a_show.animating() || _a_opacity.animating()) {
 		hideAnimated();
 	} else {
 		_hideTimer.callOnce(kHideTimeoutMs);
@@ -226,8 +223,7 @@ void TabbedPanel::otherLeave() {
 		return;
 	}
 
-	auto ms = crl::now();
-	if (_a_opacity.animating(ms)) {
+	if (_a_opacity.animating()) {
 		hideByTimerOrLeave();
 	} else {
 		_hideTimer.callOnce(0);
@@ -239,7 +235,7 @@ void TabbedPanel::hideFast() {
 
 	_hideTimer.cancel();
 	_hiding = false;
-	_a_opacity.finish();
+	_a_opacity.stop();
 	hideFinished();
 }
 
@@ -363,7 +359,7 @@ QPointer<TabbedSelector> TabbedPanel::getSelector() const {
 
 void TabbedPanel::hideFinished() {
 	hide();
-	_a_show.finish();
+	_a_show.stop();
 	_showAnimation.reset();
 	_cache = QPixmap();
 	_hiding = false;

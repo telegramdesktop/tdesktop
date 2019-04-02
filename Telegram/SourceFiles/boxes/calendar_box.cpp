@@ -320,7 +320,7 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 					}
 					return st::windowBgOver;
 				};
-				it->second->paint(p, innerLeft, innerTop, width(), ms, &(colorOverride()->c));
+				it->second->paint(p, innerLeft, innerTop, width(), &(colorOverride()->c));
 				if (it->second->empty()) {
 					_ripples.erase(it);
 				}

@@ -376,8 +376,8 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 		p.setPen(Qt::NoPen);
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
-		} else if (isThumbAnimation(ms)) {
-			auto over = _animation->a_thumbOver.current();
+		} else if (isThumbAnimation()) {
+			auto over = _animation->a_thumbOver.value(1.);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);

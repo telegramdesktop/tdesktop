@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/effects/animations.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 
@@ -108,7 +109,7 @@ public:
 	}
 
 	float64 recordActiveRatio() {
-		return _a_recordActive.current(crl::now(), _recordActive ? 1. : 0.);
+		return _a_recordActive.value(_recordActive ? 1. : 0.);
 	}
 
 protected:
@@ -127,8 +128,8 @@ private:
 	bool _recordActive = false;
 	QPixmap _contentFrom, _contentTo;
 
-	Animation _a_typeChanged;
-	Animation _a_recordActive;
+	Ui::Animations::Simple _a_typeChanged;
+	Ui::Animations::Simple _a_recordActive;
 
 	bool _recording = false;
 	Fn<void()> _recordStartCallback;
@@ -214,14 +215,14 @@ private:
 	bool _userpicHasImage = false;
 	bool _userpicCustom = false;
 	InMemoryKey _userpicUniqueKey;
-	Animation _a_appearance;
+	Ui::Animations::Simple _a_appearance;
 	QImage _result;
 
 	bool _showSavedMessagesOnSelf = false;
 	bool _canOpenPhoto = false;
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
-	Animation _changeOverlayShown;
+	Ui::Animations::Simple _changeOverlayShown;
 
 };
 

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/ripple_animation.h"
 
+#include "ui/effects/animations.h"
+
 namespace Ui {
 
 class RippleAnimation::Ripple {
@@ -14,7 +16,7 @@ public:
 	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, Fn<void()> update);
 	Ripple(const style::RippleAnimation &st, const QPixmap &mask, Fn<void()> update);
 
-	void paint(QPainter &p, const QPixmap &mask, crl::time ms, const QColor *colorOverride);
+	void paint(QPainter &p, const QPixmap &mask, const QColor *colorOverride);
 
 	void stop();
 	void unstop();
@@ -33,8 +35,8 @@ private:
 	int _radiusTo = 0;
 
 	bool _hiding = false;
-	Animation _show;
-	Animation _hide;
+	Ui::Animations::Simple _show;
+	Ui::Animations::Simple _hide;
 	QPixmap _cache;
 	QImage _frame;
 
@@ -73,14 +75,14 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap 
 	_hide.start(_update, 0., 1., _st.hideDuration);
 }
 
-void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, crl::time ms, const QColor *colorOverride) {
-	auto opacity = _hide.current(ms, _hiding ? 0. : 1.);
+void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, const QColor *colorOverride) {
+	auto opacity = _hide.value(_hiding ? 0. : 1.);
 	if (opacity == 0.) {
 		return;
 	}
 
 	if (_cache.isNull() || colorOverride != nullptr) {
-		auto radius = anim::interpolate(_radiusFrom, _radiusTo, _show.current(ms, 1.));
+		auto radius = anim::interpolate(_radiusFrom, _radiusTo, _show.value(1.));
 		_frame.fill(Qt::transparent);
 		{
 			Painter p(&_frame);
@@ -129,8 +131,8 @@ void RippleAnimation::Ripple::finish() {
 	if (_update) {
 		_update();
 	}
-	_show.finish();
-	_hide.finish();
+	_show.stop();
+	_hide.stop();
 }
 
 void RippleAnimation::Ripple::clearCache() {
@@ -181,7 +183,7 @@ void RippleAnimation::forceRepaint() {
 	}
 }
 
-void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, crl::time ms, const QColor *colorOverride) {
+void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, const QColor *colorOverride) {
 	if (_ripples.empty()) {
 		return;
 	}
@@ -189,7 +191,7 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, crl::time
 	if (rtl()) x = outerWidth - x - (_mask.width() / cIntRetinaFactor());
 	p.translate(x, y);
 	for (const auto &ripple : _ripples) {
-		ripple->paint(p, _mask, ms, colorOverride);
+		ripple->paint(p, _mask, colorOverride);
 	}
 	p.translate(-x, -y);
 	clearFinished();

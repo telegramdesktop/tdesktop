@@ -421,7 +421,7 @@ void Message::draw(
 		g.setHeight(g.height() - keyboardHeight);
 		auto keyboardPosition = QPoint(g.left(), g.top() + g.height() + st::msgBotKbButton.margin);
 		p.translate(keyboardPosition);
-		keyboard->paint(p, g.width(), clip.translated(-keyboardPosition), ms);
+		keyboard->paint(p, g.width(), clip.translated(-keyboardPosition));
 		p.translate(-keyboardPosition);
 	}
 

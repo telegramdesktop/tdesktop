@@ -236,13 +236,11 @@ private:
 		int fullWidth,
 		bool active,
 		bool selected,
-		bool onlyBackground,
-		crl::time ms) const;
+		bool onlyBackground) const;
 	void paintSearchInChat(
 		Painter &p,
 		int fullWidth,
-		bool onlyBackground,
-		crl::time ms) const;
+		bool onlyBackground) const;
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,

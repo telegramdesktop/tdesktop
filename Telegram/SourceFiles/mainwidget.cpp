@@ -1593,7 +1593,7 @@ void MainWidget::ui_showPeerHistory(
 	}
 
 	_controller->dialogsListFocused().set(false, true);
-	_a_dialogsWidth.finish();
+	_a_dialogsWidth.stop();
 
 	using Way = SectionShow::Way;
 	auto way = params.way;
@@ -1922,7 +1922,7 @@ void MainWidget::showNewSection(
 	QPixmap animCache;
 
 	_controller->dialogsListFocused().set(false, true);
-	_a_dialogsWidth.finish();
+	_a_dialogsWidth.stop();
 
 	auto mainSectionTop = getMainSectionTop();
 	auto newMainGeometry = QRect(
@@ -2230,7 +2230,7 @@ void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	_showBack = back;
 	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
 
-	_a_show.finish();
+	_a_show.stop();
 
 	showAll();
 	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
@@ -2262,7 +2262,7 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	Painter p(this);
-	auto progress = _a_show.current(crl::now(), 1.);
+	auto progress = _a_show.value(1.);
 	if (_a_show.animating()) {
 		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
 		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
@@ -2374,7 +2374,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 void MainWidget::updateControlsGeometry() {
 	updateWindowAdaptiveLayout();
 	if (session().settings().dialogsWidthRatio() > 0) {
-		_a_dialogsWidth.finish();
+		_a_dialogsWidth.stop();
 	}
 	if (!_a_dialogsWidth.animating()) {
 		_dialogs->stopWidthAnimation();
@@ -2401,7 +2401,7 @@ void MainWidget::updateControlsGeometry() {
 		_thirdShadow.destroy();
 	}
 	auto mainSectionTop = getMainSectionTop();
-	auto dialogsWidth = qRound(_a_dialogsWidth.current(_dialogsWidth));
+	auto dialogsWidth = qRound(_a_dialogsWidth.value(_dialogsWidth));
 	if (Adaptive::OneColumn()) {
 		if (_callTopBar) {
 			_callTopBar->resizeToWidth(dialogsWidth);

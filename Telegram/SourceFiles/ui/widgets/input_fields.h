@@ -461,17 +461,17 @@ private:
 	QString _placeholder;
 	Fn<QString()> _placeholderFactory;
 	int _placeholderAfterSymbols = 0;
-	Animation _a_placeholderShifted;
+	Ui::Animations::Simple _a_placeholderShifted;
 	bool _placeholderShifted = false;
 	QPainterPath _placeholderPath;
 
-	Animation _a_borderShown;
+	Ui::Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Animation _a_borderOpacity;
+	Ui::Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Animation _a_focused;
-	Animation _a_error;
+	Ui::Animations::Simple _a_focused;
+	Ui::Animations::Simple _a_error;
 
 	bool _focused = false;
 	bool _error = false;
@@ -580,14 +580,14 @@ protected:
 	}
 	void setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos);
 
-	virtual void paintAdditionalPlaceholder(Painter &p, crl::time ms) {
+	virtual void paintAdditionalPlaceholder(Painter &p) {
 	}
 
 	style::font phFont() {
 		return _st.font;
 	}
 
-	void placeholderAdditionalPrepare(Painter &p, crl::time ms);
+	void placeholderAdditionalPrepare(Painter &p);
 	QRect placeholderRect() const;
 
 	void setTextMargins(const QMargins &mrg);
@@ -614,17 +614,17 @@ private:
 
 	QString _placeholder;
 	Fn<QString()> _placeholderFactory;
-	Animation _a_placeholderShifted;
+	Ui::Animations::Simple _a_placeholderShifted;
 	bool _placeholderShifted = false;
 	QPainterPath _placeholderPath;
 
-	Animation _a_borderShown;
+	Ui::Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Animation _a_borderOpacity;
+	Ui::Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Animation _a_focused;
-	Animation _a_error;
+	Ui::Animations::Simple _a_focused;
+	Ui::Animations::Simple _a_error;
 
 	bool _focused = false;
 	bool _error = false;
@@ -685,7 +685,7 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p, crl::time ms) override;
+	void paintAdditionalPlaceholder(Painter &p) override;
 
 private:
 	QVector<int> _pattern;
@@ -737,7 +737,7 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p, crl::time ms) override;
+	void paintAdditionalPlaceholder(Painter &p) override;
 
 private:
 	QString _linkPlaceholder;
@@ -758,7 +758,7 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p, crl::time ms) override;
+	void paintAdditionalPlaceholder(Painter &p) override;
 
 private:
 	QVector<int> _pattern;

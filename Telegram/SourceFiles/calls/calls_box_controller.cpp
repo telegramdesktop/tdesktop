@@ -97,7 +97,6 @@ public:
 	}
 	void paintAction(
 		Painter &p,
-		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,
@@ -143,7 +142,6 @@ void BoxController::Row::paintStatusText(Painter &p, const style::PeerListItem &
 
 void BoxController::Row::paintAction(
 		Painter &p,
-		crl::time ms,
 		int x,
 		int y,
 		int outerWidth,
@@ -151,7 +149,7 @@ void BoxController::Row::paintAction(
 		bool actionSelected) {
 	auto size = actionSize();
 	if (_actionRipple) {
-		_actionRipple->paint(p, x + st::callReDial.rippleAreaPosition.x(), y + st::callReDial.rippleAreaPosition.y(), outerWidth, ms);
+		_actionRipple->paint(p, x + st::callReDial.rippleAreaPosition.x(), y + st::callReDial.rippleAreaPosition.y(), outerWidth);
 		if (_actionRipple->empty()) {
 			_actionRipple.reset();
 		}

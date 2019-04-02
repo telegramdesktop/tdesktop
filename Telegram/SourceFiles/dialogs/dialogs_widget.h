@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/section_widget.h"
+#include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
 #include "dialogs/dialogs_key.h"
 
@@ -199,8 +200,8 @@ private:
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
-	Animation _scrollToAnimation;
-	Animation _a_show;
+	Ui::Animations::Simple _scrollToAnimation;
+	Ui::Animations::Simple _a_show;
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 

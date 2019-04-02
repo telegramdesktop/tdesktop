@@ -624,7 +624,7 @@ void GroupThumbs::clear() {
 }
 
 void GroupThumbs::startDelayedAnimation() {
-	_animation.finish();
+	_animation.stop();
 	_waitingForAnimationStart = true;
 	countUpdatedRect();
 }
@@ -661,15 +661,10 @@ void GroupThumbs::update() {
 	_updateRequests.fire_copy(_updatedRect);
 }
 
-void GroupThumbs::paint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		crl::time ms) {
+void GroupThumbs::paint(Painter &p, int x, int y, int outerWidth) {
 	const auto progress = _waitingForAnimationStart
 		? 0.
-		: _animation.current(ms, 1.);
+		: _animation.value(1.);
 	x += (_width / 2);
 	y += st::mediaviewGroupPadding.top();
 	for (auto i = _cache.begin(); i != _cache.end();) {

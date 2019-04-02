@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_notifications.h"
 
 #include "settings/settings_common.h"
+#include "ui/effects/animations.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
@@ -74,7 +75,7 @@ private:
 	QPixmap _notificationSampleSmall;
 	QPixmap _notificationSampleLarge;
 	ScreenCorner _chosenCorner;
-	std::vector<Animation> _sampleOpacities;
+	std::vector<Ui::Animations::Simple> _sampleOpacities;
 
 	bool _isOverCorner = false;
 	ScreenCorner _overCorner = ScreenCorner::TopLeft;
@@ -106,7 +107,7 @@ private:
 
 	NotificationsCount *_owner;
 	QPixmap _cache;
-	Animation _opacity;
+	Ui::Animations::Simple _opacity;
 	bool _hiding = false;
 	bool _deleted = false;
 
@@ -148,7 +149,7 @@ void NotificationsCount::paintEvent(QPaintEvent *e) {
 		if (corner == static_cast<int>(_chosenCorner)) {
 			auto count = _oldCount;
 			for (int i = 0; i != kMaxNotificationsCount; ++i) {
-				auto opacity = _sampleOpacities[i].current(crl::now(), (i < count) ? 1. : 0.);
+				auto opacity = _sampleOpacities[i].value((i < count) ? 1. : 0.);
 				p.setOpacity(opacity);
 				p.drawPixmapLeft(sampleLeft, sampleTop, width(), _notificationSampleSmall);
 				sampleTop += (isTop ? 1 : -1) * (st::notificationSampleSize.height() + st::notificationsSampleMargin);
@@ -463,7 +464,7 @@ void NotificationsCount::SampleWidget::startAnimation() {
 }
 
 void NotificationsCount::SampleWidget::animationCallback() {
-	setWindowOpacity(_opacity.current(_hiding ? 0. : 1.));
+	setWindowOpacity(_opacity.value(_hiding ? 0. : 1.));
 	if (!_opacity.animating() && _hiding) {
 		if (_owner) {
 			_owner->removeSample(this);

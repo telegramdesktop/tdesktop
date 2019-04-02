@@ -541,21 +541,21 @@ int ReplyKeyboard::naturalHeight() const {
 	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
 }
 
-void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, crl::time ms) const {
+void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip) const {
 	Assert(_st != nullptr);
 	Assert(_width > 0);
 
 	_st->startPaint(p);
-	for_const (auto &row, _rows) {
-		for_const (auto &button, row) {
-			QRect rect(button.rect);
+	for (const auto &row : _rows) {
+		for (const auto &button : row) {
+			const auto rect = button.rect;
 			if (rect.y() >= clip.y() + clip.height()) return;
 			if (rect.y() + rect.height() < clip.y()) continue;
 
 			// just ignore the buttons that didn't layout well
 			if (rect.x() + rect.width() > _width) break;
 
-			_st->paintButton(p, outerWidth, button, ms);
+			_st->paintButton(p, outerWidth, button);
 		}
 	}
 }
@@ -694,12 +694,11 @@ int ReplyKeyboard::Style::buttonHeight() const {
 void ReplyKeyboard::Style::paintButton(
 		Painter &p,
 		int outerWidth,
-		const ReplyKeyboard::Button &button,
-		crl::time ms) const {
+		const ReplyKeyboard::Button &button) const {
 	const QRect &rect = button.rect;
 	paintButtonBg(p, rect, button.howMuchOver);
 	if (button.ripple) {
-		button.ripple->paint(p, rect.x(), rect.y(), outerWidth, ms);
+		button.ripple->paint(p, rect.x(), rect.y(), outerWidth);
 		if (button.ripple->empty()) {
 			button.ripple.reset();
 		}

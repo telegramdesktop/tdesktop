@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/media/history_media.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 
 class HistoryFileMedia : public HistoryMedia {
@@ -73,9 +74,9 @@ protected:
 			&& _animation->radial.animating()
 			&& radialAnimationCallback(now);
 	}
-	bool isThumbAnimation(crl::time ms) const {
+	bool isThumbAnimation() const {
 		if (_animation) {
-			if (_animation->a_thumbOver.animating(ms)) {
+			if (_animation->a_thumbOver.animating()) {
 				return true;
 			}
 			checkAnimationFinished();
@@ -93,7 +94,7 @@ protected:
 		: radial(std::forward<Callback>(radialCallback)) {
 		}
 
-		Animation a_thumbOver;
+		Ui::Animations::Simple a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
 	mutable std::unique_ptr<AnimationData> _animation;

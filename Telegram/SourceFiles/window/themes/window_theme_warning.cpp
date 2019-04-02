@@ -42,12 +42,12 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_cache.isNull()) {
-		if (!_animation.animating(crl::now())) {
+		if (!_animation.animating()) {
 			if (isHidden()) {
 				return;
 			}
 		}
-		p.setOpacity(_animation.current(_hiding ? 0. : 1.));
+		p.setOpacity(_animation.value(_hiding ? 0. : 1.));
 		p.drawPixmap(_outer.topLeft(), _cache);
 		if (!_animation.animating()) {
 			_cache = QPixmap();
