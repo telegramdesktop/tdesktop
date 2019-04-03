@@ -52,6 +52,10 @@ constexpr auto kWaitingShowDuration = crl::time(500);
 constexpr auto kWaitingShowDelay = crl::time(500);
 constexpr auto kPreloadCount = 4;
 
+// macOS OpenGL renderer fails to render larger texture
+// even though it reports that max texture size is 16384.
+constexpr auto kMaxDisplayImageSize = 4096;
+
 // Preload X message ids before and after current.
 constexpr auto kIdsLimit = 48;
 
@@ -1795,7 +1799,18 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 				auto &location = _doc->location(true);
 				if (location.accessEnable()) {
 					if (QImageReader(location.name()).canRead()) {
-						_current = App::pixmapFromImageInPlace(App::readImage(location.name(), nullptr, false));
+						auto image = App::readImage(location.name(), nullptr, false);
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+						if (image.width() > kMaxDisplayImageSize
+							|| image.height() > kMaxDisplayImageSize) {
+							image = image.scaled(
+								kMaxDisplayImageSize,
+								kMaxDisplayImageSize,
+								Qt::KeepAspectRatio,
+								Qt::SmoothTransformation);
+						}
+#endif // Q_OS_MAC && !OS_MAC_OLD
+						_current = App::pixmapFromImageInPlace(std::move(image));
 					}
 				}
 				location.accessDisable();
