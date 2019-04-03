@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/event_filter.h"
+#include "auth_session.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
@@ -274,7 +275,8 @@ void SuggestionsWidget::keyPressEvent(QKeyEvent *e) {
 bool SuggestionsWidget::handleKeyEvent(int key) {
 	if (key == Qt::Key_Enter || key == Qt::Key_Return) {
 		return triggerSelectedRow();
-	} else if (key == Qt::Key_Tab) {
+	} else if (key == Qt::Key_Tab
+		&& (!AuthSession::Exists() || !Auth().supportMode())) {
 		if (_selected < 0 || _selected >= _rows.size()) {
 			setSelected(0);
 		}
