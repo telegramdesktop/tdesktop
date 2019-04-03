@@ -134,9 +134,7 @@ StorageFileLocation StorageFileLocation::convertToModern(
 		uint64 id,
 		uint64 accessHash) const {
 	Expects(_type == Type::Legacy);
-	Expects(type == Type::Document
-		|| type == Type::PeerPhoto
-		|| type == Type::StickerSetThumb);
+	Expects(type == Type::PeerPhoto || type == Type::StickerSetThumb);
 
 	auto result = *this;
 	result._type = type;
@@ -305,10 +303,15 @@ bool StorageFileLocation::valid() const {
 	return false;
 }
 
+bool StorageFileLocation::isDocumentThumbnail() const {
+	return (_type == Type::Document) && (_sizeLetter != 0);
+}
+
 Storage::Cache::Key StorageFileLocation::cacheKey() const {
 	using Key = Storage::Cache::Key;
 
-	// Skip '1' and '2' for legacy document cache keys.
+	// Skip '1' for legacy document cache keys.
+	// Skip '2' because it is used for good (fullsize) document thumbnails.
 	const auto shifted = ((uint64(_type) + 3) << 8);
 	const auto sliced = uint64(_dcId) & 0xFFULL;
 	switch (_type) {
@@ -324,13 +327,10 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 		return Key{ shifted | sliced, _id };
 
 	case Type::Document:
-		// Keep old cache keys for documents and document 'm' thumbnails.
+		// Keep old cache keys for documents.
 		if (_sizeLetter == 0) {
 			return Data::DocumentCacheKey(_dcId, _id);
 			//return Key{ 0x100ULL | sliced, _id };
-		} else if (_sizeLetter == uint8('m')) {
-			return Data::DocumentThumbCacheKey(_dcId, _id);
-			//return Key{ 0x200ULL | sliced, _id };
 		}
 		[[fallthrough]];
 	case Type::Photo:

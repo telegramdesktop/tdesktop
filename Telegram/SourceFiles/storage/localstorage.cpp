@@ -4009,6 +4009,11 @@ void readSavedGifs() {
 	}
 
 	auto &saved = Auth().data().savedGifsRef();
+	const auto failed = [&] {
+		clearKey(_savedGifsKey);
+		_savedGifsKey = 0;
+		saved.clear();
+	};
 	saved.clear();
 
 	quint32 cnt;
@@ -4017,7 +4022,11 @@ void readSavedGifs() {
 	OrderedSet<DocumentId> read;
 	for (uint32 i = 0; i < cnt; ++i) {
 		auto document = Serialize::Document::readFromStream(gifs.version, gifs.stream);
-		if (!document || !document->isGifv()) continue;
+		if (!_checkStreamStatus(gifs.stream)) {
+			return failed();
+		} else if (!document || !document->isGifv()) {
+			continue;
+		}
 
 		if (read.contains(document->id)) continue;
 		read.insert(document->id);

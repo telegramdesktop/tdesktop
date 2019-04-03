@@ -131,14 +131,14 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		}
 	}
 
-	if ((!dc && !access) || !thumb) {
+	if ((!dc && !access)
+		|| !thumb
+		|| (thumb->valid() && !thumb->file().isDocumentThumbnail())) {
+		stream.setStatus(QDataStream::ReadCorruptData);
+		// We can't convert legacy thumbnail location to modern, because
+		// size letter ('s' or 'm') is lost, it was not saved in legacy.
 		return nullptr;
 	}
-	using LocationType = StorageFileLocation::Type;
-	const auto location = (thumb->valid()
-		&& thumb->type() == LocationType::Legacy)
-		? thumb->convertToModern(LocationType::Document, id, access)
-		: *thumb;
 	return Auth().data().document(
 		id,
 		access,
@@ -147,10 +147,10 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		attributes,
 		mime,
 		ImagePtr(),
-		Images::Create(location),
+		Images::Create(*thumb),
 		dc,
 		size,
-		location);
+		*thumb);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {

@@ -86,6 +86,9 @@ public:
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 
+	// We have to allow checking this because of a serialization bug.
+	[[nodiscard]] bool isDocumentThumbnail() const;
+
 	[[nodiscard]] QByteArray fileReference() const;
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
 	bool refreshFileReference(const QByteArray &data);
