@@ -91,7 +91,6 @@ if 'TDESKTOP_BUILD_DEFINES' in os.environ:
     print('[INFO] Set build defines to ' + buildDefines)
 
 if sys.platform == 'win32':
-    os.environ['GYP_MSVS_VERSION'] = '2017'
     gypFormats.append('ninja')
     gypFormats.append('msvs-ninja')
 elif sys.platform == 'darwin':

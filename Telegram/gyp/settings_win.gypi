@@ -17,6 +17,7 @@
         '_SCL_SECURE_NO_WARNINGS',
         '_USING_V110_SDK71_',
       ],
+      'msbuild_toolset': 'v142',
       'msvs_cygwin_shell': 0,
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -31,7 +32,7 @@
             '/EHsc',   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
             '/w14834', # [[nodiscard]]
             '/w15038', # wrong initialization order
-			'/w14265', # class has virtual functions, but destructor is not virtual
+            '/w14265', # class has virtual functions, but destructor is not virtual
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },

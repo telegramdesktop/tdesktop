@@ -6,7 +6,6 @@
 
 {
   'conditions': [[ 'build_win', {
-    'msbuild_toolset': 'v141',
     'library_dirs': [
       '<(libs_loc)/ffmpeg',
     ],

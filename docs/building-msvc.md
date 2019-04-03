@@ -1,4 +1,4 @@
-# Build instructions for Visual Studio 2017
+# Build instructions for Visual Studio 2019
 
 - [Prepare folder](#prepare-folder)
 - [Install third party software](#install-third-party-software)
@@ -10,7 +10,7 @@
 
 Choose an empty folder for the future build, for example **D:\\TBuild**. It will be named ***BuildPath*** in the rest of this document. Create two folders there, ***BuildPath*\\ThirdParty** and ***BuildPath*\\Libraries**.
 
-All commands (if not stated otherwise) will be launched from **x86 Native Tools Command Prompt for VS 2017.bat** (should be in **Start Menu > Visual Studio 2017** menu folder). Pay attention not to use any other Command Prompt.
+All commands (if not stated otherwise) will be launched from **x86 Native Tools Command Prompt for VS 2019.bat** (should be in **Start Menu > Visual Studio 2019** menu folder). Pay attention not to use any other Command Prompt.
 
 ### Obtain your API credentials
 
@@ -27,12 +27,12 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **CMake** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
 
-Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** and run
+Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
-    git clone https://chromium.googlesource.com/external/gyp
+    git clone https://github.com/telegramdesktop/gyp.git
     cd gyp
-    git checkout a478c1ab51
+    git checkout tdesktop
     cd ..\..
 
 Add **GYP** and **Ninja** to your PATH:
@@ -46,7 +46,7 @@ Add **GYP** and **Ninja** to your PATH:
 
 ## Clone source code and prepare libraries
 
-Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** and run
+Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     SET PATH=%cd%\ThirdParty\Perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
@@ -87,11 +87,11 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm
     cd ..\..\..\..
 
-    git clone https://github.com/john-preston/openal-soft.git
+    git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
     git checkout fix_macro
     cd build
-    cmake -G "Visual Studio 15 2017" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
+    cmake -G "Visual Studio 16 2019" -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
     msbuild OpenAL.vcxproj /property:Configuration=Debug
     msbuild OpenAL.vcxproj /property:Configuration=Release
     cd ..\..
@@ -103,7 +103,6 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     cd src
     git clone https://github.com/google/googletest testing
     cd client\windows
-    set GYP_MSVS_VERSION=2017
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\..
     ninja -C out/Debug common crash_generation_client exception_handler
@@ -162,7 +161,7 @@ If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESK
 
 After, call **gyp\refresh.bat** once again.
 
-* Open ***BuildPath*\\tdesktop\\Telegram\\Telegram.sln** in Visual Studio 2017
+* Open ***BuildPath*\\tdesktop\\Telegram\\Telegram.sln** in Visual Studio 2019
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
 * The result Telegram.exe will be located in **D:\TBuild\tdesktop\out\Debug** (and **Release**)
 
