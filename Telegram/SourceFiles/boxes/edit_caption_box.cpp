@@ -386,11 +386,12 @@ void EditCaptionBox::updateEditPreview() {
 
 	if (!_doc) {
 		_thumb = App::pixmapFromImageInPlace(
-			file->preview.scaled(st::sendMediaPreviewSize,
-				st::confirmMaxHeight,
+			file->preview.scaled(
+				st::sendMediaPreviewSize * cIntRetinaFactor(),
+				st::confirmMaxHeight * cIntRetinaFactor(),
 				Qt::KeepAspectRatio));
-		_thumbw = _thumb.width();
-		_thumbh = _thumb.height();
+		_thumbw = _thumb.width() / cIntRetinaFactor();
+		_thumbh = _thumb.height() / cIntRetinaFactor();
 		_thumbx = (st::boxWideWidth - _thumbw) / 2;
 	}
 	captionResized();
