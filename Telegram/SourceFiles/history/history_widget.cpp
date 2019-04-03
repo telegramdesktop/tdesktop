@@ -4421,14 +4421,14 @@ void HistoryWidget::documentEdited(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	Auth().api().editUploadedDocument(newId, file, std::nullopt, silent);
+	Auth().api().editUploadedFile(newId, file, std::nullopt, silent, true);
 }
 
 void HistoryWidget::photoEdited(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	Auth().api().editUploadedPhoto(newId, file, silent);
+	Auth().api().editUploadedFile(newId, file, std::nullopt, silent, false);
 }
 
 void HistoryWidget::thumbDocumentUploaded(
@@ -4438,7 +4438,7 @@ void HistoryWidget::thumbDocumentUploaded(
 		const MTPInputFile &thumb,
 		bool edit) {
 	edit
-	? Auth().api().editUploadedDocument(newId, file, thumb, silent)
+	? Auth().api().editUploadedFile(newId, file, thumb, silent, true)
 	: Auth().api().sendUploadedDocument(newId, file, thumb, silent);
 }
 

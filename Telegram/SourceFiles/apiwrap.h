@@ -344,15 +344,12 @@ public:
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
 		bool silent);
-	void editUploadedDocument(
+	void editUploadedFile(
 		FullMsgId localId,
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
-		bool silent);
-	void editUploadedPhoto(
-		FullMsgId localId,
-		const MTPInputFile &file,
-		bool silent);
+		bool silent,
+		bool isDocument);
 
 	void cancelLocalItem(not_null<HistoryItem*> item);
 

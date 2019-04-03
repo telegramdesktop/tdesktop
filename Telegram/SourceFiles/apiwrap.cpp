@@ -4610,114 +4610,82 @@ void ApiWrap::sendUploadedDocument(
 	}
 }
 
-void ApiWrap::editUploadedPhoto(
+void ApiWrap::editUploadedFile(
 		FullMsgId localId,
 		const MTPInputFile &file,
-		bool silent) {
-	if (const auto item = App::histItemById(localId)) {
-		const auto media = MTP_inputMediaUploadedPhoto(
+		const std::optional<MTPInputFile> &thumb,
+		bool silent,
+		bool isDocument) {
+	const auto item = App::histItemById(localId);
+	if (!item) {
+		return;
+	}
+
+	auto sentEntities = TextUtilities::EntitiesToMTP(
+		item->originalText().entities,
+		TextUtilities::ConvertOption::SkipLocal);
+
+	auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
+	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
+	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
+	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
+
+	MTPinputMedia media = MTP_inputMediaEmpty();
+
+	if (isDocument) {
+		const auto document = item->media()->document();
+		if (!document) {
+			return;
+		}
+
+		const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
+			| (thumb
+				? MTPDinputMediaUploadedDocument::Flag::f_thumb
+				: MTPDinputMediaUploadedDocument::Flag(0))
+			// Never edit video as gif.
+			| MTPDinputMediaUploadedDocument::Flag::f_nosound_video;
+		media = MTP_inputMediaUploadedDocument(
+			MTP_flags(flags),
+			file,
+			thumb ? *thumb : MTPInputFile(),
+			MTP_string(document->mimeString()),
+			ComposeSendingDocumentAttributes(document),
+			MTPVector<MTPInputDocument>(),
+			MTP_int(0));
+	} else {
+		const auto photo = item->media()->photo();
+		if (!photo) {
+			return;
+		}
+		media = MTP_inputMediaUploadedPhoto(
 			MTP_flags(0),
 			file,
 			MTPVector<MTPInputDocument>(),
 			MTP_int(0));
-
-		auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
-		flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
-		flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
-		flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
-
-		auto sentEntities = TextUtilities::EntitiesToMTP(
-			item->originalText().entities,
-			TextUtilities::ConvertOption::SkipLocal);
-
-		request(MTPmessages_EditMessage(
-			MTP_flags(flagsEditMsg),
-			item->history()->peer->input,
-			MTP_int(item->id),
-			MTP_string(item->originalText().text),
-			media,
-			MTPReplyMarkup(),
-			sentEntities
-		)).done([=](const MTPUpdates &result) {
-			item->clearSavedMedia();
-			item->setIsLocalUpdateMedia(true);
-			applyUpdates(result);
-		}).fail([=](const RPCError &error) {
-			QString err = error.type();
-			if (err == qstr("MESSAGE_NOT_MODIFIED")
-				|| err == qstr("MEDIA_NEW_INVALID")) {
-				item->returnSavedMedia();
-				_session->data().sendHistoryChangeNotifications();
-			} else {
-				sendMessageFail(error);
-			}
-		}).send();
 	}
-}
 
-void ApiWrap::editUploadedDocument(
-		FullMsgId localId,
-		const MTPInputFile &file,
-		const std::optional<MTPInputFile> &thumb,
-		bool silent) {
-	if (const auto item = App::histItemById(localId)) {
-		QString filename = "file";
-		if (const auto document = item->media()->document()) {
-			filename = document->filename();
-
-			const auto filenameAttribute = MTP_documentAttributeFilename(
-				MTP_string(filename));
-			auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
-
-			const auto groupId = item->groupId();
-			const auto flags = MTPDinputMediaUploadedDocument::Flags(0)
-				| (thumb
-					? MTPDinputMediaUploadedDocument::Flag::f_thumb
-					: MTPDinputMediaUploadedDocument::Flag(0))
-				// Never edit video as gif.
-				| MTPDinputMediaUploadedDocument::Flag::f_nosound_video;
-			const auto media = MTP_inputMediaUploadedDocument(
-				MTP_flags(flags),
-				file,
-				thumb ? *thumb : MTPInputFile(),
-				MTP_string(document->mimeString()),
-				ComposeSendingDocumentAttributes(document),
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-
-			auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
-			flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
-			flagsEditMsg |= MTPmessages_EditMessage::Flag::f_entities;
-			flagsEditMsg |= MTPmessages_EditMessage::Flag::f_media;
-
-			auto sentEntities = TextUtilities::EntitiesToMTP(
-				item->originalText().entities,
-				TextUtilities::ConvertOption::SkipLocal);
-
-			request(MTPmessages_EditMessage(
-				MTP_flags(flagsEditMsg),
-				item->history()->peer->input,
-				MTP_int(item->id),
-				MTP_string(item->originalText().text),
-				media,
-				MTPReplyMarkup(),
-				sentEntities
-			)).done([=](const MTPUpdates &result) {
-				item->clearSavedMedia();
-				item->setIsLocalUpdateMedia(true);
-				applyUpdates(result);
-			}).fail([=](const RPCError &error) {
-				QString err = error.type();
-				if (err == qstr("MESSAGE_NOT_MODIFIED")
-					|| err == qstr("MEDIA_NEW_INVALID")) {
-					item->returnSavedMedia();
-					_session->data().sendHistoryChangeNotifications();
-				} else {
-					sendMessageFail(error);
-				}
-			}).send();
+	request(MTPmessages_EditMessage(
+		MTP_flags(flagsEditMsg),
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTP_string(item->originalText().text),
+		media,
+		MTPReplyMarkup(),
+		sentEntities
+	)).done([=](const MTPUpdates &result) {
+		item->clearSavedMedia();
+		item->setIsLocalUpdateMedia(true);
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		QString err = error.type();
+		if (err == qstr("MESSAGE_NOT_MODIFIED")
+			|| err == qstr("MEDIA_NEW_INVALID")) {
+			item->returnSavedMedia();
+			_session->data().sendHistoryChangeNotifications();
+		} else {
+			sendMessageFail(error);
 		}
-	}
+	}).send();
 }
 
 void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
