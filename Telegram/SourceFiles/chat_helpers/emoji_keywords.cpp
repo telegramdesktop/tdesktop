@@ -49,7 +49,12 @@ struct LangPackData {
 [[nodiscard]] bool SkipExactKeyword(
 		const QString &language,
 		const QString &word) {
-	if (language != qstr("en")) {
+	if ((word.size() == 1)
+		&& (word[0] >= '0' && word[0] <= '9')) {
+		return true;
+	} else if (word == qstr("10")) {
+		return true;
+	} else if (language != qstr("en")) {
 		return false;
 	} else if ((word.size() == 1)
 		&& (word[0] != '$')
