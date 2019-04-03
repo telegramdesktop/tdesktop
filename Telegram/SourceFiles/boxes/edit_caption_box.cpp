@@ -405,7 +405,7 @@ void EditCaptionBox::createEditMediaButton() {
 		const auto isWebp = [](QString mimeType) {
 			if (mimeType == qstr("image/webp")) {
 				Ui::show(
-					Box<InformBox>(lang(lng_edit_media_album_error)),
+					Box<InformBox>(lang(lng_edit_media_invalid_file)),
 					LayerOption::KeepOther);
 				return true;
 			}

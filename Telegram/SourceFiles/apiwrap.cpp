@@ -4678,10 +4678,15 @@ void ApiWrap::editUploadedFile(
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		QString err = error.type();
-		if (err == qstr("MESSAGE_NOT_MODIFIED")
-			|| err == qstr("MEDIA_NEW_INVALID")) {
+		if (err == qstr("MESSAGE_NOT_MODIFIED")) {
 			item->returnSavedMedia();
 			_session->data().sendHistoryChangeNotifications();
+		} else if (err == qstr("MEDIA_NEW_INVALID")) {
+			item->returnSavedMedia();
+			_session->data().sendHistoryChangeNotifications();
+			Ui::show(
+				Box<InformBox>(lang(lng_edit_media_invalid_file)),
+				LayerOption::KeepOther);
 		} else {
 			sendMessageFail(error);
 		}
