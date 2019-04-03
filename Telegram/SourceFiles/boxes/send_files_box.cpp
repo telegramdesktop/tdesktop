@@ -40,6 +40,7 @@ namespace {
 constexpr auto kMinPreviewWidth = 20;
 constexpr auto kShrinkDuration = crl::time(150);
 constexpr auto kDragDuration = crl::time(200);
+const auto kStickerMimeString = qstr("image/webp");
 
 class SingleMediaPreview : public Ui::RpWidget {
 public:
@@ -53,6 +54,7 @@ public:
 		not_null<Window::Controller*> controller,
 		QImage preview,
 		bool animated,
+		bool sticker,
 		const QString &animatedPreviewPath);
 
 	bool canSendAsPhoto() const {
@@ -73,6 +75,7 @@ private:
 
 	not_null<Window::Controller*> _controller;
 	bool _animated = false;
+	bool _sticker = false;
 	bool _canSendAsPhoto = false;
 	QPixmap _preview;
 	int _previewLeft = 0;
@@ -587,11 +590,13 @@ SingleMediaPreview *SingleMediaPreview::Create(
 			preview.height())) {
 		return nullptr;
 	}
+	const auto sticker = (file.information->filemime == kStickerMimeString);
 	return Ui::CreateChild<SingleMediaPreview>(
 		parent,
 		controller,
 		preview,
 		animated,
+		sticker,
 		animationPreview ? file.path : QString());
 }
 
@@ -600,15 +605,19 @@ SingleMediaPreview::SingleMediaPreview(
 	not_null<Window::Controller*> controller,
 	QImage preview,
 	bool animated,
+	bool sticker,
 	const QString &animatedPreviewPath)
 : RpWidget(parent)
 , _controller(controller)
-, _animated(animated) {
+, _animated(animated)
+, _sticker(sticker) {
 	Expects(!preview.isNull());
 
-	_canSendAsPhoto = !_animated && Storage::ValidateThumbDimensions(
-		preview.width(),
-		preview.height());
+	_canSendAsPhoto = !_animated
+		&& !_sticker
+		&& Storage::ValidateThumbDimensions(
+			preview.width(),
+			preview.height());
 
 	preparePreview(preview, animatedPreviewPath);
 }
@@ -712,11 +721,13 @@ void SingleMediaPreview::clipCallback(Media::Clip::Notification notification) {
 void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_previewLeft > st::boxPhotoPadding.left()) {
-		p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _previewLeft - st::boxPhotoPadding.left(), _previewHeight, st::confirmBg);
-	}
-	if (_previewLeft + _previewWidth < width() - st::boxPhotoPadding.right()) {
-		p.fillRect(_previewLeft + _previewWidth, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _previewLeft - _previewWidth, _previewHeight, st::confirmBg);
+	if (!_sticker) {
+		if (_previewLeft > st::boxPhotoPadding.left()) {
+			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _previewLeft - st::boxPhotoPadding.left(), _previewHeight, st::confirmBg);
+		}
+		if (_previewLeft + _previewWidth < width() - st::boxPhotoPadding.right()) {
+			p.fillRect(_previewLeft + _previewWidth, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _previewLeft - _previewWidth, _previewHeight, st::confirmBg);
+		}
 	}
 	if (_gifPreview && _gifPreview->started()) {
 		auto s = QSize(_previewWidth, _previewHeight);
