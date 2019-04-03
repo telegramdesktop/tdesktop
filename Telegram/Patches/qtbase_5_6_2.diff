@@ -252,6 +252,26 @@ index 41834b21ae..8cdf4ab145 100644
                          if (value == WSAEADDRNOTAVAIL) {
                              setError(QAbstractSocket::NetworkError, AddressNotAvailableErrorString);
                              socketState = QAbstractSocket::UnconnectedState;
+diff --git a/src/platformsupport/cglconvenience/cglconvenience.mm b/src/platformsupport/cglconvenience/cglconvenience.mm
+index fb609ae485..7cca45ded4 100644
+--- a/src/platformsupport/cglconvenience/cglconvenience.mm
++++ b/src/platformsupport/cglconvenience/cglconvenience.mm
+@@ -128,7 +128,14 @@ void *qcgl_createNSOpenGLPixelFormat(const QSurfaceFormat &format)
+     if (format.stereo())
+         attrs << NSOpenGLPFAStereo;
+ 
+-    attrs << NSOpenGLPFAAllowOfflineRenderers;
++    // Patch: Fix macOS regression. It crashes on GPU switches.
++    // See https://bugreports.qt.io/browse/QTCREATORBUG-22215
++    static const QAppleOperatingSystemVersion version = qt_apple_os_version();
++    if ((version.major < 10)
++        || (version.major == 10 && version.minor < 14)
++        || (version.major == 10 && version.minor == 14 && version.patch < 4)) {
++        attrs << NSOpenGLPFAAllowOfflineRenderers;
++    }
+ 
+     QByteArray useLayer = qgetenv("QT_MAC_WANTS_LAYER");
+     if (!useLayer.isEmpty() && useLayer.toInt() > 0) {
 diff --git a/src/platformsupport/dbustray/qdbustrayicon.cpp b/src/platformsupport/dbustray/qdbustrayicon.cpp
 index 4d6e70720d..9bdb0beb67 100644
 --- a/src/platformsupport/dbustray/qdbustrayicon.cpp
