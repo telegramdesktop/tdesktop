@@ -370,7 +370,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
-	if (radial || (!reader && (_gif.isBad() || (!loaded && !_data->loading()) || !cAutoPlayGif()))) {
+	if (radial || (!reader && !player && (_gif.isBad() || (!loaded && !_data->loading()) || !cAutoPlayGif()))) {
 		auto radialOpacity = (radial && loaded && item->id > 0) ? _animation->radial.opacity() : 1.;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
