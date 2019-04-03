@@ -234,7 +234,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		bool listAllSuggestions = _filter.isEmpty();
 		auto &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
-		for (const auto &[tag, ratio] : recent) {
+		for (const auto &item : recent) {
+			const auto &tag = item.first;
 			if (!listAllSuggestions
 				&& (tag.size() == _filter.size()
 					|| !TextUtilities::RemoveAccents(tag).startsWith(
