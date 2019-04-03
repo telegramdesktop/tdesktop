@@ -652,14 +652,14 @@ void ActionsFiller::fillUserActions(not_null<UserData*> user) {
 	}
 	addClearHistoryAction(user);
 	addDeleteConversationAction(user);
-	if (!user->isSelf()) {
-		if (user->botInfo) {
+	if (!user->isSelf() && !user->isSupport()) {
+		if (user->isBot()) {
 			addBotCommandActions(user);
 		}
 		_wrap->add(CreateSkipWidget(
 			_wrap,
 			st::infoBlockButtonSkip));
-		if (user->isBot() && !user->isSupport()) {
+		if (user->isBot()) {
 			addReportAction();
 		}
 		addBlockAction(user);

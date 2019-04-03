@@ -136,7 +136,7 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 }
 
 rpl::producer<bool> CanInviteBotToGroupValue(not_null<UserData*> user) {
-	if (!user->botInfo) {
+	if (!user->isBot() || user->isSupport()) {
 		return rpl::single(false);
 	}
 	return Notify::PeerUpdateValue(
