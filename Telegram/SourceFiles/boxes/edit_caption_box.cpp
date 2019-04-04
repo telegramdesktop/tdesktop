@@ -411,10 +411,6 @@ void EditCaptionBox::createEditMediaButton() {
 		};
 
 		if (!result.remoteContent.isEmpty()) {
-			// Don't use remoteContent to edit album item.
-			if (_isAlbum) {
-				return;
-			}
 
 			auto list = Storage::PrepareMediaFromImage(
 				QImage(),
@@ -423,6 +419,21 @@ void EditCaptionBox::createEditMediaButton() {
 
 			if (isWebp(list.files.front().mime)) {
 				return;
+			}
+
+			if (_isAlbum) {
+				const auto albumMimes = {
+					"image/jpeg",
+					"image/png",
+					"video/mp4",
+				};
+				if ((ranges::find(albumMimes, list.files.front().mime) 
+						== end(albumMimes))) {
+					Ui::show(
+						Box<InformBox>(lang(lng_edit_media_album_error)),
+						LayerOption::KeepOther);
+					return;
+				}
 			}
 
 			_preparedList = std::move(list);
