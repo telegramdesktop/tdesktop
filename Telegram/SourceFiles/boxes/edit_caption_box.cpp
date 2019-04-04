@@ -353,14 +353,20 @@ void EditCaptionBox::updateEditPreview() {
 	_thumbw = _thumbh = _thumbx = 0;
 	_gifw = _gifh = _gifx = 0;
 
+	auto shouldAsDoc = true;
 	if (const auto image = base::get_if<Info::Image>(fileMedia)) {
-		_photo = true;
+		shouldAsDoc = !Storage::ValidateThumbDimensions(
+			image->data.width(),
+			image->data.height());
+		_photo = !shouldAsDoc;
 		_isImage = true;
 	} else if (const auto video = base::get_if<Info::Video>(fileMedia)) {
 		_animated = true;
 		// Never edit video as gif.
 		video->isGifv = false;
-	} else {
+		shouldAsDoc = false;
+	}
+	if (shouldAsDoc) {
 		auto nameString = filename;
 		if (const auto song = base::get_if<Info::Song>(fileMedia)) {
 			nameString = DocumentData::ComposeNameString(
@@ -379,7 +385,7 @@ void EditCaptionBox::updateEditPreview() {
 		_doc = true;
 	}
 
-	_wayWrap->toggle(_isImage && !_isAlbum, anim::type::instant);
+	_wayWrap->toggle(_photo && !_isAlbum, anim::type::instant);
 
 	if (!_doc) {
 		_thumb = App::pixmapFromImageInPlace(
@@ -428,7 +434,7 @@ void EditCaptionBox::createEditMediaButton() {
 					"image/png",
 					"video/mp4",
 				};
-				if ((ranges::find(albumMimes, list.files.front().mime) 
+				if ((ranges::find(albumMimes, list.files.front().mime)
 						== end(albumMimes))) {
 					Ui::show(
 						Box<InformBox>(lang(lng_edit_media_album_error)),
@@ -627,7 +633,7 @@ void EditCaptionBox::setupEmojiPanel() {
 
 void EditCaptionBox::updateBoxSize() {
 	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
-	if (_isImage) {
+	if (_photo) {
 		newHeight += _wayWrap->height() / 2;
 	}
 	if (_photo || _animated) {
@@ -745,7 +751,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	if (_isImage) {
+	if (_photo) {
 		_wayWrap->resize(st::sendMediaPreviewSize, _wayWrap->height());
 		_wayWrap->moveToLeft(
 			st::boxPhotoPadding.left(),
@@ -807,7 +813,7 @@ void EditCaptionBox::save() {
 
 		Auth().api().editMedia(
 			std::move(_preparedList),
-			(!_asFile && _isImage) ? SendMediaType::Photo : SendMediaType::File,
+			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
 			ApiWrap::SendOptions(item->history()),
 			item->fullId().msg);
