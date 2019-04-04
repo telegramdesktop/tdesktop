@@ -400,14 +400,15 @@ void EditCaptionBox::createEditMediaButton() {
 			return;
 		}
 
-		const auto isWebp = [](QString mimeType) {
-			if (mimeType == qstr("image/webp")) {
+		const auto isValidFile = [](QString mimeType) {
+			if (mimeType == qstr("image/webp")
+				|| mimeType == qstr("image/gif")) {
 				Ui::show(
 					Box<InformBox>(lang(lng_edit_media_invalid_file)),
 					LayerOption::KeepOther);
-				return true;
+				return false;
 			}
-			return false;
+			return true;
 		};
 
 		if (!result.remoteContent.isEmpty()) {
@@ -417,7 +418,7 @@ void EditCaptionBox::createEditMediaButton() {
 				std::move(result.remoteContent),
 				st::sendMediaPreviewSize);
 
-			if (isWebp(list.files.front().mime)) {
+			if (!isValidFile(list.files.front().mime)) {
 				return;
 			}
 
@@ -464,7 +465,7 @@ void EditCaptionBox::createEditMediaButton() {
 				}
 			}
 			const auto info = QFileInfo(result.paths.front());
-			if (isWebp(Core::MimeTypeForFile(info).name())) {
+			if (!isValidFile(Core::MimeTypeForFile(info).name())) {
 				return;
 			}
 
