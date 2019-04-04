@@ -201,7 +201,6 @@ public:
 	void editMessage(not_null<HistoryItem*> item);
 	void pinMessage(FullMsgId itemId);
 	void unpinMessage(FullMsgId itemId);
-	void copyPostLink(FullMsgId itemId);
 
 	MsgId replyToId() const;
 	void messageDataReceived(ChannelData *channel, MsgId msgId);

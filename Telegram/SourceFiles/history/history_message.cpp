@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/history_service.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_context_menu.h" // For CopyPostLink().
 #include "auth_session.h"
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
@@ -104,9 +105,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto copyCallback = [data]() {
 		if (auto item = App::histItemById(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
-				QApplication::clipboard()->setText(item->directLink());
-
-				Ui::Toast::Show(lang(lng_channel_public_link_copied));
+				HistoryView::CopyPostLink(item->fullId());
 			} else if (const auto bot = item->getMessageBot()) {
 				if (const auto media = item->media()) {
 					if (const auto game = media->game()) {

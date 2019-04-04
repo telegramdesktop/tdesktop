@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_web_page.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
+#include "ui/toast/toast.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
@@ -183,14 +184,6 @@ void AddDocumentActions(
 			[=] { ShowInFolder(document); });
 	}
 	AddSaveDocumentAction(menu, contextId, document);
-}
-
-void CopyPostLink(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
-		if (item->hasDirectLink()) {
-			QApplication::clipboard()->setText(item->directLink());
-		}
-	}
 }
 
 void AddPostLinkAction(
@@ -510,6 +503,21 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
 	return result;
+}
+
+void CopyPostLink(FullMsgId itemId) {
+	if (const auto item = App::histItemById(itemId)) {
+		if (item->hasDirectLink()) {
+			QApplication::clipboard()->setText(item->directLink());
+
+			const auto channel = item->history()->peer->asChannel();
+			Assert(channel != nullptr);
+
+			Ui::Toast::Show(lang(channel->isPublic()
+				? lng_channel_public_link_copied
+				: lng_context_about_private_link));
+		}
+	}
 }
 
 void StopPoll(FullMsgId itemId) {

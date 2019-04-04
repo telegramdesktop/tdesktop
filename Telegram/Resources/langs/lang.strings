@@ -1032,6 +1032,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_no_room" = "Unable to join this group because there are too many members in it already.";
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
+"lng_context_about_private_link" = "This link will only work for members of this chat.";
 
 "lng_forwarded" = "Forwarded from {user}";
 "lng_forwarded_date" = "Original: {date}";

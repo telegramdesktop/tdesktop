@@ -549,21 +549,19 @@ bool HistoryItem::suggestDeleteAllReport() const {
 }
 
 bool HistoryItem::hasDirectLink() const {
-	if (!IsServerMsgId(id)) {
-		return false;
-	}
-	if (auto channel = _history->peer->asChannel()) {
-		return channel->isPublic();
-	}
-	return false;
+	return IsServerMsgId(id) && _history->peer->isChannel();
 }
 
 QString HistoryItem::directLink() const {
 	if (hasDirectLink()) {
-		auto channel = _history->peer->asChannel();
+		const auto channel = _history->peer->asChannel();
 		Assert(channel != nullptr);
-		auto query = channel->username + '/' + QString::number(id);
-		if (!channel->isMegagroup()) {
+
+		const auto base = channel->isPublic()
+			? channel->username
+			: "c/" + QString::number(channel->bareId());
+		const auto query = base + '/' + QString::number(id);
+		if (channel->isPublic() && !channel->isMegagroup()) {
 			if (const auto media = this->media()) {
 				if (const auto document = media->document()) {
 					if (document->isVideoMessage()) {

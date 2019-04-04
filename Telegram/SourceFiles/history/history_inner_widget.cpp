@@ -1167,7 +1167,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 		//}
 	}
 	if (auto mimeData = MimeDataFromTextWithEntities(sel)) {
-		updateDragSelection(0, 0, false);
+		updateDragSelection(nullptr, nullptr, false);
 		_widget->noSelectingScroll();
 
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
@@ -1580,7 +1580,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {
-				_widget->copyPostLink(itemId);
+				HistoryView::CopyPostLink(itemId);
 			});
 		}
 		if (isUponSelected > 1) {
@@ -1716,7 +1716,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				});
 		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
 			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {
-				_widget->copyPostLink(itemId);
+				HistoryView::CopyPostLink(itemId);
 			});
 		}
 		if (isUponSelected > 1) {
@@ -2256,7 +2256,7 @@ bool HistoryInner::focusNextPrevChild(bool next) {
 
 void HistoryInner::adjustCurrent(int32 y) const {
 	int32 htop = historyTop(), hdrawtop = historyDrawTop(), mtop = migratedTop();
-	_curHistory = 0;
+	_curHistory = nullptr;
 	if (mtop >= 0) {
 		adjustCurrent(y - mtop, _migrated);
 	}
@@ -2682,7 +2682,7 @@ void HistoryInner::mouseActionUpdate() {
 	if (_mouseAction == MouseAction::Selecting) {
 		_widget->checkSelectingScroll(mousePos);
 	} else {
-		updateDragSelection(0, 0, false);
+		updateDragSelection(nullptr, nullptr, false);
 		_widget->noSelectingScroll();
 	}
 

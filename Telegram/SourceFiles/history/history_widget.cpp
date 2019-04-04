@@ -5781,14 +5781,6 @@ void HistoryWidget::onPinnedHide() {
 	}
 }
 
-void HistoryWidget::copyPostLink(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
-		if (item->hasDirectLink()) {
-			QApplication::clipboard()->setText(item->directLink());
-		}
-	}
-}
-
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
 	if (replyTo.channel != _channel) {
 		return false;
