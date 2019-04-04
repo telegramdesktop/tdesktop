@@ -12,11 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 namespace internal {
-//namespace {
+namespace {
 
 int PauseLevel = 0;
 
-//} // namespace
+} // namespace
 
 bool paused() {
 	return PauseLevel > 0;

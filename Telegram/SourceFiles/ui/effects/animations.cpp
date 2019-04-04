@@ -53,7 +53,9 @@ void Basic::markStopped() {
 
 Manager::Manager() {
 	Core::Sandbox::Instance().widgetUpdateRequests(
-	) | rpl::start_with_next([=] {
+	) | rpl::filter([=] {
+		return (_lastUpdateTime + kIgnoreUpdatesTimeout < crl::now());
+	}) | rpl::start_with_next([=] {
 		update();
 	}, _lifetime);
 }
@@ -92,11 +94,9 @@ void Manager::update() {
 		return;
 	}
 	const auto now = crl::now();
-	if (!_forceImmediateUpdate
-		&& (_lastUpdateTime + kIgnoreUpdatesTimeout >= now)) {
-		return;
+	if (_forceImmediateUpdate) {
+		_forceImmediateUpdate = false;
 	}
-	_forceImmediateUpdate = false;
 	schedule();
 
 	_updating = true;
