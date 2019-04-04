@@ -416,12 +416,8 @@ void EditCaptionBox::createEditMediaButton() {
 				return;
 			}
 
-			auto image = Media::Clip::PrepareForSending(
-				QString(),
-				result.remoteContent
-			).thumbnail;
 			auto list = Storage::PrepareMediaFromImage(
-				std::move(image),
+				QImage(),
 				std::move(result.remoteContent),
 				st::sendMediaPreviewSize);
 
