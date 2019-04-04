@@ -120,12 +120,10 @@ private:
 	void setupPreview(const Set &set);
 	void setupAnimation();
 	void paintPreview(Painter &p) const;
-	void paintRadio(Painter &p, crl::time now);
-	void updateAnimation(crl::time now);
+	void paintRadio(Painter &p);
 	void setupHandler();
 	void load();
-
-	void radialAnimationCallback();
+	void radialAnimationCallback(crl::time now);
 
 	int _id = 0;
 	bool _switching = false;
@@ -358,7 +356,7 @@ void Row::paintEvent(QPaintEvent *e) {
 
 	paintRipple(p, 0, 0);
 	paintPreview(p);
-	paintRadio(p, crl::now());
+	paintRadio(p);
 }
 
 void Row::paintPreview(Painter &p) const {
@@ -376,9 +374,7 @@ void Row::paintPreview(Painter &p) const {
 	}
 }
 
-void Row::paintRadio(Painter &p, crl::time now) {
-	updateAnimation(now);
-
+void Row::paintRadio(Painter &p) {
 	const auto loading = _loading
 		? _loading->computeState()
 		: Ui::RadialState{ 0., 0, FullArcLength };
@@ -581,8 +577,18 @@ void Row::setupPreview(const Set &set) {
 	}
 }
 
-void Row::radialAnimationCallback() {
-	if (!anim::Disabled()) {
+void Row::radialAnimationCallback(crl::time now) {
+	const auto updated = [&] {
+		const auto state = _state.current();
+		if (const auto loading = base::get_if<Loading>(&state)) {
+			const auto progress = (loading->size > 0)
+				? (loading->already / float64(loading->size))
+				: 0.;
+			return _loading->update(progress, false, now);
+		}
+		return false;
+	}();
+	if (!anim::Disabled() || updated) {
 		update();
 	}
 }
@@ -619,32 +625,29 @@ void Row::setupAnimation() {
 			st::defaultRadio.duration);
 	}, lifetime());
 
+	_state.value(
+	) | rpl::map([](const SetState &state) {
+		return base::get_if<Loading>(&state);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](const Loading *loading) {
+		if (loading && !_loading) {
+			_loading = std::make_unique<Ui::RadialAnimation>(
+				[=](crl::time now) { radialAnimationCallback(now); });
+			const auto progress = (loading->size > 0)
+				? (loading->already / float64(loading->size))
+				: 0.;
+			_loading->start(progress);
+		} else if (!loading && _loading) {
+			_loading->update(
+				_state.current().is<Failed>() ? 0. : 1.,
+				true,
+				crl::now());
+		}
+	}, lifetime());
+
 	_toggled.stop();
 	_active.stop();
 	updateStatusColorOverride();
-}
-
-void Row::updateAnimation(crl::time now) {
-	const auto state = _state.current();
-	if (const auto loading = base::get_if<Loading>(&state)) {
-		const auto progress = (loading->size > 0)
-			? (loading->already / float64(loading->size))
-			: 0.;
-		if (!_loading) {
-			_loading = std::make_unique<Ui::RadialAnimation>(
-				[=] { radialAnimationCallback(); });
-			_loading->start(progress);
-		} else {
-			_loading->update(progress, false, now);
-		}
-	} else if (_loading) {
-		_loading->update(state.is<Failed>() ? 0. : 1., true, now);
-	} else {
-		_loading = nullptr;
-	}
-	if (_loading && !_loading->animating()) {
-		_loading = nullptr;
-	}
 }
 
 } // namespace

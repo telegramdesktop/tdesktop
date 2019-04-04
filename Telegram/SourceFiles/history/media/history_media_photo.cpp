@@ -164,7 +164,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, crl
 			_animation->radial.start(_data->progress());
 		}
 	}
-	bool radial = isRadialAnimation(ms);
+	const auto radial = isRadialAnimation();
 
 	auto rthumb = rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
@@ -365,7 +365,7 @@ void HistoryPhoto::drawGrouped(
 			_animation->radial.start(_data->progress());
 		}
 	}
-	const auto radial = isRadialAnimation(ms);
+	const auto radial = isRadialAnimation();
 
 	if (!bubble) {
 //		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);

@@ -63,16 +63,20 @@ protected:
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const;
 
-	bool radialAnimationCallback(crl::time now) const;
+	void radialAnimationCallback(crl::time now) const;
 	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 
-	bool isRadialAnimation(crl::time now) const {
-		return _animation
-			&& _animation->radial.animating()
-			&& radialAnimationCallback(now);
+	bool isRadialAnimation() const {
+		if (_animation) {
+			if (_animation->radial.animating()) {
+				return true;
+			}
+			checkAnimationFinished();
+		}
+		return false;
 	}
 	bool isThumbAnimation() const {
 		if (_animation) {

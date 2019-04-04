@@ -146,14 +146,14 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 		if (_gif) _gif->setAutoplay();
 	}
 
-	bool animating = (_gif && _gif->started());
+	const auto animating = (_gif && _gif->started());
 	if (displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
 			_animation->radial.start(document->progress());
 		}
 	}
-	bool radial = isRadialAnimation(context->ms);
+	const auto radial = isRadialAnimation();
 
 	int32 height = st::inlineMediaHeight;
 	QSize frame = countFrameSize();
@@ -322,33 +322,36 @@ void Gif::prepareThumbnail(QSize size, QSize frame) const {
 void Gif::ensureAnimation() const {
 	if (!_animation) {
 		_animation = std::make_unique<AnimationData>([=](crl::time now) {
-			return radialAnimationCallback(now);
+			radialAnimationCallback(now);
 		});
 	}
 }
 
-bool Gif::isRadialAnimation(crl::time now) const {
-	return _animation
-		&& _animation->radial.animating()
-		&& radialAnimationCallback(now);
+bool Gif::isRadialAnimation() const {
+	if (_animation) {
+		if (_animation->radial.animating()) {
+			return true;
+		} else if (getShownDocument()->loaded()) {
+			_animation = nullptr;
+		}
+	}
+	return false;
 }
 
-bool Gif::radialAnimationCallback(crl::time now) const {
+void Gif::radialAnimationCallback(crl::time now) const {
 	const auto document = getShownDocument();
-	const auto radialUpdated = [&] {
+	const auto updated = [&] {
 		return _animation->radial.update(
 			document->progress(),
 			!document->loading() || document->loaded(),
 			now);
 	}();
-	if (!anim::Disabled() || radialUpdated) {
+	if (!anim::Disabled() || updated) {
 		update();
 	}
 	if (!_animation->radial.animating() && document->loaded()) {
-		_animation.reset();
-		return false;
+		_animation = nullptr;
 	}
-	return true;
 }
 
 void Gif::clipCallback(Media::Clip::Notification notification) {
@@ -750,8 +753,8 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 			_animation->radial.start(_document->progress());
 		}
 	}
-	bool showPause = updateStatusText();
-	bool radial = isRadialAnimation(context->ms);
+	const auto showPause = updateStatusText();
+	const auto radial = isRadialAnimation();
 
 	auto inner = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
 	p.setPen(Qt::NoPen);
@@ -844,21 +847,19 @@ void File::thumbAnimationCallback() {
 	update();
 }
 
-bool File::radialAnimationCallback(crl::time now) const {
-	const auto radialUpdated = [&] {
+void File::radialAnimationCallback(crl::time now) const {
+	const auto updated = [&] {
 		return _animation->radial.update(
 			_document->progress(),
 			!_document->loading() || _document->loaded(),
 			now);
 	}();
-	if (!anim::Disabled() || radialUpdated) {
+	if (!anim::Disabled() || updated) {
 		update();
 	}
 	if (!_animation->radial.animating()) {
 		checkAnimationFinished();
-		return false;
 	}
-	return true;
 }
 
 void File::ensureAnimation() const {
@@ -1258,7 +1259,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 				_radial->start(document->progress());
 			}
 		}
-		radial = isRadialAnimation(context->ms);
+		radial = isRadialAnimation();
 
 		if (animating) {
 			if (!_thumb.isNull()) _thumb = QPixmap();
@@ -1361,28 +1362,31 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 		size.height());
 }
 
-bool Game::isRadialAnimation(crl::time now) const {
-	return _radial
-		&& _radial->animating()
-		&& radialAnimationCallback(now);
+bool Game::isRadialAnimation() const {
+	if (_radial) {
+		if (_radial->animating()) {
+			return true;
+		} else if (getResultDocument()->loaded()) {
+			_radial = nullptr;
+		}
+	}
+	return false;
 }
 
-bool Game::radialAnimationCallback(crl::time now) const {
+void Game::radialAnimationCallback(crl::time now) const {
 	const auto document = getResultDocument();
-	const auto radialUpdated = [&] {
+	const auto updated = [&] {
 		return _radial->update(
 			document->progress(),
 			!document->loading() || document->loaded(),
 			now);
 	}();
-	if (!anim::Disabled() || radialUpdated) {
+	if (!anim::Disabled() || updated) {
 		update();
 	}
 	if (!_radial->animating() && document->loaded()) {
-		_radial.reset();
-		return false;
+		_radial = nullptr;
 	}
-	return true;
 }
 
 void Game::clipCallback(Media::Clip::Notification notification) {

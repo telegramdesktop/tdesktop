@@ -93,8 +93,8 @@ private:
 	void prepareThumbnail(QSize size, QSize frame) const;
 
 	void ensureAnimation() const;
-	bool isRadialAnimation(crl::time now) const;
-	bool radialAnimationCallback(crl::time now) const;
+	bool isRadialAnimation() const;
+	void radialAnimationCallback(crl::time now) const;
 
 	void clipCallback(Media::Clip::Notification notification);
 
@@ -251,16 +251,20 @@ public:
 
 private:
 	void thumbAnimationCallback();
-	bool radialAnimationCallback(crl::time now) const;
+	void radialAnimationCallback(crl::time now) const;
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 	bool updateStatusText() const;
 
-	bool isRadialAnimation(crl::time now) const {
-		return _animation
-			&& _animation->radial.animating()
-			&& radialAnimationCallback(now);
+	bool isRadialAnimation() const {
+		if (_animation) {
+			if (_animation->radial.animating()) {
+				return true;
+			}
+			checkAnimationFinished();
+		}
+		return false;
 	}
 	bool isThumbAnimation() const {
 		if (_animation) {
@@ -362,8 +366,8 @@ private:
 	void prepareThumbnail(QSize size) const;
 	void validateThumbnail(Image *image, QSize size, bool good) const;
 
-	bool isRadialAnimation(crl::time now) const;
-	bool radialAnimationCallback(crl::time now) const;
+	bool isRadialAnimation() const;
+	void radialAnimationCallback(crl::time now) const;
 
 	void clipCallback(Media::Clip::Notification notification);
 

@@ -170,7 +170,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, crl
 		}
 	}
 	updateStatusText();
-	bool radial = isRadialAnimation(ms);
+	const auto radial = isRadialAnimation();
 
 	if (bubble) {
 		if (!_caption.isEmpty()) {
@@ -405,7 +405,7 @@ void HistoryVideo::drawGrouped(
 			_animation->radial.start(_data->progress());
 		}
 	}
-	const auto radial = isRadialAnimation(ms);
+	const auto radial = isRadialAnimation();
 
 	if (!bubble) {
 //		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);

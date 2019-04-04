@@ -252,7 +252,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 
 	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 
-	auto isRound = _data->isVideoMessage();
+	const auto isRound = _data->isVideoMessage();
 	auto displayMute = false;
 	const auto player = activeRoundPlayer();
 	const auto reader = player ? nullptr : currentReader();
@@ -265,7 +265,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 		}
 	}
 	updateStatusText();
-	auto radial = isRadialAnimation(ms);
+	const auto radial = isRadialAnimation();
 
 	if (bubble) {
 		if (!_caption.isEmpty()) {

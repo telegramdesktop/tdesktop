@@ -398,7 +398,7 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	lang(lng_background_text2),
 	true))
 , _paper(paper)
-, _radial([=](crl::time now) { return radialAnimationCallback(now); }) {
+, _radial([=](crl::time now) { radialAnimationCallback(now); }) {
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 }
 

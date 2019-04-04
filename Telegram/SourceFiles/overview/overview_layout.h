@@ -130,15 +130,19 @@ protected:
 		ClickHandlerPtr &&cancell);
 	void setDocumentLinks(not_null<DocumentData*> document);
 
-	bool radialAnimationCallback(crl::time now) const;
+	void radialAnimationCallback(crl::time now) const;
 
 	void ensureRadial();
 	void checkRadialFinished() const;
 
-	bool isRadialAnimation(crl::time now) const {
-		return _radial
-			&& _radial->animating()
-			&& radialAnimationCallback(now);
+	bool isRadialAnimation() const {
+		if (_radial) {
+			if (_radial->animating()) {
+				return true;
+			}
+			checkRadialFinished();
+		}
+		return false;
 	}
 
 	virtual float64 dataProgress() const = 0;

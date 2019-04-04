@@ -109,7 +109,7 @@ void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection,
 			_animation->radial.start(_data->progress());
 		}
 	}
-	bool radial = isRadialAnimation(ms);
+	const auto radial = isRadialAnimation();
 
 	auto rthumb = rtlrect(paintx, painty, paintw, painth, width());
 	auto roundRadius = ImageRoundRadius::Small;

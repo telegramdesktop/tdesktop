@@ -218,24 +218,22 @@ void RadialProgressItem::setLinks(
 	_cancell = std::move(cancell);
 }
 
-bool RadialProgressItem::radialAnimationCallback(crl::time now) const {
-	const auto radialUpdated = [&] {
+void RadialProgressItem::radialAnimationCallback(crl::time now) const {
+	const auto updated = [&] {
 		return _radial->update(dataProgress(), dataFinished(), now);
 	}();
-	if (!anim::Disabled() || radialUpdated) {
+	if (!anim::Disabled() || updated) {
 		Auth().data().requestItemRepaint(parent());
 	}
 	if (!_radial->animating()) {
 		checkRadialFinished();
-		return false;
 	}
-	return true;
 }
 
 void RadialProgressItem::ensureRadial() {
 	if (!_radial) {
 		_radial = std::make_unique<Ui::RadialAnimation>([=](crl::time now) {
-			return radialAnimationCallback(now);
+			radialAnimationCallback(now);
 		});
 	}
 }
@@ -426,7 +424,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 	}
 	updateStatusText();
-	const auto radial = isRadialAnimation(context->ms);
+	const auto radial = isRadialAnimation();
 	const auto radialOpacity = radial ? _radial->opacity() : 0.;
 
 	if ((blurred || thumbLoaded || goodLoaded)
@@ -554,8 +552,6 @@ void Video::updateStatusText() {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
-	} else if (_data->loading()) {
-		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 	} else {
@@ -619,12 +615,12 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->start(_data->progress());
 		}
 	}
-	bool showPause = updateStatusText();
-	int32 nameVersion = parent()->fromOriginal()->nameVersion;
+	const auto showPause = updateStatusText();
+	const auto nameVersion = parent()->fromOriginal()->nameVersion;
 	if (nameVersion > _nameVersion) {
 		updateName();
 	}
-	bool radial = isRadialAnimation(context->ms);
+	const auto radial = isRadialAnimation();
 
 	const auto nameleft = _st.songPadding.left()
 		+ _st.songThumbSize
@@ -915,12 +911,13 @@ void Document::initDimensions() {
 }
 
 void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
-	bool selected = (selection == FullSelection);
+	const auto selected = (selection == FullSelection);
 
 	const auto cornerDownload = downloadInCorner();
 
 	_data->automaticLoad(parent()->fullId(), parent());
-	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
+	const auto loaded = _data->loaded();
+	const auto displayLoading = _data->displayLoading();
 
 	if (displayLoading) {
 		ensureRadial();
@@ -928,13 +925,13 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			_radial->start(_data->progress());
 		}
 	}
-	bool showPause = updateStatusText();
-	bool radial = isRadialAnimation(context->ms);
+	const auto showPause = updateStatusText();
+	const auto radial = isRadialAnimation();
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
-	bool wthumb = withThumb();
+	const auto wthumb = withThumb();
 
-	auto isSong = _data->isSong();
+	const auto isSong = _data->isSong();
 	if (isSong) {
 		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		nameright = _st.songPadding.left();
@@ -1453,8 +1450,8 @@ void Link::initDimensions() {
 int32 Link::resizeGetHeight(int32 width) {
 	_width = qMin(width, _maxw);
 	int32 w = _width - st::linksPhotoSize - st::linksPhotoPadding;
-	for (int32 i = 0, l = _links.size(); i < l; ++i) {
-		_links.at(i).lnk->setFullDisplayed(w >= _links.at(i).width);
+	for (const auto &link : _links) {
+		link.lnk->setFullDisplayed(w >= link.width);
 	}
 
 	_height = 0;
@@ -1547,10 +1544,10 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 
 	p.setPen(st::windowActiveTextFg);
-	for (int32 i = 0, l = _links.size(); i < l; ++i) {
-		if (clip.intersects(rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width))) {
-			p.setFont(ClickHandler::showAsActive(_links.at(i).lnk) ? st::normalFont->underline() : st::normalFont);
-			p.drawTextLeft(left, top, _width, (w < _links.at(i).width) ? st::normalFont->elided(_links.at(i).text, w) : _links.at(i).text);
+	for (const auto &link : _links) {
+		if (clip.intersects(rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width))) {
+			p.setFont(ClickHandler::showAsActive(link.lnk) ? st::normalFont->underline() : st::normalFont);
+			p.drawTextLeft(left, top, _width, (w < link.width) ? st::normalFont->elided(link.text, w) : link.text);
 		}
 		top += st::normalFont->height;
 	}
@@ -1587,9 +1584,9 @@ TextState Link::getState(
 	if (!_text.isEmpty()) {
 		top += qMin(st::normalFont->height * 3, _text.countHeight(w));
 	}
-	for (int32 i = 0, l = _links.size(); i < l; ++i) {
-		if (rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width).contains(point)) {
-			return { parent(), ClickHandlerPtr(_links[i].lnk) };
+	for (const auto &link : _links) {
+		if (rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width).contains(point)) {
+			return { parent(), ClickHandlerPtr(link.lnk) };
 		}
 		top += st::normalFont->height;
 	}
