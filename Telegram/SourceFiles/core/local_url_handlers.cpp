@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
+#include "core/application.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
@@ -21,9 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "window/window_controller.h"
 #include "data/data_session.h"
+#include "data/data_channel.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "core/application.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 
@@ -205,12 +206,14 @@ bool ResolveUsername(const Match &match, const QVariant &context) {
 			start = QString();
 		}
 	}
-	auto post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
+	auto post = (start == qsl("startgroup"))
+		? ShowAtProfileMsgId
+		: ShowAtUnreadMsgId;
 	auto postParam = params.value(qsl("post"));
 	if (auto postId = postParam.toInt()) {
 		post = postId;
 	}
-	auto gameParam = params.value(qsl("game"));
+	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && valid(gameParam)) {
 		startToken = gameParam;
 		post = ShowAtGameShareMsgId;
@@ -221,6 +224,51 @@ bool ResolveUsername(const Match &match, const QVariant &context) {
 		post,
 		startToken,
 		clickFromMessageId);
+	return true;
+}
+
+bool ResolvePrivatePost(const Match &match, const QVariant &context) {
+	if (!AuthSession::Exists()) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto channelId = params.value(qsl("channel")).toInt();
+	const auto msgId = params.value(qsl("post")).toInt();
+	if (!channelId || !IsServerMsgId(msgId)) {
+		return false;
+	}
+	const auto done = [=](not_null<PeerData*> peer) {
+		App::wnd()->controller()->showPeerHistory(
+			peer->id,
+			Window::SectionShow::Way::Forward,
+			msgId);
+	};
+	const auto fail = [=] {
+		Ui::show(Box<InformBox>(lang(lng_error_post_link_invalid)));
+	};
+	const auto auth = &Auth();
+	if (const auto channel = auth->data().channelLoaded(channelId)) {
+		done(channel);
+		return true;
+	}
+	auth->api().request(MTPchannels_GetChannels(
+		MTP_vector<MTPInputChannel>(
+			1,
+			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
+	)).done([=](const MTPmessages_Chats &result) {
+		result.match([&](const auto &data) {
+			const auto peer = auth->data().processChats(data.vchats);
+			if (peer && peer->id == peerFromChannel(channelId)) {
+				done(peer);
+			} else {
+				fail();
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		fail();
+	}).send();
 	return true;
 }
 
@@ -301,6 +349,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^resolve/?\\?(.+)(#|$)"),
 			ResolveUsername
+		},
+		{
+			qsl("^privatepost/?\\?(.+)(#|$)"),
+			ResolvePrivatePost
 		},
 		{
 			qsl("^([^\\?]+)(\\?|#|$)"),
