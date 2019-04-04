@@ -174,8 +174,17 @@ EditCaptionBox::EditCaptionBox(
 			if (!tw || !th) {
 				tw = th = 1;
 			}
+
+			// Edit media button takes place on thumb preview
+			// And its height can be greater than height of thumb.
+			const auto minThumbHeight = st::editMediaButtonSize
+				+ st::editMediaButtonSkip * 2;
+			const auto minThumbWidth = minThumbHeight * tw / th;
+
 			if (thumbWidth < st::sendMediaPreviewSize) {
-				thumbWidth = (thumbWidth > 20) ? thumbWidth : 20;
+				thumbWidth = (thumbWidth > minThumbWidth)
+					? thumbWidth
+					: minThumbWidth;
 			} else {
 				thumbWidth = st::sendMediaPreviewSize;
 			}
@@ -211,7 +220,7 @@ EditCaptionBox::EditCaptionBox(
 			_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(
 				_thumbw * cIntRetinaFactor(),
 				_thumbh * cIntRetinaFactor(),
-				Qt::IgnoreAspectRatio,
+				Qt::KeepAspectRatio,
 				Qt::SmoothTransformation));
 			_thumb.setDevicePixelRatio(cRetinaFactor());
 		};
@@ -397,7 +406,18 @@ void EditCaptionBox::updateEditPreview() {
 		_thumbh = _thumb.height() / cIntRetinaFactor();
 		_thumbx = (st::boxWideWidth - _thumbw) / 2;
 	}
+	updateEditMediaButton();
 	captionResized();
+}
+
+void EditCaptionBox::updateEditMediaButton() {
+	const auto icon = _doc
+		? &st::editMediaButtonIconFile
+		: &st::editMediaButtonIconPhoto;
+	const auto color = _doc ? &st::windowBgRipple : &st::callFingerprintBg;
+	_editMedia->setIconOverride(icon);
+	_editMedia->setRippleColorOverride(color);
+	_editMedia->setForceRippled(!_doc, anim::type::instant);
 }
 
 void EditCaptionBox::createEditMediaButton() {
@@ -494,11 +514,15 @@ void EditCaptionBox::createEditMediaButton() {
 			crl::guard(this, callback));
 	};
 
-	_editMediaClicks.events() | rpl::start_with_next([=] {
-		buttonCallback();
-	}, lifetime());
+	_editMediaClicks.events(
+	) | rpl::start_with_next(
+		buttonCallback,
+		lifetime());
 
-	addButton(langFactory(lng_edit_media), buttonCallback);
+	// Create edit media button.
+	_editMedia.create(this, st::editMediaButton);
+	updateEditMediaButton();
+	_editMedia->setClickedCallback(buttonCallback);
 }
 
 void EditCaptionBox::prepare() {
@@ -702,11 +726,8 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			nameright = 0;
 			statustop = st::msgFileStatusTop - st::msgFilePadding.top();
 		}
-		const auto namewidth = w - nameleft - 0;
-		if (namewidth > _statusw) {
-			//w -= (namewidth - _statusw);
-			//namewidth = _statusw;
-		}
+		const auto editButton = _editMedia->width() + st::editMediaButtonSkip;
+		const auto namewidth = w - nameleft - editButton;
 		const auto x = (width() - w) / 2, y = st::boxPhotoPadding.top();
 
 //		App::roundRect(p, x, y, w, h, st::msgInBg, MessageInCorners, &st::msgInShadow);
@@ -745,6 +766,16 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		p.setFont(st::normalFont);
 		p.setPen(st::boxTextFgError);
 		p.drawTextLeft(_field->x(), _field->y() + _field->height() + errorTopSkip(), width(), _error);
+	}
+
+	if (_isAllowedEditMedia) {
+		_editMedia->moveToRight(
+			st::boxPhotoPadding.right() + (_doc
+				? st::editMediaButtonFileSkipRight
+				: st::editMediaButtonSkip),
+			st::boxPhotoPadding.top() + (_doc
+				? st::editMediaButtonFileSkipTop
+				: st::editMediaButtonSkip));
 	}
 }
 
@@ -866,9 +897,6 @@ void EditCaptionBox::setName(QString nameString, qint64 size) {
 		nameString,
 		Ui::NameTextOptions());
 	_status = formatSizeText(size);
-	_statusw = std::max(
-		_name.maxWidth(),
-		st::normalFont->width(_status));
 }
 
 void EditCaptionBox::keyPressEvent(QKeyEvent *e) {

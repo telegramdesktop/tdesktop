@@ -595,6 +595,23 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 	deltab: 10px;
 }
 
+editMediaButtonSize: 29px;
+editMediaButtonSkip: 8px;
+editMediaButtonFileSkipRight: 1px;
+editMediaButtonFileSkipTop: 7px;
+
+editMediaButtonIconFile: icon {{ "settings_edit", menuIconFg }};
+editMediaButtonIconPhoto: icon {{ "settings_edit", msgServiceFg }};
+editMediaButton: IconButton {
+	width: editMediaButtonSize;
+	height: editMediaButtonSize;
+
+	icon: editMediaButtonIconPhoto;
+
+	rippleAreaSize: editMediaButtonSize;
+	ripple: defaultRippleAnimation;
+}
+
 calendarTitleHeight: boxTitleHeight;
 calendarPrevious: IconButton {
 	width: calendarTitleHeight;

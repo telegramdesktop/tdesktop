@@ -27,6 +27,7 @@ class Media;
 namespace Ui {
 class InputField;
 class EmojiButton;
+class IconButton;
 class Checkbox;
 } // namespace Ui
 
@@ -67,6 +68,7 @@ private:
 	void setName(QString nameString, qint64 size);
 	bool fileFromClipboard(not_null<const QMimeData*> data);
 	void updateEditPreview();
+	void updateEditMediaButton();
 
 	int errorTopSkip() const;
 
@@ -100,7 +102,6 @@ private:
 	int _thumbh = 0;
 	Text _name;
 	QString _status;
-	int _statusw = 0;
 	bool _isAudio = false;
 	bool _isImage = false;
 
@@ -113,11 +114,12 @@ private:
 	bool _previewCancelled = false;
 	mtpRequestId _saveRequestId = 0;
 
-	bool _asFile = false;
+	object_ptr<Ui::IconButton> _editMedia = nullptr;
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	QString _newMediaPath;
 	bool _isAllowedEditMedia = false;
 	bool _isAlbum = false;
+	bool _asFile = false;
 	rpl::event_stream<> _editMediaClicks;
 
 	QString _error;
