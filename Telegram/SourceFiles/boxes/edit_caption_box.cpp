@@ -343,11 +343,8 @@ void EditCaptionBox::updateEditPreview() {
 
 	const auto fileinfo = QFileInfo(file->path);
 	const auto filename = fileinfo.fileName();
-	const auto mimeType = Core::MimeTypeForFile(fileinfo).name();
 
-	if (!file->path.isEmpty()) {
-		_isImage = fileIsImage(filename, mimeType);
-	}
+	_isImage = fileIsImage(filename, file->mime);
 	_isAudio = false;
 	_animated = false;
 	_photo = false;
