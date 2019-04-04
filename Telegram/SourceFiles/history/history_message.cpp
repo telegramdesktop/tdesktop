@@ -620,7 +620,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 		&& !isTooOldForEdit(now)
 		&& (!_media || _media->allowsEdit())
 		&& !isUnsupportedMessage()
-		&& !_isEditingMedia;
+		&& !isEditingMedia();
 }
 
 bool HistoryMessage::uploading() const {
@@ -769,7 +769,6 @@ void HistoryMessage::returnSavedMedia() {
 	} else {
 		history()->owner().requestItemViewRefresh(this);
 	}
-	_isEditingMedia = false;
 }
 
 void HistoryMessage::setMedia(const MTPMessageMedia &media) {
@@ -928,7 +927,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
 	}
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
-	if (!_isLocalUpdateMedia) {
+	if (!isLocalUpdateMedia()) {
 		refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	}
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
@@ -959,10 +958,7 @@ void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
 		}
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else {
-		if (_isEditingMedia) {
-			_savedMedia = _media->clone(this);
-			refreshSentMedia(media);
-		} else if (!media || !_media || !_media->updateSentMedia(*media)) {
+		if (!media || !_media || !_media->updateSentMedia(*media)) {
 			refreshSentMedia(media);
 		}
 	}

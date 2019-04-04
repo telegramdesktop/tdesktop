@@ -53,8 +53,9 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	//// message is attached to previous one when displaying the history
 	//f_attach_to_previous = (1U << 25),
 
-	//// message is attached to next one when displaying the history
-	//f_attach_to_next = (1U << 24),
+	// message's edited media is generated on the client
+	// and should not update media from server
+	f_is_local_update_media = (1U << 24),
 
 	// message was sent from inline bot, need to re-set media when sent
 	f_from_inline_bot = (1U << 23),

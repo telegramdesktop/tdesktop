@@ -123,27 +123,16 @@ public:
 	bool hasUnreadMediaFlag() const;
 	void markMediaRead();
 
-	bool isEditingMedia() const {
-		return _isEditingMedia;
-	}
-	void setIsEditingMedia(bool edit) {
-		_isEditingMedia = edit;
-	}
-
-	bool isLocalUpdateMedia() const {
-		return _isLocalUpdateMedia;
-	}
-	void setIsLocalUpdateMedia(bool flag) {
-		_isLocalUpdateMedia = flag;
-	}
 
 	// For edit media in history_message.
 	virtual void returnSavedMedia() {};
 	void savePreviousMedia() {
 		_savedMedia = _media->clone(this);
 	}
+	bool isEditingMedia() const {
+		return _savedMedia != nullptr;
+	}
 	void clearSavedMedia() {
-		_isEditingMedia = false;
 		_savedMedia = nullptr;
 	}
 
@@ -163,6 +152,16 @@ public:
 	}
 	bool isGroupEssential() const {
 		return _flags & MTPDmessage_ClientFlag::f_is_group_essential;
+	}
+	bool isLocalUpdateMedia() const {
+		return _flags & MTPDmessage_ClientFlag::f_is_local_update_media;
+	}
+	void setIsLocalUpdateMedia(bool flag) {
+		if (flag) {
+			_flags |= MTPDmessage_ClientFlag::f_is_local_update_media;
+		} else {
+			_flags &= ~MTPDmessage_ClientFlag::f_is_local_update_media;
+		}
 	}
 	bool isGroupMigrate() const {
 		return isGroupEssential() && isEmpty();
@@ -335,8 +334,6 @@ protected:
 	int _textWidth = -1;
 	int _textHeight = 0;
 
-	bool _isEditingMedia = false;
-	bool _isLocalUpdateMedia = false;
 	std::unique_ptr<Data::Media> _savedMedia;
 	std::unique_ptr<Data::Media> _media;
 

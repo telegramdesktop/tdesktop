@@ -174,7 +174,6 @@ namespace App {
 					checkEntitiesAndViewsUpdate(m.c_message());
 				}
 				existing->applyEdition(message);
-				existing->setIsLocalUpdateMedia(false);
 			}
 		});
 	}

@@ -4263,7 +4263,6 @@ void HistoryWidget::sendFileConfirmed(
 	auto localEntities = TextUtilities::EntitiesToMTP(caption.entities);
 
 	if (itemToEdit) {
-		itemToEdit->setIsEditingMedia(true);
 		if (const auto id = itemToEdit->groupId()) {
 			groupId = id.value;
 		}

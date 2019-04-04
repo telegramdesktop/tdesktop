@@ -4676,6 +4676,7 @@ void ApiWrap::editUploadedFile(
 		item->clearSavedMedia();
 		item->setIsLocalUpdateMedia(true);
 		applyUpdates(result);
+		item->setIsLocalUpdateMedia(false);
 	}).fail([=](const RPCError &error) {
 		QString err = error.type();
 		if (err == qstr("MESSAGE_NOT_MODIFIED")) {
