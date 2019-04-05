@@ -1422,7 +1422,7 @@ Link::Link(
 			domain = parts.at(2);
 		}
 
-		parts = domain.split('@').back().split('.');
+		parts = domain.split('@').back().split('.', QString::SkipEmptyParts);
 		if (parts.size() > 1) {
 			_letter = parts.at(parts.size() - 2).at(0).toUpper();
 			if (_title.isEmpty()) {
