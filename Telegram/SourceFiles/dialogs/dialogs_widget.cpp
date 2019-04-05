@@ -1456,6 +1456,9 @@ void DialogsWidget::updateControlsGeometry() {
 	} else {
 		onListScroll();
 	}
+	if (_scrollToTopIsShown) {
+		updateScrollUpPosition();
+	}
 }
 
 void DialogsWidget::updateForwardBar() {
