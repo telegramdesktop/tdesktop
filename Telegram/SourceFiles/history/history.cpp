@@ -358,10 +358,10 @@ bool History::updateSendActionNeedsAnimating(
 			Type type,
 			crl::time duration,
 			int progress = 0) {
-		_sendActions.emplace(user, type, now + duration, progress);
+		_sendActions.emplace_or_assign(user, type, now + duration, progress);
 	};
 	action.match([&](const MTPDsendMessageTypingAction &) {
-		_typing.emplace(user, now + kStatusShowClientsideTyping);
+		_typing.emplace_or_assign(user, now + kStatusShowClientsideTyping);
 	}, [&](const MTPDsendMessageRecordVideoAction &) {
 		emplaceAction(Type::RecordVideo, kStatusShowClientsideRecordVideo);
 	}, [&](const MTPDsendMessageRecordAudioAction &) {

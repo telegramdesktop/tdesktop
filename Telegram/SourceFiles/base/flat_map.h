@@ -686,6 +686,40 @@ public:
 		}
 		return { where, false };
 	}
+	std::pair<iterator, bool> insert_or_assign(
+			const Key &key,
+			const Type &value) {
+		if (this->empty() || this->compare()(key, this->front().first)) {
+			this->impl().emplace_front(key, value);
+			return { this->begin(), true };
+		} else if (this->compare()(this->back().first, key)) {
+			this->impl().emplace_back(key, value);
+			return { this->end() - 1, true };
+		}
+		auto where = this->getLowerBound(key);
+		if (this->compare()(key, where->first)) {
+			return { this->impl().insert(where, value_type(key, value)), true };
+		}
+		where->second = value;
+		return { where, false };
+	}
+	std::pair<iterator, bool> insert_or_assign(
+			const Key &key,
+			Type &&value) {
+		if (this->empty() || this->compare()(key, this->front().first)) {
+			this->impl().emplace_front(key, std::move(value));
+			return { this->begin(), true };
+		} else if (this->compare()(this->back().first, key)) {
+			this->impl().emplace_back(key, std::move(value));
+			return { this->end() - 1, true };
+		}
+		auto where = this->getLowerBound(key);
+		if (this->compare()(key, where->first)) {
+			return { this->impl().insert(where, value_type(key, std::move(value))), true };
+		}
+		where->second = std::move(value);
+		return { where, false };
+	}
 	template <typename... Args>
 	std::pair<iterator, bool> emplace(
 			const Key &key,
@@ -693,6 +727,14 @@ public:
 		return this->insert(value_type(
 			key,
 			Type(std::forward<Args>(args)...)));
+	}
+	template <typename... Args>
+	std::pair<iterator, bool> emplace_or_assign(
+			const Key &key,
+			Args&&... args) {
+		return this->insert_or_assign(
+			key,
+			Type(std::forward<Args>(args)...));
 	}
 	template <typename... Args>
 	std::pair<iterator, bool> try_emplace(
