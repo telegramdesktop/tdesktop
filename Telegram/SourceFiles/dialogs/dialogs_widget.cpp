@@ -292,7 +292,7 @@ void DialogsWidget::updateScrollUpPosition() {
 	// _scrollToTop is a child widget of _scroll, not me.
 	auto top = anim::interpolate(
 		0,
-		_scrollToTop->height() + st::historyToDownPosition.y(),
+		_scrollToTop->height() + st::connectingMargin.top(),
 		_scrollToTopShown.value(_scrollToTopIsShown ? 1. : 0.));
 	_scrollToTop->moveToRight(
 		st::historyToDownPosition.x(),
