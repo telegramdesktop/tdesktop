@@ -275,6 +275,8 @@ void DialogsWidget::updateScrollUpVisibility() {
 }
 
 void DialogsWidget::startScrollUpButtonAnimation(bool shown) {
+	const auto smallColumn = (width() < st::columnMinimalWidthLeft);
+	shown &= !smallColumn;
 	if (_scrollToTopIsShown == shown) {
 		return;
 	}
@@ -283,7 +285,7 @@ void DialogsWidget::startScrollUpButtonAnimation(bool shown) {
 		[=] { updateScrollUpPosition(); },
 		_scrollToTopIsShown ? 0. : 1.,
 		_scrollToTopIsShown ? 1. : 0.,
-		st::historyToDownDuration);
+		smallColumn ? 0 : st::historyToDownDuration);
 }
 
 void DialogsWidget::updateScrollUpPosition() {
