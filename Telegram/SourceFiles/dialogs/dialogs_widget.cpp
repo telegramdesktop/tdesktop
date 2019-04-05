@@ -1221,6 +1221,9 @@ void DialogsWidget::onListScroll() {
 	auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updateScrollUpVisibility();
+
+	// Fix button rendering glitch, Qt bug with WA_OpaquePaintEvent widgets.
+	_scrollToTop->update();
 }
 
 void DialogsWidget::applyFilterUpdate(bool force) {
