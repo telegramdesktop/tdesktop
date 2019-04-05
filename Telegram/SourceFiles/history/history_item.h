@@ -254,7 +254,6 @@ public:
 	bool suggestDeleteAllReport() const;
 
 	bool hasDirectLink() const;
-	QString directLink() const;
 
 	MsgId id;
 

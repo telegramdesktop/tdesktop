@@ -552,29 +552,6 @@ bool HistoryItem::hasDirectLink() const {
 	return IsServerMsgId(id) && _history->peer->isChannel();
 }
 
-QString HistoryItem::directLink() const {
-	if (hasDirectLink()) {
-		const auto channel = _history->peer->asChannel();
-		Assert(channel != nullptr);
-
-		const auto base = channel->isPublic()
-			? channel->username
-			: "c/" + QString::number(channel->bareId());
-		const auto query = base + '/' + QString::number(id);
-		if (channel->isPublic() && !channel->isMegagroup()) {
-			if (const auto media = this->media()) {
-				if (const auto document = media->document()) {
-					if (document->isVideoMessage()) {
-						return qsl("https://telesco.pe/") + query;
-					}
-				}
-			}
-		}
-		return Core::App().createInternalLinkFull(query);
-	}
-	return QString();
-}
-
 ChannelId HistoryItem::channelId() const {
 	return _history->channelId();
 }

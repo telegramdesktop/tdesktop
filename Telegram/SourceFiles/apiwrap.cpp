@@ -615,6 +615,46 @@ void ApiWrap::finalizeMessageDataRequest(
 	}
 }
 
+QString ApiWrap::exportDirectMessageLink(not_null<HistoryItem*> item) {
+	Expects(item->history()->peer->isChannel());
+
+	const auto itemId = item->fullId();
+	const auto channel = item->history()->peer->asChannel();
+	const auto fallback = [&] {
+		const auto base = channel->isPublic()
+			? channel->username
+			: "c/" + QString::number(channel->bareId());
+		const auto query = base + '/' + QString::number(item->id);
+		if (channel->isPublic() && !channel->isMegagroup()) {
+			if (const auto media = item->media()) {
+				if (const auto document = media->document()) {
+					if (document->isVideoMessage()) {
+						return qsl("https://telesco.pe/") + query;
+					}
+				}
+			}
+		}
+		return Core::App().createInternalLinkFull(query);
+	};
+	const auto i = _unlikelyMessageLinks.find(itemId);
+	const auto current = (i != end(_unlikelyMessageLinks))
+		? i->second
+		: fallback();
+	request(MTPchannels_ExportMessageLink(
+		channel->inputChannel,
+		MTP_int(item->id),
+		MTP_bool(false)
+	)).done([=](const MTPExportedMessageLink &result) {
+		const auto link = result.match([&](const auto &data) {
+			return qs(data.vlink);
+		});
+		if (current != link) {
+			_unlikelyMessageLinks.emplace_or_assign(itemId, link);
+		}
+	}).send();
+	return current;
+}
+
 void ApiWrap::requestContacts() {
 	if (_session->data().contactsLoaded().value() || _contactsRequestId) {
 		return;
@@ -5711,11 +5751,11 @@ void ApiWrap::sendPollVotes(
 	_pollVotesRequestIds.emplace(itemId, requestId);
 }
 
-void ApiWrap::closePoll(FullMsgId itemId) {
+void ApiWrap::closePoll(not_null<HistoryItem*> item) {
+	const auto itemId = item->fullId();
 	if (_pollCloseRequestIds.contains(itemId)) {
 		return;
 	}
-	const auto item = App::histItemById(itemId);
 	const auto media = item ? item->media() : nullptr;
 	const auto poll = media ? media->poll() : nullptr;
 	if (!poll) {

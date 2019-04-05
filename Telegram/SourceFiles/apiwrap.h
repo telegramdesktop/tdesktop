@@ -76,6 +76,7 @@ public:
 		ChannelData *channel,
 		MsgId msgId,
 		RequestMessageDataCallback callback);
+	QString exportDirectMessageLink(not_null<HistoryItem*> item);
 
 	void requestContacts();
 	void requestDialogEntry(not_null<Data::Feed*> feed);
@@ -427,7 +428,7 @@ public:
 	void sendPollVotes(
 		FullMsgId itemId,
 		const std::vector<QByteArray> &options);
-	void closePoll(FullMsgId itemId);
+	void closePoll(not_null<HistoryItem*> item);
 	void reloadPollResults(not_null<HistoryItem*> item);
 
 	~ApiWrap();
@@ -821,5 +822,7 @@ private:
 	rpl::event_stream<bool> _contactSignupSilentChanges;
 
 	mtpRequestId _attachedStickerSetsRequestId = 0;
+
+	base::flat_map<FullMsgId, QString> _unlikelyMessageLinks;
 
 };
