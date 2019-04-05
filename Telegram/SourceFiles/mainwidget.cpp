@@ -2217,7 +2217,7 @@ void MainWidget::historyToDown(History *history) {
 }
 
 void MainWidget::dialogsToUp() {
-	_dialogs->dialogsToUp();
+	_dialogs->jumpToTop();
 }
 
 void MainWidget::newUnreadMsg(
@@ -2803,7 +2803,6 @@ int MainWidget::backgroundFromY() const {
 void MainWidget::searchInChat(Dialogs::Key chat) {
 	_dialogs->searchInChat(chat);
 	if (Adaptive::OneColumn()) {
-		dialogsToUp();
 		Ui::showChatsList();
 	} else {
 		_dialogs->activate();

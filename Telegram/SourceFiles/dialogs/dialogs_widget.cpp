@@ -20,10 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "core/update_checker.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "core/application.h"
+#include "core/event_filter.h"
+#include "core/update_checker.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "window/window_controller.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 #include "styles/style_window.h"
 
 namespace {
@@ -158,7 +160,8 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
-, _scroll(this, st::dialogsScroll) {
+, _scroll(this, st::dialogsScroll)
+, _scrollToTop(_scroll, st::dialogsToUp) {
 	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, controller, parent));
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
@@ -243,6 +246,60 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	updateSearchFromVisibility(true);
 	setupConnectingWidget();
 	setupSupportMode();
+	setupScrollUpButton();
+}
+
+void DialogsWidget::setupScrollUpButton() {
+	_scrollToTop->setClickedCallback([=] {
+		if (_scrollToAnimation.animating()) {
+			return;
+		}
+		scrollToTop();
+	});
+	Core::InstallEventFilter(_scrollToTop, [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::Wheel) {
+			return _scroll->viewportEvent(event);
+		}
+		return false;
+	});
+	updateScrollUpVisibility();
+}
+
+void DialogsWidget::updateScrollUpVisibility() {
+	if (_scrollToAnimation.animating()) {
+		return;
+	}
+
+	startScrollUpButtonAnimation(
+		_scroll->scrollTop() > st::historyToDownShownAfter);
+}
+
+void DialogsWidget::startScrollUpButtonAnimation(bool shown) {
+	if (_scrollToTopIsShown == shown) {
+		return;
+	}
+	_scrollToTopIsShown = shown;
+	_scrollToTopShown.start(
+		[=] { updateScrollUpPosition(); },
+		_scrollToTopIsShown ? 0. : 1.,
+		_scrollToTopIsShown ? 1. : 0.,
+		st::historyToDownDuration);
+}
+
+void DialogsWidget::updateScrollUpPosition() {
+	// _scrollToTop is a child widget of _scroll, not me.
+	auto top = anim::interpolate(
+		0,
+		_scrollToTop->height() + st::historyToDownPosition.y(),
+		_scrollToTopShown.value(_scrollToTopIsShown ? 1. : 0.));
+	_scrollToTop->moveToRight(
+		st::historyToDownPosition.x(),
+		_scroll->height() - top);
+	const auto shouldBeHidden =
+		!_scrollToTopIsShown && !_scrollToTopShown.animating();
+	if (shouldBeHidden != _scrollToTop->isHidden()) {
+		_scrollToTop->setVisible(!shouldBeHidden);
+	}
 }
 
 void DialogsWidget::setupConnectingWidget() {
@@ -328,31 +385,37 @@ void DialogsWidget::repaintDialogRow(Dialogs::RowDescriptor row) {
 	_inner->repaintDialogRow(row);
 }
 
-void DialogsWidget::dialogsToUp() {
+void DialogsWidget::jumpToTop() {
 	if (Auth().supportMode()) {
 		return;
 	}
-	if (_filter->getLastText().trimmed().isEmpty() && !_searchInChat) {
-		_scrollToAnimation.stop();
-		auto scrollTop = _scroll->scrollTop();
-		const auto scrollTo = 0;
-		const auto maxAnimatedDelta = _scroll->height();
-		if (scrollTo + maxAnimatedDelta < scrollTop) {
-			scrollTop = scrollTo + maxAnimatedDelta;
-			_scroll->scrollToY(scrollTop);
-		}
-
-		const auto scroll = [=] {
-			_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
-		};
-
-		_scrollToAnimation.start(
-			scroll,
-			scrollTop,
-			scrollTo,
-			st::slideDuration,
-			anim::sineInOut);
+	if ((_filter->getLastText().trimmed().isEmpty() && !_searchInChat)) {
+		scrollToTop();
 	}
+}
+
+void DialogsWidget::scrollToTop() {
+	_scrollToAnimation.stop();
+	auto scrollTop = _scroll->scrollTop();
+	const auto scrollTo = 0;
+	const auto maxAnimatedDelta = _scroll->height();
+	if (scrollTo + maxAnimatedDelta < scrollTop) {
+		scrollTop = scrollTo + maxAnimatedDelta;
+		_scroll->scrollToY(scrollTop);
+	}
+
+	startScrollUpButtonAnimation(false);
+
+	const auto scroll = [=] {
+		_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
+	};
+
+	_scrollToAnimation.start(
+		scroll,
+		scrollTop,
+		scrollTo,
+		st::slideDuration,
+		anim::sineInOut);
 }
 
 void DialogsWidget::startWidthAnimation() {
@@ -1157,6 +1220,7 @@ void DialogsWidget::dropEvent(QDropEvent *e) {
 void DialogsWidget::onListScroll() {
 	auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	updateScrollUpVisibility();
 }
 
 void DialogsWidget::applyFilterUpdate(bool force) {
