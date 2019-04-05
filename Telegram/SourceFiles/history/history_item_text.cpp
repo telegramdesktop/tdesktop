@@ -68,7 +68,7 @@ TextWithEntities WrapAsItem(
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		result = WrapAsForwarded(std::move(result), forwarded);
 	}
-	return result;
+	return std::move(result);
 }
 
 TextWithEntities HistoryItemText(not_null<HistoryItem*> item) {
