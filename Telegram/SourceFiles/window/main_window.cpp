@@ -273,8 +273,18 @@ void MainWindow::init() {
 	initHook();
 	updateWindowIcon();
 
-	connect(windowHandle(), &QWindow::activeChanged, this, [this] { handleActiveChanged(); }, Qt::QueuedConnection);
-	connect(windowHandle(), &QWindow::windowStateChanged, this, [this](Qt::WindowState state) { handleStateChanged(state); });
+	// Non-queued activeChanged handlers must use QtSignalProducer.
+	connect(
+		windowHandle(),
+		&QWindow::activeChanged,
+		this,
+		[=] { handleActiveChanged(); },
+		Qt::QueuedConnection);
+	connect(
+		windowHandle(),
+		&QWindow::windowStateChanged,
+		this,
+		[=](Qt::WindowState state) { handleStateChanged(state); });
 
 	updatePalette();
 

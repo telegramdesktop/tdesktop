@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "support/support_templates.h"
 #include "settings/settings_common.h"
+#include "core/qt_signal_producer.h"
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"
@@ -33,32 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Window {
-namespace {
-
-template <typename Object, typename Other, typename Value>
-auto qtSignalProducer(
-		Object *object,
-		void(Other::*signal)(Value)) {
-	using Produced = std::remove_const_t<std::decay_t<Value>>;
-	const auto guarded = make_weak(object);
-	return rpl::make_producer<Produced>([=](auto consumer) {
-		if (!guarded) {
-			return rpl::lifetime();
-		}
-		auto listener = Ui::CreateChild<QObject>(guarded.data());
-		QObject::connect(guarded, signal, listener, [=](Value value) {
-			consumer.put_next_copy(value);
-		});
-		const auto weak = make_weak(listener);
-		return rpl::lifetime([=] {
-			if (weak) {
-				delete weak;
-			}
-		});
-	});
-}
-
-} // namespace
 
 class MainMenu::ResetScaleButton : public Ui::AbstractButton {
 public:
@@ -311,15 +286,15 @@ void MainMenu::initResetScaleButton() {
 	rpl::single(
 		handle->screen()
 	) | rpl::then(
-		qtSignalProducer(handle, &QWindow::screenChanged)
+		Core::QtSignalProducer(handle, &QWindow::screenChanged)
 	) | rpl::map([](QScreen *screen) {
 		return rpl::single(
 			screen->availableGeometry()
 		) | rpl::then(
 #ifdef OS_MAC_OLD
-			qtSignalProducer(screen, &QScreen::virtualGeometryChanged)
+			Core::QtSignalProducer(screen, &QScreen::virtualGeometryChanged)
 #else // OS_MAC_OLD
-			qtSignalProducer(screen, &QScreen::availableGeometryChanged)
+			Core::QtSignalProducer(screen, &QScreen::availableGeometryChanged)
 #endif // OS_MAC_OLD
 		);
 	}) | rpl::flatten_latest(

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
@@ -161,7 +161,7 @@ private:
 
 } // namespace internal
 
-class Widget : public TWidget, private MTP::Sender {
+class Widget : public Ui::RpWidget, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -192,8 +192,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private slots:
-	void onWndActiveChanged();
-
 	void onScroll();
 
 	void onInlineRequest();

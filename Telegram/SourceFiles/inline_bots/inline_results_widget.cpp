@@ -718,7 +718,10 @@ void Inner::onSwitchPm() {
 
 } // namespace internal
 
-Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: RpWidget(parent)
 , _controller(controller)
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
@@ -742,9 +745,12 @@ Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller) : TWid
 	_inlineRequestTimer.setSingleShot(true);
 	connect(&_inlineRequestTimer, SIGNAL(timeout()), this, SLOT(onInlineRequest()));
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
-	}
+	macWindowDeactivateEvents(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=] {
+		leaveEvent(nullptr);
+	}, lifetime());
 
 	// Inner widget has OpaquePaintEvent attribute so it doesn't repaint on scroll.
 	// But we should force it to repaint so that GIFs will continue to animate without update() calls.
@@ -793,12 +799,6 @@ void Widget::updateContentHeight() {
 	}
 
 	update();
-}
-
-void Widget::onWndActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
-		leaveEvent(0);
-	}
 }
 
 void Widget::paintEvent(QPaintEvent *e) {

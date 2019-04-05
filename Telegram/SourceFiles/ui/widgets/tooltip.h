@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct Tooltip;
@@ -27,15 +28,10 @@ public:
 
 };
 
-class Tooltip : public TWidget {
-	Q_OBJECT
-
+class Tooltip : public Ui::RpWidget {
 public:
 	static void Show(int32 delay, const AbstractTooltipShower *shower);
 	static void Hide();
-
-private slots:
-	void onWndActiveChanged();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

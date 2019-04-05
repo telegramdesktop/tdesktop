@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/map.h>
 #include <rpl/distinct_until_changed.h>
 #include "base/unique_qptr.h"
+#include "core/qt_signal_producer.h"
 
 namespace Ui {
 namespace details {
@@ -171,6 +172,25 @@ public:
 		auto wasVisible = !this->isHidden();
 		setVisibleHook(visible);
 		visibilityChangedHook(wasVisible, !this->isHidden());
+	}
+
+	auto windowDeactivateEvents() const {
+		Expects(Widget::window()->windowHandle() != nullptr);
+
+		const auto window = Widget::window()->windowHandle();
+		return Core::QtSignalProducer(
+			window,
+			&QWindow::activeChanged
+		) | rpl::filter([=] {
+			return !window->isActive();
+		});
+	}
+	auto macWindowDeactivateEvents() const {
+#ifdef Q_OS_MAC
+		return windowDeactivateEvents();
+#else // Q_OS_MAC
+		return rpl::never<rpl::empty_value>();
+#endif // Q_OS_MAC
 	}
 
 	~RpWidgetWrap() {

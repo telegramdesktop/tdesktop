@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Player {
 
-VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
+VolumeController::VolumeController(QWidget *parent)
+: TWidget(parent)
 , _slider(this, st::mediaPlayerPanelPlayback) {
 	_slider->setMoveByWheel(true);
 	_slider->setChangeProgressCallback([this](float64 volume) {
@@ -68,7 +69,8 @@ void VolumeController::applyVolumeChange(float64 volume) {
 	}
 }
 
-VolumeWidget::VolumeWidget(QWidget *parent) : TWidget(parent)
+VolumeWidget::VolumeWidget(QWidget *parent)
+: RpWidget(parent)
 , _controller(this) {
 	hide();
 	_controller->setIsVertical(true);
@@ -79,9 +81,12 @@ VolumeWidget::VolumeWidget(QWidget *parent) : TWidget(parent)
 	_showTimer.setSingleShot(true);
 	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShowStart()));
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()));
-	}
+	macWindowDeactivateEvents(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=] {
+		leaveEvent(nullptr);
+	}, lifetime());
 
 	hide();
 	auto margin = getMargin();
@@ -100,12 +105,6 @@ bool VolumeWidget::overlaps(const QRect &globalRect) {
 	if (isHidden() || _a_appearance.animating()) return false;
 
 	return rect().marginsRemoved(getMargin()).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
-}
-
-void VolumeWidget::onWindowActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
-		leaveEvent(nullptr);
-	}
 }
 
 void VolumeWidget::resizeEvent(QResizeEvent *e) {
@@ -147,7 +146,7 @@ void VolumeWidget::enterEventHook(QEvent *e) {
 	} else {
 		_showTimer.start(0);
 	}
-	return TWidget::enterEventHook(e);
+	return RpWidget::enterEventHook(e);
 }
 
 void VolumeWidget::leaveEventHook(QEvent *e) {
@@ -157,7 +156,7 @@ void VolumeWidget::leaveEventHook(QEvent *e) {
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 void VolumeWidget::otherEnter() {

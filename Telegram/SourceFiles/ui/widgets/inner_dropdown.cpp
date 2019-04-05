@@ -22,7 +22,10 @@ constexpr int kFadeAlphaMax = 160;
 
 namespace Ui {
 
-InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : TWidget(parent)
+InnerDropdown::InnerDropdown(
+	QWidget *parent,
+	const style::InnerDropdown &st)
+: RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
 	_hideTimer.setSingleShot(true);
@@ -30,11 +33,21 @@ InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : 
 
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()));
-	}
-
 	hide();
+
+	shownValue(
+	) | rpl::filter([](bool shown) {
+		return shown;
+	}) | rpl::take(1) | rpl::map([=] {
+		// We can't invoke this before the window is created.
+		// So instead we start handling them on the first show().
+		return macWindowDeactivateEvents();
+	}) | rpl::flatten_latest(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=] {
+		leaveEvent(nullptr);
+	}, lifetime());
 }
 
 QPointer<TWidget> InnerDropdown::doSetOwnedWidget(object_ptr<TWidget> widget) {
@@ -68,12 +81,6 @@ void InnerDropdown::resizeToContent() {
 		resize(newWidth, newHeight);
 		update();
 		finishAnimating();
-	}
-}
-
-void InnerDropdown::onWindowActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
-		leaveEvent(nullptr);
 	}
 }
 
@@ -124,7 +131,7 @@ void InnerDropdown::enterEventHook(QEvent *e) {
 	if (_autoHiding) {
 		showAnimated(_origin);
 	}
-	return TWidget::enterEventHook(e);
+	return RpWidget::enterEventHook(e);
 }
 
 void InnerDropdown::leaveEventHook(QEvent *e) {
@@ -135,7 +142,7 @@ void InnerDropdown::leaveEventHook(QEvent *e) {
 			_hideTimer.start(300);
 		}
 	}
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 void InnerDropdown::otherEnter() {

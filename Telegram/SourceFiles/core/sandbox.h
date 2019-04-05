@@ -16,6 +16,12 @@ class Application;
 class Sandbox final
 	: public QApplication
 	, private QAbstractNativeEventFilter {
+private:
+	auto createEventNestingLevel() {
+		incrementEventNestingLevel();
+		return gsl::finally([=] { decrementEventNestingLevel(); });
+	}
+
 public:
 	Sandbox(not_null<Launcher*> launcher, int &argc, char **argv);
 
@@ -29,10 +35,12 @@ public:
 
 	void postponeCall(FnMut<void()> &&callable);
 	bool notify(QObject *receiver, QEvent *e) override;
-	void registerEnterFromEventLoop();
-	auto createEventNestingLevel() {
-		incrementEventNestingLevel();
-		return gsl::finally([=] { decrementEventNestingLevel(); });
+
+	template <typename Callable>
+	auto customEnterFromEventLoop(Callable &&callable) {
+		registerEnterFromEventLoop();
+		const auto wrap = createEventNestingLevel();
+		return callable();
 	}
 
 	void activateWindowDelayed(not_null<QWidget*> widget);
@@ -65,6 +73,7 @@ private:
 
 	void closeApplication(); // will be done in aboutToQuit()
 	void checkForQuit(); // will be done in exec()
+	void registerEnterFromEventLoop();
 	void incrementEventNestingLevel();
 	void decrementEventNestingLevel();
 	bool nativeEventFilter(

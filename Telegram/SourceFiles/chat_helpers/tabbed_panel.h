@@ -68,7 +68,6 @@ private:
 		return !_selector;
 	}
 	void showFromSelector();
-	void windowActiveChanged();
 
 	style::margins innerPadding() const;
 

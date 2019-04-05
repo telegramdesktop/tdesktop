@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 
@@ -15,7 +16,7 @@ namespace Ui {
 
 class ScrollArea;
 
-class InnerDropdown : public TWidget {
+class InnerDropdown : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -81,7 +82,6 @@ private slots:
 	void onHideAnimated() {
 		hideAnimated();
 	}
-	void onWindowActiveChanged();
 	void onScroll();
 	void onWidgetHeightUpdated() {
 		resizeToContent();

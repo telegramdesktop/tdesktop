@@ -106,7 +106,14 @@ void MainWindow::initHook() {
 	Platform::MainWindow::initHook();
 
 	QCoreApplication::instance()->installEventFilter(this);
-	connect(windowHandle(), &QWindow::activeChanged, this, [this] { checkHistoryActivation(); }, Qt::QueuedConnection);
+
+	// Non-queued activeChanged handlers must use QtSignalProducer.
+	connect(
+		windowHandle(),
+		&QWindow::activeChanged,
+		this,
+		[=] { checkHistoryActivation(); },
+		Qt::QueuedConnection);
 }
 
 void MainWindow::firstShow() {

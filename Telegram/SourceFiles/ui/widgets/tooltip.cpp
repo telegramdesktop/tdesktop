@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 
 #include "mainwindow.h"
-#include "styles/style_widgets.h"
 #include "platform/platform_specific.h"
+#include "core/qt_signal_producer.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 
@@ -33,7 +34,7 @@ AbstractTooltipShower::~AbstractTooltipShower() {
 	}
 }
 
-Tooltip::Tooltip() : TWidget(nullptr) {
+Tooltip::Tooltip() : RpWidget(nullptr) {
 	TooltipInstance = this;
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::ToolTip);
@@ -43,7 +44,10 @@ Tooltip::Tooltip() : TWidget(nullptr) {
 	_showTimer.setCallback([=] { performShow(); });
 	_hideByLeaveTimer.setCallback([=] { Hide(); });
 
-	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+	App::wnd()->windowDeactivateEvents(
+	) | rpl::start_with_next([=] {
+		Hide();
+	}, lifetime());
 }
 
 void Tooltip::performShow() {
@@ -57,12 +61,6 @@ void Tooltip::performShow() {
 	}
 }
 
-void Tooltip::onWndActiveChanged() {
-	if (!App::wnd() || !App::wnd()->windowHandle() || !App::wnd()->windowHandle()->isActive()) {
-		Hide();
-	}
-}
-
 bool Tooltip::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::Leave) {
 		_hideByLeaveTimer.callOnce(10);
@@ -73,7 +71,7 @@ bool Tooltip::eventFilter(QObject *o, QEvent *e) {
 			Hide();
 		}
 	}
-	return TWidget::eventFilter(o, e);
+	return RpWidget::eventFilter(o, e);
 }
 
 Tooltip::~Tooltip() {

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "core/qt_signal_producer.h"
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
@@ -90,11 +91,13 @@ TabbedPanel::TabbedPanel(
 		});
 	}, lifetime());
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), &QWindow::activeChanged, this, [=] {
-			windowActiveChanged();
-		});
-	}
+	macWindowDeactivateEvents(
+	) | rpl::filter([=] {
+		return !isHidden() && !preventAutoHide();
+	}) | rpl::start_with_next([=] {
+		hideAnimated();
+	}, lifetime());
+
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
 	hideChildren();
@@ -144,12 +147,6 @@ void TabbedPanel::updateContentHeight() {
 	_selector->resize(innerRect().width(), _contentHeight);
 
 	update();
-}
-
-void TabbedPanel::windowActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive() && !isHidden() && !preventAutoHide()) {
-		hideAnimated();
-	}
 }
 
 void TabbedPanel::paintEvent(QPaintEvent *e) {

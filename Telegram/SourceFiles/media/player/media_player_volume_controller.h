@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class IconButton;
@@ -34,7 +35,7 @@ private:
 
 };
 
-class VolumeWidget : public TWidget {
+class VolumeWidget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -55,7 +56,6 @@ protected:
 private slots:
 	void onShowStart();
 	void onHideStart();
-	void onWindowActiveChanged();
 
 private:
 	void otherEnter();

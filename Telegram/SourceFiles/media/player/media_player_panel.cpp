@@ -54,12 +54,6 @@ bool Panel::overlaps(const QRect &globalRect) {
 	return rect().marginsRemoved(QMargins(marginLeft, contentTop(), marginRight, contentBottom())).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 }
 
-void Panel::windowActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
-		leaveEvent(nullptr);
-	}
-}
-
 void Panel::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
@@ -173,7 +167,7 @@ void Panel::enterEventHook(QEvent *e) {
 	} else {
 		_showTimer.callOnce(0);
 	}
-	return TWidget::enterEventHook(e);
+	return RpWidget::enterEventHook(e);
 }
 
 void Panel::leaveEventHook(QEvent *e) {
@@ -186,7 +180,7 @@ void Panel::leaveEventHook(QEvent *e) {
 	} else {
 		_hideTimer.callOnce(300);
 	}
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 void Panel::showFromOther() {
@@ -217,15 +211,12 @@ void Panel::ensureCreated() {
 	});
 	refreshList();
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		if (const auto window = App::wnd()) {
-			connect(
-				window->windowHandle(),
-				&QWindow::activeChanged,
-				this,
-				&Panel::windowActiveChanged);
-		}
-	}
+	macWindowDeactivateEvents(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=] {
+		leaveEvent(nullptr);
+	}, _refreshListLifetime);
 
 	_ignoringEnterEvents = false;
 }
@@ -306,16 +297,6 @@ void Panel::performDestroy() {
 	_scroll->takeWidget<QWidget>().destroy();
 	_listPeer = _listMigratedPeer = nullptr;
 	_refreshListLifetime.destroy();
-
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		if (const auto window = App::wnd()) {
-			disconnect(
-				window->windowHandle(),
-				&QWindow::activeChanged,
-				this,
-				&Panel::windowActiveChanged);
-		}
-	}
 }
 
 Info::Key Panel::key() const {

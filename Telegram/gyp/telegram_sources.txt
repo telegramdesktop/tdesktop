@@ -146,6 +146,7 @@
 <(src_loc)/core/media_active_cache.h
 <(src_loc)/core/mime_type.cpp
 <(src_loc)/core/mime_type.h
+<(src_loc)/core/qt_signal_producer.h
 <(src_loc)/core/sandbox.cpp
 <(src_loc)/core/sandbox.h
 <(src_loc)/core/shortcuts.cpp

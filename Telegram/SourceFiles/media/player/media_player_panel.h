@@ -60,7 +60,6 @@ private:
 	void listHeightUpdated(int newHeight);
 	int emptyInnerHeight() const;
 	bool contentTooSmall() const;
-	void windowActiveChanged();
 
 	void ensureCreated();
 	void performDestroy();

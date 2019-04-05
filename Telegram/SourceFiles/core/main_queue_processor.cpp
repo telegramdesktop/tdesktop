@@ -58,9 +58,9 @@ MainQueueProcessor::MainQueueProcessor() {
 		}
 	});
 	crl::wrap_main_queue([](void (*callable)(void*), void *argument) {
-		Sandbox::Instance().registerEnterFromEventLoop();
-		const auto wrap = Sandbox::Instance().createEventNestingLevel();
-		callable(argument);
+		Sandbox::Instance().customEnterFromEventLoop([&] {
+			callable(argument);
+		});
 	});
 
 	base::InitObservables(ProcessObservables);
