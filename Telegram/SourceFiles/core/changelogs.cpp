@@ -69,6 +69,17 @@ std::map<int, const char*> BetaLogs() {
 		"without waiting for them to download.\n"
 
 		"- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages."
+	},
+	{
+		1006004,
+		"- Replace media when editing messages with media content.\n"
+
+		"- Jump quickly to the top of your chats list.\n"
+
+		"- Get emoji suggestions for the first word you type in a message.\n"
+
+		"- Help Telegram improve emoji suggestions in your language "
+		"using this interface https://translations.telegram.org/en/emoji"
 	}
 	};
 }

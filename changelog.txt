@@ -1,3 +1,10 @@
+1.6.4 beta (05.04.19)
+
+- Replace media when editing messages with media content.
+- Jump quickly to the top of your chats list.
+- Get emoji suggestions for the first word you type in a message.
+- Help Telegram improve emoji suggestions in your language using this interface https://translations.telegram.org/en/emoji
+
 1.6.3 (25.03.19)
 
 - Bug fixes and other minor improvements.
