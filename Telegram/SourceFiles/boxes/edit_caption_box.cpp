@@ -726,7 +726,9 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			nameright = 0;
 			statustop = st::msgFileStatusTop - st::msgFilePadding.top();
 		}
-		const auto editButton = _editMedia->width() + st::editMediaButtonSkip;
+		const auto editButton = _isAllowedEditMedia
+			? _editMedia->width() + st::editMediaButtonSkip
+			: 0;
 		const auto namewidth = w - nameleft - editButton;
 		const auto x = (width() - w) / 2, y = st::boxPhotoPadding.top();
 
