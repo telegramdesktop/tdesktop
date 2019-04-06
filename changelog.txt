@@ -1,3 +1,7 @@
+1.6.5 beta (06.04.19)
+
+- Bug fixes and other minor improvements.
+
 1.6.4 beta (05.04.19)
 
 - Replace media when editing messages with media content.
