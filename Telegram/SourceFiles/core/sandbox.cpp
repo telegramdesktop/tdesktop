@@ -121,10 +121,11 @@ int Sandbox::start() {
 		[=] { newInstanceConnected(); });
 
 	crl::on_main(this, [=] { checkForQuit(); });
-	connect(
-		this,
-		&QCoreApplication::aboutToQuit,
-		[=] { closeApplication(); });
+	connect(this, &QCoreApplication::aboutToQuit, [=] {
+		customEnterFromEventLoop([&] {
+			closeApplication();
+		});
+	});
 
 	if (cManyInstance()) {
 		LOG(("Many instance allowed, starting..."));

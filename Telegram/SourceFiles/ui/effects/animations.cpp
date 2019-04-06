@@ -128,7 +128,7 @@ void Manager::schedule() {
 	stopTimer();
 
 	_scheduled = true;
-	Ui::PostponeCall([=] {
+	Ui::PostponeCall(static_cast<QObject*>(this), [=] {
 		_scheduled = false;
 		if (_forceImmediateUpdate) {
 			_forceImmediateUpdate = false;
