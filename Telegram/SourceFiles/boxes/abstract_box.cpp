@@ -456,6 +456,7 @@ void AbstractBox::setDimensions(int newWidth, int maxHeight, bool forceCenterPos
 					: std::max(top1, top2);
 				if (newTop != newGeometry.top()) {
 					move(newGeometry.left(), newTop);
+					resizeEvent(0);
 				}
 			}
 			parentWidget()->update(oldGeometry.united(geometry()).marginsAdded(st::boxRoundShadow.extend));
