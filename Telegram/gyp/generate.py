@@ -96,7 +96,7 @@ if sys.platform == 'win32':
 elif sys.platform == 'darwin':
     # use patched gyp with Xcode project generator
     gypScript = '../../../Libraries/gyp/gyp'
-    gypArguments.append('-Gxcode_upgrade_check_project_version=1010')
+    gypArguments.append('-Gxcode_upgrade_check_project_version=1020')
     gypFormats.append('xcode')
 else:
     gypScript = '../../../Libraries/gyp/gyp'
