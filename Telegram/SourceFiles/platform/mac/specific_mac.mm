@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "history/history_widget.h"
 #include "core/crash_reports.h"
+#include "core/sandbox.h"
 #include "storage/localstorage.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
@@ -38,10 +39,12 @@ public:
 	}
 
 	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-		auto wnd = App::wnd();
-		if (!wnd) return false;
+		return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			auto wnd = App::wnd();
+			if (!wnd) return false;
 
-		return wnd->psFilterNativeEvent(message);
+			return wnd->psFilterNativeEvent(message);
+		});
 	}
 };
 

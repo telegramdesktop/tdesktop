@@ -15,6 +15,8 @@ class Manager;
 class Basic final {
 public:
 	Basic() = default;
+	Basic(const Basic &other) = delete;
+	Basic &operator=(const Basic &other) = delete;
 
 	template <typename Callback>
 	explicit Basic(Callback &&callback);

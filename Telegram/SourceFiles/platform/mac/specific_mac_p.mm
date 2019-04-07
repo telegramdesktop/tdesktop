@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "core/sandbox.h"
 #include "core/application.h"
 #include "core/crash_reports.h"
 #include "storage/localstorage.h"
@@ -184,9 +185,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
-	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
-		objc_handleMediaKeyEvent(e);
-	}
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
+			objc_handleMediaKeyEvent(e);
+		}
+	});
 }
 
 - (void) ignoreApplicationActivationRightNow {
