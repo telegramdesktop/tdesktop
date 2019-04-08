@@ -84,7 +84,7 @@ notifySendReply: IconButton {
 	iconPosition: point(6px, 6px);
 }
 
-titleUnreadCounterTop: 5px;
+titleUnreadCounterTop: 6px;
 titleUnreadCounterRight: 35px;
 
 mainMenuWidth: 274px;
