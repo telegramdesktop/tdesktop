@@ -298,10 +298,10 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData* document) {
-	const auto newPath = getNewMediaPath();
+	const auto isListEmpty = _preparedList.files.empty();
 	if (_gifPreview) {
 		return;
-	} else if (!document && newPath.isEmpty()) {
+	} else if (!document && isListEmpty) {
 		return;
 	}
 	const auto callback = [=](Media::Clip::Notification notification) {
@@ -312,10 +312,17 @@ void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 			document,
 			_msgId,
 			callback);
-	} else if (!newPath.isEmpty()) {
-		_gifPreview = Media::Clip::MakeReader(
-			newPath,
-			callback);
+	} else if (!isListEmpty) {
+		const auto file = &_preparedList.files.front();
+		if (file->path.isEmpty()) {
+			_gifPreview = Media::Clip::MakeReader(
+				file->content,
+				callback);
+		} else {
+			_gifPreview = Media::Clip::MakeReader(
+				file->path,
+				callback);
+		}
 	}
 	if (_gifPreview) _gifPreview->setAutoplay();
 }
@@ -329,6 +336,23 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 		}
 
 		if (_gifPreview && _gifPreview->ready() && !_gifPreview->started()) {
+			const auto calculateGifDimensions = [&]() {
+				const auto scaled = QSize(
+					_gifPreview->width(),
+					_gifPreview->height()).scaled(
+						st::sendMediaPreviewSize * cIntRetinaFactor(),
+						st::confirmMaxHeight * cIntRetinaFactor(),
+						Qt::KeepAspectRatio);
+				_thumbw = _gifw = scaled.width();
+				_thumbh = _gifh = scaled.height();
+				_thumbx = _gifx = (st::boxWideWidth - _gifw) / 2;
+				updateBoxSize();
+			};
+			// If gif file is not mp4,
+			// Its dimension values will be known only after reading.
+			if (_gifw <= 0 || _gifh <= 0) {
+				calculateGifDimensions();
+			}
 			const auto s = QSize(_gifw, _gifh);
 			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
 		}
@@ -362,17 +386,19 @@ void EditCaptionBox::updateEditPreview() {
 	_thumbw = _thumbh = _thumbx = 0;
 	_gifw = _gifh = _gifx = 0;
 
+	auto isGif = false;
 	auto shouldAsDoc = true;
 	if (const auto image = base::get_if<Info::Image>(fileMedia)) {
 		shouldAsDoc = !Storage::ValidateThumbDimensions(
 			image->data.width(),
 			image->data.height());
-		_photo = !shouldAsDoc;
+		isGif = image->animated;
+		_animated = isGif;
+		_photo = !isGif && !shouldAsDoc;
 		_isImage = true;
 	} else if (const auto video = base::get_if<Info::Video>(fileMedia)) {
+		isGif = video->isGifv;
 		_animated = true;
-		// Never edit video as gif.
-		video->isGifv = false;
 		shouldAsDoc = false;
 	}
 	if (shouldAsDoc) {
@@ -405,6 +431,12 @@ void EditCaptionBox::updateEditPreview() {
 		_thumbw = _thumb.width() / cIntRetinaFactor();
 		_thumbh = _thumb.height() / cIntRetinaFactor();
 		_thumbx = (st::boxWideWidth - _thumbw) / 2;
+		if (isGif) {
+			_gifw = _thumbw;
+			_gifh = _thumbh;
+			_gifx = _thumbx;
+			prepareGifPreview();
+		}
 	}
 	updateEditMediaButton();
 	captionResized();
@@ -427,8 +459,7 @@ void EditCaptionBox::createEditMediaButton() {
 		}
 
 		const auto isValidFile = [](QString mimeType) {
-			if (mimeType == qstr("image/webp")
-				|| mimeType == qstr("image/gif")) {
+			if (mimeType == qstr("image/webp")) {
 				Ui::show(
 					Box<InformBox>(lang(lng_edit_media_invalid_file)),
 					LayerOption::KeepOther);
@@ -477,8 +508,10 @@ void EditCaptionBox::createEditMediaButton() {
 				const auto valid = media->match([&](const Info::Image &data) {
 					return Storage::ValidateThumbDimensions(
 						data.data.width(),
-						data.data.height());
-				}, [&](const Info::Video &data) {
+						data.data.height())
+						&& !data.animated;
+				}, [&](Info::Video &data) {
+					data.isGifv = false;
 					return true;
 				}, [](auto &&other) {
 					return false;

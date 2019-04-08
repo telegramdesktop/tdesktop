@@ -98,6 +98,13 @@ Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&cal
 	init(document->location(), document->data());
 }
 
+Reader::Reader(const QByteArray &data, Callback &&callback, Mode mode, crl::time seekMs)
+: _callback(std::move(callback))
+, _mode(mode)
+, _seekPositionMs(seekMs) {
+	init(FileLocation(QString()), data);
+}
+
 void Reader::init(const FileLocation &location, const QByteArray &data) {
 	if (threads.size() < ClipThreadsCount) {
 		_threadIndex = threads.size();

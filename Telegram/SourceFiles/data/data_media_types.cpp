@@ -665,7 +665,6 @@ bool MediaFile::allowsEditCaption() const {
 bool MediaFile::allowsEditMedia() const {
 	return !_document->isVideoMessage()
 		&& !_document->sticker()
-		&& !_document->isGifv()
 		&& !_document->isVoiceMessage();
 }
 

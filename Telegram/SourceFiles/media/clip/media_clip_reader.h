@@ -51,6 +51,7 @@ public:
 
 	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
+	Reader(const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, crl::time seekMs = 0);
 
 	// Reader can be already deleted.
 	static void callback(Reader *reader, qint32 threadIndex, qint32 notification);
