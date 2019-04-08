@@ -73,21 +73,21 @@ void ConfirmSwitchBox::prepare() {
 	setTitle(langFactory(lng_language_switch_title));
 
 	auto link = TextWithEntities{ lang(lng_language_switch_link) };
-	link.entities.push_back(EntityInText(
-		EntityInTextCustomUrl,
+	link.entities.push_back({
+		EntityType::CustomUrl,
 		0,
 		link.text.size(),
-		QString("internal:go_to_translations")));
+		QString("internal:go_to_translations") });
 	auto name = TextWithEntities{ _name };
-	name.entities.push_back(EntityInText(
-		EntityInTextBold,
+	name.entities.push_back({
+		EntityType::Bold,
 		0,
-		name.text.size()));
+		name.text.size() });
 	auto percent = TextWithEntities{ QString::number(_percent) };
-	percent.entities.push_back(EntityInText(
-		EntityInTextBold,
+	percent.entities.push_back({
+		EntityType::Bold,
 		0,
-		percent.text.size()));
+		percent.text.size() });
 	const auto text = (_official
 		? lng_language_switch_about_official__generic<TextWithEntities>
 		: lng_language_switch_about_unofficial__generic<TextWithEntities>)(
@@ -134,11 +134,11 @@ void NotReadyBox::prepare() {
 	setTitle(langFactory(lng_language_not_ready_title));
 
 	auto link = TextWithEntities{ lang(lng_language_not_ready_link) };
-	link.entities.push_back(EntityInText(
-		EntityInTextCustomUrl,
+	link.entities.push_back({
+		EntityType::CustomUrl,
 		0,
 		link.text.size(),
-		QString("internal:go_to_translations")));
+		QString("internal:go_to_translations") });
 	auto name = TextWithEntities{ _name };
 	const auto text = lng_language_not_ready_about__generic(
 		lt_lang_name,

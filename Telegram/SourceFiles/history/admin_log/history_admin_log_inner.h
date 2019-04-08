@@ -153,7 +153,7 @@ private:
 	void openContextGif(FullMsgId itemId);
 	void copyContextText(FullMsgId itemId);
 	void copySelectedText();
-	TextWithEntities getSelectedText() const;
+	TextForMimeData getSelectedText() const;
 	void suggestRestrictUser(not_null<UserData*> user);
 	void restrictUser(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights);
 	void restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights);

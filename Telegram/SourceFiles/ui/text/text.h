@@ -165,8 +165,11 @@ public:
 		return _text.size();
 	}
 
-	QString toString(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
-	TextWithEntities toTextWithEntities(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
+	QString toString(TextSelection selection = AllTextSelection) const;
+	TextWithEntities toTextWithEntities(
+		TextSelection selection = AllTextSelection) const;
+	TextForMimeData toTextForMimeData(
+		TextSelection selection = AllTextSelection) const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;
@@ -216,6 +219,11 @@ private:
 	// clear() deletes all blocks and calls this method
 	// it is also called from move constructor / assignment operator
 	void clearFields();
+
+	TextForMimeData toText(
+		TextSelection selection,
+		bool composeExpanded,
+		bool composeEntities) const;
 
 	QFixed _minResizeWidth;
 	QFixed _maxWidth = 0;

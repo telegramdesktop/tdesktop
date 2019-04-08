@@ -454,14 +454,14 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto isVoiceLink = document ? document->isVoiceMessage() : false;
 	const auto isAudioLink = document ? document->isAudioFile() : false;
 	const auto hasSelection = !request.selectedItems.empty()
-		|| !request.selectedText.text.isEmpty();
+		|| !request.selectedText.empty();
 
 	if (request.overSelection) {
 		const auto text = lang(request.selectedItems.empty()
 			? lng_context_copy_selected
 			: lng_context_copy_selected_items);
 		result->addAction(text, [=] {
-			SetClipboardWithEntities(list->getSelectedText());
+			SetClipboardText(list->getSelectedText());
 		});
 	}
 
@@ -493,11 +493,11 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 				if (const auto item = App::histItemById(itemId)) {
 					if (asGroup) {
 						if (const auto group = Auth().data().groups().find(item)) {
-							SetClipboardWithEntities(HistoryGroupText(group));
+							SetClipboardText(HistoryGroupText(group));
 							return;
 						}
 					}
-					SetClipboardWithEntities(HistoryItemText(item));
+					SetClipboardText(HistoryItemText(item));
 				}
 			});
 		}

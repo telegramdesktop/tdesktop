@@ -253,11 +253,11 @@ void SettingsWidget::addLocationLabel(
 			QDir::toNativeSeparators(text),
 			EntitiesInText()
 		};
-		pathLink.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
+		pathLink.entities.push_back({
+			EntityType::CustomUrl,
 			0,
 			text.size(),
-			QString("internal:edit_export_path")));
+			QString("internal:edit_export_path") });
 		return lng_export_option_location__generic<TextWithEntities>(
 			lt_path,
 			pathLink);
@@ -288,17 +288,17 @@ void SettingsWidget::addLimitsLabel(
 			? langDayOfMonthFull(ParseDateTime(till).date())
 			: lang(lng_export_end);
 		auto fromLink = TextWithEntities{ begin };
-		fromLink.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
+		fromLink.entities.push_back({
+			EntityType::CustomUrl,
 			0,
 			begin.size(),
-			QString("internal:edit_from")));
+			QString("internal:edit_from") });
 		auto tillLink = TextWithEntities{ end };
-		tillLink.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
+		tillLink.entities.push_back({
+			EntityType::CustomUrl,
 			0,
 			end.size(),
-			QString("internal:edit_till")));
+			QString("internal:edit_till") });
 		return lng_export_limits__generic<TextWithEntities>(
 			lt_from,
 			fromLink,

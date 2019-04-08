@@ -367,22 +367,16 @@ void HistoryGame::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 	}
 }
 
-TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
-	auto titleResult = _title.toTextWithEntities(
-		selection,
-		ExpandLinksAll);
-	auto descriptionResult = _description.toTextWithEntities(
-		toDescriptionSelection(selection),
-		ExpandLinksAll);
-	if (titleResult.text.isEmpty()) {
+TextForMimeData HistoryGame::selectedText(TextSelection selection) const {
+	auto titleResult = _title.toTextForMimeData(selection);
+	auto descriptionResult = _description.toTextForMimeData(
+		toDescriptionSelection(selection));
+	if (titleResult.empty()) {
 		return descriptionResult;
-	} else if (descriptionResult.text.isEmpty()) {
+	} else if (descriptionResult.empty()) {
 		return titleResult;
 	}
-
-	titleResult.text += '\n';
-	TextUtilities::Append(titleResult, std::move(descriptionResult));
-	return titleResult;
+	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
 void HistoryGame::playAnimation(bool autoplay) {

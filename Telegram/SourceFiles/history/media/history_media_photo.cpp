@@ -535,8 +535,8 @@ void HistoryPhoto::validateGroupedCache(
 	*cache = image->pixNoCache(_realParent->fullId(), pixWidth, pixHeight, options, width, height);
 }
 
-TextWithEntities HistoryPhoto::selectedText(TextSelection selection) const {
-	return _caption.toTextWithEntities(selection, ExpandLinksAll);
+TextForMimeData HistoryPhoto::selectedText(TextSelection selection) const {
+	return _caption.toTextForMimeData(selection);
 }
 
 bool HistoryPhoto::needsBubble() const {

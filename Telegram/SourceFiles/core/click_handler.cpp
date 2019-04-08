@@ -50,12 +50,6 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 	return true;
 }
 
-TextWithEntities ClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
-	return { QString(), EntitiesInText() };
-}
-
-TextWithEntities ClickHandler::simpleTextWithEntity(const EntityInText &entity) const {
-	TextWithEntities result;
-	result.entities.push_back(entity);
-	return result;
+auto ClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::Invalid };
 }

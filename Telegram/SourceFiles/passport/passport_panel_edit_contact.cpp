@@ -129,11 +129,11 @@ void VerifyBox::setupControls(
 		small);
 	if (resend) {
 		auto link = TextWithEntities{ lang(lng_cloud_password_resend) };
-		link.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
+		link.entities.push_back({
+			EntityType::CustomUrl,
 			0,
 			link.text.size(),
-			QString("internal:resend")));
+			QString("internal:resend") });
 		const auto label = _content->add(
 			object_ptr<Ui::FlatLabel>(
 				_content,

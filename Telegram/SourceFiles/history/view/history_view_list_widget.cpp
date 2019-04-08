@@ -952,7 +952,7 @@ void ListWidget::clearTextSelection() {
 		}
 		_selectedTextItem = nullptr;
 		_selectedTextRange = TextSelection();
-		_selectedText = TextWithEntities();
+		_selectedText = TextForMimeData();
 	}
 }
 
@@ -968,9 +968,9 @@ void ListWidget::setTextSelection(
 	_selectedTextRange = selection;
 	_selectedText = (selection.from != selection.to)
 		? view->selectedText(selection)
-		: TextWithEntities();
+		: TextForMimeData();
 	repaintItem(view);
-	if (!_wasSelectedText && !_selectedText.text.isEmpty()) {
+	if (!_wasSelectedText && !_selectedText.empty()) {
 		_wasSelectedText = true;
 		setFocus();
 	}
@@ -1394,7 +1394,7 @@ void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 	}
 }
 
-TextWithEntities ListWidget::getSelectedText() const {
+TextForMimeData ListWidget::getSelectedText() const {
 	auto selected = _selected;
 
 	if (_mouseAction == MouseAction::Selecting && !_dragSelected.empty()) {
@@ -1413,20 +1413,20 @@ TextWithEntities ListWidget::getSelectedText() const {
 	auto fullSize = 0;
 	auto texts = std::vector<std::pair<
 		not_null<HistoryItem*>,
-		TextWithEntities>>();
+		TextForMimeData>>();
 	texts.reserve(selected.size());
 
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
-			TextWithEntities &&unwrapped) {
+			TextForMimeData &&unwrapped) {
 		auto time = ItemDateTime(item).toString(timeFormat);
-		auto part = TextWithEntities();
+		auto part = TextForMimeData();
 		auto size = item->author()->name.size()
 			+ time.size()
-			+ unwrapped.text.size();
-		part.text.reserve(size);
-		part.text.append(item->author()->name).append(time);
-		TextUtilities::Append(part, std::move(unwrapped));
+			+ unwrapped.expanded.size();
+		part.reserve(size);
+		part.append(item->author()->name).append(time);
+		part.append(std::move(unwrapped));
 		texts.emplace_back(std::move(item), std::move(part));
 		fullSize += size;
 	};
@@ -1457,18 +1457,18 @@ TextWithEntities ListWidget::getSelectedText() const {
 		}
 	}
 	ranges::sort(texts, [&](
-			const std::pair<not_null<HistoryItem*>, TextWithEntities> &a,
-			const std::pair<not_null<HistoryItem*>, TextWithEntities> &b) {
+			const std::pair<not_null<HistoryItem*>, TextForMimeData> &a,
+			const std::pair<not_null<HistoryItem*>, TextForMimeData> &b) {
 		return _delegate->listIsLessInOrder(a.first, b.first);
 	});
 
-	auto result = TextWithEntities();
-	auto sep = qsl("\n\n");
-	result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
+	auto result = TextForMimeData();
+	auto sep = qstr("\n\n");
+	result.reserve(fullSize + (texts.size() - 1) * sep.size());
 	for (auto i = begin(texts), e = end(texts); i != e;) {
-		TextUtilities::Append(result, std::move(i->second));
+		result.append(std::move(i->second));
 		if (++i != e) {
-			result.text.append(sep);
+			result.append(sep);
 		}
 	}
 	return result;
@@ -1523,11 +1523,11 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e == QKeySequence::Copy
 		&& (hasSelectedText() || hasSelectedItems())) {
-		SetClipboardWithEntities(getSelectedText());
+		SetClipboardText(getSelectedText());
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)) {
-		SetClipboardWithEntities(getSelectedText(), QClipboard::FindBuffer);
+		SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		_delegate->listDeleteRequest();
@@ -2268,22 +2268,19 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		_pressItemExact ? _pressItemExact : pressedItem,
 		_pressState);
 
-	QList<QUrl> urls;
-	auto text = [&] {
+	auto urls = QList<QUrl>();
+	const auto selectedText = [&] {
 		if (uponSelected) {
 			return getSelectedText();
 		} else if (pressedHandler) {
-			return TextWithEntities{
-				pressedHandler->dragText(),
-				EntitiesInText()
-			};
+			//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+			//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
+			//}
+			return TextForMimeData::Simple(pressedHandler->dragText());
 		}
-		return TextWithEntities();
-		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
-		//}
+		return TextForMimeData();
 	}();
-	if (auto mimeData = MimeDataFromTextWithEntities(text)) {
+	if (auto mimeData = MimeDataFromText(selectedText)) {
 		clearDragSelection();
 //		_widget->noSelectingScroll(); #TODO scroll
 

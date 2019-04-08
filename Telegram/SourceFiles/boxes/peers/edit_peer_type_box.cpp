@@ -627,11 +627,11 @@ void Controller::refreshEditInviteLink() {
 		if (text.text.startsWith(remove)) {
 			text.text.remove(0, remove.size());
 		}
-		text.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
+		text.entities.push_back({
+			EntityType::CustomUrl,
 			0,
 			text.text.size(),
-			link));
+			link });
 	}
 	_controls.inviteLink->setMarkedText(text);
 

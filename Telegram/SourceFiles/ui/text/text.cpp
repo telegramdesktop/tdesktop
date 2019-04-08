@@ -253,40 +253,40 @@ public:
 
 		int32 startFlags = 0;
 		QString linkData, linkText;
-		auto type = waitingEntity->type(), linkType = EntityInTextInvalid;
+		auto type = waitingEntity->type(), linkType = EntityType::Invalid;
 		LinkDisplayStatus linkDisplayStatus = LinkDisplayedFull;
-		if (type == EntityInTextBold) {
+		if (type == EntityType::Bold) {
 			startFlags = TextBlockFSemibold;
-		} else if (type == EntityInTextItalic) {
+		} else if (type == EntityType::Italic) {
 			startFlags = TextBlockFItalic;
-		} else if (type == EntityInTextCode) {
+		} else if (type == EntityType::Code) {
 			startFlags = TextBlockFCode;
-		} else if (type == EntityInTextPre) {
+		} else if (type == EntityType::Pre) {
 			startFlags = TextBlockFPre;
 			createBlock();
 			if (!_t->_blocks.empty() && _t->_blocks.back()->type() != TextBlockTNewline) {
 				createNewlineBlock();
 			}
-		} else if (type == EntityInTextUrl
-		        || type == EntityInTextEmail
-		        || type == EntityInTextMention
-		        || type == EntityInTextHashtag
-		        || type == EntityInTextCashtag
-		        || type == EntityInTextBotCommand) {
+		} else if (type == EntityType::Url
+		        || type == EntityType::Email
+		        || type == EntityType::Mention
+		        || type == EntityType::Hashtag
+		        || type == EntityType::Cashtag
+		        || type == EntityType::BotCommand) {
 			linkType = type;
 			linkData = QString(start + waitingEntity->offset(), waitingEntity->length());
-			if (linkType == EntityInTextUrl) {
+			if (linkType == EntityType::Url) {
 				computeLinkText(linkData, &linkText, &linkDisplayStatus);
 			} else {
 				linkText = linkData;
 			}
-		} else if (type == EntityInTextCustomUrl || type == EntityInTextMentionName) {
+		} else if (type == EntityType::CustomUrl || type == EntityType::MentionName) {
 			linkType = type;
 			linkData = waitingEntity->data();
 			linkText = QString(start + waitingEntity->offset(), waitingEntity->length());
 		}
 
-		if (linkType != EntityInTextInvalid) {
+		if (linkType != EntityType::Invalid) {
 			createBlock();
 
 			links.push_back(TextLinkData(linkType, linkText, linkData, linkDisplayStatus));
@@ -419,7 +419,7 @@ public:
 		case TextCommandLinkText: {
 			createBlock();
 			int32 len = ptr->unicode();
-			links.push_back(TextLinkData(EntityInTextCustomUrl, QString(), QString(++ptr, len), LinkDisplayedFull));
+			links.push_back(TextLinkData(EntityType::CustomUrl, QString(), QString(++ptr, len), LinkDisplayedFull));
 			lnkIndex = 0x8000 + links.size();
 		} break;
 
@@ -535,11 +535,11 @@ public:
 				const QChar s = source.text.size();
 				for (; i < l; ++i) {
 					auto type = preparsed.at(i).type();
-					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
-						(type == EntityInTextHashtag && !parseHashtags) ||
-						(type == EntityInTextCashtag && !parseHashtags) ||
-						(type == EntityInTextBotCommand && !parseBotCommands) ||
-						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMarkdown)) {
+					if (((type == EntityType::Mention || type == EntityType::MentionName) && !parseMentions) ||
+						(type == EntityType::Hashtag && !parseHashtags) ||
+						(type == EntityType::Cashtag && !parseHashtags) ||
+						(type == EntityType::BotCommand && !parseBotCommands) ||
+						((type == EntityType::Bold || type == EntityType::Italic || type == EntityType::Code || type == EntityType::Pre) && !parseMarkdown)) {
 						continue;
 					}
 					source.entities.push_back(preparsed.at(i));
@@ -557,14 +557,14 @@ public:
 	bool isLinkEntity(const EntityInText &entity) const {
 		const auto type = entity.type();
 		const auto urls = {
-			EntityInTextUrl,
-			EntityInTextCustomUrl,
-			EntityInTextEmail,
-			EntityInTextHashtag,
-			EntityInTextCashtag,
-			EntityInTextMention,
-			EntityInTextMentionName,
-			EntityInTextBotCommand
+			EntityType::Url,
+			EntityType::CustomUrl,
+			EntityType::Email,
+			EntityType::Hashtag,
+			EntityType::Cashtag,
+			EntityType::Mention,
+			EntityType::MentionName,
+			EntityType::BotCommand
 		};
 		return ranges::find(urls, type) != std::end(urls);
 	}
@@ -582,7 +582,9 @@ public:
 		while (waitingEntity != entitiesEnd && isInvalidEntity(*waitingEntity)) {
 			++waitingEntity;
 		}
-		int firstMonospaceOffset = EntityInText::firstMonospaceOffset(source.entities, end - start);
+		const auto firstMonospaceOffset = EntityInText::FirstMonospaceOffset(
+			source.entities,
+			end - start);
 
 		ptr = start;
 		while (ptr != end && chIsTrimmed(*ptr, rich) && ptr != start + firstMonospaceOffset) {
@@ -599,7 +601,7 @@ public:
 		sumWidth = 0;
 		sumFinished = newlineAwaited = false;
 		blockStart = 0;
-		emoji = 0;
+		emoji = nullptr;
 
 		ch = emojiLookback = 0;
 		lastSkipped = false;
@@ -625,8 +627,8 @@ public:
 		removeFlags.clear();
 
 		_t->_links.resize(maxLnkIndex);
-		for (auto i = _t->_blocks.cbegin(), e = _t->_blocks.cend(); i != e; ++i) {
-			auto b = i->get();
+		for (const auto &block : _t->_blocks) {
+			const auto b = block.get();
 			if (b->lnkIndex() > 0x8000) {
 				lnkIndex = maxLnkIndex + (b->lnkIndex() - 0x8000);
 				if (_t->_links.size() < lnkIndex) {
@@ -634,15 +636,15 @@ public:
 					auto &link = links[lnkIndex - maxLnkIndex - 1];
 					auto handler = ClickHandlerPtr();
 					switch (link.type) {
-					case EntityInTextCustomUrl: {
+					case EntityType::CustomUrl: {
 						if (!link.data.isEmpty()) {
 							handler = std::make_shared<HiddenUrlClickHandler>(link.data);
 						}
 					} break;
-					case EntityInTextEmail:
-					case EntityInTextUrl: handler = std::make_shared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
-					case EntityInTextBotCommand: handler = std::make_shared<BotCommandClickHandler>(link.data); break;
-					case EntityInTextHashtag:
+					case EntityType::Email:
+					case EntityType::Url: handler = std::make_shared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
+					case EntityType::BotCommand: handler = std::make_shared<BotCommandClickHandler>(link.data); break;
+					case EntityType::Hashtag:
 						if (options.flags & TextTwitterMentions) {
 							handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true);
 						} else if (options.flags & TextInstagramMentions) {
@@ -651,10 +653,10 @@ public:
 							handler = std::make_shared<HashtagClickHandler>(link.data);
 						}
 					break;
-					case EntityInTextCashtag:
+					case EntityType::Cashtag:
 						handler = std::make_shared<CashtagClickHandler>(link.data);
 						break;
-					case EntityInTextMention:
+					case EntityType::Mention:
 						if (options.flags & TextTwitterMentions) {
 							handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);
 						} else if (options.flags & TextInstagramMentions) {
@@ -663,7 +665,7 @@ public:
 							handler = std::make_shared<MentionClickHandler>(link.data);
 						}
 					break;
-					case EntityInTextMentionName: {
+					case EntityType::MentionName: {
 						auto fields = TextUtilities::MentionNameDataToFields(link.data);
 						if (fields.userId) {
 							handler = std::make_shared<MentionNameClickHandler>(link.text, fields.userId, fields.accessHash);
@@ -693,13 +695,13 @@ private:
 
 	struct TextLinkData {
 		TextLinkData() = default;
-		TextLinkData(EntityInTextType type, const QString &text, const QString &data, LinkDisplayStatus displayStatus)
+		TextLinkData(EntityType type, const QString &text, const QString &data, LinkDisplayStatus displayStatus)
 			: type(type)
 			, text(text)
 			, data(data)
 			, displayStatus(displayStatus) {
 		}
-		EntityInTextType type = EntityInTextInvalid;
+		EntityType type = EntityType::Invalid;
 		QString text, data;
 		LinkDisplayStatus displayStatus = LinkDisplayedFull;
 	};
@@ -2927,13 +2929,11 @@ void Text::drawElided(Painter &painter, int32 left, int32 top, int32 w, int32 li
 }
 
 Text::StateResult Text::getState(QPoint point, int width, StateRequest request) const {
-	TextPainter p(0, this);
-	return p.getState(point, width, request);
+	return TextPainter(nullptr, this).getState(point, width, request);
 }
 
 Text::StateResult Text::getStateElided(QPoint point, int width, StateRequestElided request) const {
-	TextPainter p(0, this);
-	return p.getStateElided(point, width, request);
+	return TextPainter(nullptr, this).getStateElided(point, width, request);
 }
 
 TextSelection Text::adjustSelection(TextSelection selection, TextSelectType selectType) const {
@@ -3046,65 +3046,102 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 	}
 }
 
-
-
-TextWithEntities Text::toTextWithEntities(TextSelection selection, ExpandLinksMode mode) const {
-	TextWithEntities result;
-	result.text.reserve(_text.size());
-
-	int lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
-	auto flagsChangeCallback = [&](int32 oldFlags, int32 newFlags) {
-		if ((oldFlags & TextBlockFItalic) && !(newFlags & TextBlockFItalic)) { // write italic
-			result.entities.push_back(EntityInText(EntityInTextItalic, italicStart, result.text.size() - italicStart));
-		} else if ((newFlags & TextBlockFItalic) && !(oldFlags & TextBlockFItalic)) {
-			italicStart = result.text.size();
-		}
-		if ((oldFlags & TextBlockFSemibold) && !(newFlags & TextBlockFSemibold)) {
-			result.entities.push_back(EntityInText(EntityInTextBold, boldStart, result.text.size() - boldStart));
-		} else if ((newFlags & TextBlockFSemibold) && !(oldFlags & TextBlockFSemibold)) {
-			boldStart = result.text.size();
-		}
-		if ((oldFlags & TextBlockFCode) && !(newFlags & TextBlockFCode)) {
-			result.entities.push_back(EntityInText(EntityInTextCode, codeStart, result.text.size() - codeStart));
-		} else if ((newFlags & TextBlockFCode) && !(oldFlags & TextBlockFCode)) {
-			codeStart = result.text.size();
-		}
-		if ((oldFlags & TextBlockFPre) && !(newFlags & TextBlockFPre)) {
-			result.entities.push_back(EntityInText(EntityInTextPre, preStart, result.text.size() - preStart));
-		} else if ((newFlags & TextBlockFPre) && !(oldFlags & TextBlockFPre)) {
-			preStart = result.text.size();
-		}
-	};
-	auto clickHandlerStartCallback = [&] {
-		lnkStart = result.text.size();
-	};
-	auto clickHandlerFinishCallback = [&](const QStringRef &r, const ClickHandlerPtr &handler) {
-		const auto expanded = handler->getExpandedLinkTextWithEntities(lnkStart, r);
-		if (mode == ExpandLinksAll
-			&& !expanded.entities.isEmpty()
-			&& expanded.entities[0].type() == EntityInTextCustomUrl) {
-			result.text += r;
-			result.text += qsl(" (") + expanded.entities[0].data() + ')';
-		} else if (expanded.text.isEmpty()) {
-			result.text += r;
-		} else {
-			result.text += expanded.text;
-		}
-		if (!expanded.entities.isEmpty()) {
-			result.entities.append(expanded.entities);
-		}
-	};
-	auto appendPartCallback = [&](const QStringRef &r) {
-		result.text += r;
-	};
-
-	enumerateText(selection, appendPartCallback, clickHandlerStartCallback, clickHandlerFinishCallback, flagsChangeCallback);
-
-	return result;
+QString Text::toString(TextSelection selection) const {
+	return toText(selection, false, false).rich.text;
 }
 
-QString Text::toString(TextSelection selection, ExpandLinksMode mode) const {
-	return toTextWithEntities(selection, mode).text;
+TextWithEntities Text::toTextWithEntities(TextSelection selection) const {
+	return toText(selection, false, true).rich;
+}
+
+TextForMimeData Text::toTextForMimeData(TextSelection selection) const {
+	return toText(selection, true, true);
+}
+
+TextForMimeData Text::toText(
+		TextSelection selection,
+		bool composeExpanded,
+		bool composeEntities) const {
+	struct MarkdownTagTracker {
+		TextBlockFlags flag = TextBlockFlags();
+		EntityType type = EntityType();
+		int start = 0;
+	};
+	auto result = TextForMimeData();
+	result.rich.text.reserve(_text.size());
+	if (composeExpanded) {
+		result.expanded.reserve(_text.size());
+	}
+	auto linkStart = 0;
+	auto markdownTrackers = composeEntities
+		? std::vector<MarkdownTagTracker>{
+			{ TextBlockFItalic, EntityType::Italic },
+			{ TextBlockFSemibold, EntityType::Bold },
+			{ TextBlockFCode, EntityType::Code },
+			{ TextBlockFPre, EntityType::Pre }
+		} : std::vector<MarkdownTagTracker>();
+	const auto flagsChangeCallback = [&](int32 oldFlags, int32 newFlags) {
+		if (!composeEntities) {
+			return;
+		}
+		for (auto &tracker : markdownTrackers) {
+			const auto flag = tracker.flag;
+			if ((oldFlags & flag) && !(newFlags & flag)) {
+				result.rich.entities.push_back({
+					tracker.type,
+					tracker.start,
+					result.rich.text.size() - tracker.start });
+			} else if ((newFlags & flag) && !(oldFlags & flag)) {
+				tracker.start = result.rich.text.size();
+			}
+		}
+	};
+	const auto clickHandlerStartCallback = [&] {
+		linkStart = result.rich.text.size();
+	};
+	const auto clickHandlerFinishCallback = [&](
+			const QStringRef &part,
+			const ClickHandlerPtr &handler) {
+		const auto entity = handler->getTextEntity();
+		const auto plainUrl = (entity.type == EntityType::Url)
+			|| (entity.type == EntityType::Email);
+		const auto full = plainUrl
+			? entity.data.midRef(0, entity.data.size())
+			: part;
+		result.rich.text.append(full);
+		if (!composeExpanded && !composeEntities) {
+			return;
+		}
+		if (composeExpanded) {
+			result.expanded.append(full);
+			if (entity.type == EntityType::CustomUrl) {
+				const auto &url = entity.data;
+				result.expanded.append(qstr(" (")).append(url).append(')');
+			}
+		}
+		if (composeEntities) {
+			result.rich.entities.push_back({
+				entity.type,
+				linkStart,
+				full.size(),
+				plainUrl ? QString() : entity.data });
+		}
+	};
+	const auto appendPartCallback = [&](const QStringRef &part) {
+		result.rich.text += part;
+		if (composeExpanded) {
+			result.expanded += part;
+		}
+	};
+
+	enumerateText(
+		selection,
+		appendPartCallback,
+		clickHandlerStartCallback,
+		clickHandlerFinishCallback,
+		flagsChangeCallback);
+
+	return result;
 }
 
 void Text::clear() {

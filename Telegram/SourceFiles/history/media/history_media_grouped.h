@@ -55,7 +55,7 @@ public:
 	PhotoData *getPhoto() const override;
 	DocumentData *getDocument() const override;
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,

@@ -486,8 +486,7 @@ DeleteMessagesBox::DeleteMessagesBox(
 void DeleteMessagesBox::prepare() {
 	auto details = TextWithEntities();
 	const auto appendDetails = [&](TextWithEntities &&text) {
-		TextUtilities::Append(details, { "\n\n" });
-		TextUtilities::Append(details, std::move(text));
+		details.append(qstr("\n\n")).append(std::move(text));
 	};
 	auto deleteKey = lng_box_delete;
 	auto deleteStyle = &st::defaultBoxButton;
@@ -648,7 +647,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		if (const auto user = peer->asUser()) {
 			auto boldName = TextWithEntities{ user->firstName };
 			boldName.entities.push_back(
-				EntityInText(EntityInTextBold, 0, boldName.text.size()));
+				{ EntityType::Bold, 0, boldName.text.size() });
 			if (canRevokeOutgoingCount == 1) {
 				result.description = lng_selected_unsend_about_user_one__generic<TextWithEntities>(
 					lt_user,

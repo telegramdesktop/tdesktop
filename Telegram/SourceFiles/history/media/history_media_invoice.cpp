@@ -57,7 +57,10 @@ void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
 		FillAmountAndCurrency(invoice->amount, invoice->currency),
 		EntitiesInText()
 	};
-	statusText.entities.push_back(EntityInText(EntityInTextBold, 0, statusText.text.size()));
+	statusText.entities.push_back({
+		EntityType::Bold,
+		0,
+		statusText.text.size() });
 	statusText.text += ' ' + labelText().toUpper();
 	_status.setMarkedText(
 		st::defaultTextStyle,
@@ -358,22 +361,16 @@ void HistoryInvoice::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool p
 	}
 }
 
-TextWithEntities HistoryInvoice::selectedText(TextSelection selection) const {
-	auto titleResult = _title.toTextWithEntities(
-		selection,
-		ExpandLinksAll);
-	auto descriptionResult = _description.toTextWithEntities(
-		toDescriptionSelection(selection),
-		ExpandLinksAll);
-	if (titleResult.text.isEmpty()) {
+TextForMimeData HistoryInvoice::selectedText(TextSelection selection) const {
+	auto titleResult = _title.toTextForMimeData(selection);
+	auto descriptionResult = _description.toTextForMimeData(
+		toDescriptionSelection(selection));
+	if (titleResult.empty()) {
 		return descriptionResult;
-	} else if (descriptionResult.text.isEmpty()) {
+	} else if (descriptionResult.empty()) {
 		return titleResult;
 	}
-
-	titleResult.text += '\n';
-	TextUtilities::Append(titleResult, std::move(descriptionResult));
-	return titleResult;
+	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
 QMargins HistoryInvoice::inBubblePadding() const {

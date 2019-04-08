@@ -133,15 +133,11 @@ void UrlClickHandler::Open(QString url, QVariant context) {
 	}
 }
 
-TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
-	auto result = TextWithEntities();
-	result.text = _originalUrl;
-	const auto entityLength = _originalUrl.size();
-	const auto entityType = isEmail(_originalUrl)
-		? EntityInTextEmail
-		: EntityInTextUrl;
-	result.entities.push_back({ entityType, entityOffset, entityLength });
-	return result;
+auto UrlClickHandler::getTextEntity() const -> TextEntity {
+	const auto type = isEmail(_originalUrl)
+		? EntityType::Email
+		: EntityType::Url;
+	return { type, _originalUrl };
 }
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
@@ -200,8 +196,8 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities HiddenUrlClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
-	return simpleTextWithEntity({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
+auto HiddenUrlClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::CustomUrl, url() };
 }
 
 QString MentionClickHandler::copyToClipboardContextItemText() const {
@@ -215,8 +211,8 @@ void MentionClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
-	return simpleTextWithEntity({ EntityInTextMention, entityOffset, textPart.size() });
+auto MentionClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::Mention };
 }
 
 void MentionNameClickHandler::onClick(ClickContext context) const {
@@ -228,9 +224,9 @@ void MentionNameClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities MentionNameClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
+auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
 	auto data = QString::number(_userId) + '.' + QString::number(_accessHash);
-	return simpleTextWithEntity({ EntityInTextMentionName, entityOffset, textPart.size(), data });
+	return { EntityType::MentionName, data };
 }
 
 QString MentionNameClickHandler::tooltip() const {
@@ -254,8 +250,8 @@ void HashtagClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
-	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
+auto HashtagClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::Hashtag };
 }
 
 QString CashtagClickHandler::copyToClipboardContextItemText() const {
@@ -269,10 +265,8 @@ void CashtagClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities CashtagClickHandler::getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const {
-	return simpleTextWithEntity({ EntityInTextCashtag, entityOffset, textPart.size() });
+auto CashtagClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::Cashtag };
 }
 
 PeerData *BotCommandClickHandler::_peer = nullptr;
@@ -304,6 +298,6 @@ void BotCommandClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities BotCommandClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
-	return simpleTextWithEntity({ EntityInTextBotCommand, entityOffset, textPart.size() });
+auto BotCommandClickHandler::getTextEntity() const -> TextEntity {
+	return { EntityType::BotCommand };
 }

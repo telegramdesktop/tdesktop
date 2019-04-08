@@ -680,8 +680,8 @@ TextState HistoryGif::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-TextWithEntities HistoryGif::selectedText(TextSelection selection) const {
-	return _caption.toTextWithEntities(selection, ExpandLinksAll);
+TextForMimeData HistoryGif::selectedText(TextSelection selection) const {
+	return _caption.toTextForMimeData(selection);
 }
 
 bool HistoryGif::uploading() const {

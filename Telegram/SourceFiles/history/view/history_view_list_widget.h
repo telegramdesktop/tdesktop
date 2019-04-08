@@ -153,7 +153,7 @@ public:
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(FullMsgId itemId);
 
-	TextWithEntities getSelectedText() const;
+	TextForMimeData getSelectedText() const;
 	MessageIdsList getSelectedItems() const;
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
@@ -466,7 +466,7 @@ private:
 	bool _selectEnabled = false;
 	HistoryItem *_selectedTextItem = nullptr;
 	TextSelection _selectedTextRange;
-	TextWithEntities _selectedText;
+	TextForMimeData _selectedText;
 	SelectedMap _selected;
 	base::flat_set<FullMsgId> _dragSelected;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;

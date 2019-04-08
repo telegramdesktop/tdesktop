@@ -28,7 +28,10 @@ TextWithEntities PrepareText(const QString &value, const QString &emptyValue) {
 	if (result.text.isEmpty()) {
 		result.text = emptyValue;
 		if (!emptyValue.isEmpty()) {
-			result.entities.push_back(EntityInText(EntityInTextItalic, 0, emptyValue.size()));
+			result.entities.push_back({
+				EntityType::Italic,
+				0,
+				emptyValue.size() });
 		}
 	} else {
 		TextUtilities::ParseEntities(result, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands);
@@ -224,17 +227,20 @@ auto GenerateUserString(MTPint userId) {
 	auto entityData = QString::number(user->id)
 		+ '.'
 		+ QString::number(user->accessHash());
-	name.entities.push_back(EntityInText(
-		EntityInTextMentionName,
+	name.entities.push_back({
+		EntityType::MentionName,
 		0,
 		name.text.size(),
-		entityData));
+		entityData });
 	auto username = user->userName();
 	if (username.isEmpty()) {
 		return name;
 	}
 	auto mention = TextWithEntities { '@' + username };
-	mention.entities.push_back(EntityInText(EntityInTextMention, 0, mention.text.size()));
+	mention.entities.push_back({
+		EntityType::Mention,
+		0,
+		mention.text.size() });
 	return lng_admin_log_user_with_username__generic(lt_name, name, lt_mention, mention);
 }
 
@@ -285,7 +291,7 @@ auto GenerateParticipantChangeTextInner(
 
 TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, const MTPChannelParticipant &participant, const MTPChannelParticipant *oldParticipant = nullptr) {
 	auto result = GenerateParticipantChangeTextInner(channel, participant, oldParticipant);
-	result.entities.push_front(EntityInText(EntityInTextItalic, 0, result.text.size()));
+	result.entities.push_front(EntityInText(EntityType::Italic, 0, result.text.size()));
 	return result;
 }
 
@@ -295,7 +301,7 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(not_null<ChannelData*> ch
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}
-	result.entities.push_front(EntityInText(EntityInTextItalic, 0, result.text.size()));
+	result.entities.push_front(EntityInText(EntityType::Italic, 0, result.text.size()));
 	return result;
 }
 

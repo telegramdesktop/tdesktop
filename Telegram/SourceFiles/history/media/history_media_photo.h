@@ -36,7 +36,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	PhotoData *getPhoto() const override {
 		return _data;

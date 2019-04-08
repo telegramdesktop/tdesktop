@@ -56,7 +56,7 @@ public:
 		int bottom,
 		QPoint point,
 		InfoDisplayType type) const override;
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;

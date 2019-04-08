@@ -40,7 +40,7 @@ public:
 		return p == _link;
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {

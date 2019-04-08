@@ -118,7 +118,7 @@ QSize HistoryWebPage::countOptimalSize() {
 			const auto simplified = simplify(_data->url);
 			const auto full = _parent->data()->originalText();
 			for (const auto &entity : full.entities) {
-				if (entity.type() != EntityInTextUrl) {
+				if (entity.type() != EntityType::Url) {
 					continue;
 				}
 				const auto link = full.text.mid(
@@ -685,22 +685,17 @@ bool HistoryWebPage::isDisplayed() const {
 		&& !item->Has<HistoryMessageLogEntryOriginal>();
 }
 
-TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
-	auto titleResult = _title.toTextWithEntities(
-		selection,
-		ExpandLinksAll);
-	auto descriptionResult = _description.toTextWithEntities(
-		toDescriptionSelection(selection),
-		ExpandLinksAll);
-	if (titleResult.text.isEmpty()) {
+TextForMimeData HistoryWebPage::selectedText(TextSelection selection) const {
+	auto titleResult = _title.toTextForMimeData(selection);
+	auto descriptionResult = _description.toTextForMimeData(
+		toDescriptionSelection(selection));
+	if (titleResult.empty()) {
 		return descriptionResult;
-	} else if (descriptionResult.text.isEmpty()) {
+	} else if (descriptionResult.empty()) {
 		return titleResult;
 	}
 
-	titleResult.text += '\n';
-	TextUtilities::Append(titleResult, std::move(descriptionResult));
-	return titleResult;
+	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
 QMargins HistoryWebPage::inBubblePadding() const {

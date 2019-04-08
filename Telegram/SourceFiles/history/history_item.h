@@ -220,10 +220,10 @@ public:
 		return inDialogsText(DrawInDialog::WithoutSender);
 	}
 	virtual TextWithEntities originalText() const {
-		return { QString(), EntitiesInText() };
+		return TextWithEntities();
 	}
-	virtual TextWithEntities clipboardText() const {
-		return { QString(), EntitiesInText() };
+	virtual TextForMimeData clipboardText() const {
+		return TextForMimeData();
 	}
 
 	virtual void setViewsCount(int32 count) {

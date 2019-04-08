@@ -46,7 +46,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	bool uploading() const override;
 

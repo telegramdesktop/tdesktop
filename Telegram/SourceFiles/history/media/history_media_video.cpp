@@ -576,8 +576,8 @@ void HistoryVideo::setStatusSize(int newSize) const {
 	HistoryFileMedia::setStatusSize(newSize, _data->size, _data->getDuration(), 0);
 }
 
-TextWithEntities HistoryVideo::selectedText(TextSelection selection) const {
-	return _caption.toTextWithEntities(selection, ExpandLinksAll);
+TextForMimeData HistoryVideo::selectedText(TextSelection selection) const {
+	return _caption.toTextForMimeData(selection);
 }
 
 bool HistoryVideo::needsBubble() const {

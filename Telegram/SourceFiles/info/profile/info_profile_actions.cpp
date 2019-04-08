@@ -276,11 +276,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				if (result.text.startsWith(remove)) {
 					result.text.remove(0, remove.size());
 				}
-				result.entities.push_back(EntityInText(
-					EntityInTextCustomUrl,
+				result.entities.push_back({
+					EntityType::CustomUrl,
 					0,
 					result.text.size(),
-					link));
+					link });
 			}
 			return result;
 		});

@@ -47,9 +47,7 @@ public:
 		return url();
 	}
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 	static void Open(QString url, QVariant context = {});
 	void onClick(ClickContext context) const override {
@@ -96,9 +94,7 @@ public:
 		}
 	}
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 };
 
@@ -128,9 +124,7 @@ public:
 
 	QString copyToClipboardContextItemText() const override;
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 protected:
 	QString url() const override {
@@ -152,9 +146,7 @@ public:
 
 	void onClick(ClickContext context) const override;
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 	QString tooltip() const override;
 
@@ -178,9 +170,7 @@ public:
 
 	QString copyToClipboardContextItemText() const override;
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 protected:
 	QString url() const override {
@@ -205,9 +195,7 @@ public:
 
 	QString copyToClipboardContextItemText() const override;
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 protected:
 	QString url() const override {
@@ -239,9 +227,7 @@ public:
 		_bot = bot;
 	}
 
-	TextWithEntities getExpandedLinkTextWithEntities(
-		int entityOffset,
-		const QStringRef &textPart) const override;
+	TextEntity getTextEntity() const override;
 
 protected:
 	QString url() const override {

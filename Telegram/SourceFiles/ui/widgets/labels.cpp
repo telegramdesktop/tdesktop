@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 
 #include "ui/widgets/popup_menu.h"
+#include "chat_helpers/message_field.h" // SetClipboardText/MimeDataFromText
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 
@@ -569,12 +570,12 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 void FlatLabel::onCopySelectedText() {
 	const auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	if (!selection.empty()) {
-		QApplication::clipboard()->setText(_text.toString(selection, ExpandLinksAll));
+		SetClipboardText(_text.toTextForMimeData(selection));
 	}
 }
 
 void FlatLabel::onCopyContextText() {
-	QApplication::clipboard()->setText(_text.toString(AllTextSelection, ExpandLinksAll));
+	SetClipboardText(_text.toTextForMimeData());
 }
 
 void FlatLabel::onTouchSelect() {
@@ -599,18 +600,18 @@ void FlatLabel::onExecuteDrag() {
 		}
 	}
 
-	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
-	QString selectedText;
-	if (uponSelected) {
-		selectedText = _text.toString(_selection, ExpandLinksAll);
-	} else if (pressedHandler) {
-		selectedText = pressedHandler->dragText();
-	}
-	if (!selectedText.isEmpty()) {
-		auto mimeData = new QMimeData();
-		mimeData->setText(selectedText);
+	const auto pressedHandler = ClickHandler::getPressed();
+	const auto selectedText = [&] {
+		if (uponSelected) {
+			return _text.toTextForMimeData(_selection);
+		} else if (pressedHandler) {
+			return TextForMimeData::Simple(pressedHandler->dragText());
+		}
+		return TextForMimeData();
+	}();
+	if (auto mimeData = MimeDataFromText(selectedText)) {
 		auto drag = new QDrag(App::wnd());
-		drag->setMimeData(mimeData);
+		drag->setMimeData(mimeData.release());
 		drag->exec(Qt::CopyAction);
 
 		// We don't receive mouseReleaseEvent when drag is finished.

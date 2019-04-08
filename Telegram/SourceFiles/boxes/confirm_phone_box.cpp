@@ -229,7 +229,7 @@ void ConfirmPhoneBox::prepare() {
 	aboutText.text = lng_confirm_phone_about(lt_phone, formattedPhone);
 	auto phonePosition = aboutText.text.indexOf(formattedPhone);
 	if (phonePosition >= 0) {
-		aboutText.entities.push_back(EntityInText(EntityInTextBold, phonePosition, formattedPhone.size()));
+		aboutText.entities.push_back({ EntityType::Bold, phonePosition, formattedPhone.size() });
 	}
 	_about->setMarkedText(aboutText);
 

@@ -1321,8 +1321,8 @@ bool CutPart(TextWithEntities &sending, TextWithEntities &left, int32 limit) {
 
 		if (s > half) {
 			bool inEntity = (currentEntity < entityCount) && (ch > start + left.entities[currentEntity].offset()) && (ch < start + left.entities[currentEntity].offset() + left.entities[currentEntity].length());
-			EntityInTextType entityType = (currentEntity < entityCount) ? left.entities[currentEntity].type() : EntityInTextInvalid;
-			bool canBreakEntity = (entityType == EntityInTextPre || entityType == EntityInTextCode);
+			EntityType entityType = (currentEntity < entityCount) ? left.entities[currentEntity].type() : EntityType::Invalid;
+			bool canBreakEntity = (entityType == EntityType::Pre || entityType == EntityType::Code);
 			int32 noEntityLevel = inEntity ? 0 : 1;
 
 			auto markGoodAsLevel = [&](int newLevel) {
@@ -1348,9 +1348,9 @@ bool CutPart(TextWithEntities &sending, TextWithEntities &left, int32 limit) {
 						}
 					} else if (ch + 1 < end && chIsNewline(*(ch + 1))) {
 						markGoodAsLevel(15);
-					} else if (currentEntity < entityCount && ch + 1 == start + left.entities[currentEntity].offset() && left.entities[currentEntity].type() == EntityInTextPre) {
+					} else if (currentEntity < entityCount && ch + 1 == start + left.entities[currentEntity].offset() && left.entities[currentEntity].type() == EntityType::Pre) {
 						markGoodAsLevel(14);
-					} else if (currentEntity > 0 && ch == start + left.entities[currentEntity - 1].offset() + left.entities[currentEntity - 1].length() && left.entities[currentEntity - 1].type() == EntityInTextPre) {
+					} else if (currentEntity > 0 && ch == start + left.entities[currentEntity - 1].offset() + left.entities[currentEntity - 1].length() && left.entities[currentEntity - 1].type() == EntityType::Pre) {
 						markGoodAsLevel(14);
 					} else {
 						markGoodAsLevel(13);
@@ -1463,13 +1463,13 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 		result.reserve(entities.size());
 		for_const (auto &entity, entities) {
 			switch (entity.type()) {
-			case mtpc_messageEntityUrl: { auto &d = entity.c_messageEntityUrl(); result.push_back(EntityInText(EntityInTextUrl, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back(EntityInText(EntityInTextCustomUrl, d.voffset.v, d.vlength.v, Clean(qs(d.vurl)))); } break;
-			case mtpc_messageEntityEmail: { auto &d = entity.c_messageEntityEmail(); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityHashtag: { auto &d = entity.c_messageEntityHashtag(); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityCashtag: { auto &d = entity.c_messageEntityCashtag(); result.push_back(EntityInText(EntityInTextCashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityUrl: { auto &d = entity.c_messageEntityUrl(); result.push_back({ EntityType::Url, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back({ EntityType::CustomUrl, d.voffset.v, d.vlength.v, Clean(qs(d.vurl)) }); } break;
+			case mtpc_messageEntityEmail: { auto &d = entity.c_messageEntityEmail(); result.push_back({ EntityType::Email, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityHashtag: { auto &d = entity.c_messageEntityHashtag(); result.push_back({ EntityType::Hashtag, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityCashtag: { auto &d = entity.c_messageEntityCashtag(); result.push_back({ EntityType::Cashtag, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityPhone: break; // Skipping phones.
-			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back({ EntityType::Mention, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityMentionName: {
 				auto &d = entity.c_messageEntityMentionName();
 				auto data = [&d] {
@@ -1480,7 +1480,7 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 					}
 					return MentionNameDataFromFields(d.vuser_id.v);
 				};
-				result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data()));
+				result.push_back({ EntityType::MentionName, d.voffset.v, d.vlength.v, data() });
 			} break;
 			case mtpc_inputMessageEntityMentionName: {
 				auto &d = entity.c_inputMessageEntityMentionName();
@@ -1494,14 +1494,14 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 					return QString();
 				})();
 				if (!data.isEmpty()) {
-					result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data));
+					result.push_back({ EntityType::MentionName, d.voffset.v, d.vlength.v, data });
 				}
 			} break;
-			case mtpc_messageEntityBotCommand: { auto &d = entity.c_messageEntityBotCommand(); result.push_back(EntityInText(EntityInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityBold: { auto &d = entity.c_messageEntityBold(); result.push_back(EntityInText(EntityInTextBold, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityItalic: { auto &d = entity.c_messageEntityItalic(); result.push_back(EntityInText(EntityInTextItalic, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back(EntityInText(EntityInTextCode, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back(EntityInText(EntityInTextPre, d.voffset.v, d.vlength.v, Clean(qs(d.vlanguage)))); } break;
+			case mtpc_messageEntityBotCommand: { auto &d = entity.c_messageEntityBotCommand(); result.push_back({ EntityType::BotCommand, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityBold: { auto &d = entity.c_messageEntityBold(); result.push_back({ EntityType::Bold, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityItalic: { auto &d = entity.c_messageEntityItalic(); result.push_back({ EntityType::Italic, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset.v, d.vlength.v, Clean(qs(d.vlanguage)) }); } break;
 			}
 		}
 	}
@@ -1514,25 +1514,25 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 	for_const (auto &entity, entities) {
 		if (entity.length() <= 0) continue;
 		if (option == ConvertOption::SkipLocal
-			&& entity.type() != EntityInTextBold
-			&& entity.type() != EntityInTextItalic
-			&& entity.type() != EntityInTextCode
-			&& entity.type() != EntityInTextPre
-			&& entity.type() != EntityInTextMentionName
-			&& entity.type() != EntityInTextCustomUrl) {
+			&& entity.type() != EntityType::Bold
+			&& entity.type() != EntityType::Italic
+			&& entity.type() != EntityType::Code
+			&& entity.type() != EntityType::Pre
+			&& entity.type() != EntityType::MentionName
+			&& entity.type() != EntityType::CustomUrl) {
 			continue;
 		}
 
 		auto offset = MTP_int(entity.offset());
 		auto length = MTP_int(entity.length());
 		switch (entity.type()) {
-		case EntityInTextUrl: v.push_back(MTP_messageEntityUrl(offset, length)); break;
-		case EntityInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(entity.data()))); break;
-		case EntityInTextEmail: v.push_back(MTP_messageEntityEmail(offset, length)); break;
-		case EntityInTextHashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
-		case EntityInTextCashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
-		case EntityInTextMention: v.push_back(MTP_messageEntityMention(offset, length)); break;
-		case EntityInTextMentionName: {
+		case EntityType::Url: v.push_back(MTP_messageEntityUrl(offset, length)); break;
+		case EntityType::CustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(entity.data()))); break;
+		case EntityType::Email: v.push_back(MTP_messageEntityEmail(offset, length)); break;
+		case EntityType::Hashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
+		case EntityType::Cashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
+		case EntityType::Mention: v.push_back(MTP_messageEntityMention(offset, length)); break;
+		case EntityType::MentionName: {
 			auto inputUser = ([](const QString &data) -> MTPInputUser {
 				auto fields = MentionNameDataToFields(data);
 				if (fields.userId == Auth().userId()) {
@@ -1546,11 +1546,11 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 				v.push_back(MTP_inputMessageEntityMentionName(offset, length, inputUser));
 			}
 		} break;
-		case EntityInTextBotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
-		case EntityInTextBold: v.push_back(MTP_messageEntityBold(offset, length)); break;
-		case EntityInTextItalic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
-		case EntityInTextCode: v.push_back(MTP_messageEntityCode(offset, length)); break;
-		case EntityInTextPre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
+		case EntityType::BotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
+		case EntityType::Bold: v.push_back(MTP_messageEntityBold(offset, length)); break;
+		case EntityType::Italic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
+		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break;
+		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
 		}
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));
@@ -1594,7 +1594,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 		auto mMention = withMentions ? RegExpMention().match(result.text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
 		auto mBotCommand = withBotCommands ? RegExpBotCommand().match(result.text, matchOffset) : QRegularExpressionMatch();
 
-		EntityInTextType lnkType = EntityInTextUrl;
+		auto lnkType = EntityType::Url;
 		int32 lnkStart = 0, lnkLength = 0;
 		auto domainStart = mDomain.hasMatch() ? mDomain.capturedStart() : kNotFound,
 			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : kNotFound,
@@ -1683,7 +1683,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				continue;
 			}
 
-			lnkType = EntityInTextMention;
+			lnkType = EntityType::Mention;
 			lnkStart = mentionStart;
 			lnkLength = mentionEnd - mentionStart;
 		} else if (hashtagStart < domainStart
@@ -1704,7 +1704,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				continue;
 			}
 
-			lnkType = EntityInTextHashtag;
+			lnkType = EntityType::Hashtag;
 			lnkStart = hashtagStart;
 			lnkLength = hashtagEnd - hashtagStart;
 		} else if (botCommandStart < domainStart) {
@@ -1720,7 +1720,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 				continue;
 			}
 
-			lnkType = EntityInTextBotCommand;
+			lnkType = EntityType::BotCommand;
 			lnkStart = botCommandStart;
 			lnkLength = botCommandEnd - botCommandStart;
 		} else {
@@ -1749,12 +1749,12 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 					if (mailStart < offset) {
 						mailStart = offset;
 					}
-					lnkType = EntityInTextEmail;
+					lnkType = EntityType::Email;
 					lnkStart = mailStart;
 					lnkLength = domainEnd - mailStart;
 				}
 			}
-			if (lnkType == EntityInTextUrl && !lnkLength) {
+			if (lnkType == EntityType::Url && !lnkLength) {
 				if (!isProtocolValid || !isTopDomainValid) {
 					matchOffset = domainEnd;
 					continue;
@@ -1803,7 +1803,7 @@ void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 			newEntities.push_back(entity);
 		}
 		if (lnkStart >= existingEntityEnd) {
-			result.entities.push_back(EntityInText(lnkType, lnkStart, lnkLength));
+			result.entities.push_back({ lnkType, lnkStart, lnkLength });
 		}
 
 		offset = matchOffset = lnkStart + lnkLength;
@@ -1914,7 +1914,9 @@ void Trim(TextWithEntities &result) {
 		return;
 	}
 
-	auto firstMonospaceOffset = EntityInText::firstMonospaceOffset(result.entities, result.text.size());
+	const auto firstMonospaceOffset = EntityInText::FirstMonospaceOffset(
+		result.entities,
+		result.text.size());
 
 	// left trim
 	for (auto s = result.text.data(), ch = s, e = s + result.text.size(); ch != e; ++ch) {
@@ -1985,7 +1987,38 @@ QString TagsMimeType() {
 	return qsl("application/x-td-field-tags");
 }
 
+QString TagsTextMimeType() {
+	return qsl("application/x-td-field-text");
+}
+
 } // namespace TextUtilities
+
+EntityInText::EntityInText(
+	EntityType type,
+	int offset,
+	int length,
+	const QString &data)
+: _type(type)
+, _offset(offset)
+, _length(length)
+, _data(data) {
+}
+
+int EntityInText::FirstMonospaceOffset(
+		const EntitiesInText &entities,
+		int textLength) {
+	auto &&monospace = ranges::view::all(
+		entities
+	) | ranges::view::filter([](const EntityInText & entity) {
+		return (entity.type() == EntityType::Pre)
+			|| (entity.type() == EntityType::Code);
+	});
+	const auto i = ranges::max_element(
+		monospace,
+		std::greater<>(),
+		&EntityInText::offset);
+	return (i == monospace.end()) ? textLength : i->offset();
+}
 
 namespace Lang {
 
@@ -2014,7 +2047,7 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 				newOffset = snap(newOffset, replacementPosition, replacementEnd);
 				newEnd = snap(newEnd, replacementPosition, replacementEnd);
 				if (auto newLength = newEnd - newOffset) {
-					result.entities.push_back(EntityInText(replacementEntity->type(), newOffset, newLength, replacementEntity->data()));
+					result.entities.push_back({ replacementEntity->type(), newOffset, newLength, replacementEntity->data() });
 				}
 				++replacementEntity;
 			}
@@ -2038,7 +2071,7 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 
 			// Add a modified original entity.
 			if (auto length = end - offset) {
-				result.entities.push_back(EntityInText(entity.type(), offset, length, entity.data()));
+				result.entities.push_back({ entity.type(), offset, length, entity.data() });
 			}
 		}
 		// Add the remaining replacement entities.

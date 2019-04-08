@@ -55,7 +55,7 @@ public:
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	TextWithEntities getSelectedText() const;
+	TextForMimeData getSelectedText() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
 

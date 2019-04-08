@@ -651,12 +651,12 @@ bool HistoryDocument::hasTextForCopy() const {
 	return Has<HistoryDocumentCaptioned>();
 }
 
-TextWithEntities HistoryDocument::selectedText(TextSelection selection) const {
+TextForMimeData HistoryDocument::selectedText(TextSelection selection) const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		const auto &caption = captioned->_caption;
-		return caption.toTextWithEntities(selection, ExpandLinksAll);
+		return captioned->_caption.toTextForMimeData(selection);
 	}
-	return TextWithEntities();
+	return TextForMimeData();
 }
 
 bool HistoryDocument::uploading() const {

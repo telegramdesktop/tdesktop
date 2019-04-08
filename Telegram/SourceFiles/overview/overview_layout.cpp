@@ -51,13 +51,13 @@ TextWithEntities ComposeNameWithEntities(DocumentData *document) {
 		result.text = document->filename().isEmpty()
 			? qsl("Unknown File")
 			: document->filename();
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
+		result.entities.push_back({ EntityType::Bold, 0, result.text.size() });
 	} else if (song->performer.isEmpty()) {
 		result.text = song->title;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
+		result.entities.push_back({ EntityType::Bold, 0, result.text.size() });
 	} else {
 		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-		result.entities.push_back({ EntityInTextBold, 0, song->performer.size() });
+		result.entities.push_back({ EntityType::Bold, 0, song->performer.size() });
 	}
 	return result;
 }
@@ -1317,7 +1317,7 @@ Link::Link(
 	int32 from = 0, till = text.size(), lnk = entities.size();
 	for (const auto &entity : entities) {
 		auto type = entity.type();
-		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
+		if (type != EntityType::Url && type != EntityType::CustomUrl && type != EntityType::Email) {
 			continue;
 		}
 		const auto customUrl = entity.data();
@@ -1332,7 +1332,7 @@ Link::Link(
 		--lnk;
 		auto &entity = entities.at(lnk);
 		auto type = entity.type();
-		if (type != EntityInTextUrl && type != EntityInTextCustomUrl && type != EntityInTextEmail) {
+		if (type != EntityType::Url && type != EntityType::CustomUrl && type != EntityType::Email) {
 			++lnk;
 			break;
 		}

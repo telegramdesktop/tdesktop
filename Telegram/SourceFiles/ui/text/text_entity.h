@@ -7,22 +7,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-enum EntityInTextType {
-	EntityInTextInvalid = 0,
+enum class EntityType {
+	Invalid = 0,
 
-	EntityInTextUrl,
-	EntityInTextCustomUrl,
-	EntityInTextEmail,
-	EntityInTextHashtag,
-	EntityInTextCashtag,
-	EntityInTextMention,
-	EntityInTextMentionName,
-	EntityInTextBotCommand,
+	Url,
+	CustomUrl,
+	Email,
+	Hashtag,
+	Cashtag,
+	Mention,
+	MentionName,
+	BotCommand,
 
-	EntityInTextBold,
-	EntityInTextItalic,
-	EntityInTextCode, // inline
-	EntityInTextPre,  // block
+	Bold,
+	Italic,
+	Code, // inline
+	Pre,  // block
 };
 
 class EntityInText;
@@ -30,14 +30,13 @@ using EntitiesInText = QList<EntityInText>;
 
 class EntityInText {
 public:
-	EntityInText(EntityInTextType type, int offset, int length, const QString &data = QString())
-		: _type(type)
-		, _offset(offset)
-		, _length(length)
-		, _data(data) {
-	}
+	EntityInText(
+		EntityType type,
+		int offset,
+		int length,
+		const QString &data = QString());
 
-	EntityInTextType type() const {
+	EntityType type() const {
 		return _type;
 	}
 	int offset() const {
@@ -79,23 +78,18 @@ public:
 		}
 	}
 
-	static int firstMonospaceOffset(const EntitiesInText &entities, int textLength) {
-		int result = textLength;
-		for_const (auto &entity, entities) {
-			if (entity.type() == EntityInTextPre || entity.type() == EntityInTextCode) {
-				accumulate_min(result, entity.offset());
-			}
-		}
-		return result;
-	}
+	static int FirstMonospaceOffset(
+		const EntitiesInText &entities,
+		int textLength);
 
 	explicit operator bool() const {
-		return type() != EntityInTextInvalid;
+		return type() != EntityType::Invalid;
 	}
 
 private:
-	EntityInTextType _type;
-	int _offset, _length;
+	EntityType _type = EntityType::Invalid;
+	int _offset = 0;
+	int _length = 0;
 	QString _data;
 
 };
@@ -118,6 +112,39 @@ struct TextWithEntities {
 	bool empty() const {
 		return text.isEmpty();
 	}
+
+	void reserve(int size, int entitiesCount = 0) {
+		text.reserve(size);
+		entities.reserve(entitiesCount);
+	}
+
+	TextWithEntities &append(TextWithEntities &&other) {
+		const auto shift = text.size();
+		for (auto &entity : other.entities) {
+			entity.shiftRight(shift);
+		}
+		text.append(other.text);
+		entities.append(other.entities);
+		return *this;
+	}
+	TextWithEntities &append(const QString &other) {
+		text.append(other);
+		return *this;
+	}
+	TextWithEntities &append(QLatin1String other) {
+		text.append(other);
+		return *this;
+	}
+	TextWithEntities &append(QChar other) {
+		text.append(other);
+		return *this;
+	}
+
+	static TextWithEntities Simple(const QString &simple) {
+		auto result = TextWithEntities();
+		result.text = simple;
+		return result;
+	}
 };
 
 inline bool operator==(
@@ -131,6 +158,57 @@ inline bool operator!=(
 		const TextWithEntities &b) {
 	return !(a == b);
 }
+
+struct TextForMimeData {
+	QString expanded;
+	TextWithEntities rich;
+
+	bool empty() const {
+		return expanded.isEmpty();
+	}
+
+	void reserve(int size, int entitiesCount = 0) {
+		expanded.reserve(size);
+		rich.reserve(size, entitiesCount);
+	}
+	TextForMimeData &append(TextForMimeData &&other) {
+		expanded.append(other.expanded);
+		rich.append(std::move(other.rich));
+		return *this;
+	}
+	TextForMimeData &append(TextWithEntities &&other) {
+		expanded.append(other.text);
+		rich.append(std::move(other));
+		return *this;
+	}
+	TextForMimeData &append(const QString &other) {
+		expanded.append(other);
+		rich.append(other);
+		return *this;
+	}
+	TextForMimeData &append(QLatin1String other) {
+		expanded.append(other);
+		rich.append(other);
+		return *this;
+	}
+	TextForMimeData &append(QChar other) {
+		expanded.append(other);
+		rich.append(other);
+		return *this;
+	}
+
+	static TextForMimeData Rich(TextWithEntities &&rich) {
+		auto result = TextForMimeData();
+		result.expanded = rich.text;
+		result.rich = std::move(rich);
+		return result;
+	}
+	static TextForMimeData Simple(const QString &simple) {
+		auto result = TextForMimeData();
+		result.expanded = result.rich.text = simple;
+		return result;
+	}
+};
 
 enum {
 	TextParseMultiline = 0x001,
@@ -194,15 +272,6 @@ QString MarkdownCodeBadAfter();
 QString MarkdownPreGoodBefore();
 QString MarkdownPreBadAfter();
 
-inline void Append(TextWithEntities &to, TextWithEntities &&append) {
-	auto entitiesShiftRight = to.text.size();
-	for (auto &entity : append.entities) {
-		entity.shiftRight(entitiesShiftRight);
-	}
-	to.text += append.text;
-	to.entities += append.entities;
-}
-
 // Text preprocess.
 QString Clean(const QString &text);
 QString EscapeForRichParsing(const QString &text);
@@ -265,6 +334,7 @@ void ApplyServerCleaning(TextWithEntities &result);
 QByteArray SerializeTags(const TextWithTags::Tags &tags);
 TextWithTags::Tags DeserializeTags(QByteArray data, int textLength);
 QString TagsMimeType();
+QString TagsTextMimeType();
 
 } // namespace TextUtilities
 

@@ -21,10 +21,9 @@ QString PrepareMentionTag(not_null<UserData*> user);
 EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
 TextWithTags::Tags ConvertEntitiesToTextTags(
 	const EntitiesInText &entities);
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
-	const TextWithEntities &forClipboard);
-void SetClipboardWithEntities(
-	const TextWithEntities &forClipboard,
+std::unique_ptr<QMimeData> MimeDataFromText(const TextForMimeData &text);
+void SetClipboardText(
+	const TextForMimeData &text,
 	QClipboard::Mode mode = QClipboard::Clipboard);
 
 Fn<bool(

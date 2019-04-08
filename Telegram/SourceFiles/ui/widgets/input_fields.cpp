@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "emoji_suggestions_data.h"
 #include "chat_helpers/emoji_suggestions_helper.h"
+#include "chat_helpers/message_field.h" // ConvertTextTagsToEntities
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
 #include "data/data_user.h"
@@ -758,6 +759,33 @@ struct FormattingAction {
 	int intervalEnd = 0;
 
 };
+
+QString ExpandCustomLinks(const TextWithTags &text) {
+	const auto entities = ConvertTextTagsToEntities(text.tags);
+	auto &&urls = ranges::view::all(
+		entities
+	) | ranges::view::filter([](const EntityInText &entity) {
+		return entity.type() == EntityType::CustomUrl;
+	});
+	const auto &original = text.text;
+	if (urls.begin() == urls.end()) {
+		return original;
+	}
+	auto result = QString();
+	auto offset = 0;
+	for (const auto &entity : urls) {
+		const auto till = entity.offset() + entity.length();
+		if (till > offset) {
+			result.append(original.midRef(offset, till - offset));
+		}
+		result.append(qstr(" (")).append(entity.data()).append(')');
+		offset = till;
+	}
+	if (original.size() > offset) {
+		result.append(original.midRef(offset));
+	}
+	return result;
+}
 
 } // namespace
 
@@ -2309,13 +2337,16 @@ QMimeData *InputField::createMimeDataFromSelectionInner() const {
 	const auto end = cursor.selectionEnd();
 	if (end > start) {
 		auto textWithTags = getTextWithTagsPart(start, end);
-		result->setText(textWithTags.text);
+		result->setText(ExpandCustomLinks(textWithTags));
 		if (!textWithTags.tags.isEmpty()) {
 			if (_tagMimeProcessor) {
 				for (auto &tag : textWithTags.tags) {
 					tag.id = _tagMimeProcessor->mimeTagFromTag(tag.id);
 				}
 			}
+			result->setData(
+				TextUtilities::TagsTextMimeType(),
+				textWithTags.text.toUtf8());
 			result->setData(
 				TextUtilities::TagsMimeType(),
 				TextUtilities::SerializeTags(textWithTags.tags));
@@ -3368,21 +3399,27 @@ void InputField::insertFromMimeDataInner(const QMimeData *source) {
 		&& _mimeDataHook(source, MimeAction::Insert)) {
 		return;
 	}
-	auto mime = TextUtilities::TagsMimeType();
-	auto text = source->text();
-	if (source->hasFormat(mime)) {
-		auto tagsData = source->data(mime);
+	const auto text = [&] {
+		const auto textMime = TextUtilities::TagsTextMimeType();
+		const auto tagsMime = TextUtilities::TagsMimeType();
+		if (!source->hasFormat(textMime) || !source->hasFormat(tagsMime)) {
+			_insertedTags.clear();
+			return source->text();
+		}
+		auto result = QString::fromUtf8(source->data(textMime));
 		_insertedTags = TextUtilities::DeserializeTags(
-			tagsData,
-			text.size());
+			source->data(tagsMime),
+			result.size());
 		_insertedTagsAreFromMime = true;
-	} else {
-		_insertedTags.clear();
-	}
+		return result;
+	}();
 	auto cursor = textCursor();
 	_realInsertPosition = cursor.selectionStart();
 	_realCharsAdded = text.size();
-	_inner->QTextEdit::insertFromMimeData(source);
+	if (_realCharsAdded > 0) {
+		cursor.insertFragment(QTextDocumentFragment::fromPlainText(text));
+	}
+	ensureCursorVisible();
 	if (!_inDrop) {
 		_insertedTags.clear();
 		_realInsertPosition = -1;

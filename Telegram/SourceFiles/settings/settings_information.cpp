@@ -252,11 +252,11 @@ void SetupRows(
 			return username;
 		}
 		auto result = TextWithEntities{ add };
-		result.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
+		result.entities.push_back({
+			EntityType::CustomUrl,
 			0,
 			add.size(),
-			"internal:edit_username"));
+			"internal:edit_username" });
 		return result;
 	});
 	AddRow(

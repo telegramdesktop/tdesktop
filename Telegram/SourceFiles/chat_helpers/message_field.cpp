@@ -197,25 +197,25 @@ EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags) {
 	result.reserve(tags.size());
 	for (const auto &tag : tags) {
 		const auto push = [&](
-				EntityInTextType type,
+				EntityType type,
 				const QString &data = QString()) {
 			result.push_back(
 				EntityInText(type, tag.offset, tag.length, data));
 		};
 		if (IsMentionLink(tag.id)) {
 			if (auto match = qthelp::regex_match("^(\\d+\\.\\d+)(/|$)", tag.id.midRef(kMentionTagStart.size()))) {
-				push(EntityInTextMentionName, match->captured(1));
+				push(EntityType::MentionName, match->captured(1));
 			}
 		} else if (tag.id == Ui::InputField::kTagBold) {
-			push(EntityInTextBold);
+			push(EntityType::Bold);
 		} else if (tag.id == Ui::InputField::kTagItalic) {
-			push(EntityInTextItalic);
+			push(EntityType::Italic);
 		} else if (tag.id == Ui::InputField::kTagCode) {
-			push(EntityInTextCode);
+			push(EntityType::Code);
 		} else if (tag.id == Ui::InputField::kTagPre) {
-			push(EntityInTextPre);
+			push(EntityType::Pre);
 		} else /*if (ValidateUrl(tag.id)) */{ // We validate when we insert.
-			push(EntityInTextCustomUrl, tag.id);
+			push(EntityType::CustomUrl, tag.id);
 		}
 	}
 	return result;
@@ -233,41 +233,44 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 			result.push_back({ entity.offset(), entity.length(), tag });
 		};
 		switch (entity.type()) {
-		case EntityInTextMentionName: {
-			auto match = QRegularExpression("^(\\d+\\.\\d+)$").match(entity.data());
+		case EntityType::MentionName: {
+			auto match = QRegularExpression(R"(^(\d+\.\d+)$)").match(entity.data());
 			if (match.hasMatch()) {
 				push(kMentionTagStart + entity.data());
 			}
 		} break;
-		case EntityInTextCustomUrl: {
+		case EntityType::CustomUrl: {
 			const auto url = entity.data();
 			if (Ui::InputField::IsValidMarkdownLink(url)
 				&& !IsMentionLink(url)) {
 				push(url);
 			}
 		} break;
-		case EntityInTextBold: push(Ui::InputField::kTagBold); break;
-		case EntityInTextItalic: push(Ui::InputField::kTagItalic); break;
-		case EntityInTextCode: push(Ui::InputField::kTagCode); break;
-		case EntityInTextPre: push(Ui::InputField::kTagPre); break;
+		case EntityType::Bold: push(Ui::InputField::kTagBold); break;
+		case EntityType::Italic: push(Ui::InputField::kTagItalic); break;
+		case EntityType::Code: push(Ui::InputField::kTagCode); break;
+		case EntityType::Pre: push(Ui::InputField::kTagPre); break;
 		}
 	}
 	return result;
 }
 
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
-		const TextWithEntities &forClipboard) {
-	if (forClipboard.text.isEmpty()) {
+std::unique_ptr<QMimeData> MimeDataFromText(
+		const TextForMimeData &text) {
+	if (text.empty()) {
 		return nullptr;
 	}
 
 	auto result = std::make_unique<QMimeData>();
-	result->setText(forClipboard.text);
-	auto tags = ConvertEntitiesToTextTags(forClipboard.entities);
+	result->setText(text.expanded);
+	auto tags = ConvertEntitiesToTextTags(text.rich.entities);
 	if (!tags.isEmpty()) {
 		for (auto &tag : tags) {
 			tag.id = ConvertTagToMimeTag(tag.id);
 		}
+		result->setData(
+			TextUtilities::TagsTextMimeType(),
+			text.rich.text.toUtf8());
 		result->setData(
 			TextUtilities::TagsMimeType(),
 			TextUtilities::SerializeTags(tags));
@@ -275,10 +278,10 @@ std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(
 	return result;
 }
 
-void SetClipboardWithEntities(
-		const TextWithEntities &forClipboard,
+void SetClipboardText(
+		const TextForMimeData &text,
 		QClipboard::Mode mode) {
-	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
+	if (auto data = MimeDataFromText(text)) {
 		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }

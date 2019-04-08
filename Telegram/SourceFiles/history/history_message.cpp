@@ -1009,9 +1009,9 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	for_const (auto &entity, textWithEntities.entities) {
 		auto type = entity.type();
-		if (type == EntityInTextUrl
-			|| type == EntityInTextCustomUrl
-			|| type == EntityInTextEmail) {
+		if (type == EntityType::Url
+			|| type == EntityType::CustomUrl
+			|| type == EntityType::Email) {
 			_flags |= MTPDmessage_ClientFlag::f_has_text_links;
 			break;
 		}
@@ -1096,11 +1096,11 @@ TextWithEntities HistoryMessage::originalText() const {
 	return _text.toTextWithEntities();
 }
 
-TextWithEntities HistoryMessage::clipboardText() const {
+TextForMimeData HistoryMessage::clipboardText() const {
 	if (emptyText()) {
-		return { QString(), EntitiesInText() };
+		return TextForMimeData();
 	}
-	return _text.toTextWithEntities(AllTextSelection, ExpandLinksAll);
+	return _text.toTextForMimeData();
 }
 
 bool HistoryMessage::textHasLinks() const {

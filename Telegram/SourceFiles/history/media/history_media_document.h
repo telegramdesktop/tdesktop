@@ -30,7 +30,7 @@ public:
 	uint16 fullSelectionLength() const override;
 	bool hasTextForCopy() const override;
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	bool uploading() const override;
 
