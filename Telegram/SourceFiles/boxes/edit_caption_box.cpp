@@ -522,7 +522,10 @@ void EditCaptionBox::createEditMediaButton() {
 	// Create edit media button.
 	_editMedia.create(this, st::editMediaButton);
 	updateEditMediaButton();
-	_editMedia->setClickedCallback(buttonCallback);
+	_editMedia->setClickedCallback(
+		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
+		buttonCallback();
+	}));
 }
 
 void EditCaptionBox::prepare() {
