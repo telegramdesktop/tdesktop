@@ -388,10 +388,15 @@ void EditCaptionBox::updateEditPreview() {
 
 	auto isGif = false;
 	auto shouldAsDoc = true;
+	auto docPhotoSize = QSize();
 	if (const auto image = base::get_if<Info::Image>(fileMedia)) {
 		shouldAsDoc = !Storage::ValidateThumbDimensions(
 			image->data.width(),
 			image->data.height());
+		if (shouldAsDoc) {
+			docPhotoSize.setWidth(image->data.width());
+			docPhotoSize.setHeight(image->data.height());
+		}
 		isGif = image->animated;
 		_animated = isGif;
 		_photo = !isGif && !shouldAsDoc;
@@ -429,6 +434,12 @@ void EditCaptionBox::updateEditPreview() {
 			fileinfo.size()
 				? fileinfo.size()
 				: _preparedList.files.front().content.size());
+		// Show image dimensions if it should be sent as doc.
+		if (_isImage) {
+			_status = qsl("%1x%2")
+				.arg(docPhotoSize.width())
+				.arg(docPhotoSize.height());
+		}
 		_doc = true;
 	}
 
