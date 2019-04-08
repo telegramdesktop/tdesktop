@@ -183,7 +183,7 @@ HistoryPoll::Answer::Answer() : text(st::msgMinWidth / 2) {
 }
 
 void HistoryPoll::Answer::fillText(const PollAnswer &original) {
-	if (!text.isEmpty() && text.originalText() == original.text) {
+	if (!text.isEmpty() && text.toString() == original.text) {
 		return;
 	}
 	text.setText(
@@ -320,7 +320,7 @@ void HistoryPoll::updateTexts() {
 
 	const auto willStartAnimation = checkAnimationStart();
 
-	if (_question.originalText() != _poll->question) {
+	if (_question.toString() != _poll->question) {
 		_question.setText(
 			st::historyPollQuestionStyle,
 			_poll->question,

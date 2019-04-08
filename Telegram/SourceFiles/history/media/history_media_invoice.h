@@ -25,7 +25,7 @@ public:
 		return _receiptMsgId;
 	}
 	QString getTitle() const {
-		return _title.originalText();
+		return _title.toString();
 	}
 
 	bool hideMessageText() const override {

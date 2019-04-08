@@ -536,7 +536,7 @@ void HistoryPhoto::validateGroupedCache(
 }
 
 TextWithEntities HistoryPhoto::selectedText(TextSelection selection) const {
-	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
+	return _caption.toTextWithEntities(selection, ExpandLinksAll);
 }
 
 bool HistoryPhoto::needsBubble() const {

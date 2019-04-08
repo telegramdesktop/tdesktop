@@ -577,7 +577,7 @@ void HistoryVideo::setStatusSize(int newSize) const {
 }
 
 TextWithEntities HistoryVideo::selectedText(TextSelection selection) const {
-	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
+	return _caption.toTextWithEntities(selection, ExpandLinksAll);
 }
 
 bool HistoryVideo::needsBubble() const {

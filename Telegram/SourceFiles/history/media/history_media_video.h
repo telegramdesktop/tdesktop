@@ -55,7 +55,7 @@ public:
 	bool uploading() const override;
 
 	TextWithEntities getCaption() const override {
-		return _caption.originalTextWithEntities();
+		return _caption.toTextWithEntities();
 	}
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {

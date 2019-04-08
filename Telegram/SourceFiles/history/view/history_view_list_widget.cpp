@@ -1070,9 +1070,7 @@ QString ListWidget::tooltipText() const {
 			QLocale::system().dateTimeFormat(QLocale::LongFormat));
 	} else if (_mouseCursorState == CursorState::Forwarded && item) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-			return forwarded->text.originalText(
-				AllTextSelection,
-				ExpandLinksNone);
+			return forwarded->text.toString();
 		}
 	} else if (const auto link = ClickHandler::getActive()) {
 		return link->tooltip();

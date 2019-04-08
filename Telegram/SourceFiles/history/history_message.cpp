@@ -1093,14 +1093,14 @@ TextWithEntities HistoryMessage::originalText() const {
 	if (emptyText()) {
 		return { QString(), EntitiesInText() };
 	}
-	return _text.originalTextWithEntities();
+	return _text.toTextWithEntities();
 }
 
 TextWithEntities HistoryMessage::clipboardText() const {
 	if (emptyText()) {
 		return { QString(), EntitiesInText() };
 	}
-	return _text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
+	return _text.toTextWithEntities(AllTextSelection, ExpandLinksAll);
 }
 
 bool HistoryMessage::textHasLinks() const {

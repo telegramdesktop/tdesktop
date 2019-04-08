@@ -165,8 +165,8 @@ public:
 		return _text.size();
 	}
 
-	TextWithEntities originalTextWithEntities(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
-	QString originalText(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
+	QString toString(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
+	TextWithEntities toTextWithEntities(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;

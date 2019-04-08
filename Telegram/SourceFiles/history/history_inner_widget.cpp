@@ -3103,7 +3103,7 @@ QString HistoryInner::tooltipText() const {
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
-				return forwarded->text.originalText(AllTextSelection, ExpandLinksNone);
+				return forwarded->text.toString();
 			}
 		}
 	} else if (const auto lnk = ClickHandler::getActive()) {

@@ -571,14 +571,14 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 }
 
 void FlatLabel::onCopySelectedText() {
-	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
+	const auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	if (!selection.empty()) {
-		QApplication::clipboard()->setText(_text.originalText(selection, _contextExpandLinksMode));
+		QApplication::clipboard()->setText(_text.toString(selection, _contextExpandLinksMode));
 	}
 }
 
 void FlatLabel::onCopyContextText() {
-	QApplication::clipboard()->setText(_text.originalText({ 0, 0xFFFF }, _contextExpandLinksMode));
+	QApplication::clipboard()->setText(_text.toString(AllTextSelection, _contextExpandLinksMode));
 }
 
 void FlatLabel::onTouchSelect() {
@@ -606,7 +606,7 @@ void FlatLabel::onExecuteDrag() {
 	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
 	QString selectedText;
 	if (uponSelected) {
-		selectedText = _text.originalText(_selection, ExpandLinksAll);
+		selectedText = _text.toString(_selection, ExpandLinksAll);
 	} else if (pressedHandler) {
 		selectedText = pressedHandler->dragText();
 	}

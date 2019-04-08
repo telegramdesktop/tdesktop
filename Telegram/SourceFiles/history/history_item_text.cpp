@@ -39,7 +39,7 @@ TextWithEntities WrapAsReply(
 TextWithEntities WrapAsForwarded(
 		TextWithEntities &&text,
 		not_null<HistoryMessageForwarded*> forwarded) {
-	auto info = forwarded->text.originalTextWithEntities(
+	auto info = forwarded->text.toTextWithEntities(
 		AllTextSelection,
 		ExpandLinksAll);
 	auto result = TextWithEntities();

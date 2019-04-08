@@ -531,7 +531,7 @@ void Service::updatePressed(QPoint point) {
 }
 
 TextWithEntities Service::selectedText(TextSelection selection) const {
-	return message()->_text.originalTextWithEntities(selection);
+	return message()->_text.toTextWithEntities(selection);
 }
 
 TextSelection Service::adjustSelection(

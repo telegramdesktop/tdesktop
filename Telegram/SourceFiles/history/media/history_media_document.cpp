@@ -654,7 +654,7 @@ bool HistoryDocument::hasTextForCopy() const {
 TextWithEntities HistoryDocument::selectedText(TextSelection selection) const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		const auto &caption = captioned->_caption;
-		return caption.originalTextWithEntities(selection, ExpandLinksAll);
+		return caption.toTextWithEntities(selection, ExpandLinksAll);
 	}
 	return TextWithEntities();
 }
@@ -838,7 +838,7 @@ void HistoryDocument::parentTextUpdated() {
 
 TextWithEntities HistoryDocument::getCaption() const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		return captioned->_caption.originalTextWithEntities();
+		return captioned->_caption.toTextWithEntities();
 	}
 	return TextWithEntities();
 }

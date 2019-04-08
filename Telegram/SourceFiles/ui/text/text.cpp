@@ -3046,12 +3046,14 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 	}
 }
 
-TextWithEntities Text::originalTextWithEntities(TextSelection selection, ExpandLinksMode mode) const {
+
+
+TextWithEntities Text::toTextWithEntities(TextSelection selection, ExpandLinksMode mode) const {
 	TextWithEntities result;
 	result.text.reserve(_text.size());
 
 	int lnkStart = 0, italicStart = 0, boldStart = 0, codeStart = 0, preStart = 0;
-	auto flagsChangeCallback = [&result, &italicStart, &boldStart, &codeStart, &preStart](int32 oldFlags, int32 newFlags) {
+	auto flagsChangeCallback = [&](int32 oldFlags, int32 newFlags) {
 		if ((oldFlags & TextBlockFItalic) && !(newFlags & TextBlockFItalic)) { // write italic
 			result.entities.push_back(EntityInText(EntityInTextItalic, italicStart, result.text.size() - italicStart));
 		} else if ((newFlags & TextBlockFItalic) && !(oldFlags & TextBlockFItalic)) {
@@ -3073,12 +3075,17 @@ TextWithEntities Text::originalTextWithEntities(TextSelection selection, ExpandL
 			preStart = result.text.size();
 		}
 	};
-	auto clickHandlerStartCallback = [&result, &lnkStart]() {
+	auto clickHandlerStartCallback = [&] {
 		lnkStart = result.text.size();
 	};
-	auto clickHandlerFinishCallback = [mode, &result, &lnkStart](const QStringRef &r, const ClickHandlerPtr &handler) {
-		auto expanded = handler->getExpandedLinkTextWithEntities(mode, lnkStart, r);
-		if (expanded.text.isEmpty()) {
+	auto clickHandlerFinishCallback = [&](const QStringRef &r, const ClickHandlerPtr &handler) {
+		const auto expanded = handler->getExpandedLinkTextWithEntities(lnkStart, r);
+		if (mode == ExpandLinksAll
+			&& !expanded.entities.isEmpty()
+			&& expanded.entities[0].type() == EntityInTextCustomUrl) {
+			result.text += r;
+			result.text += qsl(" (") + expanded.entities[0].data() + ')';
+		} else if (expanded.text.isEmpty()) {
 			result.text += r;
 		} else {
 			result.text += expanded.text;
@@ -3087,7 +3094,7 @@ TextWithEntities Text::originalTextWithEntities(TextSelection selection, ExpandL
 			result.entities.append(expanded.entities);
 		}
 	};
-	auto appendPartCallback = [&result](const QStringRef &r) {
+	auto appendPartCallback = [&](const QStringRef &r) {
 		result.text += r;
 	};
 
@@ -3096,29 +3103,8 @@ TextWithEntities Text::originalTextWithEntities(TextSelection selection, ExpandL
 	return result;
 }
 
-QString Text::originalText(TextSelection selection, ExpandLinksMode mode) const {
-	QString result;
-	result.reserve(_text.size());
-
-	auto appendPartCallback = [&result](const QStringRef &r) {
-		result += r;
-	};
-	auto clickHandlerStartCallback = []() {
-	};
-	auto clickHandlerFinishCallback = [mode, &result](const QStringRef &r, const ClickHandlerPtr &handler) {
-		auto expanded = handler->getExpandedLinkText(mode, r);
-		if (expanded.isEmpty()) {
-			result += r;
-		} else {
-			result += expanded;
-		}
-	};
-	auto flagsChangeCallback = [](int32 oldFlags, int32 newFlags) {
-	};
-
-	enumerateText(selection, appendPartCallback, clickHandlerStartCallback, clickHandlerFinishCallback, flagsChangeCallback);
-
-	return result;
+QString Text::toString(TextSelection selection, ExpandLinksMode mode) const {
+	return toTextWithEntities(selection, mode).text;
 }
 
 void Text::clear() {

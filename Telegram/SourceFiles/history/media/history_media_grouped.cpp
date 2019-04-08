@@ -306,7 +306,7 @@ TextSelection HistoryGroupedMedia::adjustSelection(
 
 TextWithEntities HistoryGroupedMedia::selectedText(
 		TextSelection selection) const {
-	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
+	return _caption.toTextWithEntities(selection, ExpandLinksAll);
 }
 
 void HistoryGroupedMedia::clickHandlerActiveChanged(

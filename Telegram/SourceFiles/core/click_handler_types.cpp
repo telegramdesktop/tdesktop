@@ -133,22 +133,13 @@ void UrlClickHandler::Open(QString url, QVariant context) {
 	}
 }
 
-QString UrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
-	QString result;
-	if (mode != ExpandLinksNone) {
-		result = _originalUrl;
-	}
-	return result;
-}
-
-TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
-	TextWithEntities result;
-	auto entityType = isEmail(_originalUrl) ? EntityInTextEmail : EntityInTextUrl;
-	int entityLength = textPart.size();
-	if (mode != ExpandLinksNone) {
-		result.text = _originalUrl;
-		entityLength = _originalUrl.size();
-	}
+TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
+	auto result = TextWithEntities();
+	result.text = _originalUrl;
+	const auto entityLength = _originalUrl.size();
+	const auto entityType = isEmail(_originalUrl)
+		? EntityInTextEmail
+		: EntityInTextUrl;
 	result.entities.push_back({ entityType, entityOffset, entityLength });
 	return result;
 }
@@ -209,28 +200,8 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-QString HiddenUrlClickHandler::getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const {
-	QString result;
-	if (mode == ExpandLinksAll) {
-		result = textPart.toString() + qsl(" (") + url() + ')';
-	} else if (mode == ExpandLinksUrlOnly) {
-		result = url();
-	}
-	return result;
-}
-
-TextWithEntities HiddenUrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
-	TextWithEntities result;
-	if (mode == ExpandLinksUrlOnly) {
-		result.text = url();
-		result.entities.push_back({ EntityInTextUrl, entityOffset, result.text.size() });
-	} else {
-		result.entities.push_back({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
-		if (mode == ExpandLinksAll) {
-			result.text = textPart.toString() + qsl(" (") + url() + ')';
-		}
-	}
-	return result;
+TextWithEntities HiddenUrlClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
+	return simpleTextWithEntity({ EntityInTextCustomUrl, entityOffset, textPart.size(), url() });
 }
 
 QString MentionClickHandler::copyToClipboardContextItemText() const {
@@ -244,7 +215,7 @@ void MentionClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+TextWithEntities MentionClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
 	return simpleTextWithEntity({ EntityInTextMention, entityOffset, textPart.size() });
 }
 
@@ -257,7 +228,7 @@ void MentionNameClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities MentionNameClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+TextWithEntities MentionNameClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
 	auto data = QString::number(_userId) + '.' + QString::number(_accessHash);
 	return simpleTextWithEntity({ EntityInTextMentionName, entityOffset, textPart.size(), data });
 }
@@ -283,7 +254,7 @@ void HashtagClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+TextWithEntities HashtagClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
 	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
 }
 
@@ -299,7 +270,6 @@ void CashtagClickHandler::onClick(ClickContext context) const {
 }
 
 TextWithEntities CashtagClickHandler::getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const {
 	return simpleTextWithEntity({ EntityInTextCashtag, entityOffset, textPart.size() });
@@ -334,6 +304,6 @@ void BotCommandClickHandler::onClick(ClickContext context) const {
 	}
 }
 
-TextWithEntities BotCommandClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
+TextWithEntities BotCommandClickHandler::getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const {
 	return simpleTextWithEntity({ EntityInTextBotCommand, entityOffset, textPart.size() });
 }

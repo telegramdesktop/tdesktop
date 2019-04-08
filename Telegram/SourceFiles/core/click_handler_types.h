@@ -47,11 +47,7 @@ public:
 		return url();
 	}
 
-	QString getExpandedLinkText(
-		ExpandLinksMode mode,
-		const QStringRef &textPart) const override;
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
@@ -100,11 +96,7 @@ public:
 		}
 	}
 
-	QString getExpandedLinkText(
-		ExpandLinksMode mode,
-		const QStringRef &textPart) const override;
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
@@ -137,7 +129,6 @@ public:
 	QString copyToClipboardContextItemText() const override;
 
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
@@ -162,7 +153,6 @@ public:
 	void onClick(ClickContext context) const override;
 
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
@@ -189,7 +179,6 @@ public:
 	QString copyToClipboardContextItemText() const override;
 
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
@@ -217,7 +206,6 @@ public:
 	QString copyToClipboardContextItemText() const override;
 
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 
@@ -252,7 +240,6 @@ public:
 	}
 
 	TextWithEntities getExpandedLinkTextWithEntities(
-		ExpandLinksMode mode,
 		int entityOffset,
 		const QStringRef &textPart) const override;
 

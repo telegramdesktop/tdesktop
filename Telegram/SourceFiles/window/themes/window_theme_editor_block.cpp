@@ -43,7 +43,7 @@ public:
 	}
 
 	QString description() const {
-		return _description.originalText();
+		return _description.toString();
 	}
 	const Text &descriptionText() const {
 		return _description;
@@ -152,7 +152,7 @@ void EditorBlock::Row::fillValueString() {
 void EditorBlock::Row::fillSearchIndex() {
 	_searchWords.clear();
 	_searchStartChars.clear();
-	auto toIndex = _name + ' ' + _copyOf + ' ' + TextUtilities::RemoveAccents(_description.originalText()) + ' ' + _valueString;
+	auto toIndex = _name + ' ' + _copyOf + ' ' + TextUtilities::RemoveAccents(_description.toString()) + ' ' + _valueString;
 	auto words = toIndex.toLower().split(SearchSplitter, QString::SkipEmptyParts);
 	for_const (auto &word, words) {
 		_searchWords.insert(word);

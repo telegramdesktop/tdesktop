@@ -16,10 +16,8 @@ struct ClickContext {
 };
 
 enum ExpandLinksMode {
-	ExpandLinksNone,
 	ExpandLinksShortened,
 	ExpandLinksAll,
-	ExpandLinksUrlOnly, // For custom urls leaves only url instead of text.
 };
 
 class ClickHandlerHost {
@@ -63,8 +61,7 @@ public:
 	// Entities in text support.
 
 	// This method returns empty string if just textPart should be used (nothing to expand).
-	virtual QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const;
-	virtual TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const;
+	virtual TextWithEntities getExpandedLinkTextWithEntities(int entityOffset, const QStringRef &textPart) const;
 
 	// This method should be called on mouse over a click handler.
 	// It returns true if the active handler was changed or false otherwise.

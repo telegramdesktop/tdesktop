@@ -99,7 +99,7 @@ QSize HistoryContact::countOptimalSize() {
 	if (_contact) {
 		_contact->loadUserpic();
 	} else {
-		const auto full = _name.originalText();
+		const auto full = _name.toString();
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
 			Data::PeerUserpicColor(_userId
 				? peerFromUser(_userId)

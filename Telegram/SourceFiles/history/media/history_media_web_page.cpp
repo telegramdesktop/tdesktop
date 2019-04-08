@@ -686,10 +686,10 @@ bool HistoryWebPage::isDisplayed() const {
 }
 
 TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
-	auto titleResult = _title.originalTextWithEntities(
+	auto titleResult = _title.toTextWithEntities(
 		selection,
 		ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(
+	auto descriptionResult = _description.toTextWithEntities(
 		toDescriptionSelection(selection),
 		ExpandLinksAll);
 	if (titleResult.text.isEmpty()) {

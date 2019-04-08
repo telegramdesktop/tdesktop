@@ -743,7 +743,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.empty()) {
 			if (!_titlePeerText.isEmpty()) {
-				text = _titlePeerText.originalText();
+				text = _titlePeerText.toString();
 			} else if (chat->count <= 0) {
 				text = lang(lng_group_status);
 			} else {
@@ -800,7 +800,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			text = lang(channel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}
 	}
-	if (_titlePeerText.originalText() != text) {
+	if (_titlePeerText.toString() != text) {
 		_titlePeerText.setText(st::dialogsTextStyle, text);
 		_titlePeerTextOnline = titlePeerTextOnline;
 		updateMembersShowArea();

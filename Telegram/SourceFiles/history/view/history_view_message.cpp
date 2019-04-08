@@ -1059,7 +1059,7 @@ TextWithEntities Message::selectedText(TextSelection selection) const {
 	const auto media = this->media();
 
 	TextWithEntities logEntryOriginalResult;
-	auto textResult = item->_text.originalTextWithEntities(
+	auto textResult = item->_text.toTextWithEntities(
 		selection,
 		ExpandLinksAll);
 	auto skipped = skipTextSelection(selection);
@@ -1783,7 +1783,7 @@ void Message::refreshEditedBadge() {
 	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 		const auto text = (!edited || !editDate)
 			? dateText
-			: edited->text.originalText();
+			: edited->text.toString();
 		msgsigned->refresh(text);
 	}
 	initTime();

@@ -279,8 +279,8 @@ TextSelection HistoryLocation::adjustSelection(TextSelection selection, TextSele
 }
 
 TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
-	auto titleResult = _title.originalTextWithEntities(selection);
-	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection));
+	auto titleResult = _title.toTextWithEntities(selection);
+	auto descriptionResult = _description.toTextWithEntities(toDescriptionSelection(selection));
 	if (titleResult.text.isEmpty()) {
 		return descriptionResult;
 	} else if (descriptionResult.text.isEmpty()) {

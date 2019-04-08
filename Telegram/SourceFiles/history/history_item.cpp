@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kNotificationTextLimit = 255;
+
 enum class MediaCheckResult {
 	Good,
 	Unsupported,
@@ -686,20 +688,17 @@ bool HistoryItem::isEmpty() const {
 }
 
 QString HistoryItem::notificationText() const {
-	auto getText = [this]() {
+	const auto result = [&] {
 		if (_media) {
 			return _media->notificationText();
 		} else if (!emptyText()) {
-			return _text.originalText();
+			return _text.toString();
 		}
 		return QString();
-	};
-
-	auto result = getText();
-	if (result.size() > 0xFF) {
-		result = result.mid(0, 0xFF) + qsl("...");
-	}
-	return result;
+	}();
+	return (result.size() <= kNotificationTextLimit)
+		? result
+		: result.mid(0, kNotificationTextLimit) + qsl("...");
 }
 
 QString HistoryItem::inDialogsText(DrawInDialog way) const {
@@ -710,7 +709,7 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 			}
 			return _media->chatListText();
 		} else if (!emptyText()) {
-			return TextUtilities::Clean(_text.originalText());
+			return TextUtilities::Clean(_text.toString());
 		}
 		return QString();
 	};
