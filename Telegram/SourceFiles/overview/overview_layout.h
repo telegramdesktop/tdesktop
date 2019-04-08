@@ -247,6 +247,7 @@ private:
 
 	QString _duration;
 	QPixmap _pix;
+	bool _pixBlurred = true;
 
 	void updateStatusText();
 
