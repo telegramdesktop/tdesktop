@@ -338,7 +338,6 @@ private:
 	QString _headerText;
 
 	bool _streamingStartPaused = false;
-	bool _streamingPauseMusic = false;
 	bool _fullScreenVideo = false;
 	int _fullScreenZoomCache = 0;
 

@@ -169,6 +169,8 @@ struct OverlayWidget::Streamed {
 	base::Timer timer;
 	QImage frameForDirectPaint;
 
+	bool withSound = false;
+	bool pausedBySeek = false;
 	bool resumeOnCallEnd = false;
 };
 
@@ -2007,6 +2009,10 @@ void OverlayWidget::createStreamingObjects() {
 		this,
 		static_cast<PlaybackControls::Delegate*>(this),
 		[=] { waitingAnimationCallback(); });
+	_streamed->withSound = _doc->isAudioFile()
+		|| _doc->isVideoFile()
+		|| _doc->isVoiceMessage()
+		|| _doc->isVideoMessage();
 
 	if (videoIsGifv()) {
 		_streamed->controls.hide();
@@ -2261,6 +2267,7 @@ void OverlayWidget::playbackPauseResume() {
 
 void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	Expects(_streamed != nullptr);
+	Expects(_doc != nullptr);
 
 	if (videoShown()) {
 		_streamed->info.video.cover = videoFrame();
@@ -2270,13 +2277,9 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
 	options.audioId = AudioMsgId(_doc, _msgid);
-	if (_doc->isAnimation()
-		|| options.audioId.type() == AudioMsgId::Type::Unknown) {
+	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
-		_streamingPauseMusic = false;
-	} else {
-		_streamingPauseMusic = true;
 	}
 	_streamed->player.play(options);
 	if (_streamingStartPaused) {
@@ -2284,6 +2287,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	} else {
 		playbackPauseMusic();
 	}
+	_streamed->pausedBySeek = false;
 
 	_streamed->info.audio.state.position
 		= _streamed->info.video.state.position
@@ -2296,12 +2300,16 @@ void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 	Expects(_streamed != nullptr);
 
 	if (!_streamed->player.paused() && !_streamed->player.finished()) {
+		_streamed->pausedBySeek = true;
 		playbackControlsPause();
 	}
 }
 
 void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
-	_streamingStartPaused = false;
+	Expects(_streamed != nullptr);
+
+	_streamingStartPaused = !_streamed->pausedBySeek
+		&& !_streamed->player.finished();
 	restartAtSeekPosition(position);
 }
 
@@ -2359,7 +2367,9 @@ void OverlayWidget::playbackResumeOnCall() {
 }
 
 void OverlayWidget::playbackPauseMusic() {
-	if (!_streamingPauseMusic) {
+	Expects(_streamed != nullptr);
+
+	if (!_streamed->withSound) {
 		return;
 	}
 	Player::instance()->pause(AudioMsgId::Type::Voice);
