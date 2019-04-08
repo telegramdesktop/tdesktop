@@ -105,7 +105,6 @@ public:
 	void setSelectable(bool selectable);
 	void setDoubleClickSelectsParagraph(bool doubleClickSelectsParagraph);
 	void setContextCopyText(const QString &copyText);
-	void setExpandLinksMode(ExpandLinksMode mode);
 	void setBreakEverywhere(bool breakEverywhere);
 
 	int naturalWidth() const override;
@@ -207,7 +206,6 @@ private:
 
 	Ui::PopupMenu *_contextMenu = nullptr;
 	QString _contextCopyText;
-	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;
 
 	ClickHandlerFilter _clickHandlerFilter;
 

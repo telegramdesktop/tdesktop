@@ -226,10 +226,6 @@ void FlatLabel::setContextCopyText(const QString &copyText) {
 	_contextCopyText = copyText;
 }
 
-void FlatLabel::setExpandLinksMode(ExpandLinksMode mode) {
-	_contextExpandLinksMode = mode;
-}
-
 void FlatLabel::setBreakEverywhere(bool breakEverywhere) {
 	_breakEverywhere = breakEverywhere;
 }
@@ -366,7 +362,7 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (!_selection.empty()) {
-		QApplication::clipboard()->setText(_text.originalText(_selection, _contextExpandLinksMode), QClipboard::Selection);
+		QApplication::clipboard()->setText(_text.originalText(_selection, ExpandLinksAll), QClipboard::Selection);
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 
@@ -437,7 +433,7 @@ void FlatLabel::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 		if (!selection.empty()) {
-			QApplication::clipboard()->setText(_text.originalText(selection, _contextExpandLinksMode), QClipboard::FindBuffer);
+			QApplication::clipboard()->setText(_text.originalText(selection, ExpandLinksAll), QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	}
@@ -573,12 +569,12 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 void FlatLabel::onCopySelectedText() {
 	const auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	if (!selection.empty()) {
-		QApplication::clipboard()->setText(_text.toString(selection, _contextExpandLinksMode));
+		QApplication::clipboard()->setText(_text.toString(selection, ExpandLinksAll));
 	}
 }
 
 void FlatLabel::onCopyContextText() {
-	QApplication::clipboard()->setText(_text.toString(AllTextSelection, _contextExpandLinksMode));
+	QApplication::clipboard()->setText(_text.toString(AllTextSelection, ExpandLinksAll));
 }
 
 void FlatLabel::onTouchSelect() {
