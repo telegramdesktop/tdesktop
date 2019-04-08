@@ -64,7 +64,7 @@ void UnsafeShowInFolder(const QString &filepath) {
 		arguments << "--select" << absolutePath;
 	} else if (output == qstr("nautilus.desktop") || output == qstr("org.gnome.Nautilus.desktop") || output == qstr("nautilus-folder-handler.desktop")) {
 		command = qsl("nautilus");
-		arguments << "--no-desktop" << absolutePath;
+		arguments << absolutePath;
 	} else if (output == qstr("nemo.desktop")) {
 		command = qsl("nemo");
 		arguments << "--no-desktop" << absolutePath;
