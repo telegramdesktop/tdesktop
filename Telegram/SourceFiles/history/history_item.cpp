@@ -374,6 +374,21 @@ void HistoryItem::clearMainView() {
 void HistoryItem::addToUnreadMentions(UnreadMentionType type) {
 }
 
+void HistoryItem::applyEditionToHistoryCleared() {
+	const auto fromId = 0;
+	const auto replyToId = 0;
+	applyEdition(
+		MTP_messageService(
+			MTP_flags(0),
+			MTP_int(id),
+			MTP_int(fromId),
+			peerToMTP(history()->peer->id),
+			MTP_int(replyToId),
+			MTP_int(date()),
+			MTP_messageActionHistoryClear()
+		).c_messageService());
+}
+
 void HistoryItem::indexAsNewItem() {
 	if (IsServerMsgId(id)) {
 		CrashReports::SetAnnotation("addToUnreadMentions", QString::number(id));

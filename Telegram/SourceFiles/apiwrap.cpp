@@ -2383,8 +2383,7 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 		if (const auto last = history->chatListMessage()) {
 			Local::addSavedPeer(history->peer, ItemDateTime(last));
 		}
-		history->clear();
-		history->markFullyLoaded();
+		history->clear(History::ClearType::ClearHistory);
 	}
 	if (const auto channel = peer->asChannel()) {
 		if (const auto migrated = peer->migrateFrom()) {

@@ -2102,7 +2102,7 @@ void History::getReadyFor(MsgId msgId) {
 		const auto migrated = owner().history(peer->migrateFrom()->id);
 		migrated->getReadyFor(-msgId);
 		if (migrated->isEmpty()) {
-			unloadBlocks();
+			clear(ClearType::Unload);
 		}
 		return;
 	}
@@ -2110,7 +2110,7 @@ void History::getReadyFor(MsgId msgId) {
 		if (const auto migratePeer = peer->migrateFrom()) {
 			if (const auto migrated = owner().historyLoaded(migratePeer)) {
 				if (migrated->unreadCount()) {
-					unloadBlocks();
+					clear(ClearType::Unload);
 					migrated->getReadyFor(msgId);
 					return;
 				}
@@ -2118,10 +2118,10 @@ void History::getReadyFor(MsgId msgId) {
 		}
 	}
 	if (!isReadyFor(msgId)) {
-		unloadBlocks();
+		clear(ClearType::Unload);
 		if (const auto migratePeer = peer->migrateFrom()) {
 			if (const auto migrated = owner().historyLoaded(migratePeer)) {
-				migrated->unloadBlocks();
+				migrated->clear(ClearType::Unload);
 			}
 		}
 		if (msgId == ShowAtTheEndMsgId) {
@@ -2144,18 +2144,15 @@ void History::setNotLoadedAtBottom() {
 	}
 }
 
-void History::markFullyLoaded() {
-	_loadedAtTop = _loadedAtBottom = true;
-	if (isEmpty()) {
-		session().storage().remove(
-			Storage::SharedMediaRemoveAll(peer->id));
-		if (const auto channel = peer->asChannel()) {
-			if (const auto feed = channel->feed()) {
-				session().storage().remove(
-					Storage::FeedMessagesRemoveAll(
-						feed->id(),
-						channel->bareId()));
-			}
+void History::clearSharedMedia() {
+	session().storage().remove(
+		Storage::SharedMediaRemoveAll(peer->id));
+	if (const auto channel = peer->asChannel()) {
+		if (const auto feed = channel->feed()) {
+			session().storage().remove(
+				Storage::FeedMessagesRemoveAll(
+					feed->id(),
+					channel->bareId()));
 		}
 	}
 }
@@ -2455,23 +2452,17 @@ void History::dialogEntryApplied() {
 		return;
 	}
 	if (!chatListMessage()) {
-		if (const auto chat = peer->asChat()) {
-			if (!chat->haveLeft()) {
-				Local::addSavedPeer(
-					peer,
-					ParseDateTime(chatListTimeId()));
-			}
-		} else if (const auto channel = peer->asChannel()) {
+		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
 			if (inviter != 0 && channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
-					unloadBlocks();
+					clear(ClearType::Unload);
 					addNewerSlice(QVector<MTPMessage>());
 					insertJoinedMessage(true);
 				}
 			}
 		} else {
-			clear();
+			clear(ClearType::DeleteChat);
 		}
 		return;
 	}
@@ -2921,7 +2912,7 @@ bool History::hasOrphanMediaGroupPart() const {
 
 bool History::removeOrphanMediaGroupPart() {
 	if (hasOrphanMediaGroupPart()) {
-		unloadBlocks();
+		clear(ClearType::Unload);
 		return true;
 	}
 	return false;
@@ -2941,54 +2932,50 @@ QVector<MsgId> History::collectMessagesFromUserToDelete(
 	return result;
 }
 
-void History::clear() {
-	clearBlocks(false);
-}
-
-void History::unloadBlocks() {
-	clearBlocks(true);
-}
-
-void History::clearBlocks(bool leaveItems) {
+void History::clear(ClearType type) {
 	_unreadBarView = nullptr;
 	_firstUnreadView = nullptr;
 	_joinedMessage = nullptr;
 
-	if (scrollTopItem) {
-		forgetScrollState();
-	}
-	if (leaveItems) {
+	forgetScrollState();
+	if (type == ClearType::Unload) {
+		blocks.clear();
 		_owner->notifyHistoryUnloaded(this);
+		lastKeyboardInited = false;
+		_loadedAtTop = _loadedAtBottom = false;
 	} else {
-		if (peer->isChannel()) {
-			// We left the channel.
-			_lastMessage = std::nullopt;
-		} else {
-			// History was deleted.
-			setLastMessage(nullptr);
-		}
 		notifies.clear();
 		_owner->notifyHistoryCleared(this);
-	}
-	blocks.clear();
-	if (leaveItems) {
-		lastKeyboardInited = false;
-	} else {
 		changeUnreadCount(-unreadCount());
-		if (auto channel = peer->asChannel()) {
+		if (type == ClearType::DeleteChat) {
+			setLastMessage(nullptr);
+		} else {
+			if (_lastMessage && IsServerMsgId((*_lastMessage)->id)) {
+				(*_lastMessage)->applyEditionToHistoryCleared();
+			} else {
+				_lastMessage = std::nullopt;
+			}
+		}
+		const auto tillId = (_lastMessage && *_lastMessage)
+			? (*_lastMessage)->id
+			: std::numeric_limits<MsgId>::max();
+		clearUpTill(tillId);
+		if (blocks.empty() && _lastMessage && *_lastMessage) {
+			addItemToBlock(*_lastMessage);
+		}
+		_loadedAtTop = _loadedAtBottom = _lastMessage.has_value();
+		clearSharedMedia();
+		clearLastKeyboard();
+		if (const auto channel = peer->asChannel()) {
 			channel->clearPinnedMessage();
 			if (const auto feed = channel->feed()) {
 				// Should be after resetting the _lastMessage.
 				feed->historyCleared(this);
 			}
 		}
-		clearLastKeyboard();
 	}
 	_owner->notifyHistoryChangeDelayed(this);
 
-	_loadedAtTop = false;
-	_loadedAtBottom = !leaveItems;
-	forgetScrollState();
 	if (const auto chat = peer->asChat()) {
 		chat->lastAuthors.clear();
 		chat->markupSenders.clear();
@@ -3007,17 +2994,7 @@ void History::clearUpTill(MsgId availableMinId) {
 		const auto itemId = item->id;
 		if (IsServerMsgId(itemId) && itemId >= availableMinId) {
 			if (itemId == availableMinId) {
-				auto fromId = 0;
-				auto replyToId = 0;
-				item->applyEdition(MTP_messageService(
-					MTP_flags(0),
-					MTP_int(itemId),
-					MTP_int(fromId),
-					peerToMTP(peer->id),
-					MTP_int(replyToId),
-					MTP_int(item->date()),
-					MTP_messageActionHistoryClear()
-				).c_messageService());
+				item->applyEditionToHistoryCleared();
 			}
 			break;
 		}

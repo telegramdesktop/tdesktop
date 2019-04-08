@@ -159,8 +159,6 @@ private:
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
 	void replaceBuyWithReceiptInMarkup();
 
-	void applyEditionToEmpty();
-
 	void setReplyMarkup(const MTPReplyMarkup *markup);
 
 	struct CreateConfig;

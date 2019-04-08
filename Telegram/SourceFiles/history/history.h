@@ -84,9 +84,12 @@ public:
 	QVector<MsgId> collectMessagesFromUserToDelete(
 		not_null<UserData*> user) const;
 
-	void clear();
-	void markFullyLoaded();
-	void unloadBlocks();
+	enum class ClearType {
+		Unload,
+		DeleteChat,
+		ClearHistory,
+	};
+	void clear(ClearType type);
 	void clearUpTill(MsgId availableMinId);
 
 	void applyGroupAdminChanges(
@@ -377,8 +380,7 @@ private:
 	// when the last item from this block was detached and
 	// calls the required previousItemChanged()
 	void removeBlock(not_null<HistoryBlock*> block);
-
-	void clearBlocks(bool leaveItems);
+	void clearSharedMedia();
 
 	not_null<HistoryItem*> addNewItem(
 		not_null<HistoryItem*> item,

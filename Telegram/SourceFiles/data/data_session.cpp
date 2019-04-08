@@ -167,7 +167,7 @@ void Session::clear() {
 	_sendActions.clear();
 
 	for (const auto &[peerId, history] : _histories) {
-		history->unloadBlocks();
+		history->clear(History::ClearType::Unload);
 	}
 	App::historyClearMsgs();
 	_histories.clear();
@@ -727,7 +727,9 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 	if (history) {
 		setPinnedDialog(history, false);
 		App::main()->removeDialog(history);
-		history->clear();
+		history->clear(peer->isChannel()
+			? History::ClearType::Unload
+			: History::ClearType::DeleteChat);
 	}
 	if (const auto channel = peer->asMegagroup()) {
 		channel->addFlags(MTPDchannel::Flag::f_left);
@@ -736,8 +738,6 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 				migrated->updateChatListExistence();
 			}
 		}
-	} else if (history) {
-		history->markFullyLoaded();
 	}
 }
 

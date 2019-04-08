@@ -1653,7 +1653,7 @@ void HistoryWidget::showHistory(
 		if (_migrated
 			&& !_migrated->isEmpty()
 			&& (!_history->loadedAtTop() || !_migrated->loadedAtBottom())) {
-			_migrated->unloadBlocks();
+			_migrated->clear(History::ClearType::Unload);
 		}
 
 		_topBar->setActiveChat(_history);
@@ -2306,9 +2306,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		if (_history->loadedAtBottom() && App::wnd()) App::wnd()->checkHistoryActivation();
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
-			_history->unloadBlocks();
+			_history->clear(History::ClearType::Unload);
 		} else if (_migrated) {
-			_migrated->unloadBlocks();
+			_migrated->clear(History::ClearType::Unload);
 		}
 		addMessagesToFront(peer, *histList);
 		_firstLoadRequest = 0;
@@ -2320,9 +2320,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		historyLoaded();
 	} else if (_delayedShowAtRequest == requestId) {
 		if (toMigrated) {
-			_history->unloadBlocks();
+			_history->clear(History::ClearType::Unload);
 		} else if (_migrated) {
-			_migrated->unloadBlocks();
+			_migrated->clear(History::ClearType::Unload);
 		}
 
 		_delayedShowAtRequest = 0;
@@ -5250,7 +5250,7 @@ void HistoryWidget::handlePeerMigration() {
 		&& to
 		&& !from->isEmpty()
 		&& (!from->loadedAtBottom() || !to->loadedAtTop())) {
-		from->unloadBlocks();
+		from->clear(History::ClearType::Unload);
 	}
 }
 

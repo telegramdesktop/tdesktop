@@ -937,17 +937,13 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 	if (message.vaction.type() == mtpc_messageActionHistoryClear) {
-		applyEditionToEmpty();
+		setReplyMarkup(nullptr);
+		refreshMedia(nullptr);
+		setEmptyText();
+		setViewsCount(-1);
+
+		finishEditionToEmpty();
 	}
-}
-
-void HistoryMessage::applyEditionToEmpty() {
-	setReplyMarkup(nullptr);
-	refreshMedia(nullptr);
-	setEmptyText();
-	setViewsCount(-1);
-
-	finishEditionToEmpty();
 }
 
 void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
