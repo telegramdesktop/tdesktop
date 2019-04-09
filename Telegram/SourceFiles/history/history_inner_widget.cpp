@@ -1380,7 +1380,7 @@ void HistoryInner::mouseActionFinish(
 	if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
 		const auto [item, selection] = *_selected.cbegin();
 		if (const auto view = item->mainView()) {
-			SetClipboardWithEntities(
+			SetClipboardText(
 				view->selectedText(selection),
 				QClipboard::Selection);
 		}
@@ -1959,7 +1959,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)) {
-		SetClipboardWithEntities(getSelectedText(), QClipboard::FindBuffer);
+		SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		auto selectedState = getSelectionState();

@@ -2007,8 +2007,9 @@ EntityInText::EntityInText(
 int EntityInText::FirstMonospaceOffset(
 		const EntitiesInText &entities,
 		int textLength) {
-	auto &&monospace = ranges::view::all(
-		entities
+	auto &&monospace = ranges::make_iterator_range(
+		entities.begin(),
+		entities.end()
 	) | ranges::view::filter([](const EntityInText & entity) {
 		return (entity.type() == EntityType::Pre)
 			|| (entity.type() == EntityType::Code);

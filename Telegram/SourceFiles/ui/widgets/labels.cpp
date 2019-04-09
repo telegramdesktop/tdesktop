@@ -363,7 +363,7 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (!_selection.empty()) {
-		QApplication::clipboard()->setText(_text.originalText(_selection, ExpandLinksAll), QClipboard::Selection);
+		SetClipboardText(_text.toTextForMimeData(_selection), QClipboard::Selection);
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 
@@ -434,7 +434,7 @@ void FlatLabel::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 		if (!selection.empty()) {
-			QApplication::clipboard()->setText(_text.originalText(selection, ExpandLinksAll), QClipboard::FindBuffer);
+			SetClipboardText(_text.toTextForMimeData(selection), QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	}
