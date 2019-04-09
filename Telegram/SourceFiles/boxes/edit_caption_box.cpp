@@ -497,8 +497,9 @@ void EditCaptionBox::createEditMediaButton() {
 					"image/png",
 					"video/mp4",
 				};
-				if ((ranges::find(albumMimes, list.files.front().mime)
-						== end(albumMimes))) {
+				const auto file = &list.files.front();
+				if (ranges::find(albumMimes, file->mime) == end(albumMimes)
+					|| file->type == Storage::PreparedFile::AlbumType::None) {
 					Ui::show(
 						Box<InformBox>(lang(lng_edit_media_album_error)),
 						LayerOption::KeepOther);
