@@ -1661,6 +1661,9 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	}
 
 	const auto finalize = [=](UserId inviter, TimeId inviteDate) {
+		if (inviter < 0) {
+			channel->markForbidden();
+		}
 		channel->inviter = inviter;
 		channel->inviteDate = inviteDate;
 		if (const auto history = _session->data().historyLoaded(channel)) {

@@ -267,6 +267,17 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 	Notify::peerUpdatedDelayed(this, flags);
 }
 
+void ChannelData::markForbidden() {
+	owner().processChat(MTP_channelForbidden(
+		MTP_flags(isMegagroup()
+			? MTPDchannelForbidden::Flag::f_megagroup
+			: MTPDchannelForbidden::Flag::f_broadcast),
+		MTP_int(bareId()),
+		MTP_long(access),
+		MTP_string(name),
+		MTPint()));
+}
+
 bool ChannelData::isGroupAdmin(not_null<UserData*> user) const {
 	if (auto info = mgInfo.get()) {
 		return info->admins.contains(peerToUser(user->id));

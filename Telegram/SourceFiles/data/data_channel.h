@@ -180,6 +180,8 @@ public:
 		const MTPChatBannedRights &oldRights,
 		const MTPChatBannedRights &newRights);
 
+	void markForbidden();
+
 	bool isGroupAdmin(not_null<UserData*> user) const;
 
 	bool lastParticipantsCountOutdated() const {

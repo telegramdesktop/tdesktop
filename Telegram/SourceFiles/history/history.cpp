@@ -2454,7 +2454,7 @@ void History::dialogEntryApplied() {
 	if (!chatListMessage()) {
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
-			if (inviter != 0 && channel->amIn()) {
+			if (inviter > 0 && channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
 					clear(ClearType::Unload);
 					addNewerSlice(QVector<MTPMessage>());
