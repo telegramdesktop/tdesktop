@@ -118,17 +118,25 @@ void Manager::update() {
 }
 
 void Manager::updateQueued() {
-	InvokeQueued(this, [=] { update(); });
+	Expects(_timerId == 0);
+
+	_timerId = -1;
+	crl::on_main(delayedCallGuard(), [=] {
+		Expects(_timerId < 0);
+
+		_timerId = 0;
+		update();
+	});
 }
 
 void Manager::schedule() {
-	if (_scheduled) {
+	if (_scheduled || _timerId < 0) {
 		return;
 	}
 	stopTimer();
 
 	_scheduled = true;
-	Ui::PostponeCall(static_cast<QObject*>(this), [=] {
+	Ui::PostponeCall(delayedCallGuard(), [=] {
 		_scheduled = false;
 		if (_forceImmediateUpdate) {
 			_forceImmediateUpdate = false;
@@ -145,8 +153,12 @@ void Manager::schedule() {
 	});
 }
 
+not_null<const QObject*> Manager::delayedCallGuard() const {
+	return static_cast<const QObject*>(this);
+}
+
 void Manager::stopTimer() {
-	if (_timerId) {
+	if (_timerId > 0) {
 		killTimer(base::take(_timerId));
 	}
 }

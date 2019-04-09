@@ -158,6 +158,7 @@ private:
 	void schedule();
 	void updateQueued();
 	void stopTimer();
+	not_null<const QObject*> delayedCallGuard() const;
 
 	crl::time _lastUpdateTime = 0;
 	int _timerId = 0;
