@@ -410,9 +410,21 @@ void EditCaptionBox::updateEditPreview() {
 				song->performer);
 			_isAudio = true;
 		}
+
+		const auto getExt = [&] {
+			auto patterns = Core::MimeTypeForName(file->mime).globPatterns();
+			if (!patterns.isEmpty()) {
+				return patterns.front().replace('*', QString());
+			}
+			return QString();
+		};
 		setName(
 			nameString.isEmpty()
-				? QString("file")
+				? filedialogDefaultName(
+					_isImage ? qsl("image") : qsl("file"),
+					getExt(),
+					QString(),
+					true)
 				: nameString,
 			fileinfo.size()
 				? fileinfo.size()
