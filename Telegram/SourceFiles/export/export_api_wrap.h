@@ -126,6 +126,8 @@ private:
 	void appendDialogsSlice(Data::DialogsInfo &&info);
 	void finishDialogsList();
 	void requestSinglePeerDialog();
+	mtpRequestId requestSinglePeerMigrated(const Data::DialogInfo &info);
+	void appendSinglePeerDialogs(Data::DialogsInfo &&info);
 
 	void requestLeftChannelsIfNeeded();
 	void requestLeftChannelsList(

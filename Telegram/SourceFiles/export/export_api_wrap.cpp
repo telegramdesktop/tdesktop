@@ -1047,34 +1047,9 @@ void ApiWrap::cancelExportFast() {
 }
 
 void ApiWrap::requestSinglePeerDialog() {
-	const auto isChannelType = [](Data::DialogInfo::Type type) {
-		using Type = Data::DialogInfo::Type;
-		return (type == Type::PrivateSupergroup)
-			|| (type == Type::PublicSupergroup)
-			|| (type == Type::PrivateChannel)
-			|| (type == Type::PublicChannel);
-	};
 	auto doneSinglePeer = [=](const auto &result) {
-		auto info = Data::ParseDialogsInfo(_settings->singlePeer, result);
-
-		_dialogsProcess->processedCount += info.chats.size();
-		appendDialogsSlice(std::move(info));
-
-		const auto last = _dialogsProcess->splitIndexPlusOne - 1;
-		for (auto &info : _dialogsProcess->info.chats) {
-			if (isChannelType(info.type)) {
-				continue;
-			}
-			for (auto i = last; i != 0; --i) {
-				info.splits.push_back(i - 1);
-				info.messagesCountPerSplit.push_back(0);
-			}
-		}
-
-		if (!_dialogsProcess->progress(_dialogsProcess->processedCount)) {
-			return;
-		}
-		finishDialogsList();
+		appendSinglePeerDialogs(
+			Data::ParseDialogsInfo(_settings->singlePeer, result));
 	};
 	const auto requestUser = [&](const MTPInputUser &data) {
 		mainRequest(MTPusers_GetUsers(
@@ -1102,6 +1077,76 @@ void ApiWrap::requestSinglePeerDialog() {
 	}, [](const MTPDinputPeerEmpty &data) {
 		Unexpected("Empty peer in ApiWrap::requestSinglePeerDialog.");
 	});
+}
+
+mtpRequestId ApiWrap::requestSinglePeerMigrated(
+		const Data::DialogInfo &info) {
+	const auto input = info.input.match([&](
+		const MTPDinputPeerChannel & data) {
+		return MTP_inputChannel(
+			data.vchannel_id(),
+			data.vaccess_hash());
+	}, [](auto&&) -> MTPinputChannel {
+		Unexpected("Peer type in a supergroup.");
+	});
+	return mainRequest(MTPchannels_GetFullChannel(
+		input
+	)).done([=](const MTPmessages_ChatFull &result) {
+		auto info = result.match([&](
+				const MTPDmessages_chatFull &data) {
+			const auto migratedChatId = data.vfull_chat().match([&](
+					const MTPDchannelFull &data) {
+				return data.vmigrated_from_chat_id().value_or_empty();
+			}, [](auto &&other) {
+				return 0;
+			});
+			return migratedChatId
+				? Data::ParseDialogsInfo(
+					MTP_inputPeerChat(MTP_int(migratedChatId)),
+					MTP_messages_chats(data.vchats()))
+				: Data::DialogsInfo();
+		});
+		appendSinglePeerDialogs(std::move(info));
+	}).send();
+}
+
+void ApiWrap::appendSinglePeerDialogs(Data::DialogsInfo &&info) {
+	const auto isSupergroupType = [](Data::DialogInfo::Type type) {
+		using Type = Data::DialogInfo::Type;
+		return (type == Type::PrivateSupergroup)
+			|| (type == Type::PublicSupergroup);
+	};
+	const auto isChannelType = [](Data::DialogInfo::Type type) {
+		using Type = Data::DialogInfo::Type;
+		return (type == Type::PrivateChannel)
+			|| (type == Type::PublicChannel);
+	};
+
+	auto migratedRequestId = mtpRequestId(0);
+	const auto last = _dialogsProcess->splitIndexPlusOne - 1;
+	for (auto &info : info.chats) {
+		if (isSupergroupType(info.type) && !migratedRequestId) {
+			migratedRequestId = requestSinglePeerMigrated(info);
+			continue;
+		} else if (isChannelType(info.type)) {
+			continue;
+		}
+		for (auto i = last; i != 0; --i) {
+			info.splits.push_back(i - 1);
+			info.messagesCountPerSplit.push_back(0);
+		}
+	}
+
+	if (!migratedRequestId) {
+		_dialogsProcess->processedCount += info.chats.size();
+	}
+	appendDialogsSlice(std::move(info));
+
+	if (migratedRequestId
+		|| !_dialogsProcess->progress(_dialogsProcess->processedCount)) {
+		return;
+	}
+	finishDialogsList();
 }
 
 void ApiWrap::requestDialogsSlice() {
@@ -1261,15 +1306,41 @@ void ApiWrap::appendChatsSlice(
 	Expects(_settings != nullptr);
 
 	const auto types = _settings->types;
+	const auto goodByTypes = [&](const Data::DialogInfo &info) {
+		return ((types & SettingsFromDialogsType(info.type)) != 0);
+	};
 	auto filtered = ranges::view::all(
 		from
 	) | ranges::view::filter([&](const Data::DialogInfo &info) {
-		return (types & SettingsFromDialogsType(info.type)) != 0;
+		if (goodByTypes(info)) {
+			return true;
+		} else if (info.migratedToChannelId
+			&& (((types & Settings::Type::PublicGroups) != 0)
+				|| ((types & Settings::Type::PrivateGroups) != 0))) {
+			return true;
+		}
+		return false;
 	});
 	to.reserve(to.size() + from.size());
 	for (auto &info : filtered) {
 		const auto nextIndex = to.size();
-		const auto [i, ok] = process.indexByPeer.emplace(info.peerId, nextIndex);
+		if (info.migratedToChannelId) {
+			const auto toPeerId = Data::ChatPeerId(info.migratedToChannelId);
+			const auto i = process.indexByPeer.find(toPeerId);
+			if (i != process.indexByPeer.end()
+				&& Data::AddMigrateFromSlice(
+					to[i->second],
+					info,
+					splitIndex,
+					int(_splits.size()))) {
+				continue;
+			} else if (!goodByTypes(info)) {
+				continue;
+			}
+		}
+		const auto [i, ok] = process.indexByPeer.emplace(
+			info.peerId,
+			nextIndex);
 		if (ok) {
 			to.push_back(std::move(info));
 		}
@@ -1325,10 +1396,17 @@ void ApiWrap::requestChatMessages(
 
 		base::take(_chatProcess->requestDone)(std::move(result));
 	};
+	const auto splitsCount = int(_splits.size());
+	const auto realPeerInput = (splitIndex >= 0)
+		? _chatProcess->info.input
+		: _chatProcess->info.migratedFromInput;
+	const auto realSplitIndex = (splitIndex >= 0)
+		? splitIndex
+		: (splitsCount + splitIndex);
 	if (_chatProcess->info.onlyMyMessages) {
-		splitRequest(splitIndex, MTPmessages_Search(
+		splitRequest(realSplitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
-			_chatProcess->info.input,
+			realPeerInput,
 			MTP_string(), // query
 			_user,
 			MTP_inputMessagesFilterEmpty(),
@@ -1342,8 +1420,8 @@ void ApiWrap::requestChatMessages(
 			MTP_int(0) // hash
 		)).done(doneHandler).send();
 	} else {
-		splitRequest(splitIndex, MTPmessages_GetHistory(
-			_chatProcess->info.input,
+		splitRequest(realSplitIndex, MTPmessages_GetHistory(
+			realPeerInput,
 			MTP_int(offsetId),
 			MTP_int(0), // offset_date
 			MTP_int(addOffset),
@@ -1355,7 +1433,7 @@ void ApiWrap::requestChatMessages(
 			Expects(_chatProcess != nullptr);
 
 			if (error.type() == qstr("CHANNEL_PRIVATE")) {
-				if (_chatProcess->info.input.type() == mtpc_inputPeerChannel
+				if (realPeerInput.type() == mtpc_inputPeerChannel
 					&& !_chatProcess->info.onlyMyMessages) {
 
 					// Perhaps we just left / were kicked from channel.
@@ -1399,10 +1477,16 @@ Data::FileOrigin ApiWrap::currentFileMessageOrigin() const {
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
 
+	const auto splitIndex = _chatProcess->info.splits[
+		_chatProcess->localSplitIndex];
 	auto result = Data::FileOrigin();
 	result.messageId = currentFileMessage()->id;
-	result.peer = _chatProcess->info.input;
-	result.split = _chatProcess->info.splits[_chatProcess->localSplitIndex];
+	result.split = (splitIndex >= 0)
+		? splitIndex
+		: (int(_splits.size()) + splitIndex);
+	result.peer = (splitIndex >= 0)
+		? _chatProcess->info.input
+		: _chatProcess->info.migratedFromInput;
 	return result;
 }
 
@@ -1452,6 +1536,11 @@ void ApiWrap::finishMessagesSlice() {
 	auto slice = *base::take(_chatProcess->slice);
 	if (!slice.list.empty()) {
 		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
+		const auto splitIndex = _chatProcess->info.splits[
+			_chatProcess->localSplitIndex];
+		if (splitIndex < 0) {
+			slice = AdjustMigrateMessageIds(std::move(slice));
+		}
 		if (!_chatProcess->handleSlice(std::move(slice))) {
 			return;
 		}
