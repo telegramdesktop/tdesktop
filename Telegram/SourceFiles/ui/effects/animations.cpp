@@ -14,7 +14,7 @@ namespace Ui {
 namespace Animations {
 namespace {
 
-constexpr auto kAnimationTick = crl::time(1000) / 60;
+constexpr auto kAnimationTick = crl::time(1000) / 120;
 constexpr auto kIgnoreUpdatesTimeout = crl::time(4);
 
 } // namespace
