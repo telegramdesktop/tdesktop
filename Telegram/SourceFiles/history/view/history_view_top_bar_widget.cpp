@@ -539,6 +539,7 @@ void TopBarWidget::updateControlsGeometry() {
 void TopBarWidget::finishAnimating() {
 	_selectedShown.stop();
 	updateControlsVisibility();
+	update();
 }
 
 void TopBarWidget::setAnimatingMode(bool enabled) {
@@ -546,7 +547,6 @@ void TopBarWidget::setAnimatingMode(bool enabled) {
 		_animatingMode = enabled;
 		setAttribute(Qt::WA_OpaquePaintEvent, !_animatingMode);
 		finishAnimating();
-		updateControlsVisibility();
 	}
 }
 
