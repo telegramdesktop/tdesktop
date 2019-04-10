@@ -629,6 +629,7 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 	if (!_isAllowedEditMedia) {
 		return false;
 	}
+	using Error = Storage::PreparedList::Error;
 
 	auto list = [&] {
 		auto url = QList<QUrl>();
@@ -642,9 +643,9 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		auto result = canAddUrl
 			? Storage::PrepareMediaList(url, st::sendMediaPreviewSize)
 			: Storage::PreparedList(
-				Storage::PreparedList::Error::EmptyFile,
+				Error::EmptyFile,
 				QString());
-		if (result.error == Storage::PreparedList::Error::None) {
+		if (result.error == Error::None) {
 			return result;
 		} else if (data->hasImage()) {
 			auto image = qvariant_cast<QImage>(data->imageData());
@@ -659,10 +660,18 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		}
 		return result;
 	}();
-	_preparedList = std::move(list);
-	if (_preparedList.files.empty()) {
+	if (list.error != Error::None || list.files.empty()) {
 		return false;
 	}
+	if (list.files.front().type == Storage::PreparedFile::AlbumType::None
+		&& _isAlbum) {
+		Ui::show(
+			Box<InformBox>(lang(lng_edit_media_album_error)),
+			LayerOption::KeepOther);
+		return false;
+	}
+
+	_preparedList = std::move(list);
 	updateEditPreview();
 	return true;
 }
