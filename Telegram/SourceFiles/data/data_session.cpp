@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "core/application.h"
-#include "core/crash_reports.h" // for CrashReports::SetAnnotation
+#include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
-#include "ui/image/image_source.h" // for Images::LocalFileSource
+#include "ui/image/image_source.h" // Images::LocalFileSource
 #include "export/export_controller.h"
 #include "export/view/export_view_panel_controller.h"
 #include "window/notifications_manager.h"
@@ -25,11 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
 #include "storage/storage_encrypted_file.h"
-#include "media/player/media_player_instance.h" // for instance()->play().
+#include "media/player/media_player_instance.h" // instance()->play()
+#include "media/streaming/media_streaming_loader.h" // unique_ptr<Loader>
+#include "media/streaming/media_streaming_reader.h" // make_shared<Reader>
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
-#include "lang/lang_keys.h" // for lang(lng_deleted) in user name.
+#include "lang/lang_keys.h" // lang(lng_deleted) in user name
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
@@ -41,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
-#include "styles/style_boxes.h" // for st::backgroundSize
+#include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {
 namespace {
@@ -148,6 +150,26 @@ rpl::producer<int> PinnedDialogsCountMaxValue() {
 	) | rpl::map([=] {
 		return Global::PinnedDialogsCountMax();
 	});
+}
+
+bool PruneDestroyedAndSet(
+		base::flat_map<
+			not_null<DocumentData*>,
+			std::weak_ptr<::Media::Streaming::Reader>> &readers,
+		not_null<DocumentData*> document,
+		const std::shared_ptr<::Media::Streaming::Reader> &reader) {
+	auto result = false;
+	for (auto i = begin(readers); i != end(readers);) {
+		if (i->first == document) {
+			(i++)->second = reader;
+			result = true;
+		} else if (i->second.lock() != nullptr) {
+			++i;
+		} else {
+			i = readers.erase(i);
+		}
+	}
+	return result;
 }
 
 } // namespace
@@ -1065,6 +1087,28 @@ void Session::requestDocumentViewRepaint(
 			requestItemRepaint(item);
 		}
 	}
+}
+
+std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
+		not_null<DocumentData*> document,
+		FileOrigin origin) {
+	const auto i = _streamedReaders.find(document);
+	if (i != end(_streamedReaders)) {
+		if (auto result = i->second.lock()) {
+			return result;
+		}
+	}
+	auto loader = document->createStreamingLoader(origin);
+	if (!loader) {
+		return nullptr;
+	}
+	auto result = std::make_shared<::Media::Streaming::Reader>(
+		this,
+		std::move(loader));
+	if (!PruneDestroyedAndSet(_streamedReaders, document, result)) {
+		_streamedReaders.emplace(document, result);
+	}
+	return result;
 }
 
 void Session::requestPollViewRepaint(not_null<const PollData*> poll) {

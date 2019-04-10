@@ -229,7 +229,7 @@ float64 FileLoader::currentProgress() const {
 	return snap(float64(currentOffset()) / fullSize(), 0., 1.);
 }
 
-int32 FileLoader::fullSize() const {
+int FileLoader::fullSize() const {
 	return _size;
 }
 
@@ -281,7 +281,7 @@ void FileLoader::removeFromQueue() {
 	if (_queue->start == this) {
 		_queue->start = _next;
 	}
-	_next = _prev = 0;
+	_next = _prev = nullptr;
 	_inQueue = false;
 }
 
@@ -331,7 +331,7 @@ void FileLoader::start(bool loadFirst, bool prior) {
 	}
 
 	auto currentPriority = _downloader->currentPriority();
-	FileLoader *before = 0, *after = 0;
+	FileLoader *before = nullptr, *after = nullptr;
 	if (prior) {
 		if (_inQueue && _priority == currentPriority) {
 			if (loadFirst) {
@@ -491,7 +491,7 @@ void FileLoader::cancel() {
 }
 
 void FileLoader::cancel(bool fail) {
-	bool started = currentOffset(true) > 0;
+	const auto started = (currentOffset() > 0);
 	cancelRequests();
 	_cancelled = true;
 	_finished = true;
@@ -598,9 +598,8 @@ mtpFileLoader::mtpFileLoader(
 	_queue = &i.value();
 }
 
-int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
-	return (_fileIsOpen ? _file.size() : _data.size())
-		- (includeSkipped ? 0 : _skippedBytes);
+int mtpFileLoader::currentOffset() const {
+	return (_fileIsOpen ? _file.size() : _data.size()) - _skippedBytes;
 }
 
 Data::FileOrigin mtpFileLoader::fileOrigin() const {
@@ -1218,7 +1217,7 @@ bool webFileLoader::loadPart() {
 	return false;
 }
 
-int32 webFileLoader::currentOffset(bool includeSkipped) const {
+int webFileLoader::currentOffset() const {
 	return _already;
 }
 
@@ -1359,8 +1358,8 @@ void stopWebLoadManager() {
 		delete _webLoadManager;
 		delete _webLoadMainManager;
 		delete _webLoadThread;
-		_webLoadThread = 0;
-		_webLoadMainManager = 0;
+		_webLoadThread = nullptr;
+		_webLoadMainManager = nullptr;
 		_webLoadManager = FinishedWebLoadManager;
 	}
 }
@@ -1515,9 +1514,9 @@ void WebLoadManager::onMeta() {
 	const auto loader = j.value();
 
 	const auto pairs = reply->rawHeaderPairs();
-	for (auto i = pairs.begin(), e = pairs.end(); i != e; ++i) {
-		if (QString::fromUtf8(i->first).toLower() == "content-range") {
-			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(i->second));
+	for (const auto &pair : pairs) {
+		if (QString::fromUtf8(pair.first).toLower() == "content-range") {
+			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(pair.second));
 			if (m.hasMatch()) {
 				loader->setProgress(qMax(qint64(loader->data().size()), loader->already()), m.captured(1).toLongLong());
 				if (!handleReplyResult(loader, WebReplyProcessProgress)) {
@@ -1598,19 +1597,19 @@ void WebLoadManager::finish() {
 
 void WebLoadManager::clear() {
 	QMutexLocker lock(&_loaderPointersMutex);
-	for (LoaderPointers::iterator i = _loaderPointers.begin(), e = _loaderPointers.end(); i != e; ++i) {
+	for (auto i = _loaderPointers.begin(), e = _loaderPointers.end(); i != e; ++i) {
 		if (i.value()) {
-			i.key()->_private = 0;
+			i.key()->_private = nullptr;
 		}
 	}
 	_loaderPointers.clear();
 
-	for_const (webFileLoaderPrivate *loader, _loaders) {
+	for (const auto loader : _loaders) {
 		delete loader;
 	}
 	_loaders.clear();
 
-	for (Replies::iterator i = _replies.begin(), e = _replies.end(); i != e; ++i) {
+	for (auto i = _replies.begin(), e = _replies.end(); i != e; ++i) {
 		delete i.key();
 	}
 	_replies.clear();

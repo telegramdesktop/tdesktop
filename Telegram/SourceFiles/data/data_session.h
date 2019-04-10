@@ -39,6 +39,9 @@ namespace Media {
 namespace Clip {
 class Reader;
 } // namespace Clip
+namespace Streaming {
+class Reader;
+} // namespace Streaming
 } // namespace Media
 
 namespace Export {
@@ -396,6 +399,10 @@ public:
 	void requestDocumentViewRepaint(not_null<const DocumentData*> document);
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
+
+	std::shared_ptr<::Media::Streaming::Reader> documentStreamedReader(
+		not_null<DocumentData*> document,
+		FileOrigin origin);
 
 	HistoryItem *addNewMessage(const MTPMessage &data, NewMessageType type);
 
@@ -915,8 +922,13 @@ private:
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
 
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::weak_ptr<::Media::Streaming::Reader>> _streamedReaders;
+
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
+
 	Groups _groups;
 	std::unordered_map<
 		not_null<const HistoryItem*>,

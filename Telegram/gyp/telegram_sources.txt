@@ -683,6 +683,8 @@
 <(src_loc)/storage/storage_sparse_ids_list.h
 <(src_loc)/storage/storage_user_photos.cpp
 <(src_loc)/storage/storage_user_photos.h
+<(src_loc)/storage/streamed_file_downloader.cpp
+<(src_loc)/storage/streamed_file_downloader.h
 <(src_loc)/support/support_autocomplete.cpp
 <(src_loc)/support/support_autocomplete.h
 <(src_loc)/support/support_common.cpp

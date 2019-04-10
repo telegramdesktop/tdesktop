@@ -78,8 +78,8 @@ void SaveValidStartInformation(Information &to, Information &&from) {
 
 Player::Player(
 	not_null<Data::Session*> owner,
-	std::unique_ptr<Loader> loader)
-: _file(std::make_unique<File>(owner, std::move(loader)))
+	std::shared_ptr<Reader> reader)
+: _file(std::make_unique<File>(owner, std::move(reader)))
 , _remoteLoader(_file->isRemoteLoader())
 , _renderFrameTimer([=] { checkNextFrameRender(); }) {
 }

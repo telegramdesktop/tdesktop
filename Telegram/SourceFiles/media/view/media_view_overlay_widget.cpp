@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
 #include "media/streaming/media_streaming_player.h"
-#include "media/streaming/media_streaming_loader.h"
+#include "media/streaming/media_streaming_reader.h"
 #include "media/player/media_player_instance.h"
 #include "lottie/lottie_animation.h"
 #include "history/history.h"
@@ -172,7 +172,7 @@ struct OverlayWidget::Streamed {
 	template <typename Callback>
 	Streamed(
 		not_null<Data::Session*> owner,
-		std::unique_ptr<Streaming::Loader> loader,
+		std::shared_ptr<Streaming::Reader> reader,
 		QWidget *controlsParent,
 		not_null<PlaybackControls::Delegate*> controlsDelegate,
 		Callback &&loadingCallback);
@@ -201,11 +201,11 @@ struct OverlayWidget::LottieFile {
 template <typename Callback>
 OverlayWidget::Streamed::Streamed(
 	not_null<Data::Session*> owner,
-	std::unique_ptr<Streaming::Loader> loader,
+	std::shared_ptr<Streaming::Reader> reader,
 	QWidget *controlsParent,
 	not_null<PlaybackControls::Delegate*> controlsDelegate,
 	Callback &&loadingCallback)
-: player(owner, std::move(loader))
+: player(owner, std::move(reader))
 , controls(controlsParent, controlsDelegate)
 , radial(
 	std::forward<Callback>(loadingCallback),
@@ -2042,7 +2042,7 @@ void OverlayWidget::streamingReady(Streaming::Information &&info) {
 void OverlayWidget::createStreamingObjects() {
 	_streamed = std::make_unique<Streamed>(
 		&_doc->owner(),
-		_doc->createStreamingLoader(fileOrigin()),
+		_doc->owner().documentStreamedReader(_doc, fileOrigin()),
 		this,
 		static_cast<PlaybackControls::Delegate*>(this),
 		[=] { waitingAnimationCallback(); });

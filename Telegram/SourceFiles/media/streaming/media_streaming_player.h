@@ -25,7 +25,7 @@ struct TrackState;
 namespace Media {
 namespace Streaming {
 
-class Loader;
+class Reader;
 class File;
 class AudioTrack;
 class VideoTrack;
@@ -33,7 +33,7 @@ class VideoTrack;
 class Player final : private FileDelegate {
 public:
 	// Public interfaces is used from the main thread.
-	Player(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
+	Player(not_null<Data::Session*> owner, std::shared_ptr<Reader> reader);
 
 	// Because we remember 'this' in calls to crl::on_main.
 	Player(const Player &other) = delete;

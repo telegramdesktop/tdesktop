@@ -17,7 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "media/streaming/media_streaming_loader_mtproto.h"
+#include "media/streaming/media_streaming_loader_local.h"
 #include "storage/localstorage.h"
+#include "storage/streamed_file_downloader.h"
 #include "platform/platform_specific.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -29,8 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lottie/lottie_animation.h"
-#include "media/streaming/media_streaming_loader_mtproto.h"
-#include "media/streaming/media_streaming_loader_local.h"
 
 namespace {
 
@@ -736,7 +737,7 @@ void DocumentData::automaticLoadSettingsChanged() {
 bool DocumentData::loaded(FilePathResolve resolve) const {
 	if (loading() && _loader->finished()) {
 		if (_loader->cancelled()) {
-			destroyLoader(CancelledMtpFileLoader);
+			destroyLoader(CancelledFileLoader);
 		} else {
 			auto that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(_loader->fileName());
@@ -768,7 +769,7 @@ bool DocumentData::loaded(FilePathResolve resolve) const {
 	return !data().isEmpty() || !filepath(resolve).isEmpty();
 }
 
-void DocumentData::destroyLoader(mtpFileLoader *newValue) const {
+void DocumentData::destroyLoader(FileLoader *newValue) const {
 	const auto loader = std::exchange(_loader, newValue);
 	if (cancelled()) {
 		loader->cancel();
@@ -803,7 +804,7 @@ float64 DocumentData::progress() const {
 	return loading() ? _loader->currentProgress() : (loaded() ? 1. : 0.);
 }
 
-int32 DocumentData::loadOffset() const {
+int DocumentData::loadOffset() const {
 	return loading() ? _loader->currentOffset() : 0;
 }
 
@@ -854,7 +855,7 @@ void DocumentData::save(
 	}
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
-			cancel(); // changes _actionOnLoad
+			cancel();
 			_loader = nullptr;
 		}
 	}
@@ -865,7 +866,22 @@ void DocumentData::save(
 		}
 	} else {
 		status = FileReady;
-		if (hasWebLocation()) {
+/*		if (auto reader = owner().documentStreamedReader(this, origin)) {
+			_loader = new Storage::StreamedFileDownloader(
+				id,
+				origin,
+				(saveToCache()
+					? std::make_optional(Data::DocumentCacheKey(_dc, id))
+					: std::nullopt),
+				std::move(reader),
+				toFile,
+				size,
+				locationType(),
+				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
+				fromCloud,
+				autoLoading,
+				cacheTag());
+		} else */if (hasWebLocation()) {
 			_loader = new mtpFileLoader(
 				_urlLocation,
 				size,
@@ -913,13 +929,13 @@ void DocumentData::cancel() {
 		return;
 	}
 
-	destroyLoader(CancelledMtpFileLoader);
+	destroyLoader(CancelledFileLoader);
 	_owner->notifyDocumentLayoutChanged(this);
 	App::main()->documentLoadProgress(this);
 }
 
 bool DocumentData::cancelled() const {
-	return (_loader == CancelledMtpFileLoader);
+	return (_loader == CancelledFileLoader);
 }
 
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {

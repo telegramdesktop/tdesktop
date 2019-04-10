@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/streaming/media_streaming_player.h"
-#include "media/streaming/media_streaming_loader.h"
+#include "media/streaming/media_streaming_reader.h"
 #include "media/view/media_view_playback_progress.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
@@ -59,7 +59,7 @@ struct Instance::Streamed {
 	Streamed(
 		AudioMsgId id,
 		not_null<::Data::Session*> owner,
-		std::unique_ptr<Streaming::Loader> loader);
+		std::shared_ptr<Streaming::Reader> reader);
 
 	AudioMsgId id;
 	Streaming::Player player;
@@ -71,9 +71,9 @@ struct Instance::Streamed {
 Instance::Streamed::Streamed(
 	AudioMsgId id,
 	not_null<::Data::Session*> owner,
-	std::unique_ptr<Streaming::Loader> loader)
+	std::shared_ptr<Streaming::Reader> reader)
 : id(id)
-, player(owner, std::move(loader)) {
+, player(owner, std::move(reader)) {
 }
 
 Instance::Data::Data(AudioMsgId::Type type, SharedMediaType overview)
@@ -355,11 +355,13 @@ void Instance::play(const AudioMsgId &audioId) {
 	if (document->isAudioFile()
 		|| document->isVoiceMessage()
 		|| document->isVideoMessage()) {
-		auto loader = document->createStreamingLoader(audioId.contextId());
-		if (!loader) {
+		auto reader = document->owner().documentStreamedReader(
+			document,
+			audioId.contextId());
+		if (!reader) {
 			return;
 		}
-		playStreamed(audioId, std::move(loader));
+		playStreamed(audioId, std::move(reader));
 	}
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
 		document->owner().markMediaRead(document);
@@ -378,7 +380,7 @@ void Instance::playPause(const AudioMsgId &audioId) {
 
 void Instance::playStreamed(
 		const AudioMsgId &audioId,
-		std::unique_ptr<Streaming::Loader> loader) {
+		std::shared_ptr<Streaming::Reader> reader) {
 	Expects(audioId.audio() != nullptr);
 
 	const auto data = getData(audioId.type());
@@ -388,7 +390,7 @@ void Instance::playStreamed(
 	data->streamed = std::make_unique<Streamed>(
 		audioId,
 		&audioId.audio()->owner(),
-		std::move(loader));
+		std::move(reader));
 
 	data->streamed->player.updates(
 	) | rpl::start_with_next_error([=](Streaming::Update &&update) {

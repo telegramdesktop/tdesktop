@@ -22,12 +22,11 @@ class Session;
 namespace Media {
 namespace Streaming {
 
-class Loader;
 class FileDelegate;
 
 class File final {
 public:
-	File(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
+	File(not_null<Data::Session*> owner, std::shared_ptr<Reader> reader);
 
 	File(const File &other) = delete;
 	File &operator=(const File &other) = delete;
@@ -98,7 +97,7 @@ private:
 	};
 
 	std::optional<Context> _context;
-	Reader _reader;
+	std::shared_ptr<Reader> _reader;
 	std::thread _thread;
 
 };

@@ -59,9 +59,6 @@ public:
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file);
 
-	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
-	int32 fullSize(const FullMsgId &msgId) const;
-
 	void cancel(const FullMsgId &msgId);
 	void pause(const FullMsgId &msgId);
 	void confirm(const FullMsgId &msgId);

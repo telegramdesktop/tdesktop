@@ -26,7 +26,7 @@ class PlaybackProgress;
 namespace Media {
 namespace Streaming {
 class Player;
-class Loader;
+class Reader;
 struct PlaybackOptions;
 struct Update;
 enum class Error;
@@ -195,7 +195,7 @@ private:
 	void setupShortcuts();
 	void playStreamed(
 		const AudioMsgId &audioId,
-		std::unique_ptr<Streaming::Loader> loader);
+		std::shared_ptr<Streaming::Reader> reader);
 	Streaming::PlaybackOptions streamingOptions(
 		const AudioMsgId &audioId,
 		crl::time position = 0);

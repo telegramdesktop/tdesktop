@@ -106,8 +106,8 @@ public:
 	}
 	virtual Data::FileOrigin fileOrigin() const;
 	float64 currentProgress() const;
-	virtual int32 currentOffset(bool includeSkipped = false) const = 0;
-	int32 fullSize() const;
+	virtual int currentOffset() const = 0;
+	int fullSize() const;
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
@@ -191,8 +191,8 @@ protected:
 
 	QByteArray _data;
 
-	int32 _size;
-	LocationType _locationType;
+	int _size = 0;
+	LocationType _locationType = LocationType();
 
 	base::binary_guard _localLoading;
 	mutable QByteArray _imageFormat;
@@ -227,7 +227,7 @@ public:
 		bool autoLoading,
 		uint8 cacheTag);
 
-	int32 currentOffset(bool includeSkipped = false) const override;
+	int currentOffset() const override;
 	Data::FileOrigin fileOrigin() const override;
 
 	uint64 objId() const override;
@@ -325,7 +325,7 @@ public:
 		bool autoLoading,
 		uint8 cacheTag);
 
-	int32 currentOffset(bool includeSkipped = false) const override;
+	int currentOffset() const override;
 
 	void onProgress(qint64 already, qint64 size);
 	void onFinished(const QByteArray &data);

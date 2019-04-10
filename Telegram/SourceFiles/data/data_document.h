@@ -112,7 +112,7 @@ public:
 	void cancel();
 	[[nodiscard]] bool cancelled() const;
 	[[nodiscard]] float64 progress() const;
-	[[nodiscard]] int32 loadOffset() const;
+	[[nodiscard]] int loadOffset() const;
 	[[nodiscard]] bool uploading() const;
 
 	void setWaitingForAlbum();
@@ -247,7 +247,7 @@ private:
 	void validateGoodThumbnail();
 	void setMaybeSupportsStreaming(bool supports);
 
-	void destroyLoader(mtpFileLoader *newValue = nullptr) const;
+	void destroyLoader(FileLoader *newValue = nullptr) const;
 
 	[[nodiscard]] bool thumbnailEnoughForSticker() const;
 

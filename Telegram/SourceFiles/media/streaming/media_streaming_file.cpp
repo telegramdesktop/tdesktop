@@ -327,14 +327,14 @@ bool File::Context::finished() const {
 
 File::File(
 	not_null<Data::Session*> owner,
-	std::unique_ptr<Loader> loader)
-: _reader(owner, std::move(loader)) {
+	std::shared_ptr<Reader> reader)
+: _reader(std::move(reader)) {
 }
 
 void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 	stop();
 
-	_context.emplace(delegate, &_reader);
+	_context.emplace(delegate, _reader.get());
 	_thread = std::thread([=, context = &*_context] {
 		context->start(position);
 		while (!context->finished()) {
@@ -354,12 +354,12 @@ void File::stop() {
 		_context->interrupt();
 		_thread.join();
 	}
-	_reader.stop();
+	_reader->stop();
 	_context.reset();
 }
 
 bool File::isRemoteLoader() const {
-	return _reader.isRemoteLoader();
+	return _reader->isRemoteLoader();
 }
 
 File::~File() {
