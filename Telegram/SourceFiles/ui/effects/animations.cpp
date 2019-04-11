@@ -53,22 +53,21 @@ void Basic::markStopped() {
 
 Manager::Manager() {
 	Core::Sandbox::Instance().widgetUpdateRequests(
-	/*) | rpl::filter([=] {
+	) | rpl::filter([=] {
 		return (_lastUpdateTime + kIgnoreUpdatesTimeout < crl::now());
-	}*/) | rpl::start_with_next([=] {
-		update(UpdateSource::RepaintRequest);
+	}) | rpl::start_with_next([=] {
+		update();
 	}, _lifetime);
 }
 
 void Manager::start(not_null<Basic*> animation) {
-	_forceUpdateProcessing = true;
+	_forceImmediateUpdate = true;
 	if (_updating) {
 		_starting.emplace_back(animation.get());
-		return;
+	} else {
+		schedule();
+		_active.emplace_back(animation.get());
 	}
-	_active.emplace_back(animation.get());
-	startTimer();
-	updateQueued();
 }
 
 void Manager::stop(not_null<Basic*> animation) {
@@ -90,16 +89,15 @@ void Manager::stop(not_null<Basic*> animation) {
 	}
 }
 
-void Manager::update(UpdateSource source) {
-	if (_active.empty() || _updating) {
+void Manager::update() {
+	if (_active.empty() || _updating || _scheduled) {
 		return;
 	}
 	const auto now = crl::now();
-	if (_forceUpdateProcessing) {
-		_forceUpdateProcessing = false;
-	} else if (now < _lastUpdateTime + kIgnoreUpdatesTimeout) {
-		return;
+	if (_forceImmediateUpdate) {
+		_forceImmediateUpdate = false;
 	}
+	schedule();
 
 	_updating = true;
 	const auto guard = gsl::finally([&] { _updating = false; });
@@ -110,30 +108,48 @@ void Manager::update(UpdateSource source) {
 	};
 	_active.erase(ranges::remove_if(_active, isFinished), end(_active));
 
-	if (empty(_starting)) {
-		if (empty(_active)) {
-			stopTimer();
-		}
-		return;
-	}
-	_active.insert(
-		end(_active),
-		std::make_move_iterator(begin(_starting)),
-		std::make_move_iterator(end(_starting)));
-	_starting.clear();
-	if (_forceUpdateProcessing) {
-		updateQueued();
+	if (!empty(_starting)) {
+		_active.insert(
+			end(_active),
+			std::make_move_iterator(begin(_starting)),
+			std::make_move_iterator(end(_starting)));
+		_starting.clear();
 	}
 }
 
 void Manager::updateQueued() {
-	if (_queued) {
+	Expects(_timerId == 0);
+
+	_timerId = -1;
+	crl::on_main(delayedCallGuard(), [=] {
+		Expects(_timerId < 0);
+
+		_timerId = 0;
+		update();
+	});
+}
+
+void Manager::schedule() {
+	if (_scheduled || _timerId < 0) {
 		return;
 	}
-	_queued = true;
-	crl::on_main(delayedCallGuard(), [=] {
-		_queued = false;
-		update(UpdateSource::Queued);
+	stopTimer();
+
+	_scheduled = true;
+	Ui::PostponeCall(delayedCallGuard(), [=] {
+		_scheduled = false;
+		if (_forceImmediateUpdate) {
+			_forceImmediateUpdate = false;
+			updateQueued();
+		} else {
+			const auto next = _lastUpdateTime + kAnimationTimeout;
+			const auto now = crl::now();
+			if (now < next) {
+				_timerId = startTimer(next - now, Qt::PreciseTimer);
+			} else {
+				updateQueued();
+			}
+		}
 	});
 }
 
@@ -141,22 +157,14 @@ not_null<const QObject*> Manager::delayedCallGuard() const {
 	return static_cast<const QObject*>(this);
 }
 
-void Manager::startTimer() {
-	if (_timerId) {
-		return;
-	}
-	_timerId = QObject::startTimer(kAnimationTick, Qt::PreciseTimer);
-}
-
 void Manager::stopTimer() {
-	if (!_timerId) {
-		return;
+	if (_timerId > 0) {
+		killTimer(base::take(_timerId));
 	}
-	killTimer(base::take(_timerId));
 }
 
 void Manager::timerEvent(QTimerEvent *e) {
-	update(UpdateSource::TimerEvent);
+	update();
 }
 
 } // namespace Animations

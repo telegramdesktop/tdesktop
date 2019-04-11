@@ -101,13 +101,9 @@ class Manager final : private QObject {
 public:
 	Manager();
 
-private:
-	enum class UpdateSource {
-		Queued,
-		TimerEvent,
-		RepaintRequest,
-	};
+	void update();
 
+private:
 	class ActiveBasicPointer {
 	public:
 		ActiveBasicPointer(Basic *value = nullptr) : _value(value) {
@@ -155,21 +151,20 @@ private:
 	friend class Basic;
 
 	void timerEvent(QTimerEvent *e) override;
-	void update(UpdateSource source);
 
 	void start(not_null<Basic*> animation);
 	void stop(not_null<Basic*> animation);
 
+	void schedule();
 	void updateQueued();
-	void startTimer();
 	void stopTimer();
 	not_null<const QObject*> delayedCallGuard() const;
 
 	crl::time _lastUpdateTime = 0;
 	int _timerId = 0;
 	bool _updating = false;
-	bool _queued = false;
-	bool _forceUpdateProcessing = false;
+	bool _scheduled = false;
+	bool _forceImmediateUpdate = false;
 	std::vector<ActiveBasicPointer> _active;
 	std::vector<ActiveBasicPointer> _starting;
 	rpl::lifetime _lifetime;
