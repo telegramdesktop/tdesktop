@@ -89,6 +89,7 @@ private:
 	void streamReady(Information &&information);
 	void streamFailed(Error error);
 	void start();
+	void stop(bool stillActive);
 	void provideStartInformation();
 	void fail(Error error);
 	void checkVideoStep();

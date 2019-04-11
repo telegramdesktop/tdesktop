@@ -265,7 +265,9 @@ void File::Context::readNextPacket() {
 		const auto more = _delegate->fileProcessPacket(std::move(*packet));
 		if (!more) {
 			do {
+				_reader->startSleep(&_semaphore);
 				_semaphore.acquire();
+				_reader->stopSleep();
 			} while (!unroll() && !_delegate->fileReadMore());
 		}
 	} else {
@@ -332,8 +334,9 @@ File::File(
 }
 
 void File::start(not_null<FileDelegate*> delegate, crl::time position) {
-	stop();
+	stop(true);
 
+	_reader->startStreaming();
 	_context.emplace(delegate, _reader.get());
 	_thread = std::thread([=, context = &*_context] {
 		context->start(position);
@@ -349,12 +352,12 @@ void File::wake() {
 	_context->wake();
 }
 
-void File::stop() {
+void File::stop(bool stillActive) {
 	if (_thread.joinable()) {
 		_context->interrupt();
 		_thread.join();
 	}
-	_reader->stop();
+	_reader->stopStreaming(stillActive);
 	_context.reset();
 }
 

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "base/bytes.h"
 #include "base/weak_ptr.h"
-#include "base/thread_safe_queue.h"
+#include "base/thread_safe_wrap.h"
 
 namespace Storage {
 namespace Cache {
@@ -45,9 +45,15 @@ public:
 		not_null<crl::semaphore*> notify);
 	[[nodiscard]] std::optional<Error> failed() const;
 	void headerDone();
-	void stop();
+
+	// Thread safe.
+	void startSleep(not_null<crl::semaphore*> wake);
+	void wakeFromSleep();
+	void stopSleep();
 
 	// Main thread.
+	void startStreaming();
+	void stopStreaming(bool stillActive = false);
 	[[nodiscard]] rpl::producer<LoadedPart> partsForDownloader() const;
 	void loadForDownloader(int offset);
 	void cancelForDownloader();
@@ -184,6 +190,8 @@ private:
 
 	void finalizeCache();
 
+	void processDownloaderRequests();
+
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey);
 
@@ -193,6 +201,7 @@ private:
 
 	base::thread_safe_queue<LoadedPart> _loadedParts;
 	std::atomic<crl::semaphore*> _waiting = nullptr;
+	std::atomic<crl::semaphore*> _sleeping = nullptr;
 	PriorityQueue _loadingOffsets;
 
 	Slices _slices;
@@ -203,6 +212,7 @@ private:
 
 	// Main thread.
 	rpl::event_stream<LoadedPart> _partsForDownloader;
+	bool _streamingActive = false;
 	rpl::lifetime _lifetime;
 
 };

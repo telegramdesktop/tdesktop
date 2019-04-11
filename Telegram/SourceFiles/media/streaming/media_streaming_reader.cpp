@@ -713,8 +713,8 @@ Reader::Reader(
 
 		_loadedParts.emplace(std::move(part));
 
-		if (const auto waiting = _waiting.load()) {
-			_waiting = nullptr;
+		if (const auto waiting = _waiting.load(std::memory_order_acquire)) {
+			_waiting.store(nullptr, std::memory_order_release);
 			waiting->release();
 		}
 	}, _lifetime);
@@ -724,8 +724,34 @@ Reader::Reader(
 	}
 }
 
-void Reader::stop() {
-	_waiting = nullptr;
+void Reader::startSleep(not_null<crl::semaphore*> wake) {
+	_sleeping.store(wake, std::memory_order_release);
+	processDownloaderRequests();
+}
+
+void Reader::wakeFromSleep() {
+	if (const auto sleeping = _sleeping.load(std::memory_order_acquire)) {
+		_sleeping.store(nullptr, std::memory_order_release);
+		sleeping->release();
+	}
+}
+
+void Reader::stopSleep() {
+	_sleeping.store(nullptr, std::memory_order_release);
+}
+
+void Reader::startStreaming() {
+	_streamingActive = true;
+}
+
+void Reader::stopStreaming(bool stillActive) {
+	Expects(_sleeping == nullptr);
+
+	_waiting.store(nullptr, std::memory_order_release);
+	if (!stillActive) {
+		_streamingActive = false;
+		processDownloaderRequests();
+	}
 }
 
 rpl::producer<LoadedPart> Reader::partsForDownloader() const {
@@ -735,7 +761,11 @@ rpl::producer<LoadedPart> Reader::partsForDownloader() const {
 void Reader::loadForDownloader(int offset) {
 	_downloaderAttached.store(true, std::memory_order_release);
 	_downloaderOffsetRequests.emplace(offset);
-	AssertIsDebug(); // wake?
+	if (_streamingActive) {
+		wakeFromSleep();
+	} else {
+		processDownloaderRequests();
+	}
 }
 
 void Reader::cancelForDownloader() {
@@ -743,6 +773,10 @@ void Reader::cancelForDownloader() {
 		_downloaderOffsetRequests.take();
 		_downloaderAttached.store(false, std::memory_order_release);
 	}
+}
+
+void Reader::processDownloaderRequests() {
+
 }
 
 bool Reader::isRemoteLoader() const {
@@ -772,7 +806,7 @@ void Reader::readFromCache(int sliceNumber) {
 			QMutexLocker lock(&strong->mutex);
 			strong->results.emplace(sliceNumber, std::move(result));
 			if (const auto waiting = strong->waiting.load()) {
-				strong->waiting = nullptr;
+				strong->waiting.store(nullptr, std::memory_order_release);
 				waiting->release();
 			}
 		}
@@ -810,12 +844,12 @@ bool Reader::fill(
 		if (_cacheHelper) {
 			_cacheHelper->waiting = notify.get();
 		}
-		_waiting = notify.get();
+		_waiting.store(notify.get(), std::memory_order_release);
 	};
 	const auto clearWaiting = [&] {
-		_waiting = nullptr;
+		_waiting.store(nullptr, std::memory_order_release);
 		if (_cacheHelper) {
-			_cacheHelper->waiting = nullptr;
+			_cacheHelper->waiting.store(nullptr, std::memory_order_release);
 		}
 	};
 	const auto done = [&] {
@@ -929,6 +963,7 @@ bool Reader::processLoadedParts() {
 		return false;
 	}
 
+
 	auto loaded = _loadedParts.take();
 	for (auto &part : loaded) {
 		if (part.offset == LoadedPart::kFailedOffset
@@ -958,7 +993,7 @@ void Reader::finalizeCache() {
 	}
 	if (_cacheHelper->waiting != nullptr) {
 		QMutexLocker lock(&_cacheHelper->mutex);
-		_cacheHelper->waiting = nullptr;
+		_cacheHelper->waiting.store(nullptr, std::memory_order_release);
 	}
 	auto toCache = _slices.unloadToCache();
 	while (toCache.number >= 0) {

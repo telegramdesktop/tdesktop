@@ -33,7 +33,7 @@ public:
 
 	void start(not_null<FileDelegate*> delegate, crl::time position);
 	void wake();
-	void stop();
+	void stop(bool stillActive = false);
 
 	[[nodiscard]] bool isRemoteLoader() const;
 

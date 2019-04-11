@@ -464,7 +464,7 @@ void Player::play(const PlaybackOptions &options) {
 
 	const auto previous = getCurrentReceivedTill(computeTotalDuration());
 
-	stop();
+	stop(true);
 	_lastFailure = std::nullopt;
 
 	savePreviousReceivedTill(options, previous);
@@ -540,6 +540,10 @@ void Player::resume() {
 
 	_pausedByUser = false;
 	updatePausedState();
+}
+
+void Player::stop() {
+	stop(false);
 }
 
 void Player::updatePausedState() {
@@ -680,8 +684,8 @@ void Player::checkVideoStep() {
 	}
 }
 
-void Player::stop() {
-	_file->stop();
+void Player::stop(bool stillActive) {
+	_file->stop(stillActive);
 	_sessionLifetime = rpl::lifetime();
 	_stage = Stage::Uninitialized;
 	_audio = nullptr;
