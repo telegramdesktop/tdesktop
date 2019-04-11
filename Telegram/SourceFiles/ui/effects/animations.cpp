@@ -121,7 +121,7 @@ void Manager::updateQueued() {
 	Expects(_timerId == 0);
 
 	_timerId = -1;
-	crl::on_main(delayedCallGuard(), [=] {
+	InvokeQueued(delayedCallGuard(), [=] {
 		Expects(_timerId < 0);
 
 		_timerId = 0;
@@ -142,7 +142,7 @@ void Manager::schedule() {
 			_forceImmediateUpdate = false;
 			updateQueued();
 		} else {
-			const auto next = _lastUpdateTime + kAnimationTimeout;
+			const auto next = _lastUpdateTime + kAnimationTick;
 			const auto now = crl::now();
 			if (now < next) {
 				_timerId = startTimer(next - now, Qt::PreciseTimer);

@@ -94,7 +94,7 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 #define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
 
 template <typename Lambda>
-inline void InvokeQueued(QObject *context, Lambda &&lambda) {
+inline void InvokeQueued(const QObject *context, Lambda &&lambda) {
 	QObject proxy;
 	QObject::connect(&proxy, &QObject::destroyed, context, std::forward<Lambda>(lambda), Qt::QueuedConnection);
 }
