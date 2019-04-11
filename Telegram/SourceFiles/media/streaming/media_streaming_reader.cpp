@@ -670,6 +670,18 @@ QByteArray Reader::Slices::serializeAndUnloadFirstSliceNoHeader() {
 	return result;
 }
 
+template <typename Callback>
+void Reader::Slices::enumerateParts(int sliceNumber, Callback &&callback) {
+	const auto shift = sliceNumber ? ((sliceNumber - 1) * kInSlice) : 0;
+	const auto &slice = (sliceNumber ? _data[sliceNumber - 1] : _header);
+	for (const auto &[offset, bytes] : slice.parts) {
+		callback(LoadedPart{ offset + shift, bytes });
+	}
+	if (!sliceNumber && isGoodHeader()) {
+		enumerateParts(1, std::forward<Callback>(callback));
+	}
+}
+
 Reader::SerializedSlice Reader::Slices::unloadToCache() {
 	if (_headerMode == HeaderMode::Unknown
 		|| _headerMode == HeaderMode::NoCache) {
@@ -695,9 +707,11 @@ Reader::Reader(
 , _slices(_loader->size(), _cacheHelper != nullptr) {
 	_loader->parts(
 	) | rpl::start_with_next([=](LoadedPart &&part) {
-		QMutexLocker lock(&_loadedPartsMutex);
-		_loadedParts.push_back(std::move(part));
-		lock.unlock();
+		if (_downloaderAttached.load(std::memory_order_acquire)) {
+			_partsForDownloader.fire_copy(part);
+		}
+
+		_loadedParts.emplace(std::move(part));
 
 		if (const auto waiting = _waiting.load()) {
 			_waiting = nullptr;
@@ -712,6 +726,23 @@ Reader::Reader(
 
 void Reader::stop() {
 	_waiting = nullptr;
+}
+
+rpl::producer<LoadedPart> Reader::partsForDownloader() const {
+	return _partsForDownloader.events();
+}
+
+void Reader::loadForDownloader(int offset) {
+	_downloaderAttached.store(true, std::memory_order_release);
+	_downloaderOffsetRequests.emplace(offset);
+	AssertIsDebug(); // wake?
+}
+
+void Reader::cancelForDownloader() {
+	if (_downloaderAttached.load(std::memory_order_acquire)) {
+		_downloaderOffsetRequests.take();
+		_downloaderAttached.store(false, std::memory_order_release);
+	}
 }
 
 bool Reader::isRemoteLoader() const {
@@ -870,13 +901,27 @@ bool Reader::processCacheResults() {
 	}
 
 	QMutexLocker lock(&_cacheHelper->mutex);
-	auto loaded = base::take(_cacheHelper->results);
+	const auto loaded = base::take(_cacheHelper->results);
 	lock.unlock();
 
 	for (const auto &[sliceNumber, result] : loaded) {
 		_slices.processCacheResult(sliceNumber, bytes::make_span(result));
 	}
+	if (_downloaderAttached.load(std::memory_order_acquire)) {
+		for (const auto &[sliceNumber, result] : loaded) {
+			sendPartsToDownloader(sliceNumber);
+		}
+	}
 	return !loaded.empty();
+}
+
+void Reader::sendPartsToDownloader(int sliceNumber) {
+	_slices.enumerateParts(sliceNumber, [&](LoadedPart &&part) {
+		crl::on_main(this, [=, part = std::move(part)]() mutable {
+			AssertIsDebug(); // maybe send them with small timeout?
+			_partsForDownloader.fire(std::move(part));
+		});
+	});
 }
 
 bool Reader::processLoadedParts() {
@@ -884,10 +929,7 @@ bool Reader::processLoadedParts() {
 		return false;
 	}
 
-	QMutexLocker lock(&_loadedPartsMutex);
-	auto loaded = base::take(_loadedParts);
-	lock.unlock();
-
+	auto loaded = _loadedParts.take();
 	for (auto &part : loaded) {
 		if (part.offset == LoadedPart::kFailedOffset
 			|| (part.bytes.size() != Loader::kPartSize

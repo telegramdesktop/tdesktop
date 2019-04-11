@@ -1831,7 +1831,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 		} else {
 			_doc->automaticLoad(fileOrigin(), item);
 
-			if (_doc->canBePlayed() && !_doc->loading()) {
+			if (_doc->canBePlayed()) {
 				initStreaming();
 			} else if (_doc->isVideoFile()) {
 				initStreamingThumbnail();
@@ -2456,19 +2456,7 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	}
 }
 
-void OverlayWidget::checkLoadingWhileStreaming() {
-	if (_streamed && _doc->loading()) {
-		crl::on_main(this, [=, doc = _doc] {
-			if (!isHidden() && _doc == doc) {
-				redisplayContent();
-			}
-		});
-	}
-}
-
 void OverlayWidget::paintEvent(QPaintEvent *e) {
-	checkLoadingWhileStreaming();
-
 	const auto r = e->rect();
 	const auto &region = e->region();
 	const auto rects = region.rects();
@@ -2961,10 +2949,10 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && ctrl)) {
 		onCopy();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
-		if (_doc && !_doc->loading() && (documentBubbleShown() || !_doc->loaded())) {
-			onDocClick();
-		} else if (_streamed) {
+		if (_streamed) {
 			playbackPauseResume();
+		} else if (_doc && !_doc->loading() && (documentBubbleShown() || !_doc->loaded())) {
+			onDocClick();
 		}
 	} else if (e->key() == Qt::Key_Left) {
 		if (_controlsHideTimer.isActive()) {

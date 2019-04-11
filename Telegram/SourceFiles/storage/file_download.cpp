@@ -28,10 +28,17 @@ namespace {
 // How much time without download causes additional session kill.
 constexpr auto kKillSessionTimeout = crl::time(5000);
 
+// Max 16 file parts downloaded at the same time, 128 KB each.
+constexpr auto kMaxFileQueries = 16;
+
+// Max 8 http[s] files downloaded at the same time.
+constexpr auto kMaxWebFileQueries = 8;
+
 } // namespace
 
 Downloader::Downloader()
-: _killDownloadSessionsTimer([=] { killDownloadSessions(); }) {
+: _killDownloadSessionsTimer([=] { killDownloadSessions(); })
+, _queueForWeb(kMaxWebFileQueries) {
 }
 
 void Downloader::clearPriorities() {
@@ -106,6 +113,18 @@ int Downloader::chooseDcIndexForRequest(MTP::DcId dcId) const {
 	return result;
 }
 
+not_null<Downloader::Queue*> Downloader::queueForDc(MTP::DcId dcId) {
+	const auto i = _queuesForDc.find(dcId);
+	const auto result = (i != end(_queuesForDc))
+		? i
+		: _queuesForDc.emplace(dcId, Queue(kMaxFileQueries)).first;
+	return &result->second;
+}
+
+not_null<Downloader::Queue*> Downloader::queueForWeb() {
+	return &_queueForWeb;
+}
+
 Downloader::~Downloader() {
 	killDownloadSessions();
 }
@@ -116,27 +135,11 @@ namespace {
 
 constexpr auto kDownloadPhotoPartSize = 64 * 1024; // 64kb for photo
 constexpr auto kDownloadDocumentPartSize = 128 * 1024; // 128kb for document
-constexpr auto kMaxFileQueries = 16; // max 16 file parts downloaded at the same time
-constexpr auto kMaxWebFileQueries = 8; // max 8 http[s] files downloaded at the same time
 constexpr auto kDownloadCdnPartSize = 128 * 1024; // 128kb for cdn requests
 
 } // namespace
 
-struct FileLoaderQueue {
-	FileLoaderQueue(int queriesLimit) : queriesLimit(queriesLimit) {
-	}
-	int queriesCount = 0;
-	int queriesLimit = 0;
-	FileLoader *start = nullptr;
-	FileLoader *end = nullptr;
-};
-
 namespace {
-
-using LoaderQueues = QMap<int32, FileLoaderQueue>;
-LoaderQueues queues;
-
-FileLoaderQueue _webQueue(kMaxWebFileQueries);
 
 QThread *_webLoadThread = nullptr;
 WebLoadManager *_webLoadManager = nullptr;
@@ -252,7 +255,7 @@ void FileLoader::notifyAboutProgress() {
 	LoadNextFromQueue(queue);
 }
 
-void FileLoader::LoadNextFromQueue(not_null<FileLoaderQueue*> queue) {
+void FileLoader::LoadNextFromQueue(not_null<Queue*> queue) {
 	if (queue->queriesCount >= queue->queriesLimit) {
 		return;
 	}
@@ -524,6 +527,89 @@ void FileLoader::startLoading(bool loadFirst, bool prior) {
 	loadPart();
 }
 
+int FileLoader::currentOffset() const {
+	return (_fileIsOpen ? _file.size() : _data.size()) - _skippedBytes;
+}
+
+bool FileLoader::writeResultPart(int offset, bytes::const_span buffer) {
+	Expects(!_finished);
+
+	if (!buffer.empty()) {
+		if (_fileIsOpen) {
+			auto fsize = _file.size();
+			if (offset < fsize) {
+				_skippedBytes -= buffer.size();
+			} else if (offset > fsize) {
+				_skippedBytes += offset - fsize;
+			}
+			_file.seek(offset);
+			if (_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size()) != qint64(buffer.size())) {
+				cancel(true);
+				return false;
+			}
+		} else {
+			_data.reserve(offset + buffer.size());
+			if (offset > _data.size()) {
+				_skippedBytes += offset - _data.size();
+				_data.resize(offset);
+			}
+			if (offset == _data.size()) {
+				_data.append(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+			} else {
+				_skippedBytes -= buffer.size();
+				if (int64(offset + buffer.size()) > _data.size()) {
+					_data.resize(offset + buffer.size());
+				}
+				const auto dst = bytes::make_detached_span(_data).subspan(
+					offset,
+					buffer.size());
+				bytes::copy(dst, buffer);
+			}
+		}
+	}
+	return true;
+}
+
+bool FileLoader::finalizeResult() {
+	Expects(!_finished);
+
+	if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
+		if (!_fileIsOpen) {
+			_fileIsOpen = _file.open(QIODevice::WriteOnly);
+		}
+		if (!_fileIsOpen || _file.write(_data) != qint64(_data.size())) {
+			cancel(true);
+			return false;
+		}
+	}
+
+	_finished = true;
+	if (_fileIsOpen) {
+		_file.close();
+		_fileIsOpen = false;
+		Platform::File::PostprocessDownloaded(
+			QFileInfo(_file).absoluteFilePath());
+	}
+	removeFromQueue();
+
+	if (_localStatus == LocalStatus::NotFound) {
+		if (const auto key = fileLocationKey()) {
+			Local::writeFileLocation(*key, FileLocation(_filename));
+		}
+		if (const auto key = cacheKey()) {
+			if (_data.size() <= Storage::kMaxFileInMemory) {
+				Auth().data().cache().put(
+					*key,
+					Storage::Cache::Database::TaggedValue(
+						base::duplicate(_data),
+						_cacheTag));
+			}
+		}
+	}
+	_downloader->taskFinished().notify();
+	return true;
+}
+
 mtpFileLoader::mtpFileLoader(
 	const StorageFileLocation &location,
 	Data::FileOrigin origin,
@@ -544,12 +630,7 @@ mtpFileLoader::mtpFileLoader(
 	cacheTag)
 , _location(location)
 , _origin(origin) {
-	auto shiftedDcId = MTP::downloadDcId(dcId(), 0);
-	auto i = queues.find(shiftedDcId);
-	if (i == queues.cend()) {
-		i = queues.insert(shiftedDcId, FileLoaderQueue(kMaxFileQueries));
-	}
-	_queue = &i.value();
+	_queue = _downloader->queueForDc(dcId());
 }
 
 mtpFileLoader::mtpFileLoader(
@@ -567,12 +648,7 @@ mtpFileLoader::mtpFileLoader(
 	autoLoading,
 	cacheTag)
 , _location(location) {
-	auto shiftedDcId = MTP::downloadDcId(dcId(), 0);
-	auto i = queues.find(shiftedDcId);
-	if (i == queues.cend()) {
-		i = queues.insert(shiftedDcId, FileLoaderQueue(kMaxFileQueries));
-	}
-	_queue = &i.value();
+	_queue = _downloader->queueForDc(dcId());
 }
 
 mtpFileLoader::mtpFileLoader(
@@ -590,16 +666,7 @@ mtpFileLoader::mtpFileLoader(
 	autoLoading,
 	cacheTag)
 , _location(location) {
-	auto shiftedDcId = MTP::downloadDcId(dcId(), 0);
-	auto i = queues.find(shiftedDcId);
-	if (i == queues.cend()) {
-		i = queues.insert(shiftedDcId, FileLoaderQueue(kMaxFileQueries));
-	}
-	_queue = &i.value();
-}
-
-int mtpFileLoader::currentOffset() const {
-	return (_fileIsOpen ? _file.size() : _data.size()) - _skippedBytes;
+	_queue = _downloader->queueForDc(dcId());
 }
 
 Data::FileOrigin mtpFileLoader::fileOrigin() const {
@@ -947,88 +1014,17 @@ int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
 }
 
 bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
-	Expects(!_finished);
-
-	if (!buffer.empty()) {
-		if (_fileIsOpen) {
-			auto fsize = _file.size();
-			if (offset < fsize) {
-				_skippedBytes -= buffer.size();
-			} else if (offset > fsize) {
-				_skippedBytes += offset - fsize;
-			}
-			_file.seek(offset);
-			if (_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size()) != qint64(buffer.size())) {
-				cancel(true);
-				return false;
-			}
-		} else {
-			_data.reserve(offset + buffer.size());
-			if (offset > _data.size()) {
-				_skippedBytes += offset - _data.size();
-				_data.resize(offset);
-			}
-			if (offset == _data.size()) {
-				_data.append(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-			} else {
-				_skippedBytes -= buffer.size();
-				if (int64(offset + buffer.size()) > _data.size()) {
-					_data.resize(offset + buffer.size());
-				}
-				const auto dst = bytes::make_detached_span(_data).subspan(
-					offset,
-					buffer.size());
-				bytes::copy(dst, buffer);
-			}
-		}
+	if (!writeResultPart(offset, buffer)) {
+		return false;
 	}
 	if (buffer.empty() || (buffer.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
-	if (_sentRequests.empty()
+	const auto finished = _sentRequests.empty()
 		&& _cdnUncheckedParts.empty()
-		&& (_lastComplete || (_size && _nextRequestOffset >= _size))) {
-		if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
-			if (!_fileIsOpen) {
-				_fileIsOpen = _file.open(QIODevice::WriteOnly);
-			}
-			if (!_fileIsOpen || _file.write(_data) != qint64(_data.size())) {
-				cancel(true);
-				return false;
-			}
-		}
-		_finished = true;
-		if (_fileIsOpen) {
-			_file.close();
-			_fileIsOpen = false;
-			Platform::File::PostprocessDownloaded(QFileInfo(_file).absoluteFilePath());
-		}
-		removeFromQueue();
-
-		if (_localStatus == LocalStatus::NotFound) {
-			if (_locationType != UnknownFileLocation
-				&& !_filename.isEmpty()) {
-				Local::writeFileLocation(
-					mediaKey(_locationType, dcId(), objId()),
-					FileLocation(_filename));
-			}
-			if (_location.is<WebFileLocation>()
-				|| _locationType == UnknownFileLocation
-				|| _toCache == LoadToCacheAsWell) {
-				if (const auto key = cacheKey()) {
-					if (_data.size() <= Storage::kMaxFileInMemory) {
-						Auth().data().cache().put(
-							*key,
-							Storage::Cache::Database::TaggedValue(
-								base::duplicate(_data),
-								_cacheTag));
-					}
-				}
-			}
-		}
-	}
-	if (_finished) {
-		_downloader->taskFinished().notify();
+		&& (_lastComplete || (_size && _nextRequestOffset >= _size));
+	if (finished && !finalizeResult()) {
+		return false;
 	}
 	return true;
 }
@@ -1177,6 +1173,13 @@ std::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
 	});
 }
 
+std::optional<MediaKey> mtpFileLoader::fileLocationKey() const {
+	if (_locationType != UnknownFileLocation && !_filename.isEmpty()) {
+		return mediaKey(_locationType, dcId(), objId());
+	}
+	return std::nullopt;
+}
+
 mtpFileLoader::~mtpFileLoader() {
 	cancelRequests();
 }
@@ -1198,11 +1201,15 @@ webFileLoader::webFileLoader(
 , _url(url)
 , _requestSent(false)
 , _already(0) {
-	_queue = &_webQueue;
+	_queue = _downloader->queueForWeb();
 }
 
 bool webFileLoader::loadPart() {
-	if (_finished || _requestSent || _webLoadManager == FinishedWebLoadManager) return false;
+	if (_finished
+		|| _requestSent
+		|| _webLoadManager == FinishedWebLoadManager) {
+		return false;
+	}
 	if (!_webLoadManager) {
 		_webLoadMainManager = new WebLoadMainManager();
 
@@ -1221,60 +1228,30 @@ int webFileLoader::currentOffset() const {
 	return _already;
 }
 
-void webFileLoader::onProgress(qint64 already, qint64 size) {
+void webFileLoader::loadProgress(qint64 already, qint64 size) {
 	_size = size;
 	_already = already;
-
-	emit progress(this);
-}
-
-void webFileLoader::onFinished(const QByteArray &data) {
-	if (_fileIsOpen) {
-		if (_file.write(data.constData(), data.size()) != qint64(data.size())) {
-			return cancel(true);
-		}
-	} else {
-		_data = data;
-	}
-	if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
-		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
-		if (!_fileIsOpen) {
-			return cancel(true);
-		}
-		if (_file.write(_data) != qint64(_data.size())) {
-			return cancel(true);
-		}
-	}
-	_finished = true;
-	if (_fileIsOpen) {
-		_file.close();
-		_fileIsOpen = false;
-		Platform::File::PostprocessDownloaded(QFileInfo(_file).absoluteFilePath());
-	}
-	removeFromQueue();
-
-	if (_localStatus == LocalStatus::NotFound) {
-		if (const auto key = cacheKey()) {
-			if (_data.size() <= Storage::kMaxFileInMemory) {
-				Auth().data().cache().put(
-					*key,
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(_data),
-						_cacheTag));
-			}
-		}
-	}
-	_downloader->taskFinished().notify();
-
 	notifyAboutProgress();
 }
 
-void webFileLoader::onError() {
+void webFileLoader::loadFinished(const QByteArray &data) {
+	if (writeResultPart(0, bytes::make_span(data))) {
+		if (finalizeResult()) {
+			notifyAboutProgress();
+		}
+	}
+}
+
+void webFileLoader::loadError() {
 	cancel(true);
 }
 
 std::optional<Storage::Cache::Key> webFileLoader::cacheKey() const {
 	return Data::UrlCacheKey(_url);
+}
+
+std::optional<MediaKey> webFileLoader::fileLocationKey() const {
+	return std::nullopt;
 }
 
 void webFileLoader::cancelRequests() {
@@ -1621,18 +1598,18 @@ WebLoadManager::~WebLoadManager() {
 
 void WebLoadMainManager::progress(webFileLoader *loader, qint64 already, qint64 size) {
 	if (webLoadManager() && webLoadManager()->carries(loader)) {
-		loader->onProgress(already, size);
+		loader->loadProgress(already, size);
 	}
 }
 
 void WebLoadMainManager::finished(webFileLoader *loader, QByteArray data) {
 	if (webLoadManager() && webLoadManager()->carries(loader)) {
-		loader->onFinished(data);
+		loader->loadFinished(data);
 	}
 }
 
 void WebLoadMainManager::error(webFileLoader *loader) {
 	if (webLoadManager() && webLoadManager()->carries(loader)) {
-		loader->onError();
+		loader->loadError();
 	}
 }

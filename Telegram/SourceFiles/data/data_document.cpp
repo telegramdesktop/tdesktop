@@ -866,9 +866,10 @@ void DocumentData::save(
 		}
 	} else {
 		status = FileReady;
-/*		if (auto reader = owner().documentStreamedReader(this, origin)) {
+		if (auto reader = owner().documentStreamedReader(this, origin)) {
 			_loader = new Storage::StreamedFileDownloader(
 				id,
+				_dc,
 				origin,
 				(saveToCache()
 					? std::make_optional(Data::DocumentCacheKey(_dc, id))
@@ -881,7 +882,7 @@ void DocumentData::save(
 				fromCloud,
 				autoLoading,
 				cacheTag());
-		} else */if (hasWebLocation()) {
+		} else if (hasWebLocation()) {
 			_loader = new mtpFileLoader(
 				_urlLocation,
 				size,

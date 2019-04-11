@@ -229,7 +229,6 @@ private:
 	void updateActions();
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
-	void checkLoadingWhileStreaming();
 
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void displayDocument(DocumentData *document, HistoryItem *item);

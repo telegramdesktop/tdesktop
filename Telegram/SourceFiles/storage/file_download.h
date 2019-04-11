@@ -26,7 +26,17 @@ constexpr auto kMaxWallPaperDimension = 4096; // 4096x4096 is max area.
 
 class Downloader final {
 public:
+	struct Queue {
+		Queue(int queriesLimit) : queriesLimit(queriesLimit) {
+		}
+		int queriesCount = 0;
+		int queriesLimit = 0;
+		FileLoader *start = nullptr;
+		FileLoader *end = nullptr;
+	};
+
 	Downloader();
+	~Downloader();
 
 	int currentPriority() const {
 		return _priority;
@@ -40,7 +50,8 @@ public:
 	void requestedAmountIncrement(MTP::DcId dcId, int index, int amount);
 	int chooseDcIndexForRequest(MTP::DcId dcId) const;
 
-	~Downloader();
+	not_null<Queue*> queueForDc(MTP::DcId dcId);
+	not_null<Queue*> queueForWeb();
 
 private:
 	void killDownloadSessionsStart(MTP::DcId dcId);
@@ -55,6 +66,9 @@ private:
 
 	base::flat_map<MTP::DcId, crl::time> _killDownloadSessionTimes;
 	base::Timer _killDownloadSessionsTimer;
+
+	std::map<MTP::DcId, Queue> _queuesForDc;
+	Queue _queueForWeb;
 
 };
 
@@ -72,7 +86,6 @@ struct StorageImageSaved {
 class mtpFileLoader;
 class webFileLoader;
 
-struct FileLoaderQueue;
 class FileLoader : public QObject {
 	Q_OBJECT
 
@@ -106,7 +119,7 @@ public:
 	}
 	virtual Data::FileOrigin fileOrigin() const;
 	float64 currentProgress() const;
-	virtual int currentOffset() const = 0;
+	virtual int currentOffset() const;
 	int fullSize() const;
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
@@ -146,6 +159,8 @@ signals:
 	void failed(FileLoader *loader, bool started);
 
 protected:
+	using Queue = Storage::Downloader::Queue;
+
 	enum class LocalStatus {
 		NotTried,
 		NotFound,
@@ -158,6 +173,7 @@ protected:
 	bool tryLoadLocal();
 	void loadLocal(const Storage::Cache::Key &key);
 	virtual std::optional<Storage::Cache::Key> cacheKey() const = 0;
+	virtual std::optional<MediaKey> fileLocationKey() const = 0;
 	virtual void cancelRequests() = 0;
 
 	void startLoading(bool loadFirst, bool prior);
@@ -165,14 +181,17 @@ protected:
 	void cancel(bool failed);
 
 	void notifyAboutProgress();
-	static void LoadNextFromQueue(not_null<FileLoaderQueue*> queue);
+	static void LoadNextFromQueue(not_null<Queue*> queue);
 	virtual bool loadPart() = 0;
+
+	bool writeResultPart(int offset, bytes::const_span buffer);
+	bool finalizeResult();
 
 	not_null<Storage::Downloader*> _downloader;
 	FileLoader *_prev = nullptr;
 	FileLoader *_next = nullptr;
 	int _priority = 0;
-	FileLoaderQueue *_queue = nullptr;
+	Queue *_queue = nullptr;
 
 	bool _paused = false;
 	bool _autoLoading = false;
@@ -192,6 +211,7 @@ protected:
 	QByteArray _data;
 
 	int _size = 0;
+	int _skippedBytes = 0;
 	LocationType _locationType = LocationType();
 
 	base::binary_guard _localLoading;
@@ -227,7 +247,6 @@ public:
 		bool autoLoading,
 		uint8 cacheTag);
 
-	int currentOffset() const override;
 	Data::FileOrigin fileOrigin() const override;
 
 	uint64 objId() const override;
@@ -255,6 +274,7 @@ private:
 		QByteArray hash;
 	};
 	std::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
 
 	MTP::DcId dcId() const;
@@ -270,8 +290,8 @@ private:
 	void requestMoreCdnFileHashes();
 	void getCdnFileHashesDone(const MTPVector<MTPFileHash> &result, mtpRequestId requestId);
 
-	bool feedPart(int offset, bytes::const_span buffer);
 	void partLoaded(int offset, bytes::const_span buffer);
+	bool feedPart(int offset, bytes::const_span buffer);
 
 	bool partFailed(const RPCError &error, mtpRequestId requestId);
 	bool normalPartFailed(QByteArray fileReference, const RPCError &error, mtpRequestId requestId);
@@ -294,7 +314,6 @@ private:
 	std::map<mtpRequestId, RequestData> _sentRequests;
 
 	bool _lastComplete = false;
-	int32 _skippedBytes = 0;
 	int32 _nextRequestOffset = 0;
 
 	base::variant<
@@ -327,9 +346,9 @@ public:
 
 	int currentOffset() const override;
 
-	void onProgress(qint64 already, qint64 size);
-	void onFinished(const QByteArray &data);
-	void onError();
+	void loadProgress(qint64 already, qint64 size);
+	void loadFinished(const QByteArray &data);
+	void loadError();
 
 	void stop() override {
 		cancelRequests();
@@ -340,6 +359,7 @@ public:
 protected:
 	void cancelRequests() override;
 	std::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<MediaKey> fileLocationKey() const override;
 	bool loadPart() override;
 
 	QString _url;

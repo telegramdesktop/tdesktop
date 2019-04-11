@@ -13,15 +13,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Storage {
 namespace {
 
-constexpr auto kPartSize = Media::Streaming::Loader::kPartSize;
+using namespace Media::Streaming;
+
+constexpr auto kPartSize = Loader::kPartSize;
 
 } // namespace
 
 StreamedFileDownloader::StreamedFileDownloader(
 	uint64 objectId,
+	MTP::DcId dcId,
 	Data::FileOrigin origin,
 	std::optional<Cache::Key> cacheKey,
-	std::shared_ptr<Media::Streaming::Reader> reader,
+	std::shared_ptr<Reader> reader,
 
 	// For FileLoader
 	const QString &toFile,
@@ -44,6 +47,17 @@ StreamedFileDownloader::StreamedFileDownloader(
 , _cacheKey(cacheKey)
 , _reader(std::move(reader)) {
 	_partIsSaved.resize((size + kPartSize - 1) / kPartSize, false);
+
+	_reader->partsForDownloader(
+	) | rpl::start_with_next([=](const LoadedPart &part) {
+		if (part.offset == LoadedPart::kFailedOffset) {
+			cancel(true);
+		} else {
+			savePart(std::move(part));
+		}
+	}, _lifetime);
+
+	_queue = _downloader->queueForDc(dcId);
 }
 
 StreamedFileDownloader::~StreamedFileDownloader() {
@@ -58,10 +72,6 @@ Data::FileOrigin StreamedFileDownloader::fileOrigin() const {
 	return _origin;
 }
 
-int StreamedFileDownloader::currentOffset() const {
-	return 0;
-}
-
 void StreamedFileDownloader::stop() {
 	cancelRequests();
 }
@@ -70,11 +80,77 @@ std::optional<Storage::Cache::Key> StreamedFileDownloader::cacheKey() const {
 	return _cacheKey;
 }
 
+std::optional<MediaKey> StreamedFileDownloader::fileLocationKey() const {
+	return std::nullopt; AssertIsDebug();
+}
+
 void StreamedFileDownloader::cancelRequests() {
+	const auto requests = std::count(
+		begin(_partIsSaved),
+		begin(_partIsSaved) + _nextPartIndex,
+		false);
+	_queue->queriesCount -= requests;
+	_nextPartIndex = 0;
+
+	_reader->cancelForDownloader();
 }
 
 bool StreamedFileDownloader::loadPart() {
-	return false;
+	if (_finished || _nextPartIndex >= size(_partIsSaved)) {
+		return false;
+	}
+	const auto index = std::find(
+		begin(_partIsSaved) + _nextPartIndex,
+		end(_partIsSaved),
+		false
+	) - begin(_partIsSaved);
+	if (index == size(_partIsSaved)) {
+		_nextPartIndex = index;
+		return false;
+	}
+	_nextPartIndex = index + 1;
+	_reader->loadForDownloader(index);
+	AssertIsDebug();
+	//_downloader->requestedAmountIncrement(
+	//	requestData.dcId,
+	//	requestData.dcIndex,
+	//	kPartSize);
+	++_queue->queriesCount;
+
+	return true;
+}
+
+void StreamedFileDownloader::savePart(const LoadedPart &part) {
+	Expects(part.offset >= 0 && part.offset < _reader->size());
+	Expects(part.offset % kPartSize == 0);
+	if (_finished || _cancelled) {
+		return;
+	}
+
+	const auto index = part.offset / kPartSize;
+	Assert(index >= 0 && index < _partIsSaved.size());
+	if (_partIsSaved[index]) {
+		return;
+	}
+	_partIsSaved[index] = true;
+
+	if (index < _nextPartIndex) {
+		AssertIsDebug();
+		//_downloader->requestedAmountIncrement(
+		//	requestData.dcId,
+		//	requestData.dcIndex,
+		//	-kPartSize);
+		--_queue->queriesCount;
+	}
+	if (!writeResultPart(part.offset, bytes::make_span(part.bytes))) {
+		return;
+	}
+	if (ranges::find(_partIsSaved, false) == end(_partIsSaved)) {
+		if (!finalizeResult()) {
+			return;
+		}
+	}
+	notifyAboutProgress();
 }
 
 } // namespace Storage

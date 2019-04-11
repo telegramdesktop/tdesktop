@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Streaming {
 class Reader;
+struct LoadedPart;
 } // namespace Streaming
 } // namespace Media
 
@@ -22,6 +23,7 @@ class StreamedFileDownloader final : public FileLoader {
 public:
 	StreamedFileDownloader(
 		uint64 objectId,
+		MTP::DcId dcId,
 		Data::FileOrigin origin,
 		std::optional<Cache::Key> cacheKey,
 		std::shared_ptr<Media::Streaming::Reader> reader,
@@ -38,15 +40,16 @@ public:
 
 	uint64 objId() const override;
 	Data::FileOrigin fileOrigin() const override;
-	int currentOffset() const override;
 	void stop() override;
 
 private:
 	std::optional<Storage::Cache::Key> cacheKey() const override;
+	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
 	bool loadPart() override;
 
-private:
+	void savePart(const Media::Streaming::LoadedPart &part);
+
 	uint64 _objectId = 0;
 	Data::FileOrigin _origin;
 	std::optional<Cache::Key> _cacheKey;
@@ -54,6 +57,8 @@ private:
 
 	std::vector<bool> _partIsSaved; // vector<bool> :D
 	int _nextPartIndex = 0;
+
+	rpl::lifetime _lifetime;
 
 };
 

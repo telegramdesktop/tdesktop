@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/streaming/media_streaming_loader.h"
 #include "base/bytes.h"
+#include "base/weak_ptr.h"
+#include "base/thread_safe_queue.h"
 
 namespace Storage {
 namespace Cache {
@@ -27,22 +29,28 @@ class Loader;
 struct LoadedPart;
 enum class Error;
 
-class Reader final {
+class Reader final : public base::has_weak_ptr {
 public:
+	// Main thread.
 	Reader(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
 
+	// Any thread.
 	[[nodiscard]] int size() const;
+	[[nodiscard]] bool isRemoteLoader() const;
+
+	// Single thread.
 	[[nodiscard]] bool fill(
 		int offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify);
 	[[nodiscard]] std::optional<Error> failed() const;
-
 	void headerDone();
-
 	void stop();
 
-	[[nodiscard]] bool isRemoteLoader() const;
+	// Main thread.
+	[[nodiscard]] rpl::producer<LoadedPart> partsForDownloader() const;
+	void loadForDownloader(int offset);
+	void cancelForDownloader();
 
 	~Reader();
 
@@ -126,6 +134,10 @@ private:
 		[[nodiscard]] FillResult fill(int offset, bytes::span buffer);
 		[[nodiscard]] SerializedSlice unloadToCache();
 
+		// callback(LoadedPart(..)).
+		template <typename Callback>
+		void enumerateParts(int sliceNumber, Callback &&callback);
+
 	private:
 		enum class HeaderMode {
 			Unknown,
@@ -160,6 +172,7 @@ private:
 	// 0 is for headerData, slice index = sliceNumber - 1.
 	void readFromCache(int sliceNumber);
 	bool processCacheResults();
+	void sendPartsToDownloader(int sliceNumber);
 	void putToCache(SerializedSlice &&data);
 
 	void cancelLoadInRange(int from, int till);
@@ -178,13 +191,18 @@ private:
 	const std::unique_ptr<Loader> _loader;
 	const std::shared_ptr<CacheHelper> _cacheHelper;
 
-	QMutex _loadedPartsMutex;
-	std::vector<LoadedPart> _loadedParts;
+	base::thread_safe_queue<LoadedPart> _loadedParts;
 	std::atomic<crl::semaphore*> _waiting = nullptr;
 	PriorityQueue _loadingOffsets;
 
 	Slices _slices;
 	std::optional<Error> _failed;
+
+	std::atomic<bool> _downloaderAttached = false;
+	base::thread_safe_queue<int> _downloaderOffsetRequests;
+
+	// Main thread.
+	rpl::event_stream<LoadedPart> _partsForDownloader;
 	rpl::lifetime _lifetime;
 
 };
