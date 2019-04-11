@@ -392,7 +392,8 @@ void DialogsWidget::jumpToTop() {
 		return;
 	}
 	if ((_filter->getLastText().trimmed().isEmpty() && !_searchInChat)) {
-		scrollToTop();
+		_scrollToAnimation.stop();
+		_scroll->scrollToY(0);
 	}
 }
 
