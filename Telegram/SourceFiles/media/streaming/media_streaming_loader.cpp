@@ -10,6 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Streaming {
 
+bool LoadedPart::valid(int size) const {
+	return (offset != kFailedOffset)
+		&& ((bytes.size() == Loader::kPartSize)
+			|| (offset + bytes.size() == size));
+}
+
 bool operator<(
 		const PriorityQueue::Entry &a,
 		const PriorityQueue::Entry &b) {

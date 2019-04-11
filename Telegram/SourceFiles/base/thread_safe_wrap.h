@@ -36,24 +36,24 @@ private:
 
 };
 
-template <typename T>
+template <typename T, template<typename...> typename Container = std::deque>
 class thread_safe_queue {
 public:
 	template <typename ...Args>
 	void emplace(Args &&...args) {
-		_wrap.with([&](std::vector<T> &value) {
+		_wrap.with([&](Container<T> &value) {
 			value.emplace_back(std::forward<Args>(args)...);
 		});
 	}
 
-	std::vector<T> take() {
-		return _wrap.with([&](std::vector<T> &value) {
-			return std::exchange(value, std::vector<T>());
+	Container<T> take() {
+		return _wrap.with([&](Container<T> &value) {
+			return std::exchange(value, Container<T>());
 		});
 	}
 
 private:
-	thread_safe_wrap<std::vector<T>> _wrap;
+	thread_safe_wrap<Container<T>> _wrap;
 
 };
 

@@ -15,6 +15,8 @@ struct LoadedPart {
 	QByteArray bytes;
 
 	static constexpr auto kFailedOffset = -1;
+
+	[[nodiscard]] bool valid(int size) const;
 };
 
 class Loader {

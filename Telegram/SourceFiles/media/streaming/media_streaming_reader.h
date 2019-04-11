@@ -137,9 +137,9 @@ private:
 		[[nodiscard]] FillResult fill(int offset, bytes::span buffer);
 		[[nodiscard]] SerializedSlice unloadToCache();
 
-		// callback(LoadedPart(..)).
-		template <typename Callback>
-		void enumerateParts(int sliceNumber, Callback &&callback);
+		[[nodiscard]] QByteArray partForDownloader(int offset) const;
+		[[nodiscard]] std::optional<int> readCacheRequiredFor(int offset);
+		[[nodiscard]] bool waitForCacheRequiredFor(int offset) const;
 
 	private:
 		enum class HeaderMode {
@@ -175,7 +175,6 @@ private:
 	// 0 is for headerData, slice index = sliceNumber - 1.
 	void readFromCache(int sliceNumber);
 	bool processCacheResults();
-	void sendPartsToDownloader(int sliceNumber);
 	void putToCache(SerializedSlice &&data);
 
 	void cancelLoadInRange(int from, int till);
@@ -183,12 +182,17 @@ private:
 	void checkLoadWillBeFirst(int offset);
 	bool processLoadedParts();
 
+	bool checkForSomethingMoreReceived();
+
 	bool fillFromSlices(int offset, bytes::span buffer);
 
 	void finalizeCache();
 
 	void processDownloaderRequests();
 	void checkCacheResultsForDownloader();
+	void enqueueDownloaderOffsets();
+	void checkForDownloaderChange(int checkItemsCount);
+	void checkForDownloaderReadyOffsets();
 
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey);
@@ -197,7 +201,7 @@ private:
 	const std::unique_ptr<Loader> _loader;
 	const std::shared_ptr<CacheHelper> _cacheHelper;
 
-	base::thread_safe_queue<LoadedPart> _loadedParts;
+	base::thread_safe_queue<LoadedPart, std::vector> _loadedParts;
 	std::atomic<crl::semaphore*> _waiting = nullptr;
 	std::atomic<crl::semaphore*> _sleeping = nullptr;
 	PriorityQueue _loadingOffsets;
@@ -207,6 +211,7 @@ private:
 
 	std::atomic<bool> _downloaderAttached = false;
 	base::thread_safe_queue<int> _downloaderOffsetRequests;
+	std::deque<int> _offsetsForDownloader;
 
 	// Main thread.
 	rpl::event_stream<LoadedPart> _partsForDownloader;
