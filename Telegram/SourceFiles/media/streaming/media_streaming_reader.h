@@ -65,6 +65,8 @@ private:
 
 	struct CacheHelper;
 
+	using PartsMap = base::flat_map<int, QByteArray>;
+
 	template <int Size>
 	class StackIntVector {
 	public:
@@ -100,17 +102,12 @@ private:
 
 		struct PrepareFillResult {
 			StackIntVector<kLoadFromRemoteMax> offsetsFromLoader;
-			base::flat_map<int, QByteArray>::const_iterator start;
-			base::flat_map<int, QByteArray>::const_iterator finish;
+			PartsMap::const_iterator start;
+			PartsMap::const_iterator finish;
 			bool ready = true;
 		};
 
-		bytes::const_span processCacheData(
-			bytes::const_span data,
-			int maxSize);
-		bytes::const_span processComplexCacheData(
-			bytes::const_span data,
-			int maxSize);
+		void processCacheData(PartsMap &&data);
 		void addPart(int offset, QByteArray bytes);
 		PrepareFillResult prepareFill(int from, int till);
 
@@ -119,7 +116,7 @@ private:
 			int from,
 			int till) const;
 
-		base::flat_map<int, QByteArray> parts;
+		PartsMap parts;
 		Flags flags;
 
 	};
@@ -134,7 +131,7 @@ private:
 		[[nodiscard]] bool isFullInHeader() const;
 		[[nodiscard]] bool isGoodHeader() const;
 
-		void processCacheResult(int sliceNumber, bytes::const_span result);
+		void processCacheResult(int sliceNumber, PartsMap &&result);
 		void processPart(int offset, QByteArray &&bytes);
 
 		[[nodiscard]] FillResult fill(int offset, bytes::span buffer);
@@ -191,6 +188,7 @@ private:
 	void finalizeCache();
 
 	void processDownloaderRequests();
+	void checkCacheResultsForDownloader();
 
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey);
