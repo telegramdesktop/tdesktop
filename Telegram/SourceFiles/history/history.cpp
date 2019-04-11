@@ -2191,13 +2191,11 @@ void History::setChatListMessage(HistoryItem *item) {
 		return;
 	}
 	if (item) {
-		if (_chatListMessage) {
-			if (!*_chatListMessage) {
-				Local::removeSavedPeer(peer);
-			} else if (!IsServerMsgId((*_chatListMessage)->id)
-				&& (*_chatListMessage)->date() > item->date()) {
-				return;
-			}
+		if (!_chatListMessage || !*_chatListMessage) {
+			Local::removeSavedPeer(peer);
+		} else if (!IsServerMsgId((*_chatListMessage)->id)
+			&& (*_chatListMessage)->date() > item->date()) {
+			return;
 		}
 		_chatListMessage = item;
 		setChatListTimeId(item->date());
