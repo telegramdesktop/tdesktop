@@ -287,7 +287,9 @@ void MainMenu::initResetScaleButton() {
 		handle->screen()
 	) | rpl::then(
 		Core::QtSignalProducer(handle, &QWindow::screenChanged)
-	) | rpl::map([](QScreen *screen) {
+	) | rpl::filter([](QScreen *screen) {
+		return screen != nullptr;
+	}) | rpl::map([](QScreen * screen) {
 		return rpl::single(
 			screen->availableGeometry()
 		) | rpl::then(
