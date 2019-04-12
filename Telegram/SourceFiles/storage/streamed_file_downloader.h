@@ -59,6 +59,9 @@ private:
 
 	std::vector<bool> _partIsSaved; // vector<bool> :D
 	int _nextPartIndex = 0;
+	int _partsCount = 0;
+	int _partsRequested = 0;
+	int _partsSaved = 0;
 
 	rpl::lifetime _lifetime;
 

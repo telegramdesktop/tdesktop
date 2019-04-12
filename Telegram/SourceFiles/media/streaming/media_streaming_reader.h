@@ -131,6 +131,7 @@ private:
 		[[nodiscard]] bool headerModeUnknown() const;
 		[[nodiscard]] bool isFullInHeader() const;
 		[[nodiscard]] bool isGoodHeader() const;
+		[[nodiscard]] bool waitingForHeaderCache() const;
 
 		void processCacheResult(int sliceNumber, PartsMap &&result);
 		void processPart(int offset, QByteArray &&bytes);

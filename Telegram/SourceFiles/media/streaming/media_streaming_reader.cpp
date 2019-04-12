@@ -473,7 +473,7 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 	if (_headerMode != HeaderMode::NoCache
 		&& !(_header.flags & Flag::LoadedFromCache)) {
 		// Waiting for initial cache query.
-		Assert(_header.flags & Flag::LoadingFromCache);
+		Assert(waitingForHeaderCache());
 		return {};
 	} else if (isFullInHeader()) {
 		return fillFromHeader(offset, buffer);
@@ -587,16 +587,20 @@ QByteArray Reader::Slices::partForDownloader(int offset) const {
 	return (i != end(slice.parts)) ? i->second : QByteArray();
 }
 
+bool Reader::Slices::waitingForHeaderCache() const {
+	return (_header.flags & Slice::Flag::LoadingFromCache);
+}
+
 std::optional<int> Reader::Slices::readCacheRequiredFor(int offset) {
 	Expects(offset < _size);
+	Expects(!waitingForHeaderCache());
 
-	using Flag = Slice::Flag;
-	if ((_header.flags & Flag::LoadingFromCache) || isFullInHeader()) {
+	if (isFullInHeader()) {
 		return std::nullopt;
 	}
 	const auto index = offset / kInSlice;
 	auto &slice = _data[index];
-	return (slice.flags & Flag::LoadedFromCache)
+	return (slice.flags & Slice::Flag::LoadedFromCache)
 		? std::nullopt
 		: std::make_optional(index + 1);
 }
@@ -923,6 +927,9 @@ void Reader::processDownloaderRequests() {
 }
 
 bool Reader::downloaderWaitForCachedSlice(int offset) {
+	if (_slices.waitingForHeaderCache()) {
+		return true;
+	}
 	const auto sliceNumber = _slices.readCacheRequiredFor(offset);
 	if (sliceNumber.value_or(0) != _downloaderSliceNumber) {
 		_downloaderSliceNumber = sliceNumber.value_or(0);

@@ -249,6 +249,7 @@ private:
 
 	void destroyLoader(FileLoader *newValue = nullptr) const;
 
+	[[nodiscard]] bool useStreamingLoader() const;
 	[[nodiscard]] bool thumbnailEnoughForSticker() const;
 
 	// Two types of location: from MTProto by dc+access or from web by url

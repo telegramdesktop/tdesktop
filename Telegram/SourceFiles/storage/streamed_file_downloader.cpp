@@ -47,8 +47,9 @@ StreamedFileDownloader::StreamedFileDownloader(
 , _origin(origin)
 , _cacheKey(cacheKey)
 , _fileLocationKey(fileLocationKey)
-, _reader(std::move(reader)) {
-	_partIsSaved.resize((size + kPartSize - 1) / kPartSize, false);
+, _reader(std::move(reader))
+, _partsCount((size + kPartSize - 1) / kPartSize) {
+	_partIsSaved.resize(_partsCount, false);
 
 	_reader->partsForDownloader(
 	) | rpl::start_with_next([=](const LoadedPart &part) {
@@ -87,18 +88,19 @@ std::optional<MediaKey> StreamedFileDownloader::fileLocationKey() const {
 }
 
 void StreamedFileDownloader::cancelRequests() {
-	const auto requests = std::count(
-		begin(_partIsSaved),
-		begin(_partIsSaved) + _nextPartIndex,
-		false);
-	_queue->queriesCount -= requests;
+	//_partsRequested == std::count(
+	//	begin(_partIsSaved),
+	//	begin(_partIsSaved) + _nextPartIndex,
+	//	false);
+	_queue->queriesCount -= _partsRequested;
+	_partsRequested = 0;
 	_nextPartIndex = 0;
 
 	_reader->cancelForDownloader();
 }
 
 bool StreamedFileDownloader::loadPart() {
-	if (_finished || _nextPartIndex >= size(_partIsSaved)) {
+	if (_finished || _nextPartIndex >= _partsCount) {
 		return false;
 	}
 	const auto index = std::find(
@@ -106,17 +108,19 @@ bool StreamedFileDownloader::loadPart() {
 		end(_partIsSaved),
 		false
 	) - begin(_partIsSaved);
-	if (index == size(_partIsSaved)) {
-		_nextPartIndex = index;
+	if (index == _partsCount) {
+		_nextPartIndex = _partsCount;
 		return false;
 	}
 	_nextPartIndex = index + 1;
 	_reader->loadForDownloader(index * kPartSize);
+
 	AssertIsDebug();
 	//_downloader->requestedAmountIncrement(
 	//	requestData.dcId,
 	//	requestData.dcIndex,
 	//	kPartSize);
+	++_partsRequested;
 	++_queue->queriesCount;
 
 	return true;
@@ -132,11 +136,12 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 
 	const auto offset = part.offset;
 	const auto index = offset / kPartSize;
-	Assert(index >= 0 && index < _partIsSaved.size());
+	Assert(index >= 0 && index < _partsCount);
 	if (_partIsSaved[index]) {
 		return;
 	}
 	_partIsSaved[index] = true;
+	++_partsSaved;
 
 	if (index < _nextPartIndex) {
 		AssertIsDebug();
@@ -144,12 +149,13 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 		//	requestData.dcId,
 		//	requestData.dcIndex,
 		//	-kPartSize);
+		--_partsRequested;
 		--_queue->queriesCount;
 	}
 	if (!writeResultPart(offset, bytes::make_span(part.bytes))) {
 		return;
 	}
-	if (ranges::find(_partIsSaved, false) == end(_partIsSaved)) {
+	if (_partsSaved == _partsCount) {
 		if (!finalizeResult()) {
 			return;
 		}

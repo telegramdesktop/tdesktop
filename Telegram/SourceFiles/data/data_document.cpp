@@ -1196,6 +1196,13 @@ bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
 }
 
+bool DocumentData::useStreamingLoader() const {
+	return isAnimation()
+		|| isVideoFile()
+		|| isAudioFile()
+		|| isVoiceMessage();
+}
+
 bool DocumentData::canBeStreamed() const {
 	// For now video messages are not streamed.
 	return hasRemoteLocation() && supportsStreaming() && !isVideoMessage();
@@ -1203,10 +1210,7 @@ bool DocumentData::canBeStreamed() const {
 
 bool DocumentData::canBePlayed() const {
 	return !_inappPlaybackFailed
-		&& (isAnimation()
-			|| isVideoFile()
-			|| isAudioFile()
-			|| isVoiceMessage())
+		&& useStreamingLoader()
 		&& (loaded() || canBeStreamed());
 }
 
@@ -1220,6 +1224,9 @@ bool DocumentData::inappPlaybackFailed() const {
 
 auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
 -> std::unique_ptr<Media::Streaming::Loader> {
+	if (!useStreamingLoader()) {
+		return nullptr;
+	}
 	const auto &location = this->location(true);
 	if (!data().isEmpty()) {
 		return Media::Streaming::MakeBytesLoader(data());
