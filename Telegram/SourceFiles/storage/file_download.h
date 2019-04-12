@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/binary_guard.h"
 #include "data/data_file_origin.h"
 
+class ApiWrap;
+
 namespace Storage {
 namespace Cache {
 struct Key;
@@ -35,8 +37,12 @@ public:
 		FileLoader *end = nullptr;
 	};
 
-	Downloader();
+	explicit Downloader(not_null<ApiWrap*> api);
 	~Downloader();
+
+	ApiWrap &api() const {
+		return *_api;
+	}
 
 	int currentPriority() const {
 		return _priority;
@@ -57,6 +63,8 @@ private:
 	void killDownloadSessionsStart(MTP::DcId dcId);
 	void killDownloadSessionsStop(MTP::DcId dcId);
 	void killDownloadSessions();
+
+	not_null<ApiWrap*> _api;
 
 	base::Observable<void> _taskFinishedObservable;
 	int _priority = 1;

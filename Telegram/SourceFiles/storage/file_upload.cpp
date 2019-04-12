@@ -140,7 +140,8 @@ const QString &Uploader::File::filename() const {
 	return file ? file->filename : media.filename;
 }
 
-Uploader::Uploader() {
+Uploader::Uploader(not_null<ApiWrap*> api)
+: _api(api) {
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
 	stopSessionsTimer.setSingleShot(true);

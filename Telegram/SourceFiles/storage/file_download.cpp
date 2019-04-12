@@ -36,8 +36,9 @@ constexpr auto kMaxWebFileQueries = 8;
 
 } // namespace
 
-Downloader::Downloader()
-: _killDownloadSessionsTimer([=] { killDownloadSessions(); })
+Downloader::Downloader(not_null<ApiWrap*> api)
+: _api(api)
+, _killDownloadSessionsTimer([=] { killDownloadSessions(); })
 , _queueForWeb(kMaxWebFileQueries) {
 }
 
@@ -48,14 +49,16 @@ void Downloader::clearPriorities() {
 void Downloader::requestedAmountIncrement(MTP::DcId dcId, int index, int amount) {
 	Expects(index >= 0 && index < MTP::kDownloadSessionsCount);
 
+	using namespace rpl::mappers;
+
 	auto it = _requestedBytesAmount.find(dcId);
 	if (it == _requestedBytesAmount.cend()) {
 		it = _requestedBytesAmount.emplace(dcId, RequestedInDc { { 0 } }).first;
 	}
 	it->second[index] += amount;
-	if (it->second[index]) {
+	if (amount > 0) {
 		killDownloadSessionsStop(dcId);
-	} else {
+	} else if (ranges::find_if(it->second, _1 > 0) == end(it->second)) {
 		killDownloadSessionsStart(dcId);
 	}
 }

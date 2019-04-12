@@ -26,6 +26,7 @@ constexpr auto kSlicesInMemory = 2;
 
 // 1 MB of parts are requested from cloud ahead of reading demand.
 constexpr auto kPreloadPartsAhead = 8;
+constexpr auto kDownloaderRequestsLimit = 4;
 
 using PartsMap = base::flat_map<int, QByteArray>;
 
@@ -591,18 +592,16 @@ bool Reader::Slices::waitingForHeaderCache() const {
 	return (_header.flags & Slice::Flag::LoadingFromCache);
 }
 
-std::optional<int> Reader::Slices::readCacheRequiredFor(int offset) {
+bool Reader::Slices::readCacheForDownloaderRequired(int offset) {
 	Expects(offset < _size);
 	Expects(!waitingForHeaderCache());
 
 	if (isFullInHeader()) {
-		return std::nullopt;
+		return false;
 	}
 	const auto index = offset / kInSlice;
 	auto &slice = _data[index];
-	return (slice.flags & Slice::Flag::LoadedFromCache)
-		? std::nullopt
-		: std::make_optional(index + 1);
+	return !(slice.flags & Slice::Flag::LoadedFromCache);
 }
 
 void Reader::Slices::markSliceUsed(int sliceIndex) {
@@ -884,35 +883,39 @@ void Reader::checkForDownloaderChange(int checkItemsCount) {
 		_offsetsForDownloader.erase(
 			begin(_offsetsForDownloader),
 			changed + 1);
-		_downloaderSliceNumber = 0;
-		_downloaderSliceCache = std::nullopt;
+		_downloaderReadCache.clear();
+		_downloaderOffsetAcks.take();
 	}
 }
 
 void Reader::checkForDownloaderReadyOffsets() {
 	// If a requested part is available right now we simply fire it on the
 	// main thread, until the first not-available-right-now offset is found.
-	const auto ready = [&](int offset, QByteArray &&bytes) {
+	const auto unavailableInBytes = [&](int offset, QByteArray &&bytes) {
+		if (bytes.isEmpty()) {
+			return true;
+		}
 		crl::on_main(this, [=, bytes = std::move(bytes)]() mutable {
 			_partsForDownloader.fire({ offset, std::move(bytes) });
 		});
-		return true;
+		return false;
+	};
+	const auto unavailableInCache = [&](int offset) {
+		const auto index = (offset / kInSlice);
+		const auto sliceNumber = index + 1;
+		const auto i = _downloaderReadCache.find(sliceNumber);
+		if (i == end(_downloaderReadCache) || !i->second) {
+			return true;
+		}
+		const auto j = i->second->find(offset - index * kInSlice);
+		if (j == end(*i->second)) {
+			return true;
+		}
+		return unavailableInBytes(offset, std::move(j->second));
 	};
 	const auto unavailable = [&](int offset) {
-		auto bytes = _slices.partForDownloader(offset);
-		if (!bytes.isEmpty()) {
-			return !ready(offset, std::move(bytes));
-		}
-		const auto sliceIndex = (offset / kInSlice);
-		if ((sliceIndex + 1 == _downloaderSliceNumber)
-			&& _downloaderSliceCache) {
-			const auto i = _downloaderSliceCache->find(
-				offset - sliceIndex * kInSlice);
-			if (i != _downloaderSliceCache->end()) {
-				return !ready(offset, std::move(i->second));
-			}
-		}
-		return true;
+		return unavailableInBytes(offset, _slices.partForDownloader(offset))
+			&& unavailableInCache(offset);
 	};
 	_offsetsForDownloader.erase(
 		begin(_offsetsForDownloader),
@@ -923,22 +926,42 @@ void Reader::processDownloaderRequests() {
 	processCacheResults();
 	enqueueDownloaderOffsets();
 	checkForDownloaderReadyOffsets();
-	if (empty(_offsetsForDownloader)) {
-		return;
+	pruneDoneDownloaderRequests();
+	if (!empty(_offsetsForDownloader)) {
+		pruneDownloaderCache(_offsetsForDownloader.front());
+		sendDownloaderRequests();
 	}
+}
 
-	const auto offset = _offsetsForDownloader.front();
-	if (_cacheHelper && downloaderWaitForCachedSlice(offset)) {
-		return;
-	}
+void Reader::pruneDownloaderCache(int minimalOffset) {
+	const auto minimalSliceNumber = (minimalOffset / kInSlice) + 1;
+	const auto removeTill = ranges::lower_bound(
+		_downloaderReadCache,
+		minimalSliceNumber,
+		ranges::less(),
+		&base::flat_map<int, std::optional<PartsMap>>::value_type::first);
+	_downloaderReadCache.erase(_downloaderReadCache.begin(), removeTill);
+}
 
+void Reader::pruneDoneDownloaderRequests() {
 	for (const auto done : _downloaderOffsetAcks.take()) {
 		_downloaderOffsetsRequested.remove(done);
+		const auto i = ranges::find(_offsetsForDownloader, done);
+		if (i != end(_offsetsForDownloader)) {
+			_offsetsForDownloader.erase(i);
+		}
 	}
+}
 
-	_offsetsForDownloader.pop_front();
-	if (_downloaderOffsetsRequested.emplace(offset).second) {
-		_loader->load(offset);
+void Reader::sendDownloaderRequests() {
+	auto &&offsets = ranges::view::all(
+		_offsetsForDownloader
+	) | ranges::view::take(kDownloaderRequestsLimit);
+	for (const auto offset : offsets) {
+		if ((!_cacheHelper || !downloaderWaitForCachedSlice(offset))
+			&& _downloaderOffsetsRequested.emplace(offset).second) {
+			_loader->load(offset);
+		}
 	}
 }
 
@@ -946,20 +969,22 @@ bool Reader::downloaderWaitForCachedSlice(int offset) {
 	if (_slices.waitingForHeaderCache()) {
 		return true;
 	}
-	const auto sliceNumber = _slices.readCacheRequiredFor(offset);
-	if (sliceNumber.value_or(0) != _downloaderSliceNumber) {
-		_downloaderSliceNumber = sliceNumber.value_or(0);
-		_downloaderSliceCache = std::nullopt;
-		if (_downloaderSliceNumber) {
-			if (readFromCacheForDownloader()) {
-				return true;
-			}
-			_downloaderSliceCache = PartsMap();
-		}
-	} else if (_downloaderSliceNumber && !_downloaderSliceCache) {
-		return true;
+	if (!_slices.readCacheForDownloaderRequired(offset)) {
+		return false;
 	}
-	return false;
+	const auto sliceNumber = (offset / kInSlice) + 1;
+	auto i = _downloaderReadCache.find(sliceNumber);
+	if (i == _downloaderReadCache.end()) {
+		// If we didn't request that slice yet, try requesting it.
+		// If there is no need to (header mode is unknown) - place empty map.
+		// Otherwise place std::nullopt and wait for the cache result.
+		i = _downloaderReadCache.emplace(
+			sliceNumber,
+			(readFromCacheForDownloader(sliceNumber)
+				? std::nullopt
+				: std::make_optional(PartsMap()))).first;
+	}
+	return !i->second;
 }
 
 void Reader::checkCacheResultsForDownloader() {
@@ -1018,14 +1043,14 @@ void Reader::readFromCache(int sliceNumber) {
 	});
 }
 
-bool Reader::readFromCacheForDownloader() {
+bool Reader::readFromCacheForDownloader(int sliceNumber) {
 	Expects(_cacheHelper != nullptr);
-	Expects(_downloaderSliceNumber > 0);
+	Expects(sliceNumber > 0);
 
 	if (_slices.headerModeUnknown()) {
 		return false;
 	}
-	readFromCache(_downloaderSliceNumber);
+	readFromCache(sliceNumber);
 	return true;
 }
 
@@ -1153,10 +1178,12 @@ bool Reader::processCacheResults() {
 	auto loaded = base::take(_cacheHelper->results);
 	lock.unlock();
 
-	if (_downloaderSliceNumber) {
-		const auto i = loaded.find(_downloaderSliceNumber);
-		if (i != end(loaded)) {
-			_downloaderSliceCache = i->second;
+	for (auto &[sliceNumber, cachedParts] : _downloaderReadCache) {
+		if (!cachedParts) {
+			const auto i = loaded.find(sliceNumber);
+			if (i != end(loaded)) {
+				cachedParts = i->second;
+			}
 		}
 	}
 

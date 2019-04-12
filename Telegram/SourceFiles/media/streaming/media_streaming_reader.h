@@ -146,7 +146,7 @@ private:
 		[[nodiscard]] SerializedSlice unloadToCache();
 
 		[[nodiscard]] QByteArray partForDownloader(int offset) const;
-		[[nodiscard]] std::optional<int> readCacheRequiredFor(int offset);
+		[[nodiscard]] bool readCacheForDownloaderRequired(int offset);
 
 	private:
 		enum class HeaderMode {
@@ -182,7 +182,7 @@ private:
 	// 0 is for headerData, slice index = sliceNumber - 1.
 	// returns false if asked for a known-empty downloader slice cache.
 	void readFromCache(int sliceNumber);
-	[[nodiscard]] bool readFromCacheForDownloader();
+	[[nodiscard]] bool readFromCacheForDownloader(int sliceNumber);
 	bool processCacheResults();
 	void putToCache(SerializedSlice &&data);
 
@@ -199,6 +199,9 @@ private:
 
 	void processDownloaderRequests();
 	void checkCacheResultsForDownloader();
+	void pruneDownloaderCache(int minimalOffset);
+	void pruneDoneDownloaderRequests();
+	void sendDownloaderRequests();
 	[[nodiscard]] bool downloaderWaitForCachedSlice(int offset);
 	void enqueueDownloaderOffsets();
 	void checkForDownloaderChange(int checkItemsCount);
@@ -221,17 +224,24 @@ private:
 	// Even if streaming had failed, the Reader can work for the downloader.
 	std::optional<Error> _streamingError;
 
-	Storage::StreamedFileDownloader *_attachedDownloader = nullptr;
-	base::thread_safe_queue<int> _downloaderOffsetRequests;
-	base::thread_safe_queue<int> _downloaderOffsetAcks;
-	std::deque<int> _offsetsForDownloader;
-	base::flat_set<int> _downloaderOffsetsRequested;
-	int _downloaderSliceNumber = 0; // > 0 means we want it from cache.
-	std::optional<PartsMap> _downloaderSliceCache;
+	// In case streaming is active both main and streaming threads have work.
+	// In case only downloader is active, all work is done on main thread.
 
 	// Main thread.
+	Storage::StreamedFileDownloader *_attachedDownloader = nullptr;
 	rpl::event_stream<LoadedPart> _partsForDownloader;
 	bool _streamingActive = false;
+
+	// Streaming thread.
+	std::deque<int> _offsetsForDownloader;
+	base::flat_set<int> _downloaderOffsetsRequested;
+	base::flat_map<int, std::optional<PartsMap>> _downloaderReadCache;
+
+	// Communication from main thread to streaming thread.
+	// Streaming thread to main thread communicates using crl::on_main.
+	base::thread_safe_queue<int> _downloaderOffsetRequests;
+	base::thread_safe_queue<int> _downloaderOffsetAcks;
+
 	rpl::lifetime _lifetime;
 
 };

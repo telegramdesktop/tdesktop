@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct FileLoadResult;
 struct SendMediaReady;
+class ApiWrap;
 
 namespace Storage {
 
@@ -53,7 +54,9 @@ class Uploader : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-	Uploader();
+	explicit Uploader(not_null<ApiWrap*> api);
+	~Uploader();
+
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
 		const FullMsgId &msgId,
@@ -96,8 +99,6 @@ public:
 		return _secureFailed.events();
 	}
 
-	~Uploader();
-
 public slots:
 	void unpause();
 	void sendNext();
@@ -111,6 +112,7 @@ private:
 
 	void currentFailed();
 
+	not_null<ApiWrap*> _api;
 	base::flat_map<mtpRequestId, QByteArray> requestsSent;
 	base::flat_map<mtpRequestId, int32> docRequestsSent;
 	base::flat_map<mtpRequestId, int32> dcMap;

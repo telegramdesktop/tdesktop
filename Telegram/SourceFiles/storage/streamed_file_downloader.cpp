@@ -125,11 +125,6 @@ bool StreamedFileDownloader::loadPart() {
 	_nextPartIndex = index + 1;
 	_reader->loadForDownloader(this, index * kPartSize);
 
-	AssertIsDebug();
-	//_downloader->requestedAmountIncrement(
-	//	requestData.dcId,
-	//	requestData.dcIndex,
-	//	kPartSize);
 	++_partsRequested;
 	++_queue->queriesCount;
 
@@ -154,11 +149,6 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 	++_partsSaved;
 
 	if (index < _nextPartIndex) {
-		AssertIsDebug();
-		//_downloader->requestedAmountIncrement(
-		//	requestData.dcId,
-		//	requestData.dcIndex,
-		//	-kPartSize);
 		--_partsRequested;
 		--_queue->queriesCount;
 	}

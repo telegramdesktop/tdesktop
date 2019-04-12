@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "data/data_file_origin.h"
 
-class ApiWrap;
+namespace Storage {
+class Downloader;
+} // namespace Storage
 
 namespace Media {
 namespace Streaming {
@@ -19,10 +21,11 @@ namespace Streaming {
 class LoaderMtproto : public Loader, public base::has_weak_ptr {
 public:
 	LoaderMtproto(
-		not_null<ApiWrap*> api,
+		not_null<Storage::Downloader*> owner,
 		const StorageFileLocation &location,
 		int size,
 		Data::FileOrigin origin);
+	~LoaderMtproto();
 
 	[[nodiscard]] auto baseCacheKey() const
 	-> std::optional<Storage::Cache::Key> override;
@@ -40,8 +43,6 @@ public:
 		Storage::StreamedFileDownloader *downloader) override;
 	void clearAttachedDownloader() override;
 
-	~LoaderMtproto();
-
 private:
 	void sendNext();
 
@@ -58,11 +59,13 @@ private:
 		const QByteArray &encryptionIV,
 		const QVector<MTPFileHash> &hashes);
 	void cancelForOffset(int offset);
+	void changeRequestedAmount(int index, int amount);
 
-	const not_null<ApiWrap*> _api;
+	const not_null<Storage::Downloader*> _owner;
 
 	// _location can be changed with an updated file_reference.
 	StorageFileLocation _location;
+	MTP::DcId _dcId = 0;
 
 	const int _size = 0;
 	const Data::FileOrigin _origin;
@@ -71,6 +74,7 @@ private:
 
 	PriorityQueue _requested;
 	base::flat_map<int, mtpRequestId> _requests;
+	base::flat_map<int, int> _amountByDcIndex;
 	rpl::event_stream<LoadedPart> _parts;
 
 	Storage::StreamedFileDownloader *_downloader = nullptr;

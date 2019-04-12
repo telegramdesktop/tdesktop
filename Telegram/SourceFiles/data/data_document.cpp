@@ -1240,7 +1240,7 @@ auto DocumentData::createStreamingLoader(
 	}
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
-			&session().api(),
+			&session().downloader(),
 			StorageFileLocation(
 				_dc,
 				session().userId(),
