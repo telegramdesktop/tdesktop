@@ -99,6 +99,9 @@ private:
 	friend bool operator==(
 		const StorageFileLocation &a,
 		const StorageFileLocation &b);
+	friend bool operator<(
+		const StorageFileLocation &a,
+		const StorageFileLocation &b);
 
 	uint16 _dcId = 0;
 	Type _type = Type::Legacy;
@@ -117,6 +120,24 @@ inline bool operator!=(
 		const StorageFileLocation &a,
 		const StorageFileLocation &b) {
 	return !(a == b);
+}
+
+inline bool operator>(
+		const StorageFileLocation &a,
+		const StorageFileLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const StorageFileLocation &a,
+		const StorageFileLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const StorageFileLocation &a,
+		const StorageFileLocation &b) {
+	return !(a < b);
 }
 
 class StorageImageLocation {
@@ -184,6 +205,11 @@ private:
 			const StorageImageLocation &b) {
 		return (a._file == b._file);
 	}
+	friend inline bool operator<(
+			const StorageImageLocation &a,
+			const StorageImageLocation &b) {
+		return (a._file < b._file);
+	}
 
 	StorageFileLocation _file;
 	int _width = 0;
@@ -195,6 +221,24 @@ inline bool operator!=(
 		const StorageImageLocation &a,
 		const StorageImageLocation &b) {
 	return !(a == b);
+}
+
+inline bool operator>(
+		const StorageImageLocation &a,
+		const StorageImageLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const StorageImageLocation &a,
+		const StorageImageLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const StorageImageLocation &a,
+		const StorageImageLocation &b) {
+	return !(a < b);
 }
 
 class WebFileLocation {
@@ -226,11 +270,29 @@ private:
 		return (a._accessHash == b._accessHash)
 			&& (a._url == b._url);
 	}
+	friend inline bool operator<(
+			const WebFileLocation &a,
+			const WebFileLocation &b) {
+		return std::tie(a._accessHash, a._url)
+			< std::tie(b._accessHash, b._url);
+	}
 
 };
 
 inline bool operator!=(const WebFileLocation &a, const WebFileLocation &b) {
 	return !(a == b);
+}
+
+inline bool operator>(const WebFileLocation &a, const WebFileLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(const WebFileLocation &a, const WebFileLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(const WebFileLocation &a, const WebFileLocation &b) {
+	return !(a < b);
 }
 
 struct GeoPointLocation {
@@ -255,10 +317,49 @@ inline bool operator==(
 		&& (a.scale == b.scale);
 }
 
+inline bool operator<(
+		const GeoPointLocation &a,
+		const GeoPointLocation &b) {
+	return std::tie(
+		a.access,
+		a.lat,
+		a.lon,
+		a.width,
+		a.height,
+		a.zoom,
+		a.scale)
+		< std::tie(
+			b.access,
+			b.lat,
+			b.lon,
+			b.width,
+			b.height,
+			b.zoom,
+			b.scale);
+}
+
 inline bool operator!=(
 		const GeoPointLocation &a,
 		const GeoPointLocation &b) {
 	return !(a == b);
+}
+
+inline bool operator>(
+		const GeoPointLocation &a,
+		const GeoPointLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const GeoPointLocation &a,
+		const GeoPointLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const GeoPointLocation &a,
+		const GeoPointLocation &b) {
+	return !(a < b);
 }
 
 class Image;
