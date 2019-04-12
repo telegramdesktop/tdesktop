@@ -2947,8 +2947,8 @@ void History::clear(ClearType type) {
 		changeUnreadCount(-unreadCount());
 		if (type == ClearType::DeleteChat) {
 			setLastMessage(nullptr);
-		} else {
-			if (_lastMessage && IsServerMsgId((*_lastMessage)->id)) {
+		} else if (_lastMessage && *_lastMessage) {
+			if (IsServerMsgId((*_lastMessage)->id)) {
 				(*_lastMessage)->applyEditionToHistoryCleared();
 			} else {
 				_lastMessage = std::nullopt;
