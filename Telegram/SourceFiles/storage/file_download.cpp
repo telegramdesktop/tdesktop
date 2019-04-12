@@ -473,8 +473,8 @@ bool FileLoader::tryLoadLocal() {
 	}
 
 	const auto weak = make_weak(this);
-	if (const auto key = cacheKey()) {
-		loadLocal(*key);
+	if (_toCache == LoadToCacheAsWell) {
+		loadLocal(cacheKey());
 		emit progress(this);
 	}
 	if (!weak) {
@@ -594,16 +594,17 @@ bool FileLoader::finalizeResult() {
 
 	if (_localStatus == LocalStatus::NotFound) {
 		if (const auto key = fileLocationKey()) {
-			Local::writeFileLocation(*key, FileLocation(_filename));
-		}
-		if (const auto key = cacheKey()) {
-			if (_data.size() <= Storage::kMaxFileInMemory) {
-				Auth().data().cache().put(
-					*key,
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(_data),
-						_cacheTag));
+			if (!_filename.isEmpty()) {
+				Local::writeFileLocation(*key, FileLocation(_filename));
 			}
+		}
+		if ((_toCache == LoadToCacheAsWell)
+			&& (_data.size() <= Storage::kMaxFileInMemory)) {
+			Auth().data().cache().put(
+				cacheKey(),
+				Storage::Cache::Database::TaggedValue(
+					base::duplicate(_data),
+					_cacheTag));
 		}
 	}
 	_downloader->taskFinished().notify();
@@ -1161,20 +1162,18 @@ void mtpFileLoader::changeCDNParams(
 	makeRequest(offset);
 }
 
-std::optional<Storage::Cache::Key> mtpFileLoader::cacheKey() const {
+Storage::Cache::Key mtpFileLoader::cacheKey() const {
 	return _location.match([&](const WebFileLocation &location) {
-		return std::make_optional(Data::WebDocumentCacheKey(location));
+		return Data::WebDocumentCacheKey(location);
 	}, [&](const GeoPointLocation &location) {
-		return std::make_optional(Data::GeoPointCacheKey(location));
+		return Data::GeoPointCacheKey(location);
 	}, [&](const StorageFileLocation &location) {
-		return (_toCache == LoadToCacheAsWell)
-			? std::make_optional(location.cacheKey())
-			: std::nullopt;
+		return location.cacheKey();
 	});
 }
 
 std::optional<MediaKey> mtpFileLoader::fileLocationKey() const {
-	if (_locationType != UnknownFileLocation && !_filename.isEmpty()) {
+	if (_locationType != UnknownFileLocation) {
 		return mediaKey(_locationType, dcId(), objId());
 	}
 	return std::nullopt;
@@ -1246,7 +1245,7 @@ void webFileLoader::loadError() {
 	cancel(true);
 }
 
-std::optional<Storage::Cache::Key> webFileLoader::cacheKey() const {
+Storage::Cache::Key webFileLoader::cacheKey() const {
 	return Data::UrlCacheKey(_url);
 }
 

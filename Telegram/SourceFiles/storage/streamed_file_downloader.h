@@ -25,7 +25,8 @@ public:
 		uint64 objectId,
 		MTP::DcId dcId,
 		Data::FileOrigin origin,
-		std::optional<Cache::Key> cacheKey,
+		Cache::Key cacheKey,
+		MediaKey fileLocationKey,
 		std::shared_ptr<Media::Streaming::Reader> reader,
 
 		// For FileLoader
@@ -43,7 +44,7 @@ public:
 	void stop() override;
 
 private:
-	std::optional<Storage::Cache::Key> cacheKey() const override;
+	Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
 	bool loadPart() override;
@@ -52,7 +53,8 @@ private:
 
 	uint64 _objectId = 0;
 	Data::FileOrigin _origin;
-	std::optional<Cache::Key> _cacheKey;
+	Cache::Key _cacheKey;
+	MediaKey _fileLocationKey;
 	std::shared_ptr<Media::Streaming::Reader> _reader;
 
 	std::vector<bool> _partIsSaved; // vector<bool> :D

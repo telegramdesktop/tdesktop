@@ -43,7 +43,7 @@ public:
 		int offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify);
-	[[nodiscard]] std::optional<Error> failed() const;
+	[[nodiscard]] std::optional<Error> streamingError() const;
 	void headerDone();
 
 	// Thread safe.
@@ -56,6 +56,7 @@ public:
 	void stopStreaming(bool stillActive = false);
 	[[nodiscard]] rpl::producer<LoadedPart> partsForDownloader() const;
 	void loadForDownloader(int offset);
+	void doneForDownloader(int offset);
 	void cancelForDownloader();
 
 	~Reader();
@@ -139,7 +140,6 @@ private:
 
 		[[nodiscard]] QByteArray partForDownloader(int offset) const;
 		[[nodiscard]] std::optional<int> readCacheRequiredFor(int offset);
-		[[nodiscard]] bool waitForCacheRequiredFor(int offset) const;
 
 	private:
 		enum class HeaderMode {
@@ -173,7 +173,9 @@ private:
 	};
 
 	// 0 is for headerData, slice index = sliceNumber - 1.
+	// returns false if asked for a known-empty downloader slice cache.
 	void readFromCache(int sliceNumber);
+	[[nodiscard]] bool readFromCacheForDownloader();
 	bool processCacheResults();
 	void putToCache(SerializedSlice &&data);
 
@@ -190,6 +192,7 @@ private:
 
 	void processDownloaderRequests();
 	void checkCacheResultsForDownloader();
+	[[nodiscard]] bool downloaderWaitForCachedSlice(int offset);
 	void enqueueDownloaderOffsets();
 	void checkForDownloaderChange(int checkItemsCount);
 	void checkForDownloaderReadyOffsets();
@@ -207,11 +210,16 @@ private:
 	PriorityQueue _loadingOffsets;
 
 	Slices _slices;
-	std::optional<Error> _failed;
+
+	// Even if streaming had failed, the Reader can work for the downloader.
+	std::optional<Error> _streamingError;
 
 	std::atomic<bool> _downloaderAttached = false;
 	base::thread_safe_queue<int> _downloaderOffsetRequests;
 	std::deque<int> _offsetsForDownloader;
+	base::flat_set<int> _downloaderOffsetsRequested;
+	int _downloaderSliceNumber = 0; // > 0 means we want it from cache.
+	std::optional<PartsMap> _downloaderSliceCache;
 
 	// Main thread.
 	rpl::event_stream<LoadedPart> _partsForDownloader;

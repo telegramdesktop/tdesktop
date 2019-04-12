@@ -55,7 +55,7 @@ int File::Context::read(bytes::span buffer) {
 		_semaphore.acquire();
 		if (_interrupted) {
 			return -1;
-		} else if (const auto error = _reader->failed()) {
+		} else if (const auto error = _reader->streamingError()) {
 			fail(*error);
 			return -1;
 		}

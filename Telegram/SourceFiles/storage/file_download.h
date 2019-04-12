@@ -172,7 +172,7 @@ protected:
 
 	bool tryLoadLocal();
 	void loadLocal(const Storage::Cache::Key &key);
-	virtual std::optional<Storage::Cache::Key> cacheKey() const = 0;
+	virtual Storage::Cache::Key cacheKey() const = 0;
 	virtual std::optional<MediaKey> fileLocationKey() const = 0;
 	virtual void cancelRequests() = 0;
 
@@ -273,7 +273,7 @@ private:
 		int limit = 0;
 		QByteArray hash;
 	};
-	std::optional<Storage::Cache::Key> cacheKey() const override;
+	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
 
@@ -358,7 +358,7 @@ public:
 
 protected:
 	void cancelRequests() override;
-	std::optional<Storage::Cache::Key> cacheKey() const override;
+	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	bool loadPart() override;
 

@@ -871,9 +871,8 @@ void DocumentData::save(
 				id,
 				_dc,
 				origin,
-				(saveToCache()
-					? std::make_optional(Data::DocumentCacheKey(_dc, id))
-					: std::nullopt),
+				Data::DocumentCacheKey(_dc, id),
+				mediaKey(),
 				std::move(reader),
 				toFile,
 				size,

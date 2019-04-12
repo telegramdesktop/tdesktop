@@ -596,25 +596,9 @@ std::optional<int> Reader::Slices::readCacheRequiredFor(int offset) {
 	}
 	const auto index = offset / kInSlice;
 	auto &slice = _data[index];
-	if (slice.flags & (Flag::LoadedFromCache | Flag::LoadingFromCache)) {
-		return std::nullopt;
-	}
-	slice.flags |= Flag::LoadingFromCache;
-	return (index + 1);
-}
-
-bool Reader::Slices::waitForCacheRequiredFor(int offset) const {
-	Expects(offset < _size);
-
-	using Flag = Slice::Flag;
-	if (_header.flags & Flag::LoadingFromCache) {
-		return true;
-	} else if (isFullInHeader()) {
-		return false;
-	}
-	const auto index = offset / kInSlice;
-	const auto &slice = _data[index];
-	return (slice.flags & Flag::LoadingFromCache);
+	return (slice.flags & Flag::LoadedFromCache)
+		? std::nullopt
+		: std::make_optional(index + 1);
 }
 
 void Reader::Slices::markSliceUsed(int sliceIndex) {
@@ -841,6 +825,12 @@ void Reader::loadForDownloader(int offset) {
 	}
 }
 
+void Reader::doneForDownloader(int offset) {
+	if (_downloaderOffsetsRequested.remove(offset) && !_streamingActive) {
+		processDownloaderRequests();
+	}
+}
+
 void Reader::cancelForDownloader() {
 	if (_downloaderAttached.load(std::memory_order_acquire)) {
 		_downloaderOffsetRequests.take();
@@ -878,19 +868,33 @@ void Reader::checkForDownloaderChange(int checkItemsCount) {
 		_offsetsForDownloader.erase(
 			begin(_offsetsForDownloader),
 			changed + 1);
+		_downloaderSliceNumber = 0;
+		_downloaderSliceCache = std::nullopt;
 	}
 }
 
 void Reader::checkForDownloaderReadyOffsets() {
 	// If a requested part is available right now we simply fire it on the
 	// main thread, until the first not-available-right-now offset is found.
+	const auto ready = [&](int offset, QByteArray &&bytes) {
+		crl::on_main(this, [=, bytes = std::move(bytes)]() mutable {
+			_partsForDownloader.fire({ offset, std::move(bytes) });
+		});
+		return true;
+	};
 	const auto unavailable = [&](int offset) {
 		auto bytes = _slices.partForDownloader(offset);
 		if (!bytes.isEmpty()) {
-			crl::on_main(this, [=, bytes = std::move(bytes)]() mutable {
-				_partsForDownloader.fire({ offset, std::move(bytes) });
-			});
-			return false;
+			return !ready(offset, std::move(bytes));
+		}
+		const auto sliceIndex = (offset / kInSlice);
+		if ((sliceIndex + 1 == _downloaderSliceNumber)
+			&& _downloaderSliceCache) {
+			const auto i = _downloaderSliceCache->find(
+				offset - sliceIndex * kInSlice);
+			if (i != _downloaderSliceCache->end()) {
+				return !ready(offset, std::move(i->second));
+			}
 		}
 		return true;
 	};
@@ -900,7 +904,7 @@ void Reader::checkForDownloaderReadyOffsets() {
 }
 
 void Reader::processDownloaderRequests() {
-	checkForSomethingMoreReceived();
+	processCacheResults();
 	enqueueDownloaderOffsets();
 	checkForDownloaderReadyOffsets();
 	if (empty(_offsetsForDownloader)) {
@@ -908,17 +912,31 @@ void Reader::processDownloaderRequests() {
 	}
 
 	const auto offset = _offsetsForDownloader.front();
-	if (_cacheHelper) {
-		if (const auto sliceNumber = _slices.readCacheRequiredFor(offset)) {
-			readFromCache(*sliceNumber);
-			return;
-		} else if (_slices.waitForCacheRequiredFor(offset)) {
-			return;
-		}
+	if (_cacheHelper && downloaderWaitForCachedSlice(offset)) {
+		return;
 	}
 
 	_offsetsForDownloader.pop_front();
-	loadAtOffset(offset);
+	if (_downloaderOffsetsRequested.emplace(offset).second) {
+		_loader->load(offset);
+	}
+}
+
+bool Reader::downloaderWaitForCachedSlice(int offset) {
+	const auto sliceNumber = _slices.readCacheRequiredFor(offset);
+	if (sliceNumber.value_or(0) != _downloaderSliceNumber) {
+		_downloaderSliceNumber = sliceNumber.value_or(0);
+		_downloaderSliceCache = std::nullopt;
+		if (_downloaderSliceNumber) {
+			if (readFromCacheForDownloader()) {
+				return true;
+			}
+			_downloaderSliceCache = PartsMap();
+		}
+	} else if (_downloaderSliceNumber && !_downloaderSliceCache) {
+		return true;
+	}
+	return false;
 }
 
 void Reader::checkCacheResultsForDownloader() {
@@ -977,6 +995,17 @@ void Reader::readFromCache(int sliceNumber) {
 	});
 }
 
+bool Reader::readFromCacheForDownloader() {
+	Expects(_cacheHelper != nullptr);
+	Expects(_downloaderSliceNumber > 0);
+
+	if (_slices.headerModeUnknown()) {
+		return false;
+	}
+	readFromCache(_downloaderSliceNumber);
+	return true;
+}
+
 void Reader::putToCache(SerializedSlice &&slice) {
 	Expects(_cacheHelper != nullptr);
 	Expects(slice.number >= 0);
@@ -990,8 +1019,8 @@ int Reader::size() const {
 	return _loader->size();
 }
 
-std::optional<Error> Reader::failed() const {
-	return _failed;
+std::optional<Error> Reader::streamingError() const {
+	return _streamingError;
 }
 
 void Reader::headerDone() {
@@ -1027,7 +1056,7 @@ bool Reader::fill(
 	};
 
 	checkForSomethingMoreReceived();
-	if (_failed) {
+	if (_streamingError) {
 		return failed();
 	}
 
@@ -1039,7 +1068,7 @@ bool Reader::fill(
 		startWaiting();
 	} while (checkForSomethingMoreReceived());
 
-	return _failed ? failed() : false;
+	return _streamingError ? failed() : false;
 }
 
 bool Reader::fillFromSlices(int offset, bytes::span buffer) {
@@ -1047,7 +1076,7 @@ bool Reader::fillFromSlices(int offset, bytes::span buffer) {
 
 	auto result = _slices.fill(offset, buffer);
 	if (!result.filled && _slices.headerWontBeFilled()) {
-		_failed = Error::NotStreamable;
+		_streamingError = Error::NotStreamable;
 		return false;
 	}
 
@@ -1079,7 +1108,9 @@ void Reader::cancelLoadInRange(int from, int till) {
 	Expects(from < till);
 
 	for (const auto offset : _loadingOffsets.takeInRange(from, till)) {
-		_loader->cancel(offset);
+		if (!_downloaderOffsetsRequested.contains(offset)) {
+			_loader->cancel(offset);
+		}
 	}
 }
 
@@ -1093,14 +1124,22 @@ void Reader::checkLoadWillBeFirst(int offset) {
 bool Reader::processCacheResults() {
 	if (!_cacheHelper) {
 		return false;
-	} else if (_failed) {
-		return false;
 	}
 
 	QMutexLocker lock(&_cacheHelper->mutex);
 	auto loaded = base::take(_cacheHelper->results);
 	lock.unlock();
 
+	if (_downloaderSliceNumber) {
+		const auto i = loaded.find(_downloaderSliceNumber);
+		if (i != end(loaded)) {
+			_downloaderSliceCache = i->second;
+		}
+	}
+
+	if (_streamingError) {
+		return false;
+	}
 	for (auto &[sliceNumber, result] : loaded) {
 		_slices.processCacheResult(sliceNumber, std::move(result));
 	}
@@ -1114,14 +1153,14 @@ bool Reader::processCacheResults() {
 }
 
 bool Reader::processLoadedParts() {
-	if (_failed) {
+	if (_streamingError) {
 		return false;
 	}
 
 	auto loaded = _loadedParts.take();
 	for (auto &part : loaded) {
 		if (!part.valid(size())) {
-			_failed = Error::LoadFailed;
+			_streamingError = Error::LoadFailed;
 			return false;
 		} else if (!_loadingOffsets.remove(part.offset)) {
 			continue;

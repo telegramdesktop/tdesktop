@@ -23,7 +23,8 @@ StreamedFileDownloader::StreamedFileDownloader(
 	uint64 objectId,
 	MTP::DcId dcId,
 	Data::FileOrigin origin,
-	std::optional<Cache::Key> cacheKey,
+	Cache::Key cacheKey,
+	MediaKey fileLocationKey,
 	std::shared_ptr<Reader> reader,
 
 	// For FileLoader
@@ -45,6 +46,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 , _objectId(objectId)
 , _origin(origin)
 , _cacheKey(cacheKey)
+, _fileLocationKey(fileLocationKey)
 , _reader(std::move(reader)) {
 	_partIsSaved.resize((size + kPartSize - 1) / kPartSize, false);
 
@@ -76,12 +78,12 @@ void StreamedFileDownloader::stop() {
 	cancelRequests();
 }
 
-std::optional<Storage::Cache::Key> StreamedFileDownloader::cacheKey() const {
+Storage::Cache::Key StreamedFileDownloader::cacheKey() const {
 	return _cacheKey;
 }
 
 std::optional<MediaKey> StreamedFileDownloader::fileLocationKey() const {
-	return std::nullopt; AssertIsDebug();
+	return _fileLocationKey;
 }
 
 void StreamedFileDownloader::cancelRequests() {
@@ -109,7 +111,7 @@ bool StreamedFileDownloader::loadPart() {
 		return false;
 	}
 	_nextPartIndex = index + 1;
-	_reader->loadForDownloader(index);
+	_reader->loadForDownloader(index * kPartSize);
 	AssertIsDebug();
 	//_downloader->requestedAmountIncrement(
 	//	requestData.dcId,
@@ -123,11 +125,13 @@ bool StreamedFileDownloader::loadPart() {
 void StreamedFileDownloader::savePart(const LoadedPart &part) {
 	Expects(part.offset >= 0 && part.offset < _reader->size());
 	Expects(part.offset % kPartSize == 0);
+
 	if (_finished || _cancelled) {
 		return;
 	}
 
-	const auto index = part.offset / kPartSize;
+	const auto offset = part.offset;
+	const auto index = offset / kPartSize;
 	Assert(index >= 0 && index < _partIsSaved.size());
 	if (_partIsSaved[index]) {
 		return;
@@ -142,7 +146,7 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 		//	-kPartSize);
 		--_queue->queriesCount;
 	}
-	if (!writeResultPart(part.offset, bytes::make_span(part.bytes))) {
+	if (!writeResultPart(offset, bytes::make_span(part.bytes))) {
 		return;
 	}
 	if (ranges::find(_partIsSaved, false) == end(_partIsSaved)) {
@@ -150,6 +154,7 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 			return;
 		}
 	}
+	_reader->doneForDownloader(offset);
 	notifyAboutProgress();
 }
 
