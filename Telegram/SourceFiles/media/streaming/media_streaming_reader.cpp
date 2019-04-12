@@ -550,17 +550,35 @@ int Reader::Slices::maxSliceSize(int sliceNumber) const {
 }
 
 Reader::SerializedSlice Reader::Slices::serializeAndUnloadUnused() {
+	using Flag = Slice::Flag;
+
 	if (_headerMode == HeaderMode::Unknown
 		|| _usedSlices.size() <= kSlicesInMemory) {
 		return {};
 	}
 	const auto purgeSlice = _usedSlices.front();
 	_usedSlices.pop_front();
-	if (!(_data[purgeSlice].flags & Slice::Flag::LoadedFromCache)) {
+	if (!(_data[purgeSlice].flags & Flag::LoadedFromCache)) {
 		// If the only data in this slice was from _header, just leave it.
 		return {};
-	} else if (_headerMode == HeaderMode::NoCache
-		|| !(_data[purgeSlice].flags & Slice::Flag::ChangedSinceCache)) {
+	}
+	const auto noNeedToSaveToCache = [&] {
+		if (_headerMode == HeaderMode::NoCache) {
+			// Cache is not used.
+			return true;
+		} else if (!(_data[purgeSlice].flags & Flag::ChangedSinceCache)) {
+			// If no data was changed we should still save first slice,
+			// if header data was changed since loading from cache.
+			// Otherwise in destructor we won't be able to unload header.
+			if (!isGoodHeader()
+				|| (purgeSlice > 0)
+				|| (!(_header.flags & Flag::ChangedSinceCache))) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (noNeedToSaveToCache) {
 		_data[purgeSlice] = Slice();
 		return {};
 	}
