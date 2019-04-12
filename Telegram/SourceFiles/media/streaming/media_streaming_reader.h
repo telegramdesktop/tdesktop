@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/thread_safe_wrap.h"
 
 namespace Storage {
+class StreamedFileDownloader;
+} // namespace Storage
+
+namespace Storage {
 namespace Cache {
 struct Key;
 } // namespace Cache
@@ -55,9 +59,11 @@ public:
 	void startStreaming();
 	void stopStreaming(bool stillActive = false);
 	[[nodiscard]] rpl::producer<LoadedPart> partsForDownloader() const;
-	void loadForDownloader(int offset);
+	void loadForDownloader(
+		Storage::StreamedFileDownloader *downloader,
+		int offset);
 	void doneForDownloader(int offset);
-	void cancelForDownloader();
+	void cancelForDownloader(Storage::StreamedFileDownloader *downloader);
 
 	~Reader();
 
@@ -215,8 +221,9 @@ private:
 	// Even if streaming had failed, the Reader can work for the downloader.
 	std::optional<Error> _streamingError;
 
-	std::atomic<bool> _downloaderAttached = false;
+	Storage::StreamedFileDownloader *_attachedDownloader = nullptr;
 	base::thread_safe_queue<int> _downloaderOffsetRequests;
+	base::thread_safe_queue<int> _downloaderOffsetAcks;
 	std::deque<int> _offsetsForDownloader;
 	base::flat_set<int> _downloaderOffsetsRequested;
 	int _downloaderSliceNumber = 0; // > 0 means we want it from cache.

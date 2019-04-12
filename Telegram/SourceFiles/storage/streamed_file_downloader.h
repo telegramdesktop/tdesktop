@@ -43,6 +43,8 @@ public:
 	Data::FileOrigin fileOrigin() const override;
 	void stop() override;
 
+	QByteArray readLoadedPart(int offset);
+
 private:
 	Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;

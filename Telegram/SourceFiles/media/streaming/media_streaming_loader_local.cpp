@@ -76,6 +76,15 @@ rpl::producer<LoadedPart> LoaderLocal::parts() const {
 	return _parts.events();
 }
 
+void LoaderLocal::attachDownloader(
+		Storage::StreamedFileDownloader *downloader) {
+	Unexpected("Downloader attached to a local streaming loader.");
+}
+
+void LoaderLocal::clearAttachedDownloader() {
+	Unexpected("Downloader detached from a local streaming loader.");
+}
+
 std::unique_ptr<LoaderLocal> MakeFileLoader(const QString &path) {
 	return std::make_unique<LoaderLocal>(std::make_unique<QFile>(path));
 }

@@ -434,7 +434,7 @@ VoiceData::~VoiceData() {
 	if (!waveform.isEmpty()
 		&& waveform[0] == -1
 		&& waveform.size() > int32(sizeof(TaskId))) {
-		TaskId taskId = 0;
+		auto taskId = TaskId();
 		memcpy(&taskId, waveform.constData() + 1, sizeof(taskId));
 		Local::cancelTask(taskId);
 	}
@@ -866,7 +866,8 @@ void DocumentData::save(
 		}
 	} else {
 		status = FileReady;
-		if (auto reader = owner().documentStreamedReader(this, origin)) {
+		auto reader = owner().documentStreamedReader(this, origin, true);
+		if (reader) {
 			_loader = new Storage::StreamedFileDownloader(
 				id,
 				_dc,
@@ -1043,26 +1044,24 @@ QString DocumentData::filepath(FilePathResolve resolve) const {
 bool DocumentData::isStickerSetInstalled() const {
 	Expects(sticker() != nullptr);
 
-	const auto &set = sticker()->set;
 	const auto &sets = _owner->stickerSets();
-	switch (set.type()) {
-	case mtpc_inputStickerSetID: {
-		auto it = sets.constFind(set.c_inputStickerSetID().vid.v);
-		return (it != sets.cend())
-			&& !(it->flags & MTPDstickerSet::Flag::f_archived)
-			&& (it->flags & MTPDstickerSet::Flag::f_installed_date);
-	} break;
-	case mtpc_inputStickerSetShortName: {
-		auto name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
-		for (auto it = sets.cbegin(), e = sets.cend(); it != e; ++it) {
-			if (it->shortName.toLower() == name) {
-				return !(it->flags & MTPDstickerSet::Flag::f_archived)
-					&& (it->flags & MTPDstickerSet::Flag::f_installed_date);
+	return sticker()->set.match([&](const MTPDinputStickerSetID &data) {
+		const auto i = sets.constFind(data.vid.v);
+		return (i != sets.cend())
+			&& !(i->flags & MTPDstickerSet::Flag::f_archived)
+			&& (i->flags & MTPDstickerSet::Flag::f_installed_date);
+	}, [&](const MTPDinputStickerSetShortName &data) {
+		const auto name = qs(data.vshort_name).toLower();
+		for (const auto &set : sets) {
+			if (set.shortName.toLower() == name) {
+				return !(set.flags & MTPDstickerSet::Flag::f_archived)
+					&& (set.flags & MTPDstickerSet::Flag::f_installed_date);
 			}
 		}
-	} break;
-	}
-	return false;
+		return false;
+	}, [&](const MTPDinputStickerSetEmpty &) {
+		return false;
+	});
 }
 
 Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
@@ -1222,18 +1221,22 @@ bool DocumentData::inappPlaybackFailed() const {
 	return _inappPlaybackFailed;
 }
 
-auto DocumentData::createStreamingLoader(Data::FileOrigin origin) const
+auto DocumentData::createStreamingLoader(
+	Data::FileOrigin origin,
+	bool forceRemoteLoader) const
 -> std::unique_ptr<Media::Streaming::Loader> {
 	if (!useStreamingLoader()) {
 		return nullptr;
 	}
-	const auto &location = this->location(true);
-	if (!data().isEmpty()) {
-		return Media::Streaming::MakeBytesLoader(data());
-	} else if (!location.isEmpty() && location.accessEnable()) {
-		auto result = Media::Streaming::MakeFileLoader(location.name());
-		location.accessDisable();
-		return result;
+	if (!forceRemoteLoader) {
+		const auto &location = this->location(true);
+		if (!data().isEmpty()) {
+			return Media::Streaming::MakeBytesLoader(data());
+		} else if (!location.isEmpty() && location.accessEnable()) {
+			auto result = Media::Streaming::MakeFileLoader(location.name());
+			location.accessDisable();
+			return result;
+		}
 	}
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(

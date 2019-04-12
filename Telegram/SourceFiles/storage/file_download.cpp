@@ -179,6 +179,7 @@ void FileLoader::finishWithBytes(const QByteArray &data) {
 			cancel(true);
 			return;
 		}
+		_file.seek(0);
 		if (_file.write(_data) != qint64(_data.size())) {
 			cancel(true);
 			return;
@@ -534,40 +535,64 @@ int FileLoader::currentOffset() const {
 bool FileLoader::writeResultPart(int offset, bytes::const_span buffer) {
 	Expects(!_finished);
 
-	if (!buffer.empty()) {
-		if (_fileIsOpen) {
-			auto fsize = _file.size();
-			if (offset < fsize) {
-				_skippedBytes -= buffer.size();
-			} else if (offset > fsize) {
-				_skippedBytes += offset - fsize;
-			}
-			_file.seek(offset);
-			if (_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size()) != qint64(buffer.size())) {
-				cancel(true);
-				return false;
-			}
-		} else {
-			_data.reserve(offset + buffer.size());
-			if (offset > _data.size()) {
-				_skippedBytes += offset - _data.size();
-				_data.resize(offset);
-			}
-			if (offset == _data.size()) {
-				_data.append(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-			} else {
-				_skippedBytes -= buffer.size();
-				if (int64(offset + buffer.size()) > _data.size()) {
-					_data.resize(offset + buffer.size());
-				}
-				const auto dst = bytes::make_detached_span(_data).subspan(
-					offset,
-					buffer.size());
-				bytes::copy(dst, buffer);
-			}
+	if (buffer.empty()) {
+		return true;
+	}
+	if (_fileIsOpen) {
+		auto fsize = _file.size();
+		if (offset < fsize) {
+			_skippedBytes -= buffer.size();
+		} else if (offset > fsize) {
+			_skippedBytes += offset - fsize;
 		}
+		_file.seek(offset);
+		if (_file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size()) != qint64(buffer.size())) {
+			cancel(true);
+			return false;
+		}
+		return true;
+	}
+	_data.reserve(offset + buffer.size());
+	if (offset > _data.size()) {
+		_skippedBytes += offset - _data.size();
+		_data.resize(offset);
+	}
+	if (offset == _data.size()) {
+		_data.append(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+	} else {
+		_skippedBytes -= buffer.size();
+		if (int64(offset + buffer.size()) > _data.size()) {
+			_data.resize(offset + buffer.size());
+		}
+		const auto dst = bytes::make_detached_span(_data).subspan(
+			offset,
+			buffer.size());
+		bytes::copy(dst, buffer);
 	}
 	return true;
+}
+
+QByteArray FileLoader::readLoadedPartBack(int offset, int size) {
+	Expects(offset >= 0 && size > 0);
+
+	if (_fileIsOpen) {
+		if (_file.openMode() == QIODevice::WriteOnly) {
+			_file.close();
+			_fileIsOpen = _file.open(QIODevice::ReadWrite);
+			if (!_fileIsOpen) {
+				cancel(true);
+				return QByteArray();
+			}
+		}
+		if (!_file.seek(offset)) {
+			return QByteArray();
+		}
+		auto result = _file.read(size);
+		return (result.size() == size) ? result : QByteArray();
+	}
+	return (offset + size <= _data.size())
+		? _data.mid(offset, size)
+		: QByteArray();
 }
 
 bool FileLoader::finalizeResult() {
@@ -577,6 +602,7 @@ bool FileLoader::finalizeResult() {
 		if (!_fileIsOpen) {
 			_fileIsOpen = _file.open(QIODevice::WriteOnly);
 		}
+		_file.seek(0);
 		if (!_fileIsOpen || _file.write(_data) != qint64(_data.size())) {
 			cancel(true);
 			return false;

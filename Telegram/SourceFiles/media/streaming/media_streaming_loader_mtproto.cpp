@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "storage/streamed_file_downloader.h"
 #include "storage/cache/storage_cache_types.h"
 
 namespace Media {
@@ -40,6 +41,14 @@ int LoaderMtproto::size() const {
 
 void LoaderMtproto::load(int offset) {
 	crl::on_main(this, [=] {
+		if (_downloader) {
+			auto bytes = _downloader->readLoadedPart(offset);
+			if (!bytes.isEmpty()) {
+				cancelForOffset(offset);
+				_parts.fire({ offset, std::move(bytes) });
+				return;
+			}
+		}
 		if (_requests.contains(offset)) {
 			return;
 		} else if (_requested.add(offset)) {
@@ -60,13 +69,26 @@ void LoaderMtproto::stop() {
 
 void LoaderMtproto::cancel(int offset) {
 	crl::on_main(this, [=] {
-		if (const auto requestId = _requests.take(offset)) {
-			_sender.request(*requestId).cancel();
-			sendNext();
-		} else {
-			_requested.remove(offset);
-		}
+		cancelForOffset(offset);
 	});
+}
+
+void LoaderMtproto::cancelForOffset(int offset) {
+	if (const auto requestId = _requests.take(offset)) {
+		_sender.request(*requestId).cancel();
+		sendNext();
+	} else {
+		_requested.remove(offset);
+	}
+}
+
+void LoaderMtproto::attachDownloader(
+		Storage::StreamedFileDownloader *downloader) {
+	_downloader = downloader;
+}
+
+void LoaderMtproto::clearAttachedDownloader() {
+	_downloader = nullptr;
 }
 
 void LoaderMtproto::increasePriority() {

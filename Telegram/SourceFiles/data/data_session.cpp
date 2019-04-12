@@ -1091,14 +1091,17 @@ void Session::requestDocumentViewRepaint(
 
 std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
 		not_null<DocumentData*> document,
-		FileOrigin origin) {
+		FileOrigin origin,
+		bool forceRemoteLoader) {
 	const auto i = _streamedReaders.find(document);
 	if (i != end(_streamedReaders)) {
 		if (auto result = i->second.lock()) {
-			return result;
+			if (!forceRemoteLoader || result->isRemoteLoader()) {
+				return result;
+			}
 		}
 	}
-	auto loader = document->createStreamingLoader(origin);
+	auto loader = document->createStreamingLoader(origin, forceRemoteLoader);
 	if (!loader) {
 		return nullptr;
 	}
@@ -1106,7 +1109,7 @@ std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
 		this,
 		std::move(loader));
 	if (!PruneDestroyedAndSet(_streamedReaders, document, result)) {
-		_streamedReaders.emplace(document, result);
+		_streamedReaders.emplace_or_assign(document, result);
 	}
 	return result;
 }

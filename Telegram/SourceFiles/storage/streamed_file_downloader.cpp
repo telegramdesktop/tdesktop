@@ -79,6 +79,16 @@ void StreamedFileDownloader::stop() {
 	cancelRequests();
 }
 
+QByteArray StreamedFileDownloader::readLoadedPart(int offset) {
+	Expects(offset >= 0 && offset < _size);
+	Expects(!(offset % kPartSize));
+
+	const auto index = (offset / kPartSize);
+	return _partIsSaved[index]
+		? readLoadedPartBack(offset, kPartSize)
+		: QByteArray();
+}
+
 Storage::Cache::Key StreamedFileDownloader::cacheKey() const {
 	return _cacheKey;
 }
@@ -96,7 +106,7 @@ void StreamedFileDownloader::cancelRequests() {
 	_partsRequested = 0;
 	_nextPartIndex = 0;
 
-	_reader->cancelForDownloader();
+	_reader->cancelForDownloader(this);
 }
 
 bool StreamedFileDownloader::loadPart() {
@@ -113,7 +123,7 @@ bool StreamedFileDownloader::loadPart() {
 		return false;
 	}
 	_nextPartIndex = index + 1;
-	_reader->loadForDownloader(index * kPartSize);
+	_reader->loadForDownloader(this, index * kPartSize);
 
 	AssertIsDebug();
 	//_downloader->requestedAmountIncrement(

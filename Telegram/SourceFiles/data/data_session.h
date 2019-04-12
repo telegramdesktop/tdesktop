@@ -402,7 +402,8 @@ public:
 
 	std::shared_ptr<::Media::Streaming::Reader> documentStreamedReader(
 		not_null<DocumentData*> document,
-		FileOrigin origin);
+		FileOrigin origin,
+		bool forceRemoteLoader = false);
 
 	HistoryItem *addNewMessage(const MTPMessage &data, NewMessageType type);
 

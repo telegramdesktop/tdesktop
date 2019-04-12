@@ -186,6 +186,7 @@ protected:
 
 	bool writeResultPart(int offset, bytes::const_span buffer);
 	bool finalizeResult();
+	[[nodiscard]] QByteArray readLoadedPartBack(int offset, int size);
 
 	not_null<Storage::Downloader*> _downloader;
 	FileLoader *_prev = nullptr;

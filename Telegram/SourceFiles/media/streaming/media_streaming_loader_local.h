@@ -32,6 +32,10 @@ public:
 	// Parts will be sent from the main thread.
 	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
 
+	void attachDownloader(
+		Storage::StreamedFileDownloader *downloader) override;
+	void clearAttachedDownloader() override;
+
 private:
 	void fail();
 

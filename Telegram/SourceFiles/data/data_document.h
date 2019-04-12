@@ -215,8 +215,10 @@ public:
 
 	[[nodiscard]] bool canBePlayed() const;
 	[[nodiscard]] bool canBeStreamed() const;
-	[[nodiscard]] auto createStreamingLoader(Data::FileOrigin origin) const
-		-> std::unique_ptr<Media::Streaming::Loader>;
+	[[nodiscard]] auto createStreamingLoader(
+		Data::FileOrigin origin,
+		bool forceRemoteLoader) const
+	-> std::unique_ptr<Media::Streaming::Loader>;
 
 	void setInappPlaybackFailed();
 	[[nodiscard]] bool inappPlaybackFailed() const;

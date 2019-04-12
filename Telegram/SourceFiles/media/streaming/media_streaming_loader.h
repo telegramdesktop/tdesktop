@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Storage {
+class StreamedFileDownloader;
+} // namespace Storage
+
 namespace Media {
 namespace Streaming {
 
@@ -34,6 +38,10 @@ public:
 
 	// Parts will be sent from the main thread.
 	[[nodiscard]] virtual rpl::producer<LoadedPart> parts() const = 0;
+
+	virtual void attachDownloader(
+		Storage::StreamedFileDownloader *downloader) = 0;
+	virtual void clearAttachedDownloader() = 0;
 
 	virtual ~Loader() = default;
 

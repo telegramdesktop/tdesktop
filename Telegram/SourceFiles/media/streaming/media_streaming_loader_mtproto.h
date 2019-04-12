@@ -36,6 +36,10 @@ public:
 	// Parts will be sent from the main thread.
 	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
 
+	void attachDownloader(
+		Storage::StreamedFileDownloader *downloader) override;
+	void clearAttachedDownloader() override;
+
 	~LoaderMtproto();
 
 private:
@@ -53,6 +57,7 @@ private:
 		const QByteArray &encryptionKey,
 		const QByteArray &encryptionIV,
 		const QVector<MTPFileHash> &hashes);
+	void cancelForOffset(int offset);
 
 	const not_null<ApiWrap*> _api;
 
@@ -67,6 +72,8 @@ private:
 	PriorityQueue _requested;
 	base::flat_map<int, mtpRequestId> _requests;
 	rpl::event_stream<LoadedPart> _parts;
+
+	Storage::StreamedFileDownloader *_downloader = nullptr;
 
 };
 

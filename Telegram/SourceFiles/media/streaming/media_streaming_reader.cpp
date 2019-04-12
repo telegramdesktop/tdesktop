@@ -768,12 +768,12 @@ Reader::Reader(
 , _slices(_loader->size(), _cacheHelper != nullptr) {
 	_loader->parts(
 	) | rpl::start_with_next([=](LoadedPart &&part) {
-		if (_downloaderAttached.load(std::memory_order_acquire)) {
+		if (_attachedDownloader) {
 			_partsForDownloader.fire_copy(part);
 		}
-
-		_loadedParts.emplace(std::move(part));
-
+		if (_streamingActive) {
+			_loadedParts.emplace(std::move(part));
+		}
 		if (const auto waiting = _waiting.load(std::memory_order_acquire)) {
 			_waiting.store(nullptr, std::memory_order_release);
 			waiting->release();
@@ -811,6 +811,7 @@ void Reader::stopStreaming(bool stillActive) {
 	_waiting.store(nullptr, std::memory_order_release);
 	if (!stillActive) {
 		_streamingActive = false;
+		_loadingOffsets.clear();
 		processDownloaderRequests();
 	}
 }
@@ -819,8 +820,16 @@ rpl::producer<LoadedPart> Reader::partsForDownloader() const {
 	return _partsForDownloader.events();
 }
 
-void Reader::loadForDownloader(int offset) {
-	_downloaderAttached.store(true, std::memory_order_release);
+void Reader::loadForDownloader(
+		Storage::StreamedFileDownloader *downloader,
+		int offset) {
+	if (_attachedDownloader != downloader) {
+		if (_attachedDownloader) {
+			cancelForDownloader(_attachedDownloader);
+		}
+		_attachedDownloader = downloader;
+		_loader->attachDownloader(downloader);
+	}
 	_downloaderOffsetRequests.emplace(offset);
 	if (_streamingActive) {
 		wakeFromSleep();
@@ -830,15 +839,18 @@ void Reader::loadForDownloader(int offset) {
 }
 
 void Reader::doneForDownloader(int offset) {
-	if (_downloaderOffsetsRequested.remove(offset) && !_streamingActive) {
+	_downloaderOffsetAcks.emplace(offset);
+	if (!_streamingActive) {
 		processDownloaderRequests();
 	}
 }
 
-void Reader::cancelForDownloader() {
-	if (_downloaderAttached.load(std::memory_order_acquire)) {
+void Reader::cancelForDownloader(
+		Storage::StreamedFileDownloader *downloader) {
+	if (_attachedDownloader == downloader) {
 		_downloaderOffsetRequests.take();
-		_downloaderAttached.store(false, std::memory_order_release);
+		_attachedDownloader = nullptr;
+		_loader->clearAttachedDownloader();
 	}
 }
 
@@ -918,6 +930,10 @@ void Reader::processDownloaderRequests() {
 	const auto offset = _offsetsForDownloader.front();
 	if (_cacheHelper && downloaderWaitForCachedSlice(offset)) {
 		return;
+	}
+
+	for (const auto done : _downloaderOffsetAcks.take()) {
+		_downloaderOffsetsRequested.remove(done);
 	}
 
 	_offsetsForDownloader.pop_front();
