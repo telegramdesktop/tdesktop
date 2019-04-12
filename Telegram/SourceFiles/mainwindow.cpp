@@ -675,9 +675,13 @@ void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	}
 }
 
-void MainWindow::toggleTray(QSystemTrayIcon::ActivationReason reason) {
+void MainWindow::handleTrayIconActication(
+		QSystemTrayIcon::ActivationReason reason) {
 	updateIsActive(0);
-	if ((cPlatform() == dbipMac || cPlatform() == dbipMacOld) && isActive()) return;
+	if ((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
+		&& isActive()) {
+		return;
+	}
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
 		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));

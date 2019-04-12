@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
+#include "core/sandbox.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "auth_session.h"
@@ -404,6 +405,17 @@ int32 MainWindow::screenNameChecksum(const QString &name) const {
 
 void MainWindow::setPositionInited() {
 	_positionInited = true;
+}
+
+void MainWindow::attachToTrayIcon(not_null<QSystemTrayIcon*> icon) {
+	icon->setToolTip(str_const_toString(AppName));
+	connect(icon, &QSystemTrayIcon::activated, this, [=](
+			QSystemTrayIcon::ActivationReason reason) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			handleTrayIconActication(reason);
+		});
+	});
+	App::wnd()->updateTrayMenu();
 }
 
 void MainWindow::resizeEvent(QResizeEvent *e) {

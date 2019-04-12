@@ -132,7 +132,6 @@ public slots:
 
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
-	void toggleTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	void toggleDisplayNotifyFromTray();
 
 	void onClearFinished(int task, void *manager);
@@ -149,6 +148,9 @@ signals:
 
 private:
 	[[nodiscard]] bool skipTrayClick() const;
+
+	void handleTrayIconActication(
+		QSystemTrayIcon::ActivationReason reason) override;
 
 	void hideMediaPreview();
 	void ensureLayerCreated();
