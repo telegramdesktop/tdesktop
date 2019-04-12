@@ -666,7 +666,7 @@ void Notification::updateNotifyDisplay() {
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder);
 
 		if (!options.hideNameAndPhoto) {
-			_history->peer->loadUserpic(true, true);
+			_history->peer->loadUserpic();
 			_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 		} else {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), manager()->hiddenUserpicPlaceholder());

@@ -62,5 +62,5 @@ LocationData::LocationData(const LocationCoords &coords)
 }
 
 void LocationData::load(Data::FileOrigin origin) {
-	thumb->load(origin, false, false);
+	thumb->load(origin);
 }

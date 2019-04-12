@@ -691,7 +691,7 @@ void UserpicButton::processPeerPhoto() {
 
 	_waiting = !_peer->userpicLoaded();
 	if (_waiting) {
-		_peer->loadUserpic(true);
+		_peer->loadUserpic();
 	}
 	if (_role == Role::OpenPhoto) {
 		if (_peer->userpicPhotoUnknown()) {

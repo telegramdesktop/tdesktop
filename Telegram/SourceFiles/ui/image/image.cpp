@@ -913,18 +913,15 @@ void Image::automaticLoad(
 	}
 }
 
-void Image::load(Data::FileOrigin origin, bool loadFirst, bool prior) {
+void Image::load(Data::FileOrigin origin) {
 	if (!loaded()) {
-		_source->load(origin, loadFirst, prior);
+		_source->load(origin);
 	}
 }
 
-void Image::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void Image::loadEvenCancelled(Data::FileOrigin origin) {
 	if (!loaded()) {
-		_source->loadEvenCancelled(origin, loadFirst, prior);
+		_source->loadEvenCancelled(origin);
 	}
 }
 

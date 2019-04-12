@@ -15,14 +15,8 @@ class ImageSource : public Source {
 public:
 	ImageSource(QImage &&data, const QByteArray &format);
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
@@ -70,14 +64,8 @@ public:
 		const QByteArray &format = QByteArray(),
 		QImage &&data = QImage());
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
@@ -122,14 +110,8 @@ private:
 
 class RemoteSource : public Source {
 public:
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
@@ -263,14 +245,8 @@ public:
 	DelayedStorageSource();
 	DelayedStorageSource(int width, int height);
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;

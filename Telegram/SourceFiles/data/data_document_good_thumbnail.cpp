@@ -131,10 +131,7 @@ void GoodThumbSource::ready(
 	});
 }
 
-void GoodThumbSource::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void GoodThumbSource::load(Data::FileOrigin origin) {
 	if (loading() || _empty) {
 		return;
 	}
@@ -163,12 +160,9 @@ void GoodThumbSource::load(
 		std::move(callback));
 }
 
-void GoodThumbSource::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void GoodThumbSource::loadEvenCancelled(Data::FileOrigin origin) {
 	_empty = false;
-	load(origin, loadFirst, prior);
+	load(origin);
 }
 
 QImage GoodThumbSource::takeLoaded() {

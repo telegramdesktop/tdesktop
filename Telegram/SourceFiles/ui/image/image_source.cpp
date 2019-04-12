@@ -24,24 +24,18 @@ ImageSource::ImageSource(QImage &&data, const QByteArray &format)
 , _height(_data.height()) {
 }
 
-void ImageSource::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void ImageSource::load(Data::FileOrigin origin) {
 	if (_data.isNull() && !_bytes.isEmpty()) {
 		_data = App::readImage(_bytes, &_format, false);
 	}
 }
 
-void ImageSource::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
-	load(origin, loadFirst, prior);
+void ImageSource::loadEvenCancelled(Data::FileOrigin origin) {
+	load(origin);
 }
 
 QImage ImageSource::takeLoaded() {
-	load({}, false, false);
+	load({});
 	return _data;
 }
 
@@ -60,8 +54,8 @@ void ImageSource::unload() {
 }
 
 void ImageSource::automaticLoad(
-	Data::FileOrigin origin,
-	const HistoryItem *item) {
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
 }
 
 void ImageSource::automaticLoadSettingsChanged() {
@@ -156,10 +150,7 @@ LocalFileSource::LocalFileSource(
 , _height(_data.height()) {
 }
 
-void LocalFileSource::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void LocalFileSource::load(Data::FileOrigin origin) {
 	if (!_data.isNull()) {
 		return;
 	}
@@ -179,11 +170,8 @@ void LocalFileSource::load(
 	_height = std::max(_data.height(), 1);
 }
 
-void LocalFileSource::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
-	load(origin, loadFirst, prior);
+void LocalFileSource::loadEvenCancelled(Data::FileOrigin origin) {
+	load(origin);
 }
 
 QImage LocalFileSource::takeLoaded() {
@@ -195,8 +183,8 @@ void LocalFileSource::unload() {
 }
 
 void LocalFileSource::automaticLoad(
-	Data::FileOrigin origin,
-	const HistoryItem *item) {
+		Data::FileOrigin origin,
+		const HistoryItem *item) {
 }
 
 void LocalFileSource::automaticLoadSettingsChanged() {
@@ -245,7 +233,7 @@ bool LocalFileSource::isDelayedStorageImage() const {
 
 void LocalFileSource::setImageBytes(const QByteArray &bytes) {
 	_bytes = bytes;
-	load({}, false, true);
+	load({});
 }
 
 int LocalFileSource::width() {
@@ -273,7 +261,7 @@ void LocalFileSource::setInformation(int size, int width, int height) {
 
 void LocalFileSource::ensureDimensionsKnown() {
 	if (!_width || !_height) {
-		load({}, false, false);
+		load({});
 	}
 }
 
@@ -381,15 +369,12 @@ void RemoteSource::automaticLoadSettingsChanged() {
 	}
 }
 
-void RemoteSource::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void RemoteSource::load(Data::FileOrigin origin) {
 	if (!_loader) {
 		_loader = createLoader(origin, LoadFromCloudOrLocal, false);
 	}
 	if (loaderValid()) {
-		_loader->start(loadFirst, prior);
+		_loader->start();
 	}
 }
 
@@ -397,14 +382,11 @@ bool RemoteSource::cancelled() const {
 	return (_loader == CancelledFileLoader);
 }
 
-void RemoteSource::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void RemoteSource::loadEvenCancelled(Data::FileOrigin origin) {
 	if (cancelled()) {
 		_loader = nullptr;
 	}
-	return load(origin, loadFirst, prior);
+	return load(origin);
 }
 
 bool RemoteSource::displayLoading() {
@@ -656,7 +638,7 @@ void DelayedStorageSource::performDelayedLoad(Data::FileOrigin origin) {
 		return;
 	}
 	if (base::take(_loadFromCloud)) {
-		load(origin, false, true);
+		load(origin);
 	} else {
 		loadLocal();
 	}
@@ -689,23 +671,17 @@ void DelayedStorageSource::automaticLoadSettingsChanged() {
 	StorageSource::automaticLoadSettingsChanged();
 }
 
-void DelayedStorageSource::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void DelayedStorageSource::load(Data::FileOrigin origin) {
 	if (_location.valid()) {
-		StorageSource::load(origin, loadFirst, prior);
+		StorageSource::load(origin);
 	} else {
 		_loadRequested = _loadFromCloud = true;
 	}
 }
 
-void DelayedStorageSource::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void DelayedStorageSource::loadEvenCancelled(Data::FileOrigin origin) {
 	_loadCancelled = false;
-	StorageSource::loadEvenCancelled(origin, loadFirst, prior);
+	StorageSource::loadEvenCancelled(origin);
 }
 
 bool DelayedStorageSource::displayLoading() {

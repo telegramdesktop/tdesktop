@@ -229,7 +229,7 @@ public:
 		int x,
 		int y,
 		int size) const;
-	void loadUserpic(bool loadFirst = false, bool prior = true);
+	void loadUserpic();
 	[[nodiscard]] bool userpicLoaded() const;
 	[[nodiscard]] bool useEmptyUserpic() const;
 	[[nodiscard]] InMemoryKey userpicUniqueKey() const;

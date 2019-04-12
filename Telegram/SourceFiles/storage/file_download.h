@@ -133,18 +133,14 @@ public:
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
 
-	void pause();
-	void start(bool loadFirst = false, bool prior = true);
+	void start();
 	void cancel();
 
 	bool loading() const {
 		return _inQueue;
 	}
-	bool paused() const {
-		return _paused;
-	}
 	bool started() const {
-		return _inQueue || _paused;
+		return _inQueue;
 	}
 	bool loadingLocal() const {
 		return (_localStatus == LocalStatus::Loading);
@@ -184,7 +180,7 @@ protected:
 	virtual std::optional<MediaKey> fileLocationKey() const = 0;
 	virtual void cancelRequests() = 0;
 
-	void startLoading(bool loadFirst, bool prior);
+	void startLoading();
 	void removeFromQueue();
 	void cancel(bool failed);
 
@@ -202,7 +198,6 @@ protected:
 	int _priority = 0;
 	Queue *_queue = nullptr;
 
-	bool _paused = false;
 	bool _autoLoading = false;
 	uint8 _cacheTag = 0;
 	bool _inQueue = false;
@@ -287,7 +282,6 @@ private:
 	void cancelRequests() override;
 
 	MTP::DcId dcId() const;
-	int partSize() const;
 	RequestData prepareRequest(int offset) const;
 	void makeRequest(int offset);
 
@@ -373,11 +367,11 @@ protected:
 
 	QString _url;
 
-	bool _requestSent;
-	int32 _already;
+	bool _requestSent = false;
+	int32 _already = 0;
 
 	friend class WebLoadManager;
-	webFileLoaderPrivate *_private;
+	webFileLoaderPrivate *_private = nullptr;
 
 };
 

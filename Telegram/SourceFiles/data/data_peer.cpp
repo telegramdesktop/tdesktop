@@ -239,8 +239,8 @@ void PeerData::paintUserpicSquare(Painter &p, int x, int y, int size) const {
 	}
 }
 
-void PeerData::loadUserpic(bool loadFirst, bool prior) {
-	_userpic->load(userpicOrigin(), loadFirst, prior);
+void PeerData::loadUserpic() {
+	_userpic->load(userpicOrigin());
 }
 
 bool PeerData::userpicLoaded() const {
