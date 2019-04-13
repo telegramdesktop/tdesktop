@@ -340,7 +340,7 @@ void start(not_null<Core::Launcher*> launcher) {
 			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 		} else {
-#ifdef _DEBUG
+#if defined _DEBUG && !defined OS_MAC_STORE
 			cForceWorkingDir(cExeDir());
 #else // _DEBUG
 			cForceWorkingDir(psAppDataPath());

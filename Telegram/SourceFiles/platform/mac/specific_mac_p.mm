@@ -471,7 +471,7 @@ void objc_downloadPathEnableAccess(const QByteArray &bookmark) {
 		if (_downloadPathUrl) {
 			[_downloadPathUrl stopAccessingSecurityScopedResource];
 		}
-		_downloadPathUrl = url;
+		_downloadPathUrl = [url retain];
 
 		Global::SetDownloadPath(NS2QString([_downloadPathUrl path]) + '/');
 		if (isStale) {
