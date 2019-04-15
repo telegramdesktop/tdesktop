@@ -2176,7 +2176,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			&& cons != mtpc_updatesCombined
 			&& cons != mtpc_updates) {
 			// Maybe some new unknown update?
-			LOG(("Message Error: unknown constructor %1").arg(cons));
+			LOG(("Message Error: unknown constructor 0x%1").arg(cons, 0, 16));
 		}
 	} else {
 		LOG(("Message Error: unexpected updates in dcType: %1").arg(static_cast<int>(_dcType)));

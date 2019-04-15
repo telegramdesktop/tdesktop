@@ -425,9 +425,11 @@ void ApiWrap::savePinnedOrder() {
 //			peers.push_back(MTP_inputDialogPeerFeed(MTP_int(feed->id()))); // #feed
 		}
 	}
-	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
+	const auto folderId = 0;
+	const auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
 	request(MTPmessages_ReorderPinnedDialogs(
 		MTP_flags(flags),
+		MTP_int(folderId),
 		MTP_vector(peers)
 	)).send();
 }
@@ -837,7 +839,7 @@ void ApiWrap::applyFeedDialogs(
 			"messages.dialogsNotModified in ApiWrap::applyFeedDialogs."));
 		return;
 	}
-
+	// #TODO folders
 	auto channels = std::vector<not_null<ChannelData*>>();
 	dialogs.match([&](const MTPDmessages_dialogsNotModified &) {
 		Unexpected("Type in ApiWrap::applyFeedDialogs.");
@@ -855,12 +857,12 @@ void ApiWrap::applyFeedDialogs(
 						channels.emplace_back(history->peer->asChannel());
 					} else {
 						LOG(("API Error: "
-							"Unexpected peer in feed dialogs list."));
+							"Unexpected peer in folder dialogs list."));
 					}
 				}
-			//}, [&](const MTPDdialogFeed &) { // #feed
-			//	LOG(("API Error: "
-			//		"Unexpected dialogFeed in feed dialogs list."));
+			}, [&](const MTPDdialogFolder &data) {
+				LOG(("API Error: "
+					"Unexpected dialogFolder in folder dialogs list."));
 			});
 		}
 	});
@@ -2833,7 +2835,11 @@ void ApiWrap::channelRangeDifferenceDone(
 		_session->data().processUsers(d.vusers);
 		_session->data().processChats(d.vchats);
 
-		nextRequestPts = d.vpts.v;
+		nextRequestPts = d.vdialog.match([&](const MTPDdialog &data) {
+			return data.has_pts() ? data.vpts.v : 0;
+		}, [&](const MTPDdialogFolder &data) {
+			return 0;
+		});
 		isFinal = d.is_final();
 	} break;
 
@@ -2847,7 +2853,7 @@ void ApiWrap::channelRangeDifferenceDone(
 	} break;
 	}
 
-	if (!isFinal) {
+	if (!isFinal && nextRequestPts) {
 		MTP_LOG(0, ("getChannelDifference { "
 			"good - after not final channelDifference was received, "
 			"validating history part }%1"

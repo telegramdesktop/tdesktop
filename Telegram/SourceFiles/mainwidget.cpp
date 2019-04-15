@@ -2864,60 +2864,43 @@ void MainWidget::updSetState(int32 pts, int32 date, int32 qts, int32 seq) {
 
 void MainWidget::gotChannelDifference(
 		ChannelData *channel,
-		const MTPupdates_ChannelDifference &diff) {
+		const MTPupdates_ChannelDifference &difference) {
 	_channelFailDifferenceTimeout.remove(channel);
 
-	int32 timeout = 0;
-	bool isFinal = true;
-	switch (diff.type()) {
-	case mtpc_updates_channelDifferenceEmpty: {
-		auto &d = diff.c_updates_channelDifferenceEmpty();
-		if (d.has_timeout()) timeout = d.vtimeout.v;
-		isFinal = d.is_final();
-		channel->ptsInit(d.vpts.v);
-	} break;
-
-	case mtpc_updates_channelDifferenceTooLong: {
-		auto &d = diff.c_updates_channelDifferenceTooLong();
-
-		session().data().processUsers(d.vusers);
-		session().data().processChats(d.vchats);
-		auto history = session().data().historyLoaded(channel->id);
+	const auto timeout = difference.match([&](const auto &data) {
+		return data.has_timeout() ? data.vtimeout.v : 0;
+	});
+	const auto isFinal = difference.match([&](const auto &data) {
+		return data.is_final();
+	});
+	difference.match([&](const MTPDupdates_channelDifferenceEmpty &data) {
+		channel->ptsInit(data.vpts.v);
+	}, [&](const MTPDupdates_channelDifferenceTooLong &data) {
+		session().data().processUsers(data.vusers);
+		session().data().processChats(data.vchats);
+		const auto history = session().data().historyLoaded(channel->id);
 		if (history) {
 			history->setNotLoadedAtBottom();
-		}
-		App::feedMsgs(d.vmessages, NewMessageLast);
-		if (history) {
-			history->applyDialogFields(
-				d.vunread_count.v,
-				d.vread_inbox_max_id.v,
-				d.vread_outbox_max_id.v);
-			history->applyDialogTopMessage(d.vtop_message.v);
-			history->setUnreadMentionsCount(d.vunread_mentions_count.v);
-			if (_history->peer() == channel) {
-				_history->updateHistoryDownVisibility();
-				_history->preloadHistoryIfNeeded();
-			}
 			session().api().requestChannelRangeDifference(history);
 		}
-
-		if (d.has_timeout()) {
-			timeout = d.vtimeout.v;
+		App::feedMsgs(data.vmessages, NewMessageLast);
+		data.vdialog.match([&](const MTPDdialog &data) {
+			if (data.has_pts()) {
+				channel->ptsInit(data.vpts.v);
+			}
+			if (history) {
+				history->applyDialog(data);
+			}
+		}, [&](const MTPDdialogFolder &) {
+		});
+		if (_history->peer() == channel) {
+			_history->updateHistoryDownVisibility();
+			_history->preloadHistoryIfNeeded();
 		}
-		isFinal = d.is_final();
-		channel->ptsInit(d.vpts.v);
-	} break;
-
-	case mtpc_updates_channelDifference: {
-		auto &d = diff.c_updates_channelDifference();
-
-		feedChannelDifference(d);
-
-		if (d.has_timeout()) timeout = d.vtimeout.v;
-		isFinal = d.is_final();
-		channel->ptsInit(d.vpts.v);
-	} break;
-	}
+	}, [&](const MTPDupdates_channelDifference &data) {
+		feedChannelDifference(data);
+		channel->ptsInit(data.vpts.v);
+	});
 
 	channel->ptsSetRequesting(false);
 
@@ -4016,15 +3999,18 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDialogUnreadMark: {
 		const auto &data = update.c_updateDialogUnreadMark();
-		const auto history = data.vpeer.match(
-		[&](const MTPDdialogPeer &data) {
-			const auto peerId = peerFromMTP(data.vpeer);
-			return session().data().historyLoaded(peerId);
-		//}, [&](const MTPDdialogPeerFeed &data) { // #feed
+		data.vpeer.match(
+		[&](const MTPDdialogPeer &dialog) {
+			const auto id = peerFromMTP(dialog.vpeer);
+			if (const auto history = session().data().historyLoaded(id)) {
+				history->setUnreadMark(data.is_unread());
+			}
+		}, [&](const MTPDdialogPeerFolder &dialog) {
+			const auto id = dialog.vfolder_id.v; // #TODO archive
+			//if (const auto folder = session().data().folderLoaded(id)) {
+			//	folder->setUnreadMark(data.is_unread());
+			//}
 		});
-		if (history) {
-			history->setUnreadMark(data.is_unread());
-		}
 	} break;
 
 	// Deleted messages.

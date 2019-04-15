@@ -528,6 +528,7 @@ void ApiWrap::requestDialogsCount() {
 	const auto hash = 0;
 	splitRequest(_startProcess->splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
+		MTPint(), // folder_id
 		MTP_int(offsetDate),
 		MTP_int(offsetId),
 		offsetPeer,
@@ -1097,6 +1098,7 @@ void ApiWrap::requestDialogsSlice() {
 	const auto hash = 0;
 	splitRequest(splitIndex, MTPmessages_GetDialogs(
 		MTP_flags(0),
+		MTPint(), // folder_id
 		MTP_int(_dialogsProcess->offsetDate),
 		MTP_int(_dialogsProcess->offsetId),
 		_dialogsProcess->offsetPeer,

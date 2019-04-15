@@ -964,13 +964,14 @@ void DialogsWidget::loadDialogs() {
 
 	const auto firstLoad = !_dialogsOffsetDate;
 	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
-	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned;
-	const auto feedId = 0;
+	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned
+		| MTPmessages_GetDialogs::Flag::f_folder_id;
+	const auto folderId = 0;
 	const auto hash = 0;
 	_dialogsRequestId = MTP::send(
 		MTPmessages_GetDialogs(
 			MTP_flags(flags),
-			//MTP_int(feedId), // #feed
+			MTP_int(folderId),
 			MTP_int(_dialogsOffsetDate),
 			MTP_int(_dialogsOffsetId),
 			_dialogsOffsetPeer
@@ -990,7 +991,7 @@ void DialogsWidget::loadPinnedDialogs() {
 	if (_pinnedDialogsRequestId) return;
 
 	_pinnedDialogsReceived = false;
-	_pinnedDialogsRequestId = MTP::send(MTPmessages_GetPinnedDialogs(), rpcDone(&DialogsWidget::pinnedDialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
+	_pinnedDialogsRequestId = MTP::send(MTPmessages_GetPinnedDialogs(MTP_int(0)), rpcDone(&DialogsWidget::pinnedDialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 
 void DialogsWidget::searchReceived(
