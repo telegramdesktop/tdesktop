@@ -554,9 +554,9 @@ rpl::producer<QString> TitleValue(
 
 		switch (section.type()) {
 		case Section::Type::Profile:
-			if (const auto feed = key.feed()) {
+			/*if (const auto feed = key.feed()) {
 				return lng_info_feed_title;
-			} else if (const auto user = peer->asUser()) {
+			} else */if (const auto user = peer->asUser()) {
 				return (user->isBot() && !user->isSupport())
 					? lng_info_bot_title
 					: lng_info_user_title;
@@ -597,8 +597,8 @@ rpl::producer<QString> TitleValue(
 		case Section::Type::Members:
 			return lng_profile_participants_section;
 
-		case Section::Type::Channels:
-			return lng_info_feed_channels;
+		//case Section::Type::Channels: // #feed
+		//	return lng_info_feed_channels;
 
 		case Section::Type::Settings:
 			switch (section.settingsType()) {

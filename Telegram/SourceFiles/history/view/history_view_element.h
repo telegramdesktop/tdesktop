@@ -27,7 +27,7 @@ struct TextState;
 
 enum class Context : char {
 	History,
-	Feed,
+	//Feed, // #feed
 	AdminLog,
 	ContactPreview
 };

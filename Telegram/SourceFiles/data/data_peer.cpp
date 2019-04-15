@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_photo.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
@@ -356,13 +356,13 @@ void PeerData::setUserpicChecked(
 		|| _userpicLocation != location) {
 		setUserpic(photoId, location, userpic);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
-		if (const auto channel = asChannel()) {
-			if (const auto feed = channel->feed()) {
-				owner().notifyFeedUpdated(
-					feed,
-					Data::FeedUpdateFlag::ChannelPhoto);
-			}
-		}
+		//if (const auto channel = asChannel()) { // #feed
+		//	if (const auto feed = channel->feed()) {
+		//		owner().notifyFeedUpdated(
+		//			feed,
+		//			Data::FeedUpdateFlag::ChannelPhoto);
+		//	}
+		//}
 	}
 }
 
@@ -574,13 +574,6 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 		return channel;
 	}
 	return this;
-}
-
-Data::Feed *PeerData::feed() const {
-	if (const auto channel = asChannel()) {
-		return channel->feed();
-	}
-	return nullptr;
 }
 
 const Text &PeerData::dialogName() const {

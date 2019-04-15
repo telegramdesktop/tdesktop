@@ -131,8 +131,8 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 void WrapWidget::injectActiveProfile(Dialogs::Key key) {
 	if (const auto peer = key.peer()) {
 		injectActivePeerProfile(peer);
-	} else if (const auto feed = key.feed()) {
-		injectActiveFeedProfile(feed);
+	//} else if (const auto feed = key.feed()) { // #feed
+	//	injectActiveFeedProfile(feed);
 	}
 }
 
@@ -167,22 +167,22 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 			Memento(peer->id, section).takeStack().front()));
 	}
 }
-
-void WrapWidget::injectActiveFeedProfile(not_null<Data::Feed*> feed) {
-	const auto firstFeed = hasStackHistory()
-		? _historyStack.front().section->feed()
-		: _controller->feed();
-	const auto firstSectionType = hasStackHistory()
-		? _historyStack.front().section->section().type()
-		: _controller->section().type();
-	const auto expectedType = Section::Type::Profile;
-	if (firstSectionType != expectedType
-		|| firstFeed != feed) {
-		auto section = Section(Section::Type::Profile);
-		injectActiveProfileMemento(std::move(
-			Memento(feed, section).takeStack().front()));
-	}
-}
+// // #feed
+//void WrapWidget::injectActiveFeedProfile(not_null<Data::Feed*> feed) {
+//	const auto firstFeed = hasStackHistory()
+//		? _historyStack.front().section->feed()
+//		: _controller->feed();
+//	const auto firstSectionType = hasStackHistory()
+//		? _historyStack.front().section->section().type()
+//		: _controller->section().type();
+//	const auto expectedType = Section::Type::Profile;
+//	if (firstSectionType != expectedType
+//		|| firstFeed != feed) {
+//		auto section = Section(Section::Type::Profile);
+//		injectActiveProfileMemento(std::move(
+//			Memento(feed, section).takeStack().front()));
+//	}
+//}
 
 void WrapWidget::injectActiveProfileMemento(
 		std::unique_ptr<ContentMemento> memento) {
@@ -214,8 +214,8 @@ Key WrapWidget::key() const {
 Dialogs::RowDescriptor WrapWidget::activeChat() const {
 	if (const auto peer = key().peer()) {
 		return Dialogs::RowDescriptor(peer->owner().history(peer), FullMsgId());
-	} else if (const auto feed = key().feed()) {
-		return Dialogs::RowDescriptor(feed, FullMsgId());
+	//} else if (const auto feed = key().feed()) { // #feed
+	//	return Dialogs::RowDescriptor(feed, FullMsgId());
 	} else if (key().settingsSelf()) {
 		return Dialogs::RowDescriptor();
 	}
@@ -570,12 +570,12 @@ void WrapWidget::showTopBarMenu() {
 			peer,
 			addAction,
 			Window::PeerMenuSource::Profile);
-	} else if (const auto feed = key().feed()) {
-		Window::FillFeedMenu(
-			_controller->parentController(),
-			feed,
-			addAction,
-			Window::PeerMenuSource::Profile);
+	//} else if (const auto feed = key().feed()) { // #feed
+	//	Window::FillFeedMenu(
+	//		_controller->parentController(),
+	//		feed,
+	//		addAction,
+	//		Window::PeerMenuSource::Profile);
 	} else if (const auto self = key().settingsSelf()) {
 		const auto showOther = [=](::Settings::Type type) {
 			const auto controller = _controller.get();

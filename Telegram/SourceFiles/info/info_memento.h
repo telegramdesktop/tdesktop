@@ -16,10 +16,6 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Data {
-class Feed;
-} // namespace Data
-
 namespace Ui {
 class ScrollArea;
 struct ScrollToRequest;
@@ -37,7 +33,7 @@ class Memento final : public Window::SectionMemento {
 public:
 	explicit Memento(PeerId peerId);
 	Memento(PeerId peerId, Section section);
-	Memento(not_null<Data::Feed*> feed, Section section);
+	//Memento(not_null<Data::Feed*> feed, Section section); // #feed
 	Memento(Settings::Tag settings, Section section);
 	explicit Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
 
@@ -62,8 +58,10 @@ public:
 		return _stack.back().get();
 	}
 
-	static Section DefaultSection(Dialogs::Key key);
-	static Memento Default(Dialogs::Key key);
+	static Section DefaultSection(not_null<PeerData*> peer);
+	//static Section DefaultSection(Dialogs::Key key); // #feed
+	static Memento Default(not_null<PeerData*> peer);
+	//static Memento Default(Dialogs::Key key); // #feed
 
 	~Memento();
 
@@ -71,15 +69,15 @@ private:
 	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
 		PeerId peerId,
 		Section section);
-	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
-		not_null<Data::Feed*> feed,
-		Section section);
+	//static std::vector<std::unique_ptr<ContentMemento>> DefaultStack( // #feed
+	//	not_null<Data::Feed*> feed,
+	//	Section section);
 	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
 		Settings::Tag settings,
 		Section section);
-	static std::unique_ptr<ContentMemento> DefaultContent(
-		not_null<Data::Feed*> feed,
-		Section section);
+	//static std::unique_ptr<ContentMemento> DefaultContent( // #feed
+	//	not_null<Data::Feed*> feed,
+	//	Section section);
 
 	static std::unique_ptr<ContentMemento> DefaultContent(
 		PeerId peerId,

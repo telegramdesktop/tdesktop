@@ -326,9 +326,10 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 		const auto prev = previous->data();
 		const auto possible = !item->serviceMsg() && !prev->serviceMsg()
 			&& !item->isEmpty() && !prev->isEmpty()
-			&& (std::abs(prev->date() - item->date()) < kAttachMessageToPreviousSecondsDelta)
-			&& (_context == Context::Feed
-				|| (!item->isPost() && !prev->isPost()));
+			&& (std::abs(prev->date() - item->date())
+				< kAttachMessageToPreviousSecondsDelta)
+			&& (/*_context == Context::Feed // #feed
+				|| */(!item->isPost() && !prev->isPost()));
 		if (possible) {
 			if (item->history()->peer->isSelf()) {
 				return IsAttachedToPreviousInSavedMessages(prev, item);

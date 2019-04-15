@@ -297,25 +297,21 @@ void NotificationsController::applyFeedDialogs(
 	auto channels = std::vector<not_null<ChannelData*>>();
 	channels.reserve(dialogsList->size());
 	for (const auto &dialog : *dialogsList) {
-		switch (dialog.type()) {
-		case mtpc_dialog: {
-			if (const auto peerId = peerFromMTP(dialog.c_dialog().vpeer)) {
-				if (peerIsChannel(peerId)) {
+		dialog.match([&](const MTPDdialog &data) {
+			if (const auto peerId = peerFromMTP(data.vpeer)) {
+				if (peerIsChannel(peerId)) { // #TODO archive
 					const auto history = Auth().data().history(peerId);
 					const auto channel = history->peer->asChannel();
-					history->applyDialog(dialog.c_dialog());
+					history->applyDialog(data);
 					channels.emplace_back(channel);
 				} else {
 					LOG(("API Error: "
-						"Unexpected non-channel in feed dialogs list."));
+						"Unexpected non-channel in folder dialogs list."));
 				}
 			}
-		} break;
-		//case mtpc_dialogFeed: { // #feed
-		//	LOG(("API Error: Unexpected dialogFeed in feed dialogs list."));
-		//} break;
-		default: Unexpected("Type in DialogsInner::dialogsReceived");
-		}
+		}, [&](const MTPDdialogFolder &data) {
+			LOG(("API Error: Unexpected dialogFolder in folder dialogs list."));
+		});
 	}
 	if (!channels.empty()) {
 		auto notMutedChannels = ranges::view::all(

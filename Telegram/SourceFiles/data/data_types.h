@@ -122,13 +122,13 @@ class BotCommand;
 struct BotInfo;
 
 namespace Data {
-class Feed;
+class Folder;
 } // namespace Data
 
 using UserId = int32;
 using ChatId = int32;
 using ChannelId = int32;
-using FeedId = int32;
+using FolderId = int32;
 
 constexpr auto NoChannel = ChannelId(0);
 

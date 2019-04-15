@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
-#include "history/feed/history_feed_section.h"
+//#include "history/feed/history_feed_section.h" // #feed
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -752,17 +752,17 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 					MTP_int(0)),
 				rpcDone(&DialogsWidget::searchReceived, DialogsSearchPeerFromStart),
 				rpcFail(&DialogsWidget::searchFailed, DialogsSearchPeerFromStart));
-		} else if (const auto feed = _searchInChat.feed()) {
-			//_searchRequest = MTP::send( // #feed
-			//	MTPchannels_SearchFeed(
-			//		MTP_int(feed->id()),
-			//		MTP_string(_searchQuery),
-			//		MTP_int(0),
-			//		MTP_inputPeerEmpty(),
-			//		MTP_int(0),
-			//		MTP_int(SearchPerPage)),
-			//	rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart),
-			//	rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
+		//} else if (const auto feed = _searchInChat.feed()) { // #feed
+		//	_searchRequest = MTP::send(
+		//		MTPchannels_SearchFeed(
+		//			MTP_int(feed->id()),
+		//			MTP_string(_searchQuery),
+		//			MTP_int(0),
+		//			MTP_inputPeerEmpty(),
+		//			MTP_int(0),
+		//			MTP_int(SearchPerPage)),
+		//		rpcDone(&DialogsWidget::searchReceived, DialogsSearchFromStart),
+		//		rpcFail(&DialogsWidget::searchFailed, DialogsSearchFromStart));
 		} else {
 			_searchRequest = MTP::send(
 				MTPmessages_SearchGlobal(
@@ -888,19 +888,19 @@ void DialogsWidget::onSearchMore() {
 						MTP_int(0)),
 					rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart),
 					rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchPeerFromOffset : DialogsSearchPeerFromStart));
-			} else if (const auto feed = _searchInChat.feed()) {
-				//_searchRequest = MTP::send( // #feed
-				//	MTPchannels_SearchFeed(
-				//		MTP_int(feed->id()),
-				//		MTP_string(_searchQuery),
-				//		MTP_int(offsetDate),
-				//		offsetPeer
-				//			? offsetPeer->input
-				//			: MTP_inputPeerEmpty(),
-				//		MTP_int(offsetId),
-				//		MTP_int(SearchPerPage)),
-				//	rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart),
-				//	rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
+			//} else if (const auto feed = _searchInChat.feed()) { // #feed
+			//	_searchRequest = MTP::send(
+			//		MTPchannels_SearchFeed(
+			//			MTP_int(feed->id()),
+			//			MTP_string(_searchQuery),
+			//			MTP_int(offsetDate),
+			//			offsetPeer
+			//				? offsetPeer->input
+			//				: MTP_inputPeerEmpty(),
+			//			MTP_int(offsetId),
+			//			MTP_int(SearchPerPage)),
+			//		rpcDone(&DialogsWidget::searchReceived, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart),
+			//		rpcFail(&DialogsWidget::searchFailed, offsetId ? DialogsSearchFromOffset : DialogsSearchFromStart));
 			} else {
 				_searchRequest = MTP::send(
 					MTPmessages_SearchGlobal(
@@ -1599,8 +1599,8 @@ bool DialogsWidget::onCancelSearch() {
 		if (Adaptive::OneColumn()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-			} else if (const auto feed = _searchInChat.feed()) {
-				controller()->showSection(HistoryFeed::Memento(feed));
+			//} else if (const auto feed = _searchInChat.feed()) { // #feed
+			//	controller()->showSection(HistoryFeed::Memento(feed));
 			} else {
 				Unexpected("Empty key in onCancelSearch().");
 			}
@@ -1624,8 +1624,8 @@ void DialogsWidget::onCancelSearchInChat() {
 		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-			} else if (const auto feed = _searchInChat.feed()) {
-				controller()->showSection(HistoryFeed::Memento(feed));
+			//} else if (const auto feed = _searchInChat.feed()) { // #feed
+			//	controller()->showSection(HistoryFeed::Memento(feed));
 			} else {
 				Unexpected("Empty key in onCancelSearchInPeer().");
 			}

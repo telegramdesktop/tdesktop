@@ -55,8 +55,8 @@ public:
 	History *history() const {
 		return _id.history();
 	}
-	Data::Feed *feed() const {
-		return _id.feed();
+	Data::Folder *folder() const {
+		return _id.folder();
 	}
 	not_null<Entry*> entry() const {
 		return _id.entry();

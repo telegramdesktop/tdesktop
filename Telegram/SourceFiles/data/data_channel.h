@@ -327,13 +327,6 @@ public:
 	}
 	void setAvailableMinId(MsgId availableMinId);
 
-	void setFeed(not_null<Data::Feed*> feed);
-	void clearFeed();
-
-	Data::Feed *feed() const {
-		return _feed;
-	}
-
 	enum class UpdateStatus {
 		Good,
 		TooOld,
@@ -365,7 +358,6 @@ public:
 
 private:
 	bool canEditLastAdmin(not_null<UserData*> user) const;
-	void setFeedPointer(Data::Feed *feed);
 
 	Flags _flags = Flags(MTPDchannel_ClientFlag::f_forbidden | 0);
 	FullFlags _fullFlags;
@@ -387,7 +379,6 @@ private:
 	QString _unavailableReason;
 
 	QString _inviteLink;
-	Data::Feed *_feed = nullptr;
 
 	rpl::lifetime _lifetime;
 

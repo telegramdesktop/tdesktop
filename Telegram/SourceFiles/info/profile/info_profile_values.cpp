@@ -7,17 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
-#include <rpl/filter.h>
-#include <rpl/range.h>
-#include <rpl/then.h>
-#include <rpl/combine.h>
 #include "observer_peer.h"
 #include "core/application.h"
 #include "auth_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -329,21 +325,21 @@ rpl::producer<bool> VerifiedValue(not_null<PeerData*> peer) {
 	}
 	return rpl::single(false);
 }
-
-rpl::producer<int> FeedChannelsCountValue(not_null<Data::Feed*> feed) {
-	using Flag = Data::FeedUpdateFlag;
-	return rpl::single(
-		Data::FeedUpdate{ feed, Flag::Channels }
-	) | rpl::then(
-		Auth().data().feedUpdated()
-	) | rpl::filter([=](const Data::FeedUpdate &update) {
-		return (update.feed == feed) && (update.flag == Flag::Channels);
-	}) | rpl::filter([=] {
-		return feed->channelsLoaded();
-	}) | rpl::map([=] {
-		return int(feed->channels().size());
-	}) | rpl::distinct_until_changed();
-}
+// // #feed
+//rpl::producer<int> FeedChannelsCountValue(not_null<Data::Feed*> feed) {
+//	using Flag = Data::FeedUpdateFlag;
+//	return rpl::single(
+//		Data::FeedUpdate{ feed, Flag::Channels }
+//	) | rpl::then(
+//		Auth().data().feedUpdated()
+//	) | rpl::filter([=](const Data::FeedUpdate &update) {
+//		return (update.feed == feed) && (update.flag == Flag::Channels);
+//	}) | rpl::filter([=] {
+//		return feed->channelsLoaded();
+//	}) | rpl::map([=] {
+//		return int(feed->channels().size());
+//	}) | rpl::distinct_until_changed();
+//}
 
 } // namespace Profile
 } // namespace Info

@@ -14,10 +14,6 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Data {
-class Feed;
-} // namespace Data
-
 namespace Ui {
 class SettingsSlider;
 class FadeShadow;
@@ -148,7 +144,7 @@ private:
 	void startInjectingActivePeerProfiles();
 	void injectActiveProfile(Dialogs::Key key);
 	void injectActivePeerProfile(not_null<PeerData*> peer);
-	void injectActiveFeedProfile(not_null<Data::Feed*> feed);
+	//void injectActiveFeedProfile(not_null<Data::Feed*> feed); // #feed
 	void injectActiveProfileMemento(
 		std::unique_ptr<ContentMemento> memento);
 	void checkBeforeClose(Fn<void()> close);

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -306,27 +306,27 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 		}
 	}
 }
-
-void ChannelData::setFeed(not_null<Data::Feed*> feed) {
-	setFeedPointer(feed);
-}
-
-void ChannelData::clearFeed() {
-	setFeedPointer(nullptr);
-}
-
-void ChannelData::setFeedPointer(Data::Feed *feed) {
-	if (_feed != feed) {
-		const auto was = _feed;
-		_feed = feed;
-		if (was) {
-			was->unregisterOne(this);
-		}
-		if (_feed) {
-			_feed->registerOne(this);
-		}
-	}
-}
+// #TODO archive
+//void ChannelData::setFeed(not_null<Data::Feed*> feed) {
+//	setFeedPointer(feed);
+//}
+//
+//void ChannelData::clearFeed() {
+//	setFeedPointer(nullptr);
+//}
+//
+//void ChannelData::setFeedPointer(Data::Feed *feed) {
+//	if (_feed != feed) {
+//		const auto was = _feed;
+//		_feed = feed;
+//		if (was) {
+//			was->unregisterOne(this);
+//		}
+//		if (_feed) {
+//			_feed->registerOne(this);
+//		}
+//	}
+//}
 
 bool ChannelData::canBanMembers() const {
 	return amCreator()

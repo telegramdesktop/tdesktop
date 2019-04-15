@@ -79,8 +79,8 @@ public:
 	QString exportDirectMessageLink(not_null<HistoryItem*> item);
 
 	void requestContacts();
-	void requestDialogEntry(not_null<Data::Feed*> feed);
-	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed);
+	void requestDialogEntry(not_null<Data::Folder*> folder);
+	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed); // #feed
 	void requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback = nullptr);
@@ -309,9 +309,9 @@ public:
 	void shareContact(not_null<UserData*> user, const SendOptions &options);
 	void readServerHistory(not_null<History*> history);
 	void readServerHistoryForce(not_null<History*> history);
-	void readFeed(
-		not_null<Data::Feed*> feed,
-		Data::MessagePosition position);
+	//void readFeed( // #feed
+	//	not_null<Data::Feed*> feed,
+	//	Data::MessagePosition position);
 
 	void sendVoiceMessage(
 		QByteArray result,
@@ -462,9 +462,9 @@ private:
 	QVector<MTPInputMessage> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
-	void applyFeedDialogs(
-		not_null<Data::Feed*> feed,
-		const MTPmessages_Dialogs &dialogs);
+	//void applyFeedDialogs( // #feed
+	//	not_null<Data::Feed*> feed,
+	//	const MTPmessages_Dialogs &dialogs);
 
 	void gotChatFull(
 		not_null<PeerData*> peer,
@@ -522,17 +522,17 @@ private:
 		const QVector<MTPChannelParticipant> &participants);
 
 	void jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date);
-	void jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date);
+	//void jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date); // #feed
 	template <typename Callback>
 	void requestMessageAfterDate(
 		not_null<PeerData*> peer,
 		const QDate &date,
 		Callback &&callback);
-	template <typename Callback>
-	void requestMessageAfterDate(
-		not_null<Data::Feed*> feed,
-		const QDate &date,
-		Callback &&callback);
+	//template <typename Callback> // #feed
+	//void requestMessageAfterDate(
+	//	not_null<Data::Feed*> feed,
+	//	const QDate &date,
+	//	Callback &&callback);
 
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
@@ -601,7 +601,7 @@ private:
 		uint64 randomId);
 	FileLoadTo fileLoadTaskOptions(const SendOptions &options) const;
 
-	void readFeeds();
+	//void readFeeds(); // #feed
 
 	void getProxyPromotionDelayed(TimeId now, TimeId next);
 	void proxyPromotionDone(const MTPhelp_ProxyData &proxy);
@@ -701,7 +701,7 @@ private:
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
-	base::flat_set<not_null<Data::Feed*>> _dialogFeedRequests;
+	base::flat_set<not_null<Data::Folder*>> _dialogFolderRequests;
 	base::flat_map<
 		not_null<History*>,
 		std::vector<Fn<void()>>> _dialogRequests;
@@ -720,19 +720,19 @@ private:
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
-	base::flat_set<not_null<Data::Feed*>> _feedChannelsGetRequests;
-	base::flat_map<
-		not_null<Data::Feed*>,
-		mtpRequestId> _feedChannelsSetRequests;
-	base::flat_set<std::tuple<
-		not_null<Data::Feed*>,
-		Data::MessagePosition,
-		SliceType>> _feedMessagesRequests;
-	base::flat_set<std::tuple<
-		not_null<Data::Feed*>,
-		Data::MessagePosition,
-		SliceType>> _feedMessagesRequestsPending;
-	mtpRequestId _saveDefaultFeedIdRequest = 0;
+	//base::flat_set<not_null<Data::Feed*>> _feedChannelsGetRequests; // #feed
+	//base::flat_map<
+	//	not_null<Data::Feed*>,
+	//	mtpRequestId> _feedChannelsSetRequests;
+	//base::flat_set<std::tuple<
+	//	not_null<Data::Feed*>,
+	//	Data::MessagePosition,
+	//	SliceType>> _feedMessagesRequests;
+	//base::flat_set<std::tuple<
+	//	not_null<Data::Feed*>,
+	//	Data::MessagePosition,
+	//	SliceType>> _feedMessagesRequestsPending;
+	//mtpRequestId _saveDefaultFeedIdRequest = 0;
 
 	rpl::event_stream<SendOptions> _sendActions;
 
@@ -755,9 +755,10 @@ private:
 
 	rpl::event_stream<uint64> _stickerSetInstalled;
 
-	base::flat_map<not_null<Data::Feed*>, crl::time> _feedReadsDelayed;
-	base::flat_map<not_null<Data::Feed*>, mtpRequestId> _feedReadRequests;
-	base::Timer _feedReadTimer;
+	// #feed
+	//base::flat_map<not_null<Data::Feed*>, crl::time> _feedReadsDelayed;
+	//base::flat_map<not_null<Data::Feed*>, mtpRequestId> _feedReadRequests;
+	//base::Timer _feedReadTimer;
 
 	mtpRequestId _proxyPromotionRequestId = 0;
 	std::pair<QString, uint32> _proxyPromotionKey;

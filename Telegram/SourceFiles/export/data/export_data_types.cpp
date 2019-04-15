@@ -1457,6 +1457,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 		result.chats.reserve(result.chats.size() + data.vdialogs.v.size());
 		for (const auto &dialog : data.vdialogs.v) {
 			if (dialog.type() != mtpc_dialog) {
+				LOG(("API Error: Unexpected dialog type in chats export."));
 				continue;
 			}
 			const auto &fields = dialog.c_dialog();

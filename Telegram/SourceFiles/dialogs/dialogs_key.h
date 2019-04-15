@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace Data {
-class Feed;
+class Folder;
 } // namespace Data
 
 namespace Dialogs {
@@ -26,9 +26,9 @@ public:
 	}
 	Key(not_null<History*> history) : _value(history) {
 	}
-	Key(Data::Feed *feed) : _value(feed) {
+	Key(Data::Folder *folder) : _value(folder) {
 	}
-	Key(not_null<Data::Feed*> feed) : _value(feed) {
+	Key(not_null<Data::Folder*> folder) : _value(folder) {
 	}
 
 	explicit operator bool() const {
@@ -36,7 +36,7 @@ public:
 	}
 	not_null<Entry*> entry() const;
 	History *history() const;
-	Data::Feed *feed() const;
+	Data::Folder *folder() const;
 	PeerData *peer() const;
 
 	inline bool operator<(const Key &other) const {
@@ -60,7 +60,7 @@ public:
 
 	base::optional_variant<
 		not_null<History*>,
-		not_null<Data::Feed*>> raw() const {
+		not_null<Data::Folder*>> raw() const {
 		return _value;
 	}
 
@@ -70,7 +70,9 @@ public:
 	//}
 
 private:
-	base::optional_variant<not_null<History*>, not_null<Data::Feed*>> _value;
+	base::optional_variant<
+		not_null<History*>,
+		not_null<Data::Folder*>> _value;
 
 };
 

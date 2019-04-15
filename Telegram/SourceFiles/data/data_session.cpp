@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h" // for lang(lng_deleted) in user name.
 #include "data/data_media_types.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -910,7 +910,7 @@ void Session::setupChannelLeavingViewer() {
 		return (channel != nullptr)
 			&& !(channel->amIn());
 	}) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
-		channel->clearFeed();
+//		channel->clearFeed(); // #feed
 		if (const auto history = historyLoaded(channel->id)) {
 			history->removeJoinedMessage();
 			history->updateChatListExistence();
@@ -1206,14 +1206,14 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 	});
 }
 
-void Session::notifyFeedUpdated(
-		not_null<Feed*> feed,
-		FeedUpdateFlag update) {
-	_feedUpdates.fire({ feed, update });
+void Session::notifyFolderUpdated(
+		not_null<Folder*> folder,
+		FolderUpdateFlag update) {
+	_folderUpdates.fire({ folder, update });
 }
 
-rpl::producer<FeedUpdate> Session::feedUpdated() const {
-	return _feedUpdates.events();
+rpl::producer<FolderUpdate> Session::folderUpdated() const {
+	return _folderUpdates.events();
 }
 
 void Session::notifyStickersUpdated() {
@@ -1277,43 +1277,27 @@ void Session::setPinnedDialog(const Dialogs::Key &key, bool pinned) {
 void Session::applyPinnedDialogs(const QVector<MTPDialog> &list) {
 	clearPinnedDialogs();
 	for (auto i = list.size(); i != 0;) {
-		const auto &dialog = list[--i];
-		switch (dialog.type()) {
-		case mtpc_dialog: {
-			const auto &dialogData = dialog.c_dialog();
-			if (const auto peer = peerFromMTP(dialogData.vpeer)) {
+		list[--i].match([&](const MTPDdialog &data) {
+			if (const auto peer = peerFromMTP(data.vpeer)) {
 				setPinnedDialog(history(peer), true);
 			}
-		} break;
-
-		//case mtpc_dialogFeed: { // #feed
-		//	const auto &feedData = dialog.c_dialogFeed();
-		//	const auto feedId = feedData.vfeed_id.v;
-		//	setPinnedDialog(feed(feedId), true);
-		//} break;
-
-		default: Unexpected("Type in ApiWrap::applyDialogsPinned.");
-		}
+		}, [&](const MTPDdialogFolder &data) { // #TODO archive
+			//setPinnedDialog(processFolder(data.vfolder), true);
+		});
 	}
 }
 
 void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
 	clearPinnedDialogs();
 	for (auto i = list.size(); i != 0;) {
-		const auto &dialogPeer = list[--i];
-		switch (dialogPeer.type()) {
-		case mtpc_dialogPeer: {
-			const auto &peerData = dialogPeer.c_dialogPeer();
-			if (const auto peerId = peerFromMTP(peerData.vpeer)) {
+		list[--i].match([&](const MTPDdialogPeer &data) {
+			if (const auto peerId = peerFromMTP(data.vpeer)) {
 				setPinnedDialog(history(peerId), true);
 			}
-		} break;
-		//case mtpc_dialogPeerFeed: { // #feed
-		//	const auto &feedData = dialogPeer.c_dialogPeerFeed();
-		//	const auto feedId = feedData.vfeed_id.v;
-		//	setPinnedDialog(feed(feedId), true);
-		//} break;
-		}
+		}, [&](const MTPDdialogPeerFolder &data) { // #TODO archive
+			//const auto folderId = data.vfolder_id.v;
+			//setPinnedDialog(folder(folderId), true);
+		});
 	}
 }
 
@@ -2803,32 +2787,32 @@ void Session::unregisterItemView(not_null<ViewElement*> view) {
 	}
 }
 
-not_null<Feed*> Session::feed(FeedId id) {
-	if (const auto result = feedLoaded(id)) {
+not_null<Folder*> Session::folder(FolderId id) {
+	if (const auto result = folderLoaded(id)) {
 		return result;
 	}
-	const auto [it, ok] = _feeds.emplace(
+	const auto [it, ok] = _folders.emplace(
 		id,
-		std::make_unique<Feed>(this, id));
+		std::make_unique<Folder>(this, id));
 	return it->second.get();
 }
 
-Feed *Session::feedLoaded(FeedId id) {
-	const auto it = _feeds.find(id);
-	return (it == end(_feeds)) ? nullptr : it->second.get();
+Folder *Session::folderLoaded(FolderId id) {
+	const auto it = _folders.find(id);
+	return (it == end(_folders)) ? nullptr : it->second.get();
 }
-
-void Session::setDefaultFeedId(FeedId id) {
-	_defaultFeedId = id;
-}
-
-FeedId Session::defaultFeedId() const {
-	return _defaultFeedId.current();
-}
-
-rpl::producer<FeedId> Session::defaultFeedIdValue() const {
-	return _defaultFeedId.value();
-}
+// // #feed
+//void Session::setDefaultFeedId(FeedId id) {
+//	_defaultFeedId = id;
+//}
+//
+//FeedId Session::defaultFeedId() const {
+//	return _defaultFeedId.current();
+//}
+//
+//rpl::producer<FeedId> Session::defaultFeedIdValue() const {
+//	return _defaultFeedId.value();
+//}
 
 void Session::requestNotifySettings(not_null<PeerData*> peer) {
 	if (peer->notifySettingsUnknown()) {

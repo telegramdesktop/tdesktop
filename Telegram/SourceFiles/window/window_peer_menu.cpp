@@ -26,10 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
-#include "info/feed/info_feed_channels_controllers.h"
+//#include "info/feed/info_feed_channels_controllers.h" // #feed
 #include "info/profile/info_profile_values.h"
 #include "data/data_session.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_poll.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -68,11 +68,11 @@ private:
 
 };
 
-class FeedFiller {
+class FolderFiller {
 public:
-	FeedFiller(
+	FolderFiller(
 		not_null<Controller*> controller,
-		not_null<Data::Feed*> feed,
+		not_null<Data::Folder*> folder,
 		const PeerMenuCallback &addAction,
 		PeerMenuSource source);
 	void fill();
@@ -86,7 +86,7 @@ private:
 	void addUngroup();
 
 	not_null<Controller*> _controller;
-	not_null<Data::Feed*> _feed;
+	not_null<Data::Folder*> _folder;
 	const PeerMenuCallback &_addAction;
 	PeerMenuSource _source;
 
@@ -386,15 +386,15 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	auto isGroup = channel->isMegagroup();
-	if (!isGroup) {
-		const auto feed = channel->feed();
-		const auto grouped = (feed != nullptr);
-		if (!grouped || feed->channels().size() > 1) {
-			//_addAction( // #feed
-			//	lang(grouped ? lng_feed_ungroup : lng_feed_group),
-			//	[=] { ToggleChannelGrouping(channel, !grouped); });
-		}
-	}
+	//if (!isGroup) { // #feed
+	//	const auto feed = channel->feed();
+	//	const auto grouped = (feed != nullptr);
+	//	if (!grouped || feed->channels().size() > 1) {
+	//		_addAction( // #feed
+	//			lang(grouped ? lng_feed_ungroup : lng_feed_group),
+	//			[=] { ToggleChannelGrouping(channel, !grouped); });
+	//	}
+	//}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (EditPeerInfoBox::Available(channel)) {
 			const auto text = lang(isGroup
@@ -479,89 +479,89 @@ void Filler::fill() {
 	}
 }
 
-FeedFiller::FeedFiller(
+FolderFiller::FolderFiller(
 	not_null<Controller*> controller,
-	not_null<Data::Feed*> feed,
+	not_null<Data::Folder*> folder,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source)
-	: _controller(controller)
-	, _feed(feed)
-	, _addAction(addAction)
-	, _source(source) {
+: _controller(controller)
+, _folder(folder)
+, _addAction(addAction)
+, _source(source) {
 }
 
-void FeedFiller::fill() {
-	if (_source == PeerMenuSource::ChatsList) {
-		addPinToggle();
-	}
-	if (showInfo()) {
-		addInfo();
-	}
-	addNotifications();
-	if (_source == PeerMenuSource::ChatsList) {
-		addSearch();
-	}
-	addUngroup();
+void FolderFiller::fill() { // #TODO archive
+	//if (_source == PeerMenuSource::ChatsList) {
+	//	addPinToggle();
+	//}
+	//if (showInfo()) {
+	//	addInfo();
+	//}
+	//addNotifications();
+	//if (_source == PeerMenuSource::ChatsList) {
+	//	addSearch();
+	//}
+	//addUngroup();
 }
-
-bool FeedFiller::showInfo() {
-	if (_source == PeerMenuSource::Profile) {
-		return false;
-	} else if (_controller->activeChatCurrent().feed() != _feed) {
-		return true;
-	} else if (!Adaptive::ThreeColumn()) {
-		return true;
-	} else if (
-		!Auth().settings().thirdSectionInfoEnabled() &&
-		!Auth().settings().tabbedReplacedWithInfo()) {
-		return true;
-	}
-	return false;
-}
-
-void FeedFiller::addPinToggle() {
-	const auto feed = _feed;
-	const auto isPinned = feed->isPinnedDialog();
-	const auto pinText = [](bool isPinned) {
-		return lang(isPinned
-			? lng_context_unpin_from_top
-			: lng_context_pin_to_top);
-	};
-	_addAction(pinText(isPinned), [=] {
-		TogglePinnedDialog(feed);
-	});
-}
-
-void FeedFiller::addInfo() {
-	auto controller = _controller;
-	auto feed = _feed;
-	_addAction(lang(lng_context_view_feed_info), [=] {
-		controller->showSection(Info::Memento(
-			feed,
-			Info::Section(Info::Section::Type::Profile)));
-	});
-}
-
-void FeedFiller::addNotifications() {
-	const auto feed = _feed;
-	_addAction(lang(lng_feed_notifications), [=] {
-		Info::FeedProfile::NotificationsController::Start(feed);
-	});
-}
-
-void FeedFiller::addSearch() {
-	const auto feed = _feed;
-	_addAction(lang(lng_profile_search_messages), [=] {
-		App::main()->searchInChat(feed);
-	});
-}
-
-void FeedFiller::addUngroup() {
-	const auto feed = _feed;
-	//_addAction(lang(lng_feed_ungroup_all), [=] { // #feed
-	//	PeerMenuUngroupFeed(feed);
-	//});
-}
+//
+//bool FolderFiller::showInfo() {
+//	if (_source == PeerMenuSource::Profile) {
+//		return false;
+//	} else if (_controller->activeChatCurrent().feed() != _feed) {
+//		return true;
+//	} else if (!Adaptive::ThreeColumn()) {
+//		return true;
+//	} else if (
+//		!Auth().settings().thirdSectionInfoEnabled() &&
+//		!Auth().settings().tabbedReplacedWithInfo()) {
+//		return true;
+//	}
+//	return false;
+//}
+//
+//void FolderFiller::addPinToggle() {
+//	const auto feed = _feed;
+//	const auto isPinned = feed->isPinnedDialog();
+//	const auto pinText = [](bool isPinned) {
+//		return lang(isPinned
+//			? lng_context_unpin_from_top
+//			: lng_context_pin_to_top);
+//	};
+//	_addAction(pinText(isPinned), [=] {
+//		TogglePinnedDialog(feed);
+//	});
+//}
+//
+//void FolderFiller::addInfo() {
+//	auto controller = _controller;
+//	auto feed = _feed;
+//	_addAction(lang(lng_context_view_feed_info), [=] {
+//		controller->showSection(Info::Memento(
+//			feed,
+//			Info::Section(Info::Section::Type::Profile)));
+//	});
+//}
+//
+//void FolderFiller::addNotifications() {
+//	const auto feed = _feed;
+//	_addAction(lang(lng_feed_notifications), [=] {
+//		Info::FeedProfile::NotificationsController::Start(feed);
+//	});
+//}
+//
+//void FolderFiller::addSearch() {
+//	const auto feed = _feed;
+//	_addAction(lang(lng_profile_search_messages), [=] {
+//		App::main()->searchInChat(feed);
+//	});
+//}
+//
+//void FolderFiller::addUngroup() {
+//	const auto feed = _feed;
+//	//_addAction(lang(lng_feed_ungroup_all), [=] { // #feed
+//	//	PeerMenuUngroupFeed(feed);
+//	//});
+//}
 
 } // namespace
 
@@ -807,12 +807,12 @@ void FillPeerMenu(
 	filler.fill();
 }
 
-void FillFeedMenu(
+void FillFolderMenu(
 		not_null<Controller*> controller,
-		not_null<Data::Feed*> feed,
+		not_null<Data::Folder*> folder,
 		const PeerMenuCallback &callback,
 		PeerMenuSource source) {
-	FeedFiller filler(controller, feed, callback, source);
+	FolderFiller filler(controller, folder, callback, source);
 	filler.fill();
 }
 

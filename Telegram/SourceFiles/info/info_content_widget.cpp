@@ -262,8 +262,8 @@ void ContentWidget::refreshSearchField(bool shown) {
 Key ContentMemento::key() const {
 	if (const auto peerId = this->peerId()) {
 		return Key(Auth().data().peer(peerId));
-	} else if (const auto feed = this->feed()) {
-		return Key(feed);
+	//} else if (const auto feed = this->feed()) { // #feed
+	//	return Key(feed);
 	} else {
 		return Settings::Tag{ settingsSelf() };
 	}

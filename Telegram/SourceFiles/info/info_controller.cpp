@@ -40,8 +40,8 @@ not_null<PeerData*> CorrectPeer(PeerId peerId) {
 Key::Key(not_null<PeerData*> peer) : _value(peer) {
 }
 
-Key::Key(not_null<Data::Feed*> feed) : _value(feed) {
-}
+//Key::Key(not_null<Data::Feed*> feed) : _value(feed) { // #feed
+//}
 
 Key::Key(Settings::Tag settings) : _value(settings) {
 }
@@ -53,12 +53,12 @@ PeerData *Key::peer() const {
 	return nullptr;
 }
 
-Data::Feed *Key::feed() const {
-	if (const auto feed = base::get_if<not_null<Data::Feed*>>(&_value)) {
-		return *feed;
-	}
-	return nullptr;
-}
+//Data::Feed *Key::feed() const { // #feed
+//	if (const auto feed = base::get_if<not_null<Data::Feed*>>(&_value)) {
+//		return *feed;
+//	}
+//	return nullptr;
+//}
 
 UserData *Key::settingsSelf() const {
 	if (const auto tag = base::get_if<Settings::Tag>(&_value)) {
@@ -167,7 +167,7 @@ bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peerId() == peerId()
 		&& memento->migratedPeerId() == migratedPeerId()
-		&& memento->feed() == feed()
+		//&& memento->feed() == feed() // #feed
 		&& memento->settingsSelf() == settingsSelf();
 }
 
@@ -190,8 +190,8 @@ void Controller::updateSearchControllers(
 		= (type == Type::CommonGroups);
 	auto hasMembersSearch
 		= (type == Type::Members
-			|| type == Type::Profile
-			|| type == Type::Channels);
+			|| type == Type::Profile/* // #feed
+			|| type == Type::Channels*/);
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController

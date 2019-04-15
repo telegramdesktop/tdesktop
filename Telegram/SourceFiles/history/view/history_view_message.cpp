@@ -704,7 +704,7 @@ bool Message::hasFromPhoto() const {
 	}
 	switch (context()) {
 	case Context::AdminLog:
-	case Context::Feed:
+	//case Context::Feed: // #feed
 		return true;
 	case Context::History: {
 		const auto item = message();
@@ -1311,7 +1311,7 @@ HistoryWebPage *Message::logEntryOriginal() const {
 bool Message::hasFromName() const {
 	switch (context()) {
 	case Context::AdminLog:
-	case Context::Feed:
+	//case Context::Feed: // #feed
 		return true;
 	case Context::History: {
 		const auto item = message();

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_game.h"
@@ -722,12 +722,12 @@ void HistoryService::updateDependentText() {
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
 	}
-	if (const auto feed = history()->peer->feed()) {
-		if (feed->textCachedFor == this) {
-			feed->textCachedFor = nullptr;
-			feed->updateChatListEntry();
-		}
-	}
+	//if (const auto feed = history()->peer->feed()) { // #TODO archive
+	//	if (feed->textCachedFor == this) {
+	//		feed->textCachedFor = nullptr;
+	//		feed->updateChatListEntry();
+	//	}
+	//}
 	if (const auto main = App::main()) {
 		// #TODO feeds search results
 		main->repaintDialogRow({ history(), fullId() });

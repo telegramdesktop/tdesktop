@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "storage/storage_feed_messages.h"
+//#include "storage/storage_feed_messages.h" // #feed
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -229,12 +229,12 @@ void HistoryItem::invalidateChatListEntry() {
 	if (history()->textCachedFor == this) {
 		history()->textCachedFor = nullptr;
 	}
-	if (const auto feed = history()->peer->feed()) {
-		if (feed->textCachedFor == this) {
-			feed->textCachedFor = nullptr;
-			feed->updateChatListEntry();
-		}
-	}
+	//if (const auto feed = history()->peer->feed()) { // #TODO archive
+	//	if (feed->textCachedFor == this) {
+	//		feed->textCachedFor = nullptr;
+	//		feed->updateChatListEntry();
+	//	}
+	//}
 }
 
 void HistoryItem::finishEditionToEmpty() {
@@ -402,13 +402,13 @@ void HistoryItem::indexAsNewItem() {
 				types,
 				id));
 		}
-		if (const auto channel = history()->peer->asChannel()) {
-			if (const auto feed = channel->feed()) {
-				_history->session().storage().add(Storage::FeedMessagesAddNew(
-					feed->id(),
-					position()));
-			}
-		}
+		//if (const auto channel = history()->peer->asChannel()) { // #feed
+		//	if (const auto feed = channel->feed()) {
+		//		_history->session().storage().add(Storage::FeedMessagesAddNew(
+		//			feed->id(),
+		//			position()));
+		//	}
+		//}
 	}
 }
 

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -219,10 +219,10 @@ void TopBarWidget::showMenu() {
 			peer,
 			addAction,
 			Window::PeerMenuSource::History);
-	} else if (const auto feed = _activeChat.feed()) {
-		Window::FillFeedMenu(
+	} else if (const auto folder = _activeChat.folder()) {
+		Window::FillFolderMenu(
 			_controller,
-			feed,
+			folder,
 			addAction,
 			Window::PeerMenuSource::History);
 	} else {
@@ -237,13 +237,13 @@ void TopBarWidget::toggleInfoSection() {
 		&& (Auth().settings().thirdSectionInfoEnabled()
 			|| Auth().settings().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
-	} else if (_activeChat) {
+	} else if (_activeChat.peer()) {
 		if (_controller->canShowThirdSection()) {
 			Auth().settings().setThirdSectionInfoEnabled(true);
 			Auth().saveSettingsDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
-					Info::Memento::Default(_activeChat),
+					Info::Memento::Default(_activeChat.peer()),
 					Window::SectionShow().withThirdColumn());
 			} else {
 				_controller->resizeForThirdSection();
@@ -297,7 +297,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 }
 
 void TopBarWidget::paintTopBar(Painter &p) {
-	if (!_activeChat) {
+	if (!_activeChat.peer()) { // #feed
 		return;
 	}
 	auto nameleft = _leftTaken;
@@ -308,7 +308,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	auto history = _activeChat.history();
 
 	p.setPen(st::dialogsNameFg);
-	if (const auto feed = _activeChat.feed()) {
+	/*if (const auto feed = _activeChat.feed()) { // #feed
 		auto text = feed->chatListName(); // TODO feed name emoji
 		auto textWidth = st::historySavedFont->width(text);
 		if (namewidth < textWidth) {
@@ -320,7 +320,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			(height() - st::historySavedFont->height) / 2,
 			width(),
 			text);
-	} else if (_activeChat.peer()->isSelf()) {
+	} else */if (_activeChat.peer()->isSelf()) {
 		auto text = lang(lng_saved_messages);
 		auto textWidth = st::historySavedFont->width(text);
 		if (namewidth < textWidth) {
@@ -411,12 +411,12 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void TopBarWidget::infoClicked() {
-	if (!_activeChat) {
+	if (!_activeChat.peer()) {
 		return;
-	} else if (const auto feed = _activeChat.feed()) {
-		_controller->showSection(Info::Memento(
-			feed,
-			Info::Section(Info::Section::Type::Profile)));
+	//} else if (const auto feed = _activeChat.feed()) { // #feed
+	//	_controller->showSection(Info::Memento(
+	//		feed,
+	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (_activeChat.peer()->isSelf()) {
 		_controller->showSection(Info::Memento(
 			_activeChat.peer()->id,
@@ -458,13 +458,13 @@ void TopBarWidget::refreshInfoButton() {
 		info->showSavedMessagesOnSelf(true);
 		_info.destroy();
 		_info = std::move(info);
-	} else if (const auto feed = _activeChat.feed()) {
-		_info.destroy();
-		_info = object_ptr<Ui::FeedUserpicButton>(
-			this,
-			_controller,
-			feed,
-			st::topBarFeedInfoButton);
+	//} else if (const auto feed = _activeChat.feed()) { // #feed
+	//	_info.destroy();
+	//	_info = object_ptr<Ui::FeedUserpicButton>(
+	//		this,
+	//		_controller,
+	//		feed,
+	//		st::topBarFeedInfoButton);
 	}
 	if (_info) {
 		_info->setAttribute(Qt::WA_TransparentForMouseEvents);

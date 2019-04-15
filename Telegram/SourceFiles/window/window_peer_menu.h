@@ -12,7 +12,7 @@ class RpWidget;
 } // namespace Ui
 
 namespace Data {
-class Feed;
+class Folder;
 } // namespace Data
 
 namespace Window {
@@ -34,9 +34,9 @@ void FillPeerMenu(
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
-void FillFeedMenu(
+void FillFolderMenu(
 	not_null<Controller*> controller,
-	not_null<Data::Feed*> feed,
+	not_null<Data::Folder*> folder,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
 

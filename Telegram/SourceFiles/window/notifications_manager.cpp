@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "history/feed/history_feed_section.h"
+//#include "history/feed/history_feed_section.h" // #feed
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -480,17 +480,17 @@ void Manager::openNotificationMessage(
 		}
 		return true;
 	}();
-	const auto messageFeed = [&] {
-		if (const auto channel = history->peer->asChannel()) {
-			return channel->feed();
-		}
-		return (Data::Feed*)nullptr;
-	}();
+	//const auto messageFeed = [&] { // #feed
+	//	if (const auto channel = history->peer->asChannel()) {
+	//		return channel->feed();
+	//	}
+	//	return (Data::Feed*)nullptr;
+	//}();
 	if (openExactlyMessage) {
 		Ui::showPeerHistory(history, messageId);
-	} else if (messageFeed) {
-		App::wnd()->controller()->showSection(
-			HistoryFeed::Memento(messageFeed));
+	//} else if (messageFeed) { // #feed
+	//	App::wnd()->controller()->showSection(
+	//		HistoryFeed::Memento(messageFeed));
 	} else {
 		Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 	}

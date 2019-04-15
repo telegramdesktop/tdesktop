@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -2395,9 +2395,10 @@ void MainWidget::updateControlsGeometry() {
 			if (session().settings().tabbedSelectorSectionEnabled()) {
 				_history->pushTabbedSelectorToThirdSection(params);
 			} else if (session().settings().thirdSectionInfoEnabled()) {
-				if (const auto key = _controller->activeChatCurrent()) {
+				const auto active = _controller->activeChatCurrent();
+				if (const auto peer = active.peer()) {
 					_controller->showSection(
-						Info::Memento::Default(key),
+						Info::Memento::Default(peer),
 						params.withThirdColumn());
 				}
 			}
@@ -2605,11 +2606,11 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 	} else if (const auto peer = key.peer()) {
 		return std::make_unique<Info::Memento>(
 			peer->id,
-			Info::Memento::DefaultSection(key));
-	} else if (const auto feed = key.feed()) {
-		return std::make_unique<Info::Memento>(
-			feed,
-			Info::Memento::DefaultSection(key));
+			Info::Memento::DefaultSection(peer));
+	//} else if (const auto feed = key.feed()) { // #feed
+	//	return std::make_unique<Info::Memento>(
+	//		feed,
+	//		Info::Memento::DefaultSection(key));
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }
@@ -4281,35 +4282,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updatePinnedDialogs();
 		if (d.has_order()) {
 			const auto &order = d.vorder.v;
-			const auto allLoaded = [&] {
-				for (const auto &dialogPeer : order) {
-					switch (dialogPeer.type()) {
-					case mtpc_dialogPeer: {
-						const auto &peer = dialogPeer.c_dialogPeer();
-						const auto peerId = peerFromMTP(peer.vpeer);
-						if (!session().data().historyLoaded(peerId)) {
-							DEBUG_LOG(("API Error: "
-								"pinned chat not loaded for peer %1"
-								).arg(peerId
-								));
-							return false;
-						}
-					} break;
-					//case mtpc_dialogPeerFeed: { // #feed
-					//	const auto &feed = dialogPeer.c_dialogPeerFeed();
-					//	const auto feedId = feed.vfeed_id.v;
-					//	if (!session().data().feedLoaded(feedId)) {
-					//		DEBUG_LOG(("API Error: "
-					//			"pinned feed not loaded for feedId %1"
-					//			).arg(feedId
-					//			));
-					//		return false;
-					//	}
-					//} break;
-					}
-				}
-				return true;
-			}();
+			const auto notLoaded = [&](const MTPDialogPeer &peer) {
+				return peer.match([&](const MTPDdialogPeer &data) {
+					return !session().data().historyLoaded(
+						peerFromMTP(data.vpeer));
+				}, [&](const MTPDdialogPeerFolder &data) {
+					//return !session().data().folderLoaded(data.vfolder_id.v);
+					return true; // #TODO archive
+				});
+			};
+			const auto allLoaded = ranges::find_if(order, notLoaded)
+				== order.end();
 			if (allLoaded) {
 				session().data().applyPinnedDialogs(order);
 			} else {
@@ -4322,32 +4305,30 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDialogPinned: {
 		const auto &d = update.c_updateDialogPinned();
-		switch (d.vpeer.type()) {
-		case mtpc_dialogPeer: {
-			const auto peerId = peerFromMTP(d.vpeer.c_dialogPeer().vpeer);
-			if (const auto history = session().data().historyLoaded(peerId)) {
+		d.vpeer.match([&](const MTPDdialogPeer &data) {
+			const auto id = peerFromMTP(data.vpeer);
+			if (const auto history = session().data().historyLoaded(id)) {
 				session().data().setPinnedDialog(history, d.is_pinned());
 			} else {
 				DEBUG_LOG(("API Error: "
 					"pinned chat not loaded for peer %1"
-					).arg(peerId
+					).arg(id
 					));
 				_dialogs->loadPinnedDialogs();
 			}
-		} break;
-		//case mtpc_dialogPeerFeed: { // #feed
-		//	const auto feedId = d.vpeer.c_dialogPeerFeed().vfeed_id.v;
-		//	if (const auto feed = session().data().feedLoaded(feedId)) {
-		//		session().data().setPinnedDialog(feed, d.is_pinned());
-		//	} else {
-		//		DEBUG_LOG(("API Error: "
-		//			"pinned feed not loaded for feedId %1"
-		//			).arg(feedId
-		//			));
-		//		_dialogs->loadPinnedDialogs();
-		//	}
-		//} break;
-		}
+		}, [&](const MTPDdialogPeerFolder &data) {
+			// #TODO archive
+			//const auto id = data.vfolder_id.v;
+			//if (const auto folder = session().data().folderLoaded(id)) {
+			//	session().data().setPinnedDialog(folder, d.is_pinned());
+			//} else {
+			//	DEBUG_LOG(("API Error: "
+			//		"pinned folder not loaded for feedId %1"
+			//		).arg(folderId
+			//		));
+			//	_dialogs->loadPinnedDialogs();
+			//}
+		});
 	} break;
 
 	case mtpc_updateChannel: {
@@ -4356,17 +4337,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			channel->inviter = UserId(0);
 			if (channel->amIn()) {
 				const auto history = channel->owner().history(channel);
-				if (const auto feed = channel->feed()) {
-					feed->requestChatListMessage();
-					if (!feed->unreadCountKnown()) {
-						feed->session().api().requestDialogEntry(feed);
-					}
-				} else {
+				//if (const auto feed = channel->feed()) { // #feed
+				//	feed->requestChatListMessage();
+				//	if (!feed->unreadCountKnown()) {
+				//		feed->session().api().requestDialogEntry(feed);
+				//	}
+				//} else {
 					history->requestChatListMessage();
 					if (!history->unreadCountKnown()) {
 						history->session().api().requestDialogEntry(history);
 					}
-				}
+				//}
 				if (!channel->amCreator()) {
 					session().api().requestSelfParticipant(channel);
 				}

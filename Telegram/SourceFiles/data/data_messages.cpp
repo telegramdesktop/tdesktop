@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_feed_messages.h"
+#include "data/data_messages.h"
 
 namespace Data {
 

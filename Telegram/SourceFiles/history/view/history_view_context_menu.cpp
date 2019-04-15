@@ -41,16 +41,16 @@ namespace {
 // If we can't cloud-export link for such time we export it locally.
 constexpr auto kExportLocalTimeout = crl::time(1000);
 
-void AddToggleGroupingAction(
-		not_null<Ui::PopupMenu*> menu,
-		not_null<PeerData*> peer) {
-	if (const auto channel = peer->asChannel()) {
-		const auto grouped = (channel->feed() != nullptr);
-		//menu->addAction( // #feed
-		//	lang(grouped ? lng_feed_ungroup : lng_feed_group),
-		//	[=] { Window::ToggleChannelGrouping(channel, !grouped); });
-	}
-}
+//void AddToggleGroupingAction( // #feed
+//		not_null<Ui::PopupMenu*> menu,
+//		not_null<PeerData*> peer) {
+//	if (const auto channel = peer->asChannel()) {
+//		const auto grouped = (channel->feed() != nullptr);
+//		menu->addAction( // #feed
+//			lang(grouped ? lng_feed_ungroup : lng_feed_group),
+//			[=] { Window::ToggleChannelGrouping(channel, !grouped); });
+//	}
+//}
 
 void SavePhotoToFile(not_null<PhotoData*> photo) {
 	if (photo->isNull() || !photo->loaded()) {
@@ -469,18 +469,18 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		AddPhotoActions(result, photo);
 	} else if (linkDocument) {
 		AddDocumentActions(result, document, itemId);
-	} else if (linkPeer) {
-		const auto peer = linkPeer->peer();
-		if (peer->isChannel()
-			&& peer->asChannel()->feed() != nullptr
-			&& (list->delegate()->listContext() == Context::Feed)) {
-			Window::PeerMenuAddMuteAction(peer, [&](
-					const QString &text,
-					Fn<void()> handler) {
-				return result->addAction(text, handler);
-			});
-			AddToggleGroupingAction(result, linkPeer->peer());
-		}
+	//} else if (linkPeer) { // #feed
+	//	const auto peer = linkPeer->peer();
+	//	if (peer->isChannel()
+	//		&& peer->asChannel()->feed() != nullptr
+	//		&& (list->delegate()->listContext() == Context::Feed)) {
+	//		Window::PeerMenuAddMuteAction(peer, [&](
+	//				const QString &text,
+	//				Fn<void()> handler) {
+	//			return result->addAction(text, handler);
+	//		});
+	//		AddToggleGroupingAction(result, linkPeer->peer());
+	//	}
 	} else if (!request.overSelection && view && !hasSelection) {
 		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();

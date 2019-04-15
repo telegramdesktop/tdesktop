@@ -31,17 +31,17 @@ struct Tag {
 class Key {
 public:
 	Key(not_null<PeerData*> peer);
-	Key(not_null<Data::Feed*> feed);
+	//Key(not_null<Data::Feed*> feed); // #feed
 	Key(Settings::Tag settings);
 
 	PeerData *peer() const;
-	Data::Feed *feed() const;
+	//Data::Feed *feed() const; // #feed
 	UserData *settingsSelf() const;
 
 private:
 	base::variant<
 		not_null<PeerData*>,
-		not_null<Data::Feed*>,
+		//not_null<Data::Feed*>, // #feed
 		Settings::Tag> _value;
 
 };
@@ -58,7 +58,7 @@ public:
 		Media,
 		CommonGroups,
 		Members,
-		Channels,
+		//Channels, // #feed
 		Settings,
 	};
 	using SettingsType = ::Settings::Type;
@@ -107,9 +107,9 @@ public:
 
 	PeerId peerId() const;
 	PeerId migratedPeerId() const;
-	Data::Feed *feed() const {
-		return key().feed();
-	}
+	//Data::Feed *feed() const { // #feed
+	//	return key().feed();
+	//}
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}

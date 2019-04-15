@@ -48,9 +48,9 @@ struct SavedCredentials;
 
 namespace Data {
 
-class Feed;
-enum class FeedUpdateFlag;
-struct FeedUpdate;
+class Folder;
+enum class FolderUpdateFlag;
+struct FolderUpdate;
 
 class WallPaper;
 
@@ -203,8 +203,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const;
 
-	void notifyFeedUpdated(not_null<Feed*> feed, FeedUpdateFlag update);
-	[[nodiscard]] rpl::producer<FeedUpdate> feedUpdated() const;
+	void notifyFolderUpdated(not_null<Folder*> folder, FolderUpdateFlag update);
+	[[nodiscard]] rpl::producer<FolderUpdate> folderUpdated() const;
 
 	void notifyStickersUpdated();
 	[[nodiscard]] rpl::producer<> stickersUpdated() const;
@@ -500,11 +500,13 @@ public:
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
 
-	not_null<Feed*> feed(FeedId id);
-	Feed *feedLoaded(FeedId id);
-	void setDefaultFeedId(FeedId id);
-	FeedId defaultFeedId() const;
-	rpl::producer<FeedId> defaultFeedIdValue() const;
+	[[nodiscard]] not_null<Folder*> folder(FolderId id);
+	[[nodiscard]] Folder *folderLoaded(FolderId id);
+	not_null<Folder*> processFolder(const MTPFolder &data);
+	not_null<Folder*> processFolder(const MTPDfolder &data);
+	//void setDefaultFeedId(FeedId id); // #feed
+	//FeedId defaultFeedId() const;
+	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
 	void requestNotifySettings(not_null<PeerData*> peer);
 	void applyNotifySetting(
@@ -644,6 +646,10 @@ private:
 		PhotoData *photo,
 		DocumentData *document);
 
+	void folderApplyFields(
+		not_null<Folder*> folder,
+		const MTPDfolder &data);
+
 	bool stickersUpdateNeeded(crl::time lastUpdate, crl::time now) const {
 		constexpr auto kStickersUpdateTimeout = crl::time(3600'000);
 		return (lastUpdate == 0)
@@ -708,7 +714,7 @@ private:
 	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
-	rpl::event_stream<FeedUpdate> _feedUpdates;
+	rpl::event_stream<FolderUpdate> _folderUpdates;
 
 	rpl::event_stream<> _stickersUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
@@ -787,8 +793,8 @@ private:
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
 
 	std::deque<Dialogs::Key> _pinnedDialogs;
-	base::flat_map<FeedId, std::unique_ptr<Feed>> _feeds;
-	rpl::variable<FeedId> _defaultFeedId = FeedId();
+	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
+	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 	Groups _groups;
 	std::unordered_map<
 		not_null<const HistoryItem*>,

@@ -16,35 +16,33 @@ class AuthSession;
 namespace Data {
 
 class Session;
-class Feed;
+class Folder;
 
-enum class FeedUpdateFlag {
-	Channels,
-	ChannelPhoto,
+enum class FolderUpdateFlag {
+	List,
 };
 
-struct FeedUpdate {
-	not_null<Data::Feed*> feed;
-	FeedUpdateFlag flag;
+struct FolderUpdate {
+	not_null<Data::Folder*> folder;
+	FolderUpdateFlag flag;
 };
 
 //MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
 
-class Feed : public Dialogs::Entry {
+class Folder : public Dialogs::Entry {
 public:
 	static constexpr auto kId = 1;
-	static constexpr auto kChannelsLimit = 1000;
 
-	Feed(not_null<Data::Session*> owner, FeedId id);
-	Feed(const Feed &) = delete;
-	Feed &operator=(const Feed &) = delete;
+	Folder(not_null<Data::Session*> owner, FolderId id);
+	Folder(const Folder &) = delete;
+	Folder &operator=(const Folder &) = delete;
 
 	Data::Session &owner() const;
 	AuthSession &session() const;
 
-	FeedId id() const;
-	void registerOne(not_null<ChannelData*> channel);
-	void unregisterOne(not_null<ChannelData*> channel);
+	FolderId id() const;
+	void registerOne(not_null<PeerData*> peer);
+	void unregisterOne(not_null<PeerData*> peer);
 
 	void updateChatListMessage(not_null<HistoryItem*> item);
 	void messageRemoved(not_null<HistoryItem*> item);
@@ -84,11 +82,11 @@ public:
 		int y,
 		int size) const override;
 
-	const std::vector<not_null<History*>> &channels() const;
-	int32 channelsHash() const;
-	bool channelsLoaded() const;
-	void setChannelsLoaded(bool loaded);
-	void setChannels(std::vector<not_null<ChannelData*>> channels);
+	const std::vector<not_null<History*>> &chats() const;
+	int32 chatsHash() const;
+	bool chatsLoaded() const;
+	void setChatsLoaded(bool loaded);
+	void setChats(std::vector<not_null<PeerData*>> chats);
 
 private:
 	void indexNameParts();
@@ -96,18 +94,18 @@ private:
 	void setChatListMessageFromChannels();
 	bool justUpdateChatListMessage(not_null<HistoryItem*> item);
 	void updateChatListDate();
-	void changeChannelsList(
-		const std::vector<not_null<ChannelData*>> &add,
-		const std::vector<not_null<ChannelData*>> &remove);
+	void changeChatsList(
+		const std::vector<not_null<PeerData*>> &add,
+		const std::vector<not_null<PeerData*>> &remove);
 
 	template <typename PerformUpdate>
 	void updateUnreadCounts(PerformUpdate &&performUpdate);
 
-	FeedId _id = 0;
+	FolderId _id = 0;
 	not_null<Data::Session*> _owner;
-	std::vector<not_null<History*>> _channels;
-	bool _settingChannels = false;
-	bool _channelsLoaded = false;
+	std::vector<not_null<History*>> _chats;
+	bool _settingChats = false;
+	bool _chatsLoaded = false;
 
 	QString _name;
 	base::flat_set<QString> _nameWords;

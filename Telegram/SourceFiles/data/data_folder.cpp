@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_facade.h"
-#include "storage/storage_feed_messages.h"
+//#include "storage/storage_feed_messages.h" // #feed
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -31,7 +31,7 @@ namespace Data {
 //		data.vid.v));
 //}
 
-Feed::Feed(not_null<Data::Session*> owner, FeedId id)
+Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 : Entry(this)
 , _id(id)
 , _owner(owner)
@@ -39,19 +39,19 @@ Feed::Feed(not_null<Data::Session*> owner, FeedId id)
 	indexNameParts();
 }
 
-Data::Session &Feed::owner() const {
+Data::Session &Folder::owner() const {
 	return *_owner;
 }
 
-AuthSession &Feed::session() const {
+AuthSession &Folder::session() const {
 	return _owner->session();
 }
 
-FeedId Feed::id() const {
+FolderId Folder::id() const {
 	return _id;
 }
 
-void Feed::indexNameParts() {
+void Folder::indexNameParts() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();
 	auto toIndexList = QStringList();
@@ -77,13 +77,13 @@ void Feed::indexNameParts() {
 	}
 }
 
-void Feed::registerOne(not_null<ChannelData*> channel) {
-	const auto history = owner().history(channel);
-	if (!base::contains(_channels, history)) {
-		const auto invisible = (_channels.size() < 2);
-		_channels.push_back(history);
-		session().storage().invalidate(
-			Storage::FeedMessagesInvalidate(_id));
+void Folder::registerOne(not_null<PeerData*> peer) {
+	const auto history = owner().history(peer);
+	if (!base::contains(_chats, history)) {
+		const auto invisible = empty(_chats);
+		_chats.push_back(history);
+		//session().storage().invalidate( // #feed
+		//	Storage::FeedMessagesInvalidate(_id));
 
 		if (history->chatListMessageKnown()) {
 			if (const auto last = history->chatListMessage()) {
@@ -103,30 +103,30 @@ void Feed::registerOne(not_null<ChannelData*> channel) {
 				if (const auto count = history->unreadCount()) {
 					unreadCountChanged(count, history->mute() ? count : 0);
 				}
-			} else if (!_settingChannels) {
+			} else if (!_settingChats) {
 				session().api().requestDialogEntry(this);
 			}
 		}
-		if (invisible && _channels.size() > 1) {
+		if (invisible && !empty(_chats)) {
 			updateChatListExistence();
-			for (const auto history : _channels) {
+			for (const auto history : _chats) {
 				history->updateChatListExistence();
 			}
 		} else {
 			history->updateChatListExistence();
 		}
-		_owner->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
+		_owner->notifyFolderUpdated(this, FolderUpdateFlag::List);
 	}
 }
 
-void Feed::unregisterOne(not_null<ChannelData*> channel) {
-	const auto history = owner().history(channel);
-	const auto i = ranges::remove(_channels, history);
-	if (i != end(_channels)) {
-		const auto visible = (_channels.size() > 1);
-		_channels.erase(i, end(_channels));
-		session().storage().remove(
-			Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
+void Folder::unregisterOne(not_null<PeerData*> peer) {
+	const auto history = owner().history(peer);
+	const auto i = ranges::remove(_chats, history);
+	if (i != end(_chats)) {
+		const auto visible = !empty(_chats);
+		_chats.erase(i, end(_chats));
+		//session().storage().remove( // #feed
+		//	Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
 
 		if (chatListMessageKnown()) {
 			if (const auto last = chatListMessage()) {
@@ -144,19 +144,19 @@ void Feed::unregisterOne(not_null<ChannelData*> channel) {
 				session().api().requestDialogEntry(this);
 			}
 		}
-		if (visible && _channels.size() < 2) {
+		if (visible && empty(_chats)) {
 			updateChatListExistence();
-			for (const auto history : _channels) {
+			for (const auto history : _chats) {
 				history->updateChatListExistence();
 			}
 		} else {
 			history->updateChatListExistence();
 		}
-		_owner->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
+		_owner->notifyFolderUpdated(this, FolderUpdateFlag::List);
 	}
 }
 
-void Feed::updateChatListMessage(not_null<HistoryItem*> item) {
+void Folder::updateChatListMessage(not_null<HistoryItem*> item) {
 	if (justUpdateChatListMessage(item)) {
 		if (_chatListMessage && *_chatListMessage) {
 			setChatListTimeId((*_chatListMessage)->date());
@@ -164,108 +164,108 @@ void Feed::updateChatListMessage(not_null<HistoryItem*> item) {
 	}
 }
 
-void Feed::loadUserpic() {
-	constexpr auto kPaintUserpicsCount = 4;
-	auto load = kPaintUserpicsCount;
-	for (const auto channel : _channels) {
-		channel->peer->loadUserpic();
-		if (!--load) {
-			break;
-		}
-	}
+void Folder::loadUserpic() {
+	//constexpr auto kPaintUserpicsCount = 4; // #feed
+	//auto load = kPaintUserpicsCount;
+	//for (const auto history : _chats) {
+	//	history->peer->loadUserpic();
+	//	if (!--load) {
+	//		break;
+	//	}
+	//}
 }
 
-void Feed::paintUserpic(
+void Folder::paintUserpic(
 		Painter &p,
 		int x,
 		int y,
 		int size) const {
-	const auto small = (size - st::lineWidth) / 2;
-	const auto delta = size - small;
-	auto index = 0;
-	for (const auto channel : _channels) {
-		channel->peer->paintUserpic(p, x, y, small);
-		switch (++index) {
-		case 1:
-		case 3: x += delta; break;
-		case 2: x -= delta; y += delta; break;
-		case 4: return;
-		}
-	}
+	//const auto small = (size - st::lineWidth) / 2; // #feed
+	//const auto delta = size - small;
+	//auto index = 0;
+	//for (const auto history : _chats) {
+	//	history->peer->paintUserpic(p, x, y, small);
+	//	switch (++index) {
+	//	case 1:
+	//	case 3: x += delta; break;
+	//	case 2: x -= delta; y += delta; break;
+	//	case 4: return;
+	//	}
+	//}
 }
 
-const std::vector<not_null<History*>> &Feed::channels() const {
-	return _channels;
+const std::vector<not_null<History*>> &Folder::chats() const {
+	return _chats;
 }
 
-int32 Feed::channelsHash() const {
+int32 Folder::chatsHash() const {
 	const auto ordered = ranges::view::all(
-		_channels
+		_chats
 	) | ranges::view::transform([](not_null<History*> history) {
 		return history->peer->bareId();
 	}) | ranges::to_vector | ranges::action::sort;
 	return Api::CountHash(ordered);
 }
 
-bool Feed::channelsLoaded() const {
-	return _channelsLoaded;
+bool Folder::chatsLoaded() const {
+	return _chatsLoaded;
 }
 
-void Feed::setChannelsLoaded(bool loaded) {
-	if (_channelsLoaded != loaded) {
-		_channelsLoaded = loaded;
-		_owner->notifyFeedUpdated(this, FeedUpdateFlag::Channels);
+void Folder::setChatsLoaded(bool loaded) {
+	if (_chatsLoaded != loaded) {
+		_chatsLoaded = loaded;
+		_owner->notifyFolderUpdated(this, FolderUpdateFlag::List);
 	}
 }
 
-void Feed::setChannels(std::vector<not_null<ChannelData*>> channels) {
+void Folder::setChats(std::vector<not_null<PeerData*>> chats) {
 	const auto remove = ranges::view::all(
-		_channels
+		_chats
 	) | ranges::view::transform([](not_null<History*> history) {
-		return not_null<ChannelData*>(history->peer->asChannel());
-	}) | ranges::view::filter([&](not_null<ChannelData*> channel) {
-		return !base::contains(channels, channel);
+		return history->peer;
+	}) | ranges::view::filter([&](not_null<PeerData*> peer) {
+		return !base::contains(chats, peer);
 	}) | ranges::to_vector;
 
 	const auto add = ranges::view::all(
-		channels
-	) | ranges::view::filter([&](not_null<ChannelData*> channel) {
+		chats
+	) | ranges::view::filter([&](not_null<PeerData*> peer) {
 		return ranges::find(
-			_channels,
-			channel.get(),
-			[](auto history) { return history->peer->asChannel(); }
-		) == end(_channels);
-	}) | ranges::view::transform([](ChannelData *channel) {
-		return not_null<ChannelData*>(channel);
+			_chats,
+			peer,
+			[](auto history) { return history->peer; }
+		) == end(_chats);
+	}) | ranges::view::transform([](PeerData *peer) {
+		return not_null<PeerData*>(peer);
 	}) | ranges::to_vector;
 
-	changeChannelsList(add, remove);
+	changeChatsList(add, remove);
 
-	setChannelsLoaded(true);
+	setChatsLoaded(true);
 }
 
-void Feed::changeChannelsList(
-		const std::vector<not_null<ChannelData*>> &add,
-		const std::vector<not_null<ChannelData*>> &remove) {
-	_settingChannels = true;
-	const auto restore = gsl::finally([&] { _settingChannels = false; });
+void Folder::changeChatsList(
+		const std::vector<not_null<PeerData*>> &add,
+		const std::vector<not_null<PeerData*>> &remove) {
+	_settingChats = true;
+	const auto restore = gsl::finally([&] { _settingChats = false; });
 
-	for (const auto channel : remove) {
-		channel->clearFeed();
-	}
+	//for (const auto channel : remove) { // #TODO archive
+	//	channel->clearFeed();
+	//}
 
-	// We assume the last message was correct before requesting the list.
-	// So we save it and don't allow channels from the list to change it.
-	// After that we restore it.
+	//// We assume the last message was correct before requesting the list.
+	//// So we save it and don't allow channels from the list to change it.
+	//// After that we restore it.
 	const auto oldChatListMessage = base::take(_chatListMessage);
-	for (const auto channel : add) {
-		_chatListMessage = std::nullopt;
-		channel->setFeed(this);
-	}
+	//for (const auto channel : add) {
+	//	_chatListMessage = std::nullopt;
+	//	channel->setFeed(this);
+	//}
 	_chatListMessage = oldChatListMessage;
 }
 
-bool Feed::justUpdateChatListMessage(not_null<HistoryItem*> item) {
+bool Folder::justUpdateChatListMessage(not_null<HistoryItem*> item) {
 	if (!_chatListMessage) {
 		return false;
 	} else if (*_chatListMessage
@@ -276,13 +276,13 @@ bool Feed::justUpdateChatListMessage(not_null<HistoryItem*> item) {
 	return true;
 }
 
-void Feed::messageRemoved(not_null<HistoryItem*> item) {
+void Folder::messageRemoved(not_null<HistoryItem*> item) {
 	if (chatListMessage() == item) {
 		recountChatListMessage();
 	}
 }
 
-void Feed::historyCleared(not_null<History*> history) {
+void Folder::historyCleared(not_null<History*> history) {
 	if (const auto last = chatListMessage()) {
 		if (last->history() == history) {
 			messageRemoved(last);
@@ -290,15 +290,15 @@ void Feed::historyCleared(not_null<History*> history) {
 	}
 }
 
-void Feed::requestChatListMessage() {
+void Folder::requestChatListMessage() {
 	if (!chatListMessageKnown()) {
 		session().api().requestDialogEntry(this);
 	}
 }
 
-void Feed::recountChatListMessage() {
+void Folder::recountChatListMessage() {
 	_chatListMessage = std::nullopt;
-	for (const auto history : _channels) {
+	for (const auto history : _chats) {
 		if (!history->chatListMessageKnown()) {
 			requestChatListMessage();
 			return;
@@ -307,9 +307,9 @@ void Feed::recountChatListMessage() {
 	setChatListMessageFromChannels();
 }
 
-void Feed::setChatListMessageFromChannels() {
+void Folder::setChatListMessageFromChannels() {
 	_chatListMessage = nullptr;
-	for (const auto history : _channels) {
+	for (const auto history : _chats) {
 		if (const auto last = history->chatListMessage()) {
 			justUpdateChatListMessage(last);
 		}
@@ -317,27 +317,27 @@ void Feed::setChatListMessageFromChannels() {
 	updateChatListDate();
 }
 
-void Feed::updateChatListDate() {
+void Folder::updateChatListDate() {
 	if (_chatListMessage && *_chatListMessage) {
 		setChatListTimeId((*_chatListMessage)->date());
 	}
 }
 
-int Feed::unreadCount() const {
+int Folder::unreadCount() const {
 	return _unreadCount ? *_unreadCount : 0;
 }
 
-rpl::producer<int> Feed::unreadCountValue() const {
+rpl::producer<int> Folder::unreadCountValue() const {
 	return rpl::single(
 		unreadCount()
 	) | rpl::then(_unreadCountChanges.events());
 }
 
-bool Feed::unreadCountKnown() const {
+bool Folder::unreadCountKnown() const {
 	return !!_unreadCount;
 }
 // #feed
-//void Feed::applyDialog(const MTPDdialogFeed &data) {
+//void Folder::applyDialog(const MTPDdialogFeed &data) {
 //	const auto addChannel = [&](ChannelId channelId) {
 //		if (const auto channel = owner().channelLoaded(channelId)) {
 //			channel->setFeed(this);
@@ -367,7 +367,7 @@ bool Feed::unreadCountKnown() const {
 //	}
 //}
 
-void Feed::changedInChatListHook(Dialogs::Mode list, bool added) {
+void Folder::changedInChatListHook(Dialogs::Mode list, bool added) {
 	if (list != Dialogs::Mode::All) {
 		return;
 	}
@@ -391,7 +391,7 @@ void Feed::changedInChatListHook(Dialogs::Mode list, bool added) {
 }
 
 template <typename PerformUpdate>
-void Feed::updateUnreadCounts(PerformUpdate &&performUpdate) {
+void Folder::updateUnreadCounts(PerformUpdate &&performUpdate) {
 	const auto wasUnreadCount = _unreadCount  ? *_unreadCount : 0;
 	const auto wasUnreadMutedCount = _unreadMutedCount;
 	const auto wasFullMuted = (wasUnreadMutedCount > 0)
@@ -433,7 +433,7 @@ void Feed::updateUnreadCounts(PerformUpdate &&performUpdate) {
 	}
 }
 
-void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
+void Folder::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
 	if (unreadCountKnown()
 		&& (*_unreadCount == unreadNonMutedCount + unreadMutedCount)
 		&& (_unreadMutedCount == unreadMutedCount)) {
@@ -445,13 +445,13 @@ void Feed::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
 	});
 }
 
-void Feed::setUnreadPosition(const MessagePosition &position) {
+void Folder::setUnreadPosition(const MessagePosition &position) {
 	if (_unreadPosition.current() < position) {
 		_unreadPosition = position;
 	}
 }
 
-void Feed::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
+void Folder::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
 	if (!unreadCountKnown()) {
 		return;
 	}
@@ -467,55 +467,55 @@ void Feed::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
 	});
 }
 
-MessagePosition Feed::unreadPosition() const {
+MessagePosition Folder::unreadPosition() const {
 	return _unreadPosition.current();
 }
 
-rpl::producer<MessagePosition> Feed::unreadPositionChanges() const {
+rpl::producer<MessagePosition> Folder::unreadPositionChanges() const {
 	return _unreadPosition.changes();
 }
 
-bool Feed::toImportant() const {
+bool Folder::toImportant() const {
 	return false; // TODO feeds workmode
 }
 
-bool Feed::useProxyPromotion() const {
+bool Folder::useProxyPromotion() const {
 	return false;
 }
 
-bool Feed::shouldBeInChatList() const {
-	return _channels.size() > 1;
+bool Folder::shouldBeInChatList() const {
+	return !empty(_chats);
 }
 
-int Feed::chatListUnreadCount() const {
+int Folder::chatListUnreadCount() const {
 	return unreadCount();
 }
 
-bool Feed::chatListUnreadMark() const {
+bool Folder::chatListUnreadMark() const {
 	return false; // #feed unread mark
 }
 
-bool Feed::chatListMutedBadge() const {
+bool Folder::chatListMutedBadge() const {
 	return _unreadCount ? (*_unreadCount <= _unreadMutedCount) : false;
 }
 
-HistoryItem *Feed::chatListMessage() const {
+HistoryItem *Folder::chatListMessage() const {
 	return _chatListMessage ? *_chatListMessage : nullptr;
 }
 
-bool Feed::chatListMessageKnown() const {
+bool Folder::chatListMessageKnown() const {
 	return _chatListMessage.has_value();
 }
 
-const QString &Feed::chatListName() const {
+const QString &Folder::chatListName() const {
 	return _name;
 }
 
-const base::flat_set<QString> &Feed::chatListNameWords() const {
+const base::flat_set<QString> &Folder::chatListNameWords() const {
 	return _nameWords;
 }
 
-const base::flat_set<QChar> &Feed::chatListFirstLetters() const {
+const base::flat_set<QChar> &Folder::chatListFirstLetters() const {
 	return _nameFirstLetters;
 }
 

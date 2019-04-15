@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Data {
-class Feed;
-} // namespace Data
-
 namespace Dialogs {
 
 class Row;
@@ -22,10 +18,10 @@ const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,
 	bool active,
 	bool selected);
-const style::icon *FeedTypeIcon(
-	not_null<Data::Feed*> feed,
-	bool active,
-	bool selected);
+//const style::icon *FeedTypeIcon( // #feed
+//	not_null<Data::Feed*> feed,
+//	bool active,
+//	bool selected);
 
 class RowPainter {
 public:

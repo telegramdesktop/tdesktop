@@ -252,12 +252,12 @@ private:
 		int top,
 		int fullWidth,
 		const Text &text) const;
-	void paintSearchInFeed(
-		Painter &p,
-		not_null<Data::Feed*> feed,
-		int top,
-		int fullWidth,
-		const Text &text) const;
+	//void paintSearchInFeed( // #feed
+	//	Painter &p,
+	//	not_null<Data::Feed*> feed,
+	//	int top,
+	//	int fullWidth,
+	//	const Text &text) const;
 	template <typename PaintUserpic>
 	void paintSearchInFilter(
 		Painter &p,

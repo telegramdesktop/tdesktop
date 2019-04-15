@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
 #include "dialogs/dialogs_search_from_controllers.h"
-#include "history/feed/history_feed_section.h"
+//#include "history/feed/history_feed_section.h" // #feed
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/shortcuts.h"
@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
 #include "data/data_drafts.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -108,11 +108,11 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		if (history->textCachedFor == item) {
 			history->updateChatListEntry();
 		}
-		if (const auto feed = history->peer->feed()) {
-			if (feed->textCachedFor == item) {
-				feed->updateChatListEntry();
-			}
-		}
+		//if (const auto folder = history->peer->folder()) { // #TODO archive
+		//	if (folder->textCachedFor == item) {
+		//		folder->updateChatListEntry();
+		//	}
+		//}
 	}, lifetime());
 
 	Auth().data().sendActionAnimationUpdated(
@@ -165,9 +165,9 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			}
 		}
 	}));
-	Auth().data().feedUpdated(
-	) | rpl::start_with_next([=](const Data::FeedUpdate &update) {
-		updateDialogRow({ update.feed, FullMsgId() });
+	Auth().data().folderUpdated(
+	) | rpl::start_with_next([=](const Data::FolderUpdate &update) {
+		updateDialogRow({ update.folder, FullMsgId() });
 	}, lifetime());
 
 	_controller->activeChatEntryValue(
@@ -629,8 +629,8 @@ void DialogsInner::paintSearchInChat(
 		} else {
 			paintSearchInPeer(p, peer, top, fullWidth, _searchInChatText);
 		}
-	} else if (const auto feed = _searchInChat.feed()) {
-		paintSearchInFeed(p, feed, top, fullWidth, _searchInChatText);
+	//} else if (const auto feed = _searchInChat.feed()) { // #feed
+	//	paintSearchInFeed(p, feed, top, fullWidth, _searchInChatText);
 	} else {
 		Unexpected("Empty Dialogs::Key in paintSearchInChat.");
 	}
@@ -705,19 +705,19 @@ void DialogsInner::paintSearchInSaved(
 	paintSearchInFilter(p, paintUserpic, top, fullWidth, nullptr, text);
 }
 
-void DialogsInner::paintSearchInFeed(
-		Painter &p,
-		not_null<Data::Feed*> feed,
-		int top,
-		int fullWidth,
-		const Text &text) const {
-	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-		feed->paintUserpicLeft(p, x, y, fullWidth, size);
-	};
-	const auto icon = Dialogs::Layout::FeedTypeIcon(feed, false, false);
-	paintSearchInFilter(p, paintUserpic, top, fullWidth, icon, text);
-}
-
+//void DialogsInner::paintSearchInFeed( // #feed
+//		Painter &p,
+//		not_null<Data::Feed*> feed,
+//		int top,
+//		int fullWidth,
+//		const Text &text) const {
+//	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
+//		feed->paintUserpicLeft(p, x, y, fullWidth, size);
+//	};
+//	const auto icon = Dialogs::Layout::FeedTypeIcon(feed, false, false);
+//	paintSearchInFilter(p, paintUserpic, top, fullWidth, icon, text);
+//}
+//
 void DialogsInner::activate() {
 }
 
@@ -1600,14 +1600,14 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 				return _menu->addAction(text, std::move(callback));
 			},
 			Window::PeerMenuSource::ChatsList);
-	} else if (const auto feed = row.key.feed()) {
-		Window::FillFeedMenu(
-			_controller,
-			feed,
-			[&](const QString &text, Fn<void()> callback) {
-				return _menu->addAction(text, std::move(callback));
-			},
-			Window::PeerMenuSource::ChatsList);
+	} else if (const auto folder = row.key.folder()) {
+		//Window::FillFolderMenu( // #TODO archive
+		//	_controller,
+		//	folder,
+		//	[&](const QString &text, Fn<void()> callback) {
+		//		return _menu->addAction(text, std::move(callback));
+		//	},
+		//	Window::PeerMenuSource::ChatsList);
 	}
 	connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_menuRow.key) {
@@ -1850,11 +1850,11 @@ void DialogsInner::itemRemoved(not_null<const HistoryItem*> item) {
 
 void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 	for (const auto &dialog : added) {
-		switch (dialog.type()) {
-		case mtpc_dialog: applyDialog(dialog.c_dialog()); break;
-		//case mtpc_dialogFeed: applyFeedDialog(dialog.c_dialogFeed()); break; // #feed
-		default: Unexpected("Type in DialogsInner::dialogsReceived");
-		}
+		dialog.match([&](const MTPDdialog &data) {
+			applyDialog(data);
+		}, [&](const MTPDdialogFolder &data) {
+			//applyFolderDialog(data); // #TODO archive
+		});
 	}
 	refresh();
 }
@@ -2241,8 +2241,8 @@ void DialogsInner::refreshSearchInChatLabel() {
 				return lang(lng_saved_messages);
 			}
 			return peer->name;
-		} else if (const auto feed = _searchInChat.feed()) {
-			return feed->chatListName();
+		//} else if (const auto feed = _searchInChat.feed()) { // #feed
+		//	return feed->chatListName();
 		}
 		return QString();
 	}();
@@ -2563,17 +2563,17 @@ DialogsInner::ChosenRow DialogsInner::computeChosenRow() const {
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
 			const auto result = _searchResults[_searchedSelected].get();
-			if (const auto feed = result->searchInChat().feed()) {
-				return {
-					feed,
-					result->item()->position()
-				};
-			} else {
+			//if (const auto feed = result->searchInChat().feed()) { // #feed
+			//	return {
+			//		feed,
+			//		result->item()->position()
+			//	};
+			//} else {
 				return {
 					result->item()->history(),
 					result->item()->position()
 				};
-			}
+			//}
 		}
 	}
 	return ChosenRow();
@@ -2599,10 +2599,11 @@ bool DialogsInner::chooseRow() {
 				(uniqueSearchResults()
 					? ShowAtUnreadMsgId
 					: chosen.message.fullId.msg));
-		} else if (const auto feed = chosen.key.feed()) {
-			_controller->showSection(
-				HistoryFeed::Memento(feed, chosen.message),
-				Window::SectionShow::Way::ClearStack);
+		} else if (const auto folder = chosen.key.folder()) {
+			// #TODO archive
+			//_controller->showSection(
+			//	HistoryFeed::Memento(feed, chosen.message),
+			//	Window::SectionShow::Way::ClearStack);
 		}
 		if (openSearchResult && !Auth().supportMode()) {
 			emit clearSearchQuery();

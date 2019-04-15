@@ -28,10 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "storage/storage_feed_messages.h"
+//#include "storage/storage_feed_messages.h" // #feed
 #include "support/support_helper.h"
 #include "data/data_channel_admins.h"
-#include "data/data_feed.h"
+#include "data/data_folder.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -158,13 +158,13 @@ void History::checkChatListMessageRemoved(not_null<HistoryItem*> item) {
 	}
 	_chatListMessage = std::nullopt;
 	refreshChatListMessage();
-	if (const auto channel = peer->asChannel()) {
-		if (const auto feed = channel->feed()) {
-			// Must be after history->chatListMessage() is updated.
-			// Otherwise feed last message will be this value again.
-			feed->messageRemoved(item);
-		}
-	}
+	//if (const auto channel = peer->asChannel()) { // #feed
+	//	if (const auto feed = channel->feed()) {
+	//		// Must be after history->chatListMessage() is updated.
+	//		// Otherwise feed last message will be this value again.
+	//		feed->messageRemoved(item);
+	//	}
+	//}
 }
 
 void History::itemVanished(not_null<HistoryItem*> item) {
@@ -1711,12 +1711,12 @@ void History::changeUnreadCount(int delta) {
 	if (_unreadCount) {
 		setUnreadCount(std::max(*_unreadCount + delta, 0));
 	}
-	if (const auto channel = peer->asChannel()) {
-		if (const auto feed = channel->feed()) {
-			const auto mutedCountDelta = mute() ? delta : 0;
-			feed->unreadCountChanged(delta, mutedCountDelta);
-		}
-	}
+	//if (const auto channel = peer->asChannel()) { // #feed
+	//	if (const auto feed = channel->feed()) {
+	//		const auto mutedCountDelta = mute() ? delta : 0;
+	//		feed->unreadCountChanged(delta, mutedCountDelta);
+	//	}
+	//}
 }
 
 bool History::mute() const {
@@ -1729,21 +1729,21 @@ bool History::changeMute(bool newMute) {
 	}
 	_mute = newMute;
 
-	const auto feed = peer->isChannel()
-		? peer->asChannel()->feed()
-		: nullptr;
-	if (feed) {
-		if (_unreadCount) {
-			if (*_unreadCount) {
-				const auto unreadCountDelta = 0;
-				const auto mutedCountDelta = _mute ? *_unreadCount : -*_unreadCount;
-				feed->unreadCountChanged(unreadCountDelta, mutedCountDelta);
-			}
-		} else {
-			session().api().requestDialogEntry(this);
-			session().api().requestDialogEntry(feed);
-		}
-	}
+	//const auto feed = peer->isChannel() // #feed
+	//	? peer->asChannel()->feed()
+	//	: nullptr;
+	//if (feed) {
+	//	if (_unreadCount) {
+	//		if (*_unreadCount) {
+	//			const auto unreadCountDelta = 0;
+	//			const auto mutedCountDelta = _mute ? *_unreadCount : -*_unreadCount;
+	//			feed->unreadCountChanged(unreadCountDelta, mutedCountDelta);
+	//		}
+	//	} else {
+	//		session().api().requestDialogEntry(this);
+	//		session().api().requestDialogEntry(feed);
+	//	}
+	//}
 	if (inChatList(Dialogs::Mode::All)) {
 		if (const auto count = historiesUnreadCount()) {
 			_owner->unreadMuteChanged(count, _mute);
@@ -2135,26 +2135,26 @@ void History::setNotLoadedAtBottom() {
 
 	session().storage().invalidate(
 		Storage::SharedMediaInvalidateBottom(peer->id));
-	if (const auto channel = peer->asChannel()) {
-		if (const auto feed = channel->feed()) {
-			session().storage().invalidate(
-				Storage::FeedMessagesInvalidateBottom(
-					feed->id()));
-		}
-	}
+	//if (const auto channel = peer->asChannel()) { // #feed
+	//	if (const auto feed = channel->feed()) {
+	//		session().storage().invalidate(
+	//			Storage::FeedMessagesInvalidateBottom(
+	//				feed->id()));
+	//	}
+	//}
 }
 
 void History::clearSharedMedia() {
 	session().storage().remove(
 		Storage::SharedMediaRemoveAll(peer->id));
-	if (const auto channel = peer->asChannel()) {
-		if (const auto feed = channel->feed()) {
-			session().storage().remove(
-				Storage::FeedMessagesRemoveAll(
-					feed->id(),
-					channel->bareId()));
-		}
-	}
+	//if (const auto channel = peer->asChannel()) { // #feed
+	//	if (const auto feed = channel->feed()) {
+	//		session().storage().remove(
+	//			Storage::FeedMessagesRemoveAll(
+	//				feed->id(),
+	//				channel->bareId()));
+	//	}
+	//}
 }
 
 void History::setLastMessage(HistoryItem *item) {
@@ -2348,15 +2348,15 @@ bool History::lastMessageKnown() const {
 
 void History::updateChatListExistence() {
 	Entry::updateChatListExistence();
-	if (const auto channel = peer->asChannel()) {
-		if (!channel->feed()) {
-			// After ungrouping from a feed we need to load dialog.
-			requestChatListMessage();
-			if (!unreadCountKnown()) {
-				session().api().requestDialogEntry(this);
-			}
-		}
-	}
+	//if (const auto channel = peer->asChannel()) { // #feed
+	//	if (!channel->feed()) {
+	//		// After ungrouping from a feed we need to load dialog.
+	//		requestChatListMessage();
+	//		if (!unreadCountKnown()) {
+	//			session().api().requestDialogEntry(this);
+	//		}
+	//	}
+	//}
 }
 
 bool History::useProxyPromotion() const {
@@ -2376,8 +2376,8 @@ bool History::shouldBeInChatList() const {
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
 			return isProxyPromoted();
-		} else if (const auto feed = channel->feed()) {
-			return !feed->needUpdateInChatList();
+		//} else if (const auto feed = channel->feed()) { // #feed
+		//	return !feed->needUpdateInChatList();
 		}
 	} else if (const auto chat = peer->asChat()) {
 		return chat->amIn()
@@ -2966,10 +2966,10 @@ void History::clear(ClearType type) {
 		clearLastKeyboard();
 		if (const auto channel = peer->asChannel()) {
 			channel->clearPinnedMessage();
-			if (const auto feed = channel->feed()) {
-				// Should be after resetting the _lastMessage.
-				feed->historyCleared(this);
-			}
+			//if (const auto feed = channel->feed()) { // #feed
+			//	// Should be after resetting the _lastMessage.
+			//	feed->historyCleared(this);
+			//}
 		}
 	}
 	_owner->notifyHistoryChangeDelayed(this);
