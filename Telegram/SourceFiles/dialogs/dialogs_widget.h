@@ -58,8 +58,6 @@ public:
 
 	void searchInChat(Dialogs::Key chat);
 
-	void loadDialogs();
-	void loadPinnedDialogs();
 	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
 	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
@@ -137,12 +135,6 @@ private:
 	void peerSearchReceived(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
-	void updateDialogsOffset(
-		const QVector<MTPDialog> &dialogs,
-		const QVector<MTPMessage> &messages);
-	void applyReceivedDialogs(
-		const QVector<MTPDialog> &dialogs,
-		const QVector<MTPMessage> &messages);
 
 	void setupSupportMode();
 	void setupConnectingWidget();
@@ -160,26 +152,15 @@ private:
 	void checkUpdateStatus();
 
 	void applyFilterUpdate(bool force = false);
-	bool loadingBlockedByDate() const;
-	void refreshLoadMoreButton();
-	void loadMoreBlockedByDateChats();
+	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
+	void loadMoreBlockedByDate();
 
-	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
 	bool _dragInScroll = false;
 	bool _dragForward = false;
 	QTimer _chooseByDragTimer;
-
-	bool _dialogsFull = false;
-	TimeId _dialogsLoadTill = 0;
-	TimeId _dialogsOffsetDate = 0;
-	MsgId _dialogsOffsetId = 0;
-	PeerData *_dialogsOffsetPeer = nullptr;
-	mtpRequestId _dialogsRequestId = 0;
-	mtpRequestId _pinnedDialogsRequestId = 0;
-	bool _pinnedDialogsReceived = false;
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;

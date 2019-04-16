@@ -389,6 +389,7 @@ AuthSession::AuthSession(const MTPUser &user)
 , _user(_data->processUser(user))
 , _changelogs(Core::Changelogs::Create(this))
 , _supportHelper(Support::Helper::Create(this)) {
+
 	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
 	});

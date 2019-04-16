@@ -293,6 +293,12 @@ public:
 	void applyUpdate(const MTPDupdateChatParticipantAdmin &update);
 	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
 
+	void applyDialogs(
+		const QVector<MTPMessage> &messages,
+		const QVector<MTPDialog> &dialogs);
+	void addSavedPeersAfter(const QDateTime &date);
+	void addAllSavedPeers();
+
 	int pinnedDialogsCount() const;
 	const std::deque<Dialogs::Key> &pinnedDialogsOrder() const;
 	void setPinnedDialog(const Dialogs::Key &key, bool pinned);
@@ -596,6 +602,9 @@ private:
 		int muted,
 		int entriesFull,
 		int entriesMuted) const;
+
+	void applyDialog(const MTPDdialog &data);
+	void applyDialog(const MTPDdialogFolder &data);
 
 	void photoApplyFields(
 		not_null<PhotoData*> photo,

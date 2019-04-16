@@ -88,6 +88,8 @@ constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
 //constexpr auto kFeedReadTimeout = crl::time(1000); // #feed
 constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(60 * 60 * 1000);
 constexpr auto kNotifySettingSaveTimeout = crl::time(1000);
+constexpr auto kDialogsFirstLoad = 20;
+constexpr auto kDialogsPerPage = 500;
 
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
@@ -194,11 +196,27 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 , _proxyPromotionTimer([=] { refreshProxyPromotion(); })
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); }) {
 	crl::on_main([=] {
+		// You can't use _session->lifetime() in the constructor,
+		// only queued, because it is not constructed yet.
 		_session->uploader().photoReady(
 		) | rpl::start_with_next([=](const Storage::UploadedPhoto &data) {
 			photoUploadReady(data.fullId, data.file);
 		}, _session->lifetime());
+
+		setupSupportMode();
 	});
+}
+
+void ApiWrap::setupSupportMode() {
+	if (!_session->supportMode()) {
+		return;
+	}
+
+	_session->settings().supportChatsTimeSliceValue(
+	) | rpl::start_with_next([=](int seconds) {
+		_dialogsLoadTill = seconds ? std::max(unixtime() - seconds, 0) : 0;
+		refreshDialogsLoadBlocked();
+	}, _session->lifetime());
 }
 
 void ApiWrap::requestChangelog(
@@ -685,6 +703,162 @@ void ApiWrap::requestContacts() {
 	}).fail([=](const RPCError &error) {
 		_contactsRequestId = 0;
 	}).send();
+}
+
+void ApiWrap::requestDialogs() {
+	if (_dialogsRequestId) {
+		return;
+	} else if (_dialogsFull) {
+		_session->data().addAllSavedPeers();
+		return;
+	} else if (_dialogsLoadBlockedByDate.current()) {
+		return;
+	}
+
+	const auto firstLoad = !_dialogsOffsetDate;
+	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
+	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned
+		| MTPmessages_GetDialogs::Flag::f_folder_id;
+	const auto folderId = 0;
+	const auto hash = 0;
+	_dialogsRequestId = request(MTPmessages_GetDialogs(
+		MTP_flags(flags),
+		MTP_int(folderId),
+		MTP_int(_dialogsOffsetDate),
+		MTP_int(_dialogsOffsetId),
+		(_dialogsOffsetPeer
+			? _dialogsOffsetPeer->input
+			: MTP_inputPeerEmpty()),
+		MTP_int(loadCount),
+		MTP_int(hash)
+	)).done([=](const MTPmessages_Dialogs &result) {
+		result.match([](const MTPDmessages_dialogsNotModified & data) {
+			LOG(("API Error: not-modified received for requested dialogs."));
+		}, [&](const auto &data) {
+			if constexpr (data.Is<MTPDmessages_dialogs>()) {
+				_dialogsFull = true;
+			}
+			updateDialogsOffset(data.vdialogs.v, data.vmessages.v);
+			_session->data().processUsers(data.vusers);
+			_session->data().processChats(data.vchats);
+			_session->data().applyDialogs(data.vmessages.v, data.vdialogs.v);
+		});
+
+		_dialogsRequestId = 0;
+		requestDialogs();
+		if (!_dialogsRequestId) {
+			refreshDialogsLoadBlocked();
+		}
+
+		_session->data().moreChatsLoaded().notify();
+		if (_dialogsFull && _pinnedDialogsReceived) {
+			_session->data().allChatsLoaded().set(true);
+		}
+		requestContacts();
+	}).fail([=](const RPCError &error) {
+		_dialogsRequestId = 0;
+	}).send();
+	if (!_pinnedDialogsReceived) {
+		requestPinnedDialogs();
+	}
+	refreshDialogsLoadBlocked();
+}
+
+void ApiWrap::refreshDialogsLoadBlocked() {
+	_dialogsLoadMayBlockByDate = !_dialogsFull
+		&& (_dialogsLoadTill > 0);
+	_dialogsLoadBlockedByDate = !_dialogsFull
+		&& !_dialogsRequestId
+		&& (_dialogsLoadTill > 0)
+		&& (_dialogsOffsetDate > 0)
+		&& (_dialogsOffsetDate <= _dialogsLoadTill);
+}
+
+void ApiWrap::updateDialogsOffset(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages) {
+	auto lastDate = TimeId(0);
+	auto lastPeer = PeerId(0);
+	auto lastMsgId = MsgId(0);
+	for (const auto &dialog : ranges::view::reverse(dialogs)) {
+		dialog.match([&](const auto &dialog) {
+			const auto peer = peerFromMTP(dialog.vpeer);
+			const auto messageId = dialog.vtop_message.v;
+			if (!peer || !messageId) {
+				return;
+			}
+			if (!lastPeer) {
+				lastPeer = peer;
+			}
+			if (!lastMsgId) {
+				lastMsgId = messageId;
+			}
+			for (const auto &message : ranges::view::reverse(messages)) {
+				if (IdFromMessage(message) == messageId
+					&& PeerFromMessage(message) == peer) {
+					if (const auto date = DateFromMessage(message)) {
+						lastDate = date;
+					}
+					return;
+				}
+			}
+		});
+		if (lastDate) {
+			break;
+		}
+	}
+	if (lastDate) {
+		_dialogsOffsetDate = lastDate;
+		_dialogsOffsetId = lastMsgId;
+		_dialogsOffsetPeer = _session->data().peer(lastPeer);
+	} else {
+		_dialogsFull = true;
+	}
+}
+
+void ApiWrap::requestPinnedDialogs() {
+	if (_pinnedDialogsRequestId) {
+		return;
+	}
+
+	_pinnedDialogsReceived = false;
+	const auto folderId = FolderId(0);
+	_pinnedDialogsRequestId = request(MTPmessages_GetPinnedDialogs(
+		MTP_int(folderId)
+	)).done([=](const MTPmessages_PeerDialogs &result) {
+		result.match([&](const MTPDmessages_peerDialogs &data) {
+			_session->data().processUsers(data.vusers);
+			_session->data().processChats(data.vchats);
+			_session->data().applyPinnedDialogs(data.vdialogs.v);
+			_session->data().applyDialogs(data.vmessages.v, data.vdialogs.v);
+
+			_pinnedDialogsRequestId = 0;
+			_pinnedDialogsReceived = true;
+
+			_session->data().moreChatsLoaded().notify();
+			if (_dialogsFull) {
+				_session->data().allChatsLoaded().set(true);
+			}
+		});
+	}).fail([=](const RPCError &error) {
+		_pinnedDialogsRequestId = 0;
+	}).send();
+}
+
+void ApiWrap::requestMoreBlockedByDateDialogs() {
+	const auto max = _session->settings().supportChatsTimeSlice();
+	_dialogsLoadTill = _dialogsOffsetDate
+		? (_dialogsOffsetDate - max)
+		: (unixtime() - max);
+	requestDialogs();
+}
+
+rpl::producer<bool> ApiWrap::dialogsLoadMayBlockByDate() const {
+	return _dialogsLoadMayBlockByDate.value();
+}
+
+rpl::producer<bool> ApiWrap::dialogsLoadBlockedByDate() const {
+	return _dialogsLoadBlockedByDate.value();
 }
 
 void ApiWrap::requestDialogEntry(not_null<Data::Folder*> folder) {
@@ -1219,7 +1393,7 @@ void ApiWrap::migrateChat(
 		return MigrateCallbacks{ std::move(done), std::move(fail) };
 	};
 	const auto i = _migrateCallbacks.find(chat);
-	if (i != end(_migrateCallbacks)) {
+	if (i != _migrateCallbacks.end()) {
 		i->second.push_back(callback());
 		return;
 	}

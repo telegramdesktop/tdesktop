@@ -2931,7 +2931,7 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 	_ptsWaiter.setRequesting(false);
 
-	_dialogs->loadDialogs();
+	session().api().requestDialogs();
 	updateOnline();
 }
 
@@ -4284,10 +4284,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (allLoaded) {
 				session().data().applyPinnedDialogs(order);
 			} else {
-				_dialogs->loadPinnedDialogs();
+				session().api().requestPinnedDialogs();
 			}
 		} else {
-			_dialogs->loadPinnedDialogs();
+			session().api().requestPinnedDialogs();
 		}
 	} break;
 
@@ -4302,7 +4302,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					"pinned chat not loaded for peer %1"
 					).arg(id
 					));
-				_dialogs->loadPinnedDialogs();
+				session().api().requestPinnedDialogs();
 			}
 		}, [&](const MTPDdialogPeerFolder &data) {
 			const auto id = data.vfolder_id.v;
@@ -4313,7 +4313,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					"pinned folder not loaded for folderId %1"
 					).arg(id
 					));
-				_dialogs->loadPinnedDialogs();
+				session().api().requestPinnedDialogs();
 			}
 		});
 	} break;

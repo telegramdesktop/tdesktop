@@ -40,8 +40,6 @@ public:
 	DialogsInner(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
-	void addSavedPeersAfter(const QDateTime &date);
-	void addAllSavedPeers();
 	bool searchReceived(
 		const QVector<MTPMessage> &result,
 		DialogsSearchRequestType type,

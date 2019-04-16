@@ -42,9 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kDialogsFirstLoad = 20;
-constexpr auto kDialogsPerPage = 500;
-
 QString SwitchToChooseFromQuery() {
 	return qsl("from:");
 }
@@ -164,6 +161,14 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 , _scroll(this, st::dialogsScroll)
 , _scrollToTop(_scroll, st::dialogsToUp) {
 	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, controller));
+
+	rpl::combine(
+		session().api().dialogsLoadMayBlockByDate(),
+		session().api().dialogsLoadBlockedByDate()
+	) | rpl::start_with_next([=](bool mayBlock, bool isBlocked) {
+		refreshLoadMoreButton(mayBlock, isBlocked);
+	}, lifetime());
+
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
@@ -178,6 +183,10 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	});
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
+	subscribe(session().data().moreChatsLoaded(), [=] {
+		_inner->refresh();
+		onListScroll();
+	});
 	connect(_filter, &Ui::FlatInput::cancelled, [=] {
 		onCancel();
 	});
@@ -223,21 +232,22 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
-	_inner->setLoadMoreCallback([this] {
+	_inner->setLoadMoreCallback([=] {
 		using State = DialogsInner::State;
 		const auto state = _inner->state();
-		if (state == State::Filtered && (!_inner->waitingForSearch()
-			|| (_searchInMigrated
-				&& _searchFull
-				&& !_searchFullMigrated))) {
+		if (state == State::Filtered
+			&& (!_inner->waitingForSearch()
+				|| (_searchInMigrated
+					&& _searchFull
+					&& !_searchFullMigrated))) {
 			onSearchMore();
 		} else {
-			loadDialogs();
+			session().api().requestDialogs();
 		}
 	});
 	_inner->listBottomReached(
 	) | rpl::start_with_next([=] {
-		loadMoreBlockedByDateChats();
+		loadMoreBlockedByDate();
 	}, lifetime());
 
 	_filter->setFocusPolicy(Qt::StrongFocus);
@@ -315,12 +325,6 @@ void DialogsWidget::setupSupportMode() {
 	if (!session().supportMode()) {
 		return;
 	}
-
-	session().settings().supportChatsTimeSliceValue(
-	) | rpl::start_with_next([=](int seconds) {
-		_dialogsLoadTill = seconds ? std::max(unixtime() - seconds, 0) : 0;
-		refreshLoadMoreButton();
-	}, lifetime());
 
 	session().settings().supportAllSearchResultsValue(
 	) | rpl::filter([=] {
@@ -525,90 +529,8 @@ void DialogsWidget::notify_historyMuteUpdated(History *history) {
 	_inner->notify_historyMuteUpdated(history);
 }
 
-void DialogsWidget::dialogsReceived(
-		const MTPmessages_Dialogs &dialogs,
-		mtpRequestId requestId) {
-	if (_dialogsRequestId != requestId) return;
-
-	const auto [dialogsList, messagesList] = [&] {
-		const auto process = [&](const auto &data) {
-			session().data().processUsers(data.vusers);
-			session().data().processChats(data.vchats);
-			return std::make_tuple(&data.vdialogs.v, &data.vmessages.v);
-		};
-		switch (dialogs.type()) {
-		case mtpc_messages_dialogs:
-			_dialogsFull = true;
-			return process(dialogs.c_messages_dialogs());
-
-		case mtpc_messages_dialogsSlice:
-			return process(dialogs.c_messages_dialogsSlice());
-		}
-		Unexpected("Type in DialogsWidget::dialogsReceived");
-	}();
-
-	updateDialogsOffset(*dialogsList, *messagesList);
-
-	applyReceivedDialogs(*dialogsList, *messagesList);
-
-	_dialogsRequestId = 0;
-	loadDialogs();
-
-	if (!_dialogsRequestId) {
-		refreshLoadMoreButton();
-	}
-
-	session().data().moreChatsLoaded().notify();
-	if (_dialogsFull && _pinnedDialogsReceived) {
-		session().data().allChatsLoaded().set(true);
-	}
-	session().api().requestContacts();
-}
-
-void DialogsWidget::updateDialogsOffset(
-		const QVector<MTPDialog> &dialogs,
-		const QVector<MTPMessage> &messages) {
-	auto lastDate = TimeId(0);
-	auto lastPeer = PeerId(0);
-	auto lastMsgId = MsgId(0);
-	for (const auto &dialog : ranges::view::reverse(dialogs)) {
-		dialog.match([&](const auto &dialog) {
-			const auto peer = peerFromMTP(dialog.vpeer);
-			const auto messageId = dialog.vtop_message.v;
-			if (!peer || !messageId) {
-				return;
-			}
-			if (!lastPeer) {
-				lastPeer = peer;
-			}
-			if (!lastMsgId) {
-				lastMsgId = messageId;
-			}
-			for (const auto &message : ranges::view::reverse(messages)) {
-				if (IdFromMessage(message) == messageId
-					&& PeerFromMessage(message) == peer) {
-					if (const auto date = DateFromMessage(message)) {
-						lastDate = date;
-					}
-					return;
-				}
-			}
-		});
-		if (lastDate) {
-			break;
-		}
-	}
-	if (lastDate) {
-		_dialogsOffsetDate = lastDate;
-		_dialogsOffsetId = lastMsgId;
-		_dialogsOffsetPeer = session().data().peer(lastPeer);
-	} else {
-		_dialogsFull = true;
-	}
-}
-
-void DialogsWidget::refreshLoadMoreButton() {
-	if (_dialogsFull || !_dialogsLoadTill) {
+void DialogsWidget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
+	if (!mayBlock) {
 		_loadMoreChats.destroy();
 		updateControlsGeometry();
 		return;
@@ -621,69 +543,22 @@ void DialogsWidget::refreshLoadMoreButton() {
 			st::dialogsLoadMore,
 			st::dialogsLoadMore);
 		_loadMoreChats->addClickHandler([=] {
-			loadMoreBlockedByDateChats();
+			loadMoreBlockedByDate();
 		});
 		updateControlsGeometry();
 	}
-	const auto loading = !loadingBlockedByDate();
+	const auto loading = !isBlocked;
 	_loadMoreChats->setDisabled(loading);
 	_loadMoreChats->setText(loading ? "Loading..." : "Load more");
 }
 
-void DialogsWidget::loadMoreBlockedByDateChats() {
+void DialogsWidget::loadMoreBlockedByDate() {
 	if (!_loadMoreChats
 		|| _loadMoreChats->isDisabled()
 		|| _loadMoreChats->isHidden()) {
 		return;
 	}
-	const auto max = session().settings().supportChatsTimeSlice();
-	_dialogsLoadTill = _dialogsOffsetDate
-		? (_dialogsOffsetDate - max)
-		: (unixtime() - max);
-	loadDialogs();
-}
-
-void DialogsWidget::pinnedDialogsReceived(
-		const MTPmessages_PeerDialogs &result,
-		mtpRequestId requestId) {
-	Expects(result.type() == mtpc_messages_peerDialogs);
-
-	if (_pinnedDialogsRequestId != requestId) return;
-
-	auto &data = result.c_messages_peerDialogs();
-	session().data().processUsers(data.vusers);
-	session().data().processChats(data.vchats);
-
-	session().data().applyPinnedDialogs(data.vdialogs.v);
-	applyReceivedDialogs(data.vdialogs.v, data.vmessages.v);
-
-	_pinnedDialogsRequestId = 0;
-	_pinnedDialogsReceived = true;
-
-	session().data().moreChatsLoaded().notify();
-	if (_dialogsFull && _pinnedDialogsReceived) {
-		session().data().allChatsLoaded().set(true);
-	}
-}
-
-void DialogsWidget::applyReceivedDialogs(
-		const QVector<MTPDialog> &dialogs,
-		const QVector<MTPMessage> &messages) {
-	App::feedMsgs(messages, NewMessageLast);
-	_inner->dialogsReceived(dialogs);
-	onListScroll();
-}
-
-bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
-	if (_dialogsRequestId == requestId) {
-		_dialogsRequestId = 0;
-	} else if (_pinnedDialogsRequestId == requestId) {
-		_pinnedDialogsRequestId = 0;
-	}
-	return true;
+	session().api().requestMoreBlockedByDateDialogs();
 }
 
 void DialogsWidget::onDraggingScrollDelta(int delta) {
@@ -947,55 +822,6 @@ void DialogsWidget::onSearchMore() {
 				rpcFail(&DialogsWidget::searchFailed, offsetMigratedId ? DialogsSearchMigratedFromOffset : DialogsSearchMigratedFromStart));
 		}
 	}
-}
-
-bool DialogsWidget::loadingBlockedByDate() const {
-	return !_dialogsFull
-		&& !_dialogsRequestId
-		&& (_dialogsLoadTill > 0)
-		&& (_dialogsOffsetDate > 0)
-		&& (_dialogsOffsetDate <= _dialogsLoadTill);
-}
-
-void DialogsWidget::loadDialogs() {
-	if (_dialogsRequestId) return;
-	if (_dialogsFull) {
-		_inner->addAllSavedPeers();
-		return;
-	} else if (loadingBlockedByDate()) {
-		return;
-	}
-
-	const auto firstLoad = !_dialogsOffsetDate;
-	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
-	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned
-		| MTPmessages_GetDialogs::Flag::f_folder_id;
-	const auto folderId = 0;
-	const auto hash = 0;
-	_dialogsRequestId = MTP::send(
-		MTPmessages_GetDialogs(
-			MTP_flags(flags),
-			MTP_int(folderId),
-			MTP_int(_dialogsOffsetDate),
-			MTP_int(_dialogsOffsetId),
-			_dialogsOffsetPeer
-				? _dialogsOffsetPeer->input
-				: MTP_inputPeerEmpty(),
-			MTP_int(loadCount),
-			MTP_int(hash)),
-		rpcDone(&DialogsWidget::dialogsReceived),
-		rpcFail(&DialogsWidget::dialogsFailed));
-	if (!_pinnedDialogsReceived) {
-		loadPinnedDialogs();
-	}
-	refreshLoadMoreButton();
-}
-
-void DialogsWidget::loadPinnedDialogs() {
-	if (_pinnedDialogsRequestId) return;
-
-	_pinnedDialogsReceived = false;
-	_pinnedDialogsRequestId = MTP::send(MTPmessages_GetPinnedDialogs(MTP_int(0)), rpcDone(&DialogsWidget::pinnedDialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 
 void DialogsWidget::searchReceived(

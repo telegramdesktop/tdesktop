@@ -1350,6 +1350,71 @@ void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
 	}
 }
 
+void Session::applyDialogs(
+		const QVector<MTPMessage> &messages,
+		const QVector<MTPDialog> &dialogs) {
+	App::feedMsgs(messages, NewMessageLast);
+	for (const auto &dialog : dialogs) {
+		dialog.match([&](const auto &data) {
+			applyDialog(data);
+		});
+	}
+}
+
+void Session::applyDialog(const MTPDdialog &data) {
+	const auto peerId = peerFromMTP(data.vpeer);
+	if (!peerId) {
+		return;
+	}
+
+	const auto history = session().data().history(peerId);
+	history->applyDialog(data);
+
+	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
+		const auto date = history->chatListTimeId();
+		if (date != 0) {
+			addSavedPeersAfter(ParseDateTime(date));
+		}
+	}
+	if (const auto from = history->peer->migrateFrom()) {
+		if (const auto historyFrom = from->owner().historyLoaded(from)) {
+			App::main()->removeDialog(historyFrom);
+		}
+	} else if (const auto to = history->peer->migrateTo()) {
+		if (to->amIn()) {
+			App::main()->removeDialog(history);
+		}
+	}
+}
+
+void Session::applyDialog(const MTPDdialogFolder &dialog) {
+	const auto folder = processFolder(dialog.vfolder);
+	folder->applyDialog(dialog);
+
+	if (!folder->useProxyPromotion() && !folder->isPinnedDialog()) {
+		const auto date = folder->chatListTimeId();
+		if (date != 0) {
+			addSavedPeersAfter(ParseDateTime(date));
+		}
+	}
+}
+
+void Session::addSavedPeersAfter(const QDateTime &date) {
+	auto &saved = cRefSavedPeersByTime();
+	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
+		const auto lastDate = saved.lastKey();
+		const auto lastPeer = saved.last();
+		saved.remove(lastDate, lastPeer);
+
+		const auto history = session().data().history(lastPeer);
+		history->setChatListTimeId(ServerTimeFromParsed(lastDate));
+	}
+}
+
+void Session::addAllSavedPeers() {
+	addSavedPeersAfter(QDateTime());
+}
+
 int Session::pinnedDialogsCount() const {
 	return _pinnedDialogs.size();
 }

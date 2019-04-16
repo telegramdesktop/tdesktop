@@ -1813,7 +1813,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
 		const auto date = history->chatListTimeId();
 		if (date != 0) {
-			addSavedPeersAfter(ParseDateTime(date));
+			session().data().addSavedPeersAfter(ParseDateTime(date));
 		}
 	}
 	if (const auto from = history->peer->migrateFrom()) {
@@ -1834,25 +1834,9 @@ void DialogsInner::applyFolderDialog(const MTPDdialogFolder &dialog) {
 	if (!folder->useProxyPromotion() && !folder->isPinnedDialog()) {
 		const auto date = folder->chatListTimeId();
 		if (date != 0) {
-			addSavedPeersAfter(ParseDateTime(date));
+			session().data().addSavedPeersAfter(ParseDateTime(date));
 		}
 	}
-}
-
-void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
-	auto &saved = cRefSavedPeersByTime();
-	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
-		const auto lastDate = saved.lastKey();
-		const auto lastPeer = saved.last();
-		saved.remove(lastDate, lastPeer);
-
-		const auto history = session().data().history(lastPeer);
-		history->setChatListTimeId(ServerTimeFromParsed(lastDate));
-	}
-}
-
-void DialogsInner::addAllSavedPeers() {
-	addSavedPeersAfter(QDateTime());
 }
 
 bool DialogsInner::uniqueSearchResults() const {

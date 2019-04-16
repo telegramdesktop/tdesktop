@@ -79,6 +79,12 @@ public:
 	QString exportDirectMessageLink(not_null<HistoryItem*> item);
 
 	void requestContacts();
+	void requestDialogs();
+	void requestPinnedDialogs();
+	void requestMoreBlockedByDateDialogs();
+	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
+	rpl::producer<bool> dialogsLoadBlockedByDate() const;
+
 	void requestDialogEntry(not_null<Data::Folder*> folder);
 	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed); // #feed
 	void requestDialogEntry(
@@ -448,6 +454,15 @@ private:
 		crl::time received = 0;
 	};
 
+	void setupSupportMode();
+	void refreshDialogsLoadBlocked();
+	void updateDialogsOffset(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages);
+	void applyReceivedDialogs(
+		const QVector<MTPDialog> &dialogs,
+		const QVector<MTPMessage> &messages);
+
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
 
@@ -733,6 +748,17 @@ private:
 	//	Data::MessagePosition,
 	//	SliceType>> _feedMessagesRequestsPending;
 	//mtpRequestId _saveDefaultFeedIdRequest = 0;
+
+	bool _dialogsFull = false;
+	bool _pinnedDialogsReceived = false;
+	TimeId _dialogsLoadTill = 0;
+	TimeId _dialogsOffsetDate = 0;
+	MsgId _dialogsOffsetId = 0;
+	PeerData *_dialogsOffsetPeer = nullptr;
+	mtpRequestId _dialogsRequestId = 0;
+	mtpRequestId _pinnedDialogsRequestId = 0;
+	rpl::variable<bool> _dialogsLoadMayBlockByDate = false;
+	rpl::variable<bool> _dialogsLoadBlockedByDate = false;
 
 	rpl::event_stream<SendOptions> _sendActions;
 
