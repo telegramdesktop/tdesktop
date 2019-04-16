@@ -435,7 +435,7 @@ void EditCaptionBox::updateEditPreview() {
 				? fileinfo.size()
 				: _preparedList.files.front().content.size());
 		// Show image dimensions if it should be sent as doc.
-		if (_isImage) {
+		if (_isImage && docPhotoSize.isValid()) {
 			_status = qsl("%1x%2")
 				.arg(docPhotoSize.width())
 				.arg(docPhotoSize.height());
