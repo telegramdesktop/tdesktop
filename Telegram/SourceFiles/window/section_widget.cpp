@@ -12,8 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 
 namespace Window {
+
+AuthSession &AbstractSectionWidget::session() const {
+	return _controller->session();
+}
 
 SectionWidget::SectionWidget(
 	QWidget *parent,

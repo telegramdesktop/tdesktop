@@ -6670,10 +6670,6 @@ QRect HistoryWidget::historyRect() const {
 	return _scroll->geometry();
 }
 
-void HistoryWidget::destroyData() {
-	showHistory(0, 0);
-}
-
 QPoint HistoryWidget::clampMousePosition(QPoint point) {
 	if (point.x() < 0) {
 		point.setX(0);

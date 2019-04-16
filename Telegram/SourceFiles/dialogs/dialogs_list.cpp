@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_layout.h"
-#include "styles/style_dialogs.h"
+#include "data/data_session.h"
 #include "mainwidget.h"
 
 namespace Dialogs {
@@ -134,9 +134,7 @@ bool List::del(Key key, Row *replacedBy) {
 	}
 
 	const auto row = i->second.get();
-	if (App::main()) {
-		emit App::main()->dialogRowReplaced(row, replacedBy);
-	}
+	row->entry()->owner().dialogsRowReplaced({ row, replacedBy });
 
 	const auto index = row->pos();
 	_rows.erase(_rows.begin() + index);

@@ -33,19 +33,11 @@ namespace Data {
 //}
 
 Folder::Folder(not_null<Data::Session*> owner, FolderId id)
-: Entry(this)
+: Entry(owner, this)
 , _id(id)
-, _owner(owner)
+, _chatsList(Dialogs::SortMode::Date)
 , _name(lang(lng_archived_chats)) {
 	indexNameParts();
-}
-
-Data::Session &Folder::owner() const {
-	return *_owner;
-}
-
-AuthSession &Folder::session() const {
-	return _owner->session();
 }
 
 FolderId Folder::id() const {
@@ -79,11 +71,11 @@ void Folder::indexNameParts() {
 }
 
 void Folder::registerOne(not_null<History*> history) {
-	if (base::contains(_histories, history)) {
+	if (_chatsList.contains(history)) {
 		return;
 	}
-	const auto invisible = empty(_histories);
-	_histories.push_back(history);
+	const auto invisible = _chatsList.empty();
+	_chatsList.addToEnd(history);
 	//session().storage().invalidate( // #feed
 	//	Storage::FeedMessagesInvalidate(_id));
 
@@ -109,24 +101,22 @@ void Folder::registerOne(not_null<History*> history) {
 			session().api().requestDialogEntry(this);
 		}
 	}
-	if (invisible && !empty(_histories)) {
+	if (invisible && !_chatsList.empty()) {
 		updateChatListExistence();
-		for (const auto history : _histories) {
-			history->updateChatListExistence();
-		}
+		//for (const auto history : _histories) { // #TODO archived
+		//	history->updateChatListExistence();
+		//}
 	} else {
 		history->updateChatListExistence();
 	}
-	_owner->notifyFolderUpdated(this, FolderUpdateFlag::List);
+	owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
 }
 
 void Folder::unregisterOne(not_null<History*> history) {
-	const auto i = ranges::remove(_histories, history);
-	if (i == end(_histories)) {
+	if (!_chatsList.contains(history)) {
 		return;
 	}
-	const auto visible = !empty(_histories);
-	_histories.erase(i, end(_histories));
+	_chatsList.del(history);
 	//session().storage().remove( // #feed
 	//	Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
 
@@ -146,15 +136,19 @@ void Folder::unregisterOne(not_null<History*> history) {
 			session().api().requestDialogEntry(this);
 		}
 	}
-	if (visible && empty(_histories)) {
+	if (_chatsList.empty()) {
 		updateChatListExistence();
-		for (const auto history : _histories) {
-			history->updateChatListExistence();
-		}
+		//for (const auto history : _histories) { // #TODO archive
+		//	history->updateChatListExistence();
+		//}
 	} else {
 		history->updateChatListExistence();
 	}
-	_owner->notifyFolderUpdated(this, FolderUpdateFlag::List);
+	owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
+}
+
+not_null<Dialogs::IndexedList*> Folder::chatsList() {
+	return &_chatsList;
 }
 
 void Folder::updateChatListMessage(not_null<HistoryItem*> item) {
@@ -202,10 +196,6 @@ void Folder::paintUserpic(
 	//}
 }
 
-const std::vector<not_null<History*>> &Folder::histories() const {
-	return _histories;
-}
-
 bool Folder::historiesLoaded() const {
 	return _historiesLoaded;
 }
@@ -213,7 +203,7 @@ bool Folder::historiesLoaded() const {
 void Folder::setHistoriesLoaded(bool loaded) {
 	if (_historiesLoaded != loaded) {
 		_historiesLoaded = loaded;
-		_owner->notifyFolderUpdated(this, FolderUpdateFlag::List);
+		owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
 	}
 }
 // // #feed
@@ -306,8 +296,8 @@ void Folder::requestChatListMessage() {
 
 void Folder::recountChatListMessage() {
 	_chatListMessage = std::nullopt;
-	for (const auto history : _histories) {
-		if (!history->chatListMessageKnown()) {
+	for (const auto entry : _chatsList) {
+		if (entry->history() && !entry->history()->chatListMessageKnown()) {
 			requestChatListMessage();
 			return;
 		}
@@ -317,9 +307,11 @@ void Folder::recountChatListMessage() {
 
 void Folder::setChatListMessageFromChannels() {
 	_chatListMessage = nullptr;
-	for (const auto history : _histories) {
-		if (const auto last = history->chatListMessage()) {
-			justUpdateChatListMessage(last);
+	for (const auto entry : _chatsList) {
+		if (entry->history()) {
+			if (const auto last = entry->history()->chatListMessage()) {
+				justUpdateChatListMessage(last);
+			}
 		}
 	}
 	updateChatListDate();
@@ -386,15 +378,15 @@ void Folder::changedInChatListHook(Dialogs::Mode list, bool added) {
 		const auto nonMutedCount = count - mutedCount;
 		const auto mutedDelta = added ? mutedCount : -mutedCount;
 		const auto nonMutedDelta = added ? nonMutedCount : -nonMutedCount;
-		Auth().data().unreadIncrement(nonMutedDelta, false);
-		Auth().data().unreadIncrement(mutedDelta, true);
+		owner().unreadIncrement(nonMutedDelta, false);
+		owner().unreadIncrement(mutedDelta, true);
 
 		const auto fullMuted = (nonMutedCount == 0);
 		const auto entriesWithUnreadDelta = added ? 1 : -1;
 		const auto mutedEntriesWithUnreadDelta = fullMuted
 			? entriesWithUnreadDelta
 			: 0;
-		Auth().data().unreadEntriesChanged(
+		owner().unreadEntriesChanged(
 			entriesWithUnreadDelta,
 			mutedEntriesWithUnreadDelta);
 	}
@@ -419,11 +411,11 @@ void Folder::updateUnreadCounts(PerformUpdate &&performUpdate) {
 		const auto nowFullMuted = (nowUnreadMutedCount > 0)
 			&& (nowUnreadCount == nowUnreadMutedCount);
 
-		Auth().data().unreadIncrement(
+		owner().unreadIncrement(
 			(nowUnreadCount - nowUnreadMutedCount)
 			- (wasUnreadCount - wasUnreadMutedCount),
 			false);
-		Auth().data().unreadIncrement(
+		owner().unreadIncrement(
 			nowUnreadMutedCount - wasUnreadMutedCount,
 			true);
 
@@ -437,7 +429,7 @@ void Folder::updateUnreadCounts(PerformUpdate &&performUpdate) {
 			: (wasFullMuted && !nowFullMuted)
 			? -1
 			: 0;
-		Auth().data().unreadEntriesChanged(
+		owner().unreadEntriesChanged(
 			entriesDelta,
 			mutedEntriesDelta);
 	}
@@ -483,8 +475,8 @@ void Folder::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
 //		if (!_unreadCount || !*_unreadCount) {
 //			if (inChatList(Dialogs::Mode::All)) {
 //				const auto delta = _unreadMark ? 1 : -1;
-//				_owner->unreadIncrement(delta, mute());
-//				_owner->unreadEntriesChanged(
+//				owner().unreadIncrement(delta, mute());
+//				owner().unreadEntriesChanged(
 //					delta,
 //					mute() ? delta : 0);
 //
@@ -518,7 +510,7 @@ bool Folder::useProxyPromotion() const {
 }
 
 bool Folder::shouldBeInChatList() const {
-	return !empty(_histories);
+	return !_chatsList.empty();
 }
 
 int Folder::chatListUnreadCount() const {

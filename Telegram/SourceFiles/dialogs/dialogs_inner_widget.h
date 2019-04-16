@@ -37,7 +37,7 @@ class DialogsInner
 	Q_OBJECT
 
 public:
-	DialogsInner(QWidget *parent, not_null<Window::Controller*> controller, QWidget *main);
+	DialogsInner(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
@@ -57,7 +57,7 @@ public:
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void createDialog(Dialogs::Key key);
+	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
 	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
 	void repaintDialogRow(Dialogs::RowDescriptor row);
@@ -69,13 +69,8 @@ public:
 
 	bool chooseRow();
 
-	void destroyData();
-
 	void scrollToEntry(const Dialogs::RowDescriptor &entry);
 
-	Dialogs::IndexedList *contactsList();
-	Dialogs::IndexedList *dialogsList();
-	Dialogs::IndexedList *contactsNoDialogsList();
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
@@ -109,7 +104,6 @@ public:
 
 public slots:
 	void onParentGeometryChanged();
-	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
 signals:
 	void draggingScrollDelta(int delta);
@@ -151,6 +145,11 @@ private:
 		Dialogs::Key key;
 		Data::MessagePosition message;
 	};
+
+	AuthSession &session() const;
+
+	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
+
 	bool switchImportantChats();
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
@@ -159,7 +158,6 @@ private:
 		const Dialogs::RowDescriptor &entry) const;
 
 	void clearMouseSelection(bool clearSelection = false);
-	void userIsContactUpdated(not_null<UserData*> user);
 	void mousePressReleased(QPoint globalPosition, Qt::MouseButton button);
 	void clearIrrelevantState();
 	void selectByMouse(QPoint globalPosition);
@@ -186,9 +184,6 @@ private:
 			|| (_peerSearchSelected >= 0)
 			|| (_searchedSelected >= 0);
 	}
-	void handlePeerNameChange(
-		not_null<PeerData*> peer,
-		const base::flat_set<QChar> &oldLetters);
 	bool uniqueSearchResults() const;
 	bool hasHistoryInResults(not_null<History*> history) const;
 
@@ -288,12 +283,6 @@ private:
 	void handleChatMigration(not_null<ChatData*> chat);
 
 	not_null<Window::Controller*> _controller;
-
-	std::unique_ptr<Dialogs::IndexedList> _dialogs;
-	std::unique_ptr<Dialogs::IndexedList> _dialogsImportant;
-
-	std::unique_ptr<Dialogs::IndexedList> _contactsNoDialogs;
-	std::unique_ptr<Dialogs::IndexedList> _contacts;
 
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;

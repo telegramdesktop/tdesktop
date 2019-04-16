@@ -1061,16 +1061,16 @@ void AddSpecialBoxSearchController::addChatsContacts() {
 		return true;
 	};
 
-	const auto getSmallestIndex = [&](
-			Dialogs::IndexedList *list) -> const Dialogs::List* {
-		if (list->isEmpty()) {
+	const auto getSmallestIndex = [&](not_null<Dialogs::IndexedList*> list)
+	-> const Dialogs::List* {
+		if (list->empty()) {
 			return nullptr;
 		}
 
 		auto result = (const Dialogs::List*)nullptr;
 		for (const auto &word : wordList) {
 			const auto found = list->filtered(word[0]);
-			if (found->empty()) {
+			if (!found || found->empty()) {
 				return nullptr;
 			}
 			if (!result || result->size() > found->size()) {
@@ -1079,9 +1079,9 @@ void AddSpecialBoxSearchController::addChatsContacts() {
 		}
 		return result;
 	};
-	const auto dialogsIndex = getSmallestIndex(App::main()->dialogsList());
+	const auto dialogsIndex = getSmallestIndex(_peer->owner().chatsList());
 	const auto contactsIndex = getSmallestIndex(
-		App::main()->contactsNoDialogsList());
+		_peer->owner().contactsNoChatsList());
 
 	const auto filterAndAppend = [&](const Dialogs::List *list) {
 		if (!list) {

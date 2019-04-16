@@ -66,12 +66,9 @@ struct DialogsInner::PeerSearchResult {
 	Dialogs::RippleRow row;
 };
 
-DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> controller, QWidget *main)
+DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _dialogs(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
-, _contactsNoDialogs(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
-, _contacts(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _pinnedShiftAnimation([=](crl::time now) {
 	return pinnedShiftAnimationCallback(now);
 })
@@ -84,25 +81,28 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 #endif // OS_MAC_OLD
 
 	if (Global::DialogsModeEnabled()) {
-		_dialogsImportant = std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 		_importantSwitch = std::make_unique<ImportantSwitch>();
 	}
-	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*, Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*, Dialogs::Row*)));
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	_cancelSearchInChat->setClickedCallback([this] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->setClickedCallback([this] { searchFromUserChanged.notify(nullptr); });
 	_cancelSearchFromUser->hide();
 
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
-	subscribe(Auth().data().contactsLoaded(), [this](bool) { refresh(); });
+	subscribe(session().downloaderTaskFinished(), [this] { update(); });
+	subscribe(session().data().contactsLoaded(), [this](bool) { refresh(); });
 
-	Auth().data().itemRemoved(
-	) | rpl::start_with_next(
-		[this](auto item) { itemRemoved(item); },
-		lifetime());
+	session().data().itemRemoved(
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		itemRemoved(item);
+	}, lifetime());
 
-	Auth().data().itemRepaintRequest(
+	session().data().dialogsRowReplacements(
+	) | rpl::start_with_next([=](Data::Session::DialogsRowReplacement r) {
+		dialogRowReplaced(r.old, r.now);
+	}, lifetime());
+
+	session().data().itemRepaintRequest(
 	) | rpl::start_with_next([=](auto item) {
 		const auto history = item->history();
 		if (history->textCachedFor == item) {
@@ -115,7 +115,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		}
 	}, lifetime());
 
-	Auth().data().sendActionAnimationUpdated(
+	session().data().sendActionAnimationUpdated(
 	) | rpl::start_with_next([=](
 			const Data::Session::SendActionAnimationUpdate &update) {
 		using RowPainter = Dialogs::Layout::RowPainter;
@@ -148,15 +148,16 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			stopReorderPinned();
 		}
 		if (update.flags & UpdateFlag::NameChanged) {
-			handlePeerNameChange(update.peer, update.oldNameFirstLetters);
+			this->update();
 		}
 		if (update.flags & (UpdateFlag::PhotoChanged | UpdateFlag::UserOccupiedChanged)) {
 			this->update();
 			emit App::main()->dialogsUpdated();
 		}
 		if (update.flags & UpdateFlag::UserIsContact) {
-			if (const auto user = update.peer->asUser()) {
-				userIsContactUpdated(user);
+			if (update.peer->isUser()) {
+				// contactsNoChatsList could've changed.
+				Ui::PostponeCall(this, [=] { refresh(); });
 			}
 		}
 		if (update.flags & UpdateFlag::MigrationChanged) {
@@ -165,7 +166,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			}
 		}
 	}));
-	Auth().data().folderUpdated(
+	session().data().folderUpdated(
 	) | rpl::start_with_next([=](const Data::FolderUpdate &update) {
 		updateDialogRow({ update.folder, FullMsgId() });
 	}, lifetime());
@@ -181,6 +182,10 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	refresh();
 
 	setupShortcuts();
+}
+
+AuthSession &DialogsInner::session() const {
+	return _controller->session();
 }
 
 void DialogsInner::handleChatMigration(not_null<ChatData*> chat) {
@@ -200,7 +205,7 @@ void DialogsInner::handleChatMigration(not_null<ChatData*> chat) {
 }
 
 int DialogsInner::dialogsOffset() const {
-	return _dialogsImportant ? st::dialogsImportantBarHeight : 0;
+	return _importantSwitch ? st::dialogsImportantBarHeight : 0;
 }
 
 int DialogsInner::proxyPromotedCount() const {
@@ -256,7 +261,7 @@ void DialogsInner::paintEvent(QPaintEvent *e) {
 	if (_state == State::Default) {
 		auto rows = shownDialogs();
 		auto dialogsClip = r;
-		if (_dialogsImportant) {
+		if (_importantSwitch) {
 			auto selected = isPressed() ? _importantSwitchPressed : _importantSwitchSelected;
 			Dialogs::Layout::paintImportantSwitch(p, Global::DialogsMode(), fullWidth, selected);
 			dialogsClip.translate(0, -st::dialogsImportantBarHeight);
@@ -347,7 +352,7 @@ void DialogsInner::paintEvent(QPaintEvent *e) {
 			p.fillRect(dialogsClip, st::dialogsBg);
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
-			p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (Auth().data().contactsLoaded().value() ? st::noContactsFont->height : 0)), lang(Auth().data().contactsLoaded().value() ? lng_no_chats : lng_contacts_loading), style::al_center);
+			p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().value() ? st::noContactsFont->height : 0)), lang(session().data().contactsLoaded().value() ? lng_no_chats : lng_contacts_loading), style::al_center);
 		}
 	} else if (_state == State::Filtered) {
 		if (!_hashtagResults.empty()) {
@@ -741,7 +746,7 @@ void DialogsInner::selectByMouse(QPoint globalPosition) {
 	int w = width(), mouseY = local.y();
 	clearIrrelevantState();
 	if (_state == State::Default) {
-		auto importantSwitchSelected = (_dialogsImportant && mouseY >= 0 && mouseY < dialogsOffset());
+		auto importantSwitchSelected = (_importantSwitch && mouseY >= 0 && mouseY < dialogsOffset());
 		mouseY -= dialogsOffset();
 		auto selected = importantSwitchSelected ? nullptr : shownDialogs()->rowAtY(mouseY, st::dialogsRowHeight);
 		if (_selected != selected || _importantSwitchSelected != importantSwitchSelected) {
@@ -872,7 +877,7 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 			if (updateReorderIndexGetCount() < 2) {
 				_dragging = nullptr;
 			} else {
-				_pinnedOrder = Auth().data().pinnedDialogsOrder();
+				_pinnedOrder = session().data().pinnedDialogsOrder();
 				_pinnedRows[_draggingIndex].yadd = anim::value(0, localPosition.y() - _dragStart.y());
 				_pinnedRows[_draggingIndex].animStartTime = crl::now();
 				_pinnedShiftAnimation.start();
@@ -913,7 +918,7 @@ int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
 }
 
 void DialogsInner::savePinnedOrder() {
-	const auto &newOrder = Auth().data().pinnedDialogsOrder();
+	const auto &newOrder = session().data().pinnedDialogsOrder();
 	if (newOrder.size() != _pinnedOrder.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
@@ -922,7 +927,7 @@ void DialogsInner::savePinnedOrder() {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	Auth().api().savePinnedOrder();
+	session().api().savePinnedOrder();
 }
 
 void DialogsInner::finishReorderPinned() {
@@ -1187,7 +1192,7 @@ void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_cancelSearchFromUser->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchFromUser->width(), st::searchedBarHeight + st::dialogsSearchInHeight + st::lineWidth + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
 }
 
-void DialogsInner::onDialogRowReplaced(
+void DialogsInner::dialogRowReplaced(
 		Dialogs::Row *oldRow,
 		Dialogs::Row *newRow) {
 	if (_state == State::Filtered) {
@@ -1219,66 +1224,41 @@ void DialogsInner::onDialogRowReplaced(
 	}
 }
 
-void DialogsInner::createDialog(Dialogs::Key key) {
+void DialogsInner::refreshDialog(Dialogs::Key key) {
 	if (const auto history = key.history()) {
 		if (history->peer->loadedStatus
 			!= PeerData::LoadedStatus::FullLoaded) {
 			LOG(("API Error: "
-				"DialogsInner::createDialog() called for a non loaded peer!"
+				"DialogsInner::refreshDialog() called for a non loaded peer!"
 				));
 			return;
 		}
 	}
 
-	const auto entry = key.entry();
-	auto creating = !entry->inChatList(Dialogs::Mode::All);
-	if (creating) {
-		const auto mainRow = entry->addToChatList(
-			Dialogs::Mode::All,
-			_dialogs.get());
-		_contactsNoDialogs->del(key, mainRow);
-	}
-	if (_dialogsImportant
-		&& !entry->inChatList(Dialogs::Mode::Important)
-		&& entry->toImportant()) {
-		if (Global::DialogsMode() == Dialogs::Mode::Important) {
-			creating = true;
-		}
-		entry->addToChatList(
-			Dialogs::Mode::Important,
-			_dialogsImportant.get());
-	}
+	const auto result = session().data().refreshChatListEntry(key);
+	const auto changed = (Global::DialogsMode() == Dialogs::Mode::Important)
+		? result.importantChanged
+		: result.changed;
+	const auto moved = (Global::DialogsMode() == Dialogs::Mode::Important)
+		? result.importantMoved
+		: result.moved;
 
-	auto changed = entry->adjustByPosInChatList(
-		Dialogs::Mode::All,
-		_dialogs.get());
-
-	if (_dialogsImportant) {
-		if (!entry->toImportant()) {
-			if (Global::DialogsMode() == Dialogs::Mode::Important) {
-				return;
-			}
-		} else {
-			const auto importantChanged = entry->adjustByPosInChatList(
-				Dialogs::Mode::Important,
-				_dialogsImportant.get());
-			if (Global::DialogsMode() == Dialogs::Mode::Important) {
-				changed = importantChanged;
-			}
-		}
-	}
-
-	const auto from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
-	const auto to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
+	const auto rowHeight = st::dialogsRowHeight;
+	const auto from = dialogsOffset() + moved.from * rowHeight;
+	const auto to = dialogsOffset() + moved.to * rowHeight;
 	if (!_dragging && from != to) {
 		// Don't jump in chats list scroll position while dragging.
 		emit dialogMoved(from, to);
 	}
 
-	if (creating) {
+	if (changed) {
 		refresh();
 	} else if (_state == State::Default && from != to) {
-		update(0, qMin(from, to), width(), qAbs(from - to) + st::dialogsRowHeight);
+		update(
+			0,
+			std::min(from, to),
+			width(),
+			std::abs(from - to) + rowHeight);
 	}
 }
 
@@ -1292,23 +1272,10 @@ void DialogsInner::removeDialog(Dialogs::Key key) {
 	if (_pressed && _pressed->key() == key) {
 		setPressed(nullptr);
 	}
-	const auto entry = key.entry();
-	entry->removeFromChatList(
-		Dialogs::Mode::All,
-		_dialogs.get());
-	if (_dialogsImportant) {
-		entry->removeFromChatList(
-			Dialogs::Mode::Important,
-			_dialogsImportant.get());
-	}
+	session().data().removeChatListEntry(key);
 	if (const auto history = key.history()) {
-		Auth().notifications().clearFromHistory(history);
+		session().notifications().clearFromHistory(history);
 		Local::removeSavedPeer(history->peer);
-	}
-	if (_contacts->contains(key)) {
-		if (!_contactsNoDialogs->contains(key)) {
-			_contactsNoDialogs->addByName(key);
-		}
 	}
 	const auto i = ranges::find(_filterResults, key, &Dialogs::Row::key);
 	if (i != _filterResults.end()) {
@@ -1495,8 +1462,8 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 
 Dialogs::IndexedList *DialogsInner::shownDialogs() const {
 	return (Global::DialogsMode() == Dialogs::Mode::Important)
-		? _dialogsImportant.get()
-		: _dialogs.get();
+		? session().data().importantChatsList()
+		: session().data().chatsList();
 }
 
 void DialogsInner::leaveEventHook(QEvent *e) {
@@ -1527,11 +1494,11 @@ void DialogsInner::clearSelection() {
 }
 
 void DialogsInner::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
-	const auto all = Auth().settings().supportAllSearchResults();
+	const auto all = session().settings().supportAllSearchResults();
 	const auto text = all ? "Only one from chat" : "Show all messages";
 	menu->addAction(text, [=] {
-		Auth().settings().setSupportAllSearchResults(!all);
-		Auth().saveSettingsDelayed();
+		session().settings().setSupportAllSearchResults(!all);
+		session().saveSettingsDelayed();
 	});
 }
 
@@ -1550,7 +1517,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		} else if (_state == State::Filtered) {
 			if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
 				return { _filterResults[_filteredSelected]->key(), FullMsgId() };
-			} else if (Auth().supportMode()
+			} else if (session().supportMode()
 				&& base::in_range(_searchedSelected, 0, _searchResults.size())) {
 				return {
 					_searchResults[_searchedSelected]->item()->history(),
@@ -1568,7 +1535,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-	if (Auth().supportMode() && row.fullId) {
+	if (session().supportMode() && row.fullId) {
 		fillSupportSearchMenu(_menu.get());
 	} else if (const auto history = row.key.history()) {
 		Window::FillPeerMenu(
@@ -1611,21 +1578,6 @@ void DialogsInner::onParentGeometryChanged() {
 	}
 }
 
-void DialogsInner::handlePeerNameChange(
-		not_null<PeerData*> peer,
-		const base::flat_set<QChar> &oldLetters) {
-	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldLetters);
-	if (_dialogsImportant) {
-		_dialogsImportant->peerNameChanged(
-			Dialogs::Mode::Important,
-			peer,
-			oldLetters);
-	}
-	_contactsNoDialogs->peerNameChanged(peer, oldLetters);
-	_contacts->peerNameChanged(peer, oldLetters);
-	update();
-}
-
 void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 	const auto mentionsSearch = (newFilter == qstr("@"));
 	const auto words = mentionsSearch
@@ -1645,10 +1597,10 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 			_filterResultsGlobal.clear();
 			if (!_searchInChat && !words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
-				if (!_dialogs->isEmpty()) {
+				if (const auto list = session().data().chatsList(); !list->empty()) {
 					for (fi = fb; fi != fe; ++fi) {
-						auto found = _dialogs->filtered(fi->at(0));
-						if (found->empty()) {
+						const auto found = list->filtered(fi->at(0));
+						if (!found || found->empty()) {
 							toFilter = nullptr;
 							break;
 						}
@@ -1658,10 +1610,10 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 					}
 				}
 				const Dialogs::List *toFilterContacts = nullptr;
-				if (!_contactsNoDialogs->isEmpty()) {
+				if (const auto list = session().data().contactsNoChatsList(); !list->empty()) {
 					for (fi = fb; fi != fe; ++fi) {
-						auto found = _contactsNoDialogs->filtered(fi->at(0));
-						if (found->empty()) {
+						const auto found = list->filtered(fi->at(0));
+						if (!found || found->empty()) {
 							toFilterContacts = nullptr;
 							break;
 						}
@@ -1843,7 +1795,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 		return;
 	}
 
-	const auto history = Auth().data().history(peerId);
+	const auto history = session().data().history(peerId);
 	history->applyDialog(dialog);
 
 	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
@@ -1852,7 +1804,6 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 			addSavedPeersAfter(ParseDateTime(date));
 		}
 	}
-	_contactsNoDialogs->del(history);
 	if (const auto from = history->peer->migrateFrom()) {
 		if (const auto historyFrom = from->owner().historyLoaded(from)) {
 			removeDialog(historyFrom);
@@ -1865,7 +1816,7 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 }
 
 void DialogsInner::applyFolderDialog(const MTPDdialogFolder &dialog) {
-	const auto folder = Auth().data().processFolder(dialog.vfolder);
+	const auto folder = session().data().processFolder(dialog.vfolder);
 	folder->applyDialog(dialog);
 
 	if (!folder->useProxyPromotion() && !folder->isPinnedDialog()) {
@@ -1883,9 +1834,8 @@ void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 		const auto lastPeer = saved.last();
 		saved.remove(lastDate, lastPeer);
 
-		const auto history = Auth().data().history(lastPeer);
+		const auto history = session().data().history(lastPeer);
 		history->setChatListTimeId(ServerTimeFromParsed(lastDate));
-		_contactsNoDialogs->del(history);
 	}
 }
 
@@ -1894,8 +1844,8 @@ void DialogsInner::addAllSavedPeers() {
 }
 
 bool DialogsInner::uniqueSearchResults() const {
-	return Auth().supportMode()
-		&& !Auth().settings().supportAllSearchResults()
+	return session().supportMode()
+		&& !session().settings().supportAllSearchResults()
 		&& !_searchInChat;
 }
 
@@ -1944,9 +1894,9 @@ bool DialogsInner::searchReceived(
 		auto msgId = IdFromMessage(message);
 		auto peerId = PeerFromMessage(message);
 		auto lastDate = DateFromMessage(message);
-		if (const auto peer = Auth().data().peerLoaded(peerId)) {
+		if (const auto peer = session().data().peerLoaded(peerId)) {
 			if (lastDate) {
-				const auto item = Auth().data().addNewMessage(
+				const auto item = session().data().addNewMessage(
 					message,
 					NewMessageExisting);
 				const auto history = item->history();
@@ -2015,8 +1965,8 @@ void DialogsInner::peerSearchReceived(
 	_peerSearchQuery = query.toLower().trimmed();
 	_peerSearchResults.clear();
 	_peerSearchResults.reserve(result.size());
-	for (const auto &mtpPeer : my) {
-		if (const auto peer = Auth().data().peerLoaded(peerFromMTP(mtpPeer))) {
+	for	(const auto &mtpPeer : my) {
+		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
 			if (alreadyAdded(peer)) {
 				continue;
 			}
@@ -2034,7 +1984,7 @@ void DialogsInner::peerSearchReceived(
 		}
 	}
 	for (const auto &mtpPeer : result) {
-		if (const auto peer = Auth().data().peerLoaded(peerFromMTP(mtpPeer))) {
+		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
 			if (const auto history = peer->owner().historyLoaded(peer)) {
 				if (history->inChatList(Dialogs::Mode::All)) {
 					continue; // skip existing chats
@@ -2051,81 +2001,19 @@ void DialogsInner::peerSearchReceived(
 	refresh();
 }
 
-void DialogsInner::userIsContactUpdated(not_null<UserData*> user) {
-	if (user->loadedStatus != PeerData::FullLoaded) {
-		LOG(("API Error: "
-			"notify_userIsContactChanged() called for a not loaded user!"));
+void DialogsInner::notify_historyMuteUpdated(History *history) {
+	if (!_importantSwitch || !history->inChatList(Dialogs::Mode::All)) {
 		return;
 	}
-	if (user->contactStatus() == UserData::ContactStatus::Contact) {
-		const auto history = user->owner().history(user->id);
-		_contacts->addByName(history);
-		if (!shownDialogs()->getRow(history)
-			&& !_dialogs->contains(history)) {
-			_contactsNoDialogs->addByName(history);
-		}
-	} else if (const auto history = user->owner().historyLoaded(user)) {
-		if (_selected && _selected->history() == history) {
-			_selected = nullptr;
-		}
-		if (_pressed && _pressed->history() == history) {
-			setPressed(nullptr);
-		}
-		_contactsNoDialogs->del(history);
-		_contacts->del(history);
-	}
-	refresh();
-}
-
-void DialogsInner::notify_historyMuteUpdated(History *history) {
-	if (!_dialogsImportant || !history->inChatList(Dialogs::Mode::All)) return;
-
-	if (!history->toImportant()) {
-		if (Global::DialogsMode() == Dialogs::Mode::Important) {
-			if (_selected && _selected->history() == history) {
-				_selected = nullptr;
-			}
-			if (_pressed && _pressed->history() == history) {
-				setPressed(nullptr);
-			}
-		}
-		history->removeFromChatList(Dialogs::Mode::Important, _dialogsImportant.get());
-		if (Global::DialogsMode() != Dialogs::Mode::Important) {
-			return;
-		}
-		refresh();
-	} else {
-		bool creating = !history->inChatList(Dialogs::Mode::Important);
-		if (creating) {
-			history->addToChatList(Dialogs::Mode::Important, _dialogsImportant.get());
-		}
-
-		auto changed = history->adjustByPosInChatList(Dialogs::Mode::All, _dialogs.get());
-
-		if (Global::DialogsMode() != Dialogs::Mode::Important) {
-			return;
-		}
-
-		const auto from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
-		const auto to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
-		if (!_dragging && from != to) {
-			// Don't jump in chats list scroll position while dragging.
-			emit dialogMoved(from, to);
-		}
-		if (creating) {
-			refresh();
-		} else if (_state == State::Default && from != to) {
-			update(0, qMin(from, to), width(), qAbs(from - to) + st::dialogsRowHeight);
-		}
-	}
+	refreshDialog(history);
 }
 
 void DialogsInner::refresh(bool toTop) {
 	int32 h = 0;
 	if (_state == State::Default) {
-		if (shownDialogs()->isEmpty()) {
+		if (shownDialogs()->empty()) {
 			h = st::noContactsHeight;
-			if (Auth().data().contactsLoaded().value()) {
+			if (session().data().contactsLoaded().value()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();
@@ -2267,16 +2155,16 @@ void DialogsInner::selectSkip(int32 direction) {
 	clearMouseSelection();
 	if (_state == State::Default) {
 		if (_importantSwitchSelected) {
-			if (!shownDialogs()->isEmpty() && direction > 0) {
+			if (!shownDialogs()->empty() && direction > 0) {
 				_selected = *shownDialogs()->cbegin();
 				_importantSwitchSelected = false;
 			} else {
 				return;
 			}
 		} else if (!_selected) {
-			if (_dialogsImportant) {
+			if (_importantSwitch) {
 				_importantSwitchSelected = true;
-			} else if (!shownDialogs()->isEmpty() && direction > 0) {
+			} else if (!shownDialogs()->empty() && direction > 0) {
 				_selected = *shownDialogs()->cbegin();
 			} else {
 				return;
@@ -2290,7 +2178,7 @@ void DialogsInner::selectSkip(int32 direction) {
 			auto prev = shownDialogs()->cfind(_selected);
 			if (prev != shownDialogs()->cbegin()) {
 				_selected = *(--prev);
-			} else if (_dialogsImportant) {
+			} else if (_importantSwitch) {
 				_importantSwitchSelected = true;
 				_selected = nullptr;
 			}
@@ -2382,7 +2270,7 @@ void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 	int toSkip = pixels / int(st::dialogsRowHeight);
 	if (_state == State::Default) {
 		if (!_selected) {
-			if (direction > 0 && !shownDialogs()->isEmpty()) {
+			if (direction > 0 && !shownDialogs()->empty()) {
 				_selected = *shownDialogs()->cbegin();
 				_importantSwitchSelected = false;
 			} else {
@@ -2397,7 +2285,7 @@ void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (toSkip--);) {
 				_selected = *(--i);
 			}
-			if (toSkip && _dialogsImportant) {
+			if (toSkip && _importantSwitch) {
 				_importantSwitchSelected = true;
 				_selected = nullptr;
 			}
@@ -2417,7 +2305,7 @@ void DialogsInner::loadPeerPhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
-	Auth().downloader().clearPriorities();
+	session().downloader().clearPriorities();
 	if (_state == State::Default) {
 		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {
@@ -2469,7 +2357,7 @@ void DialogsInner::loadPeerPhotos() {
 
 bool DialogsInner::switchImportantChats() {
 	if (!_importantSwitchSelected
-		|| !_dialogsImportant
+		|| !_importantSwitch
 		|| (_state != State::Default)) {
 		return false;
 	}
@@ -2531,7 +2419,7 @@ DialogsInner::ChosenRow DialogsInner::computeChosenRow() const {
 			};
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
 			return {
-				Auth().data().history(_peerSearchResults[_peerSearchSelected]->peer),
+				session().data().history(_peerSearchResults[_peerSearchSelected]->peer),
 				Data::UnreadMessagePosition
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
@@ -2578,7 +2466,7 @@ bool DialogsInner::chooseRow() {
 			//	HistoryFeed::Memento(feed, chosen.message),
 			//	Window::SectionShow::Way::ClearStack);
 		}
-		if (openSearchResult && !Auth().supportMode()) {
+		if (openSearchResult && !session().supportMode()) {
 			emit clearSearchQuery();
 		}
 		updateSelectedRow();
@@ -2593,24 +2481,6 @@ bool DialogsInner::chooseRow() {
 		return true;
 	}
 	return false;
-}
-
-void DialogsInner::destroyData() {
-	_selected = nullptr;
-	_hashtagSelected = -1;
-	_hashtagResults.clear();
-	_filteredSelected = -1;
-	_filterResults.clear();
-	_filterResultsGlobal.clear();
-	_filter.clear();
-	_searchedSelected = _peerSearchSelected = -1;
-	clearSearchResults();
-	_contacts = nullptr;
-	_contactsNoDialogs = nullptr;
-	_dialogs = nullptr;
-	if (_dialogsImportant) {
-		_dialogsImportant = nullptr;
-	}
 }
 
 Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
@@ -2654,7 +2524,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			}
 			return Dialogs::RowDescriptor(
-				Auth().data().history(_peerSearchResults.back()->peer),
+				session().data().history(_peerSearchResults.back()->peer),
 				FullMsgId(NoChannel, ShowAtUnreadMsgId));
 		}
 	}
@@ -2671,7 +2541,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryBefore(
 		for (auto b = _peerSearchResults.cbegin(), i = b + 1, e = _peerSearchResults.cend(); i != e; ++i) {
 			if ((*i)->peer == whichHistory->peer) {
 				return Dialogs::RowDescriptor(
-					Auth().data().history((*(i - 1))->peer),
+					session().data().history((*(i - 1))->peer),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			}
 		}
@@ -2727,7 +2597,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryAfter(
 			++i;
 			if (i != e) {
 				return Dialogs::RowDescriptor(
-					Auth().data().history((*i)->peer),
+					session().data().history((*i)->peer),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			} else if (!_searchResults.empty()) {
 				return Dialogs::RowDescriptor(
@@ -2746,7 +2616,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryAfter(
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			} else if (!_peerSearchResults.empty()) {
 				return Dialogs::RowDescriptor(
-					Auth().data().history(_peerSearchResults.front()->peer),
+					session().data().history(_peerSearchResults.front()->peer),
 					FullMsgId(NoChannel, ShowAtUnreadMsgId));
 			} else if (!_searchResults.empty()) {
 				return Dialogs::RowDescriptor(
@@ -2774,7 +2644,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryFirst() const {
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	} else if (!_peerSearchResults.empty()) {
 		return Dialogs::RowDescriptor(
-			Auth().data().history(_peerSearchResults.front()->peer),
+			session().data().history(_peerSearchResults.front()->peer),
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	} else if (!_searchResults.empty()) {
 		return Dialogs::RowDescriptor(
@@ -2799,7 +2669,7 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryLast() const {
 			_searchResults.back()->item()->fullId());
 	} else if (!_peerSearchResults.empty()) {
 		return Dialogs::RowDescriptor(
-			Auth().data().history(_peerSearchResults.back()->peer),
+			session().data().history(_peerSearchResults.back()->peer),
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	} else if (!_filterResults.empty()) {
 		return Dialogs::RowDescriptor(
@@ -2807,18 +2677,6 @@ Dialogs::RowDescriptor DialogsInner::chatListEntryLast() const {
 			FullMsgId(NoChannel, ShowAtUnreadMsgId));
 	}
 	return Dialogs::RowDescriptor();
-}
-
-Dialogs::IndexedList *DialogsInner::contactsList() {
-	return _contacts.get();
-}
-
-Dialogs::IndexedList *DialogsInner::dialogsList() {
-	return _dialogs.get();
-}
-
-Dialogs::IndexedList *DialogsInner::contactsNoDialogsList() {
-	return _contactsNoDialogs.get();
 }
 
 int32 DialogsInner::lastSearchDate() const {
@@ -2883,8 +2741,8 @@ void DialogsInner::setupShortcuts() {
 		request->check(Command::ChatLast) && request->handle([=] {
 			return jumpToDialogRow(last);
 		});
-		request->check(Command::ChatSelf) && request->handle([] {
-			App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
+		request->check(Command::ChatSelf) && request->handle([=] {
+			App::main()->choosePeer(session().userPeerId(), ShowAtUnreadMsgId);
 			return true;
 		});
 
@@ -2906,7 +2764,7 @@ void DialogsInner::setupShortcuts() {
 				return jumpToDialogRow({ row->key(), FullMsgId() });
 			});
 		}
-		if (Auth().supportMode() && row.key.history()) {
+		if (session().supportMode() && row.key.history()) {
 			request->check(
 				Command::SupportScrollToCurrent
 			) && request->handle([=] {
@@ -2921,7 +2779,7 @@ Dialogs::RowDescriptor DialogsInner::computeJump(
 		const Dialogs::RowDescriptor &to,
 		JumpSkip skip) {
 	auto result = to;
-	if (Auth().supportMode() && result.key) {
+	if (session().supportMode() && result.key) {
 		const auto down = (skip == JumpSkip::NextOrEnd)
 			|| (skip == JumpSkip::NextOrOriginal);
 		while (!result.key.entry()->chatListUnreadCount()

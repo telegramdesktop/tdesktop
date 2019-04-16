@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "dialogs/dialogs_entry.h"
+#include "dialogs/dialogs_indexed_list.h"
 #include "data/data_messages.h"
 
 class ChannelData;
@@ -37,12 +38,11 @@ public:
 	Folder(const Folder &) = delete;
 	Folder &operator=(const Folder &) = delete;
 
-	Data::Session &owner() const;
-	AuthSession &session() const;
-
 	FolderId id() const;
 	void registerOne(not_null<History*> history);
 	void unregisterOne(not_null<History*> history);
+
+	not_null<Dialogs::IndexedList*> chatsList();
 
 	void updateChatListMessage(not_null<HistoryItem*> item);
 	void messageRemoved(not_null<HistoryItem*> item);
@@ -86,7 +86,6 @@ public:
 		int y,
 		int size) const override;
 
-	const std::vector<not_null<History*>> &histories() const;
 	bool historiesLoaded() const;
 	void setHistoriesLoaded(bool loaded);
 	//int32 chatsHash() const;
@@ -98,16 +97,15 @@ private:
 	void setChatListMessageFromChannels();
 	bool justUpdateChatListMessage(not_null<HistoryItem*> item);
 	void updateChatListDate();
-	void changeChatsList(
-		const std::vector<not_null<PeerData*>> &add,
-		const std::vector<not_null<PeerData*>> &remove);
+	//void changeChatsList(
+	//	const std::vector<not_null<PeerData*>> &add,
+	//	const std::vector<not_null<PeerData*>> &remove);
 
 	template <typename PerformUpdate>
 	void updateUnreadCounts(PerformUpdate &&performUpdate);
 
 	FolderId _id = 0;
-	not_null<Data::Session*> _owner;
-	std::vector<not_null<History*>> _histories;
+	Dialogs::IndexedList _chatsList;
 	bool _settingHistories = false;
 	bool _historiesLoaded = false;
 

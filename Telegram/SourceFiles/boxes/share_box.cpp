@@ -489,7 +489,7 @@ ShareBox::Inner::Inner(
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto dialogs = App::main()->dialogsList();
+	const auto dialogs = Auth().data().chatsList();
 	const auto self = Auth().user();
 	if (_filterCallback(self)) {
 		_chatsIndexed->addToEnd(self->owner().history(self));
@@ -670,7 +670,7 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 
 	Auth().downloader().clearPriorities();
 	if (_filter.isEmpty()) {
-		if (!_chatsIndexed->isEmpty()) {
+		if (!_chatsIndexed->empty()) {
 			auto i = _chatsIndexed->cfind(yFrom, _rowHeight);
 			for (auto end = _chatsIndexed->cend(); i != end; ++i) {
 				if (((*i)->pos() * _rowHeight) >= yTo) {
@@ -769,7 +769,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	auto indexFrom = rowFrom * _columnCount;
 	auto indexTo = rowTo * _columnCount;
 	if (_filter.isEmpty()) {
-		if (!_chatsIndexed->isEmpty()) {
+		if (!_chatsIndexed->empty()) {
 			auto i = _chatsIndexed->cfind(indexFrom, 1);
 			for (auto end = _chatsIndexed->cend(); i != end; ++i) {
 				if (indexFrom >= indexTo) {
@@ -949,10 +949,10 @@ void ShareBox::Inner::updateFilter(QString filter) {
 			_filtered.clear();
 			if (!words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
-				if (!_chatsIndexed->isEmpty()) {
+				if (!_chatsIndexed->empty()) {
 					for (fi = fb; fi != fe; ++fi) {
-						auto found = _chatsIndexed->filtered(fi->at(0));
-						if (found->empty()) {
+						const auto found = _chatsIndexed->filtered(fi->at(0));
+						if (!found || found->empty()) {
 							toFilter = nullptr;
 							break;
 						}

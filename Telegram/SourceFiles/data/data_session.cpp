@@ -150,6 +150,10 @@ Session::Session(not_null<AuthSession*> session)
 , _bigFileCache(Core::App().databases().get(
 	Local::cacheBigFilePath(),
 	Local::cacheBigFileSettings()))
+, _chatsList(Dialogs::SortMode::Date)
+, _importantChatsList(Dialogs::SortMode::Date)
+, _contactsList(Dialogs::SortMode::Name)
+, _contactsNoChatsList(Dialogs::SortMode::Name)
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
@@ -161,6 +165,8 @@ Session::Session(not_null<AuthSession*> session)
 
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();
+	setupPeerNameViewer();
+	setupUserIsContactViewer();
 }
 
 void Session::clear() {
@@ -915,6 +921,49 @@ void Session::setupChannelLeavingViewer() {
 			history->removeJoinedMessage();
 			history->updateChatListExistence();
 			history->updateChatListSortPosition();
+		}
+	}, _lifetime);
+}
+
+void Session::setupPeerNameViewer() {
+	Notify::PeerUpdateViewer(
+		Notify::PeerUpdate::Flag::NameChanged
+	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
+		const auto peer = update.peer;
+		const auto &oldLetters = update.oldNameFirstLetters;
+		_chatsList.peerNameChanged(Dialogs::Mode::All, peer, oldLetters);
+		if (Global::DialogsModeEnabled()) {
+			_importantChatsList.peerNameChanged(
+				Dialogs::Mode::Important,
+				peer,
+				oldLetters);
+		}
+		_contactsNoChatsList.peerNameChanged(peer, oldLetters);
+		_contactsList.peerNameChanged(peer, oldLetters);
+	}, _lifetime);
+}
+
+void Session::setupUserIsContactViewer() {
+	Notify::PeerUpdateViewer(
+		Notify::PeerUpdate::Flag::UserIsContact
+	) | rpl::filter([=](const Notify::PeerUpdate &update) {
+		return update.peer->isUser();
+	}) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
+		const auto user = update.peer->asUser();
+		if (user->loadedStatus != PeerData::FullLoaded) {
+			LOG(("API Error: "
+				"userIsContactChanged() called for a not loaded user!"));
+			return;
+		}
+		if (user->contactStatus() == UserData::ContactStatus::Contact) {
+			const auto history = user->owner().history(user->id);
+			_contactsList.addByName(history);
+			if (!_chatsList.contains(history)) {
+				_contactsNoChatsList.addByName(history);
+			}
+		} else if (const auto history = user->owner().historyLoaded(user)) {
+			_contactsNoChatsList.del(history);
+			_contactsList.del(history);
 		}
 	}, _lifetime);
 }
@@ -2828,6 +2877,79 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 //rpl::producer<FeedId> Session::defaultFeedIdValue() const {
 //	return _defaultFeedId.value();
 //}
+
+not_null<Dialogs::IndexedList*> Session::chatsList() {
+	return &_chatsList;
+}
+
+not_null<Dialogs::IndexedList*> Session::importantChatsList() {
+	return &_importantChatsList;
+}
+
+not_null<Dialogs::IndexedList*> Session::contactsList() {
+	return &_contactsList;
+}
+
+not_null<Dialogs::IndexedList*> Session::contactsNoChatsList() {
+	return &_contactsNoChatsList;
+}
+
+auto Session::refreshChatListEntry(Dialogs::Key key)
+-> RefreshChatListEntryResult {
+	using namespace Dialogs;
+
+	const auto entry = key.entry();
+	auto result = RefreshChatListEntryResult();
+	result.changed = !entry->inChatList(Mode::All);
+	if (result.changed) {
+		const auto mainRow = entry->addToChatList(Mode::All, &_chatsList);
+		_contactsNoChatsList.del(key, mainRow);
+	} else {
+		result.moved = entry->adjustByPosInChatList(
+			Mode::All,
+			&_chatsList);
+	}
+	if (Global::DialogsModeEnabled()) {
+		if (entry->toImportant()) {
+			result.importantChanged = !entry->inChatList(Mode::Important);
+			if (result.importantChanged) {
+				entry->addToChatList(Mode::Important, &_importantChatsList);
+			} else {
+				result.importantMoved = entry->adjustByPosInChatList(
+					Mode::Important,
+					&_importantChatsList);
+			}
+		} else if (entry->inChatList(Mode::Important)) {
+			entry->removeFromChatList(Mode::Important, &_importantChatsList);
+			result.importantChanged = true;
+		}
+	}
+	return result;
+}
+
+void Session::removeChatListEntry(Dialogs::Key key) {
+	using namespace Dialogs;
+
+	const auto entry = key.entry();
+	entry->removeFromChatList(Mode::All, &_chatsList);
+	if (Global::DialogsModeEnabled()) {
+		entry->removeFromChatList(Mode::Important, &_importantChatsList);
+	}
+	if (_contactsList.contains(key)) {
+		if (!_contactsNoChatsList.contains(key)) {
+			_contactsNoChatsList.addByName(key);
+		}
+	}
+}
+
+void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
+	_dialogsRowReplacements.fire(std::move(replacement));
+}
+
+auto Session::dialogsRowReplacements() const
+-> rpl::producer<DialogsRowReplacement> {
+	return _dialogsRowReplacements.events();
+}
 
 void Session::requestNotifySettings(not_null<PeerData*> peer) {
 	if (peer->notifySettingsUnknown()) {

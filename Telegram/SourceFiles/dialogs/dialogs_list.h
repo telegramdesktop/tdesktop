@@ -19,6 +19,9 @@ public:
 	List(SortMode sortMode);
 	List(const List &other) = delete;
 	List &operator=(const List &other) = delete;
+	List(List &&other) = default;
+	List &operator=(List &&other) = default;
+	~List() = default;
 
 	int size() const {
 		return _rows.size();

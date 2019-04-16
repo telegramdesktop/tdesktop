@@ -149,7 +149,8 @@ void DialogsWidget::BottomButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
+DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> controller)
+: Window::AbstractSectionWidget(parent, controller)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, langFactory(lng_dlg_filter))
 , _chooseFromUser(
@@ -162,7 +163,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 , _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll)
 , _scrollToTop(_scroll, st::dialogsToUp) {
-	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, controller, parent));
+	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, controller));
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
@@ -311,17 +312,17 @@ void DialogsWidget::setupConnectingWidget() {
 }
 
 void DialogsWidget::setupSupportMode() {
-	if (!Auth().supportMode()) {
+	if (!session().supportMode()) {
 		return;
 	}
 
-	Auth().settings().supportChatsTimeSliceValue(
+	session().settings().supportChatsTimeSliceValue(
 	) | rpl::start_with_next([=](int seconds) {
 		_dialogsLoadTill = seconds ? std::max(unixtime() - seconds, 0) : 0;
 		refreshLoadMoreButton();
 	}, lifetime());
 
-	Auth().settings().supportAllSearchResultsValue(
+	session().settings().supportAllSearchResultsValue(
 	) | rpl::filter([=] {
 		return !_searchQuery.isEmpty();
 	}) | rpl::start_with_next([=] {
@@ -363,9 +364,9 @@ void DialogsWidget::activate() {
 	_inner->activate();
 }
 
-void DialogsWidget::createDialog(Dialogs::Key key) {
+void DialogsWidget::refreshDialog(Dialogs::Key key) {
 	const auto creating = !key.entry()->inChatList(Dialogs::Mode::All);
-	_inner->createDialog(key);
+	_inner->refreshDialog(key);
 	const auto history = key.history();
 	if (creating && history && history->peer->migrateFrom()) {
 		if (const auto migrated = history->owner().historyLoaded(
@@ -388,7 +389,7 @@ void DialogsWidget::repaintDialogRow(Dialogs::RowDescriptor row) {
 }
 
 void DialogsWidget::jumpToTop() {
-	if (Auth().supportMode()) {
+	if (session().supportMode()) {
 		return;
 	}
 	if ((_filter->getLastText().trimmed().isEmpty() && !_searchInChat)) {
@@ -528,8 +529,8 @@ void DialogsWidget::dialogsReceived(
 
 	const auto [dialogsList, messagesList] = [&] {
 		const auto process = [&](const auto &data) {
-			Auth().data().processUsers(data.vusers);
-			Auth().data().processChats(data.vchats);
+			session().data().processUsers(data.vusers);
+			session().data().processChats(data.vchats);
 			return std::make_tuple(&data.vdialogs.v, &data.vmessages.v);
 		};
 		switch (dialogs.type()) {
@@ -554,11 +555,11 @@ void DialogsWidget::dialogsReceived(
 		refreshLoadMoreButton();
 	}
 
-	Auth().data().moreChatsLoaded().notify();
+	session().data().moreChatsLoaded().notify();
 	if (_dialogsFull && _pinnedDialogsReceived) {
-		Auth().data().allChatsLoaded().set(true);
+		session().data().allChatsLoaded().set(true);
 	}
-	Auth().api().requestContacts();
+	session().api().requestContacts();
 }
 
 void DialogsWidget::updateDialogsOffset(
@@ -597,7 +598,7 @@ void DialogsWidget::updateDialogsOffset(
 	if (lastDate) {
 		_dialogsOffsetDate = lastDate;
 		_dialogsOffsetId = lastMsgId;
-		_dialogsOffsetPeer = Auth().data().peer(lastPeer);
+		_dialogsOffsetPeer = session().data().peer(lastPeer);
 	} else {
 		_dialogsFull = true;
 	}
@@ -632,7 +633,7 @@ void DialogsWidget::loadMoreBlockedByDateChats() {
 		|| _loadMoreChats->isHidden()) {
 		return;
 	}
-	const auto max = Auth().settings().supportChatsTimeSlice();
+	const auto max = session().settings().supportChatsTimeSlice();
 	_dialogsLoadTill = _dialogsOffsetDate
 		? (_dialogsOffsetDate - max)
 		: (unixtime() - max);
@@ -647,18 +648,18 @@ void DialogsWidget::pinnedDialogsReceived(
 	if (_pinnedDialogsRequestId != requestId) return;
 
 	auto &data = result.c_messages_peerDialogs();
-	Auth().data().processUsers(data.vusers);
-	Auth().data().processChats(data.vchats);
+	session().data().processUsers(data.vusers);
+	session().data().processChats(data.vchats);
 
-	Auth().data().applyPinnedDialogs(data.vdialogs.v);
+	session().data().applyPinnedDialogs(data.vdialogs.v);
 	applyReceivedDialogs(data.vdialogs.v, data.vmessages.v);
 
 	_pinnedDialogsRequestId = 0;
 	_pinnedDialogsReceived = true;
 
-	Auth().data().moreChatsLoaded().notify();
+	session().data().moreChatsLoaded().notify();
 	if (_dialogsFull && _pinnedDialogsReceived) {
-		Auth().data().allChatsLoaded().set(true);
+		session().data().allChatsLoaded().set(true);
 	}
 }
 
@@ -1016,8 +1017,8 @@ void DialogsWidget::searchReceived(
 			auto &d = result.c_messages_messages();
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
-				Auth().data().processUsers(d.vusers);
-				Auth().data().processChats(d.vchats);
+				session().data().processUsers(d.vusers);
+				session().data().processChats(d.vchats);
 			}
 			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, msgs.size())) {
@@ -1033,8 +1034,8 @@ void DialogsWidget::searchReceived(
 			auto &d = result.c_messages_messagesSlice();
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
-				Auth().data().processUsers(d.vusers);
-				Auth().data().processChats(d.vchats);
+				session().data().processUsers(d.vusers);
+				session().data().processChats(d.vchats);
 			}
 			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
@@ -1063,8 +1064,8 @@ void DialogsWidget::searchReceived(
 			}
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
-				Auth().data().processUsers(d.vusers);
-				Auth().data().processChats(d.vchats);
+				session().data().processUsers(d.vusers);
+				session().data().processChats(d.vchats);
 			}
 			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
@@ -1110,8 +1111,8 @@ void DialogsWidget::peerSearchReceived(
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			auto &d = result.c_contacts_found();
-			Auth().data().processUsers(d.vusers);
-			Auth().data().processChats(d.vchats);
+			session().data().processUsers(d.vusers);
+			session().data().processChats(d.vchats);
 			_inner->peerSearchReceived(q, d.vmy_results.v, d.vresults.v);
 		} break;
 		}
@@ -1566,28 +1567,12 @@ void DialogsWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void DialogsWidget::destroyData() {
-	_inner->destroyData();
-}
-
 void DialogsWidget::scrollToEntry(const Dialogs::RowDescriptor &entry) {
 	_inner->scrollToEntry(entry);
 }
 
 void DialogsWidget::removeDialog(Dialogs::Key key) {
 	_inner->removeDialog(key);
-}
-
-Dialogs::IndexedList *DialogsWidget::contactsList() {
-	return _inner->contactsList();
-}
-
-Dialogs::IndexedList *DialogsWidget::dialogsList() {
-	return _inner->dialogsList();
-}
-
-Dialogs::IndexedList *DialogsWidget::contactsNoDialogsList() {
-	return _inner->contactsNoDialogsList();
 }
 
 bool DialogsWidget::onCancelSearch() {

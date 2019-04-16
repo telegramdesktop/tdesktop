@@ -35,7 +35,6 @@ namespace Dialogs {
 struct RowDescriptor;
 class Row;
 class Key;
-class IndexedList;
 } // namespace Dialogs
 
 namespace Media {
@@ -124,7 +123,7 @@ public:
 	void activate();
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 
-	void createDialog(Dialogs::Key key);
+	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
 	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
 	void repaintDialogRow(Dialogs::RowDescriptor row);
@@ -163,7 +162,6 @@ public:
 		const std::optional<FullMsgId> &oldId);
 	bool onSendSticker(DocumentData *sticker);
 
-	void destroyData();
 	void updateOnlineDisplayIn(int32 msecs);
 
 	bool isActive() const;
@@ -199,10 +197,6 @@ public:
 	void deletePhotoLayer(PhotoData *photo);
 
 	bool sendMessageFail(const RPCError &error);
-
-	Dialogs::IndexedList *contactsList();
-	Dialogs::IndexedList *dialogsList();
-	Dialogs::IndexedList *contactsNoDialogsList();
 
 	// While HistoryInner is not HistoryView::ListWidget.
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
@@ -298,7 +292,6 @@ public:
 	~MainWidget();
 
 signals:
-	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 	void dialogsUpdated();
 
 public slots:

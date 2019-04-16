@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_databases.h"
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/dialogs_indexed_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
@@ -508,6 +509,27 @@ public:
 	//FeedId defaultFeedId() const;
 	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
+	not_null<Dialogs::IndexedList*> chatsList();
+	not_null<Dialogs::IndexedList*> importantChatsList();
+	not_null<Dialogs::IndexedList*> contactsList();
+	not_null<Dialogs::IndexedList*> contactsNoChatsList();
+
+	struct RefreshChatListEntryResult {
+		bool changed = false;
+		bool importantChanged = false;
+		Dialogs::PositionChange moved;
+		Dialogs::PositionChange importantMoved;
+	};
+	RefreshChatListEntryResult refreshChatListEntry(Dialogs::Key key);
+	void removeChatListEntry(Dialogs::Key key);
+
+	struct DialogsRowReplacement {
+		not_null<Dialogs::Row*> old;
+		Dialogs::Row *now = nullptr;
+	};
+	void dialogsRowReplaced(DialogsRowReplacement replacement);
+	rpl::producer<DialogsRowReplacement> dialogsRowReplacements() const;
+
 	void requestNotifySettings(not_null<PeerData*> peer);
 	void applyNotifySetting(
 		const MTPNotifyPeer &notifyPeer,
@@ -560,6 +582,8 @@ private:
 
 	void setupContactViewsViewer();
 	void setupChannelLeavingViewer();
+	void setupPeerNameViewer();
+	void setupUserIsContactViewer();
 
 	void checkSelfDestructItems();
 	int computeUnreadBadge(
@@ -715,6 +739,7 @@ private:
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 	rpl::event_stream<FolderUpdate> _folderUpdates;
+	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
 
 	rpl::event_stream<> _stickersUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
@@ -734,6 +759,11 @@ private:
 	int _unreadMuted = 0;
 	int _unreadEntriesFull = 0;
 	int _unreadEntriesMuted = 0;
+
+	Dialogs::IndexedList _chatsList;
+	Dialogs::IndexedList _importantChatsList;
+	Dialogs::IndexedList _contactsList;
+	Dialogs::IndexedList _contactsNoChatsList;
 
 	base::Timer _selfDestructTimer;
 	std::vector<FullMsgId> _selfDestructItems;

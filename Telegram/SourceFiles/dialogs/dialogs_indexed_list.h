@@ -44,17 +44,15 @@ public:
 		return _list;
 	}
 	const List *filtered(QChar ch) const {
-		if (auto it = _index.find(ch); it != _index.cend()) {
-			return it->second.get();
-		}
-		return &_empty;
+		const auto i = _index.find(ch);
+		return (i != _index.end()) ? &i->second : nullptr;
 	}
 
 	~IndexedList();
 
 	// Part of List interface is duplicated here for all() list.
 	int size() const { return all().size(); }
-	bool isEmpty() const { return all().empty(); }
+	bool empty() const { return all().empty(); }
 	bool contains(Key key) const { return all().contains(key); }
 	Row *getRow(Key key) const { return all().getRow(key); }
 	Row *rowAtY(int32 y, int32 h) const { return all().rowAtY(y, h); }
@@ -83,9 +81,9 @@ private:
 		not_null<History*> history,
 		const base::flat_set<QChar> &oldChars);
 
-	SortMode _sortMode;
+	SortMode _sortMode = SortMode();
 	List _list, _empty;
-	base::flat_map<QChar, std::unique_ptr<List>> _index;
+	base::flat_map<QChar, List> _index;
 
 };
 

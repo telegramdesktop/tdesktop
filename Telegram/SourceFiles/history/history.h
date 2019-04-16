@@ -64,9 +64,6 @@ public:
 	History &operator=(const History &) = delete;
 	~History();
 
-	Data::Session &owner() const;
-	AuthSession &session() const;
-
 	ChannelId channelId() const;
 	bool isChannel() const;
 	bool isMegagroup() const;
@@ -467,7 +464,6 @@ private:
 
 	void setFolderPointer(Data::Folder *folder);
 
-	not_null<Data::Session*> _owner;
 	Flags _flags = 0;
 	bool _mute = false;
 	int _width = 0;

@@ -967,18 +967,6 @@ void MainWidget::cacheBackground() {
 	_cachedFor = _willCacheFor;
 }
 
-Dialogs::IndexedList *MainWidget::contactsList() {
-	return _dialogs->contactsList();
-}
-
-Dialogs::IndexedList *MainWidget::dialogsList() {
-	return _dialogs->dialogsList();
-}
-
-Dialogs::IndexedList *MainWidget::contactsNoDialogsList() {
-	return _dialogs->contactsNoDialogsList();
-}
-
 crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
 	return _history->highlightStartTime(item);
 }
@@ -1557,8 +1545,8 @@ bool MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId req) {
 	return false;
 }
 
-void MainWidget::createDialog(Dialogs::Key key) {
-	_dialogs->createDialog(key);
+void MainWidget::refreshDialog(Dialogs::Key key) {
+	_dialogs->refreshDialog(key);
 }
 
 void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
@@ -3487,11 +3475,6 @@ void MainWidget::activate() {
 		}
 	}
 	App::wnd()->fixOrder();
-}
-
-void MainWidget::destroyData() {
-	_history->destroyData();
-	_dialogs->destroyData();
 }
 
 bool MainWidget::isActive() const {

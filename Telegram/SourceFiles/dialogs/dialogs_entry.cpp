@@ -9,11 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "data/data_session.h"
 #include "mainwidget.h"
 #include "auth_session.h"
-#include "styles/style_dialogs.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "styles/style_dialogs.h" // st::dialogsTextWidthMin
 
 namespace Dialogs {
 namespace {
@@ -37,9 +38,18 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 
 } // namespace
 
-Entry::Entry(const Key &key)
+Entry::Entry(not_null<Data::Session*> owner, const Key &key)
 : lastItemTextCache(st::dialogsTextWidthMin)
+, _owner(owner)
 , _key(key) {
+}
+
+Data::Session &Entry::owner() const {
+	return *_owner;
+}
+
+AuthSession &Entry::session() const {
+	return _owner->session();
 }
 
 void Entry::cachePinnedIndex(int index) {
@@ -93,7 +103,7 @@ void Entry::updateChatListExistence() {
 void Entry::setChatListExistence(bool exists) {
 	if (const auto main = App::main()) {
 		if (exists && _sortKeyInChatList) {
-			main->createDialog(_key);
+			main->refreshDialog(_key);
 			updateChatListEntry();
 		} else {
 			main->removeDialog(_key);
@@ -129,10 +139,10 @@ PositionChange Entry::adjustByPosInChatList(
 		Mode list,
 		not_null<IndexedList*> indexed) {
 	const auto lnk = mainChatListLink(list);
-	const auto movedFrom = lnk->pos();
+	const auto from = lnk->pos();
 	indexed->adjustByDate(chatListLinks(list));
-	const auto movedTo = lnk->pos();
-	return { movedFrom, movedTo };
+	const auto to = lnk->pos();
+	return { from, to };
 }
 
 void Entry::setChatListTimeId(TimeId date) {

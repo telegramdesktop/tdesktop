@@ -258,8 +258,8 @@ void ChatsListBoxController::rebuildRows() {
 			++added;
 		}
 	}
-	added += appendList(App::main()->dialogsList());
-	added += appendList(App::main()->contactsNoDialogsList());
+	added += appendList(Auth().data().chatsList());
+	added += appendList(Auth().data().contactsNoChatsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.
 		delegate()->peerListPartitionRows([](const PeerListRow &a) {
@@ -327,7 +327,7 @@ void ContactsBoxController::prepare() {
 }
 
 void ContactsBoxController::rebuildRows() {
-	auto appendList = [this](auto chats) {
+	const auto appendList = [&](auto chats) {
 		auto count = 0;
 		for (const auto row : chats->all()) {
 			if (const auto history = row->history()) {
@@ -340,7 +340,7 @@ void ContactsBoxController::rebuildRows() {
 		}
 		return count;
 	};
-	appendList(App::main()->contactsList());
+	appendList(Auth().data().contactsList());
 	checkForEmptyRows();
 	delegate()->peerListRefreshRows();
 }

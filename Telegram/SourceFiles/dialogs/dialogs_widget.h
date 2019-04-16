@@ -14,12 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 
 class DialogsInner;
+class AuthSession;
 
 namespace Dialogs {
 struct RowDescriptor;
 class Row;
 class FakeRow;
-class IndexedList;
 class Key;
 } // namespace Dialogs
 
@@ -60,7 +60,7 @@ public:
 
 	void loadDialogs();
 	void loadPinnedDialogs();
-	void createDialog(Dialogs::Key key);
+	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
 	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
 	void repaintDialogRow(Dialogs::RowDescriptor row);
@@ -76,13 +76,7 @@ public:
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void showFast();
 
-	void destroyData();
-
 	void scrollToEntry(const Dialogs::RowDescriptor &entry);
-
-	Dialogs::IndexedList *contactsList();
-	Dialogs::IndexedList *dialogsList();
-	Dialogs::IndexedList *contactsNoDialogsList();
 
 	void searchMessages(const QString &query, Dialogs::Key inChat = {});
 	void onSearchMore();

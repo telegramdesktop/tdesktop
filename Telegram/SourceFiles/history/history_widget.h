@@ -153,8 +153,6 @@ public:
 
 	void updateRecentStickers();
 
-	void destroyData();
-
 	void updateFieldPlaceholder();
 	void updateStickersByEmoji();
 

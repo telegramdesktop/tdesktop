@@ -26,11 +26,9 @@ RowsByLetter IndexedList::addToEnd(Key key) {
 		for (const auto ch : key.entry()->chatListFirstLetters()) {
 			auto j = _index.find(ch);
 			if (j == _index.cend()) {
-				j = _index.emplace(
-					ch,
-					std::make_unique<List>(_sortMode)).first;
+				j = _index.emplace(ch, _sortMode).first;
 			}
-			result.emplace(ch, j->second->addToEnd(key));
+			result.emplace(ch, j->second.addToEnd(key));
 		}
 	}
 	return result;
@@ -45,11 +43,9 @@ Row *IndexedList::addByName(Key key) {
 	for (const auto ch : key.entry()->chatListFirstLetters()) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
-			j = _index.emplace(
-				ch,
-				std::make_unique<List>(_sortMode)).first;
+			j = _index.emplace(ch, _sortMode).first;
 		}
-		j->second->addByName(key);
+		j->second.addByName(key);
 	}
 	return result;
 }
@@ -60,7 +56,7 @@ void IndexedList::adjustByDate(const RowsByLetter &links) {
 			_list.adjustByDate(row);
 		} else {
 			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second->adjustByDate(row);
+				it->second.adjustByDate(row);
 			}
 		}
 	}
@@ -70,7 +66,7 @@ void IndexedList::moveToTop(Key key) {
 	if (_list.moveToTop(key)) {
 		for (const auto ch : key.entry()->chatListFirstLetters()) {
 			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second->moveToTop(key);
+				it->second.moveToTop(key);
 			}
 		}
 	}
@@ -132,24 +128,22 @@ void IndexedList::adjustByName(
 		} else {
 			toRemove.erase(j);
 			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second->adjustByName(key);
+				it->second.adjustByName(key);
 			}
 		}
 	}
 	for (auto ch : toRemove) {
 		if (auto it = _index.find(ch); it != _index.cend()) {
-			it->second->del(key, mainRow);
+			it->second.del(key, mainRow);
 		}
 	}
 	if (!toAdd.empty()) {
 		for (auto ch : toAdd) {
 			auto j = _index.find(ch);
 			if (j == _index.cend()) {
-				j = _index.emplace(
-					ch,
-					std::make_unique<List>(_sortMode)).first;
+				j = _index.emplace(ch, _sortMode).first;
 			}
-			j->second->addByName(key);
+			j->second.addByName(key);
 		}
 	}
 }
@@ -177,17 +171,15 @@ void IndexedList::adjustNames(
 			history->removeChatListEntryByLetter(list, ch);
 		}
 		if (auto it = _index.find(ch); it != _index.cend()) {
-			it->second->del(key, mainRow);
+			it->second.del(key, mainRow);
 		}
 	}
 	for (auto ch : toAdd) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
-			j = _index.emplace(
-				ch,
-				std::make_unique<List>(_sortMode)).first;
+			j = _index.emplace(ch, _sortMode).first;
 		}
-		auto row = j->second->addToEnd(key);
+		auto row = j->second.addToEnd(key);
 		if (_sortMode == SortMode::Date) {
 			history->addChatListEntryByLetter(list, ch, row);
 		}
@@ -198,7 +190,7 @@ void IndexedList::del(Key key, Row *replacedBy) {
 	if (_list.del(key, replacedBy)) {
 		for (const auto ch : key.entry()->chatListFirstLetters()) {
 			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second->del(key, replacedBy);
+				it->second.del(key, replacedBy);
 			}
 		}
 	}

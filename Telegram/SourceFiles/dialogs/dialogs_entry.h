@@ -11,6 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 
+class AuthSession;
+
+namespace Data {
+class Session;
+} // namespace Data
+
 namespace Dialogs {
 
 class Row;
@@ -29,16 +35,19 @@ enum class Mode {
 };
 
 struct PositionChange {
-	int movedFrom;
-	int movedTo;
+	int from = -1;
+	int to = -1;
 };
 
 class Entry {
 public:
-	Entry(const Key &key);
+	Entry(not_null<Data::Session*> owner, const Key &key);
 	Entry(const Entry &other) = delete;
 	Entry &operator=(const Entry &other) = delete;
 	virtual ~Entry() = default;
+
+	Data::Session &owner() const;
+	AuthSession &session() const;
 
 	PositionChange adjustByPosInChatList(
 		Mode list,
@@ -116,6 +125,7 @@ private:
 	const RowsByLetter &chatListLinks(Mode list) const;
 	Row *mainChatListLink(Mode list) const;
 
+	not_null<Data::Session*> _owner;
 	Dialogs::Key _key;
 	RowsByLetter _chatListLinks[2];
 	uint64 _sortKeyInChatList = 0;
