@@ -54,6 +54,7 @@ public:
 
 	void activate();
 
+	bool cancelFolder();
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -269,7 +270,7 @@ private:
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Dialogs::Key key = Dialogs::Key());
 
-	Dialogs::IndexedList *shownDialogs() const;
+	not_null<Dialogs::IndexedList*> shownDialogs() const;
 
 	void checkReorderPinnedStart(QPoint localPosition);
 	int shownPinnedCount() const;
@@ -288,6 +289,7 @@ private:
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
+	Dialogs::IndexedList *_folderChatsList = nullptr;
 	std::unique_ptr<ImportantSwitch> _importantSwitch;
 	bool _importantSwitchSelected = false;
 	bool _importantSwitchPressed = false;

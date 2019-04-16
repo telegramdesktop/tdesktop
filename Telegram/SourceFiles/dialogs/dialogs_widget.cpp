@@ -513,6 +513,9 @@ void DialogsWidget::animationCallback() {
 }
 
 void DialogsWidget::onCancel() {
+	if (_inner->cancelFolder()) {
+		return;
+	}
 	if (!onCancelSearch() || (!_searchInChat && !App::main()->selectingPeer())) {
 		emit cancelled();
 	}

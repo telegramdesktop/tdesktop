@@ -248,6 +248,16 @@ int DialogsInner::searchInChatSkip() const {
 	return result;
 }
 
+bool DialogsInner::cancelFolder() {
+	if (!_folderChatsList) {
+		return false;
+	}
+	clearSelection();
+	_folderChatsList = nullptr;
+	refresh();
+	return true;
+}
+
 void DialogsInner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -1460,10 +1470,12 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 	}
 }
 
-Dialogs::IndexedList *DialogsInner::shownDialogs() const {
-	return (Global::DialogsMode() == Dialogs::Mode::Important)
-		? session().data().importantChatsList()
-		: session().data().chatsList();
+not_null<Dialogs::IndexedList*> DialogsInner::shownDialogs() const {
+	return _folderChatsList
+		? _folderChatsList
+		: (Global::DialogsMode() == Dialogs::Mode::Important)
+		? session().data().importantChatsList().get()
+		: session().data().chatsList().get();
 }
 
 void DialogsInner::leaveEventHook(QEvent *e) {
@@ -2461,10 +2473,9 @@ bool DialogsInner::chooseRow() {
 					? ShowAtUnreadMsgId
 					: chosen.message.fullId.msg));
 		} else if (const auto folder = chosen.key.folder()) {
-			// #TODO archive
-			//_controller->showSection(
-			//	HistoryFeed::Memento(feed, chosen.message),
-			//	Window::SectionShow::Way::ClearStack);
+			clearSelection();
+			_folderChatsList = folder->chatsList();
+			refresh();
 		}
 		if (openSearchResult && !session().supportMode()) {
 			emit clearSearchQuery();
