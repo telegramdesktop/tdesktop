@@ -202,7 +202,7 @@ private:
 	Dialogs::RowDescriptor chatListEntryLast() const;
 
 	void applyDialog(const MTPDdialog &dialog);
-//	void applyFeedDialog(const MTPDdialogFeed &dialog); // #feed
+	void applyFolderDialog(const MTPDdialogFolder &dialog);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {

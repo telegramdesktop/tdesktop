@@ -1603,7 +1603,7 @@ int History::unreadCount() const {
 	return _unreadCount ? *_unreadCount : 0;
 }
 
-int History::historiesUnreadCount() const {
+int History::unreadCountForBadge() const {
 	const auto result = unreadCount();
 	return (!result && unreadMark()) ? 1 : result;
 }
@@ -1745,7 +1745,7 @@ bool History::changeMute(bool newMute) {
 	//	}
 	//}
 	if (inChatList(Dialogs::Mode::All)) {
-		if (const auto count = historiesUnreadCount()) {
+		if (const auto count = unreadCountForBadge()) {
 			_owner->unreadMuteChanged(count, _mute);
 
 			const auto entriesWithUnreadDelta = 0;
@@ -1805,6 +1805,32 @@ std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
 	auto result = std::make_shared<AdminLog::LocalIdManager>();
 	_adminLogIdManager = result;
 	return result;
+}
+
+Data::Folder *History::folder() const {
+	return _folder;
+}
+
+void History::setFolder(not_null<Data::Folder*> folder) {
+	setFolderPointer(folder);
+}
+
+void History::clearFolder() {
+	setFolderPointer(nullptr);
+}
+
+void History::setFolderPointer(Data::Folder *folder) {
+	if (_folder != folder) {
+		const auto was = _folder;
+		_folder = folder;
+		if (was) {
+			was->unregisterOne(this);
+		}
+		if (_folder) {
+			_folder->registerOne(this);
+		}
+		updateChatListSortPosition();
+	}
 }
 
 TimeId History::adjustChatListTimeId() const {
@@ -2369,7 +2395,7 @@ bool History::useProxyPromotion() const {
 }
 
 bool History::shouldBeInChatList() const {
-	if (peer->migrateTo()) {
+	if (peer->migrateTo() || folder() != nullptr) {
 		return false;
 	} else if (isPinnedDialog()) {
 		return true;
@@ -3014,7 +3040,7 @@ void History::applyGroupAdminChanges(
 
 void History::changedInChatListHook(Dialogs::Mode list, bool added) {
 	if (list == Dialogs::Mode::All) {
-		if (const auto delta = historiesUnreadCount() * (added ? 1 : -1)) {
+		if (const auto delta = unreadCountForBadge() * (added ? 1 : -1)) {
 			_owner->unreadIncrement(delta, mute());
 
 			const auto entriesDelta = added ? 1 : -1;

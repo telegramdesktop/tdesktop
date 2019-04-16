@@ -1281,8 +1281,8 @@ void Session::applyPinnedDialogs(const QVector<MTPDialog> &list) {
 			if (const auto peer = peerFromMTP(data.vpeer)) {
 				setPinnedDialog(history(peer), true);
 			}
-		}, [&](const MTPDdialogFolder &data) { // #TODO archive
-			//setPinnedDialog(processFolder(data.vfolder), true);
+		}, [&](const MTPDdialogFolder &data) {
+			setPinnedDialog(processFolder(data.vfolder), true);
 		});
 	}
 }
@@ -1294,9 +1294,9 @@ void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
 			if (const auto peerId = peerFromMTP(data.vpeer)) {
 				setPinnedDialog(history(peerId), true);
 			}
-		}, [&](const MTPDdialogPeerFolder &data) { // #TODO archive
-			//const auto folderId = data.vfolder_id.v;
-			//setPinnedDialog(folder(folderId), true);
+		}, [&](const MTPDdialogPeerFolder &data) {
+			const auto folderId = data.vfolder_id.v;
+			setPinnedDialog(folder(folderId), true);
 		});
 	}
 }
@@ -2800,6 +2800,21 @@ not_null<Folder*> Session::folder(FolderId id) {
 Folder *Session::folderLoaded(FolderId id) {
 	const auto it = _folders.find(id);
 	return (it == end(_folders)) ? nullptr : it->second.get();
+}
+
+not_null<Folder*> Session::processFolder(const MTPFolder &data) {
+	return data.match([&](const MTPDfolder &data) {
+		return processFolder(data);
+	});
+}
+
+not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
+	const auto result = folder(data.vid.v);
+	//if (data.has_photo()) {
+	//	data.vphoto;
+	//}
+	//data.vtitle;
+	return result;
 }
 // // #feed
 //void Session::setDefaultFeedId(FeedId id) {

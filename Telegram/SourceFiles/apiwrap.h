@@ -65,11 +65,11 @@ public:
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
 	void savePinnedOrder();
-	//void toggleChannelGrouping( // #feed
-	//	not_null<ChannelData*> channel,
-	//	bool group,
-	//	Fn<void()> callback);
-	//void ungroupAllFromFeed(not_null<Data::Feed*> feed);
+	void toggleHistoryArchived(
+		not_null<History*> history,
+		bool archived,
+		Fn<void()> callback);
+	//void ungroupAllFromFeed(not_null<Data::Feed*> feed); // #feed
 
 	using RequestMessageDataCallback = Fn<void(ChannelData*, MsgId)>;
 	void requestMessageData(
@@ -651,8 +651,8 @@ private:
 	Fn<void(
 		const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
 	base::flat_map<
-		not_null<ChannelData*>,
-		std::pair<mtpRequestId,Fn<void()>>> _channelGroupingRequests;
+		not_null<History*>,
+		std::pair<mtpRequestId,Fn<void()>>> _historyArchivedRequests;
 
 	using KickRequest = std::pair<
 		not_null<ChannelData*>,

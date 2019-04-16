@@ -4014,6 +4014,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		});
 	} break;
 
+	case mtpc_updateFolderPeers: {
+		const auto &data = update.c_updateFolderPeers();
+
+		ptsUpdateAndApply(data.vpts.v, data.vpts_count.v, update);
+	} break;
+
 	// Deleted messages.
 	case mtpc_updateDeleteMessages: {
 		auto &d = update.c_updateDeleteMessages();
@@ -4287,8 +4293,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					return !session().data().historyLoaded(
 						peerFromMTP(data.vpeer));
 				}, [&](const MTPDdialogPeerFolder &data) {
-					//return !session().data().folderLoaded(data.vfolder_id.v);
-					return true; // #TODO archive
+					return !session().data().folderLoaded(data.vfolder_id.v);
 				});
 			};
 			const auto allLoaded = ranges::find_if(order, notLoaded)
@@ -4317,17 +4322,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				_dialogs->loadPinnedDialogs();
 			}
 		}, [&](const MTPDdialogPeerFolder &data) {
-			// #TODO archive
-			//const auto id = data.vfolder_id.v;
-			//if (const auto folder = session().data().folderLoaded(id)) {
-			//	session().data().setPinnedDialog(folder, d.is_pinned());
-			//} else {
-			//	DEBUG_LOG(("API Error: "
-			//		"pinned folder not loaded for feedId %1"
-			//		).arg(folderId
-			//		));
-			//	_dialogs->loadPinnedDialogs();
-			//}
+			const auto id = data.vfolder_id.v;
+			if (const auto folder = session().data().folderLoaded(id)) {
+				session().data().setPinnedDialog(folder, d.is_pinned());
+			} else {
+				DEBUG_LOG(("API Error: "
+					"pinned folder not loaded for folderId %1"
+					).arg(id
+					));
+				_dialogs->loadPinnedDialogs();
+			}
 		});
 	} break;
 

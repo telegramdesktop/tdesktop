@@ -306,27 +306,6 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 		}
 	}
 }
-// #TODO archive
-//void ChannelData::setFeed(not_null<Data::Feed*> feed) {
-//	setFeedPointer(feed);
-//}
-//
-//void ChannelData::clearFeed() {
-//	setFeedPointer(nullptr);
-//}
-//
-//void ChannelData::setFeedPointer(Data::Feed *feed) {
-//	if (_feed != feed) {
-//		const auto was = _feed;
-//		_feed = feed;
-//		if (was) {
-//			was->unregisterOne(this);
-//		}
-//		if (_feed) {
-//			_feed->registerOne(this);
-//		}
-//	}
-//}
 
 bool ChannelData::canBanMembers() const {
 	return amCreator()

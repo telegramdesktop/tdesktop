@@ -1192,6 +1192,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 "lng_saved_messages" = "Saved Messages";
+"lng_archived_chats" = "Archived chats";
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
 
@@ -1267,7 +1268,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_view_profile" = "View profile";
 "lng_context_view_group" = "View group info";
 "lng_context_view_channel" = "View channel info";
-"lng_context_view_feed_info" = "View feed info";
+//"lng_context_view_feed_info" = "View feed info";
 "lng_context_pin_to_top" = "Pin to top";
 "lng_context_unpin_from_top" = "Unpin from top";
 "lng_context_mark_unread" = "Mark as unread";
@@ -1686,32 +1687,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_pin_messages" = "Pin messages";
 "lng_admin_log_admin_add_admins" = "Add new admins";
 
-"lng_feed_name" = "Feed";
-"lng_feed_show_next" = "Show Next";
+// #feed
+//"lng_feed_name" = "Feed";
+//"lng_feed_show_next" = "Show Next";
 
-"lng_feed_group" = "Group in feed";
-"lng_feed_ungroup" = "Ungroup from feed";
-"lng_feed_channel_added" = "Channel added to your feed.";
-"lng_feed_channel_removed" = "Channel removed from your feed.";
-"lng_feed_no_messages" = "No messages in this feed yet";
-"lng_feed_channels#one" = "{count} channel";
-"lng_feed_channels#other" = "{count} channels";
-"lng_feed_notifications" = "Feed notifications";
-"lng_feed_ungroup_all" = "Ungroup all channels";
-"lng_feed_sure_ungroup_all" = "Are you sure you want to ungroup all channels from this feed?";
-"lng_feed_ungroup_sure" = "Ungroup";
-"lng_feed_create_new" = "New feed";
-"lng_feed_too_few_channels#one" = "You need at least {count} channel to create a feed.";
-"lng_feed_too_few_channels#other" = "You need at least {count} channels to create a feed.";
-"lng_feed_select_more_channels#one" = "Select {count} channel or more.";
-"lng_feed_select_more_channels#other" = "Select {count} channels or more.";
-"lng_feed_create" = "Create";
-"lng_feed_edit_title" = "Edit feed";
-"lng_feed_channels_not_found" = "No channels found";
+//"lng_feed_group" = "Group in feed";
+//"lng_feed_ungroup" = "Ungroup from feed";
+//"lng_feed_channel_added" = "Channel added to your feed.";
+//"lng_feed_channel_removed" = "Channel removed from your feed.";
+//"lng_feed_no_messages" = "No messages in this feed yet";
+//"lng_feed_channels#one" = "{count} channel";
+//"lng_feed_channels#other" = "{count} channels";
+//"lng_feed_notifications" = "Feed notifications";
+//"lng_feed_ungroup_all" = "Ungroup all channels";
+//"lng_feed_sure_ungroup_all" = "Are you sure you want to ungroup all channels from this feed?";
+//"lng_feed_ungroup_sure" = "Ungroup";
+//"lng_feed_create_new" = "New feed";
+//"lng_feed_too_few_channels#one" = "You need at least {count} channel to create a feed.";
+//"lng_feed_too_few_channels#other" = "You need at least {count} channels to create a feed.";
+//"lng_feed_select_more_channels#one" = "Select {count} channel or more.";
+//"lng_feed_select_more_channels#other" = "Select {count} channels or more.";
+//"lng_feed_create" = "Create";
+//"lng_feed_edit_title" = "Edit feed";
+//"lng_feed_channels_not_found" = "No channels found";
 
-"lng_info_feed_title" = "Feed Info";
-"lng_info_feed_is_default" = "Group new channels";
-"lng_info_feed_channels" = "Channels";
+//"lng_info_feed_title" = "Feed Info";
+//"lng_info_feed_is_default" = "Group new channels";
+//"lng_info_feed_channels" = "Channels";
 
 "lng_terms_signup" = "By signing up,\nyou agree to the {link}.";
 "lng_terms_signup_link" = "Terms of Service";

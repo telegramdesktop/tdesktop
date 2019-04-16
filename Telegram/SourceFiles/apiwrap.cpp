@@ -433,38 +433,39 @@ void ApiWrap::savePinnedOrder() {
 		MTP_vector(peers)
 	)).send();
 }
+
+void ApiWrap::toggleHistoryArchived(
+		not_null<History*> history,
+		bool archived,
+		Fn<void()> callback) {
+	if (const auto already = _historyArchivedRequests.take(history)) {
+		request(already->first).cancel();
+	}
+	// #TODO archive
+	const auto folderId = Data::Folder::kId;
+	//const auto flags = group
+	//	? MTPchannels_ChangeFeedBroadcast::Flag::f_feed_id
+	//	: MTPchannels_ChangeFeedBroadcast::Flag(0);
+	//const auto requestId = request(MTPchannels_ChangeFeedBroadcast(
+	//	MTP_flags(flags),
+	//	channel->inputChannel,
+	//	MTP_int(feedId)
+	//)).done([=](const MTPUpdates &result) {
+	//	applyUpdates(result);
+	//	if (group) {
+	//		channel->setFeed(_session->data().feed(feedId));
+	//	} else {
+	//		channel->clearFeed();
+	//	}
+	//	if (const auto data = _channelGroupingRequests.take(channel)) {
+	//		data->second();
+	//	}
+	//}).fail([=](const RPCError &error) {
+	//	_channelGroupingRequests.remove(channel);
+	//}).send();
+	//_channelGroupingRequests.emplace(channel, requestId, callback);
+}
 // #feed
-//void ApiWrap::toggleChannelGrouping(
-//		not_null<ChannelData*> channel,
-//		bool group,
-//		Fn<void()> callback) {
-//	if (const auto already = _channelGroupingRequests.take(channel)) {
-//		request(already->first).cancel();
-//	}
-//	const auto feedId = Data::Feed::kId;
-//	const auto flags = group
-//		? MTPchannels_ChangeFeedBroadcast::Flag::f_feed_id
-//		: MTPchannels_ChangeFeedBroadcast::Flag(0);
-//	const auto requestId = request(MTPchannels_ChangeFeedBroadcast(
-//		MTP_flags(flags),
-//		channel->inputChannel,
-//		MTP_int(feedId)
-//	)).done([=](const MTPUpdates &result) {
-//		applyUpdates(result);
-//		if (group) {
-//			channel->setFeed(_session->data().feed(feedId));
-//		} else {
-//			channel->clearFeed();
-//		}
-//		if (const auto data = _channelGroupingRequests.take(channel)) {
-//			data->second();
-//		}
-//	}).fail([=](const RPCError &error) {
-//		_channelGroupingRequests.remove(channel);
-//	}).send();
-//	_channelGroupingRequests.emplace(channel, requestId, callback);
-//}
-//
 //void ApiWrap::ungroupAllFromFeed(not_null<Data::Feed*> feed) {
 //	const auto flags = MTPchannels_SetFeedBroadcasts::Flag::f_channels
 //		| MTPchannels_SetFeedBroadcasts::Flag::f_also_newly_joined;
@@ -3595,6 +3596,23 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	case mtpc_updateWebPage: {
 		auto &d = update.c_updateWebPage();
 		Q_UNUSED(d); // Web page was updated anyway.
+	} break;
+
+	case mtpc_updateFolderPeers: {
+		const auto &data = update.c_updateFolderPeers();
+		auto &owner = _session->data();
+		for (const auto &peer : data.vfolder_peers.v) {
+			peer.match([&](const MTPDfolderPeer &data) {
+				const auto peerId = peerFromMTP(data.vpeer);
+				if (const auto history = owner.historyLoaded(peerId)) {
+					if (const auto folderId = data.vfolder_id.v) {
+						history->setFolder(owner.folder(folderId));
+					} else {
+						history->clearFolder();
+					}
+				}
+			});
+		}
 	} break;
 
 	case mtpc_updateDeleteMessages: {

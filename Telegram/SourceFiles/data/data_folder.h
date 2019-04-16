@@ -41,22 +41,26 @@ public:
 	AuthSession &session() const;
 
 	FolderId id() const;
-	void registerOne(not_null<PeerData*> peer);
-	void unregisterOne(not_null<PeerData*> peer);
+	void registerOne(not_null<History*> history);
+	void unregisterOne(not_null<History*> history);
 
 	void updateChatListMessage(not_null<HistoryItem*> item);
 	void messageRemoved(not_null<HistoryItem*> item);
 	void historyCleared(not_null<History*> history);
 
-	//void applyDialog(const MTPDdialogFeed &data); // #feed
+	void applyDialog(const MTPDdialogFolder &data);
 	void setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount);
-	void setUnreadPosition(const MessagePosition &position);
+	//void setUnreadPosition(const MessagePosition &position); // #feed
 	void unreadCountChanged(
 		int unreadCountDelta,
 		int mutedCountDelta);
 	rpl::producer<int> unreadCountValue() const;
-	MessagePosition unreadPosition() const;
-	rpl::producer<MessagePosition> unreadPositionChanges() const;
+	//MessagePosition unreadPosition() const; // #feed
+	//rpl::producer<MessagePosition> unreadPositionChanges() const; // #feed
+
+	//void setUnreadMark(bool unread);
+	//bool unreadMark() const;
+	//int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 
 	int unreadCount() const;
 	bool unreadCountKnown() const;
@@ -82,11 +86,11 @@ public:
 		int y,
 		int size) const override;
 
-	const std::vector<not_null<History*>> &chats() const;
-	int32 chatsHash() const;
-	bool chatsLoaded() const;
-	void setChatsLoaded(bool loaded);
-	void setChats(std::vector<not_null<PeerData*>> chats);
+	const std::vector<not_null<History*>> &histories() const;
+	bool historiesLoaded() const;
+	void setHistoriesLoaded(bool loaded);
+	//int32 chatsHash() const;
+	//void setChats(std::vector<not_null<PeerData*>> chats); // #feed
 
 private:
 	void indexNameParts();
@@ -103,9 +107,9 @@ private:
 
 	FolderId _id = 0;
 	not_null<Data::Session*> _owner;
-	std::vector<not_null<History*>> _chats;
-	bool _settingChats = false;
-	bool _chatsLoaded = false;
+	std::vector<not_null<History*>> _histories;
+	bool _settingHistories = false;
+	bool _historiesLoaded = false;
 
 	QString _name;
 	base::flat_set<QString> _nameWords;
@@ -116,6 +120,7 @@ private:
 	std::optional<int> _unreadCount;
 	rpl::event_stream<int> _unreadCountChanges;
 	int _unreadMutedCount = 0;
+	//bool _unreadMark = false;
 
 };
 

@@ -36,6 +36,9 @@ struct PositionChange {
 class Entry {
 public:
 	Entry(const Key &key);
+	Entry(const Entry &other) = delete;
+	Entry &operator=(const Entry &other) = delete;
+	virtual ~Entry() = default;
 
 	PositionChange adjustByPosInChatList(
 		Mode list,
@@ -99,8 +102,6 @@ public:
 	TimeId chatListTimeId() const {
 		return _timeId;
 	}
-
-	virtual ~Entry() = default;
 
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;

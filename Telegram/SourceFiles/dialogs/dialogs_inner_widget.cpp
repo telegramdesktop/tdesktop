@@ -108,11 +108,11 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 		if (history->textCachedFor == item) {
 			history->updateChatListEntry();
 		}
-		//if (const auto folder = history->peer->folder()) { // #TODO archive
-		//	if (folder->textCachedFor == item) {
-		//		folder->updateChatListEntry();
-		//	}
-		//}
+		if (const auto folder = history->folder()) {
+			if (folder->textCachedFor == item) {
+				folder->updateChatListEntry();
+			}
+		}
 	}, lifetime());
 
 	Auth().data().sendActionAnimationUpdated(
@@ -1601,13 +1601,13 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 			},
 			Window::PeerMenuSource::ChatsList);
 	} else if (const auto folder = row.key.folder()) {
-		//Window::FillFolderMenu( // #TODO archive
-		//	_controller,
-		//	folder,
-		//	[&](const QString &text, Fn<void()> callback) {
-		//		return _menu->addAction(text, std::move(callback));
-		//	},
-		//	Window::PeerMenuSource::ChatsList);
+		Window::FillFolderMenu(
+			_controller,
+			folder,
+			[&](const QString &text, Fn<void()> callback) {
+				return _menu->addAction(text, std::move(callback));
+			},
+			Window::PeerMenuSource::ChatsList);
 	}
 	connect(_menu.get(), &QObject::destroyed, [=] {
 		if (_menuRow.key) {
@@ -1853,7 +1853,7 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		dialog.match([&](const MTPDdialog &data) {
 			applyDialog(data);
 		}, [&](const MTPDdialogFolder &data) {
-			//applyFolderDialog(data); // #TODO archive
+			applyFolderDialog(data);
 		});
 	}
 	refresh();
@@ -1885,19 +1885,18 @@ void DialogsInner::applyDialog(const MTPDdialog &dialog) {
 		}
 	}
 }
-// #feed
-//void DialogsInner::applyFeedDialog(const MTPDdialogFeed &dialog) {
-//	const auto feedId = dialog.vfeed_id.v;
-//	const auto feed = Auth().data().feed(feedId);
-//	feed->applyDialog(dialog);
-//
-//	if (!feed->useProxyPromotion() && !feed->isPinnedDialog()) {
-//		const auto date = feed->chatListDate();
-//		if (!date.isNull()) {
-//			addSavedPeersAfter(date);
-//		}
-//	}
-//}
+
+void DialogsInner::applyFolderDialog(const MTPDdialogFolder &dialog) {
+	const auto folder = Auth().data().processFolder(dialog.vfolder);
+	folder->applyDialog(dialog);
+
+	if (!folder->useProxyPromotion() && !folder->isPinnedDialog()) {
+		const auto date = folder->chatListTimeId();
+		if (date != 0) {
+			addSavedPeersAfter(ParseDateTime(date));
+		}
+	}
+}
 
 void DialogsInner::addSavedPeersAfter(const QDateTime &date) {
 	auto &saved = cRefSavedPeersByTime();

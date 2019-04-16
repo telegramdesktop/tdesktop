@@ -28,6 +28,7 @@ class AuthSession;
 namespace Data {
 struct Draft;
 class Session;
+class Folder;
 } // namespace Data
 
 namespace Dialogs {
@@ -61,6 +62,7 @@ public:
 	History(not_null<Data::Session*> owner, PeerId peerId);
 	History(const History &) = delete;
 	History &operator=(const History &) = delete;
+	~History();
 
 	Data::Session &owner() const;
 	AuthSession &session() const;
@@ -170,7 +172,7 @@ public:
 	void changeUnreadCount(int delta);
 	void setUnreadMark(bool unread);
 	bool unreadMark() const;
-	int historiesUnreadCount() const; // unreadCount || unreadMark ? 1 : 0.
+	int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 	bool mute() const;
 	bool changeMute(bool newMute);
 	void addUnreadBar();
@@ -324,7 +326,9 @@ public:
 
 	std::shared_ptr<AdminLog::LocalIdManager> adminLogIdManager();
 
-	virtual ~History();
+	Data::Folder *folder() const;
+	void setFolder(not_null<Data::Folder*> folder);
+	void clearFolder();
 
 	// Still public data.
 	std::deque<std::unique_ptr<HistoryBlock>> blocks;
@@ -461,6 +465,8 @@ private:
 
 	void createLocalDraftFromCloud();
 
+	void setFolderPointer(Data::Folder *folder);
+
 	not_null<Data::Session*> _owner;
 	Flags _flags = 0;
 	bool _mute = false;
@@ -471,6 +477,8 @@ private:
 	HistoryService *_joinedMessage = nullptr;
 	bool _loadedAtTop = false;
 	bool _loadedAtBottom = true;
+
+	Data::Folder *_folder = nullptr;
 
 	std::optional<MsgId> _inboxReadBefore;
 	std::optional<MsgId> _outboxReadBefore;
