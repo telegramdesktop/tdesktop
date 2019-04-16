@@ -1070,7 +1070,7 @@ void AddSpecialBoxSearchController::addChatsContacts() {
 		auto result = (const Dialogs::List*)nullptr;
 		for (const auto &word : wordList) {
 			const auto found = list->filtered(word[0]);
-			if (found->isEmpty()) {
+			if (found->empty()) {
 				return nullptr;
 			}
 			if (!result || result->size() > found->size()) {

@@ -42,11 +42,7 @@ class Row : public RippleRow {
 public:
 	explicit Row(std::nullptr_t) {
 	}
-	Row(Key key, Row *prev, Row *next, int pos)
-	: _id(key)
-	, _prev(prev)
-	, _next(next)
-	, _pos(pos) {
+	Row(Key key, int pos) : _id(key), _pos(pos) {
 	}
 
 	Key key() const {
@@ -73,8 +69,6 @@ private:
 	friend class List;
 
 	Key _id;
-	Row *_prev = nullptr;
-	Row *_next = nullptr;
 	int _pos = 0;
 
 };

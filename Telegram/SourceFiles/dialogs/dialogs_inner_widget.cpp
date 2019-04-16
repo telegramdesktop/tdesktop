@@ -1648,7 +1648,7 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 				if (!_dialogs->isEmpty()) {
 					for (fi = fb; fi != fe; ++fi) {
 						auto found = _dialogs->filtered(fi->at(0));
-						if (found->isEmpty()) {
+						if (found->empty()) {
 							toFilter = nullptr;
 							break;
 						}
@@ -1661,7 +1661,7 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 				if (!_contactsNoDialogs->isEmpty()) {
 					for (fi = fb; fi != fe; ++fi) {
 						auto found = _contactsNoDialogs->filtered(fi->at(0));
-						if (found->isEmpty()) {
+						if (found->empty()) {
 							toFilterContacts = nullptr;
 							break;
 						}
@@ -2020,13 +2020,9 @@ void DialogsInner::peerSearchReceived(
 			if (alreadyAdded(peer)) {
 				continue;
 			}
-			const auto prev = nullptr, next = nullptr;
-			const auto position = 0;
 			auto row = std::make_unique<Dialogs::Row>(
 				peer->owner().history(peer),
-				prev,
-				next,
-				position);
+				_filterResults.size());
 			const auto [i, ok] = _filterResultsGlobal.emplace(
 				peer,
 				std::move(row));

@@ -21,105 +21,62 @@ public:
 	List &operator=(const List &other) = delete;
 
 	int size() const {
-		return _count;
+		return _rows.size();
 	}
-	bool isEmpty() const {
-		return size() == 0;
+	bool empty() const {
+		return _rows.empty();
 	}
 	bool contains(Key key) const {
 		return _rowByKey.find(key) != _rowByKey.end();
 	}
 	Row *getRow(Key key) const {
 		const auto i = _rowByKey.find(key);
-		return (i == _rowByKey.end()) ? nullptr : i->second.get();
+		return (i != _rowByKey.end()) ? i->second.get() : nullptr;
 	}
-	Row *rowAtY(int32 y, int32 h) const {
-		auto i = cfind(y, h);
+	Row *rowAtY(int y, int h) const {
+		const auto i = cfind(y, h);
 		if (i == cend() || (*i)->pos() != ((y > 0) ? (y / h) : 0)) {
 			return nullptr;
 		}
 		return *i;
 	}
 
-	Row *addToEnd(Key key);
+	not_null<Row*> addToEnd(Key key);
 	Row *adjustByName(Key key);
-	Row *addByName(Key key);
+	not_null<Row*> addByName(Key key);
 	bool moveToTop(Key key);
-	void adjustByPos(Row *row);
+	void adjustByDate(not_null<Row*> row);
 	bool del(Key key, Row *replacedBy = nullptr);
-	void remove(Row *row);
-	void clear();
 
-	class const_iterator {
-	public:
-		using value_type = Row*;
-		using pointer = Row**;
-		using reference = Row*&;
-
-		explicit const_iterator(Row *p) : _p(p) {
-		}
-		inline Row* operator*() const { return _p; }
-		inline Row* const* operator->() const { return &_p; }
-		inline bool operator==(const const_iterator &other) const { return _p == other._p; }
-		inline bool operator!=(const const_iterator &other) const { return !(*this == other); }
-		inline const_iterator &operator++() { _p = next(_p); return *this; }
-		inline const_iterator operator++(int) { const_iterator result(*this); ++(*this); return result; }
-		inline const_iterator &operator--() { _p = prev(_p); return *this; }
-		inline const_iterator operator--(int) { const_iterator result(*this); --(*this); return result; }
-		inline const_iterator operator+(int j) const { const_iterator result = *this; return result += j; }
-		inline const_iterator operator-(int j) const { const_iterator result = *this; return result -= j; }
-		inline const_iterator &operator+=(int j) { if (j < 0) return (*this -= (-j)); while (j--) ++*this; return *this; }
-		inline const_iterator &operator-=(int j) { if (j < 0) return (*this += (-j)); while (j--) --*this; return *this; }
-
-	private:
-		Row *_p;
-		friend class List;
-
-	};
-	friend class const_iterator;
+	using const_iterator = std::vector<not_null<Row*>>::const_iterator;
 	using iterator = const_iterator;
 
-	const_iterator cbegin() const { return const_iterator(_begin); }
-	const_iterator cend() const { return const_iterator(_end); }
+	const_iterator cbegin() const { return _rows.cbegin(); }
+	const_iterator cend() const { return _rows.cend(); }
 	const_iterator begin() const { return cbegin(); }
 	const_iterator end() const { return cend(); }
-	iterator begin() { return iterator(_begin); }
-	iterator end() { return iterator(_end); }
-	const_iterator cfind(Row *value) const { return value ? const_iterator(value) : cend(); }
+	iterator begin() { return cbegin(); }
+	iterator end() { return cend(); }
+	const_iterator cfind(Row *value) const;
 	const_iterator find(Row *value) const { return cfind(value); }
-	iterator find(Row *value) { return value ? iterator(value) : end(); }
+	iterator find(Row *value) { return cfind(value); }
 	const_iterator cfind(int y, int h) const {
-		adjustCurrent(y, h);
-		return iterator(_current);
+		const auto index = std::max(y, 0) / h;
+		return _rows.begin() + std::min(index, size());
 	}
 	const_iterator find(int y, int h) const { return cfind(y, h); }
-	iterator find(int y, int h) {
-		adjustCurrent(y, h);
-		return iterator(_current);
-	}
-
-	~List();
+	iterator find(int y, int h) { return cfind(y, h); }
 
 private:
-	void adjustCurrent(int y, int h) const;
-	bool insertBefore(Row *row, Row *before);
-	bool insertAfter(Row *row, Row *after);
-	static Row *next(Row *row) {
-		return row->_next;
-	}
-	static Row *prev(Row *row) {
-		return row->_prev;
-	}
+	void adjustByName(not_null<Row*> row);
+	void rotate(
+		std::vector<not_null<Row*>>::iterator first,
+		std::vector<not_null<Row*>>::iterator middle,
+		std::vector<not_null<Row*>>::iterator last);
 
-	std::unique_ptr<Row> _last;
-	Row *_begin;
-	Row *_end;
-	SortMode _sortMode;
-	int _count = 0;
-
-	std::map<Key, not_null<Row*>> _rowByKey;
-
-	mutable Row *_current; // cache
+	SortMode _sortMode = SortMode();
+	std::vector<not_null<Row*>> _rows;
+	std::map<Key, std::unique_ptr<Row>> _rowByKey;
 
 };
 

@@ -41,7 +41,7 @@ Row *IndexedList::addByName(Key key) {
 		return row;
 	}
 
-	Row *result = _list.addByName(key);
+	const auto result = _list.addByName(key);
 	for (const auto ch : key.entry()->chatListFirstLetters()) {
 		auto j = _index.find(ch);
 		if (j == _index.cend()) {
@@ -54,13 +54,13 @@ Row *IndexedList::addByName(Key key) {
 	return result;
 }
 
-void IndexedList::adjustByPos(const RowsByLetter &links) {
+void IndexedList::adjustByDate(const RowsByLetter &links) {
 	for (const auto [ch, row] : links) {
 		if (ch == QChar(0)) {
-			_list.adjustByPos(row);
+			_list.adjustByDate(row);
 		} else {
 			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second->adjustByPos(row);
+				it->second->adjustByDate(row);
 			}
 		}
 	}
@@ -118,6 +118,8 @@ void IndexedList::peerNameChanged(
 void IndexedList::adjustByName(
 		Key key,
 		const base::flat_set<QChar> &oldLetters) {
+	Expects(_sortMode == SortMode::Name);
+
 	const auto mainRow = _list.adjustByName(key);
 	if (!mainRow) return;
 

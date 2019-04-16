@@ -130,7 +130,7 @@ PositionChange Entry::adjustByPosInChatList(
 		not_null<IndexedList*> indexed) {
 	const auto lnk = mainChatListLink(list);
 	const auto movedFrom = lnk->pos();
-	indexed->adjustByPos(chatListLinks(list));
+	indexed->adjustByDate(chatListLinks(list));
 	const auto movedTo = lnk->pos();
 	return { movedFrom, movedTo };
 }

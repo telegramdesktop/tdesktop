@@ -20,7 +20,7 @@ public:
 
 	RowsByLetter addToEnd(Key key);
 	Row *addByName(Key key);
-	void adjustByPos(const RowsByLetter &links);
+	void adjustByDate(const RowsByLetter &links);
 	void moveToTop(Key key);
 
 	// row must belong to this indexed list all().
@@ -54,7 +54,7 @@ public:
 
 	// Part of List interface is duplicated here for all() list.
 	int size() const { return all().size(); }
-	bool isEmpty() const { return all().isEmpty(); }
+	bool isEmpty() const { return all().empty(); }
 	bool contains(Key key) const { return all().contains(key); }
 	Row *getRow(Key key) const { return all().getRow(key); }
 	Row *rowAtY(int32 y, int32 h) const { return all().rowAtY(y, h); }

@@ -952,7 +952,7 @@ void ShareBox::Inner::updateFilter(QString filter) {
 				if (!_chatsIndexed->isEmpty()) {
 					for (fi = fb; fi != fe; ++fi) {
 						auto found = _chatsIndexed->filtered(fi->at(0));
-						if (found->isEmpty()) {
+						if (found->empty()) {
 							toFilter = nullptr;
 							break;
 						}
