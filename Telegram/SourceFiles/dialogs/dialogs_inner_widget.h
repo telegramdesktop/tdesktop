@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "data/data_messages.h"
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 #include "base/flags.h"
 
 namespace Dialogs {
@@ -29,7 +30,10 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-class DialogsInner : public Ui::SplittedWidget, public RPCSender, private base::Subscriber {
+class DialogsInner
+	: public Ui::RpWidget
+	, public RPCSender
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -122,7 +126,7 @@ protected:
 		int visibleTop,
 		int visibleBottom) override;
 
-	void paintRegion(Painter &p, const QRegion &region, bool paintingOther) override;
+	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -235,12 +239,10 @@ private:
 		not_null<const PeerSearchResult*> result,
 		int fullWidth,
 		bool active,
-		bool selected,
-		bool onlyBackground) const;
+		bool selected) const;
 	void paintSearchInChat(
 		Painter &p,
-		int fullWidth,
-		bool onlyBackground) const;
+		int fullWidth) const;
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,

@@ -264,47 +264,6 @@ void ScrollBar::resizeEvent(QResizeEvent *e) {
 	updateBar();
 }
 
-void SplittedWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (rtl()) {
-		p.translate(-otherWidth(), 0);
-		paintRegion(p, e->region().translated(otherWidth(), 0), false);
-	} else {
-		paintRegion(p, e->region(), false);
-	}
-}
-
-void SplittedWidget::update(const QRect &r) {
-	if (rtl()) {
-		TWidget::update(r.translated(-otherWidth(), 0).intersected(rect()));
-		emit updateOther(r);
-	} else {
-		TWidget::update(r.intersected(rect()));
-		emit updateOther(r.translated(-width(), 0));
-	}
-}
-
-void SplittedWidget::update(const QRegion &r) {
-	if (rtl()) {
-		TWidget::update(r.translated(-otherWidth(), 0).intersected(rect()));
-		emit updateOther(r);
-	} else {
-		TWidget::update(r.intersected(rect()));
-		emit updateOther(r.translated(-width(), 0));
-	}
-}
-
-void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	auto s = static_cast<SplittedWidget*>(static_cast<ScrollArea*>(parentWidget())->widget());
-	if (rtl()) {
-		s->paintRegion(p, e->region(), true);
-	} else {
-		p.translate(-s->width(), 0);
-		s->paintRegion(p, e->region().translated(s->width(), 0), true);
-	}
-}
-
 ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch)
 : RpWidgetWrap<QScrollArea>(parent)
 , _st(st)
@@ -635,12 +594,6 @@ void ScrollArea::resizeEvent(QResizeEvent *e) {
 	_verticalBar->recountSize();
 	_topShadow->setGeometry(QRect(0, 0, width(), qAbs(_st.topsh)));
 	_bottomShadow->setGeometry(QRect(0, height() - qAbs(_st.bottomsh), width(), qAbs(_st.bottomsh)));
-	if (const auto w = qobject_cast<SplittedWidget*>(widget())) {
-		w->resize(width() - w->otherWidth(), w->height());
-		if (!rtl()) {
-			_other->move(w->width(), w->y());
-		}
-	}
 	emit geometryChanged();
 }
 
@@ -719,20 +672,9 @@ void ScrollArea::scrollToY(int toTop, int toBottom) {
 }
 
 void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
-	const auto splitted = qobject_cast<SplittedWidget*>(w.data());
 	if (widget() && _touchEnabled) {
 		widget()->removeEventFilter(this);
 		if (!_widgetAcceptsTouch) widget()->setAttribute(Qt::WA_AcceptTouchEvents, false);
-	}
-	if (_other && !splitted) {
-		_other.destroy();
-		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-	} else if (!_other && splitted) {
-		_other.create(this);
-		_other->resize(_verticalBar->width(), _other->height());
-		connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-		_horizontalBar->raise();
-		_verticalBar->raise();
 	}
 	_widget = std::move(w);
 	QScrollArea::setWidget(_widget);
@@ -743,41 +685,12 @@ void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
 			_widgetAcceptsTouch = _widget->testAttribute(Qt::WA_AcceptTouchEvents);
 			_widget->setAttribute(Qt::WA_AcceptTouchEvents);
 		}
-		if (splitted) {
-			splitted->setOtherWidth(_verticalBar->width());
-			_widget->setGeometry(rtl() ? splitted->otherWidth() : 0, 0, width() - splitted->otherWidth(), _widget->height());
-			connect(splitted, SIGNAL(resizeOther()), this, SLOT(onResizeOther()));
-			connect(splitted, SIGNAL(updateOther(const QRect&)), this, SLOT(onUpdateOther(const QRect&)));
-			connect(splitted, SIGNAL(updateOther(const QRegion&)), this, SLOT(onUpdateOther(const QRegion&)));
-			onResizeOther();
-			splitted->update();
-		}
 	}
 }
 
 object_ptr<TWidget> ScrollArea::doTakeWidget() {
-	if (_other) {
-		_other.destroy();
-		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-	}
 	QScrollArea::takeWidget();
 	return std::move(_widget);
-}
-
-void ScrollArea::onResizeOther() {
-	_other->resize(_other->width(), widget()->height());
-}
-
-void ScrollArea::onUpdateOther(const QRect &r) {
-	_other->update(r.intersected(_other->rect()));
-}
-
-void ScrollArea::onUpdateOther(const QRegion &r) {
-	_other->update(r.intersected(_other->rect()));
-}
-
-void ScrollArea::onVerticalScroll() {
-	_other->move(_other->x(), widget()->y());
 }
 
 void ScrollArea::rangeChanged(int oldMax, int newMax, bool vertical) {

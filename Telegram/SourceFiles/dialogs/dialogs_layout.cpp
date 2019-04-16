@@ -162,10 +162,9 @@ int PaintWideCounter(
 enum class Flag {
 	Active           = 0x01,
 	Selected         = 0x02,
-	OnlyBackground   = 0x04,
-	SearchResult     = 0x08,
-	SavedMessages    = 0x10,
-	//FeedSearchResult = 0x20, // #feed
+	SearchResult     = 0x04,
+	SavedMessages    = 0x08,
+	//FeedSearchResult = 0x10, // #feed
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -203,10 +202,6 @@ void paintRow(
 		: st::dialogsRippleBg;
 	p.fillRect(fullRect, bg);
 	row->paintRipple(p, 0, 0, fullWidth, &ripple->c);
-
-	if (flags & Flag::OnlyBackground) {
-		return;
-	}
 
 	if (flags & Flag::SavedMessages) {
 		Ui::EmptyUserpic::PaintSavedMessages(
@@ -546,7 +541,6 @@ void RowPainter::paint(
 		int fullWidth,
 		bool active,
 		bool selected,
-		bool onlyBackground,
 		crl::time ms) {
 	const auto entry = row->entry();
 	const auto history = row->history();
@@ -605,7 +599,6 @@ void RowPainter::paint(
 		: nullptr;
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
-		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = st::dialogsPadding.y()
@@ -686,7 +679,6 @@ void RowPainter::paint(
 		int fullWidth,
 		bool active,
 		bool selected,
-		bool onlyBackground,
 		crl::time ms,
 		bool displayUnreadInfo) {
 	auto item = row->item();
@@ -787,7 +779,6 @@ void RowPainter::paint(
 		&& !row->searchInChat();
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
-		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
 		| Flag::SearchResult
 		| (showSavedMessages ? Flag::SavedMessages : Flag(0))/* // #feed
 		| (row->searchInChat().feed() ? Flag::FeedSearchResult : Flag(0))*/;
@@ -815,11 +806,8 @@ QRect RowPainter::sendActionAnimationRect(int animationWidth, int animationHeigh
 	return QRect(nameleft, texttop, textUpdated ? namewidth : animationWidth, animationHeight);
 }
 
-void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected, bool onlyBackground) {
+void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected) {
 	p.fillRect(0, 0, fullWidth, st::dialogsImportantBarHeight, selected ? st::dialogsBgOver : st::dialogsBg);
-	if (onlyBackground) {
-		return;
-	}
 
 	p.setFont(st::semiboldFont);
 	p.setPen(st::dialogsNameFg);

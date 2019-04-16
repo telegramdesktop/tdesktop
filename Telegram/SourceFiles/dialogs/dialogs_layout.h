@@ -31,7 +31,6 @@ public:
 		int fullWidth,
 		bool active,
 		bool selected,
-		bool onlyBackground,
 		crl::time ms);
 	static void paint(
 		Painter &p,
@@ -39,7 +38,6 @@ public:
 		int fullWidth,
 		bool active,
 		bool selected,
-		bool onlyBackground,
 		crl::time ms,
 		bool displayUnreadInfo);
 	static QRect sendActionAnimationRect(
@@ -54,8 +52,7 @@ void paintImportantSwitch(
 	Painter &p,
 	Mode current,
 	int fullWidth,
-	bool selected,
-	bool onlyBackground);
+	bool selected);
 
 enum UnreadBadgeSize {
 	UnreadBadgeInDialogs = 0,

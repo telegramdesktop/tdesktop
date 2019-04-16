@@ -109,65 +109,6 @@ private:
 	QRect _bar;
 };
 
-class SplittedWidget : public Ui::RpWidget {
-	// The Q_OBJECT meta info is used for qobject_cast!
-	Q_OBJECT
-
-public:
-	SplittedWidget(QWidget *parent) : RpWidget(parent) {
-		setAttribute(Qt::WA_OpaquePaintEvent);
-	}
-	void setHeight(int32 newHeight) {
-		resize(width(), newHeight);
-		emit resizeOther();
-	}
-	void update(int x, int y, int w, int h) {
-		update(QRect(x, y, w, h));
-	}
-	void update(const QRect&);
-	void update(const QRegion&);
-	void rtlupdate(const QRect &r) {
-		update(myrtlrect(r));
-	}
-	void rtlupdate(int x, int y, int w, int h) {
-		update(myrtlrect(x, y, w, h));
-	}
-
-public slots:
-	void update() {
-		update(0, 0, getFullWidth(), height());
-	}
-
-signals:
-	void resizeOther();
-	void updateOther(const QRect&);
-	void updateOther(const QRegion&);
-
-protected:
-	void paintEvent(QPaintEvent *e) override; // paintEvent done through paintRegion
-
-	int otherWidth() const {
-		return _otherWidth;
-	}
-	int getFullWidth() const {
-		return width() + otherWidth();
-	}
-	virtual void paintRegion(Painter &p, const QRegion &region, bool paintingOther) = 0;
-
-private:
-	int _otherWidth = 0;
-	void setOtherWidth(int otherWidth) {
-		_otherWidth = otherWidth;
-	}
-	void resize(int w, int h) {
-		TWidget::resize(w, h);
-	}
-	friend class ScrollArea;
-	friend class SplittedWidgetOther;
-
-};
-
-class SplittedWidgetOther;
 class ScrollArea : public Ui::RpWidgetWrap<QScrollArea> {
 	Q_OBJECT
 
@@ -231,11 +172,6 @@ public slots:
 	void onTouchTimer();
 	void onTouchScrollTimer();
 
-	void onResizeOther();
-	void onUpdateOther(const QRect&);
-	void onUpdateOther(const QRegion&);
-	void onVerticalScroll();
-
 signals:
 	void scrolled();
 	void innerResized();
@@ -286,23 +222,9 @@ private:
 
 	bool _widgetAcceptsTouch = false;
 
-	friend class SplittedWidgetOther;
-	object_ptr<SplittedWidgetOther> _other = { nullptr };
-
 	object_ptr<TWidget> _widget = { nullptr };
 
 	rpl::event_stream<int> _scrollTopUpdated;
-
-};
-
-class SplittedWidgetOther : public TWidget {
-public:
-	SplittedWidgetOther(ScrollArea *parent) : TWidget(parent) {
-		setAttribute(Qt::WA_OpaquePaintEvent);
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
 
 };
 

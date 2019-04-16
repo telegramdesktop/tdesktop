@@ -1455,6 +1455,7 @@ void DialogsWidget::updateControlsGeometry() {
 	putBottomButton(_loadMoreChats);
 	auto wasScrollHeight = _scroll->height();
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
+	_inner->resize(width(), _inner->height());
 	if (scrollHeight != wasScrollHeight) {
 		controller()->floatPlayerAreaUpdated().notify(true);
 	}
