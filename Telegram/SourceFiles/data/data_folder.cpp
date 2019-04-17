@@ -21,6 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h" // st::dialogsArchiveUserpic
 
 namespace Data {
+namespace {
+
+constexpr auto kLoadedChatsMinCount = 20;
+
+} // namespace
 
 // #feed
 //MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
@@ -367,6 +372,10 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 	//if (data.has_read_max_position()) { // #feed
 	//	setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
 	//}
+
+	if (_chatsList.size() < kLoadedChatsMinCount) {
+		session().api().requestFolderDialogs(_id);
+	}
 }
 
 void Folder::changedInChatListHook(Dialogs::Mode list, bool added) {

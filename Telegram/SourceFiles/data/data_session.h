@@ -294,6 +294,7 @@ public:
 	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
 
 	void applyDialogs(
+		FolderId requestFolderId,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
@@ -603,8 +604,8 @@ private:
 		int entriesFull,
 		int entriesMuted) const;
 
-	void applyDialog(const MTPDdialog &data);
-	void applyDialog(const MTPDdialogFolder &data);
+	void applyDialog(FolderId requestFolderId, const MTPDdialog &data);
+	void applyDialog(FolderId requestFolderId, const MTPDdialogFolder &data);
 
 	void photoApplyFields(
 		not_null<PhotoData*> photo,

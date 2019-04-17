@@ -1790,55 +1790,6 @@ void DialogsInner::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 }
 
-void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
-	for (const auto &dialog : added) {
-		dialog.match([&](const MTPDdialog &data) {
-			applyDialog(data);
-		}, [&](const MTPDdialogFolder &data) {
-			applyFolderDialog(data);
-		});
-	}
-	refresh();
-}
-
-void DialogsInner::applyDialog(const MTPDdialog &dialog) {
-	const auto peerId = peerFromMTP(dialog.vpeer);
-	if (!peerId) {
-		return;
-	}
-
-	const auto history = session().data().history(peerId);
-	history->applyDialog(dialog);
-
-	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
-		const auto date = history->chatListTimeId();
-		if (date != 0) {
-			session().data().addSavedPeersAfter(ParseDateTime(date));
-		}
-	}
-	if (const auto from = history->peer->migrateFrom()) {
-		if (const auto historyFrom = from->owner().historyLoaded(from)) {
-			removeDialog(historyFrom);
-		}
-	} else if (const auto to = history->peer->migrateTo()) {
-		if (to->amIn()) {
-			removeDialog(history);
-		}
-	}
-}
-
-void DialogsInner::applyFolderDialog(const MTPDdialogFolder &dialog) {
-	const auto folder = session().data().processFolder(dialog.vfolder);
-	folder->applyDialog(dialog);
-
-	if (!folder->useProxyPromotion() && !folder->isPinnedDialog()) {
-		const auto date = folder->chatListTimeId();
-		if (date != 0) {
-			session().data().addSavedPeersAfter(ParseDateTime(date));
-		}
-	}
-}
-
 bool DialogsInner::uniqueSearchResults() const {
 	return session().supportMode()
 		&& !session().settings().supportAllSearchResults()

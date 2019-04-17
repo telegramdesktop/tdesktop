@@ -2431,7 +2431,7 @@ bool History::isServerSideUnread(not_null<const HistoryItem*> item) const {
 		: (!_inboxReadBefore || (item->id >= *_inboxReadBefore));
 }
 
-void History::applyDialog(const MTPDdialog &data) {
+void History::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
 	applyDialogFields(
 		data.vunread_count.v,
 		data.vread_inbox_max_id.v,
@@ -2460,6 +2460,15 @@ void History::applyDialog(const MTPDdialog &data) {
 
 	if (data.has_draft() && data.vdraft.type() == mtpc_draftMessage) {
 		Data::applyPeerCloudDraft(peer->id, data.vdraft.c_draftMessage());
+	}
+
+	const auto folderId = data.has_folder_id()
+		? data.vfolder_id.v
+		: requestFolderId;
+	if (folderId) {
+		setFolder(owner().folder(folderId));
+	} else {
+		clearFolder();
 	}
 	session().api().dialogEntryApplied(this);
 }

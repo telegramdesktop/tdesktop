@@ -39,7 +39,6 @@ class DialogsInner
 public:
 	DialogsInner(QWidget *parent, not_null<Window::Controller*> controller);
 
-	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	bool searchReceived(
 		const QVector<MTPMessage> &result,
 		DialogsSearchRequestType type,
@@ -48,7 +47,6 @@ public:
 		const QString &query,
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
-	void showMore(int32 pixels);
 
 	void activate();
 
@@ -198,9 +196,6 @@ private:
 		const Dialogs::RowDescriptor &which) const;
 	Dialogs::RowDescriptor chatListEntryFirst() const;
 	Dialogs::RowDescriptor chatListEntryLast() const;
-
-	void applyDialog(const MTPDdialog &dialog);
-	void applyFolderDialog(const MTPDdialogFolder &dialog);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {

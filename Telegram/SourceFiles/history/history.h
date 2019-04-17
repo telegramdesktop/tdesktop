@@ -191,7 +191,7 @@ public:
 	bool lastMessageKnown() const;
 	void unknownMessageDeleted(MsgId messageId);
 	void applyDialogTopMessage(MsgId topMessageId);
-	void applyDialog(const MTPDdialog &data);
+	void applyDialog(FolderId requestFolderId, const MTPDdialog &data);
 	void applyDialogFields(
 		int unreadCount,
 		MsgId maxInboxRead,

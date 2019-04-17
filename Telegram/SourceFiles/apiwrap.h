@@ -80,6 +80,7 @@ public:
 
 	void requestContacts();
 	void requestDialogs();
+	void requestFolderDialogs(FolderId folderId);
 	void requestPinnedDialogs();
 	void requestMoreBlockedByDateDialogs();
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
@@ -454,16 +455,23 @@ private:
 		crl::time received = 0;
 	};
 
+	struct DialogsLoadState {
+		TimeId offsetDate = 0;
+		MsgId offsetId = 0;
+		PeerData *offsetPeer = nullptr;
+		mtpRequestId requestId = 0;
+	};
+
 	void setupSupportMode();
 	void refreshDialogsLoadBlocked();
 	void updateDialogsOffset(
+		FolderId folderId,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
-	void applyReceivedDialogs(
-		const QVector<MTPDialog> &dialogs,
-		const QVector<MTPMessage> &messages);
+	void requestMoreDialogs(FolderId folderId);
+	DialogsLoadState *dialogsLoadState(FolderId folderId);
+	void dialogsLoadFinish(FolderId folderId);
 
-	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
 
 	void saveDraftsToCloud();
@@ -749,16 +757,15 @@ private:
 	//	SliceType>> _feedMessagesRequestsPending;
 	//mtpRequestId _saveDefaultFeedIdRequest = 0;
 
-	bool _dialogsFull = false;
-	bool _pinnedDialogsReceived = false;
+	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;
-	TimeId _dialogsOffsetDate = 0;
-	MsgId _dialogsOffsetId = 0;
-	PeerData *_dialogsOffsetPeer = nullptr;
-	mtpRequestId _dialogsRequestId = 0;
-	mtpRequestId _pinnedDialogsRequestId = 0;
 	rpl::variable<bool> _dialogsLoadMayBlockByDate = false;
 	rpl::variable<bool> _dialogsLoadBlockedByDate = false;
+
+	bool _pinnedDialogsReceived = false;
+	mtpRequestId _pinnedDialogsRequestId = 0;
+
+	base::flat_map<FolderId, DialogsLoadState> _foldersLoadState;
 
 	rpl::event_stream<SendOptions> _sendActions;
 

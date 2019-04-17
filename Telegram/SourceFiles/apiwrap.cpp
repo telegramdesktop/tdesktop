@@ -191,6 +191,7 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 , _webPagesTimer([=] { resolveWebPages(); })
 , _draftsSaveTimer([=] { saveDraftsToCloud(); })
 , _featuredSetsReadTimer([=] { readFeaturedSets(); })
+, _dialogsLoadState(std::make_unique<DialogsLoadState>())
 , _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout))
 //, _feedReadTimer([=] { readFeeds(); }) // #feed
 , _proxyPromotionTimer([=] { refreshProxyPromotion(); })
@@ -706,28 +707,41 @@ void ApiWrap::requestContacts() {
 }
 
 void ApiWrap::requestDialogs() {
-	if (_dialogsRequestId) {
+	requestMoreDialogs(FolderId(0));
+}
+
+void ApiWrap::requestFolderDialogs(FolderId folderId) {
+	if (!_foldersLoadState.contains(folderId)) {
+		_foldersLoadState.emplace(folderId, DialogsLoadState());
+	}
+	requestMoreDialogs(folderId);
+}
+
+void ApiWrap::requestMoreDialogs(FolderId folderId) {
+	const auto state = dialogsLoadState(folderId);
+	if (!state) {
+		if (!folderId) {
+			_session->data().addAllSavedPeers();
+		}
 		return;
-	} else if (_dialogsFull) {
-		_session->data().addAllSavedPeers();
+	} else if (state->requestId) {
 		return;
 	} else if (_dialogsLoadBlockedByDate.current()) {
 		return;
 	}
 
-	const auto firstLoad = !_dialogsOffsetDate;
+	const auto firstLoad = !state->offsetDate;
 	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
 	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned
 		| MTPmessages_GetDialogs::Flag::f_folder_id;
-	const auto folderId = 0;
 	const auto hash = 0;
-	_dialogsRequestId = request(MTPmessages_GetDialogs(
+	state->requestId = request(MTPmessages_GetDialogs(
 		MTP_flags(flags),
 		MTP_int(folderId),
-		MTP_int(_dialogsOffsetDate),
-		MTP_int(_dialogsOffsetId),
-		(_dialogsOffsetPeer
-			? _dialogsOffsetPeer->input
+		MTP_int(state->offsetDate),
+		MTP_int(state->offsetId),
+		(state->offsetPeer
+			? state->offsetPeer->input
 			: MTP_inputPeerEmpty()),
 		MTP_int(loadCount),
 		MTP_int(hash)
@@ -736,27 +750,36 @@ void ApiWrap::requestDialogs() {
 			LOG(("API Error: not-modified received for requested dialogs."));
 		}, [&](const auto &data) {
 			if constexpr (data.Is<MTPDmessages_dialogs>()) {
-				_dialogsFull = true;
+				dialogsLoadFinish(folderId);
+			} else {
+				updateDialogsOffset(
+					folderId,
+					data.vdialogs.v,
+					data.vmessages.v);
 			}
-			updateDialogsOffset(data.vdialogs.v, data.vmessages.v);
 			_session->data().processUsers(data.vusers);
 			_session->data().processChats(data.vchats);
-			_session->data().applyDialogs(data.vmessages.v, data.vdialogs.v);
+			_session->data().applyDialogs(
+				folderId,
+				data.vmessages.v,
+				data.vdialogs.v);
 		});
 
-		_dialogsRequestId = 0;
-		requestDialogs();
-		if (!_dialogsRequestId) {
-			refreshDialogsLoadBlocked();
+		if (!folderId) {
+			requestDialogs();
+			if (!_dialogsLoadState || !_dialogsLoadState->requestId) {
+				refreshDialogsLoadBlocked();
+			}
 		}
-
 		_session->data().moreChatsLoaded().notify();
-		if (_dialogsFull && _pinnedDialogsReceived) {
-			_session->data().allChatsLoaded().set(true);
+		if (!folderId) {
+			if (!_dialogsLoadState && _pinnedDialogsReceived) {
+				_session->data().allChatsLoaded().set(true);
+			}
+			requestContacts();
 		}
-		requestContacts();
 	}).fail([=](const RPCError &error) {
-		_dialogsRequestId = 0;
+		dialogsLoadState(folderId)->requestId = 0;
 	}).send();
 	if (!_pinnedDialogsReceived) {
 		requestPinnedDialogs();
@@ -765,16 +788,17 @@ void ApiWrap::requestDialogs() {
 }
 
 void ApiWrap::refreshDialogsLoadBlocked() {
-	_dialogsLoadMayBlockByDate = !_dialogsFull
+	_dialogsLoadMayBlockByDate = _dialogsLoadState
 		&& (_dialogsLoadTill > 0);
-	_dialogsLoadBlockedByDate = !_dialogsFull
-		&& !_dialogsRequestId
+	_dialogsLoadBlockedByDate = _dialogsLoadState
+		&& !_dialogsLoadState->requestId
 		&& (_dialogsLoadTill > 0)
-		&& (_dialogsOffsetDate > 0)
-		&& (_dialogsOffsetDate <= _dialogsLoadTill);
+		&& (_dialogsLoadState->offsetDate > 0)
+		&& (_dialogsLoadState->offsetDate <= _dialogsLoadTill);
 }
 
 void ApiWrap::updateDialogsOffset(
+		FolderId folderId,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages) {
 	auto lastDate = TimeId(0);
@@ -808,11 +832,30 @@ void ApiWrap::updateDialogsOffset(
 		}
 	}
 	if (lastDate) {
-		_dialogsOffsetDate = lastDate;
-		_dialogsOffsetId = lastMsgId;
-		_dialogsOffsetPeer = _session->data().peer(lastPeer);
+		if (const auto state = dialogsLoadState(folderId)) {
+			state->offsetDate = lastDate;
+			state->offsetId = lastMsgId;
+			state->offsetPeer = _session->data().peer(lastPeer);
+			state->requestId = 0;
+		}
 	} else {
-		_dialogsFull = true;
+		dialogsLoadFinish(folderId);
+	}
+}
+
+auto ApiWrap::dialogsLoadState(FolderId folderId) -> DialogsLoadState* {
+	if (!folderId) {
+		return _dialogsLoadState.get();
+	}
+	const auto i = _foldersLoadState.find(folderId);
+	return (i != end(_foldersLoadState)) ? &i->second : nullptr;
+}
+
+void ApiWrap::dialogsLoadFinish(FolderId folderId) {
+	if (folderId) {
+		_foldersLoadState.remove(folderId);
+	} else {
+		_dialogsLoadState = nullptr;
 	}
 }
 
@@ -827,16 +870,21 @@ void ApiWrap::requestPinnedDialogs() {
 		MTP_int(folderId)
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		result.match([&](const MTPDmessages_peerDialogs &data) {
+			const auto folderId = FolderId(0);
+
 			_session->data().processUsers(data.vusers);
 			_session->data().processChats(data.vchats);
 			_session->data().applyPinnedDialogs(data.vdialogs.v);
-			_session->data().applyDialogs(data.vmessages.v, data.vdialogs.v);
+			_session->data().applyDialogs(
+				folderId,
+				data.vmessages.v,
+				data.vdialogs.v);
 
 			_pinnedDialogsRequestId = 0;
 			_pinnedDialogsReceived = true;
 
 			_session->data().moreChatsLoaded().notify();
-			if (_dialogsFull) {
+			if (!_dialogsLoadState) {
 				_session->data().allChatsLoaded().set(true);
 			}
 		});
@@ -846,9 +894,12 @@ void ApiWrap::requestPinnedDialogs() {
 }
 
 void ApiWrap::requestMoreBlockedByDateDialogs() {
+	if (!_dialogsLoadState) {
+		return;
+	}
 	const auto max = _session->settings().supportChatsTimeSlice();
-	_dialogsLoadTill = _dialogsOffsetDate
-		? (_dialogsOffsetDate - max)
+	_dialogsLoadTill = _dialogsLoadState->offsetDate
+		? (_dialogsLoadState->offsetDate - max)
 		: (unixtime() - max);
 	requestDialogs();
 }
@@ -990,11 +1041,14 @@ void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	for (const auto &dialog : data.vdialogs.v) {
 		dialog.match([&](const MTPDdialog &data) {
 			if (const auto peerId = peerFromMTP(data.vpeer)) {
-				_session->data().history(peerId)->applyDialog(data);
+				const auto requestFolderId = FolderId(0);
+				_session->data().history(peerId)->applyDialog(
+					requestFolderId,
+					data);
 			}
-		}, [&](const MTPDdialogFolder &data) { // #TODO archive
-			//const auto folder = _session->data().processFolder(data.vfolder);
-			//folder->applyDialog(data);
+		}, [&](const MTPDdialogFolder &data) {
+			const auto folder = _session->data().processFolder(data.vfolder);
+			folder->applyDialog(data);
 		});
 	}
 	_session->data().sendHistoryChangeNotifications();

@@ -122,12 +122,6 @@ protected:
 
 private:
 	void animationCallback();
-	void dialogsReceived(
-		const MTPmessages_Dialogs &result,
-		mtpRequestId requestId);
-	void pinnedDialogsReceived(
-		const MTPmessages_PeerDialogs &result,
-		mtpRequestId requestId);
 	void searchReceived(
 		DialogsSearchRequestType type,
 		const MTPmessages_Messages &result,

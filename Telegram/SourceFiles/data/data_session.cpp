@@ -1351,24 +1351,25 @@ void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
 }
 
 void Session::applyDialogs(
+		FolderId requestFolderId,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs) {
 	App::feedMsgs(messages, NewMessageLast);
 	for (const auto &dialog : dialogs) {
 		dialog.match([&](const auto &data) {
-			applyDialog(data);
+			applyDialog(requestFolderId, data);
 		});
 	}
 }
 
-void Session::applyDialog(const MTPDdialog &data) {
+void Session::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
 	const auto peerId = peerFromMTP(data.vpeer);
 	if (!peerId) {
 		return;
 	}
 
 	const auto history = session().data().history(peerId);
-	history->applyDialog(data);
+	history->applyDialog(requestFolderId, data);
 
 	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
 		const auto date = history->chatListTimeId();
@@ -1387,7 +1388,12 @@ void Session::applyDialog(const MTPDdialog &data) {
 	}
 }
 
-void Session::applyDialog(const MTPDdialogFolder &dialog) {
+void Session::applyDialog(
+		FolderId requestFolderId,
+		const MTPDdialogFolder &dialog) {
+	if (requestFolderId != 0) {
+		LOG(("API Error: requestFolderId != 0 for dialogFolder."));
+	}
 	const auto folder = processFolder(dialog.vfolder);
 	folder->applyDialog(dialog);
 
