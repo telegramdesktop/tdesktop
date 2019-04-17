@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_function.h"
-#include <deque>
+#include <vector>
 
 namespace rpl {
 namespace details {
@@ -25,6 +25,7 @@ public:
 	lifetime() = default;
 	lifetime(lifetime &&other);
 	lifetime &operator=(lifetime &&other);
+	~lifetime() { destroy(); }
 
 	template <typename Destroy, typename = decltype(std::declval<Destroy>()())>
 	lifetime(Destroy &&destroy);
@@ -38,18 +39,16 @@ public:
 
 	template <typename Type, typename... Args>
 	Type *make_state(Args&& ...args) {
-		auto result = new Type(std::forward<Args>(args)...);
-		add([result] {
+		const auto result = new Type(std::forward<Args>(args)...);
+		add([=] {
 			static_assert(sizeof(Type) > 0, "Can't delete unknown type.");
 			delete result;
 		});
 		return result;
 	}
 
-	~lifetime() { destroy(); }
-
 private:
-	std::deque<base::unique_function<void()>> _callbacks;
+	std::vector<base::unique_function<void()>> _callbacks;
 
 };
 
@@ -70,20 +69,21 @@ inline lifetime::lifetime(Destroy &&destroy) {
 
 template <typename Destroy, typename>
 inline void lifetime::add(Destroy &&destroy) {
-	_callbacks.push_front(destroy);
+	_callbacks.emplace_back(std::forward<Destroy>(destroy));
 }
 
 inline void lifetime::add(lifetime &&other) {
 	auto callbacks = details::take(other._callbacks);
 	_callbacks.insert(
-		_callbacks.begin(),
+		_callbacks.end(),
 		std::make_move_iterator(callbacks.begin()),
 		std::make_move_iterator(callbacks.end()));
 }
 
 inline void lifetime::destroy() {
-	for (auto &callback : details::take(_callbacks)) {
-		callback();
+	auto callbacks = details::take(_callbacks);
+	for (auto i = callbacks.rbegin(), e = callbacks.rend(); i != e; ++i) {
+		(*i)();
 	}
 }
 
