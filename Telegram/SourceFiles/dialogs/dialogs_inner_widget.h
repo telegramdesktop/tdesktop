@@ -282,7 +282,7 @@ private:
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
-	Dialogs::IndexedList *_folderChatsList = nullptr;
+	Data::Folder *_openedFolder = nullptr;
 	std::unique_ptr<ImportantSwitch> _importantSwitch;
 	bool _importantSwitchSelected = false;
 	bool _importantSwitchPressed = false;

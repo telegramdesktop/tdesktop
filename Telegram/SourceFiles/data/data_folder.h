@@ -42,11 +42,7 @@ public:
 	void registerOne(not_null<History*> history);
 	void unregisterOne(not_null<History*> history);
 
-	not_null<Dialogs::IndexedList*> chatsList();
-
-	void updateChatListMessage(not_null<HistoryItem*> item);
-	void messageRemoved(not_null<HistoryItem*> item);
-	void historyCleared(not_null<History*> history);
+	not_null<Dialogs::IndexedList*> chatsList(Dialogs::Mode list);
 
 	void applyDialog(const MTPDdialogFolder &data);
 	void setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount);
@@ -86,17 +82,13 @@ public:
 		int y,
 		int size) const override;
 
-	bool historiesLoaded() const;
-	void setHistoriesLoaded(bool loaded);
+	bool chatsListLoaded() const;
+	void setChatsListLoaded(bool loaded);
 	//int32 chatsHash() const;
 	//void setChats(std::vector<not_null<PeerData*>> chats); // #feed
 
 private:
 	void indexNameParts();
-	void recountChatListMessage();
-	void setChatListMessageFromChannels();
-	bool justUpdateChatListMessage(not_null<HistoryItem*> item);
-	void updateChatListDate();
 	//void changeChatsList(
 	//	const std::vector<not_null<PeerData*>> &add,
 	//	const std::vector<not_null<PeerData*>> &remove);
@@ -106,15 +98,14 @@ private:
 
 	FolderId _id = 0;
 	Dialogs::IndexedList _chatsList;
-	bool _settingHistories = false;
-	bool _historiesLoaded = false;
+	Dialogs::IndexedList _importantChatsList;
+	bool _chatsListLoaded = false;
 
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
-	std::optional<HistoryItem*> _chatListMessage;
 
-	rpl::variable<MessagePosition> _unreadPosition;
+	//rpl::variable<MessagePosition> _unreadPosition;
 	std::optional<int> _unreadCount;
 	rpl::event_stream<int> _unreadCountChanges;
 	int _unreadMutedCount = 0;

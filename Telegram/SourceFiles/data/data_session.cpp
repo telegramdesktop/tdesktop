@@ -2949,12 +2949,10 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 //	return _defaultFeedId.value();
 //}
 
-not_null<Dialogs::IndexedList*> Session::chatsList() {
-	return &_chatsList;
-}
-
-not_null<Dialogs::IndexedList*> Session::importantChatsList() {
-	return &_importantChatsList;
+not_null<Dialogs::IndexedList*> Session::chatsList(Dialogs::Mode list) {
+	return (list == Dialogs::Mode::All)
+		? &_chatsList
+		: &_importantChatsList;
 }
 
 not_null<Dialogs::IndexedList*> Session::contactsList() {
@@ -2973,25 +2971,22 @@ auto Session::refreshChatListEntry(Dialogs::Key key)
 	auto result = RefreshChatListEntryResult();
 	result.changed = !entry->inChatList(Mode::All);
 	if (result.changed) {
-		const auto mainRow = entry->addToChatList(Mode::All, &_chatsList);
+		const auto mainRow = entry->addToChatList(Mode::All);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
-		result.moved = entry->adjustByPosInChatList(
-			Mode::All,
-			&_chatsList);
+		result.moved = entry->adjustByPosInChatList(Mode::All);
 	}
 	if (Global::DialogsModeEnabled()) {
 		if (entry->toImportant()) {
 			result.importantChanged = !entry->inChatList(Mode::Important);
 			if (result.importantChanged) {
-				entry->addToChatList(Mode::Important, &_importantChatsList);
+				entry->addToChatList(Mode::Important);
 			} else {
 				result.importantMoved = entry->adjustByPosInChatList(
-					Mode::Important,
-					&_importantChatsList);
+					Mode::Important);
 			}
 		} else if (entry->inChatList(Mode::Important)) {
-			entry->removeFromChatList(Mode::Important, &_importantChatsList);
+			entry->removeFromChatList(Mode::Important);
 			result.importantChanged = true;
 		}
 	}
@@ -3002,9 +2997,9 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	entry->removeFromChatList(Mode::All, &_chatsList);
+	entry->removeFromChatList(Mode::All);
 	if (Global::DialogsModeEnabled()) {
-		entry->removeFromChatList(Mode::Important, &_importantChatsList);
+		entry->removeFromChatList(Mode::Important);
 	}
 	if (_contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {

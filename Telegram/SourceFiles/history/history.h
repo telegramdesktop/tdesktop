@@ -323,8 +323,10 @@ public:
 
 	std::shared_ptr<AdminLog::LocalIdManager> adminLogIdManager();
 
-	Data::Folder *folder() const;
-	void setFolder(not_null<Data::Folder*> folder);
+	Data::Folder *folder() const override;
+	void setFolder(
+		not_null<Data::Folder*> folder,
+		HistoryItem *folderDialogItem = nullptr);
 	void clearFolder();
 
 	// Still public data.

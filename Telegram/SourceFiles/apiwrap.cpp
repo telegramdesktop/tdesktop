@@ -853,6 +853,7 @@ auto ApiWrap::dialogsLoadState(FolderId folderId) -> DialogsLoadState* {
 
 void ApiWrap::dialogsLoadFinish(FolderId folderId) {
 	if (folderId) {
+		_session->data().folder(folderId)->setChatsListLoaded(true);
 		_foldersLoadState.remove(folderId);
 	} else {
 		_dialogsLoadState = nullptr;

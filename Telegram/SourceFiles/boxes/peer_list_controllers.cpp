@@ -258,12 +258,12 @@ void ChatsListBoxController::rebuildRows() {
 			++added;
 		}
 	}
-	added += appendList(Auth().data().chatsList());
+	added += appendList(Auth().data().chatsList(Dialogs::Mode::All));
 	added += appendList(Auth().data().contactsNoChatsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.
 		delegate()->peerListPartitionRows([](const PeerListRow &a) {
-			auto history = static_cast<const Row&>(a).history();
+			const auto history = static_cast<const Row&>(a).history();
 			return history->inChatList(Dialogs::Mode::All);
 		});
 		if (respectSavedMessagesChat()) {

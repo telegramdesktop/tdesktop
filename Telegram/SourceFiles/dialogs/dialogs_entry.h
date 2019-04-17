@@ -15,6 +15,7 @@ class AuthSession;
 
 namespace Data {
 class Session;
+class Folder;
 } // namespace Data
 
 namespace Dialogs {
@@ -49,15 +50,13 @@ public:
 	Data::Session &owner() const;
 	AuthSession &session() const;
 
-	PositionChange adjustByPosInChatList(
-		Mode list,
-		not_null<IndexedList*> indexed);
+	PositionChange adjustByPosInChatList(Mode list);
 	bool inChatList(Mode list) const {
 		return !chatListLinks(list).empty();
 	}
 	int posInChatList(Mode list) const;
-	not_null<Row*> addToChatList(Mode list, not_null<IndexedList*> indexed);
-	void removeFromChatList(Mode list, not_null<IndexedList*> indexed);
+	not_null<Row*> addToChatList(Mode list);
+	void removeFromChatList(Mode list);
 	void removeChatListEntryByLetter(Mode list, QChar letter);
 	void addChatListEntryByLetter(
 		Mode list,
@@ -93,6 +92,10 @@ public:
 	virtual const base::flat_set<QString> &chatListNameWords() const = 0;
 	virtual const base::flat_set<QChar> &chatListFirstLetters() const = 0;
 
+	virtual Data::Folder *folder() const {
+		return nullptr;
+	}
+
 	virtual void loadUserpic() = 0;
 	virtual void paintUserpic(
 		Painter &p,
@@ -117,13 +120,15 @@ public:
 
 private:
 	virtual TimeId adjustChatListTimeId() const;
-	virtual void changedInChatListHook(Dialogs::Mode list, bool added);
+	virtual void changedInChatListHook(Mode list, bool added);
 	virtual void changedChatListPinHook();
 
 	void setChatListExistence(bool exists);
 	RowsByLetter &chatListLinks(Mode list);
 	const RowsByLetter &chatListLinks(Mode list) const;
 	Row *mainChatListLink(Mode list) const;
+
+	not_null<IndexedList*> myChatsList(Mode list) const;
 
 	not_null<Data::Session*> _owner;
 	Dialogs::Key _key;

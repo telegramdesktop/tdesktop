@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "data/data_session.h"
+#include "data/data_folder.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "history/history_item.h"
@@ -135,12 +136,10 @@ Row *Entry::mainChatListLink(Mode list) const {
 	return it->second;
 }
 
-PositionChange Entry::adjustByPosInChatList(
-		Mode list,
-		not_null<IndexedList*> indexed) {
+PositionChange Entry::adjustByPosInChatList(Mode list) {
 	const auto lnk = mainChatListLink(list);
 	const auto from = lnk->pos();
-	indexed->adjustByDate(chatListLinks(list));
+	myChatsList(list)->adjustByDate(chatListLinks(list));
 	const auto to = lnk->pos();
 	return { from, to };
 }
@@ -159,21 +158,17 @@ int Entry::posInChatList(Dialogs::Mode list) const {
 	return mainChatListLink(list)->pos();
 }
 
-not_null<Row*> Entry::addToChatList(
-		Mode list,
-		not_null<IndexedList*> indexed) {
+not_null<Row*> Entry::addToChatList(Mode list) {
 	if (!inChatList(list)) {
-		chatListLinks(list) = indexed->addToEnd(_key);
+		chatListLinks(list) = myChatsList(list)->addToEnd(_key);
 		changedInChatListHook(list, true);
 	}
 	return mainChatListLink(list);
 }
 
-void Entry::removeFromChatList(
-		Dialogs::Mode list,
-		not_null<Dialogs::IndexedList*> indexed) {
+void Entry::removeFromChatList(Dialogs::Mode list) {
 	if (inChatList(list)) {
-		indexed->del(_key);
+		myChatsList(list)->del(_key);
 		chatListLinks(list).clear();
 		changedInChatListHook(list, false);
 	}
@@ -215,6 +210,13 @@ void Entry::updateChatListEntry() const {
 			main->repaintDialogRow({ _key, FullMsgId() });
 		}
 	}
+}
+
+not_null<IndexedList*> Entry::myChatsList(Mode list) const {
+	if (const auto current = folder()) {
+		return current->chatsList(list);
+	}
+	return owner().chatsList(list);
 }
 
 } // namespace Dialogs

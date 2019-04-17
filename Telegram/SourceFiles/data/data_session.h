@@ -516,8 +516,7 @@ public:
 	//FeedId defaultFeedId() const;
 	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
-	not_null<Dialogs::IndexedList*> chatsList();
-	not_null<Dialogs::IndexedList*> importantChatsList();
+	not_null<Dialogs::IndexedList*> chatsList(Dialogs::Mode list);
 	not_null<Dialogs::IndexedList*> contactsList();
 	not_null<Dialogs::IndexedList*> contactsNoChatsList();
 

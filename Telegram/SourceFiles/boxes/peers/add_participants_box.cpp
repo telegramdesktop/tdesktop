@@ -1079,7 +1079,8 @@ void AddSpecialBoxSearchController::addChatsContacts() {
 		}
 		return result;
 	};
-	const auto dialogsIndex = getSmallestIndex(_peer->owner().chatsList());
+	const auto dialogsIndex = getSmallestIndex(
+		_peer->owner().chatsList(Dialogs::Mode::All));
 	const auto contactsIndex = getSmallestIndex(
 		_peer->owner().contactsNoChatsList());
 

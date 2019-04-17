@@ -489,7 +489,7 @@ ShareBox::Inner::Inner(
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto dialogs = Auth().data().chatsList();
+	const auto dialogs = Auth().data().chatsList(Dialogs::Mode::All);
 	const auto self = Auth().user();
 	if (_filterCallback(self)) {
 		_chatsIndexed->addToEnd(self->owner().history(self));

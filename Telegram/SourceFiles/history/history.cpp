@@ -1810,8 +1810,13 @@ Data::Folder *History::folder() const {
 	return _folder;
 }
 
-void History::setFolder(not_null<Data::Folder*> folder) {
+void History::setFolder(
+		not_null<Data::Folder*> folder,
+		HistoryItem *folderDialogItem) {
 	setFolderPointer(folder);
+	if (folderDialogItem && _lastMessage != folderDialogItem) {
+		setLastMessage(folderDialogItem);
+	}
 }
 
 void History::clearFolder() {
@@ -1819,16 +1824,30 @@ void History::clearFolder() {
 }
 
 void History::setFolderPointer(Data::Folder *folder) {
-	if (_folder != folder) {
-		const auto was = _folder;
-		_folder = folder;
-		if (was) {
-			was->unregisterOne(this);
-		}
-		if (_folder) {
-			_folder->registerOne(this);
-		}
-		updateChatListSortPosition();
+	if (_folder == folder) {
+		return;
+	}
+	using Mode = Dialogs::Mode;
+	const auto wasAll = inChatList(Mode::All);
+	const auto wasImportant = inChatList(Mode::Important);
+	if (wasAll) {
+		removeFromChatList(Mode::All);
+	}
+	if (wasImportant) {
+		removeFromChatList(Mode::Important);
+	}
+	const auto was = std::exchange(_folder, folder);
+	if (was) {
+		was->unregisterOne(this);
+	}
+	if (wasAll) {
+		addToChatList(Mode::All);
+	}
+	if (wasImportant) {
+		addToChatList(Mode::Important);
+	}
+	if (_folder) {
+		_folder->registerOne(this);
 	}
 }
 

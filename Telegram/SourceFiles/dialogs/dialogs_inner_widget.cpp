@@ -249,11 +249,11 @@ int DialogsInner::searchInChatSkip() const {
 }
 
 bool DialogsInner::cancelFolder() {
-	if (!_folderChatsList) {
+	if (!_openedFolder) {
 		return false;
 	}
 	clearSelection();
-	_folderChatsList = nullptr;
+	_openedFolder = nullptr;
 	refresh();
 	return true;
 }
@@ -1471,11 +1471,9 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 }
 
 not_null<Dialogs::IndexedList*> DialogsInner::shownDialogs() const {
-	return _folderChatsList
-		? _folderChatsList
-		: (Global::DialogsMode() == Dialogs::Mode::Important)
-		? session().data().importantChatsList().get()
-		: session().data().chatsList().get();
+	return _openedFolder
+		? _openedFolder->chatsList(Global::DialogsMode())
+		: session().data().chatsList(Global::DialogsMode());
 }
 
 void DialogsInner::leaveEventHook(QEvent *e) {
@@ -1609,7 +1607,7 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 			_filterResultsGlobal.clear();
 			if (!_searchInChat && !words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
-				if (const auto list = session().data().chatsList(); !list->empty()) {
+				if (const auto list = session().data().chatsList(Dialogs::Mode::All); !list->empty()) {
 					for (fi = fb; fi != fe; ++fi) {
 						const auto found = list->filtered(fi->at(0));
 						if (!found || found->empty()) {
@@ -2409,7 +2407,7 @@ bool DialogsInner::chooseRow() {
 					: chosen.message.fullId.msg));
 		} else if (const auto folder = chosen.key.folder()) {
 			clearSelection();
-			_folderChatsList = folder->chatsList();
+			_openedFolder = folder;
 			refresh();
 		}
 		if (openSearchResult && !session().supportMode()) {
