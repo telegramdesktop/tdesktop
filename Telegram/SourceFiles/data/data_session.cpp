@@ -1435,7 +1435,9 @@ void Session::addSavedPeersAfter(const QDateTime &date) {
 		saved.remove(lastDate, lastPeer);
 
 		const auto history = session().data().history(lastPeer);
-		history->setChatListTimeId(ServerTimeFromParsed(lastDate));
+		if (!history->chatListTimeId()) {
+			history->setChatListTimeId(ServerTimeFromParsed(lastDate));
+		}
 	}
 }
 

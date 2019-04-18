@@ -629,6 +629,9 @@ HistoryItem *History::addNewMessage(
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
 				newItemAdded(item);
+				if (!folderKnown()) {
+					session().api().requestDialogEntry(this);
+				}
 			}
 			return item;
 		}
@@ -1806,8 +1809,12 @@ std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
 	return result;
 }
 
+bool History::folderKnown() const {
+	return _folder.has_value();
+}
+
 Data::Folder *History::folder() const {
-	return _folder;
+	return _folder.value_or(nullptr);
 }
 
 void History::setFolder(
@@ -1824,36 +1831,41 @@ void History::clearFolder() {
 }
 
 void History::setFolderPointer(Data::Folder *folder) {
+	using Mode = Dialogs::Mode;
+
 	if (_folder == folder) {
 		return;
 	}
-	using Mode = Dialogs::Mode;
-	const auto wasAll = inChatList(Mode::All);
-	const auto wasImportant = wasAll && inChatList(Mode::Important);
-	if (wasAll) {
+	const auto wasKnown = folderKnown();
+	const auto wasInAll = inChatList(Mode::All);
+	const auto wasInImportant = wasInAll && inChatList(Mode::Important);
+	if (wasInAll) {
 		removeFromChatList(Mode::All);
-		if (wasImportant) {
+		if (wasInImportant) {
 			removeFromChatList(Mode::Important);
 		}
 	}
-	const auto was = std::exchange(_folder, folder);
+	const auto was = _folder.value_or(nullptr);
+	_folder = folder;
 	if (was) {
 		was->unregisterOne(this);
 	}
-	if (wasAll) {
+	if (wasInAll) {
 		addToChatList(Mode::All);
-		if (wasImportant) {
+		if (wasInImportant) {
 			addToChatList(Mode::Important);
 		}
 		owner().chatsListChanged(was);
-		owner().chatsListChanged(_folder);
+		owner().chatsListChanged(folder);
+	} else if (!wasKnown) {
+		updateChatListSortPosition();
 	}
-	if (_folder) {
-		_folder->registerOne(this);
+	if (folder) {
+		folder->registerOne(this);
 	}
 }
 
-TimeId History::adjustChatListTimeId() const {
+TimeId History::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
 	if (const auto draft = cloudDraft()) {
 		if (!Data::draftIsNull(draft) && !session().supportMode()) {
@@ -2415,7 +2427,7 @@ bool History::useProxyPromotion() const {
 }
 
 bool History::shouldBeInChatList() const {
-	if (peer->migrateTo() || folder() != nullptr) {
+	if (peer->migrateTo() || !folderKnown()) {
 		return false;
 	} else if (isPinnedDialog()) {
 		return true;

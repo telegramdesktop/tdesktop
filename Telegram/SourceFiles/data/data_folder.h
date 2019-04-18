@@ -30,7 +30,7 @@ struct FolderUpdate {
 
 //MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
 
-class Folder : public Dialogs::Entry {
+class Folder final : public Dialogs::Entry {
 public:
 	static constexpr auto kId = 1;
 
@@ -58,6 +58,7 @@ public:
 	//bool unreadMark() const;
 	//int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 
+	TimeId adjustedChatListTimeId() const override;
 	int unreadCount() const;
 	bool unreadCountKnown() const;
 

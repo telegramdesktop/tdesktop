@@ -323,6 +323,7 @@ public:
 
 	std::shared_ptr<AdminLog::LocalIdManager> adminLogIdManager();
 
+	bool folderKnown() const override;
 	Data::Folder *folder() const override;
 	void setFolder(
 		not_null<Data::Folder*> folder,
@@ -416,7 +417,7 @@ private:
 		not_null<Element*> view);
 	void removeNotification(not_null<HistoryItem*> item);
 
-	TimeId adjustChatListTimeId() const override;
+	TimeId adjustedChatListTimeId() const override;
 	void changedInChatListHook(Dialogs::Mode list, bool added) override;
 	void changedChatListPinHook() override;
 
@@ -476,7 +477,7 @@ private:
 	bool _loadedAtTop = false;
 	bool _loadedAtBottom = true;
 
-	Data::Folder *_folder = nullptr;
+	std::optional<Data::Folder*> _folder;
 
 	std::optional<MsgId> _inboxReadBefore;
 	std::optional<MsgId> _outboxReadBefore;

@@ -91,7 +91,7 @@ void Entry::updateChatListSortPosition() {
 		? ProxyPromotedDialogPos()
 		: isPinnedDialog()
 		? PinnedDialogPos(_pinnedIndex)
-		: DialogPosFromDate(adjustChatListTimeId());
+		: DialogPosFromDate(adjustedChatListTimeId());
 	if (needUpdateInChatList()) {
 		setChatListExistence(true);
 	}
@@ -112,7 +112,7 @@ void Entry::setChatListExistence(bool exists) {
 	}
 }
 
-TimeId Entry::adjustChatListTimeId() const {
+TimeId Entry::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }
 
@@ -145,13 +145,11 @@ PositionChange Entry::adjustByPosInChatList(Mode list) {
 }
 
 void Entry::setChatListTimeId(TimeId date) {
-	if (_timeId && _timeId >= date) {
-		if (!inChatList(Dialogs::Mode::All)) {
-			return;
-		}
-	}
 	_timeId = date;
 	updateChatListSortPosition();
+	if (const auto folder = this->folder()) {
+		folder->updateChatListSortPosition();
+	}
 }
 
 int Entry::posInChatList(Dialogs::Mode list) const {

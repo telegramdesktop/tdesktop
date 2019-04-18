@@ -79,6 +79,7 @@ public:
 	void setChatListTimeId(TimeId date);
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
+	virtual TimeId adjustedChatListTimeId() const;
 
 	virtual bool toImportant() const = 0;
 	virtual bool shouldBeInChatList() const = 0;
@@ -92,6 +93,9 @@ public:
 	virtual const base::flat_set<QString> &chatListNameWords() const = 0;
 	virtual const base::flat_set<QChar> &chatListFirstLetters() const = 0;
 
+	virtual bool folderKnown() const {
+		return true;
+	}
 	virtual Data::Folder *folder() const {
 		return nullptr;
 	}
@@ -119,7 +123,6 @@ public:
 	mutable Text lastItemTextCache;
 
 private:
-	virtual TimeId adjustChatListTimeId() const;
 	virtual void changedInChatListHook(Mode list, bool added);
 	virtual void changedChatListPinHook();
 

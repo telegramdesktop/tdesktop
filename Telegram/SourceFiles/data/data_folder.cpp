@@ -234,8 +234,14 @@ void Folder::requestChatListMessage() {
 	}
 }
 
+TimeId Folder::adjustedChatListTimeId() const {
+	return _chatsList.empty()
+		? TimeId(0)
+		: (*_chatsList.begin())->entry()->adjustedChatListTimeId();
+}
+
 int Folder::unreadCount() const {
-	return _unreadCount ? *_unreadCount : 0;
+	return _unreadCount.value_or(0);
 }
 
 rpl::producer<int> Folder::unreadCountValue() const {
