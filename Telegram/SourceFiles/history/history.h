@@ -335,9 +335,6 @@ public:
 
 	not_null<PeerData*> peer;
 
-	typedef QList<HistoryItem*> NotifyQueue;
-	NotifyQueue notifies;
-
 	// we save the last showAtMsgId to restore the state when switching
 	// between different conversation histories
 	MsgId showAtMsgId = ShowAtUnreadMsgId;
@@ -514,6 +511,8 @@ private:
 	Text _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
 	base::flat_map<SendAction::Type, crl::time> _mySendActions;
+
+	std::deque<not_null<HistoryItem*>> _notifications;
 
 	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
 

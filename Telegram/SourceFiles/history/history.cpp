@@ -94,32 +94,31 @@ int History::height() const {
 }
 
 void History::removeNotification(not_null<HistoryItem*> item) {
-	if (!notifies.isEmpty()) {
-		for (auto i = notifies.begin(), e = notifies.end(); i != e; ++i) {
-			if ((*i) == item) {
-				notifies.erase(i);
-				break;
-			}
-		}
-	}
+	_notifications.erase(
+		ranges::remove(_notifications, item),
+		end(_notifications));
 }
 
 HistoryItem *History::currentNotification() {
-	return notifies.isEmpty() ? 0 : notifies.front();
+	return empty(_notifications)
+		? nullptr
+		: _notifications.front().get();
 }
 
 bool History::hasNotification() const {
-	return !notifies.isEmpty();
+	return !empty(_notifications);
 }
 
 void History::skipNotification() {
-	if (!notifies.isEmpty()) {
-		notifies.pop_front();
+	if (!empty(_notifications)) {
+		_notifications.pop_front();
 	}
 }
 
 void History::popNotification(HistoryItem *item) {
-	if (!notifies.isEmpty() && notifies.back() == item) notifies.pop_back();
+	if (!empty(_notifications) && (_notifications.back() == item)) {
+		_notifications.pop_back();
+	}
 }
 
 bool History::hasPendingResizedItems() const {
@@ -1236,7 +1235,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		}
 	} else if (item->unread()) {
 		if (!isChannel() || peer->asChannel()->amIn()) {
-			notifies.push_back(item);
+			_notifications.push_back(item);
 			App::main()->newUnreadMsg(this, item);
 		}
 	} else {
@@ -2114,7 +2113,7 @@ void History::finishBuildingFrontBlock() {
 }
 
 void History::clearNotifications() {
-	notifies.clear();
+	_notifications.clear();
 }
 
 bool History::loadedAtBottom() const {
@@ -3001,7 +3000,7 @@ void History::clear(ClearType type) {
 		lastKeyboardInited = false;
 		_loadedAtTop = _loadedAtBottom = false;
 	} else {
-		notifies.clear();
+		_notifications.clear();
 		owner().notifyHistoryCleared(this);
 		changeUnreadCount(-unreadCount());
 		if (type == ClearType::DeleteChat) {
