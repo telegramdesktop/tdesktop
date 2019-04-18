@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_folder.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
@@ -1055,12 +1056,20 @@ void DialogsWidget::dropEvent(QDropEvent *e) {
 }
 
 void DialogsWidget::onListScroll() {
-	auto scrollTop = _scroll->scrollTop();
+	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updateScrollUpVisibility();
 
 	// Fix button rendering glitch, Qt bug with WA_OpaquePaintEvent widgets.
 	_scrollToTop->update();
+
+	if (const auto folder = _inner->shownFolder()) {
+		if (!folder->chatsListLoaded()
+			&& (scrollTop + height() * PreloadHeightsCount
+				>= _scroll->scrollTopMax())) {
+			session().api().requestFolderDialogs(folder->id());
+		}
+	}
 }
 
 void DialogsWidget::applyFilterUpdate(bool force) {
