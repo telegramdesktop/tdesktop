@@ -2425,6 +2425,10 @@ bool History::useProxyPromotion() const {
 	return false;
 }
 
+int History::fixedOnTopIndex() const {
+	return isProxyPromoted() ? kProxyPromotionFixOnTopIndex : 0;
+}
+
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo() || !folderKnown()) {
 		return false;

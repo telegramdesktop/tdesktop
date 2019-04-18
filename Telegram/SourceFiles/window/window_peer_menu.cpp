@@ -472,7 +472,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 void Filler::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
 		if (const auto history = _peer->owner().historyLoaded(_peer)) {
-			if (!history->useProxyPromotion()) {
+			if (!history->fixedOnTopIndex()) {
 				addPinToggle();
 			}
 		}

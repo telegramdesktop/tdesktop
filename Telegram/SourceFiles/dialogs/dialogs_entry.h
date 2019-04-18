@@ -70,7 +70,6 @@ public:
 	bool isProxyPromoted() const {
 		return _isProxyPromoted;
 	}
-	virtual bool useProxyPromotion() const = 0;
 	void cacheProxyPromoted(bool promoted);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
@@ -80,6 +79,10 @@ public:
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
 	virtual TimeId adjustedChatListTimeId() const;
+
+	virtual int fixedOnTopIndex() const = 0;
+	static constexpr auto kArchiveFixOnTopIndex = 1;
+	static constexpr auto kProxyPromotionFixOnTopIndex = 2;
 
 	virtual bool toImportant() const = 0;
 	virtual bool shouldBeInChatList() const = 0;

@@ -251,7 +251,7 @@ void paintRow(
 		namewidth,
 		st::msgNameFont->height);
 
-	const auto promoted = chat.entry()->useProxyPromotion()
+	const auto promoted = (history && history->useProxyPromotion())
 		&& !(flags & (Flag::SearchResult/* | Flag::FeedSearchResult*/)); // #feed
 	if (promoted) {
 		const auto text = lang(lng_proxy_sponsor);
@@ -278,7 +278,7 @@ void paintRow(
 		}
 
 		auto availableWidth = namewidth;
-		if (entry->isPinnedDialog()) {
+		if (entry->isPinnedDialog() && !entry->fixedOnTopIndex()) {
 			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
 			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
 			availableWidth -= icon.width() + st::dialogsUnreadPadding;
@@ -305,7 +305,7 @@ void paintRow(
 		}
 	} else if (!item) {
 		auto availableWidth = namewidth;
-		if (entry->isPinnedDialog()) {
+		if (entry->isPinnedDialog() && !entry->fixedOnTopIndex()) {
 			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
 			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
 			availableWidth -= icon.width() + st::dialogsUnreadPadding;
@@ -322,7 +322,7 @@ void paintRow(
 		}
 
 		paintItemCallback(nameleft, namewidth);
-	} else if (entry->isPinnedDialog()) {
+	} else if (entry->isPinnedDialog() && !entry->fixedOnTopIndex()) {
 		auto availableWidth = namewidth;
 		auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
 		icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
@@ -590,7 +590,8 @@ void RowPainter::paint(
 	const auto displayPinnedIcon = !displayUnreadCounter
 		&& !displayMentionBadge
 		&& !displayUnreadMark
-		&& entry->isPinnedDialog();
+		&& entry->isPinnedDialog()
+		&& !entry->fixedOnTopIndex();
 
 	const auto from = history
 		? (history->peer->migrateTo()

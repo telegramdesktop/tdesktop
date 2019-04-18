@@ -94,7 +94,7 @@ void Folder::registerOne(not_null<History*> history) {
 		}
 	}
 	if (_chatsList.size() == 1) {
-		updateChatListExistence();
+		updateChatListSortPosition();
 	}
 	owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
 }
@@ -426,8 +426,8 @@ bool Folder::toImportant() const {
 	return !_importantChatsList.empty();
 }
 
-bool Folder::useProxyPromotion() const {
-	return false;
+int Folder::fixedOnTopIndex() const {
+	return kArchiveFixOnTopIndex;
 }
 
 bool Folder::shouldBeInChatList() const {

@@ -875,7 +875,7 @@ void ApiWrap::requestPinnedDialogs() {
 
 			_session->data().processUsers(data.vusers);
 			_session->data().processChats(data.vchats);
-			_session->data().applyPinnedDialogs(data.vdialogs.v);
+			_session->data().clearPinnedDialogs();
 			_session->data().applyDialogs(
 				folderId,
 				data.vmessages.v,

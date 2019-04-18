@@ -29,8 +29,8 @@ uint64 DialogPosFromDate(TimeId date) {
 	return (uint64(date) << 32) | (++DialogsPosToTopShift);
 }
 
-uint64 ProxyPromotedDialogPos() {
-	return 0xFFFFFFFFFFFF0001ULL;
+uint64 FixedOnTopDialogPos(int index) {
+	return 0xFFFFFFFFFFFF000FULL - index;
 }
 
 uint64 PinnedDialogPos(int pinnedIndex) {
@@ -87,8 +87,9 @@ void Entry::updateChatListSortPosition() {
 		updateChatListEntry();
 		return;
 	}
-	_sortKeyInChatList = useProxyPromotion()
-		? ProxyPromotedDialogPos()
+	const auto fixedIndex = fixedOnTopIndex();
+	_sortKeyInChatList = fixedIndex
+		? FixedOnTopDialogPos(fixedIndex)
 		: isPinnedDialog()
 		? PinnedDialogPos(_pinnedIndex)
 		: DialogPosFromDate(adjustedChatListTimeId());

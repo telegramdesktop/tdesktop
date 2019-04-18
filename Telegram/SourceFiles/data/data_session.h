@@ -307,7 +307,7 @@ public:
 	int pinnedDialogsCount() const;
 	const std::deque<Dialogs::Key> &pinnedDialogsOrder() const;
 	void setPinnedDialog(const Dialogs::Key &key, bool pinned);
-	void applyPinnedDialogs(const QVector<MTPDialog> &list);
+	void clearPinnedDialogs();
 	void applyPinnedDialogs(const QVector<MTPDialogPeer> &list);
 	void reorderTwoPinnedDialogs(
 		const Dialogs::Key &key1,
@@ -694,7 +694,6 @@ private:
 	}
 	void userIsContactUpdated(not_null<UserData*> user);
 
-	void clearPinnedDialogs();
 	void setIsPinned(const Dialogs::Key &key, bool pinned);
 
 	NotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);

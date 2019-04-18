@@ -1345,19 +1345,6 @@ void Session::setPinnedDialog(const Dialogs::Key &key, bool pinned) {
 	setIsPinned(key, pinned);
 }
 
-void Session::applyPinnedDialogs(const QVector<MTPDialog> &list) {
-	clearPinnedDialogs();
-	for (auto i = list.size(); i != 0;) {
-		list[--i].match([&](const MTPDdialog &data) {
-			if (const auto peer = peerFromMTP(data.vpeer)) {
-				setPinnedDialog(history(peer), true);
-			}
-		}, [&](const MTPDdialogFolder &data) {
-			setPinnedDialog(processFolder(data.vfolder), true);
-		});
-	}
-}
-
 void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
 	clearPinnedDialogs();
 	for (auto i = list.size(); i != 0;) {
@@ -1376,6 +1363,15 @@ void Session::applyDialogs(
 		FolderId requestFolderId,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs) {
+	for (const auto &dialog : dialogs | ranges::view::reverse) {
+		dialog.match([&](const MTPDdialog &data) {
+			if (const auto peer = peerFromMTP(data.vpeer)) {
+				setPinnedDialog(history(peer), data.is_pinned());
+			}
+		}, [&](const MTPDdialogFolder &data) {
+			setPinnedDialog(processFolder(data.vfolder), data.is_pinned());
+		});
+	}
 	App::feedMsgs(messages, NewMessageLast);
 	for (const auto &dialog : dialogs) {
 		dialog.match([&](const auto &data) {
@@ -1393,7 +1389,7 @@ void Session::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
 	const auto history = session().data().history(peerId);
 	history->applyDialog(requestFolderId, data);
 
-	if (!history->useProxyPromotion() && !history->isPinnedDialog()) {
+	if (!history->fixedOnTopIndex() && !history->isPinnedDialog()) {
 		const auto date = history->chatListTimeId();
 		if (date != 0) {
 			addSavedPeersAfter(ParseDateTime(date));
@@ -1419,7 +1415,7 @@ void Session::applyDialog(
 	const auto folder = processFolder(dialog.vfolder);
 	folder->applyDialog(dialog);
 
-	if (!folder->useProxyPromotion() && !folder->isPinnedDialog()) {
+	if (!folder->fixedOnTopIndex() && !folder->isPinnedDialog()) {
 		const auto date = folder->chatListTimeId();
 		if (date != 0) {
 			addSavedPeersAfter(ParseDateTime(date));

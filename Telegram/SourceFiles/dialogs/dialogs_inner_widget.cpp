@@ -134,6 +134,19 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			UpdateRowSection::Default | UpdateRowSection::Filtered);
 	}, lifetime());
 
+	session().data().chatsListChanges(
+	) | rpl::filter([=](Data::Folder *folder) {
+		return (folder == _openedFolder);
+	}) | rpl::start_with_next([=] {
+		if (_openedFolder
+			&& _openedFolder->chatsList(Global::DialogsMode())->empty()) {
+			_openedFolder->updateChatListSortPosition();
+			cancelFolder();
+		} else {
+			refresh();
+		}
+	}, lifetime());
+
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			Dialogs::Layout::clearUnreadBadgesCache();
@@ -214,8 +227,8 @@ int DialogsInner::dialogsOffset() const {
 
 int DialogsInner::proxyPromotedCount() const {
 	auto result = 0;
-	for_const (auto row, *shownDialogs()) {
-		if (row->entry()->useProxyPromotion()) {
+	for (const auto row : *shownDialogs()) {
+		if (row->entry()->fixedOnTopIndex()) {
 			++result;
 		} else {
 			break;
@@ -902,8 +915,8 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 
 int DialogsInner::shownPinnedCount() const {
 	auto result = 0;
-	for_const (auto row, *shownDialogs()) {
-		if (row->entry()->useProxyPromotion()) {
+	for (const auto row : *shownDialogs()) {
+		if (row->entry()->fixedOnTopIndex()) {
 			continue;
 		} else if (!row->entry()->isPinnedDialog()) {
 			break;
@@ -918,8 +931,8 @@ int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
 		return -1;
 	}
 	auto result = 0;
-	for_const (auto row, *shownDialogs()) {
-		if (row->entry()->useProxyPromotion()) {
+	for (const auto row : *shownDialogs()) {
+		if (row->entry()->fixedOnTopIndex()) {
 			continue;
 		} else if (!row->entry()->isPinnedDialog()) {
 			break;
@@ -1342,7 +1355,7 @@ void DialogsInner::updateSearchResult(not_null<PeerData*> peer) {
 	if (_state == State::Filtered) {
 		if (!_peerSearchResults.empty()) {
 			auto index = 0, add = peerSearchOffset();
-			for_const (auto &result, _peerSearchResults) {
+			for (const auto &result : _peerSearchResults) {
 				if (result->peer == peer) {
 					rtlupdate(0, add + index * st::dialogsRowHeight, width(), st::dialogsRowHeight);
 					break;
