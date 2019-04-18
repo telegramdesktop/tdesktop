@@ -1192,9 +1192,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 "lng_saved_messages" = "Saved Messages";
-"lng_archived_chats" = "Archived chats";
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
+
+"lng_archived_chats" = "Archived chats";
+"lng_archived_add" = "Archive";
+"lng_archived_remove" = "Unarchive";
+"lng_chat_archived" = "Chat archived.\nMuted chats will stay archived after new messages arrive.";
+"lng_chat_unarchived" = "Chat restored from your archive.";
 
 "lng_dialogs_text_with_from" = "{from_part} {message}";
 "lng_dialogs_text_from_wrapped" = "{from}:";

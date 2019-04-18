@@ -774,6 +774,28 @@ bool Session::sendActionsAnimationCallback(crl::time now) {
 	return !_sendActions.empty();
 }
 
+bool Session::chatsListLoaded(Data::Folder *folder) {
+	return folder ? folder->chatsListLoaded() : _chatsListLoaded;
+}
+
+void Session::chatsListChanged(FolderId folderId) {
+	chatsListChanged(folderId ? folder(folderId).get() : nullptr);
+}
+
+void Session::chatsListChanged(Data::Folder *folder) {
+	_chatsListChanged.fire_copy(folder);
+}
+
+void Session::chatsListDone(FolderId folderId) {
+	const auto folder = folderId ? this->folder(folderId).get() : nullptr;
+	if (folder) {
+		folder->setChatsListLoaded(true);
+	} else {
+		_chatsListLoaded = true;
+	}
+	_chatsListLoadedEvents.fire_copy(folder);
+}
+
 Storage::Cache::Database &Session::cache() {
 	return *_cache;
 }

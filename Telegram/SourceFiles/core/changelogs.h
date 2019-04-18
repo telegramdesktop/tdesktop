@@ -29,7 +29,7 @@ private:
 
 	const not_null<AuthSession*> _session;
 	const int _oldVersion = 0;
-	int _chatsSubscription = 0;
+	rpl::lifetime _chatsSubscription;
 	bool _addedSomeLocal = false;
 
 };

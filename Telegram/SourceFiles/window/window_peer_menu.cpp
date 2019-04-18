@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
-#include "styles/style_boxes.h"
 #include "history/history.h"
 #include "window/window_controller.h"
 #include "support/support_helper.h"
@@ -37,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "styles/style_boxes.h"
+#include "styles/style_window.h" // st::windowMinWidth
 
 namespace Window {
 namespace {
@@ -56,6 +57,7 @@ private:
 	void addInfo();
 	void addSearch();
 	void addToggleUnreadMark();
+	void addToggleArchive();
 	void addUserActions(not_null<UserData*> user);
 	void addBlockUser(not_null<UserData*> user);
 	void addChatActions(not_null<ChatData*> chat);
@@ -94,7 +96,7 @@ private:
 
 History *FindWastedPin() {
 	const auto &order = Auth().data().pinnedDialogsOrder();
-	for (const auto pinned : order) {
+	for (const auto &pinned : order) {
 		if (const auto history = pinned.history()) {
 			if (history->peer->isChat()
 				&& history->peer->asChat()->isDeactivated()
@@ -269,6 +271,22 @@ void Filler::addToggleUnreadMark() {
 	) | rpl::start_with_next([=] {
 		action->setText(label(peer));
 	}, *lifetime);
+}
+
+void Filler::addToggleArchive() {
+	const auto peer = _peer;
+	const auto archived = [&] {
+		const auto history = peer->owner().historyLoaded(peer);
+		return history && history->folder();
+	}();
+	const auto toggle = [=] {
+		ToggleHistoryArchived(
+			peer->owner().history(peer),
+			!archived);
+	};
+	_addAction(
+		lang(archived ? lng_archived_remove : lng_archived_add),
+		toggle);
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
@@ -476,6 +494,9 @@ void Filler::fill() {
 		addChatActions(chat);
 	} else if (const auto channel = _peer->asChannel()) {
 		addChannelActions(channel);
+	}
+	if (_source == PeerMenuSource::ChatsList) {
+		addToggleArchive();
 	}
 }
 
@@ -767,24 +788,17 @@ void PeerMenuAddMuteAction(
 //		[=] { Ui::hideLayer(); Auth().api().ungroupAllFromFeed(feed); }));
 //}
 //
-//void ToggleChannelGrouping(not_null<ChannelData*> channel, bool group) {
-//	const auto callback = [=] {
-//		Ui::Toast::Show(lang(group
-//			? lng_feed_channel_added
-//			: lng_feed_channel_removed));
-//	};
-//	if (group) {
-//		const auto feed = Auth().data().feed(Data::Feed::kId);
-//		if (feed->channels().size() < 2) {
-//			Info::FeedProfile::EditController::Start(feed, channel);
-//			return;
-//		}
-//	}
-//	Auth().api().toggleChannelGrouping(
-//		channel,
-//		group,
-//		callback);
-//}
+void ToggleHistoryArchived(not_null<History*> history, bool archived) {
+	const auto callback = [=] {
+		Ui::Toast::Show(lang(archived
+			? lng_chat_archived
+			: lng_chat_unarchived));
+	};
+	history->session().api().toggleHistoryArchived(
+		history,
+		archived,
+		callback);
+}
 
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [=] {

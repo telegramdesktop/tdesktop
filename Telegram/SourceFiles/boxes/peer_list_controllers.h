@@ -76,9 +76,7 @@ private:
 
 };
 
-class ChatsListBoxController
-	: public PeerListController
-	, protected base::Subscriber {
+class ChatsListBoxController : public PeerListController {
 public:
 	ChatsListBoxController(
 		std::unique_ptr<PeerListSearchController> searchController
@@ -113,9 +111,7 @@ private:
 
 };
 
-class ContactsBoxController
-	: public PeerListController
-	, protected base::Subscriber {
+class ContactsBoxController : public PeerListController {
 public:
 	ContactsBoxController(
 		std::unique_ptr<PeerListSearchController> searchController

@@ -39,7 +39,9 @@ namespace {
 
 constexpr auto kBlockedPerPage = 40;
 
-class BlockUserBoxController : public ChatsListBoxController {
+class BlockUserBoxController
+	: public ChatsListBoxController
+	, private base::Subscriber {
 public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 

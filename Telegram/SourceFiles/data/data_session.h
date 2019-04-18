@@ -135,15 +135,19 @@ public:
 		const MTPSendMessageAction &action,
 		TimeId when);
 
-	[[nodiscard]] base::Variable<bool> &contactsLoaded() {
+	[[nodiscard]] rpl::variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}
-	[[nodiscard]] base::Variable<bool> &allChatsLoaded() {
-		return _allChatsLoaded;
+	[[nodiscard]] rpl::producer<Data::Folder*> chatsListChanges() const {
+		return _chatsListChanged.events();
 	}
-	[[nodiscard]] base::Observable<void> &moreChatsLoaded() {
-		return _moreChatsLoaded;
+	[[nodiscard]] bool chatsListLoaded(Data::Folder *folder = nullptr);
+	[[nodiscard]] rpl::producer<Data::Folder*> chatsListLoadedEvents() const {
+		return _chatsListLoadedEvents.events();
 	}
+	void chatsListChanged(FolderId folderId);
+	void chatsListChanged(Data::Folder *folder);
+	void chatsListDone(FolderId folderId);
 
 	struct ItemVisibilityQuery {
 		not_null<HistoryItem*> item;
@@ -725,9 +729,10 @@ private:
 	TimeId _exportAvailableAt = 0;
 	QPointer<BoxContent> _exportSuggestion;
 
-	base::Variable<bool> _contactsLoaded = { false };
-	base::Variable<bool> _allChatsLoaded = { false };
-	base::Observable<void> _moreChatsLoaded;
+	rpl::variable<bool> _contactsLoaded = false;
+	bool _chatsListLoaded = false;
+	rpl::event_stream<Data::Folder*> _chatsListLoadedEvents;
+	rpl::event_stream<Data::Folder*> _chatsListChanged;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;

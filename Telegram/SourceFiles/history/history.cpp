@@ -1829,12 +1829,12 @@ void History::setFolderPointer(Data::Folder *folder) {
 	}
 	using Mode = Dialogs::Mode;
 	const auto wasAll = inChatList(Mode::All);
-	const auto wasImportant = inChatList(Mode::Important);
+	const auto wasImportant = wasAll && inChatList(Mode::Important);
 	if (wasAll) {
 		removeFromChatList(Mode::All);
-	}
-	if (wasImportant) {
-		removeFromChatList(Mode::Important);
+		if (wasImportant) {
+			removeFromChatList(Mode::Important);
+		}
 	}
 	const auto was = std::exchange(_folder, folder);
 	if (was) {
@@ -1842,9 +1842,11 @@ void History::setFolderPointer(Data::Folder *folder) {
 	}
 	if (wasAll) {
 		addToChatList(Mode::All);
-	}
-	if (wasImportant) {
-		addToChatList(Mode::Important);
+		if (wasImportant) {
+			addToChatList(Mode::Important);
+		}
+		owner().chatsListChanged(was);
+		owner().chatsListChanged(_folder);
 	}
 	if (_folder) {
 		_folder->registerOne(this);

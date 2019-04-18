@@ -68,6 +68,7 @@ public:
 
 	void scrollToEntry(const Dialogs::RowDescriptor &entry);
 
+	Data::Folder *shownFolder() const;
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;

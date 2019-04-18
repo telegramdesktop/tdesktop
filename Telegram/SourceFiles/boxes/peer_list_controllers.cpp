@@ -225,18 +225,26 @@ void ChatsListBoxController::prepare() {
 
 	prepareViewHook();
 
-	rebuildRows();
+	if (!Auth().data().chatsListLoaded()) {
+		Auth().data().chatsListLoadedEvents(
+		) | rpl::filter([=](Data::Folder *folder) {
+			return !folder;
+		}) | rpl::start_with_next([=] {
+			checkForEmptyRows();
+		}, lifetime());
+	}
 
-	auto &sessionData = Auth().data();
-	subscribe(sessionData.contactsLoaded(), [this](bool loaded) {
+	Auth().data().chatsListChanges(
+	) | rpl::filter([=](Data::Folder *folder) {
+		return !folder;
+	}) | rpl::start_with_next([=] {
 		rebuildRows();
-	});
-	subscribe(sessionData.moreChatsLoaded(), [this] {
+	}, lifetime());
+
+	Auth().data().contactsLoaded().value(
+	) | rpl::start_with_next([=] {
 		rebuildRows();
-	});
-	subscribe(sessionData.allChatsLoaded(), [this](bool loaded) {
-		checkForEmptyRows();
-	});
+	}, lifetime());
 }
 
 void ChatsListBoxController::rebuildRows() {
@@ -280,8 +288,8 @@ void ChatsListBoxController::checkForEmptyRows() {
 	if (delegate()->peerListFullRowsCount()) {
 		setDescriptionText(QString());
 	} else {
-		auto &sessionData = Auth().data();
-		auto loaded = sessionData.contactsLoaded().value() && sessionData.allChatsLoaded().value();
+		const auto loaded = Auth().data().contactsLoaded().current()
+			&& Auth().data().chatsListLoaded();
 		setDescriptionText(loaded ? emptyBoxText() : lang(lng_contacts_loading));
 	}
 }
@@ -318,12 +326,10 @@ void ContactsBoxController::prepare() {
 
 	prepareViewHook();
 
-	rebuildRows();
-
-	auto &sessionData = Auth().data();
-	subscribe(sessionData.contactsLoaded(), [this](bool loaded) {
+	Auth().data().contactsLoaded().value(
+	) | rpl::start_with_next([=] {
 		rebuildRows();
-	});
+	}, lifetime());
 }
 
 void ContactsBoxController::rebuildRows() {
@@ -349,8 +355,7 @@ void ContactsBoxController::checkForEmptyRows() {
 	if (delegate()->peerListFullRowsCount()) {
 		setDescriptionText(QString());
 	} else {
-		auto &sessionData = Auth().data();
-		auto loaded = sessionData.contactsLoaded().value();
+		const auto loaded = Auth().data().contactsLoaded().current();
 		setDescriptionText(lang(loaded ? lng_contacts_not_found : lng_contacts_loading));
 	}
 }
@@ -473,13 +478,13 @@ bool AddBotToGroupBoxController::sharingBotGame() const {
 }
 
 QString AddBotToGroupBoxController::emptyBoxText() const {
-	return lang(Auth().data().allChatsLoaded().value()
+	return lang(Auth().data().chatsListLoaded()
 		? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups)
 		: lng_contacts_loading);
 }
 
 QString AddBotToGroupBoxController::noResultsText() const {
-	return lang(Auth().data().allChatsLoaded().value()
+	return lang(Auth().data().chatsListLoaded()
 		? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found)
 		: lng_contacts_loading);
 }
@@ -493,7 +498,12 @@ void AddBotToGroupBoxController::prepareViewHook() {
 		? lng_bot_choose_chat
 		: lng_bot_choose_group));
 	updateLabels();
-	subscribe(Auth().data().allChatsLoaded(), [this](bool) { updateLabels(); });
+	Auth().data().chatsListLoadedEvents(
+	) | rpl::filter([=](Data::Folder *folder) {
+		return !folder;
+	}) | rpl::start_with_next([=] {
+		updateLabels();
+	}, lifetime());
 }
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(

@@ -103,9 +103,12 @@ QString FormatVersionPrecise(int version) {
 Changelogs::Changelogs(not_null<AuthSession*> session, int oldVersion)
 : _session(session)
 , _oldVersion(oldVersion) {
-	_chatsSubscription = subscribe(
-		_session->data().moreChatsLoaded(),
-		[=] { requestCloudLogs(); });
+	_session->data().chatsListChanges(
+	) | rpl::filter([](Data::Folder *folder) {
+		return !folder;
+	}) | rpl::start_with_next([=] {
+		requestCloudLogs();
+	}, _chatsSubscription);
 }
 
 std::unique_ptr<Changelogs> Changelogs::Create(
@@ -117,7 +120,7 @@ std::unique_ptr<Changelogs> Changelogs::Create(
 }
 
 void Changelogs::requestCloudLogs() {
-	unsubscribe(base::take(_chatsSubscription));
+	_chatsSubscription.destroy();
 
 	const auto callback = [this](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);

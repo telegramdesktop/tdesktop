@@ -89,8 +89,12 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	_cancelSearchFromUser->setClickedCallback([this] { searchFromUserChanged.notify(nullptr); });
 	_cancelSearchFromUser->hide();
 
-	subscribe(session().downloaderTaskFinished(), [this] { update(); });
-	subscribe(session().data().contactsLoaded(), [this](bool) { refresh(); });
+	subscribe(session().downloaderTaskFinished(), [=] { update(); });
+
+	session().data().contactsLoaded().changes(
+	) | rpl::start_with_next([=] {
+		refresh();
+	}, lifetime());
 
 	session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
@@ -362,7 +366,7 @@ void DialogsInner::paintEvent(QPaintEvent *e) {
 			p.fillRect(dialogsClip, st::dialogsBg);
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
-			p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().value() ? st::noContactsFont->height : 0)), lang(session().data().contactsLoaded().value() ? lng_no_chats : lng_contacts_loading), style::al_center);
+			p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().current() ? st::noContactsFont->height : 0)), lang(session().data().contactsLoaded().current() ? lng_no_chats : lng_contacts_loading), style::al_center);
 		}
 	} else if (_state == State::Filtered) {
 		if (!_hashtagResults.empty()) {
@@ -1953,12 +1957,16 @@ void DialogsInner::notify_historyMuteUpdated(History *history) {
 	refreshDialog(history);
 }
 
+Data::Folder *DialogsInner::shownFolder() const {
+	return _openedFolder;
+}
+
 void DialogsInner::refresh(bool toTop) {
 	int32 h = 0;
 	if (_state == State::Default) {
 		if (shownDialogs()->empty()) {
 			h = st::noContactsHeight;
-			if (session().data().contactsLoaded().value()) {
+			if (session().data().contactsLoaded().current()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();

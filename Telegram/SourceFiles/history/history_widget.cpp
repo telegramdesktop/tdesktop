@@ -361,48 +361,55 @@ HistoryWidget::HistoryWidget(
 		confirmSendingFiles(data, CompressConfirm::No);
 		ActivateWindow(this->controller());
 	});
-	_attachDragPhoto->setDroppedCallback([this](const QMimeData *data) {
+	_attachDragPhoto->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::Yes);
 		ActivateWindow(this->controller());
 	});
 
-	subscribe(Adaptive::Changed(), [this] { update(); });
+	subscribe(Adaptive::Changed(), [=] { update(); });
 	Auth().data().itemRemoved(
-	) | rpl::start_with_next(
-		[this](auto item) { itemRemoved(item); },
-		lifetime());
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		itemRemoved(item);
+	}, lifetime());
+
 	Auth().data().historyChanged(
-	) | rpl::start_with_next(
-		[=](auto history) { handleHistoryChange(history); },
-		lifetime());
+	) | rpl::start_with_next([=](not_null<History*> history) {
+		handleHistoryChange(history);
+	}, lifetime());
+
 	Auth().data().viewResizeRequest(
-	) | rpl::start_with_next([this](auto view) {
+	) | rpl::start_with_next([=](not_null<HistoryView::Element*> view) {
 		if (view->data()->mainView() == view) {
 			updateHistoryGeometry();
 		}
 	}, lifetime());
+
 	Auth().data().itemViewRefreshRequest(
-	) | rpl::start_with_next([this](auto item) {
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		// While HistoryInner doesn't own item views we must refresh them
 		// even if the list is not yet created / was destroyed.
 		if (!_list) {
 			item->refreshMainView();
 		}
 	}, lifetime());
+
 	Auth().data().animationPlayInlineRequest(
-	) | rpl::start_with_next([=](auto item) {
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		if (const auto view = item->mainView()) {
 			if (const auto media = view->media()) {
 				media->playAnimation();
 			}
 		}
 	}, lifetime());
-	subscribe(Auth().data().contactsLoaded(), [this](bool) {
+
+	Auth().data().contactsLoaded().changes(
+	) | rpl::start_with_next([=] {
 		if (_peer) {
 			updateReportSpamStatus();
 			updateControlsVisibility();
 		}
-	});
+	}, lifetime());
+
 	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
 		if (pair.from.type() == AudioMsgId::Type::Voice) {
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
@@ -1863,7 +1870,7 @@ void HistoryWidget::updateReportSpamStatus() {
 		}
 	}
 	auto status = dbiprsRequesting;
-	if (!Auth().data().contactsLoaded().value() || _firstLoadRequest) {
+	if (!Auth().data().contactsLoaded().current() || _firstLoadRequest) {
 		status = dbiprsUnknown;
 	} else if (_peer->isUser()
 		&& _peer->asUser()->contactStatus() == UserData::ContactStatus::Contact) {

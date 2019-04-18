@@ -183,10 +183,13 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 	});
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
-	subscribe(session().data().moreChatsLoaded(), [=] {
+	session().data().chatsListChanges(
+	) | rpl::filter([=](Data::Folder *folder) {
+		return (folder == _inner->shownFolder());
+	}) | rpl::start_with_next([=] {
 		_inner->refresh();
 		onListScroll();
-	});
+	}, lifetime());
 	connect(_filter, &Ui::FlatInput::cancelled, [=] {
 		onCancel();
 	});
