@@ -134,10 +134,17 @@
           'utils.gyp:Packer',
         ],
       }], [ 'build_mac', {
+        'mac_hardened_runtime': 1,
         'mac_bundle': '1',
         'mac_bundle_resources': [
           '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
           '../Telegram/Images.xcassets',
+        ],
+        'xcode_settings': {
+          'ENABLE_HARDENED_RUNTIME': 'YES',
+        },
+        'sources': [
+          '../Telegram/Telegram.entitlements',
         ],
       }], [ 'build_macstore', {
         'mac_sandbox': 1,
