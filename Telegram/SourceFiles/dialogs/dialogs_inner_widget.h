@@ -223,6 +223,7 @@ private:
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 	int searchInChatSkip() const;
+	int openedFolderSkip() const;
 
 	void paintPeerSearchResult(
 		Painter &p,
@@ -230,32 +231,27 @@ private:
 		int fullWidth,
 		bool active,
 		bool selected) const;
-	void paintSearchInChat(
-		Painter &p,
-		int fullWidth) const;
+	void paintOpenedFolder(Painter &p) const;
+	void paintSearchInChat(Painter &p) const;
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
 		int top,
-		int fullWidth,
 		const Text &text) const;
 	void paintSearchInSaved(
 		Painter &p,
 		int top,
-		int fullWidth,
 		const Text &text) const;
 	//void paintSearchInFeed( // #feed
 	//	Painter &p,
 	//	not_null<Data::Feed*> feed,
 	//	int top,
-	//	int fullWidth,
 	//	const Text &text) const;
 	template <typename PaintUserpic>
 	void paintSearchInFilter(
 		Painter &p,
 		PaintUserpic paintUserpic,
 		int top,
-		int fullWidth,
 		const style::icon *icon,
 		const Text &text) const;
 	void refreshSearchInChatLabel();
@@ -284,6 +280,8 @@ private:
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;
+	Text _openedFolderText;
+
 	std::unique_ptr<ImportantSwitch> _importantSwitch;
 	bool _importantSwitchSelected = false;
 	bool _importantSwitchPressed = false;
@@ -343,6 +341,7 @@ private:
 	State _state = State::Default;
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
+	object_ptr<Ui::IconButton> _closeOpenedFolder;
 	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 
