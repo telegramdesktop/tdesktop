@@ -21,9 +21,9 @@ public:
 	Menu(QWidget *parent, const style::Menu &st = st::defaultMenu);
 	Menu(QWidget *parent, QMenu *menu, const style::Menu &st = st::defaultMenu);
 
-	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addSeparator();
+	not_null<QAction*> addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	not_null<QAction*> addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	not_null<QAction*> addSeparator();
 	void clearActions();
 	void finishAnimating();
 
@@ -39,8 +39,7 @@ public:
 	void setShowSource(TriggeredSource source);
 	void setForceWidth(int forceWidth);
 
-	using Actions = QList<QAction*>;
-	Actions &actions();
+	const std::vector<not_null<QAction*>> &actions() const;
 
 	void setResizedCallback(Fn<void()> callback) {
 		_resizedCallback = std::move(callback);
@@ -107,8 +106,8 @@ private:
 	void init();
 
 	// Returns the new width.
-	int processAction(QAction *action, int index, int width);
-	QAction *addAction(QAction *a, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	int processAction(not_null<QAction*> action, int index, int width);
+	not_null<QAction*> addAction(not_null<QAction*> action, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 
 	void setSelected(int selected);
 	void setPressed(int pressed);
@@ -131,7 +130,7 @@ private:
 	Fn<void(QPoint globalPosition)> _mouseReleaseDelegate;
 
 	QMenu *_wappedMenu = nullptr;
-	Actions _actions;
+	std::vector<not_null<QAction*>> _actions;
 	std::vector<ActionData> _actionsData;
 
 	int _forceWidth = 0;

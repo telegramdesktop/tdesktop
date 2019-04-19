@@ -51,15 +51,15 @@ void DropdownMenu::init() {
 	hide();
 }
 
-QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> DropdownMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *DropdownMenu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> DropdownMenu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
-QAction *DropdownMenu::addSeparator() {
+not_null<QAction*> DropdownMenu::addSeparator() {
 	return _menu->addSeparator();
 }
 
@@ -70,7 +70,7 @@ void DropdownMenu::clearActions() {
 	return _menu->clearActions();
 }
 
-DropdownMenu::Actions &DropdownMenu::actions() {
+const std::vector<not_null<QAction*>> &DropdownMenu::actions() const {
 	return _menu->actions();
 }
 

@@ -1616,8 +1616,12 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 			selectByMouse(globalPosition);
 		}
 	});
-	_menu->popup(e->globalPos());
-	e->accept();
+	if (_menu->actions().empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(e->globalPos());
+		e->accept();
+	}
 }
 
 void DialogsInner::onParentGeometryChanged() {

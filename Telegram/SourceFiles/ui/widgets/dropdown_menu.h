@@ -19,17 +19,16 @@ class DropdownMenu : public InnerDropdown {
 public:
 	DropdownMenu(QWidget *parent, const style::DropdownMenu &st = st::defaultDropdownMenu);
 
-	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addSeparator();
+	not_null<QAction*> addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	not_null<QAction*> addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	not_null<QAction*> addSeparator();
 	void clearActions();
 
 	void setHiddenCallback(Fn<void()> callback) {
 		_hiddenCallback = std::move(callback);
 	}
 
-	using Actions = Ui::Menu::Actions;
-	Actions &actions();
+	const std::vector<not_null<QAction*>> &actions() const;
 
 	~DropdownMenu();
 

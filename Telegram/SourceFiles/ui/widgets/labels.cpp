@@ -557,7 +557,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 		}
 	}
 
-	if (_contextMenu->actions().isEmpty()) {
+	if (_contextMenu->actions().empty()) {
 		delete _contextMenu;
 		_contextMenu = nullptr;
 	} else {

@@ -43,30 +43,28 @@ void Menu::init() {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
-QAction *Menu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
-	auto action = addAction(new QAction(text, this), icon, iconOver);
+not_null<QAction*> Menu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
+	const auto action = addAction(new QAction(text, this), icon, iconOver);
 	connect(action, SIGNAL(triggered(bool)), receiver, member, Qt::QueuedConnection);
 	return action;
 }
 
-QAction *Menu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
-	auto action = addAction(new QAction(text, this), icon, iconOver);
+not_null<QAction*> Menu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	const auto action = addAction(new QAction(text, this), icon, iconOver);
 	connect(action, &QAction::triggered, action, std::move(callback), Qt::QueuedConnection);
 	return action;
 }
 
-QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> Menu::addAction(not_null<QAction*> action, const style::icon *icon, const style::icon *iconOver) {
 	connect(action, SIGNAL(changed()), this, SLOT(actionChanged()));
-	_actions.push_back(action);
-
-	auto createData = [icon, iconOver, action] {
+	_actions.emplace_back(action);
+	_actionsData.push_back([&] {
 		auto data = ActionData();
 		data.icon = icon;
 		data.iconOver = iconOver ? iconOver : icon;
 		data.hasSubmenu = (action->menu() != nullptr);
 		return data;
-	};
-	_actionsData.push_back(createData());
+	}());
 
 	auto newWidth = qMax(width(), _st.widthMin);
 	newWidth = processAction(action, _actions.size() - 1, newWidth);
@@ -81,8 +79,8 @@ QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::
 	return action;
 }
 
-QAction *Menu::addSeparator() {
-	auto separator = new QAction(this);
+not_null<QAction*> Menu::addSeparator() {
+	const auto separator = new QAction(this);
 	separator->setSeparator(true);
 	return addAction(separator);
 }
@@ -113,7 +111,7 @@ void Menu::finishAnimating() {
 	}
 }
 
-int Menu::processAction(QAction *action, int index, int width) {
+int Menu::processAction(not_null<QAction*> action, int index, int width) {
 	auto &data = _actionsData[index];
 	if (action->isSeparator() || action->text().isEmpty()) {
 		data.text = data.shortcut = QString();
@@ -149,10 +147,10 @@ int Menu::processAction(QAction *action, int index, int width) {
 
 void Menu::setShowSource(TriggeredSource source) {
 	_mouseSelection = (source == TriggeredSource::Mouse);
-	setSelected((source == TriggeredSource::Mouse || _actions.isEmpty()) ? -1 : 0);
+	setSelected((source == TriggeredSource::Mouse || _actions.empty()) ? -1 : 0);
 }
 
-Menu::Actions &Menu::actions() {
+const std::vector<not_null<QAction*>> &Menu::actions() const {
 	return _actions;
 }
 
@@ -163,8 +161,9 @@ void Menu::setForceWidth(int forceWidth) {
 
 void Menu::actionChanged() {
 	auto newWidth = _st.widthMin;
-	for (auto i = 0, count = _actions.size(); i != count; ++i) {
-		newWidth = processAction(_actions[i], i, newWidth);
+	auto index = 0;
+	for (const auto action : _actions) {
+		newWidth = processAction(action, index++, newWidth);
 	}
 	if (newWidth != width() && !_forceWidth) {
 		resize(newWidth, height());
@@ -188,10 +187,10 @@ void Menu::paintEvent(QPaintEvent *e) {
 	int top = _st.skip;
 	p.translate(0, top);
 	p.setFont(_st.itemFont);
-	for (int i = 0, count = _actions.size(); i != count; ++i) {
+	for (int i = 0, count = int(_actions.size()); i != count; ++i) {
 		if (clip.top() + clip.height() <= top) break;
 
-		auto action = _actions[i];
+		const auto action = _actions[i];
 		auto &data = _actionsData[i];
 		auto actionHeight = action->isSeparator() ? _separatorHeight : _itemHeight;
 		top += actionHeight;
@@ -300,12 +299,14 @@ void Menu::handleKeyPress(int key) {
 		if (_selected >= 0 && _actionsData[_selected].hasSubmenu) {
 			itemPressed(TriggeredSource::Keyboard);
 			return;
-		} else if (_selected < 0 && !_actions.isEmpty()) {
+		} else if (_selected < 0 && !_actions.empty()) {
 			_mouseSelection = false;
 			setSelected(0);
 		}
 	}
-	if ((key != Qt::Key_Up && key != Qt::Key_Down) || _actions.size() < 1) return;
+	if ((key != Qt::Key_Up && key != Qt::Key_Down) || _actions.empty()) {
+		return;
+	}
 
 	auto delta = (key == Qt::Key_Down ? 1 : -1), start = _selected;
 	if (start < 0 || start >= _actions.size()) {
@@ -367,7 +368,10 @@ void Menu::setSelected(int selected) {
 		updateSelectedItem();
 		if (_activatedCallback) {
 			auto source = _mouseSelection ? TriggeredSource::Mouse : TriggeredSource::Keyboard;
-			_activatedCallback((_selected >= 0) ? _actions[_selected] : nullptr, itemTop(_selected), source);
+			_activatedCallback(
+				(_selected >= 0) ? _actions[_selected].get() : nullptr,
+				itemTop(_selected),
+				source);
 		}
 	}
 }

@@ -91,26 +91,26 @@ void PopupMenu::handleMenuResize() {
 	_inner = rect().marginsRemoved(_padding);
 }
 
-QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *PopupMenu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> PopupMenu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
-QAction *PopupMenu::addSeparator() {
+not_null<QAction*> PopupMenu::addSeparator() {
 	return _menu->addSeparator();
 }
 
 void PopupMenu::clearActions() {
-	for (auto submenu : base::take(_submenus)) {
+	for (const auto &submenu : base::take(_submenus)) {
 		delete submenu;
 	}
 	return _menu->clearActions();
 }
 
-PopupMenu::Actions &PopupMenu::actions() {
+const std::vector<not_null<QAction*>> &PopupMenu::actions() const {
 	return _menu->actions();
 }
 

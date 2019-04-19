@@ -1065,7 +1065,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	if (_menu->actions().isEmpty()) {
+	if (_menu->actions().empty()) {
 		_menu = nullptr;
 	} else {
 		_menu->popup(e->globalPos());
