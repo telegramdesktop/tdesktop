@@ -64,7 +64,7 @@ public:
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
-	void savePinnedOrder();
+	void savePinnedOrder(FolderId folderId);
 	void toggleHistoryArchived(
 		not_null<History*> history,
 		bool archived,
@@ -79,15 +79,13 @@ public:
 	QString exportDirectMessageLink(not_null<HistoryItem*> item);
 
 	void requestContacts();
-	void requestDialogs();
-	void requestFolderDialogs(FolderId folderId);
-	void requestPinnedDialogs();
+	void requestDialogs(FolderId folderId);
+	void requestPinnedDialogs(FolderId folderId);
 	void requestMoreBlockedByDateDialogs();
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
 	rpl::producer<bool> dialogsLoadBlockedByDate() const;
 
 	void requestDialogEntry(not_null<Data::Folder*> folder);
-	//void requestFeedDialogsEntries(not_null<Data::Feed*> feed); // #feed
 	void requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback = nullptr);
@@ -460,6 +458,10 @@ private:
 		MsgId offsetId = 0;
 		PeerData *offsetPeer = nullptr;
 		mtpRequestId requestId = 0;
+		bool listReceived = false;
+
+		mtpRequestId pinnedRequestId = 0;
+		bool pinnedReceived = false;
 	};
 
 	void setupSupportMode();
@@ -485,9 +487,6 @@ private:
 	QVector<MTPInputMessage> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
-	//void applyFeedDialogs( // #feed
-	//	not_null<Data::Feed*> feed,
-	//	const MTPmessages_Dialogs &dialogs);
 
 	void gotChatFull(
 		not_null<PeerData*> peer,
@@ -761,9 +760,6 @@ private:
 	TimeId _dialogsLoadTill = 0;
 	rpl::variable<bool> _dialogsLoadMayBlockByDate = false;
 	rpl::variable<bool> _dialogsLoadBlockedByDate = false;
-
-	bool _pinnedDialogsReceived = false;
-	mtpRequestId _pinnedDialogsRequestId = 0;
 
 	base::flat_map<FolderId, DialogsLoadState> _foldersLoadState;
 

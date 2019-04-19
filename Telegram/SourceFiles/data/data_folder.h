@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "dialogs/dialogs_pinned_list.h"
 #include "data/data_messages.h"
 
 class ChannelData;
@@ -45,6 +46,8 @@ public:
 	not_null<Dialogs::IndexedList*> chatsList(Dialogs::Mode list);
 
 	void applyDialog(const MTPDdialogFolder &data);
+	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
+
 	void setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount);
 	//void setUnreadPosition(const MessagePosition &position); // #feed
 	void unreadCountChanged(
@@ -57,6 +60,22 @@ public:
 	//void setUnreadMark(bool unread);
 	//bool unreadMark() const;
 	//int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
+
+	void setPinnedChatsLimit(int limit);
+
+	// Places on the last place in the list otherwise.
+	// Does nothing if already pinned.
+	void addPinnedChat(const Dialogs::Key &key);
+
+	// if (pinned) places on the first place in the list.
+	void setChatPinned(const Dialogs::Key &key, bool pinned);
+
+	void applyPinnedChats(const QVector<MTPDialogPeer> &list);
+	const std::vector<Dialogs::Key> &pinnedChatsOrder() const;
+	void clearPinnedChats();
+	void reorderTwoPinnedChats(
+		const Dialogs::Key &key1,
+		const Dialogs::Key &key2);
 
 	TimeId adjustedChatListTimeId() const override;
 	int unreadCount() const;
@@ -100,6 +119,7 @@ private:
 	FolderId _id = 0;
 	Dialogs::IndexedList _chatsList;
 	Dialogs::IndexedList _importantChatsList;
+	Dialogs::PinnedList _pinnedChatsList;
 	bool _chatsListLoaded = false;
 
 	QString _name;

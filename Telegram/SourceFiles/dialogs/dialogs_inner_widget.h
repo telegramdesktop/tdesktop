@@ -50,6 +50,7 @@ public:
 
 	void activate();
 
+	bool openFolder(not_null<Data::Folder*> folder);
 	bool cancelFolder();
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
@@ -273,6 +274,8 @@ private:
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatMigration(not_null<ChatData*> chat);
 
+	bool changeOpenedFolder(Data::Folder *folder);
+
 	not_null<Window::Controller*> _controller;
 
 	bool _mouseSelection = false;
@@ -298,7 +301,7 @@ private:
 	};
 	std::vector<PinnedRow> _pinnedRows;
 	Ui::Animations::Basic _pinnedShiftAnimation;
-	std::deque<Dialogs::Key> _pinnedOrder;
+	base::flat_set<Dialogs::Key> _pinnedOnDragStart;
 
 	// Remember the last currently dragged row top shift for updating area.
 	int _aboveTopShift = -1;

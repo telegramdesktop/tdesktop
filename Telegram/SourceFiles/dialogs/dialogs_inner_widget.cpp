@@ -275,13 +275,28 @@ int DialogsInner::openedFolderSkip() const {
 	return st::dialogsSearchInHeight;
 }
 
+bool DialogsInner::openFolder(not_null<Data::Folder*> folder) {
+	return changeOpenedFolder(folder);
+}
+
 bool DialogsInner::cancelFolder() {
-	if (!_openedFolder) {
+	return changeOpenedFolder(nullptr);
+}
+
+bool DialogsInner::changeOpenedFolder(Data::Folder *folder) {
+	if (_openedFolder == folder) {
 		return false;
 	}
+	stopReorderPinned();
 	clearSelection();
-	_openedFolder = nullptr;
-	_closeOpenedFolder->hide();
+	_openedFolder = folder;
+	_closeOpenedFolder->setVisible(folder != nullptr);
+	if (folder) {
+		_openedFolderText.setText(
+			st::msgNameStyle,
+			folder->chatListName(),
+			Ui::DialogTextOptions());
+	}
 	refresh();
 	return true;
 }
@@ -920,18 +935,25 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 }
 
 void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
-	if (_pressed != nullptr && !_dragging && _state == State::Default) {
-		if (qAbs(localPosition.y() - _dragStart.y()) >= ConvertScale(kStartReorderThreshold)) {
-			_dragging = _pressed;
-			if (updateReorderIndexGetCount() < 2) {
-				_dragging = nullptr;
-			} else {
-				_pinnedOrder = session().data().pinnedDialogsOrder();
-				_pinnedRows[_draggingIndex].yadd = anim::value(0, localPosition.y() - _dragStart.y());
-				_pinnedRows[_draggingIndex].animStartTime = crl::now();
-				_pinnedShiftAnimation.start();
-			}
-		}
+	if (!_pressed || _dragging || _state != State::Default) {
+		return;
+	} else if (qAbs(localPosition.y() - _dragStart.y())
+		< ConvertScale(kStartReorderThreshold)) {
+		return;
+	}
+	_dragging = _pressed;
+	if (updateReorderIndexGetCount() < 2) {
+		_dragging = nullptr;
+	} else {
+		const auto folderId = _openedFolder ? _openedFolder->id() : 0;
+		const auto &order = session().data().pinnedChatsOrder(folderId);
+		_pinnedOnDragStart = base::flat_set<Dialogs::Key>{
+			order.begin(),
+			order.end()
+		};
+		_pinnedRows[_draggingIndex].yadd = anim::value(0, localPosition.y() - _dragStart.y());
+		_pinnedRows[_draggingIndex].animStartTime = crl::now();
+		_pinnedShiftAnimation.start();
 	}
 }
 
@@ -967,16 +989,17 @@ int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
 }
 
 void DialogsInner::savePinnedOrder() {
-	const auto &newOrder = session().data().pinnedDialogsOrder();
-	if (newOrder.size() != _pinnedOrder.size()) {
+	const auto folderId = _openedFolder ? _openedFolder->id() : 0;
+	const auto &newOrder = session().data().pinnedChatsOrder(folderId);
+	if (newOrder.size() != _pinnedOnDragStart.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
-	for (const auto &pinned : newOrder) {
-		if (!base::contains(_pinnedOrder, pinned)) {
+	for (const auto &key : newOrder) {
+		if (!_pinnedOnDragStart.contains(key)) {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	session().api().savePinnedOrder();
+	session().api().savePinnedOrder(folderId);
 }
 
 void DialogsInner::finishReorderPinned() {
@@ -1769,7 +1792,7 @@ void DialogsInner::clearSearchResults(bool clearPeerSearchResults) {
 	_searchResults.clear();
 	_searchedCount = _searchedMigratedCount = 0;
 	_lastSearchDate = 0;
-	_lastSearchPeer = 0;
+	_lastSearchPeer = nullptr;
 	_lastSearchId = _lastSearchMigratedId = 0;
 }
 
@@ -2457,14 +2480,7 @@ bool DialogsInner::chooseRow() {
 					? ShowAtUnreadMsgId
 					: chosen.message.fullId.msg));
 		} else if (const auto folder = chosen.key.folder()) {
-			clearSelection();
-			_openedFolder = folder;
-			_closeOpenedFolder->show();
-			_openedFolderText.setText(
-				st::msgNameStyle,
-				folder->chatListName(),
-				Ui::DialogTextOptions());
-			refresh();
+			openFolder(folder);
 		}
 		if (openSearchResult && !session().supportMode()) {
 			emit clearSearchQuery();

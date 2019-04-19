@@ -247,7 +247,11 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 					&& !_searchFullMigrated))) {
 			onSearchMore();
 		} else {
-			session().api().requestDialogs();
+			const auto folder = _inner->shownFolder();
+			const auto folderId = folder ? folder->id() : FolderId(0);
+			if (!folderId || !folder->chatsListLoaded()) {
+				session().api().requestDialogs(folderId);
+			}
 		}
 	});
 	_inner->listBottomReached(
@@ -1063,14 +1067,6 @@ void DialogsWidget::onListScroll() {
 
 	// Fix button rendering glitch, Qt bug with WA_OpaquePaintEvent widgets.
 	_scrollToTop->update();
-
-	if (const auto folder = _inner->shownFolder()) {
-		if (!folder->chatsListLoaded()
-			&& (scrollTop + height() * PreloadHeightsCount
-				>= _scroll->scrollTopMax())) {
-			session().api().requestFolderDialogs(folder->id());
-		}
-	}
 }
 
 void DialogsWidget::applyFilterUpdate(bool force) {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "dialogs/dialogs_pinned_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
@@ -304,12 +305,16 @@ public:
 	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
 
-	int pinnedDialogsCount() const;
-	const std::deque<Dialogs::Key> &pinnedDialogsOrder() const;
-	void setPinnedDialog(const Dialogs::Key &key, bool pinned);
-	void clearPinnedDialogs();
-	void applyPinnedDialogs(const QVector<MTPDialogPeer> &list);
-	void reorderTwoPinnedDialogs(
+	int pinnedChatsCount(FolderId folderId) const;
+	int pinnedChatsLimit(FolderId folderId) const;
+	const std::vector<Dialogs::Key> &pinnedChatsOrder(
+		FolderId folderId) const;
+	void setChatPinned(const Dialogs::Key &key, bool pinned);
+	void clearPinnedChats(FolderId folderId);
+	void applyPinnedChats(
+		FolderId folderId,
+		const QVector<MTPDialogPeer> &list);
+	void reorderTwoPinnedChats(
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
 
@@ -513,7 +518,7 @@ public:
 	void unregisterItemView(not_null<ViewElement*> view);
 
 	[[nodiscard]] not_null<Folder*> folder(FolderId id);
-	[[nodiscard]] Folder *folderLoaded(FolderId id);
+	[[nodiscard]] Folder *folderLoaded(FolderId id) const;
 	not_null<Folder*> processFolder(const MTPFolder &data);
 	not_null<Folder*> processFolder(const MTPDfolder &data);
 	//void setDefaultFeedId(FeedId id); // #feed
@@ -694,7 +699,7 @@ private:
 	}
 	void userIsContactUpdated(not_null<UserData*> user);
 
-	void setIsPinned(const Dialogs::Key &key, bool pinned);
+	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
 
 	NotifySettings &defaultNotifySettings(not_null<const PeerData*> peer);
 	const NotifySettings &defaultNotifySettings(
@@ -777,6 +782,7 @@ private:
 	Dialogs::IndexedList _importantChatsList;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
+	Dialogs::PinnedList _pinnedChatsList;
 
 	base::Timer _selfDestructTimer;
 	std::vector<FullMsgId> _selfDestructItems;
@@ -835,7 +841,6 @@ private:
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
 
-	std::deque<Dialogs::Key> _pinnedDialogs;
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 	Groups _groups;

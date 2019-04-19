@@ -2931,7 +2931,7 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 	_ptsWaiter.setRequesting(false);
 
-	session().api().requestDialogs();
+	session().api().requestDialogs(FolderId(0));
 	updateOnline();
 }
 
@@ -4269,7 +4269,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updatePinnedDialogs: {
 		const auto &d = update.c_updatePinnedDialogs();
-		if (d.has_order()) {
+		const auto folderId = d.has_folder_id() ? d.vfolder_id.v : 0;
+		const auto done = [&] {
+			if (!d.has_order()) {
+				return false;
+			}
 			const auto &order = d.vorder.v;
 			const auto notLoaded = [&](const MTPDialogPeer &peer) {
 				return peer.match([&](const MTPDdialogPeer &data) {
@@ -4281,41 +4285,52 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			};
 			const auto allLoaded = ranges::find_if(order, notLoaded)
 				== order.end();
-			if (allLoaded) {
-				session().data().applyPinnedDialogs(order);
-			} else {
-				session().api().requestPinnedDialogs();
+			if (!allLoaded) {
+				return false;
 			}
-		} else {
-			session().api().requestPinnedDialogs();
+			session().data().applyPinnedChats(folderId, order);
+			return true;
+		}();
+		if (!done) {
+			session().api().requestPinnedDialogs(folderId);
 		}
 	} break;
 
 	case mtpc_updateDialogPinned: {
 		const auto &d = update.c_updateDialogPinned();
-		d.vpeer.match([&](const MTPDdialogPeer &data) {
+		const auto folderId = d.has_folder_id() ? d.vfolder_id.v : 0;
+		const auto done = d.vpeer.match([&](const MTPDdialogPeer &data) {
 			const auto id = peerFromMTP(data.vpeer);
 			if (const auto history = session().data().historyLoaded(id)) {
-				session().data().setPinnedDialog(history, d.is_pinned());
-			} else {
-				DEBUG_LOG(("API Error: "
-					"pinned chat not loaded for peer %1"
-					).arg(id
-					));
-				session().api().requestPinnedDialogs();
+				history->applyPinnedUpdate(d);
+				return true;
 			}
+			DEBUG_LOG(("API Error: "
+				"pinned chat not loaded for peer %1, folder: %2"
+				).arg(id
+				).arg(folderId
+				));
+			return false;
 		}, [&](const MTPDdialogPeerFolder &data) {
+			if (folderId != 0) {
+				DEBUG_LOG(("API Error: Nested folders updateDialogPinned."));
+				return false;
+			}
 			const auto id = data.vfolder_id.v;
 			if (const auto folder = session().data().folderLoaded(id)) {
-				session().data().setPinnedDialog(folder, d.is_pinned());
-			} else {
-				DEBUG_LOG(("API Error: "
-					"pinned folder not loaded for folderId %1"
-					).arg(id
-					));
-				session().api().requestPinnedDialogs();
+				folder->applyPinnedUpdate(d);
+				return true;
 			}
+			DEBUG_LOG(("API Error: "
+				"pinned folder not loaded for folderId %1, folder: %2"
+				).arg(id
+				).arg(folderId
+				));
+			return false;
 		});
+		if (!done) {
+			session().api().requestPinnedDialogs(folderId);
+		}
 	} break;
 
 	case mtpc_updateChannel: {

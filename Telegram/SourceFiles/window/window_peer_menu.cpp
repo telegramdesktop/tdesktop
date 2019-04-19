@@ -80,12 +80,12 @@ public:
 	void fill();
 
 private:
-	bool showInfo();
-	void addPinToggle();
-	void addInfo();
-	void addSearch();
-	void addNotifications();
-	void addUngroup();
+	//bool showInfo();
+	//void addPinToggle();
+	//void addInfo();
+	//void addSearch();
+	//void addNotifications();
+	//void addUngroup();
 
 	not_null<Controller*> _controller;
 	not_null<Data::Folder*> _folder;
@@ -94,8 +94,8 @@ private:
 
 };
 
-History *FindWastedPin() {
-	const auto &order = Auth().data().pinnedDialogsOrder();
+History *FindWastedPin(FolderId folderId) {
+	const auto &order = Auth().data().pinnedChatsOrder(folderId);
 	for (const auto &pinned : order) {
 		if (const auto history = pinned.history()) {
 			if (history->peer->isChat()
@@ -113,16 +113,20 @@ void AddChatMembers(not_null<ChatData*> chat) {
 }
 
 bool PinnedLimitReached(Dialogs::Key key) {
-	const auto pinnedCount = Auth().data().pinnedDialogsCount();
-	const auto pinnedMax = Global::PinnedDialogsCountMax();
+	Expects(key.entry()->folderKnown());
+
+	const auto folder = key.entry()->folder();
+	const auto folderId = folder ? folder->id() : 0;
+	const auto pinnedCount = Auth().data().pinnedChatsCount(folderId);
+	const auto pinnedMax = Auth().data().pinnedChatsLimit(folderId);
 	if (pinnedCount < pinnedMax) {
 		return false;
 	}
 	// Some old chat, that was converted, maybe is still pinned.
-	if (const auto wasted = FindWastedPin()) {
-		Auth().data().setPinnedDialog(wasted, false);
-		Auth().data().setPinnedDialog(key, true);
-		Auth().api().savePinnedOrder();
+	if (const auto wasted = FindWastedPin(folderId)) {
+		Auth().data().setChatPinned(wasted, false);
+		Auth().data().setChatPinned(key, true);
+		Auth().api().savePinnedOrder(folderId);
 	} else {
 		auto errorText = lng_error_pinned_max(
 			lt_count,
@@ -133,32 +137,34 @@ bool PinnedLimitReached(Dialogs::Key key) {
 }
 
 void TogglePinnedDialog(Dialogs::Key key) {
+	if (!key.entry()->folderKnown()) {
+		return;
+	}
 	const auto isPinned = !key.entry()->isPinnedDialog();
 	if (isPinned && PinnedLimitReached(key)) {
 		return;
 	}
 
-	Auth().data().setPinnedDialog(key, isPinned);
-	auto flags = MTPmessages_ToggleDialogPin::Flags(0);
-	if (isPinned) {
-		flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
-	}
-	//MTP::send(MTPmessages_ToggleDialogPin( // #feed
-	//	MTP_flags(flags),
-	//	key.history()
-	//		? MTP_inputDialogPeer(key.history()->peer->input)
-	//		: MTP_inputDialogPeerFeed(MTP_int(key.feed()->id()))));
-	if (key.history()) {
-		MTP::send(MTPmessages_ToggleDialogPin(
+	Auth().data().setChatPinned(key, isPinned);
+	const auto flags = isPinned
+		? MTPmessages_ToggleDialogPin::Flag::f_pinned
+		: MTPmessages_ToggleDialogPin::Flag(0);
+	if (const auto history = key.history()) {
+		history->session().api().request(MTPmessages_ToggleDialogPin(
 			MTP_flags(flags),
-			MTP_inputDialogPeer(key.history()->peer->input)));
+			MTP_inputDialogPeer(key.history()->peer->input)
+		)).send();
+	} else if (const auto folder = key.folder()) {
+		folder->session().api().request(MTPmessages_ToggleDialogPin(
+			MTP_flags(flags),
+			MTP_inputDialogPeerFolder(MTP_int(folder->id()))
+		)).send();
 	}
 	if (isPinned) {
 		if (const auto main = App::main()) {
 			main->dialogsToUp();
 		}
 	}
-
 }
 
 Filler::Filler(

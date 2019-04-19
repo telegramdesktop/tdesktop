@@ -192,6 +192,7 @@ public:
 	void unknownMessageDeleted(MsgId messageId);
 	void applyDialogTopMessage(MsgId topMessageId);
 	void applyDialog(FolderId requestFolderId, const MTPDdialog &data);
+	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 	void applyDialogFields(
 		int unreadCount,
 		MsgId maxInboxRead,

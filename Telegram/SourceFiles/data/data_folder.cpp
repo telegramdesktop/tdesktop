@@ -42,6 +42,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 , _id(id)
 , _chatsList(Dialogs::SortMode::Date)
 , _importantChatsList(Dialogs::SortMode::Date)
+, _pinnedChatsList(Global::PinnedDialogsInFolderMax())
 , _name(lang(lng_archived_chats)) {
 	indexNameParts();
 }
@@ -234,6 +235,36 @@ void Folder::requestChatListMessage() {
 	}
 }
 
+void Folder::setPinnedChatsLimit(int limit) {
+	_pinnedChatsList.setLimit(limit);
+}
+
+void Folder::setChatPinned(const Dialogs::Key &key, bool pinned) {
+	_pinnedChatsList.setPinned(key, pinned);
+}
+
+void Folder::addPinnedChat(const Dialogs::Key &key) {
+	_pinnedChatsList.addPinned(key);
+}
+
+void Folder::applyPinnedChats(const QVector<MTPDialogPeer> &list) {
+	_pinnedChatsList.applyList(&owner(), list);
+}
+
+const std::vector<Dialogs::Key> &Folder::pinnedChatsOrder() const {
+	return _pinnedChatsList.order();
+}
+
+void Folder::clearPinnedChats() {
+	_pinnedChatsList.clear();
+}
+
+void Folder::reorderTwoPinnedChats(
+		const Dialogs::Key &key1,
+		const Dialogs::Key &key2) {
+	_pinnedChatsList.reorder(key1, key2);
+}
+
 TimeId Folder::adjustedChatListTimeId() const {
 	return _chatsList.empty()
 		? TimeId(0)
@@ -286,8 +317,16 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 	//}
 
 	if (_chatsList.size() < kLoadedChatsMinCount) {
-		session().api().requestFolderDialogs(_id);
+		session().api().requestDialogs(_id);
 	}
+}
+
+void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
+	const auto folderId = data.has_folder_id() ? data.vfolder_id.v : 0;
+	if (folderId != 0) {
+		LOG(("API Error: Nested folders detected."));
+	}
+	owner().setChatPinned(this, data.is_pinned());
 }
 
 void Folder::changedInChatListHook(Dialogs::Mode list, bool added) {

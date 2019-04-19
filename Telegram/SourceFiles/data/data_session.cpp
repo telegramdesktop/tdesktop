@@ -154,6 +154,7 @@ Session::Session(not_null<AuthSession*> session)
 , _importantChatsList(Dialogs::SortMode::Date)
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
+, _pinnedChatsList(Global::PinnedDialogsCountMax())
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
@@ -167,6 +168,14 @@ Session::Session(not_null<AuthSession*> session)
 	setupChannelLeavingViewer();
 	setupPeerNameViewer();
 	setupUserIsContactViewer();
+
+	Core::App().configUpdates(
+	) | rpl::start_with_next([=] {
+		_pinnedChatsList.setLimit(Global::PinnedDialogsCountMax());
+		for (const auto &[folderId, folder] : _folders) {
+			folder->setPinnedChatsLimit(Global::PinnedDialogsInFolderMax());
+		}
+	}, _lifetime);
 }
 
 void Session::clear() {
@@ -731,7 +740,9 @@ History *Session::historyLoaded(const PeerData *peer) {
 void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 	const auto history = historyLoaded(peer);
 	if (history) {
-		setPinnedDialog(history, false);
+		if (history->folderKnown()) {
+			setChatPinned(history, false);
+		}
 		App::main()->removeDialog(history);
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
@@ -1341,21 +1352,54 @@ MessageIdsList Session::itemOrItsGroup(not_null<HistoryItem*> item) const {
 	return { 1, item->fullId() };
 }
 
-void Session::setPinnedDialog(const Dialogs::Key &key, bool pinned) {
-	setIsPinned(key, pinned);
+void Session::setChatPinned(const Dialogs::Key &key, bool pinned) {
+	Expects(key.entry()->folderKnown());
+
+	if (const auto folder = key.entry()->folder()) {
+		folder->setChatPinned(key, pinned);
+	} else {
+		_pinnedChatsList.setPinned(key, pinned);
+	}
 }
 
-void Session::applyPinnedDialogs(const QVector<MTPDialogPeer> &list) {
-	clearPinnedDialogs();
-	for (auto i = list.size(); i != 0;) {
-		list[--i].match([&](const MTPDdialogPeer &data) {
-			if (const auto peerId = peerFromMTP(data.vpeer)) {
-				setPinnedDialog(history(peerId), true);
+void Session::setPinnedFromDialog(const Dialogs::Key &key, bool pinned) {
+	Expects(key.entry()->folderKnown());
+
+	if (const auto folder = key.entry()->folder()) {
+		if (pinned) {
+			folder->addPinnedChat(key);
+		} else {
+			folder->setChatPinned(key, false);
+		}
+	} else if (pinned) {
+		_pinnedChatsList.addPinned(key);
+	} else {
+		_pinnedChatsList.setPinned(key, false);
+	}
+}
+
+void Session::applyPinnedChats(
+		FolderId folderId,
+		const QVector<MTPDialogPeer> &list) {
+	const auto folder = folderId ? this->folder(folderId).get() : nullptr;
+	for (const auto &peer : list) {
+		peer.match([&](const MTPDdialogPeer &data) {
+			const auto history = this->history(peerFromMTP(data.vpeer));
+			if (folder) {
+				history->setFolder(folder);
+			} else {
+				history->clearFolder();
 			}
 		}, [&](const MTPDdialogPeerFolder &data) {
-			const auto folderId = data.vfolder_id.v;
-			setPinnedDialog(folder(folderId), true);
+			if (folder) {
+				LOG(("API Error: Nested folders detected."));
+			}
 		});
+	}
+	if (folder) {
+		folder->applyPinnedChats(list);
+	} else {
+		_pinnedChatsList.applyList(this, list);
 	}
 }
 
@@ -1363,15 +1407,6 @@ void Session::applyDialogs(
 		FolderId requestFolderId,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs) {
-	for (const auto &dialog : dialogs | ranges::view::reverse) {
-		dialog.match([&](const MTPDdialog &data) {
-			if (const auto peer = peerFromMTP(data.vpeer)) {
-				setPinnedDialog(history(peer), data.is_pinned());
-			}
-		}, [&](const MTPDdialogFolder &data) {
-			setPinnedDialog(processFolder(data.vfolder), data.is_pinned());
-		});
-	}
 	App::feedMsgs(messages, NewMessageLast);
 	for (const auto &dialog : dialogs) {
 		dialog.match([&](const auto &data) {
@@ -1388,6 +1423,7 @@ void Session::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
 
 	const auto history = session().data().history(peerId);
 	history->applyDialog(requestFolderId, data);
+	setPinnedFromDialog(history, data.is_pinned());
 
 	if (!history->fixedOnTopIndex() && !history->isPinnedDialog()) {
 		const auto date = history->chatListTimeId();
@@ -1408,12 +1444,13 @@ void Session::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
 
 void Session::applyDialog(
 		FolderId requestFolderId,
-		const MTPDdialogFolder &dialog) {
+		const MTPDdialogFolder &data) {
 	if (requestFolderId != 0) {
 		LOG(("API Error: requestFolderId != 0 for dialogFolder."));
 	}
-	const auto folder = processFolder(dialog.vfolder);
-	folder->applyDialog(dialog);
+	const auto folder = processFolder(data.vfolder);
+	folder->applyDialog(data);
+	setPinnedFromDialog(folder, data.is_pinned());
 
 	if (!folder->fixedOnTopIndex() && !folder->isPinnedDialog()) {
 		const auto date = folder->chatListTimeId();
@@ -1441,69 +1478,49 @@ void Session::addAllSavedPeers() {
 	addSavedPeersAfter(QDateTime());
 }
 
-int Session::pinnedDialogsCount() const {
-	return _pinnedDialogs.size();
+int Session::pinnedChatsCount(FolderId folderId) const {
+	return pinnedChatsOrder(folderId).size();
 }
 
-const std::deque<Dialogs::Key> &Session::pinnedDialogsOrder() const {
-	return _pinnedDialogs;
+int Session::pinnedChatsLimit(FolderId folderId) const {
+	return folderId
+		? Global::PinnedDialogsInFolderMax()
+		: Global::PinnedDialogsCountMax();
 }
 
-void Session::clearPinnedDialogs() {
-	while (!_pinnedDialogs.empty()) {
-		setPinnedDialog(_pinnedDialogs.back(), false);
+const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
+		FolderId folderId) const {
+	if (folderId) {
+		if (const auto folder = folderLoaded(folderId)) {
+			return folder->pinnedChatsOrder();
+		}
+		static const auto result = std::vector<Dialogs::Key>();
+		return result;
+	}
+	return _pinnedChatsList.order();
+}
+
+void Session::clearPinnedChats(FolderId folderId) {
+	if (folderId) {
+		if (const auto folder = folderLoaded(folderId)) {
+			folder->clearPinnedChats();
+		}
+	} else {
+		_pinnedChatsList.clear();
 	}
 }
 
-void Session::reorderTwoPinnedDialogs(
+void Session::reorderTwoPinnedChats(
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2) {
-	const auto &order = pinnedDialogsOrder();
-	const auto index1 = ranges::find(order, key1) - begin(order);
-	const auto index2 = ranges::find(order, key2) - begin(order);
-	Assert(index1 >= 0 && index1 < order.size());
-	Assert(index2 >= 0 && index2 < order.size());
-	Assert(index1 != index2);
-	std::swap(_pinnedDialogs[index1], _pinnedDialogs[index2]);
-	key1.entry()->cachePinnedIndex(index2 + 1);
-	key2.entry()->cachePinnedIndex(index1 + 1);
-}
+	Expects(key1.entry()->folderKnown() && key2.entry()->folderKnown());
+	Expects(key1.entry()->folder() == key2.entry()->folder());
 
-void Session::setIsPinned(const Dialogs::Key &key, bool pinned) {
-	const auto already = ranges::find(_pinnedDialogs, key);
-	if (pinned) {
-		if (already != end(_pinnedDialogs)) {
-			auto saved = std::move(*already);
-			const auto alreadyIndex = already - end(_pinnedDialogs);
-			const auto count = int(size(_pinnedDialogs));
-			Assert(alreadyIndex < count);
-			for (auto index = alreadyIndex + 1; index != count; ++index) {
-				_pinnedDialogs[index - 1] = std::move(_pinnedDialogs[index]);
-				_pinnedDialogs[index - 1].entry()->cachePinnedIndex(index);
-			}
-			_pinnedDialogs.back() = std::move(saved);
-			_pinnedDialogs.back().entry()->cachePinnedIndex(count);
-		} else {
-			_pinnedDialogs.push_back(key);
-			if (_pinnedDialogs.size() > Global::PinnedDialogsCountMax()) {
-				_pinnedDialogs.front().entry()->cachePinnedIndex(0);
-				_pinnedDialogs.pop_front();
-
-				auto index = 0;
-				for (const auto &pinned : _pinnedDialogs) {
-					pinned.entry()->cachePinnedIndex(++index);
-				}
-			} else {
-				key.entry()->cachePinnedIndex(_pinnedDialogs.size());
-			}
-		}
-	} else if (!pinned && already != end(_pinnedDialogs)) {
-		key.entry()->cachePinnedIndex(0);
-		_pinnedDialogs.erase(already);
-		auto index = 0;
-		for (const auto &pinned : _pinnedDialogs) {
-			pinned.entry()->cachePinnedIndex(++index);
-		}
+	const auto folder = key1.entry()->folder();
+	if (folder) {
+		folder->reorderTwoPinnedChats(key1, key2);
+	} else {
+		_pinnedChatsList.reorder(key1, key2);
 	}
 }
 
@@ -2937,7 +2954,7 @@ not_null<Folder*> Session::folder(FolderId id) {
 	return it->second.get();
 }
 
-Folder *Session::folderLoaded(FolderId id) {
+Folder *Session::folderLoaded(FolderId id) const {
 	const auto it = _folders.find(id);
 	return (it == end(_folders)) ? nullptr : it->second.get();
 }

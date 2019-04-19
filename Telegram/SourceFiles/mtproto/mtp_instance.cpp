@@ -773,7 +773,10 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetRevokePrivateInbox(data.is_revoke_pm_inbox());
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
-	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
+	Global::SetPinnedDialogsCountMax(
+		std::max(data.vpinned_dialogs_count_max.v, 1));
+	Global::SetPinnedDialogsInFolderMax(
+		std::max(data.vpinned_infolder_count_max.v, 1));
 	Core::App().setInternalLinkDomain(qs(data.vme_url_prefix));
 	Global::SetChannelsReadMediaPeriod(data.vchannels_read_media_period.v);
 	Global::SetWebFileDcId(data.vwebfile_dc_id.v);
@@ -800,6 +803,8 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		(data.has_base_lang_pack_version()
 			? data.vbase_lang_pack_version.v
 			: 0));
+
+	Core::App().configUpdated();
 
 	if (data.has_autoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(data.vautoupdate_url_prefix));

@@ -81,7 +81,7 @@ void IndexedList::movePinned(Row *row, int deltaSign) {
 		Assert(swapPinnedIndexWith != cbegin());
 		--swapPinnedIndexWith;
 	}
-	Auth().data().reorderTwoPinnedDialogs(
+	Auth().data().reorderTwoPinnedChats(
 		row->key(),
 		(*swapPinnedIndexWith)->key());
 }

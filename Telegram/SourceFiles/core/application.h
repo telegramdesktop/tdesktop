@@ -140,6 +140,8 @@ public:
 	}
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
+	void configUpdated();
+	[[nodiscard]] rpl::producer<> configUpdates() const;
 
 	// Databases
 	Storage::Databases &databases() {
@@ -276,6 +278,7 @@ private:
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;
+	rpl::event_stream<> _configUpdates;
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;

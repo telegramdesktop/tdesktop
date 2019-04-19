@@ -34,7 +34,7 @@ uint64 FixedOnTopDialogPos(int index) {
 }
 
 uint64 PinnedDialogPos(int pinnedIndex) {
-	return 0xFFFFFFFF00000000ULL + pinnedIndex;
+	return 0xFFFFFFFF000000FFULL - pinnedIndex;
 }
 
 } // namespace

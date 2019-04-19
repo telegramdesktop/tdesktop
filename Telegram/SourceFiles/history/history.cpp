@@ -1835,6 +1835,9 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (_folder == folder) {
 		return;
 	}
+	if (isPinnedDialog()) {
+		owner().setChatPinned(this, false);
+	}
 	const auto wasKnown = folderKnown();
 	const auto wasInAll = inChatList(Mode::All);
 	const auto wasInImportant = wasInAll && inChatList(Mode::Important);
@@ -1862,6 +1865,18 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (folder) {
 		folder->registerOne(this);
 	}
+}
+
+void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
+	const auto folderId = data.has_folder_id() ? data.vfolder_id.v : 0;
+	if (!folderKnown()) {
+		if (folderId) {
+			setFolder(owner().folder(folderId));
+		} else {
+			clearFolder();
+		}
+	}
+	owner().setChatPinned(this, data.is_pinned());
 }
 
 TimeId History::adjustedChatListTimeId() const {
