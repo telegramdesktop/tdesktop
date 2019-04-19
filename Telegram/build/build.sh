@@ -62,6 +62,9 @@ elif [ "$BuildTarget" == "linux32" ]; then
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.8+.."
+  if [ "$AC_USERNAME" == "" ]; then
+    Error "AC_USERNAME not found!"
+  fi
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
   ReleasePath="$HomePath/../out/Release"
@@ -86,10 +89,6 @@ fi
 
 #if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
   if [ "$AlphaVersion" != "0" ]; then
-    if [ -f "$ReleasePath/$AlphaKeyFile" ]; then
-      Error "Alpha version key file for version $AppVersion already exists!"
-    fi
-
     if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ]; then
       Error "Deploy folder for version $AppVersionStrFull already exists!"
     fi
@@ -334,8 +333,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   echo "Done!"
 
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+    cd "$ReleasePath"
     if [ "$AlphaVersion" == "0" ]; then
-      cd "$ReleasePath"
       cp -f tsetup_template.dmg tsetup.temp.dmg
       TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
       cp -R "./$BinaryName.app" "$TempDiskPath/"
@@ -344,11 +343,10 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
       hdiutil convert tsetup.temp.dmg -format UDZO -imagekey zlib-level=9 -ov -o "$SetupFile"
       rm tsetup.temp.dmg
     fi
-    cd "$ReleasePath"
-    "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
-    echo "Packer done!"
 
     if [ "$AlphaVersion" != "0" ]; then
+      "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam -alphakey
+
       if [ ! -f "$ReleasePath/$AlphaKeyFile" ]; then
         Error "Alpha version key file not found!"
       fi
@@ -359,8 +357,89 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
       UpdateFile="${UpdateFile}_${AlphaSignature}"
       SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
+
+      rm -rf "$ReleasePath/AlphaTemp"
+      mkdir "$ReleasePath/AlphaTemp"
+      mkdir "$ReleasePath/AlphaTemp/$BinaryName"
+      cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/AlphaTemp/$BinaryName/"
+      cd "$ReleasePath/AlphaTemp"
+      zip -r "$SetupFile" "$BinaryName"
+      mv "$SetupFile" "$ReleasePath/"
+      cd "$ReleasePath"
+    fi
+    if [ "$BuildTarget" == "mac" ]; then
+      echo "Beginning notarization process."
+      xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" 2> request_uuid.txt
+      while IFS='' read -r line || [[ -n "$line" ]]; do
+        Prefix=$(echo $line | cut -d' ' -f 1)
+        Value=$(echo $line | cut -d' ' -f 3)
+        if [ "$Prefix" == "RequestUUID" ]; then
+          RequestUUID=$Value
+        fi
+      done < "request_uuid.txt"
+      if [ "$RequestUUID" == "" ]; then
+        Error "Could not extract Request UUID. See request_uuid.txt for more information."
+      fi
+      echo "Request UUID: $RequestUUID"
+      rm request_uuid.txt
+
+      RequestStatus=
+      LogFile=
+      while [[ "$RequestStatus" == "" ]]; do
+        sleep 5
+        xcrun altool --notarization-info "$RequestUUID" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" 2> request_result.txt
+        while IFS='' read -r line || [[ -n "$line" ]]; do
+          Prefix=$(echo $line | cut -d' ' -f 1)
+          Value=$(echo $line | cut -d' ' -f 2)
+          if [ "$Prefix" == "LogFileURL:" ]; then
+            LogFile=$Value
+          fi
+          if [ "$Prefix" == "Status:" ]; then
+            if [ "$Value" == "in" ]; then
+              echo "In progress..."
+            else
+              RequestStatus=$Value
+              echo "Status: $RequestStatus"
+            fi
+          fi
+        done < "request_result.txt"
+      done
+      if [ "$RequestStatus" != "success" ]; then
+        echo "Notarization problems, response:"
+        cat request_result.txt
+        if [ "$LogFile" != "" ]; then
+          echo "Requesting log..."
+          curl $LogFile
+        fi
+        Error "Notarization FAILED."
+      fi
+      rm request_result.txt
+
+      if [ "$LogFile" != "" ]; then
+        echo "Requesting log..."
+        curl $LogFile > request_log.txt
+      fi
+
+      xcrun stapler staple "$ReleasePath/$BinaryName.app"
+
+      if [ "$AlphaVersion" != "0" ]; then
+        rm -rf "$ReleasePath/AlphaTemp"
+        mkdir "$ReleasePath/AlphaTemp"
+        mkdir "$ReleasePath/AlphaTemp/$BinaryName"
+        cp -r "$ReleasePath/$BinaryName.app" "$ReleasePath/AlphaTemp/$BinaryName/"
+        cd "$ReleasePath/AlphaTemp"
+        zip -r "$SetupFile" "$BinaryName"
+        mv "$SetupFile" "$ReleasePath/"
+        cd "$ReleasePath"
+        echo "Alpha archive re-created."
+      else
+        xcrun stapler staple "$ReleasePath/$SetupFile"
+      fi
     fi
   fi
+
+  "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker $AlphaBetaParam
+  echo "Packer done!"
 
   if [ ! -d "$ReleasePath/deploy" ]; then
     mkdir "$ReleasePath/deploy"
@@ -376,9 +455,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mkdir "$DeployPath/$BinaryName"
     cp -r "$ReleasePath/$BinaryName.app" "$DeployPath/$BinaryName/"
     if [ "$AlphaVersion" != "0" ]; then
-      cd "$DeployPath"
-      zip -r "$SetupFile" "$BinaryName"
-      mv "$SetupFile" "$ReleasePath/"
       mv "$ReleasePath/$AlphaKeyFile" "$DeployPath/"
     fi
     mv "$ReleasePath/$BinaryName.app.dSYM" "$DeployPath/"
@@ -423,3 +499,34 @@ sleep 1;
 echo -en "\007";
 sleep 1;
 echo -en "\007";
+
+if [ "$BuildTarget" == "mac" ]; then
+  if [ -f "$ReleasePath/request_log.txt" ]; then
+    DisplayingLog=
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+      if [ "$DisplayingLog" == "1" ]; then
+        echo $line
+      else
+        Prefix=$(echo $line | cut -d' ' -f 1)
+        Value=$(echo $line | cut -d' ' -f 2)
+        if [ "$Prefix" == '"issues":' ]; then
+          if [ "$Value" != "null" ]; then
+            echo "NB! Notarization log issues:"
+            echo $line
+            DisplayingLog=1
+          else
+            DisplayingLog=0
+          fi
+        fi
+      fi
+    done < "$ReleasePath/request_log.txt"
+    if [ "$DisplayingLog" != "0" ] && [ "$DisplayingLog" != "1" ]; then
+      echo "NB! Notarization issues not found:"
+      cat "$ReleasePath/request_log.txt"
+    else
+      rm "$ReleasePath/request_log.txt"
+    fi
+  else
+    echo "NB! Notarization log not found :("
+  fi
+fi

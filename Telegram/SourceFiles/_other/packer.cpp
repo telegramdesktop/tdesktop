@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 bool BetaChannel = false;
 quint64 AlphaVersion = 0;
+bool OnlyAlphaKey = false;
 
 const char *PublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
@@ -126,6 +127,21 @@ int32 *hashSha1(const void *data, uint32 len, void *dest) {
 
 QString AlphaSignature;
 
+int writeAlphaKey() {
+	if (!AlphaVersion) {
+		return 0;
+	}
+	QString keyName(QString("talpha_%1_key").arg(AlphaVersion));
+	QFile key(keyName);
+	if (!key.open(QIODevice::WriteOnly)) {
+		cout << "Can't open '" << keyName.toUtf8().constData() << "' for write..\n";
+		return -1;
+	}
+	key.write(AlphaSignature.toUtf8());
+	key.close();
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	QString workDir;
@@ -146,6 +162,8 @@ int main(int argc, char *argv[])
 			version = QString(argv[i + 1]).toInt();
 		} else if (string("-beta") == argv[i]) {
 			BetaChannel = true;
+		} else if (string("-alphakey") == argv[i]) {
+			OnlyAlphaKey = true;
 		} else if (string("-alpha") == argv[i] && i + 1 < argc) {
 			AlphaVersion = QString(argv[i + 1]).toULongLong();
 			if (AlphaVersion > version * 1000ULL && AlphaVersion < (version + 1) * 1000ULL) {
@@ -159,6 +177,9 @@ int main(int argc, char *argv[])
 				return -1;
 			}
 		}
+	}
+	if (OnlyAlphaKey) {
+		return writeAlphaKey();
 	}
 
 	if (files.isEmpty() || remove.isEmpty() || version <= 1016 || version > 999999999) {
@@ -464,20 +485,9 @@ int main(int argc, char *argv[])
 	out.write(compressed);
 	out.close();
 
-	if (AlphaVersion) {
-		QString keyName(QString("talpha_%1_key").arg(AlphaVersion));
-		QFile key(keyName);
-		if (!key.open(QIODevice::WriteOnly)) {
-			cout << "Can't open '" << keyName.toUtf8().constData() << "' for write..\n";
-			return -1;
-		}
-		key.write(AlphaSignature.toUtf8());
-		key.close();
-	}
-
 	cout << "Update file '" << outName.toUtf8().constData() << "' written successfully!\n";
 
-	return 0;
+	return writeAlphaKey();
 }
 
 QString countAlphaVersionSignature(quint64 version) { // duplicated in autoupdater.cpp
