@@ -608,11 +608,13 @@ public:
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_double) {
 		if (from + 2 > end) throw mtpErrorInsufficient();
 		if (cons != mtpc_double) throw mtpErrorUnexpected(cons, "MTPdouble");
-		*(uint64*)(&v) = (uint64)(((uint32*)from)[0]) | ((uint64)(((uint32*)from)[1]) << 32);
+		auto nv = (uint64)(((uint32*)from)[0]) | ((uint64)(((uint32*)from)[1]) << 32);
+		std::memcpy(&v, &nv, sizeof(v));
 		from += 2;
 	}
 	void write(mtpBuffer &to) const {
-		uint64 iv = *(uint64*)(&v);
+		uint64 iv;
+		std::memcpy(&iv, &v, sizeof(v));
 		to.push_back((mtpPrime)(iv & 0xFFFFFFFFL));
 		to.push_back((mtpPrime)(iv >> 32));
 	}
