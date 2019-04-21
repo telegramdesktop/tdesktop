@@ -553,8 +553,8 @@ void MainWindow::psFirstShow() {
 				LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
 				useUnityCount=true;
 			} else if(!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, "Telegram.desktop").isEmpty()) {
-				_desktopFile = "telegramdesktop.desktop";
-				LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
+				_desktopFile = "Telegram.desktop";
+				LOG(("Found Unity Launcher entry Telegram.desktop!"));
 				useUnityCount=true;
 			} else {
 				LOG(("Could not get Unity Launcher entry!"));
