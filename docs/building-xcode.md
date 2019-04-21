@@ -18,6 +18,7 @@ Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) 
 
 Go to ***BuildPath*** and run
 
+    MAKE_THREADS_CNT=-j4
     MACOSX_DEPLOYMENT_TARGET=10.8
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
@@ -40,7 +41,7 @@ Go to ***BuildPath*** and run
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
     CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -48,7 +49,7 @@ Go to ***BuildPath*** and run
     cd openssl
     git checkout OpenSSL_1_0_1-stable
     ./Configure darwin64-x86_64-cc -static -mmacosx-version-min=10.8
-    make build_libs -j4
+    make build_libs $MAKE_THREADS_CNT
     cd ..
 
     git clone https://github.com/xiph/opus
@@ -56,13 +57,13 @@ Go to ***BuildPath*** and run
     git checkout v1.3
     ./autogen.sh
     CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     cd libiconv-1.15
     CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure --enable-static
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -174,7 +175,7 @@ Go to ***BuildPath*** and run
     --enable-muxer=ogg \
     --enable-muxer=opus
 
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -183,7 +184,7 @@ Go to ***BuildPath*** and run
     git checkout v1.19
     cd build
     LDFLAGS='-stdlib=libc++' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ../..
 
@@ -225,7 +226,7 @@ Go to ***BuildPath*** and run
     cd qtbase && git checkout v5.6.2 && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
 
     ./configure -prefix "/usr/local/tdesktop/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 

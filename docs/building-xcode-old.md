@@ -10,6 +10,7 @@ Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) 
 
 Go to ***BuildPath*** and run
 
+    MAKE_THREADS_CNT=-j4
     MACOSX_DEPLOYMENT_TARGET=10.6
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
@@ -26,7 +27,7 @@ Go to ***BuildPath*** and run
     cd libcxxabi
 
     LDFLAGS="-isysroot / -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/" cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DLIBCXX_ENABLE_SHARED:BOOL=NO -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLLVM_PATH=../llvm -DLIBCXXABI_LIBCXX_PATH=../llvm/projects/libcxx ../llvm/projects/libcxxabi/
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ../
 
@@ -34,14 +35,14 @@ Go to ***BuildPath*** and run
     cd libcxx
 
     LDFLAGS="-isysroot / -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/" cmake -G "Unix Makefiles" -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_INSTALL_PREFIX:PATH=/usr/local/macold -DLIBCXX_ENABLE_SHARED:BOOL=NO -DLIBCXX_CXX_ABI:STRING=libstdc++ -DLIBCXX_CXX_ABI_INCLUDE_PATHS="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/4.2.1/" -DLLVM_PATH=../llvm/ ../llvm/projects/libcxx/
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ../
 
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
     prefix=/usr/local/macold CFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -49,7 +50,7 @@ Go to ***BuildPath*** and run
     cd openssl
     git checkout OpenSSL_1_0_1-stable
     ./Configure --install_prefix=/usr/local/macold darwin64-x86_64-cc -static -mmacosx-version-min=10.6
-    make build_libs -j4
+    make build_libs $MAKE_THREADS_CNT
     cd ..
 
     git clone https://github.com/xiph/opus
@@ -57,13 +58,13 @@ Go to ***BuildPath*** and run
     git checkout v1.3
     ./autogen.sh
     CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure --prefix=/usr/local/macold
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     cd libiconv-1.15
     CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6 -nostdinc++" LDFLAGS="-mmacosx-version-min=10.6" ./configure --enable-static --prefix=/usr/local/macold
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -170,7 +171,7 @@ Go to ***BuildPath*** and run
     --enable-muxer=ogg \
     --enable-muxer=opus
 
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -179,14 +180,14 @@ Go to ***BuildPath*** and run
     git checkout v1.19
     cd build
     LDFLAGS="/usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a -isysroot / -L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/" cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.6 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macold ..
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ../..
 
     git clone https://github.com/telegramdesktop/libexif-0.6.20.git
     cd libexif-0.6.20
     CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6 -nostdinc++" LDFLAGS="-mmacosx-version-min=10.6" ./configure --prefix=/usr/local/macold
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
@@ -221,7 +222,7 @@ Go to ***BuildPath*** and run
 
     OPENSSL_LIBS="$CurDir/openssl/libssl.a $CurDir/openssl/libcrypto.a" ./configure -prefix "/usr/local/macold/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -openssl-linked -I "$CurDir/openssl/include" -I "/usr/local/macold/include/c++/v1" -no-glib -nomake examples -nomake tests -platform macx-g++
 
-    make -j4
+    make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
