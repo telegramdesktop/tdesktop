@@ -32,6 +32,7 @@ public:
 	FolderId id() const;
 	void registerOne(not_null<History*> history);
 	void unregisterOne(not_null<History*> history);
+	void oneListMessageChanged(HistoryItem *from, HistoryItem *to);
 
 	not_null<Dialogs::MainList*> chatsList();
 
@@ -75,6 +76,8 @@ public:
 
 private:
 	void indexNameParts();
+	bool applyChatListMessage(HistoryItem *item);
+	void computeChatListMessage();
 
 	FolderId _id = 0;
 	Dialogs::MainList _chatsList;
@@ -84,6 +87,7 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	Dialogs::UnreadState _cloudUnread;
+	HistoryItem *_chatListMessage = nullptr;
 	//rpl::variable<MessagePosition> _unreadPosition;
 
 };

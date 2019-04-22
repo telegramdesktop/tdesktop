@@ -90,12 +90,55 @@ void Folder::registerOne(not_null<History*> history) {
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
 	}
+	applyChatListMessage(history->chatListMessage());
 }
 
 void Folder::unregisterOne(not_null<History*> history) {
 	if (_chatsList.empty()) {
 		updateChatListExistence();
 	}
+	if (_chatListMessage && _chatListMessage->history() == history) {
+		computeChatListMessage();
+	}
+}
+
+void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
+	if (!applyChatListMessage(to) && _chatListMessage == from) {
+		computeChatListMessage();
+	}
+}
+
+bool Folder::applyChatListMessage(HistoryItem *item) {
+	if (!item) {
+		return false;
+	} else if (_chatListMessage
+		&& _chatListMessage->date() >= item->date()) {
+		return false;
+	}
+	_chatListMessage = item;
+	updateChatListEntry();
+	return true;
+}
+
+void Folder::computeChatListMessage() {
+	auto &&items = ranges::view::all(
+		*_chatsList.indexed()
+	) | ranges::view::filter([](not_null<Dialogs::Row*> row) {
+		return row->entry()->chatListMessage() != nullptr;
+	});
+	const auto chatListDate = [](not_null<Dialogs::Row*> row) {
+		return row->entry()->chatListMessage()->date();
+	};
+	const auto top = ranges::max_element(
+		items,
+		ranges::less(),
+		chatListDate);
+	if (top == items.end()) {
+		_chatListMessage = nullptr;
+	} else {
+		_chatListMessage = (*top)->entry()->chatListMessage();
+	}
+	updateChatListEntry();
 }
 
 not_null<Dialogs::MainList*> Folder::chatsList() {
@@ -158,10 +201,7 @@ void Folder::requestChatListMessage() {
 }
 
 TimeId Folder::adjustedChatListTimeId() const {
-	const auto list = _chatsList.indexed();
-	return list->empty()
-		? TimeId(0)
-		: (*list->begin())->entry()->adjustedChatListTimeId();
+	return _chatListMessage ? _chatListMessage->date() : chatListTimeId();
 }
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
@@ -291,16 +331,11 @@ bool Folder::chatListMutedBadge() const {
 }
 
 HistoryItem *Folder::chatListMessage() const {
-	const auto list = _chatsList.indexed();
-	return list->empty()
-		? nullptr
-		: (*list->begin())->key().entry()->chatListMessage();
+	return _chatListMessage;
 }
 
 bool Folder::chatListMessageKnown() const {
-	const auto list = _chatsList.indexed();
-	return list->empty()
-		|| (*list->begin())->key().entry()->chatListMessageKnown();
+	return true;
 }
 
 const QString &Folder::chatListName() const {

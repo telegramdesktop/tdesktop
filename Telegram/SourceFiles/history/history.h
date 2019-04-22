@@ -439,6 +439,7 @@ private:
 	void setChatListMessage(HistoryItem *item);
 	std::optional<HistoryItem*> computeChatListMessageFromLast() const;
 	void setChatListMessageFromLast();
+	void setChatListMessageUnknown();
 	void setFakeChatListMessage();
 
 	// Add all items to the unread mentions if we were not loaded at bottom and now are.

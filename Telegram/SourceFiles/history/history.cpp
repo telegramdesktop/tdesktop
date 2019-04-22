@@ -154,7 +154,7 @@ void History::checkChatListMessageRemoved(not_null<HistoryItem*> item) {
 	if (chatListMessage() != item) {
 		return;
 	}
-	_chatListMessage = std::nullopt;
+	setChatListMessageUnknown();
 	refreshChatListMessage();
 	//if (const auto channel = peer->asChannel()) { // #feed
 	//	if (const auto feed = channel->feed()) {
@@ -2201,12 +2201,16 @@ void History::setLastMessage(HistoryItem *item) {
 		}
 	}
 	_lastMessage = item;
-	_chatListMessage = std::nullopt;
-	if (!peer->migrateTo()) {
+	if (peer->migrateTo()) {
 		// We don't want to request last message for all deactivated chats.
 		// This is a heavy request for them, because we need to get last
 		// two items by messages.getHistory to skip the migration message.
-		requestChatListMessage();
+		setChatListMessageUnknown();
+	} else {
+		setChatListMessageFromLast();
+		if (!chatListMessageKnown()) {
+			setFakeChatListMessage();
+		}
 	}
 }
 
@@ -2222,6 +2226,7 @@ void History::setChatListMessage(HistoryItem *item) {
 	if (_chatListMessage && *_chatListMessage == item) {
 		return;
 	}
+	const auto was = _chatListMessage.value_or(nullptr);
 	if (item) {
 		if (!_chatListMessage || !*_chatListMessage) {
 			Local::removeSavedPeer(peer);
@@ -2234,6 +2239,9 @@ void History::setChatListMessage(HistoryItem *item) {
 	} else if (!_chatListMessage || *_chatListMessage) {
 		_chatListMessage = nullptr;
 		updateChatListEntry();
+	}
+	if (const auto folder = this->folder()) {
+		folder->oneListMessageChanged(was, item);
 	}
 	if (const auto to = peer->migrateTo()) {
 		if (const auto history = owner().historyLoaded(to)) {
@@ -2297,7 +2305,18 @@ void History::setChatListMessageFromLast() {
 	if (const auto good = computeChatListMessageFromLast()) {
 		setChatListMessage(*good);
 	} else {
-		_chatListMessage = std::nullopt;
+		setChatListMessageUnknown();
+	}
+}
+
+void History::setChatListMessageUnknown() {
+	if (!_chatListMessage.has_value()) {
+		return;
+	}
+	const auto was = *_chatListMessage;
+	_chatListMessage = std::nullopt;
+	if (const auto folder = this->folder()) {
+		folder->oneListMessageChanged(was, nullptr);
 	}
 }
 
