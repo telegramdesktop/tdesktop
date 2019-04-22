@@ -127,6 +127,22 @@ void InsertEmojiToField(not_null<Ui::InputField*> field, EmojiPtr emoji) {
 	}
 }
 
+bool ShowHistoryEndInsteadOfUnread(
+		not_null<Data::Session*> session,
+		PeerId peerId) {
+	// Ignore unread messages in case of unread changelogs.
+	// We must show this history at end for the changelog to be visible.
+	if (peerId != PeerData::kServiceNotificationsId) {
+		return false;
+	}
+	const auto history = session->history(peerId);
+	if (!history->unreadCount()) {
+		return false;
+	}
+	const auto last = history->lastMessage();
+	return (last != nullptr) && !IsServerMsgId(last->id);
+}
+
 } // namespace
 
 ReportSpamPanel::ReportSpamPanel(QWidget *parent) : TWidget(parent),
@@ -1504,8 +1520,11 @@ void HistoryWidget::showHistory(
 	MsgId wasMsgId = _showAtMsgId;
 	History *wasHistory = _history;
 
-	bool startBot = (showAtMsgId == ShowAndStartBotMsgId);
+	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
 	if (startBot) {
+		showAtMsgId = ShowAtTheEndMsgId;
+	} else if ((showAtMsgId == ShowAtUnreadMsgId)
+		&& ShowHistoryEndInsteadOfUnread(&session().data(), peerId)) {
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
 

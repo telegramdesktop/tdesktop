@@ -2554,20 +2554,8 @@ bool History::clearUnreadOnClientSide() const {
 	return false;
 }
 
-bool History::skipUnreadUpdateForClientSideUnread() const {
-	if (peer->id != PeerData::kServiceNotificationsId) {
-		return false;
-	} else if (!_unreadCount || !*_unreadCount) {
-		return false;
-	} else if (!_lastMessage || IsServerMsgId((*_lastMessage)->id)) {
-		return false;
-	}
-	return true;
-}
-
 bool History::skipUnreadUpdate() const {
-	return skipUnreadUpdateForClientSideUnread()
-		|| clearUnreadOnClientSide();
+	return clearUnreadOnClientSide();
 }
 
 void History::applyDialogFields(
