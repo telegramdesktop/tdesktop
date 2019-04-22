@@ -14,7 +14,7 @@ namespace Dialogs {
 
 enum class SortMode;
 
-class List {
+class List final {
 public:
 	List(SortMode sortMode);
 	List(const List &other) = delete;

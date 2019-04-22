@@ -2872,16 +2872,16 @@ void MainWidget::gotChannelDifference(
 			history->setNotLoadedAtBottom();
 			session().api().requestChannelRangeDifference(history);
 		}
-		App::feedMsgs(data.vmessages, NewMessageLast);
 		data.vdialog.match([&](const MTPDdialog &data) {
 			if (data.has_pts()) {
 				channel->ptsInit(data.vpts.v);
 			}
-			if (history) {
-				history->applyDialog(data);
-			}
 		}, [&](const MTPDdialogFolder &) {
 		});
+		session().data().applyDialogs(
+			nullptr,
+			data.vmessages.v,
+			QVector<MTPDialog>(1, data.vdialog));
 		if (_history->peer() == channel) {
 			_history->updateHistoryDownVisibility();
 			_history->preloadHistoryIfNeeded();
@@ -4270,6 +4270,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePinnedDialogs: {
 		const auto &d = update.c_updatePinnedDialogs();
 		const auto folderId = d.has_folder_id() ? d.vfolder_id.v : 0;
+		const auto loaded = !folderId
+			|| (session().data().folderLoaded(folderId) != nullptr);
+		const auto folder = folderId
+			? session().data().folder(folderId).get()
+			: nullptr;
 		const auto done = [&] {
 			if (!d.has_order()) {
 				return false;
@@ -4280,6 +4285,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					return !session().data().historyLoaded(
 						peerFromMTP(data.vpeer));
 				}, [&](const MTPDdialogPeerFolder &data) {
+					if (folderId) {
+						LOG(("API Error: "
+							"updatePinnedDialogs has nested folders."));
+						return true;
+					}
 					return !session().data().folderLoaded(data.vfolder_id.v);
 				});
 			};
@@ -4288,17 +4298,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (!allLoaded) {
 				return false;
 			}
-			session().data().applyPinnedChats(folderId, order);
+			session().data().applyPinnedChats(folder, order);
 			return true;
 		}();
 		if (!done) {
-			session().api().requestPinnedDialogs(folderId);
+			session().api().requestPinnedDialogs(folder);
+		}
+		if (!loaded) {
+			session().api().requestDialogEntry(folder);
 		}
 	} break;
 
 	case mtpc_updateDialogPinned: {
 		const auto &d = update.c_updateDialogPinned();
 		const auto folderId = d.has_folder_id() ? d.vfolder_id.v : 0;
+		const auto folder = folderId
+			? session().data().folder(folderId).get()
+			: nullptr;
 		const auto done = d.vpeer.match([&](const MTPDdialogPeer &data) {
 			const auto id = peerFromMTP(data.vpeer);
 			if (const auto history = session().data().historyLoaded(id)) {
@@ -4329,7 +4345,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			return false;
 		});
 		if (!done) {
-			session().api().requestPinnedDialogs(folderId);
+			session().api().requestPinnedDialogs(folder);
 		}
 	} break;
 

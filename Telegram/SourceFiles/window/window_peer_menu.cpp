@@ -94,13 +94,13 @@ private:
 
 };
 
-History *FindWastedPin(FolderId folderId) {
-	const auto &order = Auth().data().pinnedChatsOrder(folderId);
+History *FindWastedPin(Data::Folder *folder) {
+	const auto &order = Auth().data().pinnedChatsOrder(folder);
 	for (const auto &pinned : order) {
 		if (const auto history = pinned.history()) {
 			if (history->peer->isChat()
 				&& history->peer->asChat()->isDeactivated()
-				&& !history->inChatList(Dialogs::Mode::All)) {
+				&& !history->inChatList()) {
 				return history;
 			}
 		}
@@ -116,17 +116,16 @@ bool PinnedLimitReached(Dialogs::Key key) {
 	Expects(key.entry()->folderKnown());
 
 	const auto folder = key.entry()->folder();
-	const auto folderId = folder ? folder->id() : 0;
-	const auto pinnedCount = Auth().data().pinnedChatsCount(folderId);
-	const auto pinnedMax = Auth().data().pinnedChatsLimit(folderId);
+	const auto pinnedCount = Auth().data().pinnedChatsCount(folder);
+	const auto pinnedMax = Auth().data().pinnedChatsLimit(folder);
 	if (pinnedCount < pinnedMax) {
 		return false;
 	}
 	// Some old chat, that was converted, maybe is still pinned.
-	if (const auto wasted = FindWastedPin(folderId)) {
+	if (const auto wasted = FindWastedPin(folder)) {
 		Auth().data().setChatPinned(wasted, false);
 		Auth().data().setChatPinned(key, true);
-		Auth().api().savePinnedOrder(folderId);
+		Auth().api().savePinnedOrder(folder);
 	} else {
 		auto errorText = lng_error_pinned_max(
 			lt_count,

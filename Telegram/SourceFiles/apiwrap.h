@@ -64,7 +64,7 @@ public:
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 
-	void savePinnedOrder(FolderId folderId);
+	void savePinnedOrder(Data::Folder *folder);
 	void toggleHistoryArchived(
 		not_null<History*> history,
 		bool archived,
@@ -79,8 +79,8 @@ public:
 	QString exportDirectMessageLink(not_null<HistoryItem*> item);
 
 	void requestContacts();
-	void requestDialogs(FolderId folderId);
-	void requestPinnedDialogs(FolderId folderId);
+	void requestDialogs(Data::Folder *folder = nullptr);
+	void requestPinnedDialogs(Data::Folder *folder = nullptr);
 	void requestMoreBlockedByDateDialogs();
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
 	rpl::producer<bool> dialogsLoadBlockedByDate() const;
@@ -467,12 +467,12 @@ private:
 	void setupSupportMode();
 	void refreshDialogsLoadBlocked();
 	void updateDialogsOffset(
-		FolderId folderId,
+		Data::Folder *folder,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
-	void requestMoreDialogs(FolderId folderId);
-	DialogsLoadState *dialogsLoadState(FolderId folderId);
-	void dialogsLoadFinish(FolderId folderId);
+	void requestMoreDialogs(Data::Folder *folder);
+	DialogsLoadState *dialogsLoadState(Data::Folder *folder);
+	void dialogsLoadFinish(Data::Folder *folder);
 
 	void checkQuitPreventFinished();
 
@@ -761,7 +761,9 @@ private:
 	rpl::variable<bool> _dialogsLoadMayBlockByDate = false;
 	rpl::variable<bool> _dialogsLoadBlockedByDate = false;
 
-	base::flat_map<FolderId, DialogsLoadState> _foldersLoadState;
+	base::flat_map<
+		not_null<Data::Folder*>,
+		DialogsLoadState> _foldersLoadState;
 
 	rpl::event_stream<SendOptions> _sendActions;
 

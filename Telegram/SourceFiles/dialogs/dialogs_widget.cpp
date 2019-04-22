@@ -248,9 +248,8 @@ DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> cont
 			onSearchMore();
 		} else {
 			const auto folder = _inner->shownFolder();
-			const auto folderId = folder ? folder->id() : FolderId(0);
-			if (!folderId || !folder->chatsListLoaded()) {
-				session().api().requestDialogs(folderId);
+			if (!folder || !folder->chatsListLoaded()) {
+				session().api().requestDialogs(folder);
 			}
 		}
 	});
@@ -378,13 +377,13 @@ void DialogsWidget::activate() {
 }
 
 void DialogsWidget::refreshDialog(Dialogs::Key key) {
-	const auto creating = !key.entry()->inChatList(Dialogs::Mode::All);
+	const auto creating = !key.entry()->inChatList();
 	_inner->refreshDialog(key);
 	const auto history = key.history();
 	if (creating && history && history->peer->migrateFrom()) {
 		if (const auto migrated = history->owner().historyLoaded(
 				history->peer->migrateFrom())) {
-			if (migrated->inChatList(Dialogs::Mode::All)) {
+			if (migrated->inChatList()) {
 				_inner->removeDialog(migrated);
 			}
 		}

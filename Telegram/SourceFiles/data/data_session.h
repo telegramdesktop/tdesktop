@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
-#include "dialogs/dialogs_pinned_list.h"
+#include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
@@ -51,8 +51,6 @@ struct SavedCredentials;
 namespace Data {
 
 class Folder;
-enum class FolderUpdateFlag;
-struct FolderUpdate;
 
 class WallPaper;
 
@@ -148,7 +146,7 @@ public:
 	}
 	void chatsListChanged(FolderId folderId);
 	void chatsListChanged(Data::Folder *folder);
-	void chatsListDone(FolderId folderId);
+	void chatsListDone(Data::Folder *folder);
 
 	struct ItemVisibilityQuery {
 		not_null<HistoryItem*> item;
@@ -208,9 +206,6 @@ public:
 	[[nodiscard]] rpl::producer<MegagroupParticipant> megagroupParticipantAdded() const;
 	[[nodiscard]] rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const;
-
-	void notifyFolderUpdated(not_null<Folder*> folder, FolderUpdateFlag update);
-	[[nodiscard]] rpl::producer<FolderUpdate> folderUpdated() const;
 
 	void notifyStickersUpdated();
 	[[nodiscard]] rpl::producer<> stickersUpdated() const;
@@ -299,20 +294,20 @@ public:
 	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
 
 	void applyDialogs(
-		FolderId requestFolderId,
+		Data::Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
 
-	int pinnedChatsCount(FolderId folderId) const;
-	int pinnedChatsLimit(FolderId folderId) const;
+	int pinnedChatsCount(Data::Folder *folder) const;
+	int pinnedChatsLimit(Data::Folder *folder) const;
 	const std::vector<Dialogs::Key> &pinnedChatsOrder(
-		FolderId folderId) const;
+		Data::Folder *folder) const;
 	void setChatPinned(const Dialogs::Key &key, bool pinned);
-	void clearPinnedChats(FolderId folderId);
+	void clearPinnedChats(Data::Folder *folder);
 	void applyPinnedChats(
-		FolderId folderId,
+		Data::Folder *folder,
 		const QVector<MTPDialogPeer> &list);
 	void reorderTwoPinnedChats(
 		const Dialogs::Key &key1,
@@ -346,11 +341,10 @@ public:
 	bool unreadBadgeMutedIgnoreOne(History *history) const;
 	int unreadOnlyMutedBadge() const;
 
-	void unreadIncrement(int count, bool muted);
-	void unreadMuteChanged(int count, bool muted);
-	void unreadEntriesChanged(
-		int withUnreadDelta,
-		int mutedWithUnreadDelta);
+	void unreadStateChanged(
+		const Dialogs::Key &key,
+		const Dialogs::UnreadState &wasState);
+	void unreadEntryChanged(const Dialogs::Key &key, bool added);
 
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
@@ -525,7 +519,9 @@ public:
 	//FeedId defaultFeedId() const;
 	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
-	not_null<Dialogs::IndexedList*> chatsList(Dialogs::Mode list);
+	not_null<Dialogs::MainList*> chatsList(Data::Folder *folder = nullptr);
+	not_null<const Dialogs::MainList*> chatsList(
+		Data::Folder *folder = nullptr) const;
 	not_null<Dialogs::IndexedList*> contactsList();
 	not_null<Dialogs::IndexedList*> contactsNoChatsList();
 
@@ -601,6 +597,7 @@ private:
 	void setupUserIsContactViewer();
 
 	void checkSelfDestructItems();
+
 	int computeUnreadBadge(
 		int full,
 		int muted,
@@ -612,8 +609,10 @@ private:
 		int entriesFull,
 		int entriesMuted) const;
 
-	void applyDialog(FolderId requestFolderId, const MTPDdialog &data);
-	void applyDialog(FolderId requestFolderId, const MTPDdialogFolder &data);
+	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
+	void applyDialog(
+		Data::Folder *requestFolder,
+		const MTPDdialogFolder &data);
 
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
@@ -734,7 +733,6 @@ private:
 	QPointer<BoxContent> _exportSuggestion;
 
 	rpl::variable<bool> _contactsLoaded = false;
-	bool _chatsListLoaded = false;
 	rpl::event_stream<Data::Folder*> _chatsListLoadedEvents;
 	rpl::event_stream<Data::Folder*> _chatsListChanged;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
@@ -756,7 +754,6 @@ private:
 	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
-	rpl::event_stream<FolderUpdate> _folderUpdates;
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
 
 	rpl::event_stream<> _stickersUpdated;
@@ -773,16 +770,9 @@ private:
 	Stickers::Order _archivedStickerSetsOrder;
 	Stickers::SavedGifs _savedGifs;
 
-	int _unreadFull = 0;
-	int _unreadMuted = 0;
-	int _unreadEntriesFull = 0;
-	int _unreadEntriesMuted = 0;
-
-	Dialogs::IndexedList _chatsList;
-	Dialogs::IndexedList _importantChatsList;
+	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
-	Dialogs::PinnedList _pinnedChatsList;
 
 	base::Timer _selfDestructTimer;
 	std::vector<FullMsgId> _selfDestructItems;

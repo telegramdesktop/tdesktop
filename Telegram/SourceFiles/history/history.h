@@ -191,9 +191,10 @@ public:
 	bool lastMessageKnown() const;
 	void unknownMessageDeleted(MsgId messageId);
 	void applyDialogTopMessage(MsgId topMessageId);
-	void applyDialog(FolderId requestFolderId, const MTPDdialog &data);
+	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 	void applyDialogFields(
+		Data::Folder *folder,
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
@@ -299,6 +300,7 @@ public:
 	int chatListUnreadCount() const override;
 	bool chatListUnreadMark() const override;
 	bool chatListMutedBadge() const override;
+	Dialogs::UnreadState chatListUnreadState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
@@ -417,7 +419,6 @@ private:
 	void removeNotification(not_null<HistoryItem*> item);
 
 	TimeId adjustedChatListTimeId() const override;
-	void changedInChatListHook(Dialogs::Mode list, bool added) override;
 	void changedChatListPinHook() override;
 
 	void setInboxReadTill(MsgId upTo);

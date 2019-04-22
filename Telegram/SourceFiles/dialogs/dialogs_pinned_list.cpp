@@ -41,7 +41,7 @@ int PinnedList::addPinnedGetPosition(const Key &key) {
 	applyLimit(_limit - 1);
 	const auto position = int(_data.size());
 	_data.push_back(key);
-	key.entry()->cachePinnedIndex(position);
+	key.entry()->cachePinnedIndex(position + 1);
 	return position;
 }
 

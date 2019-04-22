@@ -77,7 +77,7 @@ void Entry::cacheProxyPromoted(bool promoted) {
 }
 
 bool Entry::needUpdateInChatList() const {
-	return inChatList(Dialogs::Mode::All) || shouldBeInChatList();
+	return inChatList() || shouldBeInChatList();
 }
 
 void Entry::updateChatListSortPosition() {
@@ -102,6 +102,10 @@ void Entry::updateChatListExistence() {
 	setChatListExistence(shouldBeInChatList());
 }
 
+void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
+	owner().unreadStateChanged(_key, wasState);
+}
+
 void Entry::setChatListExistence(bool exists) {
 	if (const auto main = App::main()) {
 		if (exists && _sortKeyInChatList) {
@@ -115,9 +119,6 @@ void Entry::setChatListExistence(bool exists) {
 
 TimeId Entry::adjustedChatListTimeId() const {
 	return chatListTimeId();
-}
-
-void Entry::changedInChatListHook(Dialogs::Mode list, bool added) {
 }
 
 void Entry::changedChatListPinHook() {
@@ -160,7 +161,9 @@ int Entry::posInChatList(Dialogs::Mode list) const {
 not_null<Row*> Entry::addToChatList(Mode list) {
 	if (!inChatList(list)) {
 		chatListLinks(list) = myChatsList(list)->addToEnd(_key);
-		changedInChatListHook(list, true);
+		if (list == Mode::All) {
+			owner().unreadEntryChanged(_key, true);
+		}
 	}
 	return mainChatListLink(list);
 }
@@ -169,7 +172,9 @@ void Entry::removeFromChatList(Dialogs::Mode list) {
 	if (inChatList(list)) {
 		myChatsList(list)->del(_key);
 		chatListLinks(list).clear();
-		changedInChatListHook(list, false);
+		if (list == Mode::All) {
+			owner().unreadEntryChanged(_key, false);
+		}
 	}
 }
 
@@ -194,7 +199,7 @@ void Entry::addChatListEntryByLetter(
 
 void Entry::updateChatListEntry() const {
 	if (const auto main = App::main()) {
-		if (inChatList(Mode::All)) {
+		if (inChatList()) {
 			main->repaintDialogRow(
 				Mode::All,
 				mainChatListLink(Mode::All));
@@ -212,10 +217,7 @@ void Entry::updateChatListEntry() const {
 }
 
 not_null<IndexedList*> Entry::myChatsList(Mode list) const {
-	if (const auto current = folder()) {
-		return current->chatsList(list);
-	}
-	return owner().chatsList(list);
+	return owner().chatsList(folder())->indexed(list);
 }
 
 } // namespace Dialogs

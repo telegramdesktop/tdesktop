@@ -140,6 +140,16 @@ MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string("")));
 }
 
+rpl::producer<int> PinnedDialogsCountMaxValue() {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		Core::App().configUpdates()
+	) | rpl::map([=] {
+		return Global::PinnedDialogsCountMax();
+	});
+}
+
 } // namespace
 
 Session::Session(not_null<AuthSession*> session)
@@ -150,11 +160,9 @@ Session::Session(not_null<AuthSession*> session)
 , _bigFileCache(Core::App().databases().get(
 	Local::cacheBigFilePath(),
 	Local::cacheBigFileSettings()))
-, _chatsList(Dialogs::SortMode::Date)
-, _importantChatsList(Dialogs::SortMode::Date)
+, _chatsList(PinnedDialogsCountMaxValue())
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
-, _pinnedChatsList(Global::PinnedDialogsCountMax())
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
@@ -168,14 +176,6 @@ Session::Session(not_null<AuthSession*> session)
 	setupChannelLeavingViewer();
 	setupPeerNameViewer();
 	setupUserIsContactViewer();
-
-	Core::App().configUpdates(
-	) | rpl::start_with_next([=] {
-		_pinnedChatsList.setLimit(Global::PinnedDialogsCountMax());
-		for (const auto &[folderId, folder] : _folders) {
-			folder->setPinnedChatsLimit(Global::PinnedDialogsInFolderMax());
-		}
-	}, _lifetime);
 }
 
 void Session::clear() {
@@ -786,7 +786,7 @@ bool Session::sendActionsAnimationCallback(crl::time now) {
 }
 
 bool Session::chatsListLoaded(Data::Folder *folder) {
-	return folder ? folder->chatsListLoaded() : _chatsListLoaded;
+	return chatsList(folder)->loaded();
 }
 
 void Session::chatsListChanged(FolderId folderId) {
@@ -797,12 +797,11 @@ void Session::chatsListChanged(Data::Folder *folder) {
 	_chatsListChanged.fire_copy(folder);
 }
 
-void Session::chatsListDone(FolderId folderId) {
-	const auto folder = folderId ? this->folder(folderId).get() : nullptr;
+void Session::chatsListDone(Data::Folder *folder) {
 	if (folder) {
-		folder->setChatsListLoaded(true);
+		folder->setChatsListLoaded();
 	} else {
-		_chatsListLoaded = true;
+		_chatsList.setLoaded();
 	}
 	_chatsListLoadedEvents.fire_copy(folder);
 }
@@ -964,13 +963,6 @@ void Session::setupPeerNameViewer() {
 	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
 		const auto peer = update.peer;
 		const auto &oldLetters = update.oldNameFirstLetters;
-		_chatsList.peerNameChanged(Dialogs::Mode::All, peer, oldLetters);
-		if (Global::DialogsModeEnabled()) {
-			_importantChatsList.peerNameChanged(
-				Dialogs::Mode::Important,
-				peer,
-				oldLetters);
-		}
 		_contactsNoChatsList.peerNameChanged(peer, oldLetters);
 		_contactsList.peerNameChanged(peer, oldLetters);
 	}, _lifetime);
@@ -991,7 +983,7 @@ void Session::setupUserIsContactViewer() {
 		if (user->contactStatus() == UserData::ContactStatus::Contact) {
 			const auto history = user->owner().history(user->id);
 			_contactsList.addByName(history);
-			if (!_chatsList.contains(history)) {
+			if (!_chatsList.indexed()->contains(history)) {
 				_contactsNoChatsList.addByName(history);
 			}
 		} else if (const auto history = user->owner().historyLoaded(user)) {
@@ -1288,16 +1280,6 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 	});
 }
 
-void Session::notifyFolderUpdated(
-		not_null<Folder*> folder,
-		FolderUpdateFlag update) {
-	_folderUpdates.fire({ folder, update });
-}
-
-rpl::producer<FolderUpdate> Session::folderUpdated() const {
-	return _folderUpdates.events();
-}
-
 void Session::notifyStickersUpdated() {
 	_stickersUpdated.fire({});
 }
@@ -1355,33 +1337,24 @@ MessageIdsList Session::itemOrItsGroup(not_null<HistoryItem*> item) const {
 void Session::setChatPinned(const Dialogs::Key &key, bool pinned) {
 	Expects(key.entry()->folderKnown());
 
-	if (const auto folder = key.entry()->folder()) {
-		folder->setChatPinned(key, pinned);
-	} else {
-		_pinnedChatsList.setPinned(key, pinned);
-	}
+	const auto list = chatsList(key.entry()->folder())->pinned();
+	list->setPinned(key, pinned);
 }
 
 void Session::setPinnedFromDialog(const Dialogs::Key &key, bool pinned) {
 	Expects(key.entry()->folderKnown());
 
-	if (const auto folder = key.entry()->folder()) {
-		if (pinned) {
-			folder->addPinnedChat(key);
-		} else {
-			folder->setChatPinned(key, false);
-		}
-	} else if (pinned) {
-		_pinnedChatsList.addPinned(key);
+	const auto list = chatsList(key.entry()->folder())->pinned();
+	if (pinned) {
+		list->addPinned(key);
 	} else {
-		_pinnedChatsList.setPinned(key, false);
+		list->setPinned(key, false);
 	}
 }
 
 void Session::applyPinnedChats(
-		FolderId folderId,
+		Data::Folder *folder,
 		const QVector<MTPDialogPeer> &list) {
-	const auto folder = folderId ? this->folder(folderId).get() : nullptr;
 	for (const auto &peer : list) {
 		peer.match([&](const MTPDdialogPeer &data) {
 			const auto history = this->history(peerFromMTP(data.vpeer));
@@ -1396,33 +1369,31 @@ void Session::applyPinnedChats(
 			}
 		});
 	}
-	if (folder) {
-		folder->applyPinnedChats(list);
-	} else {
-		_pinnedChatsList.applyList(this, list);
-	}
+	chatsList(folder)->pinned()->applyList(this, list);
 }
 
 void Session::applyDialogs(
-		FolderId requestFolderId,
+		Data::Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs) {
 	App::feedMsgs(messages, NewMessageLast);
 	for (const auto &dialog : dialogs) {
 		dialog.match([&](const auto &data) {
-			applyDialog(requestFolderId, data);
+			applyDialog(requestFolder, data);
 		});
 	}
 }
 
-void Session::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
+void Session::applyDialog(
+		Data::Folder *requestFolder,
+		const MTPDdialog &data) {
 	const auto peerId = peerFromMTP(data.vpeer);
 	if (!peerId) {
 		return;
 	}
 
 	const auto history = session().data().history(peerId);
-	history->applyDialog(requestFolderId, data);
+	history->applyDialog(requestFolder, data);
 	setPinnedFromDialog(history, data.is_pinned());
 
 	if (!history->fixedOnTopIndex() && !history->isPinnedDialog()) {
@@ -1443,10 +1414,10 @@ void Session::applyDialog(FolderId requestFolderId, const MTPDdialog &data) {
 }
 
 void Session::applyDialog(
-		FolderId requestFolderId,
+		Data::Folder *requestFolder,
 		const MTPDdialogFolder &data) {
-	if (requestFolderId != 0) {
-		LOG(("API Error: requestFolderId != 0 for dialogFolder."));
+	if (requestFolder) {
+		LOG(("API Error: requestFolder != nullptr for dialogFolder."));
 	}
 	const auto folder = processFolder(data.vfolder);
 	folder->applyDialog(data);
@@ -1478,36 +1449,23 @@ void Session::addAllSavedPeers() {
 	addSavedPeersAfter(QDateTime());
 }
 
-int Session::pinnedChatsCount(FolderId folderId) const {
-	return pinnedChatsOrder(folderId).size();
+int Session::pinnedChatsCount(Data::Folder *folder) const {
+	return pinnedChatsOrder(folder).size();
 }
 
-int Session::pinnedChatsLimit(FolderId folderId) const {
-	return folderId
+int Session::pinnedChatsLimit(Data::Folder *folder) const {
+	return folder
 		? Global::PinnedDialogsInFolderMax()
 		: Global::PinnedDialogsCountMax();
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
-		FolderId folderId) const {
-	if (folderId) {
-		if (const auto folder = folderLoaded(folderId)) {
-			return folder->pinnedChatsOrder();
-		}
-		static const auto result = std::vector<Dialogs::Key>();
-		return result;
-	}
-	return _pinnedChatsList.order();
+		Data::Folder *folder) const {
+	return chatsList(folder)->pinned()->order();
 }
 
-void Session::clearPinnedChats(FolderId folderId) {
-	if (folderId) {
-		if (const auto folder = folderLoaded(folderId)) {
-			folder->clearPinnedChats();
-		}
-	} else {
-		_pinnedChatsList.clear();
-	}
+void Session::clearPinnedChats(Data::Folder *folder) {
+	chatsList(folder)->pinned()->clear();
 }
 
 void Session::reorderTwoPinnedChats(
@@ -1516,12 +1474,7 @@ void Session::reorderTwoPinnedChats(
 	Expects(key1.entry()->folderKnown() && key2.entry()->folderKnown());
 	Expects(key1.entry()->folder() == key2.entry()->folder());
 
-	const auto folder = key1.entry()->folder();
-	if (folder) {
-		folder->reorderTwoPinnedChats(key1, key2);
-	} else {
-		_pinnedChatsList.reorder(key1, key2);
-	}
+	chatsList(key1.entry()->folder())->pinned()->reorder(key1, key2);
 }
 
 NotifySettings &Session::defaultNotifySettings(
@@ -1621,57 +1574,61 @@ void Session::updateSendActionAnimation(
 }
 
 int Session::unreadBadge() const {
+	const auto state = _chatsList.unreadState();
 	return computeUnreadBadge(
-		_unreadFull,
-		_unreadMuted,
-		_unreadEntriesFull,
-		_unreadEntriesMuted);
+		state.messagesCount.value_or(0),
+		state.messagesCountMuted,
+		state.chatsCount,
+		state.chatsCountMuted);
 }
 
 bool Session::unreadBadgeMuted() const {
+	const auto state = _chatsList.unreadState();
 	return computeUnreadBadgeMuted(
-		_unreadFull,
-		_unreadMuted,
-		_unreadEntriesFull,
-		_unreadEntriesMuted);
+		state.messagesCount.value_or(0),
+		state.messagesCountMuted,
+		state.chatsCount,
+		state.chatsCountMuted);
 }
 
 int Session::unreadBadgeIgnoreOne(History *history) const {
-	const auto removeCount = (history
-		&& history->inChatList(Dialogs::Mode::All))
+	const auto removeCount = (history && history->inChatList())
 		? history->unreadCount()
 		: 0;
 	if (!removeCount) {
 		return unreadBadge();
 	}
-	const auto removeMuted = history->mute();
+	const auto state = _chatsList.unreadState();
+	const auto removeMuted = history->mute()
+		|| (history->folder() != nullptr);
 	return computeUnreadBadge(
-		_unreadFull - removeCount,
-		_unreadMuted - (removeMuted ? removeCount : 0),
-		_unreadEntriesFull - 1,
-		_unreadEntriesMuted - (removeMuted ? 1 : 0));
+		state.messagesCount.value_or(0) - removeCount,
+		state.messagesCountMuted - (removeMuted ? removeCount : 0),
+		state.chatsCount - 1,
+		state.chatsCountMuted - (removeMuted ? 1 : 0));
 }
 
 bool Session::unreadBadgeMutedIgnoreOne(History *history) const {
-	const auto removeCount = (history
-		&& history->inChatList(Dialogs::Mode::All))
+	const auto removeCount = (history && history->inChatList())
 		? history->unreadCount()
 		: 0;
 	if (!removeCount) {
 		return unreadBadgeMuted();
 	}
+	const auto state = _chatsList.unreadState();
 	const auto removeMuted = history->mute();
 	return computeUnreadBadgeMuted(
-		_unreadFull - removeCount,
-		_unreadMuted - (removeMuted ? removeCount : 0),
-		_unreadEntriesFull - 1,
-		_unreadEntriesMuted - (removeMuted ? 1 : 0));
+		state.messagesCount.value_or(0) - removeCount,
+		state.messagesCountMuted - (removeMuted ? removeCount : 0),
+		state.chatsCount - 1,
+		state.chatsCountMuted - (removeMuted ? 1 : 0));
 }
 
 int Session::unreadOnlyMutedBadge() const {
+	const auto state = _chatsList.unreadState();
 	return _session->settings().countUnreadMessages()
-		? _unreadMuted
-		: _unreadEntriesMuted;
+		? state.messagesCountMuted
+		: state.chatsCountMuted;
 }
 
 int Session::computeUnreadBadge(
@@ -1698,57 +1655,29 @@ bool Session::computeUnreadBadgeMuted(
 		: (entriesMuted >= entriesFull);
 }
 
-void Session::unreadIncrement(int count, bool muted) {
-	if (!count) {
-		return;
-	}
-	_unreadFull += count;
-	if (muted) {
-		_unreadMuted += count;
-	}
-	if (_session->settings().countUnreadMessages()) {
-		if (!muted || _session->settings().includeMutedCounter()) {
-			Notify::unreadCounterUpdated();
-		}
-	}
-}
+void Session::unreadStateChanged(
+		const Dialogs::Key &key,
+		const Dialogs::UnreadState &wasState) {
+	Expects(key.entry()->folderKnown());
+	Expects(key.entry()->inChatList());
 
-void Session::unreadMuteChanged(int count, bool muted) {
-	const auto wasAll = (_unreadMuted == _unreadFull);
-	if (muted) {
-		_unreadMuted += count;
+	const auto nowState = key.entry()->chatListUnreadState();
+	if (const auto folder = key.entry()->folder()) {
+		folder->unreadStateChanged(wasState, nowState);
 	} else {
-		_unreadMuted -= count;
+		_chatsList.unreadStateChanged(wasState, nowState);
 	}
-	if (_session->settings().countUnreadMessages()) {
-		const auto nowAll = (_unreadMuted == _unreadFull);
-		const auto changed = !_session->settings().includeMutedCounter()
-			|| (wasAll != nowAll);
-		if (changed) {
-			Notify::unreadCounterUpdated();
-		}
-	}
+	Notify::unreadCounterUpdated();
 }
 
-void Session::unreadEntriesChanged(
-		int withUnreadDelta,
-		int mutedWithUnreadDelta) {
-	if (!withUnreadDelta && !mutedWithUnreadDelta) {
-		return;
-	}
-	const auto wasAll = (_unreadEntriesMuted == _unreadEntriesFull);
-	_unreadEntriesFull += withUnreadDelta;
-	_unreadEntriesMuted += mutedWithUnreadDelta;
-	if (!_session->settings().countUnreadMessages()) {
-		const auto nowAll = (_unreadEntriesMuted == _unreadEntriesFull);
-		const auto withMuted = _session->settings().includeMutedCounter();
-		const auto withMutedChanged = withMuted
-			&& (withUnreadDelta != 0 || wasAll != nowAll);
-		const auto withoutMutedChanged = !withMuted
-			&& (withUnreadDelta != mutedWithUnreadDelta);
-		if (withMutedChanged || withoutMutedChanged) {
-			Notify::unreadCounterUpdated();
-		}
+void Session::unreadEntryChanged(const Dialogs::Key &key, bool added) {
+	Expects(key.entry()->folderKnown());
+
+	const auto state = key.entry()->chatListUnreadState();
+	if (const auto folder = key.entry()->folder()) {
+		folder->unreadEntryChanged(state, added);
+	} else {
+		_chatsList.unreadEntryChanged(state, added);
 	}
 }
 
@@ -2986,10 +2915,13 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 //	return _defaultFeedId.value();
 //}
 
-not_null<Dialogs::IndexedList*> Session::chatsList(Dialogs::Mode list) {
-	return (list == Dialogs::Mode::All)
-		? &_chatsList
-		: &_importantChatsList;
+not_null<Dialogs::MainList*> Session::chatsList(Data::Folder *folder) {
+	return folder ? folder->chatsList().get() : &_chatsList;
+}
+
+not_null<const Dialogs::MainList*> Session::chatsList(
+		Data::Folder *folder) const {
+	return folder ? folder->chatsList() : &_chatsList;
 }
 
 not_null<Dialogs::IndexedList*> Session::contactsList() {
@@ -3006,7 +2938,7 @@ auto Session::refreshChatListEntry(Dialogs::Key key)
 
 	const auto entry = key.entry();
 	auto result = RefreshChatListEntryResult();
-	result.changed = !entry->inChatList(Mode::All);
+	result.changed = !entry->inChatList();
 	if (result.changed) {
 		const auto mainRow = entry->addToChatList(Mode::All);
 		_contactsNoChatsList.del(key, mainRow);
@@ -3241,7 +3173,7 @@ void Session::serviceNotification(
 			MTPstring()));
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
-	if (!history->lastMessageKnown()) {
+	if (!history->folderKnown()) {
 		_session->api().requestDialogEntry(history, [=] {
 			insertCheckedServiceNotification(message, media, date);
 		});
@@ -3263,10 +3195,6 @@ void Session::insertCheckedServiceNotification(
 		const MTPMessageMedia &media,
 		TimeId date) {
 	const auto history = this->history(PeerData::kServiceNotificationsId);
-	if (!history->isReadyFor(ShowAtUnreadMsgId)) {
-		history->setUnreadCount(0);
-		history->getReadyFor(ShowAtTheEndMsgId);
-	}
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| MTPDmessage_ClientFlag::f_clientside_unread

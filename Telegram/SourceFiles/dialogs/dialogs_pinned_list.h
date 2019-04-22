@@ -15,7 +15,7 @@ namespace Dialogs {
 
 class Key;
 
-class PinnedList {
+class PinnedList final {
 public:
 	explicit PinnedList(int limit);
 

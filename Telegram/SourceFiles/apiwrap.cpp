@@ -433,8 +433,8 @@ void ApiWrap::applyUpdates(
 	App::main()->feedUpdates(updates, sentMessageRandomId);
 }
 
-void ApiWrap::savePinnedOrder(FolderId folderId) {
-	const auto &order = _session->data().pinnedChatsOrder(folderId);
+void ApiWrap::savePinnedOrder(Data::Folder *folder) {
+	const auto &order = _session->data().pinnedChatsOrder(folder);
 	const auto input = [](const Dialogs::Key &key) {
 		if (const auto history = key.history()) {
 			return MTP_inputDialogPeer(history->peer->input);
@@ -451,7 +451,7 @@ void ApiWrap::savePinnedOrder(FolderId folderId) {
 		input);
 	request(MTPmessages_ReorderPinnedDialogs(
 		MTP_flags(MTPmessages_ReorderPinnedDialogs::Flag::f_force),
-		MTP_int(folderId),
+		MTP_int(folder ? folder->id() : 0),
 		MTP_vector(peers)
 	)).send();
 }
@@ -707,17 +707,17 @@ void ApiWrap::requestContacts() {
 	}).send();
 }
 
-void ApiWrap::requestDialogs(FolderId folderId) {
-	if (folderId && !_foldersLoadState.contains(folderId)) {
-		_foldersLoadState.emplace(folderId, DialogsLoadState());
+void ApiWrap::requestDialogs(Data::Folder *folder) {
+	if (folder && !_foldersLoadState.contains(folder)) {
+		_foldersLoadState.emplace(folder, DialogsLoadState());
 	}
-	requestMoreDialogs(folderId);
+	requestMoreDialogs(folder);
 }
 
-void ApiWrap::requestMoreDialogs(FolderId folderId) {
-	const auto state = dialogsLoadState(folderId);
+void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
+	const auto state = dialogsLoadState(folder);
 	if (!state) {
-		if (!folderId) {
+		if (!folder) {
 			_session->data().addAllSavedPeers();
 		}
 		return;
@@ -734,7 +734,7 @@ void ApiWrap::requestMoreDialogs(FolderId folderId) {
 	const auto hash = 0;
 	state->requestId = request(MTPmessages_GetDialogs(
 		MTP_flags(flags),
-		MTP_int(folderId),
+		MTP_int(folder ? folder->id() : 0),
 		MTP_int(state->offsetDate),
 		MTP_int(state->offsetId),
 		(state->offsetPeer
@@ -743,31 +743,31 @@ void ApiWrap::requestMoreDialogs(FolderId folderId) {
 		MTP_int(loadCount),
 		MTP_int(hash)
 	)).done([=](const MTPmessages_Dialogs &result) {
-		const auto state = dialogsLoadState(folderId);
+		const auto state = dialogsLoadState(folder);
 		result.match([](const MTPDmessages_dialogsNotModified & data) {
 			LOG(("API Error: not-modified received for requested dialogs."));
 		}, [&](const auto &data) {
 			if constexpr (data.Is<MTPDmessages_dialogs>()) {
 				if (state) {
 					state->listReceived = true;
-					dialogsLoadFinish(folderId); // may kill 'state'.
+					dialogsLoadFinish(folder); // may kill 'state'.
 				}
 			} else {
 				updateDialogsOffset(
-					folderId,
+					folder,
 					data.vdialogs.v,
 					data.vmessages.v);
 			}
 			_session->data().processUsers(data.vusers);
 			_session->data().processChats(data.vchats);
 			_session->data().applyDialogs(
-				folderId,
+				folder,
 				data.vmessages.v,
 				data.vdialogs.v);
 		});
 
-		if (!folderId) {
-			requestDialogs(folderId);
+		if (!folder) {
+			requestDialogs(folder);
 			requestContacts();
 			if (!_dialogsLoadState
 				|| (!_dialogsLoadState->listReceived
@@ -775,15 +775,15 @@ void ApiWrap::requestMoreDialogs(FolderId folderId) {
 				refreshDialogsLoadBlocked();
 			}
 		}
-		_session->data().chatsListChanged(folderId);
+		_session->data().chatsListChanged(folder);
 	}).fail([=](const RPCError &error) {
-		dialogsLoadState(folderId)->requestId = 0;
+		dialogsLoadState(folder)->requestId = 0;
 	}).send();
 
 	if (!state->pinnedReceived) {
-		requestPinnedDialogs(folderId);
+		requestPinnedDialogs(folder);
 	}
-	if (!folderId) {
+	if (!folder) {
 		refreshDialogsLoadBlocked();
 	}
 }
@@ -801,7 +801,7 @@ void ApiWrap::refreshDialogsLoadBlocked() {
 }
 
 void ApiWrap::updateDialogsOffset(
-		FolderId folderId,
+		Data::Folder *folder,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages) {
 	auto lastDate = TimeId(0);
@@ -834,7 +834,7 @@ void ApiWrap::updateDialogsOffset(
 			break;
 		}
 	}
-	if (const auto state = dialogsLoadState(folderId)) {
+	if (const auto state = dialogsLoadState(folder)) {
 		if (lastDate) {
 			state->offsetDate = lastDate;
 			state->offsetId = lastMsgId;
@@ -842,31 +842,31 @@ void ApiWrap::updateDialogsOffset(
 			state->requestId = 0;
 		} else {
 			state->listReceived = true;
-			dialogsLoadFinish(folderId);
+			dialogsLoadFinish(folder);
 		}
 	}
 }
 
-auto ApiWrap::dialogsLoadState(FolderId folderId) -> DialogsLoadState* {
-	if (!folderId) {
+auto ApiWrap::dialogsLoadState(Data::Folder *folder) -> DialogsLoadState* {
+	if (!folder) {
 		return _dialogsLoadState.get();
 	}
-	const auto i = _foldersLoadState.find(folderId);
+	const auto i = _foldersLoadState.find(folder);
 	return (i != end(_foldersLoadState)) ? &i->second : nullptr;
 }
 
-void ApiWrap::dialogsLoadFinish(FolderId folderId) {
+void ApiWrap::dialogsLoadFinish(Data::Folder *folder) {
 	const auto notify = [&] {
 		Core::App().postponeCall(crl::guard(_session, [=] {
-			_session->data().chatsListDone(folderId);
+			_session->data().chatsListDone(folder);
 		}));
 	};
-	const auto state = dialogsLoadState(folderId);
+	const auto state = dialogsLoadState(folder);
 	if (!state || !state->listReceived || !state->pinnedReceived) {
 		return;
 	}
-	if (folderId) {
-		_foldersLoadState.remove(folderId);
+	if (folder) {
+		_foldersLoadState.remove(folder);
 		notify();
 	} else {
 		_dialogsLoadState = nullptr;
@@ -874,32 +874,32 @@ void ApiWrap::dialogsLoadFinish(FolderId folderId) {
 	}
 }
 
-void ApiWrap::requestPinnedDialogs(FolderId folderId) {
-	const auto state = dialogsLoadState(folderId);
+void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
+	const auto state = dialogsLoadState(folder);
 	if (!state || state->pinnedReceived || state->pinnedRequestId) {
 		return;
 	}
 
 	const auto finalize = [=] {
-		if (const auto state = dialogsLoadState(folderId)) {
+		if (const auto state = dialogsLoadState(folder)) {
 			state->pinnedRequestId = 0;
 			state->pinnedReceived = true;
-			dialogsLoadFinish(folderId);
+			dialogsLoadFinish(folder);
 		}
 	};
 	state->pinnedRequestId = request(MTPmessages_GetPinnedDialogs(
-		MTP_int(folderId)
+		MTP_int(folder ? folder->id() : 0)
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		finalize();
 		result.match([&](const MTPDmessages_peerDialogs &data) {
 			_session->data().processUsers(data.vusers);
 			_session->data().processChats(data.vchats);
-			_session->data().clearPinnedChats(folderId);
+			_session->data().clearPinnedChats(folder);
 			_session->data().applyDialogs(
-				folderId,
+				folder,
 				data.vmessages.v,
 				data.vdialogs.v);
-			_session->data().chatsListChanged(folderId);
+			_session->data().chatsListChanged(folder);
 		});
 	}).fail([=](const RPCError &error) {
 		finalize();
@@ -1258,10 +1258,15 @@ void ApiWrap::gotChatFull(
 		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		if (const auto history = _session->data().historyLoaded(channel)) {
 			history->clearUpTill(f.vavailable_min_id.v);
-			history->applyDialogFields(
-				f.vunread_count.v,
-				f.vread_inbox_max_id.v,
-				f.vread_outbox_max_id.v);
+			if (history->folderKnown()) {
+				history->applyDialogFields(
+					history->folder(),
+					f.vunread_count.v,
+					f.vread_inbox_max_id.v,
+					f.vread_outbox_max_id.v);
+			} else {
+				requestDialogEntry(history);
+			}
 		}
 		if (f.has_pinned_msg_id()) {
 			channel->setPinnedMessageId(f.vpinned_msg_id.v);

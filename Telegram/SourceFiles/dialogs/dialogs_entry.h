@@ -40,6 +40,15 @@ struct PositionChange {
 	int to = -1;
 };
 
+struct UnreadState {
+	std::optional<int> messagesCount;
+	int messagesCountMuted = 0;
+	int chatsCount = 0;
+	int chatsCountMuted = 0;
+	bool mark = false;
+	bool markMuted = false;
+};
+
 class Entry {
 public:
 	Entry(not_null<Data::Session*> owner, const Key &key);
@@ -51,7 +60,7 @@ public:
 	AuthSession &session() const;
 
 	PositionChange adjustByPosInChatList(Mode list);
-	bool inChatList(Mode list) const {
+	bool inChatList(Mode list = Mode::All) const {
 		return !chatListLinks(list).empty();
 	}
 	int posInChatList(Mode list) const;
@@ -89,6 +98,7 @@ public:
 	virtual int chatListUnreadCount() const = 0;
 	virtual bool chatListUnreadMark() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
+	virtual UnreadState chatListUnreadState() const = 0;
 	virtual HistoryItem *chatListMessage() const = 0;
 	virtual bool chatListMessageKnown() const = 0;
 	virtual void requestChatListMessage() = 0;
@@ -125,9 +135,21 @@ public:
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;
 
+protected:
+	auto unreadStateChangeNotifier(bool required) {
+		const auto notify = required && inChatList();
+		const auto wasState = notify ? chatListUnreadState() : UnreadState();
+		return gsl::finally([=] {
+			if (notify) {
+				notifyUnreadStateChange(wasState);
+			}
+		});
+	}
+
 private:
-	virtual void changedInChatListHook(Mode list, bool added);
 	virtual void changedChatListPinHook();
+
+	void notifyUnreadStateChange(const UnreadState &wasState);
 
 	void setChatListExistence(bool exists);
 	RowsByLetter &chatListLinks(Mode list);

@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "history/history.h"
-#include "dialogs/dialogs_indexed_list.h"
+#include "dialogs/dialogs_main_list.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 
@@ -266,13 +266,13 @@ void ChatsListBoxController::rebuildRows() {
 			++added;
 		}
 	}
-	added += appendList(Auth().data().chatsList(Dialogs::Mode::All));
+	added += appendList(Auth().data().chatsList()->indexed());
 	added += appendList(Auth().data().contactsNoChatsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.
 		delegate()->peerListPartitionRows([](const PeerListRow &a) {
 			const auto history = static_cast<const Row&>(a).history();
-			return history->inChatList(Dialogs::Mode::All);
+			return history->inChatList();
 		});
 		if (respectSavedMessagesChat()) {
 			delegate()->peerListPartitionRows([](const PeerListRow &a) {

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_facade.h"
+#include "core/application.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -24,6 +25,16 @@ namespace Data {
 namespace {
 
 constexpr auto kLoadedChatsMinCount = 20;
+
+rpl::producer<int> PinnedDialogsInFolderMaxValue() {
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		Core::App().configUpdates()
+	) | rpl::map([=] {
+		return Global::PinnedDialogsInFolderMax();
+	});
+}
 
 } // namespace
 
@@ -40,9 +51,7 @@ constexpr auto kLoadedChatsMinCount = 20;
 Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 : Entry(owner, this)
 , _id(id)
-, _chatsList(Dialogs::SortMode::Date)
-, _importantChatsList(Dialogs::SortMode::Date)
-, _pinnedChatsList(Global::PinnedDialogsInFolderMax())
+, _chatsList(PinnedDialogsInFolderMaxValue())
 , _name(lang(lng_archived_chats)) {
 	indexNameParts();
 }
@@ -78,51 +87,19 @@ void Folder::indexNameParts() {
 }
 
 void Folder::registerOne(not_null<History*> history) {
-	//session().storage().invalidate( // #feed
-	//	Storage::FeedMessagesInvalidate(_id));
-
-	if (unreadCountKnown()) {
-		if (history->unreadCountKnown()) {
-			// If history unreadCount is known that means that we've
-			// already had the channel information and if it was in the
-			// feed already (not yet known) it wouldn't get here.
-			// That means here we get if we add a new channel to feed.
-			if (const auto count = history->unreadCount()) {
-				unreadCountChanged(count, history->mute() ? count : 0);
-			}
-		} else {
-			session().api().requestDialogEntry(this);
-		}
-	}
-	if (_chatsList.size() == 1) {
+	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
 	}
-	owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
 }
 
 void Folder::unregisterOne(not_null<History*> history) {
-	//session().storage().remove( // #feed
-	//	Storage::FeedMessagesRemoveAll(_id, channel->bareId()));
-
-	if (unreadCountKnown()) {
-		if (history->unreadCountKnown()) {
-			if (const auto delta = -history->unreadCount()) {
-				unreadCountChanged(delta, history->mute() ? delta : 0);
-			}
-		} else {
-			session().api().requestDialogEntry(this);
-		}
-	}
 	if (_chatsList.empty()) {
 		updateChatListExistence();
 	}
-	owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
 }
 
-not_null<Dialogs::IndexedList*> Folder::chatsList(Dialogs::Mode list) {
-	return (list == Dialogs::Mode::All)
-		? &_chatsList
-		: &_importantChatsList;
+not_null<Dialogs::MainList*> Folder::chatsList() {
+	return &_chatsList;
 }
 
 void Folder::loadUserpic() {
@@ -163,71 +140,16 @@ void Folder::paintUserpic(
 }
 
 bool Folder::chatsListLoaded() const {
-	return _chatsListLoaded;
+	return _chatsList.loaded();
 }
 
 void Folder::setChatsListLoaded(bool loaded) {
-	if (_chatsListLoaded != loaded) {
-		_chatsListLoaded = loaded;
-		owner().notifyFolderUpdated(this, FolderUpdateFlag::List);
+	if (_chatsList.loaded() == loaded) {
+		return;
 	}
+	const auto notifier = unreadStateChangeNotifier(true);
+	_chatsList.setLoaded(loaded);
 }
-// // #feed
-//int32 Folder::chatsHash() const {
-//	const auto ordered = ranges::view::all(
-//		_histories
-//	) | ranges::view::transform([](not_null<History*> history) {
-//		return history->peer->bareId();
-//	}) | ranges::to_vector | ranges::action::sort;
-//	return Api::CountHash(ordered);
-//}
-//
-//void Folder::setChats(std::vector<not_null<PeerData*>> chats) {
-//	const auto remove = ranges::view::all(
-//		_histories
-//	) | ranges::view::transform([](not_null<History*> history) {
-//		return history->peer;
-//	}) | ranges::view::filter([&](not_null<PeerData*> peer) {
-//		return !base::contains(chats, peer);
-//	}) | ranges::to_vector;
-//
-//	const auto add = ranges::view::all(
-//		chats
-//	) | ranges::view::filter([&](not_null<PeerData*> peer) {
-//		return ranges::find(
-//			_histories,
-//			peer,
-//			[](auto history) { return history->peer; }
-//		) == end(_histories);
-//	}) | ranges::view::transform([](PeerData *peer) {
-//		return not_null<PeerData*>(peer);
-//	}) | ranges::to_vector;
-//
-//	changeChatsList(add, remove);
-//
-//	setChatsLoaded(true);
-//}
-//
-//void Folder::changeChatsList(
-//		const std::vector<not_null<PeerData*>> &add,
-//		const std::vector<not_null<PeerData*>> &remove) {
-//	_settingChats = true;
-//	const auto restore = gsl::finally([&] { _settingChats = false; });
-//
-//	for (const auto channel : remove) {
-//		channel->clearFeed();
-//	}
-//
-//	//// We assume the last message was correct before requesting the list.
-//	//// So we save it and don't allow channels from the list to change it.
-//	//// After that we restore it.
-//	const auto oldChatListMessage = base::take(_chatListMessage);
-//	for (const auto channel : add) {
-//		_chatListMessage = std::nullopt;
-//		channel->setFeed(this);
-//	}
-//	_chatListMessage = oldChatListMessage;
-//}
 
 void Folder::requestChatListMessage() {
 	if (!chatListMessageKnown()) {
@@ -235,66 +157,14 @@ void Folder::requestChatListMessage() {
 	}
 }
 
-void Folder::setPinnedChatsLimit(int limit) {
-	_pinnedChatsList.setLimit(limit);
-}
-
-void Folder::setChatPinned(const Dialogs::Key &key, bool pinned) {
-	_pinnedChatsList.setPinned(key, pinned);
-}
-
-void Folder::addPinnedChat(const Dialogs::Key &key) {
-	_pinnedChatsList.addPinned(key);
-}
-
-void Folder::applyPinnedChats(const QVector<MTPDialogPeer> &list) {
-	_pinnedChatsList.applyList(&owner(), list);
-}
-
-const std::vector<Dialogs::Key> &Folder::pinnedChatsOrder() const {
-	return _pinnedChatsList.order();
-}
-
-void Folder::clearPinnedChats() {
-	_pinnedChatsList.clear();
-}
-
-void Folder::reorderTwoPinnedChats(
-		const Dialogs::Key &key1,
-		const Dialogs::Key &key2) {
-	_pinnedChatsList.reorder(key1, key2);
-}
-
 TimeId Folder::adjustedChatListTimeId() const {
-	return _chatsList.empty()
+	const auto list = _chatsList.indexed();
+	return list->empty()
 		? TimeId(0)
-		: (*_chatsList.begin())->entry()->adjustedChatListTimeId();
-}
-
-int Folder::unreadCount() const {
-	return _unreadCount.value_or(0);
-}
-
-rpl::producer<int> Folder::unreadCountValue() const {
-	return rpl::single(
-		unreadCount()
-	) | rpl::then(_unreadCountChanges.events());
-}
-
-bool Folder::unreadCountKnown() const {
-	return !!_unreadCount;
+		: (*list->begin())->entry()->adjustedChatListTimeId();
 }
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
-	//const auto addChannel = [&](ChannelId channelId) { // #feed
-	//	if (const auto channel = owner().channelLoaded(channelId)) {
-	//		channel->setFeed(this);
-	//	}
-	//};
-	//for (const auto &channelId : data.vfeed_other_channels.v) {
-	//	addChannel(channelId.v);
-	//}
-
 	if (const auto peerId = peerFromMTP(data.vpeer)) {
 		const auto history = owner().history(peerId);
 		const auto fullId = FullMsgId(
@@ -303,22 +173,34 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 		history->setFolder(this, App::histItemById(fullId));
 	} else {
 		_chatsList.clear();
-		_importantChatsList.clear();
 		updateChatListExistence();
 	}
-	setUnreadCounts(
-		data.vunread_unmuted_messages_count.v,
-		data.vunread_muted_messages_count.v);
-	//setUnreadMark(data.is_unread_mark());
-	//setUnreadMentionsCount(data.vunread_mentions_count.v);
-
-	//if (data.has_read_max_position()) { // #feed
-	//	setUnreadPosition(FeedPositionFromMTP(data.vread_max_position));
-	//}
-
-	if (_chatsList.size() < kLoadedChatsMinCount) {
-		session().api().requestDialogs(_id);
+	updateCloudUnread(data);
+	if (_chatsList.indexed()->size() < kLoadedChatsMinCount) {
+		session().api().requestDialogs(this);
 	}
+}
+
+void Folder::updateCloudUnread(const MTPDdialogFolder &data) {
+	const auto notifier = unreadStateChangeNotifier(!_chatsList.loaded());
+
+	_cloudUnread.messagesCountMuted = data.vunread_muted_messages_count.v;
+	_cloudUnread.messagesCount = _cloudUnread.messagesCountMuted
+		+ data.vunread_unmuted_messages_count.v;
+	_cloudUnread.chatsCountMuted = data.vunread_muted_peers_count.v;
+	_cloudUnread.chatsCount = _cloudUnread.chatsCountMuted
+		+ data.vunread_unmuted_peers_count.v;
+}
+
+Dialogs::UnreadState Folder::chatListUnreadState() const {
+	const auto state = _chatsList.loaded()
+		? _chatsList.unreadState()
+		: _cloudUnread;
+	auto result = Dialogs::UnreadState();
+	result.messagesCount = state.messagesCount;
+	result.messagesCountMuted = result.messagesCount.value_or(0);
+	result.chatsCount = result.chatsCountMuted = state.chatsCount;
+	return result;
 }
 
 void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
@@ -329,129 +211,50 @@ void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	owner().setChatPinned(this, data.is_pinned());
 }
 
-void Folder::changedInChatListHook(Dialogs::Mode list, bool added) {
-	if (list != Dialogs::Mode::All) {
+void Folder::unreadStateChanged(
+		const Dialogs::UnreadState &wasState,
+		const Dialogs::UnreadState &nowState) {
+	const auto updateCloudUnread = _cloudUnread.messagesCount.has_value()
+		&& wasState.messagesCount.has_value();
+	const auto notify = _chatsList.loaded() || updateCloudUnread;
+	const auto notifier = unreadStateChangeNotifier(notify);
+
+	_chatsList.unreadStateChanged(wasState, nowState);
+	if (!_cloudUnread.messagesCount.has_value()
+		|| !wasState.messagesCount.has_value()) {
 		return;
 	}
-	if (const auto count = unreadCount()) {
-		const auto mutedCount = _unreadMutedCount;
-		const auto nonMutedCount = count - mutedCount;
-		const auto mutedDelta = added ? mutedCount : -mutedCount;
-		const auto nonMutedDelta = added ? nonMutedCount : -nonMutedCount;
-		owner().unreadIncrement(nonMutedDelta, false);
-		owner().unreadIncrement(mutedDelta, true);
+	Assert(nowState.messagesCount.has_value());
 
-		const auto fullMuted = (nonMutedCount == 0);
-		const auto entriesWithUnreadDelta = added ? 1 : -1;
-		const auto mutedEntriesWithUnreadDelta = fullMuted
-			? entriesWithUnreadDelta
-			: 0;
-		owner().unreadEntriesChanged(
-			entriesWithUnreadDelta,
-			mutedEntriesWithUnreadDelta);
-	}
+	*_cloudUnread.messagesCount += *nowState.messagesCount
+		- *wasState.messagesCount;
+	_cloudUnread.messagesCountMuted += nowState.messagesCountMuted
+		- wasState.messagesCountMuted;
+	_cloudUnread.chatsCount += nowState.chatsCount - wasState.chatsCount;
+	_cloudUnread.chatsCountMuted += nowState.chatsCountMuted
+		- wasState.chatsCountMuted;
 }
 
-template <typename PerformUpdate>
-void Folder::updateUnreadCounts(PerformUpdate &&performUpdate) {
-	const auto wasUnreadCount = _unreadCount  ? *_unreadCount : 0;
-	const auto wasUnreadMutedCount = _unreadMutedCount;
-	const auto wasFullMuted = (wasUnreadMutedCount > 0)
-		&& (wasUnreadCount == wasUnreadMutedCount);
+void Folder::unreadEntryChanged(
+		const Dialogs::UnreadState &state,
+		bool added) {
+	const auto updateCloudUnread = _cloudUnread.messagesCount.has_value()
+		&& state.messagesCount.has_value();
+	const auto notify = _chatsList.loaded() || updateCloudUnread;
+	const auto notifier = unreadStateChangeNotifier(notify);
 
-	performUpdate();
-	Assert(_unreadCount.has_value());
-
-	_unreadCountChanges.fire(unreadCount());
-	updateChatListEntry();
-
-	if (inChatList(Dialogs::Mode::All)) {
-		const auto nowUnreadCount = *_unreadCount;
-		const auto nowUnreadMutedCount = _unreadMutedCount;
-		const auto nowFullMuted = (nowUnreadMutedCount > 0)
-			&& (nowUnreadCount == nowUnreadMutedCount);
-
-		owner().unreadIncrement(
-			(nowUnreadCount - nowUnreadMutedCount)
-			- (wasUnreadCount - wasUnreadMutedCount),
-			false);
-		owner().unreadIncrement(
-			nowUnreadMutedCount - wasUnreadMutedCount,
-			true);
-
-		const auto entriesDelta = (nowUnreadCount && !wasUnreadCount)
-			? 1
-			: (wasUnreadCount && !nowUnreadCount)
-			? -1
-			: 0;
-		const auto mutedEntriesDelta = (!wasFullMuted && nowFullMuted)
-			? 1
-			: (wasFullMuted && !nowFullMuted)
-			? -1
-			: 0;
-		owner().unreadEntriesChanged(
-			entriesDelta,
-			mutedEntriesDelta);
-	}
-}
-
-void Folder::setUnreadCounts(int unreadNonMutedCount, int unreadMutedCount) {
-	if (unreadCountKnown()
-		&& (*_unreadCount == unreadNonMutedCount + unreadMutedCount)
-		&& (_unreadMutedCount == unreadMutedCount)) {
+	_chatsList.unreadEntryChanged(state, added);
+	if (!_cloudUnread.messagesCount.has_value()
+		|| !state.messagesCount.has_value()) {
 		return;
 	}
-	updateUnreadCounts([&] {
-		_unreadCount = unreadNonMutedCount + unreadMutedCount;
-		_unreadMutedCount = unreadMutedCount;
-	});
+	const auto delta = (added ? 1 : -1);
+	*_cloudUnread.messagesCount += delta * *state.messagesCount;
+	_cloudUnread.messagesCountMuted += delta * state.messagesCountMuted;
+	_cloudUnread.chatsCount += delta * state.chatsCount;
+	_cloudUnread.chatsCountMuted += delta * state.chatsCountMuted;
 }
-// #feed
-//void Folder::setUnreadPosition(const MessagePosition &position) {
-//	if (_unreadPosition.current() < position) {
-//		_unreadPosition = position;
-//	}
-//}
 
-void Folder::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
-	if (!unreadCountKnown()) {
-		return;
-	}
-	updateUnreadCounts([&] {
-		accumulate_max(unreadCountDelta, -*_unreadCount);
-		*_unreadCount += unreadCountDelta;
-
-		mutedCountDelta = snap(
-			mutedCountDelta,
-			-_unreadMutedCount,
-			*_unreadCount - _unreadMutedCount);
-		_unreadMutedCount += mutedCountDelta;
-	});
-}
-//
-//void Folder::setUnreadMark(bool unread) {
-//	if (_unreadMark != unread) {
-//		_unreadMark = unread;
-//		if (!_unreadCount || !*_unreadCount) {
-//			if (inChatList(Dialogs::Mode::All)) {
-//				const auto delta = _unreadMark ? 1 : -1;
-//				owner().unreadIncrement(delta, mute());
-//				owner().unreadEntriesChanged(
-//					delta,
-//					mute() ? delta : 0);
-//
-//				updateChatListEntry();
-//			}
-//		}
-//		Notify::peerUpdatedDelayed(
-//			peer,
-//			Notify::PeerUpdate::Flag::UnreadViewChanged);
-//	}
-//}
-//
-//bool Folder::unreadMark() const {
-//	return _unreadMark;
-//}
 // #feed
 //MessagePosition Folder::unreadPosition() const {
 //	return _unreadPosition.current();
@@ -462,7 +265,7 @@ void Folder::unreadCountChanged(int unreadCountDelta, int mutedCountDelta) {
 //}
 
 bool Folder::toImportant() const {
-	return !_importantChatsList.empty();
+	return false;
 }
 
 int Folder::fixedOnTopIndex() const {
@@ -474,7 +277,9 @@ bool Folder::shouldBeInChatList() const {
 }
 
 int Folder::chatListUnreadCount() const {
-	return unreadCount();
+	return session().settings().countUnreadMessages()
+		? chatListUnreadState().messagesCount.value_or(0)
+		: chatListUnreadState().chatsCount;
 }
 
 bool Folder::chatListUnreadMark() const {
@@ -482,18 +287,20 @@ bool Folder::chatListUnreadMark() const {
 }
 
 bool Folder::chatListMutedBadge() const {
-	return _unreadCount ? (*_unreadCount <= _unreadMutedCount) : false;
+	return true;
 }
 
 HistoryItem *Folder::chatListMessage() const {
-	return _chatsList.empty()
+	const auto list = _chatsList.indexed();
+	return list->empty()
 		? nullptr
-		: (*_chatsList.begin())->key().entry()->chatListMessage();
+		: (*list->begin())->key().entry()->chatListMessage();
 }
 
 bool Folder::chatListMessageKnown() const {
-	return _chatsList.empty()
-		|| (*_chatsList.begin())->key().entry()->chatListMessageKnown();
+	const auto list = _chatsList.indexed();
+	return list->empty()
+		|| (*list->begin())->key().entry()->chatListMessageKnown();
 }
 
 const QString &Folder::chatListName() const {

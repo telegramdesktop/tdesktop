@@ -96,6 +96,14 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 
 	subscribe(session().downloaderTaskFinished(), [=] { update(); });
 
+	subscribe(session().notifications().settingsChanged(), [=](
+			Window::Notifications::ChangeType change) {
+		if (change == Window::Notifications::ChangeType::CountMessages) {
+			// Folder rows change their unread badge with this setting.
+			update();
+		}
+	});
+
 	session().data().contactsLoaded().changes(
 	) | rpl::start_with_next([=] {
 		refresh();
@@ -143,8 +151,9 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder == _openedFolder);
 	}) | rpl::start_with_next([=] {
+		const auto mode = Global::DialogsMode();
 		if (_openedFolder
-			&& _openedFolder->chatsList(Global::DialogsMode())->empty()) {
+			&& _openedFolder->chatsList()->indexed(mode)->empty()) {
 			_openedFolder->updateChatListSortPosition();
 			cancelFolder();
 		} else {
@@ -188,10 +197,6 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			}
 		}
 	}));
-	session().data().folderUpdated(
-	) | rpl::start_with_next([=](const Data::FolderUpdate &update) {
-		updateDialogRow({ update.folder, FullMsgId() });
-	}, lifetime());
 
 	_controller->activeChatEntryValue(
 	) | rpl::combine_previous(
@@ -218,8 +223,7 @@ void DialogsInner::handleChatMigration(not_null<ChatData*> chat) {
 
 	if (const auto from = chat->owner().historyLoaded(chat)) {
 		if (const auto to = chat->owner().historyLoaded(channel)) {
-			if (to->inChatList(Dialogs::Mode::All)
-				&& from->inChatList(Dialogs::Mode::All)) {
+			if (to->inChatList() && from->inChatList()) {
 				removeDialog(from);
 			}
 		}
@@ -227,8 +231,11 @@ void DialogsInner::handleChatMigration(not_null<ChatData*> chat) {
 }
 
 int DialogsInner::dialogsOffset() const {
-	return (_openedFolder ? openedFolderSkip() : 0)
-		+ (_importantSwitch ? st::dialogsImportantBarHeight : 0);
+	return _openedFolder
+		? openedFolderSkip()
+		: _importantSwitch
+		? st::dialogsImportantBarHeight
+		: 0;
 }
 
 int DialogsInner::proxyPromotedCount() const {
@@ -298,6 +305,9 @@ bool DialogsInner::changeOpenedFolder(Data::Folder *folder) {
 			Ui::DialogTextOptions());
 	}
 	refresh();
+	if (_loadMoreCallback) {
+		_loadMoreCallback();
+	}
 	return true;
 }
 
@@ -320,7 +330,7 @@ void DialogsInner::paintEvent(QPaintEvent *e) {
 	}
 	if (_state == State::Default) {
 		auto rows = shownDialogs();
-		if (_importantSwitch) {
+		if (!_openedFolder && _importantSwitch) {
 			auto selected = isPressed() ? _importantSwitchPressed : _importantSwitchSelected;
 			Dialogs::Layout::paintImportantSwitch(p, Global::DialogsMode(), fullWidth, selected);
 			dialogsClip.translate(0, -st::dialogsImportantBarHeight);
@@ -807,12 +817,21 @@ void DialogsInner::selectByMouse(QPoint globalPosition) {
 	_mouseSelection = true;
 	_lastMousePosition = globalPosition;
 
-	int w = width(), mouseY = local.y();
+	const auto w = width();
+	const auto mouseY = local.y();
 	clearIrrelevantState();
 	if (_state == State::Default) {
-		auto importantSwitchSelected = (_importantSwitch && mouseY >= 0 && mouseY < dialogsOffset());
-		mouseY -= dialogsOffset();
-		auto selected = importantSwitchSelected ? nullptr : (mouseY >= 0 ? shownDialogs()->rowAtY(mouseY, st::dialogsRowHeight) : nullptr);
+		const auto switchTop = _openedFolder ? openedFolderSkip() : 0;
+		const auto switchBottom = dialogsOffset();
+		const auto importantSwitchSelected = _importantSwitch
+			&& !_openedFolder
+			&& (mouseY >= switchTop)
+			&& (mouseY < switchBottom);
+		const auto selected = importantSwitchSelected
+			? nullptr
+			: (mouseY >= switchBottom)
+			? shownDialogs()->rowAtY(mouseY - switchBottom, st::dialogsRowHeight)
+			: nullptr;
 		if (_selected != selected || _importantSwitchSelected != importantSwitchSelected) {
 			updateSelectedRow();
 			_selected = selected;
@@ -945,8 +964,7 @@ void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
 	if (updateReorderIndexGetCount() < 2) {
 		_dragging = nullptr;
 	} else {
-		const auto folderId = _openedFolder ? _openedFolder->id() : 0;
-		const auto &order = session().data().pinnedChatsOrder(folderId);
+		const auto &order = session().data().pinnedChatsOrder(_openedFolder);
 		_pinnedOnDragStart = base::flat_set<Dialogs::Key>{
 			order.begin(),
 			order.end()
@@ -989,8 +1007,7 @@ int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
 }
 
 void DialogsInner::savePinnedOrder() {
-	const auto folderId = _openedFolder ? _openedFolder->id() : 0;
-	const auto &newOrder = session().data().pinnedChatsOrder(folderId);
+	const auto &newOrder = session().data().pinnedChatsOrder(_openedFolder);
 	if (newOrder.size() != _pinnedOnDragStart.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
@@ -999,7 +1016,7 @@ void DialogsInner::savePinnedOrder() {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	session().api().savePinnedOrder(folderId);
+	session().api().savePinnedOrder(_openedFolder);
 }
 
 void DialogsInner::finishReorderPinned() {
@@ -1513,7 +1530,8 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 		} else if (_selected) {
 			update(0, dialogsOffset() + _selected->pos() * st::dialogsRowHeight, width(), st::dialogsRowHeight);
 		} else if (_importantSwitchSelected) {
-			update(0, 0, width(), st::dialogsImportantBarHeight);
+			const auto switchTop = _openedFolder ? openedFolderSkip() : 0;
+			update(0, switchTop, width(), st::dialogsImportantBarHeight);
 		}
 	} else if (_state == State::Filtered) {
 		if (key) {
@@ -1536,9 +1554,8 @@ void DialogsInner::updateSelectedRow(Dialogs::Key key) {
 }
 
 not_null<Dialogs::IndexedList*> DialogsInner::shownDialogs() const {
-	return _openedFolder
-		? _openedFolder->chatsList(Global::DialogsMode())
-		: session().data().chatsList(Global::DialogsMode());
+	const auto mode = Global::DialogsMode();
+	return session().data().chatsList(_openedFolder)->indexed(mode);
 }
 
 void DialogsInner::leaveEventHook(QEvent *e) {
@@ -1676,7 +1693,7 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 			_filterResultsGlobal.clear();
 			if (!_searchInChat && !words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
-				if (const auto list = session().data().chatsList(Dialogs::Mode::All); !list->empty()) {
+				if (const auto list = session().data().chatsList()->indexed(); !list->empty()) {
 					for (fi = fb; fi != fe; ++fi) {
 						const auto found = list->filtered(fi->at(0));
 						if (!found || found->empty()) {
@@ -2001,7 +2018,7 @@ void DialogsInner::peerSearchReceived(
 	for (const auto &mtpPeer : result) {
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
 			if (const auto history = peer->owner().historyLoaded(peer)) {
-				if (history->inChatList(Dialogs::Mode::All)) {
+				if (history->inChatList()) {
 					continue; // skip existing chats
 				}
 			}
@@ -2017,7 +2034,7 @@ void DialogsInner::peerSearchReceived(
 }
 
 void DialogsInner::notify_historyMuteUpdated(History *history) {
-	if (!_importantSwitch || !history->inChatList(Dialogs::Mode::All)) {
+	if (!_importantSwitch || !history->inChatList()) {
 		return;
 	}
 	refreshDialog(history);
