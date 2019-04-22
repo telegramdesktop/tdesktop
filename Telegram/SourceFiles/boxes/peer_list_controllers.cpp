@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_folder.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
@@ -235,9 +236,7 @@ void ChatsListBoxController::prepare() {
 	}
 
 	Auth().data().chatsListChanges(
-	) | rpl::filter([=](Data::Folder *folder) {
-		return !folder;
-	}) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=] {
 		rebuildRows();
 	}, lifetime());
 
@@ -267,6 +266,10 @@ void ChatsListBoxController::rebuildRows() {
 		}
 	}
 	added += appendList(Auth().data().chatsList()->indexed());
+	const auto id = Data::Folder::kId;
+	if (const auto folder = Auth().data().folderLoaded(id)) {
+		added += appendList(folder->chatsList()->indexed());
+	}
 	added += appendList(Auth().data().contactsNoChatsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.

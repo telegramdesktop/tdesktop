@@ -1685,81 +1685,24 @@ void DialogsInner::applyFilterUpdate(QString newFilter, bool force) {
 		if (_filter.isEmpty() && !_searchFromUser) {
 			clearFilter();
 		} else {
-			QStringList::const_iterator fb = words.cbegin(), fe = words.cend(), fi;
-
 			_state = State::Filtered;
 			_waitingForSearch = true;
 			_filterResults.clear();
 			_filterResultsGlobal.clear();
+			const auto append = [&](not_null<Dialogs::IndexedList*> list) {
+				const auto results = list->filtered(words);
+				_filterResults.insert(
+					end(_filterResults),
+					begin(results),
+					end(results));
+			};
 			if (!_searchInChat && !words.isEmpty()) {
-				const Dialogs::List *toFilter = nullptr;
-				if (const auto list = session().data().chatsList()->indexed(); !list->empty()) {
-					for (fi = fb; fi != fe; ++fi) {
-						const auto found = list->filtered(fi->at(0));
-						if (!found || found->empty()) {
-							toFilter = nullptr;
-							break;
-						}
-						if (!toFilter || toFilter->size() > found->size()) {
-							toFilter = found;
-						}
-					}
+				append(session().data().chatsList()->indexed());
+				const auto id = Data::Folder::kId;
+				if (const auto folder = session().data().folderLoaded(id)) {
+					append(folder->chatsList()->indexed());
 				}
-				const Dialogs::List *toFilterContacts = nullptr;
-				if (const auto list = session().data().contactsNoChatsList(); !list->empty()) {
-					for (fi = fb; fi != fe; ++fi) {
-						const auto found = list->filtered(fi->at(0));
-						if (!found || found->empty()) {
-							toFilterContacts = nullptr;
-							break;
-						}
-						if (!toFilterContacts || toFilterContacts->size() > found->size()) {
-							toFilterContacts = found;
-						}
-					}
-				}
-				_filterResults.reserve((toFilter ? toFilter->size() : 0)
-					+ (toFilterContacts ? toFilterContacts->size() : 0));
-				if (toFilter) {
-					for (const auto row : *toFilter) {
-						const auto &nameWords = row->entry()->chatListNameWords();
-						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
-						for (fi = fb; fi != fe; ++fi) {
-							auto filterWord = *fi;
-							for (ni = nb; ni != ne; ++ni) {
-								if (ni->startsWith(filterWord)) {
-									break;
-								}
-							}
-							if (ni == ne) {
-								break;
-							}
-						}
-						if (fi == fe) {
-							_filterResults.push_back(row);
-						}
-					}
-				}
-				if (toFilterContacts) {
-					for (const auto row : *toFilterContacts) {
-						const auto &nameWords = row->entry()->chatListNameWords();
-						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
-						for (fi = fb; fi != fe; ++fi) {
-							auto filterWord = *fi;
-							for (ni = nb; ni != ne; ++ni) {
-								if (ni->startsWith(filterWord)) {
-									break;
-								}
-							}
-							if (ni == ne) {
-								break;
-							}
-						}
-						if (fi == fe) {
-							_filterResults.push_back(row);
-						}
-					}
-				}
+				append(session().data().contactsNoChatsList());
 			}
 			refresh(true);
 		}

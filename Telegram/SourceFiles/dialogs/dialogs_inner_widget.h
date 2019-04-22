@@ -316,7 +316,7 @@ private:
 	bool _hashtagDeleteSelected = false;
 	bool _hashtagDeletePressed = false;
 
-	std::vector<Dialogs::Row*> _filterResults;
+	std::vector<not_null<Dialogs::Row*>> _filterResults;
 	base::flat_map<
 		not_null<PeerData*>,
 		std::unique_ptr<Dialogs::Row>> _filterResultsGlobal;

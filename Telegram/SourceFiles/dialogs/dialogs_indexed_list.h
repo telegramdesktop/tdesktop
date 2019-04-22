@@ -47,6 +47,7 @@ public:
 		const auto i = _index.find(ch);
 		return (i != _index.end()) ? &i->second : nullptr;
 	}
+	std::vector<not_null<Row*>> filtered(const QStringList &words) const;
 
 	~IndexedList();
 

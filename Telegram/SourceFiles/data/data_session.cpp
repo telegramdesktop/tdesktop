@@ -983,7 +983,7 @@ void Session::setupUserIsContactViewer() {
 		if (user->contactStatus() == UserData::ContactStatus::Contact) {
 			const auto history = user->owner().history(user->id);
 			_contactsList.addByName(history);
-			if (!_chatsList.indexed()->contains(history)) {
+			if (!history->inChatList()) {
 				_contactsNoChatsList.addByName(history);
 			}
 		} else if (const auto history = user->owner().historyLoaded(user)) {

@@ -200,6 +200,56 @@ void IndexedList::clear() {
 	_index.clear();
 }
 
+std::vector<not_null<Row*>> IndexedList::filtered(
+		const QStringList &words) const {
+	const auto minimal = [&]() -> const Dialogs::List* {
+		if (empty()) {
+			return nullptr;
+		}
+		auto result = (const Dialogs::List*)nullptr;
+		for (const auto &word : words) {
+			if (word.isEmpty()) {
+				continue;
+			}
+			const auto found = filtered(word[0]);
+			if (!found || found->empty()) {
+				return nullptr;
+			} else if (!result || result->size() > found->size()) {
+				result = found;
+			}
+		}
+		return result;
+	}();
+	auto result = std::vector<not_null<Row*>>();
+	if (!minimal || minimal->empty()) {
+		return result;
+	}
+	result.reserve(minimal->size());
+	for (const auto row : *minimal) {
+		const auto &nameWords = row->entry()->chatListNameWords();
+		const auto found = [&](const QString &word) {
+			for (const auto &name : nameWords) {
+				if (name.startsWith(word)) {
+					return true;
+				}
+			}
+			return false;
+		};
+		const auto allFound = [&] {
+			for (const auto &word : words) {
+				if (!found(word)) {
+					return false;
+				}
+			}
+			return true;
+		}();
+		if (allFound) {
+			result.push_back(row);
+		}
+	}
+	return result;
+}
+
 IndexedList::~IndexedList() {
 	clear();
 }
