@@ -3951,17 +3951,31 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadChannelInbox: {
-		auto &d = update.c_updateReadChannelInbox();
-		App::feedInboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
+		const auto &d = update.c_updateReadChannelInbox();
+		const auto peer = peerFromChannel(d.vchannel_id.v);
+		if (const auto history = session().data().historyLoaded(peer)) {
+			const auto folderId = d.has_folder_id() ? d.vfolder_id.v : 0;
+			history->applyInboxReadUpdate(
+				folderId,
+				d.vmax_id.v,
+				d.vstill_unread_count.v,
+				d.vpts.v);
+		}
 	} break;
 
 	case mtpc_updateReadChannelOutbox: {
-		auto &d = update.c_updateReadChannelOutbox();
-		auto peerId = peerFromChannel(d.vchannel_id.v);
-		auto when = requestingDifference() ? 0 : unixtime();
-		App::feedOutboxRead(peerId, d.vmax_id.v, when);
-		if (_history->peer() && _history->peer()->id == peerId) {
-			_history->update();
+		const auto &d = update.c_updateReadChannelOutbox();
+		const auto peer = peerFromChannel(d.vchannel_id.v);
+		if (const auto history = session().data().historyLoaded(peer)) {
+			history->outboxRead(d.vmax_id.v);
+			if (!requestingDifference()) {
+				if (const auto user = history->peer->asUser()) {
+					user->madeAction(unixtime());
+				}
+			}
+			if (_history->peer() && _history->peer()->id == peer) {
+				_history->update();
+			}
 		}
 	} break;
 

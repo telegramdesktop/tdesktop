@@ -1184,124 +1184,24 @@ void ApiWrap::gotChatFull(
 	_session->data().processUsers(d.vusers);
 	_session->data().processChats(d.vchats);
 
-	using UpdateFlag = Notify::PeerUpdate::Flag;
-	if (const auto chat = peer->asChat()) {
-		if (d.vfull_chat.type() != mtpc_chatFull) {
-			LOG(("MTP Error: bad type in gotChatFull for chat: %1"
-				).arg(d.vfull_chat.type()));
-			return;
-		}
-		auto &f = d.vfull_chat.c_chatFull();
-		Data::ApplyChatParticipants(chat, f.vparticipants);
-		if (f.has_bot_info()) {
-			for (const auto &item : f.vbot_info.v) {
-				item.match([&](const MTPDbotInfo &data) {
-					if (const auto bot = _session->data().userLoaded(data.vuser_id.v)) {
-						bot->setBotInfo(item);
-						fullPeerUpdated().notify(bot);
-					}
-				});
-			}
-		}
-		chat->setFullFlags(f.vflags.v);
-		chat->setUserpicPhoto(f.has_chat_photo()
-			? f.vchat_photo
-			: MTPPhoto(MTP_photoEmpty(MTP_long(0))));
-		chat->setInviteLink(
-			(f.vexported_invite.type() == mtpc_chatInviteExported
-				? qs(f.vexported_invite.c_chatInviteExported().vlink)
-				: QString()));
-		if (f.has_pinned_msg_id()) {
-			chat->setPinnedMessageId(f.vpinned_msg_id.v);
+	d.vfull_chat.match([&](const MTPDchatFull &data) {
+		if (const auto chat = peer->asChat()) {
+			Data::ApplyChatUpdate(chat, data);
 		} else {
-			chat->clearPinnedMessage();
-		}
-		chat->fullUpdated();
-
-		notifySettingReceived(
-			MTP_inputNotifyPeer(peer->input),
-			f.vnotify_settings);
-	} else if (const auto channel = peer->asChannel()) {
-		if (d.vfull_chat.type() != mtpc_channelFull) {
 			LOG(("MTP Error: bad type in gotChatFull for channel: %1"
 				).arg(d.vfull_chat.type()));
-			return;
 		}
-		auto &f = d.vfull_chat.c_channelFull();
-		channel->setAvailableMinId(f.vavailable_min_id.v);
-		auto canViewAdmins = channel->canViewAdmins();
-		auto canViewMembers = channel->canViewMembers();
-		auto canEditStickers = channel->canEditStickers();
-
-		channel->setFullFlags(f.vflags.v);
-		channel->setUserpicPhoto(f.vchat_photo);
-		if (f.has_migrated_from_chat_id()) {
-			channel->addFlags(MTPDchannel::Flag::f_megagroup);
-			const auto chat = channel->owner().chat(
-				f.vmigrated_from_chat_id.v);
-			Data::ApplyMigration(chat, channel);
-		}
-		for (const auto &item : f.vbot_info.v) {
-			auto &owner = channel->owner();
-			item.match([&](const MTPDbotInfo &info) {
-				if (const auto user = owner.userLoaded(info.vuser_id.v)) {
-					user->setBotInfo(item);
-					fullPeerUpdated().notify(user);
-				}
-			});
-		}
-		channel->setAbout(qs(f.vabout));
-		channel->setMembersCount(f.has_participants_count() ? f.vparticipants_count.v : 0);
-		channel->setAdminsCount(f.has_admins_count() ? f.vadmins_count.v : 0);
-		channel->setRestrictedCount(f.has_banned_count() ? f.vbanned_count.v : 0);
-		channel->setKickedCount(f.has_kicked_count() ? f.vkicked_count.v : 0);
-		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
-		if (const auto history = _session->data().historyLoaded(channel)) {
-			history->clearUpTill(f.vavailable_min_id.v);
-			if (history->folderKnown()) {
-				history->applyDialogFields(
-					history->folder(),
-					f.vunread_count.v,
-					f.vread_inbox_max_id.v,
-					f.vread_outbox_max_id.v);
-			} else {
-				requestDialogEntry(history);
-			}
-		}
-		if (f.has_pinned_msg_id()) {
-			channel->setPinnedMessageId(f.vpinned_msg_id.v);
+	}, [&](const MTPDchannelFull &data) {
+		if (const auto channel = peer->asChannel()) {
+			Data::ApplyChannelUpdate(channel, data);
 		} else {
-			channel->clearPinnedMessage();
+			LOG(("MTP Error: bad type in gotChatFull for chat: %1"
+				).arg(d.vfull_chat.type()));
 		}
-		if (channel->isMegagroup()) {
-			auto stickersChanged = (canEditStickers != channel->canEditStickers());
-			auto stickerSet = (f.has_stickerset() ? &f.vstickerset.c_stickerSet() : nullptr);
-			auto newSetId = (stickerSet ? stickerSet->vid.v : 0);
-			auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
-				? channel->mgInfo->stickerSet.c_inputStickerSetID().vid.v
-				: 0;
-			if (oldSetId != newSetId) {
-				channel->mgInfo->stickerSet = stickerSet
-					? MTP_inputStickerSetID(stickerSet->vid, stickerSet->vaccess_hash)
-					: MTP_inputStickerSetEmpty();
-				stickersChanged = true;
-			}
-			if (stickersChanged) {
-				Notify::peerUpdatedDelayed(channel, UpdateFlag::ChannelStickersChanged);
-			}
-		}
-		channel->fullUpdated();
-
-		if (canViewAdmins != channel->canViewAdmins()
-			|| canViewMembers != channel->canViewMembers()) {
-			Notify::peerUpdatedDelayed(channel, UpdateFlag::RightsChanged);
-		}
-
-		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
-	}
+	});
 
 	if (req) {
-		auto i = _fullPeerRequests.find(peer);
+		const auto i = _fullPeerRequests.find(peer);
 		if (i != _fullPeerRequests.cend() && i.value() == req) {
 			_fullPeerRequests.erase(i);
 		}
@@ -1314,7 +1214,6 @@ void ApiWrap::gotUserFull(
 		const MTPUserFull &result,
 		mtpRequestId req) {
 	const auto &d = result.c_userFull();
-
 	if (user == _session->user() && !_session->validateSelf(d.vuser)) {
 		constexpr auto kRequestUserAgainTimeout = crl::time(10000);
 		App::CallDelayed(kRequestUserAgainTimeout, _session, [=] {
@@ -1322,34 +1221,10 @@ void ApiWrap::gotUserFull(
 		});
 		return;
 	}
-	_session->data().processUser(d.vuser);
-	if (d.has_profile_photo()) {
-		_session->data().processPhoto(d.vprofile_photo);
-	}
-	App::feedUserLink(MTP_int(peerToUser(user->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
-	if (App::main()) {
-		notifySettingReceived(MTP_inputNotifyPeer(user->input), d.vnotify_settings);
-	}
-
-	if (d.has_bot_info()) {
-		user->setBotInfo(d.vbot_info);
-	} else {
-		user->setBotInfoVersion(-1);
-	}
-	if (d.has_pinned_msg_id()) {
-		user->setPinnedMessageId(d.vpinned_msg_id.v);
-	} else {
-		user->clearPinnedMessage();
-	}
-	user->setFullFlags(d.vflags.v);
-	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
-	user->setCallsStatus(d.is_phone_calls_private() ? UserData::CallsStatus::Private : d.is_phone_calls_available() ? UserData::CallsStatus::Enabled : UserData::CallsStatus::Disabled);
-	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
-	user->setCommonChatsCount(d.vcommon_chats_count.v);
-	user->fullUpdated();
+	Data::ApplyUserUpdate(user, d);
 
 	if (req) {
-		auto i = _fullPeerRequests.find(user);
+		const auto i = _fullPeerRequests.find(user);
 		if (i != _fullPeerRequests.cend() && i.value() == req) {
 			_fullPeerRequests.erase(i);
 		}
@@ -2356,18 +2231,20 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 	if (_notifySettingRequests.find(key) != end(_notifySettingRequests)) {
 		return;
 	}
-	auto requestId = request(MTPaccount_GetNotifySettings(
+	const auto requestId = request(MTPaccount_GetNotifySettings(
 		peer
 	)).done([=](const MTPPeerNotifySettings &result) {
-		notifySettingReceived(peer, result);
+		applyNotifySettings(peer, result);
 		_notifySettingRequests.erase(key);
 	}).fail([=](const RPCError &error) {
-		notifySettingReceived(peer, MTP_peerNotifySettings(
-			MTP_flags(0),
-			MTPBool(),
-			MTPBool(),
-			MTPint(),
-			MTPstring()));
+		applyNotifySettings(
+			peer,
+			MTP_peerNotifySettings(
+				MTP_flags(0),
+				MTPBool(),
+				MTPBool(),
+				MTPint(),
+				MTPstring()));
 		_notifySettingRequests.erase(key);
 	}).send();
 
@@ -2765,7 +2642,7 @@ void ApiWrap::checkQuitPreventFinished() {
 	}
 }
 
-void ApiWrap::notifySettingReceived(
+void ApiWrap::applyNotifySettings(
 		MTPInputNotifyPeer notifyPeer,
 		const MTPPeerNotifySettings &settings) {
 	switch (notifyPeer.type()) {
@@ -3744,17 +3621,18 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadMessagesContents: {
-		auto &d = update.c_updateReadMessagesContents();
+		const auto &d = update.c_updateReadMessagesContents();
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages.v) {
-			if (auto item = App::histItemById(NoChannel, msgId.v)) {
+			if (const auto item = App::histItemById(NoChannel, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					_session->data().requestItemRepaint(item);
 
-					if (item->out() && item->history()->peer->isUser()) {
-						auto when = App::main()->requestingDifference() ? 0 : unixtime();
-						item->history()->peer->asUser()->madeAction(when);
+					if (item->out()
+						&& item->history()->peer->isUser()
+						&& !App::main()->requestingDifference()) {
+						item->history()->peer->asUser()->madeAction(unixtime());
 					}
 				}
 			} else {
@@ -3766,15 +3644,28 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
-		auto &d = update.c_updateReadHistoryInbox();
-		App::feedInboxRead(peerFromMTP(d.vpeer), d.vmax_id.v);
+		const auto &d = update.c_updateReadHistoryInbox();
+		const auto peer = peerFromMTP(d.vpeer);
+		if (const auto history = _session->data().historyLoaded(peer)) {
+			const auto folderId = d.has_folder_id() ? d.vfolder_id.v : 0;
+			history->applyInboxReadUpdate(
+				folderId,
+				d.vmax_id.v,
+				d.vstill_unread_count.v);
+		}
 	} break;
 
 	case mtpc_updateReadHistoryOutbox: {
-		auto &d = update.c_updateReadHistoryOutbox();
-		auto peerId = peerFromMTP(d.vpeer);
-		auto when = App::main()->requestingDifference() ? 0 : unixtime();
-		App::feedOutboxRead(peerId, d.vmax_id.v, when);
+		const auto &d = update.c_updateReadHistoryOutbox();
+		const auto peer = peerFromMTP(d.vpeer);
+		if (const auto history = _session->data().historyLoaded(peer)) {
+			history->outboxRead(d.vmax_id.v);
+			if (!App::main()->requestingDifference()) {
+				if (const auto user = history->peer->asUser()) {
+					user->madeAction(unixtime());
+				}
+			}
+		}
 	} break;
 
 	case mtpc_updateWebPage: {

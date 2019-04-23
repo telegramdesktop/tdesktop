@@ -173,7 +173,7 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 	if ((!item->out() || item->isPost())
 		&& item->unread()
 		&& unreadCount() > 0) {
-		changeUnreadCount(-1);
+		setUnreadCount(unreadCount() - 1);
 	}
 	if (peer->pinnedMessageId() == item->id) {
 		peer->clearPinnedMessage();
@@ -1494,8 +1494,8 @@ void History::addToSharedMedia(
 	}
 }
 
-int History::countUnread(MsgId upTo) {
-	int result = 0;
+std::optional<int> History::countUnread(MsgId upTo) const {
+	auto result = 0;
 	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
 		--i;
 		const auto &messages = (*i)->messages;
@@ -1503,13 +1503,13 @@ int History::countUnread(MsgId upTo) {
 			--j;
 			const auto item = (*j)->data();
 			if (item->id > 0 && item->id <= upTo) {
-				break;
-			} else if (!item->out() && item->unread() && item->id > upTo) {
+				return result;
+			} else if (!item->out() && item->unread()) {
 				++result;
 			}
 		}
 	}
-	return result;
+	return std::nullopt;
 }
 
 void History::calculateFirstUnreadMessage() {
@@ -1539,19 +1539,41 @@ void History::calculateFirstUnreadMessage() {
 
 MsgId History::readInbox() {
 	const auto upTo = msgIdForRead();
-	changeUnreadCount(-unreadCount());
+	setUnreadCount(0);
 	if (upTo) {
 		inboxRead(upTo);
 	}
 	return upTo;
 }
 
-void History::inboxRead(MsgId upTo) {
-	if (const auto nowUnreadCount = unreadCount()) {
-		if (loadedAtBottom()) {
-			App::main()->historyToDown(this);
-		}
-		changeUnreadCount(countUnread(upTo) - nowUnreadCount);
+void History::applyInboxReadUpdate(
+		FolderId folderId,
+		MsgId upTo,
+		int stillUnread,
+		int32 channelPts) {
+	const auto folder = folderId ? owner().folderLoaded(folderId) : nullptr;
+	if (folder && this->folder() != folder) {
+		// If history folder is unknown or not synced, request both.
+		session().api().requestDialogEntry(this);
+		session().api().requestDialogEntry(folder);
+	}
+	if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
+		inboxRead(upTo, stillUnread);
+	} else {
+		inboxRead(upTo);
+	}
+}
+
+void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
+	if (unreadCount() > 0 && loadedAtBottom()) {
+		App::main()->historyToDown(this);
+	}
+	if (stillUnread) {
+		setUnreadCount(*stillUnread);
+	} else if (const auto still = countUnread(upTo)) {
+		setUnreadCount(*still);
+	} else {
+		session().api().requestDialogEntry(this);
 	}
 	setInboxReadTill(upTo);
 	updateChatListEntry();
@@ -1677,18 +1699,6 @@ void History::setUnreadMark(bool unread) {
 
 bool History::unreadMark() const {
 	return _unreadMark;
-}
-
-void History::changeUnreadCount(int delta) {
-	if (_unreadCount) {
-		setUnreadCount(std::max(*_unreadCount + delta, 0));
-	}
-	//if (const auto channel = peer->asChannel()) { // #feed
-	//	if (const auto feed = channel->feed()) {
-	//		const auto mutedCountDelta = mute() ? delta : 0;
-	//		feed->unreadCountChanged(delta, mutedCountDelta);
-	//	}
-	//}
 }
 
 bool History::mute() const {
@@ -2449,7 +2459,7 @@ bool History::toImportant() const {
 
 void History::unknownMessageDeleted(MsgId messageId) {
 	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
-		changeUnreadCount(-1);
+		session().api().requestDialogEntry(this);
 	}
 }
 
@@ -2993,7 +3003,7 @@ void History::clear(ClearType type) {
 	} else {
 		_notifications.clear();
 		owner().notifyHistoryCleared(this);
-		changeUnreadCount(-unreadCount());
+		setUnreadCount(0);
 		if (type == ClearType::DeleteChat) {
 			setLastMessage(nullptr);
 		} else if (_lastMessage && *_lastMessage) {

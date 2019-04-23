@@ -186,7 +186,7 @@ namespace Data {
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatParticipants &update) {
-	ApplyChatParticipants(chat, update.vparticipants);
+	ApplyChatUpdate(chat, update.vparticipants);
 }
 
 void ApplyChatUpdate(
@@ -317,7 +317,44 @@ void ApplyChatUpdate(
 	chat->setDefaultRestrictions(update.vdefault_banned_rights);
 }
 
-void ApplyChatParticipants(
+void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
+	ApplyChatUpdate(chat, update.vparticipants);
+
+	if (update.has_bot_info()) {
+		for (const auto &item : update.vbot_info.v) {
+			item.match([&](const MTPDbotInfo &data) {
+				const auto userId = data.vuser_id.v;
+				if (const auto bot = chat->owner().userLoaded(userId)) {
+					bot->setBotInfo(item);
+					chat->session().api().fullPeerUpdated().notify(bot);
+				}
+			});
+		}
+	}
+	chat->setFullFlags(update.vflags.v);
+	chat->setUserpicPhoto(update.has_chat_photo()
+		? update.vchat_photo
+		: MTPPhoto(MTP_photoEmpty(MTP_long(0))));
+	chat->setInviteLink(update.vexported_invite.match([&](
+			const MTPDchatInviteExported &data) {
+		return qs(data.vlink);
+	}, [&](const MTPDchatInviteEmpty &) {
+		return QString();
+	}));
+	if (update.has_pinned_msg_id()) {
+		chat->setPinnedMessageId(update.vpinned_msg_id.v);
+	} else {
+		chat->clearPinnedMessage();
+	}
+	chat->checkFolder(update.has_folder_id() ? update.vfolder_id.v : 0);
+	chat->fullUpdated();
+
+	chat->session().api().applyNotifySettings(
+		MTP_inputNotifyPeer(chat->input),
+		update.vnotify_settings);
+}
+
+void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPChatParticipants &participants) {
 	participants.match([&](const MTPDchatParticipantsForbidden &data) {

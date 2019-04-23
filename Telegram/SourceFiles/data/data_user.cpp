@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "ui/text_options.h"
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 
 namespace {
@@ -252,3 +253,47 @@ bool UserData::hasCalls() const {
 	return (callsStatus() != CallsStatus::Disabled)
 		&& (callsStatus() != CallsStatus::Unknown);
 }
+
+namespace Data {
+
+void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
+	user->owner().processUser(update.vuser);
+	if (update.has_profile_photo()) {
+		user->owner().processPhoto(update.vprofile_photo);
+	}
+	update.vlink.match([&](const MTPDcontacts_link & link) {
+		App::feedUserLink(
+			MTP_int(peerToUser(user->id)),
+			link.vmy_link,
+			link.vforeign_link);
+	});
+	user->session().api().applyNotifySettings(
+		MTP_inputNotifyPeer(user->input),
+		update.vnotify_settings);
+
+	if (update.has_bot_info()) {
+		user->setBotInfo(update.vbot_info);
+	} else {
+		user->setBotInfoVersion(-1);
+	}
+	if (update.has_pinned_msg_id()) {
+		user->setPinnedMessageId(update.vpinned_msg_id.v);
+	} else {
+		user->clearPinnedMessage();
+	}
+	user->setFullFlags(update.vflags.v);
+	user->setBlockStatus(update.is_blocked()
+		? UserData::BlockStatus::Blocked
+		: UserData::BlockStatus::NotBlocked);
+	user->setCallsStatus(update.is_phone_calls_private()
+		? UserData::CallsStatus::Private
+		: update.is_phone_calls_available()
+		? UserData::CallsStatus::Enabled
+		: UserData::CallsStatus::Disabled);
+	user->setAbout(update.has_about() ? qs(update.vabout) : QString());
+	user->setCommonChatsCount(update.vcommon_chats_count.v);
+	user->checkFolder(update.has_folder_id() ? update.vfolder_id.v : 0);
+	user->fullUpdated();
+}
+
+} // namespace Data

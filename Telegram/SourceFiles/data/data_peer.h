@@ -282,6 +282,8 @@ public:
 		return _about;
 	}
 
+	void checkFolder(FolderId folderId);
+
 	enum LoadedStatus {
 		NotLoaded = 0x00,
 		MinimalLoaded = 0x01,

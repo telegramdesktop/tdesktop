@@ -207,9 +207,11 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 	not_null<ChatData*> chat,
 	const MTPDupdateChatDefaultBannedRights &update);
-
-void ApplyChatParticipants(
+void ApplyChatUpdate(
 	not_null<ChatData*> chat,
-	const MTPChatParticipants &participants);
+	const MTPDchatFull &update);
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const MTPChatParticipants &update);
 
 } // namespace Data

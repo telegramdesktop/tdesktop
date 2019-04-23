@@ -230,21 +230,6 @@ namespace App {
 		return feedMsgs(msgs.v, type);
 	}
 
-	void feedInboxRead(const PeerId &peer, MsgId upTo) {
-		if (const auto history = Auth().data().historyLoaded(peer)) {
-			history->inboxRead(upTo);
-		}
-	}
-
-	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when) {
-		if (auto history = Auth().data().historyLoaded(peer)) {
-			history->outboxRead(upTo);
-			if (const auto user = history->peer->asUser()) {
-				user->madeAction(when);
-			}
-		}
-	}
-
 	inline MsgsData *fetchMsgsData(ChannelId channelId, bool insert = true) {
 		if (channelId == NoChannel) return &msgsData;
 		ChannelMsgsData::iterator i = channelMsgsData.find(channelId);

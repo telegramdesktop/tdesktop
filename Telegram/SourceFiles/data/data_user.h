@@ -227,3 +227,9 @@ private:
 		= 0xFFFFFFFFFFFFFFFFULL;
 
 };
+
+namespace Data {
+
+void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+
+} // namespace Data

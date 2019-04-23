@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "history/history.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -547,6 +548,114 @@ void ApplyChannelUpdate(
 		return;
 	}
 	channel->setDefaultRestrictions(update.vdefault_banned_rights);
+}
+
+void ApplyChannelUpdate(
+		not_null<ChannelData*> channel,
+		const MTPDchannelFull &update) {
+	channel->setAvailableMinId(update.vavailable_min_id.v);
+	auto canViewAdmins = channel->canViewAdmins();
+	auto canViewMembers = channel->canViewMembers();
+	auto canEditStickers = channel->canEditStickers();
+
+	channel->setFullFlags(update.vflags.v);
+	channel->setUserpicPhoto(update.vchat_photo);
+	if (update.has_migrated_from_chat_id()) {
+		channel->addFlags(MTPDchannel::Flag::f_megagroup);
+		const auto chat = channel->owner().chat(
+			update.vmigrated_from_chat_id.v);
+		Data::ApplyMigration(chat, channel);
+	}
+	for (const auto &item : update.vbot_info.v) {
+		auto &owner = channel->owner();
+		item.match([&](const MTPDbotInfo &info) {
+			if (const auto user = owner.userLoaded(info.vuser_id.v)) {
+				user->setBotInfo(item);
+				channel->session().api().fullPeerUpdated().notify(user);
+			}
+		});
+	}
+	channel->setAbout(qs(update.vabout));
+	channel->setMembersCount(update.has_participants_count()
+		? update.vparticipants_count.v
+		: 0);
+	channel->setAdminsCount(update.has_admins_count()
+		? update.vadmins_count.v
+		: 0);
+	channel->setRestrictedCount(update.has_banned_count()
+		? update.vbanned_count.v
+		: 0);
+	channel->setKickedCount(update.has_kicked_count()
+		? update.vkicked_count.v
+		: 0);
+	channel->setInviteLink(update.vexported_invite.match([&](
+		const MTPDchatInviteExported & data) {
+		return qs(data.vlink);
+	}, [&](const MTPDchatInviteEmpty &) {
+		return QString();
+	}));
+	if (const auto history = channel->owner().historyLoaded(channel)) {
+		history->clearUpTill(update.vavailable_min_id.v);
+
+		const auto folderId = update.has_folder_id()
+			? update.vfolder_id.v
+			: 0;
+		const auto folder = folderId
+			? channel->owner().folderLoaded(folderId)
+			: nullptr;
+		if (folder && history->folder() != folder) {
+			// If history folder is unknown or not synced, request both.
+			channel->session().api().requestDialogEntry(history);
+			channel->session().api().requestDialogEntry(folder);
+		} else if (!history->folderKnown()
+			|| channel->pts() != update.vpts.v) {
+			channel->session().api().requestDialogEntry(history);
+		} else {
+			history->applyDialogFields(
+				history->folder(),
+				update.vunread_count.v,
+				update.vread_inbox_max_id.v,
+				update.vread_outbox_max_id.v);
+		}
+	}
+	if (update.has_pinned_msg_id()) {
+		channel->setPinnedMessageId(update.vpinned_msg_id.v);
+	} else {
+		channel->clearPinnedMessage();
+	}
+	if (channel->isMegagroup()) {
+		const auto stickerSet = update.has_stickerset()
+			? &update.vstickerset.c_stickerSet()
+			: nullptr;
+		const auto newSetId = (stickerSet ? stickerSet->vid.v : 0);
+		const auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
+			? channel->mgInfo->stickerSet.c_inputStickerSetID().vid.v
+			: 0;
+		const auto stickersChanged = (canEditStickers != channel->canEditStickers())
+			|| (oldSetId != newSetId);
+		if (oldSetId != newSetId) {
+			channel->mgInfo->stickerSet = stickerSet
+				? MTP_inputStickerSetID(stickerSet->vid, stickerSet->vaccess_hash)
+				: MTP_inputStickerSetEmpty();
+		}
+		if (stickersChanged) {
+			Notify::peerUpdatedDelayed(
+				channel,
+				Notify::PeerUpdate::Flag::ChannelStickersChanged);
+		}
+	}
+	channel->fullUpdated();
+
+	if (canViewAdmins != channel->canViewAdmins()
+		|| canViewMembers != channel->canViewMembers()) {
+		Notify::peerUpdatedDelayed(
+			channel,
+			Notify::PeerUpdate::Flag::RightsChanged);
+	}
+
+	channel->session().api().applyNotifySettings(
+		MTP_inputNotifyPeer(channel->input),
+		update.vnotify_settings);
 }
 
 } // namespace Data

@@ -2196,7 +2196,7 @@ void HistoryWidget::newUnreadMsg(
 	}
 	Auth().notifications().schedule(history, item);
 	if (history->unreadCountKnown()) {
-		history->changeUnreadCount(1);
+		history->setUnreadCount(history->unreadCount() + 1);
 	} else {
 		Auth().api().requestDialogEntry(history);
 	}

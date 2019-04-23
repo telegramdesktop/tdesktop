@@ -72,8 +72,6 @@ namespace App {
 	void checkSavedGif(HistoryItem *item);
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
-	void feedInboxRead(const PeerId &peer, MsgId upTo);
-	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 

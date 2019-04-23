@@ -63,6 +63,9 @@ public:
 	ApiWrap(not_null<AuthSession*> session);
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
+	void applyNotifySettings(
+		MTPInputNotifyPeer peer,
+		const MTPPeerNotifySettings &settings);
 
 	void savePinnedOrder(Data::Folder *folder);
 	void toggleHistoryArchived(
@@ -523,10 +526,6 @@ private:
 		not_null<ChannelData*> channel,
 		MsgRange range,
 		const MTPupdates_ChannelDifference &result);
-
-	void notifySettingReceived(
-		MTPInputNotifyPeer peer,
-		const MTPPeerNotifySettings &settings);
 
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();

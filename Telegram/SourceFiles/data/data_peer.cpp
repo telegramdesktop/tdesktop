@@ -416,6 +416,17 @@ bool PeerData::setAbout(const QString &newAbout) {
 	return true;
 }
 
+void PeerData::checkFolder(FolderId folderId) {
+	const auto folder = folderId
+		? owner().folderLoaded(folderId)
+		: nullptr;
+	if (const auto history = owner().historyLoaded(this)) {
+		if (folder && history->folder() != folder) {
+			session().api().requestDialogEntry(history);
+		}
+	}
+}
+
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();

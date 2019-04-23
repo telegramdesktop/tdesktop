@@ -643,7 +643,9 @@ bool HistoryItem::needCheck() const {
 
 bool HistoryItem::unread() const {
 	// Messages from myself are always read.
-	if (history()->peer->isSelf()) return false;
+	if (history()->peer->isSelf()) {
+		return false;
+	}
 
 	if (out()) {
 		// Outgoing messages in converted chats are always read.
@@ -659,7 +661,7 @@ bool HistoryItem::unread() const {
 				if (user->botInfo) {
 					return false;
 				}
-			} else if (auto channel = history()->peer->asChannel()) {
+			} else if (const auto channel = history()->peer->asChannel()) {
 				if (!channel->isMegagroup()) {
 					return false;
 				}

@@ -394,4 +394,8 @@ void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDupdateChatDefaultBannedRights &update);
 
+void ApplyChannelUpdate(
+	not_null<ChannelData*> channel,
+	const MTPDchannelFull &update);
+
 } // namespace Data

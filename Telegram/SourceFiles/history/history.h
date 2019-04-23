@@ -154,9 +154,13 @@ public:
 
 	void newItemAdded(not_null<HistoryItem*> item);
 
-	int countUnread(MsgId upTo);
 	MsgId readInbox();
-	void inboxRead(MsgId upTo);
+	void applyInboxReadUpdate(
+		FolderId folderId,
+		MsgId upTo,
+		int stillUnread,
+		int32 channelPts = 0);
+	void inboxRead(MsgId upTo, std::optional<int> stillUnread = {});
 	void inboxRead(not_null<const HistoryItem*> wasRead);
 	void outboxRead(MsgId upTo);
 	void outboxRead(not_null<const HistoryItem*> wasRead);
@@ -166,7 +170,6 @@ public:
 	int unreadCount() const;
 	bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
-	void changeUnreadCount(int delta);
 	void setUnreadMark(bool unread);
 	bool unreadMark() const;
 	int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
@@ -456,6 +459,7 @@ private:
 	HistoryItem *lastAvailableMessage() const;
 	void getNextFirstUnreadMessage();
 	bool nonEmptyCountMoreThan(int count) const;
+	std::optional<int> countUnread(MsgId upTo) const;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
