@@ -44,9 +44,13 @@ public:
 
 	void updateCloudUnread(const MTPDdialogFolder &data);
 	void unreadStateChanged(
+		const Dialogs::Key &key,
 		const Dialogs::UnreadState &wasState,
 		const Dialogs::UnreadState &nowState);
-	void unreadEntryChanged(const Dialogs::UnreadState &state, bool added);
+	void unreadEntryChanged(
+		const Dialogs::Key &key,
+		const Dialogs::UnreadState &state,
+		bool added);
 
 	TimeId adjustedChatListTimeId() const override;
 
@@ -73,11 +77,21 @@ public:
 
 	bool chatsListLoaded() const;
 	void setChatsListLoaded(bool loaded = true);
+	void setCloudChatsListSize(int size);
+
+	int chatsListSize() const;
+	int unreadHistoriesCount() const;
+	const std::vector<not_null<History*>> &lastUnreadHistories() const;
+	uint32 chatListViewVersion() const;
 
 private:
 	void indexNameParts();
 	bool applyChatListMessage(HistoryItem *item);
 	void computeChatListMessage();
+
+	void addUnreadHistory(not_null<History*> history);
+	void removeUnreadHistory(not_null<History*> history);
+	void reorderUnreadHistories();
 
 	FolderId _id = 0;
 	Dialogs::MainList _chatsList;
@@ -87,7 +101,11 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	Dialogs::UnreadState _cloudUnread;
+	int _cloudChatsListSize = 0;
+	std::vector<not_null<History*>> _unreadHistories;
+	std::vector<not_null<History*>> _unreadHistoriesLast;
 	HistoryItem *_chatListMessage = nullptr;
+	uint32 _chatListViewVersion = 0;
 	//rpl::variable<MessagePosition> _unreadPosition;
 
 };

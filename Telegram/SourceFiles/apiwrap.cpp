@@ -744,26 +744,33 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		MTP_int(hash)
 	)).done([=](const MTPmessages_Dialogs &result) {
 		const auto state = dialogsLoadState(folder);
+		const auto count = result.match([](
+				const MTPDmessages_dialogsNotModified &) {
+			LOG(("API Error: not-modified received for requested dialogs."));
+			return 0;
+		}, [&](const MTPDmessages_dialogs &data) {
+			if (state) {
+				state->listReceived = true;
+				dialogsLoadFinish(folder); // may kill 'state'.
+			}
+			return int(data.vdialogs.v.size());
+		}, [&](const MTPDmessages_dialogsSlice &data) {
+			updateDialogsOffset(
+				folder,
+				data.vdialogs.v,
+				data.vmessages.v);
+			return data.vcount.v;
+		});
 		result.match([](const MTPDmessages_dialogsNotModified & data) {
 			LOG(("API Error: not-modified received for requested dialogs."));
 		}, [&](const auto &data) {
-			if constexpr (data.Is<MTPDmessages_dialogs>()) {
-				if (state) {
-					state->listReceived = true;
-					dialogsLoadFinish(folder); // may kill 'state'.
-				}
-			} else {
-				updateDialogsOffset(
-					folder,
-					data.vdialogs.v,
-					data.vmessages.v);
-			}
 			_session->data().processUsers(data.vusers);
 			_session->data().processChats(data.vchats);
 			_session->data().applyDialogs(
 				folder,
 				data.vmessages.v,
-				data.vdialogs.v);
+				data.vdialogs.v,
+				count);
 		});
 
 		if (!folder) {

@@ -796,8 +796,8 @@ void PeerMenuAddMuteAction(
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
 		Ui::Toast::Show(lang(archived
-			? lng_chat_archived
-			: lng_chat_unarchived));
+			? lng_archived_added
+			: lng_archived_removed));
 	};
 	history->session().api().toggleHistoryArchived(
 		history,

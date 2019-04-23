@@ -1375,12 +1375,16 @@ void Session::applyPinnedChats(
 void Session::applyDialogs(
 		Data::Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
-		const QVector<MTPDialog> &dialogs) {
+		const QVector<MTPDialog> &dialogs,
+		std::optional<int> count) {
 	App::feedMsgs(messages, NewMessageLast);
 	for (const auto &dialog : dialogs) {
 		dialog.match([&](const auto &data) {
 			applyDialog(requestFolder, data);
 		});
+	}
+	if (requestFolder && count) {
+		requestFolder->setCloudChatsListSize(*count);
 	}
 }
 
@@ -1663,7 +1667,7 @@ void Session::unreadStateChanged(
 
 	const auto nowState = key.entry()->chatListUnreadState();
 	if (const auto folder = key.entry()->folder()) {
-		folder->unreadStateChanged(wasState, nowState);
+		folder->unreadStateChanged(key, wasState, nowState);
 	} else {
 		_chatsList.unreadStateChanged(wasState, nowState);
 	}
@@ -1674,10 +1678,12 @@ void Session::unreadEntryChanged(const Dialogs::Key &key, bool added) {
 	Expects(key.entry()->folderKnown());
 
 	const auto state = key.entry()->chatListUnreadState();
-	if (const auto folder = key.entry()->folder()) {
-		folder->unreadEntryChanged(state, added);
-	} else {
-		_chatsList.unreadEntryChanged(state, added);
+	if (!state.empty()) {
+		if (const auto folder = key.entry()->folder()) {
+			folder->unreadEntryChanged(key, state, added);
+		} else {
+			_chatsList.unreadEntryChanged(state, added);
+		}
 	}
 }
 

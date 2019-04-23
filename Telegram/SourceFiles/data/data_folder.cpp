@@ -25,6 +25,7 @@ namespace Data {
 namespace {
 
 constexpr auto kLoadedChatsMinCount = 20;
+constexpr auto kShowChatNamesCount = 2;
 
 rpl::producer<int> PinnedDialogsInFolderMaxValue() {
 	return rpl::single(
@@ -52,7 +53,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 : Entry(owner, this)
 , _id(id)
 , _chatsList(PinnedDialogsInFolderMaxValue())
-, _name(lang(lng_archived_chats)) {
+, _name(lang(lng_archived_name)) {
 	indexNameParts();
 }
 
@@ -89,6 +90,9 @@ void Folder::indexNameParts() {
 void Folder::registerOne(not_null<History*> history) {
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
+	} else {
+		++_chatListViewVersion;
+		updateChatListEntry();
 	}
 	applyChatListMessage(history->chatListMessage());
 }
@@ -96,6 +100,9 @@ void Folder::registerOne(not_null<History*> history) {
 void Folder::unregisterOne(not_null<History*> history) {
 	if (_chatsList.empty()) {
 		updateChatListExistence();
+	} else {
+		++_chatListViewVersion;
+		updateChatListEntry();
 	}
 	if (_chatListMessage && _chatListMessage->history() == history) {
 		computeChatListMessage();
@@ -105,6 +112,12 @@ void Folder::unregisterOne(not_null<History*> history) {
 void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
 	if (!applyChatListMessage(to) && _chatListMessage == from) {
 		computeChatListMessage();
+	}
+	if (from || to) {
+		const auto history = from ? from->history() : to->history();
+		if (!history->chatListUnreadState().empty()) {
+			reorderUnreadHistories();
+		}
 	}
 }
 
@@ -138,6 +151,55 @@ void Folder::computeChatListMessage() {
 	} else {
 		_chatListMessage = (*top)->entry()->chatListMessage();
 	}
+	updateChatListEntry();
+}
+
+void Folder::addUnreadHistory(not_null<History*> history) {
+	const auto i = ranges::find(_unreadHistories, history);
+	if (i == end(_unreadHistories)) {
+		_unreadHistories.push_back(history);
+		reorderUnreadHistories();
+	}
+}
+
+void Folder::removeUnreadHistory(not_null<History*> history) {
+	const auto i = ranges::find(_unreadHistories, history);
+	if (i != end(_unreadHistories)) {
+		_unreadHistories.erase(i);
+		reorderUnreadHistories();
+	}
+}
+
+void Folder::reorderUnreadHistories() {
+	// We want first kShowChatNamesCount histories, by last message date.
+	const auto predicate = [](not_null<History*> a, not_null<History*> b) {
+		const auto aItem = a->chatListMessage();
+		const auto bItem = b->chatListMessage();
+		const auto aDate = aItem ? aItem->date() : TimeId(0);
+		const auto bDate = bItem ? bItem->date() : TimeId(0);
+		return aDate > bDate;
+	};
+	if (size(_unreadHistories) <= kShowChatNamesCount) {
+		ranges::sort(_unreadHistories, predicate);
+		if (!ranges::equal(_unreadHistories, _unreadHistoriesLast)) {
+			_unreadHistoriesLast = _unreadHistories;
+		}
+	} else {
+		const auto till = begin(_unreadHistories) + kShowChatNamesCount - 1;
+		ranges::nth_element(_unreadHistories, till, predicate);
+		if constexpr (kShowChatNamesCount > 2) {
+			ranges::sort(begin(_unreadHistories), till, predicate);
+		}
+		auto &&head = ranges::view::all(
+			_unreadHistories
+		) | ranges::view::take_exactly(
+			kShowChatNamesCount
+		);
+		if (!ranges::equal(head, _unreadHistoriesLast)) {
+			_unreadHistoriesLast = head | ranges::to_vector;
+		}
+	}
+	++_chatListViewVersion;
 	updateChatListEntry();
 }
 
@@ -192,6 +254,29 @@ void Folder::setChatsListLoaded(bool loaded) {
 	}
 	const auto notifier = unreadStateChangeNotifier(true);
 	_chatsList.setLoaded(loaded);
+}
+
+void Folder::setCloudChatsListSize(int size) {
+	_cloudChatsListSize = size;
+	updateChatListEntry();
+}
+
+int Folder::chatsListSize() const {
+	return std::max(
+		_chatsList.indexed()->size(),
+		_chatsList.loaded() ? 0 : _cloudChatsListSize);
+}
+
+int Folder::unreadHistoriesCount() const {
+	return _unreadHistories.size();
+}
+
+const std::vector<not_null<History*>> &Folder::lastUnreadHistories() const {
+	return _unreadHistoriesLast;
+}
+
+uint32 Folder::chatListViewVersion() const {
+	return _chatListViewVersion;
 }
 
 void Folder::requestChatListMessage() {
@@ -252,8 +337,17 @@ void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 }
 
 void Folder::unreadStateChanged(
+		const Dialogs::Key &key,
 		const Dialogs::UnreadState &wasState,
 		const Dialogs::UnreadState &nowState) {
+	if (const auto history = key.history()) {
+		if (!wasState.empty() && nowState.empty()) {
+			removeUnreadHistory(history);
+		} else if (wasState.empty() && !nowState.empty()) {
+			addUnreadHistory(history);
+		}
+	}
+
 	const auto updateCloudUnread = _cloudUnread.messagesCount.has_value()
 		&& wasState.messagesCount.has_value();
 	const auto notify = _chatsList.loaded() || updateCloudUnread;
@@ -276,8 +370,19 @@ void Folder::unreadStateChanged(
 }
 
 void Folder::unreadEntryChanged(
+		const Dialogs::Key &key,
 		const Dialogs::UnreadState &state,
 		bool added) {
+	if (const auto history = key.history()) {
+		if (!state.empty()) {
+			if (added) {
+				addUnreadHistory(history);
+			} else {
+				removeUnreadHistory(history);
+			}
+		}
+	}
+
 	const auto updateCloudUnread = _cloudUnread.messagesCount.has_value()
 		&& state.messagesCount.has_value();
 	const auto notify = _chatsList.loaded() || updateCloudUnread;

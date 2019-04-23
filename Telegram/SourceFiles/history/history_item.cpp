@@ -742,17 +742,18 @@ void HistoryItem::drawInDialog(
 		DrawInDialog way,
 		const HistoryItem *&cacheFor,
 		Text &cache) const {
+	if (r.isEmpty()) {
+		return;
+	}
 	if (cacheFor != this) {
 		cacheFor = this;
 		cache.setText(st::dialogsTextStyle, inDialogsText(way), Ui::DialogTextOptions());
 	}
-	if (r.width()) {
-		p.setTextPalette(active ? st::dialogsTextPaletteActive : (selected ? st::dialogsTextPaletteOver : st::dialogsTextPalette));
-		p.setFont(st::dialogsTextFont);
-		p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
-		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dialogsTextFont->height);
-		p.restoreTextPalette();
-	}
+	p.setTextPalette(active ? st::dialogsTextPaletteActive : (selected ? st::dialogsTextPaletteOver : st::dialogsTextPalette));
+	p.setFont(st::dialogsTextFont);
+	p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
+	cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dialogsTextFont->height);
+	p.restoreTextPalette();
 }
 
 HistoryItem::~HistoryItem() {

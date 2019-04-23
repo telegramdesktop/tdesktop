@@ -34,7 +34,7 @@ bool ShowUserBotIcon(not_null<UserData*> user) {
 	return user->isBot() && !user->isSupport();
 }
 
-void paintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
+void PaintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool active, bool selected) {
 	const auto width = st::dialogsDateFont->width(text);
 	rectForName.setWidth(rectForName.width() - width - st::dialogsDateSkip);
 	p.setFont(st::dialogsDateFont);
@@ -42,7 +42,7 @@ void paintRowTopRight(Painter &p, const QString &text, QRect &rectForName, bool 
 	p.drawText(rectForName.left() + rectForName.width() + st::dialogsDateSkip, rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent, text);
 }
 
-void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
+void PaintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, bool selected) {
 	const auto now = QDateTime::currentDateTime();
 	const auto &lastTime = date;
 	const auto nowDate = now.date();
@@ -60,7 +60,7 @@ void paintRowDate(Painter &p, QDateTime date, QRect &rectForName, bool active, b
 			return lastDate.toString(qsl("d.MM.yy"));
 		}
 	}();
-	paintRowTopRight(p, dt, rectForName, active, selected);
+	PaintRowTopRight(p, dt, rectForName, active, selected);
 }
 
 void PaintNarrowCounter(
@@ -159,6 +159,38 @@ int PaintWideCounter(
 	return availableWidth;
 }
 
+void PaintListEntryText(
+		Painter &p,
+		QRect rect,
+		bool active,
+		bool selected,
+		not_null<const Row*> row) {
+	if (rect.isEmpty()) {
+		return;
+	}
+	row->validateListEntryCache();
+	const auto &palette = active
+		? st::dialogsTextPaletteActive
+		: selected
+		? st::dialogsTextPaletteOver
+		: st::dialogsTextPalette;
+	const auto &color = active
+		? st::dialogsTextFgActive
+		: selected
+		? st::dialogsTextFgOver
+		: st::dialogsTextFg;
+	p.setTextPalette(palette);
+	p.setFont(st::dialogsTextFont);
+	p.setPen(color);
+	row->listEntryCache().drawElided(
+		p,
+		rect.left(),
+		rect.top(),
+		rect.width(),
+		rect.height() / st::dialogsTextFont->height);
+	p.restoreTextPalette();
+}
+
 enum class Flag {
 	Active           = 0x01,
 	Selected         = 0x02,
@@ -255,7 +287,7 @@ void paintRow(
 		&& !(flags & (Flag::SearchResult/* | Flag::FeedSearchResult*/)); // #feed
 	if (promoted) {
 		const auto text = lang(lng_proxy_sponsor);
-		paintRowTopRight(p, text, rectForName, active, selected);
+		PaintRowTopRight(p, text, rectForName, active, selected);
 	} else if (from/* && !(flags & Flag::FeedSearchResult)*/) { // #feed
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
 			chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
@@ -274,7 +306,7 @@ void paintRow(
 		|| (supportMode
 			&& Auth().supportHelper().isOccupiedBySomeone(history))) {
 		if (!promoted) {
-			paintRowDate(p, date, rectForName, active, selected);
+			PaintRowDate(p, date, rectForName, active, selected);
 		}
 
 		auto availableWidth = namewidth;
@@ -318,7 +350,7 @@ void paintRow(
 		}
 	} else if (!item->isEmpty()) {
 		if (!promoted) {
-			paintRowDate(p, date, rectForName, active, selected);
+			PaintRowDate(p, date, rectForName, active, selected);
 		}
 
 		paintItemCallback(nameleft, namewidth);
@@ -560,7 +592,7 @@ void RowPainter::paint(
 		}
 		return nullptr;
 	}();
-	const auto displayDate = [item, cloudDraft] {
+	const auto displayDate = [&] {
 		if (item) {
 			if (cloudDraft) {
 				return (item->date() > cloudDraft->date)
@@ -623,20 +655,22 @@ void RowPainter::paint(
 			: (selected
 				? st::dialogsTextFgServiceOver
 				: st::dialogsTextFgService);
-		const auto actionWasPainted = history ? history->paintSendAction(
-			p,
+		const auto itemRect = QRect(
 			nameleft,
 			texttop,
 			availableWidth,
+			st::dialogsTextFont->height);
+		const auto actionWasPainted = history ? history->paintSendAction(
+			p,
+			itemRect.x(),
+			itemRect.y(),
+			itemRect.width(),
 			fullWidth,
 			color,
 			ms) : false;
-		if (!actionWasPainted) {
-			const auto itemRect = QRect(
-				nameleft,
-				texttop,
-				availableWidth,
-				st::dialogsTextFont->height);
+		if (const auto folder = row->folder()) {
+			PaintListEntryText(p, itemRect, active, selected, row);
+		} else if (!actionWasPainted) {
 			item->drawInDialog(
 				p,
 				itemRect,

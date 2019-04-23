@@ -62,6 +62,11 @@ public:
 	}
 	uint64 sortKey() const;
 
+	void validateListEntryCache() const;
+	const Text &listEntryCache() const {
+		return _listEntryCache;
+	}
+
 	// for any attached data, for example View in contacts list
 	void *attached = nullptr;
 
@@ -70,6 +75,8 @@ private:
 
 	Key _id;
 	int _pos = 0;
+	mutable uint32 _listEntryCacheVersion = 0;
+	mutable Text _listEntryCache;
 
 };
 

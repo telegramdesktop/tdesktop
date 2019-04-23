@@ -296,7 +296,8 @@ public:
 	void applyDialogs(
 		Data::Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
-		const QVector<MTPDialog> &dialogs);
+		const QVector<MTPDialog> &dialogs,
+		std::optional<int> count = std::nullopt);
 	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
 

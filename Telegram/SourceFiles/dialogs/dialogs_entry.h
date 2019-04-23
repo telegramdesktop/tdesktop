@@ -47,6 +47,10 @@ struct UnreadState {
 	int chatsCountMuted = 0;
 	bool mark = false;
 	bool markMuted = false;
+
+	bool empty() const {
+		return !messagesCount.value_or(0) && !chatsCount && !mark;
+	}
 };
 
 class Entry {
