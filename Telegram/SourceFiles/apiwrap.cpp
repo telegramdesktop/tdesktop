@@ -921,7 +921,7 @@ void ApiWrap::requestMoreBlockedByDateDialogs() {
 	_dialogsLoadTill = _dialogsLoadState->offsetDate
 		? (_dialogsLoadState->offsetDate - max)
 		: (unixtime() - max);
-	requestDialogs(FolderId(0));
+	requestDialogs();
 }
 
 rpl::producer<bool> ApiWrap::dialogsLoadMayBlockByDate() const {
@@ -1038,10 +1038,7 @@ void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	for (const auto &dialog : data.vdialogs.v) {
 		dialog.match([&](const MTPDdialog &data) {
 			if (const auto peerId = peerFromMTP(data.vpeer)) {
-				const auto requestFolderId = FolderId(0);
-				_session->data().history(peerId)->applyDialog(
-					requestFolderId,
-					data);
+				_session->data().history(peerId)->applyDialog(nullptr, data);
 			}
 		}, [&](const MTPDdialogFolder &data) {
 			const auto folder = _session->data().processFolder(data.vfolder);

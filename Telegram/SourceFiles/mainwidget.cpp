@@ -2931,7 +2931,7 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 	_ptsWaiter.setRequesting(false);
 
-	session().api().requestDialogs(FolderId(0));
+	session().api().requestDialogs();
 	updateOnline();
 }
 

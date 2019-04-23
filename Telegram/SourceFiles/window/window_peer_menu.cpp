@@ -87,10 +87,10 @@ private:
 	//void addNotifications();
 	//void addUngroup();
 
-	not_null<Controller*> _controller;
-	not_null<Data::Folder*> _folder;
-	const PeerMenuCallback &_addAction;
-	PeerMenuSource _source;
+	//not_null<Controller*> _controller;
+	//not_null<Data::Folder*> _folder;
+	//const PeerMenuCallback &_addAction;
+	//PeerMenuSource _source;
 
 };
 
@@ -509,11 +509,11 @@ FolderFiller::FolderFiller(
 	not_null<Controller*> controller,
 	not_null<Data::Folder*> folder,
 	const PeerMenuCallback &addAction,
-	PeerMenuSource source)
-: _controller(controller)
-, _folder(folder)
-, _addAction(addAction)
-, _source(source) {
+	PeerMenuSource source) {
+//: _controller(controller)
+//, _folder(folder)
+//, _addAction(addAction)
+//, _source(source) {
 }
 
 void FolderFiller::fill() { // #TODO archive
