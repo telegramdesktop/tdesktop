@@ -88,6 +88,12 @@ void AdjustPercentCount(gsl::span<PercentCounterItem> items, int left) {
 				break;
 			}
 		}
+		if (!items[i].remainder) {
+			// If this item has correct value in 'percent' we don't want
+			// to increment it to an incorrect one. This fixes a case with
+			// four items with three votes for three different items.
+			break;
+		}
 		const auto equal = j - i;
 		if (equal <= left) {
 			left -= equal;
