@@ -2016,7 +2016,7 @@ void DialogsInner::refresh(bool toTop) {
 		loadPeerPhotos();
 	}
 	_controller->dialogsListDisplayForced().set(
-		_searchInChat || !_filter.isEmpty(),
+		_openedFolder || _searchInChat || !_filter.isEmpty(),
 		true);
 	update();
 }
@@ -2058,6 +2058,9 @@ void DialogsInner::searchInChat(Dialogs::Key key, UserData *from) {
 	_searchInChat = key;
 	_searchFromUser = from;
 	if (_searchInChat) {
+		if (_openedFolder) {
+			changeOpenedFolder(nullptr);
+		}
 		onHashtagFilterUpdate(QStringRef());
 		_cancelSearchInChat->show();
 		refreshSearchInChatLabel();
@@ -2070,7 +2073,7 @@ void DialogsInner::searchInChat(Dialogs::Key key, UserData *from) {
 		_cancelSearchFromUser->hide();
 	}
 	_controller->dialogsListDisplayForced().set(
-		_searchInChat || !_filter.isEmpty(),
+		_openedFolder || _searchInChat || !_filter.isEmpty(),
 		true);
 }
 

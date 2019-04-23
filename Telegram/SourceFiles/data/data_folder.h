@@ -108,6 +108,8 @@ private:
 	uint32 _chatListViewVersion = 0;
 	//rpl::variable<MessagePosition> _unreadPosition;
 
+	rpl::lifetime _lifetime;
+
 };
 
 } // namespace Data

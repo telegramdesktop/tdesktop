@@ -115,7 +115,7 @@ void PeerData::updateNameDelayed(
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername) {
-	if (name == newName) {
+	if (name == newName && nameVersion > 1) {
 		if (isUser()) {
 			if (asUser()->nameOrPhone == newNameOrPhone
 				&& asUser()->username == newUsername) {
@@ -129,15 +129,14 @@ void PeerData::updateNameDelayed(
 			return;
 		}
 	}
-	++nameVersion;
 	name = newName;
 	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	refreshEmptyUserpic();
-
 	Notify::PeerUpdate update(this);
-	update.flags |= UpdateFlag::NameChanged;
-	update.oldNameFirstLetters = nameFirstLetters();
-
+	if (nameVersion++ > 1) {
+		update.flags |= UpdateFlag::NameChanged;
+		update.oldNameFirstLetters = nameFirstLetters();
+	}
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
 			asUser()->username = newUsername;
@@ -157,7 +156,9 @@ void PeerData::updateNameDelayed(
 		}
 	}
 	fillNames();
-	Notify::PeerUpdated().notify(update, true);
+	if (update.flags) {
+		Notify::PeerUpdated().notify(update, true);
+	}
 }
 
 std::unique_ptr<Ui::EmptyUserpic> PeerData::createEmptyUserpic() const {

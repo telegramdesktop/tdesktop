@@ -17,9 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "auth_session.h"
+#include "observer_peer.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
-#include "styles/style_dialogs.h" // st::dialogsArchiveUserpic
+#include "styles/style_dialogs.h"
 
 namespace Data {
 namespace {
@@ -55,6 +56,18 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 , _chatsList(PinnedDialogsInFolderMaxValue())
 , _name(lang(lng_archived_name)) {
 	indexNameParts();
+
+	Notify::PeerUpdateViewer(
+		Notify::PeerUpdate::Flag::NameChanged
+	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
+		for (const auto history : _unreadHistoriesLast) {
+			if (history->peer == update.peer) {
+				++_chatListViewVersion;
+				updateChatListEntry();
+				return;
+			}
+		}
+	}, _lifetime);
 }
 
 FolderId Folder::id() const {
@@ -227,9 +240,21 @@ void Folder::paintUserpic(
 	p.setBrush(st::historyPeerArchiveUserpicBg);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(x, y, size, size, size / 3., size / 3.);
+		p.drawEllipse(x, y, size, size);
 	}
-	st::dialogsArchiveUserpic.paintInCenter(p, { x, y, size, size });
+	if (size == st::dialogsPhotoSize) {
+		st::dialogsArchiveUserpic.paintInCenter(p, { x, y, size, size });
+	} else {
+		p.save();
+		const auto ratio = size / float64(st::dialogsPhotoSize);
+		p.translate(x + size / 2., y + size / 2.);
+		p.scale(ratio, ratio);
+		const auto skip = st::dialogsPhotoSize;
+		st::dialogsArchiveUserpic.paintInCenter(
+			p,
+			{ -skip, -skip, 2 * skip, 2 * skip });
+		p.restore();
+	}
 	//const auto small = (size - st::lineWidth) / 2; // #feed
 	//const auto delta = size - small;
 	//auto index = 0;
