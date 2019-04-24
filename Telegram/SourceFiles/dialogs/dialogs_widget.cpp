@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 //#include "history/feed/history_feed_section.h" // #feed
+#include "history/view/history_view_top_bar_widget.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -387,7 +388,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		_updateTelegram->show();
 	}
 	_searchControls->setVisible(!_openedFolder);
-	if (!_openedFolder) {
+	if (_openedFolder) {
+		_folderTopBar->show();
+	} else {
 		if (hasFocus()) {
 			_filter->setFocus();
 			_filter->finishAnimations();
@@ -410,6 +413,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		_cacheUnder = grabForFolderSlideAnimation();
 	}
 	_openedFolder = folder;
+	refreshFolderTopBar();
 	updateControlsVisibility(true);
 	_inner->changeOpenedFolder(folder);
 	if (animated == anim::type::normal) {
@@ -417,6 +421,18 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		_cacheOver = grabForFolderSlideAnimation();
 		_connecting->setForceHidden(false);
 		startSlideAnimation();
+	}
+}
+
+void Widget::refreshFolderTopBar() {
+	if (_openedFolder) {
+		if (!_folderTopBar) {
+			_folderTopBar.create(this, controller());
+			updateControlsGeometry();
+		}
+		_folderTopBar->setActiveChat(_openedFolder);
+	} else {
+		_folderTopBar.destroy();
 	}
 }
 
@@ -464,13 +480,12 @@ void Widget::checkUpdateStatus() {
 	updateControlsGeometry();
 }
 
-void Widget::activate() {
+void Widget::setInnerFocus() {
 	if (_openedFolder) {
 		setFocus();
 	} else {
 		_filter->setFocus();
 	}
-	_inner->activate();
 }
 
 void Widget::refreshDialog(Key key) {
@@ -563,6 +578,9 @@ void Widget::stopWidthAnimation() {
 }
 
 void Widget::showFast() {
+	if (isHidden()) {
+		_inner->clearSelection();
+	}
 	show();
 	updateForwardBar();
 }
@@ -574,8 +592,7 @@ void Widget::showAnimated(Window::SlideDirection direction, const Window::Sectio
 	_a_show.stop();
 
 	_cacheUnder = params.oldContentCache;
-	show();
-	updateForwardBar();
+	showFast();
 	_cacheOver = App::main()->grabForShowAnimation(params);
 
 	if (_updateTelegram) {
@@ -591,6 +608,9 @@ void Widget::startSlideAnimation() {
 		_forwardCancel->hide();
 	}
 	_searchControls->hide();
+	if (_folderTopBar) {
+		_folderTopBar->hide();
+	}
 
 	int delta = st::slideShift;
 	if (_showDirection == Window::SlideDirection::FromLeft) {
@@ -1372,6 +1392,9 @@ void Widget::updateControlsGeometry() {
 	auto filterWidth = qMax(width(), st::columnMinimalWidthLeft) - filterLeft - filterRight;
 	auto filterAreaHeight = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
 	_searchControls->setGeometry(0, filterAreaTop, width(), filterAreaHeight);
+	if (_folderTopBar) {
+		_folderTopBar->setGeometry(_searchControls->geometry());
+	}
 
 	auto filterTop = (filterAreaHeight - _filter->height()) / 2;
 	filterLeft = anim::interpolate(filterLeft, smallLayoutWidth, smallLayoutRatio);
@@ -1474,16 +1497,17 @@ void Widget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	auto progress = _a_show.value(1.);
 	if (_a_show.animating()) {
+		const auto progress = _a_show.value(1.);
 		const auto top = (_showAnimationType == ShowAnimation::Internal)
 			? (_forwardCancel ? _forwardCancel->height() : 0)
 			: 0;
-		auto retina = cIntRetinaFactor();
-		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
-		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
-		auto shadow = fromLeft ? (1. - progress) : progress;
+		const auto shift = std::min(st::slideShift, width() / 2);
+		const auto retina = cIntRetinaFactor();
+		const auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
+		const auto coordUnder = fromLeft ? anim::interpolate(-shift, 0, progress) : anim::interpolate(0, -shift, progress);
+		const auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		const auto shadow = fromLeft ? (1. - progress) : progress;
 		if (coordOver > 0) {
 			p.drawPixmap(QRect(0, top, coordOver, _cacheUnder.height() / retina), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, _cacheUnder.height()));
 			p.setOpacity(shadow);

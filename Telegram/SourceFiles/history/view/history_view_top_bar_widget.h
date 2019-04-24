@@ -104,7 +104,7 @@ private:
 	void infoClicked();
 	void backClicked();
 
-	void createUnreadBadge();
+	void refreshUnreadBadge();
 	void updateUnreadBadge();
 
 	not_null<Window::Controller*> _controller;

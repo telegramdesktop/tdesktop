@@ -275,9 +275,15 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 		return;
 	}
 	stopReorderPinned();
+	//const auto mouseSelection = _mouseSelection;
+	//const auto lastMousePosition = _lastMousePosition;
 	clearSelection();
 	_openedFolder = folder;
 	refresh();
+	// This doesn't work, because we clear selection in leaveEvent on hide.
+	//if (mouseSelection && lastMousePosition) {
+	//	selectByMouse(*lastMousePosition);
+	//}
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
 	}
@@ -730,8 +736,6 @@ void InnerWidget::paintSearchInSaved(
 //	paintSearchInFilter(p, paintUserpic, top, icon, text);
 //}
 //
-void InnerWidget::activate() {
-}
 
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 	const auto globalPosition = e->globalPos();
@@ -1533,7 +1537,11 @@ void InnerWidget::clearSelection() {
 		updateSelectedRow();
 		_importantSwitchSelected = false;
 		_selected = nullptr;
-		_filteredSelected = _searchedSelected = _peerSearchSelected = _hashtagSelected = -1;
+		_filteredSelected
+			= _searchedSelected
+			= _peerSearchSelected
+			= _hashtagSelected
+			= -1;
 		setCursor(style::cur_default);
 	}
 }
@@ -2389,18 +2397,7 @@ bool InnerWidget::chooseRow() {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
 			Local::saveRecentSearchHashtags(_filter);
 		}
-		updateSelectedRow();
-		_mouseSelection = false;
-		_lastMousePosition = std::nullopt;
-		_selected = nullptr;
-		_hashtagSelected
-			= _filteredSelected
-			= _peerSearchSelected
-			= _searchedSelected
-			= -1;
-
 		_chosenRow.fire_copy(chosen);
-
 		return true;
 	}
 	return false;

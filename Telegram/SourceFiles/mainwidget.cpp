@@ -385,7 +385,9 @@ MainWidget::MainWidget(
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
-	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
+	connect(_history, &HistoryWidget::cancelled, [=] {
+		_dialogs->setInnerFocus();
+	});
 	subscribe(
 		Media::Player::instance()->updatedNotifier(),
 		[=](const Media::Player::TrackState &state) { handleAudioUpdate(state); });
@@ -808,7 +810,7 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 	} else {
 		_hider->show();
 		updateControlsGeometry();
-		_dialogs->activate();
+		_dialogs->setInnerFocus();
 	}
 	floatPlayerCheckVisibility();
 }
@@ -898,10 +900,6 @@ void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
 
 bool MainWidget::selectingPeer() const {
 	return _hider ? true : false;
-}
-
-void MainWidget::dialogsActivate() {
-	_dialogs->activate();
 }
 
 void MainWidget::removeDialog(Dialogs::Key key) {
@@ -1009,7 +1007,7 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
 	} else {
-		_dialogs->activate();
+		_dialogs->setInnerFocus();
 	}
 }
 
@@ -1462,7 +1460,7 @@ void MainWidget::setInnerFocus() {
 		} else if (!_hider && _thirdSection) {
 			_thirdSection->setInnerFocus();
 		} else {
-			dialogsActivate();
+			_dialogs->setInnerFocus();
 		}
 	} else if (_mainSection) {
 		_mainSection->setInnerFocus();
@@ -1594,7 +1592,7 @@ void MainWidget::ui_showPeerHistory(
 	bool back = (way == Way::Backward || !peerId);
 	bool foundInStack = !peerId;
 	if (foundInStack || (way == Way::ClearStack)) {
-		for_const (auto &item, _stack) {
+		for (const auto &item : _stack) {
 			clearBotStartToken(item->peer());
 		}
 		_stack.clear();
@@ -2047,7 +2045,9 @@ bool MainWidget::stackIsEmpty() const {
 
 void MainWidget::showBackFromStack(
 		const SectionShow &params) {
-	if (selectingPeer()) return;
+	if (selectingPeer()) {
+		return;
+	}
 	if (_stack.empty()) {
 		_controller->clearSectionStack(params);
 		crl::on_main(App::wnd(), [] {
@@ -2790,11 +2790,14 @@ int MainWidget::backgroundFromY() const {
 }
 
 void MainWidget::searchInChat(Dialogs::Key chat) {
+	if (_controller->openedFolder().current()) {
+		_controller->closeFolder();
+	}
 	_dialogs->searchInChat(chat);
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
 	} else {
-		_dialogs->activate();
+		_dialogs->setInnerFocus();
 	}
 }
 
@@ -3453,7 +3456,7 @@ void MainWidget::activate() {
 	if (_a_show.animating()) return;
 	if (!_mainSection) {
 		if (_hider) {
-			_dialogs->activate();
+			_dialogs->setInnerFocus();
         } else if (App::wnd() && !Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
 				const auto interpret = qstr("interpret://");
@@ -3470,7 +3473,7 @@ void MainWidget::activate() {
 			} else if (_history->peer()) {
 				_history->activate();
 			} else {
-				_dialogs->activate();
+				_dialogs->setInnerFocus();
 			}
 		}
 	}

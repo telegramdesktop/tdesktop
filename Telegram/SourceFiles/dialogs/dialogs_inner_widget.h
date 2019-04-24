@@ -69,7 +69,7 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
-	void activate();
+	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void selectSkip(int32 direction);
@@ -265,7 +265,6 @@ private:
 		const Text &text) const;
 	void refreshSearchInChatLabel();
 
-	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
 

@@ -1595,37 +1595,37 @@ bool Session::unreadBadgeMuted() const {
 		state.chatsCountMuted);
 }
 
-int Session::unreadBadgeIgnoreOne(History *history) const {
-	const auto removeCount = (history && history->inChatList())
-		? history->unreadCount()
-		: 0;
-	if (!removeCount) {
+int Session::unreadBadgeIgnoreOne(const Dialogs::Key &key) const {
+	const auto remove = (key && key.entry()->inChatList())
+		? key.entry()->chatListUnreadState()
+		: Dialogs::UnreadState();
+	if (remove.empty()) {
 		return unreadBadge();
 	}
 	const auto state = _chatsList.unreadState();
-	const auto removeMuted = history->mute()
-		|| (history->folder() != nullptr);
 	return computeUnreadBadge(
-		state.messagesCount.value_or(0) - removeCount,
-		state.messagesCountMuted - (removeMuted ? removeCount : 0),
-		state.chatsCount - 1,
-		state.chatsCountMuted - (removeMuted ? 1 : 0));
+		state.messagesCount.value_or(0) - remove.messagesCount.value_or(0),
+		state.messagesCountMuted - remove.messagesCountMuted,
+		state.chatsCount - remove.chatsCount,
+		state.chatsCountMuted - remove.chatsCountMuted);
 }
 
-bool Session::unreadBadgeMutedIgnoreOne(History *history) const {
-	const auto removeCount = (history && history->inChatList())
-		? history->unreadCount()
-		: 0;
-	if (!removeCount) {
+bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
+	if (!_session->settings().includeMutedCounter()) {
+		return false;
+	}
+	const auto remove = (key && key.entry()->inChatList())
+		? key.entry()->chatListUnreadState()
+		: Dialogs::UnreadState();
+	if (remove.empty()) {
 		return unreadBadgeMuted();
 	}
 	const auto state = _chatsList.unreadState();
-	const auto removeMuted = history->mute();
 	return computeUnreadBadgeMuted(
-		state.messagesCount.value_or(0) - removeCount,
-		state.messagesCountMuted - (removeMuted ? removeCount : 0),
-		state.chatsCount - 1,
-		state.chatsCountMuted - (removeMuted ? 1 : 0));
+		state.messagesCount.value_or(0) - remove.messagesCount.value_or(0),
+		state.messagesCountMuted - remove.messagesCountMuted,
+		state.chatsCount - remove.chatsCount,
+		state.chatsCountMuted - remove.chatsCountMuted);
 }
 
 int Session::unreadOnlyMutedBadge() const {

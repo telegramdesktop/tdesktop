@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AuthSession;
 
+namespace HistoryView {
+class TopBarWidget;
+} // namespace HistoryView
+
 namespace Ui {
 class IconButton;
 class PopupMenu;
@@ -50,6 +54,7 @@ public:
 	void updateDragInScroll(bool inScroll);
 
 	void searchInChat(Key chat);
+	void setInnerFocus();
 
 	void refreshDialog(Key key);
 	void removeDialog(Key key);
@@ -88,7 +93,6 @@ public slots:
 
 	void onCancel();
 	void onListScroll();
-	void activate();
 	bool onCancelSearch();
 	void onCancelSearchInChat();
 
@@ -142,6 +146,7 @@ private:
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
+	void refreshFolderTopBar();
 	void updateForwardBar();
 	void checkUpdateStatus();
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
@@ -167,6 +172,7 @@ private:
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::RpWidget> _searchControls;
+	object_ptr<HistoryView::TopBarWidget> _folderTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;

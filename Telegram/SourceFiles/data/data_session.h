@@ -338,8 +338,8 @@ public:
 
 	int unreadBadge() const;
 	bool unreadBadgeMuted() const;
-	int unreadBadgeIgnoreOne(History *history) const;
-	bool unreadBadgeMutedIgnoreOne(History *history) const;
+	int unreadBadgeIgnoreOne(const Dialogs::Key &key) const;
+	bool unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const;
 	int unreadOnlyMutedBadge() const;
 
 	void unreadStateChanged(

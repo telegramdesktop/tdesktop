@@ -192,7 +192,6 @@ public:
 	bool sendPaths(PeerId peerId);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer() const;
-	void dialogsActivate();
 
 	void deletePhotoLayer(PhotoData *photo);
 
