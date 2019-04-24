@@ -2029,12 +2029,14 @@ bool History::chatListMutedBadge() const {
 Dialogs::UnreadState History::chatListUnreadState() const {
 	auto result = Dialogs::UnreadState();
 	const auto count = _unreadCount.value_or(0);
-	result.messagesCount = _unreadCount;
-	result.messagesCountMuted = (_unreadCount && mute()) ? count : 0;
-	result.chatsCount = count ? 1 : 0;
-	result.chatsCountMuted = (count && mute()) ? 1 : 0;
-	result.mark = _unreadMark;
-	result.markMuted = mute() ? _unreadMark : false;
+	const auto mark = !count && _unreadMark;
+	result.messages = count;
+	result.messagesMuted = mute() ? count : 0;
+	result.chats = count ? 1 : 0;
+	result.chatsMuted = (count && mute()) ? 1 : 0;
+	result.marks = mark ? 1 : 0;
+	result.marksMuted = (mark && mute()) ? 1 : 0;
+	result.known = _unreadCount.has_value();
 	return result;
 }
 

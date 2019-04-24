@@ -11,41 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 
 namespace Dialogs {
-namespace {
-
-UnreadState ApplyMarkToCounters(const UnreadState &state) {
-	auto result = UnreadState();
-	const auto count = state.messagesCount.value_or(0);
-	result.messagesCount = (count > 0)
-		? count
-		: state.mark
-		? 1
-		: 0;
-	result.messagesCountMuted = (state.messagesCountMuted > 0)
-		? state.messagesCountMuted
-		: state.markMuted
-		? 1
-		: 0;
-	result.chatsCount = (state.chatsCount > 0)
-		? state.chatsCount
-		: state.mark
-		? 1
-		: 0;
-	result.chatsCountMuted = (state.chatsCountMuted > 0)
-		? state.chatsCountMuted
-		: state.markMuted
-		? 1
-		: 0;
-	return result;
-}
-
-} // namespace
 
 MainList::MainList(rpl::producer<int> pinnedLimit)
 : _all(SortMode::Date)
 , _important(SortMode::Date)
 , _pinned(1) {
-	_unreadState.messagesCount = 0;
+	_unreadState.known = true;
 
 	std::move(
 		pinnedLimit
@@ -84,27 +55,17 @@ void MainList::clear() {
 void MainList::unreadStateChanged(
 		const UnreadState &wasState,
 		const UnreadState &nowState) {
-	const auto wasWithMark = ApplyMarkToCounters(wasState);
-	const auto nowWithMark = ApplyMarkToCounters(nowState);
-	*_unreadState.messagesCount += *nowWithMark.messagesCount
-		- *wasWithMark.messagesCount;
-	_unreadState.messagesCountMuted += nowWithMark.messagesCountMuted
-		- wasWithMark.messagesCountMuted;
-	_unreadState.chatsCount += nowWithMark.chatsCount
-		- wasWithMark.chatsCount;
-	_unreadState.chatsCountMuted += nowWithMark.chatsCountMuted
-		- wasWithMark.chatsCountMuted;
+	_unreadState += nowState - wasState;
 }
 
 void MainList::unreadEntryChanged(
 		const Dialogs::UnreadState &state,
 		bool added) {
-	const auto withMark = ApplyMarkToCounters(state);
-	const auto delta = (added ? 1 : -1);
-	*_unreadState.messagesCount += delta * *withMark.messagesCount;
-	_unreadState.messagesCountMuted += delta * withMark.messagesCountMuted;
-	_unreadState.chatsCount += delta * withMark.chatsCount;
-	_unreadState.chatsCountMuted += delta * withMark.chatsCountMuted;
+	if (added) {
+		_unreadState += state;
+	} else {
+		_unreadState -= state;
+	}
 }
 
 UnreadState MainList::unreadState() const {

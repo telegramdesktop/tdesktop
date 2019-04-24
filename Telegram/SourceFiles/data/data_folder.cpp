@@ -104,7 +104,7 @@ void Folder::registerOne(not_null<History*> history) {
 	++_chatListViewVersion;
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
-		if (!_cloudUnread.messagesCount.has_value()) {
+		if (!_cloudUnread.known) {
 			session().api().requestDialogEntry(this);
 		}
 	} else {
@@ -337,22 +337,24 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 void Folder::updateCloudUnread(const MTPDdialogFolder &data) {
 	const auto notifier = unreadStateChangeNotifier(!_chatsList.loaded());
 
-	_cloudUnread.messagesCountMuted = data.vunread_muted_messages_count.v;
-	_cloudUnread.messagesCount = _cloudUnread.messagesCountMuted
+	_cloudUnread.messagesMuted = data.vunread_muted_messages_count.v;
+	_cloudUnread.messages = _cloudUnread.messagesMuted
 		+ data.vunread_unmuted_messages_count.v;
-	_cloudUnread.chatsCountMuted = data.vunread_muted_peers_count.v;
-	_cloudUnread.chatsCount = _cloudUnread.chatsCountMuted
+	_cloudUnread.chatsMuted = data.vunread_muted_peers_count.v;
+	_cloudUnread.chats = _cloudUnread.chatsMuted
 		+ data.vunread_unmuted_peers_count.v;
+	_cloudUnread.known = true;
 }
 
 Dialogs::UnreadState Folder::chatListUnreadState() const {
-	const auto state = _chatsList.loaded()
-		? _chatsList.unreadState()
-		: _cloudUnread;
-	auto result = Dialogs::UnreadState();
-	result.messagesCount = state.messagesCount;
-	result.messagesCountMuted = result.messagesCount.value_or(0);
-	result.chatsCount = result.chatsCountMuted = state.chatsCount;
+	const auto localUnread = _chatsList.unreadState();
+	auto result = _chatsList.loaded() ? localUnread : _cloudUnread;
+	result.messagesMuted = result.messages;
+	result.chatsMuted = result.chats;
+
+	// We don't know the real value of marked chats counts.
+	result.marksMuted = result.marks = localUnread.marks;
+
 	return result;
 }
 
@@ -376,25 +378,18 @@ void Folder::unreadStateChanged(
 		}
 	}
 
-	const auto updateCloudUnread = _cloudUnread.messagesCount.has_value()
-		&& wasState.messagesCount.has_value();
+	const auto updateCloudUnread = _cloudUnread.known && wasState.known;
 	const auto notify = _chatsList.loaded() || updateCloudUnread;
 	const auto notifier = unreadStateChangeNotifier(notify);
 
 	_chatsList.unreadStateChanged(wasState, nowState);
-	if (!_cloudUnread.messagesCount.has_value()
-		|| !wasState.messagesCount.has_value()) {
-		return;
-	}
-	Assert(nowState.messagesCount.has_value());
+	if (updateCloudUnread) {
+		Assert(nowState.known);
+		_cloudUnread += nowState - wasState;
 
-	*_cloudUnread.messagesCount += *nowState.messagesCount
-		- *wasState.messagesCount;
-	_cloudUnread.messagesCountMuted += nowState.messagesCountMuted
-		- wasState.messagesCountMuted;
-	_cloudUnread.chatsCount += nowState.chatsCount - wasState.chatsCount;
-	_cloudUnread.chatsCountMuted += nowState.chatsCountMuted
-		- wasState.chatsCountMuted;
+		// We don't know the real value of marked chats counts.
+		_cloudUnread.marks = _cloudUnread.marksMuted = 0;
+	}
 }
 
 void Folder::unreadEntryChanged(
@@ -411,21 +406,21 @@ void Folder::unreadEntryChanged(
 		}
 	}
 
-	const auto updateCloudUnread = _cloudUnread.messagesCount.has_value()
-		&& state.messagesCount.has_value();
+	const auto updateCloudUnread = _cloudUnread.known && state.known;
 	const auto notify = _chatsList.loaded() || updateCloudUnread;
 	const auto notifier = unreadStateChangeNotifier(notify);
 
 	_chatsList.unreadEntryChanged(state, added);
-	if (!_cloudUnread.messagesCount.has_value()
-		|| !state.messagesCount.has_value()) {
-		return;
+	if (updateCloudUnread) {
+		if (added) {
+			_cloudUnread += state;
+		} else {
+			_cloudUnread -= state;
+		}
+
+		// We don't know the real value of marked chats counts.
+		_cloudUnread.marks = _cloudUnread.marksMuted = 0;
 	}
-	const auto delta = (added ? 1 : -1);
-	*_cloudUnread.messagesCount += delta * *state.messagesCount;
-	_cloudUnread.messagesCountMuted += delta * state.messagesCountMuted;
-	_cloudUnread.chatsCount += delta * state.chatsCount;
-	_cloudUnread.chatsCountMuted += delta * state.chatsCountMuted;
 }
 
 // #feed
@@ -450,9 +445,11 @@ bool Folder::shouldBeInChatList() const {
 }
 
 int Folder::chatListUnreadCount() const {
-	return session().settings().countUnreadMessages()
-		? chatListUnreadState().messagesCount.value_or(0)
-		: chatListUnreadState().chatsCount;
+	const auto state = chatListUnreadState();
+	return state.marks
+		+ (session().settings().countUnreadMessages()
+			? state.messages
+			: state.chats);
 }
 
 bool Folder::chatListUnreadMark() const {

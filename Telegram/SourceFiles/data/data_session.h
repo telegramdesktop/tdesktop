@@ -599,16 +599,8 @@ private:
 
 	void checkSelfDestructItems();
 
-	int computeUnreadBadge(
-		int full,
-		int muted,
-		int entriesFull,
-		int entriesMuted) const;
-	bool computeUnreadBadgeMuted(
-		int full,
-		int muted,
-		int entriesFull,
-		int entriesMuted) const;
+	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
+	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
 
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
 	void applyDialog(

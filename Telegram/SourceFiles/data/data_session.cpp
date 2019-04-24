@@ -1578,36 +1578,18 @@ void Session::updateSendActionAnimation(
 }
 
 int Session::unreadBadge() const {
-	const auto state = _chatsList.unreadState();
-	return computeUnreadBadge(
-		state.messagesCount.value_or(0),
-		state.messagesCountMuted,
-		state.chatsCount,
-		state.chatsCountMuted);
+	return computeUnreadBadge(_chatsList.unreadState());
 }
 
 bool Session::unreadBadgeMuted() const {
-	const auto state = _chatsList.unreadState();
-	return computeUnreadBadgeMuted(
-		state.messagesCount.value_or(0),
-		state.messagesCountMuted,
-		state.chatsCount,
-		state.chatsCountMuted);
+	return computeUnreadBadgeMuted(_chatsList.unreadState());
 }
 
 int Session::unreadBadgeIgnoreOne(const Dialogs::Key &key) const {
 	const auto remove = (key && key.entry()->inChatList())
 		? key.entry()->chatListUnreadState()
 		: Dialogs::UnreadState();
-	if (remove.empty()) {
-		return unreadBadge();
-	}
-	const auto state = _chatsList.unreadState();
-	return computeUnreadBadge(
-		state.messagesCount.value_or(0) - remove.messagesCount.value_or(0),
-		state.messagesCountMuted - remove.messagesCountMuted,
-		state.chatsCount - remove.chatsCount,
-		state.chatsCountMuted - remove.chatsCountMuted);
+	return computeUnreadBadge(_chatsList.unreadState() - remove);
 }
 
 bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
@@ -1617,46 +1599,33 @@ bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
 	const auto remove = (key && key.entry()->inChatList())
 		? key.entry()->chatListUnreadState()
 		: Dialogs::UnreadState();
-	if (remove.empty()) {
-		return unreadBadgeMuted();
-	}
-	const auto state = _chatsList.unreadState();
-	return computeUnreadBadgeMuted(
-		state.messagesCount.value_or(0) - remove.messagesCount.value_or(0),
-		state.messagesCountMuted - remove.messagesCountMuted,
-		state.chatsCount - remove.chatsCount,
-		state.chatsCountMuted - remove.chatsCountMuted);
+	return computeUnreadBadgeMuted(_chatsList.unreadState() - remove);
 }
 
 int Session::unreadOnlyMutedBadge() const {
 	const auto state = _chatsList.unreadState();
 	return _session->settings().countUnreadMessages()
-		? state.messagesCountMuted
-		: state.chatsCountMuted;
+		? state.messagesMuted
+		: state.chatsMuted;
 }
 
-int Session::computeUnreadBadge(
-		int full,
-		int muted,
-		int entriesFull,
-		int entriesMuted) const {
-	const auto withMuted = _session->settings().includeMutedCounter();
-	return _session->settings().countUnreadMessages()
-		? (full - (withMuted ? 0 : muted))
-		: (entriesFull - (withMuted ? 0 : entriesMuted));
+int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
+	const auto all = _session->settings().includeMutedCounter();
+	return std::max(state.marks - (all ? 0 : state.marksMuted), 0)
+		+ (_session->settings().countUnreadMessages()
+			? std::max(state.messages - (all ? 0 : state.messagesMuted), 0)
+			: std::max(state.chats - (all ? 0 : state.chatsMuted), 0));
 }
 
 bool Session::computeUnreadBadgeMuted(
-		int full,
-		int muted,
-		int entriesFull,
-		int entriesMuted) const {
+		const Dialogs::UnreadState &state) const {
 	if (!_session->settings().includeMutedCounter()) {
 		return false;
 	}
-	return _session->settings().countUnreadMessages()
-		? (muted >= full)
-		: (entriesMuted >= entriesFull);
+	return (state.marksMuted >= state.marks)
+		&& (_session->settings().countUnreadMessages()
+			? (state.messagesMuted >= state.messages)
+			: (state.chatsMuted >= state.chats));
 }
 
 void Session::unreadStateChanged(

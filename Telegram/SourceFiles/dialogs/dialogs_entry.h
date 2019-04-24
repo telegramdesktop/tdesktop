@@ -41,17 +41,49 @@ struct PositionChange {
 };
 
 struct UnreadState {
-	std::optional<int> messagesCount;
-	int messagesCountMuted = 0;
-	int chatsCount = 0;
-	int chatsCountMuted = 0;
-	bool mark = false;
-	bool markMuted = false;
+	int messages = 0;
+	int messagesMuted = 0;
+	int chats = 0;
+	int chatsMuted = 0;
+	int marks = 0;
+	int marksMuted = 0;
+	bool known = false;
+
+	UnreadState &operator+=(const UnreadState &other) {
+		messages += other.messages;
+		messagesMuted += other.messagesMuted;
+		chats += other.chats;
+		chatsMuted += other.chatsMuted;
+		marks += other.marks;
+		marksMuted += other.marksMuted;
+		return *this;
+	}
+	UnreadState &operator-=(const UnreadState &other) {
+		messages -= other.messages;
+		messagesMuted -= other.messagesMuted;
+		chats -= other.chats;
+		chatsMuted -= other.chatsMuted;
+		marks -= other.marks;
+		marksMuted -= other.marksMuted;
+		return *this;
+	}
 
 	bool empty() const {
-		return !messagesCount.value_or(0) && !chatsCount && !mark;
+		return !messages && !chats && !marks;
 	}
 };
+
+inline UnreadState operator+(const UnreadState &a, const UnreadState &b) {
+	auto result = a;
+	result += b;
+	return result;
+}
+
+inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
+	auto result = a;
+	result -= b;
+	return result;
+}
 
 class Entry {
 public:
