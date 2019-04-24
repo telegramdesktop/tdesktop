@@ -101,10 +101,13 @@ void Folder::indexNameParts() {
 }
 
 void Folder::registerOne(not_null<History*> history) {
+	++_chatListViewVersion;
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
+		if (!_cloudUnread.messagesCount.has_value()) {
+			session().api().requestDialogEntry(this);
+		}
 	} else {
-		++_chatListViewVersion;
 		updateChatListEntry();
 	}
 	applyChatListMessage(history->chatListMessage());
@@ -315,6 +318,7 @@ TimeId Folder::adjustedChatListTimeId() const {
 }
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
+	updateCloudUnread(data);
 	if (const auto peerId = peerFromMTP(data.vpeer)) {
 		const auto history = owner().history(peerId);
 		const auto fullId = FullMsgId(
@@ -325,7 +329,6 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 		_chatsList.clear();
 		updateChatListExistence();
 	}
-	updateCloudUnread(data);
 	if (_chatsList.indexed()->size() < kLoadedChatsMinCount) {
 		session().api().requestDialogs(this);
 	}
