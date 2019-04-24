@@ -108,6 +108,16 @@ Controller::Controller(
 			Ui::show(Box<EditPeerInfoBox>(peer));
 		}
 	});
+
+	session->data().chatsListChanges(
+	) | rpl::filter([=](Data::Folder *folder) {
+		return (folder != nullptr)
+			&& (folder == _openedFolder.current())
+			&& folder->chatsList()->indexed(Global::DialogsMode())->empty();
+	}) | rpl::start_with_next([=](Data::Folder *folder) {
+		folder->updateChatListSortPosition();
+		closeFolder();
+	}, lifetime());
 }
 
 void Controller::showEditPeerBox(PeerData *peer) {
@@ -135,6 +145,24 @@ void Controller::initSupportMode() {
 			return chatEntryHistoryMove(1);
 		});
 	}, lifetime());
+}
+
+bool Controller::uniqueChatsInSearchResults() const {
+	return session().supportMode()
+		&& !session().settings().supportAllSearchResults()
+		&& !searchInChat.current();
+}
+
+void Controller::openFolder(not_null<Data::Folder*> folder) {
+	_openedFolder = folder.get();
+}
+
+void Controller::closeFolder() {
+	_openedFolder = nullptr;
+}
+
+const rpl::variable<Data::Folder*> &Controller::openedFolder() const {
+	return _openedFolder;
 }
 
 void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {

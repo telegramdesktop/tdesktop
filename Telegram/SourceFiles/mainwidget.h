@@ -18,7 +18,6 @@ class AuthSession;
 struct HistoryMessageMarkupButton;
 class MainWindow;
 class ConfirmBox;
-class DialogsWidget;
 class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
@@ -35,6 +34,7 @@ namespace Dialogs {
 struct RowDescriptor;
 class Row;
 class Key;
+class Widget;
 } // namespace Dialogs
 
 namespace Media {
@@ -459,7 +459,7 @@ private:
 	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
 	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
 	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
-	object_ptr<DialogsWidget> _dialogs;
+	object_ptr<Dialogs::Widget> _dialogs;
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };

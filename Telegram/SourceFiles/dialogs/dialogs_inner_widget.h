@@ -7,18 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_key.h"
 #include "data/data_messages.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/flags.h"
 
-namespace Dialogs {
-class Row;
-class FakeRow;
-class IndexedList;
-} // namespace Dialogs
+class AuthSession;
 
 namespace Ui {
 class IconButton;
@@ -30,18 +25,44 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-class DialogsInner
+namespace Dialogs {
+
+class Row;
+class FakeRow;
+class IndexedList;
+
+struct ChosenRow {
+	Key key;
+	Data::MessagePosition message;
+	bool filteredRow = false;
+};
+
+enum class SearchRequestType {
+	FromStart,
+	FromOffset,
+	PeerFromStart,
+	PeerFromOffset,
+	MigratedFromStart,
+	MigratedFromOffset,
+};
+
+enum class WidgetState {
+	Default,
+	Filtered,
+};
+
+class InnerWidget
 	: public Ui::RpWidget
 	, public RPCSender
 	, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	DialogsInner(QWidget *parent, not_null<Window::Controller*> controller);
+	InnerWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	bool searchReceived(
 		const QVector<MTPMessage> &result,
-		DialogsSearchRequestType type,
+		SearchRequestType type,
 		int fullCount);
 	void peerSearchReceived(
 		const QString &query,
@@ -50,15 +71,14 @@ public:
 
 	void activate();
 
-	bool openFolder(not_null<Data::Folder*> folder);
-	bool cancelFolder();
+	void changeOpenedFolder(Data::Folder *folder);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void refreshDialog(Dialogs::Key key);
-	void removeDialog(Dialogs::Key key);
-	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
-	void repaintDialogRow(Dialogs::RowDescriptor row);
+	void refreshDialog(Key key);
+	void removeDialog(Key key);
+	void repaintDialogRow(Mode list, not_null<Row*> row);
+	void repaintDialogRow(RowDescriptor row);
 
 	void dragLeft();
 
@@ -67,7 +87,7 @@ public:
 
 	bool chooseRow();
 
-	void scrollToEntry(const Dialogs::RowDescriptor &entry);
+	void scrollToEntry(const RowDescriptor &entry);
 
 	Data::Folder *shownFolder() const;
 	int32 lastSearchDate() const;
@@ -75,17 +95,13 @@ public:
 	MsgId lastSearchId() const;
 	MsgId lastSearchMigratedId() const;
 
-	enum class State {
-		Default,
-		Filtered,
-	};
-	State state() const;
+	WidgetState state() const;
 	bool waitingForSearch() const {
 		return _waitingForSearch;
 	}
 	bool hasFilteredResults() const;
 
-	void searchInChat(Dialogs::Key key, UserData *from);
+	void searchInChat(Key key, UserData *from);
 
 	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
@@ -97,9 +113,11 @@ public:
 
 	base::Observable<UserData*> searchFromUserChanged;
 
+	rpl::producer<ChosenRow> chosenRow() const;
+
 	void notify_historyMuteUpdated(History *history);
 
-	~DialogsInner();
+	~InnerWidget();
 
 public slots:
 	void onParentGeometryChanged();
@@ -109,7 +127,6 @@ signals:
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
-	void clearSearchQuery();
 	void cancelSearchInChat();
 	void completeHashtag(QString tag);
 	void refreshHashtags();
@@ -140,21 +157,16 @@ private:
 		NextOrOriginal,
 	};
 
-	struct ChosenRow {
-		Dialogs::Key key;
-		Data::MessagePosition message;
-	};
-
 	AuthSession &session() const;
 
-	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
+	void dialogRowReplaced(Row *oldRow, Row *newRow);
 
 	bool switchImportantChats();
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
 	bool isSearchResultActive(
-		not_null<Dialogs::FakeRow*> result,
-		const Dialogs::RowDescriptor &entry) const;
+		not_null<FakeRow*> result,
+		const RowDescriptor &entry) const;
 
 	void clearMouseSelection(bool clearSelection = false);
 	void mousePressReleased(QPoint globalPosition, Qt::MouseButton button);
@@ -162,7 +174,7 @@ private:
 	void selectByMouse(QPoint globalPosition);
 	void loadPeerPhotos();
 	void setImportantSwitchPressed(bool pressed);
-	void setPressed(Dialogs::Row *pressed);
+	void setPressed(Row *pressed);
 	void setHashtagPressed(int pressed);
 	void setFilteredPressed(int pressed);
 	void setPeerSearchPressed(int pressed);
@@ -187,17 +199,15 @@ private:
 	bool hasHistoryInResults(not_null<History*> history) const;
 
 	void setupShortcuts();
-	Dialogs::RowDescriptor computeJump(
-		const Dialogs::RowDescriptor &to,
+	RowDescriptor computeJump(
+		const RowDescriptor &to,
 		JumpSkip skip);
-	bool jumpToDialogRow(Dialogs::RowDescriptor to);
+	bool jumpToDialogRow(RowDescriptor to);
 
-	Dialogs::RowDescriptor chatListEntryBefore(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryAfter(
-		const Dialogs::RowDescriptor &which) const;
-	Dialogs::RowDescriptor chatListEntryFirst() const;
-	Dialogs::RowDescriptor chatListEntryLast() const;
+	RowDescriptor chatListEntryBefore(const RowDescriptor &which) const;
+	RowDescriptor chatListEntryAfter(const RowDescriptor &which) const;
+	RowDescriptor chatListEntryFirst() const;
+	RowDescriptor chatListEntryLast() const;
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {
@@ -212,7 +222,7 @@ private:
 
 	void updateSearchResult(not_null<PeerData*> peer);
 	void updateDialogRow(
-		Dialogs::RowDescriptor row,
+		RowDescriptor row,
 		QRect updateRect = QRect(),
 		UpdateRowSections sections = UpdateRowSection::All);
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
@@ -224,7 +234,6 @@ private:
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 	int searchInChatSkip() const;
-	int openedFolderSkip() const;
 
 	void paintPeerSearchResult(
 		Painter &p,
@@ -232,7 +241,6 @@ private:
 		int fullWidth,
 		bool active,
 		bool selected) const;
-	void paintOpenedFolder(Painter &p) const;
 	void paintSearchInChat(Painter &p) const;
 	void paintSearchInPeer(
 		Painter &p,
@@ -259,9 +267,9 @@ private:
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
-	void updateSelectedRow(Dialogs::Key key = Dialogs::Key());
+	void updateSelectedRow(Key key = Key());
 
-	not_null<Dialogs::IndexedList*> shownDialogs() const;
+	not_null<IndexedList*> shownDialogs() const;
 
 	void checkReorderPinnedStart(QPoint localPosition);
 	int shownPinnedCount() const;
@@ -269,12 +277,10 @@ private:
 	bool updateReorderPinned(QPoint localPosition);
 	void finishReorderPinned();
 	void stopReorderPinned();
-	int countPinnedIndex(Dialogs::Row *ofRow);
+	int countPinnedIndex(Row *ofRow);
 	void savePinnedOrder();
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatMigration(not_null<ChatData*> chat);
-
-	bool changeOpenedFolder(Data::Folder *folder);
 
 	not_null<Window::Controller*> _controller;
 
@@ -283,15 +289,14 @@ private:
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;
-	Text _openedFolderText;
 
 	std::unique_ptr<ImportantSwitch> _importantSwitch;
 	bool _importantSwitchSelected = false;
 	bool _importantSwitchPressed = false;
-	Dialogs::Row *_selected = nullptr;
-	Dialogs::Row *_pressed = nullptr;
+	Row *_selected = nullptr;
+	Row *_pressed = nullptr;
 
-	Dialogs::Row *_dragging = nullptr;
+	Row *_dragging = nullptr;
 	int _draggingIndex = -1;
 	int _aboveIndex = -1;
 	QPoint _dragStart;
@@ -301,7 +306,7 @@ private:
 	};
 	std::vector<PinnedRow> _pinnedRows;
 	Ui::Animations::Basic _pinnedShiftAnimation;
-	base::flat_set<Dialogs::Key> _pinnedOnDragStart;
+	base::flat_set<Key> _pinnedOnDragStart;
 
 	// Remember the last currently dragged row top shift for updating area.
 	int _aboveTopShift = -1;
@@ -316,10 +321,10 @@ private:
 	bool _hashtagDeleteSelected = false;
 	bool _hashtagDeletePressed = false;
 
-	std::vector<not_null<Dialogs::Row*>> _filterResults;
+	std::vector<not_null<Row*>> _filterResults;
 	base::flat_map<
 		not_null<PeerData*>,
-		std::unique_ptr<Dialogs::Row>> _filterResultsGlobal;
+		std::unique_ptr<Row>> _filterResultsGlobal;
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;
 
@@ -330,7 +335,7 @@ private:
 	int _peerSearchSelected = -1;
 	int _peerSearchPressed = -1;
 
-	std::vector<std::unique_ptr<Dialogs::FakeRow>> _searchResults;
+	std::vector<std::unique_ptr<FakeRow>> _searchResults;
 	int _searchedCount = 0;
 	int _searchedMigratedCount = 0;
 	int _searchedSelected = -1;
@@ -341,23 +346,25 @@ private:
 	MsgId _lastSearchId = 0;
 	MsgId _lastSearchMigratedId = 0;
 
-	State _state = State::Default;
+	WidgetState _state = WidgetState::Default;
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
-	object_ptr<Ui::IconButton> _closeOpenedFolder;
 	object_ptr<Ui::IconButton> _cancelSearchInChat;
 	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 
-	Dialogs::Key _searchInChat;
+	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
 	Text _searchInChatText;
 	Text _searchFromUserText;
-	Dialogs::RowDescriptor _menuRow;
+	RowDescriptor _menuRow;
 
 	Fn<void()> _loadMoreCallback;
 	rpl::event_stream<> _listBottomReached;
+	rpl::event_stream<ChosenRow> _chosenRow;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 };
+
+} // namespace Dialogs

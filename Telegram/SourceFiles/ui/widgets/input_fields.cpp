@@ -997,6 +997,11 @@ QRect FlatInput::getTextRect() const {
 	return rect().marginsRemoved(_textMrg + QMargins(-2, -1, -2, -1));
 }
 
+void FlatInput::finishAnimations() {
+	_placeholderFocusedAnimation.stop();
+	_placeholderVisibleAnimation.stop();
+}
+
 void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 

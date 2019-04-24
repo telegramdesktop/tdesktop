@@ -56,6 +56,8 @@ public:
 	void setPlaceholder(Fn<QString()> placeholderFactory);
 	QRect placeholderRect() const;
 
+	void finishAnimations();
+
 	void setTextMrg(const QMargins &textMrg);
 	QRect getTextRect() const;
 

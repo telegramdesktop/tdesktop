@@ -13,15 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "ui/special_buttons.h"
 
-class DialogsInner;
 class AuthSession;
-
-namespace Dialogs {
-struct RowDescriptor;
-class Row;
-class FakeRow;
-class Key;
-} // namespace Dialogs
 
 namespace Ui {
 class IconButton;
@@ -39,29 +31,30 @@ class Controller;
 class ConnectionState;
 } // namespace Window
 
-enum DialogsSearchRequestType {
-	DialogsSearchFromStart,
-	DialogsSearchFromOffset,
-	DialogsSearchPeerFromStart,
-	DialogsSearchPeerFromOffset,
-	DialogsSearchMigratedFromStart,
-	DialogsSearchMigratedFromOffset,
-};
+namespace Dialogs {
 
-class DialogsWidget : public Window::AbstractSectionWidget, public RPCSender {
+struct RowDescriptor;
+class Row;
+class FakeRow;
+class Key;
+struct ChosenRow;
+class InnerWidget;
+enum class SearchRequestType;
+
+class Widget : public Window::AbstractSectionWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-	DialogsWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	Widget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void updateDragInScroll(bool inScroll);
 
-	void searchInChat(Dialogs::Key chat);
+	void searchInChat(Key chat);
 
-	void refreshDialog(Dialogs::Key key);
-	void removeDialog(Dialogs::Key key);
-	void repaintDialogRow(Dialogs::Mode list, not_null<Dialogs::Row*> row);
-	void repaintDialogRow(Dialogs::RowDescriptor row);
+	void refreshDialog(Key key);
+	void removeDialog(Key key);
+	void repaintDialogRow(Mode list, not_null<Row*> row);
+	void repaintDialogRow(RowDescriptor row);
 
 	void jumpToTop();
 
@@ -74,9 +67,9 @@ public:
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
 	void showFast();
 
-	void scrollToEntry(const Dialogs::RowDescriptor &entry);
+	void scrollToEntry(const RowDescriptor &entry);
 
-	void searchMessages(const QString &query, Dialogs::Key inChat = {});
+	void searchMessages(const QString &query, Key inChat = {});
 	void onSearchMore();
 
 	// Float player interface.
@@ -85,7 +78,7 @@ public:
 
 	void notify_historyMuteUpdated(History *history);
 
-	~DialogsWidget();
+	~Widget();
 
 signals:
 	void cancelled();
@@ -121,9 +114,14 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	enum class ShowAnimation {
+		External,
+		Internal,
+	};
+
 	void animationCallback();
 	void searchReceived(
-		DialogsSearchRequestType type,
+		SearchRequestType type,
 		const MTPmessages_Messages &result,
 		mtpRequestId requestId);
 	void peerSearchReceived(
@@ -133,51 +131,29 @@ private:
 	void setupSupportMode();
 	void setupConnectingWidget();
 	bool searchForPeersRequired(const QString &query) const;
-	void setSearchInChat(Dialogs::Key chat, UserData *from = nullptr);
+	void setSearchInChat(Key chat, UserData *from = nullptr);
 	void showJumpToDate();
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();
+	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility();
+	void updateLoadMoreChatsVisibility();
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
 	void checkUpdateStatus();
+	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
+	QPixmap grabForFolderSlideAnimation();
+	void startSlideAnimation();
 
 	void applyFilterUpdate(bool force = false);
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
 
-	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
+	bool searchFailed(SearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
-
-	bool _dragInScroll = false;
-	bool _dragForward = false;
-	QTimer _chooseByDragTimer;
-
-	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
-	object_ptr<Ui::IconButton> _mainMenuToggle;
-	object_ptr<Ui::FlatInput> _filter;
-	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
-	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
-	object_ptr<Ui::CrossButton> _cancelSearch;
-	object_ptr<Ui::IconButton> _lockUnlock;
-	object_ptr<Ui::ScrollArea> _scroll;
-	QPointer<DialogsInner> _inner;
-	class BottomButton;
-	object_ptr<BottomButton> _updateTelegram = { nullptr };
-	object_ptr<BottomButton> _loadMoreChats = { nullptr };
-	std::unique_ptr<Window::ConnectionState> _connecting;
-
-	Ui::Animations::Simple _scrollToAnimation;
-	Ui::Animations::Simple _a_show;
-	Window::SlideDirection _showDirection;
-	QPixmap _cacheUnder, _cacheOver;
-
-	Ui::Animations::Simple _scrollToTopShown;
-	bool _scrollToTopIsShown = false;
-	object_ptr<Ui::HistoryDownButton> _scrollToTop;
 
 	void scrollToTop();
 	void setupScrollUpButton();
@@ -185,7 +161,37 @@ private:
 	void startScrollUpButtonAnimation(bool shown);
 	void updateScrollUpPosition();
 
-	Dialogs::Key _searchInChat;
+	bool _dragInScroll = false;
+	bool _dragForward = false;
+	QTimer _chooseByDragTimer;
+
+	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
+	object_ptr<Ui::RpWidget> _searchControls;
+	object_ptr<Ui::IconButton> _mainMenuToggle;
+	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
+	object_ptr<Ui::CrossButton> _cancelSearch;
+	object_ptr<Ui::IconButton> _lockUnlock;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<InnerWidget> _inner;
+	class BottomButton;
+	object_ptr<BottomButton> _updateTelegram = { nullptr };
+	object_ptr<BottomButton> _loadMoreChats = { nullptr };
+	std::unique_ptr<Window::ConnectionState> _connecting;
+
+	Ui::Animations::Simple _scrollToAnimation;
+	Ui::Animations::Simple _a_show;
+	Window::SlideDirection _showDirection = Window::SlideDirection();
+	QPixmap _cacheUnder, _cacheOver;
+	ShowAnimation _showAnimationType = ShowAnimation::External;
+
+	Ui::Animations::Simple _scrollToTopShown;
+	bool _scrollToTopIsShown = false;
+	object_ptr<Ui::HistoryDownButton> _scrollToTop;
+
+	Data::Folder *_openedFolder = nullptr;
+	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
 	QString _lastFilterText;
@@ -220,3 +226,5 @@ private:
 	int _draggingScrollDelta = 0;
 
 };
+
+} // namespace Dialogs

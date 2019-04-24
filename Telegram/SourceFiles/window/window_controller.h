@@ -150,8 +150,12 @@ public:
 	}
 
 	// This is needed for History TopBar updating when searchInChat
-	// is changed in the DialogsWidget of the current window.
+	// is changed in the Dialogs::Widget of the current window.
 	rpl::variable<Dialogs::Key> searchInChat;
+	bool uniqueChatsInSearchResults() const;
+	void openFolder(not_null<Data::Folder*> folder);
+	void closeFolder();
+	const rpl::variable<Data::Folder*> &openedFolder() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -304,6 +308,7 @@ private:
 	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
 
 	PeerData *_showEditPeer = nullptr;
+	rpl::variable<Data::Folder*> _openedFolder;
 
 	rpl::lifetime _lifetime;
 
