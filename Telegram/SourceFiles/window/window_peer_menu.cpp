@@ -55,7 +55,7 @@ private:
 	bool showInfo();
 	void addPinToggle();
 	void addInfo();
-	void addSearch();
+	//void addSearch();
 	void addToggleUnreadMark();
 	void addToggleArchive();
 	void addUserActions(not_null<UserData*> user);
@@ -178,7 +178,9 @@ Filler::Filler(
 }
 
 bool Filler::showInfo() {
-	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
+	if (_source == PeerMenuSource::Profile
+		|| _source == PeerMenuSource::ChatsList
+		|| _peer->isSelf()) {
 		return false;
 	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
@@ -231,11 +233,11 @@ void Filler::addInfo() {
 	});
 }
 
-void Filler::addSearch() {
-	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
-		App::main()->searchInChat(peer->owner().history(peer));
-	});
-}
+//void Filler::addSearch() {
+//	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
+//		App::main()->searchInChat(peer->owner().history(peer));
+//	});
+//}
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
@@ -370,7 +372,9 @@ void Filler::addUserActions(not_null<UserData*> user) {
 	_addAction(
 		lang(lng_profile_clear_history),
 		ClearHistoryHandler(user));
-	if (!user->isInaccessible() && user != Auth().user()) {
+	if (!user->isInaccessible()
+		&& user != Auth().user()
+		&& _source != PeerMenuSource::ChatsList) {
 		addBlockUser(user);
 	}
 }
@@ -489,7 +493,7 @@ void Filler::fill() {
 		PeerMenuAddMuteAction(_peer, _addAction);
 	}
 	if (_source == PeerMenuSource::ChatsList) {
-		addSearch();
+		//addSearch();
 		addToggleUnreadMark();
 	}
 
