@@ -331,7 +331,7 @@ std::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 		return false;
 	}
 	return LastFullMsgId(ending ? *ending : slice)
-		| [](FullMsgId msgId) {	return App::histItemById(msgId); }
+		| [](FullMsgId msgId) {	return Auth().data().message(msgId); }
 		| [](HistoryItem *item) { return item ? item->media() : nullptr; }
 		| [](Data::Media *media) { return media ? media->photo() : nullptr; }
 		| [](PhotoData *photo) { return photo ? photo->id : 0; }

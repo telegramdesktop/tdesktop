@@ -165,14 +165,18 @@ bool HistoryMessageReply::updateData(
 		}
 	}
 	if (!replyToMsg) {
-		replyToMsg = App::histItemById(holder->channelId(), replyToMsgId);
+		replyToMsg = holder->history()->owner().message(
+			holder->channelId(),
+			replyToMsgId);
 		if (replyToMsg) {
 			if (replyToMsg->isEmpty()) {
 				// Really it is deleted.
 				replyToMsg = nullptr;
 				force = true;
 			} else {
-				App::historyRegDependency(holder, replyToMsg);
+				holder->history()->owner().registerDependentMessage(
+					holder,
+					replyToMsg);
 			}
 		}
 	}
@@ -211,7 +215,9 @@ void HistoryMessageReply::setReplyToLinkFrom(
 void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 	replyToVia = nullptr;
 	if (replyToMsg) {
-		App::historyUnregDependency(holder, replyToMsg);
+		holder->history()->owner().unregisterDependentMessage(
+			holder,
+			replyToMsg);
 		replyToMsg = nullptr;
 	}
 	replyToMsgId = 0;
@@ -359,10 +365,10 @@ QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 // Note: it is possible that we will point to the different button
 // than the one was used when constructing the handler, but not a big deal.
 const HistoryMessageMarkupButton *ReplyMarkupClickHandler::getButton() const {
-	if (auto item = App::histItemById(_itemId)) {
-		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+	if (const auto item = Auth().data().message(_itemId)) {
+		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (_row < markup->rows.size()) {
-				auto &row = markup->rows[_row];
+				const auto &row = markup->rows[_row];
 				if (_column < row.size()) {
 					return &row[_column];
 				}
@@ -373,7 +379,7 @@ const HistoryMessageMarkupButton *ReplyMarkupClickHandler::getButton() const {
 }
 
 void ReplyMarkupClickHandler::onClickImpl() const {
-	if (const auto item = App::histItemById(_itemId)) {
+	if (const auto item = Auth().data().message(_itemId)) {
 		App::activateBotCommand(item, _row, _column);
 	}
 }

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_media_types.h"
+#include "auth_session.h"
 #include "styles/style_history.h"
 
 namespace {
@@ -42,7 +43,7 @@ ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
 
 ClickHandlerPtr addContactClickHandler(not_null<HistoryItem*> item) {
 	return std::make_shared<LambdaClickHandler>([fullId = item->fullId()] {
-		if (const auto item = App::histItemById(fullId)) {
+		if (const auto item = Auth().data().message(fullId)) {
 			if (const auto media = item->media()) {
 				if (const auto contact = media->sharedContact()) {
 					Ui::show(Box<AddContactBox>(

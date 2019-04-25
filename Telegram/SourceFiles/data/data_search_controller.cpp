@@ -148,7 +148,7 @@ SearchResult ParseSearchResult(
 		return result;
 	}
 
-	auto addType = NewMessageExisting;
+	const auto addType = NewMessageType::Existing;
 	result.messageIds.reserve(messages->size());
 	for (const auto &message : *messages) {
 		if (auto item = peer->owner().addNewMessage(message, addType)) {

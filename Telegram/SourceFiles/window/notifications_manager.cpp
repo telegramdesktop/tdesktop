@@ -192,7 +192,7 @@ void System::checkDelayed() {
 			const auto fullId = FullMsgId(
 				history->channelId(),
 				i.value().msg);
-			if (const auto item = App::histItemById(fullId)) {
+			if (const auto item = Auth().data().message(fullId)) {
 				if (!item->notificationReady()) {
 					loaded = false;
 				}
@@ -214,7 +214,7 @@ void System::checkDelayed() {
 }
 
 void System::showGrouped() {
-	if (const auto lastItem = App::histItemById(_lastHistoryItemId)) {
+	if (const auto lastItem = Auth().data().message(_lastHistoryItemId)) {
 		_waitForAllGroupedTimer.cancel();
 		_manager->showNotification(lastItem, _lastForwardedCount);
 		_lastForwardedCount = 0;
@@ -229,7 +229,7 @@ void System::showNext() {
 		if (!_lastHistoryItemId || !item) {
 			return false;
 		}
-		if (const auto lastItem = App::histItemById(_lastHistoryItemId)) {
+		if (const auto lastItem = Auth().data().message(_lastHistoryItemId)) {
 			return (lastItem->groupId() == item->groupId() || lastItem->author() == item->author());
 		}
 		return false;
@@ -474,7 +474,7 @@ void Manager::openNotificationMessage(
 			|| !IsServerMsgId(messageId)) {
 			return false;
 		}
-		const auto item = App::histItemById(history->channelId(), messageId);
+		const auto item = Auth().data().message(history->channelId(), messageId);
 		if (!item || !item->mentionsMe()) {
 			return false;
 		}

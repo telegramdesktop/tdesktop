@@ -1126,12 +1126,14 @@ void ShareGameScoreByHash(const QString &hash) {
 		return;
 	}
 
-	if (auto item = App::histItemById(channelId, msgId)) {
+	if (const auto item = Auth().data().message(channelId, msgId)) {
 		FastShareMessage(item);
 	} else {
-		auto resolveMessageAndShareScore = [msgId](ChannelData *channel) {
-			Auth().api().requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
-				if (auto item = App::histItemById(channel, msgId)) {
+		auto resolveMessageAndShareScore = [=](ChannelData *channel) {
+			Auth().api().requestMessageData(channel, msgId, [](
+					ChannelData *channel,
+					MsgId msgId) {
+				if (const auto item = Auth().data().message(channel, msgId)) {
 					FastShareMessage(item);
 				} else {
 					Ui::show(Box<InformBox>(lang(lng_edit_deleted)));

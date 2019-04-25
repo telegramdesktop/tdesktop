@@ -515,7 +515,7 @@ void OverlayWidget::updateControls() {
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
-		if (const auto item = App::histItemById(_msgid)) {
+		if (const auto item = Auth().data().message(_msgid)) {
 			return ItemDateTime(item);
 		} else if (_photo) {
 			return ParseDateTime(_photo->date);
@@ -1038,7 +1038,7 @@ void OverlayWidget::onScreenResized(int screen) {
 }
 
 void OverlayWidget::onToMessage() {
-	if (const auto item = App::histItemById(_msgid)) {
+	if (const auto item = Auth().data().message(_msgid)) {
 		close();
 		Ui::showPeerHistoryAtItem(item);
 	}
@@ -1124,7 +1124,7 @@ void OverlayWidget::onDocClick() {
 		DocumentOpenClickHandler::Open(
 			fileOrigin(),
 			_doc,
-			App::histItemById(_msgid));
+			Auth().data().message(_msgid));
 		if (_doc->loading() && !_radial.animating()) {
 			_radial.start(_doc->progress());
 		}
@@ -1216,7 +1216,7 @@ void OverlayWidget::onShowInFolder() {
 }
 
 void OverlayWidget::onForward() {
-	auto item = App::histItemById(_msgid);
+	auto item = Auth().data().message(_msgid);
 	if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
 		return;
 	}
@@ -1241,7 +1241,7 @@ void OverlayWidget::onDelete() {
 
 	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
-	} else if (const auto item = App::histItemById(_msgid)) {
+	} else if (const auto item = Auth().data().message(_msgid)) {
 		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
@@ -1277,7 +1277,7 @@ void OverlayWidget::onAttachedStickers() {
 
 std::optional<OverlayWidget::SharedMediaType> OverlayWidget::sharedMediaType() const {
 	using Type = SharedMediaType;
-	if (const auto item = App::histItemById(_msgid)) {
+	if (const auto item = Auth().data().message(_msgid)) {
 		if (const auto media = item->media()) {
 			if (media->webpage()) {
 				return std::nullopt;
@@ -1465,7 +1465,7 @@ void OverlayWidget::handleUserPhotosUpdate(UserPhotosSlice &&update) {
 }
 
 std::optional<OverlayWidget::CollageKey> OverlayWidget::collageKey() const {
-	if (const auto item = App::histItemById(_msgid)) {
+	if (const auto item = Auth().data().message(_msgid)) {
 		if (const auto media = item->media()) {
 			if (const auto page = media->webpage()) {
 				for (const auto &item : page->collage.items) {
@@ -1511,7 +1511,7 @@ void OverlayWidget::validateCollage() {
 	if (const auto key = collageKey()) {
 		_collage = std::make_unique<Collage>(*key);
 		_collageData = WebPageCollage();
-		if (const auto item = App::histItemById(_msgid)) {
+		if (const auto item = Auth().data().message(_msgid)) {
 			if (const auto media = item->media()) {
 				if (const auto page = media->webpage()) {
 					_collageData = page->collage;
@@ -1755,7 +1755,7 @@ void OverlayWidget::redisplayContent() {
 	if (isHidden()) {
 		return;
 	}
-	const auto item = App::histItemById(_msgid);
+	const auto item = Auth().data().message(_msgid);
 	if (_photo) {
 		displayPhoto(_photo, item);
 	} else {
@@ -2243,7 +2243,7 @@ void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
 	_streamed->resumeOnCallEnd = false;
-	if (const auto item = App::histItemById(_msgid)) {
+	if (const auto item = Auth().data().message(_msgid)) {
 		if (_streamed->player.failed()) {
 			clearStreaming();
 			initStreaming();
@@ -3033,7 +3033,7 @@ OverlayWidget::Entity OverlayWidget::entityForSharedMedia(int index) const {
 OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 	Expects(_collageData.has_value());
 
-	const auto item = App::histItemById(_msgid);
+	const auto item = Auth().data().message(_msgid);
 	const auto &items = _collageData->items;
 	if (!item || index < 0 || index >= items.size()) {
 		return { std::nullopt, nullptr };
@@ -3047,7 +3047,7 @@ OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 }
 
 OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) const {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
 				return { photo, item };

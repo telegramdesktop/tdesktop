@@ -285,7 +285,7 @@ AdminLog::OwnedItem GenerateTextItem(
 		| (out ? Flag::f_out : Flag(0));
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
-	const auto item = new HistoryMessage(
+	const auto item = history->owner().makeMessage(
 		history,
 		++id,
 		flags,

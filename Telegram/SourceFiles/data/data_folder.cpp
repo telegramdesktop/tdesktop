@@ -324,7 +324,7 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 		const auto fullId = FullMsgId(
 			peerToChannel(peerId),
 			data.vtop_message.v);
-		history->setFolder(this, App::histItemById(fullId));
+		history->setFolder(this, owner().message(fullId));
 	} else {
 		_chatsList.clear();
 		updateChatListExistence();

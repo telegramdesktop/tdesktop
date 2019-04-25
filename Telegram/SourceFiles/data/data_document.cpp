@@ -384,7 +384,7 @@ void DocumentCancelClickHandler::onClickImpl() const {
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		if (const auto item = App::histItemById(context())) {
+		if (const auto item = data->owner().message(context())) {
 			App::main()->cancelUploadLayer(item);
 		}
 	} else {
@@ -1601,7 +1601,7 @@ base::binary_guard ReadImageAsync(
 //			DocumentSaveClickHandler::Save(
 //				(contextId ? contextId : Data::FileOrigin()),
 //				document,
-//				App::histItemById(contextId));
+//				document->owner().message(contextId));
 //		};
 //		Ui::show(Box<ConfirmBox>(
 //			lang(lng_player_cant_stream),

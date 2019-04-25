@@ -44,10 +44,10 @@ namespace AdminLog {
 class LocalIdManager;
 } // namespace AdminLog
 
-enum NewMessageType : char {
-	NewMessageUnread,
-	NewMessageLast,
-	NewMessageExisting,
+enum class NewMessageType {
+	Unread,
+	Last,
+	Existing,
 };
 
 enum class UnreadMentionType {

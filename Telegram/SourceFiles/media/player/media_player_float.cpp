@@ -360,7 +360,7 @@ void FloatController::checkCurrent() {
 	if (last) {
 		last->widget->detach();
 	}
-	if (const auto item = App::histItemById(fullId)) {
+	if (const auto item = Auth().data().message(fullId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				if (document->isVideoMessage()) {

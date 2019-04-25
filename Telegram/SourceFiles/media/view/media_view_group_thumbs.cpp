@@ -64,7 +64,7 @@ Context ComputeContext(const SharedMediaWithLastSlice &slice, int index) {
 		}
 		return std::nullopt;
 	} else if (const auto msgId = base::get_if<FullMsgId>(&value)) {
-		if (const auto item = App::histItemById(*msgId)) {
+		if (const auto item = Auth().data().message(*msgId)) {
 			if (!item->toHistoryMessage()) {
 				return item->history()->peer->id;
 			} else if (const auto groupId = item->groupId()) {
@@ -518,7 +518,7 @@ auto GroupThumbs::createThumb(Key key)
 		const auto photo = Auth().data().photo(*photoId);
 		return createThumb(key, photo->thumbnail());
 	} else if (const auto msgId = base::get_if<FullMsgId>(&key)) {
-		if (const auto item = App::histItemById(*msgId)) {
+		if (const auto item = Auth().data().message(*msgId)) {
 			if (const auto media = item->media()) {
 				if (const auto photo = media->photo()) {
 					return createThumb(key, photo->thumbnail());
@@ -530,7 +530,7 @@ auto GroupThumbs::createThumb(Key key)
 		return createThumb(key, nullptr);
 	} else if (const auto collageKey = base::get_if<CollageKey>(&key)) {
 		if (const auto itemId = base::get_if<FullMsgId>(&_context)) {
-			if (const auto item = App::histItemById(*itemId)) {
+			if (const auto item = Auth().data().message(*itemId)) {
 				if (const auto media = item->media()) {
 					if (const auto page = media->webpage()) {
 						return createThumb(

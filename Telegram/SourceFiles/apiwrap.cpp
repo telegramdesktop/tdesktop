@@ -589,10 +589,12 @@ void ApiWrap::resolveMessageDatas() {
 }
 
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId requestId) {
-	auto handleResult = [&](auto &&result) {
+	const auto handleResult = [&](auto &&result) {
 		_session->data().processUsers(result.vusers);
 		_session->data().processChats(result.vchats);
-		App::feedMsgs(result.vmessages, NewMessageExisting);
+		_session->data().processMessages(
+			result.vmessages,
+			NewMessageType::Existing);
 	};
 	switch (msgs.type()) {
 	case mtpc_messages_messages:
@@ -1034,7 +1036,7 @@ void ApiWrap::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	const auto &data = dialogs.c_messages_peerDialogs();
 	_session->data().processUsers(data.vusers);
 	_session->data().processChats(data.vchats);
-	App::feedMsgs(data.vmessages, NewMessageLast);
+	_session->data().processMessages(data.vmessages, NewMessageType::Last);
 	for (const auto &dialog : data.vdialogs.v) {
 		dialog.match([&](const MTPDdialog &data) {
 			if (const auto peerId = peerFromMTP(data.vpeer)) {
@@ -1879,7 +1881,7 @@ void ApiWrap::deleteAllFromUser(
 		: QVector<MsgId>();
 	const auto channelId = peerToChannel(channel->id);
 	for (const auto msgId : ids) {
-		if (const auto item = App::histItemById(channelId, msgId)) {
+		if (const auto item = _session->data().message(channelId, msgId)) {
 			item->destroy();
 		}
 	}
@@ -3008,7 +3010,7 @@ void ApiWrap::refreshFileReference(
 		handler(UpdatedFileReferences());
 	};
 	origin.data.match([&](Data::FileOriginMessage data) {
-		if (const auto item = App::histItemById(data)) {
+		if (const auto item = _session->data().message(data)) {
 			if (const auto channel = item->history()->peer->asChannel()) {
 				request(MTPchannels_GetMessages(
 					channel->inputChannel,
@@ -3116,7 +3118,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	for (const auto [position, index] : indices) {
 		const auto item = _session->data().addNewMessage(
 			v->at(index),
-			NewMessageExisting);
+			NewMessageType::Existing);
 		if (item) {
 			_session->data().requestItemResize(item);
 		}
@@ -3572,7 +3574,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPint(),
 				MTPstring(),
 				MTPlong()),
-			NewMessageUnread);
+			NewMessageType::Unread);
 	} break;
 
 	case mtpc_updateShortChatMessage: {
@@ -3596,7 +3598,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPint(),
 				MTPstring(),
 				MTPlong()),
-			NewMessageUnread);
+			NewMessageType::Unread);
 	} break;
 
 	case mtpc_updateShortSentMessage: {
@@ -3614,13 +3616,13 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		auto &d = update.c_updateNewMessage();
 		auto needToAdd = true;
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links _overview
-			if (App::checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
+			if (_session->data().checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
 				LOG(("Skipping message, because it is already in blocks!"));
 				needToAdd = false;
 			}
 		}
 		if (needToAdd) {
-			_session->data().addNewMessage(d.vmessage, NewMessageUnread);
+			_session->data().addNewMessage(d.vmessage, NewMessageType::Unread);
 		}
 	} break;
 
@@ -3628,7 +3630,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		const auto &d = update.c_updateReadMessagesContents();
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for (const auto &msgId : d.vmessages.v) {
-			if (const auto item = App::histItemById(NoChannel, msgId.v)) {
+			if (const auto item = _session->data().message(NoChannel, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					_session->data().requestItemRepaint(item);
@@ -3696,31 +3698,31 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateDeleteMessages: {
 		auto &d = update.c_updateDeleteMessages();
-		App::feedWereDeleted(NoChannel, d.vmessages.v);
+		_session->data().processMessagesDeleted(NoChannel, d.vmessages.v);
 	} break;
 
 	case mtpc_updateNewChannelMessage: {
 		auto &d = update.c_updateNewChannelMessage();
 		auto needToAdd = true;
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links _overview
-			if (App::checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
+			if (_session->data().checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
 				LOG(("Skipping message, because it is already in blocks!"));
 				needToAdd = false;
 			}
 		}
 		if (needToAdd) {
-			_session->data().addNewMessage(d.vmessage, NewMessageUnread);
+			_session->data().addNewMessage(d.vmessage, NewMessageType::Unread);
 		}
 	} break;
 
 	case mtpc_updateEditChannelMessage: {
 		auto &d = update.c_updateEditChannelMessage();
-		App::updateEditedMessage(d.vmessage);
+		_session->data().updateEditedMessage(d.vmessage);
 	} break;
 
 	case mtpc_updateEditMessage: {
 		auto &d = update.c_updateEditMessage();
-		App::updateEditedMessage(d.vmessage);
+		_session->data().updateEditedMessage(d.vmessage);
 	} break;
 
 	case mtpc_updateChannelWebPage: {
@@ -3730,7 +3732,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateDeleteChannelMessages: {
 		auto &d = update.c_updateDeleteChannelMessages();
-		App::feedWereDeleted(d.vchannel_id.v, d.vmessages.v);
+		_session->data().processMessagesDeleted(d.vchannel_id.v, d.vmessages.v);
 	} break;
 
 	default: Unexpected("Type in applyUpdateNoPtsCheck()");
@@ -3800,9 +3802,9 @@ void ApiWrap::requestMessageAfterDate(
 			return nullptr;
 		};
 
-		if (auto list = getMessagesList()) {
-			App::feedMsgs(*list, NewMessageExisting);
-			for (auto &message : *list) {
+		if (const auto list = getMessagesList()) {
+			_session->data().processMessages(*list, NewMessageType::Existing);
+			for (const auto &message : *list) {
 				if (DateFromMessage(message) >= offsetDate) {
 					callback(IdFromMessage(message));
 					return;
@@ -3922,8 +3924,10 @@ void ApiWrap::checkForUnreadMentions(
 		const base::flat_set<MsgId> &possiblyReadMentions,
 		ChannelData *channel) {
 	for (auto msgId : possiblyReadMentions) {
-		requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
-			if (auto item = App::histItemById(channel, msgId)) {
+		requestMessageData(channel, msgId, [=](
+				ChannelData *channel,
+				MsgId msgId) {
+			if (const auto item = _session->data().message(channel, msgId)) {
 				if (item->mentionsMe()) {
 					item->markMediaRead();
 				}
@@ -4474,7 +4478,7 @@ void ApiWrap::forwardMessages(
 					messageFromId,
 					messagePostAuthor,
 					message);
-				App::historyRegRandom(randomId, newId);
+				_session->data().registerMessageRandomId(randomId, newId);
 			}
 		}
 		const auto newFrom = item->history()->peer;
@@ -4573,7 +4577,7 @@ void ApiWrap::sendSharedContact(
 			MTPint(),
 			MTP_string(messagePostAuthor),
 			MTPlong()),
-		NewMessageUnread);
+		NewMessageType::Unread);
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
@@ -4700,7 +4704,7 @@ void ApiWrap::sendUploadedPhoto(
 		FullMsgId localId,
 		const MTPInputFile &file,
 		bool silent) {
-	if (const auto item = App::histItemById(localId)) {
+	if (const auto item = _session->data().message(localId)) {
 		const auto media = MTP_inputMediaUploadedPhoto(
 			MTP_flags(0),
 			file,
@@ -4719,7 +4723,7 @@ void ApiWrap::sendUploadedDocument(
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
 		bool silent) {
-	if (const auto item = App::histItemById(localId)) {
+	if (const auto item = _session->data().message(localId)) {
 		auto media = item->media();
 		if (auto document = media ? media->document() : nullptr) {
 			const auto groupId = item->groupId();
@@ -4753,7 +4757,7 @@ void ApiWrap::editUploadedFile(
 		const std::optional<MTPInputFile> &thumb,
 		bool silent,
 		bool isDocument) {
-	const auto item = App::histItemById(localId);
+	const auto item = _session->data().message(localId);
 	if (!item) {
 		return;
 	}
@@ -4882,8 +4886,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 		TextUtilities::Trim(sending);
 
-		App::historyRegRandom(randomId, newId);
-		App::historyRegSentData(randomId, peer->id, sending.text);
+		_session->data().registerMessageRandomId(randomId, newId);
+		_session->data().registerMessageSentData(randomId, peer->id, sending.text);
 
 		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_entities;
@@ -4950,7 +4954,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTPlong()),
-			NewMessageUnread);
+			NewMessageType::Unread);
 		history->sendRequestId = request(MTPmessages_SendMessage(
 			MTP_flags(sendFlags),
 			peer->input,
@@ -5053,7 +5057,7 @@ void ApiWrap::sendInlineResult(
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
 
-	App::historyRegRandom(randomId, newId);
+	_session->data().registerMessageRandomId(randomId, newId);
 
 	data->addToHistory(
 		history,
@@ -5137,7 +5141,7 @@ void ApiWrap::sendExistingDocument(
 	const auto replyTo = options.replyTo;
 	const auto captionText = caption.text;
 
-	App::historyRegRandom(randomId, newId);
+	_session->data().registerMessageRandomId(randomId, newId);
 
 	history->addNewDocument(
 		newId.msg,
@@ -5210,7 +5214,7 @@ void ApiWrap::uploadAlbumMedia(
 		item->history()->peer->input,
 		media
 	)).done([=](const MTPMessageMedia &result) {
-		const auto item = App::histItemById(localId);
+		const auto item = _session->data().message(localId);
 		if (!item) {
 			failed();
 			return;
@@ -5276,7 +5280,7 @@ void ApiWrap::sendMedia(
 		const MTPInputMedia &media,
 		bool silent) {
 	const auto randomId = rand_value<uint64>();
-	App::historyRegRandom(randomId, item->fullId());
+	_session->data().registerMessageRandomId(randomId, item->fullId());
 
 	sendMediaWithRandomId(item, media, silent, randomId);
 }
@@ -5327,7 +5331,7 @@ void ApiWrap::sendAlbumWithUploaded(
 		const MTPInputMedia &media) {
 	const auto localId = item->fullId();
 	const auto randomId = rand_value<uint64>();
-	App::historyRegRandom(randomId, localId);
+	_session->data().registerMessageRandomId(randomId, localId);
 
 	const auto albumIt = _sendingAlbums.find(groupId.raw());
 	Assert(albumIt != _sendingAlbums.end());
@@ -5367,7 +5371,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		if (!item.media) {
 			return;
 		} else if (!sample) {
-			sample = App::histItemById(item.msgId);
+			sample = _session->data().message(item.msgId);
 		}
 		medias.push_back(*item.media);
 	}
@@ -5813,7 +5817,7 @@ void ApiWrap::sendPollVotes(
 	if (_pollVotesRequestIds.contains(itemId)) {
 		return;
 	}
-	const auto item = App::histItemById(itemId);
+	const auto item = _session->data().message(itemId);
 	const auto media = item ? item->media() : nullptr;
 	const auto poll = media ? media->poll() : nullptr;
 	if (!item) {
@@ -5823,7 +5827,7 @@ void ApiWrap::sendPollVotes(
 	const auto showSending = poll && !options.empty();
 	const auto hideSending = [=] {
 		if (showSending) {
-			if (const auto item = App::histItemById(itemId)) {
+			if (const auto item = _session->data().message(itemId)) {
 				poll->sendingVote = QByteArray();
 				_session->data().requestItemRepaint(item);
 			}

@@ -184,10 +184,18 @@ void Session::clear() {
 	for (const auto &[peerId, history] : _histories) {
 		history->clear(History::ClearType::Unload);
 	}
-	App::historyClearMsgs();
+	_dependentMessages.clear();
+	base::take(_messages);
+	base::take(_channelMessages);
+	_messageByRandomId.clear();
+	_sentMessagesData.clear();
+	cSetSavedPeers(SavedPeers());
+	cSetSavedPeersByTime(SavedPeersByTime());
+	cSetRecentInlineBots(RecentInlineBots());
+	cSetRecentStickers(RecentStickerPack());
+	cSetReportSpamStatuses(ReportSpamStatuses());
+	App::clearMousedItems();
 	_histories.clear();
-
-	App::historyClearItems();
 }
 
 not_null<PeerData*> Session::peer(PeerId id) {
@@ -1093,16 +1101,28 @@ rpl::producer<not_null<const ViewElement*>> Session::viewLayoutChanged() const {
 	return _viewLayoutChanges.events();
 }
 
+void Session::changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId) {
+	const auto list = messagesListForInsert(channel);
+	auto i = list->find(wasId);
+	Assert(i != list->end());
+	auto owned = std::move(i->second);
+	list->erase(i);
+	list->emplace(nowId, std::move(owned));
+}
+
 void Session::notifyItemIdChange(IdChange event) {
+	const auto item = event.item;
+	changeMessageId(item->history()->channelId(), event.oldId, item->id);
+
 	_itemIdChanges.fire_copy(event);
 
 	const auto refreshViewDataId = [](not_null<ViewElement*> view) {
 		view->refreshDataId();
 	};
-	enumerateItemViews(event.item, refreshViewDataId);
-	if (const auto group = groups().find(event.item)) {
+	enumerateItemViews(item, refreshViewDataId);
+	if (const auto group = groups().find(item)) {
 		const auto leader = group->items.back();
-		if (leader != event.item) {
+		if (leader != item) {
 			enumerateItemViews(leader, refreshViewDataId);
 		}
 	}
@@ -1309,8 +1329,8 @@ HistoryItemsList Session::idsToItems(
 		const MessageIdsList &ids) const {
 	return ranges::view::all(
 		ids
-	) | ranges::view::transform([](const FullMsgId &fullId) {
-		return App::histItemById(fullId);
+	) | ranges::view::transform([&](const FullMsgId &fullId) {
+		return message(fullId);
 	}) | ranges::view::filter([](HistoryItem *item) {
 		return item != nullptr;
 	}) | ranges::view::transform([](HistoryItem *item) {
@@ -1377,7 +1397,7 @@ void Session::applyDialogs(
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count) {
-	App::feedMsgs(messages, NewMessageLast);
+	processMessages(messages, NewMessageType::Last);
 	for (const auto &dialog : dialogs) {
 		dialog.match([&](const auto &data) {
 			applyDialog(requestFolder, data);
@@ -1481,6 +1501,278 @@ void Session::reorderTwoPinnedChats(
 	chatsList(key1.entry()->folder())->pinned()->reorder(key1, key2);
 }
 
+bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
+	const auto peer = [&] {
+		const auto result = peerFromMTP(data.vto_id);
+		return (data.has_from_id() && result == session().userPeerId())
+			? peerFromUser(data.vfrom_id)
+			: result;
+	}();
+	if (const auto existing = message(peerToChannel(peer), data.vid.v)) {
+		{
+			auto text = qs(data.vmessage);
+			auto entities = data.has_entities()
+				? TextUtilities::EntitiesFromMTP(data.ventities.v)
+				: EntitiesInText();
+			existing->setText({ std::move(text), std::move(entities) });
+		}
+		existing->updateSentMedia(data.has_media() ? &data.vmedia : nullptr);
+		existing->updateReplyMarkup(data.has_reply_markup()
+			? &data.vreply_markup
+			: nullptr);
+		existing->updateForwardedInfo(data.has_fwd_from()
+			? &data.vfwd_from
+			: nullptr);
+		existing->setViewsCount(data.has_views() ? data.vviews.v : -1);
+		existing->indexAsNewItem();
+		requestItemTextRefresh(existing);
+		if (existing->mainView()) {
+			App::checkSavedGif(existing);
+			return true;
+		}
+		return false;
+	}
+	return false;
+}
+
+void Session::updateEditedMessage(const MTPMessage &data) {
+	const auto existing = data.match([](const MTPDmessageEmpty &)
+			-> HistoryItem* {
+		return nullptr;
+	}, [&](const auto &data) {
+		const auto peer = [&] {
+			const auto result = peerFromMTP(data.vto_id);
+			return (data.has_from_id() && result == session().userPeerId())
+				? peerFromUser(data.vfrom_id)
+				: result;
+		}();
+		return message(peerToChannel(peer), data.vid.v);
+	});
+	if (!existing) {
+		return;
+	}
+	if (existing->isLocalUpdateMedia() && data.type() == mtpc_message) {
+		checkEntitiesAndViewsUpdate(data.c_message());
+	}
+	data.match([](const MTPDmessageEmpty &) {
+	}, [&](const auto &data) {
+		existing->applyEdition(data);
+	});
+}
+
+void Session::processMessages(
+		const QVector<MTPMessage> &data,
+		NewMessageType type) {
+	auto indices = base::flat_map<uint64, int>();
+	for (int i = 0, l = data.size(); i != l; ++i) {
+		const auto &message = data[i];
+		if (message.type() == mtpc_message) {
+			const auto &data = message.c_message();
+			// new message, index my forwarded messages to links overview
+			if ((type == NewMessageType::Unread)
+				&& checkEntitiesAndViewsUpdate(data)) {
+				continue;
+			}
+		}
+		const auto id = IdFromMessage(message);
+		indices.emplace((uint64(uint32(id)) << 32) | uint64(i), i);
+	}
+	for (const auto [position, index] : indices) {
+		addNewMessage(data[index], type);
+	}
+}
+
+void Session::processMessages(
+		const MTPVector<MTPMessage> &data,
+		NewMessageType type) {
+	processMessages(data.v, type);
+}
+
+const Session::Messages *Session::messagesList(ChannelId channelId) const {
+	if (channelId == NoChannel) {
+		return &_messages;
+	}
+	const auto i = _channelMessages.find(channelId);
+	return (i != end(_channelMessages)) ? &i->second : nullptr;
+}
+
+auto Session::messagesListForInsert(ChannelId channelId)
+-> not_null<Messages*> {
+	return (channelId == NoChannel)
+		? &_messages
+		: &_channelMessages[channelId];
+}
+
+HistoryItem *Session::registerMessage(std::unique_ptr<HistoryItem> item) {
+	Expects(item != nullptr);
+
+	const auto result = item.get();
+	const auto list = messagesListForInsert(result->channelId());
+	const auto i = list->find(result->id);
+	if (i != list->end()) {
+		LOG(("App Error: Trying to re-registerMessage()."));
+		i->second->destroy();
+	}
+	list->emplace(result->id, std::move(item));
+	return result;
+}
+
+void Session::processMessagesDeleted(
+		ChannelId channelId,
+		const QVector<MTPint> &data) {
+	const auto list = messagesList(channelId);
+	const auto affected = (channelId != NoChannel)
+		? historyLoaded(peerFromChannel(channelId))
+		: nullptr;
+	if (!list && !affected) {
+		return;
+	}
+
+	auto historiesToCheck = base::flat_set<not_null<History*>>();
+	for (const auto messageId : data) {
+		const auto i = list ? list->find(messageId.v) : Messages::iterator();
+		if (list && i != list->end()) {
+			const auto history = i->second->history();
+			destroyMessage(i->second.get());
+			if (!history->chatListMessageKnown()) {
+				historiesToCheck.emplace(history);
+			}
+		} else if (affected) {
+			affected->unknownMessageDeleted(messageId.v);
+		}
+	}
+	for (const auto history : historiesToCheck) {
+		history->requestChatListMessage();
+	}
+}
+
+void Session::destroyMessage(not_null<HistoryItem*> item) {
+	Expects(!item->isLogEntry() || !item->mainView());
+
+	if (!item->isLogEntry()) {
+		// All this must be done for all items manually in History::clear()!
+		item->eraseFromUnreadMentions();
+		if (IsServerMsgId(item->id)) {
+			if (const auto types = item->sharedMediaTypes()) {
+				session().storage().remove(Storage::SharedMediaRemoveOne(
+					item->history()->peer->id,
+					types,
+					item->id));
+			}
+		} else {
+			session().api().cancelLocalItem(item);
+		}
+		item->history()->itemRemoved(item);
+	}
+	const auto list = messagesListForInsert(item->history()->channelId());
+	list->erase(item->id);
+}
+
+HistoryItem *Session::message(ChannelId channelId, MsgId itemId) const {
+	if (!itemId) {
+		return nullptr;
+	}
+
+	const auto data = messagesList(channelId);
+	if (!data) {
+		return nullptr;
+	}
+
+	const auto i = data->find(itemId);
+	return (i != data->end()) ? i->second.get() : nullptr;
+}
+
+HistoryItem *Session::message(
+		const ChannelData *channel,
+		MsgId itemId) const {
+	return message(channel ? peerToChannel(channel->id) : 0, itemId);
+}
+
+HistoryItem *Session::message(FullMsgId itemId) const {
+	return message(itemId.channel, itemId.msg);
+}
+
+//void historyUnregItem(not_null<HistoryItem*> item) {
+//	const auto data = fetchMsgsData(item->channelId(), false);
+//	if (!data) return;
+//
+//	const auto i = data->find(item->id);
+//	if (i != data->cend()) {
+//		if (i.value() == item) {
+//			data->erase(i);
+//		}
+//	}
+//	const auto j = ::dependentItems.find(item);
+//	if (j != ::dependentItems.cend()) {
+//		DependentItemsSet items;
+//		std::swap(items, j.value());
+//		::dependentItems.erase(j);
+//
+//		for_const (auto dependent, items) {
+//			dependent->dependencyItemRemoved(item);
+//		}
+//	}
+//	item->history()->session().notifications().clearFromItem(item);
+//}
+
+void Session::updateDependentMessages(not_null<HistoryItem*> item) {
+	const auto i = _dependentMessages.find(item);
+	if (i != end(_dependentMessages)) {
+		for (const auto dependent : i->second) {
+			dependent->updateDependencyItem();
+		}
+	}
+	if (App::main()) {
+		App::main()->itemEdited(item);
+	}
+}
+
+void Session::registerDependentMessage(
+		not_null<HistoryItem*> dependent,
+		not_null<HistoryItem*> dependency) {
+	_dependentMessages[dependency].emplace(dependent);
+}
+
+void Session::unregisterDependentMessage(
+		not_null<HistoryItem*> dependent,
+		not_null<HistoryItem*> dependency) {
+	const auto i = _dependentMessages.find(dependency);
+	if (i != end(_dependentMessages)) {
+		if (i->second.remove(dependent) && i->second.empty()) {
+			_dependentMessages.erase(i);
+		}
+	}
+}
+
+void Session::registerMessageRandomId(uint64 randomId, FullMsgId itemId) {
+	_messageByRandomId.emplace(randomId, itemId);
+}
+
+void Session::unregisterMessageRandomId(uint64 randomId) {
+	_messageByRandomId.remove(randomId);
+}
+
+FullMsgId Session::messageIdByRandomId(uint64 randomId) const {
+	const auto i = _messageByRandomId.find(randomId);
+	return (i != end(_messageByRandomId)) ? i->second : FullMsgId();
+}
+
+void Session::registerMessageSentData(
+		uint64 randomId,
+		PeerId peerId,
+		const QString &text) {
+	_sentMessagesData.emplace(randomId, SentData{ peerId, text });
+}
+
+void Session::unregisterMessageSentData(uint64 randomId) {
+	_sentMessagesData.remove(randomId);
+}
+
+Session::SentData Session::messageSentData(uint64 randomId) const {
+	const auto i = _sentMessagesData.find(randomId);
+	return (i != end(_sentMessagesData)) ? i->second : SentData();
+}
+
 NotifySettings &Session::defaultNotifySettings(
 		not_null<const PeerData*> peer) {
 	return peer->isUser()
@@ -1561,7 +1853,7 @@ HistoryItem *Session::addNewMessage(
 	}
 
 	const auto result = history(peerId)->addNewMessage(data, type);
-	if (result && type == NewMessageUnread) {
+	if (result && type == NewMessageType::Unread) {
 		CheckForSwitchInlineButton(result);
 	}
 	return result;
@@ -1665,10 +1957,10 @@ void Session::selfDestructIn(not_null<HistoryItem*> item, crl::time delay) {
 }
 
 void Session::checkSelfDestructItems() {
-	auto now = crl::now();
+	const auto now = crl::now();
 	auto nextDestructIn = crl::time(0);
 	for (auto i = _selfDestructItems.begin(); i != _selfDestructItems.cend();) {
-		if (auto item = App::histItemById(*i)) {
+		if (const auto item = message(*i)) {
 			if (auto destructIn = item->getSelfDestructIn(now)) {
 				if (nextDestructIn > 0) {
 					accumulate_min(nextDestructIn, destructIn);
@@ -3194,7 +3486,7 @@ void Session::insertCheckedServiceNotification(
 				MTPint(),
 				MTPstring(),
 				MTPlong()),
-			NewMessageUnread);
+			NewMessageType::Unread);
 	}
 	sendHistoryChangeNotifications();
 }

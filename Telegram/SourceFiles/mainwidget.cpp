@@ -842,7 +842,7 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 	session().uploader().pause(itemId);
 	const auto stopUpload = [=] {
 		Ui::hideLayer();
-		if (const auto item = App::histItemById(itemId)) {
+		if (const auto item = session().data().message(itemId)) {
 			const auto history = item->history();
 			if (!IsServerMsgId(itemId.msg)) {
 				item->destroy();
@@ -1035,7 +1035,7 @@ void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 		closeBothPlayers();
 	}
 
-	if (const auto item = App::histItemById(state.id.contextId())) {
+	if (const auto item = session().data().message(state.id.contextId())) {
 		session().data().requestItemRepaint(item);
 	}
 	if (const auto items = InlineBots::Layout::documentItems()) {
@@ -1514,7 +1514,7 @@ void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint>
 				PeerData *peer = i.key();
 				ChannelId channel = peerToChannel(peer->id);
 				for (int32 j = 0, l = ids.size(); j < l; ++j) {
-					if (HistoryItem *item = App::histItemById(channel, ids.at(j).v)) {
+					if (HistoryItem *item = session().data().message(channel, ids.at(j).v)) {
 						item->setViewsCount(v.at(j).v);
 					}
 				}
@@ -2913,7 +2913,9 @@ void MainWidget::feedChannelDifference(
 
 	_handlingChannelDifference = true;
 	feedMessageIds(data.vother_updates);
-	App::feedMsgs(data.vnew_messages, NewMessageUnread);
+	session().data().processMessages(
+		data.vnew_messages,
+		NewMessageType::Unread);
 	feedUpdateVector(data.vother_updates, true);
 	_handlingChannelDifference = false;
 }
@@ -3060,7 +3062,7 @@ void MainWidget::feedDifference(
 	session().data().processUsers(users);
 	session().data().processChats(chats);
 	feedMessageIds(other);
-	App::feedMsgs(msgs, NewMessageUnread);
+	session().data().processMessages(msgs, NewMessageType::Unread);
 	feedUpdateVector(other, true);
 }
 
@@ -3264,7 +3266,7 @@ void MainWidget::openPeerByName(
 			}
 			const auto returnToId = clickFromMessageId;
 			InvokeQueued(this, [=] {
-				if (const auto returnTo = App::histItemById(returnToId)) {
+				if (const auto returnTo = session().data().message(returnToId)) {
 					if (returnTo->history()->peer == peer) {
 						pushReplyReturn(returnTo);
 					}
@@ -3770,13 +3772,13 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		} else if (randomId) {
 			PeerId peerId = 0;
 			QString text;
-			App::histSentDataByItem(randomId, peerId, text);
+			session().data().registerMessageSentData(randomId, peerId, text);
 
 			const auto wasAlready = (peerId != 0)
-				&& (App::histItemById(peerToChannel(peerId), d.vid.v) != nullptr);
+				&& (session().data().message(peerToChannel(peerId), d.vid.v) != nullptr);
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
-				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
+				if (auto item = session().data().message(peerToChannel(peerId), d.vid.v)) {
 					if (d.has_entities() && !MentionUsersLoaded(&session(), d.ventities)) {
 						session().api().requestMessageData(
 							item->history()->peer->asChannel(),
@@ -3865,11 +3867,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateMessageID: {
 		const auto &d = update.c_updateMessageID();
-		if (const auto fullId = App::histItemByRandom(d.vrandom_id.v)) {
-			const auto channel = fullId.channel;
+		const auto randomId = d.vrandom_id.v;
+		if (const auto id = session().data().messageIdByRandomId(randomId)) {
+			const auto channel = id.channel;
 			const auto newId = d.vid.v;
-			if (const auto local = App::histItemById(fullId)) {
-				const auto existing = App::histItemById(channel, newId);
+			if (const auto local = session().data().message(id)) {
+				const auto existing = session().data().message(channel, newId);
 				if (existing && !local->mainView()) {
 					const auto history = local->history();
 					local->destroy();
@@ -3881,9 +3884,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					local->setRealId(d.vid.v);
 				}
 			}
-			App::historyUnregRandom(d.vrandom_id.v);
+			session().data().unregisterMessageRandomId(randomId);
 		}
-		App::historyUnregSentData(d.vrandom_id.v);
+		session().data().unregisterMessageSentData(randomId);
 	} break;
 
 	// Message contents being read.
@@ -3904,7 +3907,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 		auto possiblyReadMentions = base::flat_set<MsgId>();
 		for_const (auto &msgId, d.vmessages.v) {
-			if (auto item = App::histItemById(channel, msgId.v)) {
+			if (auto item = session().data().message(channel, msgId.v)) {
 				if (item->isUnreadMedia() || item->isUnreadMention()) {
 					item->markMediaRead();
 					session().data().requestItemRepaint(item);
@@ -4401,7 +4404,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannelMessageViews: {
 		auto &d = update.c_updateChannelMessageViews();
-		if (auto item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
+		if (auto item = session().data().message(d.vchannel_id.v, d.vid.v)) {
 			item->setViewsCount(d.vviews.v);
 		}
 	} break;

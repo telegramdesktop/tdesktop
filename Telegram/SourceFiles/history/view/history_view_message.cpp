@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 #include "window/window_controller.h"
 #include "layout.h"
 #include "styles/style_widgets.h"
@@ -1456,7 +1457,7 @@ ClickHandlerPtr Message::rightActionLink() const {
 		const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
 		const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
 		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = App::histItemById(itemId)) {
+			if (const auto item = Auth().data().message(itemId)) {
 				if (savedFromPeer && savedFromMsgId) {
 					App::wnd()->controller()->showPeerHistory(
 						savedFromPeer,
@@ -1475,7 +1476,7 @@ ClickHandlerPtr Message::fastReplyLink() const {
 	if (!_fastReplyLink) {
 		const auto itemId = data()->fullId();
 		_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = App::histItemById(itemId)) {
+			if (const auto item = Auth().data().message(itemId)) {
 				if (const auto main = App::main()) {
 					main->replyToItem(item);
 				}

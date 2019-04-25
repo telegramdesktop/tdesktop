@@ -1620,7 +1620,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			if (IsServerMsgId(item->id) && !item->serviceMsg()) {
 				_menu->addAction(lang(lng_context_select_msg), [=] {
-					if (const auto item = App::histItemById(itemId)) {
+					if (const auto item = Auth().data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelection(&_selected, item, SelectAction::Select);
 							repaintItem(item);
@@ -1755,7 +1755,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			if (item->id > 0 && !item->serviceMsg()) {
 				_menu->addAction(lang(lng_context_select_msg), [=] {
-					if (const auto item = App::histItemById(itemId)) {
+					if (const auto item = Auth().data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
 							repaintItem(view);
@@ -1770,7 +1770,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				&& !App::mousedItem()->data()->serviceMsg()) {
 				const auto itemId = App::mousedItem()->data()->fullId();
 				_menu->addAction(lang(lng_context_select_msg), [=] {
-					if (const auto item = App::histItemById(itemId)) {
+					if (const auto item = Auth().data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
 							repaintItem(item);
@@ -1844,7 +1844,7 @@ void HistoryInner::saveDocumentToFile(
 }
 
 void HistoryInner::openContextGif(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Core::App().showDocument(document, item);
@@ -1854,7 +1854,7 @@ void HistoryInner::openContextGif(FullMsgId itemId) {
 }
 
 void HistoryInner::saveContextGif(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Auth().api().toggleSavedGif(document, item->fullId(), true);
@@ -1864,7 +1864,7 @@ void HistoryInner::saveContextGif(FullMsgId itemId) {
 }
 
 void HistoryInner::copyContextText(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		if (const auto group = Auth().data().groups().find(item)) {
 			SetClipboardText(HistoryGroupText(group));
 		} else {
@@ -2459,7 +2459,7 @@ void HistoryInner::mouseActionUpdate() {
 			dragState = TextState(nullptr, _botAbout->info->text.getState(
 				point - _botAbout->rect.topLeft() - QPoint(st::msgPadding.left(), st::msgPadding.top() + st::botDescSkip + st::msgNameFont->height),
 				_botAbout->width));
-			_dragStateItem = App::histItemById(dragState.itemId);
+			_dragStateItem = Auth().data().message(dragState.itemId);
 			lnkhost = _botAbout.get();
 		}
 	} else if (item) {
@@ -2517,7 +2517,7 @@ void HistoryInner::mouseActionUpdate() {
 						dragState = TextState(
 							nullptr,
 							_scrollDateLink);
-						_dragStateItem = App::histItemById(dragState.itemId);
+						_dragStateItem = Auth().data().message(dragState.itemId);
 						lnkhost = view;
 					}
 				}
@@ -2533,7 +2533,7 @@ void HistoryInner::mouseActionUpdate() {
 				selectingText = false;
 			}
 			dragState = view->textState(m, request);
-			_dragStateItem = App::histItemById(dragState.itemId);
+			_dragStateItem = Auth().data().message(dragState.itemId);
 			lnkhost = view;
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 				if (auto msg = item->toHistoryMessage()) {
@@ -2553,7 +2553,7 @@ void HistoryInner::mouseActionUpdate() {
 								dragState = TextState(nullptr, from
 									? from->openLink()
 									: hiddenUserpicLink(message->fullId()));
-								_dragStateItem = App::histItemById(dragState.itemId);
+								_dragStateItem = Auth().data().message(dragState.itemId);
 								lnkhost = view;
 								return false;
 							}
@@ -2939,13 +2939,13 @@ void HistoryInner::forwardItem(FullMsgId itemId) {
 }
 
 void HistoryInner::forwardAsGroup(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		Window::ShowForwardMessagesBox(Auth().data().itemOrItsGroup(item));
 	}
 }
 
 void HistoryInner::deleteItem(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		deleteItem(item);
 	}
 }
@@ -2967,7 +2967,7 @@ bool HistoryInner::hasPendingResizedItems() const {
 }
 
 void HistoryInner::deleteAsGroup(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		const auto group = Auth().data().groups().find(item);
 		if (!group) {
 			return deleteItem(item);
@@ -2982,7 +2982,7 @@ void HistoryInner::reportItem(FullMsgId itemId) {
 }
 
 void HistoryInner::reportAsGroup(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		const auto group = Auth().data().groups().find(item);
 		if (!group) {
 			return reportItem(itemId);
@@ -3157,7 +3157,7 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		void elementAnimationAutoplayAsync(
 				not_null<const HistoryView::Element*> view) override {
 			crl::on_main(&Auth(), [msgId = view->data()->fullId()] {
-				if (const auto item = App::histItemById(msgId)) {
+				if (const auto item = Auth().data().message(msgId)) {
 					if (const auto view = item->mainView()) {
 						if (const auto media = view->media()) {
 							media->autoplayAnimation();

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/history_message.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
@@ -271,7 +272,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
-	const auto item = new HistoryMessage(
+	const auto item = history->owner().makeMessage(
 		history,
 		id,
 		flags,
@@ -315,7 +316,9 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_int(0),
 		MTP_string(QString()),
 		MTP_long(0));
-	const auto item = new HistoryMessage(history, message.c_message());
+	const auto item = history->owner().makeMessage(
+		history,
+		message.c_message());
 	return AdminLog::OwnedItem(delegate, item);
 }
 

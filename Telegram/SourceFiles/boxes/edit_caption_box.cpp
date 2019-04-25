@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
 #include "data/data_user.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -876,7 +877,7 @@ void EditCaptionBox::setInnerFocus() {
 void EditCaptionBox::save() {
 	if (_saveRequestId) return;
 
-	const auto item = App::histItemById(_msgId);
+	const auto item = Auth().data().message(_msgId);
 	if (!item) {
 		_error = lang(lng_edit_deleted);
 		update();

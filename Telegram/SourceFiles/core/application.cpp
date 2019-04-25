@@ -230,7 +230,7 @@ bool Application::hideMediaView() {
 }
 
 void Application::showPhoto(not_null<const PhotoOpenClickHandler*> link) {
-	const auto item = App::histItemById(link->context());
+	const auto item = Auth().data().message(link->context());
 	const auto peer = link->peer();
 	return (!item && peer)
 		? showPhoto(link->photo(), peer)

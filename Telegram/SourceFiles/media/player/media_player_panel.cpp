@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_widgets.h"
 #include "styles/style_media_player.h"
@@ -225,7 +227,7 @@ void Panel::refreshList() {
 	const auto current = instance()->current(AudioMsgId::Type::Song);
 	const auto contextId = current.contextId();
 	const auto peer = [&]() -> PeerData* {
-		const auto item = contextId ? App::histItemById(contextId) : nullptr;
+		const auto item = contextId ? Auth().data().message(contextId) : nullptr;
 		const auto media = item ? item->media() : nullptr;
 		const auto document = media ? media->document() : nullptr;
 		if (!document || !document->isSharedMediaMusic()) {

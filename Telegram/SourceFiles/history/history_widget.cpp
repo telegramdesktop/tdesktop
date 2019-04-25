@@ -639,8 +639,8 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 		return;
 	}
 
-	auto from = App::histItemById(fromId);
-	auto to = App::histItemById(toId);
+	auto from = Auth().data().message(fromId);
+	auto to = Auth().data().message(toId);
 	if (!from || !to) {
 		return;
 	}
@@ -668,7 +668,7 @@ void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 		updateListSize();
 	}
 
-	auto to = App::histItemById(_channel, msgId);
+	auto to = Auth().data().message(_channel, msgId);
 	if (_list->itemTop(to) < 0) {
 		return;
 	}
@@ -729,7 +729,7 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 void HistoryWidget::scrollToAnimationCallback(
 		FullMsgId attachToId,
 		int relativeTo) {
-	auto itemTop = _list->itemTop(App::histItemById(attachToId));
+	auto itemTop = _list->itemTop(Auth().data().message(attachToId));
 	if (itemTop < 0) {
 		_scrollToAnimation.stop();
 	} else {
@@ -1405,18 +1405,18 @@ void HistoryWidget::setReplyReturns(PeerId peer, const QList<MsgId> &replyReturn
 	if (_replyReturns.isEmpty()) {
 		_replyReturn = nullptr;
 	} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
-		_replyReturn = App::histItemById(0, -_replyReturns.back());
+		_replyReturn = Auth().data().message(0, -_replyReturns.back());
 	} else {
-		_replyReturn = App::histItemById(_channel, _replyReturns.back());
+		_replyReturn = Auth().data().message(_channel, _replyReturns.back());
 	}
 	while (!_replyReturns.isEmpty() && !_replyReturn) {
 		_replyReturns.pop_back();
 		if (_replyReturns.isEmpty()) {
 			_replyReturn = nullptr;
 		} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
-			_replyReturn = App::histItemById(0, -_replyReturns.back());
+			_replyReturn = Auth().data().message(0, -_replyReturns.back());
 		} else {
-			_replyReturn = App::histItemById(_channel, _replyReturns.back());
+			_replyReturn = Auth().data().message(_channel, _replyReturns.back());
 		}
 	}
 }
@@ -1428,9 +1428,9 @@ void HistoryWidget::calcNextReplyReturn() {
 		if (_replyReturns.isEmpty()) {
 			_replyReturn = nullptr;
 		} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
-			_replyReturn = App::histItemById(0, -_replyReturns.back());
+			_replyReturn = Auth().data().message(0, -_replyReturns.back());
 		} else {
-			_replyReturn = App::histItemById(_channel, _replyReturns.back());
+			_replyReturn = Auth().data().message(_channel, _replyReturns.back());
 		}
 	}
 	if (!_replyReturn) {
@@ -2765,7 +2765,7 @@ void HistoryWidget::saveEditMsg() {
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		if (const auto item = App::histItemById(_channel, _editMsgId)) {
+		if (const auto item = Auth().data().message(_channel, _editMsgId)) {
 			const auto suggestModerateActions = false;
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		} else {
@@ -3322,7 +3322,7 @@ void HistoryWidget::botCallbackDone(
 		BotCallbackInfo info,
 		const MTPmessages_BotCallbackAnswer &answer,
 		mtpRequestId req) {
-	auto item = App::histItemById(info.msgId);
+	auto item = Auth().data().message(info.msgId);
 	if (item) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size()
@@ -3362,7 +3362,7 @@ bool HistoryWidget::botCallbackFail(
 		const RPCError &error,
 		mtpRequestId req) {
 	// show error?
-	if (const auto item = App::histItemById(info.msgId)) {
+	if (const auto item = Auth().data().message(info.msgId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size()
 				&& info.col < markup->rows[info.row].size()) {
@@ -3648,7 +3648,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
-			? App::histItemById(_keyboard->forMsgId())
+			? Auth().data().message(_keyboard->forMsgId())
 			: nullptr;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
@@ -3667,7 +3667,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_field->setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
-			? App::histItemById(_keyboard->forMsgId())
+			? Auth().data().message(_keyboard->forMsgId())
 			: nullptr;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
@@ -4262,7 +4262,7 @@ void HistoryWidget::sendFileConfirmed(
 	file->edit = isEditing;
 	Auth().uploader().upload(newId, file);
 
-	const auto itemToEdit = isEditing ? App::histItemById(newId) : nullptr;
+	const auto itemToEdit = isEditing ? Auth().data().message(newId) : nullptr;
 
 	const auto history = Auth().data().history(file->to.peer);
 	const auto peer = history->peer;
@@ -4347,7 +4347,7 @@ void HistoryWidget::sendFileConfirmed(
 			itemToEdit->savePreviousMedia();
 			itemToEdit->applyEdition(mtpMessage.c_message());
 		} else {
-			history->addNewMessage(mtpMessage, NewMessageUnread);
+			history->addNewMessage(mtpMessage, NewMessageType::Unread);
 		}
 	} else if (file->type == SendMediaType::File) {
 		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
@@ -4378,7 +4378,7 @@ void HistoryWidget::sendFileConfirmed(
 			itemToEdit->savePreviousMedia();
 			itemToEdit->applyEdition(mtpMessage.c_message());
 		} else {
-			history->addNewMessage(mtpMessage, NewMessageUnread);
+			history->addNewMessage(mtpMessage, NewMessageType::Unread);
 		}
 	} else if (file->type == SendMediaType::Audio) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
@@ -4407,7 +4407,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
-			NewMessageUnread);
+			NewMessageType::Unread);
 		// Voices can't be edited.
 	} else {
 		Unexpected("Type in sendFilesConfirmed.");
@@ -4464,7 +4464,7 @@ void HistoryWidget::thumbDocumentUploaded(
 }
 
 void HistoryWidget::photoProgress(const FullMsgId &newId) {
-	if (const auto item = App::histItemById(newId)) {
+	if (const auto item = Auth().data().message(newId)) {
 		const auto photo = item->media()
 			? item->media()->photo()
 			: nullptr;
@@ -4474,7 +4474,7 @@ void HistoryWidget::photoProgress(const FullMsgId &newId) {
 }
 
 void HistoryWidget::documentProgress(const FullMsgId &newId) {
-	if (const auto item = App::histItemById(newId)) {
+	if (const auto item = Auth().data().message(newId)) {
 		const auto media = item->media();
 		const auto document = media ? media->document() : nullptr;
 		const auto sendAction = (document && document->isVoiceMessage())
@@ -4493,7 +4493,7 @@ void HistoryWidget::documentProgress(const FullMsgId &newId) {
 }
 
 void HistoryWidget::photoFailed(const FullMsgId &newId) {
-	if (const auto item = App::histItemById(newId)) {
+	if (const auto item = Auth().data().message(newId)) {
 		updateSendAction(
 			item->history(),
 			SendAction::Type::UploadPhoto,
@@ -4503,7 +4503,7 @@ void HistoryWidget::photoFailed(const FullMsgId &newId) {
 }
 
 void HistoryWidget::documentFailed(const FullMsgId &newId) {
-	if (const auto item = App::histItemById(newId)) {
+	if (const auto item = Auth().data().message(newId)) {
 		const auto media = item->media();
 		const auto document = media ? media->document() : nullptr;
 		const auto sendAction = (document && document->isVoiceMessage())
@@ -5021,7 +5021,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		changed = _keyboard->updateMarkup(_replyEditMsg, force);
 	} else {
 		const auto keyboardItem = _history->lastKeyboardId
-			? App::histItemById(_channel, _history->lastKeyboardId)
+			? Auth().data().message(_channel, _history->lastKeyboardId)
 			: nullptr;
 		changed = _keyboard->updateMarkup(keyboardItem, force);
 	}
@@ -5051,7 +5051,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_field->setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
 			_kbShown = hasMarkup;
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
-				? App::histItemById(_keyboard->forMsgId())
+				? Auth().data().message(_keyboard->forMsgId())
 				: nullptr;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
@@ -5287,7 +5287,7 @@ void HistoryWidget::replyToPreviousMessage() {
 	const auto fullId = FullMsgId(
 		_history->channelId(),
 		_replyToId);
-	if (const auto item = App::histItemById(fullId)) {
+	if (const auto item = Auth().data().message(fullId)) {
 		if (const auto view = item->mainView()) {
 			if (const auto previousView = view->previousInBlocks()) {
 				const auto previous = previousView->data();
@@ -5308,7 +5308,7 @@ void HistoryWidget::replyToNextMessage() {
 	const auto fullId = FullMsgId(
 		_history->channelId(),
 		_replyToId);
-	if (const auto item = App::histItemById(fullId)) {
+	if (const auto item = Auth().data().message(fullId)) {
 		if (const auto view = item->mainView()) {
 			if (const auto nextView = view->nextInBlocks()) {
 				const auto next = nextView->data();
@@ -5392,7 +5392,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 
 	Assert(_history != nullptr);
 	if (!_pinnedBar->msg) {
-		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
+		_pinnedBar->msg = Auth().data().message(_history->channelId(), _pinnedBar->msgId);
 	}
 	if (_pinnedBar->msg) {
 		_pinnedBar->text.setText(
@@ -5594,7 +5594,7 @@ bool HistoryWidget::sendExistingPhoto(
 		_history->sendRequestId);
 	App::main()->finishForwarding(_history);
 
-	App::historyRegRandom(randomId, newId);
+	_history->owner().registerMessageRandomId(randomId, newId);
 
 	hideSelectorControlsAnimated();
 
@@ -5626,7 +5626,7 @@ void HistoryWidget::clearFieldText(
 }
 
 void HistoryWidget::replyToMessage(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		replyToMessage(item);
 	}
 }
@@ -5679,7 +5679,7 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 }
 
 void HistoryWidget::editMessage(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		editMessage(item);
 	}
 }
@@ -5749,7 +5749,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 }
 
 void HistoryWidget::pinMessage(FullMsgId itemId) {
-	if (const auto item = App::histItemById(itemId)) {
+	if (const auto item = Auth().data().message(itemId)) {
 		if (item->canPin()) {
 			Ui::show(Box<PinMessageBox>(item->history()->peer, item->id));
 		}
@@ -6222,9 +6222,9 @@ void HistoryWidget::clearSelected() {
 
 HistoryItem *HistoryWidget::getItemFromHistoryOrMigrated(MsgId genericMsgId) const {
 	if (genericMsgId < 0 && -genericMsgId < ServerMaxMsgId && _migrated) {
-		return App::histItemById(_migrated->channelId(), -genericMsgId);
+		return Auth().data().message(_migrated->channelId(), -genericMsgId);
 	}
-	return App::histItemById(_channel, genericMsgId);
+	return Auth().data().message(_channel, genericMsgId);
 }
 
 MessageIdsList HistoryWidget::getSelectedItems() const {
@@ -6286,7 +6286,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		}
 	}
 	if (!_replyEditMsg) {
-		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
+		_replyEditMsg = Auth().data().message(_channel, _editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
 		updateReplyEditText(_replyEditMsg);

@@ -838,7 +838,7 @@ BaseLayout *ListWidget::getExistingLayout(
 std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		UniversalMsgId universalId,
 		Type type) {
-	auto item = App::histItemById(computeFullId(universalId));
+	auto item = Auth().data().message(computeFullId(universalId));
 	if (!item) {
 		return nullptr;
 	}
@@ -1179,7 +1179,7 @@ void ListWidget::showContextMenu(
 		mouseActionUpdate(e->globalPos());
 	}
 
-	auto item = App::histItemById(computeFullId(_overState.itemId));
+	auto item = Auth().data().message(computeFullId(_overState.itemId));
 	if (!item || !_overState.inside) {
 		return;
 	}
@@ -1228,7 +1228,7 @@ void ListWidget::showContextMenu(
 	_contextMenu->addAction(
 		lang(lng_context_to_msg),
 		[itemFullId] {
-			if (auto item = App::histItemById(itemFullId)) {
+			if (auto item = Auth().data().message(itemFullId)) {
 				Ui::showPeerHistoryAtItem(item);
 			}
 		});
@@ -1380,7 +1380,7 @@ void ListWidget::forwardSelected() {
 }
 
 void ListWidget::forwardItem(UniversalMsgId universalId) {
-	if (const auto item = App::histItemById(computeFullId(universalId))) {
+	if (const auto item = Auth().data().message(computeFullId(universalId))) {
 		forwardItems({ 1, item->fullId() });
 	}
 }
@@ -1408,7 +1408,7 @@ void ListWidget::deleteSelected() {
 }
 
 void ListWidget::deleteItem(UniversalMsgId universalId) {
-	if (const auto item = App::histItemById(computeFullId(universalId))) {
+	if (const auto item = Auth().data().message(computeFullId(universalId))) {
 		deleteItems({ 1, item->fullId() });
 	}
 }
@@ -1512,7 +1512,7 @@ bool ListWidget::changeItemSelection(
 			universalId,
 			selection);
 		if (ok) {
-			auto item = App::histItemById(computeFullId(universalId));
+			auto item = Auth().data().message(computeFullId(universalId));
 			if (!item) {
 				selected.erase(iterator);
 				return false;

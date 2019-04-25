@@ -330,14 +330,14 @@ bool HistoryService::updateDependent(bool force) {
 	}
 	auto gotDependencyItem = false;
 	if (!dependent->msg) {
-		dependent->msg = App::histItemById(channelId(), dependent->msgId);
+		dependent->msg = history()->owner().message(channelId(), dependent->msgId);
 		if (dependent->msg) {
 			if (dependent->msg->isEmpty()) {
 				// Really it is deleted.
 				dependent->msg = nullptr;
 				force = true;
 			} else {
-				App::historyRegDependency(this, dependent->msg);
+				history()->owner().registerDependentMessage(this, dependent->msg);
 				gotDependencyItem = true;
 			}
 		}
@@ -732,13 +732,13 @@ void HistoryService::updateDependentText() {
 		// #TODO feeds search results
 		main->repaintDialogRow({ history(), fullId() });
 	}
-	App::historyUpdateDependent(this);
+	history()->owner().updateDependentMessages(this);
 }
 
 void HistoryService::clearDependency() {
-	if (auto dependent = GetDependentData()) {
+	if (const auto dependent = GetDependentData()) {
 		if (dependent->msg) {
-			App::historyUnregDependency(this, dependent->msg);
+			history()->owner().unregisterDependentMessage(this, dependent->msg);
 		}
 	}
 }

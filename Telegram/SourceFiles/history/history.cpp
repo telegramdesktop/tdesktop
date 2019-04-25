@@ -577,7 +577,7 @@ HistoryItem *History::createItem(
 		return nullptr;
 	}
 
-	if (const auto result = App::histItemById(channelId(), messageId)) {
+	if (const auto result = owner().message(channelId(), messageId)) {
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
@@ -620,13 +620,13 @@ not_null<HistoryItem*> History::addNewService(
 HistoryItem *History::addNewMessage(
 		const MTPMessage &msg,
 		NewMessageType type) {
-	if (type == NewMessageExisting) {
+	if (type == NewMessageType::Existing) {
 		return addToHistory(msg);
 	}
 	if (!loadedAtBottom() || peer->migrateTo()) {
 		if (const auto item = addToHistory(msg)) {
 			setLastMessage(item);
-			if (type == NewMessageUnread) {
+			if (type == NewMessageType::Unread) {
 				newItemAdded(item);
 				if (!folderKnown()) {
 					session().api().requestDialogEntry(this);
@@ -643,20 +643,20 @@ HistoryItem *History::addNewMessage(
 HistoryItem *History::addNewToLastBlock(
 		const MTPMessage &msg,
 		NewMessageType type) {
-	Expects(type != NewMessageExisting);
+	Expects(type != NewMessageType::Existing);
 
-	const auto detachExistingItem = (type != NewMessageLast);
+	const auto detachExistingItem = (type != NewMessageType::Last);
 	const auto item = createItem(msg, detachExistingItem);
 	if (!item || item->mainView()) {
 		return item;
 	}
-	const auto newUnreadMessage = (type == NewMessageUnread);
+	const auto newUnreadMessage = (type == NewMessageType::Unread);
 	if (newUnreadMessage) {
 		applyMessageChanges(item, msg);
 	}
 	const auto result = addNewItem(item, newUnreadMessage);
 	checkForLoadedAtTop(result);
-	if (type == NewMessageLast) {
+	if (type == NewMessageType::Last) {
 		// When we add just one last item, like we do while loading dialogs,
 		// we want to remove a single added grouped media, otherwise it will
 		// jump once we open the message history (first we show only that
@@ -698,7 +698,7 @@ not_null<HistoryItem*> History::addNewForwarded(
 		const QString &postAuthor,
 		not_null<HistoryMessage*> original) {
 	return addNewItem(
-		new HistoryMessage(
+		owner().makeMessage(
 			this,
 			id,
 			flags,
@@ -721,7 +721,7 @@ not_null<HistoryItem*> History::addNewDocument(
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		new HistoryMessage(
+		owner().makeMessage(
 			this,
 			id,
 			flags,
@@ -748,7 +748,7 @@ not_null<HistoryItem*> History::addNewPhoto(
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		new HistoryMessage(
+		owner().makeMessage(
 			this,
 			id,
 			flags,
@@ -774,7 +774,7 @@ not_null<HistoryItem*> History::addNewGame(
 		not_null<GameData*> game,
 		const MTPReplyMarkup &markup) {
 	return addNewItem(
-		new HistoryMessage(
+		owner().makeMessage(
 			this,
 			id,
 			flags,
@@ -2137,7 +2137,7 @@ bool History::isReadyFor(MsgId msgId) {
 		}
 		return loadedAtBottom();
 	}
-	HistoryItem *item = App::histItemById(channelId(), msgId);
+	const auto item = owner().message(channelId(), msgId);
 	return item && (item->history() == this) && item->mainView();
 }
 
@@ -2393,7 +2393,9 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 		// Other (non equal to the last one) message not found.
 		return;
 	}
-	const auto item = owner().addNewMessage(*other, NewMessageExisting);
+	const auto item = owner().addNewMessage(
+		*other,
+		NewMessageType::Existing);
 	if (!item || item->isGroupMigrate()) {
 		// Not better than the last one.
 		return;
@@ -2497,7 +2499,7 @@ void History::applyDialog(
 			const auto topMessageId = FullMsgId(
 				peerToChannel(channel->id),
 				data.vtop_message.v);
-			if (const auto item = App::histItemById(topMessageId)) {
+			if (const auto item = owner().message(topMessageId)) {
 				if (item->date() <= channel->date) {
 					session().api().requestSelfParticipant(channel);
 				}
@@ -2592,7 +2594,7 @@ void History::applyDialogTopMessage(MsgId topMessageId) {
 		const auto itemId = FullMsgId(
 			channelId(),
 			topMessageId);
-		if (const auto item = App::histItemById(itemId)) {
+		if (const auto item = owner().message(itemId)) {
 			setLastMessage(item);
 		} else {
 			setLastMessage(nullptr);

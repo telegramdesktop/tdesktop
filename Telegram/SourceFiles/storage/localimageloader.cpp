@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "media/audio/media_audio.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -474,7 +476,7 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 	if (moveCaption) {
 		const auto caption = item->originalText();
 		const auto firstId = items.front().msgId;
-		if (const auto first = App::histItemById(firstId)) {
+		if (const auto first = Auth().data().message(firstId)) {
 			// We don't need to finishEdition() here, because the whole
 			// album will be rebuilt after one item was removed from it.
 			first->setText(caption);

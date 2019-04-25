@@ -189,7 +189,7 @@ bool Controller::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 		Ui::showPeerHistory(history, row.fullId.msg);
 		return true;
 	//} else if (const auto feed = row.key.feed()) { // #feed
-	//	if (const auto item = App::histItemById(row.fullId)) {
+	//	if (const auto item = Auth().data().message(row.fullId)) {
 	//		showSection(HistoryFeed::Memento(feed, item->position()));
 	//	} else {
 	//		showSection(HistoryFeed::Memento(feed));

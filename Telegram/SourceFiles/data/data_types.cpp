@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
 #include "ui/image/image_source.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
+#include "auth_session.h"
 
 namespace Data {
 namespace {
@@ -207,9 +209,7 @@ void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
 }
 
 HistoryItem *FileClickHandler::getActionItem() const {
-	return context()
-		? App::histItemById(context())
-		: nullptr;
+	return Auth().data().message(context());
 }
 
 PeerId PeerFromMessage(const MTPmessage &message) {

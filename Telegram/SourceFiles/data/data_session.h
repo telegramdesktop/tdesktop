@@ -20,9 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 class HistoryItem;
+class HistoryMessage;
+class HistoryService;
 class BoxContent;
 struct WebPageCollage;
 enum class WebPageType;
+enum class NewMessageType;
 
 namespace HistoryView {
 struct Group;
@@ -57,6 +60,11 @@ class WallPaper;
 class Session final {
 public:
 	using ViewElement = HistoryView::Element;
+
+	struct SentData {
+		PeerId peerId = 0;
+		QString text;
+	};
 
 	explicit Session(not_null<AuthSession*> session);
 	~Session();
@@ -313,6 +321,62 @@ public:
 	void reorderTwoPinnedChats(
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
+
+	template <typename ...Args>
+	not_null<HistoryMessage*> makeMessage(Args &&...args) {
+		return static_cast<HistoryMessage*>(
+			registerMessage(
+				std::make_unique<HistoryMessage>(
+					std::forward<Args>(args)...)));
+	}
+
+	template <typename ...Args>
+	not_null<HistoryService*> makeServiceMessage(Args &&...args) {
+		return static_cast<HistoryService*>(
+			registerMessage(
+				std::make_unique<HistoryService>(
+					std::forward<Args>(args)...)));
+	}
+	void destroyMessage(not_null<HistoryItem*> item);
+
+	// Returns true if item found and it is not detached.
+	bool checkEntitiesAndViewsUpdate(const MTPDmessage &data);
+	void updateEditedMessage(const MTPMessage &data);
+	void processMessages(
+		const QVector<MTPMessage> &data,
+		NewMessageType type);
+	void processMessages(
+		const MTPVector<MTPMessage> &data,
+		NewMessageType type);
+	void processMessagesDeleted(
+		ChannelId channelId,
+		const QVector<MTPint> &data);
+
+	[[nodiscard]] HistoryItem *message(
+		ChannelId channelId,
+		MsgId itemId) const;
+	[[nodiscard]] HistoryItem *message(
+		const ChannelData *channel,
+		MsgId itemId) const;
+	[[nodiscard]] HistoryItem *message(FullMsgId itemId) const;
+
+	void updateDependentMessages(not_null<HistoryItem*> item);
+	void registerDependentMessage(
+		not_null<HistoryItem*> dependent,
+		not_null<HistoryItem*> dependency);
+	void unregisterDependentMessage(
+		not_null<HistoryItem*> dependent,
+		not_null<HistoryItem*> dependency);
+
+	void registerMessageRandomId(uint64 randomId, FullMsgId itemId);
+	void unregisterMessageRandomId(uint64 randomId);
+	[[nodiscard]] FullMsgId messageIdByRandomId(uint64 randomId) const;
+	void registerMessageSentData(
+		uint64 randomId,
+		PeerId peerId,
+		const QString &text);
+	void unregisterMessageSentData(uint64 randomId);
+	[[nodiscard]] SentData messageSentData(uint64 randomId) const;
 
 	void photoLoadSettingsChanged();
 	void documentLoadSettingsChanged();
@@ -590,6 +654,8 @@ public:
 	void clearLocalStorage();
 
 private:
+	using Messages = std::unordered_map<MsgId, std::unique_ptr<HistoryItem>>;
+
 	void suggestStartExport();
 
 	void setupContactViewsViewer();
@@ -606,6 +672,11 @@ private:
 	void applyDialog(
 		Data::Folder *requestFolder,
 		const MTPDdialogFolder &data);
+
+	const Messages *messagesList(ChannelId channelId) const;
+	not_null<Messages*> messagesListForInsert(ChannelId channelId);
+	HistoryItem *registerMessage(std::unique_ptr<HistoryItem> item);
+	void changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId);
 
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
@@ -766,6 +837,15 @@ private:
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
+
+	Messages _messages;
+	std::map<ChannelId, Messages> _channelMessages;
+	std::map<
+		not_null<HistoryItem*>,
+		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
+
+	base::flat_map<uint64, FullMsgId> _messageByRandomId;
+	base::flat_map<uint64, SentData> _sentMessagesData;
 
 	base::Timer _selfDestructTimer;
 	std::vector<FullMsgId> _selfDestructItems;

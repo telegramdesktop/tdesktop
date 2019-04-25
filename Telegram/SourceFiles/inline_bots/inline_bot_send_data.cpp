@@ -58,7 +58,7 @@ void SendDataCommon::addToHistory(
 			MTPint(),
 			MTP_string(postAuthor),
 			MTPlong()),
-		NewMessageUnread);
+		NewMessageType::Unread);
 }
 
 QString SendDataCommon::getErrorOnSend(

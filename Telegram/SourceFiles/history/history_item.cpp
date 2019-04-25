@@ -69,7 +69,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		EntityInText(EntityType::Italic, 0, text.text.size()));
 	flags &= ~MTPDmessage::Flag::f_post_author;
 	flags |= MTPDmessage_ClientFlag::f_is_unsupported;
-	return new HistoryMessage(
+	return history->owner().makeMessage(
 		history,
 		msgId,
 		flags,
@@ -169,7 +169,6 @@ HistoryItem::HistoryItem(
 , _from(from ? history->owner().user(from) : history->peer)
 , _flags(flags)
 , _date(date) {
-	App::historyRegItem(this);
 }
 
 TimeId HistoryItem::date() const {
@@ -193,7 +192,7 @@ void HistoryItem::finishEdition(int oldKeyboardTop) {
 	//	}
 	//}
 
-	App::historyUpdateDependent(this);
+	_history->owner().updateDependentMessages(this);
 }
 
 void HistoryItem::setGroupId(MessageGroupId groupId) {
@@ -335,24 +334,7 @@ UserData *HistoryItem::getMessageBot() const {
 };
 
 void HistoryItem::destroy() {
-	if (isLogEntry()) {
-		Assert(!mainView());
-	} else {
-		// All this must be done for all items manually in History::clear()!
-		eraseFromUnreadMentions();
-		if (IsServerMsgId(id)) {
-			if (const auto types = sharedMediaTypes()) {
-				_history->session().storage().remove(Storage::SharedMediaRemoveOne(
-					_history->peer->id,
-					types,
-					id));
-			}
-		} else {
-			_history->session().api().cancelLocalItem(this);
-		}
-		_history->itemRemoved(this);
-	}
-	delete this;
+	_history->owner().destroyMessage(this);
 }
 
 void HistoryItem::refreshMainView() {
@@ -415,11 +397,10 @@ void HistoryItem::indexAsNewItem() {
 void HistoryItem::setRealId(MsgId newId) {
 	Expects(!IsServerMsgId(id));
 
-	App::historyUnregItem(this);
 	const auto oldId = std::exchange(id, newId);
-	App::historyRegItem(this);
+	_history->owner().notifyItemIdChange({ this, oldId });
 
-	// We don't need to call Notify::replyMarkupUpdated(this) and update keyboard
+	// We don't call Notify::replyMarkupUpdated(this) and update keyboard
 	// in history widget, because it can't exist for an outgoing message.
 	// Only inline keyboards can be in outgoing messages.
 	if (const auto markup = inlineReplyMarkup()) {
@@ -428,7 +409,6 @@ void HistoryItem::setRealId(MsgId newId) {
 		}
 	}
 
-	_history->owner().notifyItemIdChange({ this, oldId });
 	_history->owner().requestItemRepaint(this);
 }
 
@@ -758,7 +738,6 @@ void HistoryItem::drawInDialog(
 
 HistoryItem::~HistoryItem() {
 	_history->owner().notifyItemRemoved(this);
-	App::historyUnregItem(this);
 }
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
@@ -780,7 +759,7 @@ ClickHandlerPtr goToMessageClickHandler(
 		FullMsgId returnToId) {
 	return std::make_shared<LambdaClickHandler>([=] {
 		if (const auto main = App::main()) {
-			if (const auto returnTo = App::histItemById(returnToId)) {
+			if (const auto returnTo = peer->owner().message(returnToId)) {
 				if (returnTo->history()->peer == peer) {
 					main->pushReplyReturn(returnTo);
 				}
@@ -813,7 +792,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 			const auto text = HistoryService::PreparedText {
 				lang(lng_message_empty)
 			};
-			return new HistoryService(
+			return history->owner().makeServiceMessage(
 				history,
 				data.vid.v,
 				data.vdate.v,
@@ -821,18 +800,18 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vflags.v,
 				data.has_from_id() ? data.vfrom_id.v : UserId(0));
 		} else if (checked == MediaCheckResult::HasTimeToLive) {
-			return new HistoryService(history, data);
+			return history->owner().makeServiceMessage(history, data);
 		}
-		return new HistoryMessage(history, data);
+		return history->owner().makeMessage(history, data);
 	}, [&](const MTPDmessageService &data) -> HistoryItem* {
 		if (data.vaction.type() == mtpc_messageActionPhoneCall) {
-			return new HistoryMessage(history, data);
+			return history->owner().makeMessage(history, data);
 		}
-		return new HistoryService(history, data);
+		return history->owner().makeServiceMessage(history, data);
 	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
 		const auto text = HistoryService::PreparedText{
 			lang(lng_message_empty)
 		};
-		return new HistoryService(history, data.vid.v, TimeId(0), text);
+		return history->owner().makeServiceMessage(history, data.vid.v, TimeId(0), text);
 	});
 }

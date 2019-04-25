@@ -102,8 +102,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		&& (item->media()->game() != nullptr);
 	const auto canCopyLink = item->hasDirectLink() || isGame;
 
-	auto copyCallback = [data]() {
-		if (auto item = App::histItemById(data->msgIds[0])) {
+	auto copyCallback = [=]() {
+		if (auto item = Auth().data().message(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
 				HistoryView::CopyPostLink(item->fullId());
 			} else if (const auto bot = item->getMessageBot()) {
@@ -230,7 +230,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 		const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
-		if (auto item = App::histItemById(dependent)) {
+		if (auto item = Auth().data().message(dependent)) {
 			item->updateDependencyItem();
 		}
 	};

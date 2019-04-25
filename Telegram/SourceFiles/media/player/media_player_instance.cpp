@@ -150,9 +150,7 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 		data->current = audioId;
 		data->isPlaying = false;
 
-		const auto history = data->history;
-		const auto migrated = data->migrated;
-		const auto item = App::histItemById(data->current.contextId());
+		const auto item = Auth().data().message(data->current.contextId());
 		if (item) {
 			data->history = item->history()->migrateToOrMe();
 			data->migrated = data->history->migrateFrom();
@@ -273,7 +271,7 @@ HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
 		return nullptr;
 	}
 	const auto fullId = (*data->playlistSlice)[index];
-	return App::histItemById(fullId);
+	return Auth().data().message(fullId);
 }
 
 bool Instance::moveInPlaylist(
@@ -716,7 +714,7 @@ HistoryItem *Instance::roundVideoItem() const {
 	const auto data = getData(AudioMsgId::Type::Voice);
 	return (data->streamed
 		&& !data->streamed->info.video.size.isEmpty())
-		? App::histItemById(data->streamed->id.contextId())
+		? Auth().data().message(data->streamed->id.contextId())
 		: nullptr;
 
 }

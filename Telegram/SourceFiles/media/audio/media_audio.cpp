@@ -14,9 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
 #include "platform/platform_audio.h"
 #include "core/application.h"
-#include "facades.h"
+#include "auth_session.h"
 
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -813,7 +814,7 @@ void Mixer::play(
 			DocumentOpenClickHandler::Open(
 				audio.contextId(),
 				audio.audio(),
-				App::histItemById(audio.contextId()));
+				Auth().data().message(audio.contextId()));
 		} else {
 			onError(audio);
 		}
