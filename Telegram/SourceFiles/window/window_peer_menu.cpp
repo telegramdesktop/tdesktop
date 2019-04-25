@@ -53,6 +53,7 @@ public:
 
 private:
 	bool showInfo();
+	bool showToggleArchived();
 	void addPinToggle();
 	void addInfo();
 	//void addSearch();
@@ -190,6 +191,17 @@ bool Filler::showInfo() {
 		!Auth().settings().thirdSectionInfoEnabled() &&
 		!Auth().settings().tabbedReplacedWithInfo()) {
 		return true;
+	}
+	return false;
+}
+
+bool Filler::showToggleArchived() {
+	if (_source != PeerMenuSource::ChatsList) {
+		return false;
+	} else if (!_peer->isNotificationsUser()) {
+		return true;
+	} else if (const auto history = _peer->owner().historyLoaded(_peer)) {
+		return (history->folder() != nullptr);
 	}
 	return false;
 }
@@ -504,7 +516,7 @@ void Filler::fill() {
 	} else if (const auto channel = _peer->asChannel()) {
 		addChannelActions(channel);
 	}
-	if (_source == PeerMenuSource::ChatsList) {
+	if (showToggleArchived()) {
 		addToggleArchive();
 	}
 }
