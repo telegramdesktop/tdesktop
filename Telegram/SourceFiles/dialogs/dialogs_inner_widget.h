@@ -227,6 +227,7 @@ private:
 		UpdateRowSections sections = UpdateRowSection::All);
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
 
+	bool importantSwitchShown() const;
 	int dialogsOffset() const;
 	int proxyPromotedCount() const;
 	int pinnedOffset() const;
@@ -283,6 +284,7 @@ private:
 
 	not_null<Window::Controller*> _controller;
 
+	Mode _mode = Mode();
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;

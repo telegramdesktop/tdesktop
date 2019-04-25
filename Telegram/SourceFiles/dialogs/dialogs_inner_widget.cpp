@@ -86,6 +86,7 @@ InnerWidget::InnerWidget(
 
 	if (Global::DialogsModeEnabled()) {
 		_importantSwitch = std::make_unique<ImportantSwitch>();
+		_mode = Global::DialogsMode();
 	}
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
@@ -224,8 +225,12 @@ void InnerWidget::handleChatMigration(not_null<ChatData*> chat) {
 	}
 }
 
+bool InnerWidget::importantSwitchShown() const {
+	return !_openedFolder && _importantSwitch;
+}
+
 int InnerWidget::dialogsOffset() const {
-	return _importantSwitch
+	return importantSwitchShown()
 		? st::dialogsImportantBarHeight
 		: 0;
 }
@@ -279,6 +284,7 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	//const auto lastMousePosition = _lastMousePosition;
 	clearSelection();
 	_openedFolder = folder;
+	_mode = _openedFolder ? Mode::All : Global::DialogsMode();
 	refresh();
 	// This doesn't work, because we clear selection in leaveEvent on hide.
 	//if (mouseSelection && lastMousePosition) {
@@ -302,9 +308,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto ms = crl::now();
 	if (_state == WidgetState::Default) {
 		auto rows = shownDialogs();
-		if (!_openedFolder && _importantSwitch) {
+		if (importantSwitchShown()) {
 			auto selected = isPressed() ? _importantSwitchPressed : _importantSwitchSelected;
-			Layout::paintImportantSwitch(p, Global::DialogsMode(), fullWidth, selected);
+			Layout::paintImportantSwitch(p, _mode, fullWidth, selected);
 			dialogsClip.translate(0, -st::dialogsImportantBarHeight);
 			p.translate(0, st::dialogsImportantBarHeight);
 		}
@@ -782,8 +788,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	if (_state == WidgetState::Default) {
 		const auto switchTop = 0;
 		const auto switchBottom = dialogsOffset();
-		const auto importantSwitchSelected = _importantSwitch
-			&& !_openedFolder
+		const auto importantSwitchSelected = importantSwitchShown()
 			&& (mouseY >= switchTop)
 			&& (mouseY < switchBottom);
 		const auto selected = importantSwitchSelected
@@ -888,7 +893,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		});
 	} else if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
 		const auto row = _filterResults[_filteredPressed];
-		const auto list = Global::DialogsMode();
+		const auto list = _mode;
 		row->addRipple(
 			e->pos() - QPoint(0, filteredOffset() + _filteredPressed * st::dialogsRowHeight),
 			QSize(width(), st::dialogsRowHeight),
@@ -1286,10 +1291,10 @@ void InnerWidget::refreshDialog(Key key) {
 	}
 
 	const auto result = session().data().refreshChatListEntry(key);
-	const auto changed = (Global::DialogsMode() == Mode::Important)
+	const auto changed = (_mode == Mode::Important)
 		? result.importantChanged
 		: result.changed;
-	const auto moved = (Global::DialogsMode() == Mode::Important)
+	const auto moved = (_mode == Mode::Important)
 		? result.importantMoved
 		: result.moved;
 
@@ -1346,7 +1351,7 @@ void InnerWidget::repaintDialogRow(
 		Mode list,
 		not_null<Row*> row) {
 	if (_state == WidgetState::Default) {
-		if (Global::DialogsMode() == list) {
+		if (_mode == list) {
 			auto position = row->pos();
 			auto top = dialogsOffset();
 			if (base::in_range(position, 0, _pinnedRows.size())) {
@@ -1476,10 +1481,10 @@ void InnerWidget::updateSelectedRow(Key key) {
 	if (_state == WidgetState::Default) {
 		if (key) {
 			const auto entry = key.entry();
-			if (!entry->inChatList(Global::DialogsMode())) {
+			if (!entry->inChatList(_mode)) {
 				return;
 			}
-			auto position = entry->posInChatList(Global::DialogsMode());
+			auto position = entry->posInChatList(_mode);
 			auto top = dialogsOffset();
 			if (base::in_range(position, 0, _pinnedRows.size())) {
 				top += qRound(_pinnedRows[position].yadd.current());
@@ -1511,8 +1516,7 @@ void InnerWidget::updateSelectedRow(Key key) {
 }
 
 not_null<IndexedList*> InnerWidget::shownDialogs() const {
-	const auto mode = Global::DialogsMode();
-	return session().data().chatsList(_openedFolder)->indexed(mode);
+	return session().data().chatsList(_openedFolder)->indexed(_mode);
 }
 
 void InnerWidget::leaveEventHook(QEvent *e) {
@@ -2107,7 +2111,7 @@ void InnerWidget::selectSkip(int32 direction) {
 				return;
 			}
 		} else if (!_selected) {
-			if (_importantSwitch) {
+			if (importantSwitchShown()) {
 				_importantSwitchSelected = true;
 			} else if (!shownDialogs()->empty() && direction > 0) {
 				_selected = *shownDialogs()->cbegin();
@@ -2123,7 +2127,7 @@ void InnerWidget::selectSkip(int32 direction) {
 			auto prev = shownDialogs()->cfind(_selected);
 			if (prev != shownDialogs()->cbegin()) {
 				_selected = *(--prev);
-			} else if (_importantSwitch) {
+			} else if (importantSwitchShown()) {
 				_importantSwitchSelected = true;
 				_selected = nullptr;
 			}
@@ -2230,7 +2234,7 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (toSkip--);) {
 				_selected = *(--i);
 			}
-			if (toSkip && _importantSwitch) {
+			if (toSkip && importantSwitchShown()) {
 				_importantSwitchSelected = true;
 				_selected = nullptr;
 			}
@@ -2302,17 +2306,17 @@ void InnerWidget::loadPeerPhotos() {
 
 bool InnerWidget::switchImportantChats() {
 	if (!_importantSwitchSelected
-		|| !_importantSwitch
+		|| !importantSwitchShown()
 		|| (_state != WidgetState::Default)) {
 		return false;
 	}
 	clearSelection();
 	if (Global::DialogsMode() == Mode::All) {
 		Global::SetDialogsMode(Mode::Important);
-	}
-	else {
+	} else {
 		Global::SetDialogsMode(Mode::All);
 	}
+	_mode = Global::DialogsMode();
 	Local::writeUserSettings();
 	refresh();
 	_importantSwitchSelected = true;
