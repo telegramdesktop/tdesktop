@@ -337,13 +337,22 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 void Folder::updateCloudUnread(const MTPDdialogFolder &data) {
 	const auto notifier = unreadStateChangeNotifier(!_chatsList.loaded());
 
-	_cloudUnread.messagesMuted = data.vunread_muted_messages_count.v;
-	_cloudUnread.messages = _cloudUnread.messagesMuted
+	_cloudUnread.messages = data.vunread_muted_messages_count.v
 		+ data.vunread_unmuted_messages_count.v;
-	_cloudUnread.chatsMuted = data.vunread_muted_peers_count.v;
-	_cloudUnread.chats = _cloudUnread.chatsMuted
-		+ data.vunread_unmuted_peers_count.v;
+	_cloudUnread.chats = data.vunread_muted_peers_count.v
+			+ data.vunread_unmuted_peers_count.v;
+	finalizeCloudUnread();
+
 	_cloudUnread.known = true;
+}
+
+void Folder::finalizeCloudUnread() {
+	// Cloud state for archive folder always counts everything as muted.
+	_cloudUnread.messagesMuted = _cloudUnread.messages;
+	_cloudUnread.chatsMuted = _cloudUnread.chats;
+
+	// We don't know the real value of marked chats counts in _cloudUnread.
+	_cloudUnread.marksMuted = _cloudUnread.marks = 0;
 }
 
 Dialogs::UnreadState Folder::chatListUnreadState() const {
@@ -352,7 +361,7 @@ Dialogs::UnreadState Folder::chatListUnreadState() const {
 	result.messagesMuted = result.messages;
 	result.chatsMuted = result.chats;
 
-	// We don't know the real value of marked chats counts.
+	// We don't know the real value of marked chats counts in _cloudUnread.
 	result.marksMuted = result.marks = localUnread.marks;
 
 	return result;
@@ -386,9 +395,7 @@ void Folder::unreadStateChanged(
 	if (updateCloudUnread) {
 		Assert(nowState.known);
 		_cloudUnread += nowState - wasState;
-
-		// We don't know the real value of marked chats counts.
-		_cloudUnread.marks = _cloudUnread.marksMuted = 0;
+		finalizeCloudUnread();
 	}
 }
 
@@ -417,9 +424,7 @@ void Folder::unreadEntryChanged(
 		} else {
 			_cloudUnread -= state;
 		}
-
-		// We don't know the real value of marked chats counts.
-		_cloudUnread.marks = _cloudUnread.marksMuted = 0;
+		finalizeCloudUnread();
 	}
 }
 

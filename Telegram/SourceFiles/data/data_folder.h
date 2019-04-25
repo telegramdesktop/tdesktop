@@ -92,6 +92,7 @@ private:
 	void addUnreadHistory(not_null<History*> history);
 	void removeUnreadHistory(not_null<History*> history);
 	void reorderUnreadHistories();
+	void finalizeCloudUnread();
 
 	FolderId _id = 0;
 	Dialogs::MainList _chatsList;
