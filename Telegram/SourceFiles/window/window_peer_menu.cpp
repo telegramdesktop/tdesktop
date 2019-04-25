@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
+constexpr auto kArchivedToastDuration = crl::time(3000);
+
 class Filler {
 public:
 	Filler(
@@ -811,9 +813,15 @@ void PeerMenuAddMuteAction(
 //
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
-		Ui::Toast::Show(lang(archived
+		Ui::Toast::Config toast;
+		toast.text = lang(archived
 			? lng_archived_added
-			: lng_archived_removed));
+			: lng_archived_removed);
+		toast.maxWidth = st::boxWideWidth;
+		if (archived) {
+			toast.durationMs = kArchivedToastDuration;
+		}
+		Ui::Toast::Show(toast);
 	};
 	history->session().api().toggleHistoryArchived(
 		history,
