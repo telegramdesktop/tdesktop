@@ -1495,6 +1495,9 @@ void History::addToSharedMedia(
 }
 
 std::optional<int> History::countUnread(MsgId upTo) const {
+	if (!folderKnown() || !loadedAtBottom()) {
+		return std::nullopt;
+	}
 	auto result = 0;
 	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
 		--i;
@@ -1568,7 +1571,7 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	if (unreadCount() > 0 && loadedAtBottom()) {
 		App::main()->historyToDown(this);
 	}
-	if (stillUnread) {
+	if (stillUnread.has_value() && folderKnown()) {
 		setUnreadCount(*stillUnread);
 	} else if (const auto still = countUnread(upTo)) {
 		setUnreadCount(*still);
