@@ -562,12 +562,12 @@ historyGroupAboutHeaderSkip: 10px;
 historyGroupAboutTextSkip: 10px;
 historyGroupAboutSkip: 8px;
 
-historyVideoDownloadSize: 36px;
+historyVideoDownloadSize: msgFileSize;
 historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
 historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
 historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
 historyVideoDownloadSelected: icon {{ "playlist_download", historyFileThumbIconFgSelected }};
-historyVideoRadialLine: 2px;
+historyVideoRadialLine: msgFileRadialLine;
 
 historyAudioDownloadSize: 20px;
 historyAudioRadialLine: 2px;

@@ -275,18 +275,21 @@ void HistoryVideo::drawCornerStatus(Painter &p, bool selected) const {
 	const auto padding = st::msgDateImgPadding;
 	const auto radial = _animation && _animation->radial.animating();
 	const auto cornerDownload = downloadInCorner() && !_data->loaded();
-	const auto addWidth = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y() - padding.x()) : 0;
+	const auto addWidth = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : 0;
 	const auto downloadWidth = cornerDownload ? st::normalFont->width(_downloadSize) : 0;
-	const auto statusX = st::msgDateImgDelta + padding.x(), statusY = st::msgDateImgDelta + padding.y();
 	const auto statusW = std::max(downloadWidth, st::normalFont->width(_statusText)) + 2 * padding.x() + addWidth;
 	const auto statusH = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : (st::normalFont->height + 2 * padding.y());
+	const auto statusX = st::msgDateImgDelta + padding.x();
+	const auto statusY = st::msgDateImgDelta + padding.y();
 	const auto around = rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
+	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3)  - padding.y()) : 0);
 	App::roundRect(p, around, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
-	p.drawTextLeft(statusX + addWidth, statusY, width(), _statusText, statusW - 2 * padding.x());
+	p.drawTextLeft(statusX + addWidth, statusTextTop, width(), _statusText, statusW - 2 * padding.x());
 	if (cornerDownload) {
-		p.drawTextLeft(statusX + addWidth, statusY + statusH - 2 * padding.y() - st::normalFont->height, width(), _downloadSize, statusW - 2 * padding.x());
+		const auto downloadTextTop = statusY + st::normalFont->height + (2 * (statusH - 2 * st::normalFont->height) / 3)  - padding.y();
+		p.drawTextLeft(statusX + addWidth, downloadTextTop, width(), _downloadSize, statusW - 2 * padding.x());
 		const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
 		const auto icon = [&]() -> const style::icon * {
 			if (_data->loading()) {
