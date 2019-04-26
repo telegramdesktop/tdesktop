@@ -304,11 +304,14 @@ QImage TabbedPanel::grabForAnimation() {
 	showChildren();
 	Ui::SendPendingMoveResizeEvents(this);
 
-	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(
+		size() * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(Qt::transparent);
 	if (_selector) {
-		_selector->render(&result, _selector->geometry().topLeft());
+		QPainter p(&result);
+		Ui::RenderWidget(p, _selector, _selector->pos());
 	}
 
 	_a_show = base::take(showAnimation);

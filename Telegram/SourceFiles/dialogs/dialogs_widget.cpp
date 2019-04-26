@@ -563,7 +563,10 @@ void Widget::startWidthAnimation() {
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
 	image.fill(Qt::transparent);
-	_scroll->render(&image, QPoint(0, 0), QRect(QPoint(0, 0), grabGeometry.size()), QWidget::DrawChildren | QWidget::IgnoreMask);
+	{
+		QPainter p(&image);
+		Ui::RenderWidget(p, _scroll);
+	}
 	_widthAnimationCache = App::pixmapFromImageInPlace(std::move(image));
 	_scroll->setGeometry(scrollGeometry);
 	_scroll->hide();

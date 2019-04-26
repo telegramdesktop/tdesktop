@@ -304,9 +304,9 @@ QImage InnerDropdown::grabForPanelAnimation() {
 	{
 		Painter p(&result);
 		App::roundRect(p, rect().marginsRemoved(_st.padding), _st.bg, ImageRoundRadius::Small);
-		for (auto child : children()) {
-			if (auto widget = qobject_cast<QWidget*>(child)) {
-				widget->render(&p, widget->pos(), widget->rect(), QWidget::DrawChildren | QWidget::IgnoreMask);
+		for (const auto child : children()) {
+			if (const auto widget = qobject_cast<QWidget*>(child)) {
+				RenderWidget(p, widget, widget->pos());
 			}
 		}
 	}

@@ -95,7 +95,7 @@ QPixmap Shadow::grab(
 	{
 		Painter p(&result);
 		Ui::Shadow::paint(p, full.marginsRemoved(extend), full.width(), shadow);
-		target->render(&p, QPoint(extend.left(), extend.top()), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
+		RenderWidget(p, target, QPoint(extend.left(), extend.top()));
 	}
 	return result;
 }

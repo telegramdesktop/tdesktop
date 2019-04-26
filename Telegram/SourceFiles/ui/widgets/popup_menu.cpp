@@ -412,9 +412,9 @@ QImage PopupMenu::grabForPanelAnimation() {
 		} else {
 			p.fillRect(_inner, _st.menu.itemBg);
 		}
-		for (auto child : children()) {
-			if (auto widget = qobject_cast<QWidget*>(child)) {
-				widget->render(&p, widget->pos(), widget->rect(), QWidget::DrawChildren | QWidget::IgnoreMask);
+		for (const auto child : children()) {
+			if (const auto widget = qobject_cast<QWidget*>(child)) {
+				RenderWidget(p, widget, widget->pos());
 			}
 		}
 	}

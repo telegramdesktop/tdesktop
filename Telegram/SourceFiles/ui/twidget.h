@@ -57,6 +57,15 @@ QImage GrabWidgetToImage(
 	QRect rect = QRect(),
 	QColor bg = QColor(255, 255, 255, 0));
 
+void RenderWidget(
+	QPainter &painter,
+	not_null<QWidget*> source,
+	const QPoint &targetOffset = QPoint(),
+	const QRegion &sourceRegion = QRegion(),
+	QWidget::RenderFlags renderFlags
+		= QWidget::DrawChildren | QWidget::IgnoreMask);
+
+
 void ForceFullRepaint(not_null<QWidget*> widget);
 
 void PostponeCall(FnMut<void()> &&callable);
