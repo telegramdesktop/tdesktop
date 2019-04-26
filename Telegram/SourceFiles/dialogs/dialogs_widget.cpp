@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
+#include "styles/style_info.h"
 #include "styles/style_window.h"
 
 namespace Dialogs {
@@ -1393,7 +1394,7 @@ void Widget::updateControlsGeometry() {
 	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
 	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
 	auto filterWidth = qMax(width(), st::columnMinimalWidthLeft) - filterLeft - filterRight;
-	auto filterAreaHeight = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
+	auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, width(), filterAreaHeight);
 	if (_folderTopBar) {
 		_folderTopBar->setGeometry(_searchControls->geometry());
