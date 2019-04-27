@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "layout.h"
 #include "storage/file_download.h"
+#include "lottie/lottie_animation.h"
 #include "calls/calls_instance.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_history.h"
