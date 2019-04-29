@@ -26,6 +26,11 @@ enum class SystemSettingsType {
 	Audio,
 };
 
+enum class TouchBarType {
+	AudioPlayer,
+	None,
+};
+
 void SetWatchingMediaKeys(bool watching);
 bool IsApplicationActive();
 void SetApplicationIcon(const QIcon &icon);
@@ -39,6 +44,8 @@ PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
 void OpenSystemSettingsForPermission(PermissionType type);
 bool OpenSystemSettings(SystemSettingsType type);
+
+void SetTouchBar(TouchBarType type);
 
 [[nodiscard]] QString SystemLanguage();
 [[nodiscard]] QString SystemCountry();

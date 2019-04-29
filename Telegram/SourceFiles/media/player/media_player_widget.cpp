@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_widget.h"
 
+#include "platform/platform_specific.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "ui/widgets/labels.h"
@@ -166,6 +167,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	});
 	setType(AudioMsgId::Type::Song);
 	_playPause->finishTransform();
+	Platform::SetTouchBar(Platform::TouchBarType::AudioPlayer);
 }
 
 void Widget::updateVolumeToggleIcon() {
@@ -190,6 +192,7 @@ void Widget::setCloseCallback(Fn<void()> callback) {
 }
 
 void Widget::stopAndClose() {
+	Platform::SetTouchBar(Platform::TouchBarType::None);
 	_voiceIsActive = false;
 	if (_type == AudioMsgId::Type::Voice) {
 		const auto songData = instance()->current(AudioMsgId::Type::Song);
