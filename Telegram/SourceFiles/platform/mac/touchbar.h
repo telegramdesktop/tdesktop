@@ -11,8 +11,17 @@
 #include "media/player/media_player_instance.h"
 #import <Cocoa/Cocoa.h>
 
+namespace {
+enum class TouchBarType {
+	Main,
+	AudioPlayer,
+};
+} // namespace
+
 static NSString * _Nullable BASE_ID = @"telegram.touchbar";
 static NSTouchBarCustomizationIdentifier _Nullable customID = @"telegram.touchbar";
+static NSTouchBarCustomizationIdentifier _Nullable customIDMain = @"telegram.touchbar.main";
+static NSTouchBarItemIdentifier _Nullable savedMessages = [NSString stringWithFormat:@"%@.savedMessages", BASE_ID];
 static NSTouchBarItemIdentifier _Nullable seekBar = [NSString stringWithFormat:@"%@.seekbar", BASE_ID];
 static NSTouchBarItemIdentifier _Nullable play = [NSString stringWithFormat:@"%@.play", BASE_ID];
 static NSTouchBarItemIdentifier _Nullable nextItem = [NSString stringWithFormat:@"%@.nextItem", BASE_ID];
@@ -25,9 +34,11 @@ static NSTouchBarItemIdentifier _Nullable currentPosition = [NSString stringWith
 static NSTouchBarItemIdentifier _Nullable timeLeft = [NSString stringWithFormat:@"%@.timeLeft", BASE_ID];
 
 @interface TouchBar : NSTouchBar
-@property Platform::TouchBarType touchBarType;
+@property TouchBarType touchBarType;
 
 @property(retain) NSDictionary * _Nullable touchbarItems;
+@property(retain) NSTouchBar * _Nullable touchBarMain;
+@property(retain) NSTouchBar * _Nullable touchBarAudioPlayer;
 @property(nonatomic, assign) double duration;
 @property(nonatomic, assign) double position;
 

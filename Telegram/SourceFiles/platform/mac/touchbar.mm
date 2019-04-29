@@ -29,12 +29,12 @@ namespace {
 constexpr auto kPlayPause = 0x000;
 constexpr auto kPlaylistPrevious = 0x001;
 constexpr auto kPlaylistNext = 0x002;
-constexpr auto kSavedMessages = 0x002;
-    
+constexpr auto kSavedMessages = 0x003;
+	
 constexpr auto kMs = 1000;
-    
+	
 constexpr auto kSongType = AudioMsgId::Type::Song;
-}
+} // namespace
 
 @interface TouchBar()<NSTouchBarDelegate>
 @end
@@ -42,234 +42,269 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 @implementation TouchBar
 
 - (instancetype)init {
-    self = [super init];
-    if (self) {
-        self.touchBarType = Platform::TouchBarType::None;
+	self = [super init];
+	if (self) {
+		self.touchbarItems = @{
+			savedMessages: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Saved Messages",
+				@"cmd":   [NSNumber numberWithInt:kSavedMessages],
+                @"image": [NSImage imageNamed:NSImageNameTouchBarBookmarksTemplate],
+			}],
+			seekBar: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type": @"slider",
+				@"name": @"Seek Bar"
+			}],
+			play: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":     @"button",
+				@"name":     @"Play Button",
+				@"cmd":      [NSNumber numberWithInt:kPlayPause],
+				@"image":    [NSImage imageNamed:NSImageNameTouchBarPauseTemplate],
+				@"imageAlt": [NSImage imageNamed:NSImageNameTouchBarPlayTemplate]
+			}],
+			previousItem: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Previous Playlist Item",
+				@"cmd":   [NSNumber numberWithInt:kPlaylistPrevious],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarGoBackTemplate]
+			}],
+			nextItem: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Next Playlist Item",
+				@"cmd":   [NSNumber numberWithInt:kPlaylistNext],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarGoForwardTemplate]
+			}],
+			previousChapter: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Previous Chapter",
+				@"cmd":   [NSNumber numberWithInt:kPlayPause],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarSkipBackTemplate]
+			}],
+			nextChapter: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Next Chapter",
+				@"cmd":   [NSNumber numberWithInt:kPlayPause],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarSkipAheadTemplate]
+			}],
+			cycleAudio: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Cycle Audio",
+				@"cmd":   [NSNumber numberWithInt:kPlayPause],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarAudioInputTemplate]
+			}],
+			cycleSubtitle: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"button",
+				@"name":  @"Cycle Subtitle",
+				@"cmd":   [NSNumber numberWithInt:kPlayPause],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarComposeTemplate]
+			}],
+			currentPosition: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type": @"text",
+				@"name": @"Current Position"
+			}]
+		};
+	}
+    [self createTouchBar];
+    [self setTouchBar:TouchBarType::Main];
+	
+	return self;
+}
 
-        self.touchbarItems = @{
-            seekBar: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type": @"slider",
-                @"name": @"Seek Bar",
-                @"cmd":  [NSNumber numberWithInt:kPlayPause]
-            }],
-            play: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":     @"button",
-                @"name":     @"Play Button",
-                @"cmd":      [NSNumber numberWithInt:kPlayPause],
-                @"image":    [NSImage imageNamed:NSImageNameTouchBarPauseTemplate],
-                @"imageAlt": [NSImage imageNamed:NSImageNameTouchBarPlayTemplate]
-            }],
-            previousItem: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":  @"button",
-                @"name":  @"Previous Playlist Item",
-                @"cmd":   [NSNumber numberWithInt:kPlaylistPrevious],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarGoBackTemplate]
-            }],
-            nextItem: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":  @"button",
-                @"name":  @"Next Playlist Item",
-                @"cmd":   [NSNumber numberWithInt:kPlaylistNext],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarGoForwardTemplate]
-            }],
-            previousChapter: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":  @"button",
-                @"name":  @"Previous Chapter",
-                @"cmd":   [NSNumber numberWithInt:kPlayPause],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarSkipBackTemplate]
-            }],
-            nextChapter: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":  @"button",
-                @"name":  @"Next Chapter",
-                @"cmd":   [NSNumber numberWithInt:kPlayPause],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarSkipAheadTemplate]
-            }],
-            cycleAudio: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":  @"button",
-                @"name":  @"Cycle Audio",
-                @"cmd":   [NSNumber numberWithInt:kPlayPause],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarAudioInputTemplate]
-            }],
-            cycleSubtitle: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type":  @"button",
-                @"name":  @"Cycle Subtitle",
-                @"cmd":   [NSNumber numberWithInt:kPlayPause],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarComposeTemplate]
-            }],
-            currentPosition: [NSMutableDictionary dictionaryWithDictionary:@{
-                @"type": @"text",
-                @"name": @"Current Position"
-            }]
-        };
-    }
-    return self;
+- (void) createTouchBar{
+    _touchBarAudioPlayer = [[NSTouchBar alloc] init];
+    _touchBarAudioPlayer.delegate = self;
+
+    _touchBarAudioPlayer.customizationIdentifier = customID;
+    _touchBarAudioPlayer.defaultItemIdentifiers = @[savedMessages, play, previousItem, nextItem, seekBar];
+    _touchBarAudioPlayer.customizationAllowedItemIdentifiers = @[savedMessages, play, previousItem,
+                                                                nextItem, currentPosition, seekBar];
+    
+    _touchBarMain = [[NSTouchBar alloc] init];
+    _touchBarMain.delegate = self;
+    
+    _touchBarMain.customizationIdentifier = customIDMain;
+    _touchBarMain.defaultItemIdentifiers = @[savedMessages];
+    _touchBarMain.customizationAllowedItemIdentifiers = @[savedMessages];
 }
 
 - (nullable NSTouchBar *) makeTouchBar{
-    NSTouchBar *touchBar = [[NSTouchBar alloc] init];
-    touchBar.delegate = self;
-    touchBar.customizationIdentifier = @"TOUCH_BAR";
-
-    touchBar.customizationIdentifier = customID;
-    touchBar.defaultItemIdentifiers = @[play, previousItem, nextItem, seekBar];
-    touchBar.customizationAllowedItemIdentifiers = @[play, seekBar, previousItem,
-        nextItem, previousChapter, nextChapter, cycleAudio, cycleSubtitle,
-        currentPosition];
-    
-    return touchBar;
+    return [NSApplication sharedApplication].mainWindow.touchBar;
+//    [NSApplication sharedApplication].mainWindow.touchBar = touchBar;
 }
 
 - (nullable NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar
-                makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
-    if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"slider"]) {
-        NSSliderTouchBarItem *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:identifier];
-        item.slider.minValue = 0.0f;
-        item.slider.maxValue = 1.0f;
-        item.target = self;
-        item.action = @selector(seekbarChanged:);
-        item.customizationLabel = self.touchbarItems[identifier][@"name"];
-        [self.touchbarItems[identifier] setObject:item.slider forKey:@"view"];
-        return item;
-    } else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"button"]) {
-        NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-        NSImage *image = self.touchbarItems[identifier][@"image"];
-        NSButton *button = [NSButton buttonWithImage:image target:self action:@selector(buttonAction:)];
-        item.view = button;
-        item.customizationLabel = self.touchbarItems[identifier][@"name"];
-        [self.touchbarItems[identifier] setObject:button forKey:@"view"];
-        return item;
-    } else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"text"]) {
-        NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-        NSTextField *text = [NSTextField labelWithString:@"0:00"];
-        text.alignment = NSTextAlignmentCenter;
-        item.view = text;
-        item.customizationLabel = self.touchbarItems[identifier][@"name"];
-        [self.touchbarItems[identifier] setObject:text forKey:@"view"];
-        return item;
-    }
+				makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
+	if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"slider"]) {
+		NSSliderTouchBarItem *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:identifier];
+		item.slider.minValue = 0.0f;
+		item.slider.maxValue = 1.0f;
+		item.target = self;
+		item.action = @selector(seekbarChanged:);
+		item.customizationLabel = self.touchbarItems[identifier][@"name"];
+		[self.touchbarItems[identifier] setObject:item.slider forKey:@"view"];
+		return item;
+	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"button"]) {
+		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
+		NSImage *image = self.touchbarItems[identifier][@"image"];
+		NSButton *button = [NSButton buttonWithImage:image target:self action:@selector(buttonAction:)];
+		item.view = button;
+		item.customizationLabel = self.touchbarItems[identifier][@"name"];
+		[self.touchbarItems[identifier] setObject:button forKey:@"view"];
+		return item;
+	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"text"]) {
+		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
+		NSTextField *text = [NSTextField labelWithString:@"0:00"];
+		text.alignment = NSTextAlignmentCenter;
+		item.view = text;
+		item.customizationLabel = self.touchbarItems[identifier][@"name"];
+		[self.touchbarItems[identifier] setObject:text forKey:@"view"];
+		return item;
+	}
 
-    return nil;
+	return nil;
+}
+
+- (void)setTouchBar:(TouchBarType)type {
+	if (self.touchBarType == type) {
+		return;
+	}
+	self.touchBarType = type;
+	if (type == TouchBarType::Main) {
+		[NSApplication sharedApplication].mainWindow.touchBar = _touchBarMain;
+	} else if (type == TouchBarType::AudioPlayer) {
+		[NSApplication sharedApplication].mainWindow.touchBar = _touchBarAudioPlayer;
+	}
 }
 
 - (void)handlePropertyChange:(Media::Player::TrackState)property {
-    self.position = property.position < 0 ? 0 : property.position;
-    self.duration = property.length;
-    [self updateTouchBarTimeItems];
-    NSButton *playButton = self.touchbarItems[play][@"view"];
-    if (property.state == Media::Player::State::Playing) {
-        playButton.image = self.touchbarItems[play][@"image"];
-    } else {
-        playButton.image = self.touchbarItems[play][@"imageAlt"];
-    }
-    
-    [self.touchbarItems[nextItem][@"view"]
-     setEnabled:Media::Player::instance()->nextAvailable(kSongType)];
-    [self.touchbarItems[previousItem][@"view"]
-     setEnabled:Media::Player::instance()->previousAvailable(kSongType)];
+	if (property.state == Media::Player::State::Stopped) {
+		[self setTouchBar:TouchBarType::Main];
+		return;
+	} else {
+		[self setTouchBar:TouchBarType::AudioPlayer];
+	}
+	
+	self.position = property.position < 0 ? 0 : property.position;
+	self.duration = property.length;
+	[self updateTouchBarTimeItems];
+	NSButton *playButton = self.touchbarItems[play][@"view"];
+	if (property.state == Media::Player::State::Playing) {
+		playButton.image = self.touchbarItems[play][@"image"];
+	} else {
+		playButton.image = self.touchbarItems[play][@"imageAlt"];
+	}
+	
+	[self.touchbarItems[nextItem][@"view"]
+	 setEnabled:Media::Player::instance()->nextAvailable(kSongType)];
+	[self.touchbarItems[previousItem][@"view"]
+	 setEnabled:Media::Player::instance()->previousAvailable(kSongType)];
 }
 
 - (NSString *)formatTime:(int)time {
-    const int seconds = time % 60;
-    const int minutes = (time / 60) % 60;
-    const int hours = time / (60 * 60);
+	const int seconds = time % 60;
+	const int minutes = (time / 60) % 60;
+	const int hours = time / (60 * 60);
 
-    NSString *stime = hours > 0 ? [NSString stringWithFormat:@"%d:", hours] : @"";
-    stime = (stime.length > 0 || minutes > 9) ?
-        [NSString stringWithFormat:@"%@%02d:", stime, minutes] :
-        [NSString stringWithFormat:@"%d:", minutes];
-    stime = [NSString stringWithFormat:@"%@%02d", stime, seconds];
+	NSString *stime = hours > 0 ? [NSString stringWithFormat:@"%d:", hours] : @"";
+	stime = (stime.length > 0 || minutes > 9) ?
+		[NSString stringWithFormat:@"%@%02d:", stime, minutes] :
+		[NSString stringWithFormat:@"%d:", minutes];
+	stime = [NSString stringWithFormat:@"%@%02d", stime, seconds];
 
-    return stime;
+	return stime;
 }
 
 - (void)removeConstraintForIdentifier:(NSTouchBarItemIdentifier)identifier {
-    NSTextField *field = self.touchbarItems[identifier][@"view"];
-    [field removeConstraint:self.touchbarItems[identifier][@"constrain"]];
+	NSTextField *field = self.touchbarItems[identifier][@"view"];
+	[field removeConstraint:self.touchbarItems[identifier][@"constrain"]];
 }
 
 - (void)applyConstraintFromString:(NSString *)string
-                    forIdentifier:(NSTouchBarItemIdentifier)identifier {
-    NSTextField *field = self.touchbarItems[identifier][@"view"];
-    if (field) {
-        NSString *fString = [[string componentsSeparatedByCharactersInSet:
-            [NSCharacterSet decimalDigitCharacterSet]] componentsJoinedByString:@"0"];
-        NSTextField *textField = [NSTextField labelWithString:fString];
-        NSSize size = [textField frame].size;
+					forIdentifier:(NSTouchBarItemIdentifier)identifier {
+	NSTextField *field = self.touchbarItems[identifier][@"view"];
+	if (field) {
+		NSString *fString = [[string componentsSeparatedByCharactersInSet:
+			[NSCharacterSet decimalDigitCharacterSet]] componentsJoinedByString:@"0"];
+		NSTextField *textField = [NSTextField labelWithString:fString];
+		NSSize size = [textField frame].size;
 
-        NSLayoutConstraint *con =
-            [NSLayoutConstraint constraintWithItem:field
-                                         attribute:NSLayoutAttributeWidth
-                                         relatedBy:NSLayoutRelationEqual
-                                            toItem:nil
-                                         attribute:NSLayoutAttributeNotAnAttribute
-                                        multiplier:1.0
-                                          constant:(int)ceil(size.width * 1.5)];
-        [field addConstraint:con];
-        [self.touchbarItems[identifier] setObject:con forKey:@"constrain"];
-    }
+		NSLayoutConstraint *con =
+			[NSLayoutConstraint constraintWithItem:field
+										 attribute:NSLayoutAttributeWidth
+										 relatedBy:NSLayoutRelationEqual
+											toItem:nil
+										 attribute:NSLayoutAttributeNotAnAttribute
+										multiplier:1.0
+										  constant:(int)ceil(size.width * 1.5)];
+		[field addConstraint:con];
+		[self.touchbarItems[identifier] setObject:con forKey:@"constrain"];
+	}
 }
 
 - (void)updateTouchBarTimeItemConstrains {
-    [self removeConstraintForIdentifier:currentPosition];
+	[self removeConstraintForIdentifier:currentPosition];
 
-    if (self.duration <= 0) {
-        [self applyConstraintFromString:[self formatTime:self.position]
-                          forIdentifier:currentPosition];
-    } else {
-        NSString *durFormat = [self formatTime:self.duration];
-        [self applyConstraintFromString:durFormat forIdentifier:currentPosition];
-    }
+	if (self.duration <= 0) {
+		[self applyConstraintFromString:[self formatTime:self.position]
+						  forIdentifier:currentPosition];
+	} else {
+		NSString *durFormat = [self formatTime:self.duration];
+		[self applyConstraintFromString:durFormat forIdentifier:currentPosition];
+	}
 }
 
 - (void)updateTouchBarTimeItems {
-    NSSlider *seekSlider = self.touchbarItems[seekBar][@"view"];
-    NSTextField *curPosItem = self.touchbarItems[currentPosition][@"view"];
+	NSSlider *seekSlider = self.touchbarItems[seekBar][@"view"];
+	NSTextField *curPosItem = self.touchbarItems[currentPosition][@"view"];
 
-    if (self.duration <= 0) {
-        seekSlider.enabled = NO;
-        seekSlider.doubleValue = 0;
-    } else {
-        seekSlider.enabled = YES;
-        if (!seekSlider.highlighted) {
-            seekSlider.doubleValue = (self.position / self.duration) * seekSlider.maxValue;
-        }
-    }
-    const auto timeToString = [&](int t) {
-        return [self formatTime:(int)floor(t / kMs)];
-    };
-    curPosItem.stringValue = [NSString stringWithFormat:@"%@ / %@",
-                              timeToString(self.position),
-                              timeToString(self.duration)];
+	if (self.duration <= 0) {
+		seekSlider.enabled = NO;
+		seekSlider.doubleValue = 0;
+	} else {
+		seekSlider.enabled = YES;
+		if (!seekSlider.highlighted) {
+			seekSlider.doubleValue = (self.position / self.duration) * seekSlider.maxValue;
+		}
+	}
+	const auto timeToString = [&](int t) {
+		return [self formatTime:(int)floor(t / kMs)];
+	};
+	curPosItem.stringValue = [NSString stringWithFormat:@"%@ / %@",
+							  timeToString(self.position),
+							  timeToString(self.duration)];
 
-    [self updateTouchBarTimeItemConstrains];
+	[self updateTouchBarTimeItemConstrains];
 }
 
 - (NSString *)getIdentifierFromView:(id)view {
-    NSString *identifier;
-    for (identifier in self.touchbarItems)
-        if([self.touchbarItems[identifier][@"view"] isEqual:view])
-            break;
-    return identifier;
+	NSString *identifier;
+	for (identifier in self.touchbarItems)
+		if([self.touchbarItems[identifier][@"view"] isEqual:view])
+			break;
+	return identifier;
 }
 
 - (void)buttonAction:(NSButton *)sender {
-    NSString *identifier = [self getIdentifierFromView:sender];
-    const auto command = [self.touchbarItems[identifier][@"cmd"] intValue];
-    LOG(("BUTTON %1").arg(command));
-    Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-        if (command == kPlayPause) {
-            Media::Player::instance()->playPause();
-        } else if (command == kPlaylistPrevious) {
-            Media::Player::instance()->previous();
-        } else if (command == kPlaylistNext) {
-            Media::Player::instance()->next();
+	NSString *identifier = [self getIdentifierFromView:sender];
+	const auto command = [self.touchbarItems[identifier][@"cmd"] intValue];
+
+	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+		if (command == kPlayPause) {
+			Media::Player::instance()->playPause();
+		} else if (command == kPlaylistPrevious) {
+			Media::Player::instance()->previous();
+		} else if (command == kPlaylistNext) {
+			Media::Player::instance()->next();
+        } else if (command == kSavedMessages) {
+            App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
         }
-    });
+	});
 }
 
 - (void)seekbarChanged:(NSSliderTouchBarItem *)sender {
-    Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-        Media::Player::instance()->finishSeeking(kSongType, sender.slider.doubleValue);
-    });
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		Media::Player::instance()->finishSeeking(kSongType, sender.slider.doubleValue);
+	});
 }
 
 @end

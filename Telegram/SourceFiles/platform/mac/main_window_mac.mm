@@ -111,8 +111,8 @@ public:
 	void willExitFullScreen();
 
 	bool clipboardHasText();
-    
-    TouchBar *_touchBar;
+	
+	TouchBar *_touchBar;
 
 	~Private();
 
@@ -189,9 +189,6 @@ MainWindow::Private::Private(MainWindow *window)
 , _observer([[MainWindowObserver alloc] init:this]) {
 	_generalPasteboard = [NSPasteboard generalPasteboard];
 
-	_touchBar = [[TouchBar alloc] init];
-	[_touchBar setTouchBarType:Platform::TouchBarType::AudioPlayer];
-
 	@autoreleasepool {
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
@@ -217,10 +214,6 @@ void MainWindow::Private::setWindowBadge(const QString &str) {
 
 void MainWindow::Private::setWindowTitle(const QString &str) {
 	_public->setWindowTitle(str);
-    if ([[NSApplication sharedApplication] respondsToSelector:@selector(isAutomaticCustomizeTouchBarMenuItemEnabled)]) {
-        [NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-    }
-	[NSApplication sharedApplication].mainWindow.touchBar = [_touchBar makeTouchBar];
 	updateNativeTitle();
 }
 
@@ -401,11 +394,11 @@ MainWindow::MainWindow()
 			_private->updateNativeTitle();
 		}
 	});
-    
-    subscribe(Media::Player::instance()->updatedNotifier(),
-      [=](const Media::Player::TrackState &state) {
-          [_private->_touchBar handlePropertyChange:state];
-    });
+	
+	subscribe(Media::Player::instance()->updatedNotifier(),
+	  [=](const Media::Player::TrackState &state) {
+		  [_private->_touchBar handlePropertyChange:state];
+	});
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -590,6 +583,10 @@ void MainWindow::psFirstShow() {
 	setPositionInited();
 
 	createGlobalMenu();
+	
+	// Create TouchBar.
+	[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
+	_private->_touchBar = [[TouchBar alloc] init];
 }
 
 void MainWindow::createGlobalMenu() {
