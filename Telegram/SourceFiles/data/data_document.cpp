@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "lottie/lottie_animation.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
 #include "media/streaming/media_streaming_loader_local.h"
 
@@ -302,7 +303,11 @@ void DocumentOpenClickHandler::Open(
 			const auto guard = gsl::finally([&] {
 				location.accessDisable();
 			});
-			if (QImageReader(location.name()).canRead()) {
+			const auto path = location.name();
+			if (QImageReader(path).canRead()) {
+				Core::App().showDocument(data, context);
+				return;
+			} else if (Lottie::ValidateFile(path)) {
 				Core::App().showDocument(data, context);
 				return;
 			}
