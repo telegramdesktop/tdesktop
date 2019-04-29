@@ -112,9 +112,14 @@ public:
 
         int adjustedFrame = qBound(m_startFrame, frame, m_endFrame);
         if (const EasingSegment<QPointF> *easing = getEasingSegment(adjustedFrame)) {
-            qreal progress = ((adjustedFrame - m_startFrame) * 1.0) / (m_endFrame - m_startFrame);
-            qreal easedValue = easing->easing.valueForProgress(progress);
-            m_value = m_bezierPath.pointAtPercent(easedValue);
+			if (easing->complete) {
+				qreal progress = ((adjustedFrame - m_startFrame) * 1.0) / (m_endFrame - m_startFrame);
+				qreal easedValue = easing->easing.valueForProgress(progress);
+				m_value = m_bezierPath.pointAtPercent(easedValue);
+			} else {
+				// In case of incomplete easing we should just take the final point.
+				m_value = m_bezierPath.pointAtPercent(1.);
+			}
         }
 
         return true;
