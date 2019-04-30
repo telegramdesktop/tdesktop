@@ -659,6 +659,10 @@ bool HistoryItem::unread() const {
 	return (_flags & MTPDmessage_ClientFlag::f_clientside_unread);
 }
 
+void HistoryItem::markClientSideAsRead() {
+	_flags &= ~MTPDmessage_ClientFlag::f_clientside_unread;
+}
+
 MessageGroupId HistoryItem::groupId() const {
 	return _groupId;
 }

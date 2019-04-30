@@ -1540,9 +1540,21 @@ void History::calculateFirstUnreadMessage() {
 	}
 }
 
+void History::readClientSideMessages() {
+	for (const auto &block : blocks) {
+		for (const auto &view : block->messages) {
+			const auto item = view->data();
+			if (!item->out()) {
+				item->markClientSideAsRead();
+			}
+		}
+	}
+}
+
 MsgId History::readInbox() {
 	const auto upTo = msgIdForRead();
 	setUnreadCount(0);
+	readClientSideMessages();
 	if (upTo) {
 		inboxRead(upTo);
 	}

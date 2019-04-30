@@ -426,6 +426,7 @@ private:
 
 	void setInboxReadTill(MsgId upTo);
 	void setOutboxReadTill(MsgId upTo);
+	void readClientSideMessages();
 
 	void applyMessageChanges(
 		not_null<HistoryItem*> item,
