@@ -149,48 +149,22 @@ void Animation::parse(const QByteArray &content) {
 	_treeBlueprint = std::make_unique<BMBase>();
 	const auto blueprint = _treeBlueprint.get();
 	const auto layers = root.value(QLatin1String("layers")).toArray();
-	//for (const auto &entry : ranges::view::reverse(layers)) {
-	//	if (const auto layer = BMLayer::construct(entry.toObject())) {
-	//		layer->setParent(blueprint);
-
-	//		// Mask layers must be rendered before the layers they affect to
-	//		// although they appear before in layer hierarchy. For this reason
-	//		// move a mask after the affected layers, so it will be rendered first
-	//		if (layer->isMaskLayer()) {
-	//			blueprint->prependChild(layer);
-	//		} else {
-	//			blueprint->appendChild(layer);
-	//		}
-	//	} else {
-	//		_unsupported = true;
-	//	}
-	//}
 	for (const auto &entry : ranges::view::reverse(layers)) {
 		if (const auto layer = BMLayer::construct(entry.toObject())) {
 			layer->setParent(blueprint);
-			blueprint->addChild(layer);
+
+			// Mask layers must be rendered before the layers they affect to
+			// although they appear before in layer hierarchy. For this reason
+			// move a mask after the affected layers, so it will be rendered first
+			if (layer->isMaskLayer()) {
+				blueprint->prependChild(layer);
+			} else {
+				blueprint->appendChild(layer);
+			}
 		} else {
 			_unsupported = true;
 		}
 	}
-	// Mask layers must be rendered before the layers they affect to
-	// although they appear before in layer hierarchy. For this reason
-	// move a mask after the affected layers, so it will be rendered first
-	auto &children = blueprint->children();
-	auto moveTo = -1;
-	for (int i = 0; i < children.count(); i++) {
-		const auto layer = static_cast<BMLayer*>(children.at(i));
-		if (layer->isClippedLayer())
-			moveTo = i;
-		if (layer->isMaskLayer()) {
-			qCDebug(lcLottieQtBodymovinParser()) << "Move mask layer"
-				<< children.at(i)->name()
-				<< "before" << children.at(moveTo)->name();
-			children.move(i, moveTo);
-		}
-	}
-
-
 }
 
 } // namespace Lottie

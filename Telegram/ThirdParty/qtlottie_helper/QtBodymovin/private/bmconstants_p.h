@@ -55,20 +55,6 @@
 
 #define BM_EFFECT_FILL          0x20000
 
-#define BM_SHAPE_ELLIPSE_STR    "el"
-#define BM_SHAPE_FILL_STR       "fl"
-#define BM_SHAPE_GFILL_STR      "gf"
-#define BM_SHAPE_GSTROKE_STR    "gs"
-#define BM_SHAPE_GROUP_STR      "gr"
-#define BM_SHAPE_RECT_STR       "rc"
-#define BM_SHAPE_ROUND_STR      "rd"
-#define BM_SHAPE_SHAPE_STR      "sh"
-#define BM_SHAPE_STAR_STR       "sr"
-#define BM_SHAPE_STROKE_STR     "st"
-#define BM_SHAPE_TRIM_STR       "tm"
-#define BM_SHAPE_TRANSFORM_STR  "tr"
-#define BM_SHAPE_REPEATER_STR   "rp"
-
 QT_BEGIN_NAMESPACE
 
 Q_DECLARE_LOGGING_CATEGORY(lcLottieQtBodymovinParser);

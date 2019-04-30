@@ -74,10 +74,13 @@ public:
     virtual bool active(int frame) const;
     bool hidden() const;
 
-    BMBase *parent() const;
+    inline BMBase *parent() const { return m_parent; }
     void setParent(BMBase *parent);
-    void addChild(BMBase *child, bool priority = false);
-    QList<BMBase *>& children();
+
+    const QList<BMBase *> &children() const { return m_children; }
+    void prependChild(BMBase *child);
+    void appendChild(BMBase *child);
+
     virtual BMBase *findChild(const QString &childName);
 
     virtual void updateProperties(int frame);
@@ -95,13 +98,14 @@ protected:
     QString m_name;
     QString m_matchName;
     bool m_autoOrient = false;
-    BMBase *m_parent = nullptr;
-    QList<BMBase *> m_children;
 
     friend class BMRasterRenderer;
     friend class BMRenderer;
 
 private:
+    BMBase *m_parent = nullptr;
+    QList<BMBase *> m_children;
+
     // Handle to the topmost element on which this element resides
     // Will be resolved when traversing effects
     BMBase *m_topRoot = nullptr;

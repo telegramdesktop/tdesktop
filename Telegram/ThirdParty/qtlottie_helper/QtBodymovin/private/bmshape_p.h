@@ -41,7 +41,6 @@
 // We mean it.
 //
 
-#include <QLatin1String>
 #include <QPainterPath>
 
 #include <QtBodymovin/private/bmbase_p.h>
@@ -76,7 +75,7 @@ public:
 
     BMBase *clone() const override;
 
-    static BMShape *construct(QJsonObject definition, BMBase *parent = nullptr, int constructAs = BM_SHAPE_ANY_TYPE_IX);
+    static BMShape *construct(QJsonObject definition, BMBase *parent = nullptr);
 
     virtual const QPainterPath &path() const;
     virtual bool acceptsTrim() const;
@@ -88,11 +87,6 @@ protected:
     QPainterPath m_path;
     BMTrimPath *m_appliedTrim = nullptr;
     int m_direction = 0;
-
-private:
-    static QMap<QLatin1String, int> setShapeMap();
-
-    static const QMap<QLatin1String, int> m_shapeMap;
 };
 
 QT_END_NAMESPACE
