@@ -455,8 +455,8 @@ AuthSession &DocumentData::session() const {
 
 void DocumentData::setattributes(
 		const QVector<MTPDocumentAttribute> &attributes) {
-	_isImage = false;
-	_supportsStreaming = SupportsStreaming::Unknown;
+	_flags &= ~(Flag::ImageType | kStreamingSupportedMask);
+	_flags |= kStreamingSupportedUnknown;
 	for (const auto &attribute : attributes) {
 		attribute.match([&](const MTPDdocumentAttributeImageSize & data) {
 			dimensions = QSize(data.vw.v, data.vh.v);
@@ -732,15 +732,17 @@ void DocumentData::automaticLoadSettingsChanged() {
 		return;
 	}
 	_loader = nullptr;
+	_flags &= ~Flag::DownloadCancelled;
 }
 
 bool DocumentData::loaded(FilePathResolve resolve) const {
 	if (loading() && _loader->finished()) {
 		if (_loader->cancelled()) {
-			destroyLoader(CancelledFileLoader);
+			_flags |= Flag::DownloadCancelled;
+			destroyLoader();
 		} else {
 			auto that = const_cast<DocumentData*>(this);
-			that->_location = FileLocation(_loader->fileName());
+			that->setLocation(FileLocation(_loader->fileName()));
 			ActiveCache().decrement(that->_data.size());
 			that->_data = _loader->bytes();
 			ActiveCache().increment(that->_data.size());
@@ -769,17 +771,19 @@ bool DocumentData::loaded(FilePathResolve resolve) const {
 	return !data().isEmpty() || !filepath(resolve).isEmpty();
 }
 
-void DocumentData::destroyLoader(FileLoader *newValue) const {
-	const auto loader = std::exchange(_loader, newValue);
+void DocumentData::destroyLoader() const {
+	if (!_loader) {
+		return;
+	}
+	const auto loader = base::take(_loader);
 	if (cancelled()) {
 		loader->cancel();
 	}
 	loader->stop();
-	delete loader;
 }
 
 bool DocumentData::loading() const {
-	return _loader && !cancelled();
+	return (_loader != nullptr);
 }
 
 QString DocumentData::loadingFilePath() const {
@@ -850,13 +854,10 @@ void DocumentData::save(
 		return;
 	}
 
-	if (cancelled()) {
-		_loader = nullptr;
-	}
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
-			_loader = nullptr;
+			_flags &= ~Flag::DownloadCancelled;
 		}
 	}
 
@@ -868,7 +869,7 @@ void DocumentData::save(
 		status = FileReady;
 		auto reader = owner().documentStreamedReader(this, origin, true);
 		if (reader) {
-			_loader = new Storage::StreamedFileDownloader(
+			_loader = std::make_unique<Storage::StreamedFileDownloader>(
 				id,
 				_dc,
 				origin,
@@ -883,21 +884,21 @@ void DocumentData::save(
 				autoLoading,
 				cacheTag());
 		} else if (hasWebLocation()) {
-			_loader = new mtpFileLoader(
+			_loader = std::make_unique<mtpFileLoader>(
 				_urlLocation,
 				size,
 				fromCloud,
 				autoLoading,
 				cacheTag());
 		} else if (!_access && !_url.isEmpty()) {
-			_loader = new webFileLoader(
+			_loader = std::make_unique<webFileLoader>(
 				_url,
 				toFile,
 				fromCloud,
 				autoLoading,
 				cacheTag());
 		} else {
-			_loader = new mtpFileLoader(
+			_loader = std::make_unique<mtpFileLoader>(
 				StorageFileLocation(
 					_dc,
 					session().userId(),
@@ -916,8 +917,16 @@ void DocumentData::save(
 				cacheTag());
 		}
 
-		_loader->connect(_loader, SIGNAL(progress(FileLoader*)), App::main(), SLOT(documentLoadProgress(FileLoader*)));
-		_loader->connect(_loader, SIGNAL(failed(FileLoader*,bool)), App::main(), SLOT(documentLoadFailed(FileLoader*,bool)));
+		QObject::connect(
+			_loader.get(),
+			&FileLoader::progress,
+			App::main(),
+			[=](FileLoader *l) { App::main()->documentLoadProgress(l); });
+		QObject::connect(
+			_loader.get(),
+			&FileLoader::failed,
+			App::main(),
+			&MainWidget::documentLoadFailed);
 	}
 	if (loading()) {
 		_loader->start();
@@ -930,13 +939,14 @@ void DocumentData::cancel() {
 		return;
 	}
 
-	destroyLoader(CancelledFileLoader);
+	_flags |= Flag::DownloadCancelled;
+	destroyLoader();
 	_owner->notifyDocumentLayoutChanged(this);
 	App::main()->documentLoadProgress(this);
 }
 
 bool DocumentData::cancelled() const {
-	return (_loader == CancelledFileLoader);
+	return (_flags & Flag::DownloadCancelled);
 }
 
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {
@@ -1208,17 +1218,17 @@ bool DocumentData::canBeStreamed() const {
 }
 
 bool DocumentData::canBePlayed() const {
-	return !_inappPlaybackFailed
+	return !(_flags & Flag::StreamingPlaybackFailed)
 		&& useStreamingLoader()
 		&& (loaded() || canBeStreamed());
 }
 
 void DocumentData::setInappPlaybackFailed() {
-	_inappPlaybackFailed = true;
+	_flags |= Flag::StreamingPlaybackFailed;
 }
 
 bool DocumentData::inappPlaybackFailed() const {
-	return _inappPlaybackFailed;
+	return (_flags & Flag::StreamingPlaybackFailed);
 }
 
 auto DocumentData::createStreamingLoader(
@@ -1367,7 +1377,8 @@ bool DocumentData::isVideoMessage() const {
 bool DocumentData::isAnimation() const {
 	return (type == AnimatedDocument)
 		|| isVideoMessage()
-		|| (hasMimeType(qstr("image/gif")) && !_inappPlaybackFailed);
+		|| (hasMimeType(qstr("image/gif"))
+			&& !(_flags & Flag::StreamingPlaybackFailed));
 }
 
 bool DocumentData::isGifv() const {
@@ -1430,30 +1441,37 @@ TimeId DocumentData::getDuration() const {
 }
 
 bool DocumentData::isImage() const {
-	return _isImage;
+	return (_flags & Flag::ImageType);
 }
 
 bool DocumentData::supportsStreaming() const {
-	return (_supportsStreaming == SupportsStreaming::MaybeYes);
+	return (_flags & kStreamingSupportedMask) == kStreamingSupportedMaybeYes;
 }
 
 void DocumentData::setNotSupportsStreaming() {
-	_supportsStreaming = SupportsStreaming::No;
+	_flags &= ~kStreamingSupportedMask;
+	_flags |= kStreamingSupportedNo;
 }
 
 void DocumentData::setMaybeSupportsStreaming(bool supports) {
-	if (_supportsStreaming == SupportsStreaming::No) {
+	if ((_flags & kStreamingSupportedMask) == kStreamingSupportedNo) {
 		return;
 	}
-	_supportsStreaming = supports
-		? SupportsStreaming::MaybeYes
-		: SupportsStreaming::MaybeNo;
+	_flags &= ~kStreamingSupportedMask;
+	_flags |= supports
+		? kStreamingSupportedMaybeYes
+		: kStreamingSupportedMaybeNo;
 }
 
 void DocumentData::recountIsImage() {
-	_isImage = !isAnimation()
+	const auto isImage = !isAnimation()
 		&& !isVideoFile()
 		&& fileIsImage(filename(), mimeString());
+	if (isImage) {
+		_flags |= Flag::ImageType;
+	} else {
+		_flags &= ~Flag::ImageType;
+	}
 }
 
 bool DocumentData::thumbnailEnoughForSticker() const {
@@ -1509,9 +1527,7 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 }
 
 DocumentData::~DocumentData() {
-	if (loading()) {
-		destroyLoader();
-	}
+	destroyLoader();
 	unload();
 	ActiveCache().remove(this);
 }

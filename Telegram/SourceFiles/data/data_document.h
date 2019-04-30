@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "data/data_types.h"
 #include "ui/image/image.h"
 
@@ -236,12 +237,29 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
-	enum class SupportsStreaming : uchar {
-		Unknown,
-		MaybeYes,
-		MaybeNo,
-		No,
+	enum class Flag : uchar {
+		StreamingMaybeYes = 0x01,
+		StreamingMaybeNo = 0x02,
+		StreamingPlaybackFailed = 0x04,
+		ImageType = 0x08,
+		DownloadCancelled = 0x10,
+		LoadedInMediaCache = 0x20,
 	};
+	using Flags = base::flags<Flag>;
+	friend constexpr bool is_flag_type(Flag) { return true; };
+
+	static constexpr Flags kStreamingSupportedMask = Flags()
+		| Flag::StreamingMaybeYes
+		| Flag::StreamingMaybeNo;
+	static constexpr Flags kStreamingSupportedUnknown = Flags()
+		| Flag::StreamingMaybeYes
+		| Flag::StreamingMaybeNo;
+	static constexpr Flags kStreamingSupportedMaybeYes = Flags()
+		| Flag::StreamingMaybeYes;
+	static constexpr Flags kStreamingSupportedMaybeNo = Flags()
+		| Flag::StreamingMaybeNo;
+	static constexpr Flags kStreamingSupportedNo = Flags();
+
 	friend class Serialize::Document;
 
 	LocationType locationType() const;
@@ -249,7 +267,7 @@ private:
 	void validateGoodThumbnail();
 	void setMaybeSupportsStreaming(bool supports);
 
-	void destroyLoader(FileLoader *newValue = nullptr) const;
+	void destroyLoader() const;
 
 	[[nodiscard]] bool useStreamingLoader() const;
 	[[nodiscard]] bool thumbnailEnoughForSticker() const;
@@ -274,11 +292,8 @@ private:
 	QByteArray _data;
 	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
-	bool _isImage = false;
-	SupportsStreaming _supportsStreaming = SupportsStreaming::Unknown;
-	bool _inappPlaybackFailed = false;
-
-	mutable FileLoader *_loader = nullptr;
+	mutable Flags _flags = kStreamingSupportedUnknown;
+	mutable std::unique_ptr<FileLoader> _loader;
 
 };
 
