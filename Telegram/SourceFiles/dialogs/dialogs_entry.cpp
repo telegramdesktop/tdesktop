@@ -57,6 +57,10 @@ void Entry::cachePinnedIndex(int index) {
 	if (_pinnedIndex != index) {
 		const auto wasPinned = isPinnedDialog();
 		_pinnedIndex = index;
+		if (session().supportMode()) {
+			// Force reorder in support mode.
+			_sortKeyInChatList = 0;
+		}
 		updateChatListSortPosition();
 		updateChatListEntry();
 		if (wasPinned != isPinnedDialog()) {
@@ -81,9 +85,9 @@ bool Entry::needUpdateInChatList() const {
 }
 
 void Entry::updateChatListSortPosition() {
-	if (Auth().supportMode()
+	if (session().supportMode()
 		&& _sortKeyInChatList != 0
-		&& Auth().settings().supportFixChatsOrder()) {
+		&& session().settings().supportFixChatsOrder()) {
 		updateChatListEntry();
 		return;
 	}
@@ -95,6 +99,8 @@ void Entry::updateChatListSortPosition() {
 		: DialogPosFromDate(adjustedChatListTimeId());
 	if (needUpdateInChatList()) {
 		setChatListExistence(true);
+	} else {
+		_sortKeyInChatList = 0;
 	}
 }
 
@@ -209,8 +215,8 @@ void Entry::updateChatListEntry() const {
 					mainChatListLink(Mode::Important));
 			}
 		}
-		if (Auth().supportMode()
-			&& !Auth().settings().supportAllSearchResults()) {
+		if (session().supportMode()
+			&& !session().settings().supportAllSearchResults()) {
 			main->repaintDialogRow({ _key, FullMsgId() });
 		}
 	}
