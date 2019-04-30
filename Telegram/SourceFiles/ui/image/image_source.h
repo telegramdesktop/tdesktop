@@ -142,7 +142,7 @@ protected:
 	// If after loading the image we need to shrink it to fit into a
 	// specific size, you can return this size here.
 	virtual QSize shrinkBox() const = 0;
-	virtual FileLoader *createLoader(
+	virtual std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) = 0;
@@ -150,11 +150,11 @@ protected:
 	void loadLocal();
 
 private:
-	bool loaderValid() const;
 	bool cancelled() const;
-	void destroyLoader(FileLoader *newValue = nullptr);
+	void destroyLoader();
 
-	FileLoader *_loader = nullptr;
+	std::unique_ptr<FileLoader> _loader;
+	bool _cancelled = false;
 
 };
 
@@ -176,7 +176,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
@@ -204,7 +204,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
@@ -230,7 +230,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
@@ -289,7 +289,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;

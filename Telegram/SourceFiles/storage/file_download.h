@@ -437,9 +437,6 @@ public slots:
 
 };
 
-static FileLoader * const CancelledFileLoader = SharedMemoryLocation<FileLoader, 0>();
-static mtpFileLoader * const CancelledMtpFileLoader = static_cast<mtpFileLoader*>(CancelledFileLoader);
-static webFileLoader * const CancelledWebFileLoader = static_cast<webFileLoader*>(CancelledFileLoader);
 static WebLoadManager * const FinishedWebLoadManager = SharedMemoryLocation<WebLoadManager, 0>();
 
 void stopWebLoadManager();
