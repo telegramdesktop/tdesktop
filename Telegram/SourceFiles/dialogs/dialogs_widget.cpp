@@ -671,6 +671,7 @@ void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
 			st::dialogsLoadMoreButton,
 			st::dialogsLoadMore,
 			st::dialogsLoadMore);
+		_loadMoreChats->show();
 		_loadMoreChats->addClickHandler([=] {
 			loadMoreBlockedByDate();
 		});

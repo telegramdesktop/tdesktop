@@ -776,13 +776,11 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		});
 
 		if (!folder) {
-			requestDialogs(folder);
-			requestContacts();
-			if (!_dialogsLoadState
-				|| (!_dialogsLoadState->listReceived
-					&& !_dialogsLoadState->requestId)) {
+			if (!_dialogsLoadState || !_dialogsLoadState->listReceived) {
 				refreshDialogsLoadBlocked();
 			}
+			requestDialogs(folder);
+			requestContacts();
 		}
 		_session->data().chatsListChanged(folder);
 	}).fail([=](const RPCError &error) {
@@ -923,6 +921,7 @@ void ApiWrap::requestMoreBlockedByDateDialogs() {
 	_dialogsLoadTill = _dialogsLoadState->offsetDate
 		? (_dialogsLoadState->offsetDate - max)
 		: (unixtime() - max);
+	refreshDialogsLoadBlocked();
 	requestDialogs();
 }
 
