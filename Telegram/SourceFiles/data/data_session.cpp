@@ -1210,11 +1210,6 @@ rpl::producer<not_null<HistoryItem*>> Session::animationPlayInlineRequest() cons
 	return _animationPlayInlineRequest.events();
 }
 
-void Session::notifyItemRemoved(not_null<const HistoryItem*> item) {
-	_itemRemoved.fire_copy(item);
-	groups().unregisterMessage(item);
-}
-
 rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {
 	return _itemRemoved.events();
 }
@@ -1646,16 +1641,30 @@ void Session::processMessagesDeleted(
 	}
 }
 
+void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
+	const auto i = _dependentMessages.find(item);
+	if (i == end(_dependentMessages)) {
+		return;
+	}
+	const auto items = std::move(i->second);
+	_dependentMessages.erase(i);
+
+	for (const auto dependent : items) {
+		dependent->dependencyItemRemoved(item);
+	}
+}
+
 void Session::destroyMessage(not_null<HistoryItem*> item) {
 	Expects(!item->isLogEntry() || !item->mainView());
 
+	const auto peerId = item->history()->peer->id;
 	if (!item->isLogEntry()) {
 		// All this must be done for all items manually in History::clear()!
 		item->eraseFromUnreadMentions();
 		if (IsServerMsgId(item->id)) {
 			if (const auto types = item->sharedMediaTypes()) {
 				session().storage().remove(Storage::SharedMediaRemoveOne(
-					item->history()->peer->id,
+					peerId,
 					types,
 					item->id));
 			}
@@ -1664,7 +1673,12 @@ void Session::destroyMessage(not_null<HistoryItem*> item) {
 		}
 		item->history()->itemRemoved(item);
 	}
-	const auto list = messagesListForInsert(item->history()->channelId());
+	_itemRemoved.fire_copy(item);
+	groups().unregisterMessage(item);
+	removeDependencyMessage(item);
+	session().notifications().clearFromItem(item);
+
+	const auto list = messagesListForInsert(peerToChannel(peerId));
 	list->erase(item->id);
 }
 
@@ -1691,29 +1705,6 @@ HistoryItem *Session::message(
 HistoryItem *Session::message(FullMsgId itemId) const {
 	return message(itemId.channel, itemId.msg);
 }
-
-//void historyUnregItem(not_null<HistoryItem*> item) {
-//	const auto data = fetchMsgsData(item->channelId(), false);
-//	if (!data) return;
-//
-//	const auto i = data->find(item->id);
-//	if (i != data->cend()) {
-//		if (i.value() == item) {
-//			data->erase(i);
-//		}
-//	}
-//	const auto j = ::dependentItems.find(item);
-//	if (j != ::dependentItems.cend()) {
-//		DependentItemsSet items;
-//		std::swap(items, j.value());
-//		::dependentItems.erase(j);
-//
-//		for_const (auto dependent, items) {
-//			dependent->dependencyItemRemoved(item);
-//		}
-//	}
-//	item->history()->session().notifications().clearFromItem(item);
-//}
 
 void Session::updateDependentMessages(not_null<HistoryItem*> item) {
 	const auto i = _dependentMessages.find(item);

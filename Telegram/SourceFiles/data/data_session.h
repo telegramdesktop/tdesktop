@@ -189,7 +189,6 @@ public:
 	void notifyHistoryUnloaded(not_null<const History*> history);
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyUnloaded() const;
 
-	void notifyItemRemoved(not_null<const HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	void notifyViewRemoved(not_null<const ViewElement*> view);
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewRemoved() const;
@@ -677,6 +676,7 @@ private:
 	not_null<Messages*> messagesListForInsert(ChannelId channelId);
 	HistoryItem *registerMessage(std::unique_ptr<HistoryItem> item);
 	void changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId);
+	void removeDependencyMessage(not_null<HistoryItem*> item);
 
 	void photoApplyFields(
 		not_null<PhotoData*> photo,

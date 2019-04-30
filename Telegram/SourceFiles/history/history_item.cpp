@@ -736,9 +736,7 @@ void HistoryItem::drawInDialog(
 	p.restoreTextPalette();
 }
 
-HistoryItem::~HistoryItem() {
-	_history->owner().notifyItemRemoved(this);
-}
+HistoryItem::~HistoryItem() = default;
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
 	return ParseDateTime(item->date());
