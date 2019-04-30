@@ -489,16 +489,21 @@ void Controller::fillPrivacyTypeButton() {
 		? Privacy::Public
 		: Privacy::Private;
 
+	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		Lang::Viewer((_peer->isChat() || _peer->isMegagroup())
+		Lang::Viewer(isGroup
 			? lng_manage_peer_group_type
 			: lng_manage_peer_channel_type),
 		_updadePrivacyType.events(
-		) | rpl::map([](Privacy flag) {
+		) | rpl::map([=](Privacy flag) {
 			return lang(Privacy::Public == flag
-				? lng_manage_public_peer_title
-				: lng_manage_private_peer_title);
+				? (isGroup
+					? lng_manage_public_group_title
+					: lng_manage_public_peer_title)
+				: (isGroup
+					? lng_manage_private_group_title
+					: lng_manage_private_peer_title));
 		}),
 		[=] { showEditPeerTypeBox(); });
 
