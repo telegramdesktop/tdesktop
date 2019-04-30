@@ -56,9 +56,15 @@
 
 QT_BEGIN_NAMESPACE
 
+enum class EasingSegmentState : char {
+    Complete,
+    Incomplete,
+    Final,
+};
+
 template<typename T>
 struct EasingSegment {
-    bool complete = false;
+    EasingSegmentState state = EasingSegmentState::Incomplete;
     double startFrame = 0;
     double endFrame = 0;
     T startValue;
@@ -83,12 +89,32 @@ public:
         if (m_animated) {
             QJsonArray keyframes = definition.value(QLatin1String("k")).toArray();
             QJsonArray::const_iterator it = keyframes.constBegin();
+			QJsonArray::const_iterator previous;
             while (it != keyframes.constEnd()) {
-                EasingSegment<T> easing = parseKeyframe((*it).toObject(),
+				QJsonObject keyframe = (*it).toObject();
+                EasingSegment<T> easing = parseKeyframe(keyframe,
                                                         fromExpression);
                 addEasing(easing);
+
+				if (m_easingCurves.length() > 1) {
+					postprocessEasingCurve(
+						m_easingCurves.at(m_easingCurves.length() - 2),
+						(*previous).toObject(),
+						fromExpression);
+				}
+				previous = it;
                 ++it;
             }
+            finalizeEasingCurves();
+			if (m_easingCurves.length() > 0) {
+				const EasingSegment<T> &last = m_easingCurves.last();
+				if (last.state == EasingSegmentState::Complete) {
+					postprocessEasingCurve(
+						last,
+						(*previous).toObject(),
+						fromExpression);
+				}
+			}
             m_value = T();
         } else
             m_value = getValue(definition.value(QLatin1String("k")));
@@ -129,14 +155,30 @@ protected:
     void addEasing(EasingSegment<T>& easing)
     {
         if (m_easingCurves.length()) {
-            EasingSegment<T> prevEase = m_easingCurves.last();
+            EasingSegment<T> &prevEase = m_easingCurves.last();
             // The end value has to be hand picked to the
             // previous easing segment, as the json data does
             // not contain end values for segments
             prevEase.endFrame = easing.startFrame - 1;
-            m_easingCurves.replace(m_easingCurves.length() - 1, prevEase);
+            if (prevEase.state == EasingSegmentState::Incomplete) {
+                prevEase.endValue = easing.startValue;
+                prevEase.state = EasingSegmentState::Complete;
+            }
         }
         m_easingCurves.push_back(easing);
+    }
+
+    void finalizeEasingCurves()
+    {
+        if (m_easingCurves.length()) {
+            EasingSegment<T> &last = m_easingCurves.last();
+            if (last.state == EasingSegmentState::Incomplete) {
+                last.endValue = last.startValue;
+                last.endFrame = last.startFrame;
+                this->m_endFrame = last.startFrame;
+                last.state = EasingSegmentState::Final;
+            }
+        }
     }
 
     const EasingSegment<T>* getEasingSegment(int frame)
@@ -178,9 +220,16 @@ protected:
             this->m_endFrame = startTime;
             easing.startFrame = startTime;
             easing.endFrame = startTime;
+            easing.state = EasingSegmentState::Final;
             if (m_easingCurves.length()) {
-                easing.startValue = m_easingCurves.last().endValue;
-                easing.endValue = m_easingCurves.last().endValue;
+                const EasingSegment<T> &last = m_easingCurves.last();
+                if (last.state == EasingSegmentState::Complete) {
+                    easing.startValue = last.endValue;
+                    easing.endValue = last.endValue;
+                } else {
+                    qCWarning(lcLottieQtBodymovinParser())
+                            << "Last keyframe found after an incomplete one";
+                }
             }
             return easing;
         }
@@ -188,9 +237,12 @@ protected:
         if (m_startFrame > startTime)
             m_startFrame = startTime;
 
-        easing.startValue = getValue(keyframe.value(QLatin1String("s")).toArray());
-        easing.endValue = getValue(keyframe.value(QLatin1String("e")).toArray());
         easing.startFrame = startTime;
+        easing.startValue = getValue(keyframe.value(QLatin1String("s")).toArray());
+        if (keyframe.contains(QLatin1String("e"))) {
+            easing.endValue = getValue(keyframe.value(QLatin1String("e")).toArray());
+            easing.state = EasingSegmentState::Complete;
+        }
 
         QJsonObject easingIn = keyframe.value(QLatin1String("i")).toObject();
         QJsonObject easingOut = keyframe.value(QLatin1String("o")).toObject();
@@ -206,10 +258,14 @@ protected:
 
         easing.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
 
-        easing.complete = true;
-
         return easing;
     }
+
+	virtual void postprocessEasingCurve(
+		const EasingSegment<T> &easing,
+		const QJsonObject keyframe,
+		bool fromExpression) {
+	}
 
     virtual T getValue(const QJsonValue &value)
     {
@@ -278,9 +334,16 @@ protected:
             this->m_endFrame = startTime;
             easingCurve.startFrame = startTime;
             easingCurve.endFrame = startTime;
+            easingCurve.state = EasingSegmentState::Final;
             if (this->m_easingCurves.length()) {
-                easingCurve.startValue = this->m_easingCurves.last().endValue;
-                easingCurve.endValue = this->m_easingCurves.last().endValue;
+                const EasingSegment<T> &last = this->m_easingCurves.last();
+                if (last.state == EasingSegmentState::Complete) {
+                    easingCurve.startValue = last.endValue;
+                    easingCurve.endValue = last.endValue;
+                } else {
+                    qCWarning(lcLottieQtBodymovinParser())
+                            << "Last keyframe found after an incomplete one";
+                }
             }
             return easingCurve;
         }
@@ -288,29 +351,38 @@ protected:
         if (this->m_startFrame > startTime)
             this->m_startFrame = startTime;
 
-        qreal xs, ys, xe, ye;
+        qreal xs, ys;
         // Keyframes originating from an expression use only scalar values.
         // They must be expanded for both x and y coordinates
         if (fromExpression) {
             xs = startValues.at(0).toDouble();
             ys = startValues.at(0).toDouble();
-            xe = endValues.at(0).toDouble();
-            ye = endValues.at(0).toDouble();
         } else {
             xs = startValues.at(0).toDouble();
             ys = startValues.at(1).toDouble();
-            xe = endValues.at(0).toDouble();
-            ye = endValues.at(1).toDouble();
         }
         T s(xs, ys);
-        T e(xe, ye);
 
         QJsonObject easingIn = keyframe.value(QLatin1String("i")).toObject();
         QJsonObject easingOut = keyframe.value(QLatin1String("o")).toObject();
 
         easingCurve.startFrame = startTime;
         easingCurve.startValue = s;
-        easingCurve.endValue = e;
+        if (!endValues.isEmpty()) {
+            qreal xe, ye;
+            // Keyframes originating from an expression use only scalar values.
+            // They must be expanded for both x and y coordinates
+            if (fromExpression) {
+                xe = endValues.at(0).toDouble();
+                ye = endValues.at(0).toDouble();
+            } else {
+                xe = endValues.at(0).toDouble();
+                ye = endValues.at(1).toDouble();
+            }
+            T e(xe, ye);
+            easingCurve.endValue = e;
+            easingCurve.state = EasingSegmentState::Complete;
+        }
 
         if (easingIn.value(QLatin1String("x")).isArray()) {
             QJsonArray eixArr = easingIn.value(QLatin1String("x")).toArray();
@@ -323,7 +395,7 @@ protected:
                 qreal eix = eixArr.takeAt(0).toDouble();
                 qreal eiy = eiyArr.takeAt(0).toDouble();
 
-                qreal eox =eoxArr.takeAt(0).toDouble();
+                qreal eox = eoxArr.takeAt(0).toDouble();
                 qreal eoy = eoyArr.takeAt(0).toDouble();
 
                 QPointF c1 = QPointF(eox, eoy);
@@ -345,7 +417,6 @@ protected:
             easingCurve.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
         }
 
-        easingCurve.complete = true;
         return easingCurve;
     }
 };

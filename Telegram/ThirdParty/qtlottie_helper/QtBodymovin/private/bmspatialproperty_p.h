@@ -57,13 +57,13 @@ public:
         BMProperty2D<QPointF>::construct(definition);
     }
 
-    virtual EasingSegment<QPointF> parseKeyframe(const QJsonObject keyframe, bool fromExpression) override
-    {
-        EasingSegment<QPointF> easing = BMProperty2D<QPointF>::parseKeyframe(keyframe, fromExpression);
-
+	virtual void postprocessEasingCurve(
+			const EasingSegment<QPointF> &easing,
+			const QJsonObject keyframe,
+			bool fromExpression) override {
         // No need to parse further incomplete keyframes (i.e. last keyframes)
-        if (!easing.complete) {
-            return easing;
+        if (easing.state != EasingSegmentState::Complete) {
+            return;
         }
 
         qreal tix = 0, tiy = 0, tox = 0, toy = 0;
@@ -101,8 +101,6 @@ public:
 
         m_bezierPath.moveTo(s);
         m_bezierPath.cubicTo(c1, c2, e);
-
-        return easing;
     }
 
     virtual bool update(int frame) override
@@ -112,7 +110,7 @@ public:
 
         int adjustedFrame = qBound(m_startFrame, frame, m_endFrame);
         if (const EasingSegment<QPointF> *easing = getEasingSegment(adjustedFrame)) {
-			if (easing->complete) {
+			if (easing->state == EasingSegmentState::Complete) {
 				qreal progress = ((adjustedFrame - m_startFrame) * 1.0) / (m_endFrame - m_startFrame);
 				qreal easedValue = easing->easing.valueForProgress(progress);
 				m_value = m_bezierPath.pointAtPercent(easedValue);
