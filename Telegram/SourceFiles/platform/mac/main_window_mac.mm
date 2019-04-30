@@ -429,6 +429,9 @@ void MainWindow::initHook() {
 		if (auto window = [view window]) {
 			_private->setNativeWindow(window, view);
 		}
+		// Create TouchBar.
+		[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
+		_private->_touchBar = [[TouchBar alloc] init:view];
 	}
 }
 
@@ -583,10 +586,6 @@ void MainWindow::psFirstShow() {
 	setPositionInited();
 
 	createGlobalMenu();
-	
-	// Create TouchBar.
-	[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-	_private->_touchBar = [[TouchBar alloc] init];
 }
 
 void MainWindow::createGlobalMenu() {

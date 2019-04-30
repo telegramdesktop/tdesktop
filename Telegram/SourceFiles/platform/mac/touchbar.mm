@@ -26,10 +26,12 @@
 #include "styles/style_window.h"
 
 namespace {
-constexpr auto kPlayPause = 0x000;
-constexpr auto kPlaylistPrevious = 0x001;
-constexpr auto kPlaylistNext = 0x002;
-constexpr auto kSavedMessages = 0x003;
+constexpr auto kSavedMessages = 0x001;
+
+constexpr auto kPlayPause = 0x002;
+constexpr auto kPlaylistPrevious = 0x003;
+constexpr auto kPlaylistNext = 0x004;
+constexpr auto kClosePlayer = 0x005;
 	
 constexpr auto kMs = 1000;
 	
@@ -41,9 +43,10 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 
 @implementation TouchBar
 
-- (instancetype)init {
+- (id)init:(NSView *)view {
 	self = [super init];
 	if (self) {
+		self.view = view;
 		self.touchbarItems = @{
 			savedMessages: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"button",
@@ -74,29 +77,11 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 				@"cmd":   [NSNumber numberWithInt:kPlaylistNext],
 				@"image": [NSImage imageNamed:NSImageNameTouchBarGoForwardTemplate]
 			}],
-			previousChapter: [NSMutableDictionary dictionaryWithDictionary:@{
+			closePlayer: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"button",
-				@"name":  @"Previous Chapter",
-				@"cmd":   [NSNumber numberWithInt:kPlayPause],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarSkipBackTemplate]
-			}],
-			nextChapter: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Next Chapter",
-				@"cmd":   [NSNumber numberWithInt:kPlayPause],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarSkipAheadTemplate]
-			}],
-			cycleAudio: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Cycle Audio",
-				@"cmd":   [NSNumber numberWithInt:kPlayPause],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarAudioInputTemplate]
-			}],
-			cycleSubtitle: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Cycle Subtitle",
-				@"cmd":   [NSNumber numberWithInt:kPlayPause],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarComposeTemplate]
+				@"name":  @"Close Player",
+				@"cmd":   [NSNumber numberWithInt:kClosePlayer],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarExitFullScreenTemplate]
 			}],
 			currentPosition: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type": @"text",
@@ -111,25 +96,20 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 }
 
 - (void) createTouchBar{
+	_touchBarMain = [[NSTouchBar alloc] init];
+	_touchBarMain.delegate = self;
+	
+	_touchBarMain.customizationIdentifier = customIDMain;
+	_touchBarMain.defaultItemIdentifiers = @[savedMessages];
+	_touchBarMain.customizationAllowedItemIdentifiers = @[savedMessages];
+	
     _touchBarAudioPlayer = [[NSTouchBar alloc] init];
     _touchBarAudioPlayer.delegate = self;
 
     _touchBarAudioPlayer.customizationIdentifier = customID;
-    _touchBarAudioPlayer.defaultItemIdentifiers = @[savedMessages, play, previousItem, nextItem, seekBar];
-    _touchBarAudioPlayer.customizationAllowedItemIdentifiers = @[savedMessages, play, previousItem,
-                                                                nextItem, currentPosition, seekBar];
-    
-    _touchBarMain = [[NSTouchBar alloc] init];
-    _touchBarMain.delegate = self;
-    
-    _touchBarMain.customizationIdentifier = customIDMain;
-    _touchBarMain.defaultItemIdentifiers = @[savedMessages];
-    _touchBarMain.customizationAllowedItemIdentifiers = @[savedMessages];
-}
-
-- (nullable NSTouchBar *) makeTouchBar{
-    return [NSApplication sharedApplication].mainWindow.touchBar;
-//    [NSApplication sharedApplication].mainWindow.touchBar = touchBar;
+    _touchBarAudioPlayer.defaultItemIdentifiers = @[play, previousItem, nextItem, seekBar, closePlayer];
+    _touchBarAudioPlayer.customizationAllowedItemIdentifiers = @[play, previousItem,
+                                                                nextItem, currentPosition, seekBar, closePlayer];
 }
 
 - (nullable NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar
@@ -170,16 +150,19 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 	}
 	self.touchBarType = type;
 	if (type == TouchBarType::Main) {
-		[NSApplication sharedApplication].mainWindow.touchBar = _touchBarMain;
+		[self.view setTouchBar:_touchBarMain];
 	} else if (type == TouchBarType::AudioPlayer) {
-		[NSApplication sharedApplication].mainWindow.touchBar = _touchBarAudioPlayer;
+		[self.view setTouchBar:_touchBarAudioPlayer];
 	}
 }
 
 - (void)handlePropertyChange:(Media::Player::TrackState)property {
+	// #TODO: fix hiding of touch bar when last track is ended.
 	if (property.state == Media::Player::State::Stopped) {
 		[self setTouchBar:TouchBarType::Main];
 		return;
+	} else if (property.state == Media::Player::State::StoppedAtEnd) {
+		[self setTouchBar:TouchBarType::AudioPlayer];
 	} else {
 		[self setTouchBar:TouchBarType::AudioPlayer];
 	}
@@ -289,15 +272,17 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 	const auto command = [self.touchbarItems[identifier][@"cmd"] intValue];
 
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		if (command == kPlayPause) {
+		if (command == kSavedMessages) {
+			App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
+		} else if (command == kPlayPause) {
 			Media::Player::instance()->playPause();
 		} else if (command == kPlaylistPrevious) {
 			Media::Player::instance()->previous();
 		} else if (command == kPlaylistNext) {
 			Media::Player::instance()->next();
-        } else if (command == kSavedMessages) {
-            App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
-        }
+		} else if (command == kClosePlayer) {
+			App::main()->closeBothPlayers();
+		}
 	});
 }
 

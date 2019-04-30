@@ -285,6 +285,8 @@ public:
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_historyMuteUpdated(History *history);
 
+	void closeBothPlayers();
+
 	bool isQuitPrevent();
 
 	~MainWidget();
@@ -347,7 +349,6 @@ private:
 
 	void setupConnectingWidget();
 	void createPlayer();
-	void closeBothPlayers();
 	void playerHeightUpdated();
 
 	void setCurrentCall(Calls::Call *call);
