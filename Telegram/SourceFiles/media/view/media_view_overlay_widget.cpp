@@ -544,7 +544,9 @@ void OverlayWidget::updateControls() {
 	updateThemePreviewGeometry();
 
 	_saveVisible = (_photo && _photo->loaded())
-		|| (_doc && _doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty());
+		|| (_doc
+			&& _doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()
+			&& !_doc->loading());
 	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_saveNavIcon = centerrect(_saveNav, st::mediaviewSave);
 	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
@@ -1203,7 +1205,8 @@ void OverlayWidget::onDownload() {
 			}
 			location.accessDisable();
 		} else {
-			if (_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
+			if (_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()
+				&& !_doc->loading()) {
 				DocumentSaveClickHandler::Save(
 					fileOrigin(),
 					_doc,
