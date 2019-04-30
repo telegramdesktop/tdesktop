@@ -149,7 +149,8 @@ void Animation::parse(const QByteArray &content) {
 	_treeBlueprint = std::make_unique<BMBase>();
 	const auto blueprint = _treeBlueprint.get();
 	const auto layers = root.value(QLatin1String("layers")).toArray();
-	for (const auto &entry : ranges::view::reverse(layers)) {
+	for (auto i = layers.end(); i != layers.begin();) {
+		const auto &entry = *(--i);
 		if (const auto layer = BMLayer::construct(entry.toObject())) {
 			layer->setParent(blueprint);
 
