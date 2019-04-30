@@ -77,7 +77,7 @@ private:
 	QImage grabForAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);
-	void prepareCache();
+	void prepareCacheFor(bool hiding);
 
 	void opacityAnimationCallback();
 

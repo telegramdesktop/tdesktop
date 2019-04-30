@@ -255,15 +255,21 @@ void TabbedPanel::hideByTimerOrLeave() {
 	hideAnimated();
 }
 
-void TabbedPanel::prepareCache() {
-	if (_a_opacity.animating()) return;
+void TabbedPanel::prepareCacheFor(bool hiding) {
+	if (_a_opacity.animating()) {
+		return;
+	}
 
 	auto showAnimation = base::take(_a_show);
 	auto showAnimationData = base::take(_showAnimation);
+	_hiding = false;
 	showChildren();
+
 	_cache = Ui::GrabWidget(this);
-	_showAnimation = base::take(showAnimationData);
+
 	_a_show = base::take(showAnimation);
+	_showAnimation = base::take(showAnimationData);
+	_hiding = hiding;
 	if (_a_show.animating()) {
 		hideChildren();
 	}
@@ -273,11 +279,13 @@ void TabbedPanel::startOpacityAnimation(bool hiding) {
 	if (_selector && !_selector->isHidden()) {
 		_selector->beforeHiding();
 	}
-	_hiding = false;
-	prepareCache();
-	_hiding = hiding;
+	prepareCacheFor(hiding);
 	hideChildren();
-	_a_opacity.start([this] { opacityAnimationCallback(); }, _hiding ? 1. : 0., _hiding ? 0. : 1., st::emojiPanDuration);
+	_a_opacity.start(
+		[=] { opacityAnimationCallback(); },
+		_hiding ? 1. : 0.,
+		_hiding ? 0. : 1.,
+		st::emojiPanDuration);
 }
 
 void TabbedPanel::startShowAnimation() {
