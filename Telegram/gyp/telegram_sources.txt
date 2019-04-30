@@ -429,6 +429,8 @@
 <(src_loc)/lang/lang_tag.h
 <(src_loc)/lang/lang_translator.cpp
 <(src_loc)/lang/lang_translator.h
+<(src_loc)/main/main_account.cpp
+<(src_loc)/main/main_account.h
 <(src_loc)/media/audio/media_audio.cpp
 <(src_loc)/media/audio/media_audio.h
 <(src_loc)/media/audio/media_audio_capture.cpp

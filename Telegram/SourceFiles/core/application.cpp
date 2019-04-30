@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "storage/storage_databases.h"
 #include "mainwidget.h"
+#include "main/main_account.h"
 #include "media/view/media_view_overlay_widget.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
@@ -84,6 +85,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _private(std::make_unique<Private>())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
+, _account(std::make_unique<Main::Account>(cDataFile()))
 , _langpack(std::make_unique<Lang::Instance>())
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
@@ -198,7 +200,7 @@ void Application::run() {
 		DEBUG_LOG(("Application Info: local map read..."));
 		startMtp();
 		DEBUG_LOG(("Application Info: MTP started..."));
-		if (AuthSession::Exists()) {
+		if (activeAccount().sessionExists()) {
 			_window->setupMain();
 		} else {
 			_window->setupIntro();

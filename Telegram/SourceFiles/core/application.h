@@ -34,6 +34,10 @@ namespace App {
 void quit();
 } // namespace App
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Ui {
 namespace Animations {
 class Manager;
@@ -143,9 +147,14 @@ public:
 	void configUpdated();
 	[[nodiscard]] rpl::producer<> configUpdates() const;
 
-	// Databases
+	// Databases.
 	Storage::Databases &databases() {
 		return *_databases;
+	}
+
+	// Account component.
+	Main::Account &activeAccount() {
+		return *_account;
 	}
 
 	// AuthSession component.
@@ -269,6 +278,7 @@ private:
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
+	const std::unique_ptr<Main::Account> _account;
 	std::unique_ptr<MainWindow> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
