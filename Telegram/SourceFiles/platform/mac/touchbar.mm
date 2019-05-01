@@ -27,8 +27,13 @@
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "history/history.h"
+#include "ui/empty_userpic.h"
 
 namespace {
+//https://developer.apple.com/design/human-interface-guidelines/macos/touch-bar/touch-bar-icons-and-images/
+constexpr auto kIdealIconSize = 36;
+constexpr auto kMaximumIconSize = 44;
+
 constexpr auto kSavedMessages = 0x001;
 
 constexpr auto kPlayPause = 0x002;
@@ -39,6 +44,8 @@ constexpr auto kClosePlayer = 0x005;
 constexpr auto kMs = 1000;
 	
 constexpr auto kSongType = AudioMsgId::Type::Song;
+	
+constexpr auto kSavedMessagesId = 0;
 } // namespace
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
@@ -51,6 +58,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @property(nonatomic, assign) PeerData * peer;
 
 - (id) init:(int)num;
+- (id) initSavedMessages;
 - (NSImage *) getPinImage;
 - (void)buttonActionPin:(NSButton *)sender;
 - (void)updatePeerData;
@@ -60,6 +68,9 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @implementation PinnedDialogButton : NSCustomTouchBarItem
 
 - (id) init:(int)num {
+	if (num == kSavedMessagesId) {
+		return [self initSavedMessages];
+	}
 	NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", customIDMain, num];
 	self = [super initWithIdentifier:identifier];
 	if (!self) {
@@ -88,6 +99,24 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	return self;
 }
 
+- (id) initSavedMessages {
+	self = [super initWithIdentifier:savedMessages];
+	if (!self) {
+		return nil;
+	}
+	self.number = kSavedMessagesId;
+	self.waiting = false;
+	
+	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
+	[button setBordered:NO];
+	[button sizeToFit];
+	[button setHidden:(self.number > Auth().data().pinnedDialogsOrder().size())];
+	self.view = button;
+	self.customizationLabel = @"Saved Messages";
+
+	return self;
+}
+
 - (void)updatePeerData {
 	const auto &order = Auth().data().pinnedDialogsOrder();
 	if (self.number > order.size()) {
@@ -103,17 +132,29 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 - (void)buttonActionPin:(NSButton *)sender {
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		App::main()->choosePeer(self.peer->id, ShowAtUnreadMsgId);
+		App::main()->choosePeer(self.number == kSavedMessagesId
+			? Auth().userPeerId()
+			: self.peer->id, ShowAtUnreadMsgId);
 	});
 }
 
 
 - (NSImage *) getPinImage {
+	if (self.number == kSavedMessagesId) {
+		const int s = kIdealIconSize * cRetinaFactor();
+		auto *pix = new QPixmap(s, s);
+		Painter paint(pix);
+		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
+		
+		Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
+		pix->setDevicePixelRatio(cRetinaFactor());
+		return static_cast<NSImage*>(qt_mac_create_nsimage(*pix));
+	}
 	if (!self.peer) {
 		return nil;
 	}
 	self.waiting = !self.peer->userpicLoaded();
-	auto pixmap = self.peer->genUserpic(20);
+	auto pixmap = self.peer->genUserpic(kIdealIconSize);
 	pixmap.setDevicePixelRatio(cRetinaFactor());
 	return static_cast<NSImage*>(qt_mac_create_nsimage(pixmap));
 }
@@ -135,32 +176,32 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	if (self) {
 		self.view = view;
 		self.touchbarItems = @{
-			savedMessages: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Saved Messages",
-				@"cmd":   [NSNumber numberWithInt:kSavedMessages],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarBookmarksTemplate],
-			}],
+//			savedMessages: [NSMutableDictionary dictionaryWithDictionary:@{
+//				@"type":  @"button",
+//				@"name":  @"Saved Messages",
+//				@"cmd":   [NSNumber numberWithInt:kSavedMessages],
+//				@"image": static_cast<NSImage*>(qt_mac_create_nsimage(*pix)),
+//			}],
 			pinnedDialog1: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"pinned",
 				@"num":   @1,
 			}],
-			pinnedDialog2: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"pinned",
-				@"num":   @2,
-			}],
-			pinnedDialog3: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"pinned",
-				@"num":   @3,
-			}],
-			pinnedDialog4: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"pinned",
-				@"num":   @4,
-			}],
-			pinnedDialog5: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"pinned",
-				@"num":   @5,
-			}],
+//			pinnedDialog2: [NSMutableDictionary dictionaryWithDictionary:@{
+//				@"type":  @"pinned",
+//				@"num":   @2,
+//			}],
+//			pinnedDialog3: [NSMutableDictionary dictionaryWithDictionary:@{
+//				@"type":  @"pinned",
+//				@"num":   @3,
+//			}],
+//			pinnedDialog4: [NSMutableDictionary dictionaryWithDictionary:@{
+//				@"type":  @"pinned",
+//				@"num":   @4,
+//			}],
+//			pinnedDialog5: [NSMutableDictionary dictionaryWithDictionary:@{
+//				@"type":  @"pinned",
+//				@"num":   @5,
+//			}],
 			seekBar: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type": @"slider",
 				@"name": @"Seek Bar"
@@ -248,10 +289,15 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 		[self.touchbarItems[identifier] setObject:text forKey:@"view"];
 		return item;
 	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"pinned"]) {
-		const auto number = [self.touchbarItems[identifier][@"num"] intValue];
-		PinnedDialogButton *item = [[PinnedDialogButton alloc] init:number];
-		NSImage *image = self.touchbarItems[identifier][@"image"];
+		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
+		NSMutableArray *pins = [[NSMutableArray alloc] init];
 		
+		for (auto i = 0; i <= 5; i++) {
+			[pins addObject:[[PinnedDialogButton alloc] init:i].view];
+		}
+		NSStackView *stackView = [NSStackView stackViewWithViews:[pins copy]];
+		[stackView setSpacing:-15];
+		item.view = stackView;
 		[self.touchbarItems[identifier] setObject:item.view forKey:@"view"];
 		return item;
 	}
