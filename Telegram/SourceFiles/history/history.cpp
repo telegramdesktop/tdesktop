@@ -2449,7 +2449,7 @@ bool History::useProxyPromotion() const {
 }
 
 int History::fixedOnTopIndex() const {
-	return isProxyPromoted() ? kProxyPromotionFixOnTopIndex : 0;
+	return useProxyPromotion() ? kProxyPromotionFixOnTopIndex : 0;
 }
 
 bool History::shouldBeInChatList() const {
