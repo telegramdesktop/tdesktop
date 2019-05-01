@@ -718,7 +718,8 @@ adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
 	checkPosition: point(8px, 6px);
 }
 
-rightsCheckbox: Checkbox(defaultBoxCheckbox) {
+rightsCheckbox: Checkbox(defaultCheckbox) {
+	textPosition: point(10px, 1px);
 	rippleBg: attentionButtonBgOver;
 }
 rightsToggle: Toggle(defaultToggle) {

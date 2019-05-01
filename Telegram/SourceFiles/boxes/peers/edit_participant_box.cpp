@@ -460,7 +460,7 @@ void EditRestrictedBox::createUntilVariants() {
 					_untilGroup,
 					value,
 					text,
-					st::defaultBoxCheckbox),
+					st::defaultCheckbox),
 				st::rightsToggleMargin));
 		if (!canSave()) {
 			_untilVariants.back()->setDisabled(true);

@@ -587,7 +587,6 @@ managePeerButton: InfoProfileCountButton {
 	iconPosition: point(20px, 5px);
 	label: FlatLabel(defaultFlatLabel) {
 		textFg: windowActiveTextFg;
-		style: semiboldTextStyle;
 	}
 	labelPosition: point(25px, 12px);
 }
@@ -599,11 +598,9 @@ peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
 	iconPosition: point(24px, 5px);
 }
 
-
 manageGroupButton: InfoProfileCountButton(managePeerButton) {
 	button: InfoProfileButton(infoProfileButton) {
 		padding: margins(72px, 10px, 24px, 8px);
-		font: font(14px);
 	}
 	labelPosition: point(22px, 12px);
 	iconPosition: point(20px, 4px);
@@ -612,7 +609,6 @@ manageGroupButton: InfoProfileCountButton(managePeerButton) {
 manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
 	button: InfoProfileButton(infoProfileButton) {
 		padding: margins(22px, 10px, 24px, 8px);
-		font: font(14px);
 	}
 	labelPosition: point(22px, 11px);
 	iconPosition: point(0px, 0px);
@@ -621,7 +617,6 @@ manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
 manageDeleteGroupButton: InfoProfileCountButton(manageGroupTopButtonWithText) {
 	button: InfoProfileButton(infoProfileButton) {
 		padding: margins(25px, 11px, 24px, 8px);
-		font: font(14px);
 		textFg: attentionButtonFg;
 		textFgOver: attentionButtonFg;
 	}
