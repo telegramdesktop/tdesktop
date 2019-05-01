@@ -80,9 +80,9 @@ void UnreadBar::init(int newCount) {
 		return;
 	}
 	count = newCount;
-	text = (count == kCountUnknown)
+	text = /*(count == kCountUnknown) // #feed
 		? lang(lng_unread_bar_some)
-		: lng_unread_bar(lt_count, count);
+		: */lng_unread_bar(lt_count, count);
 	width = st::semiboldFont->width(text);
 }
 
