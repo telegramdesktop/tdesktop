@@ -221,7 +221,7 @@ public:
 	bool recordingAnimationCallback(crl::time now);
 	void stopRecording(bool send);
 
-	void onListEscapePressed();
+	void escape();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
@@ -303,7 +303,6 @@ signals:
 	void cancelled();
 
 public slots:
-	void onCancel();
 	void onPinnedHide();
 	void onFieldBarCancel();
 

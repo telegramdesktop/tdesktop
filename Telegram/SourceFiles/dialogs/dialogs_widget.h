@@ -91,7 +91,6 @@ signals:
 public slots:
 	void onDraggingScrollDelta(int delta);
 
-	void onCancel();
 	void onListScroll();
 	bool onCancelSearch();
 	void onCancelSearchInChat();
@@ -131,6 +130,7 @@ private:
 	void peerSearchReceived(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
+	void escape();
 
 	void setupSupportMode();
 	void setupConnectingWidget();

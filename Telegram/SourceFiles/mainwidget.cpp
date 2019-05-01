@@ -386,7 +386,16 @@ MainWidget::MainWidget(
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, &HistoryWidget::cancelled, [=] {
-		_dialogs->setInnerFocus();
+		const auto historyFromFolder = _history->history()
+			? _history->history()->folder()
+			: nullptr;
+		const auto openedFolder = controller->openedFolder().current();
+		if (!openedFolder || historyFromFolder == openedFolder) {
+			controller->showBackFromStack();
+			_dialogs->setInnerFocus();
+		} else {
+			controller->closeFolder();
+		}
 	});
 	subscribe(
 		Media::Player::instance()->updatedNotifier(),

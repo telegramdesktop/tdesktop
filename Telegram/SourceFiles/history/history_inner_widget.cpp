@@ -1953,7 +1953,7 @@ TextForMimeData HistoryInner::getSelectedText() const {
 
 void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		_widget->onListEscapePressed();
+		_widget->escape();
 	} else if (e == QKeySequence::Copy && !_selected.empty()) {
 		copySelectedText();
 #ifdef Q_OS_MAC

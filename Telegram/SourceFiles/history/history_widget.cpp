@@ -249,7 +249,9 @@ HistoryWidget::HistoryWidget(
 		_field,
 		&Ui::InputField::submitted,
 		[=](Qt::KeyboardModifiers modifiers) { send(modifiers); });
-	connect(_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
+	connect(_field, &Ui::InputField::cancelled, [=] {
+		escape();
+	});
 	connect(_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
 	connect(_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
@@ -6080,39 +6082,6 @@ void HistoryWidget::updatePreview() {
 	update();
 }
 
-void HistoryWidget::onCancel() {
-	if (_isInlineBot) {
-		onInlineBotCancel();
-	} else if (_editMsgId) {
-		auto original = _replyEditMsg ? _replyEditMsg->originalText() : TextWithEntities();
-		auto editData = TextWithTags {
-			original.text,
-			ConvertEntitiesToTextTags(original.entities)
-		};
-		if (_replyEditMsg && editData != _field->getTextWithTags()) {
-			Ui::show(Box<ConfirmBox>(
-				lang(lng_cancel_edit_post_sure),
-				lang(lng_cancel_edit_post_yes),
-				lang(lng_cancel_edit_post_no),
-				crl::guard(this, [this] {
-					if (_editMsgId) {
-						cancelEdit();
-						Ui::hideLayer();
-					}
-				})));
-		} else {
-			cancelEdit();
-		}
-	} else if (!_fieldAutocomplete->isHidden()) {
-		_fieldAutocomplete->hideAnimated();
-	} else if (_replyToId && _field->getTextWithTags().text.isEmpty()) {
-		cancelReply();
-	} else {
-		controller()->showBackFromStack();
-		emit cancelled();
-	}
-}
-
 void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 	auto refresh = false;
 	if (_list && peer == _peer) {
@@ -6206,11 +6175,37 @@ void HistoryWidget::confirmDeleteSelected() {
 	});
 }
 
-void HistoryWidget::onListEscapePressed() {
+void HistoryWidget::escape() {
 	if (_nonEmptySelection && _list) {
 		clearSelected();
+	} else if (_isInlineBot) {
+		onInlineBotCancel();
+	} else if (_editMsgId) {
+		auto original = _replyEditMsg ? _replyEditMsg->originalText() : TextWithEntities();
+		auto editData = TextWithTags{
+			original.text,
+			ConvertEntitiesToTextTags(original.entities)
+		};
+		if (_replyEditMsg && editData != _field->getTextWithTags()) {
+			Ui::show(Box<ConfirmBox>(
+				lang(lng_cancel_edit_post_sure),
+				lang(lng_cancel_edit_post_yes),
+				lang(lng_cancel_edit_post_no),
+				crl::guard(this, [this] {
+					if (_editMsgId) {
+						cancelEdit();
+						Ui::hideLayer();
+					}
+				})));
+		} else {
+			cancelEdit();
+		}
+	} else if (!_fieldAutocomplete->isHidden()) {
+		_fieldAutocomplete->hideAnimated();
+	} else if (_replyToId && _field->getTextWithTags().text.isEmpty()) {
+		cancelReply();
 	} else {
-		onCancel();
+		emit cancelled();
 	}
 }
 

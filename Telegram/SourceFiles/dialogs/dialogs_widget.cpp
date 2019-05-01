@@ -199,7 +199,7 @@ Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller)
 			controller->openFolder(folder);
 		}
 		if (openSearchResult && !session().supportMode()) {
-			onCancel();
+			escape();
 		}
 	}, lifetime());
 
@@ -214,7 +214,7 @@ Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller)
 	}, lifetime());
 
 	connect(_filter, &Ui::FlatInput::cancelled, [=] {
-		onCancel();
+		escape();
 	});
 	connect(_filter, &Ui::FlatInput::changed, [=] {
 		applyFilterUpdate();
@@ -643,12 +643,10 @@ void Widget::animationCallback() {
 	}
 }
 
-void Widget::onCancel() {
+void Widget::escape() {
 	if (controller()->openedFolder().current()) {
 		controller()->closeFolder();
-		return;
-	}
-	if (!onCancelSearch()
+	} else if (!onCancelSearch()
 		|| (!_searchInChat && !App::main()->selectingPeer())) {
 		emit cancelled();
 	}
