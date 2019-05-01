@@ -56,7 +56,8 @@ public:
 private:
 	bool showInfo();
 	bool showToggleArchived();
-	void addPinToggle();
+	bool showTogglePin();
+	void addTogglePin();
 	void addInfo();
 	//void addSearch();
 	void addToggleUnreadMark();
@@ -84,7 +85,7 @@ public:
 
 private:
 	//bool showInfo();
-	//void addPinToggle();
+	//void addTogglePin();
 	//void addInfo();
 	//void addSearch();
 	//void addNotifications();
@@ -210,7 +211,15 @@ bool Filler::showToggleArchived() {
 	return history && (history->folder() != nullptr);
 }
 
-void Filler::addPinToggle() {
+bool Filler::showTogglePin() {
+	if (_source != PeerMenuSource::ChatsList) {
+		return false;
+	}
+	const auto history = _peer->owner().historyLoaded(_peer);
+	return history && !history->fixedOnTopIndex();
+}
+
+void Filler::addTogglePin() {
 	auto peer = _peer;
 	auto isPinned = false;
 	if (auto history = peer->owner().historyLoaded(peer)) {
@@ -495,12 +504,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 }
 
 void Filler::fill() {
-	if (_source == PeerMenuSource::ChatsList) {
-		if (const auto history = _peer->owner().historyLoaded(_peer)) {
-			if (!history->fixedOnTopIndex()) {
-				addPinToggle();
-			}
-		}
+	if (showToggleArchived()) {
+		addToggleArchive();
+	}
+	if (showTogglePin()) {
+		addTogglePin();
 	}
 	if (showInfo()) {
 		addInfo();
@@ -520,9 +528,6 @@ void Filler::fill() {
 	} else if (const auto channel = _peer->asChannel()) {
 		addChannelActions(channel);
 	}
-	if (showToggleArchived()) {
-		addToggleArchive();
-	}
 }
 
 FolderFiller::FolderFiller(
@@ -538,7 +543,7 @@ FolderFiller::FolderFiller(
 
 void FolderFiller::fill() { // #TODO archive
 	//if (_source == PeerMenuSource::ChatsList) {
-	//	addPinToggle();
+	//	addTogglePin();
 	//}
 	//if (showInfo()) {
 	//	addInfo();
@@ -565,7 +570,7 @@ void FolderFiller::fill() { // #TODO archive
 //	return false;
 //}
 //
-//void FolderFiller::addPinToggle() {
+//void FolderFiller::addTogglePin() {
 //	const auto feed = _feed;
 //	const auto isPinned = feed->isPinnedDialog();
 //	const auto pinText = [](bool isPinned) {
