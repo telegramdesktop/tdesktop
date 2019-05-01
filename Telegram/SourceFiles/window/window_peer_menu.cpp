@@ -204,7 +204,7 @@ bool Filler::showToggleArchived() {
 	const auto history = _peer->owner().historyLoaded(_peer);
 	if (history && history->useProxyPromotion()) {
 		return false;
-	} else if (!_peer->isNotificationsUser()) {
+	} else if (!_peer->isNotificationsUser() && !_peer->isSelf()) {
 		return true;
 	}
 	return history && (history->folder() != nullptr);
