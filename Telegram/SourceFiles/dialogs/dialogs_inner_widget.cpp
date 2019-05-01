@@ -309,7 +309,7 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	clearSelection();
 	_openedFolder = folder;
 	_mode = _openedFolder ? Mode::All : Global::DialogsMode();
-	refresh();
+	refresh(true);
 	// This doesn't work, because we clear selection in leaveEvent on hide.
 	//if (mouseSelection && lastMousePosition) {
 	//	selectByMouse(*lastMousePosition);
