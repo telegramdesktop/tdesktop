@@ -60,11 +60,13 @@
       '<(submodules_loc)/crl/src',
     ],
     'sources': [
+      # interface for tdesktop
       '<(src_loc)/lottie/lottie_animation.cpp',
       '<(src_loc)/lottie/lottie_animation.h',
       '<(src_loc)/lottie/lottie_frame_renderer.cpp',
       '<(src_loc)/lottie/lottie_frame_renderer.h',
 
+      # taken from qtlottie/src/bodymovin/bodymovin.pro
       '<(lottie_loc)/bodymovin/bmbase.cpp',
       '<(lottie_loc)/bodymovin/bmlayer.cpp',
       '<(lottie_loc)/bodymovin/bmshape.cpp',
@@ -115,9 +117,15 @@
       '<(lottie_loc)/bodymovin/bmpathtrimmer_p.h',
       '<(lottie_loc)/bodymovin/bmglobal.h',
 
+      # taken from qtlottie/src/imports/imports.pro
       '<(lottie_loc)/imports/rasterrenderer/lottierasterrenderer.cpp',
 
       '<(lottie_loc)/imports/rasterrenderer/lottierasterrenderer.h',
+
+      # added to qtlottie/src/bodymovin/bodymovin.pro
+      '<(lottie_loc)/bodymovin/bmnulllayer.cpp',
+
+      '<(lottie_loc)/bodymovin/bmnulllayer_p.h',
     ],
     'conditions': [[ 'build_macold', {
       'xcode_settings': {
