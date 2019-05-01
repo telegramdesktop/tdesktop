@@ -48,6 +48,30 @@ namespace {
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 
+int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
+	auto result = 0;
+	for (const auto row : *list) {
+		if (!row->entry()->fixedOnTopIndex()) {
+			break;
+		}
+		++result;
+	}
+	return result;
+}
+
+int PinnedDialogsCount(not_null<Dialogs::IndexedList*> list) {
+	auto result = 0;
+	for (const auto row : *list) {
+		if (row->entry()->fixedOnTopIndex()) {
+			continue;
+		} else if (!row->entry()->isPinnedDialog()) {
+			break;
+		}
+		++result;
+	}
+	return result;
+}
+
 } // namespace
 
 struct InnerWidget::ImportantSwitch {
@@ -939,19 +963,6 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	}
 }
 
-int InnerWidget::shownPinnedCount() const {
-	auto result = 0;
-	for (const auto row : *shownDialogs()) {
-		if (row->entry()->fixedOnTopIndex()) {
-			continue;
-		} else if (!row->entry()->isPinnedDialog()) {
-			break;
-		}
-		++result;
-	}
-	return result;
-}
-
 int InnerWidget::countPinnedIndex(Row *ofRow) {
 	if (!ofRow || !ofRow->entry()->isPinnedDialog()) {
 		return -1;
@@ -1012,7 +1023,7 @@ int InnerWidget::updateReorderIndexGetCount() {
 		return 0;
 	}
 
-	auto count = shownPinnedCount();
+	const auto count = Dialogs::PinnedDialogsCount(shownDialogs());
 	Assert(index < count);
 	if (count < 2) {
 		stopReorderPinned();
@@ -2682,11 +2693,13 @@ void InnerWidget::setupShortcuts() {
 		auto &&pinned = ranges::view::zip(kPinned, ranges::view::ints(0));
 		for (const auto [command, index] : pinned) {
 			request->check(command) && request->handle([=, index = index] {
-				const auto count = shownPinnedCount();
+				const auto list = session().data().chatsList()->indexed();
+				const auto count = Dialogs::PinnedDialogsCount(list);
 				if (index >= count) {
 					return false;
 				}
-				const auto row = *(shownDialogs()->cbegin() + index);
+				const auto skip = Dialogs::FixedOnTopDialogsCount(list);
+				const auto row = *(list->cbegin() + skip + index);
 				return jumpToDialogRow({ row->key(), FullMsgId() });
 			});
 		}

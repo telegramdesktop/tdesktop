@@ -272,7 +272,6 @@ private:
 	not_null<IndexedList*> shownDialogs() const;
 
 	void checkReorderPinnedStart(QPoint localPosition);
-	int shownPinnedCount() const;
 	int updateReorderIndexGetCount();
 	bool updateReorderPinned(QPoint localPosition);
 	void finishReorderPinned();
