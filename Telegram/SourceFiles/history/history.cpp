@@ -1553,7 +1553,9 @@ void History::readClientSideMessages() {
 
 MsgId History::readInbox() {
 	const auto upTo = msgIdForRead();
-	setUnreadCount(0);
+	if (unreadCountKnown()) {
+		setUnreadCount(0);
+	}
 	readClientSideMessages();
 	if (upTo) {
 		inboxRead(upTo);
@@ -3022,7 +3024,9 @@ void History::clear(ClearType type) {
 	} else {
 		_notifications.clear();
 		owner().notifyHistoryCleared(this);
-		setUnreadCount(0);
+		if (unreadCountKnown()) {
+			setUnreadCount(0);
+		}
 		if (type == ClearType::DeleteChat) {
 			setLastMessage(nullptr);
 		} else if (_lastMessage && *_lastMessage) {

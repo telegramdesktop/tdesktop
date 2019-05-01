@@ -6001,6 +6001,11 @@ void ApiWrap::sendReadRequest(not_null<PeerData*> peer, MsgId upTo) {
 			_readRequests.remove(peer);
 			if (const auto next = _readRequestsPending.take(peer)) {
 				sendReadRequest(peer, *next);
+			} else if (const auto history
+				= _session->data().historyLoaded(peer)) {
+				if (!history->unreadCountKnown()) {
+					requestDialogEntry(history);
+				}
 			}
 		};
 		if (const auto channel = peer->asChannel()) {
