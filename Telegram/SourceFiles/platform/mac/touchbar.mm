@@ -28,6 +28,7 @@
 #include "data/data_session.h"
 #include "history/history.h"
 #include "ui/empty_userpic.h"
+#include "observer_peer.h"
 
 namespace {
 //https://developer.apple.com/design/human-interface-guidelines/macos/touch-bar/touch-bar-icons-and-images/
@@ -87,12 +88,24 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	self.view = button;
 	self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
 	
+	const auto updateImage = [self]() {
+		NSButton *button = self.view;
+		button.image = [self getPinImage];
+	};
+	
+	Notify::PeerUpdateViewer(
+		self.peer,
+		Notify::PeerUpdate::Flag::PhotoChanged
+	) | rpl::start_with_next([=] {
+		self.waiting = true;
+		updateImage();
+	}, Auth().lifetime());
+	
 	base::ObservableViewer(
 	   Auth().downloaderTaskFinished()
-	) | rpl::start_with_next([self] {
+	) | rpl::start_with_next([=] {
 		if (self.waiting) {
-			NSButton *button = self.view;
-			button.image = [self getPinImage];
+			updateImage();
 		}
 	}, Auth().lifetime());
 	
