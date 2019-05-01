@@ -228,6 +228,8 @@ public:
 	[[nodiscard]] rpl::producer<> stickersUpdated() const;
 	void notifySavedGifsUpdated();
 	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
+	void notifyPinnedDialogsOrderUpdated();
+	[[nodiscard]] rpl::producer<> pinnedDialogsOrderUpdated() const;
 
 	bool stickersUpdateNeeded(crl::time now) const {
 		return stickersUpdateNeeded(_lastStickersUpdate, now);
@@ -830,6 +832,7 @@ private:
 
 	rpl::event_stream<> _stickersUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
+	rpl::event_stream<> _pinnedDialogsOrderUpdated;
 	crl::time _lastStickersUpdate = 0;
 	crl::time _lastRecentStickersUpdate = 0;
 	crl::time _lastFavedStickersUpdate = 0;

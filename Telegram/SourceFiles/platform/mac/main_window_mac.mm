@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
 #include "platform/mac/touchbar.h"
+#include "data/data_session.h"
 
 @interface MainWindowObserver : NSObject {
 }
@@ -395,6 +396,20 @@ MainWindow::MainWindow()
 		}
 	});
 	
+	subscribe(Core::App().authSessionChanged(), [this] {
+		if (AuthSession::Exists()) {
+			
+			Auth().data().pinnedDialogsOrderUpdated(
+			) | rpl::start_with_next([this] {
+				if (auto view = reinterpret_cast<NSView*>(winId())) {
+					// Create TouchBar.
+					[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
+					_private->_touchBar = [[TouchBar alloc] init:view];
+				}
+			}, lifetime());
+		}
+	});
+	
 	subscribe(Media::Player::instance()->updatedNotifier(),
 	  [=](const Media::Player::TrackState &state) {
 		  [_private->_touchBar handlePropertyChange:state];
@@ -429,9 +444,6 @@ void MainWindow::initHook() {
 		if (auto window = [view window]) {
 			_private->setNativeWindow(window, view);
 		}
-		// Create TouchBar.
-		[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-		_private->_touchBar = [[TouchBar alloc] init:view];
 	}
 }
 

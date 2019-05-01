@@ -24,6 +24,9 @@
 #include "lang/lang_keys.h"
 #include "base/timer.h"
 #include "styles/style_window.h"
+#include "auth_session.h"
+#include "data/data_session.h"
+#include "history/history.h"
 
 namespace {
 constexpr auto kSavedMessages = 0x001;
@@ -38,12 +41,96 @@ constexpr auto kMs = 1000;
 constexpr auto kSongType = AudioMsgId::Type::Song;
 } // namespace
 
+NSImage *qt_mac_create_nsimage(const QPixmap &pm);
+
+@interface PinnedDialogButton : NSCustomTouchBarItem {
+}
+
+@property(nonatomic, assign) int number;
+@property(nonatomic, assign) bool waiting;
+@property(nonatomic, assign) PeerData * peer;
+
+- (id) init:(int)num;
+- (NSImage *) getPinImage;
+- (void)buttonActionPin:(NSButton *)sender;
+- (void)updatePeerData;
+
+@end // @interface PinnedDialogButton
+
+@implementation PinnedDialogButton : NSCustomTouchBarItem
+
+- (id) init:(int)num {
+	NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", customIDMain, num];
+	self = [super initWithIdentifier:identifier];
+	if (!self) {
+		return nil;
+	}
+	self.number = num;
+	self.waiting = true;
+	[self updatePeerData];
+	
+	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
+	[button setBordered:NO];
+	[button sizeToFit];
+	[button setHidden:(num > Auth().data().pinnedDialogsOrder().size())];
+	self.view = button;
+	self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
+	
+	base::ObservableViewer(
+	   Auth().downloaderTaskFinished()
+	) | rpl::start_with_next([self] {
+		if (self.waiting) {
+			NSButton *button = self.view;
+			button.image = [self getPinImage];
+		}
+	}, Auth().lifetime());
+	
+	return self;
+}
+
+- (void)updatePeerData {
+	const auto &order = Auth().data().pinnedDialogsOrder();
+	if (self.number > order.size()) {
+		self.peer = nil;
+		return;
+	}
+	// Order is reversed.
+	const auto pinned = order.at(order.size() - self.number);
+	if (const auto history = pinned.history()) {
+		self.peer = history->peer;
+	}
+}
+
+- (void)buttonActionPin:(NSButton *)sender {
+	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+		App::main()->choosePeer(self.peer->id, ShowAtUnreadMsgId);
+	});
+}
+
+
+- (NSImage *) getPinImage {
+	if (!self.peer) {
+		return nil;
+	}
+	self.waiting = !self.peer->userpicLoaded();
+	auto pixmap = self.peer->genUserpic(20);
+	pixmap.setDevicePixelRatio(cRetinaFactor());
+	return static_cast<NSImage*>(qt_mac_create_nsimage(pixmap));
+}
+
+
+@end
+
+
+@interface TouchBar()<NSTouchBarDelegate>
+@end // @interface TouchBar
+
 @interface TouchBar()<NSTouchBarDelegate>
 @end
 
 @implementation TouchBar
 
-- (id)init:(NSView *)view {
+- (id)init:(NSView *)view{
 	self = [super init];
 	if (self) {
 		self.view = view;
@@ -52,7 +139,27 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 				@"type":  @"button",
 				@"name":  @"Saved Messages",
 				@"cmd":   [NSNumber numberWithInt:kSavedMessages],
-                @"image": [NSImage imageNamed:NSImageNameTouchBarBookmarksTemplate],
+				@"image": [NSImage imageNamed:NSImageNameTouchBarBookmarksTemplate],
+			}],
+			pinnedDialog1: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"pinned",
+				@"num":   @1,
+			}],
+			pinnedDialog2: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"pinned",
+				@"num":   @2,
+			}],
+			pinnedDialog3: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"pinned",
+				@"num":   @3,
+			}],
+			pinnedDialog4: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"pinned",
+				@"num":   @4,
+			}],
+			pinnedDialog5: [NSMutableDictionary dictionaryWithDictionary:@{
+				@"type":  @"pinned",
+				@"num":   @5,
 			}],
 			seekBar: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type": @"slider",
@@ -89,8 +196,8 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 			}]
 		};
 	}
-    [self createTouchBar];
-    [self setTouchBar:TouchBarType::Main];
+	[self createTouchBar];
+	[self setTouchBar:TouchBarType::Main];
 	
 	return self;
 }
@@ -100,20 +207,21 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 	_touchBarMain.delegate = self;
 	
 	_touchBarMain.customizationIdentifier = customIDMain;
-	_touchBarMain.defaultItemIdentifiers = @[savedMessages];
+	_touchBarMain.defaultItemIdentifiers = @[savedMessages, pinnedDialog1, pinnedDialog2, pinnedDialog3, pinnedDialog4, pinnedDialog5];
 	_touchBarMain.customizationAllowedItemIdentifiers = @[savedMessages];
 	
-    _touchBarAudioPlayer = [[NSTouchBar alloc] init];
-    _touchBarAudioPlayer.delegate = self;
+	_touchBarAudioPlayer = [[NSTouchBar alloc] init];
+	_touchBarAudioPlayer.delegate = self;
 
-    _touchBarAudioPlayer.customizationIdentifier = customID;
-    _touchBarAudioPlayer.defaultItemIdentifiers = @[play, previousItem, nextItem, seekBar, closePlayer];
-    _touchBarAudioPlayer.customizationAllowedItemIdentifiers = @[play, previousItem,
-                                                                nextItem, currentPosition, seekBar, closePlayer];
+	_touchBarAudioPlayer.customizationIdentifier = customID;
+	_touchBarAudioPlayer.defaultItemIdentifiers = @[play, previousItem, nextItem, seekBar, closePlayer];
+	_touchBarAudioPlayer.customizationAllowedItemIdentifiers = @[play, previousItem,
+																nextItem, currentPosition, seekBar, closePlayer];
 }
 
 - (nullable NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar
 				makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
+	
 	if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"slider"]) {
 		NSSliderTouchBarItem *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:identifier];
 		item.slider.minValue = 0.0f;
@@ -138,6 +246,13 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 		item.view = text;
 		item.customizationLabel = self.touchbarItems[identifier][@"name"];
 		[self.touchbarItems[identifier] setObject:text forKey:@"view"];
+		return item;
+	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"pinned"]) {
+		const auto number = [self.touchbarItems[identifier][@"num"] intValue];
+		PinnedDialogButton *item = [[PinnedDialogButton alloc] init:number];
+		NSImage *image = self.touchbarItems[identifier][@"image"];
+		
+		[self.touchbarItems[identifier] setObject:item.view forKey:@"view"];
 		return item;
 	}
 
