@@ -1430,7 +1430,7 @@ void Session::setPinnedFromDialog(const Dialogs::Key &key, bool pinned) {
 void Session::applyPinnedChats(
 		Data::Folder *folder,
 		const QVector<MTPDialogPeer> &list) {
-	notifyPinnedDialogsOrderUpdated()
+	notifyPinnedDialogsOrderUpdated();
 	for (const auto &peer : list) {
 		peer.match([&](const MTPDdialogPeer &data) {
 			const auto history = this->history(peerFromMTP(data.vpeer));
@@ -1490,7 +1490,7 @@ void Session::applyDialog(
 void Session::applyDialog(
 		Data::Folder *requestFolder,
 		const MTPDdialogFolder &data) {
-	notifyPinnedDialogsOrderUpdated()
+	notifyPinnedDialogsOrderUpdated();
 	if (requestFolder) {
 		LOG(("API Error: requestFolder != nullptr for dialogFolder."));
 	}

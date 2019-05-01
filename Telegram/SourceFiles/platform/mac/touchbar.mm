@@ -29,6 +29,8 @@
 #include "history/history.h"
 #include "ui/empty_userpic.h"
 #include "observer_peer.h"
+#include "styles/style_dialogs.h"
+#include "data/data_folder.h"
 
 namespace {
 //https://developer.apple.com/design/human-interface-guidelines/macos/touch-bar/touch-bar-icons-and-images/
@@ -47,6 +49,7 @@ constexpr auto kMs = 1000;
 constexpr auto kSongType = AudioMsgId::Type::Song;
 	
 constexpr auto kSavedMessagesId = 0;
+constexpr auto kArchiveId = -1;
 } // namespace
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
@@ -71,6 +74,8 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 - (id) init:(int)num {
 	if (num == kSavedMessagesId) {
 		return [self initSavedMessages];
+	} else if (num == kArchiveId) {
+		return [self initArchive];
 	}
 	NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", customIDMain, num];
 	self = [super initWithIdentifier:identifier];
@@ -84,7 +89,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
 	[button setBordered:NO];
 	[button sizeToFit];
-	[button setHidden:(num > Auth().data().pinnedDialogsOrder().size())];
+	[button setHidden:(num > Auth().data().pinnedChatsOrder(nullptr).size())];
 	self.view = button;
 	self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
 	
@@ -123,21 +128,37 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
 	[button setBordered:NO];
 	[button sizeToFit];
-	[button setHidden:(self.number > Auth().data().pinnedDialogsOrder().size())];
 	self.view = button;
 	self.customizationLabel = @"Saved Messages";
 
 	return self;
 }
 
+- (id) initArchive {
+	self = [super initWithIdentifier:archiveFolder];
+	if (!self) {
+		return nil;
+	}
+	self.number = kArchiveId;
+	self.waiting = false;
+	
+	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
+	[button setBordered:NO];
+	[button sizeToFit];
+	self.view = button;
+	self.customizationLabel = @"Archive Folder";
+	
+	return self;
+}
+
 - (void)updatePeerData {
-	const auto &order = Auth().data().pinnedDialogsOrder();
+	const auto &order = Auth().data().pinnedChatsOrder(nullptr);
 	if (self.number > order.size()) {
 		self.peer = nil;
 		return;
 	}
 	// Order is reversed.
-	const auto pinned = order.at(order.size() - self.number);
+	const auto pinned = order.at(self.number - 1);
 	if (const auto history = pinned.history()) {
 		self.peer = history->peer;
 	}
@@ -145,7 +166,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 - (void)buttonActionPin:(NSButton *)sender {
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		App::main()->choosePeer(self.number == kSavedMessagesId
+		App::main()->choosePeer(self.number == kSavedMessagesId || self.number == kArchiveId
 			? Auth().userPeerId()
 			: self.peer->id, ShowAtUnreadMsgId);
 	});
@@ -153,13 +174,20 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 
 - (NSImage *) getPinImage {
-	if (self.number == kSavedMessagesId) {
+	if (self.number <= kSavedMessagesId) {
 		const int s = kIdealIconSize * cRetinaFactor();
 		auto *pix = new QPixmap(s, s);
 		Painter paint(pix);
 		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
 		
-		Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
+		if (self.number == kArchiveId) {
+			paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
+			if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+				folder->paintUserpic(paint, 0, 0, s);
+			}
+		} else {
+			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
+		}
 		pix->setDevicePixelRatio(cRetinaFactor());
 		return static_cast<NSImage*>(qt_mac_create_nsimage(*pix));
 	}
@@ -305,7 +333,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		NSMutableArray *pins = [[NSMutableArray alloc] init];
 		
-		for (auto i = 0; i <= 5; i++) {
+		for (auto i = -1; i <= 5; i++) {
 			[pins addObject:[[PinnedDialogButton alloc] init:i].view];
 		}
 		NSStackView *stackView = [NSStackView stackViewWithViews:[pins copy]];

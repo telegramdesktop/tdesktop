@@ -23,6 +23,7 @@ static NSString * _Nullable BASE_ID = @"telegram.touchbar";
 static NSTouchBarCustomizationIdentifier _Nullable customID = @"telegram.touchbar";
 static NSTouchBarCustomizationIdentifier _Nullable customIDMain = @"telegram.touchbarMain";
 static NSTouchBarItemIdentifier _Nullable savedMessages = [NSString stringWithFormat:@"%@.savedMessages", customIDMain];
+static NSTouchBarItemIdentifier _Nullable archiveFolder = [NSString stringWithFormat:@"%@.archiveFolder", customIDMain];
 
 static NSTouchBarItemIdentifier _Nullable pinnedDialog1 = [NSString stringWithFormat:@"%@.pinnedDialog1", customIDMain];
 static NSTouchBarItemIdentifier _Nullable pinnedDialog2 = [NSString stringWithFormat:@"%@.pinnedDialog2", customIDMain];
