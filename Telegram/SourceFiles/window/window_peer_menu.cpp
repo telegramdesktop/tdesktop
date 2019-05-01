@@ -200,12 +200,14 @@ bool Filler::showInfo() {
 bool Filler::showToggleArchived() {
 	if (_source != PeerMenuSource::ChatsList) {
 		return false;
+	}
+	const auto history = _peer->owner().historyLoaded(_peer);
+	if (history && history->useProxyPromotion()) {
+		return false;
 	} else if (!_peer->isNotificationsUser()) {
 		return true;
-	} else if (const auto history = _peer->owner().historyLoaded(_peer)) {
-		return (history->folder() != nullptr);
 	}
-	return false;
+	return history && (history->folder() != nullptr);
 }
 
 void Filler::addPinToggle() {
