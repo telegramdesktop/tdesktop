@@ -431,11 +431,15 @@ public:
         if (!this->m_animated)
             return false;
 
-        int adjustedFrame = qBound(this->m_startFrame, frame, this->m_endFrame);
-        if (const EasingSegment<T> *easing = BMProperty<T>::getEasingSegment(adjustedFrame)) {
-            qreal progress = ((adjustedFrame - this->m_startFrame) * 1.0) /
-                    (this->m_endFrame - this->m_startFrame);
-            qreal easedValue = easing->easing.valueForProgress(progress);
+		int adjustedFrame = qBound(this->m_startFrame, frame, this->m_endFrame);
+		if (const EasingSegment<T> *easing = BMProperty<T>::getEasingSegment(adjustedFrame)) {
+			qreal progress;
+			if (easing->endFrame == easing->startFrame)
+				progress = 1;
+			else
+				progress = ((adjustedFrame - easing->startFrame) * 1.0) /
+				(easing->endFrame - easing->startFrame);
+			qreal easedValue = easing->easing.valueForProgress(progress);
             // For the time being, 4D vectors are used only for colors, and
             // the value must be restricted to between [0, 1]
             easedValue = qBound(qreal(0.0), easedValue, qreal(1.0));
