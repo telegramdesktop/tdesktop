@@ -36,6 +36,7 @@ static NSTouchBarItemIdentifier _Nullable currentPosition = [NSString stringWith
 
 @interface TouchBar : NSTouchBar
 @property TouchBarType touchBarType;
+@property TouchBarType touchBarTypeBeforeLock;
 
 @property(retain) NSDictionary * _Nullable touchbarItems;
 @property(retain) NSTouchBar * _Nullable touchBarMain;

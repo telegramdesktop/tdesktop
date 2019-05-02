@@ -268,6 +268,16 @@ auto lifetime = rpl::lifetime();
 		}
 	}, lifetime);
 	
+	Core::App().passcodeLockChanges(
+	) | rpl::start_with_next([=](bool locked) {
+		if (locked) {
+			self.touchBarTypeBeforeLock = self.touchBarType;
+			[self setTouchBar:TouchBarType::None];
+		} else {
+			[self setTouchBar:self.touchBarTypeBeforeLock];
+		}
+	}, lifetime);
+	
 	return self;
 }
 
@@ -341,6 +351,8 @@ auto lifetime = rpl::lifetime();
 		[self.view setTouchBar:_touchBarMain];
 	} else if (type == TouchBarType::AudioPlayer) {
 		[self.view setTouchBar:_touchBarAudioPlayer];
+	} else if (type == TouchBarType::None) {
+		[self.view setTouchBar:nil];
 	}
 }
 
