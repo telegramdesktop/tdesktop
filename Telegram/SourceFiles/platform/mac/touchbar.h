@@ -25,11 +25,7 @@ static NSTouchBarCustomizationIdentifier _Nullable customIDMain = @"telegram.tou
 static NSTouchBarItemIdentifier _Nullable savedMessages = [NSString stringWithFormat:@"%@.savedMessages", customIDMain];
 static NSTouchBarItemIdentifier _Nullable archiveFolder = [NSString stringWithFormat:@"%@.archiveFolder", customIDMain];
 
-static NSTouchBarItemIdentifier _Nullable pinnedDialog1 = [NSString stringWithFormat:@"%@.pinnedDialog1", customIDMain];
-static NSTouchBarItemIdentifier _Nullable pinnedDialog2 = [NSString stringWithFormat:@"%@.pinnedDialog2", customIDMain];
-static NSTouchBarItemIdentifier _Nullable pinnedDialog3 = [NSString stringWithFormat:@"%@.pinnedDialog3", customIDMain];
-static NSTouchBarItemIdentifier _Nullable pinnedDialog4 = [NSString stringWithFormat:@"%@.pinnedDialog4", customIDMain];
-static NSTouchBarItemIdentifier _Nullable pinnedDialog5 = [NSString stringWithFormat:@"%@.pinnedDialog5", customIDMain];
+static NSTouchBarItemIdentifier _Nullable pinnedPanel = [NSString stringWithFormat:@"%@.pinnedPanel", customIDMain];
 
 static NSTouchBarItemIdentifier _Nullable seekBar = [NSString stringWithFormat:@"%@.seekbar", BASE_ID];
 static NSTouchBarItemIdentifier _Nullable play = [NSString stringWithFormat:@"%@.play", BASE_ID];

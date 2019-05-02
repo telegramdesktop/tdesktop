@@ -153,20 +153,19 @@ auto lifetime = rpl::lifetime();
 	return self;
 }
 
-- (void)updatePeerData {
+- (void) updatePeerData {
 	const auto &order = Auth().data().pinnedChatsOrder(nullptr);
 	if (self.number > order.size()) {
 		self.peer = nil;
 		return;
 	}
-	// Order is reversed.
 	const auto pinned = order.at(self.number - 1);
 	if (const auto history = pinned.history()) {
 		self.peer = history->peer;
 	}
 }
 
-- (void)buttonActionPin:(NSButton *)sender {
+- (void) buttonActionPin:(NSButton *)sender {
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
 		App::main()->choosePeer(self.number == kSavedMessagesId || self.number == kArchiveId
 			? Auth().userPeerId()
@@ -214,37 +213,14 @@ auto lifetime = rpl::lifetime();
 
 @implementation TouchBar
 
-- (id)init:(NSView *)view{
+- (id) init:(NSView *)view {
 	self = [super init];
 	if (self) {
 		self.view = view;
 		self.touchbarItems = @{
-//			savedMessages: [NSMutableDictionary dictionaryWithDictionary:@{
-//				@"type":  @"button",
-//				@"name":  @"Saved Messages",
-//				@"cmd":   [NSNumber numberWithInt:kSavedMessages],
-//				@"image": static_cast<NSImage*>(qt_mac_create_nsimage(*pix)),
-//			}],
-			pinnedDialog1: [NSMutableDictionary dictionaryWithDictionary:@{
+			pinnedPanel: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"pinned",
-				@"num":   @1,
 			}],
-//			pinnedDialog2: [NSMutableDictionary dictionaryWithDictionary:@{
-//				@"type":  @"pinned",
-//				@"num":   @2,
-//			}],
-//			pinnedDialog3: [NSMutableDictionary dictionaryWithDictionary:@{
-//				@"type":  @"pinned",
-//				@"num":   @3,
-//			}],
-//			pinnedDialog4: [NSMutableDictionary dictionaryWithDictionary:@{
-//				@"type":  @"pinned",
-//				@"num":   @4,
-//			}],
-//			pinnedDialog5: [NSMutableDictionary dictionaryWithDictionary:@{
-//				@"type":  @"pinned",
-//				@"num":   @5,
-//			}],
 			seekBar: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type": @"slider",
 				@"name": @"Seek Bar"
@@ -295,13 +271,12 @@ auto lifetime = rpl::lifetime();
 	return self;
 }
 
-- (void) createTouchBar{
+- (void) createTouchBar {
 	_touchBarMain = [[NSTouchBar alloc] init];
 	_touchBarMain.delegate = self;
 	
 	_touchBarMain.customizationIdentifier = customIDMain;
-	_touchBarMain.defaultItemIdentifiers = @[savedMessages, pinnedDialog1, pinnedDialog2, pinnedDialog3, pinnedDialog4, pinnedDialog5];
-	_touchBarMain.customizationAllowedItemIdentifiers = @[savedMessages];
+	_touchBarMain.defaultItemIdentifiers = @[pinnedPanel];
 	
 	_touchBarAudioPlayer = [[NSTouchBar alloc] init];
 	_touchBarAudioPlayer.delegate = self;
@@ -312,8 +287,8 @@ auto lifetime = rpl::lifetime();
 																nextItem, currentPosition, seekBar, closePlayer];
 }
 
-- (nullable NSTouchBarItem *)touchBar:(NSTouchBar *)touchBar
-				makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
+- (nullable NSTouchBarItem *) touchBar:(NSTouchBar *)touchBar
+				 makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
 	
 	if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"slider"]) {
 		NSSliderTouchBarItem *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:identifier];
@@ -334,7 +309,7 @@ auto lifetime = rpl::lifetime();
 		return item;
 	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"text"]) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		NSTextField *text = [NSTextField labelWithString:@"0:00"];
+		NSTextField *text = [NSTextField labelWithString:@"00:00 / 00:00"];
 		text.alignment = NSTextAlignmentCenter;
 		item.view = text;
 		item.customizationLabel = self.touchbarItems[identifier][@"name"];
@@ -344,7 +319,7 @@ auto lifetime = rpl::lifetime();
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		NSMutableArray *pins = [[NSMutableArray alloc] init];
 		
-		for (auto i = -1; i <= 5; i++) {
+		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
 			[pins addObject:[[PinnedDialogButton alloc] init:i].view];
 		}
 		NSStackView *stackView = [NSStackView stackViewWithViews:[pins copy]];
@@ -357,7 +332,7 @@ auto lifetime = rpl::lifetime();
 	return nil;
 }
 
-- (void)setTouchBar:(TouchBarType)type {
+- (void) setTouchBar:(TouchBarType)type {
 	if (self.touchBarType == type) {
 		return;
 	}
@@ -369,7 +344,7 @@ auto lifetime = rpl::lifetime();
 	}
 }
 
-- (void)handlePropertyChange:(Media::Player::TrackState)property {
+- (void) handlePropertyChange:(Media::Player::TrackState)property {
 	self.position = property.position < 0 ? 0 : property.position;
 	self.duration = property.length;
 	if (Media::Player::IsStoppedOrStopping(property.state)) {
@@ -390,7 +365,7 @@ auto lifetime = rpl::lifetime();
 	 setEnabled:Media::Player::instance()->previousAvailable(kSongType)];
 }
 
-- (NSString *)formatTime:(int)time {
+- (NSString *) formatTime:(int)time {
 	const int seconds = time % 60;
 	const int minutes = (time / 60) % 60;
 	const int hours = time / (60 * 60);
@@ -404,13 +379,13 @@ auto lifetime = rpl::lifetime();
 	return stime;
 }
 
-- (void)removeConstraintForIdentifier:(NSTouchBarItemIdentifier)identifier {
+- (void) removeConstraintForIdentifier:(NSTouchBarItemIdentifier)identifier {
 	NSTextField *field = self.touchbarItems[identifier][@"view"];
 	[field removeConstraint:self.touchbarItems[identifier][@"constrain"]];
 }
 
-- (void)applyConstraintFromString:(NSString *)string
-					forIdentifier:(NSTouchBarItemIdentifier)identifier {
+- (void) applyConstraintFromString:(NSString *)string
+					 forIdentifier:(NSTouchBarItemIdentifier)identifier {
 	NSTextField *field = self.touchbarItems[identifier][@"view"];
 	if (field) {
 		NSString *fString = [[string componentsSeparatedByCharactersInSet:
@@ -431,7 +406,7 @@ auto lifetime = rpl::lifetime();
 	}
 }
 
-- (void)updateTouchBarTimeItems {
+- (void) updateTouchBarTimeItems {
 	NSSlider *seekSlider = self.touchbarItems[seekBar][@"view"];
 	NSTextField *curPosItem = self.touchbarItems[currentPosition][@"view"];
 
@@ -455,7 +430,7 @@ auto lifetime = rpl::lifetime();
 	[self applyConstraintFromString:curPosItem.stringValue forIdentifier:currentPosition];
 }
 
-- (NSString *)getIdentifierFromView:(id)view {
+- (NSString *) getIdentifierFromView:(id)view {
 	NSString *identifier;
 	for (identifier in self.touchbarItems)
 		if([self.touchbarItems[identifier][@"view"] isEqual:view])
@@ -463,14 +438,12 @@ auto lifetime = rpl::lifetime();
 	return identifier;
 }
 
-- (void)buttonAction:(NSButton *)sender {
+- (void) buttonAction:(NSButton *)sender {
 	NSString *identifier = [self getIdentifierFromView:sender];
 	const auto command = [self.touchbarItems[identifier][@"cmd"] intValue];
 
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		if (command == kSavedMessages) {
-			App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
-		} else if (command == kPlayPause) {
+		if (command == kPlayPause) {
 			Media::Player::instance()->playPause();
 		} else if (command == kPlaylistPrevious) {
 			Media::Player::instance()->previous();
@@ -482,7 +455,7 @@ auto lifetime = rpl::lifetime();
 	});
 }
 
-- (void)seekbarChanged:(NSSliderTouchBarItem *)sender {
+- (void) seekbarChanged:(NSSliderTouchBarItem *)sender {
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		Media::Player::instance()->finishSeeking(kSongType, sender.slider.doubleValue);
 	});
