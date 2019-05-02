@@ -107,6 +107,10 @@ int Animation::frameRate() const {
 	return _frameRate;
 }
 
+crl::time Animation::duration() const {
+	return (_endFrame - _startFrame) * crl::time(1000) / _frameRate;
+}
+
 void Animation::play(const PlaybackOptions &options) {
 	_options = options;
 	_started = crl::now();
