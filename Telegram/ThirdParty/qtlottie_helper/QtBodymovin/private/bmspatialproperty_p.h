@@ -58,7 +58,7 @@ public:
     }
 
 	virtual void postprocessEasingCurve(
-			const EasingSegment<QPointF> &easing,
+			EasingSegment<QPointF> &easing,
 			const QJsonObject keyframe,
 			bool fromExpression) override {
         // No need to parse further incomplete keyframes (i.e. last keyframes)
@@ -99,8 +99,8 @@ public:
         c1 += s;
         c2 += e;
 
-        m_bezierPath.moveTo(s);
-        m_bezierPath.cubicTo(c1, c2, e);
+        easing.bezier.moveTo(s);
+        easing.bezier.cubicTo(c1, c2, e);
     }
 
     virtual bool update(int frame) override
@@ -111,20 +111,22 @@ public:
         int adjustedFrame = qBound(m_startFrame, frame, m_endFrame);
         if (const EasingSegment<QPointF> *easing = getEasingSegment(adjustedFrame)) {
 			if (easing->state == EasingSegmentState::Complete) {
-				qreal progress = ((adjustedFrame - m_startFrame) * 1.0) / (m_endFrame - m_startFrame);
+				int length = (easing->endFrame - easing->startFrame);
+				qreal progress = (length > 0)
+					? ((adjustedFrame - easing->startFrame) * 1.0) / length
+					: 1.;
 				qreal easedValue = easing->easing.valueForProgress(progress);
-				m_value = m_bezierPath.pointAtPercent(easedValue);
+				m_value = easing->bezier.pointAtPercent(easedValue);
 			} else {
 				// In case of incomplete easing we should just take the final point.
-				m_value = m_bezierPath.pointAtPercent(1.);
+				//m_value = m_bezierPath.pointAtPercent(1.);
+				m_value = easing->endValue;
 			}
         }
 
         return true;
     }
 
-private:
-    QPainterPath m_bezierPath;
 };
 
 QT_END_NAMESPACE

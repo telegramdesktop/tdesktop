@@ -70,6 +70,7 @@ struct EasingSegment {
     T startValue;
     T endValue;
     BezierEasing easing;
+    QPainterPath bezier;
 };
 
 template<typename T>
@@ -98,7 +99,7 @@ public:
 
 				if (m_easingCurves.length() > 1) {
 					postprocessEasingCurve(
-						m_easingCurves.at(m_easingCurves.length() - 2),
+						m_easingCurves[m_easingCurves.length() - 2],
 						(*previous).toObject(),
 						fromExpression);
 				}
@@ -107,7 +108,7 @@ public:
             }
             finalizeEasingCurves();
 			if (m_easingCurves.length() > 0) {
-				const EasingSegment<T> &last = m_easingCurves.last();
+				EasingSegment<T> &last = m_easingCurves.last();
 				if (last.state == EasingSegmentState::Complete) {
 					postprocessEasingCurve(
 						last,
@@ -159,7 +160,7 @@ protected:
             // The end value has to be hand picked to the
             // previous easing segment, as the json data does
             // not contain end values for segments
-            prevEase.endFrame = easing.startFrame - 1;
+            prevEase.endFrame = easing.startFrame;
             if (prevEase.state == EasingSegmentState::Incomplete) {
                 prevEase.endValue = easing.startValue;
                 prevEase.state = EasingSegmentState::Complete;
@@ -262,7 +263,7 @@ protected:
     }
 
 	virtual void postprocessEasingCurve(
-		const EasingSegment<T> &easing,
+		EasingSegment<T> &easing,
 		const QJsonObject keyframe,
 		bool fromExpression) {
 	}
