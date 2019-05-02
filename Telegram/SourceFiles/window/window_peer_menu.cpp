@@ -157,7 +157,9 @@ void TogglePinnedDialog(Dialogs::Key key) {
 		history->session().api().request(MTPmessages_ToggleDialogPin(
 			MTP_flags(flags),
 			MTP_inputDialogPeer(key.history()->peer->input)
-		)).send();
+		)).done([=](const MTPBool &result) {
+			Auth().data().notifyPinnedDialogsOrderUpdated();
+		}).send();
 	} else if (const auto folder = key.folder()) {
 		folder->session().api().request(MTPmessages_ToggleDialogPin(
 			MTP_flags(flags),

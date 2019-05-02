@@ -1414,6 +1414,7 @@ void Session::setChatPinned(const Dialogs::Key &key, bool pinned) {
 
 	const auto list = chatsList(key.entry()->folder())->pinned();
 	list->setPinned(key, pinned);
+	notifyPinnedDialogsOrderUpdated();
 }
 
 void Session::setPinnedFromDialog(const Dialogs::Key &key, bool pinned) {
@@ -1430,7 +1431,6 @@ void Session::setPinnedFromDialog(const Dialogs::Key &key, bool pinned) {
 void Session::applyPinnedChats(
 		Data::Folder *folder,
 		const QVector<MTPDialogPeer> &list) {
-	notifyPinnedDialogsOrderUpdated();
 	for (const auto &peer : list) {
 		peer.match([&](const MTPDdialogPeer &data) {
 			const auto history = this->history(peerFromMTP(data.vpeer));
@@ -1446,6 +1446,7 @@ void Session::applyPinnedChats(
 		});
 	}
 	chatsList(folder)->pinned()->applyList(this, list);
+	notifyPinnedDialogsOrderUpdated();
 }
 
 void Session::applyDialogs(
@@ -1490,7 +1491,6 @@ void Session::applyDialog(
 void Session::applyDialog(
 		Data::Folder *requestFolder,
 		const MTPDdialogFolder &data) {
-	notifyPinnedDialogsOrderUpdated();
 	if (requestFolder) {
 		LOG(("API Error: requestFolder != nullptr for dialogFolder."));
 	}
@@ -1525,6 +1525,7 @@ void Session::reorderTwoPinnedChats(
 	Expects(key1.entry()->folder() == key2.entry()->folder());
 
 	chatsList(key1.entry()->folder())->pinned()->reorder(key1, key2);
+	notifyPinnedDialogsOrderUpdated();
 }
 
 bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {

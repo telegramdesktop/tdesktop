@@ -399,12 +399,15 @@ MainWindow::MainWindow()
 	subscribe(Core::App().authSessionChanged(), [this] {
 		if (AuthSession::Exists()) {
 			
-			Auth().data().pinnedDialogsOrderUpdated(
-			) | rpl::start_with_next([this] {
-				if (auto view = reinterpret_cast<NSView*>(winId())) {
-					// Create TouchBar.
-					[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
-					_private->_touchBar = [[TouchBar alloc] init:view];
+			Auth().data().chatsListChanges(
+			) | rpl::start_with_next([this](Data::Folder* folder) {
+				// We need only common pinned dialogs.
+				if (!folder && !_private->_touchBar) {
+					if (auto view = reinterpret_cast<NSView*>(winId())) {
+						// Create TouchBar.
+						[NSApplication sharedApplication].automaticCustomizeTouchBarMenuItemEnabled = YES;
+						_private->_touchBar = [[TouchBar alloc] init:view];
+					}
 				}
 			}, lifetime());
 		}

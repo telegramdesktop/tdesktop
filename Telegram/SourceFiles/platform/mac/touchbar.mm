@@ -66,6 +66,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 - (NSImage *) getPinImage;
 - (void)buttonActionPin:(NSButton *)sender;
 - (void)updatePeerData;
+- (void)updatePinnedDialog;
 
 @end // @interface PinnedDialogButton
 
@@ -100,12 +101,19 @@ auto lifetime = rpl::lifetime();
 		button.image = [self getPinImage];
 	};
 	
-	Notify::PeerUpdateViewer(
-		self.peer,
-		Notify::PeerUpdate::Flag::PhotoChanged
+	if (self.peer) {
+		Notify::PeerUpdateViewer(
+			self.peer,
+			Notify::PeerUpdate::Flag::PhotoChanged
+		) | rpl::start_with_next([=] {
+			self.waiting = true;
+			updateImage();
+		}, lifetime);
+	}
+	
+	Auth().data().pinnedDialogsOrderUpdated(
 	) | rpl::start_with_next([=] {
-		self.waiting = true;
-		updateImage();
+		[self updatePinnedDialog];
 	}, lifetime);
 	
 	base::ObservableViewer(
@@ -117,6 +125,13 @@ auto lifetime = rpl::lifetime();
 	}, lifetime);
 	
 	return self;
+}
+
+- (void) updatePinnedDialog {
+	[self updatePeerData];
+	NSButton *button = self.view;
+	button.image = [self getPinImage];
+	[button setHidden:(self.number > Auth().data().pinnedChatsOrder(nullptr).size())];
 }
 
 - (id) initSavedMessages {
@@ -193,7 +208,8 @@ auto lifetime = rpl::lifetime();
 		return static_cast<NSImage*>(qt_mac_create_nsimage(*pix));
 	}
 	if (!self.peer) {
-		return nil;
+		// Random picture.
+		return [NSImage imageNamed:NSImageNameTouchBarAddTemplate];
 	}
 	self.waiting = !self.peer->userpicLoaded();
 	auto pixmap = self.peer->genUserpic(kIdealIconSize);
