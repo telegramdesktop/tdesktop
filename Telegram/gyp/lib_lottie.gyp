@@ -123,8 +123,12 @@
       '<(lottie_loc)/imports/rasterrenderer/lottierasterrenderer.h',
 
       # added to qtlottie/src/bodymovin/bodymovin.pro
+      '<(lottie_loc)/bodymovin/bmasset.cpp',
+      '<(lottie_loc)/bodymovin/bmprecompasset.cpp',
       '<(lottie_loc)/bodymovin/bmnulllayer.cpp',
 
+      '<(lottie_loc)/bodymovin/bmasset_p.h',
+      '<(lottie_loc)/bodymovin/bmprecompasset_p.h',
       '<(lottie_loc)/bodymovin/bmnulllayer_p.h',
     ],
     'conditions': [[ 'build_macold', {

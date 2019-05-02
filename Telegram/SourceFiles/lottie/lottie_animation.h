@@ -11,12 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 
 #include <crl/crl_time.h>
-#include <QString>
-#include <QHash>
-#include <QPainter>
+
+class QImage;
+class QString;
+class QByteArray;
 
 class BMBase;
-class BMLayer;
+class BMAsset;
 
 namespace Lottie {
 
@@ -77,6 +78,8 @@ private:
 	PlaybackOptions _options;
 
 	std::unique_ptr<BMBase> _treeBlueprint;
+	std::vector<std::unique_ptr<BMAsset>> _assets;
+	base::flat_map<QString, int> _assetIndexById;
 
 };
 

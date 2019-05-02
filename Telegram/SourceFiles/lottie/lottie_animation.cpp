@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtBodymovin/private/bmbase_p.h>
 #include <QtBodymovin/private/bmlayer_p.h>
+#include <QtBodymovin/private/bmasset_p.h>
 
 #include "rasterrenderer/lottierasterrenderer.h"
 
@@ -138,8 +139,14 @@ void Animation::parse(const QByteArray &content) {
 		}
 	}
 
-	if (root.value(qstr("assets")).toArray().count()) {
-		_unsupported = true;
+	const auto assets = root.value(qstr("assets")).toArray();
+	for (const auto &entry : assets) {
+		if (const auto asset = BMAsset::construct(entry.toObject())) {
+			_assetIndexById.emplace(asset->id(), _assets.size());
+			_assets.emplace_back(asset);
+		} else {
+			_unsupported = true;
+		}
 	}
 
 	if (root.value(qstr("chars")).toArray().count()) {
