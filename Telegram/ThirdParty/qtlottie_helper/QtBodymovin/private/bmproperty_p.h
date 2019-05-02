@@ -392,7 +392,7 @@ protected:
             QJsonArray eoxArr = easingOut.value(QLatin1String("x")).toArray();
             QJsonArray eoyArr = easingOut.value(QLatin1String("y")).toArray();
 
-            while (!eixArr.isEmpty() && !eiyArr.isEmpty()) {
+            if (!eixArr.isEmpty() && !eiyArr.isEmpty()) {
                 qreal eix = eixArr.takeAt(0).toDouble();
                 qreal eiy = eiyArr.takeAt(0).toDouble();
 
