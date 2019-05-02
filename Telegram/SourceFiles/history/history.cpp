@@ -628,9 +628,6 @@ HistoryItem *History::addNewMessage(
 			setLastMessage(item);
 			if (type == NewMessageType::Unread) {
 				newItemAdded(item);
-				if (!folderKnown()) {
-					session().api().requestDialogEntry(this);
-				}
 			}
 			return item;
 		}
@@ -1240,6 +1237,9 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		}
 	} else {
 		inboxRead(item);
+	}
+	if (!folderKnown()) {
+		session().api().requestDialogEntry(this);
 	}
 }
 
