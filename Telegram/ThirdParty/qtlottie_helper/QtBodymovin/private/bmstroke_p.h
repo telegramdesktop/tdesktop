@@ -73,7 +73,7 @@ protected:
     BMProperty4D<QVector4D> m_color;
     Qt::PenCapStyle m_capStyle;
     Qt::PenJoinStyle m_joinStyle;
-    qreal m_miterLimit;
+    qreal m_miterLimit = 0.;
 };
 
 QT_END_NAMESPACE
