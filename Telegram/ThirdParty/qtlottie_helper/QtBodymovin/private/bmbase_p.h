@@ -49,7 +49,11 @@
 
 #include <QtBodymovin/private/lottierenderer_p.h>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
+
+class BMAsset;
 
 class BODYMOVIN_EXPORT BMBase
 {
@@ -85,6 +89,8 @@ public:
 
     virtual void updateProperties(int frame);
     virtual void render(LottieRenderer &renderer) const;
+
+    virtual void resolveAssets(const std::function<BMAsset*(QString)> &resolver);
 
 protected:
     void resolveTopRoot();

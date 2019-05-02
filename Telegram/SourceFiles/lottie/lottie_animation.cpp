@@ -173,6 +173,35 @@ void Animation::parse(const QByteArray &content) {
 			_unsupported = true;
 		}
 	}
+
+	resolveAssets();
+}
+
+void Animation::resolveAssets() {
+	if (_assets.empty()) {
+		return;
+	}
+
+	std::function<BMAsset*(QString)> resolver = [&](const QString &refId)
+	-> BMAsset* {
+		const auto i = _assetIndexById.find(refId);
+		if (i == end(_assetIndexById)) {
+			return nullptr;
+		}
+		const auto result = _assets[i->second].get();
+		result->resolveAssets(resolver);
+		return result->clone();
+	};
+	for (const auto &asset : _assets) {
+		asset->resolveAssets(resolver);
+	}
+
+	_treeBlueprint->resolveAssets([&](const QString &refId) {
+		const auto i = _assetIndexById.find(refId);
+		return (i != end(_assetIndexById))
+			? _assets[i->second]->clone()
+			: nullptr;
+	});
 }
 
 } // namespace Lottie

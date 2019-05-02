@@ -54,16 +54,19 @@ public:
 	explicit BMAsset (const BMAsset &other) = default;
     ~BMAsset() = default;
 
-    BMBase *clone() const override;
+    BMAsset *clone() const override;
 
     static BMAsset *construct(QJsonObject definition);
 
     void parse(const QJsonObject &definition) override;
 
+	void resolveAssets(const std::function<BMAsset*(QString)> &resolver) override;
+
 	QString id() const;
 
 private:
 	QString m_id;
+	bool m_resolved = false;
 
 };
 

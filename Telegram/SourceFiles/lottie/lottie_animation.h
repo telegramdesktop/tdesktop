@@ -62,6 +62,7 @@ public:
 
 private:
 	void parse(const QByteArray &content);
+	void resolveAssets();
 
 	int _startFrame = 0;
 	int _endFrame = 0;
