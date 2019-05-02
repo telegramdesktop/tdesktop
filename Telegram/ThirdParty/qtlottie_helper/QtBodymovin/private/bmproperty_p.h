@@ -437,7 +437,7 @@ public:
             qreal easedValue = easing->easing.valueForProgress(progress);
             // For the time being, 4D vectors are used only for colors, and
             // the value must be restricted to between [0, 1]
-            easedValue = qBound(0.0, easedValue, 1.0);
+            easedValue = qBound(qreal(0.0), easedValue, qreal(1.0));
             T sv = easing->startValue;
             T ev = easing->endValue;
             qreal x = sv.x() + easedValue * (ev.x() - sv.x());
