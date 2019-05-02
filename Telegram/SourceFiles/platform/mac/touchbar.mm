@@ -71,6 +71,8 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 @implementation PinnedDialogButton : NSCustomTouchBarItem
 
+auto lifetime = rpl::lifetime();
+
 - (id) init:(int)num {
 	if (num == kSavedMessagesId) {
 		return [self initSavedMessages];
@@ -104,7 +106,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	) | rpl::start_with_next([=] {
 		self.waiting = true;
 		updateImage();
-	}, Auth().lifetime());
+	}, lifetime);
 	
 	base::ObservableViewer(
 	   Auth().downloaderTaskFinished()
@@ -112,7 +114,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 		if (self.waiting) {
 			updateImage();
 		}
-	}, Auth().lifetime());
+	}, lifetime);
 	
 	return self;
 }
