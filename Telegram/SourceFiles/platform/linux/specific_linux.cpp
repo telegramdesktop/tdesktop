@@ -406,10 +406,6 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 void OpenSystemSettingsForPermission(PermissionType type) {
 }
 
-void SetTouchBar(TouchBarType type) {
-	// TouchBar is Mac only feature.
-}
-
 bool OpenSystemSettings(SystemSettingsType type) {
 	if (type == SystemSettingsType::Audio) {
 		auto options = std::vector<QString>();

@@ -225,10 +225,6 @@ void SetApplicationIcon(const QIcon &icon) {
 	[image release];
 }
 
-void SetTouchBar(TouchBarType type) {
-	
-}
-
 void InitOnTopPanel(QWidget *panel) {
 	Expects(!panel->windowHandle());
 

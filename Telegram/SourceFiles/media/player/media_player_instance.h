@@ -146,6 +146,14 @@ public:
 
 	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
 
+	void playerWidgetToggledNotify(bool toggled) {
+		_playerWidgetToggled.fire_copy({toggled});
+	}
+	rpl::producer<bool> playerWidgetToggled() const {
+		return _playerWidgetToggled.events();
+	}
+
+
 	void documentLoadProgress(DocumentData *document);
 
 	void handleLogout();
@@ -251,6 +259,7 @@ private:
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
 	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
 
+	rpl::event_stream<bool> _playerWidgetToggled;
 	rpl::lifetime _lifetime;
 
 };

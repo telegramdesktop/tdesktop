@@ -45,8 +45,6 @@ void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCal
 void OpenSystemSettingsForPermission(PermissionType type);
 bool OpenSystemSettings(SystemSettingsType type);
 
-void SetTouchBar(TouchBarType type);
-
 [[nodiscard]] QString SystemLanguage();
 [[nodiscard]] QString SystemCountry();
 

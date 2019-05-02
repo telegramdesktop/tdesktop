@@ -283,6 +283,15 @@ auto lifetime = rpl::lifetime();
 	[self createTouchBar];
 	[self setTouchBar:TouchBarType::Main];
 	
+	Media::Player::instance()->playerWidgetToggled(
+	) | rpl::start_with_next([=](bool toggled) {
+		if (!toggled) {
+			[self setTouchBar:TouchBarType::Main];
+		} else {
+			[self setTouchBar:TouchBarType::AudioPlayer];
+		}
+	}, lifetime);
+	
 	return self;
 }
 
@@ -361,18 +370,12 @@ auto lifetime = rpl::lifetime();
 }
 
 - (void)handlePropertyChange:(Media::Player::TrackState)property {
-	// #TODO: fix hiding of touch bar when last track is ended.
-	if (property.state == Media::Player::State::Stopped) {
-		[self setTouchBar:TouchBarType::Main];
-		return;
-	} else if (property.state == Media::Player::State::StoppedAtEnd) {
-		[self setTouchBar:TouchBarType::AudioPlayer];
-	} else {
-		[self setTouchBar:TouchBarType::AudioPlayer];
-	}
-	
 	self.position = property.position < 0 ? 0 : property.position;
 	self.duration = property.length;
+	if (Media::Player::IsStoppedOrStopping(property.state)) {
+		self.position = 0;
+		self.duration = 0;
+	}
 	[self updateTouchBarTimeItems];
 	NSButton *playButton = self.touchbarItems[play][@"view"];
 	if (property.state == Media::Player::State::Playing) {
@@ -395,7 +398,7 @@ auto lifetime = rpl::lifetime();
 	NSString *stime = hours > 0 ? [NSString stringWithFormat:@"%d:", hours] : @"";
 	stime = (stime.length > 0 || minutes > 9) ?
 		[NSString stringWithFormat:@"%@%02d:", stime, minutes] :
-		[NSString stringWithFormat:@"%d:", minutes];
+		[NSString stringWithFormat:@"%02d:", minutes];
 	stime = [NSString stringWithFormat:@"%@%02d", stime, seconds];
 
 	return stime;
@@ -422,21 +425,9 @@ auto lifetime = rpl::lifetime();
 											toItem:nil
 										 attribute:NSLayoutAttributeNotAnAttribute
 										multiplier:1.0
-										  constant:(int)ceil(size.width * 1.5)];
+										  constant:(int)ceil(size.width) * 1.2];
 		[field addConstraint:con];
 		[self.touchbarItems[identifier] setObject:con forKey:@"constrain"];
-	}
-}
-
-- (void)updateTouchBarTimeItemConstrains {
-	[self removeConstraintForIdentifier:currentPosition];
-
-	if (self.duration <= 0) {
-		[self applyConstraintFromString:[self formatTime:self.position]
-						  forIdentifier:currentPosition];
-	} else {
-		NSString *durFormat = [self formatTime:self.duration];
-		[self applyConstraintFromString:durFormat forIdentifier:currentPosition];
 	}
 }
 
@@ -460,7 +451,8 @@ auto lifetime = rpl::lifetime();
 							  timeToString(self.position),
 							  timeToString(self.duration)];
 
-	[self updateTouchBarTimeItemConstrains];
+	[self removeConstraintForIdentifier:currentPosition];
+	[self applyConstraintFromString:curPosItem.stringValue forIdentifier:currentPosition];
 }
 
 - (NSString *)getIdentifierFromView:(id)view {

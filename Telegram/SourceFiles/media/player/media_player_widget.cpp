@@ -167,7 +167,6 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	});
 	setType(AudioMsgId::Type::Song);
 	_playPause->finishTransform();
-	Platform::SetTouchBar(Platform::TouchBarType::AudioPlayer);
 }
 
 void Widget::updateVolumeToggleIcon() {
@@ -192,7 +191,6 @@ void Widget::setCloseCallback(Fn<void()> callback) {
 }
 
 void Widget::stopAndClose() {
-	Platform::SetTouchBar(Platform::TouchBarType::None);
 	_voiceIsActive = false;
 	if (_type == AudioMsgId::Type::Voice) {
 		const auto songData = instance()->current(AudioMsgId::Type::Song);
