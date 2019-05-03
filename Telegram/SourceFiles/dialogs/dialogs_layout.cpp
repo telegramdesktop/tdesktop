@@ -70,7 +70,8 @@ void PaintNarrowCounter(
 		bool displayMentionBadge,
 		int unreadCount,
 		bool active,
-		bool unreadMuted) {
+		bool unreadMuted,
+		bool mentionMuted) {
 	auto skipBeforeMention = 0;
 	if (displayUnreadCounter || displayUnreadMark) {
 		auto counter = (unreadCount > 0)
@@ -98,7 +99,7 @@ void PaintNarrowCounter(
 
 		UnreadBadgeStyle st;
 		st.active = active;
-		st.muted = false;
+		st.muted = mentionMuted;
 		st.padding = 0;
 		st.textTop = 0;
 		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
@@ -117,7 +118,8 @@ int PaintWideCounter(
 		int unreadCount,
 		bool active,
 		bool selected,
-		bool unreadMuted) {
+		bool unreadMuted,
+		bool mentionMuted) {
 	const auto initial = availableWidth;
 	auto hadOneBadge = false;
 	if (displayUnreadCounter || displayUnreadMark) {
@@ -150,7 +152,7 @@ int PaintWideCounter(
 
 		UnreadBadgeStyle st;
 		st.active = active;
-		st.muted = false;
+		st.muted = mentionMuted;
 		st.padding = 0;
 		st.textTop = 0;
 		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
@@ -580,6 +582,7 @@ void RowPainter::paint(
 	const auto unreadCount = entry->chatListUnreadCount();
 	const auto unreadMark = entry->chatListUnreadMark();
 	const auto unreadMuted = entry->chatListMutedBadge();
+	const auto mentionMuted = (entry->folder() != nullptr);
 	const auto item = entry->chatListMessage();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
 		if (history && (!item || (!unreadCount && !unreadMark))) {
@@ -649,7 +652,8 @@ void RowPainter::paint(
 			unreadCount,
 			active,
 			selected,
-			unreadMuted);
+			unreadMuted,
+			mentionMuted);
 		const auto &color = active
 			? st::dialogsTextFgServiceActive
 			: (selected
@@ -689,7 +693,8 @@ void RowPainter::paint(
 			displayMentionBadge,
 			unreadCount,
 			active,
-			unreadMuted);
+			unreadMuted,
+			mentionMuted);
 	};
 	paintRow(
 		p,
@@ -760,6 +765,7 @@ void RowPainter::paint(
 	const auto unreadMark = displayUnreadInfo
 		&& history->chatListUnreadMark();
 	const auto unreadMuted = history->chatListMutedBadge();
+	const auto mentionMuted = (history->folder() != nullptr);
 	const auto displayMentionBadge = displayUnreadInfo
 		&& history->hasUnreadMentions();
 	const auto displayUnreadCounter = (unreadCount > 0);
@@ -784,7 +790,8 @@ void RowPainter::paint(
 			unreadCount,
 			active,
 			selected,
-			unreadMuted);
+			unreadMuted,
+			mentionMuted);
 
 		const auto itemRect = QRect(
 			nameleft,
@@ -808,7 +815,8 @@ void RowPainter::paint(
 			displayMentionBadge,
 			unreadCount,
 			active,
-			unreadMuted);
+			unreadMuted,
+			mentionMuted);
 	};
 	const auto showSavedMessages = history->peer->isSelf()
 		&& !row->searchInChat();
