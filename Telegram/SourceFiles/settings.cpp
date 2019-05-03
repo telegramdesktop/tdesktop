@@ -86,9 +86,6 @@ bool gIsSnowLeopard = false;
 
 int gOtherOnline = 0;
 
-SavedPeers gSavedPeers;
-SavedPeersByTime gSavedPeersByTime;
-
 ReportSpamStatuses gReportSpamStatuses;
 
 int32 gAutoDownloadPhoto = 0; // all auto download

@@ -189,8 +189,6 @@ void Session::clear() {
 	base::take(_channelMessages);
 	_messageByRandomId.clear();
 	_sentMessagesData.clear();
-	cSetSavedPeers(SavedPeers());
-	cSetSavedPeersByTime(SavedPeersByTime());
 	cSetRecentInlineBots(RecentInlineBots());
 	cSetRecentStickers(RecentStickerPack());
 	cSetReportSpamStatuses(ReportSpamStatuses());
@@ -1415,12 +1413,6 @@ void Session::applyDialog(
 	history->applyDialog(requestFolder, data);
 	setPinnedFromDialog(history, data.is_pinned());
 
-	if (!history->fixedOnTopIndex() && !history->isPinnedDialog()) {
-		const auto date = history->chatListTimeId();
-		if (date != 0) {
-			addSavedPeersAfter(ParseDateTime(date));
-		}
-	}
 	if (const auto from = history->peer->migrateFrom()) {
 		if (const auto historyFrom = from->owner().historyLoaded(from)) {
 			App::main()->removeDialog(historyFrom);
@@ -1441,31 +1433,6 @@ void Session::applyDialog(
 	const auto folder = processFolder(data.vfolder);
 	folder->applyDialog(data);
 	setPinnedFromDialog(folder, data.is_pinned());
-
-	if (!folder->fixedOnTopIndex() && !folder->isPinnedDialog()) {
-		const auto date = folder->chatListTimeId();
-		if (date != 0) {
-			addSavedPeersAfter(ParseDateTime(date));
-		}
-	}
-}
-
-void Session::addSavedPeersAfter(const QDateTime &date) {
-	auto &saved = cRefSavedPeersByTime();
-	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
-		const auto lastDate = saved.lastKey();
-		const auto lastPeer = saved.last();
-		saved.remove(lastDate, lastPeer);
-
-		const auto history = session().data().history(lastPeer);
-		if (!history->chatListTimeId()) {
-			history->setChatListTimeId(ServerTimeFromParsed(lastDate));
-		}
-	}
-}
-
-void Session::addAllSavedPeers() {
-	addSavedPeersAfter(QDateTime());
 }
 
 int Session::pinnedChatsCount(Data::Folder *folder) const {

@@ -164,12 +164,6 @@ DeclareReadSetting(bool, IsSnowLeopard);
 
 DeclareSetting(int, OtherOnline);
 
-class PeerData;
-typedef QMap<PeerData*, QDateTime> SavedPeers;
-typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;
-DeclareRefSetting(SavedPeers, SavedPeers);
-DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
-
 typedef QMap<uint64, DBIPeerReportSpamStatus> ReportSpamStatuses;
 DeclareRefSetting(ReportSpamStatuses, ReportSpamStatuses);
 

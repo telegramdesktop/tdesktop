@@ -305,8 +305,6 @@ public:
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
-	void addSavedPeersAfter(const QDateTime &date);
-	void addAllSavedPeers();
 
 	int pinnedChatsCount(Data::Folder *folder) const;
 	int pinnedChatsLimit(Data::Folder *folder) const;

@@ -1426,7 +1426,6 @@ void InnerWidget::removeDialog(Key key) {
 	session().data().removeChatListEntry(key);
 	if (const auto history = key.history()) {
 		session().notifications().clearFromHistory(history);
-		Local::removeSavedPeer(history->peer);
 	}
 	const auto i = ranges::find(_filterResults, key, &Row::key);
 	if (i != _filterResults.end()) {

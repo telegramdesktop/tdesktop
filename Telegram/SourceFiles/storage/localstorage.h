@@ -168,10 +168,6 @@ void saveRecentSearchHashtags(const QString &text);
 void WriteExportSettings(const Export::Settings &settings);
 Export::Settings ReadExportSettings();
 
-void addSavedPeer(PeerData *peer, const QDateTime &position);
-void removeSavedPeer(PeerData *peer);
-void readSavedPeers();
-
 void writeReportSpamStatuses();
 
 void writeSelf();

@@ -2257,9 +2257,9 @@ void History::setChatListMessage(HistoryItem *item) {
 	}
 	const auto was = _chatListMessage.value_or(nullptr);
 	if (item) {
-		if (!_chatListMessage || !*_chatListMessage) {
-			Local::removeSavedPeer(peer);
-		} else if (!IsServerMsgId((*_chatListMessage)->id)
+		if (_chatListMessage
+			&& *_chatListMessage
+			&& !IsServerMsgId((*_chatListMessage)->id)
 			&& (*_chatListMessage)->date() > item->date()) {
 			return;
 		}

@@ -719,9 +719,6 @@ void ApiWrap::requestDialogs(Data::Folder *folder) {
 void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 	const auto state = dialogsLoadState(folder);
 	if (!state) {
-		if (!folder) {
-			_session->data().addAllSavedPeers();
-		}
 		return;
 	} else if (state->requestId) {
 		return;
@@ -2443,9 +2440,6 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 	if (const auto history = _session->data().historyLoaded(peer)) {
 		if (const auto last = history->lastMessage()) {
 			deleteTillId = last->id;
-		}
-		if (const auto last = history->chatListMessage()) {
-			Local::addSavedPeer(history->peer, ItemDateTime(last));
 		}
 		history->clear(History::ClearType::ClearHistory);
 	}

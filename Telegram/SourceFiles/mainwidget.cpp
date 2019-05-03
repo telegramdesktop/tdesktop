@@ -3203,7 +3203,6 @@ void MainWidget::start() {
 	session().api().requestNotifySettings(MTP_inputNotifyChats());
 	session().api().requestNotifySettings(MTP_inputNotifyBroadcasts());
 
-	Local::readSavedPeers();
 	cSetOtherOnline(0);
 	session().user()->loadUserpic();
 
