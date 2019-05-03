@@ -657,17 +657,28 @@ void InnerWidget::paintCollapsedRow(
 		Painter &p,
 		not_null<const CollapsedRow*> row,
 		bool selected) const {
+	const auto smallWidth = st::dialogsPadding.x()
+		+ st::dialogsPhotoSize
+		+ st::dialogsPhotoPadding;
+	const auto narrow = (width() <= smallWidth);
 	const auto text = row->folder
 		? row->folder->chatListName()
 		: (_mode == Dialogs::Mode::Important)
-		? lang(lng_dialogs_show_all_chats)
-		: lang(lng_dialogs_hide_muted_chats);
+		? (narrow ? "Show" : lang(lng_dialogs_show_all_chats))
+		: (narrow ? "Hide" : lang(lng_dialogs_hide_muted_chats));
 	const auto unread = row->folder
 		? row->folder->chatListUnreadCount()
 		: (_mode == Dialogs::Mode::Important)
 		? session().data().unreadOnlyMutedBadge()
 		: 0;
-	Layout::PaintCollapsedRow(p, row->row, text, unread, width(), selected);
+	Layout::PaintCollapsedRow(
+		p,
+		row->row,
+		row->folder,
+		text,
+		unread,
+		width(),
+		selected);
 }
 
 bool InnerWidget::isSearchResultActive(

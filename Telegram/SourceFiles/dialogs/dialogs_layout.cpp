@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "data/data_folder.h"
 
 namespace Dialogs {
 namespace Layout {
@@ -849,21 +850,44 @@ QRect RowPainter::sendActionAnimationRect(int animationWidth, int animationHeigh
 	return QRect(nameleft, texttop, textUpdated ? namewidth : animationWidth, animationHeight);
 }
 
-void PaintCollapsedRow(Painter &p, const RippleRow &row, const QString &text, int unread, int fullWidth, bool selected) {
+void PaintCollapsedRow(
+		Painter &p,
+		const RippleRow &row,
+		Data::Folder *folder,
+		const QString &text,
+		int unread,
+		int fullWidth,
+		bool selected) {
 	p.fillRect(0, 0, fullWidth, st::dialogsImportantBarHeight, selected ? st::dialogsBgOver : st::dialogsBg);
 
 	row.paintRipple(p, 0, 0, fullWidth);
 
-	p.setFont(st::semiboldFont);
-	p.setPen(st::dialogsNameFg);
+	const auto smallWidth = st::dialogsPadding.x()
+		+ st::dialogsPhotoSize
+		+ st::dialogsPhotoPadding;
+	const auto narrow = (fullWidth <= smallWidth);
 
 	const auto unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
-	const auto textBaseline = unreadTop
-		+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
-		+ st::dialogsUnreadFont->ascent;
-	p.drawText(st::dialogsPadding.x(), textBaseline, text);
+	if (!narrow || !folder) {
+		p.setFont(st::semiboldFont);
+		p.setPen(st::dialogsNameFg);
 
-	if (unread) {
+		const auto textBaseline = unreadTop
+			+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
+			+ st::dialogsUnreadFont->ascent;
+		const auto left = narrow
+			? ((fullWidth - st::semiboldFont->width(text)) / 2)
+			: st::dialogsPadding.x();
+		p.drawText(left, textBaseline, text);
+	} else {
+		folder->paintUserpicLeft(
+			p,
+			(fullWidth - st::dialogsUnreadHeight) / 2,
+			unreadTop,
+			fullWidth,
+			st::dialogsUnreadHeight);
+	}
+	if (!narrow && unread) {
 		const auto unreadRight = fullWidth - st::dialogsPadding.x();
 		UnreadBadgeStyle st;
 		st.muted = true;

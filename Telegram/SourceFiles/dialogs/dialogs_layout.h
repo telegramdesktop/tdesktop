@@ -52,6 +52,7 @@ public:
 void PaintCollapsedRow(
 	Painter &p,
 	const RippleRow &row,
+	Data::Folder *folder,
 	const QString &text,
 	int unread,
 	int fullWidth,
