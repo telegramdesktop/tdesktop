@@ -1798,7 +1798,7 @@ void Message::initTime() {
 	}
 	if (const auto views = item->Get<HistoryMessageViews>()) {
 		views->_viewsText = (views->_views >= 0)
-			? FormatViewsCount(views->_views)
+			? lng_channel_views(lt_count_short, views->_views)
 			: QString();
 		views->_viewsWidth = views->_viewsText.isEmpty()
 			? 0

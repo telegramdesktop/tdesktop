@@ -124,6 +124,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_admins_link#one" = "{count} administrator";
 "lng_channel_admins_link#other" = "{count} administrators";
 
+"lng_channel_views#one" = "{count_short}";
+"lng_channel_views#other" = "{count_short}";
+
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
@@ -1968,6 +1971,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_closed" = "Final results";
 "lng_polls_votes_count#one" = "{count} vote";
 "lng_polls_votes_count#other" = "{count} votes";
+"lng_polls_votes_count_short#one" = "{count_short} vote";
+"lng_polls_votes_count_short#other" = "{count_short} votes";
 "lng_polls_votes_none" = "No votes";
 "lng_polls_retract" = "Retract vote";
 "lng_polls_stop" = "Stop poll";

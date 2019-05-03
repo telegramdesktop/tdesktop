@@ -17,7 +17,7 @@ struct PluralResult {
 	QString string;
 	QString replacement;
 };
-PluralResult Plural(ushort keyBase, float64 value);
+PluralResult Plural(ushort keyBase, float64 value, bool shortCount = false);
 void UpdatePluralRules(const QString &languageId);
 
 template <typename ResultString>

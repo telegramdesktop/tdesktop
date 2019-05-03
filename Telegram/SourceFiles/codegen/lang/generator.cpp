@@ -136,11 +136,12 @@ QString lang(LangKey key);\n\
 		auto nonPluralTagFound = false;
 		for (auto &tagData : entry.tags) {
 			auto &tag = tagData.tag;
-			auto isPluralTag = isPlural && (tag == kPluralTag);
+			auto isPluralTag = isPlural && (tag == kPluralTag || tag == kPluralShortTag);
 			genericParams.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const ResultString &") + tag + "__val");
 			params.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
 			if (isPluralTag) {
-				plural = "\tauto plural = Lang::Plural(" + key + ", " + kPluralTag + "__val);\n";
+				const auto isShortTag = (tag == kPluralShortTag) ? ("true") : ("false");
+				plural = "\tauto plural = Lang::Plural(" + key + ", " + tag + "__val, " + isShortTag + ");\n";
 				applyTags.push_back("\tresult = Lang::ReplaceTag<ResultString>::Call(std::move(result), lt_" + tag + ", Lang::StartReplacements<ResultString>::Call(std::move(plural.replacement)));\n");
 			} else {
 				nonPluralTagFound = true;

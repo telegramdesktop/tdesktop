@@ -75,6 +75,7 @@ const std::array<QString, kPluralPartCount> kPluralParts = { {
 } };
 
 const QString kPluralTag = "count";
+const QString kPluralShortTag = kPluralTag + "_short";
 
 QString ComputePluralKey(const QString &base, int index) {
 	return base + "__plural" + QString::number(index);
@@ -144,7 +145,7 @@ void ParsedFile::fillPluralTags() {
 			}
 		}
 		logAssert(!tags.empty());
-		logAssert(tags.front().tag == kPluralTag);
+		logAssert(tags.front().tag == kPluralTag || tags.front().tag == kPluralShortTag);
 
 		// Set this tags list to all plural variants.
 		for (auto j = i; j != i + kPluralPartCount; ++j) {
@@ -208,6 +209,15 @@ QString ParsedFile::extractTagData(const QString &tagText, LangPack *to) {
 			logErrorBadString() << "duplicate found for tag '" << tagText.toStdString() << "'";
 			return QString();
 		}
+		//Don't use both plural tags in one string.
+		if (previousTag.tag.startsWith(kPluralTag) && tag.startsWith(kPluralTag)) {
+			logErrorBadString() <<
+			"duplicate found for count tag '" <<
+			previousTag.tag.toStdString() <<
+			"' and '" <<
+			tag.toStdString() << "'";
+			return QString();
+		}
 	}
 	auto index = 0;
 	auto tagIndex = result_.tags.size();
@@ -250,7 +260,7 @@ void ParsedFile::addEntity(QString key, const QString &value) {
 		auto pluralPart = key.mid(pluralPartOffset + 1);
 		pluralIndex = std::find(kPluralParts.begin(), kPluralParts.end(), pluralPart) - kPluralParts.begin();
 		if (pluralIndex < 0 || pluralIndex >= kPluralParts.size()) {
-			logError(kErrorBadString) << "bad plural part for key '" << key.toStdString() << "': '" << pluralPart.toStdString() << "'";
+			logErrorBadString() << "bad plural part for key '" << key.toStdString() << "': '" << pluralPart.toStdString() << "'";
 			return;
 		}
 		key = key.mid(0, pluralPartOffset);
@@ -260,7 +270,7 @@ void ParsedFile::addEntity(QString key, const QString &value) {
 			if (entry.key == key) {
 				if (entry.keyBase.isEmpty() || !entry.tags.empty()) {
 					// Empty tags in plural entry means it was not encountered yet.
-					logError(kErrorBadString) << "duplicate found for key '" << key.toStdString() << "'";
+					logErrorBadString() << "duplicate found for key '" << key.toStdString() << "'";
 					return false;
 				}
 			}
@@ -308,11 +318,19 @@ void ParsedFile::addEntity(QString key, const QString &value) {
 		realEntry.value = entry.value;
 
 		// Add all new tags to the existing ones.
-		realEntry.tags = std::vector<LangPack::Tag>(1, LangPack::Tag { kPluralTag });
+		realEntry.tags = std::vector<LangPack::Tag>(0);
+
 		for (auto &tag : entry.tags) {
 			if (std::find(realEntry.tags.begin(), realEntry.tags.end(), tag) == realEntry.tags.end()) {
-				realEntry.tags.push_back(tag);
+				if (tag.tag == kPluralTag || tag.tag == kPluralShortTag) {
+					realEntry.tags.insert(realEntry.tags.begin(), tag);
+				} else {
+					realEntry.tags.push_back(tag);
+				}
 			}
+		}
+		if (realEntry.tags.empty()) {
+			realEntry.tags.push_back(LangPack::Tag { kPluralTag });
 		}
 	} else {
 		result_.entries.push_back(entry);

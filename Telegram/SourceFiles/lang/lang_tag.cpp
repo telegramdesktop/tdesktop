@@ -914,7 +914,30 @@ int NonZeroPartToInt(QString value) {
 		: (value.isEmpty() ? 0 : value.toInt());
 }
 
-PluralResult Plural(ushort keyBase, float64 value) {
+inline QString FormatCountToShort(int64 number) {
+	const auto abs = std::abs(number);
+	auto result = QString();
+	const auto shorten = [&](int64 divider, char multiplier) {
+		const auto sign = (number > 0) ? 1 : -1;
+		const auto rounded = abs / (divider / 10);
+		result = QString::number(sign * rounded / 10);
+		if (rounded % 10) {
+			result += '.' + QString::number(rounded % 10) + multiplier;
+		} else {
+			result += multiplier;
+		}
+	};
+	if (abs >= 1'000'000) {
+		shorten(1'000'000, 'M');
+	} else if (abs >= 10'000) {
+		shorten(1'000, 'K');
+	} else {
+		result = QString::number(number);
+	}
+	return result;
+}
+
+PluralResult Plural(ushort keyBase, float64 value, bool shortCount) {
 	// Simplified.
 	const auto n = qAbs(value);
 	const auto i = qFloor(n);
@@ -939,6 +962,9 @@ PluralResult Plural(ushort keyBase, float64 value) {
 		t);
 	auto string = langpack.getValue(LangKey(keyBase + shift));
 	if (integer) {
+		if (shortCount) {
+			return { string, FormatCountToShort(qRound(value)) };
+		}
 		return { string, QString::number(qRound(value)) };
 	}
 	return { string, FormatDouble(value) };

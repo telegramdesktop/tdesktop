@@ -30,38 +30,6 @@ namespace {
 
 using TextState = HistoryView::TextState;
 
-struct FormattedLargeNumber {
-	int rounded = 0;
-	bool shortened = false;
-	QString text;
-};
-
-FormattedLargeNumber FormatLargeNumber(int64 number) {
-	auto result = FormattedLargeNumber();
-	const auto abs = std::abs(number);
-	const auto shorten = [&](int64 divider, char multiplier) {
-		const auto sign = (number > 0) ? 1 : -1;
-		const auto rounded = abs / (divider / 10);
-		result.rounded = sign * rounded * (divider / 10);
-		result.text = QString::number(sign * rounded / 10);
-		if (rounded % 10) {
-			result.text += '.' + QString::number(rounded % 10) + multiplier;
-		} else {
-			result.text += multiplier;
-		}
-		result.shortened = true;
-	};
-	if (abs >= 1'000'000) {
-		shorten(1'000'000, 'M');
-	} else if (abs >= 10'000) {
-		shorten(1'000, 'K');
-	} else {
-		result.rounded = number;
-		result.text = QString::number(number);
-	}
-	return result;
-}
-
 struct PercentCounterItem {
 	int index = 0;
 	int percent = 0;
@@ -417,17 +385,9 @@ void HistoryPoll::updateTotalVotes() {
 		return;
 	}
 	_totalVotes = _poll->totalVoters;
-	const auto string = [&] {
-		if (!_totalVotes) {
-			return lang(lng_polls_votes_none);
-		}
-		const auto format = FormatLargeNumber(_totalVotes);
-		auto text = lng_polls_votes_count(lt_count, format.rounded);
-		if (format.shortened) {
-			text.replace(QString::number(format.rounded), format.text);
-		}
-		return text;
-	}();
+	const auto string = !_totalVotes
+		? lang(lng_polls_votes_none)
+		: lng_polls_votes_count_short(lt_count_short, _totalVotes);
 	_totalVotesLabel.setText(st::msgDateTextStyle, string);
 }
 

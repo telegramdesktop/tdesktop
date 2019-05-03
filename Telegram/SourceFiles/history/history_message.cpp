@@ -721,25 +721,6 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 	forwarded->savedFromMsgId = config.savedFromMsgId;
 }
 
-QString FormatViewsCount(int views) {
-	if (views > 999999) {
-		views /= 100000;
-		if (views % 10) {
-			return QString::number(views / 10) + '.' + QString::number(views % 10) + 'M';
-		}
-		return QString::number(views / 10) + 'M';
-	} else if (views > 9999) {
-		views /= 100;
-		if (views % 10) {
-			return QString::number(views / 10) + '.' + QString::number(views % 10) + 'K';
-		}
-		return QString::number(views / 10) + 'K';
-	} else if (views > 0) {
-		return QString::number(views);
-	}
-	return qsl("1");
-}
-
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 	_media = nullptr;
 	if (media) {
@@ -1118,7 +1099,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 	const auto was = views->_viewsWidth;
 	views->_views = count;
 	views->_viewsText = (views->_views >= 0)
-		? FormatViewsCount(views->_views)
+		? lng_channel_views(lt_count_short, views->_views)
 		: QString();
 	views->_viewsWidth = views->_viewsText.isEmpty()
 		? 0

@@ -22,7 +22,6 @@ QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items);
 void FastShareMessage(not_null<HistoryItem*> item);
-QString FormatViewsCount(int views);
 
 class HistoryMessage
 	: public HistoryItem {
