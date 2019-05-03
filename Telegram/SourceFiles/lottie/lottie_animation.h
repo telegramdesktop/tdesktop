@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 
 #include <crl/crl_time.h>
+#include <vector>
 
 class QImage;
 class QString;

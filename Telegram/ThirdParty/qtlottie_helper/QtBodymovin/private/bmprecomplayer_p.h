@@ -63,7 +63,7 @@ public:
     BMBase *clone() const override;
 
     void updateProperties(int frame) override;
-	void render(LottieRenderer &renderer) const;
+	void render(LottieRenderer &renderer) const override;
 	void resolveAssets(const std::function<BMAsset*(QString)> &resolver) override;
 
 	QString refId() const;
