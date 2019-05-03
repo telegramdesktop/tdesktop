@@ -74,7 +74,11 @@ int PinnedDialogsCount(not_null<Dialogs::IndexedList*> list) {
 
 } // namespace
 
-struct InnerWidget::ImportantSwitch {
+struct InnerWidget::CollapsedRow {
+	explicit CollapsedRow(Data::Folder *folder = nullptr) : folder(folder) {
+	}
+
+	Data::Folder *folder = nullptr;
 	RippleRow row;
 };
 
@@ -108,10 +112,10 @@ InnerWidget::InnerWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 #endif // OS_MAC_OLD
 
-	if (Global::DialogsModeEnabled()) {
-		_importantSwitch = std::make_unique<ImportantSwitch>();
-		_mode = Global::DialogsMode();
-	}
+	_mode = Global::DialogsModeEnabled()
+		? Global::DialogsMode()
+		: Dialogs::Mode::All;
+
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
@@ -180,6 +184,11 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
+	session().settings().archiveCollapsedChanges(
+	) | rpl::start_with_next([=] {
+		refreshWithCollapsedRows();
+	}, lifetime());
+
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			Layout::clearUnreadBadgesCache();
@@ -225,7 +234,8 @@ InnerWidget::InnerWidget(
 		updateDialogRow(previous);
 		updateDialogRow(next);
 	}, lifetime());
-	refresh();
+
+	refreshWithCollapsedRows(true);
 
 	setupShortcuts();
 }
@@ -249,17 +259,50 @@ void InnerWidget::handleChatMigration(not_null<ChatData*> chat) {
 	}
 }
 
-bool InnerWidget::importantSwitchShown() const {
-	return !_openedFolder && _importantSwitch;
+void InnerWidget::refreshWithCollapsedRows(bool toTop) {
+	const auto pressed = _collapsedPressed;
+	const auto selected = _collapsedSelected;
+
+	setCollapsedPressed(-1);
+	_collapsedSelected = -1;
+
+	_collapsedRows.clear();
+	if (!_openedFolder && Global::DialogsModeEnabled()) {
+		_collapsedRows.push_back(std::make_unique<CollapsedRow>());
+	}
+	const auto list = shownDialogs();
+	const auto archive = !list->empty()
+		? (*list->begin())->folder()
+		: nullptr;
+	if (archive && session().settings().archiveCollapsed()) {
+		if (_selected && _selected->folder() == archive) {
+			_selected = nullptr;
+		}
+		if (_pressed && _pressed->folder() == archive) {
+			setPressed(nullptr);
+		}
+		_skipByCollapsedRows = 1;
+		_collapsedRows.push_back(std::make_unique<CollapsedRow>(archive));
+	} else {
+		_skipByCollapsedRows = 0;
+	}
+
+	refresh(toTop);
+
+	if (selected >= 0 && selected < _collapsedRows.size()) {
+		_collapsedSelected = selected;
+	}
+	if (pressed >= 0 && pressed < _collapsedRows.size()) {
+		setCollapsedPressed(pressed);
+	}
 }
 
 int InnerWidget::dialogsOffset() const {
-	return importantSwitchShown()
-		? st::dialogsImportantBarHeight
-		: 0;
+	return _collapsedRows.size() * st::dialogsImportantBarHeight
+		- _skipByCollapsedRows * st::dialogsRowHeight;
 }
 
-int InnerWidget::proxyPromotedCount() const {
+int InnerWidget::fixedOnTopCount() const {
 	auto result = 0;
 	for (const auto row : *shownDialogs()) {
 		if (row->entry()->fixedOnTopIndex()) {
@@ -272,7 +315,7 @@ int InnerWidget::proxyPromotedCount() const {
 }
 
 int InnerWidget::pinnedOffset() const {
-	return dialogsOffset() + proxyPromotedCount() * st::dialogsRowHeight;
+	return dialogsOffset() + fixedOnTopCount() * st::dialogsRowHeight;
 }
 
 int InnerWidget::filteredOffset() const {
@@ -309,7 +352,7 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	clearSelection();
 	_openedFolder = folder;
 	_mode = _openedFolder ? Mode::All : Global::DialogsMode();
-	refresh(true);
+	refreshWithCollapsedRows(true);
 	// This doesn't work, because we clear selection in leaveEvent on hide.
 	//if (mouseSelection && lastMousePosition) {
 	//	selectByMouse(*lastMousePosition);
@@ -331,14 +374,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto dialogsClip = r;
 	auto ms = crl::now();
 	if (_state == WidgetState::Default) {
-		auto rows = shownDialogs();
-		if (importantSwitchShown()) {
-			auto selected = isPressed() ? _importantSwitchPressed : _importantSwitchSelected;
-			Layout::paintImportantSwitch(p, _mode, fullWidth, selected);
-			dialogsClip.translate(0, -st::dialogsImportantBarHeight);
-			p.translate(0, st::dialogsImportantBarHeight);
-		}
-		auto otherStart = rows->size() * st::dialogsRowHeight;
+		paintCollapsedRows(p, r);
+
+		const auto rows = shownDialogs();
+		const auto &list = rows->all();
+		const auto otherStart = std::max(int(rows->size()) - _skipByCollapsedRows, 0) * st::dialogsRowHeight;
 		const auto active = activeEntry.key;
 		const auto selected = _menuRow.key
 			? _menuRow.key
@@ -350,13 +390,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					? _selected->key()
 					: Key()));
 		if (otherStart) {
+			const auto skip = dialogsOffset();
 			auto reorderingPinned = (_aboveIndex >= 0 && !_pinnedRows.empty());
-			auto &list = rows->all();
 			if (reorderingPinned) {
 				dialogsClip = dialogsClip.marginsAdded(QMargins(0, st::dialogsRowHeight, 0, st::dialogsRowHeight));
 			}
 
-			const auto promoted = proxyPromotedCount();
+			const auto promoted = fixedOnTopCount();
 			const auto paintDialog = [&](not_null<Row*> row) {
 				const auto pinned = row->pos() - promoted;
 				const auto count = _pinnedRows.size();
@@ -381,19 +421,22 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 			};
 
-			auto i = list.cfind(dialogsClip.top(), st::dialogsRowHeight);
+			auto i = list.cfind(dialogsClip.top() - skip, st::dialogsRowHeight);
+			while (i != list.cend() && (*i)->pos() < _skipByCollapsedRows) {
+				++i;
+			}
 			if (i != list.cend()) {
 				auto lastPaintedPos = (*i)->pos();
 
 				// If we're reordering pinned chats we need to fill this area background first.
 				if (reorderingPinned) {
-					p.fillRect(0, promoted * st::dialogsRowHeight, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
+					p.fillRect(0, (promoted - _skipByCollapsedRows) * st::dialogsRowHeight, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
 				}
 
-				p.translate(0, lastPaintedPos * st::dialogsRowHeight);
+				p.translate(0, (lastPaintedPos - _skipByCollapsedRows) * st::dialogsRowHeight);
 				for (auto e = list.cend(); i != e; ++i) {
 					auto row = (*i);
-					if (lastPaintedPos * st::dialogsRowHeight >= dialogsClip.top() + dialogsClip.height()) {
+					if ((lastPaintedPos - _skipByCollapsedRows) * st::dialogsRowHeight >= dialogsClip.top() - skip + dialogsClip.height()) {
 						break;
 					}
 
@@ -589,6 +632,42 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 	}
+}
+
+void InnerWidget::paintCollapsedRows(Painter &p, QRect clip) const {
+	auto index = 0;
+	const auto rowHeight = st::dialogsImportantBarHeight;
+	for (const auto &row : _collapsedRows) {
+		const auto increment = gsl::finally([&] {
+			p.translate(0, rowHeight);
+			++index;
+		});
+
+		const auto y = index * rowHeight;
+		if (!clip.intersects(QRect(0, y, width(), rowHeight))) {
+			continue;
+		}
+		const auto selected = (index == _collapsedSelected)
+			|| (index == _collapsedPressed);
+		paintCollapsedRow(p, row.get(), selected);
+	}
+}
+
+void InnerWidget::paintCollapsedRow(
+		Painter &p,
+		not_null<const CollapsedRow*> row,
+		bool selected) const {
+	const auto text = row->folder
+		? row->folder->chatListName()
+		: (_mode == Dialogs::Mode::Important)
+		? lang(lng_dialogs_show_all_chats)
+		: lang(lng_dialogs_hide_muted_chats);
+	const auto unread = row->folder
+		? row->folder->chatListUnreadCount()
+		: (_mode == Dialogs::Mode::Important)
+		? session().data().unreadOnlyMutedBadge()
+		: 0;
+	Layout::PaintCollapsedRow(p, row->row, text, unread, width(), selected);
 }
 
 bool InnerWidget::isSearchResultActive(
@@ -791,8 +870,8 @@ void InnerWidget::clearIrrelevantState() {
 		_searchedSelected = -1;
 		setSearchedPressed(-1);
 	} else if (_state == WidgetState::Filtered) {
-		_importantSwitchSelected = false;
-		setImportantSwitchPressed(false);
+		_collapsedSelected = -1;
+		setCollapsedPressed(-1);
 		_selected = nullptr;
 		setPressed(nullptr);
 	}
@@ -810,22 +889,26 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	const auto mouseY = local.y();
 	clearIrrelevantState();
 	if (_state == WidgetState::Default) {
-		const auto switchTop = 0;
-		const auto switchBottom = dialogsOffset();
-		const auto importantSwitchSelected = importantSwitchShown()
-			&& (mouseY >= switchTop)
-			&& (mouseY < switchBottom);
-		const auto selected = importantSwitchSelected
+		const auto offset = dialogsOffset();
+		const auto collapsedSelected = (mouseY >= 0
+			&& mouseY < _collapsedRows.size() * st::dialogsImportantBarHeight)
+			? (mouseY / st::dialogsImportantBarHeight)
+			: -1;
+		const auto selected = (collapsedSelected >= 0)
 			? nullptr
-			: (mouseY >= switchBottom)
-			? shownDialogs()->rowAtY(mouseY - switchBottom, st::dialogsRowHeight)
+			: (mouseY >= offset)
+			? shownDialogs()->rowAtY(
+				mouseY - offset,
+				st::dialogsRowHeight)
 			: nullptr;
-		if (_selected != selected || _importantSwitchSelected != importantSwitchSelected) {
+		if (_selected != selected || _collapsedSelected != collapsedSelected) {
 			updateSelectedRow();
 			_selected = selected;
-			_importantSwitchSelected = importantSwitchSelected;
+			_collapsedSelected = collapsedSelected;
 			updateSelectedRow();
-			setCursor((_selected || _importantSwitchSelected) ? style::cur_pointer : style::cur_default);
+			setCursor((_selected || _collapsedSelected)
+				? style::cur_pointer
+				: style::cur_default);
 		}
 	} else if (_state == WidgetState::Filtered) {
 		auto wasSelected = isSelected();
@@ -892,15 +975,16 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 
 	_pressButton = e->button();
 	setPressed(_selected);
-	setImportantSwitchPressed(_importantSwitchSelected);
+	setCollapsedPressed(_collapsedSelected);
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
 	setFilteredPressed(_filteredSelected);
 	setPeerSearchPressed(_peerSearchSelected);
 	setSearchedPressed(_searchedSelected);
-	if (_importantSwitchPressed) {
-		_importantSwitch->row.addRipple(e->pos(), QSize(width(), st::dialogsImportantBarHeight), [this] {
-			update(0, 0, width(), st::dialogsImportantBarHeight);
+	if (base::in_range(_collapsedSelected, 0, _collapsedRows.size())) {
+		auto row = &_collapsedRows[_collapsedSelected]->row;
+		row->addRipple(e->pos(), QSize(width(), st::dialogsImportantBarHeight), [this, index = _collapsedSelected] {
+			update(0, (index * st::dialogsImportantBarHeight), width(), st::dialogsImportantBarHeight);
 		});
 	} else if (_pressed) {
 		auto row = _pressed;
@@ -1170,8 +1254,8 @@ void InnerWidget::mousePressReleased(
 		finishReorderPinned();
 	}
 
-	auto importantSwitchPressed = _importantSwitchPressed;
-	setImportantSwitchPressed(false);
+	auto collapsedPressed = _collapsedPressed;
+	setCollapsedPressed(-1);
 	auto pressed = _pressed;
 	setPressed(nullptr);
 	auto hashtagPressed = _hashtagPressed;
@@ -1189,28 +1273,27 @@ void InnerWidget::mousePressReleased(
 	}
 	updateSelectedRow();
 	if (!wasDragging && button == Qt::LeftButton) {
-		if (importantSwitchPressed && importantSwitchPressed == _importantSwitchSelected) {
-			chooseRow();
-		} else if (pressed && pressed == _selected) {
-			chooseRow();
-		} else if (hashtagPressed >= 0 && hashtagPressed == _hashtagSelected && hashtagDeletePressed == _hashtagDeleteSelected) {
-			chooseRow();
-		} else if (filteredPressed >= 0 && filteredPressed == _filteredSelected) {
-			chooseRow();
-		} else if (peerSearchPressed >= 0 && peerSearchPressed == _peerSearchSelected) {
-			chooseRow();
-		} else if (searchedPressed >= 0 && searchedPressed == _searchedSelected) {
+		if ((collapsedPressed >= 0 && collapsedPressed == _collapsedSelected)
+			|| (pressed && pressed == _selected)
+			|| (hashtagPressed >= 0
+				&& hashtagPressed == _hashtagSelected
+				&& hashtagDeletePressed == _hashtagDeleteSelected)
+			|| (filteredPressed >= 0 && filteredPressed == _filteredSelected)
+			|| (peerSearchPressed >= 0
+				&& peerSearchPressed == _peerSearchSelected)
+			|| (searchedPressed >= 0
+				&& searchedPressed == _searchedSelected)) {
 			chooseRow();
 		}
 	}
 }
 
-void InnerWidget::setImportantSwitchPressed(bool pressed) {
-	if (_importantSwitchPressed != pressed) {
-		if (_importantSwitchPressed) {
-			_importantSwitch->row.stopLastRipple();
+void InnerWidget::setCollapsedPressed(int pressed) {
+	if (_collapsedPressed != pressed) {
+		if (_collapsedPressed >= 0) {
+			_collapsedRows[_collapsedPressed]->row.stopLastRipple();
 		}
-		_importantSwitchPressed = pressed;
+		_collapsedPressed = pressed;
 	}
 }
 
@@ -1360,11 +1443,23 @@ void InnerWidget::removeDialog(Key key) {
 	refresh();
 }
 
+void InnerWidget::repaintCollapsedFolderRow(not_null<Data::Folder*> folder) {
+	for (auto i = 0, l = int(_collapsedRows.size()); i != l; ++i) {
+		if (_collapsedRows[i]->folder == folder) {
+			update(0, i * st::dialogsImportantBarHeight, width(), st::dialogsImportantBarHeight);
+			return;
+		}
+	}
+}
+
 void InnerWidget::repaintDialogRow(
 		Mode list,
 		not_null<Row*> row) {
 	if (_state == WidgetState::Default) {
 		if (_mode == list) {
+			if (const auto folder = row->folder()) {
+				repaintCollapsedFolderRow(folder);
+			}
 			auto position = row->pos();
 			auto top = dialogsOffset();
 			if (base::in_range(position, 0, _pinnedRows.size())) {
@@ -1435,6 +1530,9 @@ void InnerWidget::updateDialogRow(
 	};
 	if (_state == WidgetState::Default) {
 		if (sections & UpdateRowSection::Default) {
+			if (const auto folder = row.key.folder()) {
+				repaintCollapsedFolderRow(folder);
+			}
 			if (const auto dialog = shownDialogs()->getRow(row.key)) {
 				const auto position = dialog->pos();
 				auto top = dialogsOffset();
@@ -1505,8 +1603,8 @@ void InnerWidget::updateSelectedRow(Key key) {
 			update(0, top + position * st::dialogsRowHeight, width(), st::dialogsRowHeight);
 		} else if (_selected) {
 			update(0, dialogsOffset() + _selected->pos() * st::dialogsRowHeight, width(), st::dialogsRowHeight);
-		} else if (_importantSwitchSelected) {
-			update(0, 0, width(), st::dialogsImportantBarHeight);
+		} else if (_collapsedSelected >= 0) {
+			update(0, _collapsedSelected * st::dialogsImportantBarHeight, width(), st::dialogsImportantBarHeight);
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (key) {
@@ -1545,14 +1643,9 @@ void InnerWidget::dragLeft() {
 void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
-	if (_importantSwitchSelected
-		|| _selected
-		|| _filteredSelected >= 0
-		|| _hashtagSelected >= 0
-		|| _peerSearchSelected >= 0
-		|| _searchedSelected >= 0) {
+	if (isSelected()) {
 		updateSelectedRow();
-		_importantSwitchSelected = false;
+		_collapsedSelected = -1;
 		_selected = nullptr;
 		_filteredSelected
 			= _searchedSelected
@@ -1583,6 +1676,10 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 		if (_state == WidgetState::Default) {
 			if (_selected) {
 				return { _selected->key(), FullMsgId() };
+			} else if (base::in_range(_collapsedSelected, 0, _collapsedRows.size())) {
+				if (const auto folder = _collapsedRows[_collapsedSelected]->folder) {
+					return { folder, FullMsgId() };
+				}
 			}
 		} else if (_state == WidgetState::Filtered) {
 			if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
@@ -1931,7 +2028,7 @@ void InnerWidget::peerSearchReceived(
 			const auto [i, ok] = _filterResultsGlobal.emplace(
 				peer,
 				std::move(row));
-			_filterResults.push_back(i->second.get());
+			_filterResults.emplace_back(i->second.get());
 		} else {
 			LOG(("API Error: "
 				"user %1 was not loaded in InnerWidget::peopleReceived()"
@@ -1957,7 +2054,7 @@ void InnerWidget::peerSearchReceived(
 }
 
 void InnerWidget::notify_historyMuteUpdated(History *history) {
-	if (!_importantSwitch || !history->inChatList()) {
+	if (!Global::DialogsModeEnabled() || !history->inChatList()) {
 		return;
 	}
 	refreshDialog(history);
@@ -1967,7 +2064,23 @@ Data::Folder *InnerWidget::shownFolder() const {
 	return _openedFolder;
 }
 
+bool InnerWidget::needCollapsedRowsRefresh() const {
+	const auto archive = !shownDialogs()->empty()
+		? (*shownDialogs()->begin())->folder()
+		: nullptr;
+	const auto collapsedHasArchive = !_collapsedRows.empty()
+		&& (_collapsedRows.back()->folder != nullptr);
+	const auto archiveIsCollapsed = (archive != nullptr)
+		&& session().settings().archiveCollapsed();
+	return archiveIsCollapsed
+		? (!collapsedHasArchive || _skipByCollapsedRows != 1)
+		: (collapsedHasArchive || _skipByCollapsedRows != 0);
+}
+
 void InnerWidget::refresh(bool toTop) {
+	if (needCollapsedRowsRefresh()) {
+		return refreshWithCollapsedRows(toTop);
+	}
 	auto h = 0;
 	if (_state == WidgetState::Default) {
 		if (shownDialogs()->empty()) {
@@ -2006,8 +2119,8 @@ void InnerWidget::clearMouseSelection(bool clearSelection) {
 	_lastMousePosition = std::nullopt;
 	if (clearSelection) {
 		if (_state == WidgetState::Default) {
+			_collapsedSelected = -1;
 			_selected = nullptr;
-			_importantSwitchSelected = false;
 		} else if (_state == WidgetState::Filtered) {
 			_filteredSelected
 				= _peerSearchSelected
@@ -2116,41 +2229,40 @@ void InnerWidget::clearFilter() {
 void InnerWidget::selectSkip(int32 direction) {
 	clearMouseSelection();
 	if (_state == WidgetState::Default) {
-		if (_importantSwitchSelected) {
-			if (!shownDialogs()->empty() && direction > 0) {
-				_selected = *shownDialogs()->cbegin();
-				_importantSwitchSelected = false;
+		const auto list = shownDialogs();
+		if (_collapsedRows.empty() && list->size() <= _skipByCollapsedRows) {
+			return;
+		}
+		if (_collapsedSelected < 0 && !_selected) {
+			if (!_collapsedRows.empty()) {
+				_collapsedSelected = 0;
 			} else {
-				return;
-			}
-		} else if (!_selected) {
-			if (importantSwitchShown()) {
-				_importantSwitchSelected = true;
-			} else if (!shownDialogs()->empty() && direction > 0) {
-				_selected = *shownDialogs()->cbegin();
-			} else {
-				return;
-			}
-		} else if (direction > 0) {
-			auto next = shownDialogs()->cfind(_selected);
-			if (++next != shownDialogs()->cend()) {
-				_selected = *next;
+				_selected = *(list->cbegin() + _skipByCollapsedRows);
 			}
 		} else {
-			auto prev = shownDialogs()->cfind(_selected);
-			if (prev != shownDialogs()->cbegin()) {
-				_selected = *(--prev);
-			} else if (importantSwitchShown()) {
-				_importantSwitchSelected = true;
+			auto cur = (_collapsedSelected >= 0)
+				? _collapsedSelected
+				: int(_collapsedRows.size()
+					+ (list->cfind(_selected) - list->cbegin() - _skipByCollapsedRows));
+			cur = snap(cur + direction, 0, static_cast<int>(_collapsedRows.size() + list->size() - _skipByCollapsedRows - 1));
+			if (cur < _collapsedRows.size()) {
+				_collapsedSelected = cur;
 				_selected = nullptr;
+			} else {
+				_collapsedSelected = -1;
+				_selected = *(list->cbegin() + _skipByCollapsedRows + cur - _collapsedRows.size());
 			}
 		}
-		if (_importantSwitchSelected || _selected) {
-			int fromY = _importantSwitchSelected ? 0 : (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
+		if (_collapsedSelected >= 0 || _selected) {
+			const auto fromY = (_collapsedSelected >= 0)
+				? (_collapsedSelected * st::dialogsImportantBarHeight)
+				: (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
 			emit mustScrollTo(fromY, fromY + st::dialogsRowHeight);
 		}
 	} else if (_state == WidgetState::Filtered) {
-		if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _searchResults.empty()) return;
+		if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _searchResults.empty()) {
+			return;
+		}
 		if ((_hashtagSelected < 0 || _hashtagSelected >= _hashtagResults.size()) &&
 			(_filteredSelected < 0 || _filteredSelected >= _filterResults.size()) &&
 			(_peerSearchSelected < 0 || _peerSearchSelected >= _peerSearchResults.size()) &&
@@ -2232,9 +2344,9 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 	int toSkip = pixels / int(st::dialogsRowHeight);
 	if (_state == WidgetState::Default) {
 		if (!_selected) {
-			if (direction > 0 && !shownDialogs()->empty()) {
-				_selected = *shownDialogs()->cbegin();
-				_importantSwitchSelected = false;
+			if (direction > 0 && shownDialogs()->size() > _skipByCollapsedRows) {
+				_selected = *(shownDialogs()->cbegin() + _skipByCollapsedRows);
+				_collapsedSelected = -1;
 			} else {
 				return;
 			}
@@ -2244,16 +2356,18 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 				_selected = *i;
 			}
 		} else {
-			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (toSkip--);) {
+			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (*i)->pos() > _skipByCollapsedRows && (toSkip--);) {
 				_selected = *(--i);
 			}
-			if (toSkip && importantSwitchShown()) {
-				_importantSwitchSelected = true;
+			if (toSkip && !_collapsedRows.empty()) {
+				_collapsedSelected = std::max(int(_collapsedRows.size()) - toSkip, 0);
 				_selected = nullptr;
 			}
 		}
-		if (_importantSwitchSelected || _selected) {
-			int fromY = (_importantSwitchSelected ? 0 : (dialogsOffset() + _selected->pos() * st::dialogsRowHeight));
+		if (_collapsedSelected >= 0 || _selected) {
+			const auto fromY = (_collapsedSelected >= 0)
+				? (_collapsedSelected * st::dialogsImportantBarHeight)
+				: (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
 			emit mustScrollTo(fromY, fromY + st::dialogsRowHeight);
 		}
 	} else {
@@ -2317,12 +2431,23 @@ void InnerWidget::loadPeerPhotos() {
 	}
 }
 
-bool InnerWidget::switchImportantChats() {
-	if (!_importantSwitchSelected
-		|| !importantSwitchShown()
-		|| (_state != WidgetState::Default)) {
+bool InnerWidget::chooseCollapsedRow() {
+	if (_state != WidgetState::Default) {
+		return false;
+	} else if ((_collapsedSelected < 0)
+		|| (_collapsedSelected >= _collapsedRows.size())) {
 		return false;
 	}
+	const auto &row = _collapsedRows[_collapsedSelected];
+	if (row->folder) {
+		_controller->openFolder(row->folder);
+	} else {
+		switchImportantChats();
+	}
+	return true;
+}
+
+void InnerWidget::switchImportantChats() {
 	clearSelection();
 	if (Global::DialogsMode() == Mode::All) {
 		Global::SetDialogsMode(Mode::Important);
@@ -2331,9 +2456,8 @@ bool InnerWidget::switchImportantChats() {
 	}
 	_mode = Global::DialogsMode();
 	Local::writeUserSettings();
-	refresh();
-	_importantSwitchSelected = true;
-	return true;
+	refreshWithCollapsedRows(true);
+	_collapsedSelected = 0;
 }
 
 bool InnerWidget::chooseHashtag() {
@@ -2404,7 +2528,7 @@ ChosenRow InnerWidget::computeChosenRow() const {
 }
 
 bool InnerWidget::chooseRow() {
-	if (switchImportantChats()) {
+	if (chooseCollapsedRow()) {
 		return true;
 	} else if (chooseHashtag()) {
 		return true;

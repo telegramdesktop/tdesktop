@@ -188,6 +188,10 @@ public:
 		return _variables.autoDownload;
 	}
 
+	void setArchiveCollapsed(bool collapsed);
+	bool archiveCollapsed() const;
+	rpl::producer<bool> archiveCollapsedChanges() const;
+
 	bool hadLegacyCallsPeerToPeerNobody() const {
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
@@ -240,6 +244,7 @@ private:
 		bool countUnreadMessages = true;
 		bool exeLaunchWarning = true;
 		Data::AutoDownload::Full autoDownload;
+		rpl::variable<bool> archiveCollapsed = false;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

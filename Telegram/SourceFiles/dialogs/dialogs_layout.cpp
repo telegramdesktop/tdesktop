@@ -841,26 +841,21 @@ QRect RowPainter::sendActionAnimationRect(int animationWidth, int animationHeigh
 	return QRect(nameleft, texttop, textUpdated ? namewidth : animationWidth, animationHeight);
 }
 
-void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected) {
+void PaintCollapsedRow(Painter &p, const RippleRow &row, const QString &text, int unread, int fullWidth, bool selected) {
 	p.fillRect(0, 0, fullWidth, st::dialogsImportantBarHeight, selected ? st::dialogsBgOver : st::dialogsBg);
+
+	row.paintRipple(p, 0, 0, fullWidth);
 
 	p.setFont(st::semiboldFont);
 	p.setPen(st::dialogsNameFg);
 
 	const auto unreadTop = (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2;
-	const auto mutedHidden = (current == Dialogs::Mode::Important);
-	const auto text = lang(mutedHidden
-		? lng_dialogs_show_all_chats
-		: lng_dialogs_hide_muted_chats);
 	const auto textBaseline = unreadTop
 		+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
 		+ st::dialogsUnreadFont->ascent;
 	p.drawText(st::dialogsPadding.x(), textBaseline, text);
 
-	if (!mutedHidden) {
-		return;
-	}
-	if (const auto unread = Auth().data().unreadOnlyMutedBadge()) {
+	if (unread) {
 		const auto unreadRight = fullWidth - st::dialogsPadding.x();
 		UnreadBadgeStyle st;
 		st.muted = true;

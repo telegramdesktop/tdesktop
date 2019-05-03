@@ -75,29 +75,30 @@ FolderId Folder::id() const {
 }
 
 void Folder::indexNameParts() {
-	_nameWords.clear();
-	_nameFirstLetters.clear();
-	auto toIndexList = QStringList();
-	auto appendToIndex = [&](const QString &value) {
-		if (!value.isEmpty()) {
-			toIndexList.push_back(TextUtilities::RemoveAccents(value));
-		}
-	};
+	// We don't want archive to be filtered in the chats list.
+	//_nameWords.clear();
+	//_nameFirstLetters.clear();
+	//auto toIndexList = QStringList();
+	//auto appendToIndex = [&](const QString &value) {
+	//	if (!value.isEmpty()) {
+	//		toIndexList.push_back(TextUtilities::RemoveAccents(value));
+	//	}
+	//};
 
-	appendToIndex(_name);
-	const auto appendTranslit = !toIndexList.isEmpty()
-		&& cRussianLetters().match(toIndexList.front()).hasMatch();
-	if (appendTranslit) {
-		appendToIndex(translitRusEng(toIndexList.front()));
-	}
-	auto toIndex = toIndexList.join(' ');
-	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
+	//appendToIndex(_name);
+	//const auto appendTranslit = !toIndexList.isEmpty()
+	//	&& cRussianLetters().match(toIndexList.front()).hasMatch();
+	//if (appendTranslit) {
+	//	appendToIndex(translitRusEng(toIndexList.front()));
+	//}
+	//auto toIndex = toIndexList.join(' ');
+	//toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
 
-	const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
-	for (const auto &name : namesList) {
-		_nameWords.insert(name);
-		_nameFirstLetters.insert(name[0]);
-	}
+	//const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
+	//for (const auto &name : namesList) {
+	//	_nameWords.insert(name);
+	//	_nameFirstLetters.insert(name[0]);
+	//}
 }
 
 void Folder::registerOne(not_null<History*> history) {

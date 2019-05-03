@@ -11,6 +11,7 @@ namespace Dialogs {
 
 class Row;
 class FakeRow;
+class RippleRow;
 
 namespace Layout {
 
@@ -48,9 +49,11 @@ public:
 
 };
 
-void paintImportantSwitch(
+void PaintCollapsedRow(
 	Painter &p,
-	Mode current,
+	const RippleRow &row,
+	const QString &text,
+	int unread,
 	int fullWidth,
 	bool selected);
 

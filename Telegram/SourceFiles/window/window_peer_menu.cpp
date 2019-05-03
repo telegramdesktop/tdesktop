@@ -84,6 +84,7 @@ public:
 	void fill();
 
 private:
+	void addToggleCollapse();
 	//bool showInfo();
 	//void addTogglePin();
 	//void addInfo();
@@ -91,10 +92,10 @@ private:
 	//void addNotifications();
 	//void addUngroup();
 
-	//not_null<Controller*> _controller;
-	//not_null<Data::Folder*> _folder;
-	//const PeerMenuCallback &_addAction;
-	//PeerMenuSource _source;
+	not_null<Controller*> _controller;
+	not_null<Data::Folder*> _folder;
+	const PeerMenuCallback &_addAction;
+	PeerMenuSource _source;
 
 };
 
@@ -534,54 +535,33 @@ FolderFiller::FolderFiller(
 	not_null<Controller*> controller,
 	not_null<Data::Folder*> folder,
 	const PeerMenuCallback &addAction,
-	PeerMenuSource source) {
-//: _controller(controller)
-//, _folder(folder)
-//, _addAction(addAction)
-//, _source(source) {
+	PeerMenuSource source)
+: _controller(controller)
+, _folder(folder)
+, _addAction(addAction)
+, _source(source) {
 }
 
-void FolderFiller::fill() { // #TODO archive
-	//if (_source == PeerMenuSource::ChatsList) {
-	//	addTogglePin();
-	//}
-	//if (showInfo()) {
-	//	addInfo();
-	//}
-	//addNotifications();
-	//if (_source == PeerMenuSource::ChatsList) {
-	//	addSearch();
-	//}
-	//addUngroup();
+void FolderFiller::fill() {
+	if (_source == PeerMenuSource::ChatsList) {
+		addToggleCollapse();
+	}
 }
-//
-//bool FolderFiller::showInfo() {
-//	if (_source == PeerMenuSource::Profile) {
-//		return false;
-//	} else if (_controller->activeChatCurrent().feed() != _feed) {
-//		return true;
-//	} else if (!Adaptive::ThreeColumn()) {
-//		return true;
-//	} else if (
-//		!Auth().settings().thirdSectionInfoEnabled() &&
-//		!Auth().settings().tabbedReplacedWithInfo()) {
-//		return true;
-//	}
-//	return false;
-//}
-//
-//void FolderFiller::addTogglePin() {
-//	const auto feed = _feed;
-//	const auto isPinned = feed->isPinnedDialog();
-//	const auto pinText = [](bool isPinned) {
-//		return lang(isPinned
-//			? lng_context_unpin_from_top
-//			: lng_context_pin_to_top);
-//	};
-//	_addAction(pinText(isPinned), [=] {
-//		TogglePinnedDialog(feed);
-//	});
-//}
+
+void FolderFiller::addToggleCollapse() {
+	if (_folder->id() != Data::Folder::kId) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto hidden = controller->session().settings().archiveCollapsed();
+	const auto text = lang(hidden
+		? lng_context_archive_expand
+		: lng_context_archive_collapse);
+	_addAction(text, [=] {
+		controller->session().settings().setArchiveCollapsed(!hidden);
+		controller->session().saveSettingsDelayed();
+	});
+}
 //
 //void FolderFiller::addInfo() {
 //	auto controller = _controller;

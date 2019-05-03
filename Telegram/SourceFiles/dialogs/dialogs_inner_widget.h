@@ -146,7 +146,7 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
-	struct ImportantSwitch;
+	struct CollapsedRow;
 	struct HashtagResult;
 	struct PeerSearchResult;
 
@@ -161,7 +161,11 @@ private:
 
 	void dialogRowReplaced(Row *oldRow, Row *newRow);
 
-	bool switchImportantChats();
+	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
+	void refreshWithCollapsedRows(bool toTop = false);
+	bool needCollapsedRowsRefresh() const;
+	bool chooseCollapsedRow();
+	void switchImportantChats();
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
 	bool isSearchResultActive(
@@ -173,14 +177,14 @@ private:
 	void clearIrrelevantState();
 	void selectByMouse(QPoint globalPosition);
 	void loadPeerPhotos();
-	void setImportantSwitchPressed(bool pressed);
+	void setCollapsedPressed(int pressed);
 	void setPressed(Row *pressed);
 	void setHashtagPressed(int pressed);
 	void setFilteredPressed(int pressed);
 	void setPeerSearchPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	bool isPressed() const {
-		return _importantSwitchPressed
+		return (_collapsedPressed >= 0)
 			|| _pressed
 			|| (_hashtagPressed >= 0)
 			|| (_filteredPressed >= 0)
@@ -188,7 +192,7 @@ private:
 			|| (_searchedPressed >= 0);
 	}
 	bool isSelected() const {
-		return _importantSwitchSelected
+		return (_collapsedSelected >= 0)
 			|| _selected
 			|| (_hashtagSelected >= 0)
 			|| (_filteredSelected >= 0)
@@ -227,15 +231,21 @@ private:
 		UpdateRowSections sections = UpdateRowSection::All);
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
 
-	bool importantSwitchShown() const;
 	int dialogsOffset() const;
-	int proxyPromotedCount() const;
+	int fixedOnTopCount() const;
 	int pinnedOffset() const;
 	int filteredOffset() const;
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 	int searchInChatSkip() const;
 
+	void paintCollapsedRows(
+		Painter &p,
+		QRect clip) const;
+	void paintCollapsedRow(
+		Painter &p,
+		not_null<const CollapsedRow*> row,
+		bool selected) const;
 	void paintPeerSearchResult(
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
@@ -290,9 +300,10 @@ private:
 
 	Data::Folder *_openedFolder = nullptr;
 
-	std::unique_ptr<ImportantSwitch> _importantSwitch;
-	bool _importantSwitchSelected = false;
-	bool _importantSwitchPressed = false;
+	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
+	int _collapsedSelected = -1;
+	int _collapsedPressed = -1;
+	int _skipByCollapsedRows = 0;
 	Row *_selected = nullptr;
 	Row *_pressed = nullptr;
 
