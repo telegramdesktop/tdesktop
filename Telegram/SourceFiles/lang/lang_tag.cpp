@@ -914,7 +914,7 @@ int NonZeroPartToInt(QString value) {
 		: (value.isEmpty() ? 0 : value.toInt());
 }
 
-inline QString FormatCountToShort(int64 number) {
+inline QString FormatCountToShort(int64 &number) {
 	const auto abs = std::abs(number);
 	auto result = QString();
 	const auto shorten = [&](int64 divider, char multiplier) {
@@ -926,6 +926,9 @@ inline QString FormatCountToShort(int64 number) {
 		} else {
 			result += multiplier;
 		}
+		// Update given number.
+		// E.g. 12345 will be 12000.
+		number = rounded * divider;
 	};
 	if (abs >= 1'000'000) {
 		shorten(1'000'000, 'M');
@@ -941,8 +944,18 @@ PluralResult Plural(
 	ushort keyBase,
 	float64 value,
 	PluralType type) {
+
+	// To correctly select a shift for PluralType::Short
+	// we must first round the number.
+	int64 shortenedValue = 0;
+	auto shortenedNumberString = QString();
+	if (type == PluralType::Short) {
+		shortenedValue = qRound(value);
+		shortenedNumberString = FormatCountToShort(shortenedValue);
+	}
+
 	// Simplified.
-	const auto n = qAbs(value);
+	const auto n = std::abs(shortenedValue ? float64(shortenedValue) : value);
 	const auto i = qFloor(n);
 	const auto integer = (qCeil(n) == i);
 	const auto formatted = integer ? QString() : FormatDouble(n);
@@ -967,7 +980,7 @@ PluralResult Plural(
 	if (integer) {
 		const auto round = qRound(value);
 		if (type == PluralType::Short) {
-			return { string, FormatCountToShort(round) };
+			return { string, shortenedNumberString };
 		} else if (type == PluralType::DecimalSeparation) {
 			return { string, QString("%L1").arg(round) };
 		}
