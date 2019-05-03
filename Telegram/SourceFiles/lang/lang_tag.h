@@ -13,11 +13,20 @@ constexpr auto kTagReplacementSize = 4;
 
 int FindTagReplacementPosition(const QString &original, ushort tag);
 
+enum class PluralType {
+	None,
+	Short,
+	DecimalSeparation,
+};
+
 struct PluralResult {
 	QString string;
 	QString replacement;
 };
-PluralResult Plural(ushort keyBase, float64 value, bool shortCount = false);
+PluralResult Plural(
+	ushort keyBase,
+	float64 value,
+	PluralType type = PluralType::None);
 void UpdatePluralRules(const QString &languageId);
 
 template <typename ResultString>

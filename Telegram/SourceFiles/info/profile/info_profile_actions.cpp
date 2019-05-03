@@ -802,7 +802,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	auto membersText = MembersCountValue(
 		channel
 	) | rpl::map([](int count) {
-		return lng_chat_status_members(lt_count, count);
+		return lng_chat_status_members_demical(lt_count_decimal, count);
 	});
 	auto membersCallback = [controller, channel] {
 		controller->showSection(Info::Memento(

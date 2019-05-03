@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "codegen/lang/parsed_file.h"
 
 #include <iostream>
+#include <set>
 #include <QtCore/QMap>
 #include <QtCore/QDir>
 #include <QtCore/QRegularExpression>
@@ -76,6 +77,13 @@ const std::array<QString, kPluralPartCount> kPluralParts = { {
 
 const QString kPluralTag = "count";
 const QString kPluralShortTag = kPluralTag + "_short";
+const QString kPluralDecimalSeparationTag = kPluralTag + "_decimal";
+
+const std::set<QString> pluralTypeSet {
+	kPluralTag,
+	kPluralShortTag,
+	kPluralDecimalSeparationTag
+};
 
 QString ComputePluralKey(const QString &base, int index) {
 	return base + "__plural" + QString::number(index);
@@ -145,7 +153,7 @@ void ParsedFile::fillPluralTags() {
 			}
 		}
 		logAssert(!tags.empty());
-		logAssert(tags.front().tag == kPluralTag || tags.front().tag == kPluralShortTag);
+		logAssert(pluralTypeSet.find(tags.front().tag) != pluralTypeSet.end());
 
 		// Set this tags list to all plural variants.
 		for (auto j = i; j != i + kPluralPartCount; ++j) {
@@ -322,7 +330,7 @@ void ParsedFile::addEntity(QString key, const QString &value) {
 
 		for (auto &tag : entry.tags) {
 			if (std::find(realEntry.tags.begin(), realEntry.tags.end(), tag) == realEntry.tags.end()) {
-				if (tag.tag == kPluralTag || tag.tag == kPluralShortTag) {
+				if (pluralTypeSet.find(tag.tag) != pluralTypeSet.end()) {
 					realEntry.tags.insert(realEntry.tags.begin(), tag);
 				} else {
 					realEntry.tags.push_back(tag);

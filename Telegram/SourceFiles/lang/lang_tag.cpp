@@ -937,7 +937,10 @@ inline QString FormatCountToShort(int64 number) {
 	return result;
 }
 
-PluralResult Plural(ushort keyBase, float64 value, bool shortCount) {
+PluralResult Plural(
+	ushort keyBase,
+	float64 value,
+	PluralType type) {
 	// Simplified.
 	const auto n = qAbs(value);
 	const auto i = qFloor(n);
@@ -962,10 +965,13 @@ PluralResult Plural(ushort keyBase, float64 value, bool shortCount) {
 		t);
 	auto string = langpack.getValue(LangKey(keyBase + shift));
 	if (integer) {
-		if (shortCount) {
-			return { string, FormatCountToShort(qRound(value)) };
+		const auto round = qRound(value);
+		if (type == PluralType::Short) {
+			return { string, FormatCountToShort(round) };
+		} else if (type == PluralType::DecimalSeparation) {
+			return { string, QString("%L1").arg(round) };
 		}
-		return { string, QString::number(qRound(value)) };
+		return { string, QString::number(round) };
 	}
 	return { string, FormatDouble(value) };
 }

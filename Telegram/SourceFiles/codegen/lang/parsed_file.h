@@ -22,6 +22,7 @@ constexpr auto kPluralPartCount = 6;
 extern const std::array<QString, kPluralPartCount> kPluralParts;
 extern const QString kPluralTag;
 extern const QString kPluralShortTag;
+extern const QString kPluralDecimalSeparationTag;
 QString ComputePluralKey(const QString &base, int index);
 
 struct LangPack {

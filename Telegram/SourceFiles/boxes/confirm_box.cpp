@@ -790,7 +790,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 	const auto status = [&] {
 		if (_participants.empty() || _participants.size() >= count) {
 			if (count > 0) {
-				return lng_chat_status_members(lt_count, count);
+				return lng_chat_status_members_demical(lt_count_decimal, count);
 			} else {
 				return lang(_isChannel
 					? lng_channel_status
