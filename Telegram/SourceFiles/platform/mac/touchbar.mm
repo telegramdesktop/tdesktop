@@ -484,8 +484,15 @@ auto lifetime = rpl::lifetime();
 }
 
 - (void) seekbarChanged:(NSSliderTouchBarItem *)sender {
-	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-		Media::Player::instance()->finishSeeking(kSongType, sender.slider.doubleValue);
+	// https://stackoverflow.com/a/45891017
+	NSEvent *event = [[NSApplication sharedApplication] currentEvent];
+	bool touchUp = [event touchesMatchingPhase:NSTouchPhaseEnded inView:nil].count > 0;
+	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+		if (touchUp) {
+			Media::Player::instance()->finishSeeking(kSongType, sender.slider.doubleValue);
+		} else {
+			Media::Player::instance()->startSeeking(kSongType);
+		}
 	});
 }
 
