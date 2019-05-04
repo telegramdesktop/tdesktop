@@ -38,8 +38,6 @@ namespace {
 constexpr auto kIdealIconSize = 36;
 constexpr auto kMaximumIconSize = 44;
 
-constexpr auto kSavedMessages = 0x001;
-
 constexpr auto kPlayPause = 0x002;
 constexpr auto kPlaylistPrevious = 0x003;
 constexpr auto kPlaylistNext = 0x004;
@@ -370,17 +368,34 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, NSSize size) {
 	if (self.touchBarType == type) {
 		return;
 	}
-	self.touchBarType = type;
 	if (type == TouchBarType::Main) {
 		[self.view setTouchBar:_touchBarMain];
 	} else if (type == TouchBarType::AudioPlayer) {
+		if (!isCurrentSongExists()
+			|| Media::Player::instance()->getActiveType() != kSongType) {
+			return;
+		}
 		[self.view setTouchBar:_touchBarAudioPlayer];
+	} else if (type == TouchBarType::AudioPlayerForce) {
+		[self.view setTouchBar:_touchBarAudioPlayer];
+		self.touchBarType = TouchBarType::AudioPlayer;
+		return;
 	} else if (type == TouchBarType::None) {
 		[self.view setTouchBar:nil];
 	}
+	self.touchBarType = type;
+}
+
+inline bool isCurrentSongExists() {
+	return Media::Player::instance()->current(kSongType).audio() != nullptr;
 }
 
 - (void) handlePropertyChange:(Media::Player::TrackState)property {
+	if (property.id.type() == kSongType) {
+		[self setTouchBar:TouchBarType::AudioPlayerForce];
+	} else {
+		return;
+	}
 	self.position = property.position < 0 ? 0 : property.position;
 	self.duration = property.length;
 	if (Media::Player::IsStoppedOrStopping(property.state)) {
@@ -480,11 +495,11 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, NSSize size) {
 
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
 		if (command == kPlayPause) {
-			Media::Player::instance()->playPause();
+			Media::Player::instance()->playPause(kSongType);
 		} else if (command == kPlaylistPrevious) {
-			Media::Player::instance()->previous();
+			Media::Player::instance()->previous(kSongType);
 		} else if (command == kPlaylistNext) {
-			Media::Player::instance()->next();
+			Media::Player::instance()->next(kSongType);
 		} else if (command == kClosePlayer) {
 			App::main()->closeBothPlayers();
 		}

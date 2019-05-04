@@ -16,6 +16,7 @@ enum class TouchBarType {
 	None,
 	Main,
 	AudioPlayer,
+	AudioPlayerForce,
 };
 } // namespace
 
