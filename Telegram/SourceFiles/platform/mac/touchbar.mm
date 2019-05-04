@@ -9,29 +9,17 @@
 #import "touchbar.h"
 #import <QuartzCore/QuartzCore.h>
 
-#include "mainwindow.h"
-#include "mainwidget.h"
-#include "core/sandbox.h"
-#include "core/application.h"
-#include "core/crash_reports.h"
-#include "storage/localstorage.h"
-#include "media/audio/media_audio.h"
-#include "media/player/media_player_instance.h"
-#include "media/view/media_view_playback_progress.h"
-#include "media/audio/media_audio.h"
-#include "platform/mac/mac_utilities.h"
-#include "platform/platform_specific.h"
-#include "lang/lang_keys.h"
-#include "base/timer.h"
-#include "styles/style_window.h"
 #include "auth_session.h"
+#include "core/application.h"
+#include "core/sandbox.h"
+#include "data/data_folder.h"
 #include "data/data_session.h"
 #include "history/history.h"
-#include "ui/empty_userpic.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
 #include "observer_peer.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
-#include "data/data_folder.h"
+#include "ui/empty_userpic.h"
 
 namespace {
 //https://developer.apple.com/design/human-interface-guidelines/macos/touch-bar/touch-bar-icons-and-images/
@@ -223,9 +211,6 @@ auto lifetime = rpl::lifetime();
 @interface TouchBar()<NSTouchBarDelegate>
 @end // @interface TouchBar
 
-@interface TouchBar()<NSTouchBarDelegate>
-@end
-
 @implementation TouchBar
 
 - (id) init:(NSView *)view {
@@ -306,13 +291,10 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, NSSize size) {
 - (void) createTouchBar {
 	_touchBarMain = [[NSTouchBar alloc] init];
 	_touchBarMain.delegate = self;
-	
-	_touchBarMain.customizationIdentifier = customIDMain;
 	_touchBarMain.defaultItemIdentifiers = @[pinnedPanel];
 	
 	_touchBarAudioPlayer = [[NSTouchBar alloc] init];
 	_touchBarAudioPlayer.delegate = self;
-
 	_touchBarAudioPlayer.customizationIdentifier = customID;
 	_touchBarAudioPlayer.defaultItemIdentifiers = @[play, previousItem, nextItem, seekBar, closePlayer];
 	_touchBarAudioPlayer.customizationAllowedItemIdentifiers = @[play, previousItem,
@@ -351,7 +333,7 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, NSSize size) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		NSMutableArray *pins = [[NSMutableArray alloc] init];
 		
-		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
+		for (auto i = kSavedMessagesId; i <= Global::PinnedDialogsCountMax(); i++) {
 			[pins addObject:[[PinnedDialogButton alloc] init:i].view];
 		}
 		NSStackView *stackView = [NSStackView stackViewWithViews:[pins copy]];
