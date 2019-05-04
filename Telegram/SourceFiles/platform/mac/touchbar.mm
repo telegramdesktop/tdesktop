@@ -175,9 +175,13 @@ auto lifetime = rpl::lifetime();
 	});
 }
 
+- (bool) isSelfPeer {
+	return !self.peer ? false : self.peer->id == Auth().userPeerId();
+}
 
 - (NSImage *) getPinImage {
-	if (self.number <= kSavedMessagesId) {
+	// Don't draw self userpic if we pin Saved Messages.
+	if (self.number <= kSavedMessagesId || [self isSelfPeer]) {
 		const int s = kIdealIconSize * cRetinaFactor();
 		auto *pix = new QPixmap(s, s);
 		Painter paint(pix);
