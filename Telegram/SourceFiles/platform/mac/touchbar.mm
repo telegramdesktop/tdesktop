@@ -216,6 +216,7 @@ auto lifetime = rpl::lifetime();
 - (id) init:(NSView *)view {
 	self = [super init];
 	if (self) {
+		const auto iconSize = kIdealIconSize / 3;
 		self.view = view;
 		self.touchbarItems = @{
 			pinnedPanel: [NSMutableDictionary dictionaryWithDictionary:@{
@@ -229,26 +230,26 @@ auto lifetime = rpl::lifetime();
 				@"type":     @"button",
 				@"name":     @"Play Button",
 				@"cmd":      [NSNumber numberWithInt:kPlayPause],
-				@"image":    [NSImage imageNamed:NSImageNameTouchBarPauseTemplate],
-				@"imageAlt": [NSImage imageNamed:NSImageNameTouchBarPlayTemplate]
+				@"image":    createImageFromStyleIcon(st::touchBarIconPlayerPause, iconSize),
+				@"imageAlt": createImageFromStyleIcon(st::touchBarIconPlayerPlay, iconSize),
 			}],
 			previousItem: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"button",
 				@"name":  @"Previous Playlist Item",
 				@"cmd":   [NSNumber numberWithInt:kPlaylistPrevious],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarGoBackTemplate]
+				@"image": createImageFromStyleIcon(st::touchBarIconPlayerPrevious, iconSize),
 			}],
 			nextItem: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"button",
 				@"name":  @"Next Playlist Item",
 				@"cmd":   [NSNumber numberWithInt:kPlaylistNext],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarGoForwardTemplate]
+				@"image": createImageFromStyleIcon(st::touchBarIconPlayerNext, iconSize),
 			}],
 			closePlayer: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type":  @"button",
 				@"name":  @"Close Player",
 				@"cmd":   [NSNumber numberWithInt:kClosePlayer],
-				@"image": createImageFromStyleIcon(st::iconPlayerClose, NSMakeSize(kIdealIconSize / 3, kIdealIconSize / 3))
+				@"image": createImageFromStyleIcon(st::touchBarIconPlayerClose, iconSize),
 			}],
 			currentPosition: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type": @"text",
@@ -281,10 +282,12 @@ auto lifetime = rpl::lifetime();
 	return self;
 }
 
-NSImage *createImageFromStyleIcon(const style::icon &icon, NSSize size) {
-	const auto pixmap = icon.instance(QColor(255, 255, 255, 255), 100);
-	NSImage *image = [qt_mac_create_nsimage(QPixmap::fromImage(pixmap)) autorelease];
-	[image setSize:size];
+NSImage *createImageFromStyleIcon(const style::icon &icon, int size = kIdealIconSize) {
+	const auto instance = icon.instance(QColor(255, 255, 255, 255), 100);
+	auto pixmap = QPixmap::fromImage(instance);
+	pixmap.setDevicePixelRatio(cRetinaFactor());
+	NSImage *image = [qt_mac_create_nsimage(pixmap) autorelease];
+	[image setSize:NSMakeSize(size, size)];
 	return image;
 }
 

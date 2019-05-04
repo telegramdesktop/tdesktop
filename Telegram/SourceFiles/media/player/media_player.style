@@ -153,7 +153,11 @@ mediaPlayerPreviousDisabledIcon: icon {
 	{ "player_next-flip_horizontal", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
 };
 
-iconPlayerClose: icon {{ "player_close", windowFg }};
+touchBarIconPlayerClose: icon {{ "player_close", windowFg }};
+touchBarIconPlayerPlay: icon {{ "media_play", windowFg }};
+touchBarIconPlayerPause: icon {{ "media_pause", windowFg }};
+touchBarIconPlayerNext: icon {{ "player_next", windowFg }};
+touchBarIconPlayerPrevious: icon {{ "player_next-flip_horizontal", windowFg }};
 
 mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
