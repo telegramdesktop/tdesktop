@@ -30,6 +30,7 @@
 #include "ui/empty_userpic.h"
 #include "observer_peer.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_media_player.h"
 #include "data/data_folder.h"
 
 namespace {
@@ -205,7 +206,7 @@ auto lifetime = rpl::lifetime();
 			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
 		}
 		pix->setDevicePixelRatio(cRetinaFactor());
-		return static_cast<NSImage*>(qt_mac_create_nsimage(*pix));
+		return [qt_mac_create_nsimage(*pix) autorelease];
 	}
 	if (!self.peer) {
 		// Random picture.
@@ -214,7 +215,7 @@ auto lifetime = rpl::lifetime();
 	self.waiting = !self.peer->userpicLoaded();
 	auto pixmap = self.peer->genUserpic(kIdealIconSize);
 	pixmap.setDevicePixelRatio(cRetinaFactor());
-	return static_cast<NSImage*>(qt_mac_create_nsimage(pixmap));
+	return [qt_mac_create_nsimage(pixmap) autorelease];
 }
 
 
@@ -264,7 +265,7 @@ auto lifetime = rpl::lifetime();
 				@"type":  @"button",
 				@"name":  @"Close Player",
 				@"cmd":   [NSNumber numberWithInt:kClosePlayer],
-				@"image": [NSImage imageNamed:NSImageNameTouchBarExitFullScreenTemplate]
+				@"image": createImageFromStyleIcon(st::iconPlayerClose, NSMakeSize(kIdealIconSize / 3, kIdealIconSize / 3))
 			}],
 			currentPosition: [NSMutableDictionary dictionaryWithDictionary:@{
 				@"type": @"text",
@@ -295,6 +296,13 @@ auto lifetime = rpl::lifetime();
 	}, lifetime);
 	
 	return self;
+}
+
+NSImage *createImageFromStyleIcon(const style::icon &icon, NSSize size) {
+	const auto pixmap = icon.instance(QColor(255, 255, 255, 255), 100);
+	NSImage *image = [qt_mac_create_nsimage(QPixmap::fromImage(pixmap)) autorelease];
+	[image setSize:size];
+	return image;
 }
 
 - (void) createTouchBar {

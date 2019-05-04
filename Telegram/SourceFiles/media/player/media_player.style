@@ -152,6 +152,9 @@ mediaPlayerPreviousButton: IconButton(mediaPlayerNextButton) {
 mediaPlayerPreviousDisabledIcon: icon {
 	{ "player_next-flip_horizontal", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
 };
+
+iconPlayerClose: icon {{ "player_close", windowFg }};
+
 mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
 	icon: icon {{ "player_close", menuIconFg, point(10px, 12px) }};
