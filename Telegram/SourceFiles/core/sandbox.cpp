@@ -76,9 +76,9 @@ Sandbox::Sandbox(
 	not_null<Core::Launcher*> launcher,
 	int &argc,
 	char **argv)
-	: QApplication(argc, argv)
-	, _mainThreadId(QThread::currentThreadId())
-	, _launcher(launcher) {
+: QApplication(argc, argv)
+, _mainThreadId(QThread::currentThreadId())
+, _launcher(launcher) {
 }
 
 int Sandbox::start() {
