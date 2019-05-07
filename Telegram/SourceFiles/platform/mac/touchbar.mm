@@ -47,12 +47,12 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @property(nonatomic, assign) int number;
 @property(nonatomic, assign) bool waiting;
 @property(nonatomic, assign) PeerData * peer;
+@property(nonatomic, assign) bool isDeletedFromView;
 
 - (id) init:(int)num;
 - (id) initSavedMessages;
 - (NSImage *) getPinImage;
 - (void)buttonActionPin:(NSButton *)sender;
-- (void)updatePeerData;
 - (void)updatePinnedDialog;
 
 @end // @interface PinnedDialogButton
@@ -74,7 +74,6 @@ auto lifetime = rpl::lifetime();
 	}
 	self.number = num;
 	self.waiting = true;
-	[self updatePeerData];
 	
 	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
 	[button setBordered:NO];
@@ -83,31 +82,21 @@ auto lifetime = rpl::lifetime();
 	self.view = button;
 	self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
 	
-	const auto updateImage = [self]() {
-		NSButton *button = self.view;
-		button.image = [self getPinImage];
-	};
-	
 	if (self.peer) {
 		Notify::PeerUpdateViewer(
 			self.peer,
 			Notify::PeerUpdate::Flag::PhotoChanged
 		) | rpl::start_with_next([=] {
 			self.waiting = true;
-			updateImage();
+			[self updatePinnedDialog];
 		}, lifetime);
 	}
-	
-	Auth().data().pinnedDialogsOrderUpdated(
-	) | rpl::start_with_next([=] {
-		[self updatePinnedDialog];
-	}, lifetime);
 	
 	base::ObservableViewer(
 	   Auth().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		if (self.waiting) {
-			updateImage();
+			[self updatePinnedDialog];
 		}
 	}, lifetime);
 	
@@ -115,10 +104,8 @@ auto lifetime = rpl::lifetime();
 }
 
 - (void) updatePinnedDialog {
-	[self updatePeerData];
 	NSButton *button = self.view;
 	button.image = [self getPinImage];
-	[button setHidden:(self.number > Auth().data().pinnedChatsOrder(nullptr).size())];
 }
 
 - (id) initSavedMessages {
@@ -153,18 +140,6 @@ auto lifetime = rpl::lifetime();
 	self.customizationLabel = @"Archive Folder";
 	
 	return self;
-}
-
-- (void) updatePeerData {
-	const auto &order = Auth().data().pinnedChatsOrder(nullptr);
-	if (self.number > order.size()) {
-		self.peer = nil;
-		return;
-	}
-	const auto pinned = order.at(self.number - 1);
-	if (const auto history = pinned.history()) {
-		self.peer = history->peer;
-	}
 }
 
 - (void) buttonActionPin:(NSButton *)sender {
@@ -283,7 +258,59 @@ auto lifetime = rpl::lifetime();
 		}
 	}, lifetime);
 	
+	Auth().data().pinnedDialogsOrderUpdated(
+	) | rpl::start_with_next([self] {
+		[self updatePinnedButtons];
+	}, lifetime);
+	
+	[self updatePinnedButtons];
+	
 	return self;
+}
+
+- (void) updatePinnedButtons {
+	const auto &order = Auth().data().pinnedChatsOrder(nullptr);
+	auto isSelfPeerPinned = false;
+	PinnedDialogButton *selfChatButton;
+	NSCustomTouchBarItem *item = [self.touchBarMain itemForIdentifier:pinnedPanel];
+	NSStackView *stack = item.view;
+	
+	for (PinnedDialogButton *button in self.mainPinnedButtons) {
+		const auto num = button.number;
+		if (num <= kSavedMessagesId) {
+			if (num == kSavedMessagesId) {
+				selfChatButton = button;
+			}
+			continue;
+		}
+		const auto numIsTooLarge = num > order.size();
+		[button.view setHidden:numIsTooLarge];
+		if (numIsTooLarge) {
+			button.peer = nil;
+			continue;
+		}
+		const auto pinned = order.at(num - 1);
+		if (const auto history = pinned.history()) {
+			button.peer = history->peer;
+			[button updatePinnedDialog];
+			if (history->peer->id == Auth().userPeerId()) {
+				isSelfPeerPinned = true;
+			}
+		}
+	}
+
+	// If self chat is pinned, delete from view saved messages button.
+	if (isSelfPeerPinned) {
+		if (!selfChatButton.isDeletedFromView) {
+			selfChatButton.isDeletedFromView = true;
+			[stack removeView:selfChatButton.view];
+		}
+	} else {
+		if (selfChatButton.isDeletedFromView) {
+			selfChatButton.isDeletedFromView = false;
+			[stack insertView:selfChatButton.view atIndex:0 inGravity:NSStackViewGravityLeading];
+		}
+	}
 }
 
 NSImage *createImageFromStyleIcon(const style::icon &icon, int size = kIdealIconSize) {
@@ -338,12 +365,15 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, int size = kIdealIcon
 		return item;
 	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"pinned"]) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		NSMutableArray *pins = [[NSMutableArray alloc] init];
+		self.mainPinnedButtons = [[NSMutableArray alloc] init];
+		NSStackView *stackView = [[NSStackView alloc] init];
 		
 		for (auto i = kSavedMessagesId; i <= Global::PinnedDialogsCountMax(); i++) {
-			[pins addObject:[[PinnedDialogButton alloc] init:i].view];
+			PinnedDialogButton *button = [[PinnedDialogButton alloc] init:i];
+			[self.mainPinnedButtons addObject:button];
+			[stackView addView:button.view inGravity:NSStackViewGravityCenter];
 		}
-		NSStackView *stackView = [NSStackView stackViewWithViews:[pins copy]];
+		
 		[stackView setSpacing:-15];
 		item.view = stackView;
 		[self.touchbarItems[identifier] setObject:item.view forKey:@"view"];

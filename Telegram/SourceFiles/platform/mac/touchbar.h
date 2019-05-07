@@ -46,6 +46,8 @@ static NSTouchBarItemIdentifier _Nullable currentPosition = [NSString stringWith
 @property(nonatomic, assign) double duration;
 @property(nonatomic, assign) double position;
 
+@property(retain) NSMutableArray * _Nullable mainPinnedButtons;
+
 - (id _Nonnull) init:(NSView * _Nonnull)view;
 - (void)handlePropertyChange:(Media::Player::TrackState)property;
 
