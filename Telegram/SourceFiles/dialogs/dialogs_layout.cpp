@@ -172,11 +172,17 @@ void PaintListEntryText(
 		return;
 	}
 	row->validateListEntryCache();
-	const auto &palette = active
-		? st::dialogsTextPaletteActive
-		: selected
-		? st::dialogsTextPaletteOver
-		: st::dialogsTextPalette;
+	const auto &palette = row->folder()
+		? (active
+			? st::dialogsTextPaletteArchiveActive
+			: selected
+			? st::dialogsTextPaletteArchiveOver
+			: st::dialogsTextPaletteArchive)
+		: (active
+			? st::dialogsTextPaletteActive
+			: selected
+			? st::dialogsTextPaletteOver
+			: st::dialogsTextPalette);
 	const auto &color = active
 		? st::dialogsTextFgActive
 		: selected

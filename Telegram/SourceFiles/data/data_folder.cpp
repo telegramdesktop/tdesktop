@@ -102,7 +102,6 @@ void Folder::indexNameParts() {
 }
 
 void Folder::registerOne(not_null<History*> history) {
-	++_chatListViewVersion;
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
 		if (!_cloudUnread.known) {
@@ -118,9 +117,6 @@ void Folder::registerOne(not_null<History*> history) {
 void Folder::unregisterOne(not_null<History*> history) {
 	if (_chatsList.empty()) {
 		updateChatListExistence();
-	} else {
-		++_chatListViewVersion;
-		updateChatListEntry();
 	}
 	if (_chatListMessage && _chatListMessage->history() == history) {
 		computeChatListMessage();
@@ -360,6 +356,13 @@ void Folder::unreadStateChanged(
 		const Dialogs::Key &key,
 		const Dialogs::UnreadState &wasState,
 		const Dialogs::UnreadState &nowState) {
+	if (const auto history = key.history()) {
+		if (wasState.empty() != nowState.empty()) {
+			++_chatListViewVersion;
+			updateChatListEntry();
+		}
+	}
+
 	const auto updateCloudUnread = _cloudUnread.known && wasState.known;
 	const auto notify = _chatsList.loaded() || updateCloudUnread;
 	const auto notifier = unreadStateChangeNotifier(notify);

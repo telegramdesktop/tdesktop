@@ -35,21 +35,27 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 		list
 	) | ranges::view::take(
 		list.size() - (throwAwayLastName ? 1 : 0)
-	) | ranges::view::transform([](not_null<History*> history) {
-		return history->peer;
-	});
+	);
+	const auto wrapName = [](not_null<History*> history) {
+		const auto name = TextUtilities::Clean(App::peerName(history->peer));
+		return (history->unreadCount() > 0)
+			? (textcmdStartSemibold()
+				+ textcmdLink(1, name)
+				+ textcmdStopSemibold())
+			: name;
+	};
 	const auto shown = int(peers.size());
 	const auto accumulated = [&] {
 		Expects(shown > 0);
 
 		auto i = peers.begin();
-		auto result = App::peerName(*i);
+		auto result = wrapName(*i);
 		for (++i; i != peers.end(); ++i) {
 			result = lng_archived_last_list(
 				lt_accumulated,
 				result,
 				lt_chat,
-				App::peerName(*i));
+				wrapName(*i));
 		}
 		return result;
 	}();
