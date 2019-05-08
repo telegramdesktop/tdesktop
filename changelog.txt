@@ -1,3 +1,12 @@
+1.7 (08.05.19)
+
+Introducing Archived Chats:
+
+- Archive any chat from the right-click menu.
+- Chats with enabled notifications will pop out of the archive when a notification arrives.
+- Muted chats will stay in the archive.
+- Pin an unlimited number of chats in your archive.
+
 1.6.7 (13.04.19)
 
 - Replace media when editing messages with media content.
