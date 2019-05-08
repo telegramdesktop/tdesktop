@@ -26,7 +26,7 @@ namespace Data {
 namespace {
 
 constexpr auto kLoadedChatsMinCount = 20;
-constexpr auto kShowChatNamesCount = 2;
+constexpr auto kShowChatNamesCount = 8;
 
 rpl::producer<int> PinnedDialogsInFolderMaxValue() {
 	return rpl::single(
@@ -60,7 +60,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	Notify::PeerUpdateViewer(
 		Notify::PeerUpdate::Flag::NameChanged
 	) | rpl::start_with_next([=](const Notify::PeerUpdate &update) {
-		for (const auto history : _unreadHistoriesLast) {
+		for (const auto history : _lastHistories) {
 			if (history->peer == update.peer) {
 				++_chatListViewVersion;
 				updateChatListEntry();
@@ -112,6 +112,7 @@ void Folder::registerOne(not_null<History*> history) {
 		updateChatListEntry();
 	}
 	applyChatListMessage(history->chatListMessage());
+	reorderLastHistories();
 }
 
 void Folder::unregisterOne(not_null<History*> history) {
@@ -124,6 +125,7 @@ void Folder::unregisterOne(not_null<History*> history) {
 	if (_chatListMessage && _chatListMessage->history() == history) {
 		computeChatListMessage();
 	}
+	reorderLastHistories();
 }
 
 void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
@@ -131,10 +133,7 @@ void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
 		computeChatListMessage();
 	}
 	if (from || to) {
-		const auto history = from ? from->history() : to->history();
-		if (!history->chatListUnreadState().empty()) {
-			reorderUnreadHistories();
-		}
+		reorderLastHistories();
 	}
 }
 
@@ -171,49 +170,34 @@ void Folder::computeChatListMessage() {
 	updateChatListEntry();
 }
 
-void Folder::addUnreadHistory(not_null<History*> history) {
-	const auto i = ranges::find(_unreadHistories, history);
-	if (i == end(_unreadHistories)) {
-		_unreadHistories.push_back(history);
-		reorderUnreadHistories();
-	}
-}
-
-void Folder::removeUnreadHistory(not_null<History*> history) {
-	const auto i = ranges::find(_unreadHistories, history);
-	if (i != end(_unreadHistories)) {
-		_unreadHistories.erase(i);
-		reorderUnreadHistories();
-	}
-}
-
-void Folder::reorderUnreadHistories() {
+void Folder::reorderLastHistories() {
 	// We want first kShowChatNamesCount histories, by last message date.
-	const auto predicate = [](not_null<History*> a, not_null<History*> b) {
+	const auto pred = [](not_null<History*> a, not_null<History*> b) {
 		const auto aItem = a->chatListMessage();
 		const auto bItem = b->chatListMessage();
 		const auto aDate = aItem ? aItem->date() : TimeId(0);
 		const auto bDate = bItem ? bItem->date() : TimeId(0);
 		return aDate > bDate;
 	};
-	if (size(_unreadHistories) <= kShowChatNamesCount) {
-		ranges::sort(_unreadHistories, predicate);
-		if (!ranges::equal(_unreadHistories, _unreadHistoriesLast)) {
-			_unreadHistoriesLast = _unreadHistories;
+	_lastHistories.erase(_lastHistories.begin(), _lastHistories.end());
+	_lastHistories.reserve(kShowChatNamesCount + 1);
+	auto &&histories = ranges::view::all(
+		*_chatsList.indexed()
+	) | ranges::view::transform([](not_null<Dialogs::Row*> row) {
+		return row->history();
+	}) | ranges::view::filter([](History *history) {
+		return (history != nullptr);
+	}) | ranges::view::transform([](History *history) {
+		return not_null<History*>(history);
+	});
+	for (const auto history : histories) {
+		const auto i = ranges::upper_bound(_lastHistories, history, pred);
+		if (size(_lastHistories) < kShowChatNamesCount
+			|| i != end(_lastHistories)) {
+			_lastHistories.insert(i, history);
 		}
-	} else {
-		const auto till = begin(_unreadHistories) + kShowChatNamesCount - 1;
-		ranges::nth_element(_unreadHistories, till, predicate);
-		if constexpr (kShowChatNamesCount > 2) {
-			ranges::sort(begin(_unreadHistories), till, predicate);
-		}
-		auto &&head = ranges::view::all(
-			_unreadHistories
-		) | ranges::view::take_exactly(
-			kShowChatNamesCount
-		);
-		if (!ranges::equal(head, _unreadHistoriesLast)) {
-			_unreadHistoriesLast = head | ranges::to_vector;
+		if (size(_lastHistories) > kShowChatNamesCount) {
+			_lastHistories.pop_back();
 		}
 	}
 	++_chatListViewVersion;
@@ -296,12 +280,8 @@ int Folder::chatsListSize() const {
 		_chatsList.loaded() ? 0 : _cloudChatsListSize);
 }
 
-int Folder::unreadHistoriesCount() const {
-	return _unreadHistories.size();
-}
-
-const std::vector<not_null<History*>> &Folder::lastUnreadHistories() const {
-	return _unreadHistoriesLast;
+const std::vector<not_null<History*>> &Folder::lastHistories() const {
+	return _lastHistories;
 }
 
 uint32 Folder::chatListViewVersion() const {
@@ -380,14 +360,6 @@ void Folder::unreadStateChanged(
 		const Dialogs::Key &key,
 		const Dialogs::UnreadState &wasState,
 		const Dialogs::UnreadState &nowState) {
-	if (const auto history = key.history()) {
-		if (!wasState.empty() && nowState.empty()) {
-			removeUnreadHistory(history);
-		} else if (wasState.empty() && !nowState.empty()) {
-			addUnreadHistory(history);
-		}
-	}
-
 	const auto updateCloudUnread = _cloudUnread.known && wasState.known;
 	const auto notify = _chatsList.loaded() || updateCloudUnread;
 	const auto notifier = unreadStateChangeNotifier(notify);
@@ -404,16 +376,6 @@ void Folder::unreadEntryChanged(
 		const Dialogs::Key &key,
 		const Dialogs::UnreadState &state,
 		bool added) {
-	if (const auto history = key.history()) {
-		if (!state.empty()) {
-			if (added) {
-				addUnreadHistory(history);
-			} else {
-				removeUnreadHistory(history);
-			}
-		}
-	}
-
 	const auto updateCloudUnread = _cloudUnread.known && state.known;
 	const auto notify = _chatsList.loaded() || updateCloudUnread;
 	const auto notifier = unreadStateChangeNotifier(notify);

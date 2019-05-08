@@ -1202,11 +1202,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_archived_remove" = "Unarchive";
 "lng_archived_added" = "Chat archived.\nMuted chats will stay archived after new messages arrive.";
 "lng_archived_removed" = "Chat restored from your archive.";
-"lng_archived_chats#one" = "{count} chat";
-"lng_archived_chats#other" = "{count} chats";
-"lng_archived_unread_two" = "{chat}, {second_chat}";
-"lng_archived_unread#one" = "{chat}, {second_chat} and {count} more unread chat";
-"lng_archived_unread#other" = "{chat}, {second_chat} and {count} more unread chats";
+"lng_archived_last_list" = "{accumulated}, {chat}";
+"lng_archived_last#one" = "{chats} and {count} more chat";
+"lng_archived_last#other" = "{chats} and {count} more chats";
 
 "lng_dialogs_text_with_from" = "{from_part} {message}";
 "lng_dialogs_text_from_wrapped" = "{from}:";

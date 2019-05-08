@@ -20,33 +20,42 @@ namespace Dialogs {
 namespace {
 
 QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
-	const auto &list = folder->lastUnreadHistories();
+	const auto &list = folder->lastHistories();
 	if (list.empty()) {
-		const auto count = folder->chatsListSize();
-		if (!count) {
-			return QString();
-		}
-		return lng_archived_chats(lt_count, count);
+		return QString();
 	}
+
 	const auto count = std::max(
 		int(list.size()),
-		folder->unreadHistoriesCount());
-	if (list.size() == 1) {
-		return App::peerName(list[0]->peer);
-	} else if (count == 2) {
-		return lng_archived_unread_two(
-			lt_chat,
-			App::peerName(list[0]->peer),
-			lt_second_chat,
-			App::peerName(list[1]->peer));
-	}
-	return lng_archived_unread(
-		lt_count,
-		count - 2,
-		lt_chat,
-		App::peerName(list[0]->peer),
-		lt_second_chat,
-		App::peerName(list[1]->peer));
+		folder->chatsListSize());
+
+	const auto throwAwayLastName = (list.size() > 1)
+		&& (count == list.size() + 1);
+	auto &&peers = ranges::view::all(
+		list
+	) | ranges::view::take(
+		list.size() - (throwAwayLastName ? 1 : 0)
+	) | ranges::view::transform([](not_null<History*> history) {
+		return history->peer;
+	});
+	const auto shown = int(peers.size());
+	const auto accumulated = [&] {
+		Expects(shown > 0);
+
+		auto i = peers.begin();
+		auto result = App::peerName(*i);
+		for (++i; i != peers.end(); ++i) {
+			result = lng_archived_last_list(
+				lt_accumulated,
+				result,
+				lt_chat,
+				App::peerName(*i));
+		}
+		return result;
+	}();
+	return (shown < count)
+		? lng_archived_last(lt_count, (count - shown), lt_chats, accumulated)
+		: accumulated;
 }
 
 } // namespace

@@ -80,8 +80,7 @@ public:
 	void setCloudChatsListSize(int size);
 
 	int chatsListSize() const;
-	int unreadHistoriesCount() const;
-	const std::vector<not_null<History*>> &lastUnreadHistories() const;
+	const std::vector<not_null<History*>> &lastHistories() const;
 	uint32 chatListViewVersion() const;
 
 private:
@@ -89,9 +88,7 @@ private:
 	bool applyChatListMessage(HistoryItem *item);
 	void computeChatListMessage();
 
-	void addUnreadHistory(not_null<History*> history);
-	void removeUnreadHistory(not_null<History*> history);
-	void reorderUnreadHistories();
+	void reorderLastHistories();
 	void finalizeCloudUnread();
 
 	FolderId _id = 0;
@@ -103,8 +100,7 @@ private:
 
 	Dialogs::UnreadState _cloudUnread;
 	int _cloudChatsListSize = 0;
-	std::vector<not_null<History*>> _unreadHistories;
-	std::vector<not_null<History*>> _unreadHistoriesLast;
+	std::vector<not_null<History*>> _lastHistories;
 	HistoryItem *_chatListMessage = nullptr;
 	uint32 _chatListViewVersion = 0;
 	//rpl::variable<MessagePosition> _unreadPosition;
