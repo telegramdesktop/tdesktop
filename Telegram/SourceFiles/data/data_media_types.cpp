@@ -975,10 +975,6 @@ bool MediaCall::allowsForward() const {
 	return false;
 }
 
-bool MediaCall::allowsRevoke() const {
-	return false;
-}
-
 bool MediaCall::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }

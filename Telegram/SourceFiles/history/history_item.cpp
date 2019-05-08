@@ -494,11 +494,13 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 			return false;
 		}
 	}
-	if (!toHistoryMessage()) {
-		return false;
-	} else if (const auto media = this->media()) {
-		if (!media->allowsRevoke()) {
+	if (!peer->isUser()) {
+		if (!toHistoryMessage()) {
 			return false;
+		} else if (const auto media = this->media()) {
+			if (!media->allowsRevoke()) {
+				return false;
+			}
 		}
 	}
 	if (!out()) {
