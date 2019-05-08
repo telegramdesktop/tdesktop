@@ -1408,7 +1408,9 @@ void InnerWidget::refreshDialog(Key key) {
 	const auto rowHeight = st::dialogsRowHeight;
 	const auto from = dialogsOffset() + moved.from * rowHeight;
 	const auto to = dialogsOffset() + moved.to * rowHeight;
-	if (!_dragging && from != to) {
+	if (!_dragging
+		&& (from != to)
+		&& (key.entry()->folder() == _openedFolder)) {
 		// Don't jump in chats list scroll position while dragging.
 		emit dialogMoved(from, to);
 	}
