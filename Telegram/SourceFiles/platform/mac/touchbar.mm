@@ -19,6 +19,7 @@
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "styles/style_media_player.h"
+#include "window/window_controller.h"
 #include "ui/empty_userpic.h"
 
 namespace {
@@ -116,10 +117,20 @@ auto lifetime = rpl::lifetime();
 }
 
 - (void) buttonActionPin:(NSButton *)sender {
+	const auto openFolder = [=] {
+		if (!App::wnd()) {
+			return;
+		}
+		if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+			App::wnd()->controller()->openFolder(folder);
+		}
+	};
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		App::main()->choosePeer(self.number == kSavedMessagesId || self.number == kArchiveId
-			? Auth().userPeerId()
-			: self.peer->id, ShowAtUnreadMsgId);
+		self.number == kArchiveId
+			? openFolder()
+			: App::main()->choosePeer(self.number == kSavedMessagesId
+				? Auth().userPeerId()
+				: self.peer->id, ShowAtUnreadMsgId);
 	});
 }
 
@@ -136,7 +147,6 @@ auto lifetime = rpl::lifetime();
 		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
 		
 		if (self.number == kArchiveId) {
-			paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
 			if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
 				folder->paintUserpic(paint, 0, 0, s);
 			}
@@ -236,9 +246,36 @@ auto lifetime = rpl::lifetime();
 		[self updatePinnedButtons];
 	}, lifetime);
 	
+	Auth().data().chatsListChanges(
+	) | rpl::filter([](Data::Folder *folder) {
+		return folder && folder->chatsList();
+	}) | rpl::start_with_next([=](Data::Folder *folder) {
+		[self toggleArchiveButton:folder->chatsList()->empty()];
+	}, lifetime);
+	
 	[self updatePinnedButtons];
 	
 	return self;
+}
+
+- (void) toggleArchiveButton:(bool)hide {
+	for (PinnedDialogButton *button in self.mainPinnedButtons) {
+		if (button.number == kArchiveId) {
+			NSCustomTouchBarItem *item = [self.touchBarMain itemForIdentifier:pinnedPanel];
+			NSStackView *stack = item.view;
+			[button updatePinnedDialog];
+			if (hide && !button.isDeletedFromView) {
+				button.isDeletedFromView = true;
+				[stack removeView:button.view];
+			}
+			if (!hide && button.isDeletedFromView) {
+				button.isDeletedFromView = false;
+				[stack insertView:button.view
+						  atIndex:(button.number + 1)
+						inGravity:NSStackViewGravityLeading];
+			}
+		}
+	}
 }
 
 - (void) updatePinnedButtons {
@@ -338,7 +375,7 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, int size = kIdealIcon
 		self.mainPinnedButtons = [[NSMutableArray alloc] init];
 		NSStackView *stackView = [[NSStackView alloc] init];
 		
-		for (auto i = kSavedMessagesId; i <= Global::PinnedDialogsCountMax(); i++) {
+		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
 			PinnedDialogButton *button = [[PinnedDialogButton alloc] init:i];
 			[self.mainPinnedButtons addObject:button];
 			[stackView addView:button.view inGravity:NSStackViewGravityCenter];
