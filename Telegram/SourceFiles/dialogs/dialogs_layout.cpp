@@ -424,6 +424,12 @@ void paintRow(
 	} else if (hiddenSenderInfo) {
 		hiddenSenderInfo->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {
+		const auto nameFg = active
+			? st::dialogsNameFgActive
+			: (selected
+				? st::dialogsArchiveFgOver
+				: st::dialogsArchiveFg);
+		p.setPen(nameFg);
 		p.setFont(st::msgNameFont);
 		auto text = entry->chatListName(); // TODO feed name with emoji
 		auto textWidth = st::msgNameFont->width(text);

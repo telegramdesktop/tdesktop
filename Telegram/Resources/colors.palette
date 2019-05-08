@@ -193,6 +193,7 @@ dialogsSentIconFg: #5dc452; // chat list sent message tick / double tick icon
 dialogsUnreadBg: windowBgActive; // chat list unread badge background for not muted chat
 dialogsUnreadBgMuted: #bbbbbb; // chat list unread badge background for muted chat
 dialogsUnreadFg: windowFgActive; // chat list unread badge text
+dialogsArchiveFg: #525252 | dialogsNameFg; // chat list archive name text
 
 dialogsBgOver: windowBgOver; // chat list background with mouse over
 dialogsNameFgOver: windowBoldFgOver; // chat list name text with mouse over
@@ -208,6 +209,7 @@ dialogsSentIconFgOver: dialogsSentIconFg; // chat list sent message tick / doubl
 dialogsUnreadBgOver: dialogsUnreadBg; // chat list unread badge background for not muted chat with mouse over
 dialogsUnreadBgMutedOver: dialogsUnreadBgMuted; // chat list unread badge background for muted chat with mouse over
 dialogsUnreadFgOver: dialogsUnreadFg; // chat list unread badge text with mouse over
+dialogsArchiveFgOver: #525252 | dialogsNameFgOver; // chat list archive name text
 
 dialogsBgActive: #419fd9; // chat list background for current (active) chat
 dialogsNameFgActive: windowFgActive; // chat list name text for current (active) chat
