@@ -1339,7 +1339,8 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto user = row->peer()->asUser();
 	if (_role == Role::Admins) {
 		showAdmin(user);
-	} else if (_role == Role::Restricted || _role == Role::Kicked) {
+	} else if ((_role == Role::Restricted || _role == Role::Kicked)
+		&& (_peer->isChat() || _peer->isMegagroup())) {
 		showRestricted(user);
 	} else {
 		_navigation->showPeerInfo(user);
