@@ -75,6 +75,7 @@ public:
 
     int layerId() const;
     BMBasicTransform *transform() const;
+    void renderFullTransform(LottieRenderer &renderer) const;
 
 protected:
     void renderEffects(LottieRenderer &renderer) const;
