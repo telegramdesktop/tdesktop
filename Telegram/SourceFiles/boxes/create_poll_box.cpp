@@ -184,6 +184,7 @@ Options::Option Options::Option::Create(
 			object_ptr<Ui::InputField>(
 				container,
 				st::createPollOptionField,
+				Ui::InputField::Mode::NoNewlines,
 				langFactory(lng_polls_create_option_add))));
 	InitField(outer, field->entity());
 	field->entity()->setMaxLength(kOptionLimit + kErrorLimit);

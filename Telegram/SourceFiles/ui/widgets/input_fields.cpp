@@ -2014,8 +2014,8 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 
 				auto *ch = textStart + qMax(changedPositionInFragment, 0);
 				for (; ch < textEnd; ++ch) {
-					const auto removeNewline = (_mode == Mode::SingleLine)
-						&& (IsNewline(*ch));
+					const auto removeNewline = (_mode != Mode::MultiLine)
+						&& IsNewline(*ch);
 					if (removeNewline) {
 						if (action.type == ActionType::Invalid) {
 							action.type = ActionType::RemoveNewline;
@@ -2077,7 +2077,7 @@ void InputField::processFormatting(int insertPosition, int insertEnd) {
 			}
 			if (action.type != ActionType::Invalid) {
 				break;
-			} else if (_mode == Mode::SingleLine
+			} else if (_mode != Mode::MultiLine
 				&& block.next() != document->end()) {
 				action.type = ActionType::RemoveNewline;
 				action.intervalStart = block.next().position() - 1;
@@ -2582,7 +2582,7 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier), alt = e->modifiers().testFlag(Qt::AltModifier);
 	bool macmeta = (cPlatform() == dbipMac || cPlatform() == dbipMacOld) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier);
-	bool enterSubmit = (_mode == Mode::SingleLine)
+	bool enterSubmit = (_mode != Mode::MultiLine)
 		|| ShouldSubmit(_submitSettings, e->modifiers());
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 	if (e->key() == Qt::Key_Left

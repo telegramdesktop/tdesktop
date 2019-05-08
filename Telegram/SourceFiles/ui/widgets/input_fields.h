@@ -131,6 +131,7 @@ class InputField : public RpWidget, private base::Subscriber {
 public:
 	enum class Mode {
 		SingleLine,
+		NoNewlines,
 		MultiLine,
 	};
 	using TagList = TextWithTags::Tags;
