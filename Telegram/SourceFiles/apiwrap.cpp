@@ -944,6 +944,7 @@ void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
 				data.vmessages.v,
 				data.vdialogs.v);
 			_session->data().chatsListChanged(folder);
+			_session->data().notifyPinnedDialogsOrderUpdated();
 		});
 	}).fail([=](const RPCError &error) {
 		finalize();
