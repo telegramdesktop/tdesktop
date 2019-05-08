@@ -50,7 +50,6 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @property(nonatomic, assign) bool isDeletedFromView;
 
 - (id) init:(int)num;
-- (id) initSavedMessages;
 - (NSImage *) getPinImage;
 - (void)buttonActionPin:(NSButton *)sender;
 - (void)updatePinnedDialog;
@@ -63,24 +62,32 @@ auto lifetime = rpl::lifetime();
 
 - (id) init:(int)num {
 	if (num == kSavedMessagesId) {
-		return [self initSavedMessages];
+		self = [super initWithIdentifier:savedMessages];
+		self.waiting = false;
+		self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
 	} else if (num == kArchiveId) {
-		return [self initArchive];
+		self = [super initWithIdentifier:archiveFolder];
+		self.waiting = false;
+		self.customizationLabel = @"Archive Folder";
+	} else {
+		NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", customIDMain, num];
+		self = [super initWithIdentifier:identifier];
+		self.waiting = true;
+		self.customizationLabel = @"Saved Messages";
 	}
-	NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", customIDMain, num];
-	self = [super initWithIdentifier:identifier];
 	if (!self) {
 		return nil;
 	}
 	self.number = num;
-	self.waiting = true;
 	
 	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
 	[button setBordered:NO];
 	[button sizeToFit];
-	[button setHidden:(num > Auth().data().pinnedChatsOrder(nullptr).size())];
 	self.view = button;
-	self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
+
+	if (num <= kSavedMessagesId) {
+		return self;
+	}
 	
 	if (self.peer) {
 		Notify::PeerUpdateViewer(
@@ -106,40 +113,6 @@ auto lifetime = rpl::lifetime();
 - (void) updatePinnedDialog {
 	NSButton *button = self.view;
 	button.image = [self getPinImage];
-}
-
-- (id) initSavedMessages {
-	self = [super initWithIdentifier:savedMessages];
-	if (!self) {
-		return nil;
-	}
-	self.number = kSavedMessagesId;
-	self.waiting = false;
-	
-	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
-	[button setBordered:NO];
-	[button sizeToFit];
-	self.view = button;
-	self.customizationLabel = @"Saved Messages";
-
-	return self;
-}
-
-- (id) initArchive {
-	self = [super initWithIdentifier:archiveFolder];
-	if (!self) {
-		return nil;
-	}
-	self.number = kArchiveId;
-	self.waiting = false;
-	
-	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
-	[button setBordered:NO];
-	[button sizeToFit];
-	self.view = button;
-	self.customizationLabel = @"Archive Folder";
-	
-	return self;
 }
 
 - (void) buttonActionPin:(NSButton *)sender {
@@ -300,16 +273,13 @@ auto lifetime = rpl::lifetime();
 	}
 
 	// If self chat is pinned, delete from view saved messages button.
-	if (isSelfPeerPinned) {
-		if (!selfChatButton.isDeletedFromView) {
-			selfChatButton.isDeletedFromView = true;
-			[stack removeView:selfChatButton.view];
-		}
-	} else {
-		if (selfChatButton.isDeletedFromView) {
-			selfChatButton.isDeletedFromView = false;
-			[stack insertView:selfChatButton.view atIndex:0 inGravity:NSStackViewGravityLeading];
-		}
+	if (isSelfPeerPinned && !selfChatButton.isDeletedFromView) {
+		selfChatButton.isDeletedFromView = true;
+		[stack removeView:selfChatButton.view];
+	}
+	if (!isSelfPeerPinned && selfChatButton.isDeletedFromView) {
+		selfChatButton.isDeletedFromView = false;
+		[stack insertView:selfChatButton.view atIndex:0 inGravity:NSStackViewGravityLeading];
 	}
 }
 
