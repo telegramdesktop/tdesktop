@@ -390,7 +390,9 @@ MainWidget::MainWidget(
 			? _history->history()->folder()
 			: nullptr;
 		const auto openedFolder = controller->openedFolder().current();
-		if (!openedFolder || historyFromFolder == openedFolder) {
+		if (!openedFolder
+			|| historyFromFolder == openedFolder
+			|| Adaptive::OneColumn()) {
 			controller->showBackFromStack();
 			_dialogs->setInnerFocus();
 		} else {
