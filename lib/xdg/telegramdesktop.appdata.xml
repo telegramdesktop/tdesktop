@@ -6,19 +6,64 @@
     <name>Telegram Desktop</name>
     <summary>Telegram Desktop messenger</summary>
     <description>
-       <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
+        <p>Telegram is a popular messaging protocol with encryption and security as its key focus.</p>
+        <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
     </description>
     <categories>
         <category>Network</category>
         <category>InstantMessaging</category>
     </categories>
+    <update_contact>johnprestonmail_at_gmail.com</update_contact>
+    <developer_name>John Preston</developer_name>
     <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
+    <url type="help">https://github.com/telegramdesktop/tdesktop/issues</url>
     <screenshots>
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
       </screenshot>
     </screenshots>
+    <keywords>
+        <keyword>tg</keyword>
+        <keyword>telegram</keyword>
+        <keyword>tdesktoo</keyword>
+        <keyword>messaging</keyword>
+        <keyword>messenger</keyword>
+        <keyword>chat</keyword>
+        <keyword>sms</keyword>
+        <keyword>im</keyword>
+    </keywords>
+    <releases>
+    </releases>
+    <content_rating type="oars-1.1">
+        <content_attribute id="violence-cartoon">none</content_attribute>
+        <content_attribute id="violence-fantasy">none</content_attribute>
+        <content_attribute id="violence-realistic">none</content_attribute>
+        <content_attribute id="violence-bloodshed">none</content_attribute>
+        <content_attribute id="violence-sexual">none</content_attribute>
+        <content_attribute id="violence-desecration">none</content_attribute>
+        <content_attribute id="violence-slavery">none</content_attribute>
+        <content_attribute id="violence-worship">none</content_attribute>
+        <content_attribute id="drugs-alcohol">none</content_attribute>
+        <content_attribute id="drugs-narcotics">none</content_attribute>
+        <content_attribute id="drugs-tobacco">none</content_attribute>
+        <content_attribute id="sex-nudity">none</content_attribute>
+        <content_attribute id="sex-themes">none</content_attribute>
+        <content_attribute id="sex-homosexuality">none</content_attribute>
+        <content_attribute id="sex-prostitution">none</content_attribute>
+        <content_attribute id="sex-adultery">none</content_attribute>
+        <content_attribute id="sex-appearance">none</content_attribute>
+        <content_attribute id="language-profanity">none</content_attribute>
+        <content_attribute id="language-humor">none</content_attribute>
+        <content_attribute id="language-discrimination">none</content_attribute>
+        <content_attribute id="social-chat">intense</content_attribute>
+        <content_attribute id="social-info">none</content_attribute>
+        <content_attribute id="social-audio">intense</content_attribute>
+        <content_attribute id="social-location">none</content_attribute>
+        <content_attribute id="social-contacts">intense</content_attribute>
+        <content_attribute id="money-purchasing">none</content_attribute>
+        <content_attribute id="money-gambling">none</content_attribute>
+    </content_rating>
     <provides>
         <binary>telegram-desktop</binary>
     </provides>
