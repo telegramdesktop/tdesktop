@@ -127,11 +127,13 @@
       '<(lottie_loc)/bodymovin/bmprecompasset.cpp',
       '<(lottie_loc)/bodymovin/bmnulllayer.cpp',
       '<(lottie_loc)/bodymovin/bmprecomplayer.cpp',
+      '<(lottie_loc)/bodymovin/bmscene.cpp',
 
       '<(lottie_loc)/bodymovin/bmasset_p.h',
       '<(lottie_loc)/bodymovin/bmprecompasset_p.h',
       '<(lottie_loc)/bodymovin/bmnulllayer_p.h',
       '<(lottie_loc)/bodymovin/bmprecomplayer_p.h',
+      '<(lottie_loc)/bodymovin/bmscene_p.h',
     ],
     'conditions': [[ 'build_macold', {
       'xcode_settings': {

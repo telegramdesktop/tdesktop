@@ -17,8 +17,7 @@ class QImage;
 class QString;
 class QByteArray;
 
-class BMBase;
-class BMAsset;
+class BMScene;
 
 namespace Lottie {
 
@@ -63,14 +62,6 @@ public:
 
 private:
 	void parse(const QByteArray &content);
-	void resolveAssets();
-
-	int _startFrame = 0;
-	int _endFrame = 0;
-	int _frameRate = 30;
-	qreal _realWidth = 0;
-	qreal _realHeight = 0;
-	base::flat_map<QString, int> _markers;
 
 	bool _initialized = false;
 	bool _unsupported = false;
@@ -79,9 +70,7 @@ private:
 	crl::time _started = 0;
 	PlaybackOptions _options;
 
-	std::unique_ptr<BMBase> _treeBlueprint;
-	std::vector<std::unique_ptr<BMAsset>> _assets;
-	base::flat_map<QString, int> _assetIndexById;
+	std::unique_ptr<BMScene> _scene;
 
 };
 

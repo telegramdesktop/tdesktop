@@ -54,6 +54,7 @@
 QT_BEGIN_NAMESPACE
 
 class BMAsset;
+class BMScene;
 
 class BODYMOVIN_EXPORT BMBase
 {
@@ -93,8 +94,8 @@ public:
     virtual void resolveAssets(const std::function<BMAsset*(QString)> &resolver);
 
 protected:
-    void resolveTopRoot();
-    BMBase *topRoot() const;
+    virtual BMScene *resolveTopRoot() const;
+    BMScene *topRoot() const;
     const QJsonObject resolveExpression(const QJsonObject& definition);
 
 protected:
@@ -114,7 +115,7 @@ private:
 
     // Handle to the topmost element on which this element resides
     // Will be resolved when traversing effects
-    BMBase *m_topRoot = nullptr;
+    mutable BMScene *m_topRoot = nullptr;
 };
 
 QT_END_NAMESPACE

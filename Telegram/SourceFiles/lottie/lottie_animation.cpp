@@ -26,9 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QThread>
 #include <math.h>
 
-#include <QtBodymovin/private/bmbase_p.h>
-#include <QtBodymovin/private/bmlayer_p.h>
-#include <QtBodymovin/private/bmasset_p.h>
+#include <QtBodymovin/private/bmscene_p.h>
 
 #include "rasterrenderer/lottierasterrenderer.h"
 
@@ -64,12 +62,14 @@ Animation::~Animation() {
 }
 
 QImage Animation::frame(crl::time now) const {
-	if (_startFrame == _endFrame || _realWidth <= 0 || _realHeight <= 0) {
+	if (_scene->startFrame() == _scene->endFrame()
+		|| _scene->width() <= 0
+		|| _scene->height() <= 0) {
 		return QImage();
 	}
 	auto result = QImage(
-		qCeil(_realWidth),
-		qCeil(_realHeight),
+		_scene->width(),
+		_scene->height(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 
@@ -79,36 +79,26 @@ QImage Animation::frame(crl::time now) const {
 		p.setRenderHints(QPainter::SmoothPixmapTransform);
 
 		const auto position = now;
-		const auto elapsed = int((_frameRate * position + 500) / 1000);
-		const auto frames = (_endFrame - _startFrame);
+		const auto elapsed = int((_scene->frameRate() * position + 500) / 1000);
+		const auto frames = (_scene->endFrame() - _scene->startFrame());
 		const auto frame = _options.loop
-			? (_startFrame + (elapsed % frames))
-			: std::min(_startFrame + elapsed, _endFrame);
+			? (_scene->startFrame() + (elapsed % frames))
+			: std::min(_scene->startFrame() + elapsed, _scene->endFrame());
 
-		auto tree = BMBase(*_treeBlueprint);
-
-		for (const auto element : tree.children()) {
-			if (element->active(frame)) {
-				element->updateProperties(frame);
-			}
-		}
+		_scene->updateProperties(frame);
 
 		LottieRasterRenderer renderer(&p);
-		for (const auto element : tree.children()) {
-			if (element->active(frame)) {
-				element->render(renderer, frame);
-			}
-		}
+		_scene->render(renderer, frame);
 	}
 	return result;
 }
 
 int Animation::frameRate() const {
-	return _frameRate;
+	return _scene->frameRate();
 }
 
 crl::time Animation::duration() const {
-	return (_endFrame - _startFrame) * crl::time(1000) / _frameRate;
+	return (_scene->endFrame() - _scene->startFrame()) * crl::time(1000) / _scene->frameRate();
 }
 
 void Animation::play(const PlaybackOptions &options) {
@@ -125,87 +115,8 @@ void Animation::parse(const QByteArray &content) {
 		return;
 	}
 
-	_startFrame = root.value(qstr("ip")).toVariant().toInt();
-	_endFrame = root.value(qstr("op")).toVariant().toInt();
-	_frameRate = root.value(qstr("fr")).toVariant().toInt();
-	_realWidth = root.value(qstr("w")).toVariant().toReal();
-	_realHeight = root.value(qstr("h")).toVariant().toReal();
-
-	const auto markers = root.value(qstr("markers")).toArray();
-	for (const auto &entry : markers) {
-		const auto object = entry.toObject();
-		const auto name = object.value(qstr("cm")).toString();
-		const auto frame = object.value(qstr("tm")).toInt();
-		_markers.emplace(name, frame);
-
-		if (object.value(qstr("dr")).toInt()) {
-			_unsupported = true;
-		}
-	}
-
-	const auto assets = root.value(qstr("assets")).toArray();
-	for (const auto &entry : assets) {
-		if (const auto asset = BMAsset::construct(entry.toObject())) {
-			_assetIndexById.emplace(asset->id(), _assets.size());
-			_assets.emplace_back(asset);
-		} else {
-			_unsupported = true;
-		}
-	}
-
-	if (root.value(qstr("chars")).toArray().count()) {
-		_unsupported = true;
-	}
-
-	_treeBlueprint = std::make_unique<BMBase>();
-	const auto blueprint = _treeBlueprint.get();
-	const auto layers = root.value(QLatin1String("layers")).toArray();
-	for (auto i = layers.end(); i != layers.begin();) {
-		const auto &entry = *(--i);
-		if (const auto layer = BMLayer::construct(entry.toObject())) {
-			layer->setParent(blueprint);
-
-			// Mask layers must be rendered before the layers they affect to
-			// although they appear before in layer hierarchy. For this reason
-			// move a mask after the affected layers, so it will be rendered first
-			if (layer->isMaskLayer()) {
-				blueprint->prependChild(layer);
-			} else {
-				blueprint->appendChild(layer);
-			}
-		} else {
-			_unsupported = true;
-		}
-	}
-
-	resolveAssets();
-}
-
-void Animation::resolveAssets() {
-	if (_assets.empty()) {
-		return;
-	}
-
-	std::function<BMAsset*(QString)> resolver = [&](const QString &refId)
-	-> BMAsset* {
-		const auto i = _assetIndexById.find(refId);
-		if (i == end(_assetIndexById)) {
-			return nullptr;
-		}
-		const auto result = _assets[i->second].get();
-		result->resolveAssets(resolver);
-		return result->clone();
-	};
-	for (const auto &asset : _assets) {
-		asset->resolveAssets(resolver);
-	}
-
-	_treeBlueprint->resolveAssets([&](const QString &refId) {
-		const auto i = _assetIndexById.find(refId);
-		return (i != end(_assetIndexById))
-			? _assets[i->second]->clone()
-			: nullptr;
-	});
+	_scene = std::make_unique<BMScene>();
+	_scene->parse(root);
 }
 
 } // namespace Lottie
