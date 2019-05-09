@@ -68,7 +68,7 @@ public:
     void construct(const QJsonObject &definition);
 
     void updateProperties(int frame) override;
-    void render(LottieRenderer &renderer) const override;
+    void render(LottieRenderer &renderer, int frame) const override;
     bool acceptsTrim() const override;
 
     QPointF position() const;

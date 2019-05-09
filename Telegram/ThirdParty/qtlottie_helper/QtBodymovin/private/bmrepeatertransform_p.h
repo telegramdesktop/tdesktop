@@ -59,7 +59,7 @@ public:
     void construct(const QJsonObject &definition);
 
     void updateProperties(int frame) override;
-    void render(LottieRenderer &renderer) const override;
+    void render(LottieRenderer &renderer, int frame) const override;
 
     qreal startOpacity() const;
     qreal endOpacity() const;

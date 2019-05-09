@@ -63,7 +63,7 @@ public:
     void applyTrim(BMShape *shape);
 
     void updateProperties(int frame);
-    void render(LottieRenderer &renderer) const;
+    void render(LottieRenderer &renderer, int frame) const;
 
 private:
     BMBase *m_root = nullptr;

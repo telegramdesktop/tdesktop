@@ -60,7 +60,7 @@ public:
 
     void updateProperties(int frame) override;
 
-    void render(LottieRenderer &renderer) const override;
+    void render(LottieRenderer &renderer, int frame) const override;
 
     QColor color() const;
     qreal opacity() const;

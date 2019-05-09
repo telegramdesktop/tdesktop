@@ -63,7 +63,7 @@ public:
     BMBase *clone() const override;
 
     void updateProperties(int frame) override;
-    void render(LottieRenderer &render) const override;
+    void render(LottieRenderer &render, int frame) const override;
 
 protected:
     QList<int> m_maskProperties;

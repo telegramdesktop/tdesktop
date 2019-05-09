@@ -59,7 +59,7 @@ public:
     BMBase *clone() const override;
 
     void updateProperties(int frame) override;
-    void render(LottieRenderer &renderer) const override;
+    void render(LottieRenderer &renderer, int frame) const override;
 
     QPen pen() const;
     qreal opacity() const;

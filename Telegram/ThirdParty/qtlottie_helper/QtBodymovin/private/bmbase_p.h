@@ -88,7 +88,7 @@ public:
     virtual BMBase *findChild(const QString &childName);
 
     virtual void updateProperties(int frame);
-    virtual void render(LottieRenderer &renderer) const;
+    virtual void render(LottieRenderer &renderer, int frame) const;
 
     virtual void resolveAssets(const std::function<BMAsset*(QString)> &resolver);
 

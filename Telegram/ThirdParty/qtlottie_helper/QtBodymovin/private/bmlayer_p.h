@@ -65,7 +65,7 @@ public:
     void  parse(const QJsonObject &definition) override;
 
     void updateProperties(int frame) override;
-    void render(LottieRenderer &renderer) const override;
+    void render(LottieRenderer &renderer, int frame) const override;
 
     BMBase *findChild(const QString &childName) override;
 
@@ -75,10 +75,10 @@ public:
 
     int layerId() const;
     BMBasicTransform *transform() const;
-    void renderFullTransform(LottieRenderer &renderer) const;
+    void renderFullTransform(LottieRenderer &renderer, int frame) const;
 
 protected:
-    void renderEffects(LottieRenderer &renderer) const;
+    void renderEffects(LottieRenderer &renderer, int frame) const;
 
     virtual BMLayer *resolveLinkedLayer();
     virtual BMLayer *linkedLayer() const;

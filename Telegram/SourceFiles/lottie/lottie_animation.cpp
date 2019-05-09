@@ -96,7 +96,7 @@ QImage Animation::frame(crl::time now) const {
 		LottieRasterRenderer renderer(&p);
 		for (const auto element : tree.children()) {
 			if (element->active(frame)) {
-				element->render(renderer);
+				element->render(renderer, frame);
 			}
 		}
 	}
