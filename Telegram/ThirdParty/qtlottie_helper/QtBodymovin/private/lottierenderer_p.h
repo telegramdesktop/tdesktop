@@ -78,6 +78,9 @@ public:
     virtual void setTrimmingState(TrimmingState state);
     virtual TrimmingState trimmingState() const;
 
+    virtual void startMergeGeometry() = 0;
+    virtual void renderMergedGeometry() = 0;
+
     virtual void render(const BMLayer &layer) = 0;
     virtual void render(const BMRect &rect) = 0;
     virtual void render(const BMEllipse &ellipse) = 0;
