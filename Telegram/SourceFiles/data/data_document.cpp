@@ -533,6 +533,7 @@ void DocumentData::setattributes(
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 		});
 	}
+	validateLottieSticker();
 	if (type == StickerDocument) {
 		if (dimensions.width() <= 0
 			|| dimensions.height() <= 0
@@ -548,6 +549,14 @@ void DocumentData::setattributes(
 		|| (isAnimation() && !isVideoMessage())
 		|| isVoiceMessage()) {
 		setMaybeSupportsStreaming(true);
+	}
+}
+
+void DocumentData::validateLottieSticker() {
+	if (type == FileDocument && _filename == qstr("animation.json")) {
+		type = StickerDocument;
+		_additional = std::make_unique<StickerData>();
+		dimensions = QSize(512, 512);
 	}
 }
 

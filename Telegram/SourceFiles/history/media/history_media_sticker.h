@@ -8,16 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/media/history_media.h"
+#include "base/timer.h"
 
 struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
+
+namespace Lottie {
+class Animation;
+} // namespace Lottie
 
 class HistorySticker : public HistoryMedia {
 public:
 	HistorySticker(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
+	~HistorySticker();
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -62,5 +68,7 @@ private:
 	ClickHandlerPtr _packLink;
 	not_null<DocumentData*> _data;
 	QString _emoji;
+	mutable base::Timer _timer;
+	mutable std::unique_ptr<Lottie::Animation> _lottie;
 
 };

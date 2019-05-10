@@ -242,6 +242,7 @@ private:
 	friend class Serialize::Document;
 
 	LocationType locationType() const;
+	void validateLottieSticker();
 	void validateGoodThumbnail();
 	void setMaybeSupportsStreaming(bool supports);
 
