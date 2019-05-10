@@ -65,6 +65,8 @@ public:
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;
 
+    void clearOpacity();
+
     QPointF anchorPoint() const;
     virtual QPointF position() const;
     QPointF scale() const;
