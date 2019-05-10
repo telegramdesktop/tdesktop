@@ -43,6 +43,8 @@ constexpr auto kArchiveId = -1;
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 @interface PinnedDialogButton : NSCustomTouchBarItem {
+	rpl::lifetime lifetime;
+	rpl::lifetime userpicChangedLifetime;
 }
 
 @property(nonatomic, assign) int number;
@@ -58,8 +60,6 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @end // @interface PinnedDialogButton
 
 @implementation PinnedDialogButton : NSCustomTouchBarItem
-
-auto lifetime = rpl::lifetime();
 
 - (id) init:(int)num {
 	if (num == kSavedMessagesId) {
@@ -90,25 +90,34 @@ auto lifetime = rpl::lifetime();
 		return self;
 	}
 	
-	if (self.peer) {
-		Notify::PeerUpdateViewer(
-			self.peer,
-			Notify::PeerUpdate::Flag::PhotoChanged
-		) | rpl::start_with_next([=] {
-			self.waiting = true;
-			[self updatePinnedDialog];
-		}, lifetime);
-	}
-	
 	base::ObservableViewer(
-	   Auth().downloaderTaskFinished()
+		Auth().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		if (self.waiting) {
 			[self updatePinnedDialog];
 		}
-	}, lifetime);
+	}, self->lifetime);
 	
 	return self;
+}
+
+// Setter of peer.
+- (void) setPeer:(PeerData *)newPeer {
+	if (_peer == newPeer) {
+		return;
+	}
+	_peer = newPeer;
+	self->userpicChangedLifetime.destroy();
+	if (!_peer) {
+		return;
+	}
+	Notify::PeerUpdateViewer(
+		_peer,
+	Notify::PeerUpdate::Flag::PhotoChanged
+	) | rpl::start_with_next([=] {
+		self.waiting = true;
+		[self updatePinnedDialog];
+	}, self->userpicChangedLifetime);
 }
 
 - (void) updatePinnedDialog {
@@ -229,7 +238,7 @@ auto lifetime = rpl::lifetime();
 		} else {
 			[self setTouchBar:TouchBarType::AudioPlayer];
 		}
-	}, lifetime);
+	}, self->lifetime);
 	
 	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=](bool locked) {
@@ -239,19 +248,19 @@ auto lifetime = rpl::lifetime();
 		} else {
 			[self setTouchBar:self.touchBarTypeBeforeLock];
 		}
-	}, lifetime);
+	}, self->lifetime);
 	
 	Auth().data().pinnedDialogsOrderUpdated(
 	) | rpl::start_with_next([self] {
 		[self updatePinnedButtons];
-	}, lifetime);
+	}, self->lifetime);
 	
 	Auth().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && folder->chatsList();
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
 		[self toggleArchiveButton:folder->chatsList()->empty()];
-	}, lifetime);
+	}, self->lifetime);
 	
 	[self updatePinnedButtons];
 	

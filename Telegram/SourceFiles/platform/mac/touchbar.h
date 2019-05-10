@@ -35,7 +35,9 @@ static NSTouchBarItemIdentifier _Nullable previousItem = [NSString stringWithFor
 static NSTouchBarItemIdentifier _Nullable closePlayer = [NSString stringWithFormat:@"%@.closePlayer", BASE_ID];
 static NSTouchBarItemIdentifier _Nullable currentPosition = [NSString stringWithFormat:@"%@.currentPosition", BASE_ID];
 
-@interface TouchBar : NSTouchBar
+@interface TouchBar : NSTouchBar {
+	rpl::lifetime lifetime;
+}
 @property TouchBarType touchBarType;
 @property TouchBarType touchBarTypeBeforeLock;
 
