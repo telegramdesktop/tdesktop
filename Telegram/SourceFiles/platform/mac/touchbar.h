@@ -20,21 +20,6 @@ enum class TouchBarType {
 };
 } // namespace
 
-static NSString * _Nullable BASE_ID = @"telegram.touchbar";
-static NSTouchBarCustomizationIdentifier _Nullable customID = @"telegram.touchbar";
-static NSTouchBarCustomizationIdentifier _Nullable customIDMain = @"telegram.touchbarMain";
-static NSTouchBarItemIdentifier _Nullable savedMessages = [NSString stringWithFormat:@"%@.savedMessages", customIDMain];
-static NSTouchBarItemIdentifier _Nullable archiveFolder = [NSString stringWithFormat:@"%@.archiveFolder", customIDMain];
-
-static NSTouchBarItemIdentifier _Nullable pinnedPanel = [NSString stringWithFormat:@"%@.pinnedPanel", customIDMain];
-
-static NSTouchBarItemIdentifier _Nullable seekBar = [NSString stringWithFormat:@"%@.seekbar", BASE_ID];
-static NSTouchBarItemIdentifier _Nullable play = [NSString stringWithFormat:@"%@.play", BASE_ID];
-static NSTouchBarItemIdentifier _Nullable nextItem = [NSString stringWithFormat:@"%@.nextItem", BASE_ID];
-static NSTouchBarItemIdentifier _Nullable previousItem = [NSString stringWithFormat:@"%@.previousItem", BASE_ID];
-static NSTouchBarItemIdentifier _Nullable closePlayer = [NSString stringWithFormat:@"%@.closePlayer", BASE_ID];
-static NSTouchBarItemIdentifier _Nullable currentPosition = [NSString stringWithFormat:@"%@.currentPosition", BASE_ID];
-
 @interface TouchBar : NSTouchBar {
 	rpl::lifetime lifetime;
 }
@@ -51,7 +36,7 @@ static NSTouchBarItemIdentifier _Nullable currentPosition = [NSString stringWith
 @property(retain) NSMutableArray * _Nullable mainPinnedButtons;
 
 - (id _Nonnull) init:(NSView * _Nonnull)view;
-- (void) handlePropertyChange:(Media::Player::TrackState)property;
+- (void) handleTrackStateChange:(Media::Player::TrackState)property;
 - (void) setTouchBar:(TouchBarType)type;
 
 @end

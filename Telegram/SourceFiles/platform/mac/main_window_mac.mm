@@ -416,7 +416,7 @@ MainWindow::MainWindow()
 	
 	subscribe(Media::Player::instance()->updatedNotifier(),
 	  [=](const Media::Player::TrackState &state) {
-		  [_private->_touchBar handlePropertyChange:state];
+		  [_private->_touchBar handleTrackStateChange:state];
 	});
 }
 
