@@ -51,7 +51,11 @@ std::unique_ptr<Animation> FromFile(const QString &path) {
 	if (content.isEmpty()) {
 		return nullptr;
 	}
-	return std::make_unique<Lottie::Animation>(content);
+	return FromData(content);
+}
+
+std::unique_ptr<Animation> FromData(const QByteArray &data) {
+	return std::make_unique<Lottie::Animation>(data);
 }
 
 Animation::Animation(const QByteArray &content) {

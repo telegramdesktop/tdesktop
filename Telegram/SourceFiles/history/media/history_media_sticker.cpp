@@ -94,10 +94,14 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 }
 
 void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
-	if (!_lottie
-		&& _data->loaded()
-		&& Lottie::ValidateFile(_data->filepath())) {
-		_lottie = Lottie::FromFile(_data->filepath());
+	if (!_lottie && _data->filename().endsWith(qstr(".json"))) {
+		if (_data->loaded()) {
+			_lottie = _data->data().isEmpty()
+				? Lottie::FromFile(_data->filepath())
+				: Lottie::FromData(_data->data());
+		} else {
+			_data->automaticLoad(_parent->data()->fullId(), _parent->data());
+		}
 	}
 
 	auto sticker = _data->sticker();
