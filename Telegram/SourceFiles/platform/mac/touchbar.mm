@@ -378,6 +378,10 @@ NSImage *createImageFromStyleIcon(const style::icon &icon, int size = kIdealIcon
 		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
 			PinnedDialogButton *button = [[PinnedDialogButton alloc] init:i];
 			[self.mainPinnedButtons addObject:button];
+			if (i == kArchiveId) {
+				button.isDeletedFromView = true;
+				continue;
+			}
 			[stackView addView:button.view inGravity:NSStackViewGravityCenter];
 		}
 		
