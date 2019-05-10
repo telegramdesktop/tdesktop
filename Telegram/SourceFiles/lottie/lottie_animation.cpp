@@ -80,10 +80,12 @@ QImage Animation::frame(crl::time now) const {
 
 		const auto position = now;
 		const auto elapsed = int((_scene->frameRate() * position + 500) / 1000);
-		const auto frames = (_scene->endFrame() - _scene->startFrame());
+		const auto from = _scene->startFrame();
+		const auto till = _scene->endFrame();
+		const auto frames = (till - from);
 		const auto frame = _options.loop
-			? (_scene->startFrame() + (elapsed % frames))
-			: std::min(_scene->startFrame() + elapsed, _scene->endFrame());
+			? (from + (elapsed % frames))
+			: std::min(from + elapsed, till);
 
 		_scene->updateProperties(frame);
 
