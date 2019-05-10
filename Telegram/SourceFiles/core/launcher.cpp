@@ -241,8 +241,10 @@ void Launcher::init() {
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
-#ifdef TDESKTOP_FLATPAK_BUILD
-	QApplication::setDesktopFileName(qsl("org.telegram.desktop.desktop"));
+#ifdef TDESKTOP_LAUNCHER_FILENAME
+#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V) #V
+#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING(V) TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V)
+	QApplication::setDesktopFileName(qsl(TDESKTOP_LAUNCHER_FILENAME_TO_STRING(TDESKTOP_LAUNCHER_FILENAME)));
 #elif defined(Q_OS_LINUX) && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
 	QApplication::setDesktopFileName(qsl("telegramdesktop.desktop"));
 #endif
