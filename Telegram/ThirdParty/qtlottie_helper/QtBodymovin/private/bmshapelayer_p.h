@@ -52,7 +52,7 @@ class BMShape;
 class BMTrimPath;
 class BMBasicTransform;
 
-class BODYMOVIN_EXPORT BMShapeLayer : public BMLayer
+class BODYMOVIN_EXPORT BMShapeLayer final : public BMLayer
 {
 public:
     BMShapeLayer() = default;

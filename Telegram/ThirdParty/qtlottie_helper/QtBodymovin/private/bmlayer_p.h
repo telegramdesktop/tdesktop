@@ -53,10 +53,8 @@ public:
     enum MatteClipMode {NoClip, Alpha, InvertedAlpha, Luminence, InvertedLuminence};
 
     BMLayer() = default;
-   explicit  BMLayer (const BMLayer &other);
+    explicit  BMLayer (const BMLayer &other);
     ~BMLayer() override;
-
-    BMBase *clone() const override;
 
     static BMLayer *construct(QJsonObject definition);
 
@@ -96,6 +94,8 @@ protected:
     int m_parentLayer = 0;
     int m_td = 0;
     MatteClipMode m_clipMode = NoClip;
+
+    bool m_updated = false;
 
 private:
     void parseEffects(const QJsonArray &definition, BMBase *effectRoot = nullptr);

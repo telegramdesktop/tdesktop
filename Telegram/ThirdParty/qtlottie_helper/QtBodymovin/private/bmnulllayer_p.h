@@ -52,7 +52,7 @@ class BMShape;
 class BMTrimPath;
 class BMBasicTransform;
 
-class BODYMOVIN_EXPORT BMNullLayer : public BMLayer
+class BODYMOVIN_EXPORT BMNullLayer final : public BMLayer
 {
 public:
 	BMNullLayer() = default;
@@ -62,7 +62,6 @@ public:
 
     BMBase *clone() const override;
 
-    void updateProperties(int frame) override;
     void render(LottieRenderer &render, int frame) const override;
 
 };
