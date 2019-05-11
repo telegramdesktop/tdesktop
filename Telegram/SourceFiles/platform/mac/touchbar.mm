@@ -438,6 +438,7 @@ NSString* FormatTime(int time) {
 - (void) updatePinnedButtons {
 	const auto &order = Auth().data().pinnedChatsOrder(nullptr);
 	auto isSelfPeerPinned = false;
+	auto isArchivePinned = false;
 	PinnedDialogButton *selfChatButton;
 	NSCustomTouchBarItem *item = [self.touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
 	NSStackView *stack = item.view;
@@ -447,6 +448,8 @@ NSString* FormatTime(int time) {
 		if (num <= kSavedMessagesId) {
 			if (num == kSavedMessagesId) {
 				selfChatButton = button;
+			} else if (num == kArchiveId) {
+				isArchivePinned = !button.isDeletedFromView;
 			}
 			continue;
 		}
@@ -472,7 +475,9 @@ NSString* FormatTime(int time) {
 		[stack removeView:selfChatButton.view];
 	} else if (!isSelfPeerPinned && selfChatButton.isDeletedFromView) {
 		selfChatButton.isDeletedFromView = false;
-		[stack insertView:selfChatButton.view atIndex:0 inGravity:NSStackViewGravityLeading];
+		[stack insertView:selfChatButton.view
+				  atIndex:(isArchivePinned ? 1 : 0)
+				inGravity:NSStackViewGravityLeading];
 	}
 }
 
