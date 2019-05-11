@@ -386,9 +386,12 @@ MainWidget::MainWidget(
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
-	subscribe(
-		Media::Player::instance()->updatedNotifier(),
-		[=](const Media::Player::TrackState &state) { handleAudioUpdate(state); });
+
+	Media::Player::instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
+		handleAudioUpdate(state);
+	}, lifetime());
+	
 	subscribe(session().calls().currentCallChanged(), [this](Calls::Call *call) { setCurrentCall(call); });
 
 	session().data().currentExportView(

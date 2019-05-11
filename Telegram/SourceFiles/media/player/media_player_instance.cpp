@@ -614,7 +614,7 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		if (data->streamed && !data->streamed->info.video.size.isEmpty()) {
 			data->streamed->progress.updateState(state);
 		}
-		_updatedNotifier.notify(state, true);
+		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (data->repeatEnabled) {
 				play(data->current);

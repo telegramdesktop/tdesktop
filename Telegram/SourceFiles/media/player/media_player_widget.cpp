@@ -147,9 +147,6 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 			updateRepeatTrackIcon();
 		}
 	});
-	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
-		handleSongUpdate(state);
-	});
 	subscribe(instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
 		if (type == _type) {
 			handleSongChange();
@@ -165,6 +162,12 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 			}
 		}
 	});
+
+	instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const TrackState &state) {
+		handleSongUpdate(state);
+	}, lifetime());
+
 	setType(AudioMsgId::Type::Song);
 	_playPause->finishTransform();
 }

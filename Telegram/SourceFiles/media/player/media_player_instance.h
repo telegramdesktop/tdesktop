@@ -131,9 +131,6 @@ public:
 	base::Observable<bool> &playerWidgetOver() {
 		return _playerWidgetOver;
 	}
-	base::Observable<TrackState> &updatedNotifier() {
-		return _updatedNotifier;
-	}
 	base::Observable<AudioMsgId::Type> &tracksFinishedNotifier() {
 		return _tracksFinishedNotifier;
 	}
@@ -151,6 +148,9 @@ public:
 	}
 	rpl::producer<bool> playerWidgetToggled() const {
 		return _playerWidgetToggled.events();
+	}
+	rpl::producer<TrackState> updatedNotifier() const {
+		return _updatedNotifier.events();
 	}
 
 
@@ -254,12 +254,12 @@ private:
 
 	base::Observable<Switch> _switchToNextNotifier;
 	base::Observable<bool> _playerWidgetOver;
-	base::Observable<TrackState> _updatedNotifier;
 	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
 	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
 
 	rpl::event_stream<bool> _playerWidgetToggled;
+	rpl::event_stream<TrackState> _updatedNotifier;
 	rpl::lifetime _lifetime;
 
 };

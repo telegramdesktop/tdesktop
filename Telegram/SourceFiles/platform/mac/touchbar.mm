@@ -283,6 +283,11 @@ NSString* FormatTime(int time) {
 			[self setTouchBar:TouchBarType::AudioPlayer];
 		}
 	}, self->lifetime);
+
+	Media::Player::instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
+		[self handleTrackStateChange:state];
+	}, self->lifetime);
 	
 	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=](bool locked) {

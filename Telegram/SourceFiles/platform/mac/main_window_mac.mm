@@ -413,11 +413,6 @@ MainWindow::MainWindow()
 			_private->_touchBar = nullptr;
 		}
 	});
-	
-	subscribe(Media::Player::instance()->updatedNotifier(),
-	  [=](const Media::Player::TrackState &state) {
-		  [_private->_touchBar handleTrackStateChange:state];
-	});
 }
 
 void MainWindow::closeWithoutDestroy() {
