@@ -71,6 +71,13 @@ struct EasingSegment {
     T endValue;
     BezierEasing easing;
     QPainterPath bezier;
+
+    double bezierLength = 0.;
+    struct BezierPoint {
+        QPointF point;
+        double length = 0.;
+    };
+    std::vector<BezierPoint> bezierPoints;
 };
 
 template<typename T>

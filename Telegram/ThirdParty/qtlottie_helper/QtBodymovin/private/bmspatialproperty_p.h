@@ -101,6 +101,20 @@ public:
 
         easing.bezier.moveTo(s);
         easing.bezier.cubicTo(c1, c2, e);
+
+        const auto kCount = 150;
+        easing.bezierPoints.reserve(kCount);
+        for (auto k = 0; k < kCount; ++k) {
+            const auto percent = double(k) / (kCount - 1.);
+            auto point = EasingSegment<QPointF>::BezierPoint();
+            point.point = easing.bezier.pointAtPercent(percent);
+            if (k > 0) {
+                const auto delta = (point.point - easing.bezierPoints[k - 1].point);
+                point.length = std::sqrt(QPointF::dotProduct(delta, delta));
+                easing.bezierLength += point.length;
+            }
+            easing.bezierPoints.push_back(point);
+        }
     }
 
     virtual bool update(int frame) override
@@ -110,18 +124,34 @@ public:
 
         int adjustedFrame = qBound(m_startFrame, frame, m_endFrame);
         if (const EasingSegment<QPointF> *easing = getEasingSegment(adjustedFrame)) {
-			if (easing->state == EasingSegmentState::Complete) {
-				int length = (easing->endFrame - easing->startFrame);
-				qreal progress = (length > 0)
-					? ((adjustedFrame - easing->startFrame) * 1.0) / length
-					: 1.;
-				qreal easedValue = easing->easing.valueForProgress(progress);
-				m_value = easing->bezier.pointAtPercent(easedValue);
-			} else {
-				// In case of incomplete easing we should just take the final point.
-				//m_value = m_bezierPath.pointAtPercent(1.);
-				m_value = easing->endValue;
-			}
+            if (easing->state == EasingSegmentState::Complete) {
+                int length = (easing->endFrame - easing->startFrame);
+                qreal progress = (length > 0)
+                    ? ((adjustedFrame - easing->startFrame) * 1.0) / length
+                    : 1.;
+                qreal easedValue = easing->easing.valueForProgress(progress);
+                //m_value = easing->bezier.pointAtPercent(easedValue);
+
+                const auto distance = easedValue * easing->bezierLength;
+                auto segmentPerc = 0.;
+                auto addedLength = 0.;
+                const auto count = easing->bezierPoints.size();
+                for (auto j = 0; j != count; ++j) {
+                    addedLength += easing->bezierPoints[j].length;
+                    if (distance == 0. || easedValue == 0. || j == count - 1) {
+                        m_value = easing->bezierPoints[j].point;
+                        break;
+                    } else if (distance >= addedLength && distance < addedLength + easing->bezierPoints[j + 1].length) {
+                        segmentPerc = (distance - addedLength) / easing->bezierPoints[j + 1].length;
+                        m_value = easing->bezierPoints[j].point + (easing->bezierPoints[j + 1].point - easing->bezierPoints[j].point) * segmentPerc;
+                        break;
+                    }
+                }
+            } else {
+                // In case of incomplete easing we should just take the final point.
+                //m_value = m_bezierPath.pointAtPercent(1.);
+                m_value = easing->endValue;
+            }
         }
 
         return true;
