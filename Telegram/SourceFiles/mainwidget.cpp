@@ -385,20 +385,7 @@ MainWidget::MainWidget(
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
-	connect(_history, &HistoryWidget::cancelled, [=] {
-		const auto historyFromFolder = _history->history()
-			? _history->history()->folder()
-			: nullptr;
-		const auto openedFolder = controller->openedFolder().current();
-		if (!openedFolder
-			|| historyFromFolder == openedFolder
-			|| Adaptive::OneColumn()) {
-			controller->showBackFromStack();
-			_dialogs->setInnerFocus();
-		} else {
-			controller->closeFolder();
-		}
-	});
+	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
 	subscribe(
 		Media::Player::instance()->updatedNotifier(),
 		[=](const Media::Player::TrackState &state) { handleAudioUpdate(state); });
@@ -2717,7 +2704,7 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {
 		if (static_cast<QMouseEvent*>(e)->button() == Qt::BackButton) {
-			_controller->showBackFromStack();
+			handleHistoryBack();
 			return true;
 		}
 	} else if (e->type() == QEvent::Wheel) {
@@ -2733,6 +2720,21 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 	_sideShadow->setVisible(!Adaptive::OneColumn());
 	if (_player) {
 		_player->updateAdaptiveLayout();
+	}
+}
+
+void MainWidget::handleHistoryBack() {
+	const auto historyFromFolder = _history->history()
+		? _history->history()->folder()
+		: nullptr;
+	const auto openedFolder = _controller->openedFolder().current();
+	if (!openedFolder
+		|| historyFromFolder == openedFolder
+		|| _dialogs->isHidden()) {
+		_controller->showBackFromStack();
+		_dialogs->setInnerFocus();
+	} else {
+		_controller->closeFolder();
 	}
 }
 

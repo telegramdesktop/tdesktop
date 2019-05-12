@@ -443,6 +443,8 @@ private:
 		const Data::WallPaper &background,
 		QImage &&image);
 
+	void handleHistoryBack();
+
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
 
