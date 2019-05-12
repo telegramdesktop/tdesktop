@@ -553,7 +553,11 @@ void DocumentData::setattributes(
 }
 
 void DocumentData::validateLottieSticker() {
-	if (type == FileDocument && _filename == qstr("animation.json")) {
+	if (type == FileDocument
+		&& (_filename == qstr("animation.json")
+			|| ((_filename.size() == 9 || _filename.size() == 10)
+				&& _filename.endsWith(qstr(".json"))
+				&& QRegularExpression("^\\d+\\.json$").match(_filename).hasMatch()))) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
 		dimensions = QSize(512, 512);
