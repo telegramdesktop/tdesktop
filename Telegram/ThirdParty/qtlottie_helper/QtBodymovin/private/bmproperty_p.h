@@ -131,6 +131,10 @@ public:
         return m_value;
     }
 
+    bool animated() const {
+        return m_animated;
+    }
+
     virtual bool update(int frame)
     {
         if (!m_animated)

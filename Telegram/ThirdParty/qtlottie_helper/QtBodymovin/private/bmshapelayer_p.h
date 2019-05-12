@@ -65,9 +65,6 @@ public:
     void updateProperties(int frame) override;
     void render(LottieRenderer &render, int frame) const override;
 
-protected:
-    QList<int> m_maskProperties;
-
 private:
     BMTrimPath *m_appliedTrim = nullptr;
 };

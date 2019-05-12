@@ -27,8 +27,8 @@
 **
 ****************************************************************************/
 
-#ifndef BMPRECOMPLAYER_P_H
-#define BMPRECOMPLAYER_P_H
+#ifndef BMMASKS_P_H
+#define BMMASKS_P_H
 
 //
 //  W A R N I N G
@@ -41,40 +41,27 @@
 // We mean it.
 //
 
-#include <QtBodymovin/private/bmlayer_p.h>
+#include <QPainterPath>
+#include <QJsonArray>
+
+#include <QtBodymovin/bmglobal.h>
+#include <QtBodymovin/private/bmshape_p.h>
+#include <QtBodymovin/private/bmtrimpath_p.h>
+#include <QtBodymovin/private/lottierenderer_p.h>
 
 QT_BEGIN_NAMESPACE
 
 class QJsonObject;
 
-class LottieRenderer;
-class BMShape;
-class BMTrimPath;
-class BMBasicTransform;
-
-class BODYMOVIN_EXPORT BMPreCompLayer final : public BMLayer
+class BODYMOVIN_EXPORT BMMasks : public BMBase
 {
 public:
-	BMPreCompLayer() = default;
-    explicit BMPreCompLayer(const BMPreCompLayer &other);
-	BMPreCompLayer(const QJsonObject &definition);
-    ~BMPreCompLayer() override;
-
     BMBase *clone() const override;
 
-    void updateProperties(int frame) override;
-	void render(LottieRenderer &renderer, int frame) const override;
-	void resolveAssets(const std::function<BMAsset*(QString)> &resolver) override;
-
-	QString refId() const;
-
-private:
-	QString m_refId;
-	BMBase *m_layers = nullptr;
-	bool m_resolving = false;
+    void render(LottieRenderer &renderer, int frame) const override;
 
 };
 
 QT_END_NAMESPACE
 
-#endif // BMPRECOMPLAYER_P_H
+#endif // BMMASKCLIP_P_H

@@ -27,8 +27,8 @@
 **
 ****************************************************************************/
 
-#ifndef BMPRECOMPLAYER_P_H
-#define BMPRECOMPLAYER_P_H
+#ifndef BMMASKSHAPE_P_H
+#define BMMASKSHAPE_P_H
 
 //
 //  W A R N I N G
@@ -41,40 +41,78 @@
 // We mean it.
 //
 
-#include <QtBodymovin/private/bmlayer_p.h>
+#include <QPainterPath>
+#include <QJsonArray>
+
+#include <QtBodymovin/bmglobal.h>
+#include <QtBodymovin/private/bmshape_p.h>
+#include <QtBodymovin/private/bmtrimpath_p.h>
+#include <QtBodymovin/private/lottierenderer_p.h>
 
 QT_BEGIN_NAMESPACE
 
 class QJsonObject;
 
-class LottieRenderer;
-class BMShape;
-class BMTrimPath;
-class BMBasicTransform;
-
-class BODYMOVIN_EXPORT BMPreCompLayer final : public BMLayer
+class BODYMOVIN_EXPORT BMMaskShape : public BMShape
 {
 public:
-	BMPreCompLayer() = default;
-    explicit BMPreCompLayer(const BMPreCompLayer &other);
-	BMPreCompLayer(const QJsonObject &definition);
-    ~BMPreCompLayer() override;
+	BMMaskShape();
+    explicit BMMaskShape(const BMMaskShape &other);
+	BMMaskShape(const QJsonObject &definition, BMBase *parent = nullptr);
 
     BMBase *clone() const override;
 
-    void updateProperties(int frame) override;
-	void render(LottieRenderer &renderer, int frame) const override;
-	void resolveAssets(const std::function<BMAsset*(QString)> &resolver) override;
+    void construct(const QJsonObject &definition);
 
-	QString refId() const;
+    void updateProperties(int frame) override;
+    void render(LottieRenderer &renderer, int frame) const override;
+
+	enum class Mode {
+		Additive,
+		Intersect,
+	};
+
+	Mode mode() const;
+
+	bool inverted() const;
+
+protected:
+    struct VertexInfo {
+        BMProperty2D<QPointF> pos;
+        BMProperty2D<QPointF> ci;
+        BMProperty2D<QPointF> co;
+    };
+
+    void parseShapeKeyframes(QJsonObject &keyframes);
+    void buildShape(const QJsonObject &keyframe);
+    void buildShape(int frame);
+    void parseEasedVertices(const QJsonObject &keyframe, int startFrame);
+
+    QHash<int, QJsonObject> m_vertexMap;
+    QList<VertexInfo> m_vertexList;
+    QMap<int, bool> m_closedShape;
+
+	bool m_inverted = false;
+	BMProperty<qreal> m_opacity;
+	Mode m_mode = Mode::Additive;
 
 private:
-	QString m_refId;
-	BMBase *m_layers = nullptr;
-	bool m_resolving = false;
+    struct VertexBuildInfo
+    {
+        QJsonArray posKeyframes;
+        QJsonArray ciKeyframes;
+        QJsonArray coKeyframes;
+    };
 
+    void finalizeVertices();
+
+    QMap<int, VertexBuildInfo*> m_vertexInfos;
+
+    QJsonObject createKeyframe(QJsonArray startValue, QJsonArray endValue,
+                               int startFrame, QJsonObject easingIn,
+                               QJsonObject easingOut);
 };
 
 QT_END_NAMESPACE
 
-#endif // BMPRECOMPLAYER_P_H
+#endif // BMMASKSHAPE_P_H

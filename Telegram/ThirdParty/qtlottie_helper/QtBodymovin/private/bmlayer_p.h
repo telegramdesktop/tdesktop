@@ -46,6 +46,7 @@
 QT_BEGIN_NAMESPACE
 
 class LottieRenderer;
+class BMMasks;
 
 class BODYMOVIN_EXPORT BMLayer : public BMBase
 {
@@ -63,7 +64,6 @@ public:
     void  parse(const QJsonObject &definition) override;
 
     void updateProperties(int frame) override;
-    void render(LottieRenderer &renderer, int frame) const override;
 
     BMBase *findChild(const QString &childName) override;
 
@@ -90,6 +90,7 @@ protected:
     BMBase *m_effects = nullptr;
     qreal m_stretch;
     BMBasicTransform *m_layerTransform = nullptr;
+    BMMasks *m_masks = nullptr;
 
     int m_parentLayer = 0;
     int m_td = 0;
@@ -99,6 +100,7 @@ protected:
 
 private:
     void parseEffects(const QJsonArray &definition, BMBase *effectRoot = nullptr);
+    void parseMasks(const QJsonArray &definition);
 
     BMLayer *m_linkedLayer = nullptr;
 };

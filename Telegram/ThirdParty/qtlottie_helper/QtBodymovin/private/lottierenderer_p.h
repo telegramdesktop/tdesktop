@@ -65,6 +65,9 @@ class BMTrimPath;
 class BMFillEffect;
 class BMRepeater;
 
+class BMMasks;
+class BMMaskShape;
+
 class BODYMOVIN_EXPORT LottieRenderer
 {
 public:
@@ -94,6 +97,9 @@ public:
     virtual void render(const BMTrimPath &trans) = 0;
     virtual void render(const BMFillEffect &effect) = 0;
     virtual void render(const BMRepeater &repeater) = 0;
+
+    virtual void render(const BMMaskShape &shape) = 0;
+    virtual void render(const BMMasks &masks) = 0;
 
 protected:
     void saveTrimmingState();
