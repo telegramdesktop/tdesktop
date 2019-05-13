@@ -192,13 +192,9 @@ struct OverlayWidget::Streamed {
 };
 
 struct OverlayWidget::LottieFile {
-	template <typename Callback>
-	LottieFile(
-		std::unique_ptr<Lottie::Animation> data,
-		Callback &&animationCallback);
+	LottieFile(std::unique_ptr<Lottie::Animation> data);
 
 	std::unique_ptr<Lottie::Animation> data;
-	Ui::Animations::Basic animation;
 };
 
 template <typename Callback>
@@ -215,12 +211,9 @@ OverlayWidget::Streamed::Streamed(
 	st::mediaviewStreamingRadial) {
 }
 
-template <typename Callback>
 OverlayWidget::LottieFile::LottieFile(
-	std::unique_ptr<Lottie::Animation> data,
-	Callback &&animationCallback)
-: data(std::move(data))
-, animation(std::forward<Callback>(animationCallback)) {
+	std::unique_ptr<Lottie::Animation> data)
+: data(std::move(data)) {
 }
 
 OverlayWidget::OverlayWidget()
@@ -1851,9 +1844,11 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 						_current = PrepareStaticImage(path);
 					} else if (auto lottie = Lottie::FromFile(path)) {
 						_lottie = std::make_unique<LottieFile>(
-							std::move(lottie),
-							[=] { update(); });
-						_lottie->animation.start();
+							std::move(lottie));
+						_lottie->data->updates(
+						) | rpl::start_with_next([=] {
+							update();
+						}, lifetime());
 					}
 				}
 				location.accessDisable();
@@ -2924,8 +2919,9 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 void OverlayWidget::paintLottieFrame(Painter &p, QRect clip) {
 	Expects(_lottie != nullptr);
 
-	const auto frame = _lottie->data->frame(crl::now());
-	if (!frame.isNull()) {
+	if (_lottie->data->ready()) {
+		_lottie->data->markFrameShown();
+		const auto frame = _lottie->data->frame(Lottie::FrameRequest());
 		const auto x = (width() - frame.width()) / 2;
 		const auto y = (height() - frame.height()) / 2;
 		const auto background = _lottieDark ? Qt::black : Qt::white;

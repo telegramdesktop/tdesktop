@@ -58,12 +58,11 @@ class BODYMOVIN_EXPORT BMScene : public BMBase
 public:
     BMScene();
     BMScene(const BMScene &other) = delete;
-	BMScene &operator=(const BMScene &other) = delete;
+    BMScene &operator=(const BMScene &other) = delete;
+    explicit BMScene(const QJsonObject &definition);
     virtual ~BMScene();
 
     BMBase *clone() const override;
-
-	void parse(const QJsonObject &definition) override;
 
 	void updateProperties(int frame) override;
 	void render(LottieRenderer &renderer, int frame) const override;
@@ -78,6 +77,7 @@ protected:
 	BMScene *resolveTopRoot() const override;
 
 private:
+	void parse(const QJsonObject &definition);
 	void resolveAllAssets();
 
 	std::vector<std::unique_ptr<BMAsset>> _assets;

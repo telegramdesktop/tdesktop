@@ -10,23 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 #include "base/algorithm.h"
 
-#include <range/v3/view/reverse.hpp>
-#include <QtMath>
+#include <crl/crl_async.h>
+#include <crl/crl_on_main.h>
 #include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QJsonValue>
 #include <QFile>
-#include <QPointF>
-#include <QPainter>
-#include <QImage>
-#include <QTimer>
-#include <QMetaObject>
-#include <QLoggingCategory>
-#include <QThread>
-#include <math.h>
-
-#include <QtBodymovin/private/bmscene_p.h>
 
 #include "rasterrenderer/lottierasterrenderer.h"
 
@@ -58,71 +45,117 @@ std::unique_ptr<Animation> FromData(const QByteArray &data) {
 	return std::make_unique<Lottie::Animation>(data);
 }
 
-Animation::Animation(const QByteArray &content) {
-	parse(content);
+Animation::Animation(const QByteArray &content)
+: _timer([=] { checkNextFrame(); }) {
+	const auto weak = base::make_weak(this);
+	crl::async([=] {
+		auto error = QJsonParseError();
+		const auto document = QJsonDocument::fromJson(content, &error);
+		if (error.error != QJsonParseError::NoError) {
+			qCWarning(lcLottieQtBodymovinParser)
+				<< "Lottie Error: Parse failed with code "
+				<< error.error
+				<< "( " << error.errorString() << ")";
+			crl::on_main(weak, [=] {
+				parseFailed();
+			});
+		} else {
+			auto state = std::make_unique<SharedState>(document.object());
+			crl::on_main(weak, [this, result = std::move(state)]() mutable {
+				parseDone(std::move(result));
+			});
+		}
+	});
 }
 
 Animation::~Animation() {
+	if (_renderer) {
+		Assert(_state != nullptr);
+		_renderer->remove(_state);
+	}
 }
 
-QImage Animation::frame(crl::time now) const {
-	if (_scene->startFrame() == _scene->endFrame()
-		|| _scene->width() <= 0
-		|| _scene->height() <= 0) {
-		return QImage();
+void Animation::parseDone(std::unique_ptr<SharedState> state) {
+	Expects(state != nullptr);
+
+	auto information = state->information();
+	if (!information.frameRate
+		|| information.framesCount <= 0
+		|| information.size.isEmpty()) {
+		_updates.fire_error(Error::NotSupported);
+	} else {
+		_state = state.get();
+		_state->start(this, crl::now());
+		_renderer = FrameRenderer::Instance();
+		_renderer->append(std::move(state));
+		_updates.fire({ std::move(information) });
 	}
-	auto result = QImage(
-		_scene->width(),
-		_scene->height(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.fill(Qt::transparent);
+}
 
-	{
-		QPainter p(&result);
-		p.setRenderHints(QPainter::Antialiasing);
-		p.setRenderHints(QPainter::SmoothPixmapTransform);
+void Animation::parseFailed() {
+	_updates.fire_error(Error::ParseFailed);
+}
 
-		const auto position = now;
-		const auto elapsed = int((_scene->frameRate() * position + 500) / 1000);
-		const auto from = _scene->startFrame();
-		const auto till = _scene->endFrame();
-		const auto frames = (till - from);
-		const auto frame = _options.loop
-			? (from + (elapsed % frames))
-			: std::min(from + elapsed, till);
+QImage Animation::frame(const FrameRequest &request) const {
+	Expects(_renderer != nullptr);
 
-		_scene->updateProperties(frame);
-
-		LottieRasterRenderer renderer(&p);
-		_scene->render(renderer, frame);
+	const auto frame = _state->frameForPaint();
+	const auto changed = (frame->request != request)
+		&& (request.strict || !frame->request.strict);
+	if (changed) {
+		frame->request = request;
+		_renderer->updateFrameRequest(_state, request);
 	}
+	return PrepareFrameByRequest(frame, !changed);
+}
+
+rpl::producer<Update, Error> Animation::updates() const {
+	return _updates.events();
+}
+
+bool Animation::ready() const {
+	return (_renderer != nullptr);
+}
+
+crl::time Animation::markFrameDisplayed(crl::time now) {
+	Expects(_renderer != nullptr);
+
+	const auto result = _state->markFrameDisplayed(now);
+
 	return result;
 }
 
-int Animation::frameRate() const {
-	return _scene->frameRate();
+crl::time Animation::markFrameShown() {
+	Expects(_renderer != nullptr);
+
+	const auto result = _state->markFrameShown();
+	_renderer->frameShown(_state);
+
+	return result;
 }
 
-crl::time Animation::duration() const {
-	return (_scene->endFrame() - _scene->startFrame()) * crl::time(1000) / _scene->frameRate();
-}
+void Animation::checkNextFrame() {
+	Expects(_renderer != nullptr);
 
-void Animation::play(const PlaybackOptions &options) {
-	_options = options;
-	_started = crl::now();
-}
-
-void Animation::parse(const QByteArray &content) {
-	const auto document = QJsonDocument::fromJson(content);
-	const auto root = document.object();
-
-	if (root.empty()) {
-		_failed = true;
+	const auto time = _state->nextFrameDisplayTime();
+	if (time == kTimeUnknown) {
 		return;
 	}
 
-	_scene = std::make_unique<BMScene>();
-	_scene->parse(root);
+	const auto now = crl::now();
+	if (time > now) {
+		_timer.callOnce(time - now);
+	} else {
+		_timer.cancel();
+
+		const auto position = markFrameDisplayed(now);
+		_updates.fire({ DisplayFrameRequest{ position } });
+	}
 }
+
+//void Animation::play(const PlaybackOptions &options) {
+//	_options = options;
+//	_started = crl::now();
+//}
 
 } // namespace Lottie

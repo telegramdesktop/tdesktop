@@ -41,6 +41,7 @@ void prepareRound(
 	QRect target = QRect());
 void prepareCircle(QImage &image);
 QImage prepareColored(style::color add, QImage image);
+QImage prepareColored(QColor add, QImage image);
 QImage prepareOpaque(QImage image);
 
 enum class Option {

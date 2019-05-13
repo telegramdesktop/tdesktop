@@ -32,8 +32,7 @@ HistorySticker::HistorySticker(
 	not_null<DocumentData*> document)
 : HistoryMedia(parent)
 , _data(document)
-, _emoji(_data->sticker()->alt)
-, _timer([=] { parent->data()->history()->owner().requestViewRepaint(parent); }) {
+, _emoji(_data->sticker()->alt) {
 	_data->loadThumbnail(parent->data()->fullId());
 	if (const auto emoji = Ui::Emoji::Find(_emoji)) {
 		_emoji = emoji->text();
@@ -93,12 +92,25 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 	return { newWidth, minHeight() };
 }
 
+void HistorySticker::setupLottie() {
+	_lottie = _data->data().isEmpty()
+		? Lottie::FromFile(_data->filepath())
+		: Lottie::FromData(_data->data());
+	_lottie->updates(
+	) | rpl::start_with_next_error([=](Lottie::Update update) {
+		update.data.match([&](const Lottie::Information &information) {
+			_parent->data()->history()->owner().requestViewResize(_parent);
+		}, [&](const Lottie::DisplayFrameRequest &request) {
+			_parent->data()->history()->owner().requestViewRepaint(_parent);
+		});
+	}, [=](Lottie::Error error) {
+	}, _lifetime);
+}
+
 void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (!_lottie && _data->filename().endsWith(qstr(".json"))) {
 		if (_data->loaded()) {
-			_lottie = _data->data().isEmpty()
-				? Lottie::FromFile(_data->filepath())
-				: Lottie::FromData(_data->data());
+			const_cast<HistorySticker*>(this)->setupLottie();
 		} else {
 			_data->automaticLoad(_parent->data()->fullId(), _parent->data());
 		}
@@ -129,16 +141,17 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 	if (rtl()) usex = width() - usex - usew;
 
 	if (_lottie) {
-		auto frame = _lottie->frame(crl::now());
-		if (selected) {
-			frame = Images::prepareColored(
-				st::msgStickerOverlay,
-				std::move(frame));
+		if (_lottie->ready()) {
+			auto request = Lottie::FrameRequest();
+			request.resize = QSize(_pixw, _pixh) * cIntRetinaFactor();
+			if (selected) {
+				request.colored = st::msgStickerOverlay->c;
+			}
+			_lottie->markFrameShown();
+			p.drawImage(
+				QRect(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2, _pixw, _pixh),
+				_lottie->frame(request));
 		}
-		p.drawImage(
-			QRect(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2, _pixw, _pixh),
-			frame);
-		_timer.callOnce(crl::time(1000) / _lottie->frameRate());
 	} else {
 		const auto &pixmap = [&]() -> const QPixmap & {
 			const auto o = item->fullId();

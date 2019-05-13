@@ -63,12 +63,14 @@ private:
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
 	int additionalWidth() const;
 
+	void setupLottie();
+
 	int _pixw = 1;
 	int _pixh = 1;
 	ClickHandlerPtr _packLink;
 	not_null<DocumentData*> _data;
 	QString _emoji;
-	mutable base::Timer _timer;
-	mutable std::unique_ptr<Lottie::Animation> _lottie;
+	std::unique_ptr<Lottie::Animation> _lottie;
+	rpl::lifetime _lifetime;
 
 };

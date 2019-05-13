@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QObject>
 #include <QtCore/QThread>
-#include "base/observer.h"
 #include "base/flat_map.h"
+
+#include <crl/crl_time.h>
 
 namespace base {
 

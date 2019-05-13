@@ -7,78 +7,99 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QHash>
-#include <QThread>
-#include <QMutex>
-#include <QWaitCondition>
+#include "base/basic_types.h"
+#include "base/weak_ptr.h"
+
+#include "lottie/lottie_common.h"
+
+#include <QtBodymovin/private/bmscene_p.h>
+#include <QImage>
+
+#include <crl/crl_time.h>
+#include <crl/crl_object_on_queue.h>
+
+#include <limits>
 
 class BMBase;
 class QImage;
 
 namespace Lottie {
 
+constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+
 class Animation;
-//
-//class FrameRenderer : public QThread {
-//    Q_OBJECT
-//
-//    struct Entry {
-//        Animation* animator = nullptr;
-//        BMBase *bmTreeBlueprint = nullptr;
-//        int startFrame = 0;
-//        int endFrame = 0;
-//        int currentFrame = 0;
-//        int animDir = 1;
-//        QHash<int, BMBase*> frameCache;
-//    };
-//
-//public:
-//    ~FrameRenderer();
-//
-//	FrameRenderer(const FrameRenderer &other) = delete;
-//    void operator=(const FrameRenderer &other) = delete;
-//
-//    static FrameRenderer *instance();
-//    static void deleteInstance();
-//
-//    BMBase *getFrame(Animation *animator, int frameNumber);
-//
-//signals:
-//    void frameReady(Animation *animator, int frameNumber);
-//
-//public slots:
-//    void registerAnimator(Animation *animator);
-//    void deregisterAnimator(Animation *animator);
-//
-//    bool gotoFrame(Animation *animator, int frame);
-//
-//    void frameRendered(Animation *animator, int frameNumber);
-//
-//protected:
-//    void run() override;
-//
-//    int parse(BMBase* rootElement, const QByteArray &jsonSource);
-//
-//    void prerender(Entry *animEntry);
-//
-//protected:
-//    QHash<Animation*, Entry*> _animData;
-//    int _cacheSize = 2;
-//    int _currentFrame = 0;
-//
-//    Animation *_animation = nullptr;
-//    QHash<int, QImage*> _frameCache;
-//
-//private:
-//	FrameRenderer();
-//
-//    void pruneFrameCache(Entry* e);
-//
-//private:
-//    static FrameRenderer *_rendererInstance;
-//
-//    QMutex _mutex;
-//    QWaitCondition _waitCondition;
-//};
+
+struct Frame {
+	QImage original;
+	crl::time position = kTimeUnknown;
+	crl::time displayed = kTimeUnknown;
+	crl::time display = kTimeUnknown;
+
+	FrameRequest request = FrameRequest::NonStrict();
+	QImage prepared;
+};
+
+QImage PrepareFrameByRequest(
+	not_null<Frame*> frame,
+	bool useExistingPrepared);
+
+class SharedState {
+public:
+	explicit SharedState(const QJsonObject &definition);
+
+	void start(not_null<Animation*> owner, crl::time now);
+
+	[[nodiscard]] Information information() const;
+	[[nodiscard]] bool initialized() const;
+
+	[[nodiscard]] not_null<Frame*> frameForPaint();
+	[[nodiscard]] crl::time nextFrameDisplayTime() const;
+	crl::time markFrameDisplayed(crl::time now);
+	crl::time markFrameShown();
+
+	void renderFrame(QImage &image, const FrameRequest &request, int index);
+	[[nodiscard]] bool renderNextFrame(const FrameRequest &request);
+
+private:
+	void init(QImage cover);
+	void renderNextFrame(
+		not_null<Frame*> frame,
+		const FrameRequest &request);
+	[[nodiscard]] not_null<Frame*> getFrame(int index);
+	[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
+	[[nodiscard]] int counter() const;
+
+	BMScene _scene;
+
+	static constexpr auto kCounterUninitialized = -1;
+	std::atomic<int> _counter = kCounterUninitialized;
+
+	static constexpr auto kFramesCount = 4;
+	std::array<Frame, kFramesCount> _frames;
+
+	base::weak_ptr<Animation> _owner;
+	crl::time _started = kTimeUnknown;
+	int _frameIndex = 0;
+
+};
+
+class FrameRendererObject;
+
+class FrameRenderer final {
+public:
+	static std::shared_ptr<FrameRenderer> Instance();
+
+	void append(std::unique_ptr<SharedState> entry);
+	void updateFrameRequest(
+		not_null<SharedState*> entry,
+		const FrameRequest &request);
+	void frameShown(not_null<SharedState*> entry);
+	void remove(not_null<SharedState*> state);
+
+private:
+	using Implementation = FrameRendererObject;
+	crl::object_on_queue<Implementation> _wrapped;
+
+};
 
 } // namespace Lottie

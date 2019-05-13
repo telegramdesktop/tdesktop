@@ -9,69 +9,62 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "base/flat_map.h"
+#include "base/weak_ptr.h"
+#include "base/timer.h"
 
+#include "lottie/lottie_common.h"
+
+#include <QSize>
 #include <crl/crl_time.h>
+#include <rpl/event_stream.h>
 #include <vector>
+#include <optional>
 
 class QImage;
 class QString;
 class QByteArray;
 
-class BMScene;
-
 namespace Lottie {
 
 class Animation;
+class SharedState;
+class FrameRenderer;
 
 bool ValidateFile(const QString &path);
 std::unique_ptr<Animation> FromFile(const QString &path);
 std::unique_ptr<Animation> FromData(const QByteArray &data);
 
-struct PlaybackOptions {
-	float64 speed = 1.;
-	bool loop = true;
-};
-
-class Animation final {
+class Animation final : public base::has_weak_ptr {
 public:
 	explicit Animation(const QByteArray &content);
 	~Animation();
 
-	void play(const PlaybackOptions &options);
+	//void play(const PlaybackOptions &options);
 
-	QImage frame(crl::time now) const;
+	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 
-	int frameRate() const;
-	crl::time duration() const;
+	[[nodiscard]] rpl::producer<Update, Error> updates() const;
 
-	void play();
-	void pause();
-	void resume();
-	void stop();
-
-	[[nodiscard]] bool active() const;
 	[[nodiscard]] bool ready() const;
-	[[nodiscard]] bool unsupported() const;
 
-	[[nodiscard]] float64 speed() const;
-	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
+	// Returns frame position, if any frame was marked as displayed.
+	crl::time markFrameDisplayed(crl::time now);
+	crl::time markFrameShown();
 
-	[[nodiscard]] bool playing() const;
-	[[nodiscard]] bool buffering() const;
-	[[nodiscard]] bool paused() const;
-	[[nodiscard]] bool finished() const;
+	void checkNextFrame();
 
 private:
-	void parse(const QByteArray &content);
+	void parseDone(std::unique_ptr<SharedState> state);
+	void parseFailed();
 
-	bool _initialized = false;
-	bool _unsupported = false;
-	bool _failed = false;
-	bool _paused = false;
-	crl::time _started = 0;
-	PlaybackOptions _options;
+	//crl::time _started = 0;
+	//PlaybackOptions _options;
 
-	std::unique_ptr<BMScene> _scene;
+	base::Timer _timer;
+	SharedState *_state = nullptr;
+	std::shared_ptr<FrameRenderer> _renderer;
+	rpl::event_stream<Update, Error> _updates;
+	rpl::lifetime _lifetime;
 
 };
 

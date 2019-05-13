@@ -476,15 +476,24 @@ void prepareRound(
 }
 
 QImage prepareColored(style::color add, QImage image) {
-	auto format = image.format();
+	return prepareColored(add->c, std::move(image));
+}
+
+QImage prepareColored(QColor add, QImage image) {
+	const auto format = image.format();
 	if (format != QImage::Format_RGB32 && format != QImage::Format_ARGB32_Premultiplied) {
 		image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	}
 
-	if (auto pix = image.bits()) {
-		int ca = int(add->c.alphaF() * 0xFF), cr = int(add->c.redF() * 0xFF), cg = int(add->c.greenF() * 0xFF), cb = int(add->c.blueF() * 0xFF);
-		const int w = image.width(), h = image.height(), size = w * h * 4;
-		for (auto i = index_type(); i < size; i += 4) {
+	if (const auto pix = image.bits()) {
+		const auto ca = int(add.alphaF() * 0xFF);
+		const auto cr = int(add.redF() * 0xFF);
+		const auto cg = int(add.greenF() * 0xFF);
+		const auto cb = int(add .blueF() * 0xFF);
+		const auto w = image.width();
+		const auto h = image.height();
+		const auto size = w * h * 4;
+		for (auto i = index_type(); i != size; i += 4) {
 			int b = pix[i], g = pix[i + 1], r = pix[i + 2], a = pix[i + 3], aca = a * ca;
 			pix[i + 0] = uchar(b + ((aca * (cb - b)) >> 16));
 			pix[i + 1] = uchar(g + ((aca * (cg - g)) >> 16));
