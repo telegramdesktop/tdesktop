@@ -69,13 +69,10 @@ public:
     virtual bool setProperty(BMLiteral::PropertyType propertyType, QVariant value);
 
     QString name() const;
-    void setName(const QString &name);
 
     int type() const;
     void setType(int type);
     virtual void parse(const QJsonObject &definition);
-
-    const QJsonObject& definition() const;
 
     virtual bool active(int frame) const;
     bool hidden() const;
@@ -96,11 +93,9 @@ public:
 protected:
     virtual BMScene *resolveTopRoot() const;
     BMScene *topRoot() const;
-    const QJsonObject resolveExpression(const QJsonObject& definition);
 
 protected:
-    QJsonObject m_definition;
-    int m_type;
+    int m_type = 0;
     bool m_hidden = false;
     QString m_name;
     QString m_matchName;

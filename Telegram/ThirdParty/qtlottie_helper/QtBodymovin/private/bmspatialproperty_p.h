@@ -59,37 +59,21 @@ public:
 
 	virtual void postprocessEasingCurve(
 			EasingSegment<QPointF> &easing,
-			const QJsonObject keyframe,
-			bool fromExpression) override {
+			const QJsonObject keyframe) override {
         // No need to parse further incomplete keyframes (i.e. last keyframes)
         if (easing.state != EasingSegmentState::Complete) {
             return;
         }
 
         qreal tix = 0, tiy = 0, tox = 0, toy = 0;
-        if (fromExpression) {
-            // If spatial property definition originates from
-            // an expression (specifically Slider), it contains scalar
-            // property. It must be expanded to both x and y coordinates
-            QJsonArray iArr = keyframe.value(QLatin1String("i")).toArray();
-            QJsonArray oArr = keyframe.value(QLatin1String("o")).toArray();
+        QJsonArray tiArr = keyframe.value(QLatin1String("ti")).toArray();
+        QJsonArray toArr = keyframe.value(QLatin1String("to")).toArray();
 
-            if (iArr.count() && oArr.count()) {
-                tix = iArr.at(0).toDouble();
-                tiy = tix;
-                tox = oArr.at(0).toDouble();
-                toy = tox;
-            }
-        } else {
-            QJsonArray tiArr = keyframe.value(QLatin1String("ti")).toArray();
-            QJsonArray toArr = keyframe.value(QLatin1String("to")).toArray();
-
-            if (tiArr.count() && toArr.count()) {
-                tix = tiArr.at(0).toDouble();
-                tiy = tiArr.at(1).toDouble();
-                tox = toArr.at(0).toDouble();
-                toy = toArr.at(1).toDouble();
-            }
+        if (tiArr.count() && toArr.count()) {
+            tix = tiArr.at(0).toDouble();
+            tiy = tiArr.at(1).toDouble();
+            tox = toArr.at(0).toDouble();
+            toy = toArr.at(1).toDouble();
         }
         QPointF s(easing.startValue);
         QPointF e(easing.endValue);

@@ -94,6 +94,9 @@ private:
 
 	bool _unsupported = false;
 
+	// Parsing stage.
+	bool _parsing = false;
+
 };
 
 QT_END_NAMESPACE

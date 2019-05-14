@@ -91,7 +91,6 @@ public:
             qCWarning(lcLottieQtBodymovinParser)
                     << "Property is split into separate x and y but it is not supported";
 
-        bool fromExpression = definition.value(QLatin1String("fromExpression")).toBool();
         m_animated = definition.value(QLatin1String("a")).toDouble() > 0;
         if (m_animated) {
             QJsonArray keyframes = definition.value(QLatin1String("k")).toArray();
@@ -99,15 +98,13 @@ public:
 			QJsonArray::const_iterator previous;
             while (it != keyframes.constEnd()) {
 				QJsonObject keyframe = (*it).toObject();
-                EasingSegment<T> easing = parseKeyframe(keyframe,
-                                                        fromExpression);
+                EasingSegment<T> easing = parseKeyframe(keyframe);
                 addEasing(easing);
 
 				if (m_easingCurves.length() > 1) {
 					postprocessEasingCurve(
 						m_easingCurves[m_easingCurves.length() - 2],
-						(*previous).toObject(),
-						fromExpression);
+						(*previous).toObject());
 				}
 				previous = it;
                 ++it;
@@ -118,8 +115,7 @@ public:
 				if (last.state == EasingSegmentState::Complete) {
 					postprocessEasingCurve(
 						last,
-						(*previous).toObject(),
-						fromExpression);
+						(*previous).toObject());
 				}
 			}
             m_value = T();
@@ -214,11 +210,8 @@ protected:
         return m_currentEasing;
     }
 
-    virtual EasingSegment<T> parseKeyframe(const QJsonObject keyframe,
-                                           bool fromExpression)
+    virtual EasingSegment<T> parseKeyframe(const QJsonObject keyframe)
     {
-        Q_UNUSED(fromExpression);
-
         EasingSegment<T> easing;
 
         int startTime = keyframe.value(QLatin1String("t")).toVariant().toInt();
@@ -274,8 +267,7 @@ protected:
 
 	virtual void postprocessEasingCurve(
 		EasingSegment<T> &easing,
-		const QJsonObject keyframe,
-		bool fromExpression) {
+		const QJsonObject keyframe) {
 	}
 
     virtual T getValue(const QJsonValue &value)
@@ -327,8 +319,7 @@ protected:
             return T();
     }
 
-    EasingSegment<T> parseKeyframe(const QJsonObject keyframe,
-                                   bool fromExpression) override
+    EasingSegment<T> parseKeyframe(const QJsonObject keyframe) override
     {
         QJsonArray startValues = keyframe.value(QLatin1String("s")).toArray();
         QJsonArray endValues = keyframe.value(QLatin1String("e")).toArray();
@@ -363,15 +354,8 @@ protected:
             this->m_startFrame = startTime;
 
         qreal xs, ys;
-        // Keyframes originating from an expression use only scalar values.
-        // They must be expanded for both x and y coordinates
-        if (fromExpression) {
-            xs = startValues.at(0).toDouble();
-            ys = startValues.at(0).toDouble();
-        } else {
-            xs = startValues.at(0).toDouble();
-            ys = startValues.at(1).toDouble();
-        }
+        xs = startValues.at(0).toDouble();
+        ys = startValues.at(1).toDouble();
         T s(xs, ys);
 
         QJsonObject easingIn = keyframe.value(QLatin1String("i")).toObject();
@@ -381,15 +365,8 @@ protected:
         easingCurve.startValue = s;
         if (!endValues.isEmpty()) {
             qreal xe, ye;
-            // Keyframes originating from an expression use only scalar values.
-            // They must be expanded for both x and y coordinates
-            if (fromExpression) {
-                xe = endValues.at(0).toDouble();
-                ye = endValues.at(0).toDouble();
-            } else {
-                xe = endValues.at(0).toDouble();
-                ye = endValues.at(1).toDouble();
-            }
+            xe = endValues.at(0).toDouble();
+            ye = endValues.at(1).toDouble();
             T e(xe, ye);
             easingCurve.endValue = e;
             easingCurve.state = EasingSegmentState::Complete;
