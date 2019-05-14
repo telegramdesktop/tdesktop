@@ -79,7 +79,11 @@ private:
 
 	base::weak_ptr<Animation> _owner;
 	crl::time _started = kTimeUnknown;
+	crl::time _duration = kTimeUnknown;
 	int _frameIndex = 0;
+	int _framesCount = 0;
+	int _frameRate;
+	std::atomic<int> _accumulatedDelayMs = 0;
 
 };
 

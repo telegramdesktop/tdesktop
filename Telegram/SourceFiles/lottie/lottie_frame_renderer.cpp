@@ -219,6 +219,10 @@ void SharedState::renderFrame(
 void SharedState::init(QImage cover) {
 	Expects(!initialized());
 
+	_frameRate = _scene.frameRate();
+	_framesCount = _scene.endFrame() - _scene.startFrame();
+	_duration = crl::time(1000) * _framesCount / _frameRate;
+
 	_frames[0].original = std::move(cover);
 	_frames[0].position = 0;
 
@@ -242,12 +246,11 @@ bool IsRendered(not_null<const Frame*> frame) {
 void SharedState::renderNextFrame(
 		not_null<Frame*> frame,
 		const FrameRequest &request) {
-	const auto framesCount = (_scene.endFrame() - _scene.startFrame());
-	Assert(framesCount > 0);
+	Expects(_framesCount > 0);
 
-	renderFrame(frame->original, request, (++_frameIndex) % framesCount);
+	renderFrame(frame->original, request, (++_frameIndex) % _framesCount);
 	PrepareFrameByRequest(frame);
-	frame->position = crl::time(1000) * _frameIndex / _scene.frameRate();
+	frame->position = crl::time(1000) * _frameIndex / _frameRate;
 	frame->displayed = kTimeUnknown;
 }
 
@@ -269,7 +272,7 @@ bool SharedState::renderNextFrame(const FrameRequest &request) {
 		if (!IsRendered(frame)) {
 			renderNextFrame(frame, request);
 		}
-		frame->display = _started + frame->position;
+		frame->display = _started + _accumulatedDelayMs + frame->position;
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
@@ -365,6 +368,8 @@ crl::time SharedState::markFrameDisplayed(crl::time now) {
 		Assert(frame->displayed == kTimeUnknown);
 
 		frame->displayed = now;
+		_accumulatedDelayMs += (frame->displayed - frame->display);
+
 		return frame->position;
 	};
 
