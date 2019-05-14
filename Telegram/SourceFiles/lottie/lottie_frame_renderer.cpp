@@ -92,6 +92,8 @@ private:
 	if (!GoodStorageForFrame(storage, request.resize)) {
 		storage = CreateFrameStorage(request.resize);
 	}
+	storage.fill(Qt::transparent);
+
 	{
 		QPainter p(&storage);
 		p.setRenderHint(QPainter::Antialiasing);
