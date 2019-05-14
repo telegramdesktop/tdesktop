@@ -55,16 +55,16 @@ class BMBasicTransform;
 class BODYMOVIN_EXPORT BMPreCompLayer final : public BMLayer
 {
 public:
-	BMPreCompLayer() = default;
-    explicit BMPreCompLayer(const BMPreCompLayer &other);
-	BMPreCompLayer(const QJsonObject &definition);
+	BMPreCompLayer(BMBase *parent);
+    BMPreCompLayer(BMBase *parent, const BMPreCompLayer &other);
+	BMPreCompLayer(BMBase *parent, const QJsonObject &definition);
     ~BMPreCompLayer() override;
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
     void updateProperties(int frame) override;
 	void render(LottieRenderer &renderer, int frame) const override;
-	void resolveAssets(const std::function<BMAsset*(QString)> &resolver) override;
+	void resolveAssets(const std::function<BMAsset*(BMBase*, QString)> &resolver) override;
 
 	QString refId() const;
 

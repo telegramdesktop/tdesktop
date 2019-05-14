@@ -55,12 +55,12 @@ class BMBasicTransform;
 class BODYMOVIN_EXPORT BMNullLayer final : public BMLayer
 {
 public:
-	BMNullLayer() = default;
-    explicit BMNullLayer(const BMNullLayer &other);
-	BMNullLayer(const QJsonObject &definition);
+	BMNullLayer(BMBase *parent);
+    BMNullLayer(BMBase *parent, const BMNullLayer &other);
+	BMNullLayer(BMBase *parent, const QJsonObject &definition);
     ~BMNullLayer() override;
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
     void render(LottieRenderer &render, int frame) const override;
 

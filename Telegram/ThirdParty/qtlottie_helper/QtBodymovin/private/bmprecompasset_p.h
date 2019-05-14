@@ -50,12 +50,12 @@ class LottieRenderer;
 class BODYMOVIN_EXPORT BMPreCompAsset : public BMAsset
 {
 public:
-	BMPreCompAsset() = default;
-	explicit BMPreCompAsset (const BMPreCompAsset &other) = default;
-	BMPreCompAsset(const QJsonObject &definition);
+	BMPreCompAsset(BMBase *parent);
+	BMPreCompAsset(BMBase *parent, const BMPreCompAsset &other);
+	BMPreCompAsset(BMBase *parent, const QJsonObject &definition);
 	~BMPreCompAsset() = default;
 
-    BMPreCompAsset *clone() const override;
+    BMPreCompAsset *clone(BMBase *parent) const override;
 };
 
 QT_END_NAMESPACE

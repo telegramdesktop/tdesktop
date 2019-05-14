@@ -51,7 +51,6 @@
 #include <QDebug>
 
 #include <QtBodymovin/private/bmconstants_p.h>
-#include <QtBodymovin/private/bmlayer_p.h>
 #include <QtBodymovin/private/beziereasing_p.h>
 
 QT_BEGIN_NAMESPACE

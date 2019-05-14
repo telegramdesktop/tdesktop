@@ -70,12 +70,12 @@ class BMTrimPath;
 class BODYMOVIN_EXPORT BMShape : public BMBase
 {
 public:
-    BMShape() = default;
-    explicit BMShape(const BMShape &other);
+	BMShape(BMBase *parent);
+    BMShape(BMBase *parent, const BMShape &other);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
-    static BMShape *construct(QJsonObject definition, BMBase *parent = nullptr);
+    static BMShape *construct(BMBase *parent, QJsonObject definition);
 
     virtual const QPainterPath &path() const;
     virtual bool acceptsTrim() const;

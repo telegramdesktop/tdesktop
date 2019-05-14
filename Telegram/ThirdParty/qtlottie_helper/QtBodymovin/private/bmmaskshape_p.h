@@ -56,13 +56,13 @@ class QJsonObject;
 class BODYMOVIN_EXPORT BMMaskShape : public BMShape
 {
 public:
-	BMMaskShape();
-    explicit BMMaskShape(const BMMaskShape &other);
-	BMMaskShape(const QJsonObject &definition, BMBase *parent = nullptr);
+	BMMaskShape(BMBase *parent);
+    BMMaskShape(BMBase *parent, const BMMaskShape &other);
+	BMMaskShape(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
-    void construct(const QJsonObject &definition);
+    void parse(const QJsonObject &definition);
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;

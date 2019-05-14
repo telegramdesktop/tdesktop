@@ -56,13 +56,12 @@ class BMAsset;
 class BODYMOVIN_EXPORT BMScene : public BMBase
 {
 public:
-    BMScene();
     BMScene(const BMScene &other) = delete;
     BMScene &operator=(const BMScene &other) = delete;
     explicit BMScene(const QJsonObject &definition);
     virtual ~BMScene();
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
 	void updateProperties(int frame) override;
 	void render(LottieRenderer &renderer, int frame) const override;

@@ -55,12 +55,12 @@ class BMBasicTransform;
 class BODYMOVIN_EXPORT BMShapeLayer final : public BMLayer
 {
 public:
-    BMShapeLayer() = default;
-    explicit BMShapeLayer(const BMShapeLayer &other);
-    BMShapeLayer(const QJsonObject &definition);
+    BMShapeLayer(BMBase *parent);
+    BMShapeLayer(BMBase *parent, const BMShapeLayer &other);
+    BMShapeLayer(BMBase *parent, const QJsonObject &definition);
     ~BMShapeLayer() override;
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &render, int frame) const override;

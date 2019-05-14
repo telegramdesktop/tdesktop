@@ -59,13 +59,13 @@ class QJsonObject;
 class BODYMOVIN_EXPORT BMRound : public BMShape
 {
 public:
-    BMRound() = default;
-    explicit BMRound(const BMRound &other);
-    BMRound(const QJsonObject &definition, BMBase *parent = nullptr);
+    BMRound(BMBase *parent);
+    BMRound(BMBase *parent, const BMRound &other);
+    BMRound(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
-    void construct(const QJsonObject &definition);
+    void parse(const QJsonObject &definition);
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;

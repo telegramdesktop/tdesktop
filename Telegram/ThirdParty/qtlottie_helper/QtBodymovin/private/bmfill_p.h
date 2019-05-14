@@ -52,11 +52,11 @@ QT_BEGIN_NAMESPACE
 class BODYMOVIN_EXPORT BMFill : public BMShape
 {
 public:
-    BMFill() = default;
-    explicit BMFill(const BMFill &other);
-    BMFill(const QJsonObject &definition, BMBase *parent = nullptr);
+    BMFill(BMBase *parent);
+    BMFill(BMBase *parent, const BMFill &other);
+    BMFill(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
     void updateProperties(int frame) override;
 

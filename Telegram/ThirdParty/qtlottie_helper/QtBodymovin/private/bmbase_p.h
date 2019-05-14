@@ -59,11 +59,12 @@ class BMScene;
 class BODYMOVIN_EXPORT BMBase
 {
 public:
-    BMBase() = default;
-    explicit BMBase(const BMBase &other);
+    BMBase(BMBase *parent);
+    BMBase(BMBase *parent, const BMBase &other);
+	BMBase(const BMBase &other) = delete;
     virtual ~BMBase();
 
-    virtual BMBase *clone() const;
+    virtual BMBase *clone(BMBase *parent) const;
 
     virtual bool setProperty(BMLiteral::PropertyType propertyType, QVariant value);
 
@@ -80,7 +81,6 @@ public:
     bool hidden() const;
 
     inline BMBase *parent() const { return m_parent; }
-    void setParent(BMBase *parent);
 
     const QList<BMBase *> &children() const { return m_children; }
     void prependChild(BMBase *child);
@@ -91,7 +91,7 @@ public:
     virtual void updateProperties(int frame);
     virtual void render(LottieRenderer &renderer, int frame) const;
 
-    virtual void resolveAssets(const std::function<BMAsset*(QString)> &resolver);
+    virtual void resolveAssets(const std::function<BMAsset*(BMBase*, QString)> &resolver);
 
 protected:
     virtual BMScene *resolveTopRoot() const;
@@ -110,7 +110,7 @@ protected:
     friend class BMRenderer;
 
 private:
-    BMBase *m_parent = nullptr;
+    BMBase * const m_parent = nullptr;
     QList<BMBase *> m_children;
 
     // Handle to the topmost element on which this element resides

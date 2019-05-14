@@ -57,13 +57,11 @@ QT_BEGIN_NAMESPACE
 class BODYMOVIN_EXPORT BMRect : public BMShape
 {
 public:
-    BMRect() = default;
-    explicit BMRect(const BMRect &other);
-    BMRect(const QJsonObject &definition, BMBase *parent = nullptr);
+    BMRect(BMBase *parent);
+    BMRect(BMBase *parent, const BMRect &other);
+    BMRect(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
-
-    void construct(const QJsonObject &definition);
+    BMBase *clone(BMBase *parent) const override;
 
     bool setProperty(BMLiteral::PropertyType propertyType, QVariant value) override;
 

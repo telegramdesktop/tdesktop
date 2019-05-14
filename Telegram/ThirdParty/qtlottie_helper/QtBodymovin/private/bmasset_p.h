@@ -50,17 +50,17 @@ class LottieRenderer;
 class BODYMOVIN_EXPORT BMAsset : public BMBase
 {
 public:
-	BMAsset() = default;
-	explicit BMAsset (const BMAsset &other) = default;
+	BMAsset(BMBase *parent);
+	BMAsset(BMBase *parent, const BMAsset &other);
     ~BMAsset() = default;
 
-    BMAsset *clone() const override;
+    BMAsset *clone(BMBase *parent) const override;
 
-    static BMAsset *construct(QJsonObject definition);
+    static BMAsset *construct(BMBase *parent, QJsonObject definition);
 
     void parse(const QJsonObject &definition) override;
 
-	void resolveAssets(const std::function<BMAsset*(QString)> &resolver) override;
+	void resolveAssets(const std::function<BMAsset*(BMBase*, QString)> &resolver) override;
 
 	QString id() const;
 

@@ -57,12 +57,13 @@ class BMPathTrimmer;
 class BODYMOVIN_EXPORT BMGroup : public BMShape
 {
 public:
-    BMGroup() = default;
-    BMGroup(const QJsonObject &definition, BMBase *parent = nullptr);
+    BMGroup(BMBase *parent);
+	BMGroup(BMBase *parent, const BMGroup &other);
+    BMGroup(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
-    void construct(const QJsonObject& definition);
+    void parse(const QJsonObject& definition);
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;

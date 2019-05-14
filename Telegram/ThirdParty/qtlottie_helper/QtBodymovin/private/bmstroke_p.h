@@ -52,11 +52,11 @@ QT_BEGIN_NAMESPACE
 class BODYMOVIN_EXPORT BMStroke : public BMShape
 {
 public:
-    BMStroke() = default;
-    explicit BMStroke(const BMStroke &other);
-    BMStroke(const QJsonObject &definition, BMBase *parent = nullptr);
+    BMStroke(BMBase *parent);
+    BMStroke(BMBase *parent, const BMStroke &other);
+    BMStroke(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;

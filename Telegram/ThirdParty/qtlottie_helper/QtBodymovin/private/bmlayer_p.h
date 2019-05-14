@@ -42,6 +42,7 @@
 //
 
 #include <QtBodymovin/private/bmbase_p.h>
+#include <QtBodymovin/private/bmbasictransform_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -53,15 +54,15 @@ class BODYMOVIN_EXPORT BMLayer : public BMBase
 public:
     enum MatteClipMode {NoClip, Alpha, InvertedAlpha, Luminence, InvertedLuminence};
 
-    BMLayer() = default;
-    explicit  BMLayer (const BMLayer &other);
+    BMLayer(BMBase *parent);
+    BMLayer(BMBase *parent, const BMLayer &other);
     ~BMLayer() override;
 
-    static BMLayer *construct(QJsonObject definition);
+    static BMLayer *construct(BMBase *parent, QJsonObject definition);
 
     bool active(int frame) const override;
 
-    void  parse(const QJsonObject &definition) override;
+    void parse(const QJsonObject &definition) override;
 
     void updateProperties(int frame) override;
 
@@ -72,7 +73,6 @@ public:
     MatteClipMode clipMode() const;
 
     int layerId() const;
-    BMBasicTransform *transform() const;
     void renderFullTransform(LottieRenderer &renderer, int frame) const;
 
 protected:
@@ -89,7 +89,7 @@ protected:
     bool m_3dLayer = false;
     BMBase *m_effects = nullptr;
     qreal m_stretch;
-    BMBasicTransform *m_layerTransform = nullptr;
+    BMBasicTransform m_layerTransform;
     BMMasks *m_masks = nullptr;
 
     int m_parentLayer = 0;

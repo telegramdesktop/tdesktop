@@ -56,7 +56,9 @@ class QJsonObject;
 class BODYMOVIN_EXPORT BMMasks : public BMBase
 {
 public:
-    BMBase *clone() const override;
+	BMMasks(BMBase *parent);
+	BMMasks(BMBase *parent, const BMMasks &other);
+    BMBase *clone(BMBase *parent) const override;
 
     void render(LottieRenderer &renderer, int frame) const override;
 

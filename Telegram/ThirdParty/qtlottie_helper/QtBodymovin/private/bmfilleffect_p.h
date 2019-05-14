@@ -54,12 +54,13 @@ class QJsonObject;
 class BODYMOVIN_EXPORT BMFillEffect : public BMBase
 {
 public:
-    BMFillEffect() = default;
-    explicit BMFillEffect(const BMFillEffect &other);
+    BMFillEffect(BMBase *parent);
+    BMFillEffect(BMBase *parent, const BMFillEffect &other);
+	BMFillEffect(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
-    void construct(const QJsonObject &definition);
+    void parse(const QJsonObject &definition);
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;

@@ -50,13 +50,13 @@ class QJsonObject;
 class BODYMOVIN_EXPORT BMRepeaterTransform : public BMBasicTransform
 {
 public:
-    BMRepeaterTransform() = default;
-    explicit BMRepeaterTransform(const BMRepeaterTransform &other);
-    BMRepeaterTransform(const QJsonObject &definition, BMBase *parent);
+    BMRepeaterTransform(BMBase *parent);
+    BMRepeaterTransform(BMBase *parent, const BMRepeaterTransform &other);
+    BMRepeaterTransform(BMBase *parent, const QJsonObject &definition);
 
-    BMBase *clone() const override;
+    BMBase *clone(BMBase *parent) const override;
 
-    void construct(const QJsonObject &definition);
+    void parse(const QJsonObject &definition);
 
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;
