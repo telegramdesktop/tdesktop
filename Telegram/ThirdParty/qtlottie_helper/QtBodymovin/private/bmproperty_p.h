@@ -87,13 +87,13 @@ public:
 
     virtual void construct(const QJsonObject &definition)
     {
-        if (definition.value(QLatin1String("s")).toVariant().toInt())
+        if (definition.value(QStringLiteral("s")).toVariant().toInt())
             qCWarning(lcLottieQtBodymovinParser)
                     << "Property is split into separate x and y but it is not supported";
 
-        m_animated = definition.value(QLatin1String("a")).toDouble() > 0;
+        m_animated = definition.value(QStringLiteral("a")).toDouble() > 0;
         if (m_animated) {
-            QJsonArray keyframes = definition.value(QLatin1String("k")).toArray();
+            QJsonArray keyframes = definition.value(QStringLiteral("k")).toArray();
             QJsonArray::const_iterator it = keyframes.constBegin();
 			QJsonArray::const_iterator previous;
             while (it != keyframes.constEnd()) {
@@ -120,7 +120,7 @@ public:
 			}
             m_value = T();
         } else
-            m_value = getValue(definition.value(QLatin1String("k")));
+            m_value = getValue(definition.value(QStringLiteral("k")));
     }
 
     void setValue(const T& value)
@@ -214,12 +214,12 @@ protected:
     {
         EasingSegment<T> easing;
 
-        int startTime = keyframe.value(QLatin1String("t")).toVariant().toInt();
+        int startTime = keyframe.value(QStringLiteral("t")).toVariant().toInt();
 
         // AE exported Bodymovin file includes the last
         // key frame but no other properties.
         // No need to process in that case
-        if (!keyframe.contains(QLatin1String("s")) && !keyframe.contains(QLatin1String("e"))) {
+        if (!keyframe.contains(QStringLiteral("s")) && !keyframe.contains(QStringLiteral("e"))) {
             // In this case start time is the last frame for the property
             this->m_endFrame = startTime;
             easing.startFrame = startTime;
@@ -242,20 +242,20 @@ protected:
             m_startFrame = startTime;
 
         easing.startFrame = startTime;
-        easing.startValue = getValue(keyframe.value(QLatin1String("s")).toArray());
-        if (keyframe.contains(QLatin1String("e"))) {
-            easing.endValue = getValue(keyframe.value(QLatin1String("e")).toArray());
+        easing.startValue = getValue(keyframe.value(QStringLiteral("s")).toArray());
+        if (keyframe.contains(QStringLiteral("e"))) {
+            easing.endValue = getValue(keyframe.value(QStringLiteral("e")).toArray());
             easing.state = EasingSegmentState::Complete;
         }
 
-        QJsonObject easingIn = keyframe.value(QLatin1String("i")).toObject();
-        QJsonObject easingOut = keyframe.value(QLatin1String("o")).toObject();
+        QJsonObject easingIn = keyframe.value(QStringLiteral("i")).toObject();
+        QJsonObject easingOut = keyframe.value(QStringLiteral("o")).toObject();
 
-        qreal eix = easingIn.value(QLatin1String("x")).toArray().at(0).toDouble();
-        qreal eiy = easingIn.value(QLatin1String("y")).toArray().at(0).toDouble();
+        qreal eix = easingIn.value(QStringLiteral("x")).toArray().at(0).toDouble();
+        qreal eiy = easingIn.value(QStringLiteral("y")).toArray().at(0).toDouble();
 
-        qreal eox = easingOut.value(QLatin1String("x")).toArray().at(0).toDouble();
-        qreal eoy = easingOut.value(QLatin1String("y")).toArray().at(0).toDouble();
+        qreal eox = easingOut.value(QStringLiteral("x")).toArray().at(0).toDouble();
+        qreal eoy = easingOut.value(QStringLiteral("y")).toArray().at(0).toDouble();
 
         QPointF c1 = QPointF(eox, eoy);
         QPointF c2 = QPointF(eix, eiy);
@@ -321,9 +321,9 @@ protected:
 
     EasingSegment<T> parseKeyframe(const QJsonObject keyframe) override
     {
-        QJsonArray startValues = keyframe.value(QLatin1String("s")).toArray();
-        QJsonArray endValues = keyframe.value(QLatin1String("e")).toArray();
-        int startTime = keyframe.value(QLatin1String("t")).toVariant().toInt();
+        QJsonArray startValues = keyframe.value(QStringLiteral("s")).toArray();
+        QJsonArray endValues = keyframe.value(QStringLiteral("e")).toArray();
+        int startTime = keyframe.value(QStringLiteral("t")).toVariant().toInt();
 
         EasingSegment<T> easingCurve;
         easingCurve.startFrame = startTime;
@@ -358,8 +358,8 @@ protected:
         ys = startValues.at(1).toDouble();
         T s(xs, ys);
 
-        QJsonObject easingIn = keyframe.value(QLatin1String("i")).toObject();
-        QJsonObject easingOut = keyframe.value(QLatin1String("o")).toObject();
+        QJsonObject easingIn = keyframe.value(QStringLiteral("i")).toObject();
+        QJsonObject easingOut = keyframe.value(QStringLiteral("o")).toObject();
 
         easingCurve.startFrame = startTime;
         easingCurve.startValue = s;
@@ -372,12 +372,12 @@ protected:
             easingCurve.state = EasingSegmentState::Complete;
         }
 
-        if (easingIn.value(QLatin1String("x")).isArray()) {
-            QJsonArray eixArr = easingIn.value(QLatin1String("x")).toArray();
-            QJsonArray eiyArr = easingIn.value(QLatin1String("y")).toArray();
+        if (easingIn.value(QStringLiteral("x")).isArray()) {
+            QJsonArray eixArr = easingIn.value(QStringLiteral("x")).toArray();
+            QJsonArray eiyArr = easingIn.value(QStringLiteral("y")).toArray();
 
-            QJsonArray eoxArr = easingOut.value(QLatin1String("x")).toArray();
-            QJsonArray eoyArr = easingOut.value(QLatin1String("y")).toArray();
+            QJsonArray eoxArr = easingOut.value(QStringLiteral("x")).toArray();
+            QJsonArray eoyArr = easingOut.value(QStringLiteral("y")).toArray();
 
             if (!eixArr.isEmpty() && !eiyArr.isEmpty()) {
                 qreal eix = eixArr.takeAt(0).toDouble();
@@ -393,11 +393,11 @@ protected:
             }
         }
         else {
-            qreal eix = easingIn.value(QLatin1String("x")).toDouble();
-            qreal eiy = easingIn.value(QLatin1String("y")).toDouble();
+            qreal eix = easingIn.value(QStringLiteral("x")).toDouble();
+            qreal eiy = easingIn.value(QStringLiteral("y")).toDouble();
 
-            qreal eox = easingOut.value(QLatin1String("x")).toDouble();
-            qreal eoy = easingOut.value(QLatin1String("y")).toDouble();
+            qreal eox = easingOut.value(QStringLiteral("x")).toDouble();
+            qreal eoy = easingOut.value(QStringLiteral("y")).toDouble();
 
             QPointF c1 = QPointF(eox, eoy);
             QPointF c2 = QPointF(eix, eiy);

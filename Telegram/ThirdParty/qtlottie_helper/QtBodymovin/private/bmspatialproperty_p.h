@@ -66,8 +66,8 @@ public:
         }
 
         qreal tix = 0, tiy = 0, tox = 0, toy = 0;
-        QJsonArray tiArr = keyframe.value(QLatin1String("ti")).toArray();
-        QJsonArray toArr = keyframe.value(QLatin1String("to")).toArray();
+        QJsonArray tiArr = keyframe.value(QStringLiteral("ti")).toArray();
+        QJsonArray toArr = keyframe.value(QStringLiteral("to")).toArray();
 
         if (tiArr.count() && toArr.count()) {
             tix = tiArr.at(0).toDouble();
