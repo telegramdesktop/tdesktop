@@ -66,8 +66,6 @@ public:
 
     virtual BMBase *clone(BMBase *parent) const;
 
-    virtual bool setProperty(BMLiteral::PropertyType propertyType, QVariant value);
-
     QString name() const;
 
     int type() const;

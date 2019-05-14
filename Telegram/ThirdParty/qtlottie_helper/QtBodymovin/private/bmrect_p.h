@@ -63,8 +63,6 @@ public:
 
     BMBase *clone(BMBase *parent) const override;
 
-    bool setProperty(BMLiteral::PropertyType propertyType, QVariant value) override;
-
     void updateProperties(int frame) override;
     void render(LottieRenderer &renderer, int frame) const override;
     bool acceptsTrim() const override;

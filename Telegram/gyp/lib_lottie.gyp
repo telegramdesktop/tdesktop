@@ -8,12 +8,6 @@
   'includes': [
     'common.gypi',
   ],
-  'variables': {
-    'variables': {
-      'moc_to_sources%': '1',
-    },
-    'moc_to_sources%': '<(moc_to_sources)',
-  },
   'targets': [{
     'target_name': 'lib_lottie',
     'type': 'static_library',
@@ -21,7 +15,6 @@
       'common.gypi',
       'openssl.gypi',
       'qt.gypi',
-      'qt_moc.gypi',
       'telegram_linux.gypi',
       'pch.gypi',
     ],

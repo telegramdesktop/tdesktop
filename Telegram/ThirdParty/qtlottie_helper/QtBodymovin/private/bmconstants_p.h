@@ -62,28 +62,6 @@ Q_DECLARE_LOGGING_CATEGORY(lcLottieQtBodymovinUpdate);
 Q_DECLARE_LOGGING_CATEGORY(lcLottieQtBodymovinRender);
 Q_DECLARE_LOGGING_CATEGORY(lcLottieQtBodymovinRenderThread);
 
-class BODYMOVIN_EXPORT BMLiteral : public QObject
-{
-    Q_OBJECT
-public:
-    enum ElementType {
-        Animation = 0,
-        LayerImage,
-        LayerNull,
-        LayerPrecomp,
-        LayerShape
-    };
-
-    enum PropertyType {
-        RectPosition,
-        RectSize,
-        RectRoundness
-    };
-    Q_ENUM(PropertyType)
-
-    explicit BMLiteral(QObject *parent = nullptr) : QObject(parent) {}
-};
-
 QT_END_NAMESPACE
 
 #endif // BMCONSTANTS_P_H
