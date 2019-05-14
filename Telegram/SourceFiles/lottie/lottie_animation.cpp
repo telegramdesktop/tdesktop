@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QJsonDocument>
 #include <QFile>
 
+#include "logs.h"
 #include "rasterrenderer/lottierasterrenderer.h"
 
 namespace Lottie {
@@ -49,8 +50,10 @@ Animation::Animation(const QByteArray &content)
 : _timer([=] { checkNextFrame(); }) {
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
+		const auto now = crl::now();
 		auto error = QJsonParseError();
 		const auto document = QJsonDocument::fromJson(content, &error);
+		const auto parsed = crl::now();
 		if (error.error != QJsonParseError::NoError) {
 			qCWarning(lcLottieQtBodymovinParser)
 				<< "Lottie Error: Parse failed with code "
@@ -65,6 +68,8 @@ Animation::Animation(const QByteArray &content)
 				parseDone(std::move(result));
 			});
 		}
+		const auto finish = crl::now();
+		LOG(("INIT: %1 (PARSE %2)").arg(finish - now).arg(parsed - now));
 	});
 }
 

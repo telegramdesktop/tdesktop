@@ -193,6 +193,7 @@ void SharedState::renderFrame(
 	if (!GoodStorageForFrame(image, size)) {
 		image = CreateFrameStorage(size);
 	}
+	const auto now = crl::now();
 	image.fill(Qt::transparent);
 
 	QPainter p(&image);
@@ -212,8 +213,13 @@ void SharedState::renderFrame(
 		_scene.endFrame() - 1);
 	_scene.updateProperties(frame);
 
+	const auto updated = crl::now();
+
 	LottieRasterRenderer renderer(&p);
 	_scene.render(renderer, frame);
+
+	const auto finished = crl::now();
+	LOG(("RENDERED: %1 (UPDATE %2)").arg(finished - now).arg(updated - now));
 }
 
 void SharedState::init(QImage cover) {
