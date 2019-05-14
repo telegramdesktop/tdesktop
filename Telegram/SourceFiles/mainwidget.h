@@ -199,7 +199,6 @@ public:
 
 	// While HistoryInner is not HistoryView::ListWidget.
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
-	bool historyInSelectionMode() const;
 
 	MsgId currentReplyToIdFor(not_null<History*> history) const;
 

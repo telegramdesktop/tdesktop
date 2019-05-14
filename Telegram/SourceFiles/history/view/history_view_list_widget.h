@@ -180,6 +180,10 @@ public:
 		not_null<const Element*> view) override;
 	crl::time elementHighlightTime(not_null<const Element*> element) override;
 	bool elementInSelectionMode() override;
+	bool elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) override;
 
 	~ListWidget();
 

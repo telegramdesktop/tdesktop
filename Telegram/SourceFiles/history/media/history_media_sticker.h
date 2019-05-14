@@ -55,6 +55,10 @@ public:
 		return true;
 	}
 
+	void unloadHeavyPart() override {
+		unloadLottie();
+	}
+
 private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -64,6 +68,7 @@ private:
 	int additionalWidth() const;
 
 	void setupLottie();
+	void unloadLottie();
 
 	int _pixw = 1;
 	int _pixh = 1;

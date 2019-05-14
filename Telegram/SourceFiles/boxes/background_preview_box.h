@@ -21,7 +21,7 @@ class Checkbox;
 
 class BackgroundPreviewBox
 	: public BoxContent
-	, private HistoryView::ElementDelegate {
+	, private HistoryView::SimpleElementDelegate {
 public:
 	BackgroundPreviewBox(QWidget*, const Data::WallPaper &paper);
 
@@ -38,16 +38,6 @@ private:
 	using Element = HistoryView::Element;
 	not_null<HistoryView::ElementDelegate*> delegate();
 	HistoryView::Context elementContext() override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message) override;
-	bool elementUnderCursor(not_null<const Element*> view) override;
-	void elementAnimationAutoplayAsync(
-		not_null<const Element*> element) override;
-	crl::time elementHighlightTime(
-		not_null<const Element*> element) override;
-	bool elementInSelectionMode() override;
 
 	void apply();
 	void share();

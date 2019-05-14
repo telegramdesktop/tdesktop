@@ -73,6 +73,10 @@ public:
 	MessageIdsList getSelectedItems() const;
 	void selectItem(not_null<HistoryItem*> item);
 	bool inSelectionMode() const;
+	bool elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) const;
 
 	void updateBotInfo(bool recount = true);
 
@@ -295,6 +299,8 @@ private:
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
+
+	static HistoryInner *Instance;
 
 	not_null<Window::Controller*> _controller;
 

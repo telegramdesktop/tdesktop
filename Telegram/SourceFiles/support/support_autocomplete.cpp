@@ -577,31 +577,4 @@ HistoryView::Context ConfirmContactBox::elementContext() {
 	return HistoryView::Context::ContactPreview;
 }
 
-std::unique_ptr<HistoryView::Element> ConfirmContactBox::elementCreate(
-		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(this, message);
-}
-
-std::unique_ptr<HistoryView::Element> ConfirmContactBox::elementCreate(
-		not_null<HistoryService*> message) {
-	return std::make_unique<HistoryView::Service>(this, message);
-}
-
-bool ConfirmContactBox::elementUnderCursor(not_null<const Element*> view) {
-	return false;
-}
-
-void ConfirmContactBox::elementAnimationAutoplayAsync(
-	not_null<const Element*> element) {
-}
-
-crl::time ConfirmContactBox::elementHighlightTime(
-		not_null<const Element*> element) {
-	return crl::time(0);
-}
-
-bool ConfirmContactBox::elementInSelectionMode() {
-	return false;
-}
-
 } // namespace Support

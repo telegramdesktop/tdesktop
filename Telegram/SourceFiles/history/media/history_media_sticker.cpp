@@ -39,7 +39,9 @@ HistorySticker::HistorySticker(
 	}
 }
 
-HistorySticker::~HistorySticker() = default;
+HistorySticker::~HistorySticker() {
+	unloadLottie();
+}
 
 QSize HistorySticker::countOptimalSize() {
 	auto sticker = _data->sticker();
@@ -93,9 +95,14 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 }
 
 void HistorySticker::setupLottie() {
+	if (_lottie) {
+		return;
+	}
 	_lottie = _data->data().isEmpty()
 		? Lottie::FromFile(_data->filepath())
 		: Lottie::FromData(_data->data());
+	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
+
 	_lottie->updates(
 	) | rpl::start_with_next_error([=](Lottie::Update update) {
 		update.data.match([&](const Lottie::Information &information) {
@@ -105,6 +112,14 @@ void HistorySticker::setupLottie() {
 		});
 	}, [=](Lottie::Error error) {
 	}, _lifetime);
+}
+
+void HistorySticker::unloadLottie() {
+	if (!_lottie) {
+		return;
+	}
+	_lottie = nullptr;
+	_parent->data()->history()->owner().unregisterHeavyViewPart(_parent);
 }
 
 void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {

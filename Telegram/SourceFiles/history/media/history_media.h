@@ -220,6 +220,9 @@ public:
 		return true;
 	}
 
+	virtual void unloadHeavyPart() {
+	}
+
 	// Should be called only by Data::Session.
 	virtual void updateSharedContactUserId(UserId userId) {
 	}

@@ -89,6 +89,10 @@ public:
 	crl::time elementHighlightTime(
 		not_null<const HistoryView::Element*> element) override;
 	bool elementInSelectionMode() override;
+	bool elementIntersectsRange(
+		not_null<const HistoryView::Element*> view,
+		int from,
+		int till) override;
 
 	~InnerWidget();
 

@@ -525,6 +525,17 @@ bool InnerWidget::elementInSelectionMode() {
 	return false;
 }
 
+bool InnerWidget::elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) {
+	Expects(view->delegate() == this);
+
+	const auto top = itemTop(view);
+	const auto bottom = top + view->height();
+	return (top < till && bottom > from);
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

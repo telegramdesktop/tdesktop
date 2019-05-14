@@ -46,7 +46,29 @@ public:
 	virtual crl::time elementHighlightTime(
 		not_null<const Element*> element) = 0;
 	virtual bool elementInSelectionMode() = 0;
+	virtual bool elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) = 0;
 
+};
+
+class SimpleElementDelegate : public ElementDelegate {
+public:
+	std::unique_ptr<Element> elementCreate(
+		not_null<HistoryMessage*> message) override;
+	std::unique_ptr<Element> elementCreate(
+		not_null<HistoryService*> message) override;
+	bool elementUnderCursor(not_null<const Element*> view) override;
+	void elementAnimationAutoplayAsync(
+		not_null<const Element*> element) override;
+	crl::time elementHighlightTime(
+		not_null<const Element*> element) override;
+	bool elementInSelectionMode() override;
+	bool elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) override;
 };
 
 TextSelection UnshiftItemSelection(
@@ -231,6 +253,8 @@ public:
 	virtual bool displayEditedBadge() const;
 	virtual TimeId displayedEditDate() const;
 	virtual bool hasVisibleText() const;
+
+	virtual void unloadHeavyPart();
 
 	// Legacy blocks structure.
 	HistoryBlock *block();

@@ -59,7 +59,7 @@ private:
 
 class ConfirmContactBox
 	: public BoxContent
-	, public HistoryView::ElementDelegate {
+	, public HistoryView::SimpleElementDelegate {
 public:
 	ConfirmContactBox(
 		QWidget*,
@@ -69,16 +69,6 @@ public:
 
 	using Element = HistoryView::Element;
 	HistoryView::Context elementContext() override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message) override;
-	bool elementUnderCursor(not_null<const Element*> view) override;
-	void elementAnimationAutoplayAsync(
-		not_null<const Element*> element) override;
-	crl::time elementHighlightTime(
-		not_null<const Element*> element) override;
-	bool elementInSelectionMode() override;
 
 protected:
 	void prepare() override;

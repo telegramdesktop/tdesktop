@@ -682,36 +682,6 @@ HistoryView::Context ForwardsPrivacyController::elementContext() {
 	return HistoryView::Context::ContactPreview;
 }
 
-auto ForwardsPrivacyController::elementCreate(
-	not_null<HistoryMessage*> message)
--> std::unique_ptr<HistoryView::Element> {
-	return std::make_unique<HistoryView::Message>(delegate(), message);
-}
-
-auto ForwardsPrivacyController::elementCreate(
-	not_null<HistoryService*> message)
--> std::unique_ptr<HistoryView::Element> {
-	Unexpected("Service message in ForwardsPrivacyController.");
-}
-
-bool ForwardsPrivacyController::elementUnderCursor(
-		not_null<const Element*> view) {
-	return false;
-}
-
-void ForwardsPrivacyController::elementAnimationAutoplayAsync(
-	not_null<const Element*> element) {
-}
-
-crl::time ForwardsPrivacyController::elementHighlightTime(
-		not_null<const Element*> element) {
-	return crl::time(0);
-}
-
-bool ForwardsPrivacyController::elementInSelectionMode() {
-	return false;
-}
-
 ApiWrap::Privacy::Key ProfilePhotoPrivacyController::key() {
 	return Key::ProfilePhoto;
 }

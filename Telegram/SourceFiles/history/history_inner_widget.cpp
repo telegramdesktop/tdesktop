@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kScrollDateHideTimeout = 1000;
+constexpr auto kUnloadHeavyPartsPages = 3;
 
 // Helper binary search for an item in a list that is not completely
 // above the given top of the visible area or below the given bottom of the visible area
@@ -75,6 +76,8 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 } // namespace
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
+
+HistoryInner *HistoryInner::Instance = nullptr;
 
 class HistoryInner::BotAbout : public ClickHandlerHost {
 public:
@@ -127,6 +130,8 @@ HistoryInner::HistoryInner(
 , _scroll(scroll)
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
+	Instance = this;
+
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -2097,6 +2102,7 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	auto scrolledUp = (top < _visibleAreaTop);
 	_visibleAreaTop = top;
 	_visibleAreaBottom = bottom;
+	const auto visibleAreaHeight = bottom - top;
 
 	// if history has pending resize events we should not update scrollTopItem
 	if (hasPendingResizedItems()) {
@@ -2130,6 +2136,12 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 	} else {
 		scrollDateHideByTimer();
 	}
+
+	// Unload lottie animations.
+	const auto pages = kUnloadHeavyPartsPages;
+	const auto from = _visibleAreaTop - pages * visibleAreaHeight;
+	const auto till = _visibleAreaBottom + pages * visibleAreaHeight;
+	Auth().data().unloadHeavyViewParts(ElementDelegate(), from, till);
 }
 
 bool HistoryInner::displayScrollDate() const {
@@ -2243,6 +2255,9 @@ void HistoryInner::leaveEventHook(QEvent *e) {
 }
 
 HistoryInner::~HistoryInner() {
+	if (Instance == this) {
+		Instance = nullptr;
+	}
 	delete _menu;
 	_mouseAction = MouseAction::None;
 }
@@ -2343,6 +2358,18 @@ bool HistoryInner::inSelectionMode() const {
 		return true;
 	}
 	return false;
+}
+
+bool HistoryInner::elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) const {
+	const auto top = itemTop(view);
+	if (top < 0) {
+		return false;
+	}
+	const auto bottom = top + view->height();
+	return (top < till && bottom > from);
 }
 
 auto HistoryInner::getSelectionState() const
@@ -3179,7 +3206,15 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			return crl::time(0);
 		}
 		bool elementInSelectionMode() override {
-			return App::main()->historyInSelectionMode();
+			return Instance ? Instance->inSelectionMode() : false;
+		}
+		bool elementIntersectsRange(
+				not_null<const Element*> view,
+				int from,
+				int till) override {
+			return Instance
+				? Instance->elementIntersectsRange(view, from, till)
+				: false;
 		}
 
 	};

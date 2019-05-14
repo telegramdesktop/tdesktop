@@ -1251,6 +1251,58 @@ void Session::sendHistoryChangeNotifications() {
 	}
 }
 
+void Session::registerHeavyViewPart(not_null<ViewElement*> view) {
+	_heavyViewParts.emplace(view);
+}
+
+void Session::unregisterHeavyViewPart(not_null<ViewElement*> view) {
+	_heavyViewParts.remove(view);
+}
+
+void Session::unloadHeavyViewParts(
+		not_null<HistoryView::ElementDelegate*> delegate) {
+	if (_heavyViewParts.empty()) {
+		return;
+	}
+	const auto remove = ranges::count(_heavyViewParts, delegate, [](not_null<ViewElement*> element) {
+		return element->delegate();
+	});
+	if (remove == _heavyViewParts.size()) {
+		for (const auto view : base::take(_heavyViewParts)) {
+			view->unloadHeavyPart();
+		}
+	} else {
+		auto remove = std::vector<not_null<ViewElement*>>();
+		for (const auto view : _heavyViewParts) {
+			if (view->delegate() == delegate) {
+				remove.push_back(view);
+			}
+		}
+		for (const auto view : remove) {
+			view->unloadHeavyPart();
+		}
+	}
+}
+
+void Session::unloadHeavyViewParts(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		int from,
+		int till) {
+	if (_heavyViewParts.empty()) {
+		return;
+	}
+	auto remove = std::vector<not_null<ViewElement*>>();
+	for (const auto view : _heavyViewParts) {
+		if (view->delegate() == delegate
+			&& !delegate->elementIntersectsRange(view, from, till)) {
+			remove.push_back(view);
+		}
+	}
+	for (const auto view : remove) {
+		view->unloadHeavyPart();
+	}
+}
+
 void Session::removeMegagroupParticipant(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> user) {

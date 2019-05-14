@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/media/history_media.h"
@@ -46,6 +47,42 @@ bool IsAttachedToPreviousInSavedMessages(
 }
 
 } // namespace
+
+
+std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
+		not_null<HistoryMessage*> message) {
+	return std::make_unique<HistoryView::Message>(this, message);
+}
+
+std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
+		not_null<HistoryService*> message) {
+	return std::make_unique<HistoryView::Service>(this, message);
+}
+
+bool SimpleElementDelegate::elementUnderCursor(
+		not_null<const Element*> view) {
+	return false;
+}
+
+void SimpleElementDelegate::elementAnimationAutoplayAsync(
+	not_null<const Element*> element) {
+}
+
+crl::time SimpleElementDelegate::elementHighlightTime(
+	not_null<const Element*> element) {
+	return crl::time(0);
+}
+
+bool SimpleElementDelegate::elementInSelectionMode() {
+	return false;
+}
+
+bool SimpleElementDelegate::elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) {
+	return true;
+}
 
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
@@ -524,6 +561,12 @@ TimeId Element::displayedEditDate() const {
 
 bool Element::hasVisibleText() const {
 	return false;
+}
+
+void Element::unloadHeavyPart() {
+	if (_media) {
+		_media->unloadHeavyPart();
+	}
 }
 
 HistoryBlock *Element::block() {

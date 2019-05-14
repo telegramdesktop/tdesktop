@@ -967,10 +967,6 @@ crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) cons
 	return _history->highlightStartTime(item);
 }
 
-bool MainWidget::historyInSelectionMode() const {
-	return _history->inSelectionMode();
-}
-
 MsgId MainWidget::currentReplyToIdFor(not_null<History*> history) const {
 	if (_history->history() == history) {
 		return _history->replyToId();

@@ -30,6 +30,7 @@ enum class NewMessageType;
 namespace HistoryView {
 struct Group;
 class Element;
+class ElementDelegate;
 } // namespace HistoryView
 
 class AuthSession;
@@ -197,6 +198,15 @@ public:
 	void notifyHistoryChangeDelayed(not_null<History*> history);
 	[[nodiscard]] rpl::producer<not_null<History*>> historyChanged() const;
 	void sendHistoryChangeNotifications();
+
+	void registerHeavyViewPart(not_null<ViewElement*> view);
+	void unregisterHeavyViewPart(not_null<ViewElement*> view);
+	void unloadHeavyViewParts(
+		not_null<HistoryView::ElementDelegate*> delegate);
+	void unloadHeavyViewParts(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		int from,
+		int till);
 
 	using MegagroupParticipant = std::tuple<
 		not_null<ChannelData*>,
@@ -908,6 +918,8 @@ private:
 	std::unordered_map<
 		not_null<const HistoryItem*>,
 		std::vector<not_null<ViewElement*>>> _views;
+
+	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
 	PeerData *_proxyPromoted = nullptr;
 
