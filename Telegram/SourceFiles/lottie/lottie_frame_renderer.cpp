@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 
 #include "lottie/lottie_animation.h"
-#include "rasterrenderer/lottierasterrenderer.h"
+#include "rasterrenderer/rasterrenderer.h"
 #include "logs.h"
 
 #include <range/v3/algorithm/find.hpp>
@@ -215,7 +215,7 @@ void SharedState::renderFrame(
 
 	const auto updated = crl::now();
 
-	LottieRasterRenderer renderer(&p);
+	RasterRenderer renderer(&p);
 	_scene.render(renderer, frame);
 
 	const auto finished = crl::now();

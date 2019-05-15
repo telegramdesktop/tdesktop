@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QFile>
 
 #include "logs.h"
-#include "rasterrenderer/lottierasterrenderer.h"
+#include "rasterrenderer/rasterrenderer.h"
 
 namespace Lottie {
 
@@ -43,7 +43,7 @@ std::unique_ptr<Animation> FromFile(const QString &path) {
 }
 
 std::unique_ptr<Animation> FromData(const QByteArray &data) {
-	return std::make_unique<Lottie::Animation>(data);
+	return std::make_unique<Animation>(data);
 }
 
 Animation::Animation(const QByteArray &content)

@@ -77,7 +77,7 @@
       '<(lottie_loc)/bodymovin/bmfreeformshape.cpp',
       '<(lottie_loc)/bodymovin/bmtrimpath.cpp',
       '<(lottie_loc)/bodymovin/bmpathtrimmer.cpp',
-      '<(lottie_loc)/bodymovin/lottierenderer.cpp',
+      '<(lottie_loc)/bodymovin/renderer.cpp',
       '<(lottie_loc)/bodymovin/trimpath.cpp',
       '<(lottie_loc)/bodymovin/bmfilleffect.cpp',
       '<(lottie_loc)/bodymovin/bmrepeater.cpp',
@@ -87,7 +87,6 @@
       '<(lottie_loc)/bodymovin/beziereasing.h',
       '<(lottie_loc)/bodymovin/bmbase.h',
       '<(lottie_loc)/bodymovin/bmbasictransform.h',
-      '<(lottie_loc)/bodymovin/bmconstants.h',
       '<(lottie_loc)/bodymovin/bmellipse.h',
       '<(lottie_loc)/bodymovin/bmfill.h',
       '<(lottie_loc)/bodymovin/bmfilleffect.h',
@@ -107,13 +106,13 @@
       '<(lottie_loc)/bodymovin/bmstroke.h',
       '<(lottie_loc)/bodymovin/bmtrimpath.h',
       '<(lottie_loc)/bodymovin/trimpath.h',
-      '<(lottie_loc)/bodymovin/lottierenderer.h',
+      '<(lottie_loc)/bodymovin/renderer.h',
       '<(lottie_loc)/bodymovin/bmpathtrimmer.h',
 
       # taken from qtlottie/src/imports/imports.pro
-      '<(lottie_loc)/imports/rasterrenderer/lottierasterrenderer.cpp',
+      '<(lottie_loc)/imports/rasterrenderer/rasterrenderer.cpp',
 
-      '<(lottie_loc)/imports/rasterrenderer/lottierasterrenderer.h',
+      '<(lottie_loc)/imports/rasterrenderer/rasterrenderer.h',
 
       # added to qtlottie/src/bodymovin/bodymovin.pro
       '<(lottie_loc)/bodymovin/bmasset.cpp',
