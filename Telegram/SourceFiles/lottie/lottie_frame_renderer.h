@@ -9,15 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "base/weak_ptr.h"
-
 #include "lottie/lottie_common.h"
+#include "bmscene.h"
 
-#include <QtBodymovin/private/bmscene_p.h>
 #include <QImage>
-
 #include <crl/crl_time.h>
 #include <crl/crl_object_on_queue.h>
-
 #include <limits>
 
 class BMBase;

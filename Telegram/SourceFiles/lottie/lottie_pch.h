@@ -7,4 +7,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#define qAsConst(X) std::as_const(X)
+#include <QtGlobal>
+#include <QDebug>

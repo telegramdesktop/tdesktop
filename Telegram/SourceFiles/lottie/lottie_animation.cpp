@@ -55,7 +55,7 @@ Animation::Animation(const QByteArray &content)
 		const auto document = QJsonDocument::fromJson(content, &error);
 		const auto parsed = crl::now();
 		if (error.error != QJsonParseError::NoError) {
-			qCWarning(lcLottieQtBodymovinParser)
+			qWarning()
 				<< "Lottie Error: Parse failed with code "
 				<< error.error
 				<< "( " << error.errorString() << ")";
