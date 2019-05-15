@@ -51,6 +51,7 @@
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
       '<(submodules_loc)/crl/src',
+      '<(submodules_loc)/rapidjson/include',
     ],
     'sources': [
       # interface for tdesktop

@@ -19,3 +19,6 @@
 [submodule "Telegram/ThirdParty/qtlottie"]
 	path = Telegram/ThirdParty/qtlottie
 	url = https://github.com/telegramdesktop/qtlottie.git
+[submodule "Telegram/ThirdParty/rapidjson"]
+	path = Telegram/ThirdParty/rapidjson
+	url = https://github.com/Tencent/rapidjson.git

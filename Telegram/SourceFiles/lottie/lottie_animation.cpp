@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QJsonObject>
 #include <QFile>
 
+#include <rapidjson/document.h>
+
 #include "logs.h"
 #include "rasterrenderer/rasterrenderer.h"
 
@@ -55,6 +57,9 @@ Animation::Animation(const QByteArray &content)
 		auto error = QJsonParseError();
 		const auto document = QJsonDocument::fromJson(content, &error);
 		const auto parsed = crl::now();
+		auto test = rapidjson::Document();
+		test.Parse(content.data());
+		const auto second = crl::now();
 		if (error.error != QJsonParseError::NoError) {
 			qWarning()
 				<< "Lottie Error: Parse failed with code "
@@ -70,7 +75,7 @@ Animation::Animation(const QByteArray &content)
 			});
 		}
 		const auto finish = crl::now();
-		LOG(("INIT: %1 (PARSE %2)").arg(finish - now).arg(parsed - now));
+		LOG(("INIT: %1 (PARSE %2, RAPIDJSON %3)").arg(finish - now).arg(parsed - now).arg(second - parsed));
 	});
 }
 
