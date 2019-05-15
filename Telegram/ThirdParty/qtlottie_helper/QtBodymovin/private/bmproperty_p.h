@@ -69,7 +69,6 @@ struct EasingSegment {
     T startValue;
     T endValue;
     BezierEasing easing;
-    QPainterPath bezier;
 
     double bezierLength = 0.;
     struct BezierPoint {
@@ -85,7 +84,7 @@ class BODYMOVIN_EXPORT BMProperty
 public:
     virtual ~BMProperty() = default;
 
-    virtual void construct(const QJsonObject &definition)
+    void construct(const QJsonObject &definition)
     {
         if (definition.value(QStringLiteral("s")).toVariant().toInt())
             qCWarning(lcLottieQtBodymovinParser)
@@ -210,7 +209,7 @@ protected:
         return m_currentEasing;
     }
 
-    virtual EasingSegment<T> parseKeyframe(const QJsonObject keyframe)
+    EasingSegment<T> parseKeyframe(const QJsonObject keyframe)
     {
         EasingSegment<T> easing;
 
@@ -251,23 +250,36 @@ protected:
         QJsonObject easingIn = keyframe.value(QStringLiteral("i")).toObject();
         QJsonObject easingOut = keyframe.value(QStringLiteral("o")).toObject();
 
-        qreal eix = easingIn.value(QStringLiteral("x")).toArray().at(0).toDouble();
-        qreal eiy = easingIn.value(QStringLiteral("y")).toArray().at(0).toDouble();
+		if (easingIn.value(QStringLiteral("x")).isArray()) {
+			qreal eix = easingIn.value(QStringLiteral("x")).toArray().at(0).toDouble();
+			qreal eiy = easingIn.value(QStringLiteral("y")).toArray().at(0).toDouble();
 
-        qreal eox = easingOut.value(QStringLiteral("x")).toArray().at(0).toDouble();
-        qreal eoy = easingOut.value(QStringLiteral("y")).toArray().at(0).toDouble();
+			qreal eox = easingOut.value(QStringLiteral("x")).toArray().at(0).toDouble();
+			qreal eoy = easingOut.value(QStringLiteral("y")).toArray().at(0).toDouble();
 
-        QPointF c1 = QPointF(eox, eoy);
-        QPointF c2 = QPointF(eix, eiy);
+			QPointF c1 = QPointF(eox, eoy);
+			QPointF c2 = QPointF(eix, eiy);
 
-        easing.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
+			easing.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
+		} else {
+			qreal eix = easingIn.value(QStringLiteral("x")).toDouble();
+			qreal eiy = easingIn.value(QStringLiteral("y")).toDouble();
+
+			qreal eox = easingOut.value(QStringLiteral("x")).toDouble();
+			qreal eoy = easingOut.value(QStringLiteral("y")).toDouble();
+
+			QPointF c1 = QPointF(eox, eoy);
+			QPointF c2 = QPointF(eix, eiy);
+
+			easing.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
+		}
 
         return easing;
     }
 
 	virtual void postprocessEasingCurve(
 		EasingSegment<T> &easing,
-		const QJsonObject keyframe) {
+		const QJsonObject &keyframe) {
 	}
 
     virtual T getValue(const QJsonValue &value)
@@ -302,9 +314,8 @@ protected:
     const EasingSegment<T> *m_currentEasing = nullptr;
     int m_startFrame = INT_MAX;
     int m_endFrame = 0;
-    T m_value;
+    T m_value = T();
 };
-
 
 template <typename T>
 class BODYMOVIN_EXPORT BMProperty2D : public BMProperty<T>
@@ -317,95 +328,6 @@ protected:
                      value.at(1).toDouble());
         else
             return T();
-    }
-
-    EasingSegment<T> parseKeyframe(const QJsonObject keyframe) override
-    {
-        QJsonArray startValues = keyframe.value(QStringLiteral("s")).toArray();
-        QJsonArray endValues = keyframe.value(QStringLiteral("e")).toArray();
-        int startTime = keyframe.value(QStringLiteral("t")).toVariant().toInt();
-
-        EasingSegment<T> easingCurve;
-        easingCurve.startFrame = startTime;
-
-        // AE exported Bodymovin file includes the last
-        // key frame but no other properties.
-        // No need to process in that case
-        if (startValues.isEmpty() && endValues.isEmpty()) {
-            // In this case start time is the last frame for the property
-            this->m_endFrame = startTime;
-            easingCurve.startFrame = startTime;
-            easingCurve.endFrame = startTime;
-            easingCurve.state = EasingSegmentState::Final;
-            if (this->m_easingCurves.length()) {
-                const EasingSegment<T> &last = this->m_easingCurves.last();
-                if (last.state == EasingSegmentState::Complete) {
-                    easingCurve.startValue = last.endValue;
-                    easingCurve.endValue = last.endValue;
-                } else {
-                    qCWarning(lcLottieQtBodymovinParser())
-                            << "Last keyframe found after an incomplete one";
-                }
-            }
-            return easingCurve;
-        }
-
-        if (this->m_startFrame > startTime)
-            this->m_startFrame = startTime;
-
-        qreal xs, ys;
-        xs = startValues.at(0).toDouble();
-        ys = startValues.at(1).toDouble();
-        T s(xs, ys);
-
-        QJsonObject easingIn = keyframe.value(QStringLiteral("i")).toObject();
-        QJsonObject easingOut = keyframe.value(QStringLiteral("o")).toObject();
-
-        easingCurve.startFrame = startTime;
-        easingCurve.startValue = s;
-        if (!endValues.isEmpty()) {
-            qreal xe, ye;
-            xe = endValues.at(0).toDouble();
-            ye = endValues.at(1).toDouble();
-            T e(xe, ye);
-            easingCurve.endValue = e;
-            easingCurve.state = EasingSegmentState::Complete;
-        }
-
-        if (easingIn.value(QStringLiteral("x")).isArray()) {
-            QJsonArray eixArr = easingIn.value(QStringLiteral("x")).toArray();
-            QJsonArray eiyArr = easingIn.value(QStringLiteral("y")).toArray();
-
-            QJsonArray eoxArr = easingOut.value(QStringLiteral("x")).toArray();
-            QJsonArray eoyArr = easingOut.value(QStringLiteral("y")).toArray();
-
-            if (!eixArr.isEmpty() && !eiyArr.isEmpty()) {
-                qreal eix = eixArr.takeAt(0).toDouble();
-                qreal eiy = eiyArr.takeAt(0).toDouble();
-
-                qreal eox = eoxArr.takeAt(0).toDouble();
-                qreal eoy = eoyArr.takeAt(0).toDouble();
-
-                QPointF c1 = QPointF(eox, eoy);
-                QPointF c2 = QPointF(eix, eiy);
-
-                easingCurve.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
-            }
-        }
-        else {
-            qreal eix = easingIn.value(QStringLiteral("x")).toDouble();
-            qreal eiy = easingIn.value(QStringLiteral("y")).toDouble();
-
-            qreal eox = easingOut.value(QStringLiteral("x")).toDouble();
-            qreal eoy = easingOut.value(QStringLiteral("y")).toDouble();
-
-            QPointF c1 = QPointF(eox, eoy);
-            QPointF c2 = QPointF(eix, eiy);
-
-            easingCurve.easing.addCubicBezierSegment(c1, c2, QPointF(1.0, 1.0));
-        }
-
-        return easingCurve;
     }
 };
 

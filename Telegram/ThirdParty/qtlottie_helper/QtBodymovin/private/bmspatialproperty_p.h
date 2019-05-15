@@ -51,15 +51,9 @@ QT_BEGIN_NAMESPACE
 class BMSpatialProperty : public BMProperty2D<QPointF>
 {
 public:
-    virtual void construct(const QJsonObject &definition) override
-    {
-        qCDebug(lcLottieQtBodymovinParser) << "BMSpatialProperty::construct()";
-        BMProperty2D<QPointF>::construct(definition);
-    }
-
 	virtual void postprocessEasingCurve(
 			EasingSegment<QPointF> &easing,
-			const QJsonObject keyframe) override {
+			const QJsonObject &keyframe) override {
         // No need to parse further incomplete keyframes (i.e. last keyframes)
         if (easing.state != EasingSegmentState::Complete) {
             return;
@@ -83,15 +77,14 @@ public:
         c1 += s;
         c2 += e;
 
-        easing.bezier.moveTo(s);
-        easing.bezier.cubicTo(c1, c2, e);
+        QBezier bezier = QBezier::fromPoints(s, c1, c2, e);
 
         const auto kCount = 150;
         easing.bezierPoints.reserve(kCount);
         for (auto k = 0; k < kCount; ++k) {
             const auto percent = double(k) / (kCount - 1.);
             auto point = EasingSegment<QPointF>::BezierPoint();
-            point.point = easing.bezier.pointAtPercent(percent);
+            point.point = bezier.pointAt(percent);
             if (k > 0) {
                 const auto delta = (point.point - easing.bezierPoints[k - 1].point);
                 point.length = std::sqrt(QPointF::dotProduct(delta, delta));
