@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_async.h>
 #include <crl/crl_on_main.h>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QFile>
 
 #include "logs.h"
