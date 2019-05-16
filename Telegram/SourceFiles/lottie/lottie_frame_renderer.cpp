@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/count_if.hpp>
-#include <QJsonDocument>
 #include <QPainter>
 
 namespace Images {
@@ -172,7 +171,7 @@ void FrameRendererObject::queueGenerateFrames() {
 	});
 }
 
-SharedState::SharedState(const QJsonObject &definition)
+SharedState::SharedState(const JsonObject &definition)
 : _scene(definition) {
 	if (_scene.endFrame() > _scene.startFrame()) {
 		auto cover = QImage();

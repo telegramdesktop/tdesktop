@@ -25,6 +25,7 @@ namespace Lottie {
 constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
 
 class Animation;
+class JsonObject;
 
 struct Frame {
 	QImage original;
@@ -42,7 +43,7 @@ QImage PrepareFrameByRequest(
 
 class SharedState {
 public:
-	explicit SharedState(const QJsonObject &definition);
+	explicit SharedState(const JsonObject &definition);
 
 	void start(not_null<Animation*> owner, crl::time now);
 

@@ -8,18 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 
 #include "lottie/lottie_frame_renderer.h"
+#include "rasterrenderer/rasterrenderer.h"
+#include "json.h"
 #include "base/algorithm.h"
+#include "logs.h"
 
+#include <QFile>
 #include <crl/crl_async.h>
 #include <crl/crl_on_main.h>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QFile>
-
-#include <rapidjson/document.h>
-
-#include "logs.h"
-#include "rasterrenderer/rasterrenderer.h"
 
 namespace Lottie {
 
@@ -42,40 +38,35 @@ std::unique_ptr<Animation> FromFile(const QString &path) {
 	if (content.isEmpty()) {
 		return nullptr;
 	}
-	return FromData(content);
+	return FromData(std::move(content));
 }
 
 std::unique_ptr<Animation> FromData(const QByteArray &data) {
-	return std::make_unique<Animation>(data);
+	return std::make_unique<Animation>(base::duplicate(data));
 }
 
-Animation::Animation(const QByteArray &content)
+Animation::Animation(QByteArray &&content)
 : _timer([=] { checkNextFrame(); }) {
 	const auto weak = base::make_weak(this);
-	crl::async([=] {
+	crl::async([=, content = base::take(content)]() mutable {
 		const auto now = crl::now();
-		auto error = QJsonParseError();
-		const auto document = QJsonDocument::fromJson(content, &error);
+		const auto document = JsonDocument(std::move(content));
 		const auto parsed = crl::now();
-		auto test = rapidjson::Document();
-		test.Parse(content.data());
-		const auto second = crl::now();
-		if (error.error != QJsonParseError::NoError) {
+		if (const auto error = document.error()) {
 			qWarning()
 				<< "Lottie Error: Parse failed with code "
-				<< error.error
-				<< "( " << error.errorString() << ")";
+				<< error;
 			crl::on_main(weak, [=] {
 				parseFailed();
 			});
 		} else {
-			auto state = std::make_unique<SharedState>(document.object());
+			auto state = std::make_unique<SharedState>(document.root());
 			crl::on_main(weak, [this, result = std::move(state)]() mutable {
 				parseDone(std::move(result));
 			});
 		}
 		const auto finish = crl::now();
-		LOG(("INIT: %1 (PARSE %2, RAPIDJSON %3)").arg(finish - now).arg(parsed - now).arg(second - parsed));
+		LOG(("INIT: %1 (PARSE %2)").arg(finish - now).arg(parsed - now));
 	});
 }
 

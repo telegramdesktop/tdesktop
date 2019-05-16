@@ -7,5 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtGlobal>
+#include <vector>
+#include <functional>
+
+#include <QtMath>
 #include <QDebug>
+#include <QList>
+#include <QPointF>
+#include <QSizeF>
+#include <QVector4D>
+
+#include "json.h"
+#include "beziereasing.h"

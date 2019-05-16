@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
-
 #include "lottie/lottie_common.h"
 
 #include <QSize>
@@ -36,7 +35,7 @@ std::unique_ptr<Animation> FromData(const QByteArray &data);
 
 class Animation final : public base::has_weak_ptr {
 public:
-	explicit Animation(const QByteArray &content);
+	explicit Animation(QByteArray &&content);
 	~Animation();
 
 	//void play(const PlaybackOptions &options);

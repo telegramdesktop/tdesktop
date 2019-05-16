@@ -132,6 +132,8 @@
       '<(lottie_loc)/bodymovin/bmscene.h',
       '<(lottie_loc)/bodymovin/bmmasks.h',
       '<(lottie_loc)/bodymovin/bmmaskshape.h',
+
+	  '<(lottie_loc)/bodymovin/json.h',
     ],
     'conditions': [[ 'build_macold', {
       'xcode_settings': {
