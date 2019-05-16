@@ -102,7 +102,6 @@
       '<(lottie_loc)/bodymovin/bmshape.h',
       '<(lottie_loc)/bodymovin/bmshapelayer.h',
       '<(lottie_loc)/bodymovin/bmshapetransform.h',
-      '<(lottie_loc)/bodymovin/bmspatialproperty.h',
       '<(lottie_loc)/bodymovin/bmstroke.h',
       '<(lottie_loc)/bodymovin/bmtrimpath.h',
       '<(lottie_loc)/bodymovin/trimpath.h',
