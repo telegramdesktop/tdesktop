@@ -250,6 +250,9 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 	auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight).intersected(clip);
 	if (!cover.isEmpty()) {
+		const auto widthText = _cloudButton
+			? _cloudButton->x() - st::mainMenuCloudSize
+			: width() - 2 * st::mainMenuCoverTextLeft;
 		p.fillRect(cover, st::mainMenuCoverBg);
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
@@ -257,7 +260,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			p,
 			st::mainMenuCoverTextLeft,
 			st::mainMenuCoverNameTop,
-			width() - 2 * st::mainMenuCoverTextLeft,
+			widthText,
 			width());
 		p.setFont(st::normalFont);
 		p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
