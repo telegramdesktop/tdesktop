@@ -123,7 +123,9 @@ void HistorySticker::unloadLottie() {
 }
 
 void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
-	if (!_lottie && _data->filename().endsWith(qstr(".json"))) {
+	if (!_lottie
+		&& (_data->filename().endsWith(qstr(".tgs"))
+			|| _data->filename().endsWith(qstr(".json")))) {
 		if (_data->loaded()) {
 			const_cast<HistorySticker*>(this)->setupLottie();
 		} else {

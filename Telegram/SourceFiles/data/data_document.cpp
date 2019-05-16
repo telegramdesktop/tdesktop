@@ -554,7 +554,8 @@ void DocumentData::setattributes(
 
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
-		&& (_filename == qstr("animation.json")
+		&& (_filename.endsWith(qstr(".tgs"))
+			|| _filename == qstr("animation.json")
 			|| ((_filename.size() == 9 || _filename.size() == 10)
 				&& _filename.endsWith(qstr(".json"))
 				&& QRegularExpression("^\\d+\\.json$").match(_filename).hasMatch()))) {

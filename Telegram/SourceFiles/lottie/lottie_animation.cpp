@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "rasterrenderer/rasterrenderer.h"
 #include "json.h"
 #include "base/algorithm.h"
+#include "zlib.h"
 #include "logs.h"
 
 #include <QFile>
@@ -18,16 +19,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_on_main.h>
 
 namespace Lottie {
+namespace {
+
+constexpr auto kMaxSize = 1024 * 1024;
+
+QByteArray UnpackGzip(const QByteArray &bytes) {
+	z_stream stream;
+	stream.zalloc = nullptr;
+	stream.zfree = nullptr;
+	stream.opaque = nullptr;
+	stream.avail_in = 0;
+	stream.next_in = nullptr;
+	int res = inflateInit2(&stream, 16 + MAX_WBITS);
+	if (res != Z_OK) {
+		return bytes;
+	}
+	const auto guard = gsl::finally([&] { inflateEnd(&stream); });
+
+	auto result = QByteArray(kMaxSize + 1, Qt::Uninitialized);
+	stream.avail_in = bytes.size();
+	stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(bytes.data()));
+	stream.avail_out = 0;
+	while (!stream.avail_out) {
+		stream.avail_out = result.size();
+		stream.next_out = reinterpret_cast<Bytef*>(result.data());
+		int res = inflate(&stream, Z_NO_FLUSH);
+		if (res != Z_OK && res != Z_STREAM_END) {
+			return bytes;
+		} else if (!stream.avail_out) {
+			return bytes;
+		}
+	}
+	result.resize(result.size() - stream.avail_out);
+	return result;
+}
+
+} // namespace
 
 bool ValidateFile(const QString &path) {
-	if (!path.endsWith(qstr(".json"), Qt::CaseInsensitive)) {
+	if (!path.endsWith(qstr(".json"), Qt::CaseInsensitive)
+		&& !path.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
 		return false;
 	}
 	return true;
 }
 
 std::unique_ptr<Animation> FromFile(const QString &path) {
-	if (!path.endsWith(qstr(".json"), Qt::CaseInsensitive)) {
+	if (!path.endsWith(qstr(".json"), Qt::CaseInsensitive)
+		&& !path.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
 		return nullptr;
 	}
 	auto f = QFile(path);
@@ -50,11 +89,21 @@ Animation::Animation(QByteArray &&content)
 	const auto weak = base::make_weak(this);
 	crl::async([=, content = base::take(content)]() mutable {
 		const auto now = crl::now();
+		content = UnpackGzip(content);
+		if (content.size() > kMaxSize) {
+			qWarning()
+				<< "Lottie Error: Too large file: "
+				<< content.size();
+			crl::on_main(weak, [=] {
+				parseFailed();
+			});
+			return;
+		}
 		const auto document = JsonDocument(std::move(content));
 		const auto parsed = crl::now();
 		if (const auto error = document.error()) {
 			qWarning()
-				<< "Lottie Error: Parse failed with code "
+				<< "Lottie Error: Parse failed with code: "
 				<< error;
 			crl::on_main(weak, [=] {
 				parseFailed();

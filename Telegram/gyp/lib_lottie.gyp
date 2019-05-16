@@ -44,6 +44,7 @@
       '<(src_loc)',
       '<(SHARED_INTERMEDIATE_DIR)',
       '<(libs_loc)/range-v3/include',
+      '<(libs_loc)/zlib',
       '<(lottie_loc)',
       '<(lottie_loc)/bodymovin',
       '<(lottie_loc)/imports',

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "zip.h"
 #include "unzip.h"
+#include "logs.h"
 
 #ifdef small
 #undef small
