@@ -75,6 +75,14 @@ public:
 		int y,
 		int size) const override;
 
+	void paintUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &bg,
+		const style::color &fg) const;
+
 	bool chatsListLoaded() const;
 	void setChatsListLoaded(bool loaded = true);
 	void setCloudChatsListSize(int size);

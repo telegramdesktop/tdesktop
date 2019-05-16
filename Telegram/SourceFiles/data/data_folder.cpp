@@ -220,14 +220,30 @@ void Folder::paintUserpic(
 		int x,
 		int y,
 		int size) const {
+	paintUserpic(
+		p,
+		x,
+		y,
+		size,
+		st::historyPeerArchiveUserpicBg,
+		st::historyPeerUserpicFg);
+}
+
+void Folder::paintUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &bg,
+		const style::color &fg) const {
 	p.setPen(Qt::NoPen);
-	p.setBrush(st::historyPeerArchiveUserpicBg);
+	p.setBrush(bg);
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 	}
 	if (size == st::dialogsPhotoSize) {
-		st::dialogsArchiveUserpic.paintInCenter(p, { x, y, size, size });
+		st::dialogsArchiveUserpic.paintInCenter(p, { x, y, size, size }, fg->c);
 	} else {
 		p.save();
 		const auto ratio = size / float64(st::dialogsPhotoSize);
@@ -236,7 +252,8 @@ void Folder::paintUserpic(
 		const auto skip = st::dialogsPhotoSize;
 		st::dialogsArchiveUserpic.paintInCenter(
 			p,
-			{ -skip, -skip, 2 * skip, 2 * skip });
+			{ -skip, -skip, 2 * skip, 2 * skip },
+			fg->c);
 		p.restore();
 	}
 	//const auto small = (size - st::lineWidth) / 2; // #feed

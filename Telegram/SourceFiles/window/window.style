@@ -96,8 +96,8 @@ mainMenuUserpic: UserpicButton(defaultUserpicButton) {
 	photoSize: 48px;
 }
 mainMenuCloudButton: IconButton {
-	width: 64px;
-	height: 64px;
+	width: 48px;
+	height: 48px;
 
 	icon: icon {
 //		{ "menu_cloud", mainMenuCloudFg },

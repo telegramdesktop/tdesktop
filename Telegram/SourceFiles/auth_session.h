@@ -200,6 +200,10 @@ public:
 	bool notifyAboutPinned() const;
 	rpl::producer<bool> notifyAboutPinnedChanges() const;
 
+	void setArchiveInMainMenu(bool inMainMenu);
+	bool archiveInMainMenu() const;
+	rpl::producer<bool> archiveInMainMenuChanges() const;
+
 	bool hadLegacyCallsPeerToPeerNobody() const {
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
@@ -254,6 +258,7 @@ private:
 		Data::AutoDownload::Full autoDownload;
 		rpl::variable<bool> archiveCollapsed = false;
 		rpl::variable<bool> notifyAboutPinned = true;
+		rpl::variable<bool> archiveInMainMenu = false;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

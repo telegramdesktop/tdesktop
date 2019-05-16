@@ -217,6 +217,11 @@ InnerWidget::InnerWidget(
 		refreshWithCollapsedRows();
 	}, lifetime());
 
+	session().settings().archiveInMainMenuChanges(
+	) | rpl::start_with_next([=] {
+		refreshWithCollapsedRows();
+	}, lifetime());
+
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			Layout::clearUnreadBadgesCache();
@@ -302,7 +307,8 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 	const auto archive = !list->empty()
 		? (*list->begin())->folder()
 		: nullptr;
-	if (archive && session().settings().archiveCollapsed()) {
+	if (archive && session().settings().archiveCollapsed()
+		&& !session().settings().archiveInMainMenu()) {
 		if (_selected && _selected->folder() == archive) {
 			_selected = nullptr;
 		}
@@ -2105,8 +2111,9 @@ Data::Folder *InnerWidget::shownFolder() const {
 }
 
 bool InnerWidget::needCollapsedRowsRefresh() const {
-	const auto archive = !shownDialogs()->empty()
-		? (*shownDialogs()->begin())->folder()
+	const auto list = shownDialogs();
+	const auto archive = !list->empty()
+		? (*list->begin())->folder()
 		: nullptr;
 	const auto collapsedHasArchive = !_collapsedRows.empty()
 		&& (_collapsedRows.back()->folder != nullptr);

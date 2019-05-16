@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
 #include "mainwindow.h"
@@ -26,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "data/data_folder.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "styles/style_window.h"
@@ -124,8 +127,20 @@ MainMenu::MainMenu(
 , _version(this, st::mainMenuVersionLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	auto showSelfChat = [] {
+	const auto showSelfChat = [] {
 		App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
+	};
+	const auto showArchive = [=] {
+		if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+			App::wnd()->sessionController()->openFolder(folder);
+			Ui::hideSettingsAndLayer();
+		}
+	};
+	const auto checkArchive = [=] {
+		const auto folder = Auth().data().folderLoaded(Data::Folder::kId);
+		return folder
+			&& !folder->chatsList()->empty()
+			&& _controller->session().settings().archiveInMainMenu();
 	};
 	_userpicButton.create(
 		this,
@@ -138,6 +153,27 @@ MainMenu::MainMenu(
 	_cloudButton.create(this, st::mainMenuCloudButton);
 	_cloudButton->setClickedCallback(showSelfChat);
 	_cloudButton->show();
+
+	_archiveButton.create(this, st::mainMenuCloudButton);
+	_archiveButton->setHidden(!checkArchive());
+	_archiveButton->setAcceptBoth(true);
+	_archiveButton->clicks(
+	) | rpl::start_with_next([=](Qt::MouseButton which) {
+		if (which == Qt::LeftButton) {
+			showArchive();
+			return;
+		} else if (which != Qt::RightButton) {
+			return;
+		}
+		_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
+		_contextMenu->addAction(
+			lang(lng_context_archive_to_list), [=] {
+			_controller->session().settings().setArchiveInMainMenu(false);
+			_controller->session().saveSettingsDelayed();
+			Ui::hideSettingsAndLayer();
+		});
+		_contextMenu->popup(QCursor::pos());
+	}, _archiveButton->lifetime());
 
 	_nightThemeSwitch.setCallback([this] {
 		if (const auto action = *_nightThemeAction) {
@@ -178,6 +214,13 @@ MainMenu::MainMenu(
 			refreshBackground();
 		}
 	});
+	Auth().data().chatsListChanges(
+	) | rpl::filter([](Data::Folder *folder) {
+		return folder && (folder->id() == Data::Folder::kId);
+	}) | rpl::start_with_next([=](Data::Folder *folder) {
+		_archiveButton->setHidden(!checkArchive());
+		update();
+	}, lifetime());
 	updatePhone();
 	initResetScaleButton();
 }
@@ -310,7 +353,16 @@ void MainMenu::updateControlsGeometry() {
 		_userpicButton->moveToLeft(st::mainMenuUserpicLeft, st::mainMenuUserpicTop);
 	}
 	if (_cloudButton) {
-		_cloudButton->moveToRight(0, st::mainMenuCoverHeight - _cloudButton->height());
+		const auto offset = st::mainMenuCloudSize / 4;
+		const auto y = st::mainMenuCoverHeight
+			- _cloudButton->height()
+			- offset;
+		_cloudButton->moveToRight(offset, y);
+		if (_archiveButton) {
+			_archiveButton->moveToRight(
+				offset,
+				y - _cloudButton->height());
+		}
 	}
 	if (_resetScaleButton) {
 		_resetScaleButton->moveToRight(0, 0);
@@ -370,6 +422,19 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 				st::mainMenuCloudSize,
 				isFill ? st::mainMenuCloudBg : st::msgServiceBg,
 				isFill ? st::mainMenuCloudFg : st::msgServiceFg);
+		}
+
+		// Draw Archive button.
+		if (!_archiveButton->isHidden()) {
+			if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+				folder->paintUserpic(
+					p,
+					_archiveButton->x() + (_archiveButton->width() - st::mainMenuCloudSize) / 2,
+					_archiveButton->y() + (_archiveButton->height() - st::mainMenuCloudSize) / 2,
+					st::mainMenuCloudSize,
+					isFill ? st::mainMenuCloudBg : st::msgServiceBg,
+					isFill ? st::mainMenuCloudFg : st::msgServiceFg);
+			}
 		}
 	}
 	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);

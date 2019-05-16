@@ -15,6 +15,7 @@ class IconButton;
 class FlatLabel;
 class Menu;
 class UserpicButton;
+class PopupMenu;
 } // namespace Ui
 
 namespace Window {
@@ -44,12 +45,14 @@ private:
 	not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton = { nullptr };
 	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
+	object_ptr<Ui::IconButton> _archiveButton = { nullptr };
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::Menu> _menu;
 	object_ptr<Ui::FlatLabel> _telegram;
 	object_ptr<Ui::FlatLabel> _version;
 	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
 	base::Timer _nightThemeSwitch;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 
 	QString _phoneText;
 	QImage _background;

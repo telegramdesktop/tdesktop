@@ -84,7 +84,7 @@ public:
 	void fill();
 
 private:
-	void addToggleCollapse();
+	void addTogglesForArchive();
 	//bool showInfo();
 	//void addTogglePin();
 	//void addInfo();
@@ -544,11 +544,11 @@ FolderFiller::FolderFiller(
 
 void FolderFiller::fill() {
 	if (_source == PeerMenuSource::ChatsList) {
-		addToggleCollapse();
+		addTogglesForArchive();
 	}
 }
 
-void FolderFiller::addToggleCollapse() {
+void FolderFiller::addTogglesForArchive() {
 	if (_folder->id() != Data::Folder::kId) {
 		return;
 	}
@@ -559,6 +559,18 @@ void FolderFiller::addToggleCollapse() {
 		: lng_context_archive_collapse);
 	_addAction(text, [=] {
 		controller->session().settings().setArchiveCollapsed(!hidden);
+		controller->session().saveSettingsDelayed();
+	});
+
+	_addAction(lang(lng_context_archive_to_menu), [=] {
+		Ui::Toast::Config toast;
+		toast.text = lang(lng_context_archive_to_menu_info);
+		toast.maxWidth = st::boxWideWidth;
+		toast.durationMs = kArchivedToastDuration;
+		Ui::Toast::Show(toast);
+
+		controller->session().settings().setArchiveInMainMenu(
+			!controller->session().settings().archiveInMainMenu());
 		controller->session().saveSettingsDelayed();
 	});
 }
