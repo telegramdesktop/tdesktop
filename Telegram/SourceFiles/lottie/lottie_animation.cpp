@@ -88,7 +88,6 @@ Animation::Animation(QByteArray &&content)
 : _timer([=] { checkNextFrame(); }) {
 	const auto weak = base::make_weak(this);
 	crl::async([=, content = base::take(content)]() mutable {
-		const auto now = crl::now();
 		content = UnpackGzip(content);
 		if (content.size() > kMaxSize) {
 			qWarning()
@@ -100,7 +99,6 @@ Animation::Animation(QByteArray &&content)
 			return;
 		}
 		const auto document = JsonDocument(std::move(content));
-		const auto parsed = crl::now();
 		if (const auto error = document.error()) {
 			qWarning()
 				<< "Lottie Error: Parse failed with code: "
@@ -114,8 +112,6 @@ Animation::Animation(QByteArray &&content)
 				parseDone(std::move(result));
 			});
 		}
-		const auto finish = crl::now();
-		LOG(("INIT: %1 (PARSE %2)").arg(finish - now).arg(parsed - now));
 	});
 }
 
