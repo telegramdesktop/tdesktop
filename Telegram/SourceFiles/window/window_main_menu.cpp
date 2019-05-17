@@ -247,13 +247,26 @@ void MainMenu::updatePhone() {
 
 void MainMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	auto clip = e->rect();
-	auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight).intersected(clip);
+	const auto clip = e->rect();
+	const auto fill = QRect(0, 0, width(), st::mainMenuCoverHeight);
+	const auto cover = fill.intersected(clip);
+
+	if (const auto color = Window::Theme::Background()->colorForFill()) {
+		p.fillRect(fill, *color);
+	} else {
+		PainterHighQualityEnabler hq(p);
+
+		const auto &pix = Window::Theme::Background()->pixmap();
+		QRect to, from;
+		Window::Theme::ComputeBackgroundRects(fill, pix.size(), to, from);
+		p.drawPixmap(to, pix, from);
+	}
+
 	if (!cover.isEmpty()) {
 		const auto widthText = _cloudButton
 			? _cloudButton->x() - st::mainMenuCloudSize
 			: width() - 2 * st::mainMenuCoverTextLeft;
-		p.fillRect(cover, st::mainMenuCoverBg);
+		p.fillRect(cover, QColor(0, 0, 0, 51)); // 20% opacity.
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
 		Auth().user()->nameText.drawLeftElided(
