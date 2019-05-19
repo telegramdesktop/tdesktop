@@ -256,17 +256,15 @@ diff --git a/src/platformsupport/cglconvenience/cglconvenience.mm b/src/platform
 index fb609ae485..7cca45ded4 100644
 --- a/src/platformsupport/cglconvenience/cglconvenience.mm
 +++ b/src/platformsupport/cglconvenience/cglconvenience.mm
-@@ -128,7 +128,14 @@ void *qcgl_createNSOpenGLPixelFormat(const QSurfaceFormat &format)
+@@ -128,7 +128,12 @@ void *qcgl_createNSOpenGLPixelFormat(const QSurfaceFormat &format)
      if (format.stereo())
          attrs << NSOpenGLPFAStereo;
  
 -    attrs << NSOpenGLPFAAllowOfflineRenderers;
-+    // Patch: Fix macOS regression. It crashes on GPU switches.
++    // Patch: Fix macOS regression. On 10.14.4, it crashes on GPU switches.
 +    // See https://bugreports.qt.io/browse/QTCREATORBUG-22215
 +    static const QAppleOperatingSystemVersion version = qt_apple_os_version();
-+    if ((version.major < 10)
-+        || (version.major == 10 && version.minor < 14)
-+        || (version.major == 10 && version.minor == 14 && version.patch < 4)) {
++    if (!(version.major == 10 && version.minor == 14 && version.patch == 4))
 +        attrs << NSOpenGLPFAAllowOfflineRenderers;
 +    }
  
