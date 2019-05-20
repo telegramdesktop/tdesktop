@@ -4292,7 +4292,36 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updatePrivacy: {
 		auto &d = update.c_updatePrivacy();
-		session().api().handlePrivacyChange(d.vkey.type(), d.vrules);
+		const auto allChatsLoaded = [&](const MTPVector<MTPint> &ids) {
+			for (const auto &chatId : ids.v) {
+				if (!session().data().chatLoaded(chatId.v)
+					&& !session().data().channelLoaded(chatId.v)) {
+					return false;
+				}
+			}
+			return true;
+		};
+		const auto allLoaded = [&] {
+			for (const auto &rule : d.vrules.v) {
+				const auto loaded = rule.match([&](
+					const MTPDprivacyValueAllowChatParticipants & data) {
+					return allChatsLoaded(data.vchats);
+				}, [&](const MTPDprivacyValueDisallowChatParticipants & data) {
+					return allChatsLoaded(data.vchats);
+				}, [](auto &&) { return true; });
+				if (!loaded) {
+					return false;
+				}
+			}
+			return true;
+		};
+		if (const auto key = ApiWrap::Privacy::KeyFromMTP(d.vkey.type())) {
+			if (allLoaded()) {
+				session().api().handlePrivacyChange(*key, d.vrules);
+			} else {
+				session().api().reloadPrivacy(*key);
+			}
+		}
 	} break;
 
 	case mtpc_updatePinnedDialogs: {

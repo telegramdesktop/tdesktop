@@ -172,6 +172,9 @@ QByteArray SerializeText(
 			case Type::MentionName: return "mention_name";
 			case Type::Phone: return "phone";
 			case Type::Cashtag: return "cashtag";
+			case Type::Underline: return "underline";
+			case Type::Strike: return "strikethrough";
+			case Type::Blockquote: return "blockquote";
 			}
 			Unexpected("Type in SerializeText.");
 		}();
@@ -462,6 +465,9 @@ QByteArray SerializeMessage(
 	}, [&](const ActionContactSignUp &data) {
 		pushActor();
 		pushAction("joined_telegram");
+	}, [&](const ActionPhoneNumberRequest &data) {
+		pushActor();
+		pushAction("requested_phone_number");
 	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {

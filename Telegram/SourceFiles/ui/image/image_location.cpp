@@ -12,18 +12,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_types.h"
 #include "storage/serialize_common.h"
 #include "data/data_file_origin.h"
+#include "base/overload.h"
 #include "auth_session.h"
 
 namespace {
 
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
 constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
+constexpr auto kSerializeTypeShift = quint8(0x08);
 
-MTPInputPeer GenerateInputPeer(uint64 id, uint64 accessHash, int32 self) {
+MTPInputPeer GenerateInputPeer(
+		uint64 id,
+		uint64 accessHash,
+		int32 inMessagePeerId,
+		int32 inMessageId,
+		int32 self) {
 	const auto bareId = [&] {
 		return peerToBareMTPInt(id);
 	};
-	if (!id) {
+	if (inMessagePeerId > 0 && inMessageId) {
+		return MTP_inputPeerUserFromMessage(
+			GenerateInputPeer(id, accessHash, 0, 0, self),
+			MTP_int(inMessageId),
+			MTP_int(inMessagePeerId));
+	} else if (inMessagePeerId < 0 && inMessageId) {
+		return MTP_inputPeerChannelFromMessage(
+			GenerateInputPeer(id, accessHash, 0, 0, self),
+			MTP_int(inMessageId),
+			MTP_int(-inMessagePeerId));
+	} else if (!id) {
 		return MTP_inputPeerEmpty();
 	} else if (id == peerFromUser(self)) {
 		return MTP_inputPeerSelf();
@@ -98,18 +115,35 @@ StorageFileLocation::StorageFileLocation(
 			: data.vthumb_size.v[0];
 	}, [&](const MTPDinputPeerPhotoFileLocation &data) {
 		_type = Type::PeerPhoto;
-		data.vpeer.match([&](const MTPDinputPeerEmpty &data) {
+		const auto fillPeer = base::overload([&](
+				const MTPDinputPeerEmpty &data) {
 			_id = 0;
-		}, [&](const MTPDinputPeerSelf &data) {
+		}, [&](const MTPDinputPeerSelf & data) {
 			_id = peerFromUser(self);
-		}, [&](const MTPDinputPeerChat &data) {
+		}, [&](const MTPDinputPeerChat & data) {
 			_id = peerFromChat(data.vchat_id);
-		}, [&](const MTPDinputPeerUser &data) {
+		}, [&](const MTPDinputPeerUser & data) {
 			_id = peerFromUser(data.vuser_id);
 			_accessHash = data.vaccess_hash.v;
-		}, [&](const MTPDinputPeerChannel &data) {
+		}, [&](const MTPDinputPeerChannel & data) {
 			_id = peerFromChannel(data.vchannel_id);
 			_accessHash = data.vaccess_hash.v;
+		});
+		data.vpeer.match(fillPeer, [&](
+				const MTPDinputPeerUserFromMessage &data) {
+			data.vpeer.match(fillPeer, [&](auto &&) {
+				// Bad data provided.
+				_id = _accessHash = 0;
+			});
+			_inMessagePeerId = data.vuser_id.v;
+			_inMessageId = data.vmsg_id.v;
+		}, [&](const MTPDinputPeerChannelFromMessage &data) {
+			data.vpeer.match(fillPeer, [&](auto &&) {
+				// Bad data provided.
+				_id = _accessHash = 0;
+			});
+			_inMessagePeerId = -data.vchannel_id.v;
+			_inMessageId = data.vmsg_id.v;
 		});
 		_volumeId = data.vvolume_id.v;
 		_localId = data.vlocal_id.v;
@@ -195,7 +229,12 @@ MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 			MTP_flags((_sizeLetter == 'c')
 				? MTPDinputPeerPhotoFileLocation::Flag::f_big
 				: MTPDinputPeerPhotoFileLocation::Flag(0)),
-			GenerateInputPeer(_id, _accessHash, self),
+			GenerateInputPeer(
+				_id,
+				_accessHash,
+				_inMessagePeerId,
+				_inMessageId,
+				self),
 			MTP_long(_volumeId),
 			MTP_int(_localId));
 
@@ -219,12 +258,14 @@ QByteArray StorageFileLocation::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream
 			<< quint16(_dcId)
-			<< quint8(_type)
+			<< (kSerializeTypeShift | quint8(_type))
 			<< quint8(_sizeLetter)
 			<< qint32(_localId)
 			<< quint64(_id)
 			<< quint64(_accessHash)
 			<< quint64(_volumeId)
+			<< qint32(_inMessagePeerId)
+			<< qint32(_inMessageId)
 			<< _fileReference;
 	}
 	return result;
@@ -232,12 +273,12 @@ QByteArray StorageFileLocation::serialize() const {
 
 int StorageFileLocation::serializeSize() const {
 	return valid()
-		? int(sizeof(uint64) * 4 + Serialize::bytearraySize(_fileReference))
+		? int(sizeof(uint64) * 5 + Serialize::bytearraySize(_fileReference))
 		: 0;
 }
 
 std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
-		const QByteArray &serialized) {
+	const QByteArray &serialized) {
 	if (serialized.isEmpty()) {
 		return StorageFileLocation();
 	}
@@ -249,6 +290,8 @@ std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
 	quint64 id = 0;
 	quint64 accessHash = 0;
 	quint64 volumeId = 0;
+	qint32 inMessagePeerId = 0;
+	qint32 inMessageId = 0;
 	QByteArray fileReference;
 	auto stream = QDataStream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
@@ -259,8 +302,12 @@ std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
 		>> localId
 		>> id
 		>> accessHash
-		>> volumeId
-		>> fileReference;
+		>> volumeId;
+	if (type & kSerializeTypeShift) {
+		type &= ~kSerializeTypeShift;
+		stream >> inMessagePeerId >> inMessageId;
+	}
+	stream >> fileReference;
 
 	auto result = StorageFileLocation();
 	result._dcId = dcId;
@@ -270,6 +317,8 @@ std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
 	result._id = id;
 	result._accessHash = accessHash;
 	result._volumeId = volumeId;
+	result._inMessagePeerId = inMessagePeerId;
+	result._inMessageId = inMessageId;
 	result._fileReference = fileReference;
 	return (stream.status() == QDataStream::Ok && result.valid())
 		? std::make_optional(result)

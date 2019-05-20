@@ -1081,6 +1081,10 @@ void ApiWrap::requestSinglePeerDialog() {
 		)).done(std::move(doneSinglePeer)).send();
 	}, [&](const MTPDinputPeerSelf &data) {
 		requestUser(MTP_inputUserSelf());
+	}, [&](const MTPDinputPeerUserFromMessage &data) {
+		Unexpected("From message peer in ApiWrap::requestSinglePeerDialog.");
+	}, [&](const MTPDinputPeerChannelFromMessage &data) {
+		Unexpected("From message peer in ApiWrap::requestSinglePeerDialog.");
 	}, [](const MTPDinputPeerEmpty &data) {
 		Unexpected("Empty peer in ApiWrap::requestSinglePeerDialog.");
 	});

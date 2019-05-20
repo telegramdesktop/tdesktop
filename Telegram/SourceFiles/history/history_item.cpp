@@ -68,7 +68,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 	text.entities.push_front(
 		EntityInText(EntityType::Italic, 0, text.text.size()));
 	flags &= ~MTPDmessage::Flag::f_post_author;
-	flags |= MTPDmessage_ClientFlag::f_is_unsupported;
+	flags |= MTPDmessage::Flag::f_legacy;
 	return history->owner().makeMessage(
 		history,
 		msgId,

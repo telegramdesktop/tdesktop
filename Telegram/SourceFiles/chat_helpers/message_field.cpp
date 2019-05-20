@@ -212,7 +212,7 @@ EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags) {
 			push(EntityType::Italic);
 		} else if (tag.id == Ui::InputField::kTagCode) {
 			push(EntityType::Code);
-		} else if (tag.id == Ui::InputField::kTagPre) {
+		} else if (tag.id == Ui::InputField::kTagPre) { // #TODO entities
 			push(EntityType::Pre);
 		} else /*if (ValidateUrl(tag.id)) */{ // We validate when we insert.
 			push(EntityType::CustomUrl, tag.id);
@@ -247,7 +247,7 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 			}
 		} break;
 		case EntityType::Bold: push(Ui::InputField::kTagBold); break;
-		case EntityType::Italic: push(Ui::InputField::kTagItalic); break;
+		case EntityType::Italic: push(Ui::InputField::kTagItalic); break; // #TODO entities
 		case EntityType::Code: push(Ui::InputField::kTagCode); break;
 		case EntityType::Pre: push(Ui::InputField::kTagPre); break;
 		}

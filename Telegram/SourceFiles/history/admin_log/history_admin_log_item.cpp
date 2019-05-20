@@ -616,6 +616,8 @@ void GenerateItems(
 		createDefaultBannedRights(data);
 	}, [&](const MTPDchannelAdminLogEventActionStopPoll &data) {
 		createStopPoll(data);
+	}, [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &data) {
+		// #TODO discussion
 	});
 }
 

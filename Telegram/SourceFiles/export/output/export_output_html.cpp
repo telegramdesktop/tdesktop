@@ -283,6 +283,10 @@ QByteArray FormatText(
 			"onclick=\"return ShowCashtag("
 			+ SerializeString('"' + text.mid(1) + '"')
 			+ ")\">" + text + "</a>";
+		case Type::Underline: return "<u>" + text + "</u>";
+		case Type::Strike: return "<s>" + text + "</s>";
+		case Type::Blockquote:
+			return "<blockquote>" + text + "</blockquote>";
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);
@@ -1082,6 +1086,8 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ SerializeList(list);
 	}, [&](const ActionContactSignUp &data) {
 		return serviceFrom + " joined Telegram";
+	}, [&](const ActionPhoneNumberRequest &data) {
+		return serviceFrom + " requested your phone number";
 	}, [](std::nullopt_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

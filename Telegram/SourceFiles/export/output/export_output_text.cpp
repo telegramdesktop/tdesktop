@@ -335,6 +335,9 @@ QByteArray SerializeMessage(
 	}, [&](const ActionContactSignUp &data) {
 		pushActor();
 		pushAction("Join Telegram");
+	}, [&](const ActionPhoneNumberRequest &data) {
+		pushActor();
+		pushAction("Request Phone Number");
 	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {

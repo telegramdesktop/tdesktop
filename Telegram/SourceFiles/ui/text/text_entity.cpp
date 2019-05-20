@@ -1322,7 +1322,7 @@ bool CutPart(TextWithEntities &sending, TextWithEntities &left, int32 limit) {
 		if (s > half) {
 			bool inEntity = (currentEntity < entityCount) && (ch > start + left.entities[currentEntity].offset()) && (ch < start + left.entities[currentEntity].offset() + left.entities[currentEntity].length());
 			EntityType entityType = (currentEntity < entityCount) ? left.entities[currentEntity].type() : EntityType::Invalid;
-			bool canBreakEntity = (entityType == EntityType::Pre || entityType == EntityType::Code);
+			bool canBreakEntity = (entityType == EntityType::Pre || entityType == EntityType::Code); // #TODO entities
 			int32 noEntityLevel = inEntity ? 0 : 1;
 
 			auto markGoodAsLevel = [&](int newLevel) {
@@ -1502,6 +1502,7 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityItalic: { auto &d = entity.c_messageEntityItalic(); result.push_back({ EntityType::Italic, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset.v, d.vlength.v, Clean(qs(d.vlanguage)) }); } break;
+				// #TODO entities
 			}
 		}
 	}
@@ -1516,7 +1517,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		if (option == ConvertOption::SkipLocal
 			&& entity.type() != EntityType::Bold
 			&& entity.type() != EntityType::Italic
-			&& entity.type() != EntityType::Code
+			&& entity.type() != EntityType::Code // #TODO entities
 			&& entity.type() != EntityType::Pre
 			&& entity.type() != EntityType::MentionName
 			&& entity.type() != EntityType::CustomUrl) {
@@ -1549,7 +1550,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		case EntityType::BotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
 		case EntityType::Bold: v.push_back(MTP_messageEntityBold(offset, length)); break;
 		case EntityType::Italic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
-		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break;
+		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break; // #TODO entities
 		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
 		}
 	}

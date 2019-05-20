@@ -259,7 +259,7 @@ public:
 			startFlags = TextBlockFSemibold;
 		} else if (type == EntityType::Italic) {
 			startFlags = TextBlockFItalic;
-		} else if (type == EntityType::Code) {
+		} else if (type == EntityType::Code) { // #TODO entities
 			startFlags = TextBlockFCode;
 		} else if (type == EntityType::Pre) {
 			startFlags = TextBlockFPre;
@@ -538,7 +538,7 @@ public:
 					if (((type == EntityType::Mention || type == EntityType::MentionName) && !parseMentions) ||
 						(type == EntityType::Hashtag && !parseHashtags) ||
 						(type == EntityType::Cashtag && !parseHashtags) ||
-						(type == EntityType::BotCommand && !parseBotCommands) ||
+						(type == EntityType::BotCommand && !parseBotCommands) || // #TODO entities
 						((type == EntityType::Bold || type == EntityType::Italic || type == EntityType::Code || type == EntityType::Pre) && !parseMarkdown)) {
 						continue;
 					}
@@ -3077,7 +3077,7 @@ TextForMimeData Text::toText(
 		? std::vector<MarkdownTagTracker>{
 			{ TextBlockFItalic, EntityType::Italic },
 			{ TextBlockFSemibold, EntityType::Bold },
-			{ TextBlockFCode, EntityType::Code },
+			{ TextBlockFCode, EntityType::Code }, // #TODO entities
 			{ TextBlockFPre, EntityType::Pre }
 		} : std::vector<MarkdownTagTracker>();
 	const auto flagsChangeCallback = [&](int32 oldFlags, int32 newFlags) {

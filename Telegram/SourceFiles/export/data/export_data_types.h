@@ -441,6 +441,9 @@ struct ActionSecureValuesSent {
 struct ActionContactSignUp {
 };
 
+struct ActionPhoneNumberRequest {
+};
+
 struct ServiceAction {
 	base::optional_variant<
 		ActionChatCreate,
@@ -462,7 +465,8 @@ struct ServiceAction {
 		ActionCustomAction,
 		ActionBotAllowed,
 		ActionSecureValuesSent,
-		ActionContactSignUp> content;
+		ActionContactSignUp,
+		ActionPhoneNumberRequest> content;
 };
 
 ServiceAction ParseServiceAction(
@@ -487,6 +491,9 @@ struct TextPart {
 		MentionName,
 		Phone,
 		Cashtag,
+		Underline,
+		Strike,
+		Blockquote
 	};
 	Type type = Type::Text;
 	Utf8String text;

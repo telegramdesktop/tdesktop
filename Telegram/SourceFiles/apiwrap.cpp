@@ -185,6 +185,26 @@ MTPInputPrivacyKey ApiWrap::Privacy::Input(Key key) {
 	Unexpected("Key in ApiWrap::Privacy::Input.");
 }
 
+std::optional<ApiWrap::Privacy::Key> ApiWrap::Privacy::KeyFromMTP(
+		mtpTypeId type) {
+	using Key = Privacy::Key;
+	switch (type) {
+	case mtpc_privacyKeyStatusTimestamp:
+	case mtpc_inputPrivacyKeyStatusTimestamp: return Key::LastSeen;
+	case mtpc_privacyKeyChatInvite:
+	case mtpc_inputPrivacyKeyChatInvite: return Key::Invites;
+	case mtpc_privacyKeyPhoneCall:
+	case mtpc_inputPrivacyKeyPhoneCall: return Key::Calls;
+	case mtpc_privacyKeyPhoneP2P:
+	case mtpc_inputPrivacyKeyPhoneP2P: return Key::CallsPeer2Peer;
+	case mtpc_privacyKeyForwards:
+	case mtpc_inputPrivacyKeyForwards: return Key::Forwards;
+	case mtpc_privacyKeyProfilePhoto:
+	case mtpc_inputPrivacyKeyProfilePhoto: return Key::ProfilePhoto;
+	}
+	return std::nullopt;
+}
+
 ApiWrap::ApiWrap(not_null<AuthSession*> session)
 : _session(session)
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
@@ -2276,7 +2296,9 @@ void ApiWrap::saveDraftToCloudDelayed(not_null<History*> history) {
 	}
 }
 
-void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules) {
+void ApiWrap::savePrivacy(
+		const MTPInputPrivacyKey &key,
+		QVector<MTPInputPrivacyRule> &&rules) {
 	const auto keyTypeId = key.type();
 	const auto it = _privacySaveRequests.find(keyTypeId);
 	if (it != _privacySaveRequests.cend()) {
@@ -2288,12 +2310,14 @@ void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacy
 		key,
 		MTP_vector<MTPInputPrivacyRule>(std::move(rules))
 	)).done([=](const MTPaccount_PrivacyRules &result) {
-		Expects(result.type() == mtpc_account_privacyRules);
-
-		auto &rules = result.c_account_privacyRules();
-		_session->data().processUsers(rules.vusers);
-		_privacySaveRequests.remove(keyTypeId);
-		handlePrivacyChange(keyTypeId, rules.vrules);
+		result.match([&](const MTPDaccount_privacyRules &data) {
+			_session->data().processUsers(data.vusers);
+			_session->data().processChats(data.vchats);
+			_privacySaveRequests.remove(keyTypeId);
+			if (const auto key = Privacy::KeyFromMTP(keyTypeId)) {
+				handlePrivacyChange(*key, data.vrules);
+			}
+		});
 	}).fail([=](const RPCError &error) {
 		_privacySaveRequests.remove(keyTypeId);
 	}).send();
@@ -2302,80 +2326,16 @@ void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacy
 }
 
 void ApiWrap::handlePrivacyChange(
-		mtpTypeId keyTypeId,
+		Privacy::Key key,
 		const MTPVector<MTPPrivacyRule> &rules) {
-	using Key = Privacy::Key;
-	const auto key = [&]() -> std::optional<Key> {
-		switch (keyTypeId) {
-		case mtpc_privacyKeyStatusTimestamp:
-		case mtpc_inputPrivacyKeyStatusTimestamp: return Key::LastSeen;
-		case mtpc_privacyKeyChatInvite:
-		case mtpc_inputPrivacyKeyChatInvite: return Key::Invites;
-		case mtpc_privacyKeyPhoneCall:
-		case mtpc_inputPrivacyKeyPhoneCall: return Key::Calls;
-		case mtpc_privacyKeyPhoneP2P:
-		case mtpc_inputPrivacyKeyPhoneP2P: return Key::CallsPeer2Peer;
-		case mtpc_privacyKeyForwards:
-		case mtpc_inputPrivacyKeyForwards: return Key::Forwards;
-		case mtpc_privacyKeyProfilePhoto:
-		case mtpc_inputPrivacyKeyProfilePhoto: return Key::ProfilePhoto;
-		}
-		return std::nullopt;
-	}();
-	if (!key) {
-		return;
-	}
-	pushPrivacy(*key, rules.v);
-	if (*key == Key::LastSeen) {
+	pushPrivacy(key, rules.v);
+	if (key == Privacy::Key::LastSeen) {
 		updatePrivacyLastSeens(rules.v);
 	}
 }
 
 void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
-	enum class Rule {
-		Unknown,
-		Allow,
-		Disallow,
-	};
-	auto userRules = QMap<UserId, Rule>();
-	auto contactsRule = Rule::Unknown;
-	auto everyoneRule = Rule::Unknown;
-	for (auto &rule : rules) {
-		auto type = rule.type();
-		if (type != mtpc_privacyValueAllowAll
-			&& type != mtpc_privacyValueDisallowAll
-			&& contactsRule != Rule::Unknown) {
-			// This is simplified: we ignore per-user rules that come after a contacts rule.
-			// But none of the official apps provide such complicated rule sets, so its fine.
-			continue;
-		}
-
-		switch (type) {
-		case mtpc_privacyValueAllowAll: everyoneRule = Rule::Allow; break;
-		case mtpc_privacyValueDisallowAll: everyoneRule = Rule::Disallow; break;
-		case mtpc_privacyValueAllowContacts: contactsRule = Rule::Allow; break;
-		case mtpc_privacyValueDisallowContacts: contactsRule = Rule::Disallow; break;
-		case mtpc_privacyValueAllowUsers: {
-			for_const (auto &userId, rule.c_privacyValueAllowUsers().vusers.v) {
-				if (!userRules.contains(userId.v)) {
-					userRules.insert(userId.v, Rule::Allow);
-				}
-			}
-		} break;
-		case mtpc_privacyValueDisallowUsers: {
-			for_const (auto &userId, rule.c_privacyValueDisallowUsers().vusers.v) {
-				if (!userRules.contains(userId.v)) {
-					userRules.insert(userId.v, Rule::Disallow);
-				}
-			}
-		} break;
-		}
-		if (everyoneRule != Rule::Unknown) {
-			break;
-		}
-	}
-
-	auto now = unixtime();
+	const auto now = unixtime();
 	_session->data().enumerateUsers([&](UserData *user) {
 		if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
 			return;
@@ -5642,6 +5602,7 @@ void ApiWrap::reloadPrivacy(Privacy::Key key) {
 		_privacyRequestIds.erase(key);
 		result.match([&](const MTPDaccount_privacyRules &data) {
 			_session->data().processUsers(data.vusers);
+			_session->data().processChats(data.vchats);
 			pushPrivacy(key, data.vrules.v);
 		});
 	}).fail([=](const RPCError &error) {
@@ -5664,8 +5625,10 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 		optionSet = true;
 		result.option = option;
 	};
-	auto &always = result.always;
-	auto &never = result.never;
+	auto &alwaysUsers = result.alwaysUsers;
+	auto &neverUsers = result.neverUsers;
+	auto &alwaysChats = result.alwaysChats;
+	auto &neverChats = result.neverChats;
 	const auto Feed = [&](const MTPPrivacyRule &rule) {
 		rule.match([&](const MTPDprivacyValueAllowAll &) {
 			SetOption(Option::Everyone);
@@ -5673,12 +5636,25 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 			SetOption(Option::Contacts);
 		}, [&](const MTPDprivacyValueAllowUsers &data) {
 			const auto &users = data.vusers.v;
-			always.reserve(always.size() + users.size());
+			alwaysUsers.reserve(alwaysUsers.size() + users.size());
 			for (const auto userId : users) {
 				const auto user = _session->data().user(UserId(userId.v));
-				if (!base::contains(never, user)
-					&& !base::contains(always, user)) {
-					always.push_back(user);
+				if (!base::contains(neverUsers, user)
+					&& !base::contains(alwaysUsers, user)) {
+					alwaysUsers.push_back(user);
+				}
+			}
+		}, [&](const MTPDprivacyValueAllowChatParticipants &data) {
+			const auto &chats = data.vchats.v;
+			alwaysChats.reserve(alwaysChats.size() + chats.size());
+			for (const auto chatId : chats) {
+				const auto chat = _session->data().chatLoaded(chatId.v);
+				const auto peer = chat
+					? static_cast<PeerData*>(chat)
+					: _session->data().channel(chatId.v);
+				if (!base::contains(neverChats, peer)
+					&& !base::contains(alwaysChats, peer)) {
+					alwaysChats.emplace_back(peer);
 				}
 			}
 		}, [&](const MTPDprivacyValueDisallowContacts &) {
@@ -5687,12 +5663,25 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 			SetOption(Option::Nobody);
 		}, [&](const MTPDprivacyValueDisallowUsers &data) {
 			const auto &users = data.vusers.v;
-			never.reserve(never.size() + users.size());
+			neverUsers.reserve(neverUsers.size() + users.size());
 			for (const auto userId : users) {
 				const auto user = _session->data().user(UserId(userId.v));
-				if (!base::contains(always, user)
-					&& !base::contains(never, user)) {
-					never.push_back(user);
+				if (!base::contains(alwaysUsers, user)
+					&& !base::contains(neverUsers, user)) {
+					neverUsers.push_back(user);
+				}
+			}
+		}, [&](const MTPDprivacyValueDisallowChatParticipants &data) {
+			const auto &chats = data.vchats.v;
+			neverChats.reserve(neverChats.size() + chats.size());
+			for (const auto chatId : chats) {
+				const auto chat = _session->data().chatLoaded(chatId.v);
+				const auto peer = chat
+					? static_cast<PeerData*>(chat)
+					: _session->data().channel(chatId.v);
+				if (!base::contains(alwaysChats, peer)
+					&& !base::contains(neverChats, peer)) {
+					neverChats.emplace_back(peer);
 				}
 			}
 		});

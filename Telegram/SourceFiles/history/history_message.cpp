@@ -618,7 +618,7 @@ bool HistoryMessage::allowsEdit(TimeId now) const {
 	return canStopPoll()
 		&& !isTooOldForEdit(now)
 		&& (!_media || _media->allowsEdit())
-		&& !isUnsupportedMessage()
+		&& !isLegacyMessage()
 		&& !isEditingMedia();
 }
 

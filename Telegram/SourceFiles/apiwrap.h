@@ -60,6 +60,30 @@ inline int32 CountHash(IntRange &&range) {
 
 class ApiWrap : public MTP::Sender, private base::Subscriber {
 public:
+	struct Privacy {
+		enum class Key {
+			LastSeen,
+			Calls,
+			Invites,
+			CallsPeer2Peer,
+			Forwards,
+			ProfilePhoto,
+		};
+		enum class Option {
+			Everyone,
+			Contacts,
+			Nobody,
+		};
+		Option option = Option::Everyone;
+		std::vector<not_null<UserData*>> alwaysUsers;
+		std::vector<not_null<UserData*>> neverUsers;
+		std::vector<not_null<PeerData*>> alwaysChats;
+		std::vector<not_null<PeerData*>> neverChats;
+
+		static MTPInputPrivacyKey Input(Key key);
+		static std::optional<Key> KeyFromMTP(mtpTypeId type);
+	};
+
 	ApiWrap(not_null<AuthSession*> session);
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
@@ -214,8 +238,12 @@ public:
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void saveDraftToCloudDelayed(not_null<History*> history);
 
-	void savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules);
-	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
+	void savePrivacy(
+		const MTPInputPrivacyKey &key,
+		QVector<MTPInputPrivacyRule> &&rules);
+	void handlePrivacyChange(
+		Privacy::Key key,
+		const MTPVector<MTPPrivacyRule> &rules);
 	static int OnlineTillFromStatus(
 		const MTPUserStatus &status,
 		int currentOnlineTill);
@@ -401,26 +429,6 @@ public:
 
 	void saveSelfBio(const QString &text, FnMut<void()> done);
 
-	struct Privacy {
-		enum class Key {
-			LastSeen,
-			Calls,
-			Invites,
-			CallsPeer2Peer,
-			Forwards,
-			ProfilePhoto,
-		};
-		enum class Option {
-			Everyone,
-			Contacts,
-			Nobody,
-		};
-		Option option = Option::Everyone;
-		std::vector<not_null<UserData*>> always;
-		std::vector<not_null<UserData*>> never;
-
-		static MTPInputPrivacyKey Input(Key key);
-	};
 	void reloadPrivacy(Privacy::Key key);
 	rpl::producer<Privacy> privacyValue(Privacy::Key key);
 

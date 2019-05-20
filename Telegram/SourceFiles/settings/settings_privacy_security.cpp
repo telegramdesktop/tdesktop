@@ -102,10 +102,10 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			key
 		) | rpl::map([=](const Privacy &value) {
 			auto add = QStringList();
-			if (const auto never = value.never.size()) {
+			if (const auto never = value.neverUsers.size()) { // #TODO privacy
 				add.push_back("-" + QString::number(never));
 			}
-			if (const auto always = value.always.size()) {
+			if (const auto always = value.alwaysUsers.size()) {
 				add.push_back("+" + QString::number(always));
 			}
 			if (!add.isEmpty()) {

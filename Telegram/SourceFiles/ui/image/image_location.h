@@ -107,6 +107,8 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _volumeId = 0;
+	uint32 _inMessagePeerId = 0; // > 0 'userId', < 0 '-channelId'.
+	uint32 _inMessageId = 0;
 	QByteArray _fileReference;
 
 };

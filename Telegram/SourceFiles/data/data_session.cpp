@@ -479,7 +479,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto &migratedTo = data.has_migrated_to()
 			? data.vmigrated_to
 			: MTPInputChannel(MTP_inputChannelEmpty());
-		migratedTo.match([&](const MTPDinputChannel &input) {
+		migratedTo.match([&](const MTPDinputChannel & input) {
 			const auto channel = this->channel(input.vchannel_id.v);
 			channel->addFlags(MTPDchannel::Flag::f_megagroup);
 			if (!channel->access) {
@@ -490,6 +490,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				channel->access = input.vaccess_hash.v;
 			}
 			ApplyMigration(chat, channel);
+		}, [](const MTPDinputChannelFromMessage &) {
+			LOG(("API Error: migrated_to contains channel from message."));
 		}, [](const MTPDinputChannelEmpty &) {
 		});
 

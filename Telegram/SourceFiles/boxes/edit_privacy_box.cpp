@@ -142,11 +142,19 @@ void EditPrivacyBox::editExceptionUsers(
 }
 
 QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
-	auto collectInputUsers = [](auto &users) {
+	const auto collectInputUsers = [](const auto &users) {
 		auto result = QVector<MTPInputUser>();
 		result.reserve(users.size());
-		for (auto user : users) {
+		for (const auto user : users) {
 			result.push_back(user->inputUser);
+		}
+		return result;
+	};
+	const auto collectInputChats = [](const auto & chats) {
+		auto result = QVector<MTPint>();
+		result.reserve(chats.size());
+		for (const auto peer : chats) {
+			result.push_back(MTP_int(peer->bareId()));
 		}
 		return result;
 	};
@@ -154,11 +162,21 @@ QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
 	constexpr auto kMaxRules = 3; // allow users, disallow users, option
 	auto result = QVector<MTPInputPrivacyRule>();
 	result.reserve(kMaxRules);
-	if (showExceptionLink(Exception::Always) && !_value.always.empty()) {
-		result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_value.always))));
+	if (showExceptionLink(Exception::Always)) {
+		if (!_value.alwaysUsers.empty()) {
+			result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_value.alwaysUsers))));
+		}
+		if (!_value.alwaysChats.empty()) {
+			result.push_back(MTP_inputPrivacyValueAllowChatParticipants(MTP_vector<MTPint>(collectInputChats(_value.alwaysChats))));
+		}
 	}
-	if (showExceptionLink(Exception::Never) && !_value.never.empty()) {
-		result.push_back(MTP_inputPrivacyValueDisallowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_value.never))));
+	if (showExceptionLink(Exception::Never)) {
+		if (!_value.neverUsers.empty()) {
+			result.push_back(MTP_inputPrivacyValueDisallowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_value.neverUsers))));
+		}
+		if (!_value.neverChats.empty()) {
+			result.push_back(MTP_inputPrivacyValueDisallowChatParticipants(MTP_vector<MTPint>(collectInputChats(_value.neverChats))));
+		}
 	}
 	result.push_back([&] {
 		switch (_value.option) {
@@ -172,10 +190,11 @@ QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
 	return result;
 }
 
+// #TODO privacy
 std::vector<not_null<UserData*>> &EditPrivacyBox::exceptionUsers(Exception exception) {
 	switch (exception) {
-	case Exception::Always: return _value.always;
-	case Exception::Never: return _value.never;
+	case Exception::Always: return _value.alwaysUsers;
+	case Exception::Never: return _value.neverUsers;
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -309,7 +328,8 @@ void EditPrivacyBox::setupContent() {
 
 	addButton(langFactory(lng_settings_save), [=] {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)
-			|| !_value.never.empty();
+			|| !_value.neverUsers.empty()
+			|| !_value.neverChats.empty();
 		_controller->confirmSave(someAreDisallowed, crl::guard(this, [=] {
 			Auth().api().savePrivacy(
 				_controller->apiKey(),

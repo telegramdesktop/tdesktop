@@ -148,9 +148,6 @@ namespace App {
 			case mtpc_contactLinkContact:
 				user->setContactStatus(UserData::ContactStatus::Contact);
 			break;
-			case mtpc_contactLinkHasPhone:
-				user->setContactStatus(UserData::ContactStatus::CanAdd);
-			break;
 			case mtpc_contactLinkNone:
 			case mtpc_contactLinkUnknown:
 				user->setContactStatus(UserData::ContactStatus::PhoneUnknown);
