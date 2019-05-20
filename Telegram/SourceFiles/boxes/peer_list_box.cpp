@@ -382,7 +382,7 @@ void PeerListRow::refreshStatus() {
 		if (!chat->amIn()) {
 			setStatusText(lang(lng_chat_status_unaccessible));
 		} else if (chat->count > 0) {
-			setStatusText(lng_chat_status_members_demical(lt_count_decimal, chat->count));
+			setStatusText(lng_chat_status_members(lt_count_decimal, chat->count));
 		} else {
 			setStatusText(lang(lng_group_status));
 		}

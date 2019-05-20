@@ -110,7 +110,18 @@ constexpr auto kTagsCount = " << langpack_.tags.size() << ";\n\
 	header_->popNamespace().newline();
 	auto index = 0;
 	for (auto &tag : langpack_.tags) {
-		header_->stream() << "enum lngtag_" << tag.tag << " { lt_" << tag.tag << " = " << index++ << " };\n";
+		if (tag.tag == kPluralTags[0]) {
+			auto elements = QStringList();
+			header_->stream()
+				<< "enum lngtag_" << tag.tag << " : int { ";
+			for (auto i = 0; i != kPluralTags.size(); ++i) {
+				elements.push_back("lt_" + kPluralTags[i] + " = " + QString::number(index + i * 1000));
+			}
+			header_->stream() << elements.join(", ") << " };\n";
+			++index;
+		} else {
+			header_->stream() << "enum lngtag_" << tag.tag << " : int { lt_" << tag.tag << " = " << index++ << " };\n";
+		}
 	}
 	header_->stream() << "\
 \n\
@@ -126,13 +137,6 @@ enum LangKey : int {\n";
 QString lang(LangKey key);\n\
 \n";
 
-	// Plural Type Map.
-	std::map<QString, QString> pluralType {
-		{ kPluralTag, QString("None") },
-		{ kPluralShortTag, QString("Short") },
-		{ kPluralDecimalSeparationTag, QString("DecimalSeparation") }
-	};
-
 	for (auto &entry : langpack_.entries) {
 		auto isPlural = !entry.keyBase.isEmpty();
 		auto &key = entry.key;
@@ -143,11 +147,11 @@ QString lang(LangKey key);\n\
 		auto nonPluralTagFound = false;
 		for (auto &tagData : entry.tags) {
 			auto &tag = tagData.tag;
-			auto isPluralTag = isPlural && (pluralType.find(tag) != pluralType.end());
-			genericParams.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const ResultString &") + tag + "__val");
+			auto isPluralTag = isPlural && (tag == kPluralTags[0]);
+			genericParams.push_back("lngtag_" + tag + (isPluralTag ? " type" : "") + ", " + (isPluralTag ? "float64 " : "const ResultString &") + tag + "__val");
 			params.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
 			if (isPluralTag) {
-				plural = "\tauto plural = Lang::Plural(" + key + ", " + tag + "__val, Lang::PluralType::" + pluralType[tag] + ");\n";
+				plural = "\tauto plural = Lang::Plural(" + key + ", " + tag + "__val, type);\n";
 				applyTags.push_back("\tresult = Lang::ReplaceTag<ResultString>::Call(std::move(result), lt_" + tag + ", Lang::StartReplacements<ResultString>::Call(std::move(plural.replacement)));\n");
 			} else {
 				nonPluralTagFound = true;

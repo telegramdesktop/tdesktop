@@ -7,17 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+enum lngtag_count : int;
+
 namespace Lang {
 
 constexpr auto kTagReplacementSize = 4;
 
 int FindTagReplacementPosition(const QString &original, ushort tag);
 
-enum class PluralType {
-	None,
-	Short,
-	DecimalSeparation,
+struct ShortenedCount {
+	int64 number = 0;
+	QString string;
 };
+ShortenedCount FormatCountToShort(int64 number);
 
 struct PluralResult {
 	QString string;
@@ -26,7 +28,7 @@ struct PluralResult {
 PluralResult Plural(
 	ushort keyBase,
 	float64 value,
-	PluralType type = PluralType::None);
+	lngtag_count type);
 void UpdatePluralRules(const QString &languageId);
 
 template <typename ResultString>

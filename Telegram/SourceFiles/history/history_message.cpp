@@ -1099,7 +1099,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 	const auto was = views->_viewsWidth;
 	views->_views = count;
 	views->_viewsText = (views->_views > 0)
-		? lng_channel_views(lt_count_short, views->_views)
+		? Lang::FormatCountToShort(views->_views).string
 		: QString();
 	views->_viewsWidth = views->_viewsText.isEmpty()
 		? 0

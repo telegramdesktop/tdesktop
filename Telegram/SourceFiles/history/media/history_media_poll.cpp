@@ -387,7 +387,7 @@ void HistoryPoll::updateTotalVotes() {
 	_totalVotes = _poll->totalVoters;
 	const auto string = !_totalVotes
 		? lang(lng_polls_votes_none)
-		: lng_polls_votes_count_short(lt_count_short, _totalVotes);
+		: lng_polls_votes_count(lt_count_short, _totalVotes);
 	_totalVotesLabel.setText(st::msgDateTextStyle, string);
 }
 
@@ -810,7 +810,7 @@ TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 				using Flag = Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {
 					result.customTooltipText = answer.votes
-						? lng_polls_votes_count_demical(lt_count_decimal, answer.votes)
+						? lng_polls_votes_count(lt_count_decimal, answer.votes)
 						: lang(lng_polls_votes_none);
 				}
 			}

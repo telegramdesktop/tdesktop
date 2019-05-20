@@ -775,7 +775,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			} else if (chat->count <= 0) {
 				text = lang(lng_group_status);
 			} else {
-				text = lng_chat_status_members_demical(lt_count_decimal, chat->count);
+				text = lng_chat_status_members(lt_count_decimal, chat->count);
 			}
 		} else {
 			const auto self = Auth().user();
@@ -788,11 +788,11 @@ void TopBarWidget::updateOnlineDisplay() {
 				}
 			}
 			if (online > 0 && !onlyMe) {
-				auto membersCount = lng_chat_status_members_demical(lt_count_decimal, chat->participants.size());
+				auto membersCount = lng_chat_status_members(lt_count_decimal, chat->participants.size());
 				auto onlineCount = lng_chat_status_online(lt_count, online);
 				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (chat->participants.size() > 0) {
-				text = lng_chat_status_members_demical(lt_count_decimal, chat->participants.size());
+				text = lng_chat_status_members(lt_count_decimal, chat->participants.size());
 			} else {
 				text = lang(lng_group_status);
 			}
@@ -814,16 +814,16 @@ void TopBarWidget::updateOnlineDisplay() {
 				}
 			}
 			if (online && !onlyMe) {
-				auto membersCount = lng_chat_status_members_demical(lt_count_decimal, channel->membersCount());
+				auto membersCount = lng_chat_status_members(lt_count_decimal, channel->membersCount());
 				auto onlineCount = lng_chat_status_online(lt_count, online);
 				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (channel->membersCount() > 0) {
-				text = lng_chat_status_members_demical(lt_count_decimal, channel->membersCount());
+				text = lng_chat_status_members(lt_count_decimal, channel->membersCount());
 			} else {
 				text = lang(lng_group_status);
 			}
 		} else if (channel->membersCount() > 0) {
-			text = lng_chat_status_members_demical(lt_count_decimal, channel->membersCount());
+			text = lng_chat_status_members(lt_count_decimal, channel->membersCount());
 		} else {
 			text = lang(channel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}

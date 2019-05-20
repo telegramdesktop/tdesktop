@@ -112,17 +112,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_status_unaccessible" = "group is inaccessible";
 "lng_chat_status_members#one" = "{count} member";
 "lng_chat_status_members#other" = "{count} members";
-"lng_chat_status_members_demical#one" = "{count_decimal} member";
-"lng_chat_status_members_demical#other" = "{count_decimal} members";
 "lng_chat_status_online#one" = "{count} online";
 "lng_chat_status_online#other" = "{count} online";
 "lng_chat_status_members_online" = "{members_count}, {online_count}";
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
-
-"lng_channel_views#one" = "{count_short}";
-"lng_channel_views#other" = "{count_short}";
 
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
@@ -1968,10 +1963,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_closed" = "Final results";
 "lng_polls_votes_count#one" = "{count} vote";
 "lng_polls_votes_count#other" = "{count} votes";
-"lng_polls_votes_count_short#one" = "{count_short} vote";
-"lng_polls_votes_count_short#other" = "{count_short} votes";
-"lng_polls_votes_count_demical#one" = "{count_decimal} vote";
-"lng_polls_votes_count_demical#other" = "{count_decimal} votes";
 "lng_polls_votes_none" = "No votes";
 "lng_polls_retract" = "Retract vote";
 "lng_polls_stop" = "Stop poll";

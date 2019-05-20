@@ -126,11 +126,11 @@ bool SectionToggle::checkRippleStartPosition(QPoint position) const {
 }
 
 auto MembersStatusText(int count) {
-	return lng_chat_status_members_demical(lt_count_decimal, count);
+	return lng_chat_status_members(lt_count_decimal, count);
 };
 
 auto OnlineStatusText(int count) {
-	return lng_chat_status_online(lt_count, count);
+	return lng_chat_status_online(lt_count_decimal, count);
 };
 
 auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
@@ -139,7 +139,7 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 			lt_members_count, MembersStatusText(fullCount),
 			lt_online_count, OnlineStatusText(onlineCount));
 	} else if (fullCount > 0) {
-		return lng_chat_status_members_demical(lt_count_decimal, fullCount);
+		return lng_chat_status_members(lt_count_decimal, fullCount);
 	}
 	return lang(isGroup
 		? lng_group_status

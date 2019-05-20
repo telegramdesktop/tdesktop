@@ -75,15 +75,11 @@ const std::array<QString, kPluralPartCount> kPluralParts = { {
 	"other",
 } };
 
-const QString kPluralTag = "count";
-const QString kPluralShortTag = kPluralTag + "_short";
-const QString kPluralDecimalSeparationTag = kPluralTag + "_decimal";
-
-const std::set<QString> pluralTypeSet {
-	kPluralTag,
-	kPluralShortTag,
-	kPluralDecimalSeparationTag
-};
+const std::array<QString, kPluralTagsCount> kPluralTags = { {
+	"count",
+	"count_short",
+	"count_decimal",
+} };
 
 QString ComputePluralKey(const QString &base, int index) {
 	return base + "__plural" + QString::number(index);
@@ -153,7 +149,7 @@ void ParsedFile::fillPluralTags() {
 			}
 		}
 		logAssert(!tags.empty());
-		logAssert(pluralTypeSet.find(tags.front().tag) != pluralTypeSet.end());
+		logAssert(tags.front().tag == kPluralTags[0]);
 
 		// Set this tags list to all plural variants.
 		for (auto j = i; j != i + kPluralPartCount; ++j) {
@@ -215,15 +211,6 @@ QString ParsedFile::extractTagData(const QString &tagText, LangPack *to) {
 	for (auto &previousTag : to->tags) {
 		if (previousTag.tag == tag) {
 			logErrorBadString() << "duplicate found for tag '" << tagText.toStdString() << "'";
-			return QString();
-		}
-		//Don't use both plural tags in one string.
-		if (previousTag.tag.startsWith(kPluralTag) && tag.startsWith(kPluralTag)) {
-			logErrorBadString() <<
-			"duplicate found for count tag '" <<
-			previousTag.tag.toStdString() <<
-			"' and '" <<
-			tag.toStdString() << "'";
 			return QString();
 		}
 	}
@@ -326,19 +313,12 @@ void ParsedFile::addEntity(QString key, const QString &value) {
 		realEntry.value = entry.value;
 
 		// Add all new tags to the existing ones.
-		realEntry.tags = std::vector<LangPack::Tag>(0);
+		realEntry.tags = std::vector<LangPack::Tag>(1, LangPack::Tag{ kPluralTags[0] });
 
 		for (auto &tag : entry.tags) {
 			if (std::find(realEntry.tags.begin(), realEntry.tags.end(), tag) == realEntry.tags.end()) {
-				if (pluralTypeSet.find(tag.tag) != pluralTypeSet.end()) {
-					realEntry.tags.insert(realEntry.tags.begin(), tag);
-				} else {
-					realEntry.tags.push_back(tag);
-				}
+				realEntry.tags.push_back(tag);
 			}
-		}
-		if (realEntry.tags.empty()) {
-			realEntry.tags.push_back(LangPack::Tag { kPluralTag });
 		}
 	} else {
 		result_.entries.push_back(entry);

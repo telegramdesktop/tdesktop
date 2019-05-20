@@ -166,7 +166,7 @@ object_ptr<Ui::FlatLabel> Members::setupTitle() {
 		MembersCountValue(
 			_peer
 		) | rpl::map([](int count) {
-			return lng_chat_status_members_demical(lt_count_decimal, count);
+			return lng_chat_status_members(lt_count_decimal, count);
 		}) | ToUpperValue(),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
