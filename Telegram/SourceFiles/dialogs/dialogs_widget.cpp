@@ -721,6 +721,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 		if (i != _searchCache.cend()) {
 			_searchQuery = q;
 			_searchQueryFrom = _searchFromUser;
+			_searchNextRate = 0;
 			_searchFull = _searchFullMigrated = false;
 			MTP::cancel(base::take(_searchRequest));
 			searchReceived(
@@ -734,6 +735,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q || _searchQueryFrom != _searchFromUser) {
 		_searchQuery = q;
 		_searchQueryFrom = _searchFromUser;
+		_searchNextRate = 0;
 		_searchFull = _searchFullMigrated = false;
 		MTP::cancel(base::take(_searchRequest));
 		if (const auto peer = _searchInChat.peer()) {
@@ -869,7 +871,6 @@ void Widget::searchMessages(
 void Widget::onSearchMore() {
 	if (!_searchRequest) {
 		if (!_searchFull) {
-			auto offsetDate = _inner->lastSearchDate();
 			auto offsetPeer = _inner->lastSearchPeer();
 			auto offsetId = _inner->lastSearchId();
 			if (const auto peer = _searchInChat.peer()) {
@@ -912,7 +913,7 @@ void Widget::onSearchMore() {
 				_searchRequest = MTP::send(
 					MTPmessages_SearchGlobal(
 						MTP_string(_searchQuery),
-						MTP_int(offsetDate),
+						MTP_int(_searchNextRate),
 						offsetPeer
 							? offsetPeer->input
 							: MTP_inputPeerEmpty(),
@@ -977,12 +978,11 @@ void Widget::searchReceived(
 				session().data().processChats(d.vchats);
 			}
 			auto &msgs = d.vmessages.v;
-			if (!_inner->searchReceived(msgs, type, msgs.size())) {
-				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
-					_searchFullMigrated = true;
-				} else {
-					_searchFull = true;
-				}
+			_inner->searchReceived(msgs, type, msgs.size());
+			if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
+				_searchFullMigrated = true;
+			} else {
+				_searchFull = true;
 			}
 		} break;
 
@@ -994,7 +994,15 @@ void Widget::searchReceived(
 				session().data().processChats(d.vchats);
 			}
 			auto &msgs = d.vmessages.v;
-			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
+			const auto someAdded = _inner->searchReceived(msgs, type, d.vcount.v);
+			const auto rateUpdated = d.has_next_rate() && (d.vnext_rate.v != _searchNextRate);
+			const auto finished = (type == SearchRequestType::FromStart || type == SearchRequestType::FromOffset)
+				? !rateUpdated
+				: !someAdded;
+			if (rateUpdated) {
+				_searchNextRate = d.vnext_rate.v;
+			}
+			if (finished) {
 				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 					_searchFullMigrated = true;
 				} else {

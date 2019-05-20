@@ -210,6 +210,7 @@ private:
 
 	QString _searchQuery;
 	UserData *_searchQueryFrom = nullptr;
+	int32 _searchNextRate = 0;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;
 	mtpRequestId _searchRequest = 0;
