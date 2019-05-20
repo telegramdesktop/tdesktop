@@ -602,7 +602,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_edit_privacy_exceptions_count#one" = "{count} user";
 "lng_edit_privacy_exceptions_count#other" = "{count} users";
-"lng_edit_privacy_exceptions_add" = "Add users";
+"lng_edit_privacy_exceptions_add" = "Add users or groups";
 
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_header" = "Who can see your last seen time";

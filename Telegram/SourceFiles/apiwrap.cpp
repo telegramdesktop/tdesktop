@@ -5625,10 +5625,8 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 		optionSet = true;
 		result.option = option;
 	};
-	auto &alwaysUsers = result.alwaysUsers;
-	auto &neverUsers = result.neverUsers;
-	auto &alwaysChats = result.alwaysChats;
-	auto &neverChats = result.neverChats;
+	auto &always = result.always;
+	auto &never = result.never;
 	const auto Feed = [&](const MTPPrivacyRule &rule) {
 		rule.match([&](const MTPDprivacyValueAllowAll &) {
 			SetOption(Option::Everyone);
@@ -5636,25 +5634,26 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 			SetOption(Option::Contacts);
 		}, [&](const MTPDprivacyValueAllowUsers &data) {
 			const auto &users = data.vusers.v;
-			alwaysUsers.reserve(alwaysUsers.size() + users.size());
+			always.reserve(always.size() + users.size());
 			for (const auto userId : users) {
 				const auto user = _session->data().user(UserId(userId.v));
-				if (!base::contains(neverUsers, user)
-					&& !base::contains(alwaysUsers, user)) {
-					alwaysUsers.push_back(user);
+				if (!base::contains(never, user)
+					&& !base::contains(always, user)) {
+					always.emplace_back(user);
 				}
 			}
 		}, [&](const MTPDprivacyValueAllowChatParticipants &data) {
 			const auto &chats = data.vchats.v;
-			alwaysChats.reserve(alwaysChats.size() + chats.size());
+			always.reserve(always.size() + chats.size());
 			for (const auto chatId : chats) {
 				const auto chat = _session->data().chatLoaded(chatId.v);
 				const auto peer = chat
 					? static_cast<PeerData*>(chat)
-					: _session->data().channel(chatId.v);
-				if (!base::contains(neverChats, peer)
-					&& !base::contains(alwaysChats, peer)) {
-					alwaysChats.emplace_back(peer);
+					: _session->data().channelLoaded(chatId.v);
+				if (peer
+					&& !base::contains(never, peer)
+					&& !base::contains(always, peer)) {
+					always.emplace_back(peer);
 				}
 			}
 		}, [&](const MTPDprivacyValueDisallowContacts &) {
@@ -5663,25 +5662,26 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 			SetOption(Option::Nobody);
 		}, [&](const MTPDprivacyValueDisallowUsers &data) {
 			const auto &users = data.vusers.v;
-			neverUsers.reserve(neverUsers.size() + users.size());
+			never.reserve(never.size() + users.size());
 			for (const auto userId : users) {
 				const auto user = _session->data().user(UserId(userId.v));
-				if (!base::contains(alwaysUsers, user)
-					&& !base::contains(neverUsers, user)) {
-					neverUsers.push_back(user);
+				if (!base::contains(always, user)
+					&& !base::contains(never, user)) {
+					never.emplace_back(user);
 				}
 			}
 		}, [&](const MTPDprivacyValueDisallowChatParticipants &data) {
 			const auto &chats = data.vchats.v;
-			neverChats.reserve(neverChats.size() + chats.size());
+			never.reserve(never.size() + chats.size());
 			for (const auto chatId : chats) {
 				const auto chat = _session->data().chatLoaded(chatId.v);
 				const auto peer = chat
 					? static_cast<PeerData*>(chat)
-					: _session->data().channel(chatId.v);
-				if (!base::contains(alwaysChats, peer)
-					&& !base::contains(neverChats, peer)) {
-					neverChats.emplace_back(peer);
+					: _session->data().channelLoaded(chatId.v);
+				if (peer
+					&& !base::contains(always, peer)
+					&& !base::contains(never, peer)) {
+					never.emplace_back(peer);
 				}
 			}
 		});

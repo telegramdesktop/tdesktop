@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
+#include "data/data_chat.h"
+#include "data/data_channel.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
@@ -102,10 +104,10 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			key
 		) | rpl::map([=](const Privacy &value) {
 			auto add = QStringList();
-			if (const auto never = value.neverUsers.size()) { // #TODO privacy
+			if (const auto never = ExceptionUsersCount(value.never)) {
 				add.push_back("-" + QString::number(never));
 			}
-			if (const auto always = value.alwaysUsers.size()) {
+			if (const auto always = ExceptionUsersCount(value.always)) {
 				add.push_back("+" + QString::number(always));
 			}
 			if (!add.isEmpty()) {
@@ -524,6 +526,18 @@ void SetupSessionsList(not_null<Ui::VerticalLayout*> container) {
 }
 
 } // namespace
+
+int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions) {
+	const auto add = [](int already, not_null<PeerData*> peer) {
+		if (const auto chat = peer->asChat()) {
+			return already + chat->count;
+		} else if (const auto channel = peer->asChannel()) {
+			return already + channel->membersCount();
+		}
+		return already + 1;
+	};
+	return ranges::accumulate(exceptions, 0, add);
+}
 
 PrivacySecurity::PrivacySecurity(QWidget *parent, not_null<UserData*> self)
 : Section(parent)

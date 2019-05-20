@@ -108,8 +108,8 @@ private:
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text);
 
-	void editExceptionUsers(Exception exception, Fn<void()> done);
-	std::vector<not_null<UserData*>> &exceptionUsers(Exception exception);
+	void editExceptions(Exception exception, Fn<void()> done);
+	std::vector<not_null<PeerData*>> &exceptions(Exception exception);
 
 	std::unique_ptr<Controller> _controller;
 	Value _value;

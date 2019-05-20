@@ -75,10 +75,8 @@ public:
 			Nobody,
 		};
 		Option option = Option::Everyone;
-		std::vector<not_null<UserData*>> alwaysUsers;
-		std::vector<not_null<UserData*>> neverUsers;
-		std::vector<not_null<PeerData*>> alwaysChats;
-		std::vector<not_null<PeerData*>> neverChats;
+		std::vector<not_null<PeerData*>> always;
+		std::vector<not_null<PeerData*>> never;
 
 		static MTPInputPrivacyKey Input(Key key);
 		static std::optional<Key> KeyFromMTP(mtpTypeId type);

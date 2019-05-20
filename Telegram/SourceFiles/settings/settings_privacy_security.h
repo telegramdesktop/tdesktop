@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
+int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
+
 class PrivacySecurity : public Section {
 public:
 	PrivacySecurity(QWidget *parent, not_null<UserData*> self);
