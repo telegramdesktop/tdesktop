@@ -3088,7 +3088,7 @@ void HistoryWidget::chooseAttach() {
 			if (list.allFilesForCompress || list.albumIsPossible) {
 				confirmSendingFiles(std::move(list), CompressConfirm::Auto);
 			} else if (!showSendingFilesError(list)) {
-				uploadFiles(std::move(list), SendMediaType::File);
+				confirmSendingFiles(std::move(list), CompressConfirm::No);
 			}
 		}
 	}));
