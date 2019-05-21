@@ -62,6 +62,7 @@ class ApiWrap : public MTP::Sender, private base::Subscriber {
 public:
 	struct Privacy {
 		enum class Key {
+			PhoneNumber,
 			LastSeen,
 			Calls,
 			Invites,

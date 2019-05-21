@@ -37,7 +37,24 @@ private:
 
 };
 
-class LastSeenPrivacyController : public EditPrivacyBox::Controller {
+class PhoneNumberPrivacyController : public EditPrivacyController {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	QString title() override;
+	LangKey optionsTitleKey() override;
+	rpl::producer<QString> warning() override;
+	LangKey exceptionButtonTextKey(Exception exception) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+};
+
+class LastSeenPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -56,7 +73,7 @@ public:
 
 };
 
-class GroupsInvitePrivacyController : public EditPrivacyBox::Controller {
+class GroupsInvitePrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -73,7 +90,7 @@ public:
 
 };
 
-class CallsPrivacyController : public EditPrivacyBox::Controller {
+class CallsPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -87,9 +104,12 @@ public:
 	QString exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
 
+	object_ptr<Ui::RpWidget> setupBelowWidget(
+		not_null<QWidget*> parent) override;
+
 };
 
-class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller {
+class CallsPeer2PeerPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -108,7 +128,7 @@ public:
 };
 
 class ForwardsPrivacyController
-	: public EditPrivacyBox::Controller
+	: public EditPrivacyController
 	, private HistoryView::SimpleElementDelegate {
 public:
 	using Option = EditPrivacyBox::Option;
@@ -140,7 +160,7 @@ private:
 
 };
 
-class ProfilePhotoPrivacyController : public EditPrivacyBox::Controller {
+class ProfilePhotoPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;

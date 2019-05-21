@@ -100,7 +100,7 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
-LangKey EditPrivacyBox::Controller::optionLabelKey(Option option) {
+LangKey EditPrivacyController::optionLabelKey(Option option) {
 	switch (option) {
 	case Option::Everyone: return lng_edit_privacy_everyone;
 	case Option::Contacts: return lng_edit_privacy_contacts;
@@ -111,7 +111,7 @@ LangKey EditPrivacyBox::Controller::optionLabelKey(Option option) {
 
 EditPrivacyBox::EditPrivacyBox(
 	QWidget*,
-	std::unique_ptr<Controller> controller,
+	std::unique_ptr<EditPrivacyController> controller,
 	const Value &value)
 : _controller(std::move(controller))
 , _value(value) {
@@ -349,6 +349,10 @@ void EditPrivacyBox::setupContent() {
 	const auto never = addExceptionLink(Exception::Never);
 	addLabel(content, _controller->exceptionsDescription());
 	AddSkip(content);
+
+	if (auto below = _controller->setupBelowWidget(content)) {
+		content->add(std::move(below));
+	}
 
 	addButton(langFactory(lng_settings_save), [=] {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)

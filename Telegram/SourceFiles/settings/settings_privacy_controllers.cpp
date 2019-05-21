@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
+#include "settings/settings_privacy_security.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -295,6 +296,49 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 	return std::move(row);
 }
 
+ApiWrap::Privacy::Key PhoneNumberPrivacyController::key() {
+	return Key::PhoneNumber;
+}
+
+MTPInputPrivacyKey PhoneNumberPrivacyController::apiKey() {
+	return MTP_inputPrivacyKeyPhoneNumber();
+}
+
+QString PhoneNumberPrivacyController::title() {
+	return lang(lng_edit_privacy_phone_number_title);
+}
+
+LangKey PhoneNumberPrivacyController::optionsTitleKey() {
+	return lng_edit_privacy_phone_number_header;
+}
+
+rpl::producer<QString> PhoneNumberPrivacyController::warning() {
+	return Lang::Viewer(lng_edit_privacy_phone_number_warning);
+}
+
+LangKey PhoneNumberPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always:
+		return lng_edit_privacy_phone_number_always_empty;
+	case Exception::Never:
+		return lng_edit_privacy_phone_number_never_empty;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString PhoneNumberPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_phone_number_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_phone_number_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> PhoneNumberPrivacyController::exceptionsDescription() {
+	return Lang::Viewer(lng_edit_privacy_phone_number_exceptions);
+}
+
 ApiWrap::Privacy::Key LastSeenPrivacyController::key() {
 	return Key::LastSeen;
 }
@@ -437,6 +481,24 @@ QString CallsPrivacyController::exceptionBoxTitle(Exception exception) {
 
 rpl::producer<QString> CallsPrivacyController::exceptionsDescription() {
 	return Lang::Viewer(lng_edit_privacy_calls_exceptions);
+}
+
+object_ptr<Ui::RpWidget> CallsPrivacyController::setupBelowWidget(
+		not_null<QWidget*> parent) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	const auto content = result.data();
+
+	AddDivider(content);
+	AddSkip(content);
+	AddSubsectionTitle(content, lng_settings_calls_peer_to_peer_title);
+	Settings::AddPrivacyButton(
+		content,
+		lng_settings_calls_peer_to_peer_button,
+		ApiWrap::Privacy::Key::CallsPeer2Peer,
+		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
+	AddSkip(content);
+
+	return result;
 }
 
 ApiWrap::Privacy::Key CallsPeer2PeerPrivacyController::key() {

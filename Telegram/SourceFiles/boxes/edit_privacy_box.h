@@ -25,71 +25,79 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
-class EditPrivacyBox : public BoxContent, private MTP::Sender {
+class EditPrivacyBox;
+
+class EditPrivacyController {
 public:
-	using Value = ApiWrap::Privacy;
-	using Option = Value::Option;
+	using Key = ApiWrap::Privacy::Key;
+	using Option = ApiWrap::Privacy::Option;
 	enum class Exception {
 		Always,
 		Never,
 	};
 
-	class Controller {
-	public:
-		using Key = ApiWrap::Privacy::Key;
+	[[nodiscard]] virtual Key key() = 0;
+	[[nodiscard]] virtual MTPInputPrivacyKey apiKey() = 0;
 
-		[[nodiscard]] virtual Key key() = 0;
-		[[nodiscard]] virtual MTPInputPrivacyKey apiKey() = 0;
+	[[nodiscard]] virtual QString title() = 0;
+	[[nodiscard]] virtual bool hasOption(Option option) {
+		return true;
+	}
+	[[nodiscard]] virtual LangKey optionsTitleKey() = 0;
+	[[nodiscard]] virtual LangKey optionLabelKey(Option option);
+	[[nodiscard]] virtual rpl::producer<QString> warning() {
+		return rpl::never<QString>();
+	}
+	[[nodiscard]] virtual LangKey exceptionButtonTextKey(
+		Exception exception) = 0;
+	[[nodiscard]] virtual QString exceptionBoxTitle(
+		Exception exception) = 0;
+	[[nodiscard]] virtual auto exceptionsDescription()
+		-> rpl::producer<QString> = 0;
 
-		[[nodiscard]] virtual QString title() = 0;
-		[[nodiscard]] virtual bool hasOption(Option option) {
-			return true;
-		}
-		[[nodiscard]] virtual LangKey optionsTitleKey() = 0;
-		[[nodiscard]] virtual LangKey optionLabelKey(Option option);
-		[[nodiscard]] virtual rpl::producer<QString> warning() {
-			return rpl::never<QString>();
-		}
-		[[nodiscard]] virtual LangKey exceptionButtonTextKey(
-			Exception exception) = 0;
-		[[nodiscard]] virtual QString exceptionBoxTitle(
-			Exception exception) = 0;
-		[[nodiscard]] virtual auto exceptionsDescription()
-			-> rpl::producer<QString> = 0;
+	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
+			not_null<QWidget*> parent,
+			rpl::producer<Option> option) {
+		return { nullptr };
+	}
+	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupBelowWidget(
+			not_null<QWidget*> parent) {
+		return { nullptr };
+	}
 
-		[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
-				not_null<QWidget*> parent,
-				rpl::producer<Option> option) {
-			return { nullptr };
-		}
+	virtual void confirmSave(
+			bool someAreDisallowed,
+			FnMut<void()> saveCallback) {
+		saveCallback();
+	}
 
-		virtual void confirmSave(
-				bool someAreDisallowed,
-				FnMut<void()> saveCallback) {
-			saveCallback();
-		}
+	virtual ~EditPrivacyController() = default;
 
-		virtual ~Controller() = default;
+protected:
+	EditPrivacyBox *view() const {
+		return _view;
+	}
 
-	protected:
-		EditPrivacyBox *view() const {
-			return _view;
-		}
+private:
+	void setView(EditPrivacyBox *box) {
+		_view = box;
+	}
 
-	private:
-		void setView(EditPrivacyBox *box) {
-			_view = box;
-		}
+	EditPrivacyBox *_view = nullptr;
 
-		EditPrivacyBox *_view = nullptr;
+	friend class EditPrivacyBox;
 
-		friend class EditPrivacyBox;
+};
 
-	};
+class EditPrivacyBox : public BoxContent, private MTP::Sender {
+public:
+	using Value = ApiWrap::Privacy;
+	using Option = Value::Option;
+	using Exception = EditPrivacyController::Exception;
 
 	EditPrivacyBox(
 		QWidget*,
-		std::unique_ptr<Controller> controller,
+		std::unique_ptr<EditPrivacyController> controller,
 		const Value &value);
 
 protected:
@@ -111,7 +119,7 @@ private:
 	void editExceptions(Exception exception, Fn<void()> done);
 	std::vector<not_null<PeerData*>> &exceptions(Exception exception);
 
-	std::unique_ptr<Controller> _controller;
+	std::unique_ptr<EditPrivacyController> _controller;
 	Value _value;
 
 };

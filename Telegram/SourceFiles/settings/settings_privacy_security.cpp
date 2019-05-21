@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+using Privacy = ApiWrap::Privacy;
+
 rpl::producer<> PasscodeChanges() {
 	return rpl::single(
 		rpl::empty_value()
@@ -46,12 +48,10 @@ rpl::producer<> PasscodeChanges() {
 	));
 }
 
-QString PrivacyBase(
-		ApiWrap::Privacy::Key key,
-		ApiWrap::Privacy::Option option) {
+QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 	const auto phrase = [&] {
-		using Key = ApiWrap::Privacy::Key;
-		using Option = ApiWrap::Privacy::Option;
+		using Key = Privacy::Key;
+		using Option = Privacy::Option;
 		switch (key) {
 		case Key::CallsPeer2Peer:
 			switch (option) {
@@ -73,6 +73,27 @@ QString PrivacyBase(
 		}
 	}();
 	return lang(phrase);
+}
+
+rpl::producer<QString> PrivacyString(Privacy::Key key) {
+	Auth().api().reloadPrivacy(key);
+	return Auth().api().privacyValue(
+		key
+	) | rpl::map([=](const Privacy &value) {
+		auto add = QStringList();
+		if (const auto never = ExceptionUsersCount(value.never)) {
+			add.push_back("-" + QString::number(never));
+		}
+		if (const auto always = ExceptionUsersCount(value.always)) {
+			add.push_back("+" + QString::number(always));
+		}
+		if (!add.isEmpty()) {
+			return PrivacyBase(key, value.option)
+				+ " (" + add.join(", ") + ")";
+		} else {
+			return PrivacyBase(key, value.option);
+		}
+	});
 }
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
@@ -97,69 +118,33 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 			initBox));
 	});
 
-	using Privacy = ApiWrap::Privacy;
-	const auto PrivacyString = [](Privacy::Key key) {
-		Auth().api().reloadPrivacy(key);
-		return Auth().api().privacyValue(
-			key
-		) | rpl::map([=](const Privacy &value) {
-			auto add = QStringList();
-			if (const auto never = ExceptionUsersCount(value.never)) {
-				add.push_back("-" + QString::number(never));
-			}
-			if (const auto always = ExceptionUsersCount(value.always)) {
-				add.push_back("+" + QString::number(always));
-			}
-			if (!add.isEmpty()) {
-				return PrivacyBase(key, value.option)
-					+ " (" + add.join(", ") + ")";
-			} else {
-				return PrivacyBase(key, value.option);
-			}
-		});
-	};
-	const auto add = [&](LangKey label, Privacy::Key key, auto controller) {
-		const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
-		AddButtonWithLabel(
-			container,
-			label,
-			PrivacyString(key),
-			st::settingsButton
-		)->addClickHandler([=] {
-			*shower = Auth().api().privacyValue(
-				key
-			) | rpl::take(
-				1
-			) | rpl::start_with_next([=](const Privacy &value) {
-				Ui::show(Box<EditPrivacyBox>(
-					controller(),
-					value));
-			});
-		});
+	using Key = Privacy::Key;
+	const auto add = [&](LangKey label, Key key, auto controller) {
+		AddPrivacyButton(container, label, key, controller);
 	};
 	add(
+		lng_settings_phone_number_privacy,
+		Key::PhoneNumber,
+		[] { return std::make_unique<PhoneNumberPrivacyController>(); });
+	add(
 		lng_settings_last_seen,
-		Privacy::Key::LastSeen,
+		Key::LastSeen,
 		[] { return std::make_unique<LastSeenPrivacyController>(); });
 	add(
 		lng_settings_forwards_privacy,
-		Privacy::Key::Forwards,
+		Key::Forwards,
 		[] { return std::make_unique<ForwardsPrivacyController>(); });
 	add(
 		lng_settings_profile_photo_privacy,
-		Privacy::Key::ProfilePhoto,
+		Key::ProfilePhoto,
 		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
 	add(
 		lng_settings_calls,
-		Privacy::Key::Calls,
+		Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
 	add(
-		lng_settings_calls_peer_to_peer,
-		Privacy::Key::CallsPeer2Peer,
-		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
-	add(
 		lng_settings_groups_invite,
-		Privacy::Key::Invites,
+		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
 	AddSkip(container, st::settingsPrivacySecurityPadding);
@@ -537,6 +522,30 @@ int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions) {
 		return already + 1;
 	};
 	return ranges::accumulate(exceptions, 0, add);
+}
+
+void AddPrivacyButton(
+		not_null<Ui::VerticalLayout*> container,
+		LangKey label,
+		Privacy::Key key,
+		Fn<std::unique_ptr<EditPrivacyController>()> controller) {
+	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
+	AddButtonWithLabel(
+		container,
+		label,
+		PrivacyString(key),
+		st::settingsButton
+	)->addClickHandler([=] {
+		*shower = Auth().api().privacyValue(
+			key
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=](const Privacy &value) {
+			Ui::show(
+				Box<EditPrivacyBox>(controller(), value),
+				LayerOption::KeepOther);
+		});
+	});
 }
 
 PrivacySecurity::PrivacySecurity(QWidget *parent, not_null<UserData*> self)

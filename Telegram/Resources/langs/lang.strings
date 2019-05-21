@@ -355,9 +355,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_privacy_title" = "Privacy";
 "lng_settings_last_seen" = "Last seen";
 "lng_settings_calls" = "Voice calls";
-"lng_settings_calls_peer_to_peer" = "Peer-to-peer in calls";
+"lng_settings_calls_peer_to_peer_title" = "Peer-to-peer";
+"lng_settings_calls_peer_to_peer_button" = "Use peer-to-peer with";
 "lng_settings_groups_invite" = "Groups";
 "lng_settings_group_privacy_about" = "Change who can add you to groups and channels.";
+"lng_settings_phone_number_privacy" = "Phone number";
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
@@ -603,6 +605,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_exceptions_count#one" = "{count} user";
 "lng_edit_privacy_exceptions_count#other" = "{count} users";
 "lng_edit_privacy_exceptions_add" = "Add users or groups";
+
+"lng_edit_privacy_phone_number_title" = "Phone number privacy";
+"lng_edit_privacy_phone_number_header" = "Who can see your phone number";
+"lng_edit_privacy_phone_number_warning" = "Important: blabla.";
+"lng_edit_privacy_phone_number_always_empty" = "Always share with";
+"lng_edit_privacy_phone_number_never_empty" = "Never share with";
+"lng_edit_privacy_phone_number_exceptions" = "These settings will override the values above.";
+"lng_edit_privacy_phone_number_always_title" = "Always share with";
+"lng_edit_privacy_phone_number_never_title" = "Never share with";
 
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_header" = "Who can see your last seen time";
