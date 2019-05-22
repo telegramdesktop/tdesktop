@@ -172,34 +172,44 @@ private:
 };
 
 template <typename Callback>
+Fn<bool(crl::time)> Basic__PrepareCrlTime(Callback &&callback) {
+	using Return = decltype(callback(crl::time(0)));
+	if constexpr (std::is_convertible_v<Return, bool>) {
+		return std::forward<Callback>(callback);
+	} else if constexpr (std::is_same_v<Return, void>) {
+		return [callback = std::forward<Callback>(callback)](
+			crl::time time) {
+			callback(time);
+			return true;
+		};
+	} else {
+		static_assert(false_t(callback), "Expected void or bool.");
+	}
+}
+
+template <typename Callback>
+Fn<bool(crl::time)> Basic__PreparePlain(Callback &&callback) {
+	using Return = decltype(callback());
+	if constexpr (std::is_convertible_v<Return, bool>) {
+		return [callback = std::forward<Callback>(callback)](crl::time) {
+			return callback();
+		};
+	} else if constexpr (std::is_same_v<Return, void>) {
+		return [callback = std::forward<Callback>(callback)](crl::time) {
+			callback();
+			return true;
+		};
+	} else {
+		static_assert(false_t(callback), "Expected void or bool.");
+	}
+}
+
+template <typename Callback>
 inline Fn<bool(crl::time)> Basic::Prepare(Callback &&callback) {
 	if constexpr (rpl::details::is_callable_plain_v<Callback, crl::time>) {
-		using Return = decltype(callback(crl::time(0)));
-		if constexpr (std::is_convertible_v<Return, bool>) {
-			return std::forward<Callback>(callback);
-		} else if constexpr (std::is_same_v<Return, void>) {
-			return [callback = std::forward<Callback>(callback)](
-					crl::time time) {
-				callback(time);
-				return true;
-			};
-		} else {
-			static_assert(false_t(callback), "Expected void or bool.");
-		}
+		return Basic__PrepareCrlTime(std::forward<Callback>(callback));
 	} else if constexpr (rpl::details::is_callable_plain_v<Callback>) {
-		using Return = decltype(callback());
-		if constexpr (std::is_convertible_v<Return, bool>) {
-			return [callback = std::forward<Callback>(callback)](crl::time) {
-				return callback();
-			};
-		} else if constexpr (std::is_same_v<Return, void>) {
-			return [callback = std::forward<Callback>(callback)](crl::time) {
-				callback();
-				return true;
-			};
-		} else {
-			static_assert(false_t(callback), "Expected void or bool.");
-		}
+		return Basic__PreparePlain(std::forward<Callback>(callback));
 	} else {
 		static_assert(false_t(callback), "Expected crl::time or no args.");
 	}
@@ -233,34 +243,44 @@ inline Basic::~Basic() {
 }
 
 template <typename Callback>
+decltype(auto) Simple__PrepareFloat64(Callback &&callback) {
+	using Return = decltype(callback(float64(0.)));
+	if constexpr (std::is_convertible_v<Return, bool>) {
+		return std::forward<Callback>(callback);
+	} else if constexpr (std::is_same_v<Return, void>) {
+		return [callback = std::forward<Callback>(callback)](
+			float64 value) {
+			callback(value);
+			return true;
+		};
+	} else {
+		static_assert(false_t(callback), "Expected void or float64.");
+	}
+}
+
+template <typename Callback>
+decltype(auto) Simple__PreparePlain(Callback &&callback) {
+	using Return = decltype(callback());
+	if constexpr (std::is_convertible_v<Return, bool>) {
+		return [callback = std::forward<Callback>(callback)](float64) {
+			return callback();
+		};
+	} else if constexpr (std::is_same_v<Return, void>) {
+		return [callback = std::forward<Callback>(callback)](float64) {
+			callback();
+			return true;
+		};
+	} else {
+		static_assert(false_t(callback), "Expected void or bool.");
+	}
+}
+
+template <typename Callback>
 decltype(auto) Simple::Prepare(Callback &&callback) {
 	if constexpr (rpl::details::is_callable_plain_v<Callback, float64>) {
-		using Return = decltype(callback(float64(0.)));
-		if constexpr (std::is_convertible_v<Return, bool>) {
-			return std::forward<Callback>(callback);
-		} else if constexpr (std::is_same_v<Return, void>) {
-			return [callback = std::forward<Callback>(callback)](
-					float64 value) {
-				callback(value);
-				return true;
-			};
-		} else {
-			static_assert(false_t(callback), "Expected void or float64.");
-		}
+		return Simple__PrepareFloat64(std::forward<Callback>(callback));
 	} else if constexpr (rpl::details::is_callable_plain_v<Callback>) {
-		using Return = decltype(callback());
-		if constexpr (std::is_convertible_v<Return, bool>) {
-			return [callback = std::forward<Callback>(callback)](float64) {
-				return callback();
-			};
-		} else if constexpr (std::is_same_v<Return, void>) {
-			return [callback = std::forward<Callback>(callback)](float64) {
-				callback();
-				return true;
-			};
-		} else {
-			static_assert(false_t(callback), "Expected void or bool.");
-		}
+		return Simple__PreparePlain(std::forward<Callback>(callback));
 	} else {
 		static_assert(false_t(callback), "Expected float64 or no args.");
 	}
