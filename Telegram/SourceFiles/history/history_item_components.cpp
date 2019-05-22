@@ -365,17 +365,7 @@ QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 // Note: it is possible that we will point to the different button
 // than the one was used when constructing the handler, but not a big deal.
 const HistoryMessageMarkupButton *ReplyMarkupClickHandler::getButton() const {
-	if (const auto item = Auth().data().message(_itemId)) {
-		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (_row < markup->rows.size()) {
-				const auto &row = markup->rows[_row];
-				if (_column < row.size()) {
-					return &row[_column];
-				}
-			}
-		}
-	}
-	return nullptr;
+	return HistoryMessageMarkupButton::Get(_itemId, _row, _column);
 }
 
 void ReplyMarkupClickHandler::onClickImpl() const {
@@ -730,66 +720,93 @@ void ReplyKeyboard::Style::paintButton(
 	button.text.drawElided(p, tx, rect.y() + _st->textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
 }
 
-void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v) {
-	if (v.isEmpty()) {
-		rows.clear();
+HistoryMessageMarkupButton::HistoryMessageMarkupButton(
+	Type type,
+	const QString &text,
+	const QByteArray &data,
+	int32 buttonId)
+: type(type)
+, text(text)
+, data(data)
+, buttonId(buttonId) {
+}
+
+HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
+		FullMsgId itemId,
+		int row,
+		int column) {
+	if (const auto item = Auth().data().message(itemId)) {
+		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+			if (row < markup->rows.size()) {
+				auto &buttons = markup->rows[row];
+				if (column < buttons.size()) {
+					return &buttons[column];
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+void HistoryMessageReplyMarkup::createFromButtonRows(
+		const QVector<MTPKeyboardButtonRow> &list) {
+	rows.clear();
+	if (list.isEmpty()) {
 		return;
 	}
 
-	rows.reserve(v.size());
-	for_const (auto &row, v) {
-		switch (row.type()) {
-		case mtpc_keyboardButtonRow: {
-			auto &r = row.c_keyboardButtonRow();
-			auto &b = r.vbuttons.v;
-			if (!b.isEmpty()) {
-				auto buttonRow = std::vector<Button>();
-				buttonRow.reserve(b.size());
-				for_const (auto &button, b) {
-					switch (button.type()) {
-					case mtpc_keyboardButton: {
-						buttonRow.push_back({ Button::Type::Default, qs(button.c_keyboardButton().vtext), QByteArray(), 0 });
-					} break;
-					case mtpc_keyboardButtonCallback: {
-						auto &buttonData = button.c_keyboardButtonCallback();
-						buttonRow.push_back({ Button::Type::Callback, qs(buttonData.vtext), qba(buttonData.vdata), 0 });
-					} break;
-					case mtpc_keyboardButtonRequestGeoLocation: {
-						buttonRow.push_back({ Button::Type::RequestLocation, qs(button.c_keyboardButtonRequestGeoLocation().vtext), QByteArray(), 0 });
-					} break;
-					case mtpc_keyboardButtonRequestPhone: {
-						buttonRow.push_back({ Button::Type::RequestPhone, qs(button.c_keyboardButtonRequestPhone().vtext), QByteArray(), 0 });
-					} break;
-					case mtpc_keyboardButtonUrl: {
-						auto &buttonData = button.c_keyboardButtonUrl();
-						buttonRow.push_back({ Button::Type::Url, qs(buttonData.vtext), qba(buttonData.vurl), 0 });
-					} break;
-					case mtpc_keyboardButtonSwitchInline: {
-						auto &buttonData = button.c_keyboardButtonSwitchInline();
-						auto buttonType = buttonData.is_same_peer() ? Button::Type::SwitchInlineSame : Button::Type::SwitchInline;
-						buttonRow.push_back({ buttonType, qs(buttonData.vtext), qba(buttonData.vquery), 0 });
-						if (buttonType == Button::Type::SwitchInline) {
-							// Optimization flag.
-							// Fast check on all new messages if there is a switch button to auto-click it.
-							flags |= MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button;
-						}
-					} break;
-					case mtpc_keyboardButtonGame: {
-						auto &buttonData = button.c_keyboardButtonGame();
-						buttonRow.push_back({ Button::Type::Game, qs(buttonData.vtext), QByteArray(), 0 });
-					} break;
-					case mtpc_keyboardButtonBuy: {
-						auto &buttonData = button.c_keyboardButtonBuy();
-						buttonRow.push_back({ Button::Type::Buy, qs(buttonData.vtext), QByteArray(), 0 });
+	rows.reserve(list.size());
+	for (const auto &row : list) {
+		row.match([&](const MTPDkeyboardButtonRow &data) {
+			auto row = std::vector<Button>();
+			row.reserve(data.vbuttons.v.size());
+			for (const auto &button : data.vbuttons.v) {
+				using Type = Button::Type;
+				button.match([&](const MTPDkeyboardButton &data) {
+					row.emplace_back(Type::Default, qs(data.vtext));
+				}, [&](const MTPDkeyboardButtonCallback &data) {
+					row.emplace_back(
+						Type::Callback,
+						qs(data.vtext),
+						qba(data.vdata));
+				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
+					row.emplace_back(Type::RequestLocation, qs(data.vtext));
+				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
+					row.emplace_back(Type::RequestPhone, qs(data.vtext));
+				}, [&](const MTPDkeyboardButtonUrl &data) {
+					row.emplace_back(
+						Type::Url,
+						qs(data.vtext),
+						qba(data.vurl));
+				}, [&](const MTPDkeyboardButtonSwitchInline &data) {
+					const auto type = data.is_same_peer()
+						? Type::SwitchInlineSame
+						: Type::SwitchInline;
+					row.emplace_back(type, qs(data.vtext), qba(data.vquery));
+					if (type == Type::SwitchInline) {
+						// Optimization flag.
+						// Fast check on all new messages if there is a switch button to auto-click it.
+						flags |= MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button;
 					}
-					}
-				}
-				if (!buttonRow.empty()) {
-					rows.push_back(std::move(buttonRow));
-				}
+				}, [&](const MTPDkeyboardButtonGame &data) {
+					row.emplace_back(Type::Game, qs(data.vtext));
+				}, [&](const MTPDkeyboardButtonBuy &data) {
+					row.emplace_back(Type::Buy, qs(data.vtext));
+				}, [&](const MTPDkeyboardButtonUrlAuth &data) {
+					row.emplace_back(
+						Type::Auth,
+						qs(data.vtext),
+						qba(data.vurl),
+						data.vbutton_id.v);
+				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
+					LOG(("API Error: inputKeyboardButtonUrlAuth received."));
+					// Should not get those for the users.
+				});
 			}
-		} break;
-		}
+			if (!row.empty()) {
+				rows.push_back(std::move(row));
+			}
+		});
 	}
 }
 
@@ -831,14 +848,19 @@ void HistoryMessageReplyMarkup::create(
 	inlineKeyboard = nullptr;
 
 	rows.clear();
-	for (const auto &row : markup.rows) {
-		auto buttonRow = std::vector<Button>();
-		buttonRow.reserve(row.size());
-		for (const auto &button : row) {
-			buttonRow.push_back({ button.type, button.text, button.data, 0 });
+	rows.reserve(markup.rows.size());
+	for (const auto &existing : markup.rows) {
+		auto row = std::vector<Button>();
+		row.reserve(existing.size());
+		for (const auto &button : existing) {
+			row.emplace_back(
+				button.type,
+				button.text,
+				button.data,
+				button.buttonId);
 		}
-		if (!buttonRow.empty()) {
-			rows.push_back(std::move(buttonRow));
+		if (!row.empty()) {
+			rows.push_back(std::move(row));
 		}
 	}
 }

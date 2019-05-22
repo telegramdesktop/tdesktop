@@ -20,6 +20,13 @@ TextParseOptions _checkboxOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
+TextParseOptions _checkboxRichOptions = {
+	TextParseMultiline | TextParseRichText, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
 } // namespace
 
 AbstractCheckView::AbstractCheckView(int duration, bool checked, Fn<void()> updateCallback)
@@ -401,7 +408,7 @@ Checkbox::Checkbox(
 : RippleButton(parent, st.ripple)
 , _st(st)
 , _check(std::move(check))
-, _text(_st.style, text, _checkboxOptions) {
+, _text(_st.style, text, _checkboxOptions, (_st.width > 0) ? _st.width : QFIXED_MAX) {
 	_check->setUpdateCallback([=] { updateCheck(); });
 	resizeToText();
 	setCursor(style::cur_pointer);
@@ -423,8 +430,8 @@ QRect Checkbox::checkRect() const {
 	}, size);
 }
 
-void Checkbox::setText(const QString &text) {
-	_text.setText(_st.style, text, _checkboxOptions);
+void Checkbox::setText(const QString &text, bool rich) {
+	_text.setText(_st.style, text, rich ? _checkboxRichOptions : _checkboxOptions);
 	resizeToText();
 	update();
 }
@@ -434,6 +441,11 @@ void Checkbox::setCheckAlignment(style::align alignment) {
 		_checkAlignment = alignment;
 		update();
 	}
+}
+
+void Checkbox::setAllowMultiline(bool allow) {
+	_allowMultiline = allow;
+	update();
 }
 
 bool Checkbox::checked() const {
@@ -519,19 +531,37 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 			+ _st.textPosition.x();
 		auto textTop = _st.margin.top() + _st.textPosition.y();
 		if (_checkAlignment & Qt::AlignLeft) {
-			_text.drawLeftElided(
-				p,
-				textSkip,
-				textTop,
-				availableTextWidth,
-				width());
+			if (_allowMultiline) {
+				_text.drawLeft(
+					p,
+					textSkip,
+					textTop,
+					availableTextWidth,
+					width());
+			} else {
+				_text.drawLeftElided(
+					p,
+					textSkip,
+					textTop,
+					availableTextWidth,
+					width());
+			}
 		} else if (_checkAlignment & Qt::AlignRight) {
-			_text.drawRightElided(
-				p,
-				textSkip,
-				textTop,
-				availableTextWidth,
-				width());
+			if (_allowMultiline) {
+				_text.drawRight(
+					p,
+					textSkip,
+					textTop,
+					availableTextWidth,
+					width());
+			} else {
+				_text.drawRightElided(
+					p,
+					textSkip,
+					textTop,
+					availableTextWidth,
+					width());
+			}
 		} else {
 			_text.drawLeft(
 				p,
@@ -582,13 +612,18 @@ void Checkbox::handlePress() {
 
 int Checkbox::resizeGetHeight(int newWidth) {
 	const auto result = _check->getSize().height();
-	if (!(_checkAlignment & Qt::AlignHCenter)) {
+	const auto centered = ((_checkAlignment & Qt::AlignHCenter) != 0);
+	if (!centered && !_allowMultiline) {
 		return result;
 	}
-	const auto textBottom = _st.margin.top()
-		+ _st.textPosition.y()
-		+ _text.countHeight(
-			newWidth - _st.margin.left() - _st.margin.right());
+	const auto leftSkip = _st.checkPosition.x()
+		+ checkRect().width()
+		+ _st.textPosition.x();
+	const auto availableTextWidth = centered
+		? (newWidth - _st.margin.left() - _st.margin.right())
+		: qMax(width() - leftSkip, 1);
+	const auto textBottom = _st.textPosition.y()
+		+ _text.countHeight(availableTextWidth);
 	return std::max(result, textBottom);
 }
 

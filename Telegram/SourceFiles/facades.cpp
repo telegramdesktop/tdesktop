@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
+#include "boxes/url_auth_box.h"
 #include "window/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
@@ -62,15 +63,7 @@ void activateBotCommand(
 		not_null<const HistoryItem*> msg,
 		int row,
 		int column) {
-	const HistoryMessageMarkupButton *button = nullptr;
-	if (auto markup = msg->Get<HistoryMessageReplyMarkup>()) {
-		if (row < markup->rows.size()) {
-			auto &buttonRow = markup->rows[row];
-			if (column < buttonRow.size()) {
-				button = &buttonRow[column];
-			}
-		}
-	}
+	const auto button = HistoryMessageMarkupButton::Get(msg->fullId(), row, column);
 	if (!button) return;
 
 	using ButtonType = HistoryMessageMarkupButton::Type;
@@ -147,6 +140,10 @@ void activateBotCommand(
 			}
 		}
 	} break;
+
+	case ButtonType::Auth:
+		UrlAuthBox::Activate(msg, row, column);
+		break;
 	}
 }
 

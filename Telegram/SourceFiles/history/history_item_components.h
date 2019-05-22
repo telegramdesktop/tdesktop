@@ -164,11 +164,25 @@ struct HistoryMessageMarkupButton {
 		SwitchInlineSame,
 		Game,
 		Buy,
+		Auth,
 	};
+
+	HistoryMessageMarkupButton(
+		Type type,
+		const QString &text,
+		const QByteArray &data = QByteArray(),
+		int32 buttonId = 0);
+
+	static HistoryMessageMarkupButton *Get(
+		FullMsgId itemId,
+		int row,
+		int column);
+
 	Type type;
 	QString text;
 	QByteArray data;
-	mutable mtpRequestId requestId;
+	int32 buttonId = 0;
+	mutable mtpRequestId requestId = 0;
 
 };
 

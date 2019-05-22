@@ -78,6 +78,8 @@
 <(src_loc)/boxes/sticker_set_box.h
 <(src_loc)/boxes/stickers_box.cpp
 <(src_loc)/boxes/stickers_box.h
+<(src_loc)/boxes/url_auth_box.cpp
+<(src_loc)/boxes/url_auth_box.h
 <(src_loc)/boxes/username_box.cpp
 <(src_loc)/boxes/username_box.h
 <(src_loc)/calls/calls_box_controller.cpp

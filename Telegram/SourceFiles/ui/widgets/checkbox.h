@@ -150,8 +150,9 @@ public:
 		const style::Checkbox &st,
 		std::unique_ptr<AbstractCheckView> check);
 
-	void setText(const QString &text);
+	void setText(const QString &text, bool rich = false);
 	void setCheckAlignment(style::align alignment);
+	void setAllowMultiline(bool allow);
 
 	bool checked() const;
 	rpl::producer<bool> checkedChanges() const;
@@ -198,6 +199,7 @@ private:
 
 	Text _text;
 	style::align _checkAlignment = style::al_left;
+	bool _allowMultiline = false;
 
 };
 

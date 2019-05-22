@@ -3327,28 +3327,22 @@ void HistoryWidget::botCallbackDone(
 		BotCallbackInfo info,
 		const MTPmessages_BotCallbackAnswer &answer,
 		mtpRequestId req) {
-	auto item = Auth().data().message(info.msgId);
-	if (item) {
-		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (info.row < markup->rows.size()
-				&& info.col < markup->rows[info.row].size()) {
-				if (markup->rows[info.row][info.col].requestId == req) {
-					markup->rows[info.row][info.col].requestId = 0;
-					Auth().data().requestItemRepaint(item);
-				}
-			}
+	const auto item = Auth().data().message(info.msgId);
+	if (const auto button = HistoryMessageMarkupButton::Get(info.msgId, info.row, info.col)) {
+		if (button->requestId == req) {
+			button->requestId = 0;
+			Auth().data().requestItemRepaint(item);
 		}
 	}
-	if (answer.type() == mtpc_messages_botCallbackAnswer) {
-		auto &answerData = answer.c_messages_botCallbackAnswer();
-		if (answerData.has_message()) {
-			if (answerData.is_alert()) {
-				Ui::show(Box<InformBox>(qs(answerData.vmessage)));
+	answer.match([&](const MTPDmessages_botCallbackAnswer &data) {
+		if (data.has_message()) {
+			if (data.is_alert()) {
+				Ui::show(Box<InformBox>(qs(data.vmessage)));
 			} else {
-				Ui::Toast::Show(qs(answerData.vmessage));
+				Ui::Toast::Show(qs(data.vmessage));
 			}
-		} else if (answerData.has_url()) {
-			auto url = qs(answerData.vurl);
+		} else if (data.has_url()) {
+			auto url = qs(data.vurl);
 			if (info.game) {
 				url = AppendShareGameScoreUrl(url, info.msgId);
 				BotGameUrlClickHandler(info.bot, url).onClick({});
@@ -3359,7 +3353,7 @@ void HistoryWidget::botCallbackDone(
 				UrlClickHandler(url).onClick({});
 			}
 		}
-	}
+	});
 }
 
 bool HistoryWidget::botCallbackFail(
@@ -3367,15 +3361,10 @@ bool HistoryWidget::botCallbackFail(
 		const RPCError &error,
 		mtpRequestId req) {
 	// show error?
-	if (const auto item = Auth().data().message(info.msgId)) {
-		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (info.row < markup->rows.size()
-				&& info.col < markup->rows[info.row].size()) {
-				if (markup->rows[info.row][info.col].requestId == req) {
-					markup->rows[info.row][info.col].requestId = 0;
-					Auth().data().requestItemRepaint(item);
-				}
-			}
+	if (const auto button = HistoryMessageMarkupButton::Get(info.msgId, info.row, info.col)) {
+		if (button->requestId == req) {
+			button->requestId = 0;
+			Auth().data().requestItemRepaint(Auth().data().message(info.msgId));
 		}
 	}
 	return true;

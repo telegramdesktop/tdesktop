@@ -970,3 +970,7 @@ backgroundCheck: ServiceCheck {
 	color: msgServiceFg;
 	duration: 200;
 }
+
+urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
+	width: 240px;
+}

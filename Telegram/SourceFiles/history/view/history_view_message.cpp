@@ -84,16 +84,16 @@ void KeyboardStyle::paintButtonIcon(
 		const QRect &rect,
 		int outerWidth,
 		HistoryMessageMarkupButton::Type type) const {
-	using Button = HistoryMessageMarkupButton;
-	auto getIcon = [](Button::Type type) -> const style::icon* {
+	using Type = HistoryMessageMarkupButton::Type;
+	const auto getIcon = [](Type type) -> const style::icon* {
 		switch (type) {
-		case Button::Type::Url: return &st::msgBotKbUrlIcon;
-		case Button::Type::SwitchInlineSame:
-		case Button::Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
+		case Type::Url: return &st::msgBotKbUrlIcon;
+		case Type::SwitchInlineSame:
+		case Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
 		}
 		return nullptr;
 	};
-	if (auto icon = getIcon(type)) {
+	if (const auto icon = getIcon(type)) {
 		icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, outerWidth);
 	}
 }
@@ -105,14 +105,15 @@ void KeyboardStyle::paintButtonLoading(Painter &p, const QRect &rect) const {
 
 int KeyboardStyle::minButtonWidth(
 		HistoryMessageMarkupButton::Type type) const {
-	using Button = HistoryMessageMarkupButton;
+	using Type = HistoryMessageMarkupButton::Type;
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
-	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.width(); break;
-	case Button::Type::SwitchInlineSame:
-	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
-	case Button::Type::Callback:
-	case Button::Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
+	case Type::Url: iconWidth = st::msgBotKbUrlIcon.width(); break;
+	case Type::SwitchInlineSame:
+	case Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
+	case Type::Callback:
+	case Type::Game:
+	case Type::Auth: iconWidth = st::historySendingInvertedIcon.width(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));

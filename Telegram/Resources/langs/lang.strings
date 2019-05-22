@@ -1223,6 +1223,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_open_link" = "Open";
 "lng_allow_bot_pass" = "Allow {bot_name} to pass your Telegram name and ID to the web pages you open via this bot?";
 "lng_allow_bot" = "Allow";
+"lng_url_auth_open_confirm" = "Do you want to open {link}?";
+"lng_url_auth_login_option" = "Log in to {domain} as {user}";
+"lng_url_auth_allow_messages" = "Allow {bot} to send me messages";
 
 "lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Select a Group";
