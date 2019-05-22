@@ -79,9 +79,6 @@ void PaintNarrowCounter(
 			? QString::number(unreadCount)
 			: QString();
 		const auto allowDigits = displayMentionBadge ? 1 : 3;
-		if (counter.size() > allowDigits + 1) {
-			counter = qsl("..") + counter.mid(counter.size() - allowDigits);
-		}
 		auto unreadRight = st::dialogsPadding.x() + st::dialogsPhotoSize;
 		auto unreadTop = st::dialogsPadding.y() + st::dialogsPhotoSize - st::dialogsUnreadHeight;
 		auto unreadWidth = 0;
@@ -89,7 +86,7 @@ void PaintNarrowCounter(
 		UnreadBadgeStyle st;
 		st.active = active;
 		st.muted = unreadMuted;
-		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+		paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth, allowDigits);
 		skipBeforeMention += unreadWidth + st.padding;
 	}
 	if (displayMentionBadge) {
@@ -553,11 +550,16 @@ UnreadBadgeStyle::UnreadBadgeStyle()
 
 void paintUnreadCount(
 		Painter &p,
-		const QString &text,
+		const QString &unreadCount,
 		int x,
 		int y,
 		const UnreadBadgeStyle &st,
-		int *outUnreadWidth) {
+		int *outUnreadWidth,
+		int allowDigits) {
+	const auto text = (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
+		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
+		: unreadCount;
+
 	int unreadWidth = st.font->width(text);
 	int unreadRectWidth = unreadWidth + 2 * st.padding;
 	int unreadRectHeight = st.size;
