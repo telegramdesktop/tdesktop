@@ -89,7 +89,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    git checkout fix_macro
+    git checkout fix_capture
     cd build
     cmake -G "Visual Studio 16 2019" -A Win32 -D LIBTYPE:STRING=STATIC -D FORCE_STATIC_VCRT:STRING=ON ..
     msbuild OpenAL.vcxproj /property:Configuration=Debug
