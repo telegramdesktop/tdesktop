@@ -451,7 +451,7 @@ infoMembersButtonIconPosition: point(3px, 3px);
 infoMembersButton: IconButton(defaultIconButton) {
 	width: 38px;
 	height: 38px;
-	iconPosition: infoMembersButtonIconPosition;
+	iconPosition: point(-1px, -1px);
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 38px;
 	ripple: defaultRippleAnimation;
