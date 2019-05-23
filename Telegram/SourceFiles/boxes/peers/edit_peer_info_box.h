@@ -34,8 +34,8 @@ public:
 
 	static bool Available(not_null<PeerData*> peer);
 
-	static Info::Profile::Button *CreateButton(
-		not_null<Ui::VerticalLayout*> parent,
+	[[nodiscard]] static object_ptr<Info::Profile::Button> CreateButton(
+		not_null<QWidget*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,

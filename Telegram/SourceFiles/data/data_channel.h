@@ -279,6 +279,9 @@ public:
 	QString inviteLink() const;
 	bool canHaveInviteLink() const;
 
+	void setLinkedChat(ChannelData *linked);
+	ChannelData *linkedChat() const;
+
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
 	}
@@ -380,8 +383,8 @@ private:
 	TimeId _restrictedUntil;
 
 	QString _unavailableReason;
-
 	QString _inviteLink;
+	ChannelData *_linkedChat = nullptr;
 
 	rpl::lifetime _lifetime;
 

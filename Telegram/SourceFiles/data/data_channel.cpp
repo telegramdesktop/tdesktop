@@ -92,6 +92,17 @@ bool ChannelData::canHaveInviteLink() const {
 		|| amCreator();
 }
 
+void ChannelData::setLinkedChat(ChannelData *linked) {
+	if (_linkedChat != linked) {
+		_linkedChat = linked;
+		Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelLinkedChat);
+	}
+}
+
+ChannelData *ChannelData::linkedChat() const {
+	return _linkedChat;
+}
+
 void ChannelData::setMembersCount(int newMembersCount) {
 	if (_membersCount != newMembersCount) {
 		if (isMegagroup() && !mgInfo->lastParticipants.empty()) {
@@ -594,6 +605,9 @@ void ApplyChannelUpdate(
 	}, [&](const MTPDchatInviteEmpty &) {
 		return QString();
 	}));
+	channel->setLinkedChat(update.has_linked_chat_id()
+		? channel->owner().channelLoaded(update.vlinked_chat_id.v)
+		: nullptr);
 	if (const auto history = channel->owner().historyLoaded(channel)) {
 		history->clearUpTill(update.vavailable_min_id.v);
 

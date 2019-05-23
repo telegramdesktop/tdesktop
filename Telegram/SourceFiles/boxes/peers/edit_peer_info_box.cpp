@@ -16,11 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/peers/edit_peer_history_visibility_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
@@ -80,17 +82,17 @@ void AddButtonWithCount(
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
 		const style::icon &icon) {
-	EditPeerInfoBox::CreateButton(
+	parent->add(EditPeerInfoBox::CreateButton(
 		parent,
 		std::move(text),
 		std::move(count),
 		std::move(callback),
 		st::manageGroupButton,
-		&icon);
+		&icon));
 }
 
-Info::Profile::Button *AddButtonWithText(
-		not_null<Ui::VerticalLayout*> parent,
+object_ptr<Info::Profile::Button> CreateButtonWithText(
+		not_null<QWidget*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&label,
 		Fn<void()> callback) {
@@ -103,17 +105,29 @@ Info::Profile::Button *AddButtonWithText(
 		nullptr);
 }
 
+Info::Profile::Button *AddButtonWithText(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<QString> &&label,
+		Fn<void()> callback) {
+	return parent->add(CreateButtonWithText(
+		parent,
+		std::move(text),
+		std::move(label),
+		std::move(callback)));
+}
+
 void AddButtonDelete(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
 		Fn<void()> callback) {
-	EditPeerInfoBox::CreateButton(
+	parent->add(EditPeerInfoBox::CreateButton(
 		parent,
 		std::move(text),
 		rpl::single(QString()),
 		std::move(callback),
 		st::manageDeleteGroupButton,
-		nullptr);
+		nullptr));
 }
 
 void ShowEditPermissions(not_null<PeerData*> peer) {
@@ -167,6 +181,7 @@ private:
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
 		std::optional<bool> signatures;
+		std::optional<ChannelData*> linkedChat;
 	};
 
 	object_ptr<Ui::RpWidget> createPhotoAndTitleEdit();
@@ -179,7 +194,9 @@ private:
 	bool canEditInformation() const;
 	void refreshHistoryVisibility(bool instant);
 	void showEditPeerTypeBox(std::optional<LangKey> error = std::nullopt);
+	void showEditLinkedChatBox();
 	void fillPrivacyTypeButton();
+	void fillLinkedChatButton();
 	void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
@@ -192,6 +209,7 @@ private:
 
 	std::optional<Saving> validate() const;
 	bool validateUsername(Saving &to) const;
+	bool validateLinkedChat(Saving &to) const;
 	bool validateTitle(Saving &to) const;
 	bool validateDescription(Saving &to) const;
 	bool validateHistoryVisibility(Saving &to) const;
@@ -199,6 +217,7 @@ private:
 
 	void save();
 	void saveUsername();
+	void saveLinkedChat();
 	void saveTitle();
 	void saveDescription();
 	void saveHistoryVisibility();
@@ -211,10 +230,11 @@ private:
 	void subscribeToMigration();
 	void migrate(not_null<ChannelData*> channel);
 
-	std::optional<Privacy> _privacySavedValue = {};
-	std::optional<HistoryVisibility> _historyVisibilitySavedValue = {};
-	std::optional<QString> _usernameSavedValue = {};
-	std::optional<bool> _signaturesSavedValue = {};
+	std::optional<Privacy> _privacySavedValue;
+	std::optional<ChannelData*> _linkedChatSavedValue;
+	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
+	std::optional<QString> _usernameSavedValue;
+	std::optional<bool> _signaturesSavedValue;
 
 	not_null<BoxContent*> _box;
 	not_null<PeerData*> _peer;
@@ -226,7 +246,10 @@ private:
 	std::deque<FnMut<void()>> _saveStagesQueue;
 	Saving _savingData;
 
-	const rpl::event_stream<Privacy> _updadePrivacyType;
+	const rpl::event_stream<Privacy> _privacyTypeUpdates;
+	const rpl::event_stream<ChannelData*> _linkedChatUpdates;
+	MTP::Sender _linkedChatsRequester;
+	mtpRequestId _linkedChatsRequestId = 0;
 
 	rpl::lifetime _lifetime;
 
@@ -465,7 +488,7 @@ void Controller::refreshHistoryVisibility(bool instant = false) {
 void Controller::showEditPeerTypeBox(std::optional<LangKey> error) {
 	const auto boxCallback = crl::guard(this, [=](
 			Privacy checked, QString publicLink) {
-		_updadePrivacyType.fire(std::move(checked));
+		_privacyTypeUpdates.fire(std::move(checked));
 		_privacySavedValue = checked;
 		_usernameSavedValue = publicLink;
 		refreshHistoryVisibility();
@@ -478,6 +501,49 @@ void Controller::showEditPeerTypeBox(std::optional<LangKey> error) {
 			_usernameSavedValue,
 			error),
 		LayerOption::KeepOther);
+}
+
+void Controller::showEditLinkedChatBox() {
+	Expects(_peer->isChannel());
+
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto channel = _peer->asChannel();
+	const auto callback = [=](ChannelData *result) {
+		if (*box) {
+			(*box)->closeBox();
+		}
+		*_linkedChatSavedValue = result;
+		_linkedChatUpdates.fire_copy(result);
+	};
+	if (const auto chat = *_linkedChatSavedValue) {
+		*box = Ui::show(
+			Box<EditLinkedChatBox>(channel, chat, callback),
+			LayerOption::KeepOther);
+		return;
+	} else if (_linkedChatsRequestId) {
+		return;
+	}
+	_linkedChatsRequestId = _linkedChatsRequester.request(
+		MTPchannels_GetGroupsForDiscussion()
+	).done([=](const MTPmessages_Chats &result) {
+		_linkedChatsRequestId = 0;
+		const auto list = result.match([&](const auto &data) {
+			return data.vchats.v;
+		});
+		auto chats = std::vector<not_null<ChannelData*>>();
+		chats.reserve(list.size());
+		for (const auto &item : list) {
+			const auto chat = _peer->owner().processChat(item);
+			if (chat->isChannel()) {
+				chats.emplace_back(chat->asChannel());
+			}
+		}
+		*box = Ui::show(
+			Box<EditLinkedChatBox>(channel, chats, callback),
+			LayerOption::KeepOther);
+	}).fail([=](const RPCError &error) {
+		_linkedChatsRequestId = 0;
+	}).send();
 }
 
 void Controller::fillPrivacyTypeButton() {
@@ -495,7 +561,7 @@ void Controller::fillPrivacyTypeButton() {
 		Lang::Viewer(isGroup
 			? lng_manage_peer_group_type
 			: lng_manage_peer_channel_type),
-		_updadePrivacyType.events(
+		_privacyTypeUpdates.events(
 		) | rpl::map([=](Privacy flag) {
 			return lang(Privacy::Public == flag
 				? (isGroup
@@ -507,7 +573,33 @@ void Controller::fillPrivacyTypeButton() {
 		}),
 		[=] { showEditPeerTypeBox(); });
 
-	_updadePrivacyType.fire_copy(*_privacySavedValue);
+	_privacyTypeUpdates.fire_copy(*_privacySavedValue);
+}
+
+void Controller::fillLinkedChatButton() {
+	Expects(_controls.buttonsLayout != nullptr);
+
+	_linkedChatSavedValue = _peer->isChannel()
+		? _peer->asChannel()->linkedChat()
+		: nullptr;
+
+	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
+	AddButtonWithText(
+		_controls.buttonsLayout,
+		Lang::Viewer(isGroup
+			? lng_manage_linked_channel
+			: lng_manage_discussion_group),
+		_linkedChatUpdates.events(
+		) | rpl::map([=](ChannelData *channel) {
+			return channel
+				? channel->name
+				: isGroup
+				? lang(lng_manage_linked_channel_set)
+				: lang(lng_manage_discussion_group_add);
+		}),
+		[=] { showEditLinkedChatBox(); });
+
+	_linkedChatUpdates.fire_copy(*_linkedChatSavedValue);
 }
 
 void Controller::fillInviteLinkButton() {
@@ -602,74 +694,84 @@ void Controller::fillManageSection() {
 	const auto isChannel = (!chat);
 	if (!chat && !channel) return;
 
-	const auto canEditUsername = [=] {
+	const auto canEditUsername = [&] {
 		return isChannel
 			? channel->canEditUsername()
 			: chat->canEditUsername();
 	}();
-	const auto canEditInviteLink = [=] {
+	const auto canEditInviteLink = [&] {
 		return isChannel
 			? (channel->amCreator()
 				|| (channel->adminRights() & ChatAdminRight::f_invite_users))
 			: (chat->amCreator()
 				|| (chat->adminRights() & ChatAdminRight::f_invite_users));
 	}();
-	const auto canEditSignatures = [=] {
+	const auto canEditSignatures = [&] {
 		return isChannel
 			? (channel->canEditSignatures() && !channel->isMegagroup())
 			: false;
 	}();
-	const auto canEditPreHistoryHidden = [=] {
+	const auto canEditPreHistoryHidden = [&] {
 		return isChannel
 			? channel->canEditPreHistoryHidden()
 			: chat->canEditPreHistoryHidden();
 	}();
 
-	const auto canEditPermissions = [=] {
+	const auto canEditPermissions = [&] {
 		return isChannel
 			? channel->canEditPermissions()
 			: chat->canEditPermissions();
 	}();
-	const auto canViewAdmins = [=] {
+	const auto canViewAdmins = [&] {
 		return isChannel
 			? channel->canViewAdmins()
 			: chat->amIn();
 	}();
-	const auto canViewMembers = [=] {
+	const auto canViewMembers = [&] {
 		return isChannel
 			? channel->canViewMembers()
 			: chat->amIn();
 	}();
-	const auto canViewKicked = [=] {
+	const auto canViewKicked = [&] {
 		return isChannel
 			? (!channel->isMegagroup())
 			: false;
 	}();
-	const auto hasRecentActions = [=] {
+	const auto hasRecentActions = [&] {
 		return isChannel
 			? (channel->hasAdminRights() || channel->amCreator())
 			: false;
 	}();
 
-	const auto canEditStickers = [=] {
+	const auto canEditStickers = [&] {
 		// return true;
 		return isChannel
 			? channel->canEditStickers()
 			: false;
 	}();
-	const auto canDeleteChannel = [=] {
+	const auto canDeleteChannel = [&] {
 		return isChannel
 			? channel->canDelete()
 			: false;
+	}();
+
+	const auto canEditLinkedChat = [&] {
+		return !isChannel
+			? false
+			: channel->isBroadcast()
+			? channel->canEditInformation()
+			: (channel->linkedChat() && channel->canPinMessages());
 	}();
 
 	AddSkip(_controls.buttonsLayout, 0);
 
 	if (canEditUsername) {
 		fillPrivacyTypeButton();
-	}
-	else if (canEditInviteLink) {
+	} else if (canEditInviteLink) {
 		fillInviteLinkButton();
+	}
+	if (canEditLinkedChat) {
+		fillLinkedChatButton();
 	}
 	if (canEditSignatures) {
 		fillSignaturesButton();
@@ -796,6 +898,7 @@ void Controller::submitDescription() {
 std::optional<Controller::Saving> Controller::validate() const {
 	auto result = Saving();
 	if (validateUsername(result)
+		&& validateLinkedChat(result)
 		&& validateTitle(result)
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
@@ -821,6 +924,14 @@ bool Controller::validateUsername(Saving &to) const {
 		return false;
 	}
 	to.username = username;
+	return true;
+}
+
+bool Controller::validateLinkedChat(Saving &to) const {
+	if (!_linkedChatSavedValue) {
+		return true;
+	}
+	to.linkedChat = *_linkedChatSavedValue;
 	return true;
 }
 
@@ -874,6 +985,7 @@ void Controller::save() {
 	if (const auto saving = validate()) {
 		_savingData = *saving;
 		pushSaveStage([=] { saveUsername(); });
+		pushSaveStage([=] { saveLinkedChat(); });
 		pushSaveStage([=] { saveTitle(); });
 		pushSaveStage([=] { saveDescription(); });
 		pushSaveStage([=] { saveHistoryVisibility(); });
@@ -946,6 +1058,31 @@ void Controller::saveUsername() {
 		}();
 		// Very rare case.
 		showEditPeerTypeBox(errorKey);
+		cancelSave();
+	}).send();
+}
+
+void Controller::saveLinkedChat() {
+	const auto channel = _peer->asChannel();
+	if (!channel) {
+		return continueSave();
+	}
+	const auto linkedChat = channel->linkedChat();
+	if (!_savingData.linkedChat || *_savingData.linkedChat == linkedChat) {
+		return continueSave();
+	}
+
+	const auto input = *_savingData.linkedChat
+		? (*_savingData.linkedChat)->inputChannel
+		: MTP_inputChannelEmpty();
+	request(MTPchannels_SetDiscussionGroup(
+		(channel->isBroadcast() ? channel->inputChannel : input),
+		(channel->isBroadcast() ? input : channel->inputChannel)
+	)).done([=](const MTPBool &result) {
+		channel->setLinkedChat(*_savingData.linkedChat);
+		continueSave();
+	}).fail([=](const RPCError &error) {
+		const auto &type = error.type();
 		cancelSave();
 	}).send();
 }
@@ -1151,18 +1288,18 @@ void EditPeerInfoBox::prepare() {
 		std::move(content)));
 }
 
-Info::Profile::Button *EditPeerInfoBox::CreateButton(
-		not_null<Ui::VerticalLayout*> parent,
+object_ptr<Info::Profile::Button> EditPeerInfoBox::CreateButton(
+		not_null<QWidget*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
 		const style::InfoProfileCountButton &st,
 		const style::icon *icon) {
-	const auto button = parent->add(
-		object_ptr<Info::Profile::Button>(
-			parent,
-			std::move(text),
-			st.button));
+	auto result = object_ptr<Info::Profile::Button>(
+		parent,
+		std::move(text),
+		st.button);
+	const auto button = result.data();
 	button->addClickHandler(callback);
 	if (icon) {
 		Ui::CreateChild<Info::Profile::FloatingIcon>(
@@ -1186,7 +1323,7 @@ Info::Profile::Button *EditPeerInfoBox::CreateButton(
 			outerWidth);
 	}, label->lifetime());
 
-	return button;
+	return result;
 }
 
 bool EditPeerInfoBox::Available(not_null<PeerData*> peer) {

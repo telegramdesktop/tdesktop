@@ -138,8 +138,8 @@ private:
 	QString inviteLinkText();
 
 	not_null<PeerData*> _peer;
-	std::optional<Privacy> _privacySavedValue = std::nullopt;
-	std::optional<QString> _usernameSavedValue = std::nullopt;
+	std::optional<Privacy> _privacySavedValue;
+	std::optional<QString> _usernameSavedValue;
 
 	bool _isGroup = false;
 	bool _isInviteLink = false;

@@ -844,6 +844,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_private_peer_title" = "Private";
 "lng_manage_public_peer_title" = "Public";
 
+"lng_manage_discussion_group" = "Discussion";
+"lng_manage_discussion_group_add" = "Add a group";
+"lng_manage_linked_channel" = "Linked channel";
+"lng_manage_linked_channel_set" = "Set";
+"lng_manage_discussion_group_about" = "Select a group chat for discussion that will be displayed in your channel.";
+"lng_manage_discussion_group_about_chosen" = "A link to {group} is shown to all subscribers in the bottom panel.";
+"lng_manage_discussion_group_create" = "Create a new group";
+"lng_manage_discussion_group_unlink" = "Unlink group";
+"lng_manage_discussion_group_posted" = "Everything you post in the channel is forwarded to this group.";
+"lng_manage_discussion_group_sure" = "Do you want to make {group} the discussion board for {channel}?";
+"lng_manage_linked_channel_private" = "Any member in this group will be able to see the messages in the channel.";
+"lng_manage_discussion_group_private" = "private group";
+"lng_manage_linked_channel_about" = "{channel} is linking the group as its discussion board.";
+"lng_manage_linked_channel_unlink" = "Unlink channel";
+"lng_manage_linked_channel_posted" = "All new messages posted in this channel are forwarded to the group.";
+
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";
 "lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";

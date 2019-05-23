@@ -357,7 +357,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
 	const auto navigation = App::wnd()->controller();
-	EditPeerInfoBox::CreateButton(
+	container->add(EditPeerInfoBox::CreateButton(
 		container,
 		Lang::Viewer(lng_manage_peer_exceptions),
 		(channel
@@ -369,9 +369,9 @@ void EditPeerPermissionsBox::addBannedButtons(
 				_peer,
 				ParticipantsBoxController::Role::Restricted);
 		},
-		st::peerPermissionsButton);
+		st::peerPermissionsButton));
 	if (channel) {
-		EditPeerInfoBox::CreateButton(
+		container->add(EditPeerInfoBox::CreateButton(
 			container,
 			Lang::Viewer(lng_manage_peer_removed_users),
 			Info::Profile::KickedCountValue(channel)
@@ -382,7 +382,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
-			st::peerPermissionsButton);
+			st::peerPermissionsButton));
 	}
 }
 

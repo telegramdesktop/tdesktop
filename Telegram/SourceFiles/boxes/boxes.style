@@ -974,3 +974,6 @@ backgroundCheck: ServiceCheck {
 urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 	width: 240px;
 }
+
+linkedChatAbout: membersAbout;
+linkedChatAboutPadding: margins(12px, 20px, 12px, 20px);
