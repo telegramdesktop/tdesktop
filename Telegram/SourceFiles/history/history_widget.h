@@ -375,6 +375,9 @@ private:
 	void unblockUser();
 	void sendBotStartCommand();
 	void joinChannel();
+	void goToDiscussionGroup();
+
+	[[nodiscard]] bool hasDiscussionGroup() const;
 
 	void supportInitAutocomplete();
 	void supportInsertText(const QString &text);
@@ -752,6 +755,7 @@ private:
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
+	object_ptr<Ui::FlatButton> _discuss;
 	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
 	mtpRequestId _reportSpamRequest = 0;
 	object_ptr<Ui::IconButton> _attachToggle;
