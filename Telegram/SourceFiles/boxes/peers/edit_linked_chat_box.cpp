@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/add_contact_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -135,7 +136,10 @@ object_ptr<Ui::RpWidget> SetupAbout(
 
 object_ptr<Ui::RpWidget> SetupCreateGroup(
 		not_null<QWidget*> parent,
-		not_null<ChannelData*> channel) {
+		not_null<ChannelData*> channel,
+		Fn<void(ChannelData*)> callback) {
+	Expects(channel->isBroadcast());
+
 	auto result = object_ptr<Info::Profile::Button>(
 		parent,
 		Lang::Viewer(
@@ -143,7 +147,13 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 		) | Info::Profile::ToUpperValue(),
 		st::infoCreateLinkedChatButton);
 	result->addClickHandler([=] {
-
+		const auto guarded = crl::guard(parent, callback);
+		Ui::show(
+			Box<GroupInfoBox>(
+				GroupInfoBox::Type::Megagroup,
+				channel->name + " Chat",
+				guarded),
+			LayerOption::KeepOther);
 	});
 	return result;
 }
@@ -197,7 +207,7 @@ object_ptr<Ui::RpWidget> EditLinkedChatBox::setupContent(
 		SetupAbout(result, channel, chat),
 		st::linkedChatAboutPadding);
 	if (!chat) {
-		result->add(SetupCreateGroup(result, channel));
+		result->add(SetupCreateGroup(result, channel, callback));
 	}
 	result->add(SetupList(result, channel, chat, chats, callback));
 	if (chat) {

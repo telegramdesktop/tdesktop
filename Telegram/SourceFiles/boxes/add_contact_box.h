@@ -84,7 +84,16 @@ private:
 
 class GroupInfoBox : public BoxContent, private MTP::Sender {
 public:
-	GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeChoose);
+	enum class Type {
+		Group,
+		Channel,
+		Megagroup,
+	};
+	GroupInfoBox(
+		QWidget*,
+		Type type,
+		const QString &title = QString(),
+		Fn<void(not_null<ChannelData*>)> channelDone = nullptr);
 
 protected:
 	void prepare() override;
@@ -101,8 +110,9 @@ private:
 	void descriptionResized();
 	void updateMaxHeight();
 
-	CreatingGroupType _creating;
-	bool _fromTypeChoose = false;
+	Type _type = Type::Group;
+	QString _initialTitle;
+	Fn<void(not_null<ChannelData*>)> _channelDone;
 
 	object_ptr<Ui::UserpicButton> _photo = { nullptr };
 	object_ptr<Ui::InputField> _title = { nullptr };

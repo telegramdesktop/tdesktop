@@ -398,9 +398,14 @@ void AddContactBox::updateButtons() {
 	}
 }
 
-GroupInfoBox::GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeChoose)
-: _creating(creating)
-, _fromTypeChoose(fromTypeChoose) {
+GroupInfoBox::GroupInfoBox(
+	QWidget*,
+	Type type,
+	const QString &title,
+	Fn<void(not_null<ChannelData*>)> channelDone)
+: _type(type)
+, _initialTitle(title)
+, _channelDone(std::move(channelDone)) {
 }
 
 void GroupInfoBox::prepare() {
@@ -408,7 +413,7 @@ void GroupInfoBox::prepare() {
 
 	_photo.create(
 		this,
-		lang((_creating == CreatingGroupChannel)
+		lang((_type == Type::Channel)
 			? lng_create_channel_crop
 			: lng_create_group_crop),
 		Ui::UserpicButton::Role::ChangePhoto,
@@ -416,9 +421,10 @@ void GroupInfoBox::prepare() {
 	_title.create(
 		this,
 		st::defaultInputField,
-		langFactory(_creating == CreatingGroupChannel
+		langFactory((_type == Type::Channel)
 			? lng_dlg_new_channel_name
-			: lng_dlg_new_group_name));
+			: lng_dlg_new_group_name),
+		_initialTitle);
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title ->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
@@ -426,7 +432,7 @@ void GroupInfoBox::prepare() {
 		getDelegate()->outerContainer(),
 		_title);
 
-	if (_creating == CreatingGroupChannel) {
+	if (_type != Type::Group) {
 		_description.create(
 			this,
 			st::newGroupDescription,
@@ -449,8 +455,8 @@ void GroupInfoBox::prepare() {
 
 	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
 
-	addButton(langFactory(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { submit(); });
-	addButton(langFactory(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
+	addButton(langFactory((_type != Type::Group) ? lng_create_group_create : lng_create_group_next), [this] { submit(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateMaxHeight();
 }
@@ -590,7 +596,7 @@ void GroupInfoBox::submit() {
 		_title->showError();
 		return;
 	}
-	if (_creating != CreatingGroupGroup) {
+	if (_type != Type::Group) {
 		createChannel(title, description);
 	} else {
 		auto initBox = [title, weak = make_weak(this)](
@@ -619,8 +625,9 @@ void GroupInfoBox::submit() {
 }
 
 void GroupInfoBox::createChannel(const QString &title, const QString &description) {
-	bool mega = false;
-	auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
+	const auto flags = (_type == Type::Megagroup)
+		? MTPchannels_CreateChannel::Flag::f_megagroup
+		: MTPchannels_CreateChannel::Flag::f_broadcast;
 	_creationRequestId = request(MTPchannels_CreateChannel(
 		MTP_flags(flags),
 		MTP_string(title),
@@ -628,7 +635,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 	)).done([=](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 
-		auto success = base::make_optional(&result)
+		const auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
@@ -663,7 +670,14 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 						auto link = qs(result.c_chatInviteExported().vlink);
 						_createdChannel->setInviteLink(link);
 					}
-					Ui::show(Box<SetupChannelBox>(_createdChannel));
+					if (_channelDone) {
+						const auto callback = _channelDone;
+						const auto argument = _createdChannel;
+						closeBox();
+						callback(argument);
+					} else {
+						Ui::show(Box<SetupChannelBox>(_createdChannel));
+					}
 				}).send();
 			};
 		if (!success) {

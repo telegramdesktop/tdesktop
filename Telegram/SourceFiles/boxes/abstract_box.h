@@ -352,12 +352,6 @@ protected:
 
 };
 
-enum CreatingGroupType {
-	CreatingGroupNone,
-	CreatingGroupGroup,
-	CreatingGroupChannel,
-};
-
 class BoxPointer {
 public:
 	BoxPointer() = default;
