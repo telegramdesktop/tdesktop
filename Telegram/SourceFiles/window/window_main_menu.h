@@ -38,6 +38,7 @@ private:
 	void updatePhone();
 	void initResetScaleButton();
 	void refreshMenu();
+	void refreshBackground();
 
 	class ResetScaleButton;
 	not_null<Controller*> _controller;
@@ -51,6 +52,8 @@ private:
 	base::Timer _nightThemeSwitch;
 
 	QString _phoneText;
+	QImage _background;
+	bool _isShadowShown = false;
 
 };
 
