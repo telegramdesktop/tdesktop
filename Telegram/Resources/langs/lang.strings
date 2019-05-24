@@ -847,7 +847,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";
 "lng_manage_linked_channel" = "Linked channel";
-"lng_manage_linked_channel_set" = "Set";
+"lng_manage_linked_channel_restore" = "Restore linked channel";
 "lng_manage_discussion_group_about" = "Select a group chat for discussion that will be displayed in your channel.";
 "lng_manage_discussion_group_about_chosen" = "A link to {group} is shown to all subscribers in the bottom panel.";
 "lng_manage_discussion_group_create" = "Create a new group";

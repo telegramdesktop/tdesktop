@@ -435,6 +435,13 @@ infoBlockButton: InfoProfileButton(infoProfileButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
+infoCreateLinkedChatButton: InfoProfileButton(infoMainButton) {
+	padding: margins(73px, 10px, 8px, 8px);
+}
+infoUnlinkChatButton: InfoProfileButton(infoCreateLinkedChatButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
 infoBlockButtonSkip: 8px;
 
 infoMembersHeader: 56px;
@@ -610,7 +617,7 @@ manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
 	button: InfoProfileButton(infoProfileButton) {
 		padding: margins(22px, 10px, 24px, 8px);
 	}
-	labelPosition: point(22px, 11px);
+	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
 }
 
