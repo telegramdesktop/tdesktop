@@ -96,13 +96,26 @@ rpl::producer<QString> PrivacyString(Privacy::Key key) {
 	});
 }
 
+rpl::producer<int> BlockedUsersCount() {
+	Auth().api().reloadBlockedUsers();
+	return Auth().api().blockedUsersSlice(
+	) | rpl::map([=](const ApiWrap::BlockedUsersSlice &data) {
+		return data.total;
+	});
+}
+
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsPrivacySkip);
 	AddSubsectionTitle(container, lng_settings_privacy_title);
 
-	AddButton(
+	auto count = BlockedUsersCount(
+	) | rpl::map([](int count) {
+		return count ? QString::number(count) : QString();
+	});
+	AddButtonWithLabel(
 		container,
 		lng_settings_blocked_users,
+		std::move(count),
 		st::settingsButton
 	)->addClickHandler([] {
 		const auto initBox = [](not_null<PeerListBox*> box) {

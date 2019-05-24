@@ -83,6 +83,22 @@ public:
 		static std::optional<Key> KeyFromMTP(mtpTypeId type);
 	};
 
+	struct BlockedUsersSlice {
+		struct Item {
+			UserData *user = nullptr;
+			TimeId date = 0;
+
+			bool operator==(const Item &other) const;
+			bool operator!=(const Item &other) const;
+		};
+
+		QVector<Item> list;
+		int total = 0;
+
+		bool operator==(const BlockedUsersSlice &other) const;
+		bool operator!=(const BlockedUsersSlice &other) const;
+	};
+
 	ApiWrap(not_null<AuthSession*> session);
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
@@ -430,6 +446,9 @@ public:
 
 	void reloadPrivacy(Privacy::Key key);
 	rpl::producer<Privacy> privacyValue(Privacy::Key key);
+
+	void reloadBlockedUsers();
+	rpl::producer<BlockedUsersSlice> blockedUsersSlice();
 
 	void reloadSelfDestruct();
 	rpl::producer<int> selfDestructValue() const;
@@ -841,6 +860,10 @@ private:
 	base::flat_map<Privacy::Key, mtpRequestId> _privacyRequestIds;
 	base::flat_map<Privacy::Key, Privacy> _privacyValues;
 	std::map<Privacy::Key, rpl::event_stream<Privacy>> _privacyChanges;
+
+	mtpRequestId _blockedUsersRequestId = 0;
+	std::optional<BlockedUsersSlice> _blockedUsersSlice;
+	rpl::event_stream<BlockedUsersSlice> _blockedUsersChanges;
 
 	mtpRequestId _selfDestructRequestId = 0;
 	std::optional<int> _selfDestructDays;

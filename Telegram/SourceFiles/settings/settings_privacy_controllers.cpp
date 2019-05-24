@@ -164,7 +164,21 @@ void BlockedBoxController::prepare() {
 		}
 	}));
 
-	loadMoreRows();
+	_loadRequestId = -1;
+	Auth().api().blockedUsersSlice(
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](const ApiWrap::BlockedUsersSlice &result) {
+		setDescriptionText(lang(lng_blocked_list_about));
+		_loadRequestId = 0;
+		_offset = result.list.size();
+		_allLoaded = (_offset >= result.total);
+		for (const auto item : result.list) {
+			appendRow(item.user);
+		};
+		delegate()->peerListRefreshRows();
+		loadMoreRows();
+	}, lifetime());
 }
 
 void BlockedBoxController::loadMoreRows() {
@@ -177,10 +191,6 @@ void BlockedBoxController::loadMoreRows() {
 		MTP_int(kBlockedPerPage)
 	)).done([=](const MTPcontacts_Blocked &result) {
 		_loadRequestId = 0;
-
-		if (!_offset) {
-			setDescriptionText(lang(lng_blocked_list_about));
-		}
 
 		auto handleContactsBlocked = [](auto &list) {
 			Auth().data().processUsers(list.vusers);
@@ -219,17 +229,14 @@ void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &resul
 		_allLoaded = true;
 	}
 
-	for_const (auto &item, result) {
-		++_offset;
-		if (item.type() != mtpc_contactBlocked) {
-			continue;
-		}
-		auto &contactBlocked = item.c_contactBlocked();
-		auto userId = contactBlocked.vuser_id.v;
-		if (auto user = Auth().data().userLoaded(userId)) {
-			appendRow(user);
-			user->setBlockStatus(UserData::BlockStatus::Blocked);
-		}
+	_offset += result.size();
+	for (const auto &item : result) {
+		item.match([&](const MTPDcontactBlocked &data) {
+			if (const auto user = Auth().data().userLoaded(data.vuser_id.v)) {
+				appendRow(user);
+				user->setBlockStatus(UserData::BlockStatus::Blocked);
+			}
+		});
 	}
 	delegate()->peerListRefreshRows();
 }

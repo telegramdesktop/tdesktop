@@ -90,6 +90,7 @@ constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(60 * 60 * 1000);
 constexpr auto kNotifySettingSaveTimeout = crl::time(1000);
 constexpr auto kDialogsFirstLoad = 20;
 constexpr auto kDialogsPerPage = 500;
+constexpr auto kBlockedFirstSlice = 16;
 
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
@@ -206,6 +207,22 @@ std::optional<ApiWrap::Privacy::Key> ApiWrap::Privacy::KeyFromMTP(
 	case mtpc_inputPrivacyKeyProfilePhoto: return Key::ProfilePhoto;
 	}
 	return std::nullopt;
+}
+
+bool ApiWrap::BlockedUsersSlice::Item::operator==(const Item &other) const {
+	return (user == other.user) && (date == other.date);
+}
+
+bool ApiWrap::BlockedUsersSlice::Item::operator!=(const Item &other) const {
+	return !(*this == other);
+}
+
+bool ApiWrap::BlockedUsersSlice::operator==(const BlockedUsersSlice &other) const {
+	return (total == other.total) && (list == other.list);
+}
+
+bool ApiWrap::BlockedUsersSlice::operator!=(const BlockedUsersSlice &other) const {
+	return !(*this == other);
 }
 
 ApiWrap::ApiWrap(not_null<AuthSession*> session)
@@ -2168,9 +2185,16 @@ void ApiWrap::blockUser(not_null<UserData*> user) {
 	if (user->isBlocked()) {
 		Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserIsBlocked);
 	} else if (_blockRequests.find(user) == end(_blockRequests)) {
-		auto requestId = request(MTPcontacts_Block(user->inputUser)).done([this, user](const MTPBool &result) {
+		const auto requestId = request(MTPcontacts_Block(user->inputUser)).done([this, user](const MTPBool &result) {
 			_blockRequests.erase(user);
 			user->setBlockStatus(UserData::BlockStatus::Blocked);
+			if (_blockedUsersSlice) {
+				_blockedUsersSlice->list.insert(
+					_blockedUsersSlice->list.begin(),
+					{ user, unixtime() });
+				++_blockedUsersSlice->total;
+				_blockedUsersChanges.fire_copy(*_blockedUsersSlice);
+			}
 		}).fail([this, user](const RPCError &error) {
 			_blockRequests.erase(user);
 		}).send();
@@ -2190,6 +2214,19 @@ void ApiWrap::unblockUser(not_null<UserData*> user) {
 		)).done([=](const MTPBool &result) {
 			_blockRequests.erase(user);
 			user->setBlockStatus(UserData::BlockStatus::NotBlocked);
+			if (_blockedUsersSlice) {
+				auto &list = _blockedUsersSlice->list;
+				for (auto i = list.begin(); i != list.end(); ++i) {
+					if (i->user == user) {
+						list.erase(i);
+						break;
+					}
+				}
+				if (_blockedUsersSlice->total > list.size()) {
+					--_blockedUsersSlice->total;
+				}
+				_blockedUsersChanges.fire_copy(*_blockedUsersSlice);
+			}
 			if (user->isBot() && !user->isSupport()) {
 				sendBotStart(user);
 			}
@@ -5712,6 +5749,57 @@ auto ApiWrap::privacyValue(Privacy::Key key) -> rpl::producer<Privacy> {
 	} else {
 		return _privacyChanges[key].events();
 	}
+}
+
+void ApiWrap::reloadBlockedUsers() {
+	if (_blockedUsersRequestId) {
+		return;
+	}
+	_blockedUsersRequestId = request(MTPcontacts_GetBlocked(
+		MTP_int(0),
+		MTP_int(kBlockedFirstSlice)
+	)).done([=](const MTPcontacts_Blocked &result) {
+		_blockedUsersRequestId = 0;
+		const auto push = [&](
+				int count,
+				const QVector<MTPContactBlocked> &list) {
+			auto slice = BlockedUsersSlice();
+			slice.total = std::max(count, list.size());
+			slice.list.reserve(list.size());
+			for (const auto &contact : list) {
+				contact.match([&](const MTPDcontactBlocked &data) {
+					const auto user = _session->data().userLoaded(
+						data.vuser_id.v);
+					if (user) {
+						user->setBlockStatus(UserData::BlockStatus::Blocked);
+						slice.list.push_back({ user, data.vdate.v });
+					}
+				});
+			}
+			if (!_blockedUsersSlice || *_blockedUsersSlice != slice) {
+				_blockedUsersSlice = slice;
+				_blockedUsersChanges.fire(std::move(slice));
+			}
+		};
+		result.match([&](const MTPDcontacts_blockedSlice &data) {
+			_session->data().processUsers(data.vusers);
+			push(data.vcount.v, data.vblocked.v);
+		}, [&](const MTPDcontacts_blocked &data) {
+			_session->data().processUsers(data.vusers);
+			push(0, data.vblocked.v);
+		});
+	}).fail([=](const RPCError &error) {
+		_blockedUsersRequestId = 0;
+	}).send();
+}
+
+auto ApiWrap::blockedUsersSlice() -> rpl::producer<BlockedUsersSlice> {
+	if (!_blockedUsersSlice) {
+		reloadBlockedUsers();
+	}
+	return _blockedUsersSlice
+		? _blockedUsersChanges.events_starting_with_copy(*_blockedUsersSlice)
+		: (_blockedUsersChanges.events() | rpl::type_erased());
 }
 
 void ApiWrap::reloadSelfDestruct() {
