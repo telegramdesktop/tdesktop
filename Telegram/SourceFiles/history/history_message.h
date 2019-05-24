@@ -90,13 +90,18 @@ public:
 	void refreshSentMedia(const MTPMessageMedia *media);
 	void returnSavedMedia() override;
 	void setMedia(const MTPMessageMedia &media);
-	static std::unique_ptr<Data::Media> CreateMedia(
+	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media);
 
-	bool allowsForward() const override;
-	bool allowsEdit(TimeId now) const override;
-	bool uploading() const;
+	[[nodiscard]] bool allowsForward() const override;
+	[[nodiscard]] bool allowsEdit(TimeId now) const override;
+	[[nodiscard]] bool uploading() const;
+
+	[[nodiscard]] bool hasAdminBadge() const {
+		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
+	}
+	[[nodiscard]] bool hasMessageBadge() const;
 
 	void applyGroupAdminChanges(
 		const base::flat_map<UserId, bool> &changes) override;
@@ -106,7 +111,7 @@ public:
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
-	QString notificationHeader() const override;
+	[[nodiscard]] QString notificationHeader() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEdition(const MTPDmessageService &message) override;
@@ -118,40 +123,38 @@ public:
 
 	void addToUnreadMentions(UnreadMentionType type) override;
 	void eraseFromUnreadMentions() override;
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	void setText(const TextWithEntities &textWithEntities) override;
-	TextWithEntities originalText() const override;
-	TextForMimeData clipboardText() const override;
-	bool textHasLinks() const override;
+	[[nodiscard]] TextWithEntities originalText() const override;
+	[[nodiscard]] TextForMimeData clipboardText() const override;
+	[[nodiscard]] bool textHasLinks() const override;
 
-	int viewsCount() const override;
-	PeerData *displayFrom() const;
+	[[nodiscard]] int viewsCount() const override;
+	[[nodiscard]] PeerData *displayFrom() const;
 	bool updateDependencyItem() override;
-	MsgId dependencyMsgId() const override {
+	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
-	bool displayForwardedAsOriginal() const;
+	[[nodiscard]] bool displayForwardedAsOriginal() const;
 
-	HistoryMessage *toHistoryMessage() override { // dynamic_cast optimize
+	// dynamic_cast optimization.
+	[[nodiscard]] HistoryMessage *toHistoryMessage() override {
 		return this;
 	}
-	const HistoryMessage *toHistoryMessage() const override { // dynamic_cast optimize
+	[[nodiscard]] const HistoryMessage *toHistoryMessage() const override {
 		return this;
 	}
 
-	std::unique_ptr<HistoryView::Element> createView(
+	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate) override;
 
 	~HistoryMessage();
 
 private:
 	void setEmptyText();
-	bool hasAdminBadge() const {
-		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
-	}
-	bool isTooOldForEdit(TimeId now) const;
-	bool isLegacyMessage() const {
+	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
+	[[nodiscard]] bool isLegacyMessage() const {
 		return _flags & MTPDmessage::Flag::f_legacy;
 	}
 

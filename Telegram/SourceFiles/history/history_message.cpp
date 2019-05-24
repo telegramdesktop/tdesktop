@@ -610,6 +610,11 @@ bool HistoryMessage::allowsForward() const {
 	return !_media || _media->allowsForward();
 }
 
+bool HistoryMessage::hasMessageBadge() const {
+	return hasAdminBadge()
+		|| (displayForwardedAsOriginal() && !history()->peer->isSelf());
+}
+
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	const auto peer = _history->peer;
 	if (peer->isSelf()) {

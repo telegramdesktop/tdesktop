@@ -121,8 +121,10 @@ int KeyboardStyle::minButtonWidth(
 	return result;
 }
 
-QString AdminBadgeText() {
-	return lang(lng_admin_badge);
+QString MessageBadgeText(not_null<const HistoryMessage*> message) {
+	return lang(message->hasAdminBadge()
+		? lng_admin_badge
+		: lng_channel_badge);
 }
 
 QString FastReplyText() {
@@ -302,9 +304,9 @@ QSize Message::performCountOptimalSize() {
 				const auto replyWidth = hasFastReply()
 					? st::msgFont->width(FastReplyText())
 					: 0;
-				if (item->hasAdminBadge()) {
+				if (item->hasMessageBadge()) {
 					const auto badgeWidth = st::msgFont->width(
-						AdminBadgeText());
+						MessageBadgeText(item));
 					namew += st::msgPadding.right()
 						+ std::max(badgeWidth, replyWidth);
 				} else if (replyWidth) {
@@ -521,8 +523,8 @@ void Message::paintFromName(
 	const auto item = message();
 	if (displayFromName()) {
 		const auto badgeWidth = [&] {
-			if (item->hasAdminBadge()) {
-				return st::msgFont->width(AdminBadgeText());
+			if (item->hasMessageBadge()) {
+				return st::msgFont->width(MessageBadgeText(item));
 			}
 			return 0;
 		}();
@@ -577,7 +579,7 @@ void Message::paintFromName(
 			p.drawText(
 				trect.left() + trect.width() - rightWidth,
 				trect.top() + st::msgFont->ascent,
-				replyWidth ? FastReplyText() : AdminBadgeText());
+				replyWidth ? FastReplyText() : MessageBadgeText(item));
 		}
 		trect.setY(trect.y() + st::msgNameFont->height);
 	}
@@ -1541,8 +1543,8 @@ void Message::fromNameUpdated(int width) const {
 	const auto replyWidth = hasFastReply()
 		? st::msgFont->width(FastReplyText())
 		: 0;
-	if (item->hasAdminBadge()) {
-		const auto badgeWidth = st::msgFont->width(AdminBadgeText());
+	if (item->hasMessageBadge()) {
+		const auto badgeWidth = st::msgFont->width(MessageBadgeText(item));
 		width -= st::msgPadding.right() + std::max(badgeWidth, replyWidth);
 	} else if (replyWidth) {
 		width -= st::msgPadding.right() + replyWidth;

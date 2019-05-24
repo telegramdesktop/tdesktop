@@ -1070,6 +1070,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_admin_badge" = "admin";
+"lng_channel_badge" = "channel";
 "lng_fast_reply" = "Reply";
 "lng_cancel_edit_post_sure" = "Cancel editing?";
 "lng_cancel_edit_post_yes" = "Yes";
