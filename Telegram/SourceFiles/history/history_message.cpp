@@ -553,8 +553,16 @@ int HistoryMessage::viewsCount() const {
 	return HistoryItem::viewsCount();
 }
 
+bool HistoryMessage::displayForwardedAsOriginal() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		const auto peer = history()->peer;
+		return peer->isSelf() || (peer->isMegagroup() && (peer == from()));
+	}
+	return false;
+}
+
 PeerData *HistoryMessage::displayFrom() const {
-	return history()->peer->isSelf()
+	return displayForwardedAsOriginal()
 		? senderOriginal()
 		: author().get();
 }

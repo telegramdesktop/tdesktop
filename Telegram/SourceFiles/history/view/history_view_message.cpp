@@ -1335,10 +1335,9 @@ bool Message::displayFromName() const {
 
 bool Message::displayForwardedFrom() const {
 	const auto item = message();
-	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		if (item->history()->peer->isSelf()) {
-			return false;
-		}
+	if (item->displayForwardedAsOriginal()) {
+		return false;
+	} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		const auto media = this->media();
 		return item->Has<HistoryMessageVia>()
 			|| !media
@@ -1419,11 +1418,8 @@ bool Message::displayFastShare() const {
 
 bool Message::displayGoToOriginal() const {
 	const auto item = message();
-	const auto peer = item->history()->peer;
-	if (peer->isSelf()) {
-		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-			return forwarded->savedFromPeer && forwarded->savedFromMsgId;
-		}
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		return forwarded->savedFromPeer && forwarded->savedFromMsgId;
 	}
 	return false;
 }

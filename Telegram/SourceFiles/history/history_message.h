@@ -131,6 +131,7 @@ public:
 	MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
+	bool displayForwardedAsOriginal() const;
 
 	HistoryMessage *toHistoryMessage() override { // dynamic_cast optimize
 		return this;
@@ -170,7 +171,6 @@ private:
 		const MTPDmessageFwdHeader &data);
 
 	void updateAdminBadgeState();
-	ClickHandlerPtr fastReplyLink() const;
 
 	QString _timeText;
 	int _timeWidth = 0;

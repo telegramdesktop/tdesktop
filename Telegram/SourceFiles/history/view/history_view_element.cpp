@@ -358,15 +358,20 @@ void Element::refreshDataId() {
 }
 
 bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
+	const auto mayBeAttached = [](not_null<HistoryItem*> item) {
+		return !item->serviceMsg()
+			&& !item->isEmpty()
+			&& !item->isPost()
+			&& (item->from() != item->history()->peer
+				|| !item->from()->isChannel());
+	};
 	const auto item = data();
 	if (!Has<DateBadge>() && !Has<UnreadBar>()) {
 		const auto prev = previous->data();
-		const auto possible = !item->serviceMsg() && !prev->serviceMsg()
-			&& !item->isEmpty() && !prev->isEmpty()
-			&& (std::abs(prev->date() - item->date())
+		const auto possible = (std::abs(prev->date() - item->date())
 				< kAttachMessageToPreviousSecondsDelta)
-			&& (/*_context == Context::Feed // #feed
-				|| */(!item->isPost() && !prev->isPost()));
+			&& mayBeAttached(item)
+			&& mayBeAttached(prev);
 		if (possible) {
 			if (item->history()->peer->isSelf()) {
 				return IsAttachedToPreviousInSavedMessages(prev, item);

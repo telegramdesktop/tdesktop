@@ -233,9 +233,20 @@ bool HistoryMessageReply::isNameUpdated() const {
 
 void HistoryMessageReply::updateName() const {
 	if (replyToMsg) {
-		QString name = (replyToVia && replyToMsg->author()->isUser())
-			? replyToMsg->author()->asUser()->firstName
-			: App::peerName(replyToMsg->author());
+		const auto from = [&] {
+			if (const auto message = replyToMsg->toHistoryMessage()) {
+				if (const auto from = message->displayFrom()) {
+					return from;
+				}
+			}
+			return replyToMsg->author().get();
+		}();
+		const auto name = [&] {
+			if (replyToVia && from->isUser()) {
+				return from->asUser()->firstName;
+			}
+			return App::peerName(from);
+		}();
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		replyToVersion = replyToMsg->author()->nameVersion;
 		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
