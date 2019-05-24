@@ -580,6 +580,29 @@ void GenerateItems(
 			detachExistingItem));
 	};
 
+	auto createChangeLinkedChat = [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &action) {
+		const auto broadcast = channel->isBroadcast();
+		const auto was = history->owner().channelLoaded(action.vprev_value.v);
+		const auto now = history->owner().channelLoaded(action.vnew_value.v);
+		if (!now) {
+			auto text = (broadcast ? lng_admin_log_removed_linked_chat : lng_admin_log_removed_linked_channel)(lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		} else {
+			auto text = (broadcast ? lng_admin_log_changed_linked_chat : lng_admin_log_changed_linked_channel)(
+				lt_from,
+				fromLinkText,
+				lt_chat,
+				textcmdLink(2, now->name));
+			auto chatLink = std::make_shared<LambdaClickHandler>([=] {
+				Ui::showPeerHistory(now, ShowAtUnreadMsgId);
+			});
+			auto message = HistoryService::PreparedText{ text };
+			message.links.push_back(fromLink);
+			message.links.push_back(chatLink);
+			addPart(history->owner().makeServiceMessage(history, idManager->next(), date, message, MTPDmessage::Flags(0), peerToUser(from->id)));
+		}
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -617,7 +640,7 @@ void GenerateItems(
 	}, [&](const MTPDchannelAdminLogEventActionStopPoll &data) {
 		createStopPoll(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &data) {
-		// #TODO discussion
+		createChangeLinkedChat(data);
 	});
 }
 

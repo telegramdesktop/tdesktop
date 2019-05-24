@@ -1707,6 +1707,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_changed_stickers_group" = "{from} changed the group's {sticker_set}";
 "lng_admin_log_changed_stickers_set" = "sticker set";
 "lng_admin_log_removed_stickers_group" = "{from} removed the group's sticker set";
+"lng_admin_log_changed_linked_chat" = "{from} changed the discussion group to «{chat}»";
+"lng_admin_log_removed_linked_chat" = "{from} removed the discussion group";
+"lng_admin_log_changed_linked_channel" = "{from} changed the linked channel to «{chat}»";
+"lng_admin_log_removed_linked_channel" = "{from} removed the linked channel";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";
