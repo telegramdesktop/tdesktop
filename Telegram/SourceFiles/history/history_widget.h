@@ -302,23 +302,13 @@ signals:
 	void cancelled();
 
 public slots:
-	void onPinnedHide();
-	void onFieldBarCancel();
-
 	void onReportSpamClicked();
 	void onReportSpamHide();
 	void onReportSpamClear();
 
 	void onScroll();
 
-	void onUnblock();
-	void onBotStart();
-	void onJoinChannel();
-	void onMuteUnmute();
 	void onBroadcastSilentChange();
-
-	void onKbToggle(bool manual = true);
-	void onCmdStart();
 
 	void activate();
 	void onTextChange();
@@ -376,6 +366,15 @@ private:
 	void handleHistoryChange(not_null<const History*> history);
 	void refreshAboutProxyPromotion();
 	void unreadCountUpdated();
+
+	void toggleMuteUnmute();
+	void toggleKeyboard(bool manual = true);
+	void startBotCommand();
+	void hidePinnedMessage();
+	void cancelFieldAreaState();
+	void unblockUser();
+	void sendBotStartCommand();
+	void joinChannel();
 
 	void supportInitAutocomplete();
 	void supportInsertText(const QString &text);
