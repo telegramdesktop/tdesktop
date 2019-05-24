@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 
 TextParseOptions _confirmBoxTextOptions = {
-	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
+	TextParseLinks | TextParseMultiline | TextParseMarkdown | TextParseRichText, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir

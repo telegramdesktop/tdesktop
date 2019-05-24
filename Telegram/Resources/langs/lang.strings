@@ -855,6 +855,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_discussion_group_posted" = "Everything you post in the channel is forwarded to this group.";
 "lng_manage_discussion_group_sure" = "Do you want to make {group} the discussion board for {channel}?";
 "lng_manage_linked_channel_private" = "Any member in this group will be able to see the messages in the channel.";
+"lng_manage_discussion_group_link" = "Link group";
 "lng_manage_discussion_group_private" = "private group";
 "lng_manage_linked_channel_about" = "{channel} is linking the group as its discussion board.";
 "lng_manage_linked_channel_unlink" = "Unlink channel";

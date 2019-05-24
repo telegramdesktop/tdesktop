@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -81,7 +82,30 @@ object_ptr<Ui::RpWidget> SetupList(
 		if (already) {
 			Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 		} else {
-			callback(chat);
+			auto text = lng_manage_discussion_group_sure__generic<
+				TextWithEntities
+			>(
+				lt_group,
+				BoldText(chat->name),
+				lt_channel,
+				BoldText(channel->name));
+			if (!channel->isPublic()) {
+				text.append(
+					"\n\n" + lang(lng_manage_linked_channel_private));
+			}
+			const auto box = std::make_shared<QPointer<BoxContent>>();
+			const auto sure = [=] {
+				if (*box) {
+					(*box)->closeBox();
+				}
+				callback(chat);
+			};
+			*box = Ui::show(
+				Box<ConfirmBox>(
+					text,
+					lang(lng_manage_discussion_group_link),
+					sure),
+				LayerOption::KeepOther);
 		}
 	};
 	const auto controller = Ui::CreateChild<ListController>(
