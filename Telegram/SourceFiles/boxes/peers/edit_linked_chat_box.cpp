@@ -158,6 +158,18 @@ object_ptr<Ui::RpWidget> SetupAbout(
 	return std::move(about);
 }
 
+object_ptr<Ui::RpWidget> SetupFooter(
+		not_null<QWidget*> parent,
+		not_null<ChannelData*> channel) {
+	return object_ptr<Ui::FlatLabel>(
+		parent,
+		lang(channel->isBroadcast()
+			? lng_manage_discussion_group_posted
+			: lng_manage_linked_channel_posted),
+		Ui::FlatLabel::InitType::Simple,
+		st::linkedChatAbout);
+}
+
 object_ptr<Ui::RpWidget> SetupCreateGroup(
 		not_null<QWidget*> parent,
 		not_null<ChannelData*> channel,
@@ -237,6 +249,9 @@ object_ptr<Ui::RpWidget> EditLinkedChatBox::setupContent(
 	if (chat) {
 		result->add(SetupUnlink(result, channel, callback));
 	}
+	result->add(
+		SetupFooter(result, channel),
+		st::linkedChatAboutPadding);
 	return result;
 }
 

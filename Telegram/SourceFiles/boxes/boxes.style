@@ -976,4 +976,4 @@ urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 }
 
 linkedChatAbout: membersAbout;
-linkedChatAboutPadding: margins(12px, 20px, 12px, 20px);
+linkedChatAboutPadding: margins(20px, 20px, 20px, 20px);
