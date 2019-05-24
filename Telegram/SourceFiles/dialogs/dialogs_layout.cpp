@@ -355,7 +355,7 @@ void paintRow(
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
-		if (!promoted) {
+		if (history && !promoted) {
 			PaintRowDate(p, date, rectForName, active, selected);
 		}
 
