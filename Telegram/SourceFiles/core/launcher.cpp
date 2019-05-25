@@ -425,6 +425,7 @@ void Launcher::processArguments() {
 		{ "-sendpath"       , KeyFormat::AllLeftValues },
 		{ "-workdir"        , KeyFormat::OneValue },
 		{ "--"              , KeyFormat::OneValue },
+		{ "-scale"          , KeyFormat::OneValue },
 	};
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
@@ -474,6 +475,14 @@ void Launcher::processArguments() {
 		}
 	}
 	gStartUrl = parseResult.value("--", {}).join(QString());
+
+	const auto scaleKey = parseResult.value("-scale", {});
+	if (scaleKey.size() > 0) {
+		const auto value = scaleKey[0].toInt();
+		gConfigScale = ((value < 75) || (value > 300))
+			? kInterfaceScaleAuto
+			: value;
+	}
 }
 
 int Launcher::executeApplication() {

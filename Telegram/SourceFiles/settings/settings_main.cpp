@@ -125,14 +125,24 @@ void SetupInterfaceScale(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
 		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
 
-	static const auto ScaleValues = (cIntRetinaFactor() > 1)
-		? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
-		: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
+	static const auto ScaleValues = [&] {
+		auto values = (cIntRetinaFactor() > 1)
+			? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
+			: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
+		if (cConfigScale() == kInterfaceScaleAuto) {
+			return values;
+		}
+		if (ranges::find(values, cConfigScale()) == end(values)) {
+			values.push_back(cConfigScale());
+		}
+		return values;
+	}();
+
 	const auto sectionFromScale = [](int scale) {
 		scale = cEvalScale(scale);
 		auto result = 0;
 		for (const auto value : ScaleValues) {
-			if (scale <= value) {
+			if (scale == value) {
 				break;
 			}
 			++result;

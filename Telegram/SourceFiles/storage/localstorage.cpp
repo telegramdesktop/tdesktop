@@ -1521,7 +1521,10 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		SetScaleChecked(v);
+		// If cConfigScale() has value then it was set via command line.
+		if (cConfigScale() == kInterfaceScaleAuto) {
+			SetScaleChecked(v);
+		}
 	} break;
 
 	case dbiLangOld: {
