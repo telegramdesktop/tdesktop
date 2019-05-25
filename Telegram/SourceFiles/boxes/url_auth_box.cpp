@@ -157,7 +157,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 			object_ptr<Ui::Checkbox>(
 				result,
 				QString(),
-				false,
+				true,
 				st::urlAuthCheckbox),
 			style::margins(
 				st::boxPadding.left(),
@@ -187,6 +187,9 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 		) | rpl::then(
 			auth->checkedChanges()
 		) | rpl::start_with_next([=](bool checked) {
+			if (!checked) {
+				allow->setChecked(false);
+			}
 			allow->setDisabled(!checked);
 		}, auth->lifetime());
 	}
