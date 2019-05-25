@@ -358,7 +358,8 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 			photo->thumbnail()->loadEvenCancelled(Data::FileOrigin());
 		}
 	} else if (const auto document = item->getDocument()) {
-		if (document->loaded()) {
+		if (document->loaded()
+			|| QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
 			_fileChosen.fire_copy(document);
 		} else if (document->loading()) {
 			document->cancel();
