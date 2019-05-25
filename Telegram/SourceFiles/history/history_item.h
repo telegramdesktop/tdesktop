@@ -296,6 +296,15 @@ public:
 
 	MessageGroupId groupId() const;
 
+	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
+		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
+	}
+	const ReplyKeyboard *inlineReplyKeyboard() const {
+		return const_cast<HistoryItem*>(this)->inlineReplyKeyboard();
+	}
+	HistoryMessageReplyMarkup *inlineReplyMarkup();
+	ReplyKeyboard *inlineReplyKeyboard();
+
 	virtual std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate) = 0;
 
@@ -319,14 +328,6 @@ protected:
 	not_null<PeerData*> _from;
 	MTPDmessage::Flags _flags = 0;
 
-	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
-		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
-	}
-	const ReplyKeyboard *inlineReplyKeyboard() const {
-		return const_cast<HistoryItem*>(this)->inlineReplyKeyboard();
-	}
-	HistoryMessageReplyMarkup *inlineReplyMarkup();
-	ReplyKeyboard *inlineReplyKeyboard();
 	void invalidateChatListEntry();
 
 	void setGroupId(MessageGroupId groupId);

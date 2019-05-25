@@ -860,12 +860,16 @@ void HistoryMessageReplyMarkup::create(
 
 	rows.clear();
 	rows.reserve(markup.rows.size());
+	using Type = HistoryMessageMarkupButton::Type;
 	for (const auto &existing : markup.rows) {
 		auto row = std::vector<Button>();
 		row.reserve(existing.size());
 		for (const auto &button : existing) {
+			const auto newType = (button.type != Type::SwitchInlineSame)
+				? button.type
+				: Type::SwitchInline;
 			row.emplace_back(
-				button.type,
+				newType,
 				button.text,
 				button.data,
 				button.buttonId);

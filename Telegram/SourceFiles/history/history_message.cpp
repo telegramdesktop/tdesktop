@@ -71,6 +71,31 @@ MTPDmessage::Flags NewForwardedFlags(
 	return result;
 }
 
+bool CopyMarkupToForward(not_null<const HistoryItem*> item) {
+	auto mediaOriginal = item->media();
+	if (mediaOriginal && mediaOriginal->game()) {
+		// Copy inline keyboard when forwarding messages with a game.
+		return true;
+	}
+	const auto markup = item->inlineReplyMarkup();
+	if (!markup) {
+		return false;
+	}
+	using Type = HistoryMessageMarkupButton::Type;
+	for (const auto &row : markup->rows) {
+		for (const auto &button : row) {
+			const auto switchInline = (button.type == Type::SwitchInline)
+				|| (button.type == Type::SwitchInlineSame);
+			const auto url = (button.type == Type::Url)
+				|| (button.type == Type::Auth);
+			if ((!switchInline || !item->viaBot()) && !url) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 bool HasInlineItems(const HistoryItemsList &items) {
 	for (const auto item : items) {
 		if (item->viaBot()) {
@@ -435,9 +460,8 @@ HistoryMessage::HistoryMessage(
 		config.viewsCount = 1;
 	}
 
-	// Copy inline keyboard when forwarding messages with a game.
-	auto mediaOriginal = original->media();
-	if (mediaOriginal && mediaOriginal->game()) {
+	const auto mediaOriginal = original->media();
+	if (CopyMarkupToForward(original)) {
 		config.inlineMarkup = original->inlineReplyMarkup();
 	}
 
@@ -664,13 +688,6 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (!config.author.isEmpty()) {
 		mask |= HistoryMessageSigned::Bit();
 	}
-	auto hasViaBot = (config.viaBotId != 0);
-	auto hasInlineMarkup = [&config] {
-		if (config.mtpMarkup) {
-			return (config.mtpMarkup->type() == mtpc_replyInlineMarkup);
-		}
-		return (config.inlineMarkup != nullptr);
-	};
 	if (config.editDate != TimeId(0)) {
 		mask |= HistoryMessageEdited::Bit();
 	}
