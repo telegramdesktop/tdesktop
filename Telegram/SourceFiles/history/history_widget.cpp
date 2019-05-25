@@ -6437,10 +6437,8 @@ void HistoryWidget::updateReplyToName() {
 	}
 	const auto from = [&] {
 		const auto item = _replyEditMsg ? _replyEditMsg : _kbReplyTo;
-		if (const auto message = item->toHistoryMessage()) {
-			if (const auto from = message->displayFrom()) {
-				return from;
-			}
+		if (const auto from = item->displayFrom()) {
+			return from;
 		}
 		return item->author().get();
 	}();

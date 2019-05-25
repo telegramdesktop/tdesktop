@@ -577,32 +577,6 @@ int HistoryMessage::viewsCount() const {
 	return HistoryItem::viewsCount();
 }
 
-ChannelData *HistoryMessage::discussionPostOriginalSender() const {
-	if (!history()->peer->isMegagroup()) {
-		return nullptr;
-	}
-	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		const auto from = forwarded->savedFromPeer;
-		if (const auto result = from ? from->asChannel() : nullptr) {
-			return result;
-		}
-	}
-	return nullptr;
-}
-
-bool HistoryMessage::isDiscussionPost() const {
-	return (discussionPostOriginalSender() != nullptr);
-}
-
-PeerData *HistoryMessage::displayFrom() const {
-	if (const auto sender = discussionPostOriginalSender()) {
-		return sender;
-	} else if (history()->peer->isSelf()) {
-		return senderOriginal();
-	}
-	return author().get();
-}
-
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		return reply->updateData(this, true);

@@ -218,6 +218,32 @@ ReplyKeyboard *HistoryItem::inlineReplyKeyboard() {
 	return nullptr;
 }
 
+ChannelData *HistoryItem::discussionPostOriginalSender() const {
+	if (!history()->peer->isMegagroup()) {
+		return nullptr;
+	}
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		const auto from = forwarded->savedFromPeer;
+		if (const auto result = from ? from->asChannel() : nullptr) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+bool HistoryItem::isDiscussionPost() const {
+	return (discussionPostOriginalSender() != nullptr);
+}
+
+PeerData *HistoryItem::displayFrom() const {
+	if (const auto sender = discussionPostOriginalSender()) {
+		return sender;
+	} else if (history()->peer->isSelf()) {
+		return senderOriginal();
+	}
+	return author().get();
+}
+
 void HistoryItem::invalidateChatListEntry() {
 	if (const auto main = App::main()) {
 		// #TODO feeds search results
@@ -706,7 +732,7 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 		if (isPost() || isEmpty() || (way == DrawInDialog::WithoutSender)) {
 			return nullptr;
 		} else if (!_history->peer->isUser() || out()) {
-			return author();
+			return displayFrom();
 		} else if (_history->peer->isSelf() && !Has<HistoryMessageForwarded>()) {
 			return senderOriginal();
 		}

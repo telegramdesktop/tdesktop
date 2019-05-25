@@ -740,14 +740,8 @@ void RowPainter::paint(
 	auto history = item->history();
 	auto cloudDraft = nullptr;
 	const auto from = [&] {
-		if (const auto searchChat = row->searchInChat()) {
-			if (const auto peer = searchChat.peer()) {
-				if (peer->isSelf()) {
-					return item->senderOriginal();
-				} else if (!peer->isChannel() || peer->isMegagroup()) {
-					return item->from().get();
-				}
-			}
+		if (row->searchInChat()) {
+			return item->displayFrom();
 		}
 		return history->peer->migrateTo()
 			? history->peer->migrateTo()

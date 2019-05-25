@@ -234,10 +234,8 @@ bool HistoryMessageReply::isNameUpdated() const {
 void HistoryMessageReply::updateName() const {
 	if (replyToMsg) {
 		const auto from = [&] {
-			if (const auto message = replyToMsg->toHistoryMessage()) {
-				if (const auto from = message->displayFrom()) {
-					return from;
-				}
+			if (const auto from = replyToMsg->displayFrom()) {
+				return from;
 			}
 			return replyToMsg->author().get();
 		}();

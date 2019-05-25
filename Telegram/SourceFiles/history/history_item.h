@@ -305,6 +305,10 @@ public:
 	HistoryMessageReplyMarkup *inlineReplyMarkup();
 	ReplyKeyboard *inlineReplyKeyboard();
 
+	[[nodiscard]] ChannelData *discussionPostOriginalSender() const;
+	[[nodiscard]] bool isDiscussionPost() const;
+	[[nodiscard]] PeerData *displayFrom() const;
+
 	virtual std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate) = 0;
 

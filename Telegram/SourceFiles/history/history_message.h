@@ -131,13 +131,10 @@ public:
 	[[nodiscard]] bool textHasLinks() const override;
 
 	[[nodiscard]] int viewsCount() const override;
-	[[nodiscard]] PeerData *displayFrom() const;
 	bool updateDependencyItem() override;
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
-	[[nodiscard]] ChannelData *discussionPostOriginalSender() const;
-	[[nodiscard]] bool isDiscussionPost() const;
 
 	// dynamic_cast optimization.
 	[[nodiscard]] HistoryMessage *toHistoryMessage() override {
