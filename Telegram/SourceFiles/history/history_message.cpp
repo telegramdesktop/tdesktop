@@ -553,18 +553,30 @@ int HistoryMessage::viewsCount() const {
 	return HistoryItem::viewsCount();
 }
 
-bool HistoryMessage::displayForwardedAsOriginal() const {
-	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		const auto peer = history()->peer;
-		return peer->isSelf() || (peer->isMegagroup() && (peer == from()));
+ChannelData *HistoryMessage::discussionPostOriginalSender() const {
+	if (!history()->peer->isMegagroup()) {
+		return nullptr;
 	}
-	return false;
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		const auto from = forwarded->savedFromPeer;
+		if (const auto result = from ? from->asChannel() : nullptr) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+bool HistoryMessage::isDiscussionPost() const {
+	return (discussionPostOriginalSender() != nullptr);
 }
 
 PeerData *HistoryMessage::displayFrom() const {
-	return displayForwardedAsOriginal()
-		? senderOriginal()
-		: author().get();
+	if (const auto sender = discussionPostOriginalSender()) {
+		return sender;
+	} else if (history()->peer->isSelf()) {
+		return senderOriginal();
+	}
+	return author().get();
 }
 
 bool HistoryMessage::updateDependencyItem() {
@@ -611,8 +623,7 @@ bool HistoryMessage::allowsForward() const {
 }
 
 bool HistoryMessage::hasMessageBadge() const {
-	return hasAdminBadge()
-		|| (displayForwardedAsOriginal() && !history()->peer->isSelf());
+	return hasAdminBadge() || isDiscussionPost();
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {

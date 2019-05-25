@@ -136,7 +136,8 @@ public:
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
-	[[nodiscard]] bool displayForwardedAsOriginal() const;
+	[[nodiscard]] ChannelData *discussionPostOriginalSender() const;
+	[[nodiscard]] bool isDiscussionPost() const;
 
 	// dynamic_cast optimization.
 	[[nodiscard]] HistoryMessage *toHistoryMessage() override {

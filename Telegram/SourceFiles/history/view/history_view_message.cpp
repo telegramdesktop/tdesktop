@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -1337,9 +1338,15 @@ bool Message::displayFromName() const {
 
 bool Message::displayForwardedFrom() const {
 	const auto item = message();
-	if (item->displayForwardedAsOriginal()) {
+	if (item->history()->peer->isSelf()) {
 		return false;
-	} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+	}
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (const auto sender = item->discussionPostOriginalSender()) {
+			if (sender == forwarded->originalSender) {
+				return false;
+			}
+		}
 		const auto media = this->media();
 		return item->Has<HistoryMessageVia>()
 			|| !media
