@@ -169,9 +169,7 @@ void TopBarWidget::refreshLang() {
 }
 
 void TopBarWidget::onSearch() {
-	if (_activeChat.folder()) {
-		_controller->closeFolder();
-	} else if (_activeChat) {
+	if (_activeChat) {
 		App::main()->searchInChat(_activeChat);
 	}
 }

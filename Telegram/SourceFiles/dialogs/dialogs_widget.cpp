@@ -639,7 +639,9 @@ void Widget::animationCallback() {
 		updateControlsVisibility(true);
 
 		applyFilterUpdate();
-		if (App::wnd()) App::wnd()->setInnerFocus();
+		if (!_filter->hasFocus()) {
+			if (App::wnd()) App::wnd()->setInnerFocus();
+		}
 	}
 }
 
@@ -1232,6 +1234,9 @@ void Widget::searchInChat(Key chat) {
 }
 
 void Widget::setSearchInChat(Key chat, UserData *from) {
+	if (chat.folder()) {
+		chat = Key();
+	}
 	_searchInMigrated = nullptr;
 	if (const auto peer = chat.peer()) {
 		if (const auto migrateTo = peer->migrateTo()) {
