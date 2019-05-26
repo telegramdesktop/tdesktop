@@ -16,6 +16,7 @@ public:
 	using RpWidget::RpWidget;
 
 	void setText(const QString &text, bool active);
+	int textBaseline() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

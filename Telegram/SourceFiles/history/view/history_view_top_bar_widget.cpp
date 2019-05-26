@@ -523,13 +523,6 @@ void TopBarWidget::updateControlsGeometry() {
 			&& (width() < _back->width() + _search->width());
 		_leftTaken = smallDialogsColumn ? (width() - _back->width()) / 2 : 0;
 		_back->moveToLeft(_leftTaken, otherButtonsTop);
-		if (_unreadBadge) {
-			_unreadBadge->setGeometryToLeft(
-				_leftTaken,
-				otherButtonsTop + st::titleUnreadCounterTop,
-				_back->width(),
-				st::dialogsUnreadHeight);
-		}
 		_leftTaken += _back->width();
 		if (_info && !_info->isHidden()) {
 			_info->moveToLeft(_leftTaken, otherButtonsTop);
@@ -708,11 +701,16 @@ void TopBarWidget::refreshUnreadBadge() {
 		return;
 	}
 	_unreadBadge.create(this);
-	_unreadBadge->setGeometryToLeft(
-		0,
-		st::titleUnreadCounterTop,
-		_back->width(),
-		st::dialogsUnreadHeight);
+
+	rpl::combine(
+		_back->geometryValue(),
+		_unreadBadge->widthValue()
+	) | rpl::start_with_next([=](QRect geometry, int width) {
+		_unreadBadge->move(
+			geometry.x() + geometry.width() - width,
+			geometry.y() + st::titleUnreadCounterTop);
+	}, _unreadBadge->lifetime());
+
 	_unreadBadge->show();
 	_unreadBadge->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_unreadCounterSubscription = subscribe(

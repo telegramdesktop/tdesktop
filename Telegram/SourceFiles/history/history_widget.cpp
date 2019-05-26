@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
+#include "info/profile/info_profile_values.h" // Info::Profile::ToUpperValue
 #include "core/click_handler_types.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -68,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
+#include "ui/unread_badge.h"
 #include "auth_session.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
@@ -143,6 +145,97 @@ bool ShowHistoryEndInsteadOfUnread(
 	return (last != nullptr) && !IsServerMsgId(last->id);
 }
 
+object_ptr<Ui::FlatButton> SetupDiscussButton(
+		not_null<QWidget*> parent,
+		not_null<Window::Controller*> controller) {
+	auto result = object_ptr<Ui::FlatButton>(
+		parent,
+		QString(),
+		st::historyComposeButton);
+	const auto button = result.data();
+	auto text = Lang::Viewer(
+		lng_channel_discuss
+	) | Info::Profile::ToUpperValue();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		rpl::duplicate(text),
+		st::historyComposeButtonLabel);
+	const auto badge = Ui::CreateChild<Ui::UnreadBadge>(button);
+	label->show();
+
+	controller->activeChatValue(
+	) | rpl::map([=](Dialogs::Key chat) {
+		return chat.history();
+	}) | rpl::map([=](History *history) {
+		return history ? history->peer->asChannel() : nullptr;
+	}) | rpl::map([=](ChannelData *channel) -> rpl::producer<ChannelData*> {
+		if (channel && channel->isBroadcast()) {
+			return PeerUpdateValue(
+				channel,
+				Notify::PeerUpdate::Flag::ChannelLinkedChat
+			) | rpl::map([=] {
+				return channel->linkedChat();
+			});
+		}
+		return rpl::single<ChannelData*>(nullptr);
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed(
+	) | rpl::map([=](ChannelData *chat)
+	-> rpl::producer<std::tuple<int, bool>> {
+		if (chat) {
+			return PeerUpdateValue(
+				chat,
+				Notify::PeerUpdate::Flag::UnreadViewChanged
+				| Notify::PeerUpdate::Flag::NotificationsEnabled
+				| Notify::PeerUpdate::Flag::ChannelAmIn
+			) | rpl::map([=] {
+				const auto history = chat->amIn()
+					? chat->owner().historyLoaded(chat)
+					: nullptr;
+				return history
+					? std::make_tuple(
+						history->unreadCountForBadge(),
+						!history->mute())
+					: std::make_tuple(0, false);
+			});
+		} else {
+			return rpl::single(std::make_tuple(0, false));
+		}
+	}) | rpl::flatten_latest(
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](int count, bool active) {
+		badge->setText(QString::number(count), active);
+		badge->setVisible(count > 0);
+	}, badge->lifetime());
+
+	rpl::combine(
+		badge->shownValue(),
+		badge->widthValue(),
+		label->widthValue(),
+		button->widthValue()
+	) | rpl::start_with_next([=](
+			bool badgeShown,
+			int badgeWidth,
+			int labelWidth,
+			int width) {
+		const auto textTop = st::historyComposeButton.textTop;
+		const auto badgeTop = textTop
+			+ st::historyComposeButton.font->height
+			- badge->textBaseline();
+		const auto add = badgeShown
+			? (textTop + badgeWidth)
+			: 0;
+		const auto total = labelWidth + add;
+		label->moveToLeft((width - total) / 2, textTop, width);
+		badge->moveToRight((width - total) / 2, textTop, width);
+	}, button->lifetime());
+
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	return result;
+}
+
 } // namespace
 
 ReportSpamPanel::ReportSpamPanel(QWidget *parent) : TWidget(parent),
@@ -214,10 +307,7 @@ HistoryWidget::HistoryWidget(
 	this,
 	lang(lng_channel_mute).toUpper(),
 	st::historyComposeButton)
-, _discuss(
-	this,
-	lang(lng_channel_discuss).toUpper(),
-	st::historyComposeButton)
+, _discuss(SetupDiscussButton(this, controller))
 , _attachToggle(this, st::historyAttach)
 , _tabbedSelectorToggle(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)

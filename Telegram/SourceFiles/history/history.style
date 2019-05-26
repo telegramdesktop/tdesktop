@@ -194,6 +194,10 @@ historyComposeButton: FlatButton {
 		color: historyComposeButtonBgRipple;
 	}
 }
+historyComposeButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+	style: semiboldTextStyle;
+}
 historyUnblock: FlatButton(historyComposeButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFgOver;

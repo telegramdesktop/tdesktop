@@ -14,7 +14,16 @@ namespace Ui {
 void UnreadBadge::setText(const QString &text, bool active) {
 	_text = text;
 	_active = active;
+	const auto st = Dialogs::Layout::UnreadBadgeStyle();
+	resize(
+		std::max(st.font->width(text) + 2 * st.padding, st.size),
+		st.size);
 	update();
+}
+
+int UnreadBadge::textBaseline() const {
+	const auto st = Dialogs::Layout::UnreadBadgeStyle();
+	return ((st.size - st.font->height) / 2) + st.font->ascent;
 }
 
 void UnreadBadge::paintEvent(QPaintEvent *e) {
