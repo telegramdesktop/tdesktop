@@ -592,6 +592,7 @@ HistoryWidget::HistoryWidget(
 				| UpdateFlag::AdminsChanged
 				| UpdateFlag::MembersChanged
 				| UpdateFlag::UserOnlineChanged
+				| UpdateFlag::RightsChanged
 				| UpdateFlag::ChannelAmIn
 				| UpdateFlag::ChannelLinkedChat)) {
 				handlePeerUpdate();
