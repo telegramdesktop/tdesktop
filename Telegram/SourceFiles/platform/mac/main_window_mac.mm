@@ -113,7 +113,7 @@ public:
 
 	bool clipboardHasText();
 
-	TouchBar *_touchBar = nullptr;
+	TouchBar *_touchBar = nil;
 
 	~Private();
 
@@ -424,8 +424,9 @@ void MainWindow::initTouchBar() {
 		} else {
 			if (_private->_touchBar) {
 				[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
+				[_private->_touchBar release];
 			}
-			_private->_touchBar = nullptr;
+			_private->_touchBar = nil;
 		}
 	});
 }

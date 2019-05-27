@@ -448,7 +448,8 @@ void PaintUnreadBadge(Painter &p, PeerData *peer) {
 		NSStackView *stackView = [[NSStackView alloc] init];
 
 		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
-			PinnedDialogButton *button = [[PinnedDialogButton alloc] init:i];
+			PinnedDialogButton *button =
+				[[[PinnedDialogButton alloc] init:i] autorelease];
 			[_mainPinnedButtons addObject:button];
 			if (i == kArchiveId) {
 				button.isDeletedFromView = true;
@@ -684,6 +685,13 @@ void PaintUnreadBadge(Painter &p, PeerData *peer) {
 			Media::Player::instance()->startSeeking(kSongType);
 		}
 	});
+}
+
+-(void)dealloc {
+	for (PinnedDialogButton *button in _mainPinnedButtons) {
+		[button release];
+	}
+	[super dealloc];
 }
 
 @end
