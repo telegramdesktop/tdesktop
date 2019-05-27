@@ -53,7 +53,6 @@ private:
 
 	QString _phoneText;
 	QImage _background;
-	bool _isShadowShown = false;
 
 };
 

@@ -146,7 +146,6 @@ MainMenu::MainMenu(
 				Window::Theme::ToggleNightMode();
 				Window::Theme::KeepApplied();
 			}
-			refreshBackground();
 		}
 	});
 
@@ -174,6 +173,8 @@ MainMenu::MainMenu(
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
 			refreshMenu();
+		}
+		if (update.type == Window::Theme::BackgroundUpdate::Type::New) {
 			refreshBackground();
 		}
 	});
@@ -256,12 +257,24 @@ void MainMenu::refreshBackground() {
 		QImage::Format_ARGB32_Premultiplied);
 	QPainter p(&backgroundImage);
 
+	const auto drawShadow = [](QPainter &p) {
+		st::mainMenuShadow.paint(
+			p,
+			0,
+			st::mainMenuCoverHeight - st::mainMenuShadow.height(),
+			st::mainMenuWidth,
+			IntensityOfColor(st::mainMenuCoverFg->c) < 0.5
+				? Qt::white
+				: Qt::black);
+	};
+
 	// Solid color.
 	if (const auto color = Window::Theme::Background()->colorForFill()) {
 		const auto intensity = IntensityOfColor(*color);
-		_isShadowShown = 
-			(std::abs(intensity - intensityText) < kMinDiffIntensity);
 		p.fillRect(fill, *color);
+		if (std::abs(intensity - intensityText) < kMinDiffIntensity) {
+			drawShadow(p);
+		}
 		_background = backgroundImage;
 		return;
 	}
@@ -270,9 +283,6 @@ void MainMenu::refreshBackground() {
 	const auto &pixmap = Window::Theme::Background()->pixmap();
 	QRect to, from;
 	Window::Theme::ComputeBackgroundRects(fill, pixmap.size(), to, from);
-
-	p.drawPixmap(to, pixmap, from);
-	_background = backgroundImage;
 
 	// Cut off the part of the background that is under text.
 	const QRect underText(
@@ -283,7 +293,11 @@ void MainMenu::refreshBackground() {
 			st::normalFont->width(_phoneText)),
 		st::semiboldFont->height * 2);
 
-	_isShadowShown = IsShadowShown(backgroundImage, underText, intensityText);
+	p.drawPixmap(to, pixmap, from);
+	if (IsShadowShown(backgroundImage, underText, intensityText)) {
+		drawShadow(p);
+	}
+	_background = backgroundImage;
 }
 
 void MainMenu::resizeEvent(QResizeEvent *e) {
@@ -326,18 +340,6 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		const auto widthText = _cloudButton
 			? _cloudButton->x() - st::mainMenuCloudSize
 			: width() - 2 * st::mainMenuCoverTextLeft;
-
-		if (_isShadowShown) {
-			st::mainMenuShadow.paint(
-				p,
-				0,
-				st::mainMenuCoverHeight - st::mainMenuShadow.height(),
-				st::mainMenuWidth,
-				IntensityOfColor(st::mainMenuCoverFg->c) < 0.5
-					? Qt::white
-					: Qt::black);
-		}
-
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
 		Auth().user()->nameText.drawLeftElided(
