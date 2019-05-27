@@ -19,6 +19,7 @@
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "styles/style_media_player.h"
+#include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "ui/empty_userpic.h"
 
@@ -63,8 +64,12 @@ NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size = kIdealIc
 	return image;
 }
 
-inline bool IsCurrentSongExists() {
+inline bool CurrentSongExists() {
 	return Media::Player::instance()->current(kSongType).audio() != nullptr;
+}
+
+inline bool UseEmptyUserpic(PeerData *peer) {
+	return (peer && (peer->useEmptyUserpic() || peer->isSelf()));
 }
 
 NSString *FormatTime(int time) {
@@ -100,7 +105,7 @@ NSString *FormatTime(int time) {
 - (id) init:(int)num;
 - (NSImage *) getPinImage;
 - (void)buttonActionPin:(NSButton *)sender;
-- (void)updatePinnedDialog;
+- (void)updateUserpic;
 
 @end // @interface PinnedDialogButton
 
@@ -131,6 +136,16 @@ NSString *FormatTime(int time) {
 	[button sizeToFit];
 	self.view = button;
 
+	using Update = const Window::Theme::BackgroundUpdate;
+	base::ObservableViewer(
+		*Window::Theme::Background()
+	) | rpl::filter([=](const Update &update) {
+		return update.paletteChanged()
+			&& (_number <= kSavedMessagesId || UseEmptyUserpic(_peer));
+	}) | rpl::start_with_next([=] {
+		[self updateUserpic];
+	}, _lifetime);
+
 	if (num <= kSavedMessagesId) {
 		return self;
 	}
@@ -139,7 +154,7 @@ NSString *FormatTime(int time) {
 		Auth().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		if (isWaitingUserpicLoad) {
-			[self updatePinnedDialog];
+			[self updateUserpic];
 		}
 	}, _lifetime);
 
@@ -161,11 +176,11 @@ NSString *FormatTime(int time) {
 	Notify::PeerUpdate::Flag::PhotoChanged
 	) | rpl::start_with_next([=] {
 		isWaitingUserpicLoad = true;
-		[self updatePinnedDialog];
+		[self updateUserpic];
 	}, _userpicChangedLifetime);
 }
 
-- (void) updatePinnedDialog {
+- (void) updateUserpic {
 	NSButton *button = self.view;
 	button.image = [self getPinImage];
 }
@@ -407,7 +422,7 @@ NSString *FormatTime(int time) {
 	if (type == Platform::TouchBarType::Main) {
 		[_parentView setTouchBar:_touchBarMain];
 	} else if (type == Platform::TouchBarType::AudioPlayer) {
-		if (!IsCurrentSongExists()
+		if (!CurrentSongExists()
 			|| Media::Player::instance()->getActiveType() != kSongType) {
 			return;
 		}
@@ -429,7 +444,7 @@ NSString *FormatTime(int time) {
 		if (button.number == kArchiveId) {
 			NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
 			NSStackView *stack = item.view;
-			[button updatePinnedDialog];
+			[button updateUserpic];
 			if (hide && !button.isDeletedFromView) {
 				button.isDeletedFromView = true;
 				[stack removeView:button.view];
@@ -471,7 +486,7 @@ NSString *FormatTime(int time) {
 		const auto pinned = order.at(num - 1);
 		if (const auto history = pinned.history()) {
 			button.peer = history->peer;
-			[button updatePinnedDialog];
+			[button updateUserpic];
 			if (history->peer->id == Auth().userPeerId()) {
 				isSelfPeerPinned = true;
 			}
