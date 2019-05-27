@@ -112,8 +112,8 @@ public:
 	void willExitFullScreen();
 
 	bool clipboardHasText();
-	
-	TouchBar *_touchBar;
+
+	TouchBar *_touchBar = nullptr;
 
 	~Private();
 
@@ -395,7 +395,7 @@ MainWindow::MainWindow()
 			_private->updateNativeTitle();
 		}
 	});
-	
+
 	subscribe(Core::App().authSessionChanged(), [this] {
 		if (AuthSession::Exists()) {
 			// We need only common pinned dialogs.
@@ -408,7 +408,7 @@ MainWindow::MainWindow()
 			}
 		} else {
 			if (_private->_touchBar) {
-				[_private->_touchBar setTouchBar:TouchBarType::None];
+				[_private->_touchBar setTouchBar:Platform::TouchBarType::None];
 			}
 			_private->_touchBar = nullptr;
 		}

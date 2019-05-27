@@ -1,7 +1,7 @@
 /*
  This file is part of Telegram Desktop,
  the official desktop application for the Telegram messaging service.
- 
+
  For license and copyright information please follow this link:
  https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
  */
@@ -67,7 +67,7 @@ inline bool IsCurrentSongExists() {
 	return Media::Player::instance()->current(kSongType).audio() != nullptr;
 }
 
-NSString* FormatTime(int time) {
+NSString *FormatTime(int time) {
 	const auto seconds = time % 60;
 	const auto minutes = (time / 60) % 60;
 	const auto hours = time / (60 * 60);
@@ -88,13 +88,13 @@ NSString* FormatTime(int time) {
 } // namespace
 
 @interface PinnedDialogButton : NSCustomTouchBarItem {
-	rpl::lifetime lifetime;
-	rpl::lifetime userpicChangedLifetime;
+	rpl::lifetime _lifetime;
+	rpl::lifetime _userpicChangedLifetime;
+	bool isWaitingUserpicLoad;
 }
 
 @property(nonatomic, assign) int number;
-@property(nonatomic, assign) bool waiting;
-@property(nonatomic, assign) PeerData * peer;
+@property(nonatomic, assign) PeerData *peer;
 @property(nonatomic, assign) bool isDeletedFromView;
 
 - (id) init:(int)num;
@@ -109,23 +109,23 @@ NSString* FormatTime(int time) {
 - (id) init:(int)num {
 	if (num == kSavedMessagesId) {
 		self = [super initWithIdentifier:kSavedMessagesItemIdentifier];
-		self.waiting = false;
+		isWaitingUserpicLoad = false;
 		self.customizationLabel = [NSString stringWithFormat:@"Pinned Dialog %d", num];
 	} else if (num == kArchiveId) {
 		self = [super initWithIdentifier:kArchiveFolderItemIdentifier];
-		self.waiting = false;
+		isWaitingUserpicLoad = false;
 		self.customizationLabel = @"Archive Folder";
 	} else {
 		NSString *identifier = [NSString stringWithFormat:@"%@.pinnedDialog%d", kCustomizationIdMain, num];
 		self = [super initWithIdentifier:identifier];
-		self.waiting = true;
+		isWaitingUserpicLoad = true;
 		self.customizationLabel = @"Saved Messages";
 	}
 	if (!self) {
 		return nil;
 	}
 	self.number = num;
-	
+
 	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
 	[button setBordered:NO];
 	[button sizeToFit];
@@ -134,15 +134,15 @@ NSString* FormatTime(int time) {
 	if (num <= kSavedMessagesId) {
 		return self;
 	}
-	
+
 	base::ObservableViewer(
 		Auth().downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
-		if (self.waiting) {
+		if (isWaitingUserpicLoad) {
 			[self updatePinnedDialog];
 		}
-	}, self->lifetime);
-	
+	}, _lifetime);
+
 	return self;
 }
 
@@ -152,7 +152,7 @@ NSString* FormatTime(int time) {
 		return;
 	}
 	_peer = newPeer;
-	self->userpicChangedLifetime.destroy();
+	_userpicChangedLifetime.destroy();
 	if (!_peer) {
 		return;
 	}
@@ -160,9 +160,9 @@ NSString* FormatTime(int time) {
 		_peer,
 	Notify::PeerUpdate::Flag::PhotoChanged
 	) | rpl::start_with_next([=] {
-		self.waiting = true;
+		isWaitingUserpicLoad = true;
 		[self updatePinnedDialog];
-	}, self->userpicChangedLifetime);
+	}, _userpicChangedLifetime);
 }
 
 - (void) updatePinnedDialog {
@@ -199,7 +199,7 @@ NSString* FormatTime(int time) {
 		auto *pix = new QPixmap(s, s);
 		Painter paint(pix);
 		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
-		
+
 		if (self.number == kArchiveId) {
 			if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
 				folder->paintUserpic(paint, 0, 0, s);
@@ -214,7 +214,7 @@ NSString* FormatTime(int time) {
 		// Random picture.
 		return [NSImage imageNamed:NSImageNameTouchBarAddTemplate];
 	}
-	self.waiting = !self.peer->userpicLoaded();
+	isWaitingUserpicLoad = !self.peer->userpicLoaded();
 	auto pixmap = self.peer->genUserpic(kIdealIconSize);
 	pixmap.setDevicePixelRatio(cRetinaFactor());
 	return [qt_mac_create_nsimage(pixmap) autorelease];
@@ -230,138 +230,147 @@ NSString* FormatTime(int time) {
 
 - (id) init:(NSView *)view {
 	self = [super init];
-	if (self) {
-		const auto iconSize = kIdealIconSize / 3;
-		self.view = view;
-		self.touchbarItems = @{
-			kPinnedPanelItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"pinned",
-			}],
-			kSeekBarItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type": @"slider",
-				@"name": @"Seek Bar"
-			}],
-			kPlayItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":     @"button",
-				@"name":     @"Play Button",
-				@"cmd":      [NSNumber numberWithInt:kCommandPlayPause],
-				@"image":    CreateNSImageFromStyleIcon(st::touchBarIconPlayerPause, iconSize),
-				@"imageAlt": CreateNSImageFromStyleIcon(st::touchBarIconPlayerPlay, iconSize),
-			}],
-			kPreviousItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Previous Playlist Item",
-				@"cmd":   [NSNumber numberWithInt:kCommandPlaylistPrevious],
-				@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerPrevious, iconSize),
-			}],
-			kNextItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Next Playlist Item",
-				@"cmd":   [NSNumber numberWithInt:kCommandPlaylistNext],
-				@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerNext, iconSize),
-			}],
-			kCommandClosePlayerItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type":  @"button",
-				@"name":  @"Close Player",
-				@"cmd":   [NSNumber numberWithInt:kCommandClosePlayer],
-				@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerClose, iconSize),
-			}],
-			kCurrentPositionItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-				@"type": @"text",
-				@"name": @"Current Position"
-			}]
-		};
+	if (!self) {
+		return nil;
 	}
+
+	const auto iconSize = kIdealIconSize / 3;
+	_position = 0;
+	_duration = 0;
+	_parentView = view;
+	self.touchBarItems = @{
+		kPinnedPanelItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  @"pinned",
+		}],
+		kSeekBarItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type": @"slider",
+			@"name": @"Seek Bar"
+		}],
+		kPlayItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":     @"button",
+			@"name":     @"Play Button",
+			@"cmd":      [NSNumber numberWithInt:kCommandPlayPause],
+			@"image":    CreateNSImageFromStyleIcon(st::touchBarIconPlayerPause, iconSize),
+			@"imageAlt": CreateNSImageFromStyleIcon(st::touchBarIconPlayerPlay, iconSize),
+		}],
+		kPreviousItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  @"button",
+			@"name":  @"Previous Playlist Item",
+			@"cmd":   [NSNumber numberWithInt:kCommandPlaylistPrevious],
+			@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerPrevious, iconSize),
+		}],
+		kNextItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  @"button",
+			@"name":  @"Next Playlist Item",
+			@"cmd":   [NSNumber numberWithInt:kCommandPlaylistNext],
+			@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerNext, iconSize),
+		}],
+		kCommandClosePlayerItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  @"button",
+			@"name":  @"Close Player",
+			@"cmd":   [NSNumber numberWithInt:kCommandClosePlayer],
+			@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerClose, iconSize),
+		}],
+		kCurrentPositionItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type": @"text",
+			@"name": @"Current Position"
+		}]
+	};
+
 	[self createTouchBar];
-	[self setTouchBar:TouchBarType::Main];
-	
+	[self setTouchBar:Platform::TouchBarType::Main];
+
 	Media::Player::instance()->playerWidgetToggled(
 	) | rpl::start_with_next([=](bool toggled) {
 		if (!toggled) {
-			[self setTouchBar:TouchBarType::Main];
+			[self setTouchBar:Platform::TouchBarType::Main];
 		} else {
-			[self setTouchBar:TouchBarType::AudioPlayer];
+			[self setTouchBar:Platform::TouchBarType::AudioPlayer];
 		}
-	}, self->lifetime);
+	}, _lifetime);
 
 	Media::Player::instance()->updatedNotifier(
 	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
 		[self handleTrackStateChange:state];
-	}, self->lifetime);
-	
+	}, _lifetime);
+
 	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=](bool locked) {
 		if (locked) {
-			self.touchBarTypeBeforeLock = self.touchBarType;
-			[self setTouchBar:TouchBarType::None];
+			_touchBarTypeBeforeLock = _touchBarType;
+			[self setTouchBar:Platform::TouchBarType::None];
 		} else {
-			[self setTouchBar:self.touchBarTypeBeforeLock];
+			[self setTouchBar:_touchBarTypeBeforeLock];
 		}
-	}, self->lifetime);
-	
+	}, _lifetime);
+
 	Auth().data().pinnedDialogsOrderUpdated(
 	) | rpl::start_with_next([self] {
 		[self updatePinnedButtons];
-	}, self->lifetime);
-	
+	}, _lifetime);
+
 	Auth().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
-		return folder && folder->chatsList();
+		return folder
+			&& folder->chatsList()
+			&& folder->id() == Data::Folder::kId;
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
 		[self toggleArchiveButton:folder->chatsList()->empty()];
-	}, self->lifetime);
-	
+	}, _lifetime);
+
 	[self updatePinnedButtons];
-	
+
 	return self;
 }
 
 - (nullable NSTouchBarItem *) touchBar:(NSTouchBar *)touchBar
 				 makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
-	if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"slider"]) {
+	const id dictionaryItem = self.touchBarItems[identifier];
+	const id type = dictionaryItem[@"type"];
+	if ([type isEqualToString:@"slider"]) {
 		NSSliderTouchBarItem *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:identifier];
 		item.slider.minValue = 0.0f;
 		item.slider.maxValue = 1.0f;
 		item.target = self;
 		item.action = @selector(seekbarChanged:);
-		item.customizationLabel = self.touchbarItems[identifier][@"name"];
-		[self.touchbarItems[identifier] setObject:item.slider forKey:@"view"];
+		item.customizationLabel = dictionaryItem[@"name"];
+		[dictionaryItem setObject:item.slider forKey:@"view"];
 		return item;
-	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"button"]) {
+	} else if ([type isEqualToString:@"button"]) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		NSImage *image = self.touchbarItems[identifier][@"image"];
+		NSImage *image = dictionaryItem[@"image"];
 		NSButton *button = [NSButton buttonWithImage:image target:self action:@selector(buttonAction:)];
-		button.tag = [self.touchbarItems[identifier][@"cmd"] intValue];
+		button.tag = [dictionaryItem[@"cmd"] intValue];
 		item.view = button;
-		item.customizationLabel = self.touchbarItems[identifier][@"name"];
-		[self.touchbarItems[identifier] setObject:button forKey:@"view"];
+		item.customizationLabel = dictionaryItem[@"name"];
+		[dictionaryItem setObject:button forKey:@"view"];
 		return item;
-	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"text"]) {
+	} else if ([type isEqualToString:@"text"]) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		NSTextField *text = [NSTextField labelWithString:@"00:00 / 00:00"];
 		text.alignment = NSTextAlignmentCenter;
 		item.view = text;
-		item.customizationLabel = self.touchbarItems[identifier][@"name"];
-		[self.touchbarItems[identifier] setObject:text forKey:@"view"];
+		item.customizationLabel = dictionaryItem[@"name"];
+		[dictionaryItem setObject:text forKey:@"view"];
 		return item;
-	} else if ([self.touchbarItems[identifier][@"type"] isEqualToString:@"pinned"]) {
+	} else if ([type isEqualToString:@"pinned"]) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		self.mainPinnedButtons = [[NSMutableArray alloc] init];
+		_mainPinnedButtons = [[NSMutableArray alloc] init];
 		NSStackView *stackView = [[NSStackView alloc] init];
-		
+
 		for (auto i = kArchiveId; i <= Global::PinnedDialogsCountMax(); i++) {
 			PinnedDialogButton *button = [[PinnedDialogButton alloc] init:i];
-			[self.mainPinnedButtons addObject:button];
+			[_mainPinnedButtons addObject:button];
 			if (i == kArchiveId) {
 				button.isDeletedFromView = true;
 				continue;
 			}
 			[stackView addView:button.view inGravity:NSStackViewGravityCenter];
 		}
-		
+
 		[stackView setSpacing:-15];
 		item.view = stackView;
-		[self.touchbarItems[identifier] setObject:item.view forKey:@"view"];
+		[dictionaryItem setObject:item.view forKey:@"view"];
 		return item;
 	}
 
@@ -372,7 +381,7 @@ NSString* FormatTime(int time) {
 	_touchBarMain = [[NSTouchBar alloc] init];
 	_touchBarMain.delegate = self;
 	_touchBarMain.defaultItemIdentifiers = @[kPinnedPanelItemIdentifier];
-	
+
 	_touchBarAudioPlayer = [[NSTouchBar alloc] init];
 	_touchBarAudioPlayer.delegate = self;
 	_touchBarAudioPlayer.customizationIdentifier = kCustomizationIdPlayer.lowercaseString;
@@ -391,34 +400,34 @@ NSString* FormatTime(int time) {
 		kCommandClosePlayerItemIdentifier];
 }
 
-- (void) setTouchBar:(TouchBarType)type {
-	if (self.touchBarType == type) {
+- (void) setTouchBar:(Platform::TouchBarType)type {
+	if (_touchBarType == type) {
 		return;
 	}
-	if (type == TouchBarType::Main) {
-		[self.view setTouchBar:_touchBarMain];
-	} else if (type == TouchBarType::AudioPlayer) {
+	if (type == Platform::TouchBarType::Main) {
+		[_parentView setTouchBar:_touchBarMain];
+	} else if (type == Platform::TouchBarType::AudioPlayer) {
 		if (!IsCurrentSongExists()
 			|| Media::Player::instance()->getActiveType() != kSongType) {
 			return;
 		}
-		[self.view setTouchBar:_touchBarAudioPlayer];
-	} else if (type == TouchBarType::AudioPlayerForce) {
-		[self.view setTouchBar:_touchBarAudioPlayer];
-		self.touchBarType = TouchBarType::AudioPlayer;
+		[_parentView setTouchBar:_touchBarAudioPlayer];
+	} else if (type == Platform::TouchBarType::AudioPlayerForce) {
+		[_parentView setTouchBar:_touchBarAudioPlayer];
+		_touchBarType = Platform::TouchBarType::AudioPlayer;
 		return;
-	} else if (type == TouchBarType::None) {
-		[self.view setTouchBar:nil];
+	} else if (type == Platform::TouchBarType::None) {
+		[_parentView setTouchBar:nil];
 	}
-	self.touchBarType = type;
+	_touchBarType = type;
 }
 
 // Main Touchbar.
 
 - (void) toggleArchiveButton:(bool)hide {
-	for (PinnedDialogButton *button in self.mainPinnedButtons) {
+	for (PinnedDialogButton *button in _mainPinnedButtons) {
 		if (button.number == kArchiveId) {
-			NSCustomTouchBarItem *item = [self.touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
+			NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
 			NSStackView *stack = item.view;
 			[button updatePinnedDialog];
 			if (hide && !button.isDeletedFromView) {
@@ -440,10 +449,10 @@ NSString* FormatTime(int time) {
 	auto isSelfPeerPinned = false;
 	auto isArchivePinned = false;
 	PinnedDialogButton *selfChatButton;
-	NSCustomTouchBarItem *item = [self.touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
+	NSCustomTouchBarItem *item = [_touchBarMain itemForIdentifier:kPinnedPanelItemIdentifier];
 	NSStackView *stack = item.view;
-	
-	for (PinnedDialogButton *button in self.mainPinnedButtons) {
+
+	for (PinnedDialogButton *button in _mainPinnedButtons) {
 		const auto num = button.number;
 		if (num <= kSavedMessagesId) {
 			if (num == kSavedMessagesId) {
@@ -483,64 +492,64 @@ NSString* FormatTime(int time) {
 
 // Audio Player Touchbar.
 
-- (void) handleTrackStateChange:(Media::Player::TrackState)property {
-	if (property.id.type() == kSongType) {
-		[self setTouchBar:TouchBarType::AudioPlayerForce];
+- (void) handleTrackStateChange:(Media::Player::TrackState)state {
+	if (state.id.type() == kSongType) {
+		[self setTouchBar:Platform::TouchBarType::AudioPlayerForce];
 	} else {
 		return;
 	}
-	self.position = property.position < 0 ? 0 : property.position;
-	self.duration = property.length;
-	if (Media::Player::IsStoppedOrStopping(property.state)) {
-		self.position = 0;
-		self.duration = 0;
+	_position = state.position < 0 ? 0 : state.position;
+	_duration = state.length;
+	if (Media::Player::IsStoppedOrStopping(state.state)) {
+		_position = 0;
+		_duration = 0;
 	}
 	[self updateTouchBarTimeItem];
 
-	NSButton *playButton = self.touchbarItems[kPlayItemIdentifier][@"view"];
-	const auto imgButton = (property.state == Media::Player::State::Playing)
+	NSButton *playButton = self.touchBarItems[kPlayItemIdentifier][@"view"];
+	const auto imgButton = (state.state == Media::Player::State::Playing)
 		? @"image"
 		: @"imageAlt";
-	playButton.image = self.touchbarItems[kPlayItemIdentifier][imgButton];
-	
-	[self.touchbarItems[kNextItemIdentifier][@"view"]
+	playButton.image = self.touchBarItems[kPlayItemIdentifier][imgButton];
+
+	[self.touchBarItems[kNextItemIdentifier][@"view"]
 	 setEnabled:Media::Player::instance()->nextAvailable(kSongType)];
-	[self.touchbarItems[kPreviousItemIdentifier][@"view"]
+	[self.touchBarItems[kPreviousItemIdentifier][@"view"]
 	 setEnabled:Media::Player::instance()->previousAvailable(kSongType)];
 }
 
 - (void) updateTouchBarTimeItem {
-	NSSlider *seekSlider = self.touchbarItems[kSeekBarItemIdentifier][@"view"];
-	NSTextField *curPosItem = self.touchbarItems[kCurrentPositionItemIdentifier][@"view"];
+	const id item = self.touchBarItems[kCurrentPositionItemIdentifier];
+	NSSlider *seekSlider = self.touchBarItems[kSeekBarItemIdentifier][@"view"];
+	NSTextField *textField = item[@"view"];
 
-	if (self.duration <= 0) {
+	if (_duration <= 0) {
 		seekSlider.enabled = NO;
 		seekSlider.doubleValue = 0;
 	} else {
 		seekSlider.enabled = YES;
 		if (!seekSlider.highlighted) {
-			seekSlider.doubleValue = (self.position / self.duration) * seekSlider.maxValue;
+			seekSlider.doubleValue = (_position / _duration) * seekSlider.maxValue;
 		}
 	}
 	const auto timeToString = [&](int t) {
 		return FormatTime((int)floor(t / kMs));
 	};
-	curPosItem.stringValue = [NSString stringWithFormat:@"%@ / %@",
-								timeToString(self.position),
-								timeToString(self.duration)];
+	textField.stringValue = [NSString stringWithFormat:@"%@ / %@",
+								timeToString(_position),
+								timeToString(_duration)];
 
-	NSTextField *field = self.touchbarItems[kCurrentPositionItemIdentifier][@"view"];
+	NSTextField *field = item[@"view"];
 
 	if (!field) {
 		return;
 	}
 
-	[field removeConstraint:self.touchbarItems[kCurrentPositionItemIdentifier][@"constrain"]];
+	[field removeConstraint:item[@"constrain"]];
 
-	NSString *fString = [[curPosItem.stringValue componentsSeparatedByCharactersInSet:
+	NSString *fString = [[textField.stringValue componentsSeparatedByCharactersInSet:
 		[NSCharacterSet decimalDigitCharacterSet]] componentsJoinedByString:@"0"];
-	NSTextField *tempField = [NSTextField labelWithString:fString];
-	NSSize size = [tempField frame].size;
+	NSSize size = [[NSTextField labelWithString:fString] frame].size;
 
 	NSLayoutConstraint *con =
 		[NSLayoutConstraint constraintWithItem:field
@@ -551,21 +560,26 @@ NSString* FormatTime(int time) {
 									multiplier:1.0
 									  constant:(int)ceil(size.width) * 1.2];
 	[field addConstraint:con];
-	[self.touchbarItems[kCurrentPositionItemIdentifier] setObject:con forKey:@"constrain"];
+	[item setObject:con forKey:@"constrain"];
 }
 
 - (void) buttonAction:(NSButton *)sender {
 	const auto command = sender.tag;
 
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		if (command == kCommandPlayPause) {
+		switch (command) {
+		case kCommandPlayPause:
 			Media::Player::instance()->playPause(kSongType);
-		} else if (command == kCommandPlaylistPrevious) {
+			break;
+		case kCommandPlaylistPrevious:
 			Media::Player::instance()->previous(kSongType);
-		} else if (command == kCommandPlaylistNext) {
+			break;
+		case kCommandPlaylistNext:
 			Media::Player::instance()->next(kSongType);
-		} else if (command == kCommandClosePlayer) {
+			break;
+		case kCommandClosePlayer:
 			App::main()->closeBothPlayers();
+			break;
 		}
 	});
 }

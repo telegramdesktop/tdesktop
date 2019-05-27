@@ -1,7 +1,7 @@
 /*
  This file is part of Telegram Desktop,
  the official desktop application for the Telegram messaging service.
- 
+
  For license and copyright information please follow this link:
  https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
  */
@@ -11,7 +11,7 @@
 #include "media/player/media_player_instance.h"
 #import <Cocoa/Cocoa.h>
 
-namespace {
+namespace Platform {
 enum class TouchBarType {
 	None,
 	Main,
@@ -21,22 +21,26 @@ enum class TouchBarType {
 } // namespace
 
 @interface TouchBar : NSTouchBar {
-	rpl::lifetime lifetime;
+	@private
+	NSView *_parentView;
+	NSMutableArray *_mainPinnedButtons;
+
+	NSTouchBar *_touchBarMain;
+	NSTouchBar *_touchBarAudioPlayer;
+
+	Platform::TouchBarType _touchBarType;
+	Platform::TouchBarType _touchBarTypeBeforeLock;
+
+	double _duration;
+	double _position;
+
+	rpl::lifetime _lifetime;
 }
-@property TouchBarType touchBarType;
-@property TouchBarType touchBarTypeBeforeLock;
 
-@property(retain) NSDictionary * _Nullable touchbarItems;
-@property(retain) NSTouchBar * _Nullable touchBarMain;
-@property(retain) NSTouchBar * _Nullable touchBarAudioPlayer;
-@property(retain) NSView * _Nullable view;
-@property(nonatomic, assign) double duration;
-@property(nonatomic, assign) double position;
-
-@property(retain) NSMutableArray * _Nullable mainPinnedButtons;
+@property(retain) NSDictionary * _Nullable touchBarItems;
 
 - (id _Nonnull) init:(NSView * _Nonnull)view;
-- (void) handleTrackStateChange:(Media::Player::TrackState)property;
-- (void) setTouchBar:(TouchBarType)type;
+- (void) handleTrackStateChange:(Media::Player::TrackState)state;
+- (void) setTouchBar:(Platform::TouchBarType)type;
 
 @end
