@@ -778,7 +778,9 @@ void Controller::fillManageSection() {
 			? false
 			: channel->isBroadcast()
 			? channel->canEditInformation()
-			: (channel->linkedChat() && channel->canPinMessages());
+			: (channel->linkedChat()
+				&& channel->canPinMessages()
+				&& channel->adminRights() != 0);
 	}();
 
 	AddSkip(_controls.buttonsLayout, 0);
