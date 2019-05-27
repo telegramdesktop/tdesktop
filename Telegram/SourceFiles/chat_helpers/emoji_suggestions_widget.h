@@ -97,7 +97,10 @@ private:
 class SuggestionsController {
 public:
 	struct Options {
-		bool suggestExactFirstWord = true;
+		Options() : suggestExactFirstWord(true) {
+		}
+
+		bool suggestExactFirstWord;
 	};
 
 	SuggestionsController(
