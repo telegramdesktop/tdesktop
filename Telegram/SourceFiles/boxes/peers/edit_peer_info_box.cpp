@@ -602,16 +602,18 @@ void Controller::fillLinkedChatButton() {
 			return chat ? edit : restore;
 		});
 	auto label = isGroup
-		? _linkedChatUpdates.events() | rpl::map([](ChannelData *chat) {
+		? _linkedChatUpdates.events(
+		) | rpl::map([](ChannelData *chat) {
 			return chat ? chat->name : QString();
-		}) : rpl::combine(
+		}) | rpl::type_erased()
+		: rpl::combine(
 			Lang::Viewer(lng_manage_discussion_group_add),
 			_linkedChatUpdates.events()
 		) | rpl::map([=](const QString &add, ChannelData *chat) {
 			return chat
 				? chat->name
 				: add;
-		});
+		}) | rpl::type_erased();
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		std::move(text),
