@@ -14,6 +14,7 @@
 #include "core/sandbox.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
+#include "dialogs/dialogs_layout.h"
 #include "history/history.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -22,6 +23,7 @@
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "ui/empty_userpic.h"
+#include "styles/style_dialogs.h"
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
@@ -72,6 +74,16 @@ inline bool UseEmptyUserpic(PeerData *peer) {
 	return (peer && (peer->useEmptyUserpic() || peer->isSelf()));
 }
 
+inline bool IsSelfPeer(PeerData *peer) {
+	return (peer && peer->id == Auth().userPeerId());
+}
+
+inline int UnreadCount(PeerData *peer) {
+	return (peer
+		&& AuthSession::Exists()
+		&& Auth().data().history(peer->id)->unreadCountForBadge());
+}
+
 NSString *FormatTime(int time) {
 	const auto seconds = time % 60;
 	const auto minutes = (time / 60) % 60;
@@ -90,6 +102,28 @@ NSString *FormatTime(int time) {
 	return stringTime;
 }
 
+void PaintUnreadBadge(Painter &p, PeerData *peer) {
+	const auto history = Auth().data().history(peer->id);
+	const auto count = history->unreadCountForBadge();
+	if (!count) {
+		return;
+	}
+	const auto unread = history->unreadMark()
+		? QString()
+		: QString::number(count);
+	Dialogs::Layout::UnreadBadgeStyle unreadSt;
+	unreadSt.sizeId = Dialogs::Layout::UnreadBadgeInTouchBar;
+	unreadSt.muted = history->mute();
+	// Use constant values to draw badge regardless of cConfigScale().
+	unreadSt.size = 19;
+	unreadSt.padding = 5;
+	unreadSt.font = style::font(
+		12,
+		unreadSt.font->flags(),
+		unreadSt.font->family());
+	Dialogs::Layout::paintUnreadCount(p, unread, kIdealIconSize, kIdealIconSize - unreadSt.size, unreadSt, nullptr, 2);
+}
+
 } // namespace
 
 @interface PinnedDialogButton : NSCustomTouchBarItem
@@ -97,9 +131,9 @@ NSString *FormatTime(int time) {
 @property(nonatomic, assign) int number;
 @property(nonatomic, assign) PeerData *peer;
 @property(nonatomic, assign) bool isDeletedFromView;
+@property(nonatomic, assign) QPixmap userpic;
 
 - (id) init:(int)num;
-- (NSImage *) getPinImage;
 - (void)buttonActionPin:(NSButton *)sender;
 - (void)updateUserpic;
 
@@ -107,7 +141,7 @@ NSString *FormatTime(int time) {
 
 @implementation PinnedDialogButton {
 	rpl::lifetime _lifetime;
-	rpl::lifetime _userpicChangedLifetime;
+	rpl::lifetime _peerChangedLifetime;
 	bool isWaitingUserpicLoad;
 }
 
@@ -131,14 +165,18 @@ NSString *FormatTime(int time) {
 	}
 	self.number = num;
 
-	NSButton *button = [NSButton buttonWithImage:[self getPinImage] target:self action:@selector(buttonActionPin:)];
+	NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:NSImageNameStopProgressTemplate] target:self action:@selector(buttonActionPin:)];
 	[button setBordered:NO];
 	[button sizeToFit];
 	self.view = button;
 
 	using Update = const Window::Theme::BackgroundUpdate;
-	base::ObservableViewer(
+	auto themeChanged = base::ObservableViewer(
 		*Window::Theme::Background()
+	) | rpl::start_spawning(_lifetime);
+
+	rpl::duplicate(
+		themeChanged
 	) | rpl::filter([=](const Update &update) {
 		return update.paletteChanged()
 			&& (_number <= kSavedMessagesId || UseEmptyUserpic(_peer));
@@ -146,7 +184,17 @@ NSString *FormatTime(int time) {
 		[self updateUserpic];
 	}, _lifetime);
 
+	std::move(
+		themeChanged
+	) | rpl::filter([=](const Update &update) {
+		return update.type == Update::Type::ApplyingTheme
+			&& UnreadCount(_peer);
+	}) | rpl::start_with_next([=] {
+		[self updateBadge];
+	}, _lifetime);
+
 	if (num <= kSavedMessagesId) {
+		[self updateUserpic];
 		return self;
 	}
 
@@ -167,22 +215,24 @@ NSString *FormatTime(int time) {
 		return;
 	}
 	_peer = newPeer;
-	_userpicChangedLifetime.destroy();
+	_peerChangedLifetime.destroy();
 	if (!_peer) {
 		return;
 	}
 	Notify::PeerUpdateViewer(
 		_peer,
-	Notify::PeerUpdate::Flag::PhotoChanged
+		Notify::PeerUpdate::Flag::PhotoChanged
 	) | rpl::start_with_next([=] {
 		isWaitingUserpicLoad = true;
 		[self updateUserpic];
-	}, _userpicChangedLifetime);
-}
+	}, _peerChangedLifetime);
 
-- (void) updateUserpic {
-	NSButton *button = self.view;
-	button.image = [self getPinImage];
+	Notify::PeerUpdateViewer(
+		_peer,
+		Notify::PeerUpdate::Flag::UnreadViewChanged
+	) | rpl::start_with_next([=] {
+		[self updateBadge];
+	}, _peerChangedLifetime);
 }
 
 - (void) buttonActionPin:(NSButton *)sender {
@@ -203,16 +253,12 @@ NSString *FormatTime(int time) {
 	});
 }
 
-- (bool) isSelfPeer {
-	return !self.peer ? false : self.peer->id == Auth().userPeerId();
-}
-
-- (NSImage *) getPinImage {
+- (void) updateUserpic {
 	// Don't draw self userpic if we pin Saved Messages.
-	if (self.number <= kSavedMessagesId || [self isSelfPeer]) {
-		const int s = kIdealIconSize * cRetinaFactor();
-		auto *pix = new QPixmap(s, s);
-		Painter paint(pix);
+	if (self.number <= kSavedMessagesId || IsSelfPeer(_peer)) {
+		const auto s = kIdealIconSize * cIntRetinaFactor();
+		auto *pixmap = new QPixmap(s, s);
+		Painter paint(pixmap);
 		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
 
 		if (self.number == kArchiveId) {
@@ -222,17 +268,31 @@ NSString *FormatTime(int time) {
 		} else {
 			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
 		}
-		pix->setDevicePixelRatio(cRetinaFactor());
-		return [qt_mac_create_nsimage(*pix) autorelease];
+		pixmap->setDevicePixelRatio(cRetinaFactor());
+		_userpic = *pixmap;
+		[self updateImage:_userpic];
+		return;
 	}
 	if (!self.peer) {
-		// Random picture.
-		return [NSImage imageNamed:NSImageNameTouchBarAddTemplate];
+		return;
 	}
 	isWaitingUserpicLoad = !self.peer->userpicLoaded();
 	auto pixmap = self.peer->genUserpic(kIdealIconSize);
 	pixmap.setDevicePixelRatio(cRetinaFactor());
-	return [qt_mac_create_nsimage(pixmap) autorelease];
+	_userpic = pixmap;
+	[self updateBadge];
+}
+
+- (void) updateBadge {
+	auto pixmap = App::pixmapFromImageInPlace(_userpic.toImage());
+	Painter p(&pixmap);
+	PaintUnreadBadge(p, _peer);
+	[self updateImage:pixmap];
+}
+
+- (void) updateImage:(QPixmap)pixmap {
+	NSButton *button = self.view;
+	button.image = [qt_mac_create_nsimage(pixmap) autorelease];
 }
 
 @end
