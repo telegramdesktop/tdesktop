@@ -137,7 +137,9 @@ void InitField(
 		not_null<Ui::InputField*> field) {
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	Ui::Emoji::SuggestionsController::Init(container, field);
+	auto options = Ui::Emoji::SuggestionsController::Options();
+	options.suggestExactFirstWord = false;
+	Ui::Emoji::SuggestionsController::Init(container, field, options);
 }
 
 not_null<Ui::FlatLabel*> CreateWarningLabel(
