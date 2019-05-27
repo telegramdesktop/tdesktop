@@ -92,11 +92,7 @@ NSString *FormatTime(int time) {
 
 } // namespace
 
-@interface PinnedDialogButton : NSCustomTouchBarItem {
-	rpl::lifetime _lifetime;
-	rpl::lifetime _userpicChangedLifetime;
-	bool isWaitingUserpicLoad;
-}
+@interface PinnedDialogButton : NSCustomTouchBarItem
 
 @property(nonatomic, assign) int number;
 @property(nonatomic, assign) PeerData *peer;
@@ -109,7 +105,11 @@ NSString *FormatTime(int time) {
 
 @end // @interface PinnedDialogButton
 
-@implementation PinnedDialogButton : NSCustomTouchBarItem
+@implementation PinnedDialogButton {
+	rpl::lifetime _lifetime;
+	rpl::lifetime _userpicChangedLifetime;
+	bool isWaitingUserpicLoad;
+}
 
 - (id) init:(int)num {
 	if (num == kSavedMessagesId) {
@@ -241,7 +241,21 @@ NSString *FormatTime(int time) {
 @interface TouchBar()<NSTouchBarDelegate>
 @end // @interface TouchBar
 
-@implementation TouchBar
+@implementation TouchBar {
+	NSView *_parentView;
+	NSMutableArray *_mainPinnedButtons;
+
+	NSTouchBar *_touchBarMain;
+	NSTouchBar *_touchBarAudioPlayer;
+
+	Platform::TouchBarType _touchBarType;
+	Platform::TouchBarType _touchBarTypeBeforeLock;
+
+	double _duration;
+	double _position;
+
+	rpl::lifetime _lifetime;
+}
 
 - (id) init:(NSView *)view {
 	self = [super init];

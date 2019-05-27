@@ -20,22 +20,7 @@ enum class TouchBarType {
 };
 } // namespace
 
-@interface TouchBar : NSTouchBar {
-	@private
-	NSView *_parentView;
-	NSMutableArray *_mainPinnedButtons;
-
-	NSTouchBar *_touchBarMain;
-	NSTouchBar *_touchBarAudioPlayer;
-
-	Platform::TouchBarType _touchBarType;
-	Platform::TouchBarType _touchBarTypeBeforeLock;
-
-	double _duration;
-	double _position;
-
-	rpl::lifetime _lifetime;
-}
+@interface TouchBar : NSTouchBar
 
 @property(retain) NSDictionary * _Nullable touchBarItems;
 
