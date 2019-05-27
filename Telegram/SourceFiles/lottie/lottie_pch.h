@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <vector>
 #include <functional>
+#include <cmath>
 
 #include <QtMath>
 #include <QDebug>
