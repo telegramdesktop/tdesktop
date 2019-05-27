@@ -171,6 +171,7 @@ struct HistoryMessageMarkupButton {
 		Type type,
 		const QString &text,
 		const QByteArray &data = QByteArray(),
+		const QString &forwardText = QString(),
 		int32 buttonId = 0);
 
 	static HistoryMessageMarkupButton *Get(
@@ -179,7 +180,7 @@ struct HistoryMessageMarkupButton {
 		int column);
 
 	Type type;
-	QString text;
+	QString text, forwardText;
 	QByteArray data;
 	int32 buttonId = 0;
 	mutable mtpRequestId requestId = 0;

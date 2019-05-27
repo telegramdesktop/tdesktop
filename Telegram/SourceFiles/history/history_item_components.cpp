@@ -733,9 +733,11 @@ HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 	Type type,
 	const QString &text,
 	const QByteArray &data,
+	const QString &forwardText,
 	int32 buttonId)
 : type(type)
 , text(text)
+, forwardText(forwardText)
 , data(data)
 , buttonId(buttonId) {
 }
@@ -806,6 +808,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(
 						Type::Auth,
 						qs(data.vtext),
 						qba(data.vurl),
+						data.has_fwd_text() ? qs(data.vfwd_text) : QString(),
 						data.vbutton_id.v);
 				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
 					LOG(("API Error: inputKeyboardButtonUrlAuth received."));
@@ -866,10 +869,14 @@ void HistoryMessageReplyMarkup::create(
 			const auto newType = (button.type != Type::SwitchInlineSame)
 				? button.type
 				: Type::SwitchInline;
+			const auto text = button.forwardText.isEmpty()
+				? button.text
+				: button.forwardText;
 			row.emplace_back(
 				newType,
-				button.text,
+				text,
 				button.data,
+				QString(),
 				button.buttonId);
 		}
 		if (!row.empty()) {
