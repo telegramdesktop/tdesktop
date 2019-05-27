@@ -396,6 +396,21 @@ MainWindow::MainWindow()
 		}
 	});
 
+	initTouchBar();
+}
+
+void MainWindow::initTouchBar() {
+	const int version = QSysInfo::macVersion();
+	constexpr int kShift = 2;
+	if (version == QSysInfo::MV_Unknown
+#ifndef OS_MAC_OLD
+		|| version == QSysInfo::MV_None
+#endif // OS_MAC_OLD
+		// Allow touch bar only starting with 10.13.
+		|| version < kShift + 13) {
+		return;
+	}
+
 	subscribe(Core::App().authSessionChanged(), [this] {
 		if (AuthSession::Exists()) {
 			// We need only common pinned dialogs.

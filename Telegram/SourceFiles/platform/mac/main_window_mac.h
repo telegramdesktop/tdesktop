@@ -83,6 +83,7 @@ protected:
 	void closeWithoutDestroy() override;
 
 private:
+	void initTouchBar();
 	void hideAndDeactivate();
 	void createGlobalMenu();
 	void updateTitleCounter();
