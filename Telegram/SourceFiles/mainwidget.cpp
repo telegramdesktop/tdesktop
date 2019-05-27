@@ -593,7 +593,10 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	}
 
 	peer->owner().history(peer)->setForwardDraft(std::move(items));
-	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+	_controller->showPeerHistory(
+		peer,
+		SectionShow::Way::Forward,
+		ShowAtUnreadMsgId);
 	_history->cancelReply();
 	return true;
 }
