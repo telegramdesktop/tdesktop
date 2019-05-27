@@ -2446,7 +2446,6 @@ void Session::documentApplyFields(
 	if (!date) {
 		return;
 	}
-	document->setattributes(attributes);
 	if (dc != 0 && access != 0) {
 		document->setRemoteLocation(dc, access, fileReference);
 	}
@@ -2455,6 +2454,7 @@ void Session::documentApplyFields(
 	document->updateThumbnails(thumbnailInline, thumbnail);
 	document->size = size;
 	document->recountIsImage();
+	document->setattributes(attributes);
 	if (document->sticker()
 		&& !document->sticker()->loc.valid()
 		&& thumbLocation.valid()) {

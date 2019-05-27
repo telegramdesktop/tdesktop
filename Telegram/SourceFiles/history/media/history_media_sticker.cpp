@@ -123,18 +123,12 @@ void HistorySticker::unloadLottie() {
 }
 
 void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
-	if (!_lottie
-		&& (_data->filename().endsWith(qstr(".tgs"))
-			|| _data->filename().endsWith(qstr(".json")))) {
-		if (_data->loaded()) {
-			const_cast<HistorySticker*>(this)->setupLottie();
-		} else {
-			_data->automaticLoad(_parent->data()->fullId(), _parent->data());
-		}
-	}
-
 	auto sticker = _data->sticker();
 	if (!sticker) return;
+
+	if (sticker->animated && !_lottie && _data->loaded()) {
+		const_cast<HistorySticker*>(this)->setupLottie();
+	}
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
@@ -157,47 +151,48 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 	}
 	if (rtl()) usex = width() - usex - usew;
 
-	if (_lottie) {
-		if (_lottie->ready()) {
-			auto request = Lottie::FrameRequest();
-			request.resize = QSize(_pixw, _pixh) * cIntRetinaFactor();
-			if (selected) {
-				request.colored = st::msgStickerOverlay->c;
-			}
-			_lottie->markFrameShown();
-			p.drawImage(
-				QRect(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2, _pixw, _pixh),
-				_lottie->frame(request));
+	const auto lottieReady = (_lottie && _lottie->ready());
+	const auto &pixmap = [&]() -> const QPixmap & {
+		const auto o = item->fullId();
+		const auto w = _pixw;
+		const auto h = _pixh;
+		const auto &c = st::msgStickerOverlay;
+		static QPixmap empty;
+		if (lottieReady) {
+			return empty;
+		} else if (const auto image = _data->getStickerLarge()) {
+			return selected
+				? image->pixColored(o, c, w, h)
+				: image->pix(o, w, h);
+		//
+		// Inline thumbnails can't have alpha channel.
+		//
+		//} else if (const auto blurred = _data->thumbnailInline()) {
+		//	return selected
+		//		? blurred->pixBlurredColored(o, c, w, h)
+		//		: blurred->pixBlurred(o, w, h);
+		} else if (const auto thumbnail = _data->thumbnail()) {
+			return selected
+				? thumbnail->pixBlurredColored(o, c, w, h)
+				: thumbnail->pixBlurred(o, w, h);
+		} else {
+			return empty;
 		}
-	} else {
-		const auto &pixmap = [&]() -> const QPixmap & {
-			const auto o = item->fullId();
-			const auto w = _pixw;
-			const auto h = _pixh;
-			const auto &c = st::msgStickerOverlay;
-			if (const auto image = _data->getStickerLarge()) {
-				return selected
-					? image->pixColored(o, c, w, h)
-					: image->pix(o, w, h);
-			//
-			// Inline thumbnails can't have alpha channel.
-			//
-			//} else if (const auto blurred = _data->thumbnailInline()) {
-			//	return selected
-			//		? blurred->pixBlurredColored(o, c, w, h)
-			//		: blurred->pixBlurred(o, w, h);
-			} else if (const auto thumbnail = _data->thumbnail()) {
-				return selected
-					? thumbnail->pixBlurredColored(o, c, w, h)
-					: thumbnail->pixBlurred(o, w, h);
-			} else {
-				static QPixmap empty;
-				return empty;
-			}
-		}();
+	}();
+	if (!pixmap.isNull()) {
 		p.drawPixmap(
 			QPoint{ usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2 },
 			pixmap);
+	} else if (lottieReady) {
+		auto request = Lottie::FrameRequest();
+		request.resize = QSize(_pixw, _pixh) * cIntRetinaFactor();
+		if (selected) {
+			request.colored = st::msgStickerOverlay->c;
+		}
+		_lottie->markFrameShown();
+		p.drawImage(
+			QRect(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2, _pixw, _pixh),
+			_lottie->frame(request));
 	}
 	if (!inWebPage) {
 		auto fullRight = usex + usew;

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMemoryForCache = 32 * 1024 * 1024;
+const auto kAnimatedStickerDimensions = QSize(512, 512);
 
 using FilePathResolve = DocumentData::FilePathResolve;
 
@@ -307,9 +308,9 @@ void DocumentOpenClickHandler::Open(
 			if (QImageReader(path).canRead()) {
 				Core::App().showDocument(data, context);
 				return;
-			} else if (Lottie::ValidateFile(path)) {
-				Core::App().showDocument(data, context);
-				return;
+			//} else if (Lottie::ValidateFile(path)) {
+			//	Core::App().showDocument(data, context);
+			//	return;
 			}
 		}
 		LaunchWithWarning(location.name(), context);
@@ -554,14 +555,13 @@ void DocumentData::setattributes(
 
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
-		&& (_filename.endsWith(qstr(".tgs"))
-			|| _filename == qstr("animation.json")
-			|| ((_filename.size() == 9 || _filename.size() == 10)
-				&& _filename.endsWith(qstr(".json"))
-				&& QRegularExpression("^\\d+\\.json$").match(_filename).hasMatch()))) {
+		&& _filename.endsWith(qstr(".tgs"))
+		&& _mimeString == qstr("application/x-tgsticker")
+		&& _thumbnail) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
-		dimensions = QSize(512, 512);
+		sticker()->animated = true;
+		dimensions = kAnimatedStickerDimensions;
 	}
 }
 
@@ -1090,7 +1090,7 @@ void DocumentData::checkStickerLarge() {
 	if (!data) return;
 
 	automaticLoad(stickerSetOrigin(), nullptr);
-	if (!data->image && loaded()) {
+	if (!data->image && !data->animated && loaded()) {
 		if (_data.isEmpty()) {
 			const auto &loc = location(true);
 			if (loc.accessEnable()) {

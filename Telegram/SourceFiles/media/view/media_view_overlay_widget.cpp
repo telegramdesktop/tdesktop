@@ -1842,13 +1842,13 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 					const auto &path = location.name();
 					if (QImageReader(path).canRead()) {
 						_current = PrepareStaticImage(path);
-					} else if (auto lottie = Lottie::FromFile(path)) {
-						_lottie = std::make_unique<LottieFile>(
-							std::move(lottie));
-						_lottie->data->updates(
-						) | rpl::start_with_next([=] {
-							update();
-						}, lifetime());
+					//} else if (auto lottie = Lottie::FromFile(path)) {
+					//	_lottie = std::make_unique<LottieFile>(
+					//		std::move(lottie));
+					//	_lottie->data->updates(
+					//	) | rpl::start_with_next([=] {
+					//		update();
+					//	}, lifetime());
 					}
 				}
 				location.accessDisable();
