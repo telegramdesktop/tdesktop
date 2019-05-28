@@ -500,8 +500,8 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		//		return ParseDateTime(feed->chatListTimeId()).date();
 		//	}
 		}
-		return QDate::currentDate();
-	};
+		return QDate();
+	}();
 	const auto maxPeerDate = [](Dialogs::Key chat) {
 		if (auto history = chat.history()) {
 			if (const auto channel = history->peer->migrateTo()) {
@@ -545,9 +545,11 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		}
 		return startDate();
 	};
-	const auto highlighted = requestedDate.isNull()
-		? currentPeerDate()
-		: requestedDate;
+	const auto highlighted = !requestedDate.isNull()
+		? requestedDate
+		: !currentPeerDate.isNull()
+		? currentPeerDate
+		: QDate::currentDate();
 	const auto month = highlighted;
 	auto callback = [=](const QDate &date) {
 		session().api().jumpToDate(chat, date);
