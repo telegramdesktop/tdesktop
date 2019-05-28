@@ -234,8 +234,11 @@ TG_FORCE_INLINE bool Basic::animating() const {
 }
 
 TG_FORCE_INLINE bool Basic::call(crl::time now) const {
+	Expects(_started >= 0);
+
+	// _started may be greater than now if we called restart while iterating.
 	const auto onstack = _callback;
-	return onstack(now);
+	return onstack(std::max(_started, now));
 }
 
 inline Basic::~Basic() {
