@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/player/media_player_instance.h"
 #include "media/audio/media_audio.h"
-#include "platform/mac/touchbar.h"
+#include "platform/mac/mac_touchbar.h"
 #include "data/data_session.h"
 
 @interface MainWindowObserver : NSObject {

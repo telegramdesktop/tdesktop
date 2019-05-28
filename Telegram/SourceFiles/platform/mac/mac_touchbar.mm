@@ -6,7 +6,7 @@
  https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
  */
 
-#import "touchbar.h"
+#import "mac_touchbar.h"
 #import <QuartzCore/QuartzCore.h>
 
 #include "auth_session.h"

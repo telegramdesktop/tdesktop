@@ -589,8 +589,8 @@
 <(src_loc)/platform/mac/specific_mac_p.h
 <(src_loc)/platform/mac/window_title_mac.mm
 <(src_loc)/platform/mac/window_title_mac.h
-<(src_loc)/platform/mac/touchbar.h
-<(src_loc)/platform/mac/touchbar.mm
+<(src_loc)/platform/mac/mac_touchbar.h
+<(src_loc)/platform/mac/mac_touchbar.mm
 <(src_loc)/platform/win/audio_win.cpp
 <(src_loc)/platform/win/audio_win.h
 <(src_loc)/platform/win/file_utilities_win.cpp
