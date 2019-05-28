@@ -779,7 +779,7 @@ void Controller::fillManageSection() {
 		return !isChannel
 			? false
 			: channel->isBroadcast()
-			? channel->canEditInformation()
+			? (channel->linkedChat() && channel->canEditInformation())
 			: (channel->linkedChat()
 				&& channel->canPinMessages()
 				&& channel->adminRights() != 0);
