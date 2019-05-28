@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
+#include "lottie/lottie_animation.h"
 #include "history/history_item.h"
 #include "boxes/send_files_box.h"
 #include "boxes/confirm_box.h"
@@ -72,6 +73,18 @@ PreparedFileThumbnail PrepareFileThumbnail(QImage &&original) {
 		MTP_int(result.image.height()),
 		MTP_int(0));
 	return result;
+}
+
+PreparedFileThumbnail PrepareAnimatedStickerThumbnail(
+		const QString &file,
+		const QByteArray &bytes) {
+	return PrepareFileThumbnail(Lottie::ReadThumbnail([&] {
+		if (!bytes.isEmpty()) {
+			return bytes;
+		}
+		auto f = QFile(file);
+		return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+	}()));
 }
 
 bool FileThumbnailUploadRequired(const QString &filemime, int32 filesize) {
@@ -817,6 +830,10 @@ void FileLoadTask::process() {
 	QByteArray goodThumbnailBytes;
 
 	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
+	const auto checkAnimatedSticker = filename.endsWith(qstr(".tgs"), Qt::CaseInsensitive);
+	if (checkAnimatedSticker) {
+		filemime = "application/x-tgsticker";
+	}
 
 	auto thumbnail = PreparedFileThumbnail();
 
@@ -855,6 +872,8 @@ void FileLoadTask::process() {
 			}
 
 			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
+		} else if (checkAnimatedSticker) {
+			thumbnail = PrepareAnimatedStickerThumbnail(_filepath, _content);
 		}
 	}
 
@@ -918,7 +937,7 @@ void FileLoadTask::process() {
 		std::move(thumbnail),
 		filemime,
 		filesize,
-		isSticker);
+		isSticker || checkAnimatedSticker);
 
 	if (_type == SendMediaType::Photo && photo.type() == mtpc_photoEmpty) {
 		_type = SendMediaType::File;

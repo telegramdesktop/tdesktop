@@ -25,6 +25,8 @@ class QByteArray;
 
 namespace Lottie {
 
+constexpr auto kMaxFileSize = 1024 * 1024;
+
 class Animation;
 class SharedState;
 class FrameRenderer;
@@ -32,6 +34,8 @@ class FrameRenderer;
 bool ValidateFile(const QString &path);
 std::unique_ptr<Animation> FromFile(const QString &path);
 std::unique_ptr<Animation> FromData(const QByteArray &data);
+
+QImage ReadThumbnail(QByteArray &&content);
 
 class Animation final : public base::has_weak_ptr {
 public:
@@ -54,7 +58,7 @@ public:
 
 private:
 	void parseDone(std::unique_ptr<SharedState> state);
-	void parseFailed();
+	void parseFailed(Error error);
 
 	void checkNextFrameAvailability();
 	void checkNextFrameRender();

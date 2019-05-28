@@ -21,8 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lottie {
 namespace {
 
-constexpr auto kMaxSize = 1024 * 1024;
-
 QByteArray UnpackGzip(const QByteArray &bytes) {
 	z_stream stream;
 	stream.zalloc = nullptr;
@@ -36,7 +34,7 @@ QByteArray UnpackGzip(const QByteArray &bytes) {
 	}
 	const auto guard = gsl::finally([&] { inflateEnd(&stream); });
 
-	auto result = QByteArray(kMaxSize + 1, Qt::Uninitialized);
+	auto result = QByteArray(kMaxFileSize + 1, Qt::Uninitialized);
 	stream.avail_in = bytes.size();
 	stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(bytes.data()));
 	stream.avail_out = 0;
@@ -84,34 +82,58 @@ std::unique_ptr<Animation> FromData(const QByteArray &data) {
 	return std::make_unique<Animation>(base::duplicate(data));
 }
 
+auto Init(QByteArray &&content)
+-> base::variant<std::unique_ptr<SharedState>, Error> {
+	if (content.size() > kMaxFileSize) {
+		qWarning()
+			<< "Lottie Error: Too large file: "
+			<< content.size();
+		return Error::ParseFailed;
+	}
+	content = UnpackGzip(content);
+	if (content.size() > kMaxFileSize) {
+		qWarning()
+			<< "Lottie Error: Too large file: "
+			<< content.size();
+		return Error::ParseFailed;
+	}
+	const auto document = JsonDocument(std::move(content));
+	if (const auto error = document.error()) {
+		qWarning()
+			<< "Lottie Error: Parse failed with code: "
+			<< error;
+		return Error::ParseFailed;
+	}
+	auto result = std::make_unique<SharedState>(document.root());
+	auto information = result->information();
+	if (!information.frameRate
+		|| information.framesCount <= 0
+		|| information.size.isEmpty()) {
+		return Error::NotSupported;
+	}
+	return std::move(result);
+}
+
+QImage ReadThumbnail(QByteArray &&content) {
+	return Init(std::move(content)).match([](
+		const std::unique_ptr<SharedState> &state) {
+		return state->frameForPaint()->original;
+	}, [](Error) {
+		return QImage();
+	});
+}
+
 Animation::Animation(QByteArray &&content)
 : _timer([=] { checkNextFrameRender(); }) {
 	const auto weak = base::make_weak(this);
 	crl::async([=, content = base::take(content)]() mutable {
-		content = UnpackGzip(content);
-		if (content.size() > kMaxSize) {
-			qWarning()
-				<< "Lottie Error: Too large file: "
-				<< content.size();
-			crl::on_main(weak, [=] {
-				parseFailed();
+		crl::on_main(weak, [this, result = Init(std::move(content))]() mutable {
+			result.match([&](std::unique_ptr<SharedState> &state) {
+				parseDone(std::move(state));
+			}, [&](Error error) {
+				parseFailed(error);
 			});
-			return;
-		}
-		const auto document = JsonDocument(std::move(content));
-		if (const auto error = document.error()) {
-			qWarning()
-				<< "Lottie Error: Parse failed with code: "
-				<< error;
-			crl::on_main(weak, [=] {
-				parseFailed();
-			});
-		} else {
-			auto state = std::make_unique<SharedState>(document.root());
-			crl::on_main(weak, [this, result = std::move(state)]() mutable {
-				parseDone(std::move(result));
-			});
-		}
+		});
 	});
 }
 
@@ -126,12 +148,6 @@ void Animation::parseDone(std::unique_ptr<SharedState> state) {
 	Expects(state != nullptr);
 
 	auto information = state->information();
-	if (!information.frameRate
-		|| information.framesCount <= 0
-		|| information.size.isEmpty()) {
-		_updates.fire_error(Error::NotSupported);
-		return;
-	}
 	_state = state.get();
 	_state->start(this, crl::now());
 	_renderer = FrameRenderer::Instance();
@@ -144,8 +160,8 @@ void Animation::parseDone(std::unique_ptr<SharedState> state) {
 	}, _lifetime);
 }
 
-void Animation::parseFailed() {
-	_updates.fire_error(Error::ParseFailed);
+void Animation::parseFailed(Error error) {
+	_updates.fire_error(std::move(error));
 }
 
 QImage Animation::frame(const FrameRequest &request) const {
