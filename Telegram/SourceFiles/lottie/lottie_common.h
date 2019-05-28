@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lottie {
 
+constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+
 class Animation;
 
 struct PlaybackOptions {

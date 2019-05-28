@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 #include "core/application.h"
-#include "core/sandbox.h"
 
 namespace Ui {
 namespace Animations {
@@ -52,7 +51,7 @@ void Basic::markStopped() {
 }
 
 Manager::Manager() {
-	Core::Sandbox::Instance().widgetUpdateRequests(
+	crl::on_main_update_requests(
 	) | rpl::filter([=] {
 		return (_lastUpdateTime + kIgnoreUpdatesTimeout < crl::now());
 	}) | rpl::start_with_next([=] {

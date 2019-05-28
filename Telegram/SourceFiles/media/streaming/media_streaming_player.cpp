@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_video_track.h"
 #include "media/audio/media_audio.h" // for SupportsSpeedControl()
 #include "data/data_document.h" // for DocumentData::duration()
-#include "core/sandbox.h" // for widgetUpdateRequests() producer
 
 namespace Media {
 namespace Streaming {
@@ -658,7 +657,7 @@ void Player::start() {
 			}
 		}, _sessionLifetime);
 
-		Core::Sandbox::Instance().widgetUpdateRequests(
+		crl::on_main_update_requests(
 		) | rpl::filter([=] {
 			return !_videoFinished;
 		}) | rpl::start_with_next([=] {

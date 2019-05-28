@@ -279,7 +279,7 @@ bool SharedState::renderNextFrame(const FrameRequest &request) {
 			(counter + 1) % (2 * kFramesCount),
 			std::memory_order_release);
 		crl::on_main(_owner, [=] {
-			_owner->checkNextFrame();
+			_owner->checkStep();
 		});
 		return true;
 	};
@@ -340,6 +340,10 @@ crl::time SharedState::nextFrameDisplayTime() const {
 		const auto next = (counter + 1) % (2 * kFramesCount);
 		const auto index = next / 2;
 		const auto frame = getFrame(index);
+		if (frame->displayed != kTimeUnknown) {
+			// Frame already displayed, but not yet shown.
+			return kTimeUnknown;
+		}
 		Assert(IsRendered(frame));
 		Assert(frame->display != kTimeUnknown);
 

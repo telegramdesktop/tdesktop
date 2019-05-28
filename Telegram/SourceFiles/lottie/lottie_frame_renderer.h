@@ -22,8 +22,6 @@ class QImage;
 
 namespace Lottie {
 
-constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
-
 class Animation;
 class JsonObject;
 

@@ -598,3 +598,11 @@ void Sandbox::execExternal(const QString &cmd) {
 }
 
 } // namespace Core
+
+namespace crl {
+
+rpl::producer<> on_main_update_requests() {
+	return Core::Sandbox::Instance().widgetUpdateRequests();
+}
+
+} // namespace crl

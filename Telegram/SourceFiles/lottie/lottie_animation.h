@@ -50,16 +50,20 @@ public:
 	crl::time markFrameDisplayed(crl::time now);
 	crl::time markFrameShown();
 
-	void checkNextFrame();
+	void checkStep();
 
 private:
 	void parseDone(std::unique_ptr<SharedState> state);
 	void parseFailed();
 
+	void checkNextFrameAvailability();
+	void checkNextFrameRender();
+
 	//crl::time _started = 0;
 	//PlaybackOptions _options;
 
 	base::Timer _timer;
+	crl::time _nextFrameTime = kTimeUnknown;
 	SharedState *_state = nullptr;
 	std::shared_ptr<FrameRenderer> _renderer;
 	rpl::event_stream<Update, Error> _updates;

@@ -85,7 +85,7 @@ std::unique_ptr<Animation> FromData(const QByteArray &data) {
 }
 
 Animation::Animation(QByteArray &&content)
-: _timer([=] { checkNextFrame(); }) {
+: _timer([=] { checkNextFrameRender(); }) {
 	const auto weak = base::make_weak(this);
 	crl::async([=, content = base::take(content)]() mutable {
 		content = UnpackGzip(content);
@@ -130,13 +130,18 @@ void Animation::parseDone(std::unique_ptr<SharedState> state) {
 		|| information.framesCount <= 0
 		|| information.size.isEmpty()) {
 		_updates.fire_error(Error::NotSupported);
-	} else {
-		_state = state.get();
-		_state->start(this, crl::now());
-		_renderer = FrameRenderer::Instance();
-		_renderer->append(std::move(state));
-		_updates.fire({ std::move(information) });
+		return;
 	}
+	_state = state.get();
+	_state->start(this, crl::now());
+	_renderer = FrameRenderer::Instance();
+	_renderer->append(std::move(state));
+	_updates.fire({ std::move(information) });
+
+	crl::on_main_update_requests(
+	) | rpl::start_with_next([=] {
+		checkStep();
+	}, _lifetime);
 }
 
 void Animation::parseFailed() {
@@ -181,20 +186,35 @@ crl::time Animation::markFrameShown() {
 	return result;
 }
 
-void Animation::checkNextFrame() {
+void Animation::checkStep() {
+	if (_nextFrameTime != kTimeUnknown) {
+		checkNextFrameRender();
+	} else {
+		checkNextFrameAvailability();
+	}
+}
+
+void Animation::checkNextFrameAvailability() {
 	Expects(_renderer != nullptr);
 
-	const auto time = _state->nextFrameDisplayTime();
-	if (time == kTimeUnknown) {
-		return;
+	_nextFrameTime = _state->nextFrameDisplayTime();
+	if (_nextFrameTime != kTimeUnknown) {
+		checkStep();
 	}
+}
+
+void Animation::checkNextFrameRender() {
+	Expects(_nextFrameTime != kTimeUnknown);
 
 	const auto now = crl::now();
-	if (time > now) {
-		_timer.callOnce(time - now);
+	if (now < _nextFrameTime) {
+		if (!_timer.isActive()) {
+			_timer.callOnce(_nextFrameTime - now);
+		}
 	} else {
 		_timer.cancel();
 
+		_nextFrameTime = kTimeUnknown;
 		const auto position = markFrameDisplayed(now);
 		_updates.fire({ DisplayFrameRequest{ position } });
 	}
