@@ -1,3 +1,7 @@
+1.7.1 beta (28.05.19)
+
+- Disable pinned messages notifications in Settings.
+
 1.7 (08.05.19)
 
 Introducing Archived Chats:

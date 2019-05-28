@@ -80,6 +80,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Help Telegram improve emoji suggestions in your language "
 		"using this interface https://translations.telegram.org/en/emoji"
+	},
+	{
+		1007001,
+		"- Disable pinned messages notifications in Settings."
 	}
 	};
 }
