@@ -116,9 +116,7 @@ public:
 	}
 	[[nodiscard]] bool unread() const;
 	void markClientSideAsRead();
-	[[nodiscard]] bool mentionsMe() const {
-		return _flags & MTPDmessage::Flag::f_mentioned;
-	}
+	[[nodiscard]] bool mentionsMe() const;
 	[[nodiscard]] bool isUnreadMention() const;
 	[[nodiscard]] bool isUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;

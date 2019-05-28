@@ -281,6 +281,14 @@ bool HistoryItem::isUnreadMention() const {
 	return mentionsMe() && (_flags & MTPDmessage::Flag::f_media_unread);
 }
 
+bool HistoryItem::mentionsMe() const {
+	if (Has<HistoryServicePinned>()
+		&& !history()->session().settings().notifyAboutPinned()) {
+		return false;
+	}
+	return _flags & MTPDmessage::Flag::f_mentioned;
+}
+
 bool HistoryItem::isUnreadMedia() const {
 	if (!hasUnreadMediaFlag()) {
 		return false;

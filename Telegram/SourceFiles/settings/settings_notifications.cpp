@@ -565,6 +565,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddSubsectionTitle(container, lng_settings_events_title);
+
 	const auto joined = addCheckbox(
 		lng_settings_events_joined,
 		!Auth().api().contactSignupSilentCurrent().value_or(false));
@@ -578,6 +579,21 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		return (enabled == silent.value_or(false));
 	}) | rpl::start_with_next([=](bool enabled) {
 		Auth().api().saveContactSignupSilent(!enabled);
+	}, joined->lifetime());
+
+	const auto pinned = addCheckbox(
+		lng_settings_events_pinned,
+		Auth().settings().notifyAboutPinned());
+	Auth().settings().notifyAboutPinnedChanges(
+	) | rpl::start_with_next([=](bool notify) {
+		pinned->setChecked(notify);
+	}, pinned->lifetime());
+	pinned->checkedChanges(
+	) | rpl::filter([](bool notify) {
+		return (notify != Auth().settings().notifyAboutPinned());
+	}) | rpl::start_with_next([=](bool notify) {
+		Auth().settings().setNotifyAboutPinned(notify);
+		Auth().saveSettingsDelayed();
 	}, joined->lifetime());
 
 	const auto nativeKey = [&] {

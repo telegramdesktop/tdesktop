@@ -192,6 +192,10 @@ public:
 	bool archiveCollapsed() const;
 	rpl::producer<bool> archiveCollapsedChanges() const;
 
+	void setNotifyAboutPinned(bool notify);
+	bool notifyAboutPinned() const;
+	rpl::producer<bool> notifyAboutPinnedChanges() const;
+
 	bool hadLegacyCallsPeerToPeerNobody() const {
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
@@ -245,6 +249,7 @@ private:
 		bool exeLaunchWarning = true;
 		Data::AutoDownload::Full autoDownload;
 		rpl::variable<bool> archiveCollapsed = false;
+		rpl::variable<bool> notifyAboutPinned = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

@@ -94,6 +94,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << autoDownload;
 		stream << qint32(_variables.supportAllSearchResults.current() ? 1 : 0);
 		stream << qint32(_variables.archiveCollapsed.current() ? 1 : 0);
+		stream << qint32(_variables.notifyAboutPinned.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -131,6 +132,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	QByteArray autoDownload;
 	qint32 supportAllSearchResults = _variables.supportAllSearchResults.current() ? 1 : 0;
 	qint32 archiveCollapsed = _variables.archiveCollapsed.current() ? 1 : 0;
+	qint32 notifyAboutPinned = _variables.notifyAboutPinned.current() ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -213,6 +215,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	if (!stream.atEnd()) {
 		stream >> archiveCollapsed;
 	}
+	if (!stream.atEnd()) {
+		stream >> notifyAboutPinned;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -283,6 +288,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.exeLaunchWarning = (exeLaunchWarning == 1);
 	_variables.supportAllSearchResults = (supportAllSearchResults == 1);
 	_variables.archiveCollapsed = (archiveCollapsed == 1);
+	_variables.notifyAboutPinned = (notifyAboutPinned == 1);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
@@ -387,6 +393,18 @@ bool AuthSessionSettings::archiveCollapsed() const {
 
 rpl::producer<bool> AuthSessionSettings::archiveCollapsedChanges() const {
 	return _variables.archiveCollapsed.changes();
+}
+
+void AuthSessionSettings::setNotifyAboutPinned(bool notify) {
+	_variables.notifyAboutPinned = notify;
+}
+
+bool AuthSessionSettings::notifyAboutPinned() const {
+	return _variables.notifyAboutPinned.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::notifyAboutPinnedChanges() const {
+	return _variables.notifyAboutPinned.changes();
 }
 
 AuthSession &Auth() {
