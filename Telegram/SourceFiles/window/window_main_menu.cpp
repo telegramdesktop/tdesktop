@@ -357,7 +357,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 				_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
 				width(),
 				st::mainMenuCloudSize,
-				st::mainMenuCloudBg,
+				st::msgServiceBg,
 				st::mainMenuCloudFg);
 		}
 	}
