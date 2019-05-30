@@ -258,7 +258,7 @@ QByteArray StorageFileLocation::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream
 			<< quint16(_dcId)
-			<< (kSerializeTypeShift | quint8(_type))
+			<< quint8(kSerializeTypeShift | quint8(_type))
 			<< quint8(_sizeLetter)
 			<< qint32(_localId)
 			<< quint64(_id)
