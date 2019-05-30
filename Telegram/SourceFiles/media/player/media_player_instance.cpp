@@ -716,7 +716,6 @@ HistoryItem *Instance::roundVideoItem() const {
 		&& !data->streamed->info.video.size.isEmpty())
 		? Auth().data().message(data->streamed->id.contextId())
 		: nullptr;
-
 }
 
 void Instance::requestRoundVideoResize() const {

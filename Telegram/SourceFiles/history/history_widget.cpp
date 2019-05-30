@@ -260,10 +260,10 @@ void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 
 void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg);
+	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::historyPinnedBg);
 	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 	if (!_clear->isHidden()) {
-		p.setPen(st::reportSpamFg);
+		p.setPen(st::historyComposeAreaFg);
 		p.setFont(st::msgFont);
 		p.drawText(QRect(_report->x(), (_clear->y() - st::msgFont->height) / 2, _report->width(), st::msgFont->height), lang(lng_report_spam_thanks), style::al_top);
 	}
@@ -1060,6 +1060,9 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 void HistoryWidget::orderWidgets() {
 	if (_reportSpamPanel) {
 		_reportSpamPanel->raise();
+	}
+	if (_pinnedBar) {
+		_pinnedBar->shadow->raise();
 	}
 	_topShadow->raise();
 	if (_membersDropdown) {
@@ -3748,7 +3751,7 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 			_kbScroll->hide();
 			_kbShown = false;
 
-			_field->setMaxHeight(st::historyComposeFieldMaxHeight);
+			_field->setMaxHeight(computeMaxFieldHeight());
 
 			_kbReplyTo = nullptr;
 			if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_editMsgId && !_replyToId) {
@@ -3771,7 +3774,7 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 		_kbScroll->hide();
 		_kbShown = false;
 
-		_field->setMaxHeight(st::historyComposeFieldMaxHeight);
+		_field->setMaxHeight(computeMaxFieldHeight());
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
 			? session().data().message(_keyboard->forMsgId())
@@ -3789,8 +3792,9 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 		_kbScroll->show();
 		_kbShown = true;
 
-		int32 maxh = qMin(_keyboard->height(), st::historyComposeFieldMaxHeight - (st::historyComposeFieldMaxHeight / 2));
-		_field->setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
+		const auto maxheight = computeMaxFieldHeight();
+		const auto kbheight = qMin(_keyboard->height(), maxheight - (maxheight / 2));
+		_field->setMaxHeight(maxheight - kbheight);
 
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
 			? session().data().message(_keyboard->forMsgId())
@@ -3919,7 +3923,7 @@ void HistoryWidget::recountChatWidth() {
 void HistoryWidget::moveFieldControls() {
 	auto keyboardHeight = 0;
 	auto bottom = height();
-	auto maxKeyboardHeight = st::historyComposeFieldMaxHeight - _field->height();
+	auto maxKeyboardHeight = computeMaxFieldHeight() - _field->height();
 	_keyboard->resizeToWidth(width(), maxKeyboardHeight);
 	if (_kbShown) {
 		keyboardHeight = qMin(_keyboard->height(), maxKeyboardHeight);
@@ -4810,21 +4814,22 @@ void HistoryWidget::updateControlsGeometry() {
 
 	moveFieldControls();
 
-	auto scrollAreaTop = _topBar->bottomNoMargins();
+	const auto pinnedBarTop = _topBar->bottomNoMargins();
 	if (_pinnedBar) {
-		_pinnedBar->cancel->moveToLeft(width() - _pinnedBar->cancel->width(), scrollAreaTop);
-		scrollAreaTop += st::historyReplyHeight;
-		_pinnedBar->shadow->setGeometryToLeft(0, scrollAreaTop, width(), st::lineWidth);
+		_pinnedBar->cancel->moveToLeft(width() - _pinnedBar->cancel->width(), pinnedBarTop);
+		_pinnedBar->shadow->setGeometryToLeft(0, pinnedBarTop + st::historyReplyHeight, width(), st::lineWidth);
 	}
+	const auto reportSpamTop = pinnedBarTop + (_pinnedBar ? st::historyReplyHeight : 0);
+	if (_reportSpamPanel) {
+		_reportSpamPanel->setGeometryToLeft(0, reportSpamTop, width(), _reportSpamPanel->height());
+	}
+	const auto scrollAreaTop = reportSpamTop + (_reportSpamPanel ? (_reportSpamPanel->height() - st::lineWidth) : 0);
 	if (_scroll->y() != scrollAreaTop) {
 		_scroll->moveToLeft(0, scrollAreaTop);
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
 		if (_supportAutocomplete) {
 			_supportAutocomplete->setBoundings(_scroll->geometry());
 		}
-	}
-	if (_reportSpamPanel) {
-		_reportSpamPanel->setGeometryToLeft(0, _scroll->y(), width(), _reportSpamPanel->height());
 	}
 
 	updateHistoryGeometry(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
@@ -4970,6 +4975,12 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	}
 
 	auto newScrollHeight = height() - _topBar->height();
+	if (_pinnedBar) {
+		newScrollHeight -= st::historyReplyHeight;
+	}
+	if (_reportSpamPanel) {
+		newScrollHeight -= _reportSpamPanel->height() - st::lineWidth;
+	}
 	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
 		newScrollHeight -= _unblock->height();
 		if (_aboutProxyPromotion) {
@@ -4989,8 +5000,8 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 			newScrollHeight -= _kbScroll->height();
 		}
 	}
-	if (_pinnedBar) {
-		newScrollHeight -= st::historyReplyHeight;
+	if (newScrollHeight <= 0) {
+		return;
 	}
 	auto wasScrollTop = _scroll->scrollTop();
 	auto wasScrollTopMax = _scroll->scrollTopMax();
@@ -5189,8 +5200,9 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 				_botKeyboardShow->hide();
 				_botCommandStart->hide();
 			}
-			int32 maxh = hasMarkup ? qMin(_keyboard->height(), st::historyComposeFieldMaxHeight - (st::historyComposeFieldMaxHeight / 2)) : 0;
-			_field->setMaxHeight(st::historyComposeFieldMaxHeight - maxh);
+			const auto maxheight = computeMaxFieldHeight();
+			const auto kbheight = hasMarkup ? qMin(_keyboard->height(), maxheight - (maxheight / 2)) : 0;
+			_field->setMaxHeight(maxheight - kbheight);
 			_kbShown = hasMarkup;
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply())
 				? session().data().message(_keyboard->forMsgId())
@@ -5207,7 +5219,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 				_botKeyboardShow->show();
 				_botCommandStart->hide();
 			}
-			_field->setMaxHeight(st::historyComposeFieldMaxHeight);
+			_field->setMaxHeight(computeMaxFieldHeight());
 			_kbShown = false;
 			_kbReplyTo = nullptr;
 			if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
@@ -5223,7 +5235,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_botKeyboardShow->hide();
 			_botCommandStart->show();
 		}
-		_field->setMaxHeight(st::historyComposeFieldMaxHeight);
+		_field->setMaxHeight(computeMaxFieldHeight());
 		_kbShown = false;
 		_kbReplyTo = nullptr;
 		if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId && !_editMsgId) {
@@ -5233,6 +5245,22 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	}
 	updateControlsGeometry();
 	update();
+}
+
+int HistoryWidget::computeMaxFieldHeight() const {
+	const auto available = height()
+		- _topBar->height()
+		- (_reportSpamPanel ? _reportSpamPanel->height() - st::lineWidth : 0)
+		- (_pinnedBar ? st::historyReplyHeight : 0)
+		- ((_editMsgId
+			|| replyToId()
+			|| readyToForward()
+			|| (_previewData && _previewData->pendingTill >= 0))
+			? st::historyReplyHeight
+			: 0)
+		- (2 * st::historySendPadding)
+		- st::historyReplyHeight; // at least this height for history.
+	return std::min(st::historyComposeFieldMaxHeight, available);
 }
 
 void HistoryWidget::updateHistoryDownPosition() {
