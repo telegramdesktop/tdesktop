@@ -308,9 +308,6 @@ void DocumentOpenClickHandler::Open(
 			if (QImageReader(path).canRead()) {
 				Core::App().showDocument(data, context);
 				return;
-			//} else if (Lottie::ValidateFile(path)) {
-			//	Core::App().showDocument(data, context);
-			//	return;
 			}
 		}
 		LaunchWithWarning(location.name(), context);

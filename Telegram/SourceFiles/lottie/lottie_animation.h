@@ -31,7 +31,6 @@ class Animation;
 class SharedState;
 class FrameRenderer;
 
-bool ValidateFile(const QString &path);
 std::unique_ptr<Animation> FromFile(const QString &path);
 std::unique_ptr<Animation> FromData(const QByteArray &data);
 

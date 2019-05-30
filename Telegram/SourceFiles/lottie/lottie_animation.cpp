@@ -54,28 +54,13 @@ QByteArray UnpackGzip(const QByteArray &bytes) {
 
 } // namespace
 
-bool ValidateFile(const QString &path) {
-	if (!path.endsWith(qstr(".json"), Qt::CaseInsensitive)
-		&& !path.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
-		return false;
-	}
-	return true;
-}
-
 std::unique_ptr<Animation> FromFile(const QString &path) {
-	if (!path.endsWith(qstr(".json"), Qt::CaseInsensitive)
-		&& !path.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
-		return nullptr;
-	}
-	auto f = QFile(path);
-	if (!f.open(QIODevice::ReadOnly)) {
-		return nullptr;
-	}
-	const auto content = f.readAll();
-	if (content.isEmpty()) {
-		return nullptr;
-	}
-	return FromData(std::move(content));
+	return FromData([&] {
+		auto f = QFile(path);
+		return (f.size() <= kMaxFileSize && f.open(QIODevice::ReadOnly))
+			? f.readAll()
+			: QByteArray();
+	}());
 }
 
 std::unique_ptr<Animation> FromData(const QByteArray &data) {
