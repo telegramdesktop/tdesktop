@@ -543,14 +543,10 @@ void Controller::showEditLinkedChatBox() {
 		const auto list = result.match([&](const auto &data) {
 			return data.vchats.v;
 		});
-		auto chats = std::vector<not_null<ChannelData*>>();
+		auto chats = std::vector<not_null<PeerData*>>();
 		chats.reserve(list.size());
 		for (const auto &item : list) {
-			const auto chat = _peer->owner().processChat(item);
-			if (chat->isChannel()) {
-				chats.emplace_back(chat->asChannel());
-			} else if (chat->isChat()) {
-			}
+			chats.emplace_back(_peer->owner().processChat(item));
 		}
 		*box = Ui::show(
 			EditLinkedChatBox(channel, std::move(chats), callback),
