@@ -861,6 +861,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_linked_channel_about" = "{channel} is linking the group as its discussion board.";
 "lng_manage_linked_channel_unlink" = "Unlink channel";
 "lng_manage_linked_channel_posted" = "All new messages posted in this channel are forwarded to the group.";
+"lng_manage_discussion_group_warning" = "Warning: If you set this private group as the disccussion group for your channel, all channel subscribers will be able to access the group. \"Chat history for new members\" will be switched to {visible}.";
+"lng_manage_discussion_group_visible" = "Visible";
 
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";

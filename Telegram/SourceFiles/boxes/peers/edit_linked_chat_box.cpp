@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
+#include "apiwrap.h"
+#include "auth_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -43,10 +45,14 @@ public:
 	int contentWidth() const override;
 
 private:
+	void choose(not_null<ChannelData*> chat);
+
 	not_null<ChannelData*> _channel;
 	ChannelData *_chat = nullptr;
 	std::vector<not_null<ChannelData*>> _chats;
 	Fn<void(ChannelData*)> _callback;
+
+	ChannelData *_waitForFull = nullptr;
 
 };
 
@@ -59,6 +65,13 @@ Controller::Controller(
 , _chat(chat)
 , _chats(std::move(chats))
 , _callback(std::move(callback)) {
+	base::ObservableViewer(
+		channel->session().api().fullPeerUpdated()
+	) | rpl::start_with_next([=](PeerData *peer) {
+		if (peer == _waitForFull) {
+			choose(std::exchange(_waitForFull, nullptr));
+		}
+	}, lifetime());
 }
 
 int Controller::contentWidth() const {
@@ -94,6 +107,15 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 		return;
 	}
 	const auto chat = row->peer()->asChannel();
+	if (chat->wasFullUpdated()) {
+		choose(chat);
+		return;
+	}
+	_waitForFull = chat;
+	chat->updateFull();
+}
+
+void Controller::choose(not_null<ChannelData*> chat) {
 	auto text = lng_manage_discussion_group_sure__generic<
 		TextWithEntities
 	>(
@@ -104,6 +126,12 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 	if (!_channel->isPublic()) {
 		text.append(
 			"\n\n" + lang(lng_manage_linked_channel_private));
+	}
+	if (chat->hiddenPreHistory()) {
+		text.append("\n\n");
+		text.append(lng_manage_discussion_group_warning__generic(
+			lt_visible,
+			BoldText(lang(lng_manage_discussion_group_visible))));
 	}
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto sure = [=] {

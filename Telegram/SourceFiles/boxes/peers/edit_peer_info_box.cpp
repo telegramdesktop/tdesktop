@@ -192,7 +192,7 @@ private:
 	object_ptr<Ui::RpWidget> createStickersEdit();
 
 	bool canEditInformation() const;
-	void refreshHistoryVisibility(bool instant);
+	void refreshHistoryVisibility(anim::type animated = anim::type::normal);
 	void showEditPeerTypeBox(std::optional<LangKey> error = std::nullopt);
 	void showEditLinkedChatBox();
 	void fillPrivacyTypeButton();
@@ -226,6 +226,12 @@ private:
 	void pushSaveStage(FnMut<void()> &&lambda);
 	void continueSave();
 	void cancelSave();
+
+	void togglePreHistoryHidden(
+		not_null<ChannelData*> channel,
+		bool hidden,
+		Fn<void()> done,
+		Fn<void()> fail);
 
 	void subscribeToMigration();
 	void migrate(not_null<ChannelData*> channel);
@@ -477,13 +483,14 @@ bool Controller::canEditInformation() const {
 	return false;
 }
 
-void Controller::refreshHistoryVisibility(bool instant = false) {
+void Controller::refreshHistoryVisibility(anim::type animated) {
 	if (!_controls.historyVisibilityWrap) {
 		return;
 	}
 	_controls.historyVisibilityWrap->toggle(
-		_privacySavedValue != Privacy::Public,
-		instant ? anim::type::instant : anim::type::normal);
+		(_privacySavedValue != Privacy::Public
+			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)),
+		animated);
 };
 
 void Controller::showEditPeerTypeBox(std::optional<LangKey> error) {
@@ -515,6 +522,7 @@ void Controller::showEditLinkedChatBox() {
 		}
 		*_linkedChatSavedValue = result;
 		_linkedChatUpdates.fire_copy(result);
+		refreshHistoryVisibility();
 	};
 	if (const auto chat = *_linkedChatSavedValue) {
 		*box = Ui::show(
@@ -701,8 +709,7 @@ void Controller::fillHistoryVisibilityButton() {
 
 	updateHistoryVisibility->fire_copy(*_historyVisibilitySavedValue);
 
-	//While appearing box we should use instant animation.
-	refreshHistoryVisibility(true);
+	refreshHistoryVisibility(anim::type::instant);
 }
 
 void Controller::fillManageSection() {
@@ -783,7 +790,9 @@ void Controller::fillManageSection() {
 			? channel->canEditInformation()
 			: (channel->linkedChat()
 				&& channel->canPinMessages()
-				&& channel->adminRights() != 0);
+				&& channel->adminRights() != 0
+				&& (!channel->hiddenPreHistory()
+					|| channel->canEditPreHistoryHidden()));
 	}();
 
 	AddSkip(_controls.buttonsLayout, 0);
@@ -1091,9 +1100,19 @@ void Controller::saveLinkedChat() {
 	if (!channel) {
 		return continueSave();
 	}
-	const auto linkedChat = channel->linkedChat();
-	if (!_savingData.linkedChat || *_savingData.linkedChat == linkedChat) {
+	if (!_savingData.linkedChat
+		|| *_savingData.linkedChat == channel->linkedChat()) {
 		return continueSave();
+	}
+
+	const auto chat = *_savingData.linkedChat;
+	if (channel->isBroadcast() && chat->hiddenPreHistory()) {
+		togglePreHistoryHidden(
+			chat,
+			false,
+			[=] { saveLinkedChat(); },
+			[=] { cancelSave(); });
+		return;
 	}
 
 	const auto input = *_savingData.linkedChat
@@ -1203,22 +1222,39 @@ void Controller::saveHistoryVisibility() {
 			crl::guard(this, saveForChannel));
 		return;
 	}
-	request(MTPchannels_TogglePreHistoryHidden(
-		channel->inputChannel,
-		MTP_bool(*_savingData.hiddenPreHistory)
-	)).done([=](const MTPUpdates &result) {
+	togglePreHistoryHidden(
+		channel,
+		*_savingData.hiddenPreHistory,
+		[=] { continueSave(); },
+		[=] { cancelSave(); });
+}
+
+void Controller::togglePreHistoryHidden(
+		not_null<ChannelData*> channel,
+		bool hidden,
+		Fn<void()> done,
+		Fn<void()> fail) {
+	const auto apply = [=] {
 		// Update in the result doesn't contain the
 		// channelFull:flags field which holds this value.
 		// So after saving we need to update it manually.
-		channel->updateFullForced();
+		const auto flags = channel->fullFlags();
+		const auto flag = MTPDchannelFull::Flag::f_hidden_prehistory;
+		channel->setFullFlags(hidden ? (flags | flag) : (flags & ~flag));
 
+		done();
+	};
+	request(MTPchannels_TogglePreHistoryHidden(
+		channel->inputChannel,
+		MTP_bool(hidden)
+	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
-		continueSave();
+		apply();
 	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
-			continueSave();
+			apply();
 		} else {
-			cancelSave();
+			fail();
 		}
 	}).send();
 }
