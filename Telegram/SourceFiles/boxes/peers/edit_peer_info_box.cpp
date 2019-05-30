@@ -518,7 +518,7 @@ void Controller::showEditLinkedChatBox() {
 	};
 	if (const auto chat = *_linkedChatSavedValue) {
 		*box = Ui::show(
-			Box<EditLinkedChatBox>(channel, chat, callback),
+			EditLinkedChatBox(channel, chat, callback),
 			LayerOption::KeepOther);
 		return;
 	} else if (_linkedChatsRequestId) {
@@ -541,10 +541,11 @@ void Controller::showEditLinkedChatBox() {
 			const auto chat = _peer->owner().processChat(item);
 			if (chat->isChannel()) {
 				chats.emplace_back(chat->asChannel());
+			} else if (chat->isChat()) {
 			}
 		}
 		*box = Ui::show(
-			Box<EditLinkedChatBox>(channel, chats, callback),
+			EditLinkedChatBox(channel, std::move(chats), callback),
 			LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
 		_linkedChatsRequestId = 0;
@@ -779,7 +780,7 @@ void Controller::fillManageSection() {
 		return !isChannel
 			? false
 			: channel->isBroadcast()
-			? (channel->linkedChat() && channel->canEditInformation())
+			? channel->canEditInformation()
 			: (channel->linkedChat()
 				&& channel->canPinMessages()
 				&& channel->adminRights() != 0);

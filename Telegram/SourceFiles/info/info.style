@@ -436,7 +436,7 @@ infoBlockButton: InfoProfileButton(infoProfileButton) {
 	textFgOver: attentionButtonFgOver;
 }
 infoCreateLinkedChatButton: InfoProfileButton(infoMainButton) {
-	padding: margins(73px, 10px, 8px, 8px);
+	padding: margins(74px, 10px, 8px, 8px);
 }
 infoUnlinkChatButton: InfoProfileButton(infoCreateLinkedChatButton) {
 	textFg: attentionButtonFg;

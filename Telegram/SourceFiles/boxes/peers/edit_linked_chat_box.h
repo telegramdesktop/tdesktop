@@ -9,30 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class EditLinkedChatBox : public BoxContent {
-public:
-	EditLinkedChatBox(
-		QWidget*,
-		not_null<ChannelData*> channel,
-		not_null<ChannelData*> chat,
-		Fn<void(ChannelData*)> callback);
-	EditLinkedChatBox(
-		QWidget*,
-		not_null<ChannelData*> channel,
-		const std::vector<not_null<ChannelData*>> &chats,
-		Fn<void(ChannelData*)> callback);
+object_ptr<BoxContent> EditLinkedChatBox(
+	not_null<ChannelData*> channel,
+	not_null<ChannelData*> chat,
+	Fn<void(ChannelData*)> callback);
 
-protected:
-	void prepare() override;
-
-private:
-	object_ptr<Ui::RpWidget> setupContent(
-		not_null<ChannelData*> channel,
-		ChannelData *chat,
-		const std::vector<not_null<ChannelData*>> &chats,
-		Fn<void(ChannelData*)> callback);
-
-	not_null<ChannelData*> _channel;
-	object_ptr<Ui::RpWidget> _content;
-
-};
+object_ptr<BoxContent> EditLinkedChatBox(
+	not_null<ChannelData*> channel,
+	std::vector<not_null<ChannelData*>> &&chats,
+	Fn<void(ChannelData*)> callback);

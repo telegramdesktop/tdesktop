@@ -134,6 +134,8 @@ void ShowAddParticipantsError(
 			return lang(lng_failed_add_not_mutual);
 		} else if (error == qstr("USER_ALREADY_PARTICIPANT") && hasBot) {
 			return lang(lng_bot_already_in_group);
+		} else if (error == qstr("BOT_GROUPS_BLOCKED")) {
+			return lang(lng_error_cant_add_bot);
 		} else if (error == qstr("PEER_FLOOD")) {
 			const auto isGroup = (chat->isChat() || chat->isMegagroup());
 			return PeerFloodErrorText(isGroup
