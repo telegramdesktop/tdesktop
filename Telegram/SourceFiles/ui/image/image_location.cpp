@@ -20,6 +20,7 @@ namespace {
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
 constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
 constexpr auto kSerializeTypeShift = quint8(0x08);
+const auto kInMediaCacheLocation = QString("*media_cache*");
 
 MTPInputPeer GenerateInputPeer(
 		uint64 id,
@@ -622,7 +623,7 @@ ReadAccessEnabler::~ReadAccessEnabler() {
 }
 
 FileLocation::FileLocation(const QString &name) : fname(name) {
-	if (fname.isEmpty()) {
+	if (fname.isEmpty() || fname == kInMediaCacheLocation) {
 		size = 0;
 	} else {
 		setBookmark(psPathBookmark(name));
@@ -646,8 +647,14 @@ FileLocation::FileLocation(const QString &name) : fname(name) {
 	}
 }
 
+FileLocation FileLocation::InMediaCacheLocation() {
+	return FileLocation(kInMediaCacheLocation);
+}
+
 bool FileLocation::check() const {
-	if (fname.isEmpty()) return false;
+	if (fname.isEmpty() || fname == kInMediaCacheLocation) {
+		return false;
+	}
 
 	ReadAccessEnabler enabler(_bookmark);
 	if (enabler.failed()) {
@@ -681,6 +688,10 @@ const QString &FileLocation::name() const {
 
 QByteArray FileLocation::bookmark() const {
 	return _bookmark ? _bookmark->bookmark() : QByteArray();
+}
+
+bool FileLocation::inMediaCache() const {
+	return (fname == kInMediaCacheLocation);
 }
 
 void FileLocation::setBookmark(const QByteArray &bm) {

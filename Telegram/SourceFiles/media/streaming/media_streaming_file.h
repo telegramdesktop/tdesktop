@@ -81,6 +81,7 @@ private:
 		[[nodiscard]] base::variant<Packet, AvErrorWrap> readPacket();
 
 		void handleEndOfFile();
+		void sendFullInCache(bool force = false);
 
 		const not_null<FileDelegate*> _delegate;
 		const not_null<Reader*> _reader;
@@ -89,6 +90,7 @@ private:
 		int _size = 0;
 		bool _failed = false;
 		bool _readTillEnd = false;
+		std::optional<bool> _fullInCache;
 		crl::semaphore _semaphore;
 		std::atomic<bool> _interrupted = false;
 

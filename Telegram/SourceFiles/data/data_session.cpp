@@ -2504,15 +2504,18 @@ void Session::documentApplyFields(
 	if (!date) {
 		return;
 	}
-	if (dc != 0 && access != 0) {
-		document->setRemoteLocation(dc, access, fileReference);
-	}
 	document->date = date;
 	document->setMimeString(mime);
 	document->updateThumbnails(thumbnailInline, thumbnail);
 	document->size = size;
-	document->recountIsImage();
 	document->setattributes(attributes);
+
+	// Uses 'type' that is computed from attributes.
+	document->recountIsImage();
+	if (dc != 0 && access != 0) {
+		document->setRemoteLocation(dc, access, fileReference);
+	}
+
 	if (document->sticker()
 		&& !document->sticker()->loc.valid()
 		&& thumbLocation.valid()) {

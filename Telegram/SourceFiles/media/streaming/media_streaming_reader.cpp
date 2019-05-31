@@ -225,6 +225,7 @@ struct Reader::CacheHelper {
 
 	QMutex mutex;
 	base::flat_map<int, PartsMap> results;
+	std::vector<int> sizes;
 	std::atomic<crl::semaphore*> waiting = nullptr;
 };
 
@@ -385,6 +386,17 @@ int Reader::Slices::headerSize() const {
 	return _header.parts.size() * kPartSize;
 }
 
+bool Reader::Slices::fullInCache() const {
+	return _fullInCache;
+}
+
+int Reader::Slices::requestSliceSizesCount() const {
+	if (!headerModeUnknown() || isFullInHeader()) {
+		return 0;
+	}
+	return _data.size();
+}
+
 bool Reader::Slices::headerWontBeFilled() const {
 	return headerModeUnknown()
 		&& (_header.parts.size() >= kMaxPartsInHeader);
@@ -438,6 +450,7 @@ void Reader::Slices::processCacheResult(int sliceNumber, PartsMap &&result) {
 		return;
 	}
 	slice.processCacheData(std::move(result));
+	checkSliceFullLoaded(sliceNumber);
 	if (!sliceNumber) {
 		applyHeaderCacheData();
 		if (isGoodHeader()) {
@@ -448,6 +461,66 @@ void Reader::Slices::processCacheResult(int sliceNumber, PartsMap &&result) {
 	}
 }
 
+void Reader::Slices::processCachedSizes(const std::vector<int> &sizes) {
+	Expects(sizes.size() == _data.size());
+
+	using Flag = Slice::Flag;
+	const auto count = int(sizes.size());
+	auto loadedCount = 0;
+	for (auto i = 0; i != count; ++i) {
+		const auto sliceNumber = (i + 1);
+		const auto sliceSize = (sliceNumber < _data.size())
+			? kInSlice
+			: (_size - (sliceNumber - 1) * kInSlice);
+		const auto loaded = (sizes[i] == sliceSize);
+
+		if (_data[i].flags & Flag::FullInCache) {
+			++loadedCount;
+		} else if (loaded) {
+			_data[i].flags |= Flag::FullInCache;
+			++loadedCount;
+		}
+	}
+	_fullInCache = (loadedCount == count);
+}
+
+void Reader::Slices::checkSliceFullLoaded(int sliceNumber) {
+	if (!sliceNumber && !isFullInHeader()) {
+		return;
+	}
+	const auto partsCount = [&] {
+		if (!sliceNumber) {
+			return (_size + kPartSize - 1) / kPartSize;
+		}
+		return (sliceNumber < _data.size())
+			? kPartsInSlice
+			: ((_size - (sliceNumber - 1) * kInSlice + kPartSize - 1)
+				/ kPartSize);
+	}();
+	auto &slice = (sliceNumber ? _data[sliceNumber - 1] : _header);
+	const auto loaded = (slice.parts.size() == partsCount);
+
+	using Flag = Slice::Flag;
+	if ((slice.flags & Flag::FullInCache) && !loaded) {
+		slice.flags &= ~Flag::FullInCache;
+		_fullInCache = false;
+	} else if (!(slice.flags & Flag::FullInCache) && loaded) {
+		slice.flags |= Flag::FullInCache;
+		_fullInCache = checkFullInCache();
+	}
+}
+
+bool Reader::Slices::checkFullInCache() const {
+	using Flag = Slice::Flag;
+	if (isFullInHeader()) {
+		return (_header.flags & Flag::FullInCache);
+	}
+	const auto i = ranges::find_if(_data, [](const Slice &slice) {
+		return !(slice.flags & Flag::FullInCache);
+	});
+	return (i == end(_data));
+}
+
 void Reader::Slices::processPart(
 		int offset,
 		QByteArray &&bytes) {
@@ -455,6 +528,7 @@ void Reader::Slices::processPart(
 
 	if (isFullInHeader()) {
 		_header.addPart(offset, bytes);
+		checkSliceFullLoaded(0);
 		return;
 	} else if (_headerMode == HeaderMode::Unknown) {
 		if (_header.parts.contains(offset)) {
@@ -465,6 +539,7 @@ void Reader::Slices::processPart(
 	}
 	const auto index = offset / kInSlice;
 	_data[index].addPart(offset - index * kInSlice, std::move(bytes));
+	checkSliceFullLoaded(index + 1);
 }
 
 auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
@@ -655,7 +730,7 @@ Reader::SerializedSlice Reader::Slices::serializeAndUnloadUnused() {
 		return false;
 	}();
 	if (noNeedToSaveToCache) {
-		_data[purgeSlice] = Slice();
+		unloadSlice(_data[purgeSlice]);
 		return {};
 	}
 	return serializeAndUnloadSlice(purgeSlice + 1);
@@ -707,11 +782,19 @@ Reader::SerializedSlice Reader::Slices::serializeAndUnloadSlice(
 	// HeaderMode::Good and we unload first slice. We still require
 	// header data to continue working, so don't really unload the header.
 	if (sliceNumber) {
-		slice = Slice();
+		unloadSlice(slice);
 	} else {
 		slice.flags &= ~Slice::Flag::ChangedSinceCache;
 	}
 	return result;
+}
+
+void Reader::Slices::unloadSlice(Slice &slice) const {
+	const auto full = (slice.flags & Slice::Flag::FullInCache);
+	slice = Slice();
+	if (full) {
+		slice.flags |= Slice::Flag::FullInCache;
+	}
 }
 
 QByteArray Reader::Slices::serializeComplexSlice(const Slice &slice) const {
@@ -742,7 +825,7 @@ QByteArray Reader::Slices::serializeAndUnloadFirstSliceNoHeader() {
 		slice.parts.erase(offset);
 	}
 	auto result = serializeComplexSlice(slice);
-	slice = Slice();
+	unloadSlice(slice);
 	return result;
 }
 
@@ -1022,8 +1105,14 @@ void Reader::readFromCache(int sliceNumber) {
 	const auto key = _cacheHelper->key(sliceNumber);
 	const auto cache = std::weak_ptr<CacheHelper>(_cacheHelper);
 	const auto weak = base::make_weak(this);
-	_owner->cacheBigFile().get(key, [=](QByteArray &&result) {
-		crl::async([=, result = std::move(result)]{
+	const auto ready = [=](
+			QByteArray &&result,
+			std::vector<int> &&sizes = {}) {
+		crl::async([
+			=,
+			result = std::move(result),
+			sizes = std::move(sizes)
+		]() mutable{
 			auto entry = ParseCacheEntry(
 				bytes::make_span(result),
 				sliceNumber,
@@ -1034,6 +1123,7 @@ void Reader::readFromCache(int sliceNumber) {
 				if (!sliceNumber && entry.included) {
 					strong->results.emplace(1, std::move(*entry.included));
 				}
+				strong->sizes = std::move(sizes);
 				if (const auto waiting = strong->waiting.load()) {
 					strong->waiting.store(nullptr, std::memory_order_release);
 					waiting->release();
@@ -1044,7 +1134,13 @@ void Reader::readFromCache(int sliceNumber) {
 				}
 			}
 		});
-	});
+	};
+	auto keys = std::vector<Storage::Cache::Key>();
+	const auto count = _slices.requestSliceSizesCount();
+	for (auto i = 0; i != count; ++i) {
+		keys.push_back(_cacheHelper->key(i + 1));
+	}
+	_owner->cacheBigFile().getWithSizes(key, std::move(keys), ready);
 }
 
 bool Reader::readFromCacheForDownloader(int sliceNumber) {
@@ -1081,6 +1177,10 @@ void Reader::headerDone() {
 
 int Reader::headerSize() const {
 	return _slices.headerSize();
+}
+
+bool Reader::fullInCache() const {
+	return _slices.fullInCache();
 }
 
 bool Reader::fill(
@@ -1184,6 +1284,7 @@ bool Reader::processCacheResults() {
 
 	QMutexLocker lock(&_cacheHelper->mutex);
 	auto loaded = base::take(_cacheHelper->results);
+	auto sizes = base::take(_cacheHelper->sizes);
 	lock.unlock();
 
 	for (auto &[sliceNumber, cachedParts] : _downloaderReadCache) {
@@ -1200,6 +1301,9 @@ bool Reader::processCacheResults() {
 	}
 	for (auto &[sliceNumber, result] : loaded) {
 		_slices.processCacheResult(sliceNumber, std::move(result));
+	}
+	if (!sizes.empty()) {
+		_slices.processCachedSizes(sizes);
 	}
 	if (!loaded.empty()
 		&& (loaded.front().first == 0)

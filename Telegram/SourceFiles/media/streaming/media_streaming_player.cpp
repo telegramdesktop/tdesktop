@@ -174,7 +174,7 @@ void Player::trackSendReceivedTill(
 	Expects(state.duration != kTimeUnknown);
 	Expects(state.receivedTill != kTimeUnknown);
 
-	if (!_remoteLoader) {
+	if (!_remoteLoader || _fullInCacheSinceStart.value_or(false)) {
 		return;
 	}
 	const auto receivedTill = std::max(
@@ -299,6 +299,15 @@ void Player::fileError(Error error) {
 
 	crl::on_main(&_sessionGuard, [=] {
 		fail(error);
+	});
+}
+
+void Player::fileFullInCache(bool fullInCache) {
+	crl::on_main(&_sessionGuard, [=] {
+		if (!_fullInCacheSinceStart.has_value()) {
+			_fullInCacheSinceStart = fullInCache;
+		}
+		_fullInCache.fire_copy(fullInCache);
 	});
 }
 
@@ -736,6 +745,10 @@ bool Player::finished() const {
 		&& (!_video || _videoFinished);
 }
 
+float64 Player::speed() const {
+	return _options.speed;
+}
+
 void Player::setSpeed(float64 speed) {
 	Expects(active());
 	Expects(speed >= 0.5 && speed <= 2.);
@@ -765,6 +778,10 @@ bool Player::ready() const {
 
 rpl::producer<Update, Error> Player::updates() const {
 	return _updates.events();
+}
+
+rpl::producer<bool> Player::fullInCache() const {
+	return _fullInCache.events();
 }
 
 QSize Player::videoSize() const {
@@ -803,7 +820,8 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 	} else if (_options.loop && result.length > 0) {
 		result.position %= result.length;
 	}
-	result.receivedTill = _remoteLoader
+	result.receivedTill = (_remoteLoader
+		&& !_fullInCacheSinceStart.value_or(false))
 		? getCurrentReceivedTill(result.length)
 		: 0;
 	result.frequency = kMsFrequency;

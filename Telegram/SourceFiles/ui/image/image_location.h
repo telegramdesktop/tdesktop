@@ -434,13 +434,16 @@ public:
 	FileLocation() = default;
 	explicit FileLocation(const QString &name);
 
-	bool check() const;
-	const QString &name() const;
+	static FileLocation InMediaCacheLocation();
+
+	[[nodiscard]] bool check() const;
+	[[nodiscard]] const QString &name() const;
 	void setBookmark(const QByteArray &bookmark);
 	QByteArray bookmark() const;
-	bool isEmpty() const {
+	[[nodiscard]] bool isEmpty() const {
 		return name().isEmpty();
 	}
+	[[nodiscard]] bool inMediaCache() const;
 
 	bool accessEnable() const;
 	void accessDisable() const;

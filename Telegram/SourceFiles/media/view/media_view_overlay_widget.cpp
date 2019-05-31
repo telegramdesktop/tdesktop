@@ -1993,6 +1993,11 @@ void OverlayWidget::initStreaming() {
 		handleStreamingError(std::move(error));
 	}, _streamed->player.lifetime());
 
+	_streamed->player.fullInCache(
+	) | rpl::start_with_next([=](bool fullInCache) {
+		_doc->setLoadedInMediaCache(fullInCache);
+	}, _streamed->player.lifetime());
+
 	restartAtSeekPosition(0);
 }
 

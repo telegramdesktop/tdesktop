@@ -57,6 +57,7 @@ public:
 	[[nodiscard]] bool finished() const;
 
 	[[nodiscard]] rpl::producer<Update, Error> updates() const;
+	[[nodiscard]] rpl::producer<bool> fullInCache() const;
 
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
@@ -82,6 +83,7 @@ private:
 	bool fileReady(int headerSize, Stream &&video, Stream &&audio) override;
 	void fileError(Error error) override;
 	void fileWaitingForData() override;
+	void fileFullInCache(bool fullInCache) override;
 	bool fileProcessPacket(Packet &&packet) override;
 	bool fileReadMore() override;
 
@@ -176,6 +178,8 @@ private:
 	crl::time _nextFrameTime = kTimeUnknown;
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;
+	rpl::event_stream<bool> _fullInCache;
+	std::optional<bool> _fullInCacheSinceStart;
 
 	crl::time _totalDuration = kTimeUnknown;
 	crl::time _loopingShift = 0;

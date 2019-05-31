@@ -60,6 +60,9 @@ int File::Context::read(bytes::span buffer) {
 			return -1;
 		}
 	}
+
+	sendFullInCache();
+
 	_offset += amount;
 	return amount;
 }
@@ -244,6 +247,9 @@ void File::Context::start(crl::time position) {
 	}
 
 	_reader->headerDone();
+	if (_reader->isRemoteLoader()) {
+		sendFullInCache(true);
+	}
 	if (video.codec || audio.codec) {
 		seekToPosition(format.get(), video.codec ? video : audio, position);
 	}
@@ -256,6 +262,17 @@ void File::Context::start(crl::time position) {
 		return fail(Error::OpenFailed);
 	}
 	_format = std::move(format);
+}
+
+void File::Context::sendFullInCache(bool force) {
+	const auto started = _fullInCache.has_value();
+	if (force || started) {
+		const auto nowFullInCache = _reader->fullInCache();
+		if (!started || *_fullInCache != nowFullInCache) {
+			_fullInCache = nowFullInCache;
+			_delegate->fileFullInCache(nowFullInCache);
+		}
+	}
 }
 
 void File::Context::readNextPacket() {

@@ -816,6 +816,35 @@ bool DocumentData::uploading() const {
 	return (uploadingData != nullptr);
 }
 
+bool DocumentData::loadedInMediaCache() const {
+	return (_flags & Flag::LoadedInMediaCache);
+}
+
+void DocumentData::setLoadedInMediaCache(bool loaded) {
+	const auto flags = loaded
+		? (_flags | Flag::LoadedInMediaCache)
+		: (_flags & ~Flag::LoadedInMediaCache);
+	if (_flags == flags) {
+		return;
+	}
+	_flags = flags;
+	if (!this->loaded()) {
+		if (loadedInMediaCache()) {
+			Local::writeFileLocation(
+				mediaKey(),
+				FileLocation::InMediaCacheLocation());
+		} else {
+			Local::removeFileLocation(mediaKey());
+		}
+		owner().requestDocumentViewRepaint(this);
+	}
+}
+
+void DocumentData::setLoadedInMediaCacheLocation() {
+	_location = FileLocation();
+	_flags |= Flag::LoadedInMediaCache;
+}
+
 void DocumentData::setWaitingForAlbum() {
 	if (uploading()) {
 		uploadingData->waitingForAlbum = true;
@@ -1010,13 +1039,21 @@ QByteArray DocumentData::data() const {
 
 const FileLocation &DocumentData::location(bool check) const {
 	if (check && !_location.check()) {
-		const_cast<DocumentData*>(this)->_location = Local::readFileLocation(mediaKey());
+		const auto location = Local::readFileLocation(mediaKey());
+		const auto that = const_cast<DocumentData*>(this);
+		if (location.inMediaCache()) {
+			that->setLoadedInMediaCacheLocation();
+		} else {
+			that->_location = location;
+		}
 	}
 	return _location;
 }
 
 void DocumentData::setLocation(const FileLocation &loc) {
-	if (loc.check()) {
+	if (loc.inMediaCache()) {
+		setLoadedInMediaCacheLocation();
+	} else if (loc.check()) {
 		_location = loc;
 	}
 }
@@ -1492,6 +1529,13 @@ void DocumentData::setRemoteLocation(
 				Local::writeFileLocation(mediaKey(), _location);
 			} else {
 				_location = Local::readFileLocation(mediaKey());
+				if (_location.inMediaCache()) {
+					setLoadedInMediaCacheLocation();
+				} else if (_location.isEmpty() && loadedInMediaCache()) {
+					Local::writeFileLocation(
+						mediaKey(),
+						FileLocation::InMediaCacheLocation());
+				}
 			}
 		}
 	}
@@ -1520,7 +1564,7 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 			ActiveCache().up(this);
 		}
 	}
-	if (!local->_location.isEmpty()) {
+	if (!local->_location.inMediaCache() && !local->_location.isEmpty()) {
 		_location = local->_location;
 		Local::writeFileLocation(mediaKey(), _location);
 	}

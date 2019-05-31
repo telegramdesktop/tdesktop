@@ -64,6 +64,11 @@ public:
 		FnMut<void(Error)> &&done = nullptr);
 	void getWithTag(const Key &key, FnMut<void(TaggedValue&&)> &&done);
 
+	void getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done);
+
 	using Stats = details::Stats;
 	using TaggedSummary = details::TaggedSummary;
 	rpl::producer<Stats> statsOnMain() const;

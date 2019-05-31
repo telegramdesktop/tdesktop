@@ -810,7 +810,9 @@ void _readLocations() {
 		MediaKey key(first, second);
 
 		_fileLocations.insert(key, loc);
-		_fileLocationPairs.insert(loc.fname, FileLocationPair(key, loc));
+		if (!loc.inMediaCache()) {
+			_fileLocationPairs.insert(loc.fname, FileLocationPair(key, loc));
+		}
 	}
 
 	if (endMarkFound) {
@@ -3133,52 +3135,68 @@ bool hasDraft(const PeerId &peer) {
 }
 
 void writeFileLocation(MediaKey location, const FileLocation &local) {
-	if (local.fname.isEmpty()) return;
-
-	FileLocationAliases::const_iterator aliasIt = _fileLocationAliases.constFind(location);
-	if (aliasIt != _fileLocationAliases.cend()) {
-		location = aliasIt.value();
+	if (local.fname.isEmpty()) {
+		return;
 	}
-
-	FileLocationPairs::iterator i = _fileLocationPairs.find(local.fname);
-	if (i != _fileLocationPairs.cend()) {
-		if (i.value().second == local) {
-			if (i.value().first != location) {
-				_fileLocationAliases.insert(location, i.value().first);
-				_writeLocations(WriteMapWhen::Fast);
-			}
-			return;
+	if (!local.inMediaCache()) {
+		FileLocationAliases::const_iterator aliasIt = _fileLocationAliases.constFind(location);
+		if (aliasIt != _fileLocationAliases.cend()) {
+			location = aliasIt.value();
 		}
-		if (i.value().first != location) {
-			for (FileLocations::iterator j = _fileLocations.find(i.value().first), e = _fileLocations.end(); (j != e) && (j.key() == i.value().first);) {
-				if (j.value() == i.value().second) {
-					_fileLocations.erase(j);
-					break;
+
+		FileLocationPairs::iterator i = _fileLocationPairs.find(local.fname);
+		if (i != _fileLocationPairs.cend()) {
+			if (i.value().second == local) {
+				if (i.value().first != location) {
+					_fileLocationAliases.insert(location, i.value().first);
+					_writeLocations(WriteMapWhen::Fast);
 				}
+				return;
 			}
-			_fileLocationPairs.erase(i);
+			if (i.value().first != location) {
+				for (FileLocations::iterator j = _fileLocations.find(i.value().first), e = _fileLocations.end(); (j != e) && (j.key() == i.value().first);) {
+					if (j.value() == i.value().second) {
+						_fileLocations.erase(j);
+						break;
+					}
+				}
+				_fileLocationPairs.erase(i);
+			}
+		}
+		_fileLocationPairs.insert(local.fname, FileLocationPair(location, local));
+	} else {
+		for (FileLocations::iterator i = _fileLocations.find(location); (i != _fileLocations.end()) && (i.key() == location);) {
+			if (i.value().inMediaCache() || i.value().check()) {
+				return;
+			}
+			i = _fileLocations.erase(i);
 		}
 	}
 	_fileLocations.insert(location, local);
-	_fileLocationPairs.insert(local.fname, FileLocationPair(location, local));
 	_writeLocations(WriteMapWhen::Fast);
 }
 
-FileLocation readFileLocation(MediaKey location, bool check) {
+void removeFileLocation(MediaKey location) {
+	FileLocations::iterator i = _fileLocations.find(location);
+	if (i == _fileLocations.end()) {
+		return;
+	}
+	while (i != _fileLocations.end() && (i.key() == location)) {
+		i = _fileLocations.erase(i);
+	}
+	_writeLocations(WriteMapWhen::Fast);
+}
+
+FileLocation readFileLocation(MediaKey location) {
 	FileLocationAliases::const_iterator aliasIt = _fileLocationAliases.constFind(location);
 	if (aliasIt != _fileLocationAliases.cend()) {
 		location = aliasIt.value();
 	}
 
 	FileLocations::iterator i = _fileLocations.find(location);
-	for (FileLocations::iterator i = _fileLocations.find(location); (i != _fileLocations.end()) && (i.key() == location);) {
-		if (check) {
-			if (!i.value().check()) {
-				_fileLocationPairs.remove(i.value().fname);
-				i = _fileLocations.erase(i);
-				_writeLocations();
-				continue;
-			}
+	if (i != _fileLocations.end()) {
+		if (i.value().inMediaCache()) {
+			int a = 0;
 		}
 		return i.value();
 	}

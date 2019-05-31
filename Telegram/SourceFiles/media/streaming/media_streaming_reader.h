@@ -50,6 +50,7 @@ public:
 	[[nodiscard]] std::optional<Error> streamingError() const;
 	void headerDone();
 	[[nodiscard]] int headerSize() const;
+	[[nodiscard]] bool fullInCache() const;
 
 	// Thread safe.
 	void startSleep(not_null<crl::semaphore*> wake);
@@ -104,6 +105,7 @@ private:
 			LoadingFromCache = 0x01,
 			LoadedFromCache = 0x02,
 			ChangedSinceCache = 0x04,
+			FullInCache = 0x08,
 		};
 		friend constexpr inline bool is_flag_type(Flag) { return true; }
 		using Flags = base::flags<Flag>;
@@ -135,13 +137,17 @@ private:
 
 		void headerDone(bool fromCache);
 		[[nodiscard]] int headerSize() const;
+		[[nodiscard]] bool fullInCache() const;
 		[[nodiscard]] bool headerWontBeFilled() const;
 		[[nodiscard]] bool headerModeUnknown() const;
 		[[nodiscard]] bool isFullInHeader() const;
 		[[nodiscard]] bool isGoodHeader() const;
 		[[nodiscard]] bool waitingForHeaderCache() const;
 
+		[[nodiscard]] int requestSliceSizesCount() const;
+
 		void processCacheResult(int sliceNumber, PartsMap &&result);
+		void processCachedSizes(const std::vector<int> &sizes);
 		void processPart(int offset, QByteArray &&bytes);
 
 		[[nodiscard]] FillResult fill(int offset, bytes::span buffer);
@@ -172,12 +178,16 @@ private:
 		[[nodiscard]] FillResult fillFromHeader(
 			int offset,
 			bytes::span buffer);
+		void unloadSlice(Slice &slice) const;
+		void checkSliceFullLoaded(int sliceNumber);
+		[[nodiscard]] bool checkFullInCache() const;
 
 		std::vector<Slice> _data;
 		Slice _header;
 		std::deque<int> _usedSlices;
 		int _size = 0;
 		HeaderMode _headerMode = HeaderMode::Unknown;
+		bool _fullInCache = false;
 
 	};
 

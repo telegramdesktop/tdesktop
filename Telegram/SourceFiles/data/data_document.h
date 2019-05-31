@@ -115,6 +115,8 @@ public:
 	[[nodiscard]] float64 progress() const;
 	[[nodiscard]] int loadOffset() const;
 	[[nodiscard]] bool uploading() const;
+	[[nodiscard]] bool loadedInMediaCache() const;
+	void setLoadedInMediaCache(bool loaded);
 
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
@@ -266,6 +268,7 @@ private:
 	void validateLottieSticker();
 	void validateGoodThumbnail();
 	void setMaybeSupportsStreaming(bool supports);
+	void setLoadedInMediaCacheLocation();
 
 	void destroyLoader() const;
 

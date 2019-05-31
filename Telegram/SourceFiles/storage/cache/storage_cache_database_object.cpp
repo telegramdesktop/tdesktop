@@ -955,7 +955,28 @@ void DatabaseObject::get(
 	}
 }
 
-QByteArray DatabaseObject::readValueData(PlaceId place, size_type size) const {
+void DatabaseObject::getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done) {
+	get(key, [&](TaggedValue &&value) {
+		if (value.bytes.isEmpty()) {
+			invokeCallback(done, QByteArray(), std::vector<int>());
+			return;
+		}
+
+		auto sizes = keys | ranges::view::transform([&](const Key &sizeKey) {
+			const auto i = _map.find(sizeKey);
+			return (i != end(_map)) ? int(i->second.size) : 0;
+		}) | ranges::to_vector;
+
+		invokeCallback(done, std::move(value.bytes), std::move(sizes));
+	});
+}
+
+QByteArray DatabaseObject::readValueData(
+		PlaceId place,
+		size_type size) const {
 	const auto path = placePath(place);
 	File data;
 	const auto result = data.open(path, File::Mode::Read, _key);

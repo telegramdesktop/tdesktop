@@ -153,6 +153,19 @@ void Database::getWithTag(
 	});
 }
 
+void Database::getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done) {
+	_wrapped.with([
+		key,
+		keys = std::move(keys),
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.getWithSizes(key, std::move(keys), std::move(done));
+	});
+}
+
 auto Database::statsOnMain() const -> rpl::producer<Stats> {
 	return _wrapped.producer_on_main([](const Implementation &unwrapped) {
 		return unwrapped.stats();

@@ -110,7 +110,8 @@ bool hasDraftCursors(const PeerId &peer);
 bool hasDraft(const PeerId &peer);
 
 void writeFileLocation(MediaKey location, const FileLocation &local);
-FileLocation readFileLocation(MediaKey location, bool check = true);
+FileLocation readFileLocation(MediaKey location);
+void removeFileLocation(MediaKey location);
 
 Storage::EncryptionKey cacheKey();
 QString cachePath();

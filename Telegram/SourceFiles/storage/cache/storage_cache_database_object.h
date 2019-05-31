@@ -56,6 +56,11 @@ public:
 		const Key &to,
 		FnMut<void(Error)> &&done);
 
+	void getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done);
+
 	rpl::producer<Stats> stats() const;
 
 	void clear(FnMut<void(Error)> &&done);
