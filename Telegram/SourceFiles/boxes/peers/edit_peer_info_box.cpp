@@ -786,7 +786,7 @@ void Controller::fillManageSection() {
 			? channel->canEditInformation()
 			: (channel->linkedChat()
 				&& channel->canPinMessages()
-				&& channel->adminRights() != 0
+				&& (channel->amCreator() || channel->adminRights() != 0)
 				&& (!channel->hiddenPreHistory()
 					|| channel->canEditPreHistoryHidden()));
 	}();
