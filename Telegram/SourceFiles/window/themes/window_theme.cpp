@@ -49,6 +49,20 @@ inline bool AreTestingTheme() {
 	return !GlobalApplying.paletteForRevert.isEmpty();
 };
 
+bool CalculateIsMonoColorImage(const QImage &image) {
+	if (!image.isNull()) {
+		const auto bits = reinterpret_cast<const uint32*>(image.constBits());
+		const auto first = bits[0];
+		for (auto i = 0; i < image.width() * image.height(); i++) {
+			if (first != bits[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
 QByteArray readThemeContent(const QString &path) {
 	QFile file(path);
 	if (!file.exists()) {
@@ -580,6 +594,7 @@ void ChatBackground::preparePixmaps(QImage image) {
 		}
 		_pixmapForTiled = App::pixmapFromImageInPlace(std::move(imageForTiled));
 	}
+	_isMonoColorImage = CalculateIsMonoColorImage(image);
 	_pixmap = App::pixmapFromImageInPlace(std::move(image));
 	if (!isSmallForTiled) {
 		_pixmapForTiled = _pixmap;
@@ -669,6 +684,10 @@ bool ChatBackground::tileNight() const {
 		}
 	}
 	return _tileNightValue;
+}
+
+bool ChatBackground::isMonoColorImage() const {
+	return _isMonoColorImage;
 }
 
 void ChatBackground::ensureStarted() {

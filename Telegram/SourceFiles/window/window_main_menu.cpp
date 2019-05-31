@@ -331,7 +331,14 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight)
 		.intersected(e->rect());
 
-	if (!_background.isNull()) {
+	const auto background = Window::Theme::Background();
+	const auto isFill = background->tile()
+		|| background->colorForFill().has_value()
+		|| background->isMonoColorImage()
+		|| background->paper().isPattern()
+		|| Data::IsLegacy1DefaultWallPaper(background->paper());
+
+	if (!isFill && !_background.isNull()) {
 		PainterHighQualityEnabler hq(p);
 		p.drawImage(0, 0, _background);
 	}
@@ -340,6 +347,10 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		const auto widthText = _cloudButton
 			? _cloudButton->x() - st::mainMenuCloudSize
 			: width() - 2 * st::mainMenuCoverTextLeft;
+
+		if (isFill) {
+			p.fillRect(cover, st::mainMenuCoverBg);
+		}
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
 		Auth().user()->nameText.drawLeftElided(
@@ -357,8 +368,8 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 				_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
 				width(),
 				st::mainMenuCloudSize,
-				st::msgServiceBg,
-				st::mainMenuCloudFg);
+				isFill ? st::mainMenuCloudBg : st::msgServiceBg,
+				isFill ? st::mainMenuCloudFg : st::msgServiceFg);
 		}
 	}
 	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);

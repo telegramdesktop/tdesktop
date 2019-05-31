@@ -126,6 +126,7 @@ public:
 	[[nodiscard]] bool tile() const;
 	[[nodiscard]] bool tileDay() const;
 	[[nodiscard]] bool tileNight() const;
+	[[nodiscard]] bool isMonoColorImage() const;
 
 private:
 	struct AdjustableColor {
@@ -173,6 +174,8 @@ private:
 	bool _nightMode = false;
 	bool _tileDayValue = false;
 	bool _tileNightValue = true;
+
+	bool _isMonoColorImage = false;
 
 	QString _themeAbsolutePath;
 	QImage _themeImage;
