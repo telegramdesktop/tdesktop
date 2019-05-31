@@ -100,6 +100,9 @@ using Type = ::FileDialog::internal::Type;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 bool NativeSupported() {
+#ifndef TDESKTOP_FORCE_GTK_FILE_DIALOG
+	return false;
+#endif // TDESKTOP_FORCE_GTK_FILE_DIALOG
 	return Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)

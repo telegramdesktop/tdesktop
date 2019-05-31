@@ -130,6 +130,7 @@
       [ '"<(official_build_target)" != ""', {
         'defines': [
           'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',
+          'TDESKTOP_FORCE_GTK_FILE_DIALOG',
         ],
         'dependencies': [
           'utils.gyp:Packer',
