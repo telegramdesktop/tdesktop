@@ -609,7 +609,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_edit_privacy_phone_number_title" = "Phone number privacy";
 "lng_edit_privacy_phone_number_header" = "Who can see your phone number";
-"lng_edit_privacy_phone_number_warning" = "Important: blabla.";
+"lng_edit_privacy_phone_number_warning" = "Users who already have your number saved in the contacts will also see it on Telegram.";
 "lng_edit_privacy_phone_number_always_empty" = "Always share with";
 "lng_edit_privacy_phone_number_never_empty" = "Never share with";
 "lng_edit_privacy_phone_number_exceptions" = "These settings will override the values above.";
