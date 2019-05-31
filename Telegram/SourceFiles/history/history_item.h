@@ -347,7 +347,7 @@ private:
 	HistoryView::Element *_mainView = nullptr;
 	friend class HistoryView::Element;
 
-	MessageGroupId _groupId = MessageGroupId::None;
+	MessageGroupId _groupId = MessageGroupId();
 
 };
 

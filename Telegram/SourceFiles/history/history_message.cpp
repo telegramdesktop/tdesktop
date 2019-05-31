@@ -370,7 +370,8 @@ HistoryMessage::HistoryMessage(
 	setText({ text, entities });
 
 	if (data.has_grouped_id()) {
-		setGroupId(MessageGroupId::FromRaw(data.vgrouped_id.v));
+		setGroupId(
+			MessageGroupId::FromRaw(history->peer->id, data.vgrouped_id.v));
 	}
 }
 
