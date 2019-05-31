@@ -446,12 +446,21 @@ void OverlayWidget::clearLottie() {
 }
 
 void OverlayWidget::documentUpdated(DocumentData *doc) {
-	if (documentBubbleShown() && _doc && _doc == doc) {
-		if ((_doc->loading() && _docCancel->isHidden()) || (!_doc->loading() && !_docCancel->isHidden())) {
-			updateControls();
-		} else if (_doc->loading()) {
-			updateDocSize();
-			update(_docRect);
+	if (_doc && _doc == doc) {
+		if (documentBubbleShown()) {
+			if ((_doc->loading() && _docCancel->isHidden()) || (!_doc->loading() && !_docCancel->isHidden())) {
+				updateControls();
+			} else if (_doc->loading()) {
+				updateDocSize();
+				update(_docRect);
+			}
+		} else if (_streamed) {
+			const auto ready = _doc->loaded()
+				? _doc->size
+				: _doc->loading()
+				? std::clamp(_doc->loadOffset(), 0, _doc->size)
+				: 0;
+			_streamed->controls.setLoadingProgress(ready, _doc->size);
 		}
 	}
 }

@@ -1485,6 +1485,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_date_time" = "{date} at {time}";
 
 "lng_mediaview_saved" = "Image was saved to your [c]Downloads[/c] folder";
+"lng_mediaview_video_loading" = "Loading - {percent}";
 
 "lng_theme_preview_title" = "Theme Preview";
 "lng_theme_preview_generating" = "Generating color theme preview...";

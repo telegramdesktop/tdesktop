@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
+#include "lang/lang_keys.h"
 #include "layout.h"
 #include "styles/style_mediaview.h"
 
@@ -157,6 +158,45 @@ void PlaybackControls::updatePlayback(const Player::TrackState &state) {
 	updateTimeTexts(state);
 }
 
+void PlaybackControls::setLoadingProgress(int ready, int total) {
+	if (_loadingReady == ready && _loadingTotal == total) {
+		return;
+	}
+	_loadingReady = ready;
+	_loadingTotal = total;
+	if (_loadingReady != 0 && _loadingReady != _loadingTotal) {
+		if (!_downloadProgress) {
+			_downloadProgress.create(this, st::mediaviewPlayProgressLabel);
+			_downloadProgress->setVisible(!_fadeAnimation->animating());
+			_loadingPercent = -1;
+		}
+		const auto progress = total ? (ready / float64(total)) : 0.;
+		const auto percent = int(std::round(progress * 100));
+		if (_loadingPercent != percent) {
+			_loadingPercent = percent;
+			_downloadProgress->setText(lng_mediaview_video_loading(
+				lt_percent,
+				QString::number(percent) + '%'));
+			if (_playbackSlider->width() > _downloadProgress->width()) {
+				const auto left = (_playbackSlider->width() - _downloadProgress->width()) / 2;
+				_downloadProgress->move(_playbackSlider->x() + left, st::mediaviewPlayProgressTop);
+			}
+			refreshFadeCache();
+		}
+	} else {
+		_downloadProgress.destroy();
+	}
+}
+
+void PlaybackControls::refreshFadeCache() {
+	if (!_fadeAnimation->animating()) {
+		return;
+	}
+	startFading([&] {
+		_fadeAnimation->refreshCache();
+	});
+}
+
 void PlaybackControls::updatePlayPauseResumeState(const Player::TrackState &state) {
 	auto showPause = ShowPauseIcon(state.state) || (_seekPositionMs >= 0);
 	if (showPause != _showPause) {
@@ -207,9 +247,7 @@ void PlaybackControls::refreshTimeTexts() {
 	_toPlayLeft->setText(timeLeft, &leftChanged);
 	if (alreadyChanged || leftChanged) {
 		resizeEvent(nullptr);
-		startFading([this]() {
-			_fadeAnimation->refreshCache();
-		});
+		refreshFadeCache();
 	}
 }
 
@@ -238,6 +276,11 @@ void PlaybackControls::resizeEvent(QResizeEvent *e) {
 
 	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
 	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - playbackWidth, st::mediaviewPlayProgressTop);
+
+	if (_downloadProgress) {
+		const auto left = (_playbackSlider->width() - _downloadProgress->width()) / 2;
+		_downloadProgress->move(_playbackSlider->x() + left, st::mediaviewPlayProgressTop);
+	}
 }
 
 void PlaybackControls::paintEvent(QPaintEvent *e) {

@@ -45,6 +45,7 @@ public:
 	void hideAnimated();
 
 	void updatePlayback(const Player::TrackState &state);
+	void setLoadingProgress(int ready, int total);
 	void setInFullScreen(bool inFullScreen);
 
 	~PlaybackControls();
@@ -62,6 +63,7 @@ private:
 	void startFading(Callback start);
 	void fadeFinished();
 	void fadeUpdated(float64 opacity);
+	void refreshFadeCache();
 
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
@@ -75,6 +77,9 @@ private:
 	QString _timeAlready, _timeLeft;
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
+	int _loadingReady = 0;
+	int _loadingTotal = 0;
+	int _loadingPercent = 0;
 
 	object_ptr<Ui::IconButton> _playPauseResume;
 	object_ptr<Ui::MediaSlider> _playbackSlider;
@@ -84,6 +89,7 @@ private:
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
+	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
 
 	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 
