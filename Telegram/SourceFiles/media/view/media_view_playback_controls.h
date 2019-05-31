@@ -64,6 +64,8 @@ private:
 	void fadeFinished();
 	void fadeUpdated(float64 opacity);
 	void refreshFadeCache();
+	[[nodiscard]] float64 countDownloadedTillPercent(
+		const Player::TrackState &state) const;
 
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);

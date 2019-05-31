@@ -79,7 +79,7 @@ private:
 	not_null<FileDelegate*> delegate();
 
 	// FileDelegate methods are called only from the File thread.
-	bool fileReady(Stream &&video, Stream &&audio) override;
+	bool fileReady(int headerSize, Stream &&video, Stream &&audio) override;
 	void fileError(Error error) override;
 	void fileWaitingForData() override;
 	bool fileProcessPacket(Packet &&packet) override;

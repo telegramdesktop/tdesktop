@@ -381,6 +381,10 @@ void Reader::Slices::headerDone(bool fromCache) {
 	}
 }
 
+int Reader::Slices::headerSize() const {
+	return _header.parts.size() * kPartSize;
+}
+
 bool Reader::Slices::headerWontBeFilled() const {
 	return headerModeUnknown()
 		&& (_header.parts.size() >= kMaxPartsInHeader);
@@ -1073,6 +1077,10 @@ std::optional<Error> Reader::streamingError() const {
 
 void Reader::headerDone() {
 	_slices.headerDone(false);
+}
+
+int Reader::headerSize() const {
+	return _slices.headerSize();
 }
 
 bool Reader::fill(

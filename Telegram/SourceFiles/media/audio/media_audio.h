@@ -119,6 +119,7 @@ struct TrackState {
 	int64 receivedTill = 0;
 	int64 length = 0;
 	int frequency = kDefaultFrequency;
+	int fileHeaderSize = 0;
 	bool waitingForData = false;
 };
 

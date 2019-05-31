@@ -63,6 +63,7 @@ struct AudioInformation {
 struct Information {
 	VideoInformation video;
 	AudioInformation audio;
+	int headerSize = 0;
 };
 
 template <typename Track>

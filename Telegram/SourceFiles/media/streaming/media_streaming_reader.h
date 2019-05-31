@@ -49,6 +49,7 @@ public:
 		not_null<crl::semaphore*> notify);
 	[[nodiscard]] std::optional<Error> streamingError() const;
 	void headerDone();
+	[[nodiscard]] int headerSize() const;
 
 	// Thread safe.
 	void startSleep(not_null<crl::semaphore*> wake);
@@ -133,6 +134,7 @@ private:
 		Slices(int size, bool useCache);
 
 		void headerDone(bool fromCache);
+		[[nodiscard]] int headerSize() const;
 		[[nodiscard]] bool headerWontBeFilled() const;
 		[[nodiscard]] bool headerModeUnknown() const;
 		[[nodiscard]] bool isFullInHeader() const;

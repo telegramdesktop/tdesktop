@@ -72,6 +72,9 @@ void SaveValidStartInformation(Information &to, Information &&from) {
 	if (from.video.state.duration != kTimeUnknown) {
 		SaveValidVideoInformation(to.video, std::move(from.video));
 	}
+	if (from.headerSize && !to.headerSize) {
+		to.headerSize = from.headerSize;
+	}
 }
 
 } // namespace
@@ -209,12 +212,13 @@ void Player::videoPlayedTill(crl::time position) {
 	trackPlayedTill(*_video, _information.video.state, position);
 }
 
-bool Player::fileReady(Stream &&video, Stream &&audio) {
+bool Player::fileReady(int headerSize, Stream &&video, Stream &&audio) {
 	_waitingForData = false;
 
 	const auto weak = base::make_weak(&_sessionGuard);
 	const auto ready = [=](const Information &data) {
 		crl::on_main(weak, [=, data = data]() mutable {
+			data.headerSize = headerSize;
 			streamReady(std::move(data));
 		});
 	};
@@ -702,7 +706,9 @@ void Player::stop(bool stillActive) {
 	_durationByPackets = 0;
 	_durationByLastAudioPacket = 0;
 	_durationByLastVideoPacket = 0;
+	const auto header = _information.headerSize;
 	_information = Information();
+	_information.headerSize = header;
 }
 
 std::optional<Error> Player::failed() const {
@@ -801,6 +807,7 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 		? getCurrentReceivedTill(result.length)
 		: 0;
 	result.frequency = kMsFrequency;
+	result.fileHeaderSize = _information.headerSize;
 
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();

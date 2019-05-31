@@ -251,7 +251,8 @@ void File::Context::start(crl::time position) {
 		return;
 	}
 
-	if (!_delegate->fileReady(std::move(video), std::move(audio))) {
+	const auto header = _reader->headerSize();
+	if (!_delegate->fileReady(header, std::move(video), std::move(audio))) {
 		return fail(Error::OpenFailed);
 	}
 	_format = std::move(format);

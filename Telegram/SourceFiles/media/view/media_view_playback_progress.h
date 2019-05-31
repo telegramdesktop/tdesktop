@@ -29,20 +29,22 @@ public:
 	void setValue(float64 value, bool animated);
 	float64 value() const;
 
-	void updateState(const Player::TrackState &state);
+	void updateState(
+		const Player::TrackState &state,
+		float64 loadedTillPercent = 0.);
 	void updateLoadingState(float64 progress);
 
 private:
 	bool valueAnimationCallback(float64 now);
-	bool receivedTillAnimationCallback(float64 now);
-	void setReceivedTill(float64 value);
+	bool availableTillAnimationCallback(float64 now);
+	void setAvailableTill(float64 value);
 	void emitUpdatedValue();
 
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation, because
 	// Simple-s pauses mtproto responses/updates handling while playing.
-	anim::value a_value, a_receivedTill;
-	Ui::Animations::Basic _valueAnimation, _receivedTillAnimation;
+	anim::value a_value, a_availableTill;
+	Ui::Animations::Basic _valueAnimation, _availableTillAnimation;
 	Fn<void(float64,float64)> _valueChanged;
 
 	bool _inLoadingState = false;
@@ -50,7 +52,7 @@ private:
 
 	int64 _position = 0;
 	int64 _length = 0;
-	int64 _receivedTill = -1;
+	int64 _availableTill = -1;
 
 	bool _playing = false;
 

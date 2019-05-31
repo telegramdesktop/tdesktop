@@ -154,8 +154,20 @@ void PlaybackControls::fadeUpdated(float64 opacity) {
 
 void PlaybackControls::updatePlayback(const Player::TrackState &state) {
 	updatePlayPauseResumeState(state);
-	_playbackProgress->updateState(state);
+	_playbackProgress->updateState(state, countDownloadedTillPercent(state));
 	updateTimeTexts(state);
+}
+
+float64 PlaybackControls::countDownloadedTillPercent(
+		const Player::TrackState &state) const {
+	if (_loadingReady > 0 && _loadingReady == _loadingTotal) {
+		return 1.;
+	}
+	const auto header = state.fileHeaderSize;
+	if (!header || _loadingReady <= header || _loadingTotal <= header) {
+		return 0.;
+	}
+	return (_loadingReady - header) / float64(_loadingTotal - header);
 }
 
 void PlaybackControls::setLoadingProgress(int ready, int total) {

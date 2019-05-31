@@ -17,6 +17,7 @@ enum class Error;
 class FileDelegate {
 public:
 	[[nodiscard]] virtual bool fileReady(
+		int headerSize,
 		Stream &&video,
 		Stream &&audio) = 0;
 	virtual void fileError(Error error) = 0;
