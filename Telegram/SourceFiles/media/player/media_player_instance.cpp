@@ -65,6 +65,7 @@ struct Instance::Streamed {
 	Streaming::Player player;
 	Streaming::Information info;
 	View::PlaybackProgress progress;
+	bool clearing = false;
 };
 
 Instance::Streamed::Streamed(
@@ -164,9 +165,10 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 }
 
 void Instance::clearStreamed(not_null<Data*> data) {
-	if (!data->streamed) {
+	if (!data->streamed || data->streamed->clearing) {
 		return;
 	}
+	data->streamed->clearing = true;
 	data->streamed->player.stop();
 	data->isPlaying = false;
 	requestRoundVideoResize();
