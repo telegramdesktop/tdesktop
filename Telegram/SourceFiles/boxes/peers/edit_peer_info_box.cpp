@@ -524,12 +524,19 @@ void Controller::showEditLinkedChatBox() {
 		_linkedChatUpdates.fire_copy(result);
 		refreshHistoryVisibility();
 	};
+	const auto canEdit = channel->isBroadcast()
+		? channel->canEditInformation()
+		: (channel->canPinMessages()
+			&& (channel->amCreator() || channel->adminRights() != 0)
+			&& (!channel->hiddenPreHistory()
+				|| channel->canEditPreHistoryHidden()));
+
 	if (const auto chat = *_linkedChatSavedValue) {
 		*box = Ui::show(
-			EditLinkedChatBox(channel, chat, callback),
+			EditLinkedChatBox(channel, chat, canEdit, callback),
 			LayerOption::KeepOther);
 		return;
-	} else if (_linkedChatsRequestId) {
+	} else if (!canEdit || _linkedChatsRequestId) {
 		return;
 	} else if (channel->isMegagroup()) {
 		// Restore original linked channel.
@@ -779,16 +786,12 @@ void Controller::fillManageSection() {
 			: false;
 	}();
 
-	const auto canEditLinkedChat = [&] {
+	const auto canViewOrEditLinkedChat = [&] {
 		return !isChannel
 			? false
-			: channel->isBroadcast()
-			? channel->canEditInformation()
-			: (channel->linkedChat()
-				&& channel->canPinMessages()
-				&& (channel->amCreator() || channel->adminRights() != 0)
-				&& (!channel->hiddenPreHistory()
-					|| channel->canEditPreHistoryHidden()));
+			: channel->linkedChat()
+			? true
+			: (channel->isBroadcast() && channel->canEditInformation());
 	}();
 
 	AddSkip(_controls.buttonsLayout, 0);
@@ -798,7 +801,7 @@ void Controller::fillManageSection() {
 	} else if (canEditInviteLink) {
 		fillInviteLinkButton();
 	}
-	if (canEditLinkedChat) {
+	if (canViewOrEditLinkedChat) {
 		fillLinkedChatButton();
 	}
 	if (canEditSignatures) {
@@ -810,7 +813,7 @@ void Controller::fillManageSection() {
 	if (canEditPreHistoryHidden
 		|| canEditSignatures
 		|| canEditInviteLink
-		|| canEditLinkedChat
+		|| canViewOrEditLinkedChat
 		|| canEditUsername) {
 		AddSkip(
 			_controls.buttonsLayout,

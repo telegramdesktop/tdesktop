@@ -277,8 +277,9 @@ object_ptr<BoxContent> EditLinkedChatBox(
 		not_null<ChannelData*> channel,
 		ChannelData *chat,
 		std::vector<not_null<PeerData*>> &&chats,
+		bool canEdit,
 		Fn<void(ChannelData*)> callback) {
-	Expects(channel->isBroadcast() || (chat != nullptr));
+	Expects((channel->isBroadcast() && canEdit) || (chat != nullptr));
 
 	const auto init = [=](not_null<PeerListBox*> box) {
 		auto above = object_ptr<Ui::VerticalLayout>(box);
@@ -291,7 +292,7 @@ object_ptr<BoxContent> EditLinkedChatBox(
 		box->peerListSetAboveWidget(std::move(above));
 
 		auto below = object_ptr<Ui::VerticalLayout>(box);
-		if (chat) {
+		if (chat && canEdit) {
 			below->add(SetupUnlink(below, channel, callback));
 		}
 		below->add(
@@ -318,12 +319,18 @@ object_ptr<BoxContent> EditLinkedChatBox(
 		not_null<ChannelData*> channel,
 		std::vector<not_null<PeerData*>> &&chats,
 		Fn<void(ChannelData*)> callback) {
-	return EditLinkedChatBox(channel, nullptr, std::move(chats), callback);
+	return EditLinkedChatBox(
+		channel,
+		nullptr,
+		std::move(chats),
+		true,
+		callback);
 }
 
 object_ptr<BoxContent> EditLinkedChatBox(
 		not_null<ChannelData*> channel,
 		not_null<ChannelData*> chat,
+		bool canEdit,
 		Fn<void(ChannelData*)> callback) {
-	return EditLinkedChatBox(channel, chat, {}, callback);
+	return EditLinkedChatBox(channel, chat, {}, canEdit, callback);
 }

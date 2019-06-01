@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 object_ptr<BoxContent> EditLinkedChatBox(
 	not_null<ChannelData*> channel,
 	not_null<ChannelData*> chat,
+	bool canEdit,
 	Fn<void(ChannelData*)> callback);
 
 object_ptr<BoxContent> EditLinkedChatBox(
