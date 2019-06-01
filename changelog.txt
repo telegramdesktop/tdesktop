@@ -1,3 +1,7 @@
+1.7.3 (01.06.19)
+
+- Bug fixes and other minor improvements.
+
 1.7.2 (31.05.19)
 
 - Choose who can see your phone number with granular precision in Privacy & Security settings.
