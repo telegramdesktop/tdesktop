@@ -1102,7 +1102,7 @@ void Controller::saveLinkedChat() {
 	}
 
 	const auto chat = *_savingData.linkedChat;
-	if (channel->isBroadcast() && chat->hiddenPreHistory()) {
+	if (channel->isBroadcast() && chat && chat->hiddenPreHistory()) {
 		togglePreHistoryHidden(
 			chat,
 			false,
