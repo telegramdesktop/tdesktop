@@ -191,6 +191,7 @@ protected:
 private:
 	void resizeToText();
 	QPixmap grabCheckCache() const;
+	int countTextMinWidth() const;
 
 	const style::Checkbox &_st;
 	std::unique_ptr<AbstractCheckView> _check;

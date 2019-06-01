@@ -408,10 +408,23 @@ Checkbox::Checkbox(
 : RippleButton(parent, st.ripple)
 , _st(st)
 , _check(std::move(check))
-, _text(_st.style, text, _checkboxOptions, (_st.width > 0) ? _st.width : QFIXED_MAX) {
+, _text(
+		_st.style,
+		text,
+		_checkboxOptions,
+		countTextMinWidth()) {
 	_check->setUpdateCallback([=] { updateCheck(); });
 	resizeToText();
 	setCursor(style::cur_pointer);
+}
+
+int Checkbox::countTextMinWidth() const {
+	const auto leftSkip = _st.checkPosition.x()
+		+ checkRect().width()
+		+ _st.textPosition.x();
+	return (_st.width > 0)
+		? std::max(_st.width - leftSkip, 1)
+		: QFIXED_MAX;
 }
 
 QRect Checkbox::checkRect() const {
