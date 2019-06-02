@@ -34,6 +34,10 @@ dialogsPhotoSize: 46px;
 dialogsPhotoPadding: 12px;
 dialogsPadding: point(10px, 8px);
 
+dialogsOnlineBadgeSizePadding: 4px;
+dialogsOnlineBadgeSize: 8px;
+dialogsOnlineBadgeRightSkip: 2px;
+
 dialogsImportantBarHeight: 37px;
 
 dialogsSkip: 8px;

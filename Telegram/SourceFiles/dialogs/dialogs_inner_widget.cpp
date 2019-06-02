@@ -177,6 +177,34 @@ InnerWidget::InnerWidget(
 			UpdateRowSection::Default | UpdateRowSection::Filtered);
 	}, lifetime());
 
+	const auto handleUserOnline = [=](const Notify::PeerUpdate &peerUpdate) {
+		if (peerUpdate.peer->isSelf()) {
+			return;
+		}
+		const auto circleSize = st::dialogsOnlineBadgeSize
+			+ st::dialogsOnlineBadgeSizePadding;
+		const auto updateRect = QRect(
+			st::dialogsPadding.x()
+				+ st::dialogsPhotoSize
+				- st::dialogsOnlineBadgeRightSkip
+				- circleSize,
+			st::dialogsPadding.y()
+				+ st::dialogsPhotoSize
+				- circleSize,
+			circleSize,
+			circleSize);
+		updateDialogRow(
+			RowDescriptor(
+				session().data().history(peerUpdate.peer->id),
+				FullMsgId()),
+			updateRect,
+			UpdateRowSection::Default | UpdateRowSection::Filtered);
+	};
+
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
+		Notify::PeerUpdate::Flag::UserOnlineChanged,
+		handleUserOnline));
+
 	session().data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder == _openedFolder);

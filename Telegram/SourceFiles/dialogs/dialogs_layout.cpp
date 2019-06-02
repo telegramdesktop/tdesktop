@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "dialogs/dialogs_list.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_window.h"
 #include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
+#include "data/data_peer_values.h"
 
 namespace Dialogs {
 namespace Layout {
@@ -202,6 +204,7 @@ enum class Flag {
 	Selected         = 0x02,
 	SearchResult     = 0x04,
 	SavedMessages    = 0x08,
+	UserOnline       = 0x10,
 	//FeedSearchResult = 0x10, // #feed
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
@@ -249,12 +252,57 @@ void paintRow(
 			fullWidth,
 			st::dialogsPhotoSize);
 	} else if (from) {
-		from->paintUserpicLeft(
-			p,
-			st::dialogsPadding.x(),
-			st::dialogsPadding.y(),
-			fullWidth,
-			st::dialogsPhotoSize);
+		if (flags & Flag::UserOnline) {
+			auto frame = QImage(
+				st::dialogsPhotoSize * cRetinaFactor(),
+				st::dialogsPhotoSize * cRetinaFactor(),
+				QImage::Format_ARGB32_Premultiplied);
+			frame.setDevicePixelRatio(cRetinaFactor());
+			frame.fill(Qt::transparent);
+			{
+				const auto size = st::dialogsOnlineBadgeSize;
+				const auto paddingSize = st::dialogsOnlineBadgeSizePadding;
+				const auto circleSize = size + paddingSize;
+				const auto offset = size + paddingSize / 2;
+				const auto x = st::dialogsPadding.x() + st::dialogsPhotoSize - st::dialogsOnlineBadgeRightSkip - size;
+				const auto y = st::dialogsPadding.y() + st::dialogsPhotoSize - size;
+
+				Painter q(&frame);
+				PainterHighQualityEnabler hq(q);
+				from->paintUserpicLeft(
+						q,
+						0,
+						0,
+						fullWidth,
+						st::dialogsPhotoSize);
+				q.setPen(Qt::NoPen);
+				q.setBrush(Qt::transparent);
+				q.setCompositionMode(QPainter::CompositionMode_SourceOut);
+				q.drawEllipse(
+					x - circleSize,
+					y - circleSize,
+					circleSize,
+					circleSize);
+
+				q.setBrush(active
+					? st::dialogsOnlineBadgeFgActive
+					: st::dialogsOnlineBadgeFg);
+				q.setCompositionMode(QPainter::CompositionMode_Source);
+				q.drawEllipse(
+					x - offset,
+					y - offset,
+					size,
+					size);
+			}
+			p.drawImage(st::dialogsPadding, frame);
+		} else {
+			from->paintUserpicLeft(
+				p,
+				st::dialogsPadding.x(),
+				st::dialogsPadding.y(),
+				fullWidth,
+				st::dialogsPhotoSize);
+		}
 	} else if (hiddenSenderInfo) {
 		hiddenSenderInfo->userpic.paint(
 			p,
@@ -648,8 +696,14 @@ void RowPainter::paint(
 			? history->peer->migrateTo()
 			: history->peer.get())
 		: nullptr;
+	const auto showUserOnline = peer
+		&& peer->isUser()
+		&& Data::OnlineTextActive(peer->asUser(), unixtime())
+		&& !(fullWidth < st::columnMinimalWidthLeft
+			&& (displayUnreadCounter || displayUnreadMark));
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
+		| (showUserOnline ? Flag::UserOnline : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = st::dialogsPadding.y()

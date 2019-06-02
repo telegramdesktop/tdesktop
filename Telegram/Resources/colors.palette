@@ -194,6 +194,7 @@ dialogsUnreadBg: windowBgActive; // chat list unread badge background for not mu
 dialogsUnreadBgMuted: #bbbbbb; // chat list unread badge background for muted chat
 dialogsUnreadFg: windowFgActive; // chat list unread badge text
 dialogsArchiveFg: #525252 | dialogsNameFg; // chat list archive name text
+dialogsOnlineBadgeFg: #4dc920 | dialogsUnreadBg; // chat list online status
 
 dialogsBgOver: windowBgOver; // chat list background with mouse over
 dialogsNameFgOver: windowBoldFgOver; // chat list name text with mouse over
@@ -225,6 +226,7 @@ dialogsSentIconFgActive: dialogsTextFgActive; // chat list sent message tick / d
 dialogsUnreadBgActive: dialogsTextFgActive; // chat list unread badge background for not muted chat for current (active) chat
 dialogsUnreadBgMutedActive: dialogsDraftFgActive; // chat list unread badge background for muted chat for current (active) chat
 dialogsUnreadFgActive: dialogsBgActive; // chat list unread badge text for current (active) chat
+dialogsOnlineBadgeFgActive: #ffffff; // chat list online status for current (active) chat
 
 dialogsRippleBg: windowBgRipple; // chat list background ripple effect
 dialogsRippleBgActive: activeButtonBgRipple; // chat list background ripple effect for current (active) chat
