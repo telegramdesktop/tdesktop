@@ -264,7 +264,7 @@ index fb609ae485..7cca45ded4 100644
 +    // Patch: Fix macOS regression. On 10.14.4, it crashes on GPU switches.
 +    // See https://bugreports.qt.io/browse/QTCREATORBUG-22215
 +    static const QAppleOperatingSystemVersion version = qt_apple_os_version();
-+    if (!(version.major == 10 && version.minor == 14 && version.patch == 4))
++    if (!(version.major == 10 && version.minor == 14 && version.patch == 4)) {
 +        attrs << NSOpenGLPFAAllowOfflineRenderers;
 +    }
  
