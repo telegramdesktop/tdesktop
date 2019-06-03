@@ -30,6 +30,9 @@
           'libswscale/libswscale.a',
         ],
       },
+      'VCManifestTool': {
+        'AdditionalManifestFiles': '<(res_loc)/winrc/Telegram.manifest',
+      }
     },
     'configurations': {
       'Debug': {
