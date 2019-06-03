@@ -78,8 +78,8 @@ parts:
     build-type: 'Release'
     artifacts: ['Telegram']
     environment:
-      - CC: gcc-7
-      - CXX: g++-7
+      - CC: gcc-8
+      - CXX: g++-8
     organize:
       Telegram: bin/Telegram
     configflags:
@@ -119,7 +119,7 @@ parts:
       - openal
       - qt
       - range-v3
-      - gcc7
+      - gcc8
 
   telegram-launcher:
     plugin: dump
@@ -323,10 +323,10 @@ parts:
         - https://github.com/telegramdesktop/hime.git
         - https://github.com/telegramdesktop/nimf.git
     environment:
-      - CC: gcc-7
-      - CXX: g++-7
-      - QMAKE_CC: gcc-7
-      - QMAKE_CXX: g++-7
+      - CC: gcc-8
+      - CXX: g++-8
+      - QMAKE_CC: gcc-8
+      - QMAKE_CXX: g++-8
     build-packages:
       - libasound2-dev
       - libdbusmenu-glib-dev
@@ -373,7 +373,7 @@ parts:
       - tests
     after:
       - libxkbcommon
-      - gcc7
+      - gcc8
     prime: [-./*]
 
   breakpad:
@@ -411,10 +411,10 @@ parts:
     prime: [-./*]
 
   # Since this is supposed to be built against ubuntu 16.04, we need to manually
-  # install gcc7, and this is a workaround to achieve this.
+  # install gcc8, and this is a workaround to achieve this.
   # This part can be safely removed when build.snapcraft.io will allow
   # to build against 18.04.
-  gcc7:
+  gcc8:
     plugin: nil
     build-packages:
       - libmpc-dev
@@ -431,7 +431,7 @@ parts:
     override-build: |
       set -x
       snapcraftctl build
-      sudo apt install gcc-7 g++-7 -o Debug::pkgProblemResolver=yes --no-install-recommends -y
-      sudo apt-mark auto gcc-7 g++-7
+      sudo apt install gcc-8 g++-8 -o Debug::pkgProblemResolver=yes --no-install-recommends -y
+      sudo apt-mark auto gcc-8 g++-8
       sudo rm -f /etc/apt/sources.list.d/ubuntu-toolchain-r.list
     prime: [-./*]
