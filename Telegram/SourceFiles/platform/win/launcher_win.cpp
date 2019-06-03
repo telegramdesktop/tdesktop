@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/wrapper_windows_h.h"
 
 #include <shellapi.h>
+#include <VersionHelpers.h>
 
 namespace Platform {
 namespace {
@@ -22,15 +23,20 @@ QString DeviceModel() {
 }
 
 QString SystemVersion() {
-	switch (QSysInfo::windowsVersion()) {
-	case QSysInfo::WV_XP: return "Windows XP";
-	case QSysInfo::WV_2003: return "Windows 2003";
-	case QSysInfo::WV_VISTA: return "Windows Vista";
-	case QSysInfo::WV_WINDOWS7: return "Windows 7";
-	case QSysInfo::WV_WINDOWS8: return "Windows 8";
-	case QSysInfo::WV_WINDOWS8_1: return "Windows 8.1";
-	case QSysInfo::WV_WINDOWS10: return "Windows 10";
-	default: return "Windows";
+	if (IsWindows10OrGreater()) {
+		return "Windows 10";
+	} else if (IsWindows8Point1OrGreater()) {
+		return "Windows 8.1";
+	} else if (IsWindows8OrGreater()) {
+		return "Windows 8";
+	} else if (IsWindows7OrGreater()) {
+		return "Windows 7";
+	} else if (IsWindowsVistaOrGreater()) {
+		return "Windows Vista";
+	} else if (IsWindowsXPOrGreater()) {
+		return "Windows XP";
+	} else {
+		return QSysInfo::prettyProductName();
 	}
 }
 

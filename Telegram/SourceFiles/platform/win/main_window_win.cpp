@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <windows.ui.notifications.h>
 
 #include <Windowsx.h>
+#include <VersionHelpers.h>
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) < (b) ? (b) : (a))
@@ -925,7 +926,7 @@ void MainWindow::psUpdateMargins() {
 	}
 	if (!_themeInited) {
 		_themeInited = true;
-		if (QSysInfo::WindowsVersion < QSysInfo::WV_WINDOWS8) {
+		if (!IsWindows8OrGreater()) {
 			if (Dlls::SetWindowTheme != nullptr) {
 				Dlls::SetWindowTheme(ps_hWnd, L" ", L" ");
 				QApplication::setStyle(QStyleFactory::create(qsl("Windows")));
