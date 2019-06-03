@@ -13,6 +13,7 @@ namespace Platform {
 [[nodiscard]] QString SystemVersionPretty();
 [[nodiscard]] QString SystemCountry();
 [[nodiscard]] QString SystemLanguage();
+[[nodiscard]] QDate WhenSystemBecomesOutdated();
 
 [[nodiscard]] constexpr bool IsWindows();
 [[nodiscard]] constexpr bool IsWindowsStoreBuild();

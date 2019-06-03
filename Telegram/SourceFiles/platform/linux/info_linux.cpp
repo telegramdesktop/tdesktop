@@ -32,4 +32,8 @@ QString SystemLanguage() {
 	return QString();
 }
 
+QDate WhenSystemBecomesOutdated() {
+	return QDate();
+}
+
 } // namespace Platform

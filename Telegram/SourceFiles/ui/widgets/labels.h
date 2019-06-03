@@ -106,6 +106,7 @@ public:
 	void setDoubleClickSelectsParagraph(bool doubleClickSelectsParagraph);
 	void setContextCopyText(const QString &copyText);
 	void setBreakEverywhere(bool breakEverywhere);
+	void setTryMakeSimilarLines(bool tryMakeSimilarLines);
 
 	int naturalWidth() const override;
 	QMargins getMargins() const override;
@@ -179,8 +180,10 @@ private:
 	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;
+	int _textWidth = 0;
 	int _fullTextHeight = 0;
 	bool _breakEverywhere = false;
+	bool _tryMakeSimilarLines = false;
 
 	style::cursor _cursor = style::cur_default;
 	bool _selectable = false;

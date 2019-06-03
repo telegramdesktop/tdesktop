@@ -165,6 +165,7 @@ private:
 
 	std::unique_ptr<Window::Controller> _controller;
 	object_ptr<TitleWidget> _title = { nullptr };
+	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<TWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
 	QPointer<BoxContent> _termsBox;

@@ -211,6 +211,13 @@ QString SystemLanguage() {
 	return QString();
 }
 
+QDate WhenSystemBecomesOutdated() {
+	if (!IsWindows7OrGreater()) {
+		return QDate(2019, 9, 1);
+	}
+	return QDate();
+}
+
 bool IsWindowsXPOrGreater() {
 	static const auto result = ::IsWindowsXPOrGreater();
 	return result;

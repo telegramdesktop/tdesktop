@@ -278,6 +278,24 @@ connectingProxyOff: icon {{ "proxy_off", menuIconFg }};
 connectingProxyOn: icon {{ "proxy_on", windowBgActive }};
 connectingDuration: 150;
 
+windowOutdatedDetails: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 100px;
+	textFg: outdatedFg;
+}
+windowOutdatedTitle: FlatLabel(windowOutdatedDetails) {
+	style: semiboldTextStyle;
+}
+windowOutdatedPadding: margins(10px, 10px, 10px, 10px);
+windowOutdatedSkip: 6px;
+windowOutdatedClose: IconButton(defaultIconButton) {
+	width: 60px;
+	height: 60px;
+	icon: icon {{ "info_close", outdatedFg }};
+	iconOver: icon {{ "info_close", outdatedFg }};
+	iconPosition: point(-1px, -1px);
+}
+
 // Mac specific
 
 macAccessoryWidth: 450.;

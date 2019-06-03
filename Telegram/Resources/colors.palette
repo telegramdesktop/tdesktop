@@ -553,3 +553,7 @@ callBarFg: dialogsNameFgActive; // phone call bar text and icons
 importantTooltipBg: toastBg;
 importantTooltipFg: toastFg;
 importantTooltipFgLink: mediaviewTextLinkFg;
+
+outdatedFg: #ffffff;
+outdateSoonBg: #e08543;
+outdatedBg: #e05745;

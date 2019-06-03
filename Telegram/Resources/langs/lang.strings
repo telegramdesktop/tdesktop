@@ -2020,6 +2020,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_create_maximum" = "You have added the maximum number of options.";
 "lng_polls_create_button" = "Create";
 
+"lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
+"lng_outdated_soon" = "Otherwise, Telegram Desktop will stop updating on {date}.";
+"lng_outdated_now" = "So that Telegram Desktop can update to newer versions.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

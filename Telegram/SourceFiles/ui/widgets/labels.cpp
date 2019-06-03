@@ -231,11 +231,14 @@ void FlatLabel::setBreakEverywhere(bool breakEverywhere) {
 	_breakEverywhere = breakEverywhere;
 }
 
+void FlatLabel::setTryMakeSimilarLines(bool tryMakeSimilarLines) {
+	_tryMakeSimilarLines = tryMakeSimilarLines;
+}
+
 int FlatLabel::resizeGetHeight(int newWidth) {
 	_allowedWidth = newWidth;
-	int textWidth = countTextWidth();
-	int textHeight = countTextHeight(textWidth);
-	return textHeight;
+	_textWidth = countTextWidth();
+	return countTextHeight(_textWidth);
 }
 
 int FlatLabel::naturalWidth() const {
@@ -247,9 +250,26 @@ QMargins FlatLabel::getMargins() const {
 }
 
 int FlatLabel::countTextWidth() const {
-	return _allowedWidth
+	const auto available = _allowedWidth
 		? _allowedWidth
 		: (_st.minWidth ? _st.minWidth : _text.maxWidth());
+	if (_allowedWidth > 0
+		&& _allowedWidth < _text.maxWidth()
+		&& _tryMakeSimilarLines) {
+		auto large = _allowedWidth;
+		auto small = _allowedWidth / 2;
+		const auto largeHeight = _text.countHeight(large);
+		while (large - small > 1) {
+			const auto middle = (large + small) / 2;
+			if (largeHeight == _text.countHeight(middle)) {
+				large = middle;
+			} else {
+				small = middle;
+			}
+		}
+		return large;
+	}
+	return available;
 }
 
 int FlatLabel::countTextHeight(int textWidth) {
@@ -816,16 +836,25 @@ void FlatLabel::paintEvent(QPaintEvent *e) {
 		p.setPen(_st.textFg);
 	}
 	p.setTextPalette(_st.palette);
-	int textWidth = width() - _st.margin.left() - _st.margin.right();
+	const auto textWidth = _textWidth
+		? _textWidth
+		: (width() - _st.margin.left() - _st.margin.right());
+	const auto textLeft = _textWidth
+		? ((_st.align & Qt::AlignLeft)
+			? _st.margin.left()
+			: (_st.align & Qt::AlignHCenter)
+			? ((width() - _textWidth) / 2)
+			: (width() - _st.margin.right() - _textWidth))
+		: _st.margin.left();
 	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
 		auto lineHeight = qMax(_st.style.lineHeight, _st.style.font->height);
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
-		_text.drawElided(p, _st.margin.left(), _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, _breakEverywhere, selection);
+		_text.drawElided(p, textLeft, _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, _breakEverywhere, selection);
 	} else {
-		_text.draw(p, _st.margin.left(), _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
+		_text.draw(p, textLeft, _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
 	}
 }
 

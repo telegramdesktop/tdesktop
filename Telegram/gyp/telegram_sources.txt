@@ -831,6 +831,8 @@
 <(src_loc)/window/window_lock_widgets.h
 <(src_loc)/window/window_main_menu.cpp
 <(src_loc)/window/window_main_menu.h
+<(src_loc)/window/window_outdated_bar.cpp
+<(src_loc)/window/window_outdated_bar.h
 <(src_loc)/window/window_peer_menu.cpp
 <(src_loc)/window/window_peer_menu.h
 <(src_loc)/window/window_slide_animation.cpp

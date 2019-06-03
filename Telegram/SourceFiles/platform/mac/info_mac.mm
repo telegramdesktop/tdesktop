@@ -114,6 +114,10 @@ QString SystemLanguage() {
 	return QString();
 }
 
+QDate WhenSystemBecomesOutdated() {
+	return QDate();
+}
+
 bool IsMac10_6OrGreater() {
 	return IsMacThatOrGreater<6>();
 }
