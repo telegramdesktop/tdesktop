@@ -283,14 +283,6 @@ bool TranslucentWindowsSupported(QPoint globalPosition) {
 	return false;
 }
 
-QString SystemCountry() {
-	return QString();
-}
-
-QString SystemLanguage() {
-	return QString();
-}
-
 void RegisterCustomScheme() {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	auto home = getHomeDir();

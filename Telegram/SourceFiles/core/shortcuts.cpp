@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "core/application.h"
 #include "media/player/media_player_instance.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "base/parse_helper.h"
 
 namespace Shortcuts {
@@ -299,7 +299,7 @@ void Manager::fillDefaults() {
 	set(qsl("alt+down"), Command::ChatNext);
 	set(qsl("ctrl+pgup"), Command::ChatPrevious);
 	set(qsl("alt+up"), Command::ChatPrevious);
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+	if (Platform::IsMac()) {
 		set(qsl("meta+tab"), Command::ChatNext);
 		set(qsl("meta+shift+tab"), Command::ChatPrevious);
 		set(qsl("meta+backtab"), Command::ChatPrevious);

@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
 #include "window/window_lock_widgets.h"
+#include "platform/platform_info.h"
 #include "data/data_user.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_cloud_manager.h"

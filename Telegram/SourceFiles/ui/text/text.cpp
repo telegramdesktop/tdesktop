@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_block.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "boxes/confirm_box.h"
 #include "mainwindow.h"
 
@@ -27,25 +27,24 @@ inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
 } // namespace
 
 bool chIsBad(QChar ch) {
-#ifdef OS_MAC_OLD
-	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206 || ch == 8288)) {
-		return true;
-	}
-#endif // OS_MAC_OLD
 	return (ch == 0)
         || (ch >= 8232 && ch < 8237)
         || (ch >= 65024 && ch < 65040 && ch != 65039)
         || (ch >= 127 && ch < 160 && ch != 156)
 
+		|| (Platform::IsMac()
+			&& !Platform::IsMac10_7OrGreater()
+			&& (ch == 8207 || ch == 8206 || ch == 8288))
+
         // qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
-        || (cPlatform() == dbipMac && ch == 6158)
+        || (Platform::IsMac() && ch == 6158)
 
         // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
-        || (cPlatform() == dbipMac
-            && ch >= 0x0B00
+		|| (Platform::IsMac10_11OrGreater()
+			&& !Platform::IsMac10_12OrGreater()
+			&& ch >= 0x0B00
             && ch <= 0x0B7F
-            && chIsDiac(ch)
-            && cIsElCapitan());
+            && chIsDiac(ch));
 }
 
 QString textcmdSkipBlock(ushort w, ushort h) {
@@ -439,7 +438,7 @@ public:
 		bool skip = false, isNewLine = multiline && chIsNewline(ch), isSpace = chIsSpace(ch), isDiac = chIsDiac(ch), isTilde = checkTilde && (ch == '~');
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
-		} else if (ch == 0xFE0F && (cPlatform() == dbipMac || cPlatform() == dbipMacOld)) {
+		} else if (ch == 0xFE0F && Platform::IsMac()) {
 			// Some sequences like 0x0E53 0xFE0F crash OS X harfbuzz text processing :(
 			skip = true;
 		} else if (isDiac) {

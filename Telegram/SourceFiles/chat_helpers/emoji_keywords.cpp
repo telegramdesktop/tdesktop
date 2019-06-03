@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "core/application.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "ui/emoji_config.h"
 #include "auth_session.h"
 #include "apiwrap.h"

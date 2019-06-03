@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
+#include "platform/platform_info.h"
 #include "window/layer_widget.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -124,12 +125,11 @@ void MainWindow::firstShow() {
 	trayIconMenu = new QMenu(this);
 #endif // else for Q_OS_WIN
 
-	auto isLinux = (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64);
 	auto notificationActionText = lang(Global::DesktopNotify()
 		? lng_disable_notifications_from_tray
 		: lng_enable_notifications_from_tray);
 
-	if (isLinux) {
+	if (Platform::IsLinux()) {
 		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()));
 		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()));
 		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
@@ -541,12 +541,11 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 }
 
 void MainWindow::updateTrayMenu(bool force) {
-    if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
+    if (!trayIconMenu || (Platform::IsWindows() && !force)) return;
 
 	auto iconMenu = trayIconMenu;
 	auto actions = iconMenu->actions();
-	auto isLinux = (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64);
-	if (isLinux) {
+	if (Platform::IsLinux()) {
 		auto minimizeAction = actions.at(1);
 		minimizeAction->setDisabled(!isVisible());
 	} else {
@@ -560,11 +559,11 @@ void MainWindow::updateTrayMenu(bool force) {
 
 		// On macOS just remove trayIcon menu if the window is not active.
 		// So we will activate the window on click instead of showing the menu.
-		if (!active && (cPlatform() == dbipMac || cPlatform() == dbipMacOld)) {
+		if (!active && Platform::IsMac()) {
 			iconMenu = nullptr;
 		}
 	}
-	auto notificationAction = actions.at(isLinux ? 2 : 1);
+	auto notificationAction = actions.at(Platform::IsLinux() ? 2 : 1);
 	auto notificationActionText = lang(Global::DesktopNotify()
 		? lng_disable_notifications_from_tray
 		: lng_enable_notifications_from_tray);
@@ -678,8 +677,7 @@ void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 void MainWindow::handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) {
 	updateIsActive(0);
-	if ((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
-		&& isActive()) {
+	if (Platform::IsMac() && isActive()) {
 		return;
 	}
 	if (reason == QSystemTrayIcon::Context) {

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "window/window_controller.h"
 #include "history/history_item_components.h"
+#include "platform/platform_info.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "observer_peer.h"
@@ -436,7 +437,7 @@ struct Data {
 	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
 
-	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
+	bool TryIPv6 = !Platform::IsWindows();
 	std::vector<ProxyData> ProxiesList;
 	ProxyData SelectedProxy;
 	ProxyData::Settings ProxySettings = ProxyData::Settings::System;

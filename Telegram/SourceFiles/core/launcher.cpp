@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "core/crash_reports.h"
 #include "core/main_queue_processor.h"
 #include "core/update_checker.h"
@@ -334,44 +335,6 @@ bool Launcher::customWorkingDir() const {
 }
 
 void Launcher::prepareSettings() {
-#ifdef Q_OS_MAC
-#ifndef OS_MAC_OLD
-	if (QSysInfo::macVersion() >= QSysInfo::MV_10_11) {
-		gIsElCapitan = true;
-	}
-#else // OS_MAC_OLD
-	if (QSysInfo::macVersion() < QSysInfo::MV_10_7) {
-		gIsSnowLeopard = true;
-	}
-#endif // OS_MAC_OLD
-#endif // Q_OS_MAC
-
-	switch (cPlatform()) {
-	case dbipWindows:
-#ifndef OS_WIN_STORE
-		gPlatformString = qsl("Windows");
-#else // OS_WIN_STORE
-		gPlatformString = qsl("WinStore");
-#endif // OS_WIN_STORE
-	break;
-	case dbipMac:
-#ifndef OS_MAC_STORE
-		gPlatformString = qsl("MacOS");
-#else // OS_MAC_STORE
-		gPlatformString = qsl("MacAppStore");
-#endif // OS_MAC_STORE
-	break;
-	case dbipMacOld:
-		gPlatformString = qsl("MacOSold");
-	break;
-	case dbipLinux64:
-		gPlatformString = qsl("Linux64bit");
-	break;
-	case dbipLinux32:
-		gPlatformString = qsl("Linux32bit");
-	break;
-	}
-
 	auto path = Platform::CurrentExecutablePath(_argc, _argv);
 	LOG(("Executable path before check: %1").arg(path));
 	if (!path.isEmpty()) {

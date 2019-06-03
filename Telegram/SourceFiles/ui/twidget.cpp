@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "core/application.h"
+#include "platform/platform_info.h"
 
 namespace Fonts {
 namespace {
@@ -134,7 +135,7 @@ void CreateWidgetStateRecursive(not_null<QWidget*> target) {
 		if (!target->isWindow()) {
 			CreateWidgetStateRecursive(target->parentWidget());
 			WidgetCreator::Create(target);
-		} else if (!cIsSnowLeopard()) {
+		} else if (!Platform::IsMac() || Platform::IsMac10_7OrGreater()) {
 			WidgetCreator::Create(target);
 		}
 	}

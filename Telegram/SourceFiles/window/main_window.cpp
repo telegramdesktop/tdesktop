@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "platform/platform_window_title.h"
+#include "platform/platform_info.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
@@ -26,9 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Window {
+namespace {
 
 constexpr auto kInactivePressTimeout = crl::time(200);
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
+
+} // namespace
 
 QImage LoadLogo() {
 	return QImage(qsl(":/gui/art/logo_256.png"));
@@ -96,7 +100,7 @@ QIcon CreateOfficialIcon() {
 
 QIcon CreateIcon() {
 	auto result = CreateOfficialIcon();
-	if (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) {
+	if (Platform::IsLinux()) {
 		return QIcon::fromTheme("telegram", result);
 	}
 	return result;
@@ -229,7 +233,7 @@ bool MainWindow::hideNoQuit() {
 			Ui::showChatsList();
 			return true;
 		}
-	} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+	} else if (Platform::IsMac()) {
 		closeWithoutDestroy();
 		updateIsActive(Global::OfflineBlurTimeout());
 		updateGlobalMenu();
@@ -335,9 +339,14 @@ HitTestResult MainWindow::hitTest(const QPoint &p) const {
 	return Window::HitTestResult::None;
 }
 
+int MainWindow::computeMinHeight() const {
+	const auto title = _title ? _title->height() : 0;
+	return title + st::windowMinHeight;
+}
+
 void MainWindow::initSize() {
 	setMinimumWidth(st::windowMinWidth);
-	setMinimumHeight((_title ? _title->height() : 0) + st::windowMinHeight);
+	setMinimumHeight(computeMinHeight());
 
 	auto position = cWindowPos();
 	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));

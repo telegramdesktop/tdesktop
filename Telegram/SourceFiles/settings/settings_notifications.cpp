@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
+#include "platform/platform_info.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "auth_session.h"
@@ -599,10 +600,9 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	const auto nativeKey = [&] {
 		if (!Platform::Notifications::Supported()) {
 			return LangKey();
-		} else if (cPlatform() == dbipWindows) {
+		} else if (Platform::IsWindows()) {
 			return lng_settings_use_windows;
-		} else if (cPlatform() == dbipLinux32
-			|| cPlatform() == dbipLinux64) {
+		} else if (Platform::IsLinux()) {
 			return lng_settings_use_native_notifications;
 		}
 		return LangKey();
@@ -619,7 +619,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		return addCheckbox(nativeKey, Global::NativeNotifications());
 	}();
 
-	const auto advancedSlide = (cPlatform() != dbipMac)
+	const auto advancedSlide = !Platform::IsMac10_8OrGreater()
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,

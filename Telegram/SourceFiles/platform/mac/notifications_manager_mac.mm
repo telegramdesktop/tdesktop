@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/notifications_manager_mac.h"
 
 #include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "platform/mac/mac_utilities.h"
 #include "history/history.h"
 #include "mainwindow.h"
@@ -141,7 +142,7 @@ bool SkipToast() {
 }
 
 bool Supported() {
-	return (cPlatform() != dbipMacOld);
+	return Platform::IsMac10_8OrGreater();
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {

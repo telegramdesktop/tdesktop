@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 
 #include "base/timer.h"
+#include "platform/platform_info.h"
 
 namespace Ui {
 namespace {
@@ -113,7 +114,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 	constexpr auto coef = 1. / (step * 10.);
 
 	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+	if (Platform::IsMac()) {
 		deltaY *= -1;
 	} else {
 		deltaX *= -1;

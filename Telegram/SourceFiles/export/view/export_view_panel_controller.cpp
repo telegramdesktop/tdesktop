@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "styles/style_export.h"
@@ -107,7 +107,7 @@ bool IsDefaultPath(const QString &path) {
 		const auto result = value.endsWith('/')
 			? value.mid(0, value.size() - 1)
 			: value;
-		return (cPlatform() == dbipWindows) ? result.toLower() : result;
+		return Platform::IsWindows() ? result.toLower() : result;
 	};
 	return (check(path) == check(File::DefaultDownloadPath()));
 }
@@ -380,7 +380,7 @@ void PanelController::saveSettings() const {
 		const auto result = value.endsWith('/')
 			? value.mid(0, value.size() - 1)
 			: value;
-		return (cPlatform() == dbipWindows) ? result.toLower() : result;
+		return Platform::IsWindows() ? result.toLower() : result;
 	};
 	auto settings = *_settings;
 	if (check(settings.path) == check(File::DefaultDownloadPath())) {

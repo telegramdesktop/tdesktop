@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_url.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "core/application.h"
 
 namespace Intro {
@@ -35,7 +35,7 @@ I'm trying to use my mobile phone number: ") + phone + qsl("\n\
 But Telegram says it's banned. Please help.\n\
 \n\
 App version: ") + version + qsl("\n\
-OS version: ") + cPlatformString() + qsl("\n\
+OS version: ") + Platform::SystemVersionPretty() + qsl("\n\
 Locale: ") + Platform::SystemLanguage();
 
 	const auto url = "mailto:?to="

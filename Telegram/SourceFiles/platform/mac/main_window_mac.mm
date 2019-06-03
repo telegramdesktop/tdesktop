@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager_default.h"
 #include "window/themes/window_theme.h"
 #include "platform/platform_notifications_manager.h"
+#include "platform/platform_info.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
@@ -400,14 +401,7 @@ MainWindow::MainWindow()
 }
 
 void MainWindow::initTouchBar() {
-	const int version = QSysInfo::macVersion();
-	constexpr int kShift = 2;
-	if (version == QSysInfo::MV_Unknown
-#ifndef OS_MAC_OLD
-		|| version == QSysInfo::MV_None
-#endif // OS_MAC_OLD
-		// Allow touch bar only starting with 10.13.
-		|| version < kShift + 13) {
+	if (!IsMac10_13OrGreater()) {
 		return;
 	}
 

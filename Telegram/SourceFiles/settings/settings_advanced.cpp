@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "core/application.h"
@@ -239,7 +240,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 }
 
 bool HasTray() {
-	return cSupportTray() || (cPlatform() == dbipWindows);
+	return cSupportTray() || Platform::IsWindows();
 }
 
 void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
@@ -277,7 +278,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		return (workMode == dbiwmWindowOnly)
 			|| (workMode == dbiwmWindowAndTray);
 	};
-	const auto taskbar = (cPlatform() == dbipWindows)
+	const auto taskbar = Platform::IsWindows()
 		? addCheckbox(
 			lng_settings_workmode_window,
 			taskbarEnabled())
@@ -322,7 +323,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 	}
 
 #ifndef OS_WIN_STORE
-	if (cPlatform() == dbipWindows) {
+	if (Platform::IsWindows()) {
 		const auto minimizedToggled = [] {
 			return cStartMinimized() && !Global::LocalPasscode();
 		};

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/launcher_linux.h"
 
+#include "platform/platform_info.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 
@@ -39,25 +40,10 @@ private:
 
 };
 
-QString DeviceModel() {
-#ifdef Q_OS_LINUX64
-	return "PC 64bit";
-#else // Q_OS_LINUX64
-	return "PC 32bit";
-#endif // Q_OS_LINUX64
-}
-
-QString SystemVersion() {
-	const auto result = getenv("XDG_CURRENT_DESKTOP");
-	const auto value = result ? QString::fromLatin1(result) : QString();
-	const auto list = value.split(':', QString::SkipEmptyParts);
-	return list.isEmpty() ? "Linux" : "Linux " + list[0];
-}
-
 } // namespace
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv, DeviceModel(), SystemVersion()) {
+: Core::Launcher(argc, argv, DeviceModelPretty(), SystemVersionPretty()) {
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {

@@ -13,6 +13,8 @@ class Launcher;
 
 namespace CrashReports {
 
+QString PlatformString();
+
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 
 struct dump {

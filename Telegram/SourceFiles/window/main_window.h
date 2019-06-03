@@ -158,6 +158,8 @@ private:
 	void showTermsDecline();
 	void showTermsDelete();
 
+	int computeMinHeight() const;
+
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
 

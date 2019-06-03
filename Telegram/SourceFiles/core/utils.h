@@ -341,14 +341,6 @@ QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
 
 static const int MatrixRowShift = 40000;
 
-enum DBIPlatform {
-	dbipWindows = 0,
-	dbipMac = 1,
-	dbipLinux64 = 2,
-	dbipLinux32 = 3,
-	dbipMacOld = 4,
-};
-
 enum DBIPeerReportSpamStatus {
 	dbiprsNoButton = 0, // hidden, but not in the cloud settings yet
 	dbiprsUnknown = 1, // contacts not loaded yet

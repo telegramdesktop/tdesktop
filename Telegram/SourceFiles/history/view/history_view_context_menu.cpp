@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 #include "data/data_channel.h"
 #include "core/file_utilities.h"
+#include "platform/platform_info.h"
 #include "window/window_peer_menu.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
@@ -181,7 +182,7 @@ void AddDocumentActions(
 	if (!document->filepath(
 			DocumentData::FilePathResolve::Checked).isEmpty()) {
 		menu->addAction(
-			lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
+			lang(Platform::IsMac()
 				? lng_context_show_in_finder
 				: lng_context_show_in_folder),
 			[=] { ShowInFolder(document); });

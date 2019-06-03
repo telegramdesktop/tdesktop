@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
+#include "platform/platform_info.h"
 #include "media/player/media_player_instance.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
@@ -1267,7 +1268,7 @@ void ListWidget::showContextMenu(
 								File::ShowInFolder(filepath);
 							});
 						_contextMenu->addAction(
-							lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
+							lang(Platform::IsMac()
 								? lng_context_show_in_finder
 								: lng_context_show_in_folder),
 							std::move(handler));

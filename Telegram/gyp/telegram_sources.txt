@@ -564,6 +564,8 @@
 <(src_loc)/platform/linux/linux_libs.h
 <(src_loc)/platform/linux/file_utilities_linux.cpp
 <(src_loc)/platform/linux/file_utilities_linux.h
+<(src_loc)/platform/linux/info_linux.cpp
+<(src_loc)/platform/linux/info_linux.h
 <(src_loc)/platform/linux/launcher_linux.cpp
 <(src_loc)/platform/linux/launcher_linux.h
 <(src_loc)/platform/linux/main_window_linux.cpp
@@ -574,6 +576,8 @@
 <(src_loc)/platform/linux/specific_linux.h
 <(src_loc)/platform/mac/file_utilities_mac.mm
 <(src_loc)/platform/mac/file_utilities_mac.h
+<(src_loc)/platform/mac/info_mac.mm
+<(src_loc)/platform/mac/info_mac.h
 <(src_loc)/platform/mac/launcher_mac.mm
 <(src_loc)/platform/mac/launcher_mac.h
 <(src_loc)/platform/mac/mac_iconv_helper.c
@@ -595,6 +599,8 @@
 <(src_loc)/platform/win/audio_win.h
 <(src_loc)/platform/win/file_utilities_win.cpp
 <(src_loc)/platform/win/file_utilities_win.h
+<(src_loc)/platform/win/info_win.cpp
+<(src_loc)/platform/win/info_win.h
 <(src_loc)/platform/win/launcher_win.cpp
 <(src_loc)/platform/win/launcher_win.h
 <(src_loc)/platform/win/main_window_win.cpp
@@ -615,6 +621,7 @@
 <(src_loc)/platform/win/wrapper_wrl_implements_h.h
 <(src_loc)/platform/platform_audio.h
 <(src_loc)/platform/platform_file_utilities.h
+<(src_loc)/platform/platform_info.h
 <(src_loc)/platform/platform_launcher.h
 <(src_loc)/platform/platform_main_window.h
 <(src_loc)/platform/platform_notifications_manager.h

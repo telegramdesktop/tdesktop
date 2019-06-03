@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/update_checker.h"
 
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "storage/localstorage.h"
@@ -495,14 +495,19 @@ bool ParseCommonMap(
 	}
 	const auto platforms = document.object();
 	const auto platform = [&] {
-		switch (cPlatform()) {
-		case dbipWindows: return "win";
-		case dbipMac: return "mac";
-		case dbipMacOld: return "mac32";
-		case dbipLinux64: return "linux";
-		case dbipLinux32: return "linux32";
+		if (Platform::IsWindows()) {
+			return "win";
+		} else if (Platform::IsMacOldBuild()) {
+			return "mac32";
+		} else if (Platform::IsMac()) {
+			return "mac";
+		} else if (Platform::IsLinux32Bit()) {
+			return "linux32";
+		} else if (Platform::IsLinux64Bit()) {
+			return "linux";
+		} else {
+			Unexpected("Platform in ParseCommonMap.");
 		}
-		Unexpected("Platform in ParseCommonMap.");
 	}();
 	const auto it = platforms.constFind(platform);
 	if (it == platforms.constEnd()) {

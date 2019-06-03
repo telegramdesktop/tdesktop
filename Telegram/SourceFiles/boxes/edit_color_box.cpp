@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/shadow.h"
+#include "platform/platform_info.h"
 #include "styles/style_mediaview.h"
 #include "ui/widgets/input_fields.h"
 
@@ -517,7 +518,7 @@ void EditColorBox::Field::wheelEvent(QWheelEvent *e) {
 	}
 
 	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+	if (Platform::IsMac()) {
 		deltaY *= -1;
 	} else {
 		deltaX *= -1;

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "data/data_session.h"
 #include "chat_helpers/emoji_sets_manager.h"
+#include "platform/platform_info.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "auth_session.h"
@@ -527,7 +528,7 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 	add(SendByType::Enter, lng_settings_send_enter);
 	add(
 		SendByType::CtrlEnter,
-		((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
+		(Platform::IsMac()
 			? lng_settings_send_cmdenter
 			: lng_settings_send_ctrlenter));
 

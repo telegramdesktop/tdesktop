@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
 #include "platform/platform_file_utilities.h"
+#include "platform/platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/update_checker.h"
 
@@ -60,12 +61,18 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 void AboutBox::showVersionHistory() {
 	if (cRealAlphaVersion()) {
 		auto url = qsl("https://tdesktop.com/");
-		switch (cPlatform()) {
-		case dbipWindows: url += qsl("win/%1.zip"); break;
-		case dbipMac: url += qsl("mac/%1.zip"); break;
-		case dbipMacOld: url += qsl("mac32/%1.zip"); break;
-		case dbipLinux32: url += qsl("linux32/%1.tar.xz"); break;
-		case dbipLinux64: url += qsl("linux/%1.tar.xz"); break;
+		if (Platform::IsWindows()) {
+			url += qsl("win/%1.zip");
+		} else if (Platform::IsMacOldBuild()) {
+			url += qsl("mac32/%1.zip");
+		} else if (Platform::IsMac()) {
+			url += qsl("mac/%1.zip");
+		} else if (Platform::IsLinux32Bit()) {
+			url += qsl("linux32/%1.tar.xz");
+		} else if (Platform::IsLinux64Bit()) {
+			url += qsl("linux/%1.tar.xz");
+		} else {
+			Unexpected("Platform value.");
 		}
 		url = url.arg(qsl("talpha%1_%2").arg(cRealAlphaVersion()).arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
 

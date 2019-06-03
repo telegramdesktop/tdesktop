@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "platform/mac/mac_touchbar.h"
 #include "platform/mac/mac_utilities.h"
+#include "platform/platform_info.h"
 #include "lang/lang_keys.h"
 #include "base/timer.h"
 #include "styles/style_window.h"
@@ -125,15 +126,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 	});
 #ifndef OS_MAC_STORE
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-#ifndef OS_MAC_OLD
-		if (QSysInfo::macVersion() < Q_MV_OSX(10, 14)) {
-#else // OS_MAC_OLD
-		if (true) {
-#endif // OS_MAC_OLD
+		if (!Platform::IsMac10_14OrGreater()) {
 			_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
 		} else {
 			// In macOS Mojave it requires accessibility features.
-			LOG(("Media key monitoring disabled in Mojave."));
+			LOG(("Media key monitoring disabled starting with Mojave."));
 		}
 	} else {
 		LOG(("Media key monitoring disabled"));

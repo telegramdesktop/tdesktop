@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "platform/platform_info.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -1558,7 +1559,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 		if (!document->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
-			_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
+			_menu->addAction(lang(Platform::IsMac() ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
 				showContextInFolder(document);
 			});
 		}

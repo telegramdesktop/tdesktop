@@ -9,41 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "platform/win/wrapper_windows_h.h"
 
 #include <shellapi.h>
 #include <VersionHelpers.h>
 
 namespace Platform {
-namespace {
-
-QString DeviceModel() {
-	return "PC";
-}
-
-QString SystemVersion() {
-	if (IsWindows10OrGreater()) {
-		return "Windows 10";
-	} else if (IsWindows8Point1OrGreater()) {
-		return "Windows 8.1";
-	} else if (IsWindows8OrGreater()) {
-		return "Windows 8";
-	} else if (IsWindows7OrGreater()) {
-		return "Windows 7";
-	} else if (IsWindowsVistaOrGreater()) {
-		return "Windows Vista";
-	} else if (IsWindowsXPOrGreater()) {
-		return "Windows XP";
-	} else {
-		return QSysInfo::prettyProductName();
-	}
-}
-
-} // namespace
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv, DeviceModel(), SystemVersion()) {
+: Core::Launcher(argc, argv, DeviceModelPretty(), SystemVersionPretty()) {
 }
 
 std::optional<QStringList> Launcher::readArgumentsHook(

@@ -157,11 +157,6 @@ DeclareSetting(QString, StartUrl);
 DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 
-DeclareReadSetting(DBIPlatform, Platform);
-DeclareReadSetting(QString, PlatformString);
-DeclareReadSetting(bool, IsElCapitan);
-DeclareReadSetting(bool, IsSnowLeopard);
-
 DeclareSetting(int, OtherOnline);
 
 typedef QMap<uint64, DBIPeerReportSpamStatus> ReportSpamStatuses;

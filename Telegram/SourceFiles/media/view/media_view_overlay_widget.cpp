@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "platform/platform_info.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
@@ -289,11 +290,11 @@ OverlayWidget::OverlayWidget()
 
 	hide();
 	createWinId();
-	if (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) {
+	if (Platform::IsLinux()) {
 		windowHandle()->setTransientParent(App::wnd()->windowHandle());
 		setWindowModality(Qt::WindowModal);
 	}
-	if (cPlatform() != dbipMac && cPlatform() != dbipMacOld) {
+	if (!Platform::IsMac()) {
 		setWindowState(Qt::WindowFullScreen);
 	}
 
@@ -646,7 +647,7 @@ void OverlayWidget::updateActions() {
 		_actions.push_back({ lang(lng_context_to_msg), SLOT(onToMessage()) });
 	}
 	if (_doc && !_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
-		_actions.push_back({ lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), SLOT(onShowInFolder()) });
+		_actions.push_back({ lang(Platform::IsMac() ? lng_context_show_in_finder : lng_context_show_in_folder), SLOT(onShowInFolder()) });
 	}
 	if ((_doc && documentContentShown()) || (_photo && _photo->loaded())) {
 		_actions.push_back({ lang(lng_mediaview_copy), SLOT(onCopy()) });

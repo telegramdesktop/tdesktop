@@ -67,23 +67,6 @@ crl::time gPasscodeLastTry = 0;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 
-#ifdef Q_OS_WIN
-DBIPlatform gPlatform = dbipWindows;
-#elif defined OS_MAC_OLD
-DBIPlatform gPlatform = dbipMacOld;
-#elif defined Q_OS_MAC
-DBIPlatform gPlatform = dbipMac;
-#elif defined Q_OS_LINUX64
-DBIPlatform gPlatform = dbipLinux64;
-#elif defined Q_OS_LINUX32
-DBIPlatform gPlatform = dbipLinux32;
-#else
-#error Unknown platform
-#endif
-QString gPlatformString;
-bool gIsElCapitan = false;
-bool gIsSnowLeopard = false;
-
 int gOtherOnline = 0;
 
 ReportSpamStatuses gReportSpamStatuses;

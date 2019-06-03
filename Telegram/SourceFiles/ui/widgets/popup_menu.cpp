@@ -9,20 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
+#include "platform/platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 
 namespace Ui {
-namespace {
-
-bool InactiveMacApplication() {
-	return (cPlatform() == dbipMac || cPlatform() == dbipMacOld)
-		&& !Platform::IsApplicationActive();
-}
-
-} // namespace
 
 PopupMenu::PopupMenu(QWidget *parent, const style::PopupMenu &st)
 : RpWidget(parent)
@@ -430,7 +423,7 @@ void PopupMenu::popup(const QPoint &p) {
 }
 
 void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source) {
-	if (!parent && InactiveMacApplication()) {
+	if (!parent && Platform::IsMac() && !Platform::IsApplicationActive()) {
 		_hiding = false;
 		_a_opacity.stop();
 		_a_show.stop();
