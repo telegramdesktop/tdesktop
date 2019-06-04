@@ -19,35 +19,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1004004,
-		"- Interface scaling for large screens, up to 300% "
-		"(up to 150% for macOS retina screens).\n"
-
-		"- Updated emoji."
-	},
-	{
-		1004005,
-		"- Listen to voice and video messages in 2X mode "
-		"if you're in a hurry.\n"
-
-		"- Find video messages in the shared voice messages section.\n"
-
-		"- Add a comment when you share posts from channels.\n"
-
-		"- View all photos and videos "
-		"in Twitter and Instagram link previews.\n"
-
-		"- Bug fixes and other minor improvements."
-	},
-	{
-		1004008,
-		"- Add emoji to media captions.\n"
-
-		"- Switch off the 'Count unread messages' option "
-		"in Settings > Notifications if you want to see "
-		"the unread chats count in the badge instead."
-	},
-	{
 		1005005,
 		"- Support for auto-download of files and music.\n"
 
@@ -84,6 +55,10 @@ std::map<int, const char*> BetaLogs() {
 	{
 		1007001,
 		"- Disable pinned messages notifications in Settings."
+	},
+	{
+		1007004,
+		"- Download video files while watching them using streaming."
 	}
 	};
 }
