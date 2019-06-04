@@ -165,8 +165,8 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			checker.start();
 		} else {
 			checker.stop();
+			setDefaultStatus(checker);
 		}
-		setDefaultStatus(checker);
 	}, toggle->lifetime());
 
 	if (install) {
@@ -184,7 +184,6 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 				cSetLastUpdateCheck(0);
 			}
 			checker.start();
-			setDefaultStatus(checker);
 		}, toggle->lifetime());
 	}
 
