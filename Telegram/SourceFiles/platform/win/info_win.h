@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "platform/platform_info.h"
+
 namespace Platform {
 
 inline constexpr bool IsWindows() {

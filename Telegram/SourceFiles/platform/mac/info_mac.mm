@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/info_mac.h"
 
+#include "platform/platform_info.h"
 #include "platform/mac/mac_utilities.h"
 
 #include <sys/sysctl.h>

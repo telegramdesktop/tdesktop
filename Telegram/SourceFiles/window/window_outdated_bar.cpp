@@ -26,7 +26,7 @@ class Bar : public Ui::RpWidget {
 public:
 	Bar(not_null<QWidget*> parent, QDate date);
 
-	int resizeGetHeight(int newWidth);
+	int resizeGetHeight(int newWidth) override;
 
 	rpl::producer<> hideClicks() const;
 
