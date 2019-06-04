@@ -28,7 +28,7 @@ GYP_CACHE_VERSION="3"
 GYP_PATCH="$UPSTREAM/Telegram/Patches/gyp.diff"
 
 RANGE_PATH="$BUILD/range-v3"
-RANGE_CACHE_VERSION="3"
+RANGE_CACHE_VERSION="4"
 
 VA_PATH="$BUILD/libva"
 VA_CACHE_VERSION="3"
@@ -216,7 +216,7 @@ buildRange() {
   rm -rf *
 
   cd "$EXTERNAL"
-  git clone --depth=1 https://github.com/ericniebler/range-v3
+  git clone --depth 1 --branch 0.5.0 https://github.com/ericniebler/range-v3
 
   cd "$EXTERNAL/range-v3"
   cp -r * "$RANGE_PATH/"
