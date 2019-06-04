@@ -41,7 +41,7 @@ void SetDefaultsForSource(Full &data, Source source) {
 	const auto channelsFileLimit = (source == Source::Channel)
 		? 0
 		: kDefaultMaxSize;
-	data.setBytesLimit(source, Type::File, channelsFileLimit);
+	data.setBytesLimit(source, Type::File, 0);
 	data.setBytesLimit(source, Type::Video, channelsFileLimit);
 	data.setBytesLimit(source, Type::Music, channelsFileLimit);
 }
