@@ -1847,14 +1847,18 @@ NotifySettings &Session::defaultNotifySettings(
 		not_null<const PeerData*> peer) {
 	return peer->isUser()
 		? _defaultUserNotifySettings
-		: _defaultChatNotifySettings;
+		: (peer->isChat() || peer->isMegagroup())
+		? _defaultChatNotifySettings
+		: _defaultBroadcastNotifySettings;
 }
 
 const NotifySettings &Session::defaultNotifySettings(
 		not_null<const PeerData*> peer) const {
 	return peer->isUser()
 		? _defaultUserNotifySettings
-		: _defaultChatNotifySettings;
+		: (peer->isChat() || peer->isMegagroup())
+		? _defaultChatNotifySettings
+		: _defaultBroadcastNotifySettings;
 }
 
 void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
