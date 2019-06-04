@@ -115,6 +115,9 @@ QString SystemLanguage() {
 }
 
 QDate WhenSystemBecomesOutdated() {
+	if (!IsMac10_10OrGreater()) {
+		return QDate(2019, 9, 1);
+	}
 	return QDate();
 }
 
