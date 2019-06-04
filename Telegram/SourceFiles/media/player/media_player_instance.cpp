@@ -395,8 +395,14 @@ void Instance::playStreamed(
 	data->streamed->player.updates(
 	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
 		handleStreamingUpdate(data, std::move(update));
-	}, [=](Streaming::Error && error) {
+	}, [=](Streaming::Error &&error) {
 		handleStreamingError(data, std::move(error));
+	}, data->streamed->player.lifetime());
+
+	data->streamed->player.fullInCache(
+	) | rpl::start_with_next([=](bool fullInCache) {
+		const auto document = data->streamed->id.audio();
+		document->setLoadedInMediaCache(fullInCache);
 	}, data->streamed->player.lifetime());
 
 	data->streamed->player.play(streamingOptions(audioId));

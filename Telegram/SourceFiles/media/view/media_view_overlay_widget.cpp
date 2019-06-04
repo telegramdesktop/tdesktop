@@ -1986,6 +1986,7 @@ void OverlayWidget::initStreaming() {
 	createStreamingObjects();
 
 	Core::App().updateNonIdle();
+
 	_streamed->player.updates(
 	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
 		handleStreamingUpdate(std::move(update));

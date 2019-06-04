@@ -1088,7 +1088,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 }
 
 void Document::drawCornerDownload(Painter &p, bool selected, const PaintContext *context) const {
-	if (_data->loaded() || !downloadInCorner()) {
+	if (_data->loaded()
+		|| _data->loadedInMediaCache()
+		|| !downloadInCorner()) {
 		return;
 	}
 	const auto size = st::overviewSmallCheck.size;
@@ -1124,7 +1126,9 @@ TextState Document::cornerDownloadTextState(
 		QPoint point,
 		StateRequest request) const {
 	auto result = TextState(parent());
-	if (!downloadInCorner() || _data->loaded()) {
+	if (!downloadInCorner()
+		|| _data->loaded()
+		|| _data->loadedInMediaCache()) {
 		return result;
 	}
 	const auto size = st::overviewSmallCheck.size;
@@ -1163,7 +1167,8 @@ TextState Document::getState(
 			_st.songThumbSize,
 			_width);
 		if (inner.contains(point)) {
-			const auto link = (_data->loading() || _data->uploading())
+			const auto link = (!downloadInCorner()
+				&& (_data->loading() || _data->uploading()))
 				? _cancell
 				: (loaded || _data->canBePlayed())
 				? _openl
