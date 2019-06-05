@@ -1,3 +1,7 @@
+1.7.5 beta (05.06.19)
+
+- Crash fix.
+
 1.7.4 beta (04.06.19)
 
 - Download video files while watching them using streaming.
