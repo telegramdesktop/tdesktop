@@ -88,7 +88,8 @@ void KeyboardStyle::paintButtonIcon(
 	using Type = HistoryMessageMarkupButton::Type;
 	const auto getIcon = [](Type type) -> const style::icon* {
 		switch (type) {
-		case Type::Url: return &st::msgBotKbUrlIcon;
+		case Type::Url:
+		case Type::Auth: return &st::msgBotKbUrlIcon;
 		case Type::SwitchInlineSame:
 		case Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
 		}
@@ -109,12 +110,12 @@ int KeyboardStyle::minButtonWidth(
 	using Type = HistoryMessageMarkupButton::Type;
 	int result = 2 * buttonPadding(), iconWidth = 0;
 	switch (type) {
-	case Type::Url: iconWidth = st::msgBotKbUrlIcon.width(); break;
+	case Type::Url:
+	case Type::Auth: iconWidth = st::msgBotKbUrlIcon.width(); break;
 	case Type::SwitchInlineSame:
 	case Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
 	case Type::Callback:
-	case Type::Game:
-	case Type::Auth: iconWidth = st::historySendingInvertedIcon.width(); break;
+	case Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
 	}
 	if (iconWidth > 0) {
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
