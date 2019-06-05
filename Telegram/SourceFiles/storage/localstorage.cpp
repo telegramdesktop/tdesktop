@@ -3193,10 +3193,12 @@ FileLocation readFileLocation(MediaKey location) {
 		location = aliasIt.value();
 	}
 
-	FileLocations::iterator i = _fileLocations.find(location);
-	if (i != _fileLocations.end()) {
-		if (i.value().inMediaCache()) {
-			int a = 0;
+	for (FileLocations::iterator i = _fileLocations.find(location); (i != _fileLocations.end()) && (i.key() == location);) {
+		if (!i.value().inMediaCache() && !i.value().check()) {
+			_fileLocationPairs.remove(i.value().fname);
+			i = _fileLocations.erase(i);
+			_writeLocations();
+			continue;
 		}
 		return i.value();
 	}
