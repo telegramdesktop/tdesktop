@@ -131,24 +131,7 @@ void SaveChannelAdmin(
 			onDone();
 		}
 	}).fail([=](const RPCError &error) {
-		if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
-			Ui::show(
-				Box<InformBox>(PeerFloodErrorText(
-					channel->isMegagroup()
-					? PeerFloodType::InviteGroup
-					: PeerFloodType::InviteChannel)),
-				LayerOption::KeepOther);
-		} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
-			Ui::show(
-				Box<InformBox>(lang(lng_error_cant_add_bot)),
-				LayerOption::KeepOther);
-		} else if (error.type() == qstr("ADMINS_TOO_MUCH")) {
-			Ui::show(
-				Box<InformBox>(lang(channel->isMegagroup()
-					? lng_error_admin_limit
-					: lng_error_admin_limit_channel)),
-				LayerOption::KeepOther);
-		}
+		ShowAddParticipantsError(error.type(), channel, { 1, user });
 		if (onFail) {
 			onFail();
 		}

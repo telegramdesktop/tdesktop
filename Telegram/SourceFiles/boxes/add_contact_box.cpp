@@ -141,6 +141,11 @@ void ShowAddParticipantsError(
 			return PeerFloodErrorText(isGroup
 				? PeerFloodType::InviteGroup
 				: PeerFloodType::InviteChannel);
+		} else if (error == qstr("ADMINS_TOO_MUCH")) {
+			const auto isGroup = (chat->isChat() || chat->isMegagroup());
+			return lang(isGroup
+				? lng_error_admin_limit
+				: lng_error_admin_limit_channel);
 		}
 		return lang(lng_failed_add_participant);
 	}();
