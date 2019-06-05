@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 
 #include "history/history_widget.h"
+#include "history/history.h" // History::session
+#include "history/history_item.h" // HistoryItem::originalText
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/abstract_box.h"
@@ -172,6 +174,34 @@ void EditLinkBox::prepare() {
 	};
 }
 
+TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
+	static const auto expression = QRegularExpression(
+		qsl("\\n?#tsf[a-z0-9_-]*[\\s#a-z0-9_-]*$"),
+		QRegularExpression::CaseInsensitiveOption);
+	const auto match = expression.match(text.text);
+	if (!match.hasMatch()) {
+		return text;
+	}
+	text.text.chop(match.capturedLength());
+	const auto length = text.text.size();
+	if (!length) {
+		return TextWithEntities();
+	}
+	for (auto i = text.entities.begin(); i != text.entities.end();) {
+		auto &entity = *i;
+		if (entity.offset() >= length) {
+			i = text.entities.erase(i);
+		} else if (entity.offset() + entity.length() > length) {
+			entity.shrinkFromRight(length - entity.offset());
+			++i;
+		}
+	}
+	if (!text.text.isEmpty() && !text.text.endsWith('\n')) {
+		text.text.append('\n');
+	}
+	return text;
+}
+
 } // namespace
 
 QString ConvertTagToMimeTag(const QString &tagId) {
@@ -284,6 +314,16 @@ void SetClipboardText(
 	if (auto data = MimeDataFromText(text)) {
 		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
+}
+
+TextWithTags PrepareEditText(not_null<HistoryItem*> item) {
+	const auto original = item->history()->session().supportMode()
+		? StripSupportHashtag(item->originalText())
+		: item->originalText();
+	return TextWithTags{
+		original.text,
+		ConvertEntitiesToTextTags(original.entities)
+	};
 }
 
 Fn<bool(

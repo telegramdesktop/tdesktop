@@ -25,6 +25,7 @@ std::unique_ptr<QMimeData> MimeDataFromText(const TextForMimeData &text);
 void SetClipboardText(
 	const TextForMimeData &text,
 	QClipboard::Mode mode = QClipboard::Clipboard);
+TextWithTags PrepareEditText(not_null<HistoryItem*> item);
 
 Fn<bool(
 	Ui::InputField::EditLinkSelection selection,

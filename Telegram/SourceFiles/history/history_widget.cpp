@@ -5879,11 +5879,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 		}
 	}
 
-	const auto original = item->originalText();
-	const auto editData = TextWithTags {
-		original.text,
-		ConvertEntitiesToTextTags(original.entities)
-	};
+	const auto editData = PrepareEditText(item);
 	const auto cursor = MessageCursor {
 		editData.text.size(),
 		editData.text.size(),
@@ -6353,12 +6349,8 @@ void HistoryWidget::escape() {
 	} else if (_isInlineBot) {
 		onInlineBotCancel();
 	} else if (_editMsgId) {
-		auto original = _replyEditMsg ? _replyEditMsg->originalText() : TextWithEntities();
-		auto editData = TextWithTags{
-			original.text,
-			ConvertEntitiesToTextTags(original.entities)
-		};
-		if (_replyEditMsg && editData != _field->getTextWithTags()) {
+		if (_replyEditMsg
+			&& PrepareEditText(_replyEditMsg) != _field->getTextWithTags()) {
 			Ui::show(Box<ConfirmBox>(
 				lang(lng_cancel_edit_post_sure),
 				lang(lng_cancel_edit_post_yes),

@@ -75,11 +75,7 @@ EditCaptionBox::EditCaptionBox(
 		}
 		doc = document;
 	}
-	const auto original = item->originalText();
-	const auto editData = TextWithTags {
-		original.text,
-		ConvertEntitiesToTextTags(original.entities)
-	};
+	const auto editData = PrepareEditText(item);
 
 	if (!_animated && (dimensions.isEmpty() || doc || !image)) {
 		if (!image) {
