@@ -34,8 +34,8 @@ constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 
 } // namespace
 
-System::System(AuthSession *session)
-: _authSession(session)
+System::System(not_null<AuthSession*> session)
+: _session(session)
 , _waitTimer([=] { showNext(); })
 , _waitForAllGroupedTimer([=] { showGrouped(); }) {
 	createManager();

@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 enum class SendFilesWay;
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Ui {
 enum class InputSubmitSettings;
 } // namespace Ui
@@ -277,12 +281,15 @@ class AuthSession final
 	: public base::has_weak_ptr
 	, private base::Subscriber {
 public:
-	AuthSession(const MTPUser &user);
+	AuthSession(not_null<Main::Account*> account, const MTPUser &user);
+	~AuthSession();
 
 	AuthSession(const AuthSession &other) = delete;
 	AuthSession &operator=(const AuthSession &other) = delete;
 
 	static bool Exists();
+
+	Main::Account &account() const;
 
 	UserId userId() const;
 	PeerId userPeerId() const;
@@ -340,10 +347,10 @@ public:
 	Support::Helper &supportHelper() const;
 	Support::Templates &supportTemplates() const;
 
-	~AuthSession();
-
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
+	const not_null<Main::Account*> _account;
 
 	AuthSessionSettings _settings;
 	base::Timer _saveDataTimer;

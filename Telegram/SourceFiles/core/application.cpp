@@ -397,7 +397,9 @@ QByteArray Application::serializeMtpAuthorization() const {
 			QDataStream stream(&result, QIODevice::WriteOnly);
 			stream.setVersion(QDataStream::Qt_5_1);
 
-			auto currentUserId = _authSession ? _authSession->userId() : 0;
+			auto currentUserId = activeAccount().sessionExists()
+				? activeAccount().session().userId()
+				: 0;
 			stream << qint32(currentUserId) << qint32(mainDcId);
 			writeKeys(stream, keys);
 			writeKeys(stream, keysToDestroy);
@@ -417,7 +419,7 @@ QByteArray Application::serializeMtpAuthorization() const {
 }
 
 void Application::setAuthSessionUserId(UserId userId) {
-	Expects(!authSession());
+	Expects(!activeAccount().sessionExists());
 
 	_private->authSessionUserId = userId;
 }
@@ -426,7 +428,7 @@ void Application::setAuthSessionFromStorage(
 		std::unique_ptr<AuthSessionSettings> data,
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion) {
-	Expects(!authSession());
+	Expects(!activeAccount().sessionExists());
 
 	DEBUG_LOG(("authSessionUserSerialized set: %1"
 		).arg(selfSerialized.size()));
@@ -441,8 +443,8 @@ AuthSessionSettings *Application::getAuthSessionSettings() {
 		return _private->storedAuthSession
 			? _private->storedAuthSession.get()
 			: nullptr;
-	} else if (_authSession) {
-		return &_authSession->settings();
+	} else if (activeAccount().sessionExists()) {
+		return &activeAccount().session().settings();
 	}
 	return nullptr;
 }
@@ -542,8 +544,8 @@ void Application::startMtp() {
 			base::take(_private->authSessionUserStreamVersion));
 	}
 	if (_private->storedAuthSession) {
-		if (_authSession) {
-			_authSession->moveSettingsFrom(
+		if (activeAccount().sessionExists()) {
+			activeAccount().session().moveSettingsFrom(
 				std::move(*_private->storedAuthSession));
 		}
 		_private->storedAuthSession.reset();
@@ -556,7 +558,7 @@ void Application::startMtp() {
 		UpdateChecker().setMtproto(mtp());
 	}
 
-	if (_authSession) {
+	if (activeAccount().sessionExists()) {
 		// Skip all pending self updates so that we won't Local::writeSelf.
 		Notify::peerUpdatedSendDelayed();
 	}
@@ -644,11 +646,14 @@ void Application::startLocalStorage() {
 			}
 		}
 	});
-	subscribe(authSessionChanged(), [=] {
-		InvokeQueued(this, [=] {
-			const auto phone = AuthSession::Exists()
-				? Auth().user()->phone()
-				: QString();
+	activeAccount().sessionChanges(
+	) | rpl::start_with_next([=] {
+		crl::on_main(this, [=] {
+			const auto phone = activeAccount().sessionExists()
+					? activeAccount().session().user()->phone()
+					: QString();
+			const auto support = activeAccount().sessionExists()
+				&& activeAccount().session().supportMode();
 			if (cLoggedPhoneNumber() != phone) {
 				cSetLoggedPhoneNumber(phone);
 				if (_mtproto) {
@@ -660,10 +665,9 @@ void Application::startLocalStorage() {
 				_mtproto->requestConfig();
 			}
 			Platform::SetApplicationIcon(Window::CreateIcon());
-			Shortcuts::ToggleSupportShortcuts(
-				_authSession && _authSession->supportMode());
+			Shortcuts::ToggleSupportShortcuts(support);
 		});
-	});
+	}, _lifetime);
 }
 
 void Application::forceLogOut(const TextWithEntities &explanation) {
@@ -768,7 +772,6 @@ void Application::writeInstallBetaVersionsSetting() {
 void Application::authSessionCreate(const MTPUser &user) {
 	Expects(_mtproto != nullptr);
 
-	_authSession = std::make_unique<AuthSession>(user);
 	_mtproto->setUpdatesHandler(::rpcDone([](
 			const mtpPrime *from,
 			const mtpPrime *end) {
@@ -777,9 +780,13 @@ void Application::authSessionCreate(const MTPUser &user) {
 		}
 	}));
 	_mtproto->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
-		crl::on_main(_authSession.get(), [=] { logOut(); });
+		if (activeAccount().sessionExists()) {
+			crl::on_main(&activeAccount().session(), [=] { logOut(); });
+		}
 		return true;
 	}));
+
+	_authSession = std::make_unique<AuthSession>(&activeAccount(), user);
 	authSessionChanged().notify(true);
 }
 
@@ -787,7 +794,7 @@ void Application::authSessionDestroy() {
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
 	_private->authSessionUserSerialized = {};
-	if (_authSession) {
+	if (activeAccount().sessionExists()) {
 		unlockTerms();
 		_mtproto->clearGlobalHandlers();
 
@@ -797,16 +804,21 @@ void Application::authSessionDestroy() {
 
 		_authSession = nullptr;
 		authSessionChanged().notify(true);
+
 		Notify::unreadCounterUpdated();
 	}
 }
 
 int Application::unreadBadge() const {
-	return _authSession ? _authSession->data().unreadBadge() : 0;
+	return activeAccount().sessionExists()
+		? activeAccount().session().data().unreadBadge()
+		: 0;
 }
 
 bool Application::unreadBadgeMuted() const {
-	return _authSession ? _authSession->data().unreadBadgeMuted() : false;
+	return activeAccount().sessionExists()
+		? activeAccount().session().data().unreadBadgeMuted()
+		: false;
 }
 
 void Application::setInternalLinkDomain(const QString &domain) const {
@@ -1030,8 +1042,8 @@ void Application::loggedOut() {
 		window->tempDirDelete(Local::ClearManagerAll);
 		window->setupIntro();
 	}
-	if (const auto session = authSession()) {
-		session->data().clearLocalStorage();
+	if (activeAccount().sessionExists()) {
+		activeAccount().session().data().clearLocalStorage();
 		authSessionDestroy();
 	}
 	if (_mediaView) {

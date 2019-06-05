@@ -55,7 +55,7 @@ class Manager;
 
 class System final : private base::Subscriber {
 public:
-	System(AuthSession *session);
+	explicit System(not_null<AuthSession*> session);
 
 	void createManager();
 
@@ -71,8 +71,8 @@ public:
 		return _settingsChanged;
 	}
 
-	AuthSession *authSession() {
-		return _authSession;
+	AuthSession &session() const {
+		return *_session;
 	}
 
 	~System();
@@ -82,7 +82,7 @@ private:
 	void showGrouped();
 	void ensureSoundCreated();
 
-	AuthSession *_authSession = nullptr;
+	not_null<AuthSession*> _session;
 
 	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
 
@@ -112,7 +112,7 @@ private:
 
 	int _lastForwardedCount = 0;
 	FullMsgId _lastHistoryItemId;
-	
+
 };
 
 class Manager {

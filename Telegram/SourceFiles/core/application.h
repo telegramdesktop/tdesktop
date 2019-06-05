@@ -153,7 +153,7 @@ public:
 	}
 
 	// Account component.
-	Main::Account &activeAccount() {
+	Main::Account &activeAccount() const {
 		return *_account;
 	}
 

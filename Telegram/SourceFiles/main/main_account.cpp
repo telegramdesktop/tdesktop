@@ -15,6 +15,9 @@ namespace Main {
 Account::Account(const QString &dataName) {
 }
 
+Account::~Account() {
+}
+
 bool Account::sessionExists() const {
 	return Core::App().authSession() != nullptr;
 }
@@ -30,6 +33,14 @@ rpl::producer<AuthSession*> Account::sessionValue() const {
 		rpl::empty_value()
 	) | rpl::then(
 		base::ObservableViewer(Core::App().authSessionChanged())
+	) | rpl::map([] {
+		return Core::App().authSession();
+	});
+}
+
+rpl::producer<AuthSession*> Account::sessionChanges() const {
+	return base::ObservableViewer(
+		Core::App().authSessionChanged()
 	) | rpl::map([] {
 		return Core::App().authSession();
 	});

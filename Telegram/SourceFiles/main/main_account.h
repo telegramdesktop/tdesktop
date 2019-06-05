@@ -14,10 +14,15 @@ namespace Main {
 class Account final {
 public:
 	explicit Account(const QString &dataName);
+	~Account();
+
+	Account(const Account &other) = delete;
+	Account &operator=(const Account &other) = delete;
 
 	[[nodiscard]] bool sessionExists() const;
 	[[nodiscard]] AuthSession &session();
 	[[nodiscard]] rpl::producer<AuthSession*> sessionValue() const;
+	[[nodiscard]] rpl::producer<AuthSession*> sessionChanges() const;
 
 	[[nodiscard]] MTP::Instance *mtp();
 

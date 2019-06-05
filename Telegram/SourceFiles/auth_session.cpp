@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/application.h"
 #include "core/changelogs.h"
+#include "main/main_account.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
@@ -408,13 +409,14 @@ rpl::producer<bool> AuthSessionSettings::notifyAboutPinnedChanges() const {
 }
 
 AuthSession &Auth() {
-	const auto result = Core::App().authSession();
-	Assert(result != nullptr);
-	return *result;
+	return Core::App().activeAccount().session();
 }
 
-AuthSession::AuthSession(const MTPUser &user)
-: _autoLockTimer([this] { checkAutoLock(); })
+AuthSession::AuthSession(
+	not_null<Main::Account*> account,
+	const MTPUser &user)
+: _account(account)
+, _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>(_api.get()))
@@ -425,7 +427,6 @@ AuthSession::AuthSession(const MTPUser &user)
 , _user(_data->processUser(user))
 , _changelogs(Core::Changelogs::Create(this))
 , _supportHelper(Support::Helper::Create(this)) {
-
 	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
 	});
@@ -465,8 +466,18 @@ AuthSession::AuthSession(const MTPUser &user)
 	Window::Theme::Background()->start();
 }
 
+AuthSession::~AuthSession() {
+	ClickHandler::clearActive();
+	ClickHandler::unpressed();
+}
+
+Main::Account &AuthSession::account() const {
+	return *_account;
+}
+
 bool AuthSession::Exists() {
-	return Core::IsAppLaunched() && (Core::App().authSession() != nullptr);
+	return Core::IsAppLaunched()
+		&& Core::App().activeAccount().sessionExists();
 }
 
 base::Observable<void> &AuthSession::downloaderTaskFinished() {
@@ -565,9 +576,4 @@ Support::Helper &AuthSession::supportHelper() const {
 
 Support::Templates& AuthSession::supportTemplates() const {
 	return supportHelper().templates();
-}
-
-AuthSession::~AuthSession() {
-	ClickHandler::clearActive();
-	ClickHandler::unpressed();
 }
