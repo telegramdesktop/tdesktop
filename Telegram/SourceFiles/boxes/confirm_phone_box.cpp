@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "core/click_handler_types.h" // UrlClickHandler
+#include "base/qthelp_url.h" // qthelp::url_encode
+#include "platform/platform_info.h" // Platform::SystemVersionPretty
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 
@@ -19,7 +22,49 @@ namespace {
 
 object_ptr<ConfirmPhoneBox> CurrentConfirmPhoneBox = { nullptr };
 
+void SendToBannedHelp(const QString &phone) {
+	const auto version = QString::fromLatin1(AppVersionStr)
+		+ (cAlphaVersion()
+			? qsl(" alpha %1").arg(cAlphaVersion())
+			: (AppBetaVersion ? " beta" : ""));
+
+	const auto subject = qsl("Banned phone number: ") + phone;
+
+	const auto body = qsl("\
+I'm trying to use my mobile phone number: ") + phone + qsl("\n\
+But Telegram says it's banned. Please help.\n\
+\n\
+App version: ") + version + qsl("\n\
+OS version: ") + Platform::SystemVersionPretty() + qsl("\n\
+Locale: ") + Platform::SystemLanguage();
+
+	const auto url = "mailto:?to="
+		+ qthelp::url_encode("login@stel.com")
+		+ "&subject="
+		+ qthelp::url_encode(subject)
+		+ "&body="
+		+ qthelp::url_encode(body);
+
+	UrlClickHandler::Open(url);
+}
+
 } // namespace
+
+void ShowPhoneBannedError(const QString &phone) {
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto close = [=] {
+		if (*box) {
+			(*box)->closeBox();
+		}
+	};
+	*box = Ui::show(Box<ConfirmBox>(
+		lang(lng_signin_banned_text),
+		lang(lng_box_ok),
+		lang(lng_signin_banned_help),
+		close,
+		[=] { SendToBannedHelp(phone); close(); }));
+
+}
 
 SentCodeField::SentCodeField(
 	QWidget *parent,

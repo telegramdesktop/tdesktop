@@ -16,6 +16,8 @@ class InputField;
 class FlatLabel;
 } // namespace Ui
 
+void ShowPhoneBannedError(const QString &phone);
+
 class SentCodeField : public Ui::InputField {
 public:
 	SentCodeField(

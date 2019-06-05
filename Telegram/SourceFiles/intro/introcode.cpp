@@ -231,7 +231,9 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 	stopCheck();
 	_sentRequest = 0;
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED")) { // show error
+	if (err == qstr("PHONE_NUMBER_INVALID")
+		|| err == qstr("PHONE_CODE_EXPIRED")
+		|| err == qstr("PHONE_NUMBER_BANNED")) { // show error
 		goBack();
 		return true;
 	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {

@@ -201,8 +201,16 @@ bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const
 		return false;
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
 		errorText = lang(lng_bad_phone);
+	} else if (error.type() == qstr("PHONE_NUMBER_BANNED")) {
+		ShowPhoneBannedError(phoneNumber);
+		_requestId = 0;
+		return true;
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
-		Ui::show(Box<InformBox>(lng_change_phone_occupied(lt_phone, App::formatPhone(phoneNumber)), lang(lng_box_ok)));
+		Ui::show(Box<InformBox>(
+			lng_change_phone_occupied(
+				lt_phone,
+				App::formatPhone(phoneNumber)),
+			lang(lng_box_ok)));
 		_requestId = 0;
 		return true;
 	}
@@ -314,7 +322,8 @@ bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 		return false;
 	} else if (error.type() == qstr("PHONE_CODE_EMPTY") || error.type() == qstr("PHONE_CODE_INVALID")) {
 		errorText = lang(lng_bad_code);
-	} else if (error.type() == qstr("PHONE_CODE_EXPIRED")) {
+	} else if (error.type() == qstr("PHONE_CODE_EXPIRED")
+		|| error.type() == qstr("PHONE_NUMBER_BANNED")) {
 		closeBox(); // Go back to phone input.
 		_requestId = 0;
 		return true;

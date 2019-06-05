@@ -146,9 +146,12 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
 		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
 		return true;
-	} else if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
-		err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID") ||
-		err == qstr("PHONE_NUMBER_OCCUPIED")) {
+	} else if (err == qstr("PHONE_NUMBER_INVALID")
+		|| err == qstr("PHONE_NUMBER_BANNED")
+		|| err == qstr("PHONE_CODE_EXPIRED")
+		|| err == qstr("PHONE_CODE_EMPTY")
+		|| err == qstr("PHONE_CODE_INVALID")
+		|| err == qstr("PHONE_NUMBER_OCCUPIED")) {
 		goBack();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
