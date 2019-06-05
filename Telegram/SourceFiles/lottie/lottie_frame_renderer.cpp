@@ -173,7 +173,7 @@ void FrameRendererObject::queueGenerateFrames() {
 
 SharedState::SharedState(const JsonObject &definition)
 : _scene(definition) {
-	if (_scene.endFrame() > _scene.startFrame()) {
+	if (_scene.isValid()) {
 		auto cover = QImage();
 		renderFrame(cover, FrameRequest::NonStrict(), 0);
 		init(std::move(cover));
@@ -319,6 +319,9 @@ not_null<const Frame*> SharedState::getFrame(int index) const {
 }
 
 Information SharedState::information() const {
+	if (!_scene.isValid()) {
+		return {};
+	}
 	auto result = Information();
 	result.frameRate = _scene.frameRate();
 	result.size = QSize(_scene.width(), _scene.height());
