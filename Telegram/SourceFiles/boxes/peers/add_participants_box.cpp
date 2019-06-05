@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "auth_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 
@@ -218,7 +220,12 @@ void AddParticipantsBoxController::Start(
 			[=] { box->closeBox(); });
 		if (justCreated) {
 			box->boxClosing() | rpl::start_with_next([=] {
-				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
+				auto params = Window::SectionShow();
+				params.activation = anim::activation::background;
+				App::wnd()->controller()->showPeerHistory(
+					channel,
+					params,
+					ShowAtTheEndMsgId);
 			}, box->lifetime());
 		}
 	};
