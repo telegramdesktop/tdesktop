@@ -2439,9 +2439,27 @@ int ApiWrap::OnlineTillFromStatus(
 void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 	auto deleteTillId = MsgId(0);
 	if (const auto history = _session->data().historyLoaded(peer)) {
-		if (const auto last = history->lastMessage()) {
-			deleteTillId = last->id;
+		while (history->lastMessageKnown()) {
+			const auto last = history->lastMessage();
+			if (!last) {
+				// History is empty.
+				return;
+			} else if (!IsServerMsgId(last->id)) {
+				// Destroy client-side message locally.
+				last->destroy();
+			} else {
+				break;
+			}
 		}
+		if (!history->lastMessageKnown()) {
+			requestDialogEntry(history, [=] {
+				Expects(history->lastMessageKnown());
+
+				clearHistory(peer, revoke);
+			});
+			return;
+		}
+		deleteTillId = history->lastMessage()->id;
 		history->clear(History::ClearType::ClearHistory);
 	}
 	if (const auto channel = peer->asChannel()) {
