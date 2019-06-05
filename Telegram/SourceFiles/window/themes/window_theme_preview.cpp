@@ -498,12 +498,10 @@ void Generator::paintComposeArea() {
 	auto inner = QRect(QPoint(attachEmojiLeft + (st::historyAttachEmoji.width - st::historyEmojiCircle.width()) / 2, controlsTop + st::historyEmojiCircleTop), st::historyEmojiCircle);
 	_p->drawEllipse(inner);
 
-	const auto fakeMargin = (cScale() - 100) / 25;
-
-	auto fieldLeft = _composeArea.x() + st::historyAttach.width + fakeMargin;
-	auto fieldTop = _composeArea.y() + _composeArea.height() - st::historyAttach.height + st::historySendPadding + fakeMargin;
-	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - st::historyAttachEmoji.width - 2 * fakeMargin;
-	auto fieldHeight = st::historySendSize.height() - 2 * st::historySendPadding - 2 * fakeMargin;
+	auto fieldLeft = _composeArea.x() + st::historyAttach.width;
+	auto fieldTop = _composeArea.y() + _composeArea.height() - st::historyAttach.height + st::historySendPadding;
+	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - st::historyAttachEmoji.width;
+	auto fieldHeight = st::historySendSize.height() - 2 * st::historySendPadding;
 	auto field = QRect(fieldLeft, fieldTop, fieldWidth, fieldHeight);
 	_p->fillRect(field, st::historyComposeField.textBg[_palette]);
 
@@ -513,11 +511,11 @@ void Generator::paintComposeArea() {
 	_p->setPen(st::historyComposeField.placeholderFg[_palette]);
 
 	auto placeholderRect = QRect(
-		field.x() + st::historyComposeField.textMargins.left() - fakeMargin + st::historyComposeField.placeholderMargins.left(),
-		field.y() + st::historyComposeField.textMargins.top() - fakeMargin + st::historyComposeField.placeholderMargins.top(),
+		field.x() + st::historyComposeField.textMargins.left() + st::historyComposeField.placeholderMargins.left(),
+		field.y() + st::historyComposeField.textMargins.top() + st::historyComposeField.placeholderMargins.top(),
 		field.width() - st::historyComposeField.textMargins.left() - st::historyComposeField.textMargins.right(),
 		field.height() - st::historyComposeField.textMargins.top() - st::historyComposeField.textMargins.bottom());
-	_p->drawText(placeholderRect, lang(lng_message_ph), QTextOption(st::historyComposeField.textAlign));
+	_p->drawText(placeholderRect, lang(lng_message_ph), QTextOption(st::historyComposeField.placeholderAlign));
 
 	_p->restore();
 	_p->setClipping(false);
@@ -767,23 +765,40 @@ void Generator::paintBubble(const Bubble &bubble) {
 		// rescale waveform by going in waveform.size * bar_count 1D grid
 		auto active = bubble.outbg ? st::msgWaveformOutActive[_palette] : st::msgWaveformInActive[_palette];
 		auto inactive = bubble.outbg ? st::msgWaveformOutInactive[_palette] : st::msgWaveformInInactive[_palette];
-		int32 wf_size = bubble.waveform.size(), availw = namewidth + st::msgWaveformSkip;
-		int32 bar_count = wf_size;
-		int32 max_delta = st::msgWaveformMax - st::msgWaveformMin;
+		auto wf_size = bubble.waveform.size();
+		auto availw = namewidth + st::msgWaveformSkip;
+		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
+		auto max_value = 0;
+		auto max_delta = st::msgWaveformMax - st::msgWaveformMin;
 		auto wave_bottom = y + st::msgFilePadding.top() + st::msgWaveformMax;
 		_p->setPen(Qt::NoPen);
 		auto norm_value = uchar(31);
-		for (auto i = 0, bar_x = 0; i != wf_size; ++i) {
-			uchar value = bubble.waveform[i];
-			auto max_value = value;
-			int32 bar_value = ((max_value * max_delta) + ((norm_value + 1) / 2)) / (norm_value + 1);
+		for (auto i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
+			auto value = bubble.waveform[i];
+			if (sum_i + bar_count >= wf_size) { // draw bar
+				sum_i = sum_i + bar_count - wf_size;
+				if (sum_i < (bar_count + 1) / 2) {
+					if (max_value < value) max_value = value;
+				}
+				auto bar_value = ((max_value * max_delta) + ((norm_value + 1) / 2)) / (norm_value + 1);
 
-			if (i >= bubble.waveactive) {
-				_p->fillRect(nameleft + bar_x, wave_bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, inactive);
+				if (i >= bubble.waveactive) {
+					_p->fillRect(nameleft + bar_x, wave_bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, inactive);
+				} else {
+					_p->fillRect(nameleft + bar_x, wave_bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, active);
+				}
+				bar_x += st::msgWaveformBar + st::msgWaveformSkip;
+
+				if (sum_i < (bar_count + 1) / 2) {
+					max_value = 0;
+				} else {
+					max_value = value;
+				}
 			} else {
-				_p->fillRect(nameleft + bar_x, wave_bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, active);
+				if (max_value < value) max_value = value;
+
+				sum_i += bar_count;
 			}
-			bar_x += st::msgWaveformBar + st::msgWaveformSkip;
 		}
 
 		auto status = bubble.outbg ? st::mediaOutFg[_palette] : st::mediaInFg[_palette];
