@@ -2957,7 +2957,7 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	}
 	if (!_menu && e->key() == Qt::Key_Escape) {
-		if (_doc && _doc->loading()) {
+		if (_doc && _doc->loading() && !_streamed) {
 			onDocClick();
 		} else {
 			close();
