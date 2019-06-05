@@ -348,6 +348,8 @@ void CodeWidget::onNoTelegramCode() {
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
+	_noTelegramCodeRequestId = 0;
+
 	if (result.type() != mtpc_auth_sentCode) {
 		showCodeError(&Lang::Hard::ServerError);
 		return;
@@ -369,11 +371,15 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 
 bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
+		_noTelegramCodeRequestId = 0;
 		showCodeError(langFactory(lng_flood_error));
 		return true;
 	}
-	if (MTP::isDefaultHandledError(error)) return false;
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
 
+	_noTelegramCodeRequestId = 0;
 	if (Logs::DebugEnabled()) { // internal server error
 		auto text = error.type() + ": " + error.description();
 		showCodeError([text] { return text; });
