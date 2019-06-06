@@ -19,6 +19,9 @@ public:
 	Account(const Account &other) = delete;
 	Account &operator=(const Account &other) = delete;
 
+	void createSession(const MTPUser &user);
+	void destroySession();
+
 	[[nodiscard]] bool sessionExists() const;
 	[[nodiscard]] AuthSession &session();
 	[[nodiscard]] rpl::producer<AuthSession*> sessionValue() const;
@@ -27,6 +30,8 @@ public:
 	[[nodiscard]] MTP::Instance *mtp();
 
 private:
+	std::unique_ptr<AuthSession> _session;
+	rpl::variable<AuthSession*> _sessionValue;
 
 };
 

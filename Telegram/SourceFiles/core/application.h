@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "base/timer.h"
 
-class AuthSession;
 class AuthSessionSettings;
 class MainWidget;
 class FileUploader;
@@ -158,13 +157,7 @@ public:
 	}
 
 	// AuthSession component.
-	AuthSession *authSession() {
-		return _authSession.get();
-	}
 	void authSessionCreate(const MTPUser &user);
-	base::Observable<void> &authSessionChanged() {
-		return _authSessionChanged;
-	}
 	int unreadBadge() const;
 	bool unreadBadgeMuted() const;
 	void logOut();
@@ -289,8 +282,6 @@ private:
 	std::unique_ptr<MTP::Instance> _mtproto;
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;
 	rpl::event_stream<> _configUpdates;
-	std::unique_ptr<AuthSession> _authSession;
-	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
 	QPointer<BoxContent> _badProxyDisableBox;
 

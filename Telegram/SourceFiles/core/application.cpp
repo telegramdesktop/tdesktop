@@ -786,8 +786,7 @@ void Application::authSessionCreate(const MTPUser &user) {
 		return true;
 	}));
 
-	_authSession = std::make_unique<AuthSession>(&activeAccount(), user);
-	authSessionChanged().notify(true);
+	activeAccount().createSession(user);
 }
 
 void Application::authSessionDestroy() {
@@ -798,12 +797,7 @@ void Application::authSessionDestroy() {
 		unlockTerms();
 		_mtproto->clearGlobalHandlers();
 
-		// Must be called before Auth().data() is destroyed,
-		// because streaming media holds pointers to it.
-		Media::Player::instance()->handleLogout();
-
-		_authSession = nullptr;
-		authSessionChanged().notify(true);
+		activeAccount().destroySession();
 
 		Notify::unreadCounterUpdated();
 	}

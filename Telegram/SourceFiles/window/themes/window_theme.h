@@ -154,7 +154,6 @@ private:
 	void keepApplied(const QString &path, bool write);
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
-	void refreshSession();
 	void checkUploadWallPaper();
 	[[nodiscard]] bool testingPalette() const;
 
@@ -190,6 +189,8 @@ private:
 	FullMsgId _wallPaperUploadId;
 	mtpRequestId _wallPaperRequestId = 0;
 	rpl::lifetime _wallPaperUploadLifetime;
+
+	rpl::lifetime _lifetime;
 
 };
 

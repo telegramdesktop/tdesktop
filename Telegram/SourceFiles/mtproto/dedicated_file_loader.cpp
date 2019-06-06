@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "auth_session.h"
 #include "core/application.h"
+#include "main/main_account.h" // Account::sessionChanges.
 
 namespace MTP {
 namespace {
@@ -89,11 +90,12 @@ WeakInstance::WeakInstance(QPointer<MTP::Instance> instance)
 		_instance = nullptr;
 		die();
 	});
-	subscribe(Core::App().authSessionChanged(), [=] {
-		if (!AuthSession::Exists()) {
-			die();
-		}
-	});
+	Core::App().activeAccount().sessionChanges(
+	) | rpl::filter([](AuthSession *session) {
+		return !session;
+	}) | rpl::start_with_next([=] {
+		die();
+	}, _lifetime);
 }
 
 bool WeakInstance::valid() const {

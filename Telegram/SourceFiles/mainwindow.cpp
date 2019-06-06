@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "auth_session.h"
 #include "intro/introwidget.h"
+#include "main/main_account.h" // Account::sessionValue.
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
@@ -80,12 +81,13 @@ MainWindow::MainWindow() {
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	subscribe(Core::App().authSessionChanged(), [this] {
+	Core::App().activeAccount().sessionValue(
+	) | rpl::start_with_next([=](AuthSession *session) {
 		updateGlobalMenu();
-		if (!AuthSession::Exists()) {
+		if (!session) {
 			_mediaPreview.destroy();
 		}
-	});
+	}, lifetime());
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});

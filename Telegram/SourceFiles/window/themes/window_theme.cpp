@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
 #include "data/data_session.h"
+#include "main/main_account.h" // Account::sessionValue.
 #include "ui/image/image.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
@@ -391,23 +392,20 @@ void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 }
 
 void ChatBackground::start() {
-	if (Data::details::IsUninitializedWallPaper(_paper)) {
-		if (!Local::readBackground()) {
-			set(Data::ThemeWallPaper());
-		}
-		refreshSession();
-		subscribe(Core::App().authSessionChanged(), [=] {
-			refreshSession();
-		});
+	if (!Data::details::IsUninitializedWallPaper(_paper)) {
+		return;
 	}
-}
+	if (!Local::readBackground()) {
+		set(Data::ThemeWallPaper());
+	}
 
-void ChatBackground::refreshSession() {
-	const auto session = AuthSession::Exists() ? &Auth() : nullptr;
-	if (_session != session) {
+	Core::App().activeAccount().sessionValue(
+	) | rpl::filter([=](AuthSession *session) {
+		return session != _session;
+	}) | rpl::start_with_next([=](AuthSession *session) {
 		_session = session;
 		checkUploadWallPaper();
-	}
+	}, _lifetime);
 }
 
 void ChatBackground::checkUploadWallPaper() {

@@ -34,6 +34,7 @@ private:
 
 	QPointer<Instance> _instance;
 	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
+	rpl::lifetime _lifetime;
 
 };
 

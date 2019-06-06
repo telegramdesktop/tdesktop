@@ -148,7 +148,6 @@ protected:
 		QSystemTrayIcon::ActivationReason reason) = 0;
 
 private:
-	void checkAuthSession();
 	void updatePalette();
 	void updateUnreadCounter();
 	void initSize();

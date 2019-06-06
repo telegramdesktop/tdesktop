@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
+#include "main/main_account.h" // Account::sessionValue.
 #include "mainwindow.h"
 #include "auth_session.h"
 
@@ -93,9 +94,10 @@ Instance::Instance()
 	});
 
 	// While we have one Media::Player::Instance for all authsessions we have to do this.
-	const auto handleAuthSessionChange = [=] {
-		if (AuthSession::Exists()) {
-			subscribe(Auth().calls().currentCallChanged(), [=](Calls::Call *call) {
+	Core::App().activeAccount().sessionValue(
+	) | rpl::start_with_next([=](AuthSession *session) {
+		if (session) {
+			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
 				if (call) {
 					pauseOnCall(AudioMsgId::Type::Voice);
 					pauseOnCall(AudioMsgId::Type::Song);
@@ -104,12 +106,15 @@ Instance::Instance()
 					resumeOnCall(AudioMsgId::Type::Song);
 				}
 			});
+		} else {
+			const auto reset = [&](AudioMsgId::Type type) {
+				const auto data = getData(type);
+				*data = Data(type, data->overview);
+			};
+			reset(AudioMsgId::Type::Voice);
+			reset(AudioMsgId::Type::Song);
 		}
-	};
-	subscribe(
-		Core::App().authSessionChanged(),
-		handleAuthSessionChange);
-	handleAuthSessionChange();
+	}, _lifetime);
 
 	setupShortcuts();
 }
@@ -634,15 +639,6 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		}
 		data->isPlaying = !IsStopped(state.state);
 	}
-}
-
-void Instance::handleLogout() {
-	const auto reset = [&](AudioMsgId::Type type) {
-		const auto data = getData(type);
-		*data = Data(type, data->overview);
-	};
-	reset(AudioMsgId::Type::Voice);
-	reset(AudioMsgId::Type::Song);
 }
 
 void Instance::setupShortcuts() {

@@ -156,8 +156,6 @@ public:
 
 	void documentLoadProgress(DocumentData *document);
 
-	void handleLogout();
-
 private:
 	using SharedMediaType = Storage::SharedMediaType;
 	using SliceKey = SparseIdsMergedSlice::Key;

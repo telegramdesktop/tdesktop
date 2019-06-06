@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
+#include "main/main_account.h" // Account::sessionValue.
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "layout.h"
@@ -242,14 +243,15 @@ OverlayWidget::OverlayWidget()
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
 	// While we have one mediaview for all authsessions we have to do this.
-	auto handleAuthSessionChange = [this] {
-		if (AuthSession::Exists()) {
-			subscribe(Auth().downloaderTaskFinished(), [this] {
+	Core::App().activeAccount().sessionValue(
+	) | rpl::start_with_next([=](AuthSession *session) {
+		if (session) {
+			subscribe(session->downloaderTaskFinished(), [=] {
 				if (!isHidden()) {
 					updateControls();
 				}
 			});
-			subscribe(Auth().calls().currentCallChanged(), [this](Calls::Call *call) {
+			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
 				if (!_streamed) {
 					return;
 				}
@@ -259,12 +261,12 @@ OverlayWidget::OverlayWidget()
 					playbackResumeOnCall();
 				}
 			});
-			subscribe(Auth().documentUpdated, [this](DocumentData *document) {
+			subscribe(session->documentUpdated, [=](DocumentData *document) {
 				if (!isHidden()) {
 					documentUpdated(document);
 				}
 			});
-			subscribe(Auth().messageIdChanging, [this](std::pair<not_null<HistoryItem*>, MsgId> update) {
+			subscribe(session->messageIdChanging, [=](std::pair<not_null<HistoryItem*>, MsgId> update) {
 				changingMsgId(update.first, update.second);
 			});
 		} else {
@@ -272,11 +274,7 @@ OverlayWidget::OverlayWidget()
 			_userPhotos = nullptr;
 			_collage = nullptr;
 		}
-	};
-	subscribe(Core::App().authSessionChanged(), [handleAuthSessionChange] {
-		handleAuthSessionChange();
-	});
-	handleAuthSessionChange();
+	}, lifetime());
 
 #ifdef Q_OS_LINUX
 	setWindowFlags(Qt::FramelessWindowHint | Qt::MaximizeUsingFullscreenGeometryHint);

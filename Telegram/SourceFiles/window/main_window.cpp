@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "window/window_outdated_bar.h"
 #include "boxes/confirm_box.h"
+#include "main/main_account.h" // Account::authSessionValue.
 #include "core/click_handler_types.h"
 #include "core/application.h"
 #include "core/sandbox.h"
@@ -125,11 +126,14 @@ MainWindow::MainWindow()
 	subscribe(Global::RefWorkMode(), [=](DBIWorkMode mode) {
 		workmodeUpdated(mode);
 	});
-	subscribe(Core::App().authSessionChanged(), [=] {
-		checkAuthSession();
+
+	Core::App().activeAccount().sessionValue(
+	) | rpl::start_with_next([=](AuthSession *session) {
+		_controller = session
+			? std::make_unique<Window::Controller>(session, this)
+			: nullptr;
 		updateWindowIcon();
-	});
-	checkAuthSession();
+	}, lifetime());
 
 	Core::App().termsLockValue(
 	) | rpl::start_with_next([=] {
@@ -636,14 +640,6 @@ void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 	ClickHandler::unpressed();
 	if (weak) {
 		weak->dragFinished().notify();
-	}
-}
-
-void MainWindow::checkAuthSession() {
-	if (AuthSession::Exists()) {
-		_controller = std::make_unique<Window::Controller>(&Auth(), this);
-	} else {
-		_controller = nullptr;
 	}
 }
 
