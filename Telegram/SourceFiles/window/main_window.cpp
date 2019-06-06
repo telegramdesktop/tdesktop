@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_outdated_bar.h"
+#include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "main/main_account.h" // Account::authSessionValue.
 #include "core/click_handler_types.h"
@@ -108,8 +109,9 @@ QIcon CreateIcon() {
 	return result;
 }
 
-MainWindow::MainWindow()
-: _positionUpdatedTimer([=] { savePosition(); })
+MainWindow::MainWindow(not_null<Controller*> controller)
+: _controller(controller)
+, _positionUpdatedTimer([=] { savePosition(); })
 , _outdated(CreateOutdatedBar(this))
 , _body(this)
 , _icon(CreateIcon())
@@ -126,14 +128,6 @@ MainWindow::MainWindow()
 	subscribe(Global::RefWorkMode(), [=](DBIWorkMode mode) {
 		workmodeUpdated(mode);
 	});
-
-	Core::App().activeAccount().sessionValue(
-	) | rpl::start_with_next([=](AuthSession *session) {
-		_controller = session
-			? std::make_unique<Window::SessionController>(session, this)
-			: nullptr;
-		updateWindowIcon();
-	}, lifetime());
 
 	Core::App().termsLockValue(
 	) | rpl::start_with_next([=] {
@@ -154,6 +148,10 @@ MainWindow::MainWindow()
 
 	_isActiveTimer.setCallback([this] { updateIsActive(0); });
 	_inactivePressTimer.setCallback([this] { setInactivePress(false); });
+}
+
+Window::SessionController *MainWindow::sessionController() const {
+	return _controller->sessionController();
 }
 
 void MainWindow::checkLockByTerms() {

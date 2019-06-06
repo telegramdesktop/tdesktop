@@ -15,6 +15,7 @@ class BoxContent;
 
 namespace Window {
 
+class Controller;
 class SessionController;
 class TitleWidget;
 struct TermsLock;
@@ -28,11 +29,12 @@ class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
-	MainWindow();
+	explicit MainWindow(not_null<Controller*> controller);
 
-	Window::SessionController *sessionController() const {
-		return _controller.get();
+	not_null<Window::Controller*> controller() const {
+		return _controller;
 	}
+	Window::SessionController *sessionController() const;
 	void setInactivePress(bool inactive);
 	bool wasInactivePress() const {
 		return _wasInactivePress;
@@ -83,6 +85,8 @@ public:
 
 	rpl::producer<> leaveEvents() const;
 
+	virtual void updateWindowIcon();
+
 public slots:
 	bool minimizeToTray();
 	void updateGlobalMenu() {
@@ -109,8 +113,6 @@ protected:
 	void clearWidgets();
 	virtual void clearWidgetsHook() {
 	}
-
-	virtual void updateWindowIcon();
 
 	virtual void stateChangedHook(Qt::WindowState state) {
 	}
@@ -159,10 +161,11 @@ private:
 
 	int computeMinHeight() const;
 
+	not_null<Window::Controller*> _controller;
+
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
 
-	std::unique_ptr<Window::SessionController> _controller;
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<TWidget> _body;

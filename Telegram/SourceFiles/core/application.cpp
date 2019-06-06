@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "storage/serialize_common.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/connection_box.h"
@@ -171,12 +172,11 @@ void Application::run() {
 	// Create mime database, so it won't be slow later.
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
-	_window = std::make_unique<MainWindow>();
-	_window->init();
+	_window = std::make_unique<Window::Controller>(&activeAccount());
 
-	auto currentGeometry = _window->geometry();
+	const auto currentGeometry = _window->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_window->setGeometry(currentGeometry);
+	_window->widget()->setGeometry(currentGeometry);
 
 	QCoreApplication::instance()->installEventFilter(this);
 	connect(
@@ -223,8 +223,8 @@ void Application::run() {
 bool Application::hideMediaView() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->hide();
-		if (auto activeWindow = getActiveWindow()) {
-			activeWindow->reActivateWindow();
+		if (const auto window = activeWindow()) {
+			window->reActivate();
 		}
 		return true;
 	}
@@ -966,7 +966,7 @@ rpl::producer<bool> Application::lockValue() const {
 		_1 || _2);
 }
 
-MainWindow *Application::getActiveWindow() const {
+Window::Controller *Application::activeWindow() const {
 	return _window.get();
 }
 
@@ -974,10 +974,8 @@ bool Application::closeActiveWindow() {
 	if (hideMediaView()) {
 		return true;
 	}
-	if (auto activeWindow = getActiveWindow()) {
-		if (!activeWindow->hideNoQuit()) {
-			activeWindow->close();
-		}
+	if (const auto window = activeWindow()) {
+		window->close();
 		return true;
 	}
 	return false;
@@ -985,19 +983,19 @@ bool Application::closeActiveWindow() {
 
 bool Application::minimizeActiveWindow() {
 	hideMediaView();
-	if (auto activeWindow = getActiveWindow()) {
-		if (Global::WorkMode().value() == dbiwmTrayOnly) {
-			activeWindow->minimizeToTray();
-		} else {
-			activeWindow->setWindowState(Qt::WindowMinimized);
-		}
+	if (const auto window = activeWindow()) {
+		window->minimize();
 		return true;
 	}
 	return false;
 }
 
 QWidget *Application::getFileDialogParent() {
-	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView.get() : (QWidget*)getActiveWindow();
+	return (_mediaView && _mediaView->isVisible())
+		? (QWidget*)_mediaView.get()
+		: activeWindow()
+		? (QWidget*)activeWindow()->widget()
+		: nullptr;
 }
 
 void Application::checkMediaViewActivation() {
@@ -1032,7 +1030,7 @@ void Application::loggedOut() {
 	clearPasscodeLock();
 	Media::Player::mixer()->stopAndClear();
 	Global::SetVoiceMsgPlaybackDoubled(false);
-	if (const auto window = getActiveWindow()) {
+	if (const auto window = activeWindow()) {
 		window->tempDirDelete(Local::ClearManagerAll);
 		window->setupIntro();
 	}
@@ -1051,12 +1049,8 @@ void Application::loggedOut() {
 }
 
 QPoint Application::getPointForCallPanelCenter() const {
-	if (auto activeWindow = getActiveWindow()) {
-		Assert(activeWindow->windowHandle() != nullptr);
-		if (activeWindow->isActive()) {
-			return activeWindow->geometry().center();
-		}
-		return activeWindow->windowHandle()->screen()->geometry().center();
+	if (const auto window = activeWindow()) {
+		return window->getPointForCallPanelCenter();
 	}
 	return QApplication::desktop()->screenGeometry().center();
 }

@@ -21,7 +21,7 @@ class MainWindow : public Window::MainWindow {
 	Q_OBJECT
 
 public:
-	MainWindow();
+	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	HWND psHwnd() const;
 	HMENU psMenu() const;

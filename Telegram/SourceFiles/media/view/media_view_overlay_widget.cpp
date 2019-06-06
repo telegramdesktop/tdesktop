@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
+#include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "observer_peer.h"
 #include "auth_session.h"
@@ -326,8 +327,10 @@ void OverlayWidget::moveToScreen(bool force) {
 		}
 		return nullptr;
 	};
-	const auto activeWindow = Core::App().getActiveWindow();
-	const auto activeWindowScreen = widgetScreen(activeWindow);
+	const auto window = Core::App().activeWindow()
+		? Core::App().activeWindow()->widget().get()
+		: nullptr;
+	const auto activeWindowScreen = widgetScreen(window);
 	const auto myScreen = widgetScreen(this);
 	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
 		windowHandle()->setScreen(activeWindowScreen);

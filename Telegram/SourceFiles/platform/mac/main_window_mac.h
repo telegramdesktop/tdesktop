@@ -18,7 +18,7 @@ class MainWindow : public Window::MainWindow {
 	Q_OBJECT
 
 public:
-	MainWindow();
+	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	void psFirstShow();
 	void psInitSysMenu();
@@ -37,7 +37,7 @@ public:
 
 	~MainWindow();
 
-	class Private;
+	void updateWindowIcon() override;
 
 public slots:
 	void psShowTrayMenu();
@@ -56,7 +56,6 @@ protected:
 	void handleActiveChangedHook() override;
 	void stateChangedHook(Qt::WindowState state) override;
 	void initHook() override;
-	void updateWindowIcon() override;
 	void titleVisibilityChangedHook() override;
 	void unreadCounterChangedHook() override;
 
@@ -83,13 +82,15 @@ protected:
 	void closeWithoutDestroy() override;
 
 private:
+	class Private;
+	friend class Private;
+
 	void initTouchBar();
 	void hideAndDeactivate();
 	void createGlobalMenu();
 	void updateTitleCounter();
 	void updateIconCounters();
 
-	friend class Private;
 	std::unique_ptr<Private> _private;
 
 	mutable bool psIdle;

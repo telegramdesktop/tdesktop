@@ -66,7 +66,8 @@ void FeedLangTestingKey(int key) {
 
 } // namespace
 
-MainWindow::MainWindow() {
+MainWindow::MainWindow(not_null<Window::Controller*> controller)
+: Platform::MainWindow(controller) {
 	auto logo = Core::App().logo();
 	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = logo.scaledToWidth(32, Qt::SmoothTransformation);

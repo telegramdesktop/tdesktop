@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class AuthSessionSettings;
+class MainWindow;
 class MainWidget;
 class FileUploader;
 class Translator;
@@ -23,6 +24,7 @@ class Databases;
 
 namespace Window {
 struct TermsLock;
+class Controller;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -89,7 +91,7 @@ public:
 	}
 
 	// Windows interface.
-	MainWindow *getActiveWindow() const;
+	Window::Controller *activeWindow() const;
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	QWidget *getFileDialogParent();
@@ -272,7 +274,7 @@ private:
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
 	const std::unique_ptr<Main::Account> _account;
-	std::unique_ptr<MainWindow> _window;
+	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::CloudManager> _langCloudManager;

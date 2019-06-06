@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "platform/platform_notifications_manager.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
@@ -102,8 +103,8 @@ namespace App {
 	}
 
 	MainWindow *wnd() {
-		return Core::IsAppLaunched()
-			? Core::App().getActiveWindow()
+		return (Core::IsAppLaunched() && Core::App().activeWindow())
+			? Core::App().activeWindow()->widget().get()
 			: nullptr;
 	}
 

@@ -15,7 +15,7 @@ class MainWindow : public Window::MainWindow {
 	Q_OBJECT
 
 public:
-	MainWindow();
+	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	void psFirstShow();
 	void psInitSysMenu();

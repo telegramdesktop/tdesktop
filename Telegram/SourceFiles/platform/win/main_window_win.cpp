@@ -598,8 +598,9 @@ bool handleSessionNotification = false;
 
 UINT MainWindow::_taskbarCreatedMsgId = 0;
 
-MainWindow::MainWindow()
-: ps_tbHider_hWnd(createTaskbarHider()) {
+MainWindow::MainWindow(not_null<Window::Controller*> controller)
+: Window::MainWindow(controller)
+, ps_tbHider_hWnd(createTaskbarHider()) {
 	if (!_taskbarCreatedMsgId) {
 		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}

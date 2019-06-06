@@ -44,7 +44,7 @@ class MainWindow : public Platform::MainWindow {
 	Q_OBJECT
 
 public:
-	MainWindow();
+	explicit MainWindow(not_null<Window::Controller*> controller);
 	~MainWindow();
 
 	void firstShow();

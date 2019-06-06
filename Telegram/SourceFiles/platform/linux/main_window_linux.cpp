@@ -193,7 +193,8 @@ quint32 djbStringHash(QString string) {
 
 } // namespace
 
-MainWindow::MainWindow() {
+MainWindow::MainWindow(not_null<Window::Controller*> controller)
+: Window::MainWindow(controller) {
 	connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
 	_psCheckStatusIconTimer.setSingleShot(false);
 

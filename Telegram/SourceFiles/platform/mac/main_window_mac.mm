@@ -381,8 +381,9 @@ MainWindow::Private::~Private() {
 	[_observer release];
 }
 
-MainWindow::MainWindow()
-: _private(std::make_unique<Private>(this)) {
+MainWindow::MainWindow(not_null<Window::Controller*> controller)
+: Window::MainWindow(controller)
+, _private(std::make_unique<Private>(this)) {
 #ifndef OS_MAC_OLD
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 #endif // !OS_MAC_OLD
