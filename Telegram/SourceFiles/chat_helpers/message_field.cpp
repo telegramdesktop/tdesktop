@@ -180,7 +180,7 @@ TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 		QRegularExpression::CaseInsensitiveOption);
 	const auto match = expression.match(text.text);
 	if (!match.hasMatch()) {
-		return text;
+		return std::move(text);
 	}
 	text.text.chop(match.capturedLength());
 	const auto length = text.text.size();
@@ -199,7 +199,7 @@ TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 	if (!text.text.isEmpty() && !text.text.endsWith('\n')) {
 		text.text.append('\n');
 	}
-	return text;
+	return std::move(text);
 }
 
 } // namespace
