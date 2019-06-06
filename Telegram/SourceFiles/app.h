@@ -68,7 +68,6 @@ namespace App {
 	void addSavedGif(DocumentData *doc);
 	void checkSavedGif(HistoryItem *item);
 	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	void hoveredItem(HistoryView::Element *item);
 	HistoryView::Element *hoveredItem();

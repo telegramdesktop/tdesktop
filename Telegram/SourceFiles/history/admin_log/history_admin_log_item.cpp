@@ -603,6 +603,12 @@ void GenerateItems(
 		}
 	};
 
+	auto createChangeLocation = [&](const MTPDchannelAdminLogEventActionChangeLocation &action) {
+		const auto now = (action.vnew_value.type() != mtpc_channelLocationEmpty);
+		auto text = (now ? lng_admin_log_changed_location_chat : lng_admin_log_removed_location_chat)(lt_from, fromLinkText);
+		addSimpleServiceMessage(text);
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -641,6 +647,8 @@ void GenerateItems(
 		createStopPoll(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &data) {
 		createChangeLinkedChat(data);
+	}, [&](const MTPDchannelAdminLogEventActionChangeLocation &data) {
+		createChangeLocation(data);
 	});
 }
 

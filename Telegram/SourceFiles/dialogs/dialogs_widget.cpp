@@ -779,6 +779,8 @@ bool Widget::onSearchMessages(bool searchCache) {
 		} else {
 			_searchRequest = MTP::send(
 				MTPmessages_SearchGlobal(
+					MTP_flags(0),
+					MTP_int(0), // folder_id
 					MTP_string(_searchQuery),
 					MTP_int(0),
 					MTP_inputPeerEmpty(),
@@ -916,6 +918,8 @@ void Widget::onSearchMore() {
 			} else {
 				_searchRequest = MTP::send(
 					MTPmessages_SearchGlobal(
+						MTP_flags(0),
+						MTP_int(0), // folder_id
 						MTP_string(_searchQuery),
 						MTP_int(_searchNextRate),
 						offsetPeer

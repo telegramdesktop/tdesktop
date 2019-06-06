@@ -261,11 +261,11 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (update.has_profile_photo()) {
 		user->owner().processPhoto(update.vprofile_photo);
 	}
-	update.vlink.match([&](const MTPDcontacts_link & link) {
-		App::feedUserLink(
-			MTP_int(peerToUser(user->id)),
-			link.vmy_link,
-			link.vforeign_link);
+	update.vsettings.match([&](const MTPDpeerSettings &data) {
+		//App::feedUserLink(
+		//	MTP_int(peerToUser(user->id)),
+		//	link.vmy_link,
+		//	link.vforeign_link);
 	});
 	user->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(user->input),

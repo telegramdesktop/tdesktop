@@ -142,41 +142,41 @@ namespace App {
 		}
 	}
 
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
-		if (const auto user = Auth().data().userLoaded(userId.v)) {
-			const auto wasShowPhone = (user->contactStatus() == UserData::ContactStatus::CanAdd);
-			switch (myLink.type()) {
-			case mtpc_contactLinkContact:
-				user->setContactStatus(UserData::ContactStatus::Contact);
-			break;
-			case mtpc_contactLinkNone:
-			case mtpc_contactLinkUnknown:
-				user->setContactStatus(UserData::ContactStatus::PhoneUnknown);
-			break;
-			}
-			if (user->contactStatus() == UserData::ContactStatus::PhoneUnknown
-				&& !user->phone().isEmpty()
-				&& user->id != Auth().userPeerId()) {
-				user->setContactStatus(UserData::ContactStatus::CanAdd);
-			}
+	//void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
+	//	if (const auto user = Auth().data().userLoaded(userId.v)) {
+	//		const auto wasShowPhone = (user->contactStatus() == UserData::ContactStatus::CanAdd);
+	//		switch (myLink.type()) {
+	//		case mtpc_contactLinkContact:
+	//			user->setContactStatus(UserData::ContactStatus::Contact);
+	//		break;
+	//		case mtpc_contactLinkNone:
+	//		case mtpc_contactLinkUnknown:
+	//			user->setContactStatus(UserData::ContactStatus::PhoneUnknown);
+	//		break;
+	//		}
+	//		if (user->contactStatus() == UserData::ContactStatus::PhoneUnknown
+	//			&& !user->phone().isEmpty()
+	//			&& user->id != Auth().userPeerId()) {
+	//			user->setContactStatus(UserData::ContactStatus::CanAdd);
+	//		}
 
-			const auto showPhone = !user->isServiceUser()
-				&& !user->isSelf()
-				&& user->contactStatus() == UserData::ContactStatus::CanAdd;
-			const auto showPhoneChanged = !user->isServiceUser()
-				&& !user->isSelf()
-				&& (showPhone != wasShowPhone);
-			if (showPhoneChanged) {
-				user->setName(
-					TextUtilities::SingleLine(user->firstName),
-					TextUtilities::SingleLine(user->lastName),
-					showPhone
-						? App::formatPhone(user->phone())
-						: QString(),
-					TextUtilities::SingleLine(user->username));
-			}
-		}
-	}
+	//		const auto showPhone = !user->isServiceUser()
+	//			&& !user->isSelf()
+	//			&& user->contactStatus() == UserData::ContactStatus::CanAdd;
+	//		const auto showPhoneChanged = !user->isServiceUser()
+	//			&& !user->isSelf()
+	//			&& (showPhone != wasShowPhone);
+	//		if (showPhoneChanged) {
+	//			user->setName(
+	//				TextUtilities::SingleLine(user->firstName),
+	//				TextUtilities::SingleLine(user->lastName),
+	//				showPhone
+	//					? App::formatPhone(user->phone())
+	//					: QString(),
+	//				TextUtilities::SingleLine(user->username));
+	//		}
+	//	}
+	//}
 
 	QString peerName(const PeerData *peer, bool forDialogs) {
 		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : lang(lng_deleted);

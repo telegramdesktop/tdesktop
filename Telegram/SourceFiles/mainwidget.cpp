@@ -4214,9 +4214,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateContactLink: {
-		const auto &d = update.c_updateContactLink();
-		App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link);
+	case mtpc_updatePeerSettings: {
+		//const auto &d = update.c_updateContactLink();
+		//App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link);
 	} break;
 
 	case mtpc_updateNotifySettings: {

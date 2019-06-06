@@ -638,7 +638,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 	_creationRequestId = request(MTPchannels_CreateChannel(
 		MTP_flags(flags),
 		MTP_string(title),
-		MTP_string(description)
+		MTP_string(description),
+		MTPInputGeoPoint(), // geo_point
+		MTPstring() // address
 	)).done([=](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 
@@ -1212,6 +1214,7 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : 
 	resize(width(), 5 * _rowHeight);
 
 	request(MTPchannels_GetAdminedPublicChannels(
+		MTP_flags(0)
 	)).done([=](const MTPmessages_Chats &result) {
 		const auto &chats = result.match([](const auto &data) {
 			return data.vchats.v;

@@ -618,16 +618,10 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 		App::peerName(user));
 	const auto deleteSure = [=] {
 		Ui::hideLayer();
-		user->session().api().request(MTPcontacts_DeleteContact(
-			user->inputUser
-		)).done([=](const MTPcontacts_Link &result) {
-			result.match([&](const MTPDcontacts_link &data) {
-				user->owner().processUser(data.vuser);
-				App::feedUserLink(
-					MTP_int(peerToUser(user->id)),
-					data.vmy_link,
-					data.vforeign_link);
-			});
+		user->session().api().request(MTPcontacts_DeleteContacts(
+			MTP_vector<MTPInputUser>(1, user->inputUser)
+		)).done([=](const MTPUpdates &result) {
+			user->session().api().applyUpdates(result);
 		}).send();
 	};
 	Ui::show(Box<ConfirmBox>(

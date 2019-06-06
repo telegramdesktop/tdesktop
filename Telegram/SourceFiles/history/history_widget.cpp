@@ -1962,7 +1962,7 @@ void HistoryWidget::updateReportSpamStatus() {
 				setReportSpamStatus(dbiprsHidden);
 				if (!_peer->isUser()
 					|| _peer->asUser()->contactStatus() != UserData::ContactStatus::Contact) {
-					MTP::send(MTPmessages_HideReportSpam(_peer->input));
+					MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
 				}
 
 				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
@@ -1981,7 +1981,7 @@ void HistoryWidget::updateReportSpamStatus() {
 					setReportSpamStatus(dbiprsHidden);
 					if (!_peer->isUser()
 						|| _peer->asUser()->contactStatus() != UserData::ContactStatus::Contact) {
-						MTP::send(MTPmessages_HideReportSpam(_peer->input));
+						MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
 					}
 				} else {
 					setReportSpamStatus(i.value());
@@ -2012,18 +2012,26 @@ void HistoryWidget::updateReportSpamStatus() {
 }
 
 void HistoryWidget::requestReportSpamSetting() {
-	if (_reportSpamSettingRequestId >= 0 || !_peer) return;
+	if (_reportSpamSettingRequestId >= 0 || !_peer) {
+		return;
+	}
 
-	_reportSpamSettingRequestId = MTP::send(MTPmessages_GetPeerSettings(_peer->input), rpcDone(&HistoryWidget::reportSpamSettingDone), rpcFail(&HistoryWidget::reportSpamSettingFail));
+	_reportSpamSettingRequestId = MTP::send(
+		MTPmessages_GetPeerSettings(_peer->input),
+		rpcDone(&HistoryWidget::reportSpamSettingDone),
+		rpcFail(&HistoryWidget::reportSpamSettingFail));
 }
 
 void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req) {
-	if (req != _reportSpamSettingRequestId) return;
+	if (req != _reportSpamSettingRequestId) {
+		return;
+	}
 
 	_reportSpamSettingRequestId = 0;
-	if (result.type() == mtpc_peerSettings) {
-		auto &d = result.c_peerSettings();
-		auto status = d.is_report_spam() ? dbiprsShowButton : dbiprsHidden;
+	result.match([&](const MTPDpeerSettings &data) {
+		const auto status = data.is_report_spam()
+			? dbiprsShowButton
+			: dbiprsHidden;
 		if (status != _reportSpamStatus) {
 			setReportSpamStatus(status);
 			if (_reportSpamPanel) {
@@ -2035,7 +2043,7 @@ void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequ
 
 			updateControlsVisibility();
 		}
-	}
+	});
 }
 
 bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId req) {
@@ -4704,7 +4712,7 @@ void HistoryWidget::onReportSpamHide() {
 		cRefReportSpamStatuses().insert(_peer->id, dbiprsHidden);
 		Local::writeReportSpamStatuses();
 
-		MTP::send(MTPmessages_HideReportSpam(_peer->input));
+		MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
 	}
 	setReportSpamStatus(dbiprsHidden);
 	updateControlsVisibility();

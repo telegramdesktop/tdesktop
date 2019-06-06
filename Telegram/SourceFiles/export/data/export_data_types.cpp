@@ -172,7 +172,10 @@ std::vector<TextPart> ParseText(
 			[](const MTPDinputMessageEntityMentionName&) {
 				return Type::MentionName; },
 			[](const MTPDmessageEntityPhone&) { return Type::Phone; },
-			[](const MTPDmessageEntityCashtag&) { return Type::Cashtag; });
+			[](const MTPDmessageEntityCashtag&) { return Type::Cashtag; },
+			[](const MTPDmessageEntityUnderline&) { return Type::Underline; },
+			[](const MTPDmessageEntityStrike&) { return Type::Strike; },
+			[](const MTPDmessageEntityBlockquote&) { return Type::Blockquote; });
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
