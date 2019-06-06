@@ -58,18 +58,14 @@ bool UserData::canShareThisContact() const {
 		|| !owner().findContactPhone(peerToUser(id)).isEmpty();
 }
 
-void UserData::setContactStatus(ContactStatus status) {
-	if (_contactStatus != status) {
-		const auto changed = (_contactStatus == ContactStatus::Contact)
-			!= (status == ContactStatus::Contact);
-		_contactStatus = status;
-		if (changed) {
-			Notify::peerUpdatedDelayed(
-				this,
-				Notify::PeerUpdate::Flag::UserIsContact);
-		}
+void UserData::setIsContact(bool is) {
+	if (_isContact != is) {
+		_isContact = is;
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::UserIsContact);
 	}
-	if (_contactStatus == ContactStatus::Contact
+	if (_isContact
 		&& cReportSpamStatuses().value(id, dbiprsHidden) != dbiprsHidden) {
 		cRefReportSpamStatuses().insert(id, dbiprsHidden);
 		Local::writeReportSpamStatuses();
@@ -262,6 +258,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->owner().processPhoto(update.vprofile_photo);
 	}
 	update.vsettings.match([&](const MTPDpeerSettings &data) {
+		//user->owner().processUserSettings(data);
 		//App::feedUserLink(
 		//	MTP_int(peerToUser(user->id)),
 		//	link.vmy_link,

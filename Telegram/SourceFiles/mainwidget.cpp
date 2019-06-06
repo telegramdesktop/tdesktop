@@ -4181,7 +4181,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateUserName: {
 		auto &d = update.c_updateUserName();
 		if (auto user = session().data().userLoaded(d.vuser_id.v)) {
-			if (user->contactStatus() != UserData::ContactStatus::Contact) {
+			if (!user->isContact()) {
 				user->setName(
 					TextUtilities::SingleLine(qs(d.vfirst_name)),
 					TextUtilities::SingleLine(qs(d.vlast_name)),
@@ -4234,15 +4234,15 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserPhone: {
-		auto &d = update.c_updateUserPhone();
-		if (auto user = session().data().userLoaded(d.vuser_id.v)) {
-			auto newPhone = qs(d.vphone);
+		const auto &d = update.c_updateUserPhone();
+		if (const auto user = session().data().userLoaded(d.vuser_id.v)) {
+			const auto newPhone = qs(d.vphone);
 			if (newPhone != user->phone()) {
 				user->setPhone(newPhone);
 				user->setName(
 					user->firstName,
 					user->lastName,
-					((user->contactStatus() == UserData::ContactStatus::Contact
+					((user->isContact()
 						|| user->isServiceUser()
 						|| user->isSelf()
 						|| user->phone().isEmpty())

@@ -1960,8 +1960,7 @@ void HistoryWidget::updateReportSpamStatus() {
 		if (i != cReportSpamStatuses().cend()) {
 			if (i.value() == dbiprsNoButton) {
 				setReportSpamStatus(dbiprsHidden);
-				if (!_peer->isUser()
-					|| _peer->asUser()->contactStatus() != UserData::ContactStatus::Contact) {
+				if (!_peer->isUser() || !_peer->asUser()->isContact()) {
 					MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
 				}
 
@@ -1979,8 +1978,7 @@ void HistoryWidget::updateReportSpamStatus() {
 			if (i != cReportSpamStatuses().cend()) {
 				if (i.value() == dbiprsNoButton) {
 					setReportSpamStatus(dbiprsHidden);
-					if (!_peer->isUser()
-						|| _peer->asUser()->contactStatus() != UserData::ContactStatus::Contact) {
+					if (!_peer->isUser() || !_peer->asUser()->isContact()) {
 						MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
 					}
 				} else {
@@ -1998,8 +1996,7 @@ void HistoryWidget::updateReportSpamStatus() {
 	auto status = dbiprsRequesting;
 	if (!session().data().contactsLoaded().current() || _firstLoadRequest) {
 		status = dbiprsUnknown;
-	} else if (_peer->isUser()
-		&& _peer->asUser()->contactStatus() == UserData::ContactStatus::Contact) {
+	} else if (_peer->isUser() && _peer->asUser()->isContact()) {
 		status = dbiprsHidden;
 	} else {
 		requestReportSpamSetting();

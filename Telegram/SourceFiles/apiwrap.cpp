@@ -743,8 +743,7 @@ void ApiWrap::requestContacts() {
 
 			const auto userId = contact.c_contact().vuser_id.v;
 			if (userId == _session->userId()) {
-				_session->user()->setContactStatus(
-					UserData::ContactStatus::Contact);
+				_session->user()->setIsContact(true);
 			}
 		}
 		_session->data().contactsLoaded() = true;

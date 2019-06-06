@@ -107,8 +107,7 @@ QSize HistoryContact::countOptimalSize() {
 				: Data::FakePeerIdForJustName(full)),
 			full);
 	}
-	if (_contact
-		&& _contact->contactStatus() == UserData::ContactStatus::Contact) {
+	if (_contact && _contact->isContact()) {
 		_linkl = sendMessageClickHandler(_contact);
 		_link = lang(lng_profile_send_message).toUpper();
 	} else if (_userId) {

@@ -362,8 +362,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		return nullptr;
 	}();
 	if (user) {
-		if (user->contactStatus() == UserData::ContactStatus::Contact
-			|| user->session().supportMode()) {
+		if (user->isContact() || user->session().supportMode()) {
 			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
 		}
 		Ui::hideLayer();

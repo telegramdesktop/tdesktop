@@ -138,9 +138,6 @@ public:
 		// Duplicated in Data::CanWriteValue().
 		return !isInaccessible();
 	}
-	bool isContact() const {
-		return (_contactStatus == ContactStatus::Contact);
-	}
 
 	bool canShareThisContact() const;
 	bool canAddContact() const {
@@ -166,15 +163,10 @@ public:
 	Text phoneText;
 	TimeId onlineTill = 0;
 
-	enum class ContactStatus : char {
-		PhoneUnknown,
-		CanAdd,
-		Contact,
-	};
-	ContactStatus contactStatus() const {
-		return _contactStatus;
+	[[nodiscard]] bool isContact() const {
+		return _isContact;
 	}
-	void setContactStatus(ContactStatus status);
+	void setIsContact(bool is);
 
 	enum class BlockStatus : char {
 		Unknown,
@@ -217,7 +209,7 @@ private:
 
 	QString _unavailableReason;
 	QString _phone;
-	ContactStatus _contactStatus = ContactStatus::PhoneUnknown;
+	bool _isContact = false;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;

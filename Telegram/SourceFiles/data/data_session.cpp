@@ -309,7 +309,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		}
 		result->setBotInfoVersion(-1);
 		status = &emptyStatus;
-		result->setContactStatus(UserData::ContactStatus::PhoneUnknown);
+		result->setIsContact(false);
 		if (canShareThisContact != result->canShareThisContactFast()) {
 			update.flags |= UpdateFlag::UserCanShareContact;
 		}
@@ -371,15 +371,16 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				&& !data.is_mutual_contact();
 			auto showPhoneChanged = !result->isServiceUser()
 				&& !data.is_self()
-				&& ((showPhone
-					&& result->contactStatus() == UserData::ContactStatus::Contact)
+				&& ((showPhone && result->isContact())
 					|| (!showPhone
-						&& result->contactStatus() == UserData::ContactStatus::CanAdd));
+						&& !result->isContact()
+						&& !result->phone().isEmpty()));
 			if (minimal) {
 				showPhoneChanged = false;
 				showPhone = !result->isServiceUser()
-					&& (result->id != _session->userPeerId())
-					&& (result->contactStatus() == UserData::ContactStatus::CanAdd);
+					&& !result->isContact()
+					&& !result->phone().isEmpty()
+					&& (result->id != _session->userPeerId());
 			}
 
 			// see also Local::readPeer
@@ -416,11 +417,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			} else {
 				result->setBotInfoVersion(-1);
 			}
-			result->setContactStatus((data.is_contact() || data.is_mutual_contact())
-				? UserData::ContactStatus::Contact
-				: result->phone().isEmpty()
-				? UserData::ContactStatus::PhoneUnknown
-				: UserData::ContactStatus::CanAdd);
+			result->setIsContact(data.is_contact()
+				|| data.is_mutual_contact());
 		}
 
 		if (canShareThisContact != result->canShareThisContactFast()) {
@@ -448,11 +446,6 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		}
 	}
 
-	if (result->contactStatus() == UserData::ContactStatus::PhoneUnknown
-		&& !result->phone().isEmpty()
-		&& !result->isSelf()) {
-		result->setContactStatus(UserData::ContactStatus::CanAdd);
-	}
 	if (App::main()) {
 		if (update.flags) {
 			update.peer = result;
@@ -1013,7 +1006,7 @@ void Session::setupUserIsContactViewer() {
 				"userIsContactChanged() called for a not loaded user!"));
 			return;
 		}
-		if (user->contactStatus() == UserData::ContactStatus::Contact) {
+		if (user->isContact()) {
 			const auto history = user->owner().history(user->id);
 			_contactsList.addByName(history);
 			if (!history->inChatList()) {

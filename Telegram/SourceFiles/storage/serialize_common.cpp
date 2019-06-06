@@ -128,17 +128,9 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 				: QString();
 			stream << botInlinePlaceholder;
 		}
-		const auto contactSerialized = [&] {
-			switch (user->contactStatus()) {
-			case UserData::ContactStatus::Contact: return 1;
-			case UserData::ContactStatus::CanAdd: return 0;
-			case UserData::ContactStatus::PhoneUnknown: return -1;
-			}
-			Unexpected("contactStatus in _writePeer()");
-		}();
 		stream
 			<< qint32(user->onlineTill)
-			<< qint32(contactSerialized)
+			<< qint32(user->isContact() ? 1 : 0)
 			<< qint32(user->botInfo ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
 		stream
@@ -209,11 +201,7 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 			user->setFlags(MTPDuser::Flags::from_raw(flags));
 			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
-			user->setContactStatus((contact > 0)
-				? UserData::ContactStatus::Contact
-				: (contact == 0)
-				? UserData::ContactStatus::CanAdd
-				: UserData::ContactStatus::PhoneUnknown);
+			user->setIsContact(contact == 1);
 			user->setBotInfoVersion(botInfoVersion);
 			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
