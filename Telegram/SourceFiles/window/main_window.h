@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class BoxContent;
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Window {
 
 class Controller;
@@ -22,7 +26,7 @@ struct TermsLock;
 
 QImage LoadLogo();
 QImage LoadLogoNoMargin();
-QIcon CreateIcon();
+QIcon CreateIcon(Main::Account *account = nullptr);
 void ConvertIconToBlack(QImage &image);
 
 class MainWindow : public Ui::RpWidget, protected base::Subscriber {
@@ -31,9 +35,10 @@ class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 public:
 	explicit MainWindow(not_null<Controller*> controller);
 
-	not_null<Window::Controller*> controller() const {
-		return _controller;
+	Window::Controller &controller() const {
+		return *_controller;
 	}
+	Main::Account &account() const;
 	Window::SessionController *sessionController() const;
 	void setInactivePress(bool inactive);
 	bool wasInactivePress() const {

@@ -111,6 +111,10 @@ AuthSession &PeerData::session() const {
 	return _owner->session();
 }
 
+Main::Account &PeerData::account() const {
+	return session().account();
+}
+
 void PeerData::updateNameDelayed(
 		const QString &newName,
 		const QString &newNameOrPhone,

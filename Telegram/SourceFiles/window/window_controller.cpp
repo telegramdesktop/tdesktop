@@ -17,7 +17,7 @@ namespace Window {
 Controller::Controller(not_null<Main::Account*> account)
 : _account(account)
 , _widget(this) {
-	Core::App().activeAccount().sessionValue(
+	_account->sessionValue(
 	) | rpl::start_with_next([=](AuthSession *session) {
 		_sessionController = session
 			? std::make_unique<SessionController>(session, &_widget)

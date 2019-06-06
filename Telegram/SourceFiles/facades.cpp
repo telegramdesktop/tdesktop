@@ -115,7 +115,7 @@ void activateBotCommand(
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 			auto options = ApiWrap::SendOptions(history);
 			options.replyTo = msgId;
-			Auth().api().shareContact(Auth().user(), options);
+			history->session().api().shareContact(Auth().user(), options);
 		}));
 	} break;
 

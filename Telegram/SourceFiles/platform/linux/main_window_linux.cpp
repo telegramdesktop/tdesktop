@@ -265,7 +265,7 @@ void MainWindow::psSetupTrayIcon() {
 				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				icon = QIcon(path.constData());
 			} else {
-				icon = Window::CreateIcon();
+				icon = Window::CreateIcon(&account());
 			}
 			trayIcon->setIcon(icon);
 

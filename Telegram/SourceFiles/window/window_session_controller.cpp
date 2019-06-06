@@ -103,7 +103,7 @@ SessionController::SessionController(
 , _window(window) {
 	init();
 
-	subscribe(Auth().api().fullPeerUpdated(), [=](PeerData *peer) {
+	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
 		if (peer == _showEditPeer) {
 			_showEditPeer = nullptr;
 			Ui::show(Box<EditPeerInfoBox>(peer));
@@ -123,7 +123,7 @@ SessionController::SessionController(
 
 void SessionController::showEditPeerBox(PeerData *peer) {
 	_showEditPeer = peer;
-	Auth().api().requestFullPeer(peer);
+	session().api().requestFullPeer(peer);
 }
 
 void SessionController::init() {
@@ -190,7 +190,7 @@ bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 		Ui::showPeerHistory(history, row.fullId.msg);
 		return true;
 	//} else if (const auto feed = row.key.feed()) { // #feed
-	//	if (const auto item = Auth().data().message(row.fullId)) {
+	//	if (const auto item = session().data().message(row.fullId)) {
 	//		showSection(HistoryFeed::Memento(feed, item->position()));
 	//	} else {
 	//		showSection(HistoryFeed::Memento(feed));

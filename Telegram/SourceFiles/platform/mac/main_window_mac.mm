@@ -407,7 +407,7 @@ void MainWindow::initTouchBar() {
 		return;
 	}
 
-	Core::App().activeAccount().sessionValue(
+	account().sessionValue(
 	) | rpl::start_with_next([=](AuthSession *session) {
 		if (session) {
 			// We need only common pinned dialogs.
@@ -641,10 +641,13 @@ void MainWindow::createGlobalMenu() {
 
 	QMenu *window = psMainMenu.addMenu(lang(lng_mac_menu_window));
 	psContacts = window->addAction(lang(lng_mac_menu_contacts));
-	connect(psContacts, &QAction::triggered, psContacts, [] {
-		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
-
-		if (!AuthSession::Exists()) return;
+	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
+		if (isHidden()) {
+			showFromTray();
+		}
+		if (!account().sessionExists()) {
+			return;
+		}
 		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
@@ -734,10 +737,10 @@ void MainWindow::updateGlobalMenuHook() {
 		canDelete = list->canDeleteSelected();
 	}
 	App::wnd()->updateIsActive(0);
-	const auto logged = AuthSession::Exists();
+	const auto logged = account().sessionExists();
 	const auto locked = Core::App().locked();
 	const auto inactive = !logged || locked;
-	const auto support = logged && Auth().supportMode();
+	const auto support = logged && account().session().supportMode();
 	_forceDisabled(psLogout, !logged && !locked);
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);

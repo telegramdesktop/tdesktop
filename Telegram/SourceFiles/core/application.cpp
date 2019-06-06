@@ -232,11 +232,12 @@ bool Application::hideMediaView() {
 }
 
 void Application::showPhoto(not_null<const PhotoOpenClickHandler*> link) {
-	const auto item = Auth().data().message(link->context());
+	const auto photo = link->photo();
 	const auto peer = link->peer();
+	const auto item = photo->owner().message(link->context());
 	return (!item && peer)
-		? showPhoto(link->photo(), peer)
-		: showPhoto(link->photo(), item);
+		? showPhoto(photo, peer)
+		: showPhoto(photo, item);
 }
 
 void Application::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
@@ -664,7 +665,8 @@ void Application::startLocalStorage() {
 			if (_mtproto) {
 				_mtproto->requestConfig();
 			}
-			Platform::SetApplicationIcon(Window::CreateIcon());
+			Platform::SetApplicationIcon(
+				Window::CreateIcon(&activeAccount()));
 			Shortcuts::ToggleSupportShortcuts(support);
 		});
 	}, _lifetime);
@@ -1114,16 +1116,18 @@ void Application::preventWindowActivation() {
 
 void Application::QuitAttempt() {
 	auto prevents = false;
-	if (AuthSession::Exists() && !Sandbox::Instance().isSavingSession()) {
+	if (IsAppLaunched()
+		&& App().activeAccount().sessionExists()
+		&& !Sandbox::Instance().isSavingSession()) {
 		if (const auto mainwidget = App::main()) {
 			if (mainwidget->isQuitPrevent()) {
 				prevents = true;
 			}
 		}
-		if (Auth().api().isQuitPrevent()) {
+		if (App().activeAccount().session().api().isQuitPrevent()) {
 			prevents = true;
 		}
-		if (Auth().calls().isQuitPrevent()) {
+		if (App().activeAccount().session().calls().isQuitPrevent()) {
 			prevents = true;
 		}
 	}

@@ -232,7 +232,7 @@ OverlayWidget::OverlayWidget()
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
-	setWindowIcon(Window::CreateIcon());
+	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
 	TextCustomTagsMap custom;

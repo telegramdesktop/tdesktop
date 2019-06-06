@@ -23,8 +23,8 @@ public:
 	Controller(const Controller &other) = delete;
 	Controller &operator=(const Controller &other) = delete;
 
-	not_null<Main::Account*> account() const {
-		return _account;
+	Main::Account &account() const {
+		return *_account;
 	}
 	not_null<::MainWindow*> widget() {
 		return &_widget;

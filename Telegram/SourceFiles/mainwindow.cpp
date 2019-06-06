@@ -82,7 +82,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	Core::App().activeAccount().sessionValue(
+	account().sessionValue(
 	) | rpl::start_with_next([=](AuthSession *session) {
 		updateGlobalMenu();
 		if (!session) {
@@ -201,7 +201,7 @@ void MainWindow::clearPasscodeLock() {
 		Core::App().checkStartUrl();
 	} else {
 		Core::App().startMtp();
-		if (AuthSession::Exists()) {
+		if (account().sessionExists()) {
 			setupMain();
 		} else {
 			setupIntro();
@@ -229,7 +229,7 @@ void MainWindow::setupIntro() {
 }
 
 void MainWindow::setupMain() {
-	Expects(AuthSession::Exists());
+	Expects(account().sessionExists());
 
 	auto animated = (_intro || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
@@ -584,7 +584,7 @@ void MainWindow::updateTrayMenu(bool force) {
 void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
-	if (AuthSession::Exists()) {
+	if (account().sessionExists()) {
 		Ui::show(Box<AddContactBox>(), LayerOption::KeepOther);
 	}
 }
@@ -592,7 +592,7 @@ void MainWindow::onShowAddContact() {
 void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (AuthSession::Exists()) {
+	if (account().sessionExists()) {
 		Ui::show(
 			Box<GroupInfoBox>(GroupInfoBox::Type::Group),
 			LayerOption::KeepOther);
@@ -618,9 +618,10 @@ void MainWindow::onLogout() {
 		Core::App().logOut();
 	};
 	const auto callback = [=] {
-		if (AuthSession::Exists() && Auth().data().exportInProgress()) {
+		if (account().sessionExists()
+			&& account().session().data().exportInProgress()) {
 			Ui::hideLayer();
-			Auth().data().stopExportWithConfirmation(logout);
+			account().session().data().stopExportWithConfirmation(logout);
 		} else {
 			logout();
 		}
@@ -708,7 +709,7 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
 	}
-	if (!AuthSession::Exists()) {
+	if (!account().sessionExists()) {
 		return;
 	}
 
@@ -730,9 +731,11 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		}
 	}
 	Local::writeUserSettings();
-	Auth().notifications().settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
+	account().session().notifications().settingsChanged().notify(
+		Window::Notifications::ChangeType::DesktopEnabled);
 	if (soundNotifyChanged) {
-		Auth().notifications().settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
+		account().session().notifications().settingsChanged().notify(
+			Window::Notifications::ChangeType::SoundEnabled);
 	}
 }
 
@@ -742,7 +745,7 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		App::quit();
 	} else {
 		e->ignore();
-		if (!AuthSession::Exists() || !hideNoQuit()) {
+		if (!account().sessionExists() || !hideNoQuit()) {
 			App::quit();
 		}
 	}
@@ -904,7 +907,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 	}
 
 	QImage img(smallIcon ? ((size == 16) ? iconbig16 : (size == 32 ? iconbig32 : iconbig64)) : ((size == 16) ? icon16 : (size == 32 ? icon32 : icon64)));
-	if (AuthSession::Exists() && Auth().supportMode()) {
+	if (account().sessionExists() && account().session().supportMode()) {
 		Window::ConvertIconToBlack(img);
 	}
 	if (!count) return img;

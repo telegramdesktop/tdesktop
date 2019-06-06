@@ -23,6 +23,10 @@ class UserData;
 class ChatData;
 class ChannelData;
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Data {
 
 class Session;
@@ -111,6 +115,7 @@ public:
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] AuthSession &session() const;
+	[[nodiscard]] Main::Account &account() const;
 
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
