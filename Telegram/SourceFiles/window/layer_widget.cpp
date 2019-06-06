@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
@@ -714,7 +714,7 @@ void LayerStackWidget::hideSpecialLayer(anim::type animated) {
 }
 
 void LayerStackWidget::showMainMenu(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		anim::type animated) {
 	startAnimation([&] {
 		_mainMenu.create(this, controller);
@@ -849,7 +849,10 @@ LayerStackWidget::~LayerStackWidget() = default;
 
 } // namespace Window
 
-MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+MediaPreviewWidget::MediaPreviewWidget(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: TWidget(parent)
 , _controller(controller)
 , _emojiSize(Ui::Emoji::GetSizeLarge() / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);

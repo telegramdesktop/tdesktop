@@ -827,8 +827,6 @@
 <(src_loc)/window/section_widget.h
 <(src_loc)/window/window_connecting_widget.cpp
 <(src_loc)/window/window_connecting_widget.h
-<(src_loc)/window/window_controller.cpp
-<(src_loc)/window/window_controller.h
 <(src_loc)/window/window_history_hider.cpp
 <(src_loc)/window/window_history_hider.h
 <(src_loc)/window/window_lock_widgets.cpp
@@ -839,6 +837,8 @@
 <(src_loc)/window/window_outdated_bar.h
 <(src_loc)/window/window_peer_menu.cpp
 <(src_loc)/window/window_peer_menu.h
+<(src_loc)/window/window_session_controller.cpp
+<(src_loc)/window/window_session_controller.h
 <(src_loc)/window/window_slide_animation.cpp
 <(src_loc)/window/window_slide_animation.h
 <(src_loc)/window/window_title.h

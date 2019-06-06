@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "window/notifications_manager.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "ui/text_options.h"
 

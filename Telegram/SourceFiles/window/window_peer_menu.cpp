@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "history/history.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -47,7 +47,7 @@ constexpr auto kArchivedToastDuration = crl::time(3000);
 class Filler {
 public:
 	Filler(
-		not_null<Controller*> controller,
+		not_null<SessionController*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction,
 		PeerMenuSource source);
@@ -67,7 +67,7 @@ private:
 	void addChatActions(not_null<ChatData*> chat);
 	void addChannelActions(not_null<ChannelData*> channel);
 
-	not_null<Controller*> _controller;
+	not_null<SessionController*> _controller;
 	not_null<PeerData*> _peer;
 	const PeerMenuCallback &_addAction;
 	PeerMenuSource _source;
@@ -77,7 +77,7 @@ private:
 class FolderFiller {
 public:
 	FolderFiller(
-		not_null<Controller*> controller,
+		not_null<SessionController*> controller,
 		not_null<Data::Folder*> folder,
 		const PeerMenuCallback &addAction,
 		PeerMenuSource source);
@@ -92,7 +92,7 @@ private:
 	//void addNotifications();
 	//void addUngroup();
 
-	not_null<Controller*> _controller;
+	not_null<SessionController*> _controller;
 	not_null<Data::Folder*> _folder;
 	const PeerMenuCallback &_addAction;
 	PeerMenuSource _source;
@@ -174,7 +174,7 @@ void TogglePinnedDialog(Dialogs::Key key) {
 }
 
 Filler::Filler(
-	not_null<Controller*> controller,
+	not_null<SessionController*> controller,
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source)
@@ -412,7 +412,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 		if (EditPeerInfoBox::Available(chat)) {
 			const auto text = lang(lng_manage_group_title);
 			_addAction(text, [=] {
-				App::wnd()->controller()->showEditPeerBox(chat);
+				App::wnd()->sessionController()->showEditPeerBox(chat);
 			});
 		}
 		if (chat->canAddMembers()) {
@@ -455,8 +455,8 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			const auto text = lang(isGroup
 				? lng_manage_group_title
 				: lng_manage_channel_title);
-			_addAction(text, [channel] {
-				App::wnd()->controller()->showEditPeerBox(channel);
+			_addAction(text, [=] {
+				App::wnd()->sessionController()->showEditPeerBox(channel);
 			});
 		}
 		if (channel->canAddMembers()) {
@@ -534,7 +534,7 @@ void Filler::fill() {
 }
 
 FolderFiller::FolderFiller(
-	not_null<Controller*> controller,
+	not_null<SessionController*> controller,
 	not_null<Data::Folder*> folder,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source)
@@ -831,7 +831,7 @@ Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 }
 
 void FillPeerMenu(
-		not_null<Controller*> controller,
+		not_null<SessionController*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &callback,
 		PeerMenuSource source) {
@@ -840,7 +840,7 @@ void FillPeerMenu(
 }
 
 void FillFolderMenu(
-		not_null<Controller*> controller,
+		not_null<SessionController*> controller,
 		not_null<Data::Folder*> folder,
 		const PeerMenuCallback &callback,
 		PeerMenuSource source) {

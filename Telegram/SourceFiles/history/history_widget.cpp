@@ -73,7 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
 #include "inline_bots/inline_results_widget.h"
@@ -117,7 +117,7 @@ ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	};
 }
 
-void ActivateWindow(not_null<Window::Controller*> controller) {
+void ActivateWindow(not_null<Window::SessionController*> controller) {
 	const auto window = controller->window();
 	window->activateWindow();
 	Core::App().activateWindowDelayed(window);
@@ -147,7 +147,7 @@ bool ShowHistoryEndInsteadOfUnread(
 
 object_ptr<Ui::FlatButton> SetupDiscussButton(
 		not_null<QWidget*> parent,
-		not_null<Window::Controller*> controller) {
+		not_null<Window::SessionController*> controller) {
 	auto result = object_ptr<Ui::FlatButton>(
 		parent,
 		QString(),
@@ -283,7 +283,7 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : Window::AbstractSectionWidget(parent, controller)
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
@@ -475,13 +475,13 @@ HistoryWidget::HistoryWidget(
 
 	_topShadow->hide();
 
-	_attachDragDocument->setDroppedCallback([this](const QMimeData *data) {
+	_attachDragDocument->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::No);
-		ActivateWindow(this->controller());
+		ActivateWindow(controller);
 	});
 	_attachDragPhoto->setDroppedCallback([=](const QMimeData *data) {
 		confirmSendingFiles(data, CompressConfirm::Yes);
-		ActivateWindow(this->controller());
+		ActivateWindow(controller);
 	});
 
 	subscribe(Adaptive::Changed(), [=] { update(); });
@@ -548,7 +548,7 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::ChannelAmIn
 		| UpdateFlag::ChannelPromotedChanged
 		| UpdateFlag::ChannelLinkedChat;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [=](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
 			if (update.flags & UpdateFlag::RightsChanged) {
 				checkPreview();
@@ -568,7 +568,7 @@ HistoryWidget::HistoryWidget(
 			if (update.flags & UpdateFlag::UnavailableReasonChanged) {
 				const auto unavailable = _peer->unavailableReason();
 				if (!unavailable.isEmpty()) {
-					this->controller()->showBackFromStack();
+					controller->showBackFromStack();
 					Ui::show(Box<InformBox>(unavailable));
 					return;
 				}

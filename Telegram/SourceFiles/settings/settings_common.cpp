@@ -30,7 +30,7 @@ namespace Settings {
 object_ptr<Section> CreateSection(
 		Type type,
 		not_null<QWidget*> parent,
-		Window::Controller *controller,
+		Window::SessionController *controller,
 		UserData *self) {
 	switch (type) {
 	case Type::Main:

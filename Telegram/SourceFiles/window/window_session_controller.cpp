@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/main_window.h"
@@ -48,17 +48,18 @@ void DateClickHandler::setDate(QDate date) {
 }
 
 void DateClickHandler::onClick(ClickContext context) const {
-	App::wnd()->controller()->showJumpToDate(_chat, _date);
+	App::wnd()->sessionController()->showJumpToDate(_chat, _date);
 }
 
-Navigation::Navigation(not_null<AuthSession*> session) : _session(session) {
+SessionNavigation::SessionNavigation(not_null<AuthSession*> session)
+: _session(session) {
 }
 
-AuthSession &Navigation::session() const {
+AuthSession &SessionNavigation::session() const {
 	return *_session;
 }
 
-void Navigation::showPeerInfo(
+void SessionNavigation::showPeerInfo(
 		PeerId peerId,
 		const SectionShow &params) {
 	//if (Adaptive::ThreeColumn()
@@ -69,19 +70,19 @@ void Navigation::showPeerInfo(
 	showSection(Info::Memento(peerId), params);
 }
 
-void Navigation::showPeerInfo(
+void SessionNavigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
 	showPeerInfo(peer->id, params);
 }
 
-void Navigation::showPeerInfo(
+void SessionNavigation::showPeerInfo(
 		not_null<History*> history,
 		const SectionShow &params) {
 	showPeerInfo(history->peer->id, params);
 }
 
-void Navigation::showSettings(
+void SessionNavigation::showSettings(
 		Settings::Type type,
 		const SectionShow &params) {
 	showSection(
@@ -91,14 +92,14 @@ void Navigation::showSettings(
 		params);
 }
 
-void Navigation::showSettings(const SectionShow &params) {
+void SessionNavigation::showSettings(const SectionShow &params) {
 	showSettings(Settings::Type::Main, params);
 }
 
-Controller::Controller(
+SessionController::SessionController(
 	not_null<AuthSession*> session,
 	not_null<MainWindow*> window)
-: Navigation(session)
+: SessionNavigation(session)
 , _window(window) {
 	init();
 
@@ -120,18 +121,18 @@ Controller::Controller(
 	}, lifetime());
 }
 
-void Controller::showEditPeerBox(PeerData *peer) {
+void SessionController::showEditPeerBox(PeerData *peer) {
 	_showEditPeer = peer;
 	Auth().api().requestFullPeer(peer);
 }
 
-void Controller::init() {
+void SessionController::init() {
 	if (session().supportMode()) {
 		initSupportMode();
 	}
 }
 
-void Controller::initSupportMode() {
+void SessionController::initSupportMode() {
 	session().supportHelper().registerWindow(this);
 
 	Shortcuts::Requests(
@@ -147,32 +148,32 @@ void Controller::initSupportMode() {
 	}, lifetime());
 }
 
-bool Controller::uniqueChatsInSearchResults() const {
+bool SessionController::uniqueChatsInSearchResults() const {
 	return session().supportMode()
 		&& !session().settings().supportAllSearchResults()
 		&& !searchInChat.current();
 }
 
-void Controller::openFolder(not_null<Data::Folder*> folder) {
+void SessionController::openFolder(not_null<Data::Folder*> folder) {
 	_openedFolder = folder.get();
 }
 
-void Controller::closeFolder() {
+void SessionController::closeFolder() {
 	_openedFolder = nullptr;
 }
 
-const rpl::variable<Data::Folder*> &Controller::openedFolder() const {
+const rpl::variable<Data::Folder*> &SessionController::openedFolder() const {
 	return _openedFolder;
 }
 
-void Controller::setActiveChatEntry(Dialogs::RowDescriptor row) {
+void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 	_activeChatEntry = row;
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
 	}
 }
 
-bool Controller::chatEntryHistoryMove(int steps) {
+bool SessionController::chatEntryHistoryMove(int steps) {
 	if (_chatEntryHistory.empty()) {
 		return false;
 	}
@@ -184,7 +185,7 @@ bool Controller::chatEntryHistoryMove(int steps) {
 	return jumpToChatListEntry(_chatEntryHistory[position]);
 }
 
-bool Controller::jumpToChatListEntry(Dialogs::RowDescriptor row) {
+bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 	if (const auto history = row.key.history()) {
 		Ui::showPeerHistory(history, row.fullId.msg);
 		return true;
@@ -198,7 +199,7 @@ bool Controller::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 	return false;
 }
 
-void Controller::pushToChatEntryHistory(Dialogs::RowDescriptor row) {
+void SessionController::pushToChatEntryHistory(Dialogs::RowDescriptor row) {
 	if (!_chatEntryHistory.empty()
 		&& _chatEntryHistory[_chatEntryHistoryPosition] == row) {
 		return;
@@ -211,43 +212,43 @@ void Controller::pushToChatEntryHistory(Dialogs::RowDescriptor row) {
 	}
 }
 
-void Controller::setActiveChatEntry(Dialogs::Key key) {
+void SessionController::setActiveChatEntry(Dialogs::Key key) {
 	setActiveChatEntry({ key, FullMsgId() });
 }
 
-Dialogs::RowDescriptor Controller::activeChatEntryCurrent() const {
+Dialogs::RowDescriptor SessionController::activeChatEntryCurrent() const {
 	return _activeChatEntry.current();
 }
 
-Dialogs::Key Controller::activeChatCurrent() const {
+Dialogs::Key SessionController::activeChatCurrent() const {
 	return activeChatEntryCurrent().key;
 }
 
-auto Controller::activeChatEntryChanges() const
+auto SessionController::activeChatEntryChanges() const
 -> rpl::producer<Dialogs::RowDescriptor> {
 	return _activeChatEntry.changes();
 }
 
-rpl::producer<Dialogs::Key> Controller::activeChatChanges() const {
+rpl::producer<Dialogs::Key> SessionController::activeChatChanges() const {
 	return activeChatEntryChanges(
 	) | rpl::map([](const Dialogs::RowDescriptor &value) {
 		return value.key;
 	}) | rpl::distinct_until_changed();
 }
 
-auto Controller::activeChatEntryValue() const
+auto SessionController::activeChatEntryValue() const
 -> rpl::producer<Dialogs::RowDescriptor> {
 	return _activeChatEntry.value();
 }
 
-rpl::producer<Dialogs::Key> Controller::activeChatValue() const {
+rpl::producer<Dialogs::Key> SessionController::activeChatValue() const {
 	return activeChatEntryValue(
 	) | rpl::map([](const Dialogs::RowDescriptor &value) {
 		return value.key;
 	}) | rpl::distinct_until_changed();
 }
 
-void Controller::enableGifPauseReason(GifPauseReason reason) {
+void SessionController::enableGifPauseReason(GifPauseReason reason) {
 	if (!(_gifPauseReasons & reason)) {
 		auto notify = (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason));
 		_gifPauseReasons |= reason;
@@ -257,7 +258,7 @@ void Controller::enableGifPauseReason(GifPauseReason reason) {
 	}
 }
 
-void Controller::disableGifPauseReason(GifPauseReason reason) {
+void SessionController::disableGifPauseReason(GifPauseReason reason) {
 	if (_gifPauseReasons & reason) {
 		_gifPauseReasons &= ~reason;
 		if (_gifPauseReasons < reason) {
@@ -266,24 +267,24 @@ void Controller::disableGifPauseReason(GifPauseReason reason) {
 	}
 }
 
-bool Controller::isGifPausedAtLeastFor(GifPauseReason reason) const {
+bool SessionController::isGifPausedAtLeastFor(GifPauseReason reason) const {
 	if (reason == GifPauseReason::Any) {
 		return (_gifPauseReasons != 0) || !window()->isActive();
 	}
 	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !window()->isActive();
 }
 
-int Controller::dialogsSmallColumnWidth() const {
+int SessionController::dialogsSmallColumnWidth() const {
 	return st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
 }
 
-int Controller::minimalThreeColumnWidth() const {
+int SessionController::minimalThreeColumnWidth() const {
 	return st::columnMinimalWidthLeft
 		+ st::columnMinimalWidthMain
 		+ st::columnMinimalWidthThird;
 }
 
-bool Controller::forceWideDialogs() const {
+bool SessionController::forceWideDialogs() const {
 	if (dialogsListDisplayForced().value()) {
 		return true;
 	} else if (dialogsListFocused().value()) {
@@ -292,7 +293,7 @@ bool Controller::forceWideDialogs() const {
 	return !App::main()->isMainSectionShown();
 }
 
-Controller::ColumnLayout Controller::computeColumnLayout() const {
+SessionController::ColumnLayout SessionController::computeColumnLayout() const {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
 	auto bodyWidth = window()->bodyWidget()->width();
@@ -342,21 +343,21 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 	return { bodyWidth, dialogsWidth, chatWidth, thirdWidth, layout };
 }
 
-int Controller::countDialogsWidthFromRatio(int bodyWidth) const {
+int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 	auto result = qRound(bodyWidth * session().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
-int Controller::countThirdColumnWidthFromRatio(int bodyWidth) const {
+int SessionController::countThirdColumnWidthFromRatio(int bodyWidth) const {
 	auto result = session().settings().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
 }
 
-Controller::ShrinkResult Controller::shrinkDialogsAndThirdColumns(
+SessionController::ShrinkResult SessionController::shrinkDialogsAndThirdColumns(
 		int dialogsWidth,
 		int thirdWidth,
 		int bodyWidth) const {
@@ -380,23 +381,23 @@ Controller::ShrinkResult Controller::shrinkDialogsAndThirdColumns(
 	return { dialogsWidthNew, thirdWidthNew };
 }
 
-bool Controller::canShowThirdSection() const {
+bool SessionController::canShowThirdSection() const {
 	auto currentLayout = computeColumnLayout();
 	auto minimalExtendBy = minimalThreeColumnWidth()
 		- currentLayout.bodyWidth;
 	return (minimalExtendBy <= window()->maximalExtendBy());
 }
 
-bool Controller::canShowThirdSectionWithoutResize() const {
+bool SessionController::canShowThirdSectionWithoutResize() const {
 	auto currentWidth = computeColumnLayout().bodyWidth;
 	return currentWidth >= minimalThreeColumnWidth();
 }
 
-bool Controller::takeThirdSectionFromLayer() {
+bool SessionController::takeThirdSectionFromLayer() {
 	return App::wnd()->takeThirdSectionFromLayer();
 }
 
-void Controller::resizeForThirdSection() {
+void SessionController::resizeForThirdSection() {
 	if (Adaptive::ThreeColumn()) {
 		return;
 	}
@@ -445,7 +446,7 @@ void Controller::resizeForThirdSection() {
 		thirdSectionInfoEnabled);
 }
 
-void Controller::closeThirdSection() {
+void SessionController::closeThirdSection() {
 	auto newWindowSize = window()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
@@ -475,7 +476,7 @@ void Controller::closeThirdSection() {
 	}
 }
 
-void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
+void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	const auto currentPeerDate = [&] {
 		if (const auto history = chat.history()) {
 			if (history->scrollTopItem) {
@@ -563,22 +564,22 @@ void Controller::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	Ui::show(std::move(box));
 }
 
-void Controller::showPassportForm(const Passport::FormRequest &request) {
+void SessionController::showPassportForm(const Passport::FormRequest &request) {
 	_passportForm = std::make_unique<Passport::FormController>(
 		this,
 		request);
 	_passportForm->show();
 }
 
-void Controller::clearPassportForm() {
+void SessionController::clearPassportForm() {
 	_passportForm = nullptr;
 }
 
-void Controller::updateColumnLayout() {
+void SessionController::updateColumnLayout() {
 	App::main()->updateColumnLayout();
 }
 
-void Controller::showPeerHistory(
+void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
@@ -588,7 +589,7 @@ void Controller::showPeerHistory(
 		msgId);
 }
 
-void Controller::showPeerHistory(
+void SessionController::showPeerHistory(
 		not_null<PeerData*> peer,
 		const SectionShow &params,
 		MsgId msgId) {
@@ -598,7 +599,7 @@ void Controller::showPeerHistory(
 		msgId);
 }
 
-void Controller::showPeerHistory(
+void SessionController::showPeerHistory(
 		not_null<History*> history,
 		const SectionShow &params,
 		MsgId msgId) {
@@ -608,7 +609,7 @@ void Controller::showPeerHistory(
 		msgId);
 }
 
-void Controller::showSection(
+void SessionController::showSection(
 		SectionMemento &&memento,
 		const SectionShow &params) {
 	if (!params.thirdColumn && App::wnd()->showSectionInExistingLayer(
@@ -619,25 +620,25 @@ void Controller::showSection(
 	App::main()->showSection(std::move(memento), params);
 }
 
-void Controller::showBackFromStack(const SectionShow &params) {
+void SessionController::showBackFromStack(const SectionShow &params) {
 	chats()->showBackFromStack(params);
 }
 
-void Controller::showSpecialLayer(
+void SessionController::showSpecialLayer(
 		object_ptr<LayerWidget> &&layer,
 		anim::type animated) {
 	App::wnd()->showSpecialLayer(std::move(layer), animated);
 }
 
-void Controller::removeLayerBlackout() {
+void SessionController::removeLayerBlackout() {
 	App::wnd()->ui_removeLayerBlackout();
 }
 
-not_null<MainWidget*> Controller::chats() const {
+not_null<MainWidget*> SessionController::chats() const {
 	return App::wnd()->chatsWidget();
 }
 
-void Controller::setDefaultFloatPlayerDelegate(
+void SessionController::setDefaultFloatPlayerDelegate(
 		not_null<Media::Player::FloatDelegate*> delegate) {
 	Expects(_defaultFloatPlayerDelegate == nullptr);
 
@@ -646,7 +647,7 @@ void Controller::setDefaultFloatPlayerDelegate(
 		delegate);
 }
 
-void Controller::replaceFloatPlayerDelegate(
+void SessionController::replaceFloatPlayerDelegate(
 		not_null<Media::Player::FloatDelegate*> replacement) {
 	Expects(_floatPlayers != nullptr);
 
@@ -654,7 +655,7 @@ void Controller::replaceFloatPlayerDelegate(
 	_floatPlayers->replaceDelegate(replacement);
 }
 
-void Controller::restoreFloatPlayerDelegate(
+void SessionController::restoreFloatPlayerDelegate(
 		not_null<Media::Player::FloatDelegate*> replacement) {
 	Expects(_floatPlayers != nullptr);
 
@@ -664,12 +665,12 @@ void Controller::restoreFloatPlayerDelegate(
 	}
 }
 
-rpl::producer<FullMsgId> Controller::floatPlayerClosed() const {
+rpl::producer<FullMsgId> SessionController::floatPlayerClosed() const {
 	Expects(_floatPlayers != nullptr);
 
 	return _floatPlayers->closeEvents();
 }
 
-Controller::~Controller() = default;
+SessionController::~SessionController() = default;
 
 } // namespace Window

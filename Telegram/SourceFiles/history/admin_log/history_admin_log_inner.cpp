@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "layout.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
@@ -212,7 +212,7 @@ void InnerWidget::enumerateDates(Method method) {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel)
 : RpWidget(parent)
 , _controller(controller)

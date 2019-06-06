@@ -276,7 +276,7 @@ void TabbedSelector::Tab::saveScrollTop() {
 
 TabbedSelector::TabbedSelector(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	Mode mode)
 : RpWidget(parent)
 , _mode(mode)
@@ -368,7 +368,7 @@ TabbedSelector::TabbedSelector(
 	showAll();
 }
 
-TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, not_null<Window::Controller*> controller) {
+TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, not_null<Window::SessionController*> controller) {
 auto createWidget = [&]() -> object_ptr<Inner> {
 	if (!full() && type != SelectorTab::Emoji) {
 		return { nullptr };
@@ -872,7 +872,7 @@ void TabbedSelector::scrollToY(int y) {
 
 TabbedSelector::Inner::Inner(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller) {
 }

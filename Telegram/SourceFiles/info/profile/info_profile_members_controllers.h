@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 
 namespace Window {
-class Navigation;
+class SessionNavigation;
 } // namespace Window
 
 namespace Info {
@@ -58,7 +58,7 @@ private:
 };
 
 std::unique_ptr<PeerListController> CreateMembersController(
-	not_null<Window::Navigation*> navigation,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer);
 
 } // namespace Profile

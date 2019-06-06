@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "lang/lang_keys.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
 #include "core/sandbox.h"
@@ -293,7 +293,7 @@ std::unique_ptr<Helper> Helper::Create(not_null<AuthSession*> session) {
 	return valid ? std::make_unique<Helper>(session) : nullptr;
 }
 
-void Helper::registerWindow(not_null<Window::Controller*> controller) {
+void Helper::registerWindow(not_null<Window::SessionController*> controller) {
 	controller->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
 		const auto history = key.history();
@@ -349,7 +349,7 @@ void Helper::checkOccupiedChats() {
 }
 
 void Helper::updateOccupiedHistory(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		History *history) {
 	if (isOccupiedByMe(_occupiedHistory)) {
 		_occupiedHistory->clearCloudDraft();

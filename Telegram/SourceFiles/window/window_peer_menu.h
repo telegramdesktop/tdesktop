@@ -17,7 +17,7 @@ class Folder;
 
 namespace Window {
 
-class Controller;
+class SessionController;
 
 enum class PeerMenuSource {
 	ChatsList,
@@ -30,12 +30,12 @@ using PeerMenuCallback = Fn<QAction*(
 	Fn<void()> handler)>;
 
 void FillPeerMenu(
-	not_null<Controller*> controller,
+	not_null<SessionController*> controller,
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);
 void FillFolderMenu(
-	not_null<Controller*> controller,
+	not_null<SessionController*> controller,
 	not_null<Data::Folder*> folder,
 	const PeerMenuCallback &addAction,
 	PeerMenuSource source);

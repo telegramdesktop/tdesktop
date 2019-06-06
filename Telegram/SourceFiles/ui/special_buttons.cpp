@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -445,7 +445,7 @@ UserpicButton::UserpicButton(
 
 UserpicButton::UserpicButton(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Role role,
 	const style::UserpicButton &st)
@@ -880,7 +880,7 @@ void UserpicButton::prepareUserpicPixmap() {
 // // #feed
 //FeedUserpicButton::FeedUserpicButton(
 //	QWidget *parent,
-//	not_null<Window::Controller*> controller,
+//	not_null<Window::SessionController*> controller,
 //	not_null<Data::Feed*> feed,
 //	const style::FeedUserpicButton &st)
 //: AbstractButton(parent)

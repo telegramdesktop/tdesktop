@@ -21,7 +21,7 @@
 #include "observer_peer.h"
 #include "styles/style_media_player.h"
 #include "window/themes/window_theme.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "styles/style_dialogs.h"
 
@@ -241,7 +241,7 @@ void PaintUnreadBadge(Painter &p, PeerData *peer) {
 			return;
 		}
 		if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
-			App::wnd()->controller()->openFolder(folder);
+			App::wnd()->sessionController()->openFolder(folder);
 		}
 	};
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {

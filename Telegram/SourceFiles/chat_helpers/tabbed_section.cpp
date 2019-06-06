@@ -21,7 +21,7 @@ TabbedMemento::TabbedMemento(
 
 object_ptr<Window::SectionWidget> TabbedMemento::createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
 	auto result = object_ptr<TabbedSection>(
@@ -41,7 +41,7 @@ TabbedMemento::~TabbedMemento() {
 
 TabbedSection::TabbedSection(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : TabbedSection(
 	parent,
 	controller,
@@ -51,7 +51,7 @@ TabbedSection::TabbedSection(
 
 TabbedSection::TabbedSection(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	object_ptr<TabbedSelector> selector,
 	Fn<void(object_ptr<TabbedSelector>)> returnMethod)
 : Window::SectionWidget(parent, controller)

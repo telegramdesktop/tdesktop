@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
 #include "data/data_channel.h"
@@ -36,7 +36,7 @@ class FixedBar final : public TWidget, private base::Subscriber {
 public:
 	FixedBar(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
 	base::Observable<void> showFilterSignal;
@@ -70,7 +70,7 @@ private:
 	void applySearch();
 	void searchAnimationCallback();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	not_null<ChannelData*> _channel;
 	object_ptr<Ui::FlatInput> _field;
 	object_ptr<Profile::BackButton> _backButton;
@@ -87,7 +87,7 @@ private:
 
 object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
 	if (column == Window::Column::Third) {
@@ -100,7 +100,7 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 
 FixedBar::FixedBar(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel) : TWidget(parent)
 , _controller(controller)
 , _channel(channel)
@@ -125,7 +125,9 @@ FixedBar::FixedBar(
 
 void FixedBar::applyFilter(const FilterValue &value) {
 	auto hasFilter = (value.flags != 0) || !value.allUsers;
-	_backButton->setText(lang(hasFilter ? lng_admin_log_title_selected : lng_admin_log_title_all));
+	_backButton->setText(lang(hasFilter
+		? lng_admin_log_title_selected
+		: lng_admin_log_title_all));
 }
 
 void FixedBar::goBack() {
@@ -141,7 +143,11 @@ void FixedBar::showSearch() {
 void FixedBar::toggleSearch() {
 	_searchShown = !_searchShown;
 	_cancel->toggle(_searchShown, anim::type::normal);
-	_searchShownAnimation.start([this] { searchAnimationCallback(); }, _searchShown ? 0. : 1., _searchShown ? 1. : 0., st::historyAdminLogSearchSlideDuration);
+	_searchShownAnimation.start(
+		[=] { searchAnimationCallback(); },
+		_searchShown ? 0. : 1.,
+		_searchShown ? 1. : 0.,
+		st::historyAdminLogSearchSlideDuration);
 	_search->setDisabled(_searchShown);
 	if (_searchShown) {
 		_field->show();
@@ -154,9 +160,13 @@ void FixedBar::toggleSearch() {
 void FixedBar::searchAnimationCallback() {
 	if (!_searchShownAnimation.animating()) {
 		_field->setVisible(_searchShown);
-		_search->setIconOverride(_searchShown ? &st::topBarSearch.icon : nullptr, _searchShown ? &st::topBarSearch.icon : nullptr);
-		_search->setRippleColorOverride(_searchShown ? &st::topBarBg : nullptr);
-		_search->setCursor(_searchShown ? style::cur_default : style::cur_pointer);
+		_search->setIconOverride(
+			_searchShown ? &st::topBarSearch.icon : nullptr,
+			_searchShown ? &st::topBarSearch.icon : nullptr);
+		_search->setRippleColorOverride(
+			_searchShown ? &st::topBarBg : nullptr);
+		_search->setCursor(
+			_searchShown ? style::cur_default : style::cur_pointer);
 	}
 	resizeToWidth(width());
 }
@@ -240,7 +250,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
+Widget::Widget(QWidget *parent, not_null<Window::SessionController*> controller, not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)

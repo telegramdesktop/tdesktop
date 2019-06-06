@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 
 void ShowSearchFromBox(
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Fn<void(not_null<UserData*>)> callback,
 		Fn<void()> closedCallback) {
@@ -50,7 +50,7 @@ void ShowSearchFromBox(
 }
 
 SearchFromController::SearchFromController(
-	not_null<Window::Navigation*> navigation,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	Fn<void(not_null<UserData*>)> callback)
 : ParticipantsBoxController(

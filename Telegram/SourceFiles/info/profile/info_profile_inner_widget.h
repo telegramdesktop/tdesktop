@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {

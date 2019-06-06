@@ -17,7 +17,7 @@ class TabbedPanel;
 } // namespace ChatHelpers
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Data {
@@ -32,14 +32,14 @@ class Checkbox;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 class EditCaptionBox : public BoxContent, public RPCSender {
 public:
 	EditCaptionBox(
 		QWidget*,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item);
 
 protected:
@@ -80,7 +80,7 @@ private:
 			: _preparedList.files.front().path;
 	}
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	FullMsgId _msgId;
 	Image *_thumbnailImage = nullptr;
 	bool _thumbnailImageLoaded = false;

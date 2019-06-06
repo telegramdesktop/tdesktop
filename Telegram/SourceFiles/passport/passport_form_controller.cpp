@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
 #include "ui/toast/toast.h"
 #include "auth_session.h"
@@ -610,7 +610,7 @@ std::vector<EditFile> Value::takeAllFilesInEdit() {
 }
 
 FormController::FormController(
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	const FormRequest &request)
 : _controller(controller)
 , _request(PreprocessRequest(request))

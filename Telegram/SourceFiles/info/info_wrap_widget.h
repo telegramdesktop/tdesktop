@@ -73,7 +73,7 @@ class WrapWidget final : public Window::SectionWidget {
 public:
 	WrapWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		Wrap wrap,
 		not_null<Memento*> memento);
 
@@ -183,7 +183,7 @@ private:
 		not_null<ContentMemento*> memento,
 		not_null<Controller*> controller);
 	std::unique_ptr<Controller> createController(
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<ContentMemento*> memento);
 	//void convertProfileFromStackToTab();
 

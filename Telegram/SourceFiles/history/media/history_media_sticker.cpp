@@ -16,8 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
-#include "mainwindow.h" // App::wnd()->controller()
-#include "window/window_controller.h" // isGifPausedAtLeastFor(..)
+#include "mainwindow.h" // App::wnd()->sessionController.
+#include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "lottie/lottie_animation.h"
@@ -191,7 +191,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 		if (selected) {
 			request.colored = st::msgStickerOverlay->c;
 		}
-		const auto paused = App::wnd()->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+		const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 		if (!paused) {
 			_lottie->markFrameShown();
 		}

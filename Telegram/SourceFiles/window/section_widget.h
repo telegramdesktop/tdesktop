@@ -14,7 +14,7 @@ class AuthSession;
 
 namespace Window {
 
-class Controller;
+class SessionController;
 class LayerWidget;
 class SlideAnimation;
 struct SectionShow;
@@ -32,7 +32,7 @@ class AbstractSectionWidget
 public:
 	AbstractSectionWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller)
+		not_null<Window::SessionController*> controller)
 	: RpWidget(parent)
 	, _controller(controller) {
 	}
@@ -48,12 +48,12 @@ public:
 	}
 
 protected:
-	not_null<Window::Controller*> controller() const {
+	not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
 
 private:
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 };
 
@@ -72,7 +72,7 @@ struct SectionSlideParams {
 
 class SectionWidget : public AbstractSectionWidget {
 public:
-	SectionWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	SectionWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	virtual Dialogs::RowDescriptor activeChat() const {
 		return {};

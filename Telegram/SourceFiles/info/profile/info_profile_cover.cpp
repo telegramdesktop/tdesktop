@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/special_buttons.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "observer_peer.h"
 #include "core/application.h"
 #include "auth_session.h"
@@ -211,7 +211,7 @@ int SectionWithToggle::toggleSkip() const {
 Cover::Cover(
 	QWidget *parent,
 	not_null<PeerData*> peer,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop

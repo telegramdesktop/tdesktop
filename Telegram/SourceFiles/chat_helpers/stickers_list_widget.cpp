@@ -697,7 +697,10 @@ bool StickersListWidget::Footer::iconsAnimationCallback(crl::time now) {
 	return (_iconsStartAnim != 0);
 }
 
-StickersListWidget::StickersListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
+StickersListWidget::StickersListWidget(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Inner(parent, controller)
 , _section(Section::Stickers)
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st::emojiPanHeaderLeft)
 , _addText(lang(lng_stickers_featured_add).toUpper())

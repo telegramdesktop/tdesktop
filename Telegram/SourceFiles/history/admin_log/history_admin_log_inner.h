@@ -29,7 +29,7 @@ class PopupMenu;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace AdminLog {
@@ -45,7 +45,7 @@ class InnerWidget final
 public:
 	InnerWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
 	base::Observable<void> showSearchSignal;
@@ -207,7 +207,7 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	not_null<ChannelData*> _channel;
 	not_null<History*> _history;
 	std::vector<OwnedItem> _items;

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 
 #include "window/themes/window_theme.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
@@ -116,7 +116,7 @@ void MainMenu::ResetScaleButton::paintEvent(QPaintEvent *e) {
 
 MainMenu::MainMenu(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _menu(this, st::mainMenu)
@@ -204,7 +204,7 @@ void MainMenu::refreshMenu() {
 						box->closeBox();
 					});
 					box->addTopButton(st::callSettingsButton, [=] {
-						App::wnd()->controller()->showSettings(
+						App::wnd()->sessionController()->showSettings(
 							Settings::Type::Calls,
 							Window::SectionShow(anim::type::instant));
 					});

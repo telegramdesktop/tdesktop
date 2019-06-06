@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
 #include "storage/storage_media_prepare.h"
@@ -150,7 +150,9 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : Window::AbstractSectionWidget(parent, controller)
 , _searchControls(this)
 , _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
@@ -1276,7 +1278,7 @@ void Widget::clearSearchCache() {
 
 void Widget::showJumpToDate() {
 	if (_searchInChat) {
-		this->controller()->showJumpToDate(_searchInChat, QDate());
+		controller()->showJumpToDate(_searchInChat, QDate());
 	}
 }
 

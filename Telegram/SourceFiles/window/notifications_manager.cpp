@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -489,7 +489,7 @@ void Manager::openNotificationMessage(
 	if (openExactlyMessage) {
 		Ui::showPeerHistory(history, messageId);
 	//} else if (messageFeed) { // #feed
-	//	App::wnd()->controller()->showSection(
+	//	App::wnd()->sessionController()->showSection(
 	//		HistoryFeed::Memento(messageFeed));
 	} else {
 		Ui::showPeerHistory(history, ShowAtUnreadMsgId);

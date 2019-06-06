@@ -49,7 +49,7 @@ Widget::Widget(
 		_self))) {
 	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
-		this->controller()->showSettings(type);
+		controller->showSettings(type);
 	}, _inner->lifetime());
 
 	controller->setCanSaveChanges(_inner->sectionCanSaveChanges());

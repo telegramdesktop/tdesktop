@@ -22,7 +22,7 @@ class LinkButton;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Dialogs {
@@ -58,7 +58,9 @@ class InnerWidget
 	Q_OBJECT
 
 public:
-	InnerWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	InnerWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	bool searchReceived(
 		const QVector<MTPMessage> &result,
@@ -291,7 +293,7 @@ private:
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatMigration(not_null<ChatData*> chat);
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 	Mode _mode = Mode();
 	bool _mouseSelection = false;

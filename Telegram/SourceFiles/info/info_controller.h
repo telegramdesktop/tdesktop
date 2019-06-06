@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "data/data_search_controller.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 
 namespace Ui {
@@ -97,9 +97,9 @@ private:
 
 };
 
-class AbstractController : public Window::Navigation {
+class AbstractController : public Window::SessionNavigation {
 public:
-	AbstractController(not_null<Window::Controller*> parent);
+	AbstractController(not_null<Window::SessionController*> parent);
 
 	virtual Key key() const = 0;
 	virtual PeerData *migrated() const = 0;
@@ -127,12 +127,12 @@ public:
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
-	not_null<Window::Controller*> parentController() override {
+	not_null<Window::SessionController*> parentController() override {
 		return _parent;
 	}
 
 private:
-	not_null<Window::Controller*> _parent;
+	not_null<Window::SessionController*> _parent;
 
 };
 
@@ -140,7 +140,7 @@ class Controller : public AbstractController {
 public:
 	Controller(
 		not_null<WrapWidget*> widget,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<ContentMemento*> memento);
 
 	Key key() const override {

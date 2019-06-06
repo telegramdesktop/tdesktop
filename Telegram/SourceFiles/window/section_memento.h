@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-class Controller;
+class SessionController;
 class SectionWidget;
 class LayerWidget;
 enum class Column;
@@ -18,12 +18,12 @@ class SectionMemento {
 public:
 	virtual object_ptr<SectionWidget> createWidget(
 		QWidget *parent,
-		not_null<Controller*> controller,
+		not_null<SessionController*> controller,
 		Column column,
 		const QRect &geometry) = 0;
 
 	virtual object_ptr<LayerWidget> createLayer(
-			not_null<Controller*> controller,
+			not_null<SessionController*> controller,
 			const QRect &geometry) {
 		return nullptr;
 	}

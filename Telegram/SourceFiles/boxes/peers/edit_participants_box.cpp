@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "ui/widgets/popup_menu.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "history/history.h"
 
 namespace {
@@ -706,7 +706,7 @@ ParticipantsBoxController::SavedState::SavedState(
 }
 
 ParticipantsBoxController::ParticipantsBoxController(
-	not_null<Window::Navigation*> navigation,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	Role role)
 : PeerListController(CreateSearchController(peer, role, &_additional))
@@ -775,7 +775,7 @@ auto ParticipantsBoxController::CreateSearchController(
 }
 
 void ParticipantsBoxController::Start(
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Role role) {
 	auto controller = std::make_unique<ParticipantsBoxController>(

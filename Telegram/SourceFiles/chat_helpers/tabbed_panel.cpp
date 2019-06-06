@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
 #include "chat_helpers/tabbed_selector.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "core/qt_signal_producer.h"
@@ -26,7 +26,7 @@ constexpr auto kDelayedHideTimeoutMs = 3000;
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : TabbedPanel(
 	parent,
 	controller,
@@ -35,7 +35,7 @@ TabbedPanel::TabbedPanel(
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	object_ptr<TabbedSelector> selector)
 : RpWidget(parent)
 , _controller(controller)

@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "core/click_handler_types.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
@@ -712,7 +712,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (justClear) {
 			peer->session().api().clearHistory(peer, revoke);
 		} else {
-			const auto controller = App::wnd()->controller();
+			const auto controller = App::wnd()->sessionController();
 			if (controller->activeChatCurrent().peer() == peer) {
 				Ui::showChatsList();
 			}

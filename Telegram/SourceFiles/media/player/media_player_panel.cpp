@@ -38,7 +38,7 @@ constexpr auto kDelayedHideTimeout = crl::time(3000);
 
 Panel::Panel(
 	QWidget *parent,
-	not_null<Window::Controller*> window)
+	not_null<Window::SessionController*> window)
 : RpWidget(parent)
 , AbstractController(window)
 , _showTimer([this] { startShow(); })

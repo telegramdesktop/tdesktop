@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "layout.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
@@ -232,7 +232,7 @@ void ListWidget::enumerateDates(Method method) {
 
 ListWidget::ListWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<ListDelegate*> delegate)
 : RpWidget(parent)
 , _delegate(delegate)

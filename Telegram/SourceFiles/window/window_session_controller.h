@@ -100,11 +100,11 @@ struct SectionShow {
 
 };
 
-class Controller;
+class SessionController;
 
-class Navigation {
+class SessionNavigation {
 public:
-	explicit Navigation(not_null<AuthSession*> session);
+	explicit SessionNavigation(not_null<AuthSession*> session);
 
 	AuthSession &session() const;
 
@@ -113,7 +113,7 @@ public:
 		const SectionShow &params = SectionShow()) = 0;
 	virtual void showBackFromStack(
 		const SectionShow &params = SectionShow()) = 0;
-	virtual not_null<Controller*> parentController() = 0;
+	virtual not_null<SessionController*> parentController() = 0;
 
 	void showPeerInfo(
 		PeerId peerId,
@@ -130,18 +130,18 @@ public:
 		const SectionShow &params = SectionShow());
 	void showSettings(const SectionShow &params = SectionShow());
 
-	virtual ~Navigation() = default;
+	virtual ~SessionNavigation() = default;
 
 private:
 	const not_null<AuthSession*> _session;
 
 };
 
-class Controller
-	: public Navigation
+class SessionController
+	: public SessionNavigation
 	, private base::Subscriber {
 public:
-	Controller(
+	SessionController(
 		not_null<AuthSession*> session,
 		not_null<MainWindow*> window);
 
@@ -251,7 +251,7 @@ public:
 		return _dialogsListDisplayForced;
 	}
 
-	not_null<Controller*> parentController() override {
+	not_null<SessionController*> parentController() override {
 		return this;
 	}
 
@@ -267,7 +267,7 @@ public:
 		return _lifetime;
 	}
 
-	~Controller();
+	~SessionController();
 
 private:
 	void init();

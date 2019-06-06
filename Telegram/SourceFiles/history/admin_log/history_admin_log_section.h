@@ -63,7 +63,7 @@ private:
 
 class Widget final : public Window::SectionWidget {
 public:
-	Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel);
+	Widget(QWidget *parent, not_null<Window::SessionController*> controller, not_null<ChannelData*> channel);
 
 	not_null<ChannelData*> channel() const;
 	Dialogs::RowDescriptor activeChat() const override;
@@ -121,7 +121,7 @@ public:
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) override;
 

@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "auth_session.h"
 #include "styles/style_media_player.h"
@@ -29,7 +29,7 @@ namespace Player {
 
 Float::Float(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	Fn<void(bool visible)> toggleCallback,
 	Fn<void(bool closed)> draggedCallback)
@@ -261,7 +261,7 @@ void Float::repaintItem() {
 template <typename ToggleCallback, typename DraggedCallback>
 FloatController::Item::Item(
 	not_null<QWidget*> parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	ToggleCallback toggle,
 	DraggedCallback dragged)

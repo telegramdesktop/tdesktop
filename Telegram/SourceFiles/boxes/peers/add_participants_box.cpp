@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 
@@ -222,7 +222,7 @@ void AddParticipantsBoxController::Start(
 			box->boxClosing() | rpl::start_with_next([=] {
 				auto params = Window::SectionShow();
 				params.activation = anim::activation::background;
-				App::wnd()->controller()->showPeerHistory(
+				App::wnd()->sessionController()->showPeerHistory(
 					channel,
 					params,
 					ShowAtTheEndMsgId);

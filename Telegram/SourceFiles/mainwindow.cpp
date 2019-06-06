@@ -43,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_warning.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 
 namespace {
 
@@ -235,7 +235,7 @@ void MainWindow::setupMain() {
 
 	clearWidgets();
 
-	_main.create(bodyWidget(), controller());
+	_main.create(bodyWidget(), sessionController());
 	_main->show();
 	updateControlsGeometry();
 
@@ -257,7 +257,7 @@ void MainWindow::showSettings() {
 		return;
 	}
 
-	if (const auto controller = this->controller()) {
+	if (const auto controller = sessionController()) {
 		controller->showSettings();
 	} else {
 		showSpecialLayer(Box<Settings::LayerWidget>(), anim::type::normal);
@@ -294,7 +294,7 @@ void MainWindow::showMainMenu() {
 	if (isHidden()) showFromTray();
 
 	ensureLayerCreated();
-	_layer->showMainMenu(controller(), anim::type::normal);
+	_layer->showMainMenu(sessionController(), anim::type::normal);
 }
 
 void MainWindow::ensureLayerCreated() {
@@ -309,8 +309,8 @@ void MainWindow::ensureLayerCreated() {
 		destroyLayer();
 	}, _layer->lifetime());
 
-	if (controller()) {
-		controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
+	if (const auto controller = sessionController()) {
+		controller->enableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 }
 
@@ -324,8 +324,8 @@ void MainWindow::destroyLayer() {
 		setFocus();
 	}
 	layer = nullptr;
-	if (controller()) {
-		controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
+	if (const auto controller = sessionController()) {
+		controller->disableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 	if (resetFocus) {
 		setInnerFocus();
@@ -385,7 +385,7 @@ void MainWindow::ui_showMediaPreview(
 		return;
 	}
 	if (!_mediaPreview) {
-		_mediaPreview.create(bodyWidget(), controller());
+		_mediaPreview.create(bodyWidget(), sessionController());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -401,7 +401,7 @@ void MainWindow::ui_showMediaPreview(
 		return;
 	}
 	if (!_mediaPreview) {
-		_mediaPreview.create(bodyWidget(), controller());
+		_mediaPreview.create(bodyWidget(), sessionController());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {

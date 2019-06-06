@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "auth_session.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "layout.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -1466,7 +1466,7 @@ ClickHandlerPtr Message::rightActionLink() const {
 		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
 			if (const auto item = Auth().data().message(itemId)) {
 				if (savedFromPeer && savedFromMsgId) {
-					App::wnd()->controller()->showPeerHistory(
+					App::wnd()->sessionController()->showPeerHistory(
 						savedFromPeer,
 						Window::SectionShow::Way::Forward,
 						savedFromMsgId);

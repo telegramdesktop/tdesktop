@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
 #include "window/themes/window_theme.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 
 namespace Window {
 
@@ -22,7 +22,7 @@ AuthSession &AbstractSectionWidget::session() const {
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : AbstractSectionWidget(parent, controller) {
 }
 

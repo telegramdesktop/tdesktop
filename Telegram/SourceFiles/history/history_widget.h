@@ -59,7 +59,7 @@ class RoundButton;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -117,7 +117,7 @@ class HistoryWidget final : public Window::AbstractSectionWidget, public RPCSend
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
 
-	HistoryWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	HistoryWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	void start();
 

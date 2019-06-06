@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -34,7 +34,7 @@ class Main : public Section {
 public:
 	Main(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> self);
 
 	rpl::producer<Type> sectionShowOther() override;
@@ -43,7 +43,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	void setupContent(not_null<Window::Controller*> controller);
+	void setupContent(not_null<Window::SessionController*> controller);
 
 	not_null<UserData*> _self;
 	rpl::event_stream<Type> _showOther;

@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "storage/cache/storage_cache_database.h"
 #include "boxes/confirm_box.h"
 #include "ui/image/image.h"

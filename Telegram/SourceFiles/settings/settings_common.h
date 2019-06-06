@@ -16,7 +16,7 @@ class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Info {
@@ -62,7 +62,7 @@ public:
 object_ptr<Section> CreateSection(
 	Type type,
 	not_null<QWidget*> parent,
-	Window::Controller *controller = nullptr,
+	Window::SessionController *controller = nullptr,
 	UserData *self = nullptr);
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);

@@ -147,7 +147,7 @@ std::unique_ptr<ContentMemento> Memento::DefaultContent(
 
 object_ptr<Window::SectionWidget> Memento::createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
 	auto wrap = (column == Window::Column::Third)
@@ -163,7 +163,7 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 }
 
 object_ptr<Window::LayerWidget> Memento::createLayer(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const QRect &geometry) {
 	if (geometry.width() >= LayerWidget::MinimalSupportedWidth()) {
 		return object_ptr<LayerWidget>(controller, this);
@@ -185,7 +185,7 @@ MoveMemento::MoveMemento(object_ptr<WrapWidget> content)
 
 object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
 	auto wrap = (column == Window::Column::Third)
@@ -201,7 +201,7 @@ object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 }
 
 object_ptr<Window::LayerWidget> MoveMemento::createLayer(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const QRect &geometry) {
 	if (geometry.width() < LayerWidget::MinimalSupportedWidth()) {
 		return nullptr;

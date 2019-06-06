@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "auth_session.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 
 namespace Info {
 namespace {
@@ -86,8 +86,9 @@ rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
 	return rpl::single(QString());
 }
 
-AbstractController::AbstractController(not_null<Window::Controller*> parent)
-: Navigation(&parent->session())
+AbstractController::AbstractController(
+	not_null<Window::SessionController*> parent)
+: SessionNavigation(&parent->session())
 , _parent(parent) {
 }
 
@@ -118,7 +119,7 @@ void AbstractController::showBackFromStack(
 
 Controller::Controller(
 	not_null<WrapWidget*> widget,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	not_null<ContentMemento*> memento)
 : AbstractController(window)
 , _widget(widget)

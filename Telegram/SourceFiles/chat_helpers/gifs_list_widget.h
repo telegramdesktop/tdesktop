@@ -23,7 +23,7 @@ class RoundButton;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -36,7 +36,7 @@ class GifsListWidget
 public:
 	using InlineChosen = TabbedSelector::InlineChosen;
 
-	GifsListWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	GifsListWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	rpl::producer<not_null<DocumentData*>> fileChosen() const;
 	rpl::producer<not_null<PhotoData*>> photoChosen() const;

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_outdated_bar.h"
 #include "boxes/confirm_box.h"
@@ -130,7 +130,7 @@ MainWindow::MainWindow()
 	Core::App().activeAccount().sessionValue(
 	) | rpl::start_with_next([=](AuthSession *session) {
 		_controller = session
-			? std::make_unique<Window::Controller>(session, this)
+			? std::make_unique<Window::SessionController>(session, this)
 			: nullptr;
 		updateWindowIcon();
 	}, lifetime());

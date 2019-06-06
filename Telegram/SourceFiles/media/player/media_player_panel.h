@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -30,7 +30,7 @@ class Panel : public Ui::RpWidget, private Info::AbstractController {
 public:
 	Panel(
 		QWidget *parent,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
 	bool overlaps(const QRect &globalRect);
 

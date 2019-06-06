@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "history/view/history_view_cursor_state.h"
 
 namespace ChatHelpers {
@@ -124,7 +124,7 @@ void GifsListWidget::Footer::processPanelHideFinished() {
 
 GifsListWidget::GifsListWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
 , _section(Section::Gifs)
 , _updateInlineItems([=] { updateInlineItems(); })
@@ -133,7 +133,11 @@ GifsListWidget::GifsListWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_inlineRequestTimer.setSingleShot(true);
-	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
+	connect(
+		&_inlineRequestTimer,
+		&QTimer::timeout,
+		this,
+		[=] { sendInlineRequest(); });
 
 	Auth().data().savedGifsUpdated(
 	) | rpl::start_with_next([this] {
@@ -142,8 +146,9 @@ GifsListWidget::GifsListWidget(
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});
-	subscribe(controller->gifPauseLevelChanged(), [this] {
-		if (!this->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs)) {
+	subscribe(controller->gifPauseLevelChanged(), [=] {
+		if (!controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::SavedGifs)) {
 			update();
 		}
 	});

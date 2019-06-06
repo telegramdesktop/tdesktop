@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/never.h>
 #include <rpl/combine.h>
 #include <rpl/range.h>
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/padding_wrap.h"

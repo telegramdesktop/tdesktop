@@ -15,7 +15,7 @@ class BoxContent;
 
 namespace Window {
 
-class Controller;
+class SessionController;
 class TitleWidget;
 struct TermsLock;
 
@@ -30,7 +30,7 @@ class MainWindow : public Ui::RpWidget, protected base::Subscriber {
 public:
 	MainWindow();
 
-	Window::Controller *controller() const {
+	Window::SessionController *sessionController() const {
 		return _controller.get();
 	}
 	void setInactivePress(bool inactive);
@@ -162,7 +162,7 @@ private:
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
 
-	std::unique_ptr<Window::Controller> _controller;
+	std::unique_ptr<Window::SessionController> _controller;
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<TWidget> _body;

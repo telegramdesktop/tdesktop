@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "styles/style_info.h"
@@ -80,7 +80,7 @@ inline auto AddCountedButton(
 
 inline auto AddButton(
 		Ui::VerticalLayout *parent,
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		PeerData *migrated,
 		Type type,
@@ -99,7 +99,7 @@ inline auto AddButton(
 
 inline auto AddCommonGroupsButton(
 		Ui::VerticalLayout *parent,
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<UserData*> user,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(

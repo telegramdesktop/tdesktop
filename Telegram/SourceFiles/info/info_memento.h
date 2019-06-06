@@ -39,12 +39,12 @@ public:
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) override;
 
 	object_ptr<Window::LayerWidget> createLayer(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 
 	int stackSize() const {
@@ -93,12 +93,12 @@ public:
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) override;
 
 	object_ptr<Window::LayerWidget> createLayer(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 
 	bool instant() const override {

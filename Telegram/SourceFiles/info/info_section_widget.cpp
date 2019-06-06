@@ -18,7 +18,7 @@ namespace Info {
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
 : Window::SectionWidget(parent, window)
@@ -28,7 +28,7 @@ SectionWidget::SectionWidget(
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<MoveMemento*> memento)
 : Window::SectionWidget(parent, window)

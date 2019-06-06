@@ -43,7 +43,7 @@ class Media;
 } // namespace Data
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace HistoryView {

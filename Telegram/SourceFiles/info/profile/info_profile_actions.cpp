@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_text.h"
 #include "support/support_helper.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "auth_session.h"

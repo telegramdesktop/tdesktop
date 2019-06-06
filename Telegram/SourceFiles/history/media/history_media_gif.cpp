@@ -21,8 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
-#include "window/window_controller.h"
-#include "core/application.h" // for Application::showDocument.
+#include "window/window_session_controller.h"
+#include "core/application.h" // Application::showDocument.
 #include "ui/image/image.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -297,7 +297,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 	auto roundCorners = (isRound || inWebPage) ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 		| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	if (animating) {
-		auto paused = App::wnd()->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+		auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 		if (isRound) {
 			if (player) {
 				paused = false;

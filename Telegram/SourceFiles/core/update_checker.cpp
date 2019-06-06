@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "info/info_memento.h"
 #include "info/settings/info_settings_widget.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "settings/settings_intro.h"
 
 extern "C" {
@@ -1577,7 +1577,7 @@ void UpdateApplication() {
 	} else {
 		cSetAutoUpdate(true);
 		if (const auto window = App::wnd()) {
-			if (const auto controller = window->controller()) {
+			if (const auto controller = window->sessionController()) {
 				controller->showSection(
 					Info::Memento(
 						Info::Settings::Tag{ Auth().user() },

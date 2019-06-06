@@ -42,7 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include <rpl/flatten_latest.h>
 #include <rpl/range.h>
 #include "info/profile/info_profile_icon.h"
@@ -718,7 +718,7 @@ void Controller::fillHistoryVisibilityButton() {
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto navigation = App::wnd()->controller();
+	const auto navigation = App::wnd()->sessionController();
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();

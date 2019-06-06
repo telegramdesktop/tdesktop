@@ -19,11 +19,11 @@ class UserpicButton;
 
 namespace Window {
 
-class Controller;
+class SessionController;
 
 class MainMenu : public Ui::RpWidget, private base::Subscriber {
 public:
-	MainMenu(QWidget *parent, not_null<Controller*> controller);
+	MainMenu(QWidget *parent, not_null<SessionController*> controller);
 
 	void setInnerFocus() {
 		setFocus();
@@ -41,7 +41,7 @@ private:
 	void refreshBackground();
 
 	class ResetScaleButton;
-	not_null<Controller*> _controller;
+	not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton = { nullptr };
 	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };

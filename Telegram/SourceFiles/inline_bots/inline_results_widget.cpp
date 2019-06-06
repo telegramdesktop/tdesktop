@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "auth_session.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "observer_peer.h"
@@ -42,7 +42,10 @@ constexpr auto kInlineBotRequestDelay = 400;
 
 } // namespace
 
-Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+Inner::Inner(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: TWidget(parent)
 , _controller(controller)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
@@ -720,7 +723,7 @@ void Inner::onSwitchPm() {
 
 Widget::Widget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _contentMaxHeight(st::emojiPanMaxHeight)

@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "layout.h"
 #include "window/notifications_manager.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "observer_peer.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_session.h"

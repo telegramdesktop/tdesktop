@@ -30,12 +30,12 @@ class SectionWidget final : public Window::SectionWidget {
 public:
 	SectionWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		Wrap wrap,
 		not_null<Memento*> memento);
 	SectionWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		Wrap wrap,
 		not_null<MoveMemento*> memento);
 

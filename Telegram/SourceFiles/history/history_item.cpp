@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "core/application.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "core/crash_reports.h"
 #include "data/data_session.h"
 #include "data/data_messages.h"
@@ -802,7 +802,7 @@ ClickHandlerPtr goToMessageClickHandler(
 					main->pushReplyReturn(returnTo);
 				}
 			}
-			App::wnd()->controller()->showPeerHistory(
+			App::wnd()->sessionController()->showPeerHistory(
 				peer,
 				Window::SectionShow::Way::Forward,
 				msgId);

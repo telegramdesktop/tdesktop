@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
@@ -98,7 +98,7 @@ struct InnerWidget::PeerSearchResult {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _pinnedShiftAnimation([=](crl::time now) {

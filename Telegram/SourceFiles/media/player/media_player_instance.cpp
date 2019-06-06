@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "main/main_account.h" // Account::sessionValue.
@@ -179,7 +179,7 @@ void Instance::clearStreamed(not_null<Data*> data) {
 	requestRoundVideoResize();
 	emitUpdate(data->type);
 	data->streamed = nullptr;
-	App::wnd()->controller()->disableGifPauseReason(
+	App::wnd()->sessionController()->disableGifPauseReason(
 		Window::GifPauseReason::RoundPlaying);
 }
 
@@ -685,7 +685,7 @@ void Instance::handleStreamingUpdate(
 					float64) {
 				requestRoundVideoRepaint();
 			});
-			App::wnd()->controller()->enableGifPauseReason(
+			App::wnd()->sessionController()->enableGifPauseReason(
 				Window::GifPauseReason::RoundPlaying);
 			requestRoundVideoResize();
 		}

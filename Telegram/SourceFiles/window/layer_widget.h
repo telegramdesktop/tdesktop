@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 
 class MainMenu;
-class Controller;
+class SessionController;
 class SectionMemento;
 struct SectionShow;
 
@@ -97,7 +97,7 @@ public:
 		object_ptr<LayerWidget> layer,
 		anim::type animated);
 	void showMainMenu(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		anim::type animated);
 	bool takeToThirdSection();
 
@@ -197,7 +197,7 @@ private:
 
 class MediaPreviewWidget : public TWidget, private base::Subscriber {
 public:
-	MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	MediaPreviewWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	void showPreview(
 		Data::FileOrigin origin,
@@ -220,7 +220,7 @@ private:
 	void fillEmojiString();
 	void resetGifAndCache();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 	Ui::Animations::Simple _a_shown;
 	bool _hiding = false;

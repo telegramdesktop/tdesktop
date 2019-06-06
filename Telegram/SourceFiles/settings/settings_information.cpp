@@ -38,7 +38,7 @@ constexpr auto kSaveBioTimeout = 1000;
 
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> self) {
 	const auto wrap = container->add(object_ptr<BoxContentDivider>(
 		container,
@@ -409,7 +409,7 @@ BioManager SetupBio(
 
 Information::Information(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<UserData*> self)
 : Section(parent)
 , _self(self) {
@@ -424,7 +424,7 @@ Information::Information(
 //	_save(std::move(done));
 //}
 
-void Information::setupContent(not_null<Window::Controller*> controller) {
+void Information::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupPhoto(content, controller, _self);

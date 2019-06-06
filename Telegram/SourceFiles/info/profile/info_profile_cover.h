@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace style {
@@ -58,7 +58,7 @@ public:
 	Cover(
 		QWidget *parent,
 		not_null<PeerData*> peer,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
 

@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "calls/calls_instance.h"
 #include "core/shortcuts.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_box.h"
@@ -53,7 +53,7 @@ struct WrapWidget::StackItem {
 
 WrapWidget::WrapWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
 : SectionWidget(parent, window)
@@ -198,7 +198,7 @@ void WrapWidget::injectActiveProfileMemento(
 }
 
 std::unique_ptr<Controller> WrapWidget::createController(
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<ContentMemento*> memento) {
 	auto result = std::make_unique<Controller>(
 		this,

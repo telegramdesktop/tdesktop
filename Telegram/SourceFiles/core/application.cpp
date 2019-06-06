@@ -52,7 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/effects/animations.h"
 #include "storage/serialize_common.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/connection_box.h"

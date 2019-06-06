@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 class AbstractSectionWidget;
 enum class Column;
 } // namespace Window
@@ -35,7 +35,7 @@ class Float : public Ui::RpWidget, private base::Subscriber {
 public:
 	Float(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		Fn<void(bool visible)> toggleCallback,
 		Fn<void(bool closed)> draggedCallback);
@@ -88,7 +88,7 @@ private:
 	void finishDrag(bool closed);
 	void pauseResume();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	HistoryItem *_item = nullptr;
 	Fn<void(bool visible)> _toggleCallback;
 
@@ -108,7 +108,7 @@ private:
 class FloatDelegate {
 public:
 	virtual not_null<Ui::RpWidget*> floatPlayerWidget() = 0;
-	virtual not_null<Window::Controller*> floatPlayerController() = 0;
+	virtual not_null<Window::SessionController*> floatPlayerController() = 0;
 	virtual not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
 		Window::Column column) = 0;
 	virtual void floatPlayerEnumerateSections(Fn<void(
@@ -192,7 +192,7 @@ private:
 		template <typename ToggleCallback, typename DraggedCallback>
 		Item(
 			not_null<QWidget*> parent,
-			not_null<Window::Controller*> controller,
+			not_null<Window::SessionController*> controller,
 			not_null<HistoryItem*> item,
 			ToggleCallback toggle,
 			DraggedCallback dragged);
@@ -241,7 +241,7 @@ private:
 
 	not_null<FloatDelegate*> _delegate;
 	not_null<Ui::RpWidget*> _parent;
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	std::vector<std::unique_ptr<Item>> _items;
 
 	rpl::event_stream<FullMsgId> _closeEvents;

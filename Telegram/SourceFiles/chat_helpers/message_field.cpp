@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "auth_session.h"
@@ -353,9 +353,8 @@ Fn<bool(
 	};
 }
 
-
 void InitMessageField(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
 	field->setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	field->setMaxHeight(st::historyComposeFieldMaxHeight);

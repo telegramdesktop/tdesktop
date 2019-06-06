@@ -18,7 +18,7 @@ enum class Section;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -33,7 +33,7 @@ class EmojiListWidget
 public:
 	EmojiListWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
 	using Section = Ui::Emoji::Section;
 

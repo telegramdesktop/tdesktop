@@ -21,7 +21,7 @@ struct UploadSecureProgress;
 } // namespace Storage
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Passport {
@@ -322,7 +322,7 @@ struct FileKey {
 class FormController : private MTP::Sender, public base::has_weak_ptr {
 public:
 	FormController(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const FormRequest &request);
 
 	void show();
@@ -508,7 +508,7 @@ private:
 	void cancelAbort();
 	void shortPollEmailConfirmation();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	FormRequest _request;
 	UserData *_bot = nullptr;
 

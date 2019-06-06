@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -356,7 +356,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 		object_ptr<BoxContentDivider>(container),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
-	const auto navigation = App::wnd()->controller();
+	const auto navigation = App::wnd()->sessionController();
 	container->add(EditPeerInfoBox::CreateButton(
 		container,
 		Lang::Viewer(lng_manage_peer_exceptions),

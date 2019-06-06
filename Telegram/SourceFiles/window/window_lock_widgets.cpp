@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "styles/style_boxes.h"
 #include "window/window_slide_animation.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "auth_session.h"
 
 namespace Window {
@@ -30,7 +30,7 @@ LockWidget::LockWidget(QWidget *parent) : RpWidget(parent) {
 }
 
 void LockWidget::setInnerFocus() {
-	if (const auto controller = App::wnd()->controller()) {
+	if (const auto controller = App::wnd()->sessionController()) {
 		controller->dialogsListFocused().set(false, true);
 	}
 	setFocus();

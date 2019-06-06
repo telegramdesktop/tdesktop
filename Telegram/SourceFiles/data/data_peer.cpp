@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "core/application.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
@@ -77,7 +77,7 @@ PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 
 void PeerClickHandler::onClick(ClickContext context) const {
 	if (context.button == Qt::LeftButton && App::wnd()) {
-		auto controller = App::wnd()->controller();
+		const auto controller = App::wnd()->sessionController();
 		if (_peer
 			&& _peer->isChannel()
 			&& controller->activeChatCurrent().peer() != _peer) {

@@ -379,7 +379,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 
 EmojiListWidget::EmojiListWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
 , _picker(this)
 , _showPickerTimer([=] { showPicker(); }) {

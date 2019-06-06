@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
 #include "data/data_session.h"
@@ -35,7 +35,7 @@ namespace {
 
 ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
 	return std::make_shared<LambdaClickHandler>([peer] {
-		App::wnd()->controller()->showPeerHistory(
+		App::wnd()->sessionController()->showPeerHistory(
 			peer->id,
 			Window::SectionShow::Way::Forward);
 	});

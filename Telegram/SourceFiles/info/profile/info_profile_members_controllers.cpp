@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "boxes/confirm_box.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_info.h"
 #include "data/data_peer_values.h"
 
@@ -94,7 +94,7 @@ void MemberListRow::paintNameIcon(
 }
 
 std::unique_ptr<PeerListController> CreateMembersController(
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {
 	return std::make_unique<ParticipantsBoxController>(
 		navigation,

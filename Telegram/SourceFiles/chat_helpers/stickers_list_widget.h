@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -32,7 +32,7 @@ class StickersListWidget
 public:
 	StickersListWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
 	rpl::producer<not_null<DocumentData*>> chosen() const;
 	rpl::producer<> scrollUpdated() const;

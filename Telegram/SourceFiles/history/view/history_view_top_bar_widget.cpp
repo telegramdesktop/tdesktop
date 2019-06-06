@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
@@ -46,7 +46,7 @@ namespace HistoryView {
 
 TopBarWidget::TopBarWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _clear(this, langFactory(lng_selected_clear), st::topBarClearButton)

@@ -75,7 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_top_bar_wrap.h"
 #include "window/notifications_manager.h"
 #include "window/window_slide_animation.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/window_history_hider.h"
 #include "mtproto/dc_options.h"
@@ -355,7 +355,7 @@ MainWidget::SettingBackground::SettingBackground(
 
 MainWidget::MainWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _dialogsWidth(st::columnMinimalWidthLeft)
@@ -499,7 +499,7 @@ not_null<Ui::RpWidget*> MainWidget::floatPlayerWidget() {
 	return this;
 }
 
-not_null<Window::Controller*> MainWidget::floatPlayerController() {
+not_null<Window::SessionController*> MainWidget::floatPlayerController() {
 	return _controller;
 }
 

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "data/data_document.h"
 #include "media/clip/media_clip_reader.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "layout.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
@@ -46,12 +46,12 @@ class SingleMediaPreview : public Ui::RpWidget {
 public:
 	static SingleMediaPreview *Create(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const Storage::PreparedFile &file);
 
 	SingleMediaPreview(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		QImage preview,
 		bool animated,
 		bool sticker,
@@ -73,7 +73,7 @@ private:
 	void prepareAnimatedPreview(const QString &animatedPreviewPath);
 	void clipCallback(Media::Clip::Notification notification);
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	bool _animated = false;
 	bool _sticker = false;
 	bool _canSendAsPhoto = false;
@@ -568,7 +568,7 @@ void AlbumThumb::finishAnimations() {
 
 SingleMediaPreview *SingleMediaPreview::Create(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		const Storage::PreparedFile &file) {
 	auto preview = QImage();
 	bool animated = false;
@@ -602,7 +602,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 
 SingleMediaPreview::SingleMediaPreview(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	QImage preview,
 	bool animated,
 	bool sticker,
@@ -1337,7 +1337,7 @@ void SendFilesBox::AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 
 SendFilesBox::SendFilesBox(
 	QWidget*,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	Storage::PreparedList &&list,
 	const TextWithTags &caption,
 	CompressConfirm compressed)

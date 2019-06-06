@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_members_controllers.h"
 
 namespace Window {
-class Navigation;
+class SessionNavigation;
 } // namespace Window
 
 Fn<void(
@@ -135,12 +135,12 @@ public:
 	using Role = ParticipantsRole;
 
 	static void Start(
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Role role);
 
 	ParticipantsBoxController(
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Role role);
 
@@ -227,7 +227,7 @@ private:
 	void subscribeToMigration();
 	void migrate(not_null<ChannelData*> channel);
 
-	not_null<Window::Navigation*> _navigation;
+	not_null<Window::SessionNavigation*> _navigation;
 	not_null<PeerData*> _peer;
 	Role _role = Role::Admins;
 	int _offset = 0;

@@ -258,7 +258,7 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 
 Main::Main(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<UserData*> self)
 : Section(parent)
 , _self(self) {
@@ -270,7 +270,7 @@ void Main::keyPressEvent(QKeyEvent *e) {
 	return Section::keyPressEvent(e);
 }
 
-void Main::setupContent(not_null<Window::Controller*> controller) {
+void Main::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto cover = content->add(object_ptr<Info::Profile::Cover>(

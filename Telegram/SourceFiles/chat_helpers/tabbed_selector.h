@@ -25,7 +25,7 @@ class FlatLabel;
 } // namesapce Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -53,7 +53,7 @@ public:
 
 	TabbedSelector(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Mode mode = Mode::Full);
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
@@ -148,7 +148,7 @@ private:
 	bool full() const;
 	Tab createTab(
 		SelectorTab type,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
 	void paintSlideFrame(Painter &p);
 	void paintContent(Painter &p);
@@ -212,7 +212,7 @@ private:
 
 class TabbedSelector::Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, not_null<Window::Controller*> controller);
+	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	int getVisibleTop() const {
 		return _visibleTop;
@@ -246,7 +246,7 @@ protected:
 	int minimalHeight() const;
 	int resizeGetHeight(int newWidth) override final;
 
-	not_null<Window::Controller*> controller() const {
+	not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
 
@@ -261,7 +261,7 @@ protected:
 	void disableScroll(bool disabled);
 
 private:
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

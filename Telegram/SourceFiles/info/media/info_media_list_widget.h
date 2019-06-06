@@ -31,7 +31,7 @@ class ItemBase;
 } // namespace Overview
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Info {

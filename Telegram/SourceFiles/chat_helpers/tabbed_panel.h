@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -25,10 +25,10 @@ class TabbedSelector;
 
 class TabbedPanel : public Ui::RpWidget {
 public:
-	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller);
+	TabbedPanel(QWidget *parent, not_null<Window::SessionController*> controller);
 	TabbedPanel(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		object_ptr<TabbedSelector> selector);
 
 	object_ptr<TabbedSelector> takeSelector();
@@ -87,7 +87,7 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	object_ptr<TabbedSelector> _selector;
 
 	int _contentMaxHeight = 0;

@@ -28,7 +28,7 @@ class EmptyPainter;
 } // namespace HistoryView
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -48,7 +48,7 @@ public:
 
 	HistoryInner(
 		not_null<HistoryWidget*> historyWidget,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Ui::ScrollArea *scroll,
 		not_null<History*> history);
 
@@ -302,7 +302,7 @@ private:
 
 	static HistoryInner *Instance;
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 	const not_null<PeerData*> _peer;
 	const not_null<History*> _history;

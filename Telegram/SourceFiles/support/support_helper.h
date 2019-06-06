@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class AuthSession;
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Support {
@@ -41,7 +41,7 @@ public:
 
 	static std::unique_ptr<Helper> Create(not_null<AuthSession*> session);
 
-	void registerWindow(not_null<Window::Controller*> controller);
+	void registerWindow(not_null<Window::SessionController*> controller);
 	void cloudDraftChanged(not_null<History*> history);
 
 	void chatOccupiedUpdated(not_null<History*> history);
@@ -66,7 +66,7 @@ private:
 	};
 	void checkOccupiedChats();
 	void updateOccupiedHistory(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		History *history);
 	void setSupportName(const QString &name);
 	void occupyIfNotYet();

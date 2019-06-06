@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/application.h"
 #include "media/clip/media_clip_reader.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "history/history_item_components.h"
 #include "platform/platform_info.h"
 #include "data/data_peer.h"
@@ -227,8 +227,8 @@ bool isLayerShown() {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (auto window = App::wnd()) {
-		if (auto controller = window->controller()) {
+	if (const auto window = App::wnd()) {
+		if (const auto controller = window->sessionController()) {
 			controller->showPeerInfo(peer);
 		}
 	}

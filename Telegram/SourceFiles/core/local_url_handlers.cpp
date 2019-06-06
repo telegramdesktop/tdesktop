@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/connection_box.h"
 #include "boxes/sticker_set_box.h"
 #include "passport/passport_form_controller.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "mainwindow.h"
@@ -46,7 +46,7 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
 			if (const auto chat = Auth().data().processChat(data.vchat)) {
-				App::wnd()->controller()->showPeerHistory(
+				App::wnd()->sessionController()->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::Forward);
 			}
@@ -145,7 +145,7 @@ bool ShowPassportForm(const QMap<QString, QString> &params) {
 		QString());
 	const auto errors = params.value("errors", QString());
 	if (const auto window = App::wnd()) {
-		if (const auto controller = window->controller()) {
+		if (const auto controller = window->sessionController()) {
 			controller->showPassportForm(Passport::FormRequest(
 				botId,
 				scope,
@@ -240,7 +240,7 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 		return false;
 	}
 	const auto done = [=](not_null<PeerData*> peer) {
-		App::wnd()->controller()->showPeerHistory(
+		App::wnd()->sessionController()->showPeerHistory(
 			peer->id,
 			Window::SectionShow::Way::Forward,
 			msgId);

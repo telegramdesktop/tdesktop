@@ -34,13 +34,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/text_options.h"
 #include "ui/widgets/input_fields.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/checkbox.h"
 #include "confirm_box.h"
 
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item)
 : _controller(controller)
 , _msgId(item->fullId()) {
