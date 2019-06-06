@@ -643,7 +643,7 @@ void MainWindow::createGlobalMenu() {
 	psContacts = window->addAction(lang(lng_mac_menu_contacts));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
 		if (isHidden()) {
-			showFromTray();
+			App::wnd()->showFromTray();
 		}
 		if (!account().sessionExists()) {
 			return;
@@ -652,7 +652,7 @@ void MainWindow::createGlobalMenu() {
 			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
 		}));
-	});
+	}));
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
 	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));

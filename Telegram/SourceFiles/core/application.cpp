@@ -1060,10 +1060,10 @@ QPoint Application::getPointForCallPanelCenter() const {
 // macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
 void Application::registerLeaveSubscription(QWidget *widget) {
 #ifdef Q_OS_MAC
-	if (auto topLevel = widget->window()) {
-		if (topLevel == _window.get()) {
+	if (const auto topLevel = widget->window()) {
+		if (topLevel == _window->widget()) {
 			auto weak = make_weak(widget);
-			auto subscription = _window->leaveEvents(
+			auto subscription = _window->widget()->leaveEvents(
 			) | rpl::start_with_next([weak] {
 				if (const auto window = weak.data()) {
 					QEvent ev(QEvent::Leave);

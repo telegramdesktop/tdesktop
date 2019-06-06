@@ -39,6 +39,8 @@ public:
 
 	void updateWindowIcon() override;
 
+	class Private;
+
 public slots:
 	void psShowTrayMenu();
 
@@ -82,7 +84,6 @@ protected:
 	void closeWithoutDestroy() override;
 
 private:
-	class Private;
 	friend class Private;
 
 	void initTouchBar();
