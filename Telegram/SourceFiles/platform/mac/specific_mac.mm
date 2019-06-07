@@ -33,23 +33,6 @@ namespace {
 
 QStringList _initLogs;
 
-class _PsEventFilter : public QAbstractNativeEventFilter {
-public:
-	_PsEventFilter() {
-	}
-
-	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-		return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			auto wnd = App::wnd();
-			if (!wnd) return false;
-
-			return wnd->psFilterNativeEvent(message);
-		});
-	}
-};
-
-_PsEventFilter *_psEventFilter = nullptr;
-
 };
 
 namespace {
@@ -74,12 +57,6 @@ void psShowOverAll(QWidget *w, bool canFocus) {
 
 void psBringToBack(QWidget *w) {
 	objc_bringToBack(w->winId());
-}
-
-QAbstractNativeEventFilter *psNativeEventFilter() {
-	delete _psEventFilter;
-	_psEventFilter = new _PsEventFilter();
-	return _psEventFilter;
 }
 
 void psWriteDump() {
@@ -139,9 +116,6 @@ void start() {
 }
 
 void finish() {
-	delete _psEventFilter;
-	_psEventFilter = nullptr;
-
 	objc_finish();
 }
 

@@ -665,14 +665,15 @@ void querySystemNotificationSettings() {
 bool SkipAudio() {
 	querySystemNotificationSettings();
 
-	if (UserNotificationState == QUNS_NOT_PRESENT || UserNotificationState == QUNS_PRESENTATION_MODE) {
+	if (UserNotificationState == QUNS_NOT_PRESENT
+		|| UserNotificationState == QUNS_PRESENTATION_MODE
+		|| QuietHoursEnabled) {
 		return true;
 	}
-	if (QuietHoursEnabled) {
-		return true;
-	}
-	if (EventFilter::getInstance()->sessionLoggedOff()) {
-		return true;
+	if (const auto filter = EventFilter::GetInstance()) {
+		if (filter->sessionLoggedOff()) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -680,10 +681,10 @@ bool SkipAudio() {
 bool SkipToast() {
 	querySystemNotificationSettings();
 
-	if (UserNotificationState == QUNS_PRESENTATION_MODE || UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN/* || UserNotificationState == QUNS_BUSY*/) {
-		return true;
-	}
-	if (QuietHoursEnabled) {
+	if (UserNotificationState == QUNS_PRESENTATION_MODE
+		|| UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN
+		//|| UserNotificationState == QUNS_BUSY
+		|| QuietHoursEnabled) {
 		return true;
 	}
 	return false;

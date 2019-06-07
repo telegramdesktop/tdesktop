@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/notifications_manager_win.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
-#include "platform/win/windows_event_filter.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -80,10 +79,6 @@ namespace {
 	_PsInitializer _psInitializer;
 
 };
-
-QAbstractNativeEventFilter *psNativeEventFilter() {
-	return EventFilter::createInstance();
-}
 
 void psDeleteDir(const QString &dir) {
 	std::wstring wDir = QDir::toNativeSeparators(dir).toStdWString();
@@ -286,7 +281,6 @@ void start() {
 }
 
 void finish() {
-	EventFilter::destroy();
 }
 
 bool IsApplicationActive() {

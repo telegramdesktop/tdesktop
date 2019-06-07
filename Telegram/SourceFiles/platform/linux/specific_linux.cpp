@@ -118,17 +118,6 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 
 namespace {
 
-class _PsEventFilter : public QAbstractNativeEventFilter {
-public:
-	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-		//auto wnd = App::wnd();
-		//if (!wnd) return false;
-
-		return false;
-	}
-};
-_PsEventFilter *_psEventFilter = nullptr;
-
 QRect _monitorRect;
 auto _monitorLastGot = 0LL;
 
@@ -147,12 +136,6 @@ void psShowOverAll(QWidget *w, bool canFocus) {
 }
 
 void psBringToBack(QWidget *w) {
-}
-
-QAbstractNativeEventFilter *psNativeEventFilter() {
-	delete _psEventFilter;
-	_psEventFilter = new _PsEventFilter();
-	return _psEventFilter;
 }
 
 void psWriteDump() {
@@ -255,9 +238,6 @@ void start() {
 
 void finish() {
 	Notifications::Finish();
-
-	delete _psEventFilter;
-	_psEventFilter = nullptr;
 }
 
 bool TranslucentWindowsSupported(QPoint globalPosition) {

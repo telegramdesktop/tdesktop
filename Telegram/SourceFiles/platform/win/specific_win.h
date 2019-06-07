@@ -74,8 +74,6 @@ void psBringToBack(QWidget *w);
 int psCleanup();
 int psFixPrevious();
 
-QAbstractNativeEventFilter *psNativeEventFilter();
-
 void psNewVersion();
 
 void psUpdateOverlayed(TWidget *widget);

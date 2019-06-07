@@ -68,8 +68,6 @@ int psFixPrevious();
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
-QAbstractNativeEventFilter *psNativeEventFilter();
-
 void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);

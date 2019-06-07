@@ -29,40 +29,56 @@ bool IsCompositionEnabled() {
 
 } // namespace
 
-EventFilter *EventFilter::createInstance() {
-	destroy();
-	instance = new EventFilter();
-	return getInstance();
+EventFilter *EventFilter::CreateInstance(not_null<MainWindow*> window) {
+	Expects(instance == nullptr);
+
+	return (instance = new EventFilter(window));
 }
 
-EventFilter *EventFilter::getInstance() {
+EventFilter *EventFilter::GetInstance() {
 	return instance;
 }
 
-void EventFilter::destroy() {
+void EventFilter::Destroy() {
+	Expects(instance != nullptr);
+
 	delete instance;
 	instance = nullptr;
 }
 
-bool EventFilter::nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-	auto wnd = App::wnd();
-	if (!wnd) return false;
+EventFilter::EventFilter(not_null<MainWindow*> window) : _window(window) {
+}
 
-	MSG *msg = (MSG*)message;
+bool EventFilter::nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
+	const auto msg = static_cast<MSG*>(message);
 	if (msg->message == WM_ENDSESSION) {
 		App::quit();
 		return false;
 	}
-	if (msg->hwnd == wnd->psHwnd() || msg->hwnd && !wnd->psHwnd()) {
-		return mainWindowEvent(msg->hwnd, msg->message, msg->wParam, msg->lParam, (LRESULT*)result);
+	if (msg->hwnd == _window->psHwnd()
+		|| msg->hwnd && !_window->psHwnd()) {
+		return mainWindowEvent(
+			msg->hwnd,
+			msg->message,
+			msg->wParam,
+			msg->lParam,
+			(LRESULT*)result);
 	}
 	return false;
 }
 
-bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result) {
+bool EventFilter::mainWindowEvent(
+		HWND hWnd,
+		UINT msg,
+		WPARAM wParam,
+		LPARAM lParam,
+		LRESULT *result) {
 	using ShadowsChange = MainWindow::ShadowsChange;
 
-	if (auto tbCreatedMsgId = Platform::MainWindow::TaskbarCreatedMsgId()) {
+	if (const auto tbCreatedMsgId = Platform::MainWindow::TaskbarCreatedMsgId()) {
 		if (msg == tbCreatedMsgId) {
 			Platform::MainWindow::TaskbarCreated();
 		}
@@ -90,15 +106,15 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 	case WM_ACTIVATE: {
 		if (LOWORD(wParam) == WA_CLICKACTIVE) {
-			App::wnd()->setInactivePress(true);
+			_window->setInactivePress(true);
 		}
 		if (LOWORD(wParam) != WA_INACTIVE) {
-			App::wnd()->shadowsActivate();
+			_window->shadowsActivate();
 		} else {
-			App::wnd()->shadowsDeactivate();
+			_window->shadowsDeactivate();
 		}
 		if (Global::started()) {
-			App::wnd()->update();
+			_window->update();
 		}
 	} return false;
 
@@ -141,42 +157,40 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		WINDOWPLACEMENT wp;
 		wp.length = sizeof(WINDOWPLACEMENT);
 		if (GetWindowPlacement(hWnd, &wp) && (wp.showCmd == SW_SHOWMAXIMIZED || wp.showCmd == SW_SHOWMINIMIZED)) {
-			App::wnd()->shadowsUpdate(ShadowsChange::Hidden);
+			_window->shadowsUpdate(ShadowsChange::Hidden);
 		} else {
-			App::wnd()->shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized, (WINDOWPOS*)lParam);
+			_window->shadowsUpdate(ShadowsChange::Moved | ShadowsChange::Resized, (WINDOWPOS*)lParam);
 		}
 	} return false;
 
 	case WM_SIZE: {
-		if (App::wnd()) {
-			if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED || wParam == SIZE_MINIMIZED) {
-				if (wParam != SIZE_RESTORED || App::wnd()->windowState() != Qt::WindowNoState) {
-					Qt::WindowState state = Qt::WindowNoState;
-					if (wParam == SIZE_MAXIMIZED) {
-						state = Qt::WindowMaximized;
-					} else if (wParam == SIZE_MINIMIZED) {
-						state = Qt::WindowMinimized;
-					}
-					emit App::wnd()->windowHandle()->windowStateChanged(state);
-				} else {
-					App::wnd()->positionUpdated();
+		if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED || wParam == SIZE_MINIMIZED) {
+			if (wParam != SIZE_RESTORED || _window->windowState() != Qt::WindowNoState) {
+				Qt::WindowState state = Qt::WindowNoState;
+				if (wParam == SIZE_MAXIMIZED) {
+					state = Qt::WindowMaximized;
+				} else if (wParam == SIZE_MINIMIZED) {
+					state = Qt::WindowMinimized;
 				}
-				App::wnd()->psUpdateMargins();
-				MainWindow::ShadowsChanges changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? ShadowsChange::Hidden : (ShadowsChange::Resized | ShadowsChange::Shown);
-				App::wnd()->shadowsUpdate(changes);
+				emit _window->windowHandle()->windowStateChanged(state);
+			} else {
+				_window->positionUpdated();
 			}
+			_window->psUpdateMargins();
+			MainWindow::ShadowsChanges changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? ShadowsChange::Hidden : (ShadowsChange::Resized | ShadowsChange::Shown);
+			_window->shadowsUpdate(changes);
 		}
 	} return false;
 
 	case WM_SHOWWINDOW: {
 		LONG style = GetWindowLong(hWnd, GWL_STYLE);
 		auto changes = ShadowsChange::Resized | ((wParam && !(style & (WS_MAXIMIZE | WS_MINIMIZE))) ? ShadowsChange::Shown : ShadowsChange::Hidden);
-		App::wnd()->shadowsUpdate(changes);
+		_window->shadowsUpdate(changes);
 	} return false;
 
 	case WM_MOVE: {
-		App::wnd()->shadowsUpdate(ShadowsChange::Moved);
-		App::wnd()->positionUpdated();
+		_window->shadowsUpdate(ShadowsChange::Moved);
+		_window->positionUpdated();
 	} return false;
 
 	case WM_NCHITTEST: {
@@ -185,7 +199,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		POINTS p = MAKEPOINTS(lParam);
 		RECT r;
 		GetWindowRect(hWnd, &r);
-		auto res = App::wnd()->hitTest(QPoint(p.x - r.left + App::wnd()->deltaLeft(), p.y - r.top + App::wnd()->deltaTop()));
+		auto res = _window->hitTest(QPoint(p.x - r.left + _window->deltaLeft(), p.y - r.top + _window->deltaTop()));
 		switch (res) {
 		case Window::HitTestResult::Client:
 		case Window::HitTestResult::SysButton:   *result = HTCLIENT; break;
@@ -210,8 +224,8 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	case WM_SYSCOMMAND: {
 		if (wParam == SC_MOUSEMENU) {
 			POINTS p = MAKEPOINTS(lParam);
-			App::wnd()->updateSystemMenu(App::wnd()->windowHandle()->windowState());
-			TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
+			_window->updateSystemMenu(_window->windowHandle()->windowState());
+			TrackPopupMenu(_window->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
 		}
 	} return false;
 
@@ -219,10 +233,10 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 		if (HIWORD(wParam)) return false;
 		int cmd = LOWORD(wParam);
 		switch (cmd) {
-		case SC_CLOSE: App::wnd()->close(); return true;
-		case SC_MINIMIZE: App::wnd()->setWindowState(Qt::WindowMinimized); return true;
-		case SC_MAXIMIZE: App::wnd()->setWindowState(Qt::WindowMaximized); return true;
-		case SC_RESTORE: App::wnd()->setWindowState(Qt::WindowNoState); return true;
+		case SC_CLOSE: _window->close(); return true;
+		case SC_MINIMIZE: _window->setWindowState(Qt::WindowMinimized); return true;
+		case SC_MAXIMIZE: _window->setWindowState(Qt::WindowMaximized); return true;
+		case SC_RESTORE: _window->setWindowState(Qt::WindowNoState); return true;
 		}
 	} return true;
 
