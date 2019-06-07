@@ -595,9 +595,7 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 const Text &PeerData::dialogName() const {
 	return migrateTo()
 		? migrateTo()->dialogName()
-		: (isUser() && !asUser()->phoneText.isEmpty())
-			? asUser()->phoneText
-			: nameText;
+		: nameText;
 }
 
 const QString &PeerData::shortName() const {
