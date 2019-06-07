@@ -216,7 +216,6 @@ void Session::clear() {
 	_sentMessagesData.clear();
 	cSetRecentInlineBots(RecentInlineBots());
 	cSetRecentStickers(RecentStickerPack());
-	cSetReportSpamStatuses(ReportSpamStatuses());
 	App::clearMousedItems();
 	_histories.clear();
 }

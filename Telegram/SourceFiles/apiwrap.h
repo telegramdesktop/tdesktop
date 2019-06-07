@@ -150,6 +150,7 @@ public:
 	void requestFullPeer(not_null<PeerData*> peer);
 	void requestPeer(not_null<PeerData*> peer);
 	void requestPeers(const QList<PeerData*> &peers);
+	void requestPeerSettings(not_null<PeerData*> peer);
 	void requestLastParticipants(not_null<ChannelData*> channel);
 	void requestBots(not_null<ChannelData*> channel);
 	void requestAdmins(not_null<ChannelData*> channel);
@@ -689,6 +690,7 @@ private:
 	using PeerRequests = QMap<PeerData*, mtpRequestId>;
 	PeerRequests _fullPeerRequests;
 	PeerRequests _peerRequests;
+	base::flat_set<not_null<PeerData*>> _requestedPeerSettings;
 
 	PeerRequests _participantsRequests;
 	PeerRequests _botsRequests;

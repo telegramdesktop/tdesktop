@@ -4215,8 +4215,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updatePeerSettings: {
-		//const auto &d = update.c_updateContactLink();
-		//App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link);
+		const auto &d = update.c_updatePeerSettings();
+		const auto peerId = peerFromMTP(d.vpeer);
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			//peer->updateSettings(d.vsettings);
+		}
 	} break;
 
 	case mtpc_updateNotifySettings: {
@@ -4278,9 +4281,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserBlocked: {
-		auto &d = update.c_updateUserBlocked();
-		if (auto user = session().data().userLoaded(d.vuser_id.v)) {
-			user->setBlockStatus(mtpIsTrue(d.vblocked) ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+		const auto &d = update.c_updateUserBlocked();
+		if (const auto user = session().data().userLoaded(d.vuser_id.v)) {
+			user->setIsBlocked(mtpIsTrue(d.vblocked));
 		}
 	} break;
 

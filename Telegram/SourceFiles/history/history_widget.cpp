@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "history/view/history_view_top_bar_widget.h"
+#include "history/view/history_view_contact_status.h"
 #include "observer_peer.h"
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
@@ -237,49 +238,6 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 }
 
 } // namespace
-
-ReportSpamPanel::ReportSpamPanel(QWidget *parent) : TWidget(parent),
-_report(this, lang(lng_report_spam), st::reportSpamHide),
-_hide(this, lang(lng_report_spam_hide), st::reportSpamHide),
-_clear(this, lang(lng_profile_delete_conversation)) {
-	resize(parent->width(), _hide->height() + st::lineWidth);
-
-	connect(_report, SIGNAL(clicked()), this, SIGNAL(reportClicked()));
-	connect(_hide, SIGNAL(clicked()), this, SIGNAL(hideClicked()));
-	connect(_clear, SIGNAL(clicked()), this, SIGNAL(clearClicked()));
-
-	_clear->hide();
-}
-
-void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
-	_report->resize(width() - (_hide->width() + st::reportSpamSeparator) * 2, _report->height());
-	_report->moveToLeft(_hide->width() + st::reportSpamSeparator, 0);
-	_hide->moveToRight(0, 0);
-	_clear->move((width() - _clear->width()) / 2, height() - _clear->height() - ((height() - st::msgFont->height - _clear->height()) / 2));
-}
-
-void ReportSpamPanel::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::historyPinnedBg);
-	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
-	if (!_clear->isHidden()) {
-		p.setPen(st::historyComposeAreaFg);
-		p.setFont(st::msgFont);
-		p.drawText(QRect(_report->x(), (_clear->y() - st::msgFont->height) / 2, _report->width(), st::msgFont->height), lang(lng_report_spam_thanks), style::al_top);
-	}
-}
-
-void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
-	if (reported) {
-		_report->hide();
-		_clear->setText(lang(onPeer->isChannel() ? (onPeer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel) : lng_profile_delete_conversation));
-		_clear->show();
-	} else {
-		_report->show();
-		_clear->hide();
-	}
-	update();
-}
 
 HistoryWidget::HistoryWidget(
 	QWidget *parent,
@@ -517,14 +475,6 @@ HistoryWidget::HistoryWidget(
 			if (const auto media = view->media()) {
 				media->playAnimation();
 			}
-		}
-	}, lifetime());
-
-	session().data().contactsLoaded().changes(
-	) | rpl::start_with_next([=] {
-		if (_peer) {
-			updateReportSpamStatus();
-			updateControlsVisibility();
 		}
 	}, lifetime());
 
@@ -1058,8 +1008,8 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 }
 
 void HistoryWidget::orderWidgets() {
-	if (_reportSpamPanel) {
-		_reportSpamPanel->raise();
+	if (_contactStatus) {
+		_contactStatus->raise();
 	}
 	if (_pinnedBar) {
 		_pinnedBar->shadow->raise();
@@ -1080,26 +1030,6 @@ void HistoryWidget::orderWidgets() {
 	}
 	_attachDragDocument->raise();
 	_attachDragPhoto->raise();
-}
-
-void HistoryWidget::setReportSpamStatus(DBIPeerReportSpamStatus status) {
-	if (_reportSpamStatus == status) {
-		return;
-	}
-	_reportSpamStatus = status;
-	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
-		Assert(_peer != nullptr);
-		_reportSpamPanel.create(this);
-		connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
-		connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
-		connect(_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
-		_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, _peer);
-		_reportSpamPanel->show();
-		orderWidgets();
-		updateControlsGeometry();
-	} else {
-		_reportSpamPanel.destroy();
-	}
 }
 
 void HistoryWidget::updateStickersByEmoji() {
@@ -1753,6 +1683,11 @@ void HistoryWidget::showHistory(
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = _peer->canWrite();
 		_tabbedSelector->setCurrentPeer(_peer);
+		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
+			this,
+			_peer);
+	} else {
+		_contactStatus = nullptr;
 	}
 
 	if (_peer) {
@@ -1768,12 +1703,6 @@ void HistoryWidget::showHistory(
 				: lng_profile_join_channel).toUpper());
 		}
 	}
-
-	_reportSpamRequest = 0;
-	if (_reportSpamSettingRequestId > 0) {
-		MTP::cancel(_reportSpamSettingRequestId);
-	}
-	_reportSpamSettingRequestId = ReportSpamRequestNeeded;
 
 	noSelectingScroll();
 	_nonEmptySelection = false;
@@ -1941,117 +1870,6 @@ bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 			|| (_inlineResults && _inlineResults->overlaps(globalRect)));
 }
 
-void HistoryWidget::updateReportSpamStatus() {
-	if (!_peer
-		|| (_peer->id == session().userPeerId())
-		|| _peer->isServiceUser()
-		|| (_peer->isUser() && _peer->asUser()->isBot())) {
-		setReportSpamStatus(dbiprsHidden);
-		return;
-	} else if (!_firstLoadRequest && _history->isEmpty()) {
-		setReportSpamStatus(dbiprsNoButton);
-		if (cReportSpamStatuses().contains(_peer->id)) {
-			cRefReportSpamStatuses().remove(_peer->id);
-			Local::writeReportSpamStatuses();
-		}
-		return;
-	} else {
-		auto i = cReportSpamStatuses().constFind(_peer->id);
-		if (i != cReportSpamStatuses().cend()) {
-			if (i.value() == dbiprsNoButton) {
-				setReportSpamStatus(dbiprsHidden);
-				if (!_peer->isUser() || !_peer->asUser()->isContact()) {
-					MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
-				}
-
-				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
-				Local::writeReportSpamStatuses();
-			} else {
-				setReportSpamStatus(i.value());
-				if (_reportSpamStatus == dbiprsShowButton) {
-					requestReportSpamSetting();
-				}
-			}
-			return;
-		} else if (_peer->migrateFrom()) { // migrate report status
-			i = cReportSpamStatuses().constFind(_peer->migrateFrom()->id);
-			if (i != cReportSpamStatuses().cend()) {
-				if (i.value() == dbiprsNoButton) {
-					setReportSpamStatus(dbiprsHidden);
-					if (!_peer->isUser() || !_peer->asUser()->isContact()) {
-						MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
-					}
-				} else {
-					setReportSpamStatus(i.value());
-					if (_reportSpamStatus == dbiprsShowButton) {
-						requestReportSpamSetting();
-					}
-				}
-				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
-				Local::writeReportSpamStatuses();
-				return;
-			}
-		}
-	}
-	auto status = dbiprsRequesting;
-	if (!session().data().contactsLoaded().current() || _firstLoadRequest) {
-		status = dbiprsUnknown;
-	} else if (_peer->isUser() && _peer->asUser()->isContact()) {
-		status = dbiprsHidden;
-	} else {
-		requestReportSpamSetting();
-	}
-	setReportSpamStatus(status);
-	if (_reportSpamStatus == dbiprsHidden) {
-		cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
-		Local::writeReportSpamStatuses();
-	}
-}
-
-void HistoryWidget::requestReportSpamSetting() {
-	if (_reportSpamSettingRequestId >= 0 || !_peer) {
-		return;
-	}
-
-	_reportSpamSettingRequestId = MTP::send(
-		MTPmessages_GetPeerSettings(_peer->input),
-		rpcDone(&HistoryWidget::reportSpamSettingDone),
-		rpcFail(&HistoryWidget::reportSpamSettingFail));
-}
-
-void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequestId req) {
-	if (req != _reportSpamSettingRequestId) {
-		return;
-	}
-
-	_reportSpamSettingRequestId = 0;
-	result.match([&](const MTPDpeerSettings &data) {
-		const auto status = data.is_report_spam()
-			? dbiprsShowButton
-			: dbiprsHidden;
-		if (status != _reportSpamStatus) {
-			setReportSpamStatus(status);
-			if (_reportSpamPanel) {
-				_reportSpamPanel->setReported(false, _peer);
-			}
-
-			cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
-			Local::writeReportSpamStatuses();
-
-			updateControlsVisibility();
-		}
-	});
-}
-
-bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (req == _reportSpamSettingRequestId) {
-		req = 0;
-	}
-	return true;
-}
-
 bool HistoryWidget::canWriteMessage() const {
 	if (!_history || !_canSendMessages) return false;
 	if (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart()) return false;
@@ -2085,8 +1903,8 @@ void HistoryWidget::updateControlsVisibility() {
 	} else if (!_firstLoadRequest && _scroll->isHidden()) {
 		_scroll->show();
 	}
-	if (_reportSpamPanel) {
-		_reportSpamPanel->show();
+	if (_contactStatus) {
+		_contactStatus->show();
 	}
 	refreshAboutProxyPromotion();
 	if (!editingMessage() && (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart())) {
@@ -2445,10 +2263,6 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		addMessagesToFront(peer, *histList);
 		_preloadRequest = 0;
 		preloadHistoryIfNeeded();
-		if (_reportSpamStatus == dbiprsUnknown) {
-			updateReportSpamStatus();
-			if (_reportSpamStatus != dbiprsUnknown) updateControlsVisibility();
-		}
 	} else if (_preloadDownRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
 		addMessagesToBack(peer, *histList);
@@ -3138,7 +2952,6 @@ void HistoryWidget::animationCallback() {
 
 void HistoryWidget::doneShow() {
 	_topBar->setAnimatingMode(false);
-	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
 	if (!_historyInited) {
@@ -4663,73 +4476,6 @@ void HistoryWidget::documentFailed(const FullMsgId &newId) {
 	}
 }
 
-void HistoryWidget::onReportSpamClicked() {
-	auto text = lang(_peer->isUser() ? lng_report_spam_sure : ((_peer->isChat() || _peer->isMegagroup()) ? lng_report_spam_sure_group : lng_report_spam_sure_channel));
-	Ui::show(Box<ConfirmBox>(text, lang(lng_report_spam_ok), st::attentionBoxButton, crl::guard(this, [this, peer = _peer] {
-		if (_reportSpamRequest) return;
-
-		Ui::hideLayer();
-		_reportSpamRequest = MTP::send(
-			MTPmessages_ReportSpam(peer->input),
-			rpcDone(&HistoryWidget::reportSpamDone, peer),
-			rpcFail(&HistoryWidget::reportSpamFail), 0, 5);
-		if (const auto user = peer->asUser()) {
-			session().api().blockUser(user);
-		}
-	})));
-}
-
-void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
-	Expects(peer != nullptr);
-
-	if (req == _reportSpamRequest) {
-		_reportSpamRequest = 0;
-	}
-	cRefReportSpamStatuses().insert(peer->id, dbiprsReportSent);
-	Local::writeReportSpamStatuses();
-	if (_peer == peer) {
-		setReportSpamStatus(dbiprsReportSent);
-		if (_reportSpamPanel) {
-			_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, peer);
-		}
-	}
-}
-
-bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (req == _reportSpamRequest) {
-		_reportSpamRequest = 0;
-	}
-	return false;
-}
-
-void HistoryWidget::onReportSpamHide() {
-	if (_peer) {
-		cRefReportSpamStatuses().insert(_peer->id, dbiprsHidden);
-		Local::writeReportSpamStatuses();
-
-		MTP::send(MTPmessages_HidePeerSettingsBar(_peer->input));
-	}
-	setReportSpamStatus(dbiprsHidden);
-	updateControlsVisibility();
-}
-
-void HistoryWidget::onReportSpamClear() {
-	Expects(_peer != nullptr);
-
-	InvokeQueued(App::main(), [peer = _peer] {
-		Ui::showChatsList();
-		if (const auto from = peer->migrateFrom()) {
-			peer->session().api().deleteConversation(from, false);
-		}
-		peer->session().api().deleteConversation(peer, false);
-	});
-
-	// Invalidates _peer.
-	controller()->showBackFromStack();
-}
-
 void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 	if (_list && (_history == history || _migrated == history)) {
 		handlePendingHistoryUpdate();
@@ -4824,11 +4570,11 @@ void HistoryWidget::updateControlsGeometry() {
 		_pinnedBar->cancel->moveToLeft(width() - _pinnedBar->cancel->width(), pinnedBarTop);
 		_pinnedBar->shadow->setGeometryToLeft(0, pinnedBarTop + st::historyReplyHeight, width(), st::lineWidth);
 	}
-	const auto reportSpamTop = pinnedBarTop + (_pinnedBar ? st::historyReplyHeight : 0);
-	if (_reportSpamPanel) {
-		_reportSpamPanel->setGeometryToLeft(0, reportSpamTop, width(), _reportSpamPanel->height());
+	const auto contactStatusTop = pinnedBarTop + (_pinnedBar ? st::historyReplyHeight : 0);
+	if (_contactStatus) {
+		_contactStatus->move(0, contactStatusTop);
 	}
-	const auto scrollAreaTop = reportSpamTop + (_reportSpamPanel ? (_reportSpamPanel->height() - st::lineWidth) : 0);
+	const auto scrollAreaTop = contactStatusTop + (_contactStatus ? _contactStatus->height() : 0);
 	if (_scroll->y() != scrollAreaTop) {
 		_scroll->moveToLeft(0, scrollAreaTop);
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
@@ -4983,8 +4729,8 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	if (_pinnedBar) {
 		newScrollHeight -= st::historyReplyHeight;
 	}
-	if (_reportSpamPanel) {
-		newScrollHeight -= _reportSpamPanel->height() - st::lineWidth;
+	if (_contactStatus) {
+		newScrollHeight -= _contactStatus->height() - st::lineWidth;
 	}
 	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
 		newScrollHeight -= _unblock->height();
@@ -5255,7 +5001,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 int HistoryWidget::computeMaxFieldHeight() const {
 	const auto available = height()
 		- _topBar->height()
-		- (_reportSpamPanel ? _reportSpamPanel->height() - st::lineWidth : 0)
+		- (_contactStatus ? _contactStatus->height() : 0)
 		- (_pinnedBar ? st::historyReplyHeight : 0)
 		- ((_editMsgId
 			|| replyToId()
@@ -6266,7 +6012,6 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 			refresh = true;
 		}
 		onCheckFieldAutocomplete();
-		updateReportSpamStatus();
 		_list->updateBotInfo();
 
 		handlePeerUpdate();
@@ -6285,7 +6030,6 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 void HistoryWidget::handlePeerUpdate() {
 	bool resize = false;
 	updateHistoryGeometry();
-	if (_peer->isChannel()) updateReportSpamStatus();
 	if (_peer->isChat() && _peer->asChat()->noParticipantInfo()) {
 		session().api().requestFullPeer(_peer);
 	} else if (_peer->isUser() && (_peer->asUser()->blockStatus() == UserData::BlockStatus::Unknown || _peer->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {

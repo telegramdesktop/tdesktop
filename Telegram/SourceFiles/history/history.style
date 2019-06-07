@@ -302,23 +302,6 @@ historyReplyCancel: IconButton {
 	}
 }
 
-reportSpamHide: FlatButton {
-	color: windowActiveTextFg;
-	overColor: windowActiveTextFg;
-
-	bgColor: transparent;
-	overBgColor: transparent;
-
-	width: -40px;
-	height: 46px;
-
-	textTop: 15px;
-
-	font: font(fsize);
-	overFont: font(fsize underline);
-}
-reportSpamSeparator: 30px;
-
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
 msgBotKbIconPadding: 2px;

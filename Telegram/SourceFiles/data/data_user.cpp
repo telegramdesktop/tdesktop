@@ -59,16 +59,14 @@ bool UserData::canShareThisContact() const {
 }
 
 void UserData::setIsContact(bool is) {
-	if (_isContact != is) {
-		_isContact = is;
+	const auto status = is
+		? ContactStatus::Contact
+		: ContactStatus::NotContact;
+	if (_contactStatus != status) {
+		_contactStatus = status;
 		Notify::peerUpdatedDelayed(
 			this,
 			Notify::PeerUpdate::Flag::UserIsContact);
-	}
-	if (_isContact
-		&& cReportSpamStatuses().value(id, dbiprsHidden) != dbiprsHidden) {
-		cRefReportSpamStatuses().insert(id, dbiprsHidden);
-		Local::writeReportSpamStatuses();
 	}
 }
 
@@ -231,9 +229,12 @@ void UserData::setAccessHash(uint64 accessHash) {
 	}
 }
 
-void UserData::setBlockStatus(BlockStatus blockStatus) {
-	if (blockStatus != _blockStatus) {
-		_blockStatus = blockStatus;
+void UserData::setIsBlocked(bool is) {
+	const auto status = is
+		? BlockStatus::Blocked
+		: BlockStatus::NotBlocked;
+	if (_blockStatus != status) {
+		_blockStatus = status;
 		Notify::peerUpdatedDelayed(this, UpdateFlag::UserIsBlocked);
 	}
 }
@@ -257,13 +258,11 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (update.has_profile_photo()) {
 		user->owner().processPhoto(update.vprofile_photo);
 	}
-	update.vsettings.match([&](const MTPDpeerSettings &data) {
-		//user->owner().processUserSettings(data);
-		//App::feedUserLink(
-		//	MTP_int(peerToUser(user->id)),
-		//	link.vmy_link,
-		//	link.vforeign_link);
+	const auto settings = update.vsettings.match([&](
+			const MTPDpeerSettings &data) {
+		return data.vflags.v;
 	});
+	user->setSettings(settings);
 	user->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(user->input),
 		update.vnotify_settings);
@@ -279,9 +278,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->clearPinnedMessage();
 	}
 	user->setFullFlags(update.vflags.v);
-	user->setBlockStatus(update.is_blocked()
-		? UserData::BlockStatus::Blocked
-		: UserData::BlockStatus::NotBlocked);
+	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
 		? UserData::CallsStatus::Private
 		: update.is_phone_calls_available()

@@ -69,8 +69,6 @@ int32 gIntRetinaFactor = 1;
 
 int gOtherOnline = 0;
 
-ReportSpamStatuses gReportSpamStatuses;
-
 int32 gAutoDownloadPhoto = 0; // all auto download
 int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;

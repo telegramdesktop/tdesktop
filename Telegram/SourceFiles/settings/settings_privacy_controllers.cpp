@@ -234,7 +234,7 @@ void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &resul
 		item.match([&](const MTPDcontactBlocked &data) {
 			if (const auto user = Auth().data().userLoaded(data.vuser_id.v)) {
 				appendRow(user);
-				user->setBlockStatus(UserData::BlockStatus::Blocked);
+				user->setIsBlocked(true);
 			}
 		});
 	}

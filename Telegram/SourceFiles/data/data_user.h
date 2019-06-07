@@ -163,8 +163,16 @@ public:
 	Text phoneText;
 	TimeId onlineTill = 0;
 
+	enum class ContactStatus : char {
+		Unknown,
+		Contact,
+		NotContact,
+	};
+	[[nodiscard]] ContactStatus contactStatus() const {
+		return _contactStatus;
+	}
 	[[nodiscard]] bool isContact() const {
-		return _isContact;
+		return (contactStatus() == ContactStatus::Contact);
 	}
 	void setIsContact(bool is);
 
@@ -179,7 +187,7 @@ public:
 	bool isBlocked() const {
 		return (blockStatus() == BlockStatus::Blocked);
 	}
-	void setBlockStatus(BlockStatus blockStatus);
+	void setIsBlocked(bool is);
 
 	enum class CallsStatus : char {
 		Unknown,
@@ -209,7 +217,7 @@ private:
 
 	QString _unavailableReason;
 	QString _phone;
-	bool _isContact = false;
+	ContactStatus _contactStatus = ContactStatus::Unknown;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;

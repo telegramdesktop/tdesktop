@@ -169,8 +169,6 @@ void saveRecentSearchHashtags(const QString &text);
 void WriteExportSettings(const Export::Settings &settings);
 Export::Settings ReadExportSettings();
 
-void writeReportSpamStatuses();
-
 void writeSelf();
 void readSelf(const QByteArray &serialized, int32 streamVersion);
 

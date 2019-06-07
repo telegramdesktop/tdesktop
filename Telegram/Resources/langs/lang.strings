@@ -1189,12 +1189,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ban_user" = "Ban User";
 "lng_delete_all_from" = "Delete all from this user";
 "lng_report_spam" = "Report Spam";
-"lng_report_spam_hide" = "Hide";
-"lng_report_spam_thanks" = "Thank you for your report!";
 "lng_report_spam_sure" = "Are you sure you want to report spam from this user?";
 "lng_report_spam_sure_group" = "Are you sure you want to report spam in this group?";
 "lng_report_spam_sure_channel" = "Are you sure you want to report spam in this channel?";
 "lng_report_spam_ok" = "Report";
+"lng_new_contact_block" = "Block user";
+"lng_new_contact_add" = "Add contact";
+"lng_new_contact_share" = "Share my phone number";
 "lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment.\n{more_info}";
 "lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment.\n{more_info}";
 "lng_cant_more_info" = "More info »";

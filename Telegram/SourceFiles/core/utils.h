@@ -341,15 +341,6 @@ QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
 
 static const int MatrixRowShift = 40000;
 
-enum DBIPeerReportSpamStatus {
-	dbiprsNoButton = 0, // hidden, but not in the cloud settings yet
-	dbiprsUnknown = 1, // contacts not loaded yet
-	dbiprsShowButton = 2, // show report spam button, each show peer request setting from cloud
-	dbiprsReportSent = 3, // report sent, but the report spam panel is not hidden yet
-	dbiprsHidden = 4, // hidden in the cloud or not needed (bots, contacts, etc), no more requests
-	dbiprsRequesting = 5, // requesting the cloud setting right now
-};
-
 inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;
 }

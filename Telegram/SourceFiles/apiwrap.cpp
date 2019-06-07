@@ -1316,6 +1316,22 @@ void ApiWrap::requestPeer(not_null<PeerData*> peer) {
 	_peerRequests.insert(peer, requestId);
 }
 
+void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
+	if (!_requestedPeerSettings.emplace(peer).second) {
+		return;
+	}
+	request(MTPmessages_GetPeerSettings(
+		peer->input
+	)).done([=](const MTPPeerSettings &result) {
+		peer->setSettings(result.match([&](const MTPDpeerSettings &data) {
+			return data.vflags.v;
+		}));
+		_requestedPeerSettings.erase(peer);
+	}).fail([=](const RPCError &error) {
+		_requestedPeerSettings.erase(peer);
+	}).send();
+}
+
 void ApiWrap::migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
@@ -2191,7 +2207,7 @@ void ApiWrap::blockUser(not_null<UserData*> user) {
 	} else if (_blockRequests.find(user) == end(_blockRequests)) {
 		const auto requestId = request(MTPcontacts_Block(user->inputUser)).done([this, user](const MTPBool &result) {
 			_blockRequests.erase(user);
-			user->setBlockStatus(UserData::BlockStatus::Blocked);
+			user->setIsBlocked(true);
 			if (_blockedUsersSlice) {
 				_blockedUsersSlice->list.insert(
 					_blockedUsersSlice->list.begin(),
@@ -2217,7 +2233,7 @@ void ApiWrap::unblockUser(not_null<UserData*> user) {
 			user->inputUser
 		)).done([=](const MTPBool &result) {
 			_blockRequests.erase(user);
-			user->setBlockStatus(UserData::BlockStatus::NotBlocked);
+			user->setIsBlocked(false);
 			if (_blockedUsersSlice) {
 				auto &list = _blockedUsersSlice->list;
 				for (auto i = list.begin(); i != list.end(); ++i) {
@@ -2513,9 +2529,6 @@ void ApiWrap::deleteHistory(not_null<PeerData*> peer, bool justClear, bool revok
 		const auto offset = applyAffectedHistory(peer, result);
 		if (offset > 0) {
 			deleteHistory(peer, justClear, revoke);
-		} else if (!justClear && cReportSpamStatuses().contains(peer->id)) {
-			cRefReportSpamStatuses().remove(peer->id);
-			Local::writeReportSpamStatuses();
 		}
 	}).send();
 }
@@ -5793,7 +5806,7 @@ void ApiWrap::reloadBlockedUsers() {
 					const auto user = _session->data().userLoaded(
 						data.vuser_id.v);
 					if (user) {
-						user->setBlockStatus(UserData::BlockStatus::Blocked);
+						user->setIsBlocked(true);
 						slice.list.push_back({ user, data.vdate.v });
 					}
 				});

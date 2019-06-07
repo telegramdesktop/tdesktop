@@ -109,6 +109,15 @@ protected:
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
+	static constexpr auto kEssentialSettings = 0
+		| MTPDpeerSettings::Flag::f_report_spam
+		| MTPDpeerSettings::Flag::f_add_contact
+		| MTPDpeerSettings::Flag::f_block_contact
+		| MTPDpeerSettings::Flag::f_share_contact;
+	using Settings = Data::Flags<
+		MTPDpeerSettings::Flags,
+		kEssentialSettings.value()>;
+
 	virtual ~PeerData();
 
 	static constexpr auto kServiceNotificationsId = peerFromUser(777000);
@@ -289,6 +298,20 @@ public:
 
 	void checkFolder(FolderId folderId);
 
+	void setSettings(MTPDpeerSettings::Flags which) {
+		_settings.set(which);
+	}
+	auto settings() const {
+		return (_settings.current() & kSettingsUnknown)
+			? std::nullopt
+			: std::make_optional(_settings.current());
+	}
+	auto settingsValue() const {
+		return (_settings.current() & kSettingsUnknown)
+			? _settings.changes()
+			: _settings.value();
+	}
+
 	enum LoadedStatus {
 		NotLoaded = 0x00,
 		MinimalLoaded = 0x01,
@@ -341,6 +364,11 @@ private:
 
 	crl::time _lastFullUpdate = 0;
 	MsgId _pinnedMessageId = 0;
+
+	static constexpr auto kSettingsUnknown = MTPDpeerSettings::Flag(1U << 9);
+	static_assert(!(kEssentialSettings & kSettingsUnknown));
+
+	Settings _settings = { kSettingsUnknown };
 
 	QString _about;
 
