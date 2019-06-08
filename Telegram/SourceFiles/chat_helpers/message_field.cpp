@@ -191,10 +191,11 @@ TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 		auto &entity = *i;
 		if (entity.offset() >= length) {
 			i = text.entities.erase(i);
+			continue;
 		} else if (entity.offset() + entity.length() > length) {
 			entity.shrinkFromRight(length - entity.offset());
-			++i;
 		}
+		++i;
 	}
 	if (!text.text.isEmpty() && !text.text.endsWith('\n')) {
 		text.text.append('\n');
