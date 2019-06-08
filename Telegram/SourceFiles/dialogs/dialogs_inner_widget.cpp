@@ -219,7 +219,7 @@ InnerWidget::InnerWidget(
 
 	session().settings().archiveInMainMenuChanges(
 	) | rpl::start_with_next([=] {
-		refreshWithCollapsedRows();
+		refresh();
 	}, lifetime());
 
 	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
@@ -307,20 +307,23 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 	const auto archive = !list->empty()
 		? (*list->begin())->folder()
 		: nullptr;
-	if (archive && session().settings().archiveCollapsed()
-		&& !session().settings().archiveInMainMenu()) {
+	const auto inMainMenu = session().settings().archiveInMainMenu();
+	if (archive && (session().settings().archiveCollapsed() || inMainMenu)) {
 		if (_selected && _selected->folder() == archive) {
 			_selected = nullptr;
 		}
 		if (_pressed && _pressed->folder() == archive) {
 			setPressed(nullptr);
 		}
-		_skipByCollapsedRows = 1;
-		_collapsedRows.push_back(std::make_unique<CollapsedRow>(archive));
+		_skipTopDialogs = 1;
+		if (!inMainMenu) {
+			_collapsedRows.push_back(std::make_unique<CollapsedRow>(archive));
+		}
 	} else {
-		_skipByCollapsedRows = 0;
+		_skipTopDialogs = 0;
 	}
 
+	Assert(!needCollapsedRowsRefresh());
 	refresh(toTop);
 
 	if (selected >= 0 && selected < _collapsedRows.size()) {
@@ -333,7 +336,7 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 
 int InnerWidget::dialogsOffset() const {
 	return _collapsedRows.size() * st::dialogsImportantBarHeight
-		- _skipByCollapsedRows * st::dialogsRowHeight;
+		- _skipTopDialogs * st::dialogsRowHeight;
 }
 
 int InnerWidget::fixedOnTopCount() const {
@@ -412,7 +415,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 		const auto rows = shownDialogs();
 		const auto &list = rows->all();
-		const auto otherStart = std::max(int(rows->size()) - _skipByCollapsedRows, 0) * st::dialogsRowHeight;
+		const auto otherStart = std::max(int(rows->size()) - _skipTopDialogs, 0) * st::dialogsRowHeight;
 		const auto active = activeEntry.key;
 		const auto selected = _menuRow.key
 			? _menuRow.key
@@ -456,7 +459,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			};
 
 			auto i = list.cfind(dialogsClip.top() - skip, st::dialogsRowHeight);
-			while (i != list.cend() && (*i)->pos() < _skipByCollapsedRows) {
+			while (i != list.cend() && (*i)->pos() < _skipTopDialogs) {
 				++i;
 			}
 			if (i != list.cend()) {
@@ -464,13 +467,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				// If we're reordering pinned chats we need to fill this area background first.
 				if (reorderingPinned) {
-					p.fillRect(0, (promoted - _skipByCollapsedRows) * st::dialogsRowHeight, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
+					p.fillRect(0, (promoted - _skipTopDialogs) * st::dialogsRowHeight, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
 				}
 
-				p.translate(0, (lastPaintedPos - _skipByCollapsedRows) * st::dialogsRowHeight);
+				p.translate(0, (lastPaintedPos - _skipTopDialogs) * st::dialogsRowHeight);
 				for (auto e = list.cend(); i != e; ++i) {
 					auto row = (*i);
-					if ((lastPaintedPos - _skipByCollapsedRows) * st::dialogsRowHeight >= dialogsClip.top() - skip + dialogsClip.height()) {
+					if ((lastPaintedPos - _skipTopDialogs) * st::dialogsRowHeight >= dialogsClip.top() - skip + dialogsClip.height()) {
 						break;
 					}
 
@@ -2119,9 +2122,13 @@ bool InnerWidget::needCollapsedRowsRefresh() const {
 		&& (_collapsedRows.back()->folder != nullptr);
 	const auto archiveIsCollapsed = (archive != nullptr)
 		&& session().settings().archiveCollapsed();
-	return archiveIsCollapsed
-		? (!collapsedHasArchive || _skipByCollapsedRows != 1)
-		: (collapsedHasArchive || _skipByCollapsedRows != 0);
+	const auto archiveIsInMainMenu = (archive != nullptr)
+		&& session().settings().archiveInMainMenu();
+	return archiveIsInMainMenu
+		? (collapsedHasArchive || _skipTopDialogs != 1)
+		: archiveIsCollapsed
+			? (!collapsedHasArchive || _skipTopDialogs != 1)
+			: (collapsedHasArchive || _skipTopDialogs != 0);
 }
 
 void InnerWidget::refresh(bool toTop) {
@@ -2277,27 +2284,27 @@ void InnerWidget::selectSkip(int32 direction) {
 	clearMouseSelection();
 	if (_state == WidgetState::Default) {
 		const auto list = shownDialogs();
-		if (_collapsedRows.empty() && list->size() <= _skipByCollapsedRows) {
+		if (_collapsedRows.empty() && list->size() <= _skipTopDialogs) {
 			return;
 		}
 		if (_collapsedSelected < 0 && !_selected) {
 			if (!_collapsedRows.empty()) {
 				_collapsedSelected = 0;
 			} else {
-				_selected = *(list->cbegin() + _skipByCollapsedRows);
+				_selected = *(list->cbegin() + _skipTopDialogs);
 			}
 		} else {
 			auto cur = (_collapsedSelected >= 0)
 				? _collapsedSelected
 				: int(_collapsedRows.size()
-					+ (list->cfind(_selected) - list->cbegin() - _skipByCollapsedRows));
-			cur = snap(cur + direction, 0, static_cast<int>(_collapsedRows.size() + list->size() - _skipByCollapsedRows - 1));
+					+ (list->cfind(_selected) - list->cbegin() - _skipTopDialogs));
+			cur = snap(cur + direction, 0, static_cast<int>(_collapsedRows.size() + list->size() - _skipTopDialogs - 1));
 			if (cur < _collapsedRows.size()) {
 				_collapsedSelected = cur;
 				_selected = nullptr;
 			} else {
 				_collapsedSelected = -1;
-				_selected = *(list->cbegin() + _skipByCollapsedRows + cur - _collapsedRows.size());
+				_selected = *(list->cbegin() + _skipTopDialogs + cur - _collapsedRows.size());
 			}
 		}
 		if (_collapsedSelected >= 0 || _selected) {
@@ -2391,8 +2398,8 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 	int toSkip = pixels / int(st::dialogsRowHeight);
 	if (_state == WidgetState::Default) {
 		if (!_selected) {
-			if (direction > 0 && shownDialogs()->size() > _skipByCollapsedRows) {
-				_selected = *(shownDialogs()->cbegin() + _skipByCollapsedRows);
+			if (direction > 0 && shownDialogs()->size() > _skipTopDialogs) {
+				_selected = *(shownDialogs()->cbegin() + _skipTopDialogs);
 				_collapsedSelected = -1;
 			} else {
 				return;
@@ -2403,7 +2410,7 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 				_selected = *i;
 			}
 		} else {
-			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (*i)->pos() > _skipByCollapsedRows && (toSkip--);) {
+			for (auto i = shownDialogs()->cfind(_selected), b = shownDialogs()->cbegin(); i != b && (*i)->pos() > _skipTopDialogs && (toSkip--);) {
 				_selected = *(--i);
 			}
 			if (toSkip && !_collapsedRows.empty()) {

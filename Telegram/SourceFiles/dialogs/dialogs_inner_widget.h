@@ -305,7 +305,7 @@ private:
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
 	int _collapsedSelected = -1;
 	int _collapsedPressed = -1;
-	int _skipByCollapsedRows = 0;
+	int _skipTopDialogs = 0;
 	Row *_selected = nullptr;
 	Row *_pressed = nullptr;
 
