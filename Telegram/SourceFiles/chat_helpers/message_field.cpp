@@ -197,9 +197,6 @@ TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 		}
 		++i;
 	}
-	if (!text.text.isEmpty() && !text.text.endsWith('\n')) {
-		text.text.append('\n');
-	}
 	return std::move(text);
 }
 
