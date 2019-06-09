@@ -13,6 +13,7 @@
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "data/data_folder.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
 #include "history/history.h"
@@ -98,6 +99,12 @@ inline bool IsSelfPeer(PeerData *peer) {
 	return (peer && peer->id == Auth().userPeerId());
 }
 
+inline bool IsUserOnline(PeerData *peer) {
+	return peer
+		&& peer->isUser()
+		&& Data::OnlineTextActive(peer->asUser(), unixtime());
+}
+
 inline int UnreadCount(PeerData *peer) {
 	return (peer
 		&& AuthSession::Exists()
@@ -122,11 +129,11 @@ NSString *FormatTime(int time) {
 	return stringTime;
 }
 
-void PaintUnreadBadge(Painter &p, PeerData *peer) {
+bool PaintUnreadBadge(Painter &p, PeerData *peer) {
 	const auto history = Auth().data().history(peer->id);
 	const auto count = history->unreadCountForBadge();
 	if (!count) {
-		return;
+		return false;
 	}
 	const auto unread = history->unreadMark()
 		? QString()
@@ -142,6 +149,29 @@ void PaintUnreadBadge(Painter &p, PeerData *peer) {
 		unreadSt.font->flags(),
 		unreadSt.font->family());
 	Dialogs::Layout::paintUnreadCount(p, unread, kIdealIconSize, kIdealIconSize - unreadSt.size, unreadSt, nullptr, 2);
+	return true;
+}
+
+void PaintOnlineCircle(Painter &p) {
+	PainterHighQualityEnabler hq(p);
+	// Use constant values to draw online badge regardless of cConfigScale().
+	const auto size = 8;
+	const auto paddingSize = 4;
+	const auto circleSize = size + paddingSize;
+	const auto offset = size + paddingSize / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::black);
+	p.drawEllipse(
+		kIdealIconSize - circleSize,
+		kIdealIconSize - circleSize,
+		circleSize,
+		circleSize);
+	p.setBrush(st::dialogsOnlineBadgeFg);
+	p.drawEllipse(
+		kIdealIconSize - offset,
+		kIdealIconSize - offset,
+		size,
+		size);
 }
 
 void SendKeyEvent(int command) {
@@ -238,7 +268,7 @@ void SendKeyEvent(int command) {
 		themeChanged
 	) | rpl::filter([=](const Update &update) {
 		return update.type == Update::Type::ApplyingTheme
-			&& UnreadCount(_peer);
+			&& (UnreadCount(_peer) || IsUserOnline(_peer));
 	}) | rpl::start_with_next([=] {
 		[self updateBadge];
 	}, _lifetime);
@@ -281,6 +311,15 @@ void SendKeyEvent(int command) {
 		_peer,
 		Notify::PeerUpdate::Flag::UnreadViewChanged
 	) | rpl::start_with_next([=] {
+		[self updateBadge];
+	}, _peerChangedLifetime);
+
+	Notify::PeerUpdateViewer(
+		_peer,
+		Notify::PeerUpdate::Flag::UserOnlineChanged
+	) | rpl::filter([=] {
+		return UnreadCount(_peer) == 0;
+	}) | rpl::start_with_next([=] {
 		[self updateBadge];
 	}, _peerChangedLifetime);
 }
@@ -334,9 +373,12 @@ void SendKeyEvent(int command) {
 }
 
 - (void) updateBadge {
+	// Draw unread or online badge.
 	auto pixmap = App::pixmapFromImageInPlace(_userpic.toImage());
 	Painter p(&pixmap);
-	PaintUnreadBadge(p, _peer);
+	if (!PaintUnreadBadge(p, _peer) && IsUserOnline(_peer)) {
+		PaintOnlineCircle(p);
+	}
 	[self updateImage:pixmap];
 }
 
