@@ -360,31 +360,28 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				Auth().supportHelper().editInfo(user);
 			});
 		}
-		if (user->isContact()) {
-			if (!user->isSelf()) {
-				_addAction(
-					lang(lng_info_share_contact),
-					[user] { PeerMenuShareContactBox(user); });
-				_addAction(
-					lang(lng_info_edit_contact),
-					[user] { Ui::show(Box<AddContactBox>(user)); });
-				_addAction(
-					lang(lng_info_delete_contact),
-					[user] { PeerMenuDeleteContact(user); });
-			}
-		} else if (user->canShareThisContact()) {
-			if (!user->isSelf()) {
-				_addAction(
-					lang(lng_info_add_as_contact),
-					[user] { PeerMenuAddContact(user); });
-			}
+		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
+			_addAction(
+				lang(lng_info_add_as_contact),
+				[=] { PeerMenuAddContact(user); });
+		}
+		if (user->canShareThisContact()) {
 			_addAction(
 				lang(lng_info_share_contact),
-				[user] { PeerMenuShareContactBox(user); });
-		} else if (user->botInfo && !user->botInfo->cantJoinGroups) {
+				[=] { PeerMenuShareContactBox(user); });
+		}
+		if (user->isContact() && !user->isSelf()) {
+			_addAction(
+				lang(lng_info_edit_contact),
+				[=] { Ui::show(Box<AddContactBox>(user)); });
+			_addAction(
+				lang(lng_info_delete_contact),
+				[=] { PeerMenuDeleteContact(user); });
+		}
+		if (user->isBot() && !user->botInfo->cantJoinGroups) {
 			_addAction(
 				lang(lng_profile_invite_to_group),
-				[user] { AddBotToGroupBoxController::Start(user); });
+				[=] { AddBotToGroupBoxController::Start(user); });
 		}
 		if (user->canExportChatHistory()) {
 			_addAction(

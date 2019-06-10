@@ -1189,7 +1189,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ban_user" = "Ban User";
 "lng_delete_all_from" = "Delete all from this user";
 "lng_report_spam" = "Report Spam";
-"lng_report_spam_sure" = "Are you sure you want to report spam from this user?";
+"lng_report_spam_and_leave" = "Report spam and leave";
 "lng_report_spam_sure_group" = "Are you sure you want to report spam in this group?";
 "lng_report_spam_sure_channel" = "Are you sure you want to report spam in this channel?";
 "lng_report_spam_ok" = "Report";

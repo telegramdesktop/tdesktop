@@ -54,6 +54,13 @@ void Controller::showSettings() {
 	_widget.showSettings();
 }
 
+void Controller::showBox(
+		object_ptr<BoxContent> content,
+		LayerOptions options,
+		anim::type animated) {
+	_widget.ui_showBox(std::move(content), options, animated);
+}
+
 void Controller::activate() {
 	_widget.activate();
 }

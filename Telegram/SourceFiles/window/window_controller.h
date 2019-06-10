@@ -42,6 +42,16 @@ public:
 
 	void showSettings();
 
+	template <typename BoxType>
+	QPointer<BoxType> show(
+			object_ptr<BoxType> content,
+			LayerOptions options = LayerOption::KeepOther,
+			anim::type animated = anim::type::normal) {
+		const auto result = QPointer<BoxType>(content.data());
+		showBox(std::move(content), options, animated);
+		return result;
+	}
+
 	void activate();
 	void reActivate();
 	void updateIsActive(int timeout);
@@ -53,6 +63,11 @@ public:
 	void tempDirDelete(int task);
 
 private:
+	void showBox(
+		object_ptr<BoxContent> content,
+		LayerOptions options,
+		anim::type animated);
+
 	not_null<Main::Account*> _account;
 	::MainWindow _widget;
 	std::unique_ptr<SessionController> _sessionController;

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Ui {
 class FlatButton;
 class IconButton;
@@ -20,7 +24,10 @@ namespace HistoryView {
 
 class ContactStatus final {
 public:
-	ContactStatus(not_null<Ui::RpWidget*> parent, not_null<PeerData*> peer);
+	ContactStatus(
+		not_null<Window::Controller*> window,
+		not_null<Ui::RpWidget*> parent,
+		not_null<PeerData*> peer);
 
 	void show();
 	void raise();
@@ -72,14 +79,15 @@ private:
 	void setupWidgets(not_null<Ui::RpWidget*> parent);
 	void setupState(not_null<PeerData*> peer);
 	void setupHandlers(not_null<PeerData*> peer);
-	void setupAddHandler(not_null<PeerData*> peer);
-	void setupBlockHandler(not_null<PeerData*> peer);
-	void setupShareHandler(not_null<PeerData*> peer);
+	void setupAddHandler(not_null<UserData*> peer);
+	void setupBlockHandler(not_null<UserData*> peer);
+	void setupShareHandler(not_null<UserData*> peer);
 	void setupReportHandler(not_null<PeerData*> peer);
 	void setupCloseHandler(not_null<PeerData*> peer);
 
 	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
 
+	not_null<Window::Controller*> _window;
 	State _state = State::None;
 	Ui::SlideWrap<Bar> _bar;
 	Ui::PlainShadow _shadow;

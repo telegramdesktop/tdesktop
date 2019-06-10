@@ -154,10 +154,12 @@ rpl::producer<bool> CanShareContactValue(not_null<UserData*> user) {
 
 rpl::producer<bool> CanAddContactValue(not_null<UserData*> user) {
 	using namespace rpl::mappers;
-	return rpl::combine(
-		IsContactValue(user),
-		CanShareContactValue(user),
-		!_1 && _2);
+	if (user->isBot() || user->isSelf()) {
+		return rpl::single(false);
+	}
+	return IsContactValue(
+		user
+	) | rpl::map(!_1);
 }
 
 rpl::producer<bool> AmInChannelValue(not_null<ChannelData*> channel) {

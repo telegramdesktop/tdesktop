@@ -1684,6 +1684,7 @@ void HistoryWidget::showHistory(
 		_canSendMessages = _peer->canWrite();
 		_tabbedSelector->setCurrentPeer(_peer);
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
+			&controller()->window()->controller(),
 			this,
 			_peer);
 		_contactStatus->heightValue() | rpl::start_with_next([=] {
