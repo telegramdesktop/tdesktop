@@ -259,6 +259,10 @@ public:
 	bool isUndoAvailable() const;
 	bool isRedoAvailable() const;
 
+	bool isMarkdownEnabled() const {
+		return _markdownEnabled;
+	}
+
 	using SubmitSettings = InputSubmitSettings;
 	void setSubmitSettings(SubmitSettings settings);
 	static bool ShouldSubmit(

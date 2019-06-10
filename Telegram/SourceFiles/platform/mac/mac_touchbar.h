@@ -27,5 +27,6 @@ enum class TouchBarType {
 - (id _Nonnull) init:(NSView * _Nonnull)view;
 - (void) handleTrackStateChange:(Media::Player::TrackState)state;
 - (void) setTouchBar:(Platform::TouchBarType)type;
+- (void) showInputFieldItems:(bool)show;
 
 @end

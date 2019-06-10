@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/main_window_mac.h"
 
+#include "data/data_session.h"
 #include "styles/style_window.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -16,26 +17,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h" // Account::sessionChanges.
+#include "media/player/media_player_instance.h"
+#include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager_default.h"
 #include "window/themes/window_theme.h"
+#include "platform/mac/mac_touchbar.h"
 #include "platform/platform_notifications_manager.h"
 #include "platform/platform_info.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
 #include "platform/mac/mac_utilities.h"
+#include "ui/widgets/input_fields.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
-
-#include "media/player/media_player_instance.h"
-#include "media/audio/media_audio.h"
-#include "platform/mac/mac_touchbar.h"
-#include "data/data_session.h"
 
 @interface MainWindowObserver : NSObject {
 }
@@ -745,6 +745,7 @@ void MainWindow::updateGlobalMenuHook() {
 	auto focused = QApplication::focusWidget();
 	bool canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
 	auto clipboardHasText = _private->clipboardHasText();
+	auto showTouchBarItem = false;
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
@@ -757,9 +758,17 @@ void MainWindow::updateGlobalMenuHook() {
 		canUndo = edit->document()->isUndoAvailable();
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
+		if (canCopy) {
+			if (const auto inputField = qobject_cast<Ui::InputField*>(focused->parentWidget())) {
+				showTouchBarItem = inputField->isMarkdownEnabled();
+			}
+		}
 	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
+	}
+	if (_private->_touchBar) {
+		[_private->_touchBar showInputFieldItems:showTouchBarItem];
 	}
 	App::wnd()->updateIsActive(0);
 	const auto logged = account().sessionExists();
