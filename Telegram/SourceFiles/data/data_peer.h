@@ -103,6 +103,9 @@ private:
 };
 
 class PeerData {
+private:
+	static constexpr auto kSettingsUnknown = MTPDpeerSettings::Flag(1U << 9);
+
 protected:
 	PeerData(not_null<Data::Session*> owner, PeerId id);
 	PeerData(const PeerData &other) = delete;
@@ -113,7 +116,8 @@ public:
 		| MTPDpeerSettings::Flag::f_report_spam
 		| MTPDpeerSettings::Flag::f_add_contact
 		| MTPDpeerSettings::Flag::f_block_contact
-		| MTPDpeerSettings::Flag::f_share_contact;
+		| MTPDpeerSettings::Flag::f_share_contact
+		| kSettingsUnknown;
 	using Settings = Data::Flags<
 		MTPDpeerSettings::Flags,
 		kEssentialSettings.value()>;
@@ -364,9 +368,6 @@ private:
 
 	crl::time _lastFullUpdate = 0;
 	MsgId _pinnedMessageId = 0;
-
-	static constexpr auto kSettingsUnknown = MTPDpeerSettings::Flag(1U << 9);
-	static_assert(!(kEssentialSettings & kSettingsUnknown));
 
 	Settings _settings = { kSettingsUnknown };
 

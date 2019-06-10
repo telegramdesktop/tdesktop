@@ -164,7 +164,11 @@ QPoint RippleButton::prepareRippleStartPosition() const {
 
 RippleButton::~RippleButton() = default;
 
-FlatButton::FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st) : RippleButton(parent, st.ripple)
+FlatButton::FlatButton(
+	QWidget *parent,
+	const QString &text,
+	const style::FlatButton &st)
+: RippleButton(parent, st.ripple)
 , _text(text)
 , _st(st) {
 	if (_st.width < 0) {
@@ -182,7 +186,7 @@ void FlatButton::setText(const QString &text) {
 	update();
 }
 
-void FlatButton::setWidth(int32 w) {
+void FlatButton::setWidth(int w) {
 	_width = w;
 	if (_width < 0) {
 		_width = textWidth() - _st.width;
@@ -204,8 +208,8 @@ void FlatButton::onStateChanged(State was, StateChangeSource source) {
 void FlatButton::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	QRect r(0, height() - _st.height, width(), _st.height);
-	p.fillRect(r, isOver() ? _st.overBgColor : _st.bgColor);
+	const auto inner = QRect(0, height() - _st.height, width(), _st.height);
+	p.fillRect(inner, isOver() ? _st.overBgColor : _st.bgColor);
 
 	paintRipple(p, 0, 0);
 
@@ -213,8 +217,17 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(isOver() ? _st.overColor : _st.color);
 
-	r.setTop(_st.textTop);
-	p.drawText(r, _text, style::al_top);
+	const auto textRect = inner.marginsRemoved(
+		_textMargins
+	).marginsRemoved(
+		{ 0, _st.textTop, 0, 0 }
+	);
+	p.drawText(textRect, _text, style::al_top);
+}
+
+void FlatButton::setTextMargins(QMargins margins) {
+	_textMargins = margins;
+	update();
 }
 
 RoundButton::RoundButton(QWidget *parent, Fn<QString()> textFactory, const style::RoundButton &st) : RippleButton(parent, st.ripple)

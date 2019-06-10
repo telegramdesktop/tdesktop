@@ -202,6 +202,19 @@ historyUnblock: FlatButton(historyComposeButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFgOver;
 }
+historyContactStatusButton: FlatButton(historyComposeButton) {
+	height: 49px;
+	textTop: 16px;
+	overBgColor: historyComposeButtonBg;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyComposeButtonBgOver;
+	}
+}
+historyContactStatusBlock: FlatButton(historyContactStatusButton) {
+	color: attentionButtonFg;
+	overColor: attentionButtonFg;
+}
+historyContactStatusMinSkip: 16px;
 
 historySendIcon: icon {{ "send_control_send", historySendIconFg }};
 historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};

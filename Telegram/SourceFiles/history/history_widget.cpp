@@ -1686,6 +1686,10 @@ void HistoryWidget::showHistory(
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
 			this,
 			_peer);
+		_contactStatus->heightValue() | rpl::start_with_next([=] {
+			updateControlsGeometry();
+		}, _contactStatus->lifetime());
+		orderWidgets();
 	} else {
 		_contactStatus = nullptr;
 	}
@@ -1847,8 +1851,8 @@ void HistoryWidget::updateNotifyControls() {
 			_silent->setChecked(session().data().notifySilentPosts(_peer));
 		} else if (hasSilentToggle()) {
 			refreshSilentToggle();
-			updateControlsGeometry();
 			updateControlsVisibility();
+			updateControlsGeometry();
 		}
 	}
 }

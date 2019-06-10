@@ -1196,6 +1196,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_block" = "Block user";
 "lng_new_contact_add" = "Add contact";
 "lng_new_contact_share" = "Share my phone number";
+"lng_new_contact_add_name" = "Add {user} to contacts";
 "lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment.\n{more_info}";
 "lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment.\n{more_info}";
 "lng_cant_more_info" = "More info »";

@@ -16,10 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "styles/style_history.h"
-#include "styles/style_info.h"
 
 namespace HistoryView {
 namespace {
+
+QString PeerFirstName(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->firstName;
+	}
+	return QString();
+}
 
 bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	const auto settings = peer->settings();
@@ -109,33 +115,112 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 //	controller()->showBackFromStack();
 //}
 
-ContactStatus::Bar::Bar(QWidget *parent)
+ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 : RpWidget(parent)
-, _block(this, lang(lng_new_contact_block), st::historyUnblock)
-, _add(this, lang(lng_new_contact_add), st::historyComposeButton)
-, _share(this, lang(lng_new_contact_share), st::historyComposeButton)
-, _report(this, lang(lng_report_spam), st::historyUnblock)
-, _close(this, st::infoTopBarClose) {
+, _name(name)
+, _block(
+	this,
+	lang(lng_new_contact_block).toUpper(),
+	st::historyContactStatusBlock)
+, _add(
+	this,
+	lang(lng_new_contact_add).toUpper(),
+	st::historyContactStatusButton)
+, _share(
+	this,
+	lang(lng_new_contact_share).toUpper(),
+	st::historyContactStatusButton)
+, _report(
+	this,
+	lang(lng_report_spam).toUpper(),
+	st::historyContactStatusBlock)
+, _close(this, st::historyReplyCancel) {
 	resize(_close->size());
 }
 
 void ContactStatus::Bar::showState(State state) {
-	_add->setVisible(state == State::BlockOrAdd);
-	_block->setVisible(state == State::BlockOrAdd);
+	_add->setVisible(state == State::AddOrBlock || state == State::Add);
+	_block->setVisible(state == State::AddOrBlock);
 	_share->setVisible(state == State::SharePhoneNumber);
 	_report->setVisible(state == State::ReportSpam);
+	_add->setText((state == State::Add)
+		? lng_new_contact_add_name(lt_user, _name).toUpper()
+		: lang(lng_new_contact_add).toUpper());
+	updateButtonsGeometry();
 }
 
 void ContactStatus::Bar::resizeEvent(QResizeEvent *e) {
 	_close->moveToRight(0, 0);
-	_add->setGeometry(0, 0, width() / 2, height());
-	_block->setGeometry(width() / 2, 0, width() - (width() / 2), height());
-	_share->setGeometry(rect());
-	_report->setGeometry(rect());
+	updateButtonsGeometry();
 }
 
-ContactStatus::ContactStatus(not_null<Ui::RpWidget*> parent, not_null<PeerData*> peer)
-: _bar(parent, object_ptr<Bar>(parent))
+void ContactStatus::Bar::updateButtonsGeometry() {
+	const auto full = width();
+	const auto closeWidth = _close->width();
+	const auto available = full - closeWidth;
+	const auto skip = st::historyContactStatusMinSkip;
+	const auto buttonWidth = [&](const object_ptr<Ui::FlatButton> &button) {
+		return button->textWidth() + 2 * skip;
+	};
+
+	auto accumulatedLeft = 0;
+	const auto placeButton = [&](
+			const object_ptr<Ui::FlatButton> &button,
+			int buttonWidth,
+			int rightTextMargin = 0) {
+		button->setGeometry(accumulatedLeft, 0, buttonWidth, height());
+		button->setTextMargins({ 0, 0, rightTextMargin, 0 });
+		accumulatedLeft += buttonWidth;
+	};
+	const auto placeOne = [&](const object_ptr<Ui::FlatButton> &button) {
+		if (button->isHidden()) {
+			return;
+		}
+		const auto thatWidth = buttonWidth(button);
+		const auto margin = std::clamp(
+			thatWidth + closeWidth - available,
+			0,
+			closeWidth);
+		placeButton(button, full, margin);
+	};
+	if (!_add->isHidden() && !_block->isHidden()) {
+		const auto addWidth = buttonWidth(_add);
+		const auto blockWidth = buttonWidth(_block);
+		const auto half = full / 2;
+		if (addWidth <= half
+			&& blockWidth + 2 * closeWidth <= full - half) {
+			placeButton(_add, half);
+			placeButton(_block, full - half);
+		} else if (addWidth + blockWidth <= available) {
+			const auto margin = std::clamp(
+				addWidth + blockWidth + closeWidth - available,
+				0,
+				closeWidth);
+			const auto realBlockWidth = blockWidth + 2 * closeWidth - margin;
+			if (addWidth > realBlockWidth) {
+				placeButton(_add, addWidth);
+				placeButton(_block, full - addWidth, margin);
+			} else {
+				placeButton(_add, full - realBlockWidth);
+				placeButton(_block, realBlockWidth, margin);
+			}
+		} else {
+			const auto forAdd = (available * addWidth)
+				/ (addWidth + blockWidth);
+			placeButton(_add, forAdd);
+			placeButton(_block, full - forAdd, closeWidth);
+		}
+	} else {
+		placeOne(_add);
+		placeOne(_share);
+		placeOne(_report);
+	}
+}
+
+ContactStatus::ContactStatus(
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> peer)
+: _bar(parent, object_ptr<Bar>(parent, PeerFirstName(peer)))
 , _shadow(parent) {
 	setupWidgets(parent);
 	setupState(peer);
@@ -190,7 +275,7 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 					return State::None;
 				}
 			}
-			return State::BlockOrAdd;
+			return State::AddOrBlock;
 		});
 	}
 
@@ -209,6 +294,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 	PeerState(
 		peer
 	) | rpl::start_with_next([=](State state) {
+		_state = state;
 		if (state == State::None) {
 			_bar.hide(anim::type::normal);
 		} else {

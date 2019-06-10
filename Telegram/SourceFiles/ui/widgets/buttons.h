@@ -69,7 +69,6 @@ protected:
 
 private:
 	void ensureRipple();
-	void handleRipples(bool wasDown, bool wasPress);
 
 	const style::RippleAnimation &_st;
 	std::unique_ptr<RippleAnimation> _ripple;
@@ -83,7 +82,8 @@ public:
 	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
 
 	void setText(const QString &text);
-	void setWidth(int32 w);
+	void setWidth(int w);
+	void setTextMargins(QMargins margins);
 
 	int32 textWidth() const;
 
@@ -93,8 +93,9 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
-	QString _text, _textForAutoSize;
-	int _width;
+	QString _text;
+	QMargins _textMargins;
+	int _width = 0;
 
 	const style::FlatButton &_st;
 

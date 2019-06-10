@@ -29,17 +29,22 @@ public:
 	int height() const;
 	rpl::producer<int> heightValue() const;
 
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 private:
 	enum class State {
 		None,
 		ReportSpam,
-		BlockOrAdd,
+		Add,
+		AddOrBlock,
 		SharePhoneNumber,
 	};
 
 	class Bar : public Ui::RpWidget {
 	public:
-		explicit Bar(QWidget *parent);
+		Bar(QWidget *parent, const QString &name);
 
 		void showState(State state);
 
@@ -47,6 +52,9 @@ private:
 		void resizeEvent(QResizeEvent *e) override;
 
 	private:
+		void updateButtonsGeometry();
+
+		QString _name;
 		object_ptr<Ui::FlatButton> _block;
 		object_ptr<Ui::FlatButton> _add;
 		object_ptr<Ui::FlatButton> _share;
