@@ -46,6 +46,10 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	return false;
 }
 
+auto MapToEmpty() {
+	return rpl::map([] { return rpl::empty_value(); });
+}
+
 } // namespace
 //
 //void HistoryWidget::onReportSpamClicked() {
@@ -118,14 +122,14 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 : RpWidget(parent)
 , _name(name)
-, _block(
-	this,
-	lang(lng_new_contact_block).toUpper(),
-	st::historyContactStatusBlock)
 , _add(
 	this,
 	lang(lng_new_contact_add).toUpper(),
 	st::historyContactStatusButton)
+, _block(
+	this,
+	lang(lng_new_contact_block).toUpper(),
+	st::historyContactStatusBlock)
 , _share(
 	this,
 	lang(lng_new_contact_share).toUpper(),
@@ -147,6 +151,25 @@ void ContactStatus::Bar::showState(State state) {
 		? lng_new_contact_add_name(lt_user, _name).toUpper()
 		: lang(lng_new_contact_add).toUpper());
 	updateButtonsGeometry();
+}
+rpl::producer<> ContactStatus::Bar::addClicks() const {
+	return _add->clicks() | MapToEmpty();
+}
+
+rpl::producer<> ContactStatus::Bar::blockClicks() const {
+	return _block->clicks() | MapToEmpty();
+}
+
+rpl::producer<> ContactStatus::Bar::shareClicks() const {
+	return _share->clicks() | MapToEmpty();
+}
+
+rpl::producer<> ContactStatus::Bar::reportClicks() const {
+	return _report->clicks() | MapToEmpty();
+}
+
+rpl::producer<> ContactStatus::Bar::closeClicks() const {
+	return _close->clicks() | MapToEmpty();
 }
 
 void ContactStatus::Bar::resizeEvent(QResizeEvent *e) {
@@ -224,6 +247,7 @@ ContactStatus::ContactStatus(
 , _shadow(parent) {
 	setupWidgets(parent);
 	setupState(peer);
+	setupHandlers(peer);
 }
 
 void ContactStatus::setupWidgets(not_null<Ui::RpWidget*> parent) {
@@ -274,8 +298,11 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				} else {
 					return State::None;
 				}
+			} else if (settings.value & Setting::f_block_contact) {
+				return State::AddOrBlock;
+			} else {
+				return State::Add;
 			}
-			return State::AddOrBlock;
 		});
 	}
 
@@ -291,6 +318,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 	if (!BarCurrentlyHidden(peer)) {
 		peer->session().api().requestPeerSettings(peer);
 	}
+
 	PeerState(
 		peer
 	) | rpl::start_with_next([=](State state) {
@@ -304,14 +332,46 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 	}, _bar.lifetime());
 }
 
+void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
+	setupAddHandler(peer);
+	setupBlockHandler(peer);
+	setupShareHandler(peer);
+	setupReportHandler(peer);
+	setupCloseHandler(peer);
+}
+
+void ContactStatus::setupAddHandler(not_null<PeerData*> peer) {
+}
+
+void ContactStatus::setupBlockHandler(not_null<PeerData*> peer) {
+}
+
+void ContactStatus::setupShareHandler(not_null<PeerData*> peer) {
+}
+
+void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
+}
+
+void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
+	const auto request = _bar.lifetime().make_state<mtpRequestId>(0);
+	_bar.entity()->closeClicks(
+	) | rpl::filter([=] {
+		return !(*request);
+	}) | rpl::start_with_next([=] {
+		peer->setSettings(0);
+		*request = peer->session().api().request(
+			MTPmessages_HidePeerSettingsBar(peer->input)
+		).send();
+	}, _bar.lifetime());
+}
+
 void ContactStatus::show() {
-	if (_shown) {
-		return;
-	}
-	_shown = true;
 	const auto visible = (_state != State::None);
-	if (visible) {
-		_bar.entity()->showState(_state);
+	if (!_shown) {
+		_shown = true;
+		if (visible) {
+			_bar.entity()->showState(_state);
+		}
 	}
 	_bar.toggle(visible, anim::type::instant);
 }

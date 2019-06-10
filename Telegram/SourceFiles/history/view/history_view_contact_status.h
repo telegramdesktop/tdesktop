@@ -48,6 +48,12 @@ private:
 
 		void showState(State state);
 
+		rpl::producer<> addClicks() const;
+		rpl::producer<> blockClicks() const;
+		rpl::producer<> shareClicks() const;
+		rpl::producer<> reportClicks() const;
+		rpl::producer<> closeClicks() const;
+
 	protected:
 		void resizeEvent(QResizeEvent *e) override;
 
@@ -55,8 +61,8 @@ private:
 		void updateButtonsGeometry();
 
 		QString _name;
-		object_ptr<Ui::FlatButton> _block;
 		object_ptr<Ui::FlatButton> _add;
+		object_ptr<Ui::FlatButton> _block;
 		object_ptr<Ui::FlatButton> _share;
 		object_ptr<Ui::FlatButton> _report;
 		object_ptr<Ui::IconButton> _close;
@@ -65,6 +71,12 @@ private:
 
 	void setupWidgets(not_null<Ui::RpWidget*> parent);
 	void setupState(not_null<PeerData*> peer);
+	void setupHandlers(not_null<PeerData*> peer);
+	void setupAddHandler(not_null<PeerData*> peer);
+	void setupBlockHandler(not_null<PeerData*> peer);
+	void setupShareHandler(not_null<PeerData*> peer);
+	void setupReportHandler(not_null<PeerData*> peer);
+	void setupCloseHandler(not_null<PeerData*> peer);
 
 	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
 
