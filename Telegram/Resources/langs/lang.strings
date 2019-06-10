@@ -77,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_month_year" = "{month} {year}";
 
 "lng_box_ok" = "OK";
+"lng_box_done" = "Done";
 
 "lng_cancel" = "Cancel";
 "lng_continue" = "Continue";
@@ -1409,6 +1410,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_contact_phone" = "Phone Number";
 "lng_enter_contact_data" = "New Contact";
+"lng_contact_mobile_hidden" = "Mobile hidden";
+"lng_contact_phone_after" = "Phone number will be visible once {user} adds you as a contact. Your phone number will become visible to {name}.";
+"lng_contact_phone_show" = "When you click {button}, your phone number will become visible to {user}.";
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";
 "lng_edit_sign_messages" = "Sign messages";

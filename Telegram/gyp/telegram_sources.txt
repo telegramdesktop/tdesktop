@@ -1,5 +1,7 @@
 <(src_loc)/boxes/peers/add_participants_box.cpp
 <(src_loc)/boxes/peers/add_participants_box.h
+<(src_loc)/boxes/peers/add_to_contacts_box.cpp
+<(src_loc)/boxes/peers/add_to_contacts_box.h
 <(src_loc)/boxes/peers/edit_linked_chat_box.cpp
 <(src_loc)/boxes/peers/edit_linked_chat_box.h
 <(src_loc)/boxes/peers/edit_participant_box.cpp

@@ -484,7 +484,7 @@ void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
 		_wrap,
 		Lang::Viewer(lng_info_edit_contact),
 		IsContactValue(user),
-		[user] { Ui::show(Box<AddContactBox>(user)); });
+		[=] { Ui::show(Box<AddContactBox>(user)); });
 }
 
 void ActionsFiller::addDeleteContactAction(

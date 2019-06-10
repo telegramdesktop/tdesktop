@@ -977,3 +977,6 @@ urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 
 linkedChatAbout: membersAbout;
 linkedChatAboutPadding: margins(20px, 20px, 20px, 20px);
+
+addContactFieldMargin: margins(19px, 0px, 19px, 10px);
+addContactWarningMargin: margins(19px, 10px, 19px, 5px);

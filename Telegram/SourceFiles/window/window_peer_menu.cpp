@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/peers/add_participants_box.h"
+#include "boxes/peers/add_to_contacts_box.h"
 #include "ui/toast/toast.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -628,10 +629,7 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 }
 
 void PeerMenuAddContact(not_null<UserData*> user) {
-	Ui::show(Box<AddContactBox>(
-		user->firstName,
-		user->lastName,
-		Auth().data().findContactPhone(user)));
+	Ui::show(Box<AddToContactsBox>(&App::wnd()->controller(), user));
 }
 
 void PeerMenuShareContactBox(not_null<UserData*> user) {

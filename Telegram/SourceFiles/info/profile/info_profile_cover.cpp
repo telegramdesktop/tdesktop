@@ -212,6 +212,18 @@ Cover::Cover(
 	QWidget *parent,
 	not_null<PeerData*> peer,
 	not_null<Window::SessionController*> controller)
+: Cover(parent, peer, controller, NameValue(
+	peer
+) | rpl::map([=](const TextWithEntities &name) {
+	return name.text;
+})) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<PeerData*> peer,
+	not_null<Window::SessionController*> controller,
+	rpl::producer<QString> title)
 : SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop
@@ -240,7 +252,7 @@ Cover::Cover(
 		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 
-	initViewers();
+	initViewers(std::move(title));
 	setupChildGeometry();
 }
 
@@ -270,12 +282,12 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 	return this;
 }
 
-void Cover::initViewers() {
+void Cover::initViewers(rpl::producer<QString> title) {
 	using Flag = Notify::PeerUpdate::Flag;
-	NameValue(
-		_peer
-	) | rpl::start_with_next([=](const TextWithEntities &name) {
-		_name->setText(name.text);
+	std::move(
+		title
+	) | rpl::start_with_next([=](const QString &title) {
+		_name->setText(title);
 		refreshNameGeometry(width());
 	}, lifetime());
 
