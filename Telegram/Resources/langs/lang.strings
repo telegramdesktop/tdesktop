@@ -598,6 +598,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_blocked_list_already_blocked" = "blocked already";
 "lng_blocked_list_about" = "Blocked users can't send you messages or add you to groups. They will not see your profile pictures, online and last seen status.";
 "lng_blocked_list_not_found" = "No users found.";
+"lng_blocked_list_confirm_title" = "Block {name}";
+"lng_blocked_list_confirm_text" = "Do you want to block {name} from messaging and calling you on Telegram?";
+"lng_blocked_list_confirm_clear" = "Delete this chat";
+"lng_blocked_list_confirm_ok" = "Block";
 
 "lng_edit_privacy_everyone" = "Everybody";
 "lng_edit_privacy_contacts" = "My contacts";
@@ -1411,7 +1415,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contact_phone" = "Phone Number";
 "lng_enter_contact_data" = "New Contact";
 "lng_contact_mobile_hidden" = "Mobile hidden";
-"lng_contact_phone_after" = "Phone number will be visible once {user} adds you as a contact. Your phone number will become visible to {name}.";
+"lng_contact_phone_after" = "Phone number will be visible once {user} adds you as a contact. Your phone number will become {visible} to {name}.";
+"lng_contact_phone_visible" = "visible";
 "lng_contact_phone_show" = "When you click {button}, your phone number will become visible to {user}.";
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";

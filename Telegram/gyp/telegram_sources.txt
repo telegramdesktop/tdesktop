@@ -50,6 +50,8 @@
 <(src_loc)/boxes/edit_color_box.h
 <(src_loc)/boxes/edit_privacy_box.cpp
 <(src_loc)/boxes/edit_privacy_box.h
+<(src_loc)/boxes/generic_box.cpp
+<(src_loc)/boxes/generic_box.h
 <(src_loc)/boxes/language_box.cpp
 <(src_loc)/boxes/language_box.h
 <(src_loc)/boxes/local_storage_box.cpp

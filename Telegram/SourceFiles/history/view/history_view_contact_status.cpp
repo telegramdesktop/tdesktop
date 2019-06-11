@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -19,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
+#include "boxes/generic_box.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
@@ -41,7 +44,9 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	}
 	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
-		if (user->isContact()
+		if (user->isBlocked()) {
+			return true;
+		} else if (user->isContact()
 			&& !((*settings) & Setting::f_share_contact)) {
 			return true;
 		}
@@ -53,6 +58,82 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 
 auto MapToEmpty() {
 	return rpl::map([] { return rpl::empty_value(); });
+}
+
+TextWithEntities BoldText(const QString &text) {
+	auto result = TextWithEntities{ text };
+	result.entities.push_back({ EntityType::Bold, 0, text.size() });
+	return result;
+}
+
+void BlockUserBox(
+		not_null<GenericBox*> box,
+		not_null<UserData*> user,
+		not_null<Window::Controller*> window) {
+	using Flag = MTPDpeerSettings::Flag;
+	const auto settings = user->settings().value_or(Flag(0));
+
+	const auto name = user->firstName.isEmpty()
+		? user->lastName
+		: user->firstName;
+
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		rpl::single(
+			lng_blocked_list_confirm_text__generic<TextWithEntities>(
+				lt_name,
+				BoldText(name))),
+		st::blockUserConfirmation));
+
+	box->addSkip(st::boxMediumSkip);
+
+	const auto report = (settings & Flag::f_report_spam)
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			lang(lng_report_spam),
+			true,
+			st::defaultBoxCheckbox))
+		: nullptr;
+
+	if (report) {
+		box->addSkip(st::boxMediumSkip);
+	}
+
+	const auto clear = box->addRow(object_ptr<Ui::Checkbox>(
+		box,
+		lang(lng_blocked_list_confirm_clear),
+		true,
+		st::defaultBoxCheckbox));
+
+	box->addSkip(st::boxLittleSkip);
+
+	box->setTitle([=] {
+		return lng_blocked_list_confirm_title(lt_name, name);
+	});
+
+	box->addButton(langFactory(lng_blocked_list_confirm_ok), [=] {
+		const auto reportChecked = report && report->checked();
+		const auto clearChecked = clear->checked();
+
+		box->closeBox();
+
+		user->session().api().blockUser(user);
+		if (reportChecked) {
+			user->session().api().request(MTPmessages_ReportSpam(
+				user->input
+			)).send();
+		}
+		if (clearChecked) {
+			crl::on_main(&user->session(), [=] {
+				user->session().api().deleteConversation(user, false);
+			});
+			window->sessionController()->showBackFromStack();
+		}
+	}, st::attentionBoxButton);
+
+	box->addButton(langFactory(lng_cancel), [=] {
+		box->closeBox();
+	});
 }
 
 } // namespace
@@ -215,23 +296,31 @@ void ContactStatus::setupWidgets(not_null<Ui::RpWidget*> parent) {
 auto ContactStatus::PeerState(not_null<PeerData*> peer)
 -> rpl::producer<State> {
 	using SettingsChange = PeerData::Settings::Change;
-	using Settings = MTPDpeerSettings::Flags;
 	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
-		using Flags = MTPDuser::Flags;
+		using FullFlagsChange = UserData::FullFlags::Change;
 		using Flag = MTPDuser::Flag;
+		using FullFlag = MTPDuserFull::Flag;
 
 		auto isContactChanges = user->flagsValue(
 		) | rpl::filter([](FlagsChange flags) {
 			return flags.diff
 				& (Flag::f_contact | Flag::f_mutual_contact);
 		});
+		auto isBlockedChanges = user->fullFlagsValue(
+		) | rpl::filter([](FullFlagsChange full) {
+			return full.diff & FullFlag::f_blocked;
+		});
 		return rpl::combine(
 			std::move(isContactChanges),
+			std::move(isBlockedChanges),
 			user->settingsValue()
-		) | rpl::map([=](FlagsChange flags, SettingsChange settings) {
-			if (!settings.value) {
+		) | rpl::map([=](
+				FlagsChange flags,
+				FullFlagsChange full,
+				SettingsChange settings) {
+			if (!settings.value || (full.value & FullFlag::f_blocked)) {
 				return State::None;
 			} else if (user->isContact()) {
 				if (settings.value & Setting::f_share_contact) {
@@ -283,26 +372,28 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 	setupCloseHandler(peer);
 }
 
-void ContactStatus::setupAddHandler(not_null<UserData*> peer) {
+void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 	_bar.entity()->addClicks(
 	) | rpl::start_with_next([=] {
-		Expects(peer->isUser());
-
-		Window::PeerMenuAddContact(peer->asUser());
+		Window::PeerMenuAddContact(user);
 	}, _bar.lifetime());
 }
 
-void ContactStatus::setupBlockHandler(not_null<UserData*> peer) {
+void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
+	_bar.entity()->blockClicks(
+	) | rpl::start_with_next([=] {
+		_window->show(Box<GenericBox>(BlockUserBox, user, _window));
+	}, _bar.lifetime());
 }
 
-void ContactStatus::setupShareHandler(not_null<UserData*> peer) {
+void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	_bar.entity()->shareClicks(
 	) | rpl::start_with_next([=] {
-		peer->setSettings(0);
-		peer->session().api().request(MTPcontacts_AcceptContact(
-			peer->inputUser
+		user->setSettings(0);
+		user->session().api().request(MTPcontacts_AcceptContact(
+			user->inputUser
 		)).done([=](const MTPUpdates &result) {
-			peer->session().api().applyUpdates(result);
+			user->session().api().applyUpdates(result);
 		}).send();
 	}, _bar.lifetime());
 }

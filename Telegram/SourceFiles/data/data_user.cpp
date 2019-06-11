@@ -235,6 +235,11 @@ void UserData::setIsBlocked(bool is) {
 		: BlockStatus::NotBlocked;
 	if (_blockStatus != status) {
 		_blockStatus = status;
+		if (is) {
+			_fullFlags.add(MTPDuserFull::Flag::f_blocked);
+		} else {
+			_fullFlags.remove(MTPDuserFull::Flag::f_blocked);
+		}
 		Notify::peerUpdatedDelayed(this, UpdateFlag::UserIsBlocked);
 	}
 }

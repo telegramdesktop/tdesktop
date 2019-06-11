@@ -79,9 +79,9 @@ private:
 	void setupWidgets(not_null<Ui::RpWidget*> parent);
 	void setupState(not_null<PeerData*> peer);
 	void setupHandlers(not_null<PeerData*> peer);
-	void setupAddHandler(not_null<UserData*> peer);
-	void setupBlockHandler(not_null<UserData*> peer);
-	void setupShareHandler(not_null<UserData*> peer);
+	void setupAddHandler(not_null<UserData*> user);
+	void setupBlockHandler(not_null<UserData*> user);
+	void setupShareHandler(not_null<UserData*> user);
 	void setupReportHandler(not_null<PeerData*> peer);
 	void setupCloseHandler(not_null<PeerData*> peer);
 

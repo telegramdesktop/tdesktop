@@ -173,10 +173,15 @@ void AddToContactsBox::setupWarning(
 	const auto name = _user->firstName.isEmpty()
 		? _user->lastName
 		: _user->firstName;
+	const auto nameWithEntities = TextWithEntities{ name };
 	const auto text = _phone.isEmpty()
-		? TextWithEntities{
-			lng_contact_phone_after(lt_user, name, lt_name, name)
-		}
+		? lng_contact_phone_after__generic<TextWithEntities>(
+			lt_user,
+			nameWithEntities,
+			lt_visible,
+			BoldText(lang(lng_contact_phone_visible)),
+			lt_name,
+			nameWithEntities)
 		: lng_contact_phone_show__generic<TextWithEntities>(
 			lt_button,
 			BoldText(lang(lng_box_done).toUpper()),

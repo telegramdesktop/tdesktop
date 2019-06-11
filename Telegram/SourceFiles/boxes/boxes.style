@@ -90,6 +90,8 @@ boxLayerTitleAdditionalSkip: 9px;
 boxLayerTitleAdditionalFont: normalFont;
 boxLayerScroll: defaultSolidScroll;
 
+boxRowPadding: margins(23px, 0px, 23px, 0px);
+
 boxTopMargin: 6px;
 
 boxTitleClose: IconButton(defaultIconButton) {
@@ -980,3 +982,6 @@ linkedChatAboutPadding: margins(20px, 20px, 20px, 20px);
 
 addContactFieldMargin: margins(19px, 0px, 19px, 10px);
 addContactWarningMargin: margins(19px, 10px, 19px, 5px);
+blockUserConfirmation: FlatLabel(boxLabel) {
+	minWidth: 240px;
+}
